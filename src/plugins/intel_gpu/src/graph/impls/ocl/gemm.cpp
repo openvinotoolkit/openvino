@@ -161,10 +161,19 @@ protected:
             return instance.output_memory_ptr()->fill(stream, {}, false);
         }
 
-        if (need_indirect_load(instance))
+        if (need_indirect_load(instance)) {
+            for (auto& kernel : _kernels_data[default_gemm].kernels) {
+                kernel.skip_execution = true;
+            }
             return execute_stage(events, instance, indirect_gemm);
-        else
+        } else {
+            if (_kernels_data.size() == 2) {
+                for (auto& kernel : _kernels_data[indirect_gemm].kernels) {
+                    kernel.skip_execution = true;
+                }
+            }
             return execute_stage(events, instance, default_gemm);
+        }
     }
 
 public:

@@ -234,22 +234,27 @@ void dump_graph_init(std::ofstream& graph,
 #pragma clang diagnostic ignored "-Wpotentially-evaluated-expression"
 #endif
         std::string node_type_name = node->get_primitive()->type_string();
+        const auto& inst = get_primitive_inst ? get_primitive_inst(node->id()) : nullptr;
         graph << "    " << get_node_id(node) << "[label=\"" << node->id() << ":"
               << "\\ntype: " << node_type_name
               << "\\nprocessing number: " << program.get_processing_order().get_processing_number(node)
               << "\\n color:" << (node->is_reusing_memory() ? std::to_string(node->get_reused_memory_color()) : "none")
-              << (((get_primitive_inst) ? get_primitive_inst(node->id())->can_be_optimized() : node->can_be_optimized()) ? "\\n optimized out" : "");
+              << ((inst ? inst->can_be_optimized() : node->can_be_optimized()) ? "\\n optimized out" : "");
 
         if (!node->is_type<data>()) {
-            graph << "\\n Selected kernel: "
-                  << (node->get_selected_impl() == nullptr ? "none"
-                        : (node->get_preferred_impl_type() == impl_types::ocl && node->get_selected_impl()->get_kernels_dump_info().second.size())
-                        ?  node->get_selected_impl()->get_kernels_dump_info().second
-                        : node->get_selected_impl()->get_kernel_name()) + " / "
-                  << node->get_preferred_impl_type();
-            if (node->get_selected_impl()) {
-                auto dump_info = node->get_selected_impl()->get_kernels_dump_info();
-                if (dump_info.first.size()) {
+            graph << "\\n Selected kernel: ";
+            if (node->get_selected_impl() == nullptr) {
+                graph << "none";
+            } else {
+                const auto& dump_info = node->get_selected_impl()->get_kernels_dump_info(inst);
+                if (!dump_info.second.empty()) {
+                    graph << dump_info.second;
+                } else {
+                    graph << node->get_selected_impl()->get_kernel_name();
+                }
+                graph << " / " << node->get_preferred_impl_type();
+
+                if (!dump_info.first.empty()) {
                     graph << "\\n batch_hash : " << dump_info.first;
                 }
             }

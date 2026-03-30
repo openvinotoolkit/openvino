@@ -134,14 +134,9 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
 
     void init_kernels(const cldnn::kernels_cache& kernels_cache, const RuntimeParams& params) override {
         auto compiled_kernels = kernels_cache.get_kernels(params);
-        kernel_dump_info = std::make_pair(std::to_string(kernels_cache.get_kernel_batch_hash(params)), "");
+        kernel_dump_info.first = std::to_string(kernels_cache.get_kernel_batch_hash(params));
         for (size_t i = 0; i < _order.size(); i++) {
             _stages[_order[i]]->kernel = compiled_kernels[i];
-            if (i == 0) {
-                kernel_dump_info.second += _stages[_order[i]]->kd.code->entry_point;
-            } else {
-                kernel_dump_info.second += " " + _stages[_order[i]]->kd.code->entry_point;
-            }
         }
     }
 
@@ -321,8 +316,23 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         }
     }
 
-    std::pair<std::string, std::string> get_kernels_dump_info() const override {
-        return kernel_dump_info;
+    std::pair<std::string, std::string> get_kernels_dump_info(std::shared_ptr<const cldnn::primitive_inst> instance = nullptr) const override {
+        std::string entry_points;
+        const auto& updated_order = instance && !instance->get_impl_params()->is_dynamic() ? get_stages_execution_order(*instance.get()) : _order;
+
+        for (size_t i = 0; i < updated_order.size(); ++i) {
+            const auto& stage = _stages[updated_order[i]];
+            if (i != 0) {
+                entry_points += " ";
+            }
+
+            if (stage->kd.code) {
+                entry_points += stage->kd.code->entry_point;
+            } else if (stage->kernel) {
+                entry_points += stage->kernel->get_id();
+            }
+        }
+        return {kernel_dump_info.first, entry_points};
     }
 };
 

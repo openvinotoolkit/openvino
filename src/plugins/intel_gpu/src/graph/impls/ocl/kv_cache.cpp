@@ -89,7 +89,7 @@ struct stages_helper {
     std::optional<size_t> try_get_index(kv_stage stage) const noexcept {
         if (const auto it = std::find(stages.begin(), stages.end(), stage); it != stages.end()) {
             return static_cast<size_t>(std::distance(stages.begin(), it));
-        } 
+        }
         return {};
     }
 
@@ -119,7 +119,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
     kv_cache_impl() {}
 
-    kv_cache_impl(const kv_cache_impl& other) 
+    kv_cache_impl(const kv_cache_impl& other)
         : parent(other)
         , stages(other.stages) {
     }
@@ -160,7 +160,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             auto& concat_kernel_selector = kernel_selector_t::Instance();
             auto concat_kernel_impl = concat_kernel_selector.GetImplementation(_kernels_data[concat_stage].kernelName);
             concat_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[concat_stage]);
-            
+
             if (const auto beam_table_stage = stages.try_get_index(kv_stage::beam_table)) {
                 auto& bt_kernel_selector = bt_kernel_selector_t::Instance();
                 auto bt_kernel_impl = bt_kernel_selector.GetImplementation(_kernels_data[*beam_table_stage].kernelName);
@@ -317,6 +317,12 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
             execute_stage(events, instance, res_events, beam_table_stage);
             beam_table_state->set();
+        } else if (desc->indirect) {
+            // Explicitly mark that kernels will not be executed for more accurate results kernels_dump_info
+            const auto beam_table_stage = stages.get_index(kv_stage::beam_table);
+            for (auto& kernel : _kernels_data[beam_table_stage].kernels) {
+                kernel.skip_execution = true;
+            }
         }
 
         if (desc->compressed) {
@@ -400,23 +406,23 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         auto inputs_count = 3;
 
         params.inputs.resize(inputs_count);
-        params.inputs[0] = convert_data_tensor(impl_param.input_layouts[0], tensor()); 
-        params.inputs[1] = convert_data_tensor(impl_param.input_layouts[3], tensor());  
+        params.inputs[0] = convert_data_tensor(impl_param.input_layouts[0], tensor());
+        params.inputs[1] = convert_data_tensor(impl_param.input_layouts[3], tensor());
         params.inputs[2] = convert_data_tensor(impl_param.input_layouts[4], tensor());
         params.outputs[0] = convert_data_tensor(impl_param.output_layouts[0], tensor());
-        
+
         params.axis = kernel_selector::scatter_update_axis::Y;                   // always update axis 2 which is KV seq_len dimension
-        params.mode = kernel_selector::ScatterUpdateReduction::NONE;  
-        params.use_init_val = true;  
+        params.mode = kernel_selector::ScatterUpdateReduction::NONE;
+        params.use_init_val = true;
 
         const auto& in_offsets_map = impl_param.in_port_to_shape_info_offset;    // [kv_past, kv_new_token, [beam_idx], past_seq_len, dst_idx, update_data]
         std::map<size_t, size_t> in_tensor_to_offset_map = {
-            {0, in_offsets_map.at(0)}, 
-            {1, in_offsets_map.at(3)},  
+            {0, in_offsets_map.at(0)},
+            {1, in_offsets_map.at(3)},
             {2, in_offsets_map.at(4)},
         };
         std::map<size_t, size_t> out_tensor_to_offset_map = {
-            {0, in_offsets_map.at(0)}, 
+            {0, in_offsets_map.at(0)},
         };
 
         params.set_dynamic_shape_offsets(in_tensor_to_offset_map, out_tensor_to_offset_map);

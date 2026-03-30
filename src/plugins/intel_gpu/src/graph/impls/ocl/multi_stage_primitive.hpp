@@ -117,11 +117,7 @@ protected:
                                                                       "Expected: ", total_kernels, "\n"
                                                                       "Got: ", compiled_kernels.size());
             _kernels.insert(_kernels.begin(), compiled_kernels.begin(), compiled_kernels.end());
-            // batch program hash and kernel entry point to find corresponding cl source code
-            kernel_dump_info = std::make_pair(std::to_string(kernels_cache.get_kernel_batch_hash(params)),
-                                              _kernels_data[0].kernels[0].code.kernelString->entry_point);
-            for (size_t i = 1; i < _kernels_data[0].kernels.size(); ++i)
-                kernel_dump_info.second += " " + _kernels_data[0].kernels[i].code.kernelString->entry_point;
+            kernel_dump_info.first = std::to_string(kernels_cache.get_kernel_batch_hash(params));
         }
         this->can_share_kernels = kernels_cache.get_kernels_reuse();
     }
@@ -229,8 +225,29 @@ protected:
         }
     }
 
-    std::pair<std::string, std::string> get_kernels_dump_info() const override {
-        return kernel_dump_info;
+    std::pair<std::string, std::string> get_kernels_dump_info(std::shared_ptr<const cldnn::primitive_inst> instance = nullptr) const override {
+        std::string entry_points;
+        size_t kernel_idx = 0;
+
+        for (size_t stage = 0; stage < _kernels_data.size(); stage++) {
+            for (size_t kd_idx = 0; kd_idx < _kernels_data[stage].kernels.size(); kd_idx++, kernel_idx++) {
+                if (_kernels_data[stage].kernels[kd_idx].skip_execution) {
+                    continue;
+                }
+
+                if (!entry_points.empty()) {
+                    entry_points += " ";
+                }
+
+                if (_kernels_data[stage].kernels[kd_idx].code.kernelString) {
+                    entry_points += _kernels_data[stage].kernels[kd_idx].code.kernelString->entry_point;
+                } else if (kernel_idx < _kernels.size() && _kernels[kernel_idx]) {
+                    entry_points += _kernels[kernel_idx]->get_id();
+                }
+            }
+        }
+
+        return {kernel_dump_info.first, entry_points};
     }
 
     virtual void update_dispatch_data(const kernel_impl_params& impl_params) {
