@@ -19,21 +19,7 @@
             "source": [
                 "const path = require('node:path');\nconst { display } = require('node-kernel');\nconst tf = require('@tensorflow/tfjs-node');\nconst { addon: ov } = require('openvino-node');\n\nconst { transform } = require('../helpers.js');\nconst Image = require('../image');\n"
             ],
-            "outputs": [
-                {
-                    "items": [
-                        {
-                            "mime": "application/vnd.code.notebook.stderr",
-                            "value": [
-                                "2024-11-04 17:09:35.860051: I tensorflow/core/util/util.cc:169] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.",
-                                "2024-11-04 17:09:35.872537: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX_VNNI FMA",
-                                "To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.",
-                                ""
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "outputs": []
         },
         {
             "language": "markdown",
@@ -82,7 +68,7 @@
         {
             "language": "typescript",
             "source": [
-                "// Utility function to get the coordinates of the maximum value in a tensor\nfunction getCoords(tensor) {\n  const { values, indices } = tf.topk(tensor.flatten(), 1);\n  const [maxVal] = values.dataSync();\n  const [maxIndex] = indices.dataSync();\n  const x = maxIndex % tensor.shape[1];\n  const y = Math.floor(maxIndex / tensor.shape[1]);\n\n  return { x, y, confidence: maxVal };\n}\n\n// Draw keypoints on the input image\nfunction drawKeypoints(image, keypoints) {\n  let modifiedImage = image;\n\n  keypoints.forEach(keypoint => {\n    if (keypoint.confidence < THRESHOLD) return;\n\n    modifiedImage = modifiedImage.drawCircle(\n      keypoint.x,\n      keypoint.y,\n      4,\n      { color: COLOR, width: 3 },\n    );\n  });\n\n  return modifiedImage;\n}\n\n// Draw skeleton (lines between keypoints) on the input image\nfunction drawSkeleton(image, keypoints) {\n  const skeleton = [\n    [1, 2], [1, 5], [2, 3], [3, 4], [5, 6], [6, 7], [1, 8], [8, 9], [9, 10],\n    [1, 11], [11, 12], [12, 13], [1, 0], [0, 14], [14, 16], [0, 15], [15, 17],\n  ];\n\n  let modifiedImage = image;\n  skeleton.forEach(([start, end]) => {\n    const startPoint = keypoints[start];\n    const endPoint = keypoints[end];\n\n    if (startPoint.confidence < THRESHOLD\n      || endPoint.confidence < THRESHOLD) return;\n\n    modifiedImage = modifiedImage.drawLine(\n      startPoint.x,\n      startPoint.y,\n      endPoint.x,\n      endPoint.y,\n      { color: COLOR, width: 3 },\n    );\n  });\n\n  return modifiedImage;\n}\n\nfunction toTFTensor(ovTensor) {\n  return tf.tensor(ovTensor.data, ovTensor.getShape());\n}"
+                "// Utility function to get the coordinates of the maximum value in a ov.Tensor\nfunction getCoords(heatmapTensor) {\n    const shape = heatmapTensor.getShape();\n\n    if (shape.length !== 4 || shape[0] !== 1)\n        throw new Error(`Expected heatmaps shape [1, C, H, W], got [${shape.join(', ')}]`);\n\n    const [_batch, channels, heatmapHeight, heatmapWidth] = shape;\n    const heatmapsData = heatmapTensor.data;\n    const heatmapSize = heatmapWidth * heatmapHeight;\n    const coords = [];\n\n    for (let channel = 0; channel < channels; channel++) {\n        let maxVal = Number.NEGATIVE_INFINITY;\n        let maxIndex = 0;\n        const channelOffset = channel * heatmapSize;\n\n        for (let index = 0; index < heatmapSize; index++) {\n            const value = heatmapsData[channelOffset + index];\n\n            if (value > maxVal) {\n                maxVal = value;\n                maxIndex = index;\n            }\n        }\n\n        const x = maxIndex % heatmapWidth;\n        const y = Math.floor(maxIndex / heatmapWidth);\n        coords.push({ x, y, confidence: maxVal });\n    }\n\n    return coords;\n}\n\n\n// Draw keypoints on the input image\nfunction drawKeypoints(image, keypoints) {\n  let modifiedImage = image;\n\n  keypoints.forEach(keypoint => {\n    if (keypoint.confidence < THRESHOLD) return;\n\n    modifiedImage = modifiedImage.drawCircle(\n      keypoint.x,\n      keypoint.y,\n      4,\n      { color: COLOR, width: 3 },\n    );\n  });\n\n  return modifiedImage;\n}\n\n// Draw skeleton (lines between keypoints) on the input image\nfunction drawSkeleton(image, keypoints) {\n  const skeleton = [\n    [1, 2], [1, 5], [2, 3], [3, 4], [5, 6], [6, 7], [1, 8], [8, 9], [9, 10],\n    [1, 11], [11, 12], [12, 13], [1, 0], [0, 14], [14, 16], [0, 15], [15, 17],\n  ];\n\n  let modifiedImage = image;\n  skeleton.forEach(([start, end]) => {\n    const startPoint = keypoints[start];\n    const endPoint = keypoints[end];\n\n    if (startPoint.confidence < THRESHOLD\n      || endPoint.confidence < THRESHOLD) return;\n\n    modifiedImage = modifiedImage.drawLine(\n      startPoint.x,\n      startPoint.y,\n      endPoint.x,\n      endPoint.y,\n      { color: COLOR, width: 3 },\n    );\n  });\n\n  return modifiedImage;\n}\n\nfunction toTFTensor(ovTensor) {\n  return tf.tensor(ovTensor.data, ovTensor.getShape());\n}"
             ],
             "outputs": []
         },
@@ -110,21 +96,9 @@
         {
             "language": "typescript",
             "source": [
-                "try {\n  const [N, C, heatmapHeight, heatmapWidth] = heatmaps.getShape();\n\n  // Define constants\n  const numKeypoints = 18;\n\n  // Extract keypoints from heatmaps\n  let keypoints = [];\n  const heatmapsTFTensors = toTFTensor(heatmaps);\n  const xCoef = img.width / heatmapWidth;\n  const yCoef = img.height / heatmapHeight;\n\n  for (let i = 0; i < numKeypoints; i++) {\n    const heatmap = heatmapsTFTensors.slice(\n      [0, i, 0, 0],\n      [1, 1, heatmapHeight, heatmapWidth]).squeeze();\n\n    const { x, y, confidence } = getCoords(heatmap);\n\n    keypoints.push({\n      x: x * xCoef,\n      y: y * yCoef,\n      confidence,\n    });\n  }\n\n  let imgWithKeypoints = drawKeypoints(img, keypoints);\n  imgWithKeypoints = drawSkeleton(imgWithKeypoints, keypoints);\n\n  imgWithKeypoints.display(display);\n} catch(e) {\n  console.log(e);\n}"
+                "try {\n  const [N, C, heatmapHeight, heatmapWidth] = heatmaps.getShape();\n\n  // Define constants\n  const numKeypoints = 18;\n  const xCoef = img.width / heatmapWidth;\n  const yCoef = img.height / heatmapHeight;\n\n  // Extract keypoints from heatmaps\n  const keypoints = getCoords(heatmaps)\n        .slice(0, numKeypoints)\n        .map(({ x, y, confidence }) => ({\n            x: x * xCoef,\n            y: y * yCoef,\n            confidence,\n        }));\n\n  let imgWithKeypoints = drawKeypoints(img, keypoints);\n  imgWithKeypoints = drawSkeleton(imgWithKeypoints, keypoints);\n\n  imgWithKeypoints.display(display);\n} catch(e) {\n  console.log(e);\n}"
             ],
             "outputs": [
-                {
-                    "items": [
-                        {
-                            "mime": "application/vnd.code.notebook.stderr",
-                            "value": [
-                                "(node:3778163) [DEP0051] DeprecationWarning: The `util.isNullOrUndefined` API is deprecated. Please use `arg === null || arg === undefined` instead.",
-                                "(Use `node --trace-deprecation ...` to show where the warning was created)",
-                                ""
-                            ]
-                        }
-                    ]
-                },
                 {
                     "items": [
                         {

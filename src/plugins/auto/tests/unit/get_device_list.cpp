@@ -35,7 +35,7 @@ public:
         ON_CALL(*plugin, get_device_list)
             .WillByDefault([this](ov::AnyMap& config,
                                   const std::shared_ptr<const ov::Model>& model,
-                                  const std::string& model_path) {
+                                  const std::filesystem::path& model_path) {
                 return plugin->Plugin::get_device_list(config);
             });
     }

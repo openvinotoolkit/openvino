@@ -699,9 +699,11 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
             auto reshape_axis = crop_axis;
             if (reshape_mode == reshape::reshape_mode::base) {
                 if (crop_axis == 0 && !crop_layout.get_partial_shape()[0].is_dynamic() &&
-                    crop_layout.get_partial_shape()[0].get_length() == 1) {
-                    // The crop produces exactly batch=1 per slice.
-                    // The reshape absorbs that dim, so the padding axis in the output remains 0.
+                    crop_layout.get_partial_shape()[0].get_length() == 1 &&
+                    !reshape_desc->output_pattern.empty() &&
+                    reshape_desc->output_pattern[0] != 0 && reshape_desc->output_pattern[0] != 1) {
+                    // The crop produces exactly batch=1 per slice and the reshape squeezes that dim.
+                    // output_pattern[0] == -1 means the batch dim is absorbed (squeezed).
                     reshape_axis = 0;
                 } else {
                     auto mul = 1;
@@ -764,9 +766,11 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                 std::vector<ov::Dimension::value_type> reshape_upper_sizes(output_rank, 0);
                 padding::DynamicDimsMask reshape_dyn_pad_mask;
 
-                if (crop_axis == 0 && crop_dim_val == 1) {
-                    // The crop splits on the batch axis with exactly batch=1 per slice.
-                    // The reshape squeezes that batch=1 dim: [1, f, y, x] -> [f, y, x].
+                if (crop_axis == 0 && crop_dim_val == 1 &&
+                    !reshape_desc->output_pattern.empty() &&
+                    reshape_desc->output_pattern[0] != 0 && reshape_desc->output_pattern[0] != 1) {
+                    // The crop splits on the batch axis with exactly batch=1 per slice
+                    // and the reshape squeezes that batch=1 dim: [1, f, y, x] -> [f, y, x].
                     // Padding offsets are in units of one 4D batch slice (= f*y*x elements),
                     // but the 3D output counts elements at axis 0 directly, so multiply by f.
                     const auto batch_stride_factor = reshape_ps[0].get_length();
