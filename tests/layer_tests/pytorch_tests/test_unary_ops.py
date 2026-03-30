@@ -194,7 +194,7 @@ class TestUnaryOp(PytorchLayerTest):
             pytest.xfail(reason="torch.export after 2.4.0 doesn't support unsigned int types for atanh in some configurations")
         self._test(unary_op_net(OPS[op_type], dtype), op_type,
                    ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"unit_range": op_type == "aten::atanh"})
+                   kwargs_to_prepare_input={"unit_range": op_type in ("aten::atanh", "aten::erfinv")})
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -283,7 +283,7 @@ class TestUnaryOp(PytorchLayerTest):
         self.dtype = dtype
         self._test(unary_op_out_net(OPS[op_type], dtype), op_type,
                    ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"unit_range": op_type == "aten::atanh"})
+                   kwargs_to_prepare_input={"unit_range": op_type in ("aten::atanh", "aten::erfinv")})
 
     @pytest.mark.nightly
     @pytest.mark.precommit
