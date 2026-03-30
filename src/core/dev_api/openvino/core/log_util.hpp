@@ -521,14 +521,14 @@ bool is_verbose_logging();
         } while (0);
 
 // pattern/op/block.cpp
-#    define OPENVINO_LOG_BLOCK1(matcher, block_name)                                             \
-        do {                                                                                     \
-            OPENVINO_LOG_MATCHING(matcher,                                                       \
-                                  ov::util::LevelString::get()++,                                \
-                                  OPENVINO_BLOCK_BODY_RIGHT,                                     \
-                                  " ENTERING BLOCK \"",                                         \
-                                  block_name,                                                    \
-                                  "\":");                                                        \
+#    define OPENVINO_LOG_BLOCK1(matcher, block_name)              \
+        do {                                                      \
+            OPENVINO_LOG_MATCHING(matcher,                        \
+                                  ov::util::LevelString::get()++, \
+                                  OPENVINO_BLOCK_BODY_RIGHT,      \
+                                  " ENTERING BLOCK \"",           \
+                                  block_name,                     \
+                                  "\":");                         \
         } while (0);
 
 #    define OPENVINO_LOG_BLOCK2(matcher, block_name)                                             \
