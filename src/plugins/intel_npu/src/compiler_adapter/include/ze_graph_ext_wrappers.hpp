@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <ze_api.h>
 #include <ze_graph_ext.h>
 
 #include <memory>
