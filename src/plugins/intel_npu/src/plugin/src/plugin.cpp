@@ -251,6 +251,9 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
     REGISTER_OPTION(TURBO);
     REGISTER_OPTION(ENABLE_WEIGHTLESS);
+    // WEIGHTLESS_BLOB will be removed in the future
+    // it still needs to be registered for backward compatibility
+    REGISTER_OPTION(WEIGHTLESS_BLOB);
     REGISTER_OPTION(SEPARATE_WEIGHTS_VERSION);
     REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
     REGISTER_OPTION(MODEL_SERIALIZER_VERSION);
