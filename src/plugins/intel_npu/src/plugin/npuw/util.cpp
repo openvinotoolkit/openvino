@@ -914,13 +914,13 @@ void ov::npuw::util::fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fi
 
 bool ov::npuw::util::isPastKeyParam(const std::string& str) {
     // Match any past key param: contiguous or block-split (e.g. key_block_3, key_block_tail).
-    static const std::regex pattern(R"(past_key_values\.\d+\.key(_block_(\d+|tail))?)" );
+    static const std::regex pattern(R"(past_key_values\.\d+\.key(_block_(\d+|tail))?)");
     return std::regex_match(str, pattern);
 }
 
 bool ov::npuw::util::isPastValueParam(const std::string& str) {
     // Match any past value param: contiguous or block-split.
-    static const std::regex pattern(R"(past_key_values\.\d+\.value(_block_(\d+|tail))?)" );
+    static const std::regex pattern(R"(past_key_values\.\d+\.value(_block_(\d+|tail))?)");
     return std::regex_match(str, pattern);
 }
 
