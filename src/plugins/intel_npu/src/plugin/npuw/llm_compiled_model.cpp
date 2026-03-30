@@ -1783,16 +1783,28 @@ std::map<ov::Output<const ov::Node>, std::size_t> find_other_outputs_with_seqdim
             const auto& port = *it;
             const auto& static_shape = port.get_partial_shape();
             OPENVINO_ASSERT(static_shape.is_static() && "Model should have static shape at this point");
-            for (const auto& dyn_dim : dynamic_dims) {
-                if (static_shape[dyn_dim] == static_seqdim_value) {
-                    other_outputs_with_seqdim.emplace(port, dyn_dim);
-                    // NB: Assuming only one dynamic dimension can match the sequence length, break after finding the
-                    //     first match.
-                    //     Batch size is expected to be always 1, so it won't be equal to the max sequence length in the
-                    //     prefill model.
-                    break;
+
+            auto matched_dyn_dim = dynamic_dims.front();
+            std::size_t match_count = 0;
+            // NB: Only one previous dynamic dimension will be reshaped to the stated sequence length.
+            //     Batch size has been also a dynamic dimension prevously, but it is expected to be
+            //     reshaped to 1, so it won't be equal to the max sequence length in the prefill model.
+            for (const auto& dim : dynamic_dims) {
+                if (static_shape[dim] == static_seqdim_value) {
+                    matched_dyn_dim = dim;
+                    ++match_count;
                 }
             }
+            // Assert that only one match is found:
+            OPENVINO_ASSERT(match_count == 1,
+                            "Only one dynamic dimension is expected to be reshaped to the max sequence length, but "
+                            "found " +
+                                std::to_string(match_count) + " matches for output port: " + port.get_any_name());
+            other_outputs_with_seqdim.emplace(port, matched_dyn_dim);
+        } else {
+            LOG_VERB("[WARN] Output port with name: " << name
+                                                      << " was marked as dynamic additional output to the \"logits\","
+                                                         "but it wasn't found in outputs of prefill model!");
         }
     }
     return other_outputs_with_seqdim;
