@@ -160,6 +160,16 @@ jobs:
       - name: Set SSL_CERT_FILE for model downloading for unit tests
         run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
+      - name: Install CMake 4.3
+        run: |
+          $cmakeUrl = "https://cmake.org/files/v4.3/cmake-4.3.0-windows-x86_64.zip"
+          Invoke-WebRequest -Uri $cmakeUrl -OutFile cmake.zip
+          Expand-Archive -Path cmake.zip -DestinationPath C:\cmake
+          Remove-Item cmake.zip
+          echo "C:\cmake\cmake-4.3.0-windows-x86_64\bin" >> $env:GITHUB_PATH
+          $env:PATH = "C:\cmake\cmake-4.3.0-windows-x86_64\bin;$env:PATH"
+          cmake --version
+
       - name: CMake configure
         env:
           CMAKE_OPTIONS: ${{ inputs.cmake-options }}

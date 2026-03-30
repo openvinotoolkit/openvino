@@ -178,6 +178,15 @@ jobs:
           save_to: ${{ github.workspace }}/${{ env.MANIFEST_FILE }}
           trigger_repo_branch: ${{ inputs.target-branch }}
 
+      - name: Install CMake 4.3
+        run: |
+          wget -q https://cmake.org/files/v4.3/cmake-4.3.0-macos-universal.tar.gz
+          tar -xzf cmake-4.3.0-macos-universal.tar.gz
+          sudo cp -R cmake-4.3.0-macos-universal/CMake.app/Contents/bin/* /usr/local/bin/
+          sudo cp -R cmake-4.3.0-macos-universal/CMake.app/Contents/share/* /usr/local/share/
+          rm -rf cmake-4.3.0-macos-universal cmake-4.3.0-macos-universal.tar.gz
+          cmake --version
+
       - name: CMake configure
         run: |
           cmake \

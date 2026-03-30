@@ -201,6 +201,13 @@ jobs:
       # Build
       #
 
+      - name: Install CMake 4.3
+        run: |
+          wget -q https://cmake.org/files/v4.3/cmake-4.3.0-linux-x86_64.sh
+          sh cmake-4.3.0-linux-x86_64.sh --skip-license --prefix=/usr/local
+          rm cmake-4.3.0-linux-x86_64.sh
+          cmake --version
+
       - name: CMake configure - OpenVINO
         run: eval cmake ${{ env.CMAKE_OPTIONS }} -S ${{ env.OPENVINO_REPO }} -B ${{ env. BUILD_DIR }}
         env:

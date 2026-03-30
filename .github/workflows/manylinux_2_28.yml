@@ -167,6 +167,13 @@ jobs:
           save_to: ${{ env.MANIFEST_PATH }}
           trigger_repo_branch: ${{ inputs.target-branch }}
 
+      - name: Install CMake 4.3
+        run: |
+          wget -q https://cmake.org/files/v4.3/cmake-4.3.0-linux-x86_64.sh
+          sh cmake-4.3.0-linux-x86_64.sh --skip-license --prefix=/usr
+          rm cmake-4.3.0-linux-x86_64.sh
+          /usr/bin/cmake --version
+
       - name: Build OpenVINO
         run: |
           python3.12 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
