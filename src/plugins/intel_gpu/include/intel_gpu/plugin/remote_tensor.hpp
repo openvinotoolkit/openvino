@@ -10,7 +10,6 @@
 
 #include <optional>
 
-
 // Do not include DirectX / VA wrappers when running with L0 runtime as they depend on OCL
 #ifndef OV_GPU_WITH_ZE_RT
 #ifdef _WIN32
@@ -19,7 +18,6 @@
 # include <openvino/runtime/intel_gpu/ocl/va.hpp>
 #endif
 #endif
-#include "openvino/runtime/intel_gpu/remote_properties.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 
 #include "intel_gpu/runtime/memory_caps.hpp"
@@ -43,8 +41,7 @@ public:
                      TensorType mem_type = TensorType::BT_BUF_INTERNAL,
                      cldnn::shared_handle mem = nullptr,
                      cldnn::shared_surface surf = 0,
-                     uint32_t plane = 0,
-                     const std::optional<ov::intel_gpu::FileDescriptor>& file_descriptor = std::nullopt);
+                     uint32_t plane = 0);
 
     ~RemoteTensorImpl() override;
     const AnyMap& get_properties() const override;
@@ -73,6 +70,7 @@ public:
     std::shared_ptr<RemoteContextImpl> get_context() const;
 
 private:
+    void acquire_external_mem_if_needed();
     void release_external_mem_if_needed() noexcept;
 
     std::shared_ptr<RemoteContextImpl> m_context;
@@ -90,7 +88,6 @@ private:
     cldnn::shared_surface m_surf;
     uint32_t m_plane;
     size_t m_hash = 0;
-    std::optional<ov::intel_gpu::FileDescriptor> m_file_descriptor;
     cldnn::shared_handle m_acquired_external_mem = nullptr;
     bool m_external_mem_acquired = false;
 
@@ -98,7 +95,6 @@ private:
     void update_hash();
     void update_strides();
     void update_properties();
-    void copy_file_data_to_memory(size_t size_to_read);
 
     static TensorType allocation_type_to_tensor_type(cldnn::allocation_type t);
 };

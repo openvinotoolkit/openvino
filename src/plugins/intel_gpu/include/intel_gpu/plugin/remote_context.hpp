@@ -62,7 +62,6 @@ public:
     const cldnn::engine& get_engine() const;
     const cldnn::device& get_device() { return *m_device; }
     ov::intel_gpu::gpu_handle_param get_external_queue() const { return m_external_queue; }
-    const std::optional<ov::intel_gpu::FileDescriptor>& get_file_descriptor() const { return m_file_descriptor; }
 
     cldnn::memory::ptr try_get_cached_memory(size_t hash);
     void add_to_cache(size_t hash, cldnn::memory::ptr memory);
@@ -83,9 +82,9 @@ private:
 
     std::string get_device_name(const std::map<std::string, RemoteContextImpl::Ptr>& known_contexts, const cldnn::device::ptr current_device) const;
     std::shared_ptr<ov::IRemoteTensor> reuse_surface(const ov::element::Type type, const ov::Shape& shape, const ov::AnyMap& params);
-    std::shared_ptr<ov::IRemoteTensor> reuse_memory(const ov::element::Type type, const ov::Shape& shape, cldnn::shared_handle mem, TensorType tensor_type, const std::optional<ov::intel_gpu::FileDescriptor>& file_descriptor = std::nullopt);
-    std::shared_ptr<ov::IRemoteTensor> create_buffer(const ov::element::Type type, const ov::Shape& shape, const std::optional<ov::intel_gpu::FileDescriptor>& file_descriptor = std::nullopt);
-    std::shared_ptr<ov::IRemoteTensor> create_usm(const ov::element::Type type, const ov::Shape& shape, TensorType alloc_type, const std::optional<ov::intel_gpu::FileDescriptor>& file_descriptor = std::nullopt);
+    std::shared_ptr<ov::IRemoteTensor> reuse_memory(const ov::element::Type type, const ov::Shape& shape, cldnn::shared_handle mem, TensorType tensor_type);
+    std::shared_ptr<ov::IRemoteTensor> create_buffer(const ov::element::Type type, const ov::Shape& shape);
+    std::shared_ptr<ov::IRemoteTensor> create_usm(const ov::element::Type type, const ov::Shape& shape, TensorType alloc_type);
     void check_if_shared() const;
 
     void init_properties();
@@ -94,7 +93,6 @@ private:
     std::shared_ptr<cldnn::engine> m_engine;
     ov::intel_gpu::gpu_handle_param m_va_display = nullptr;
     ov::intel_gpu::gpu_handle_param m_external_queue = nullptr;
-    std::optional<ov::intel_gpu::FileDescriptor> m_file_descriptor = std::nullopt;
 
 #ifdef OV_GPU_WITH_ZE_RT
     ContextType m_type = ContextType::ZE;

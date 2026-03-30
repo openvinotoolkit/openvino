@@ -308,6 +308,29 @@ public:
     }
 
     /**
+     * @brief This function is used to obtain remote tensor object from user-supplied shared OpenCL buffer handle.
+     *        The API mirrors the NPU pointer-based create_tensor form.
+     * @param type Tensor element type
+     * @param shape Tensor shape
+     * @param shared_buffer A shared OpenCL buffer handle passed as void*
+     * @param memory_type Memory type to use (default: SHARED_BUF)
+     * @note CPU_VA memory type is currently not supported in GPU OCL context API.
+     *       For CPU virtual address allocations, pointer and allocation size must be aligned to 4KB,
+     *       and allocation lifetime must outlive all infer requests and remote tensor lifetime.
+     * @return A remote tensor instance
+     */
+    ClBufferTensor create_tensor(const element::Type type,
+                                 const Shape& shape,
+                                 void* shared_buffer,
+                                 const MemType memory_type) {
+        OPENVINO_ASSERT(memory_type == MemType::SHARED_BUF,
+                        "Only SHARED_BUF memory type is currently supported for GPU shared_buffer API");
+        OPENVINO_ASSERT(shared_buffer != nullptr,
+                        "shared_buffer must not be nullptr for SHARED_BUF memory type");
+        return create_tensor(type, shape, static_cast<cl_mem>(shared_buffer));
+    }
+
+    /**
      * @brief This function is used to obtain remote tensor object from user-supplied USM pointer
      * @param type Tensor element type
      * @param shape Tensor shape
