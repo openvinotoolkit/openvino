@@ -440,5 +440,14 @@ static constexpr ov::Property<bool> import_raw_blob{"NPU_IMPORT_RAW_BLOB"};
  */
 static constexpr ov::Property<bool> export_raw_blob{"NPU_EXPORT_RAW_BLOB"};
 
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is true.
+ * This option allows to enable/disable the usage of a shared common queue for all compiled models. If set to false,
+ * each compiled model will have its own common queue. This option is added for enabling the isolation of compiled
+ * models from each other, which can be required for some use cases.
+ */
+static constexpr ov::Property<bool> shared_common_queue{"NPU_SHARED_COMMON_QUEUE"};
+
 }  // namespace intel_npu
 }  // namespace ov

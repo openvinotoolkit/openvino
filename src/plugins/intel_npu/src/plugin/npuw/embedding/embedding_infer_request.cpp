@@ -1,11 +1,11 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "embedding_infer_request.hpp"
 
-#include "infer_request_utils.hpp"
-#include "logging.hpp"
+#include "../infer_request_utils.hpp"
+#include "../logging.hpp"
 
 ov::SoPtr<ov::ITensor> ov::npuw::EmbeddingInferRequest::create_prefill_output_tensor() {
     const auto& out_port = m_prefill_request->get_outputs()[0];

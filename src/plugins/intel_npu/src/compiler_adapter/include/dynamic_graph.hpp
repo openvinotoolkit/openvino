@@ -6,6 +6,8 @@
 
 #include <ze_graph_ext.h>
 
+#include <mutex>
+
 #include "intel_npu/common/idynamic_graph.hpp"
 #include "intel_npu/network_metadata.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
@@ -119,18 +121,14 @@ public:
 
     ze_graph_handle_t get_handle() const override;
 
-    void initialize(const FilteredConfig& config) override;
-
     ~DynamicGraph() override;
 
     const NetworkMetadata& get_metadata() const override;
 
     void update_network_name(std::string_view name) override;
 
-    const std::shared_ptr<CommandQueue>& get_command_queue() const override;
-    uint32_t get_command_queue_group_ordinal() const override;
-
-    void set_workload_type(const ov::WorkloadType workloadType) const override;
+    CommandQueueDesc get_command_queue_desc() const override;
+    void set_workload_type(const ov::WorkloadType workloadType) override;
 
     void set_batch_size(std::size_t batch) override;
 
@@ -158,6 +156,8 @@ public:
     std::optional<bool> is_profiling_blob() const override;
 
 private:
+    void initialize_impl(const FilteredConfig& config) override;
+
     bool release_blob(const FilteredConfig& config);
     std::optional<size_t> determine_batch_size();
 
@@ -171,8 +171,8 @@ private:
      */
     uint64_t _num_of_subgraphs = 1;
 
-    std::shared_ptr<CommandQueue> _commandQueue;
-    uint32_t _commandQueueGroupOrdinal = 0;
+    mutable std::mutex _commandQueueDescMutex;
+    CommandQueueDesc _commandQueueDesc;
     std::vector<std::shared_ptr<Event>> _lastSubmittedEvent;
 
     std::optional<ov::Tensor> _blob;

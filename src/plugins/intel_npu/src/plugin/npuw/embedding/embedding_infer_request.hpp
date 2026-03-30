@@ -1,12 +1,12 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "base_sync_infer_request.hpp"
-#include "llm_compiled_model.hpp"
-#include "llm_infer_base_request.hpp"
+#include "../base_sync_infer_request.hpp"
+#include "../llm_compiled_model.hpp"
+#include "../llm_infer_base_request.hpp"
 #include "openvino/core/descriptor/output.hpp"
 
 namespace ov {

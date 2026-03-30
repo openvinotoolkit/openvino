@@ -255,6 +255,7 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
     REGISTER_OPTION(MODEL_SERIALIZER_VERSION);
     REGISTER_OPTION(ENABLE_STRIDES_FOR);
+    REGISTER_OPTION(SHARED_COMMON_QUEUE);
 
     if (backend) {
         if (backend->isCommandQueueExtSupported()) {
@@ -270,75 +271,10 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
 
     // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
     // to enable those for OV Core to query. Note: do this last to not filter them out. register npuw caching properties
-    REGISTER_OPTION(NPU_USE_NPUW);
-    REGISTER_OPTION(NPUW_DEVICES);
-    REGISTER_OPTION(NPUW_SUBMODEL_DEVICE);
-    REGISTER_OPTION(NPUW_WEIGHTS_BANK);
-    REGISTER_OPTION(NPUW_WEIGHTS_BANK_ALLOC);
-    REGISTER_OPTION(NPUW_ONLINE_PIPELINE);
-    REGISTER_OPTION(NPUW_ONLINE_AVOID);
-    REGISTER_OPTION(NPUW_ONLINE_ISOLATE);
-    REGISTER_OPTION(NPUW_ONLINE_NO_FOLD);
-    REGISTER_OPTION(NPUW_ONLINE_MIN_SIZE);
-    REGISTER_OPTION(NPUW_ONLINE_KEEP_BLOCKS);
-    REGISTER_OPTION(NPUW_ONLINE_KEEP_BLOCK_SIZE);
-    REGISTER_OPTION(NPUW_ATTN);
-    REGISTER_OPTION(NPUW_ATTN_HFA_FUSED);
-    REGISTER_OPTION(NPUW_FOLD);
-    REGISTER_OPTION(NPUW_CWAI);
-    REGISTER_OPTION(NPUW_DQ);
-    REGISTER_OPTION(NPUW_DQ_FULL);
-    REGISTER_OPTION(NPUW_PMM);
-    REGISTER_OPTION(NPUW_MM_GATED);
-    REGISTER_OPTION(NPUW_SLICE_OUT);
-    REGISTER_OPTION(NPUW_SPATIAL);
-    REGISTER_OPTION(NPUW_SPATIAL_NWAY);
-    REGISTER_OPTION(NPUW_SPATIAL_DYN);
-    REGISTER_OPTION(NPUW_F16IC);
-    REGISTER_OPTION(NPUW_HOST_GATHER);
-    REGISTER_OPTION(NPUW_DCOFF_TYPE);
-    REGISTER_OPTION(NPUW_DCOFF_SCALE);
-    REGISTER_OPTION(NPUW_FUNCALL_FOR_ALL);
-    REGISTER_OPTION(NPUW_FUNCALL_ASYNC);
-    REGISTER_OPTION(NPUW_UNFOLD_IREQS);
-    REGISTER_OPTION(NPUW_FALLBACK_EXEC);
-    REGISTER_OPTION(NPUW_LLM);
-    REGISTER_OPTION(NPUW_LLM_BATCH_DIM);
-    REGISTER_OPTION(NPUW_LLM_SEQ_LEN_DIM);
-    REGISTER_OPTION(NPUW_LLM_MAX_PROMPT_LEN);
-    REGISTER_OPTION(NPUW_LLM_MAX_GENERATION_TOKEN_LEN);
-    REGISTER_OPTION(NPUW_LLM_MIN_RESPONSE_LEN);
-    REGISTER_OPTION(NPUW_LLM_OPTIMIZE_V_TENSORS);
-    REGISTER_OPTION(NPUW_LLM_OPTIMIZE_FP8);
-    REGISTER_OPTION(NPUW_LLM_CACHE_ROPE);
-    REGISTER_OPTION(NPUW_LLM_PREFILL_MOE_HINT);
-    REGISTER_OPTION(NPUW_LLM_GENERATE_MOE_HINT);
-    REGISTER_OPTION(NPUW_LLM_GENERATE_PYRAMID);
-    REGISTER_OPTION(NPUW_LLM_PREFILL_CHUNK_SIZE);
-    REGISTER_OPTION(NPUW_LLM_SHARED_HEAD);
-    REGISTER_OPTION(NPUW_LLM_MAX_LORA_RANK);
-    REGISTER_OPTION(NPUW_LLM_ENABLE_PREFIX_CACHING);
-    REGISTER_OPTION(NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE);
-    REGISTER_OPTION(NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS);
-    REGISTER_OPTION(NPUW_WHISPER);
-    REGISTER_OPTION(NPUW_WHISPER_EOS_TOKEN);
-    REGISTER_OPTION(NPUW_EAGLE);
-    REGISTER_OPTION(NPUW_TEXT_EMBED);
-    REGISTER_OPTION(NPUW_LLM_PREFILL_HINT);
-    REGISTER_OPTION(NPUW_LLM_PREFILL_CONFIG);
-    REGISTER_OPTION(NPUW_LLM_ADDITIONAL_PREFILL_CONFIG);
-    REGISTER_OPTION(NPUW_LLM_PREFILL_ATTENTION_HINT);
-    REGISTER_OPTION(NPUW_LLM_GENERATE_HINT);
-    REGISTER_OPTION(NPUW_LLM_GENERATE_CONFIG);
-    REGISTER_OPTION(NPUW_LLM_ADDITIONAL_GENERATE_CONFIG);
-    REGISTER_OPTION(NPUW_LLM_GENERATE_ATTENTION_HINT);
-    REGISTER_OPTION(NPUW_LLM_SHARED_LM_HEAD_CONFIG);
-    REGISTER_OPTION(NPUW_LLM_ADDITIONAL_SHARED_LM_HEAD_CONFIG);
-    REGISTER_OPTION(NPUW_KOKORO);
-    REGISTER_OPTION(NPUW_KOKORO_BLOCK_SIZE);
-    REGISTER_OPTION(NPUW_KOKORO_OVERLAP_SIZE);
-    REGISTER_OPTION(NPUW_MOE_TOKEN_CHUNK_SIZE);
-    REGISTER_OPTION(NPUW_MOE_POOL_SIZE);
+    for_each_exposed_npuw_option([&](auto tag) {
+        using Opt = typename decltype(tag)::type;
+        REGISTER_OPTION(Opt);
+    });
 
     config.enableRuntimeOptions();
 
@@ -608,8 +544,23 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         // Determine which model to use
         auto modelToCompile = successfullyDebatched ? batchedModel : model->clone();
 
-        if (successfullyDebatched && localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY) {
-            _logger.info("Override performance mode to THROUGHPUT for compilation");
+        const bool performanceHintSetByUser = localConfig.has(ov::hint::performance_mode.name());
+        const bool shouldForceThroughput = successfullyDebatched && !performanceHintSetByUser;
+        const bool shouldWarnAboutLatency = successfullyDebatched && performanceHintSetByUser &&
+                                            localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY;
+
+        if (shouldWarnAboutLatency) {
+            _logger.warning("PERFORMANCE_HINT is explicitly set to LATENCY mode, but batch dimension (N) is "
+                            "detected in the model. The NPU Plugin will reshape the model to batch size 1 and "
+                            "process each batch slice separately.");
+            _logger.warning("For optimal performance with batched models, THROUGHPUT mode is highly recommended, "
+                            "as LATENCY mode prevents parallel batch processing.");
+            _logger.warning("If batch detection appears incorrect, verify that the input and output layouts are "
+                            "configured properly.");
+        }
+
+        if (shouldForceThroughput) {
+            _logger.info("Setting performance mode to THROUGHPUT for batched model compilation.");
 
             auto modifiedConfig = localConfig;  // Copy only when needed
             std::stringstream strStream;
@@ -622,7 +573,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         } else {
             graph = compileWithConfig(std::move(modelToCompile),
                                       localConfig,
-                                      ov::util::is_weightless_enabled(localProperties));  // No copy
+                                      ov::util::is_weightless_enabled(localProperties));
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
