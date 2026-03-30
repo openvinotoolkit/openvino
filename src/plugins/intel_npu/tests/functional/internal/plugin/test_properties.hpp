@@ -159,7 +159,6 @@ public:
         REGISTER_OPTION(QDQ_OPTIMIZATION);
         REGISTER_OPTION(QDQ_OPTIMIZATION_AGGRESSIVE);
         REGISTER_OPTION(STEPPING);
-        REGISTER_OPTION(MAX_TILES);
         REGISTER_OPTION(DISABLE_VERSION_CHECK);
         REGISTER_OPTION(EXPORT_RAW_BLOB);
         REGISTER_OPTION(IMPORT_RAW_BLOB);
@@ -173,6 +172,8 @@ public:
         REGISTER_OPTION(SHARED_COMMON_QUEUE);
 
         if (backend) {
+            REGISTER_OPTION(MAX_TILES);
+
             if (backend->isCommandQueueExtSupported()) {
                 REGISTER_OPTION(WORKLOAD_TYPE);
             }
