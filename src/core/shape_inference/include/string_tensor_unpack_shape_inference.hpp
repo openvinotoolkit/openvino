@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 
 #include "openvino/op/string_tensor_unpack.hpp"
