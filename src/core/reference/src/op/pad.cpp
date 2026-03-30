@@ -5,8 +5,10 @@
 #include "openvino/reference/pad.hpp"
 
 #include <cassert>
+#include <string>
 
 #include "openvino/core/except.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/reference/utils/coordinate_index.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 
@@ -195,6 +197,13 @@ void pad(const char* data,
 }  // namespace impl
 
 namespace reference {
+Shape pad_output_shape(const Shape& data_shape, const CoordinateDiff& pads_begin, const CoordinateDiff& pads_end) {
+    Shape out_shape(data_shape.size());
+    for (size_t i = 0; i < data_shape.size(); ++i)
+        out_shape[i] = data_shape[i] + pads_begin[i] + pads_end[i];
+    return out_shape;
+}
+
 void pad(const char* data,
          const char* pad_value,
          char* out,
@@ -228,6 +237,24 @@ void pad(const std::string* data,
         out[coordinate_index(out_coord, out_shape)] =
             in_bounds ? data[coordinate_index(in_coord, data_shape)] : pad_value;
     }
+}
+
+void pad_string(TensorVector& outputs, const TensorVector& inputs, bool has_pad_value) {
+    const CoordinateDiff pads_begin = op::v0::Constant(inputs[1]).cast_vector<ptrdiff_t>();
+    const CoordinateDiff pads_end = op::v0::Constant(inputs[2]).cast_vector<ptrdiff_t>();
+
+    const auto& data_shape = inputs[0].get_shape();
+    outputs[0].set_shape(pad_output_shape(data_shape, pads_begin, pads_end));
+
+    const std::string pad_str = has_pad_value ? *static_cast<const std::string*>(inputs[3].data()) : std::string{};
+
+    pad(static_cast<const std::string*>(inputs[0].data()),
+        pad_str,
+        static_cast<std::string*>(outputs[0].data()),
+        data_shape,
+        outputs[0].get_shape(),
+        pads_begin,
+        pads_end);
 }
 }  // namespace reference
 }  // namespace ov

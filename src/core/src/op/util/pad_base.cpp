@@ -107,21 +107,7 @@ bool op::util::PadBase::evaluate_pad(TensorVector& outputs, const TensorVector& 
     const auto& data = inputs[0];
 
     if (data.get_element_type() == element::string) {
-        const CoordinateDiff pads_begin = op::v0::Constant(inputs[1]).cast_vector<ptrdiff_t>();
-        const CoordinateDiff pads_end = op::v0::Constant(inputs[2]).cast_vector<ptrdiff_t>();
-
-        const auto& data_shape = data.get_shape();
-        ov::Shape padded_shape(data_shape.size());
-        for (size_t i = 0; i < data_shape.size(); ++i)
-            padded_shape[i] = data_shape[i] + pads_begin[i] + pads_end[i];
-        outputs[0].set_shape(padded_shape);
-
-        const auto* src = static_cast<const std::string*>(data.data());
-        auto* dst = static_cast<std::string*>(outputs[0].data());
-        const std::string pad_str =
-            (get_input_size() == 4) ? *static_cast<const std::string*>(inputs[3].data()) : std::string{};
-
-        ov::reference::pad(src, pad_str, dst, data_shape, padded_shape, pads_begin, pads_end);
+        ov::reference::pad_string(outputs, inputs, get_input_size() == 4);
         return true;
     }
 
@@ -145,18 +131,14 @@ bool op::util::PadBase::evaluate_pad(TensorVector& outputs, const TensorVector& 
     CoordinateDiff pads_end_coord(pads_end_const.cast_vector<ptrdiff_t>());
 
     const auto& data_shape = data.get_shape();
-    ov::Shape padded_shape(data_shape.size());
-    for (size_t i = 0; i < data_shape.size(); ++i) {
-        padded_shape[i] = data_shape[i] + pads_begin_coord[i] + pads_end_coord[i];
-    }
-    outputs[0].set_shape(padded_shape);
+    outputs[0].set_shape(ov::reference::pad_output_shape(data_shape, pads_begin_coord, pads_end_coord));
 
     ov::reference::pad(static_cast<const char*>(inputs[0].data()),
                        pad_value,
                        static_cast<char*>(outputs[0].data()),
                        elem_size,
                        data_shape,
-                       padded_shape,
+                       outputs[0].get_shape(),
                        pads_begin_coord,
                        pads_end_coord,
                        get_pad_mode());

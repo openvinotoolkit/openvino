@@ -9,9 +9,12 @@
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/op/util/attr_types.hpp"  // for op::PadMode
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 namespace reference {
+Shape pad_output_shape(const Shape& data_shape, const CoordinateDiff& pads_begin, const CoordinateDiff& pads_end);
+
 void pad(const char* data,
          const char* pad_value,
          char* out,
@@ -29,5 +32,7 @@ void pad(const std::string* data,
          const Shape& out_shape,
          const CoordinateDiff& padding_below,
          const CoordinateDiff& padding_above);
+
+void pad_string(TensorVector& outputs, const TensorVector& inputs, bool has_pad_value);
 }  // namespace reference
 }  // namespace ov
