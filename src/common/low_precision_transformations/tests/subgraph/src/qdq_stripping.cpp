@@ -9,7 +9,6 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "ov_lpt_models/qdq_stripping.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
-#include "transformations/common_optimizations/horizontal_qdq_fusion.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
 
 using namespace testing;
