@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "embedding_model_utils.hpp"
+#include "prepare_embedding_model.hpp"
 
 #include <cfloat>
 #include <optional>
 #include <regex>
 
-#include "logging.hpp"
+#include "../logging.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset13.hpp"
