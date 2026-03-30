@@ -512,6 +512,23 @@ void DynamicGraph::set_workload_type(const ov::WorkloadType workloadType) {
     _commandQueueDesc.key = static_cast<uint64_t>(queueKeyHash);
 }
 
+void DynamicGraph::set_model_priority(const ov::hint::Priority modelPriority) {
+    if (_zeroInitStruct == nullptr) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
+    auto zeModelPriority = zeroUtils::toZeQueuePriority(modelPriority);
+    if (_commandQueueDesc.priority == zeModelPriority) {
+        return;
+    }
+    _commandQueueDesc.priority = zeModelPriority;
+
+    const ZeroCmdQueueKey key{_zeroInitStruct->getContext(), _zeroInitStruct->getDevice(), _commandQueueDesc};
+    const auto queueKeyHash = ZeroCmdQueueKeyHash{}(key);
+    _commandQueueDesc.key = static_cast<uint64_t>(queueKeyHash);
+}
+
 void DynamicGraph::set_argument_value(uint32_t argi, const void* argv) const {
     if (_impl == nullptr) {
         _logger.warning("Graph handle is null, dynamic pipeline to handle set_argument_value");

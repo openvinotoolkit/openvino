@@ -129,6 +129,7 @@ public:
 
     CommandQueueDesc get_command_queue_desc() const override;
     void set_workload_type(const ov::WorkloadType workloadType) override;
+    void set_model_priority(const ov::hint::Priority modelPriority) override;
 
     void set_batch_size(std::size_t batch) override;
 
