@@ -133,7 +133,7 @@ public:
 #else
             localtime_r(&start_tt, &start_tm);
 #endif
-            LOG_INFO("PROF " << name << " START @ " << std::put_time(&start_tm, "%H:%M:%S") << "."
+            LOG_INFO("PROF " << name << " START @ " << std::put_time(&start_tm, "%Y-%m-%dT%H:%M:%S") << "."
                              << std::setfill('0') << std::setw(6) << (start_us % 1000000));
             auto sample_ms = U::sample(f);
             *this += std::move(sample_ms);
@@ -147,7 +147,7 @@ public:
 #else
             localtime_r(&end_tt, &end_tm);
 #endif
-            LOG_INFO("PROF " << name << " END   @ " << std::put_time(&end_tm, "%H:%M:%S") << "."
+            LOG_INFO("PROF " << name << " END   @ " << std::put_time(&end_tm, "%Y-%m-%dT%H:%M:%S") << "."
                              << std::setfill('0') << std::setw(6) << (end_us % 1000000) << " (took "
                              << std::fixed << std::setprecision(3) << ((end_us - start_us) / 1000.0)
                              << " ms)");
