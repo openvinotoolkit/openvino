@@ -25,6 +25,7 @@
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/scatter_update.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
@@ -131,13 +132,24 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         //   1. past_key/past_value: [1, num_heads, max_seq_len, head_size], data is in the front along axis 2, [P0, P1,
         //   ..., Pn, 0, 0, ...]
         //   2. current K/V: [1, num_heads, current_kv_len, head_size], data is in the front along axis 2, [C0, C1, ...,
-        //   Ck, 0, 0, ...] and we want to construct the same shape output for present_key/present_value, but with data
-        //   in order [P0, P1, ..., Pn, C0, C1, ..., Ck, 0, 0, ...]
+        //   Ck, 0, 0, ...]
+        // Output present_key/present_value has the same shape with past_key/past_value, but with data in order [P0, P1,
+        // ..., Pn, C0, C1, ..., Ck, 0, 0, ...]
         //
         // two method to handle it:
         //   1. Use ScatterUpdate to scatter insert Current into Past, but failed due to NPU device hang.
-        //   2. Use present = select(mask, current, past), which mask/current will expand to max_seq_len (below use this
-        //   method)
+        //   2. Use present = select(mask, current, past), in which current will expand to max_seq_len.
+#if 0
+        // Method 1: ScatterUpdate
+        // Insert current K/V at the correct position [past_seqlen, past_seqlen+curr_seqlen).
+        std::shared_ptr<ov::Node> scatter_idx =
+            register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
+        scatter_idx = register_new_node<v1::Add>(scatter_idx, past_seqlen);
+        const auto scatter_axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+        K = register_new_node<v3::ScatterUpdate>(past_key, scatter_idx, K, scatter_axis);
+        V = register_new_node<v3::ScatterUpdate>(past_value, scatter_idx, V, scatter_axis);
+#else
+        // Method 2: Select with mask
         const auto max_seq_len = static_cast<int64_t>(past_key.get_partial_shape()[2].get_length());
         const auto current_kv_len = static_cast<int64_t>(K.get_partial_shape()[2].get_length());
         const auto max_seq_const =
@@ -169,6 +181,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         // Merge current KV with past KV, get present KV
         K = register_new_node<v1::Select>(mask, expanded_K, past_key);
         V = register_new_node<v1::Select>(mask, expanded_V, past_value);
+#endif
     } else {
         auto construct_kv_cache = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
             return register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2);
