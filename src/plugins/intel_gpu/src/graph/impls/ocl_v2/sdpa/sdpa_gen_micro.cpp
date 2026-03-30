@@ -1163,7 +1163,15 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         jit.make("REMAINDER_Q", !q_full);
     } else if (device_info.arch >= gpu_arch::xe_hpc) {
         auto vbytes = n_values.get_length() * ov::element::Type(V.data_type).size();
-        if (lda % 16 == 0 && vbytes % 4 == 0)
+        const auto sg_tile_m = static_cast<size_t>(gemm_vs.getSetting("sg_tile_m"));
+        const auto sg_size = get_subgroup_size(device_info.arch);
+        // tile_ops.cl defines DEF_BLOCK2D_LOAD_STORE for half up to vl=16 (BR=32, BC=8).
+        // tile element vector = sg_tile_m * max_BC / sg_size; must be <= 16 (max defined vl).
+        const bool block2d_compatible = (sg_tile_m * 8 / sg_size) <= 16;  // sg_tile_m <= 32
+        const bool use_block2d = lda % 16 == 0 && vbytes % 4 == 0 && block2d_compatible;
+        GPU_DEBUG_INFO << "BLOCK_2D_A check: sg_tile_m=" << sg_tile_m << " sg_size=" << sg_size << " lda=" << lda << " vbytes=" << vbytes
+                       << " block2d_compatible=" << block2d_compatible << " => " << (use_block2d ? "enabled" : "disabled") << std::endl;
+        if (use_block2d)
             jit.make("BLOCK_2D_A", 1);
     }
 
