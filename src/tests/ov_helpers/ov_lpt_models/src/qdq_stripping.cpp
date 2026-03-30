@@ -116,11 +116,17 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_shared_dq_pattern(
     auto input_fq = build_fq(params[0], qp_1);
 
     auto input_convert1 = std::make_shared<ov::op::v0::Convert>(input_fq, quantization_precision);
-    auto input_convert2 = std::make_shared<ov::op::v0::Convert>(input_convert1, ov::element::f32);
-
     size_t seed = 1;
     auto create_qdq_branch = [&](float weight_scale_value) {
-        auto input_dequantized = build_dq(input_convert2, quantization_precision, qp_1);
+        auto input_convert2 = std::make_shared<ov::op::v0::Convert>(input_convert1, ov::element::f32);
+
+        auto zp = ov::op::v0::Constant::create(ov::element::f32, {}, {qp_1.zero_point});
+        auto act_subtract = std::make_shared<ov::op::v1::Subtract>(input_convert2, zp);
+
+        float input_scale_value = (qp_1.i_h - qp_1.i_l) / (qp_1.o_h - qp_1.o_l);
+        auto scale = ov::op::v0::Constant::create(ov::element::f32, {}, {input_scale_value});
+        auto input_dequantized = std::make_shared<ov::op::v1::Multiply>(act_subtract, scale);
+
         ov::test::utils::InputGenerateData weights_gen_data;
         weights_gen_data.seed = seed;
         auto weight_quantized =

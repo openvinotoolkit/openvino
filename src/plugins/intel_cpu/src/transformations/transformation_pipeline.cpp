@@ -75,6 +75,7 @@
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/reshape_prelu.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
@@ -509,7 +510,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             using namespace ov::element;
             // QDQ stripping pipeline
             // 0. Deduplicate identical DQ subgraphs sharing a common Convert node
-            qdq_stripping_manager.register_pass<ov::pass::HorizontalQDQFusion>(TypeVector{i16, u16}, TypeVector{f32});
+            qdq_stripping_manager.register_pass<ov::pass::SharedOpOptimization>();
             // 1. Fuse FQ->Convert->DQ to a single FQ
             qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16},
                                                                                      TypeVector{f32});
