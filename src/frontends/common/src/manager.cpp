@@ -226,10 +226,6 @@ void FrontEndManager::register_front_end(const std::string& name, FrontEndFactor
     m_impl->register_front_end(name, std::move(creator));
 }
 
-void FrontEndManager::register_front_end(const std::string& name, const std::string& library_path) {
-    m_impl->register_front_end(name, ov::util::make_path(library_path));
-}
-
 void FrontEndManager::register_front_end(const std::string& name, const std::filesystem::path& library_path) {
     m_impl->register_front_end(name, library_path);
 }

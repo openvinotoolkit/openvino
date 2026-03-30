@@ -32,19 +32,7 @@ public:
 
     using node_modifiers_t = std::function<void(const Node& node, std::vector<std::string>& attributes)>;
 
-    VisualizeTree(const std::string& file_name, node_modifiers_t nm = nullptr, bool dot_only = false);
     VisualizeTree(std::filesystem::path file_name, node_modifiers_t nm = nullptr, bool dot_only = false);
-
-    template <class TPath>
-    VisualizeTree(const TPath& file_name, node_modifiers_t nm = nullptr, bool dot_only = false)
-        : VisualizeTree(
-              [&] {
-                  static_assert(std::is_constructible_v<std::filesystem::path, std::decay_t<TPath>>,
-                                "file_name type is not supported");
-                  return std::string(file_name);
-              }(),
-              nm,
-              dot_only) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>&) override;
 

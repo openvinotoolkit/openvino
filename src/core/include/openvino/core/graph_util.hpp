@@ -319,19 +319,8 @@ void serialize(const std::shared_ptr<const ov::Model>& m,
 /// \param model Model which will be converted to IR representation.
 /// \param output_model Path to the output model file, must have extension .xml.
 /// \param compress_to_fp16 Whether to compress floating point weights to FP16 (true by default).
-/// /// \{
 OPENVINO_API
 void save_model(const std::shared_ptr<const ov::Model>& model,
                 const std::filesystem::path& output_model,
                 bool compress_to_fp16 = true);
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-OPENVINO_API
-void save_model(const std::shared_ptr<const ov::Model>& model,
-                const std::wstring& output_model,
-                bool compress_to_fp16 = true);
-#endif
-
-/// \}
-
 }  // namespace ov

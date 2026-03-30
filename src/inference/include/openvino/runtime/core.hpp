@@ -39,7 +39,6 @@ class OPENVINO_RUNTIME_API Core {
     std::shared_ptr<Impl> _impl;
 
 public:
-    ///@{
     /** @brief Constructs an OpenVINO Core instance with devices
      * and their plugins description.
      *
@@ -53,13 +52,7 @@ public:
      * 1. (dynamic build) default `plugins.xml` file located in the same folder as OpenVINO runtime shared library;
      * 2. (static build) statically defined configuration. In this case path to the .xml file is ignored.
      */
-    explicit Core(const std::string& xml_config_file = {});
-
-    explicit Core(const std::filesystem::path& xml_config_file);
-
-    template <class TPath, std::enable_if_t<std::is_constructible_v<std::string, TPath>>* = nullptr>
-    explicit Core(const TPath& xml_config_file) : Core(std::string(xml_config_file)) {}
-    ///@}
+    explicit Core(const std::filesystem::path& xml_config_file = {});
 
     /**
      * @brief Returns device plugins version information.
@@ -71,7 +64,6 @@ public:
      */
     std::map<std::string, Version> get_versions(const std::string& device_name) const;
 
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     /**
      * @brief Reads models from IR / ONNX / PDPD / TF / TFLite file formats.
      * @param model_path Path to a model.
@@ -87,58 +79,9 @@ public:
      * @param properties Optional map of pairs: (property name, property value) relevant only for this read operation.
      * @return A model.
      */
-    std::shared_ptr<ov::Model> read_model(const std::wstring& model_path,
-                                          const std::wstring& bin_path = {},
-                                          const ov::AnyMap& properties = {}) const;
-#endif
-
-    /**
-     * @brief Reads models from IR / ONNX / PDPD / TF / TFLite file formats.
-     * @param model_path Path to a model.
-     * @param bin_path Path to a data file.
-     * For IR format (*.bin):
-     *  * if `bin_path` is empty, will try to read a bin file with the same name as xml and
-     *  * if the bin file with the same name is not found, will load IR without weights.
-     * For the following file formats the `bin_path` parameter is not used:
-     *  * ONNX format (*.onnx)
-     *  * PDPD (*.pdmodel)
-     *  * TF (*.pb, *.meta, SavedModel directory)
-     *  * TFLite (*.tflite)
-     * @param properties Optional map of pairs: (property name, property value) relevant only for this read operation.
-     * @return A model.
-     * @{
-     */
-    std::shared_ptr<ov::Model> read_model(const std::string& model_path,
-                                          const std::string& bin_path = {},
-                                          const ov::AnyMap& properties = {}) const;
-
     std::shared_ptr<ov::Model> read_model(const std::filesystem::path& model_path,
                                           const std::filesystem::path& bin_path = {},
                                           const ov::AnyMap& properties = {}) const;
-
-    template <class Path>
-    std::shared_ptr<ov::Model> read_model(const Path& model_path,
-                                          const Path& bin_path = {},
-                                          const ov::AnyMap& properties = {}) const {
-        if constexpr (std::is_pointer_v<Path>) {
-            if constexpr (std::is_constructible_v<std::string, Path>) {
-                return read_model(std::string(model_path),
-                                  bin_path ? std::string(bin_path) : std::string{},
-                                  properties);
-            } else {
-                return read_model(std::wstring(model_path),
-                                  bin_path ? std::wstring(bin_path) : std::wstring{},
-                                  properties);
-            }
-        } else if constexpr (std::is_constructible_v<std::string, Path>) {
-            return read_model(std::string(model_path), std::string(bin_path), properties);
-        } else if constexpr (std::is_constructible_v<std::wstring, Path>) {
-            return read_model(std::wstring(model_path), std::wstring(bin_path), properties);
-        } else {
-            return read_model(std::filesystem::path(model_path), std::filesystem::path(bin_path), properties);
-        }
-    }
-    /// @}
 
     /**
      * @brief Reads models from IR / ONNX / PDPD / TF / TFLite file formats.
@@ -260,26 +203,8 @@ public:
      * operation.
      *
      * @return A compiled model.
-     * @{
      */
-    CompiledModel compile_model(const std::string& model_path, const AnyMap& properties = {});
-
     CompiledModel compile_model(const std::filesystem::path& model_path, const AnyMap& properties = {});
-
-    template <class Path, std::enable_if_t<std::is_constructible_v<std::string, Path>>* = nullptr>
-    CompiledModel compile_model(const Path& model_path, const AnyMap& properties = {}) {
-        return compile_model(std::string(model_path), properties);
-    }
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    CompiledModel compile_model(const std::wstring& model_path, const AnyMap& properties = {});
-
-    template <class Path, std::enable_if_t<std::is_constructible_v<std::wstring, Path>>* = nullptr>
-    CompiledModel compile_model(const Path& model_path, const AnyMap& properties = {}) {
-        return compile_model(std::wstring(model_path), properties);
-    }
-#endif
-    /// @}
 
     /**
      * @brief Reads and loads a compiled model from IR / ONNX / PDPD file to the default OpenVINO device selected by
@@ -294,28 +219,12 @@ public:
      * load operation
      *
      * @return A compiled model
-     * @{
      */
     template <typename... Properties>
-    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const std::string& model_path,
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const std::filesystem::path& model_path,
                                                                            Properties&&... properties) {
         return compile_model(model_path, AnyMap{std::forward<Properties>(properties)...});
     }
-
-    template <class Path, class... Properties, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
-    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const Path& model_path,
-                                                                           Properties&&... properties) {
-        return compile_model(model_path, AnyMap{std::forward<Properties>(properties)...});
-    }
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    template <typename... Properties>
-    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const std::wstring& model_path,
-                                                                           Properties&&... properties) {
-        return compile_model(model_path, AnyMap{std::forward<Properties>(properties)...});
-    }
-#endif
-    /// @}
 
     /**
      * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
@@ -329,32 +238,10 @@ public:
      * operation.
      *
      * @return A compiled model.
-     * @{
      */
-    CompiledModel compile_model(const std::string& model_path,
-                                const std::string& device_name,
-                                const AnyMap& properties = {});
-
     CompiledModel compile_model(const std::filesystem::path& model_path,
                                 const std::string& device_name,
                                 const AnyMap& properties = {});
-
-    template <class Path, std::enable_if_t<std::is_constructible_v<std::string, Path>>* = nullptr>
-    CompiledModel compile_model(const Path& model_path, const std::string& device_name, const AnyMap& properties = {}) {
-        return compile_model(std::string(model_path), device_name, properties);
-    }
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    CompiledModel compile_model(const std::wstring& model_path,
-                                const std::string& device_name,
-                                const AnyMap& properties = {});
-
-    template <class Path, std::enable_if_t<std::is_constructible_v<std::wstring, Path>>* = nullptr>
-    CompiledModel compile_model(const Path& model_path, const std::string& device_name, const AnyMap& properties = {}) {
-        return compile_model(std::wstring(model_path), device_name, properties);
-    }
-#endif
-    /// @}
 
     /**
      * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
@@ -369,31 +256,13 @@ public:
      * load operation.
      *
      * @return A compiled model.
-     * @{
      */
     template <typename... Properties>
-    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const std::string& model_path,
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const std::filesystem::path& model_path,
                                                                            const std::string& device_name,
                                                                            Properties&&... properties) {
         return compile_model(model_path, device_name, AnyMap{std::forward<Properties>(properties)...});
     }
-
-    template <class Path, class... Properties, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
-    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const Path& model_path,
-                                                                           const std::string& device_name,
-                                                                           Properties&&... properties) {
-        return compile_model(model_path, device_name, AnyMap{std::forward<Properties>(properties)...});
-    }
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    template <typename... Properties>
-    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const std::wstring& model_path,
-                                                                           const std::string& device_name,
-                                                                           Properties&&... properties) {
-        return compile_model(model_path, device_name, AnyMap{std::forward<Properties>(properties)...});
-    }
-#endif
-    /// @}
 
     /**
      * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD memory.
@@ -465,26 +334,8 @@ public:
     /**
      * @brief Registers an extension to a Core object.
      * @param library_path Path to the library with ov::Extension.
-     * @{
      */
     void add_extension(const std::filesystem::path& library_path);
-
-    void add_extension(const std::string& library_path);
-
-    template <class TPath, std::enable_if_t<std::is_constructible_v<std::string, TPath>>* = nullptr>
-    void add_extension(const TPath& library_path) {
-        add_extension(std::string(library_path));
-    }
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    void add_extension(const std::wstring& library_path);
-
-    template <class TPath, std::enable_if_t<std::is_constructible_v<std::wstring, TPath>>* = nullptr>
-    void add_extension(const TPath& library_path) {
-        add_extension(std::wstring(library_path));
-    }
-#endif
-    /// @}
 
     /**
      * @brief Registers an extension to a Core object.
@@ -840,7 +691,6 @@ public:
      */
     std::vector<std::string> get_available_devices() const;
 
-    ///@{
     /**
      * @brief Register a new device and plugin that enables this device inside OpenVINO Runtime.
      *
@@ -857,21 +707,9 @@ public:
      * @param device_name Device name to register a plugin for.
      * @param config Plugin configuration options
      */
-    void register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& config = {});
-
     void register_plugin(const std::filesystem::path& plugin_path,
                          const std::string& device_name,
                          const ov::AnyMap& config = {});
-
-    template <class Path>
-    void register_plugin(const Path& plugin_path, const std::string& device_name, const AnyMap& config = {}) {
-        if constexpr (std::is_constructible_v<std::string, Path>) {
-            register_plugin(std::string(plugin_path), device_name, config);
-        } else {
-            register_plugin(std::filesystem::path(plugin_path), device_name, config);
-        }
-    }
-    ///@}
 
     /**
      * @brief Unloads the previously loaded plugin identified by @p device_name from OpenVINO Runtime.
@@ -882,7 +720,6 @@ public:
      */
     void unload_plugin(const std::string& device_name);
 
-    ///@{
     /** @brief Registers a device plugin to the OpenVINO Runtime Core instance using an XML configuration file with
      * plugins description.
      *
@@ -913,19 +750,7 @@ public:
      *
      * @param xml_config_file A path to .xml file with plugins to register.
      */
-    void register_plugins(const std::string& xml_config_file);
-
     void register_plugins(const std::filesystem::path& xml_config_file);
-
-    template <class Path>
-    void register_plugins(const Path& xml_config_file) {
-        if constexpr (std::is_constructible_v<std::string, Path>) {
-            register_plugins(std::string(xml_config_file));
-        } else {
-            register_plugins(std::filesystem::path(xml_config_file));
-        }
-    }
-    ///@}
 
     /**
      * @brief Creates a new remote shared context object on the specified accelerator device

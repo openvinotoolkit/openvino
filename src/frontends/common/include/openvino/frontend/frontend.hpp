@@ -119,25 +119,7 @@ public:
 
     /// \brief Registers extension
     /// \param library_path path to library with ov::Extension
-    /// \{
-    void add_extension(const std::string& library_path);
-
-    template <class TPath, std::enable_if_t<std::is_constructible_v<std::string, TPath>>* = nullptr>
-    void add_extension(const TPath& library_path) {
-        add_extension(std::string(library_path));
-    }
-
     void add_extension(const std::filesystem::path& library_path);
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    void add_extension(const std::wstring& library_path);
-
-    template <class TPath, std::enable_if_t<std::is_constructible_v<std::wstring, TPath>>* = nullptr>
-    void add_extension(const TPath& library_path) {
-        add_extension(std::wstring(library_path));
-    }
-#endif
-    /// \}
 
     /// @brief Registers extension
     /// @param extension Extension class which is inherited from ov::BaseOpExtension class

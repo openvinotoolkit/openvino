@@ -277,9 +277,6 @@ bool ov::pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) 
     return false;
 }
 
-ov::pass::VisualizeTree::VisualizeTree(const std::string& file_name, node_modifiers_t nm, bool dot_only)
-    : VisualizeTree(ov::util::make_path(file_name), std::move(nm), dot_only) {}
-
 ov::pass::VisualizeTree::VisualizeTree(std::filesystem::path file_name, node_modifiers_t nm, bool dot_only)
     : m_name{std::move(file_name)},
       m_node_modifiers{std::move(nm)},
