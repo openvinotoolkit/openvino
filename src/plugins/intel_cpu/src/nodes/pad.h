@@ -122,9 +122,6 @@ private:
     static constexpr size_t PAD_VALUE_ID = 3LU;
 
     bool isPadValueSpecified = false;
-    bool isStringDataType = false;
-
-    void executeString();
 
     using executorPtr = std::shared_ptr<PadExecutor>;
     executorPtr execPtr = nullptr;
