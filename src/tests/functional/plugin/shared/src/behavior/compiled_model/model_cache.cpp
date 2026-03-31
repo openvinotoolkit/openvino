@@ -3,28 +3,30 @@
 //
 
 #include "behavior/compiled_model/model_cache.hpp"
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/subgraph_builders/read_concat_split_assign.hpp"
 #include "common_test_utils/subgraph_builders/single_concat_with_constant.hpp"
 #include "common_test_utils/subgraph_builders/ti_with_lstm_cell.hpp"
+#include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/runtime/weightless_properties_utils.hpp"
 #include "openvino/util/codec_xor.hpp"
 #include "shared_test_classes/subgraph/weights_decompression_params.hpp"
-#include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 
 namespace ov {
 namespace test {
 namespace behavior {
 
-std::string WeightlessCacheAccuracy::get_test_case_name(const ::testing::TestParamInfo<WeightlessCacheAccuracyTestParams>& obj) {
+std::string WeightlessCacheAccuracy::getTestCaseName(
+    const ::testing::TestParamInfo<WeightlessCacheAccuracyTestParams>& obj) {
     std::ostringstream result;
 
     result << "use_compile_model_api=" << utils::bool2str(std::get<0>(obj.param));
-    result << "_do_encryption="        << utils::bool2str(std::get<1>(obj.param));
-    result << "_inference_mode="       << std::get<2>(obj.param);
-    result << "_model_dtype="          << std::get<3>(obj.param);
+    result << "_do_encryption=" << utils::bool2str(std::get<1>(obj.param));
+    result << "_inference_mode=" << std::get<2>(obj.param);
+    result << "_model_dtype=" << std::get<3>(obj.param);
     result << "_config=";
     for (const auto& [name, value] : std::get<4>(obj.param)) {
         result << name << "[" << value.as<std::string>() << "]|";

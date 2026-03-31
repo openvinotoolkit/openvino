@@ -19,8 +19,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          WeightlessCacheAccuracy,
                          ::testing::Combine(::testing::ValuesIn({true, false}),   // m_use_compile_model_api
                                             ::testing::Values(true),              // m_do_encryption
-                                            ::testing::Values(ov::element::f32),  // m_inference_mode
-                                            ::testing::Values(ov::element::f32),  // m_model_dtype
+                                            ::testing::Values(ov::element::f16),  // m_inference_mode
+                                            ::testing::Values(ov::element::f16),  // m_model_dtype
                                             ::testing::ValuesIn(ignoredConfig),   // config parsed with std::ignore
                                             ::testing::Values(ov::test::utils::DEVICE_NPU)),  // m_target_device
                          ov::test::utils::appendPlatformTypeTestName<WeightlessCacheAccuracy>);
