@@ -599,10 +599,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (par_opt) {
         ov::parallel_for(idx_subgraph_to_compile.size(), compile);
     } else {
-        // TODO: Introduce npuw::serial(i, f) instead where f is a _funcall
-        for (std::size_t i = 0u; i < idx_subgraph_to_compile.size(); i++) {
-            compile(i);
-        }
+        ov::npuw::util::non_parallel_for(idx_subgraph_to_compile.size(), compile);
     }
 
     // Finalize memory in closures and weight banks
@@ -1810,15 +1807,16 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id) {
     auto make_wrapped = [&](const std::shared_ptr<ov::Model>& model,
                             const std::string& profile_suffix,
                             bool apply_main_workarounds) -> ov::SoPtr<ov::ICompiledModel> {
-        return {ov::npuw::failsafe::CompiledModel::create(
-                    model,
-                    get_plugin(),
-                    candidate_devices,
-                    [&, model, profile_suffix, apply_main_workarounds](const std::string& device)
-                        -> std::shared_ptr<ov::ICompiledModel> {
-                        return compile_candidate(model, device, profile_suffix, apply_main_workarounds);
-                    }),
-                {}};
+        // return {ov::npuw::failsafe::CompiledModel::create(
+        //             model,
+        //             get_plugin(),
+        //             candidate_devices,
+        //             [&, model, profile_suffix, apply_main_workarounds](const std::string& device)
+        //                 -> std::shared_ptr<ov::ICompiledModel> {
+        //                 return compile_candidate(model, device, profile_suffix, apply_main_workarounds);
+        //             }),
+        //         {}};
+        return compile_candidate(model, candidate_devices.front(), profile_suffix, apply_main_workarounds);
     };
 
     if (auto& moe_experts_opt = desc.moe_experts; moe_experts_opt.has_value()) {
@@ -1888,7 +1886,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id) {
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const std::shared_ptr<ov::Model>& submodel,
-                                                                         const std::string& device) {
+                                                                        const std::string& device) {
     auto plugin = get_npuw_plugin();
     auto core = plugin->get_core();
 

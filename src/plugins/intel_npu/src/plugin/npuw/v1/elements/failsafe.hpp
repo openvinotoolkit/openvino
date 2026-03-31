@@ -99,11 +99,6 @@ private:
         }
     };
 
-    struct PortTensor {
-        ov::Output<const ov::Node> port;
-        ov::SoPtr<ov::ITensor> tensor;
-    };
-
     void ensure_inner_request_locked() const;
     PortKey port_key_locked(const ov::Output<const ov::Node>& port) const;
     bool is_output_port_locked(const ov::Output<const ov::Node>& port) const;
@@ -112,7 +107,6 @@ private:
     mutable std::mutex m_mutex;
     mutable std::shared_ptr<ov::IAsyncInferRequest> m_request;
     mutable std::size_t m_generation = std::numeric_limits<std::size_t>::max();
-    mutable std::map<PortKey, PortTensor> m_public_tensors;
 };
 
 }  // namespace ov::npuw::failsafe
