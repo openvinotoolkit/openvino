@@ -13,6 +13,9 @@
 
 #define GET_OUTPUT_INDEX(idx_order) OUTPUT_GET_INDEX(idx_order)
 #define GET_INPUT_INDEX(idx_order) INPUT0_GET_INDEX(idx_order)
+#define GET_UPDATES_INDEX(idx_order) UPDATES_GET_INDEX(idx_order)
+
+#define INDICES_SIZE INPUT1_LENGTH
 
 #if OUTPUT_DIMS == 4
     #define ORDER b,f,y,x
