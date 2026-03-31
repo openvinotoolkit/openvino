@@ -17,13 +17,15 @@ namespace ov::util {
 #ifdef _WIN32
 /// Platform file handle: Windows HANDLE (void*).
 using FileHandle = void*;
+inline const FileHandle INVALID_FILE_HANDLE = reinterpret_cast<void*>(-1);  // NOLINT(performance-no-int-to-ptr)
 #else
 /// Platform file handle: Linux/Unix file descriptor (int).
 using FileHandle = int;
+inline constexpr FileHandle INVALID_FILE_HANDLE = -1;
 #endif
 
-#define DEFAULT_PARALLEL_IO_THRESHOLD (4UL * 1024 * 1024)  ///< 4 MB default threshold for parallel I/O
-#define DEFAULT_PARALLEL_IO_MIN_CHUNK (2UL * 1024 * 1024)  ///< 2 MB minimum chunk size per thread
+inline constexpr size_t DEFAULT_PARALLEL_IO_THRESHOLD = 4UL * 1024 * 1024;  ///< 4 MB default threshold for parallel I/O
+inline constexpr size_t DEFAULT_PARALLEL_IO_MIN_CHUNK = 2UL * 1024 * 1024;  ///< 2 MB minimum chunk size per thread
 
 /**
  * @brief Open a file for reading and retrieve its size.
@@ -72,6 +74,10 @@ FileHandle open_file_for_read(const std::filesystem::path& path);
  *
  * On Linux, uses pread() in a loop.
  * On Windows, uses SetFilePointerEx + ReadFile in a loop.
+ *
+ * @note This function is @b not thread-safe for a given handle.  Callers that
+ *       perform parallel reads must open a separate handle per thread (see
+ *       open_file_for_read).
  *
  * @param handle       File handle / descriptor.
  * @param dst          Destination buffer.

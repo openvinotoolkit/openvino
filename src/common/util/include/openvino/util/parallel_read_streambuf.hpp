@@ -65,7 +65,7 @@ private:
     static constexpr size_t UNDERFLOW_BUF = 8192;  ///< batch size for char-by-char reads
 
     std::filesystem::path m_path;
-    FileHandle m_handle = static_cast<FileHandle>(-1);  ///< platform file handle
+    FileHandle m_handle = INVALID_FILE_HANDLE;  ///< platform file handle
 
     std::streamoff m_file_offset = 0;        ///< absolute file offset of next byte to read
     std::streamoff m_header_offset = 0;  ///< absolute file offset of logical stream start

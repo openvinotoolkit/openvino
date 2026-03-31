@@ -13,7 +13,12 @@
 
 namespace ov::test {
 
-/**\n * @brief Fill a vector with a deterministic pattern unique per byte index.\n *\n * Using prime modulus 251 so the period is never aligned with any power-of-two\n * chunk or page size.\n */
+/**
+ * @brief Fill a vector with a deterministic pattern unique per byte index.
+ *
+ * Using prime modulus 251 so the period is never aligned with any power-of-two
+ * chunk or page size.
+ */
 namespace {
 void fill_pattern(std::vector<uint8_t>& buf, size_t start_index = 0) {
     for (size_t i = 0; i < buf.size(); ++i) {

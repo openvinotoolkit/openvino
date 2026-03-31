@@ -29,7 +29,7 @@ ParallelReadStreamBuf::ParallelReadStreamBuf(const std::filesystem::path& path,
 
 ParallelReadStreamBuf::~ParallelReadStreamBuf() {
     ov::util::close_file_handle(m_handle);
-    m_handle = static_cast<FileHandle>(-1);
+    m_handle = INVALID_FILE_HANDLE;
 }
 
 // xsgetn: main hot path - called by sgetn() for all bulk reads
@@ -201,7 +201,7 @@ bool ParallelReadStreamBuf::parallel_read(char* dst, size_t size, size_t file_of
                 const size_t thread_file_offset = file_offset + cur_offset;
 
                 FileHandle t_handle = ov::util::open_file_for_read(m_path);
-                if (t_handle == static_cast<FileHandle>(-1)) {
+                if (t_handle == INVALID_FILE_HANDLE) {
                     success = false;
                     return;
                 }

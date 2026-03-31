@@ -4,10 +4,13 @@
 
 #include "openvino/util/parallel_io.hpp"
 
-// clang-format off
+// clang-format-off
+#ifndef NOMINMAX
+#    define NOMINMAX
+#endif
 #include <windows.h>
 #include <psapi.h>
-// clang-format on
+// clang-format-on
 
 #include <cstdint>
 #include <stdexcept>
@@ -16,10 +19,8 @@
 
 namespace {
 
-/**
- * @brief Convert a kernel device path (\Device\HarddiskVolume3\foo\bar) to a
- *        Win32 drive path (C:\foo\bar).
- */
+// Convert a kernel device path (\Device\HarddiskVolume3\foo\bar) to a
+// Win32 drive path (C:\foo\bar).
 static bool resolve_device_path(const wchar_t* dev_path, wchar_t* out, DWORD out_len) {
     const size_t MAX_DRIVES_LEN = 512;
     wchar_t drives[MAX_DRIVES_LEN] = {};

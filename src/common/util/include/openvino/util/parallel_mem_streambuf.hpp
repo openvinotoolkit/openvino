@@ -25,10 +25,6 @@ namespace ov::util {
  * splitting the copy across N threads triggers concurrent page faults, raising
  * the OS I/O queue depth and saturating NVMe bandwidth.
  *
- * On Windows, after each large copy the consumed source pages are released
- * from the process working-set via VirtualFree(MEM_RESET) to relieve RAM
- * pressure when loading multi-GB models.
- *
  * Usage:
  * @code
  *   // In plugin::import_model(const ov::Tensor& model, ...):
