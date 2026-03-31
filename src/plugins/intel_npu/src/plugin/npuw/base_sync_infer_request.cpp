@@ -200,8 +200,12 @@ ov::SoPtr<ov::ITensor> ov::npuw::IBaseInferRequest::get_tensor(const ov::Output<
         }
     }
 
-    NPUW_ASSERT(false);
-    return {};
+    std::string requested_port_name{"<unnamed>"};
+    try {
+        requested_port_name = port.get_any_name();
+    } catch (...) {
+    }
+    OPENVINO_THROW("NPUW get_tensor(): requested port is not a top-level input/output: ", requested_port_name);
 }
 
 void ov::npuw::IBaseInferRequest::set_tensor(const ov::Output<const ov::Node>& port,

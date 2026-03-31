@@ -58,6 +58,104 @@ bool is_aligned_to(T value, T alignment) {
 
 }  // namespace
 
+class ReplaceNonZero : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ReplaceNonZero");
+
+    explicit ReplaceNonZero() {
+        auto param_pattern = opp::wrap_type<ov::op::v0::Parameter>();
+        auto nonzero_pattern = opp::wrap_type<ov::op::v3::NonZero>({param_pattern});
+
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
+            const auto& pattern_map = m.get_pattern_value_map();
+
+            auto nonzero_node = pattern_map.at(nonzero_pattern).get_node_shared_ptr();
+            auto old_param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(
+                pattern_map.at(param_pattern).get_node_shared_ptr());
+
+            if (!old_param) {
+                return false;
+            }
+
+            auto new_param = std::make_shared<ov::op::v0::Parameter>(
+                nonzero_node->get_output_element_type(0),
+                nonzero_node->get_output_partial_shape(0)
+            );
+            new_param->set_friendly_name(old_param->get_friendly_name() + "_nonzero_replacement");
+
+            ov::replace_node(nonzero_node, new_param);
+            register_new_node(new_param);
+            return true;
+        };
+
+        register_matcher(
+            std::make_shared<opp::Matcher>(nonzero_pattern, "ReplaceNonZero"),
+            callback
+        );
+    }
+};
+
+std::shared_ptr<ov::Model> run_replace_nonzero(std::shared_ptr<ov::Model>& model) {
+    std::vector<std::pair<std::shared_ptr<ov::op::v0::Parameter>,
+                          std::shared_ptr<ov::Node>>> to_replace;
+
+    for (const auto& op : model->get_ordered_ops()) {
+        if (auto nonzero = std::dynamic_pointer_cast<ov::op::v3::NonZero>(op)) {
+            auto old_param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(
+                nonzero->input_value(0).get_node_shared_ptr());
+            if (old_param) {
+                to_replace.push_back({old_param, nonzero});
+            }
+        }
+    }
+
+    std::vector<std::shared_ptr<ov::op::v0::Parameter>> old_params_to_remove;
+
+    for (auto& [old_param, nonzero_node] : to_replace) {
+        auto new_param = std::make_shared<ov::op::v0::Parameter>(
+            nonzero_node->get_output_element_type(0),
+            nonzero_node->get_output_partial_shape(0)
+        );
+        new_param->set_friendly_name(old_param->get_friendly_name());
+
+        auto names = nonzero_node->output(0).get_names();
+        if (names.empty()) {
+            names = old_param->output(0).get_names();
+        }
+        if (names.empty()) {
+            names.insert(old_param->get_friendly_name());
+        }
+        new_param->output(0).set_names(names);
+
+        ov::replace_node(nonzero_node, new_param);
+        old_params_to_remove.push_back(old_param);
+    }
+
+    for (auto& old_param : old_params_to_remove) {
+        model->remove_parameter(old_param);
+    }
+
+    ov::ParameterVector updated_params;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(op)) {
+            if (!param->output(0).get_target_inputs().empty()) {
+                updated_params.push_back(param);
+            }
+        }
+    }
+
+    auto new_model = std::make_shared<ov::Model>(
+        model->get_results(),
+        model->get_sinks(),
+        updated_params,
+        model->get_variables(),
+        model->get_friendly_name()
+    );
+
+    new_model->validate_nodes_and_infer_types();
+    return new_model;
+}
+
 class CutLMHead : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::CutLMHead");
@@ -779,6 +877,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
     ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(kvcache_model);
 
+    kvcache_model = run_replace_nonzero(kvcache_model);
+
     auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg);
 
     if (!m_is_whisper) {
@@ -934,7 +1034,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(generate_config, other_props);
     merge_config_with(prefill_config, prefill_config_addition_value);
     merge_config_with(generate_config, generate_config_addition_value);
-
     // Convert LLM-specific attention hints to NPUW_ATTN
     if (npuw_llm_props.count("NPUW_LLM_PREFILL_ATTENTION_HINT")) {
         prefill_config["NPUW_ATTN"] = npuw_llm_props["NPUW_LLM_PREFILL_ATTENTION_HINT"];
@@ -942,7 +1041,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (npuw_llm_props.count("NPUW_LLM_GENERATE_ATTENTION_HINT")) {
         generate_config["NPUW_ATTN"] = npuw_llm_props["NPUW_LLM_GENERATE_ATTENTION_HINT"];
     }
-
     // Generate a random weights bank name unique to this LLMCompiledModel object
     auto weights_bank_name = ov::npuw::util::generate_random_string();
     LOG_VERB("Generated a unique weights bank name: " << weights_bank_name);
@@ -1031,7 +1129,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             }
         }
     }
-
     // Regularize models for the better partitioning assuming it is a transformer
     // Apply these transformations to all variant models
     {
