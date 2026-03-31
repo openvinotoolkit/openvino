@@ -76,10 +76,6 @@ ConstantWriter::FilePosition ConstantWriter::write(const std::vector<std::string
             hash = util::u64_hash_combine(hash, ov::runtime::compute_hash(sv.data(), sv.size()));
         }
 
-        // Dedup by combined hash only: string blob chunks are transient so we
-        // cannot store a stable pointer for memcmp. Hash collisions across
-        // distinct string blobs are astronomically unlikely given that the hash
-        // folds content from every chunk.
         const auto [it, inserted] = m_string_hash_to_file_positions.emplace(hash, offset);
         if (!inserted) {
             return it->second;
