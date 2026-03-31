@@ -26,7 +26,6 @@
 #include "openvino/runtime/plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/weightless_properties_utils.hpp"
-#include "openvino/util/file_util.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
 #include "ov_ops/rms.hpp"
 #include "transformations/utils/utils.hpp"
