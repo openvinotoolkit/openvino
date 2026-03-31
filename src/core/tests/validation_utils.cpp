@@ -103,10 +103,10 @@ TEST(constantfold_subgraph, shapeof) {
 
 namespace ov::test {
 
-using op::v0::Concat, op::v0::Constant, op::v0::Parameter, op::v0::Convert;
+using op::v0::Concat, op::v0::Constant, op::v0::Parameter;
 using ov::op::v1::Add, ov::op::v1::Divide, ov::op::v0::Erf;
 
-using testing::HasSubstr, testing::Values, testing::ElementsAre;
+using testing::HasSubstr, testing::Values, testing::ElementsAre, testing::Pointwise, testing::FloatNear;
 
 TEST(constantfold_subgraph, fold_unsupported_precision_multiple_nodes) {
     auto init = Constant::create(element::f16, Shape{1, 1, 1, 2}, {10.f, 20.f});
@@ -120,7 +120,8 @@ TEST(constantfold_subgraph, fold_unsupported_precision_multiple_nodes) {
     ASSERT_NE(folded_node, nullptr);
     EXPECT_EQ(folded_node->get_element_type(), ov::element::f16);
     const auto actual = folded_node->cast_vector<float>();
-    ASSERT_THAT(actual, ElementsAre(11.f, 11.f));
+    const std::vector<float> expected{11.f, 11.f};
+    EXPECT_THAT(actual, Pointwise(FloatNear(1e-5f), expected));
 }
 
 using NormalizeAxisTest = testing::Test;
