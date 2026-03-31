@@ -15,7 +15,7 @@ The *PagedCausalConv1D* operation performs a stateful causal 1D grouped convolut
 
 **Detailed description**
 
-*PagedCausalConv1D* processes a flat batch of tokens that may belong to multiple independent sequences. The token sequences are described by ``subsequence_begins``. For each sequence, the operation:
+*PagedCausalConv1D* processes a flat batch of tokens that may belong to multiple independent sequences. The token sequences are described by ``subsequence_begins``. Paged memory uses a fixed ``BLOCK_SIZE=1``, meaning each block in ``conv_state_table`` stores exactly one convolution state snapshot of shape ``[hidden_size, kernel_size]``. For each sequence, the operation:
 
 1. Loads the current convolution state (a window of the last ``kernel_size`` input vectors) from paged memory using the block table.
 2. For each token, shifts the state window and inserts the new token, then applies a grouped causal 1D convolution to produce the output embedding.
@@ -61,7 +61,7 @@ The convolution state is initially a zero tensor and is updated using the same l
         # Persist the final state for this sequence into the last block
         conv_state_table[seq_blocks[-1]] = state
 
-Where ``grouped_conv1d`` computes a standard grouped (or depthwise when ``group_size == hidden_size``) convolution over the state window:
+Where ``grouped_conv1d`` computes a standard grouped (or depthwise when ``group_size == hidden_size``) convolution over the state window. Here ``group_size`` is the number of input channels per group, ``groups = hidden_size // group_size`` is the total number of groups (equivalent to ``out_channels // (hidden_size // group_size)`` given the constraint ``out_channels == hidden_size``), and ``out_channels`` must equal ``hidden_size`` (as required by the output shape). The weight tensor second dimension is ``hidden_size // group_size`` (channels per group):
 
 .. code-block:: py
     :force:
@@ -69,13 +69,21 @@ Where ``grouped_conv1d`` computes a standard grouped (or depthwise when ``group_
     def grouped_conv1d(state, conv_weight, conv_bias):
         # state:       [hidden_size, kernel_size]
         # conv_weight: [out_channels, hidden_size // group_size, kernel_size]
+        #              where out_channels == hidden_size (constraint for this operation)
         # conv_bias:   [out_channels]
-        # returns:     [out_channels]  (== [hidden_size] for depthwise case)
+        # returns:     [out_channels]
+        #
+        # group_size:  number of input channels per convolution group
+        #              (equals hidden_size for depthwise; 1 for channel-wise)
+        # groups:      hidden_size // group_size  (total number of groups)
+        # ic_per_group: hidden_size // groups == group_size
+        groups       = hidden_size // group_size   # total number of groups (== out_channels / ic_per_group, given out_channels == hidden_size)
+        ic_per_group = hidden_size // groups       # == group_size
         output = zeros(out_channels)
         for oc in range(out_channels):
-            g          = oc // (out_channels // groups)
-            ic_start   = g * (hidden_size // groups)
-            ic_end     = ic_start + (hidden_size // groups)
+            g          = oc * groups // out_channels  # group index for output channel oc
+            ic_start   = g * ic_per_group
+            ic_end     = ic_start + ic_per_group
             output[oc] = sum(conv_weight[oc, :, :] * state[ic_start:ic_end, :]) + conv_bias[oc]
         return output
 
@@ -93,11 +101,11 @@ This operation has no attributes. All configuration is provided through the inpu
 
 * **1**: ``conv_state_table``
   A 3D tensor of type *T* with shape ``[num_blocks, hidden_size, kernel_size]``.
-  Paged block table holding the convolution cache states. Each block (``BLOCK_SIZE=1``) stores one convolution state of shape ``[hidden_size, kernel_size]``, representing the last ``kernel_size`` input vectors seen by the corresponding sequence. The table is updated in-place: during prefill by the plugin, during decoding by GenAI. Initially all states are zero tensors. **Required.**
+  Paged block table holding the convolution cache states. The paged memory block size is fixed at ``BLOCK_SIZE=1``, meaning each physical block stores exactly one convolution state of shape ``[hidden_size, kernel_size]``, representing the last ``kernel_size`` input vectors seen by the corresponding sequence. ``num_blocks`` equals the total number of blocks allocated across all sequences (i.e. ``block_indices_begins[-1]``). The table is updated in-place: during prefill by the plugin, during decoding by GenAI. Initially all states are zero tensors. **Required.**
 
 * **2**: ``conv_weight``
   A 3D tensor of type *T* with shape ``[out_channels, hidden_size / group_size, kernel_size]``.
-  Convolution filter weights. For a depthwise convolution, ``group_size == hidden_size`` and ``out_channels == hidden_size``, so the shape becomes ``[hidden_size, 1, kernel_size]``. **Required.**
+  Convolution filter weights, where ``group_size`` is the number of input channels per convolution group (``1 <= group_size <= hidden_size``). For a depthwise convolution ``group_size == hidden_size`` and ``out_channels == hidden_size``, so the shape becomes ``[hidden_size, 1, kernel_size]``. The constraint ``out_channels == hidden_size`` is required so that the output shape matches the input shape. **Required.**
 
 * **3**: ``conv_bias``
   A 1D tensor of type *T* with shape ``[out_channels]``.
@@ -109,7 +117,7 @@ This operation has no attributes. All configuration is provided through the inpu
 
 * **5**: ``block_indices``
   A 1D tensor of type *T_IND* with shape ``[num_blocks]``.
-  Physical block indices into ``conv_state_table`` assigned across all sequences. The logical-to-physical mapping for sequence ``s`` is given by ``block_indices[block_indices_begins[s] : block_indices_begins[s+1]]``. For example, ``block_indices = [0, 1, 3, 2, 4]`` with ``block_indices_begins = [0, 3, 5]`` means that sequence 0 uses physical blocks ``{0, 1, 3}`` and sequence 1 uses physical blocks ``{2, 4}``. The number of blocks is determined by GenAI based on scheduled tokens. **Required.**
+  Physical block indices into ``conv_state_table`` assigned across all sequences, where ``num_blocks = block_indices_begins[-1]`` is the total number of blocks allocated. The logical-to-physical mapping for sequence ``s`` is given by ``block_indices[block_indices_begins[s] : block_indices_begins[s+1]]``. For example, ``block_indices = [0, 1, 3, 2, 4]`` with ``block_indices_begins = [0, 3, 5]`` means that sequence 0 uses physical blocks ``{0, 1, 3}`` and sequence 1 uses physical blocks ``{2, 4}``. The number of blocks is determined by GenAI based on scheduled tokens. **Required.**
 
 * **6**: ``block_indices_begins``
   A 1D tensor of type *T_IND* with shape ``[batch_size_in_sequences + 1]``.
@@ -128,7 +136,7 @@ This operation has no attributes. All configuration is provided through the inpu
 
 * **0**: ``output_embeds``
   A 2D tensor of type *T* with shape ``[batch_size_in_tokens, hidden_size]``.
-  Output token embeddings after applying the causal grouped 1D convolution. Has the same layout as ``input_embeds``.
+  Output token embeddings after applying the causal grouped 1D convolution. Has the same layout as ``input_embeds``. The constraint ``out_channels == hidden_size`` ensures the output channel count matches the input embedding width.
 
 
 **Types**
