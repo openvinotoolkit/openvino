@@ -202,8 +202,9 @@ void ScaledAttnLayerGPUTest::SetUp() {
 
     bool has_long_seq = it != inputShapes[1].second.end();
 
-    bool has_non_pow2_head = (inputShapes[1].first[3].is_static() &&
-    ((inputShapes[1].first[3].get_length() & (inputShapes[1].first[3].get_length() - 1)) != 0));
+    bool has_non_pow2_head = (inputShapes[1].first.rank().get_length() == 4
+        && inputShapes[1].first[-1].is_static()
+        && ((inputShapes[1].first[-1].get_length() & (inputShapes[1].first[-1].get_length() - 1)) != 0));
 
     if (inType == ov::element::f16) {
         if (has_sink || (has_diff_head_size && !has_scale)) {
