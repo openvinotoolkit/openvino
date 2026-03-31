@@ -102,6 +102,16 @@ protected:
     void read_data_from_source(char* destination, const size_t size);
 
     /**
+     * @brief Writes data from raw bytes containing part of metadata information. Takes into account if the information
+     * to be written should be encrypted or not.
+     */
+    void write_data_from_raw_data(
+        std::ostream& stream,
+        const char* source,
+        const size_t size,
+        const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt);
+
+    /**
      * @brief Adds the size of the binary object and the magic string to the end of the stream.
      * @details This should be called after the "write" method in order to conclude writing the metadata into the given
      * stream.

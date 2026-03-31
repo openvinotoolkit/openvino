@@ -53,9 +53,8 @@ void OpenvinoVersion::write(
     const std::string_view minor(reinterpret_cast<const char*>(&_minor), sizeof(_minor));
     const std::string_view patch(reinterpret_cast<const char*>(&_patch), sizeof(_patch));
     if (encryptionCallbackOpt.has_value()) {
-        auto encryptedDataStr =
-            encryptionCallbackOpt.value()(std::string(major) + std::string(minor) + std::string(patch));
-        stream << encryptedDataStr;
+        stream << encryptionCallbackOpt.value()(std::string(major)) << encryptionCallbackOpt.value()(std::string(minor))
+               << encryptionCallbackOpt.value()(std::string(patch));
         return;
     }
     stream << major << minor << patch;
@@ -139,6 +138,19 @@ void MetadataBase::read_data_from_source(char* destination, const size_t size) {
     }
 }
 
+void MetadataBase::write_data_from_raw_data(
+    std::ostream& stream,
+    const char* source,
+    const size_t size,
+    const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt) {
+    const std::string_view raw_data_view(source, size);
+    if (encryptionCallbackOpt.has_value()) {
+        stream << encryptionCallbackOpt.value()(std::string(raw_data_view));
+        return;
+    }
+    stream << raw_data_view;
+}
+
 void MetadataBase::append_padding_blob_size_and_magic(
     std::ostream& stream,
     const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt) {
@@ -150,11 +162,11 @@ void MetadataBase::append_padding_blob_size_and_magic(
         std::fill_n(std::ostream_iterator<char>(stream), paddingSize, fill_ch);
     }
 
-    const std::string_view blobDataSize(reinterpret_cast<const char*>(&_blobDataSize), sizeof(_blobDataSize));
-    if (encryptionCallbackOpt.has_value()) {
-        stream << encryptionCallbackOpt.value()(std::string(blobDataSize) + std::string(MAGIC_BYTES));
-    }
-    stream << blobDataSize << MAGIC_BYTES;
+    write_data_from_raw_data(stream,
+                             reinterpret_cast<const char*>(&_blobDataSize),
+                             sizeof(_blobDataSize),
+                             encryptionCallbackOpt);
+    write_data_from_raw_data(stream, MAGIC_BYTES.data(), MAGIC_BYTES.size(), encryptionCallbackOpt);
 }
 
 void Metadata<METADATA_VERSION_2_0>::read() {
@@ -245,12 +257,7 @@ void Metadata<METADATA_VERSION_2_4>::read() {
 void Metadata<METADATA_VERSION_2_0>::write(
     std::ostream& stream,
     const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt) {
-    const std::string_view version(reinterpret_cast<const char*>(&_version), sizeof(_version));
-    if (encryptionCallbackOpt.has_value()) {
-        stream << encryptionCallbackOpt.value()(std::string(version));
-    } else {
-        stream << version;
-    }
+    write_data_from_raw_data(stream, reinterpret_cast<const char*>(&_version), sizeof(_version), encryptionCallbackOpt);
     _ovVersion.write(stream, encryptionCallbackOpt);
 }
 
@@ -260,21 +267,17 @@ void Metadata<METADATA_VERSION_2_1>::write(
     Metadata<METADATA_VERSION_2_0>::write(stream, encryptionCallbackOpt);
 
     _numberOfInits = _initSizes.has_value() ? _initSizes->size() : 0;
-    const std::string_view numberOfInits(reinterpret_cast<const char*>(&_numberOfInits), sizeof(_numberOfInits));
-    if (encryptionCallbackOpt.has_value()) {
-        stream << encryptionCallbackOpt.value()(std::string(numberOfInits));
-    } else {
-        stream << numberOfInits;
-    }
+    write_data_from_raw_data(stream,
+                             reinterpret_cast<const char*>(&_numberOfInits),
+                             sizeof(_numberOfInits),
+                             encryptionCallbackOpt);
 
     if (_initSizes.has_value()) {
         for (uint64_t initSize : _initSizes.value()) {
-            const std::string_view initSizeView(reinterpret_cast<const char*>(&initSize), sizeof(initSize));
-            if (encryptionCallbackOpt.has_value()) {
-                stream << encryptionCallbackOpt.value()(std::string(initSizeView));
-            } else {
-                stream << initSizeView;
-            }
+            write_data_from_raw_data(stream,
+                                     reinterpret_cast<const char*>(&initSize),
+                                     sizeof(initSize),
+                                     encryptionCallbackOpt);
         }
     }
 }
@@ -285,12 +288,10 @@ void Metadata<METADATA_VERSION_2_2>::write(
     Metadata<METADATA_VERSION_2_1>::write(stream, encryptionCallbackOpt);
 
     int64_t batchValue = _batchSize.value_or(0);
-    const std::string_view batchValueView(reinterpret_cast<const char*>(&batchValue), sizeof(batchValue));
-    if (encryptionCallbackOpt.has_value()) {
-        stream << encryptionCallbackOpt.value()(std::string(batchValueView));
-        return;
-    }
-    stream << batchValueView;
+    write_data_from_raw_data(stream,
+                             reinterpret_cast<const char*>(&batchValue),
+                             sizeof(batchValue),
+                             encryptionCallbackOpt);
 }
 
 void Metadata<METADATA_VERSION_2_3>::write(
@@ -300,29 +301,28 @@ void Metadata<METADATA_VERSION_2_3>::write(
 
     const uint64_t numberOfInputLayouts = _inputLayouts.has_value() ? _inputLayouts->size() : 0;
     const uint64_t numberOfOutputLayouts = _outputLayouts.has_value() ? _outputLayouts->size() : 0;
-    const std::string_view numberOfInputLayoutsView(reinterpret_cast<const char*>(&numberOfInputLayouts),
-                                                    sizeof(numberOfInputLayouts));
-    const std::string_view numberOfOutputLayoutsView(reinterpret_cast<const char*>(&numberOfOutputLayouts),
-                                                     sizeof(numberOfOutputLayouts));
-    if (encryptionCallbackOpt.has_value()) {
-        stream << encryptionCallbackOpt.value()(std::string(numberOfInputLayoutsView) +
-                                                std::string(numberOfOutputLayoutsView));
-    } else {
-        stream << numberOfInputLayoutsView << numberOfOutputLayoutsView;
-    }
+    write_data_from_raw_data(stream,
+                             reinterpret_cast<const char*>(&numberOfInputLayouts),
+                             sizeof(numberOfInputLayouts),
+                             encryptionCallbackOpt);
+    write_data_from_raw_data(stream,
+                             reinterpret_cast<const char*>(&numberOfOutputLayouts),
+                             sizeof(numberOfOutputLayouts),
+                             encryptionCallbackOpt);
 
     const auto writeLayouts = [&](const std::optional<std::vector<ov::Layout>>& layouts) {
         if (layouts.has_value()) {
             for (const ov::Layout& layout : layouts.value()) {
                 const std::string layoutString = layout.to_string();
                 const uint16_t stringLength = static_cast<uint16_t>(layoutString.size());
-                const std::string_view stringLengthView(reinterpret_cast<const char*>(&stringLength),
-                                                        sizeof(stringLength));
-                if (encryptionCallbackOpt.has_value()) {
-                    stream << encryptionCallbackOpt.value()(std::string(stringLengthView) + layoutString);
-                } else {
-                    stream << stringLengthView << layoutString;
-                }
+                write_data_from_raw_data(stream,
+                                         reinterpret_cast<const char*>(&stringLength),
+                                         sizeof(stringLength),
+                                         encryptionCallbackOpt);
+                write_data_from_raw_data(stream,
+                                         reinterpret_cast<const char*>(layoutString.c_str()),
+                                         layoutString.size(),
+                                         encryptionCallbackOpt);
             }
         }
     };
