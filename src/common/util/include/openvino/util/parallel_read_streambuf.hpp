@@ -13,21 +13,7 @@
 #include <filesystem>
 #include <streambuf>
 
-#ifdef _WIN32
-#    ifndef NOMINMAX
-#        define NOMINMAX
-#    endif
-#    ifndef WIN32_LEAN_AND_MEAN
-#        define WIN32_LEAN_AND_MEAN
-#    endif
-#    include <windows.h>
-#    ifdef min
-#        undef min
-#    endif
-#    ifdef max
-#        undef max
-#    endif
-#endif
+#include "openvino/util/parallel_io.hpp"
 
 namespace ov::util {
 
@@ -49,7 +35,6 @@ namespace ov::util {
  */
 class ParallelReadStreamBuf : public std::streambuf {
 public:
-    static constexpr size_t DEFAULT_THRESHOLD = 4UL * 1024 * 1024;  ///< 4 MB
 
     /**
      * @param path           Path to the file to read.
@@ -59,7 +44,7 @@ public:
      */
     explicit ParallelReadStreamBuf(const std::filesystem::path& path,
                                    std::streamoff header_offset = 0,
-                                   size_t threshold = DEFAULT_THRESHOLD);
+                                   size_t threshold = DEFAULT_PARALLEL_IO_THRESHOLD);
 
     ~ParallelReadStreamBuf() override;
 
@@ -80,16 +65,12 @@ private:
     static constexpr size_t UNDERFLOW_BUF = 8192;  ///< batch size for char-by-char reads
 
     std::filesystem::path m_path;
-#ifdef _WIN32
-    HANDLE m_handle = INVALID_HANDLE_VALUE;  ///< Windows file HANDLE
-#else
-    int m_fd = -1;  ///< Linux file descriptor
-#endif
+    FileHandle m_handle = static_cast<FileHandle>(-1);  ///< platform file handle
 
     std::streamoff m_file_offset = 0;        ///< absolute file offset of next byte to read
     std::streamoff m_header_offset = 0;  ///< absolute file offset of logical stream start
     std::streamoff m_file_size = 0;
-    size_t m_threshold = DEFAULT_THRESHOLD;
+    size_t m_threshold = DEFAULT_PARALLEL_IO_THRESHOLD;
     std::array<char_type, UNDERFLOW_BUF> m_underflow_buf{};  ///< buffer for underflow()
 };
 

@@ -39,15 +39,12 @@ namespace ov::util {
  */
 class ParallelMemStreamBuf : public std::streambuf {
 public:
-    static constexpr size_t DEFAULT_THRESHOLD = ParallelReadStreamBuf::DEFAULT_THRESHOLD;
-    static constexpr size_t MIN_CHUNK = 2UL * 1024 * 1024;  // 2 MB minimum per thread
-
     /**
      * @param data       Pointer to the start of the memory region.
      * @param size       Total size of the memory region in bytes.
      * @param threshold  Minimum read size to engage parallel memcpy.
      */
-    explicit ParallelMemStreamBuf(const void* data, size_t size, size_t threshold = DEFAULT_THRESHOLD);
+    explicit ParallelMemStreamBuf(const void* data, size_t size, size_t threshold = DEFAULT_PARALLEL_IO_THRESHOLD);
 
     ~ParallelMemStreamBuf() override = default;
 

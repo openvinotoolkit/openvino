@@ -12,14 +12,7 @@
 #include <vector>
 
 #include "openvino/util/file_util.hpp"
-
-#ifdef _WIN32
-// windows.h is included transitively via the header (needed for HANDLE member type)
-#else
-#    include <fcntl.h>
-#    include <sys/stat.h>
-#    include <unistd.h>
-#endif
+#include "openvino/util/parallel_io.hpp"
 
 namespace ov::util {
 
@@ -30,68 +23,16 @@ ParallelReadStreamBuf::ParallelReadStreamBuf(const std::filesystem::path& path,
       m_file_offset(header_offset),
       m_header_offset(header_offset),
       m_threshold(threshold) {
-#ifdef _WIN32
-    m_handle = CreateFileW(path.native().c_str(),
-                           GENERIC_READ,
-                           FILE_SHARE_READ | FILE_SHARE_WRITE,
-                           nullptr,
-                           OPEN_EXISTING,
-                           FILE_ATTRIBUTE_NORMAL,
-                           nullptr);
-    if (m_handle == INVALID_HANDLE_VALUE) {
-        throw std::runtime_error("ParallelReadStreamBuf: cannot open file: " + ov::util::path_to_string(path));
-    }
-    LARGE_INTEGER file_size = {};
-    if (!GetFileSizeEx(m_handle, &file_size)) {
-        CloseHandle(m_handle);
-        throw std::runtime_error("ParallelReadStreamBuf: cannot get file size: " + ov::util::path_to_string(path));
-    }
-    m_file_size = static_cast<std::streamoff>(file_size.QuadPart);
-#else
-    m_fd = ::open(path.c_str(), O_RDONLY | O_CLOEXEC);
-    if (m_fd == -1) {
-        throw std::runtime_error("ParallelReadStreamBuf: cannot open file: " + ov::util::path_to_string(path));
-    }
-    struct stat st = {};
-    if (::fstat(m_fd, &st) != 0) {
-        ::close(m_fd);
-        throw std::runtime_error("ParallelReadStreamBuf: cannot stat file: " + ov::util::path_to_string(path));
-    }
-    m_file_size = static_cast<std::streamoff>(st.st_size);
-#endif
 
-    if (m_file_offset < static_cast<std::streamoff>(0) || m_file_offset > m_file_size) {
-#ifdef _WIN32
-        if (m_handle != INVALID_HANDLE_VALUE) {
-            CloseHandle(m_handle);
-            m_handle = INVALID_HANDLE_VALUE;
-        }
-#else
-        if (m_fd != -1) {
-            ::close(m_fd);
-            m_fd = -1;
-        }
-#endif
-        throw std::out_of_range("ParallelReadStreamBuf: header_offset is out of range for file: " +
-                                ov::util::path_to_string(path));
-    }
+    ov::util::get_file_handle_and_size(path, m_file_offset, m_handle, m_file_size);
 }
 
 ParallelReadStreamBuf::~ParallelReadStreamBuf() {
-#ifdef _WIN32
-    if (m_handle != INVALID_HANDLE_VALUE) {
-        CloseHandle(m_handle);
-    }
-#else
-    if (m_fd != -1) {
-        ::close(m_fd);
-    }
-#endif
+    ov::util::close_file_handle(m_handle);
+    m_handle = static_cast<FileHandle>(-1);
 }
 
-// -----------------------------------------------------------------------
 // xsgetn: main hot path - called by sgetn() for all bulk reads
-// -----------------------------------------------------------------------
 std::streamsize ParallelReadStreamBuf::xsgetn(char_type* dst, std::streamsize n) {
     if (n <= 0)
         return 0;
@@ -129,9 +70,7 @@ std::streamsize ParallelReadStreamBuf::xsgetn(char_type* dst, std::streamsize n)
     return total;
 }
 
-// -----------------------------------------------------------------------
 // underflow: called for single-char peek / non-bulk reads (e.g. std::getline)
-// -----------------------------------------------------------------------
 ParallelReadStreamBuf::int_type ParallelReadStreamBuf::underflow() {
     if (m_file_offset >= m_file_size) {
         return traits_type::eof();
@@ -151,9 +90,6 @@ ParallelReadStreamBuf::int_type ParallelReadStreamBuf::underflow() {
     return traits_type::to_int_type(m_underflow_buf[0]);
 }
 
-// -----------------------------------------------------------------------
-// Seek support
-// -----------------------------------------------------------------------
 ParallelReadStreamBuf::pos_type ParallelReadStreamBuf::seekoff(off_type off,
                                                                std::ios_base::seekdir way,
                                                                std::ios_base::openmode /* which */) {
@@ -213,57 +149,12 @@ std::streamsize ParallelReadStreamBuf::showmanyc() {
     return total > 0 ? total : static_cast<std::streamsize>(-1);
 }
 
-// -----------------------------------------------------------------------
 // Single-threaded positional read
-// -----------------------------------------------------------------------
 bool ParallelReadStreamBuf::single_read(char* dst, size_t size, size_t file_offset) {
-#ifdef _WIN32
-    char* cur = dst;
-    size_t remaining = size;
-    size_t cur_offset = file_offset;
-    while (remaining > 0) {
-        const DWORD to_read = static_cast<DWORD>(std::min(remaining, static_cast<size_t>(UINT_MAX - 1024u)));
-        // Use SetFilePointerEx + ReadFile(nullptr) for a purely synchronous
-        // positional read.  Passing a non-NULL OVERLAPPED to a synchronous
-        // handle (no FILE_FLAG_OVERLAPPED) works but can misleadingly suggest
-        // that ERROR_IO_PENDING needs to be handled.
-        LARGE_INTEGER li;
-        li.QuadPart = static_cast<LONGLONG>(cur_offset);
-        if (!SetFilePointerEx(m_handle, li, nullptr, FILE_BEGIN)) {
-            return false;
-        }
-        DWORD bytes_read = 0;
-        if (!ReadFile(m_handle, cur, to_read, &bytes_read, nullptr)) {
-            return false;
-        }
-        if (bytes_read == 0) {
-            return false;
-        }
-        cur += bytes_read;
-        cur_offset += bytes_read;
-        remaining -= bytes_read;
-    }
-    return true;
-#else
-    char* cur = dst;
-    size_t remaining = size;
-    off_t cur_offset = static_cast<off_t>(file_offset);
-    while (remaining > 0) {
-        const ssize_t n = ::pread(m_fd, cur, remaining, cur_offset);
-        if (n <= 0) {
-            return false;
-        }
-        cur += n;
-        cur_offset += n;
-        remaining -= static_cast<size_t>(n);
-    }
-    return true;
-#endif
+    return ov::util::positional_read(m_handle, dst, size, file_offset);
 }
 
-// -----------------------------------------------------------------------
 // Parallel positional read
-// -----------------------------------------------------------------------
 bool ParallelReadStreamBuf::parallel_read(char* dst, size_t size, size_t file_offset) {
     const size_t hw_threads = std::max(size_t{1}, static_cast<size_t>(std::thread::hardware_concurrency()));
     const size_t max_by_size = size / (1024 * 1024);  // 1 thread per MB
@@ -309,70 +200,16 @@ bool ParallelReadStreamBuf::parallel_read(char* dst, size_t size, size_t file_of
                 char* const ptr = dst + cur_offset;
                 const size_t thread_file_offset = file_offset + cur_offset;
 
-#ifdef _WIN32
-                const std::wstring& wpath = m_path.native();
-                HANDLE t_handle = CreateFileW(wpath.c_str(),
-                                              GENERIC_READ,
-                                              FILE_SHARE_READ | FILE_SHARE_WRITE,
-                                              nullptr,
-                                              OPEN_EXISTING,
-                                              FILE_ATTRIBUTE_NORMAL,
-                                              nullptr);
-                if (t_handle == INVALID_HANDLE_VALUE) {
+                FileHandle t_handle = ov::util::open_file_for_read(m_path);
+                if (t_handle == static_cast<FileHandle>(-1)) {
                     success = false;
                     return;
                 }
 
-                char* cur = ptr;
-                auto remaining = read_size;
-                auto cur_file_offset = thread_file_offset;
-                while (remaining > 0 && success) {
-                    const DWORD to_read =
-                        static_cast<DWORD>(std::min(remaining, static_cast<size_t>(UINT_MAX - 1024u)));
-                    LARGE_INTEGER li;
-                    li.QuadPart = static_cast<LONGLONG>(cur_file_offset);
-                    if (!SetFilePointerEx(t_handle, li, nullptr, FILE_BEGIN)) {
-                        success = false;
-                        break;
-                    }
-
-                    DWORD bytes_read = 0;
-                    if (!ReadFile(t_handle, cur, to_read, &bytes_read, nullptr)) {
-                        success = false;
-                        break;
-                    }
-                    if (bytes_read == 0) {
-                        success = false;
-                        break;
-                    }
-                    cur += bytes_read;
-                    cur_file_offset += bytes_read;
-                    remaining -= bytes_read;
-                }
-                CloseHandle(t_handle);
-#else
-                const int t_fd = ::open(m_path.c_str(), O_RDONLY | O_CLOEXEC);
-                if (t_fd == -1) {
+                if (!ov::util::positional_read(t_handle, ptr, read_size, thread_file_offset)) {
                     success = false;
-                    return;
                 }
-
-                char* cur = ptr;
-                size_t remaining = read_size;
-                off_t cur_off = static_cast<off_t>(thread_file_offset);
-
-                while (remaining > 0 && success) {
-                    const ssize_t n = ::pread(t_fd, cur, remaining, cur_off);
-                    if (n <= 0) {
-                        success = false;
-                        break;
-                    }
-                    cur += n;
-                    cur_off += n;
-                    remaining -= static_cast<size_t>(n);
-                }
-                ::close(t_fd);
-#endif
+                ov::util::close_file_handle(t_handle);
             });  // workers.emplace_back
         } catch (...) {
             success = false;

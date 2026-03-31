@@ -2,30 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-/**
- * @brief Unit tests for ov::util::ParallelReadStreamBuf.
- *
- * Goals:
- *  1. Verify byte-exact correctness of the parallel I/O path (large reads split
- *     across N workers must produce the same result as a single-threaded read).
- *  2. Verify correct behaviour for non-zero header_offset (the streambuf's
- *     logical position 0 maps to a non-zero file offset).
- *  3. Verify that seekoff / seekpos work for all seek directions and that
- *     seekg + read returns the right bytes.
- *  4. Exercise the underflow() path (single-char / getline-style reads) in
- *     addition to the fast xsgetn() bulk path.
- *  5. Verify boundary conditions: read beyond EOF, seek out of range.
- *
- * Strategy for exercising the parallel dispatch:
- *   - Tests that verify the parallel-dispatch logic itself use data large enough
- *     that parallel_read() chooses num_threads > 1 on any >= 2-core CI machine
- *     (at least 2 MB -- the current heuristic is 1 thread per MB).
- *   - Tests that verify seek / underflow semantics use small data with
- *     threshold=1 so that parallel_read() is called on every xsgetn; even
- *     when hardware_concurrency==1 it still falls back to single_read() and the
- *     seek / offset math remains exercised.
- */
-
 #include "openvino/util/parallel_read_streambuf.hpp"
 
 #include <gtest/gtest.h>
@@ -39,10 +15,6 @@
 #include "common_test_utils/common_utils.hpp"
 
 namespace ov::test {
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 namespace {
 
@@ -90,10 +62,7 @@ std::filesystem::path write_temp_file(const std::vector<uint8_t>& data,
 
 }  // namespace
 
-// ---------------------------------------------------------------------------
 // Test fixture – creates a temporary file and removes it in TearDown
-// ---------------------------------------------------------------------------
-
 class ParallelReadStreamBufTest : public ::testing::Test {
 protected:
     std::filesystem::path m_tmp_path;
@@ -105,11 +74,9 @@ protected:
     }
 };
 
-// ---------------------------------------------------------------------------
 // 1.  Full sequential read – threshold=1 forces parallel_read() to be called;
 //     num_threads collapses to 1 for < 1 MB so single_read() is used, but the
 //     dispatch code path (chunk math, atomic success flag) is exercised.
-// ---------------------------------------------------------------------------
 TEST_F(ParallelReadStreamBufTest, FullReadSmallThreshold) {
     constexpr size_t k_size = 16 * 1024;  // 16 KB
     std::vector<uint8_t> expected(k_size);
@@ -124,10 +91,8 @@ TEST_F(ParallelReadStreamBufTest, FullReadSmallThreshold) {
     EXPECT_EQ(got, expected);
 }
 
-// ---------------------------------------------------------------------------
 // 2.  Non-zero header_offset: the file starts with a "garbage" prefix that
 //     must never appear in reads made through the streambuf.
-// ---------------------------------------------------------------------------
 TEST_F(ParallelReadStreamBufTest, NonZeroHeaderOffsetSmallData) {
     constexpr size_t k_prefix_size = 512;
     constexpr size_t k_payload_size = 4 * 1024;
@@ -146,10 +111,8 @@ TEST_F(ParallelReadStreamBufTest, NonZeroHeaderOffsetSmallData) {
     EXPECT_EQ(got, payload);
 }
 
-// ---------------------------------------------------------------------------
 // 3.  Multiple consecutive reads – each partial read must pick up exactly
 //     where the previous one left off.
-// ---------------------------------------------------------------------------
 TEST_F(ParallelReadStreamBufTest, ChunkedReads) {
     constexpr size_t k_size = 8 * 1024;
     std::vector<uint8_t> expected(k_size);
@@ -170,10 +133,8 @@ TEST_F(ParallelReadStreamBufTest, ChunkedReads) {
     EXPECT_EQ(got, expected);
 }
 
-// ---------------------------------------------------------------------------
 // 4.  underflow() path: reading character-by-character exercises the internal
 //     8 KB underflow buffer and the get-area bookkeeping.
-// ---------------------------------------------------------------------------
 TEST_F(ParallelReadStreamBufTest, CharByCharUnderflow) {
     constexpr size_t k_size = 300;  // small enough to fit in a single underflow fill
     std::vector<uint8_t> expected(k_size);
@@ -193,11 +154,9 @@ TEST_F(ParallelReadStreamBufTest, CharByCharUnderflow) {
     EXPECT_EQ(got, expected);
 }
 
-// ---------------------------------------------------------------------------
 // 5.  seekg(pos, beg): absolute seek then read must return bytes at that
 //     logical position (relative to the start exposed by the streambuf, i.e.
 //     after the header_offset).
-// ---------------------------------------------------------------------------
 TEST_F(ParallelReadStreamBufTest, SeekFromBeginning) {
     constexpr size_t k_size = 2 * 1024;
     std::vector<uint8_t> expected(k_size);
@@ -220,9 +179,7 @@ TEST_F(ParallelReadStreamBufTest, SeekFromBeginning) {
     EXPECT_EQ(got, slice);
 }
 
-// ---------------------------------------------------------------------------
 // 6.  seekg(off, cur): seek relative to current position.
-// ---------------------------------------------------------------------------
 TEST_F(ParallelReadStreamBufTest, SeekFromCurrent) {
     constexpr size_t k_size = 2 * 1024;
     std::vector<uint8_t> expected(k_size);
@@ -253,9 +210,7 @@ TEST_F(ParallelReadStreamBufTest, SeekFromCurrent) {
     EXPECT_EQ(second, expected_slice);
 }
 
-// ---------------------------------------------------------------------------
 // 7.  seekg(off, end): seek backward from end-of-file.
-// ---------------------------------------------------------------------------
 TEST_F(ParallelReadStreamBufTest, SeekFromEnd) {
     constexpr size_t k_size = 2 * 1024;
     std::vector<uint8_t> expected(k_size);
@@ -276,9 +231,7 @@ TEST_F(ParallelReadStreamBufTest, SeekFromEnd) {
     EXPECT_EQ(got, tail);
 }
 
-// ---------------------------------------------------------------------------
 // 8.  seekg(0, end) then tellg() should equal the file (payload) size.
-// ---------------------------------------------------------------------------
 TEST_F(ParallelReadStreamBufTest, TellgAtEnd) {
     constexpr size_t k_size = 1024;
     std::vector<uint8_t> data(k_size, 0xAA);
@@ -292,10 +245,8 @@ TEST_F(ParallelReadStreamBufTest, TellgAtEnd) {
     EXPECT_EQ(static_cast<size_t>(stream.tellg()), k_size);
 }
 
-// ---------------------------------------------------------------------------
 // 9.  Seek with non-zero header_offset: logical pos 0 == file offset (prefix).
 //     seeking to the end should give the payload size, not the whole file size.
-// ---------------------------------------------------------------------------
 TEST_F(ParallelReadStreamBufTest, SeekRespectsHeaderOffset) {
     constexpr size_t k_prefix_size = 256;
     constexpr size_t k_payload_size = 1024;
@@ -326,9 +277,7 @@ TEST_F(ParallelReadStreamBufTest, SeekRespectsHeaderOffset) {
     EXPECT_EQ(got, expected);
 }
 
-// ---------------------------------------------------------------------------
 // 10. Out-of-range seek returns pos_type(-1) and leaves stream in a fail state.
-// ---------------------------------------------------------------------------
 TEST_F(ParallelReadStreamBufTest, OutOfRangeSeekFails) {
     constexpr size_t k_size = 64;
     std::vector<uint8_t> data(k_size, 0x55);
@@ -342,10 +291,8 @@ TEST_F(ParallelReadStreamBufTest, OutOfRangeSeekFails) {
     EXPECT_EQ(pos, std::streampos(-1));
 }
 
-// ---------------------------------------------------------------------------
 // 11. Reading exactly at EOF: request more bytes than remain – stream.read()
 //     must return false and gcount() must equal the bytes that were available.
-// ---------------------------------------------------------------------------
 TEST_F(ParallelReadStreamBufTest, ReadAtEof) {
     constexpr size_t k_size = 100;
     std::vector<uint8_t> expected(k_size);
@@ -368,7 +315,6 @@ TEST_F(ParallelReadStreamBufTest, ReadAtEof) {
     EXPECT_TRUE(std::equal(buf2.begin(), buf2.begin() + 10, expected.end() - 10));
 }
 
-// ---------------------------------------------------------------------------
 // 12. PARALLEL PATH CORRECTNESS – large read (>= 2 MB) with threshold=1 so
 //     parallel_read() is always invoked.  On ≥ 2-core machines the actual
 //     parallel dispatch fires; on single-core machines num_threads==1 still
@@ -378,7 +324,6 @@ TEST_F(ParallelReadStreamBufTest, ReadAtEof) {
 //       a) The full buffer is byte-exact after a parallel read.
 //       b) A second consecutive parallel read immediately following also
 //          produces the correct data (no state corruption between calls).
-// ---------------------------------------------------------------------------
 TEST_F(ParallelReadStreamBufTest, ParallelDispatchFullReadCorrectness) {
     // Use hw_threads * 1 MB + 1 byte so that on any N-core machine,
     // min(hw, size/1MB) > 1 whenever hw >= 2. To avoid excessive memory / I/O
@@ -411,11 +356,9 @@ TEST_F(ParallelReadStreamBufTest, ParallelDispatchFullReadCorrectness) {
     EXPECT_EQ(got2, expected) << "Second consecutive parallel read produced incorrect data";
 }
 
-// ---------------------------------------------------------------------------
 // 13. PARALLEL PATH with NON-ZERO header_offset and a seek in the middle:
 //     file = 4-KB header + (hw*1 MB) payload.  After reading half the payload,
 //     seek back to position 0 (start of payload), read the whole payload again.
-// ---------------------------------------------------------------------------
 TEST_F(ParallelReadStreamBufTest, ParallelDispatchNonZeroOffset_AndSeek) {
     constexpr size_t k_prefix_size = 4 * 1024;
     constexpr size_t k_max_hw_for_size = 16;
@@ -449,11 +392,9 @@ TEST_F(ParallelReadStreamBufTest, ParallelDispatchNonZeroOffset_AndSeek) {
     EXPECT_EQ(full_read, payload) << "Full read after seek produced incorrect data";
 }
 
-// ---------------------------------------------------------------------------
 // 14. Mixed underflow + xsgetn: read a few chars via get() (exercises the
 //     underflow buffer), then read a large block via read() which triggers
 //     xsgetn to flush the underflow remainder.
-// ---------------------------------------------------------------------------
 TEST_F(ParallelReadStreamBufTest, MixedUnderflowAndBulkRead) {
     constexpr size_t k_size = 10 * 1024;
     std::vector<uint8_t> expected(k_size);
@@ -481,10 +422,8 @@ TEST_F(ParallelReadStreamBufTest, MixedUnderflowAndBulkRead) {
         << "Bulk read after char-by-char prefix produced incorrect data";
 }
 
-// ---------------------------------------------------------------------------
 // 15. seekg(0, cur) used as tellg() must reflect the current logical position
 //     correctly after both underflow-buffered reads and bulk reads.
-// ---------------------------------------------------------------------------
 TEST_F(ParallelReadStreamBufTest, TellgIsConsistent) {
     constexpr size_t k_size = 512;
     std::vector<uint8_t> data(k_size, 0xBB);
@@ -511,11 +450,9 @@ TEST_F(ParallelReadStreamBufTest, TellgIsConsistent) {
     EXPECT_EQ(stream.tellg(), std::streampos(200));
 }
 
-// ---------------------------------------------------------------------------
 // 16. showmanyc() / in_avail() reports remaining bytes accurately, including
 //     both buffered characters (from the underflow buffer) and unbuffered
 //     bytes still in the underlying file.
-// ---------------------------------------------------------------------------
 TEST_F(ParallelReadStreamBufTest, ShowmanycReflectsRemainingBytes) {
     constexpr size_t k_size = 256;
     std::vector<uint8_t> data(k_size, 0x77u);
@@ -549,11 +486,9 @@ TEST_F(ParallelReadStreamBufTest, ShowmanycReflectsRemainingBytes) {
     EXPECT_EQ(stream.rdbuf()->in_avail(), -1);
 }
 
-// ---------------------------------------------------------------------------
 // 17. Backward seek from current position: read some bytes, seek backward
 //     relative to current, verify the re-read returns the correct earlier
 //     bytes.  Also verifies that the underflow buffer is properly invalidated.
-// ---------------------------------------------------------------------------
 TEST_F(ParallelReadStreamBufTest, BackwardSeekFromCurrent) {
     constexpr size_t k_size = 2 * 1024;
     std::vector<uint8_t> expected(k_size);

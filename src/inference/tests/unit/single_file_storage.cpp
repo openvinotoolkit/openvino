@@ -184,13 +184,11 @@ TEST_F(SingleFileStorageTest, AppendOnlyCacheEntry) {
     EXPECT_TRUE(read_called);
 }
 
-// ---------------------------------------------------------------------------
 // Large blob test: write >= 4 MB so that the real DEFAULT_THRESHOLD (4 MB) in
 // ParallelReadStreamBuf is crossed on the non-mmap read path.  This exercises
 // the SingleFileStorage → ParallelReadStreamBuf integration end-to-end,
 // including the blob alignment padding before the data and the non-zero
 // header_offset passed to the streambuf constructor.
-// ---------------------------------------------------------------------------
 TEST_F(SingleFileStorageTest, WriteReadLargeBlob_ParallelPath) {
     // 5 MB + 1 byte so that even after padding the blob data itself exceeds the
     // 4 MB parallel threshold.

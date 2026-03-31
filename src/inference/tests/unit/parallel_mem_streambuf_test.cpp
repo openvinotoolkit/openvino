@@ -2,27 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-/**
- * @brief Unit tests for ov::util::ParallelMemStreamBuf.
- *
- * Goals:
- *  1. Verify byte-exact correctness for small reads (memcpy path, threshold=SIZE_MAX).
- *  2. Verify byte-exact correctness for the parallel memcpy path (threshold=1).
- *  3. Verify correct behaviour for non-zero logical start (pointer offset within
- *     a larger allocation).
- *  4. Verify seekoff / seekpos for all three seek directions (beg, cur, end).
- *  5. Verify underflow() / get() path (peeking + char-by-char consumption).
- *  6. Verify uflow() advances the internal cursor correctly.
- *  7. Verify showmanyc() / in_avail() reports remaining bytes accurately.
- *  8. Verify boundary conditions: out-of-range seek, read beyond end.
- *  9. Verify mixed underflow + bulk read: drain underflow first, then xsgetn.
- * 10. Verify large parallel memcpy (>= DEFAULT_THRESHOLD on any >=2-core machine).
- *
- * The "parallel dispatch" tests use buffers large enough that
- *   size / MIN_CHUNK_SIZE (2 MB) >= 2
- * on any machine, so num_chunks > 1 whenever hardware parallelism exists.
- * With threshold=1 the parallel_copy() branch is taken for every xsgetn call.
- */
 
 #include "openvino/util/parallel_mem_streambuf.hpp"
 
@@ -43,10 +22,9 @@ void fill_pattern(std::vector<uint8_t>& buf, size_t start_index = 0) {
 }
 }  // namespace
 
-// ---------------------------------------------------------------------------
+
 // 1. Small read – threshold=SIZE_MAX forces the single memcpy path.
 //    Verifies the basic xsgetn wire-up and cursor advance.
-// ---------------------------------------------------------------------------
 TEST(ParallelMemStreamBufTest, FullReadSingleMemcpyPath) {
     constexpr size_t k_size = 4 * 1024;
     std::vector<uint8_t> src(k_size);
@@ -60,10 +38,8 @@ TEST(ParallelMemStreamBufTest, FullReadSingleMemcpyPath) {
     EXPECT_EQ(got, src);
 }
 
-// ---------------------------------------------------------------------------
 // 2. threshold=1 forces parallel_copy() to be called on every bulk read.
 //    Verifies byte-exact output regardless of which code path is taken.
-// ---------------------------------------------------------------------------
 TEST(ParallelMemStreamBufTest, FullReadParallelMemcpyPath) {
     constexpr size_t k_size = 8 * 1024;
     std::vector<uint8_t> src(k_size);
@@ -77,10 +53,8 @@ TEST(ParallelMemStreamBufTest, FullReadParallelMemcpyPath) {
     EXPECT_EQ(got, src);
 }
 
-// ---------------------------------------------------------------------------
 // 3. Non-zero logical start: construct on a sub-span of a larger allocation.
 //    Bytes before the sub-span pointer must never appear in reads.
-// ---------------------------------------------------------------------------
 TEST(ParallelMemStreamBufTest, NonZeroPointerOffset) {
     constexpr size_t k_prefix_size = 512;
     constexpr size_t k_payload_size = 2 * 1024;
@@ -100,9 +74,7 @@ TEST(ParallelMemStreamBufTest, NonZeroPointerOffset) {
     EXPECT_EQ(got, payload);
 }
 
-// ---------------------------------------------------------------------------
 // 4. Multiple consecutive partial reads consume bytes in order.
-// ---------------------------------------------------------------------------
 TEST(ParallelMemStreamBufTest, ChunkedReads) {
     constexpr size_t k_size = 8 * 1024;
     constexpr size_t k_chunk = 1000;  // intentionally not a power-of-2
@@ -122,9 +94,7 @@ TEST(ParallelMemStreamBufTest, ChunkedReads) {
     EXPECT_EQ(got, src);
 }
 
-// ---------------------------------------------------------------------------
 // 5. underflow() + uflow() – char-by-char consumption via stream.get().
-// ---------------------------------------------------------------------------
 TEST(ParallelMemStreamBufTest, CharByCharRead) {
     constexpr size_t k_size = 200;
     std::vector<uint8_t> src(k_size);
@@ -143,9 +113,7 @@ TEST(ParallelMemStreamBufTest, CharByCharRead) {
     EXPECT_EQ(got, src);
 }
 
-// ---------------------------------------------------------------------------
 // 6. seekg(pos, beg) then read returns bytes at that logical position.
-// ---------------------------------------------------------------------------
 TEST(ParallelMemStreamBufTest, SeekFromBeginning) {
     constexpr size_t k_size = 1024;
     std::vector<uint8_t> src(k_size);
@@ -166,9 +134,7 @@ TEST(ParallelMemStreamBufTest, SeekFromBeginning) {
     EXPECT_EQ(got, expected);
 }
 
-// ---------------------------------------------------------------------------
 // 7. seekg(off, cur) – relative forward seek after an initial read.
-// ---------------------------------------------------------------------------
 TEST(ParallelMemStreamBufTest, SeekFromCurrent) {
     constexpr size_t k_size = 1024;
     std::vector<uint8_t> src(k_size);
@@ -196,9 +162,7 @@ TEST(ParallelMemStreamBufTest, SeekFromCurrent) {
     EXPECT_EQ(second, expected_slice);
 }
 
-// ---------------------------------------------------------------------------
 // 8. seekg(off, end) – backward seek from the end.
-// ---------------------------------------------------------------------------
 TEST(ParallelMemStreamBufTest, SeekFromEnd) {
     constexpr size_t k_size = 1024;
     std::vector<uint8_t> src(k_size);
@@ -218,9 +182,7 @@ TEST(ParallelMemStreamBufTest, SeekFromEnd) {
     EXPECT_EQ(got, expected);
 }
 
-// ---------------------------------------------------------------------------
 // 9. seekg(0, end) then tellg() must equal the buffer size.
-// ---------------------------------------------------------------------------
 TEST(ParallelMemStreamBufTest, TellgAtEnd) {
     constexpr size_t k_size = 512;
     std::vector<uint8_t> src(k_size, 0xAAu);
@@ -233,10 +195,8 @@ TEST(ParallelMemStreamBufTest, TellgAtEnd) {
     EXPECT_EQ(static_cast<size_t>(stream.tellg()), k_size);
 }
 
-// ---------------------------------------------------------------------------
 // 10. tellg() reflects the current position accurately after mixed reads and
 //     seeks.
-// ---------------------------------------------------------------------------
 TEST(ParallelMemStreamBufTest, TellgIsConsistent) {
     constexpr size_t k_size = 512;
     std::vector<uint8_t> src(k_size, 0xBBu);
@@ -259,9 +219,7 @@ TEST(ParallelMemStreamBufTest, TellgIsConsistent) {
     EXPECT_EQ(stream.tellg(), std::streampos(200));
 }
 
-// ---------------------------------------------------------------------------
 // 11. Out-of-range seek returns pos_type(-1).
-// ---------------------------------------------------------------------------
 TEST(ParallelMemStreamBufTest, OutOfRangeSeekFails) {
     constexpr size_t k_size = 64;
     std::vector<uint8_t> src(k_size, 0x55u);
@@ -274,11 +232,9 @@ TEST(ParallelMemStreamBufTest, OutOfRangeSeekFails) {
     EXPECT_EQ(pos, std::streampos(-1));
 }
 
-// ---------------------------------------------------------------------------
 // 12. Partial read at EOF: requesting more bytes than remain must return false,
 //     set stream.eof(), and deliver only the bytes that were available via
 //     gcount().
-// ---------------------------------------------------------------------------
 TEST(ParallelMemStreamBufTest, ReadAtEof) {
     constexpr size_t k_size = 80;
     std::vector<uint8_t> src(k_size);
@@ -300,10 +256,8 @@ TEST(ParallelMemStreamBufTest, ReadAtEof) {
     EXPECT_TRUE(std::equal(tail.begin(), tail.begin() + 10, src.end() - 10));
 }
 
-// ---------------------------------------------------------------------------
 // 13. showmanyc() / in_avail() reports the correct number of remaining bytes
 //     and -1 when the buffer is exhausted.
-// ---------------------------------------------------------------------------
 TEST(ParallelMemStreamBufTest, ShowmanycReflectsRemainingBytes) {
     constexpr size_t k_size = 256;
     std::vector<uint8_t> src(k_size, 0x77u);
@@ -323,12 +277,10 @@ TEST(ParallelMemStreamBufTest, ShowmanycReflectsRemainingBytes) {
     EXPECT_EQ(stream.rdbuf()->in_avail(), -1);
 }
 
-// ---------------------------------------------------------------------------
 // 14. Mixed underflow + bulk read: first consume bytes char-by-char, then
 //     switch to stream.read() for the tail.
 //     (ParallelMemStreamBuf has no internal buffer to drain; the transition
 //      tests that m_current advances cleanly across both call paths.)
-// ---------------------------------------------------------------------------
 TEST(ParallelMemStreamBufTest, MixedCharAndBulkRead) {
     constexpr size_t k_size = 1024;
     std::vector<uint8_t> src(k_size);
@@ -350,10 +302,8 @@ TEST(ParallelMemStreamBufTest, MixedCharAndBulkRead) {
     EXPECT_EQ(rest, std::vector<uint8_t>(src.begin() + 8, src.end()));
 }
 
-// ---------------------------------------------------------------------------
 // 15. Seek back to position 0 and re-read the full buffer; verifies that the
 //     internal cursor is properly reset.
-// ---------------------------------------------------------------------------
 TEST(ParallelMemStreamBufTest, SeekToZeroAndReread) {
     constexpr size_t k_size = 1024;
     std::vector<uint8_t> src(k_size);
@@ -377,12 +327,10 @@ TEST(ParallelMemStreamBufTest, SeekToZeroAndReread) {
     EXPECT_EQ(second, src);
 }
 
-// ---------------------------------------------------------------------------
 // 16. PARALLEL PATH CORRECTNESS – large buffer that exceeds the 2 MB minimum
 //     chunk size on any ≥2-core machine so that num_chunks > 1 and the
 //     ov::parallel_for() dispatch in parallel_copy() actually fires.
 //     Uses threshold=1 to ensure parallel_copy() is invoked.
-// ---------------------------------------------------------------------------
 TEST(ParallelMemStreamBufTest, ParallelDispatchFullReadCorrectness) {
     // 2 * hw_threads * 2 MB + 1: guarantees num_chunks >= 2 on hardware that has
     // at least 2 threads, since MIN_CHUNK_SIZE inside parallel_copy is 2 MB.
@@ -402,11 +350,9 @@ TEST(ParallelMemStreamBufTest, ParallelDispatchFullReadCorrectness) {
     EXPECT_EQ(got, src) << "Parallel memcpy produced incorrect data";
 }
 
-// ---------------------------------------------------------------------------
 // 17. PARALLEL PATH with mid-stream seek: read the first half in parallel,
 //     seek back to 0, read everything again.  Verifies that the cursor reset
 //     is correct after a parallel bulk read.
-// ---------------------------------------------------------------------------
 TEST(ParallelMemStreamBufTest, ParallelDispatchSeekAndReread) {
     const size_t k_max_hw = 16;
     const size_t hw_raw = std::max(size_t{2}, static_cast<size_t>(std::thread::hardware_concurrency()));
