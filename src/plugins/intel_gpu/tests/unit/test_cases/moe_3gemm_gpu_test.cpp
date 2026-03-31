@@ -115,10 +115,10 @@ struct Moe3GemmReference {
     }
 
     std::tuple<std::vector<uint8_t>, std::vector<ov::float16>> quantize_symmetric(const std::vector<float>& data,
-                                                                               size_t expert_num,
-                                                                               size_t rows,
-                                                                               size_t cols,
-                                                                               size_t group_size) {
+                                                                                  size_t expert_num,
+                                                                                  size_t rows,
+                                                                                  size_t cols,
+                                                                                  size_t group_size) {
         std::vector<uint8_t> q_data(expert_num * rows * cols);
         std::vector<ov::float16> scales;
 
@@ -152,8 +152,7 @@ struct Moe3GemmReference {
                     for (size_t i = 0; i < group_size; ++i) {
                         float val = data[offset + (group_start + i) * cols + c];
                         float q_val = val / scale;
-                        int q = static_cast<int>(std::round(std::max(static_cast<float>(min_range),
-                                                                     std::min(static_cast<float>(max_range), q_val))));
+                        int q = static_cast<int>(std::round(std::max(static_cast<float>(min_range), std::min(static_cast<float>(max_range), q_val))));
 
                         // Store at [expert_num, cols, row] (Cols-Major) as two's complement
                         size_t r = group_start + i;
@@ -553,7 +552,8 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
                           : ref.run_reference_softmax(hidden_states, routing_weights, w0_data, w1_data, w2_data);
     // SigmoidBias routing performs all routing math (sigmoid, bias, normalization) in f16 on the kernel side,
     // while the reference uses f32, leading to slightly larger numerical divergence than Softmax.
-    const float tolerance = routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS ? 0.2f : 0.1f;
+    const float base_tolerance = routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS ? 0.2f : 0.1f;
+    const float tolerance = base_tolerance * (config.hidden_size / 128);
     for (size_t i = 0; i < ref_output.size(); ++i) {
         ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), tolerance);
     }
@@ -566,7 +566,11 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                             ::testing::Values(Moe3GemmTestParams{1, true, 128, 256, 4, 2, 128},
                                                               Moe3GemmTestParams{16, true, 128, 256, 4, 2, 128},
                                                               Moe3GemmTestParams{1, false, 128, 256, 4, 2, 128},
-                                                              Moe3GemmTestParams{16, false, 128, 256, 4, 2, 128})));
+                                                              Moe3GemmTestParams{16, false, 128, 256, 4, 2, 128},
+                                                              Moe3GemmTestParams{1, true, 256, 512, 4, 2, 256},
+                                                              Moe3GemmTestParams{1, false, 256, 512, 4, 2, 256},
+                                                              Moe3GemmTestParams{1, true, 512, 512, 4, 2, 512},
+                                                              Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512})));
 
 class moe_3gemm_compressed_gpu_u4 : public ::testing::TestWithParam<cldnn::MOE3GemmFusedCompressed::RoutingType> {};
 
@@ -600,11 +604,11 @@ TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_r
     auto w0_data = rg.generate_random_1d<float>(config.num_experts * config.hidden_size * config.inter_size, -1.0f, 0.0f, 1000);
     auto w1_data = rg.generate_random_1d<float>(config.num_experts * config.hidden_size * config.inter_size, -1.0f, 0.0f, 1000);
     auto w2_data = rg.generate_random_1d<float>(config.num_experts * config.inter_size * config.hidden_size, -1.0f, 0.0f, 1000);
-    
+
     // Shared Expert Data
     auto s_gate_data = rg.generate_random_1d<float>(config.hidden_size * config.inter_size, -1.0f, 0.0f, 1000);
-    auto s_up_data = rg.generate_random_1d<float>(config.hidden_size * config.inter_size, -1.0f, 0.0f, 1000); // [hidden, inter]
-    auto s_down_data = rg.generate_random_1d<float>(config.inter_size * config.hidden_size, -1.0f, 0.0f, 1000); // [inter, hidden]
+    auto s_up_data = rg.generate_random_1d<float>(config.hidden_size * config.inter_size, -1.0f, 0.0f, 1000);    // [hidden, inter]
+    auto s_down_data = rg.generate_random_1d<float>(config.inter_size * config.hidden_size, -1.0f, 0.0f, 1000);  // [inter, hidden]
     auto s_gate_scalar_data = rg.generate_random_1d<float>(config.hidden_size, -1.0f, 0.0f, 1000);
 
     for (size_t i = 0; i < config.num_experts * config.hidden_size * config.inter_size; ++i) {
@@ -612,12 +616,12 @@ TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_r
         w1_data[i] /= 11.0f;
         w2_data[i] /= 7.0f;
         if (i < config.hidden_size * config.inter_size) {
-             s_gate_data[i] /= 7.0f;
-             s_up_data[i] /= 11.0f;
-             s_down_data[i] /= 7.0f;
+            s_gate_data[i] /= 7.0f;
+            s_up_data[i] /= 11.0f;
+            s_down_data[i] /= 7.0f;
         }
     }
-    
+
     // Quantize Experts
     auto [w0_q, w0_scale, w0_zp] = ref.quantize(w0_data, config.num_experts, config.hidden_size, config.inter_size, config.group_size);
     auto [w1_q, w1_scale, w1_zp] = ref.quantize(w1_data, config.num_experts, config.hidden_size, config.inter_size, config.group_size);
@@ -665,11 +669,12 @@ TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_r
         get_test_stream().finish();
         return mem;
     };
-    
+
     // For Scalar Gate Weights - assuming 1D tensor [hidden_size]
     auto create_scalar_gate_tensor = [&](const std::vector<float>& values) {
         std::vector<ov::float16> fp16_values;
-        for(float v : values) fp16_values.push_back(static_cast<ov::float16>(v));
+        for (float v : values)
+            fp16_values.push_back(static_cast<ov::float16>(v));
         // Shape: [hidden_size]
         auto mem = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, static_cast<int64_t>(values.size())}});
         set_values(mem, fp16_values);
@@ -705,19 +710,19 @@ TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_r
     auto s_up_weight_mem = create_weight_tensor(s_up_q_packed, 1, config.inter_size, config.group_size, group_num);
     auto s_up_scale_mem = create_f16_tensor(s_up_scale, 1, group_num, 1, config.inter_size);
     auto s_up_zp_mem = create_zp_tensor(s_up_zp_packed, 1, group_num, 1, config.inter_size);
-    
+
     // down: b=1, f=hidden_size, y=group_num2, x=group_size
     auto s_down_weight_mem = create_weight_tensor(s_down_q_packed, 1, config.hidden_size, config.group_size, group_num2);
     auto s_down_scale_mem = create_f16_tensor(s_down_scale, 1, group_num2, 1, config.hidden_size);
     auto s_down_zp_mem = create_zp_tensor(s_down_zp_packed, 1, group_num2, 1, config.hidden_size);
-    
+
     auto s_gate_scalar_mem = create_scalar_gate_tensor(s_gate_scalar_data);
 
     // Build topology
     topology topology;
     topology.add(input_layout("hidden_states", hidden_states_mem->get_layout()));
     topology.add(input_layout("routing_weights", routing_weights_mem->get_layout()));
-    
+
     topology.add(data("w0_weight", w0_weight_mem));
     topology.add(data("w0_scale", w0_scale_mem));
     topology.add(data("w0_zp", w0_zp_mem));
@@ -727,7 +732,7 @@ TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_r
     topology.add(data("w2_weight", w2_weight_mem));
     topology.add(data("w2_scale", w2_scale_mem));
     topology.add(data("w2_zp", w2_zp_mem));
-    
+
     // Add shared inputs
     // Insert dummy routing_bias/eps placeholders at indices 11-12 (SOFTMAX + shared expert)
     auto dummy_bias_mem = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, 1}});
@@ -787,8 +792,7 @@ TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_r
                                                 input_info("s_down_weight"),
                                                 input_info("s_down_scale"),
                                                 input_info("s_down_zp"),
-                                                input_info("s_gate_scalar")
-                                                },
+                                                input_info("s_gate_scalar")},
                                                moe_config);
 
     topology.add(moe_prim);
@@ -802,12 +806,13 @@ TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_r
     get_test_stream().flush();
     cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
-    auto ref_output = ref.run_reference_softmax(hidden_states, routing_weights, w0_data, w1_data, w2_data, 
-                                        s_gate_data, s_up_data, s_down_data, s_gate_scalar_data);
-    
+    auto ref_output =
+        ref.run_reference_softmax(hidden_states, routing_weights, w0_data, w1_data, w2_data, s_gate_data, s_up_data, s_down_data, s_gate_scalar_data);
+
     // Check accuracy
+    const float tolerance = 0.5f * (config.hidden_size / 128);
     for (size_t i = 0; i < ref_output.size(); ++i) {
-        EXPECT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), 0.5f);
+        EXPECT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), tolerance);
     }
 }
 
@@ -816,7 +821,11 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                          ::testing::Values(Moe3GemmTestParams{1, true, 128, 256, 4, 2, 128},
                                            Moe3GemmTestParams{16, true, 128, 256, 4, 2, 128},
                                            Moe3GemmTestParams{1, false, 128, 256, 4, 2, 128},
-                                           Moe3GemmTestParams{16, false, 128, 256, 4, 2, 128}));
+                                           Moe3GemmTestParams{16, false, 128, 256, 4, 2, 128},
+                                           Moe3GemmTestParams{1, true, 256, 512, 4, 2, 256},
+                                           Moe3GemmTestParams{1, false, 256, 512, 4, 2, 256},
+                                           Moe3GemmTestParams{1, true, 512, 512, 4, 2, 512},
+                                           Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512}));
 
 TEST_P(moe_3gemm_compressed_gpu_u4, moe_accuracy_test_u4) {
     auto routing_type = GetParam();
@@ -1131,7 +1140,8 @@ TEST_P(moe_3gemm_compressed_gpu_symmetric_random, moe_accuracy_test_symmetric) {
                           ? ref.run_reference_sigmoid(hidden_states, routing_weights, routing_bias_data, routing_eps_val, w0_data, w1_data, w2_data)
                           : ref.run_reference_softmax(hidden_states, routing_weights, w0_data, w1_data, w2_data);
 
-    const float tolerance = routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS ? 0.2f : 0.1f;
+    const float base_tolerance = routing_type == cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS ? 0.2f : 0.1f;
+    const float tolerance = base_tolerance * (config.hidden_size / 128);
     for (size_t i = 0; i < ref_output.size(); ++i) {
         ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), tolerance);
     }
@@ -1144,7 +1154,11 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                             ::testing::Values(Moe3GemmTestParams{1, true, 128, 256, 4, 2, 128, true},
                                                               Moe3GemmTestParams{16, true, 128, 256, 4, 2, 128, true},
                                                               Moe3GemmTestParams{1, false, 128, 256, 4, 2, 128, true},
-                                                              Moe3GemmTestParams{16, false, 128, 256, 4, 2, 128, true})));
+                                                              Moe3GemmTestParams{16, false, 128, 256, 4, 2, 128, true},
+                                                              Moe3GemmTestParams{1, true, 256, 512, 4, 2, 256, true},
+                                                              Moe3GemmTestParams{1, false, 256, 512, 4, 2, 256, true},
+                                                              Moe3GemmTestParams{1, true, 512, 512, 4, 2, 512, true},
+                                                              Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512, true})));
 
 // Symmetric quantization test with shared expert
 class moe_3gemm_compressed_gpu_shared_symmetric_random : public ::testing::TestWithParam<Moe3GemmTestParams> {};
@@ -1352,8 +1366,9 @@ TEST_P(moe_3gemm_compressed_gpu_shared_symmetric_random, moe_accuracy_test_share
     auto ref_output =
         ref.run_reference_softmax(hidden_states, routing_weights, w0_data, w1_data, w2_data, s_gate_data, s_up_data, s_down_data, s_gate_scalar_data);
 
+    const float tolerance = 0.5f * (config.hidden_size / 128);
     for (size_t i = 0; i < ref_output.size(); ++i) {
-        EXPECT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), 0.5f);
+        EXPECT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), tolerance);
     }
 }
 
@@ -1362,4 +1377,8 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                          ::testing::Values(Moe3GemmTestParams{1, true, 128, 256, 4, 2, 128, true},
                                            Moe3GemmTestParams{16, true, 128, 256, 4, 2, 128, true},
                                            Moe3GemmTestParams{1, false, 128, 256, 4, 2, 128, true},
-                                           Moe3GemmTestParams{16, false, 128, 256, 4, 2, 128, true}));
+                                           Moe3GemmTestParams{16, false, 128, 256, 4, 2, 128, true},
+                                           Moe3GemmTestParams{1, true, 256, 512, 4, 2, 256, true},
+                                           Moe3GemmTestParams{1, false, 256, 512, 4, 2, 256, true},
+                                           Moe3GemmTestParams{1, true, 512, 512, 4, 2, 512, true},
+                                           Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512, true}));

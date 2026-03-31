@@ -54,11 +54,11 @@ inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
         __global uchar* Z = zps + n / 2;
 #endif
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
-            int scale_offset = gk * (FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
+            int scale_offset = (gk * FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
             half s0 = S[scale_offset];
             half s1 = S[scale_offset + 1];
 #if HAS_ZP
-            int zp_offset = gk * (FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N / 2;
+            int zp_offset = (gk * FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N / 2;
             uchar z = Z[zp_offset];
             half z_hf0 = convert_half(z & 0xf);
             half z_hf1 = convert_half(z >> 4);
@@ -162,11 +162,11 @@ inline void gate_up_gemv_n2x_u8(const __global uchar* weight,
         __global uchar* Z = zps + n;
 #endif
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
-            int scale_offset = gk * (FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
+            int scale_offset = (gk * FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
             half s0 = S[scale_offset];
             half s1 = S[scale_offset + 1];
 #if HAS_ZP
-            int zp_offset = gk * (FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
+            int zp_offset = (gk * FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
             half z0 = convert_half(Z[zp_offset]);
             half z1 = convert_half(Z[zp_offset + 1]);
 #endif
@@ -400,13 +400,17 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
 
 #    if GATE_UP_GROUP_SIZE % FAKE_GROUP_SIZE != 0
     if (get_sub_group_id() == 0 && get_sub_group_local_id() == 0) {
-        printf("GATE_UP_GROUP_SIZE(%d) must be divisible by FAKE_GROUP_SIZE(%d)", GATE_UP_GROUP_SIZE, FAKE_GROUP_SIZE);
+        printf("GATE_UP_GROUP_SIZE(%d) must be a multiple of FAKE_GROUP_SIZE(%d)", GATE_UP_GROUP_SIZE, FAKE_GROUP_SIZE);
     }
     return;
 #    endif
 
     __local half x2[HIDDEN_SIZE];
+#if HAS_ZP
     __local float xg_sum[HIDDEN_SIZE / FAKE_GROUP_SIZE];
+#else
+    __local float xg_sum[1];  // unused placeholder for function signature
+#endif
 #    if SHARED_EXPERT_ENABLE
     __local float shared_gate_partial[SUBGROUP_NUM];  // one slot per subgroup for scalar gate reduction
 #    endif
@@ -540,11 +544,11 @@ inline void down_gemv_n2x_u4(const __global uchar* weight,
         float sum_all0 = 0;
         float sum_all1 = 0;
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
-            int scale_offset = gk * (FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
+            int scale_offset = (gk * FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
             half s0 = S[scale_offset];
             half s1 = S[scale_offset + 1];
 #if HAS_ZP
-            int zp_offset = gk * (FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N / 2;
+            int zp_offset = (gk * FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N / 2;
             ushort z = Z[zp_offset];
             half z_hf0 = convert_half(z & 0xf);
             half z_hf1 = convert_half(z >> 4);
@@ -642,11 +646,11 @@ inline void down_gemv_n2x_u8(const __global uchar* weight,
         float sum_all0 = 0;
         float sum_all1 = 0;
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
-            int scale_offset = gk * (FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
+            int scale_offset = (gk * FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
             half s0 = S[scale_offset];
             half s1 = S[scale_offset + 1];
 #if HAS_ZP
-            int zp_offset = gk * (FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
+            int zp_offset = (gk * FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
             half z0 = convert_half(Z[zp_offset]);
             half z1 = convert_half(Z[zp_offset + 1]);
 #endif
@@ -845,11 +849,22 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
     }
 #    endif
 
+#    if DOWN_GROUP_SIZE % FAKE_GROUP_SIZE != 0
+    if (get_sub_group_id() == 0 && get_sub_group_local_id() == 0) {
+        printf("DOWN_GROUP_SIZE(%d) must be a multiple of FAKE_GROUP_SIZE(%d)", DOWN_GROUP_SIZE, FAKE_GROUP_SIZE);
+    }
+    return;
+#    endif
+
     int N = HIDDEN_SIZE;
     int K = INTERMEDIATE_SIZE;
 
     __local half x2[INTERMEDIATE_SIZE];
+#if HAS_ZP
     __local float xg_sum[INTERMEDIATE_SIZE / FAKE_GROUP_SIZE];
+#else
+    __local float xg_sum[1];  // unused placeholder for function signature
+#endif
 
 #    if WEIGHT_COMPRESSEION_DT == 0
     //# interleaving x into x2
