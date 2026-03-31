@@ -20,7 +20,7 @@ OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, queue_throttle, ov::intel_gpu::hin
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, queue_priority, ov::hint::Priority::MEDIUM, "Low-level hint that controls queue priority property")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, enable_sdpa_optimization, true, "Enable/Disable fused SDPA primitive execution")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, enable_lora_operation, true, "Enable/Disable LoRA operation. The separate operation is less versatile, but has better performance")
-OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, enable_large_allocations, false, "Enable/Disable large buffer allocations (>4gb). Enabling this option may lead to performance degradation")
+OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, enable_large_allocations, false, "Allow buffer allocations that exceed the device max allocation size. Enabling this option may lead to performance degradation")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, enable_loop_unrolling, true, "Enable/Disable Loop/TensorIterator operation unrolling")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, disable_winograd_convolution, false, "Enable/Disable winograd convolution implementation if available")
 OV_CONFIG_RELEASE_OPTION(ov::internal, exclusive_async_requests, false, "")
