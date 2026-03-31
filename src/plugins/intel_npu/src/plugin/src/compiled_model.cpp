@@ -111,7 +111,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
                                            std::move(inputLayouts),
                                            std::move(outputLayouts),
                                            compilerVersion)
-            .write(stream, _encryptionCallback);
+            .write(stream);
     }
 }
 
