@@ -383,7 +383,7 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_PreScaledQue
                                                                     attention_mask,
                                                                     sdpa_scale,
                                                                     casual);
-        model = std::make_shared<ov::Model>(OutputVector{sdp}, ParameterVector{raw_query, key, value, attention_mask});
+        model = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{raw_query, key, value, attention_mask});
         manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
     }
 
