@@ -20,8 +20,6 @@ on:
       - "Windows (VS 2022, Python 3.11, Release)"
     types:
       - completed
-    branches:
-      - master
 
 rate-limit:
   max: 5 # Maximum runs per window

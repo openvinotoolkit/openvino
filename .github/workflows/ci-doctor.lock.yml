@@ -28,7 +28,7 @@
 #
 # Source: githubnext/agentics/workflows/ci-doctor.md@0aa94a6e40aeaf131118476bc6a07e55c4ceb147
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"9c24c5687ab8294b452012a1e361a3d128f4cc2fb5e8c0317a7da7abff36d164","compiler_version":"v0.51.5"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"7a0fa5c4c4c5ec051b48d5cb18d134dd98ac145aaa14ac48cf856b09157faf6b","compiler_version":"v0.51.5"}
 
 name: "CI Failure Doctor"
 "on":
@@ -42,8 +42,6 @@ name: "CI Failure Doctor"
         required: false
   workflow_run:
     # zizmor: ignore[dangerous-triggers] - workflow_run trigger is secured with role and fork validation
-    branches:
-    - master
     types:
     - completed
     workflows:
