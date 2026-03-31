@@ -54,6 +54,40 @@ std::shared_ptr<ov::Model> StridedSliceFunction::getOriginal(
     return function;
 }
 
+std::shared_ptr<ov::Model> StridedSliceFunction::getWithParamInputs(
+    const ov::element::Type inputPrecision,
+    const ov::PartialShape& inputShape,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ov::PartialShape& beginShape,
+    const ov::PartialShape& endShape,
+    const ov::PartialShape& stridesShape,
+    const std::vector<int64_t>& beginMask,
+    const std::vector<int64_t>& endMask,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationAfter) {
+    const auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, inputShape);
+    input->set_friendly_name("input");
+    const auto deqBefore = makeDequantization(input, dequantizationBefore);
+
+    const auto beginParam = std::make_shared<ov::opset1::Parameter>(ov::element::i64, beginShape);
+    beginParam->set_friendly_name("begin");
+    const auto endParam = std::make_shared<ov::opset1::Parameter>(ov::element::i64, endShape);
+    endParam->set_friendly_name("end");
+    const auto stridesParam = std::make_shared<ov::opset1::Parameter>(ov::element::i64, stridesShape);
+    stridesParam->set_friendly_name("strides");
+
+    const auto stridedSlice =
+        std::make_shared<ov::opset1::StridedSlice>(deqBefore, beginParam, endParam, stridesParam, beginMask, endMask);
+
+    const auto output = makeDequantization(stridedSlice, dequantizationAfter);
+    output->set_friendly_name("StridedSlice");
+
+    const auto res = std::make_shared<ov::opset1::Result>(output);
+    return std::make_shared<ov::Model>(
+        ov::ResultVector{ res },
+        ov::ParameterVector{ input, beginParam, endParam, stridesParam },
+        "StridedSliceTransformation");
+}
+
 std::shared_ptr<ov::Model> StridedSliceFunction::getOriginal(
     const ov::element::Type inputPrecision,
     const ov::PartialShape& inputShape,
