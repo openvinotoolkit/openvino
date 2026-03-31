@@ -79,7 +79,6 @@
 #include "snippets/lowered/pass/validate_shapes.hpp"
 #include "snippets/lowered/pass/validate_unified_loops.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
-#include "snippets/op/reduce.hpp"
 #include "snippets/op/reshape.hpp"
 #include "snippets/op/result.hpp"
 #include "snippets/op/shape_infer_op.hpp"
