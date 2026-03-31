@@ -155,8 +155,9 @@ KERNEL(pa_sdpa_opt)(
     const uint seq_len = past_lens[subsequence_idx] + 1 + (seq_idx - subsequence_begin);
     const uint past_len = past_lens[subsequence_idx];
     #if HAS_QQ_BIAS
-        const uint spec_num = qq_bias_begins[subsequence_idx + 1] - qq_bias_begins[subsequence_idx];
-        const uint cumulated_spec_num = qq_bias_begins[subsequence_idx];
+        const uint qq_bias_num = qq_bias_begins[subsequence_idx + 1] - qq_bias_begins[subsequence_idx];
+        const uint qq_bias_spec_num = (uint)native_sqrt((float)qq_bias_num);
+        const uint cumulated_qq_bias_num = qq_bias_begins[subsequence_idx];
     #endif
 #else
     const uint subsequence_idx = seq_idx;
@@ -417,10 +418,10 @@ KERNEL(pa_sdpa_opt)(
 
 #if HAS_QQ_BIAS && MULTI_TOKENS_PROCESSING
             // token_idx < seq_len, speculative tree mask
-            if (spec_num > 0 && token_idx >= past_len && token_idx < seq_len) {
+            if (qq_bias_num > 0 && token_idx >= past_len && token_idx < seq_len) {
                 const uint spec_offset = token_idx - past_len;
-                if (spec_offset < spec_num) {
-                    const uint qq_bias_base = cumulated_spec_num * spec_num + (seq_idx - subsequence_begin) * spec_num;
+                if (spec_offset < qq_bias_spec_num) {
+                    const uint qq_bias_base = cumulated_qq_bias_num + (seq_idx - subsequence_begin) * qq_bias_spec_num;
                     const uint qq_bias_offset = qq_bias_base + spec_offset;
                     if (qq_bias[qq_bias_offset] == 0) {
                         qk_acc = SOFTMAX_ACCUMULATOR_VAL_MIN;

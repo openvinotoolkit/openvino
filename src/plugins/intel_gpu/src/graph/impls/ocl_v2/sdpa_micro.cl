@@ -189,8 +189,8 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     const uint subsequence_query_block_idx = block_start_pos - subsequence_begin;
     int q = subsequence_end - subsequence_begin;
     #if HAS_QQ_BIAS
-        int qq_bias_num = qq_bias_begins[gws_mapping + 1] - qq_bias_begins[gws_mapping];
-        int cumulated_spec_num = qq_bias_begins[gws_mapping];
+        const uint qq_bias_num = qq_bias_begins[gws_mapping + 1] - qq_bias_begins[gws_mapping];
+        const uint cumulated_spec_num = qq_bias_begins[gws_mapping];
     #endif
 #if IS_PREFILL
     const int past_len = 0;
@@ -635,6 +635,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         // qq_bias is interpreted as [subsequence, QQ_BIAS_NUM (query_spec), QQ_BIAS_NUM (key_spec)].
         // - query_spec is the query index within the current subsequence (new tokens).
         // - key_spec is the key index within the new tokens region: (key_idx - past_len).
+        const uint spec_num = (uint)native_sqrt((float)qq_bias_num);
         const int query_base_local = (int)(wg_j0 + sg_j0_kq);
         for (int j = 0; j < ugemm_kq_c_type_block1 * ugemm_kq_c_type_nblock1; j++) {
             const int key_idx = k0 + sg_i0_kq + j;
@@ -650,7 +651,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                 const int query_spec = query_base_local + i;
                 if (query_spec < 0 || query_spec >= qq_bias_num)
                     continue;
-                const int qq_off = (int)cumulated_spec_num * qq_bias_num + (query_spec - subsequence_begin) * qq_bias_num + key_spec;
+                const uint qq_off = cumulated_spec_num + (query_spec - subsequence_begin) * spec_num + key_spec;
                 if (qq_bias[qq_off] == (QQ_BIAS_DATA_T)0) {
                     tile_access(S_tile, i0, j, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
                                 ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0) = -FLT_MAX;

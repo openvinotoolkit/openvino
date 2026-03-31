@@ -2300,7 +2300,7 @@ const auto ENABLE_FA_V2 = false;
 const auto DISABLE_FA_V2 = true;
 const auto ENABLE_DIVERSITY = true;
 const auto DISABLE_DIVERSITY = false;
-const auto ENABLE_QQ_BIAS = QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 4}};
+const auto ENABLE_QQ_BIAS = QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 16}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
     /* with scores output, use SnapKV */
@@ -2567,7 +2567,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_qq_bias, qq_bias_test, ::testing::ValuesIn(std::v
     paged_attention_test_params{ {{4, 32}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, ENABLE_QQ_BIAS },
 
     // multi sequences tests
-    paged_attention_test_params{ {{4, 32}, {128, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 4, 4}} },
-    paged_attention_test_params{ {{128, 0}, {4, 32}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 0, 4}} },
-    paged_attention_test_params{ {{4, 20}, {4, 32}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}, {1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 4, 8}} },
+    paged_attention_test_params{ {{4, 32}, {128, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 16, 16}} },
+    paged_attention_test_params{ {{128, 0}, {4, 32}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 0, 16}} },
+    paged_attention_test_params{ {{4, 20}, {4, 32}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}, {1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 16, 32}} },
+
+    // multi sequence with different qq bias patterns
+    paged_attention_test_params{ {{4, 20}, {2, 32}, {4, 25}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}, {1, 0, 1, 1}, {1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 16, 20, 36}} },
 }));
