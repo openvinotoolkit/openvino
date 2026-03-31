@@ -20,5 +20,5 @@ target_include_directories(${TARGET_NAME}
     PRIVATE
         $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
 )
-target_link_libraries(${TARGET_NAME} PRIVATE openvino_npu_logger_utils)
 
+message("==check==> test 2   remove openvino::runtime::dev and logger from link library of ${TARGET_NAME} <====")
