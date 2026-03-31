@@ -50,7 +50,7 @@ jobs:
       USE_SYSTEM_CACHE: False # Using remote HuggingFace cache
       HF_HUB_VERBOSITY: debug
       TRANSFORMERS_VERBOSITY: debug
-      HF_TOKEN_PATH: ${{ contains(inputs.runner, 'win') && 'C:\secrets\huggingface\hf-token' || '/secrets/huggingface/hf-token' }}
+      HF_TOKEN_PATH: ${{ contains(inputs.runner, 'win') && 'C:\mount\secrets\huggingface\hf-token' || '/secrets/huggingface/hf-token' }}
     steps:
       - name: Debug HF token path (Linux/macOS)
         if: ${{ runner.os != 'Windows' }}

@@ -43,7 +43,7 @@ jobs:
         shell: ${{ contains(inputs.runner, 'win') && 'pwsh' || 'bash' }}
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-      HF_TOKEN_PATH: ${{ contains(inputs.runner, 'win') && 'C:\secrets\huggingface\hf-token' || '/secrets/huggingface/hf-token' }}
+      HF_TOKEN_PATH: ${{ contains(inputs.runner, 'win') && 'C:\mount\secrets\huggingface\hf-token' || '/secrets/huggingface/hf-token' }}
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
