@@ -81,6 +81,7 @@ public:
     bool is_gather_closure(size_t idx, size_t cidx) override;
     bool unpack_required(size_t idx, size_t cidx) override;
     bool needs_copy_closure(size_t idx, size_t cidx) override;
+    std::string subgraph_device(size_t idx) override;
 
 protected:
     ////////////////////////////////////

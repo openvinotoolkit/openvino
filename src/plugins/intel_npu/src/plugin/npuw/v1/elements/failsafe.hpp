@@ -47,6 +47,7 @@ public:
 
     std::size_t active_device_index() const;
     std::string active_device_name() const;
+    bool is_at_last_device() const;
 
 private:
     friend class InferRequest;

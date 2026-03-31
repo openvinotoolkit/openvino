@@ -581,14 +581,8 @@ void MoEExecutor::set_router_scores(size_t idx,
     }
 }
 
-std::string MoEExecutor::get_device_name(size_t idx, const void* compiled_model_desc_ptr) const {
-    const auto& desc = compiled_model_desc_ptr
-                           ? *static_cast<const CompiledModel::CompiledModelDesc*>(compiled_model_desc_ptr)
-                           : *static_cast<const CompiledModel::CompiledModelDesc*>(m_accessor.get_submodel_desc(idx));
-    if (auto failsafe_model = std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(desc.compiled_model._ptr)) {
-        return failsafe_model->active_device_name();
-    }
-    return *desc.device_it;
+std::string MoEExecutor::get_device_name(size_t idx, const void*) const {
+    return m_accessor.subgraph_device(idx);
 }
 
 void MoEExecutor::unpack_single_expert_closure(std::size_t idx, RqPtr request, size_t expert_id) {

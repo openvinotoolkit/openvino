@@ -50,6 +50,11 @@ bool ov::npuw::JustInferRequest::needs_copy_closure(size_t idx, size_t cidx) {
     return IBaseInferRequest::needs_copy(idx, cidx);
 }
 
+std::string ov::npuw::JustInferRequest::subgraph_device(size_t idx) {
+    return m_npuw_model->submodel_device(idx);
+}
+
+
 // ====================================================================================================
 // Memory Access Simulation & Function Memory Management
 // ====================================================================================================

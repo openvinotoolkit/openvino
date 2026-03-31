@@ -106,6 +106,7 @@ public:
     std::shared_ptr<ov::IAsyncInferRequest> wrap_async_infer_request(
         std::shared_ptr<IBaseInferRequest> internal_request) const override;
     std::string submodel_device(std::size_t idx) const override;
+    std::size_t submodel_device_idx(std::size_t idx) const;
     std::size_t num_submodels() const override;
     std::shared_ptr<weights::Bank> get_weights_bank() const override;
     void set_weights_bank(std::shared_ptr<weights::Bank> bank) override;
@@ -212,7 +213,8 @@ private:
     void init_profiling();
 
     struct CompiledModelDesc {
-        DevList::const_iterator device_it;
+        std::string direct_device; // Only set when compiled w/o fail safety
+
         std::set<std::string> devices_to_avoid;
         std::shared_ptr<ov::Model> model;
         ov::SoPtr<ov::ICompiledModel> compiled_model;

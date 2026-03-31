@@ -551,9 +551,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             }
         }
 
-        m_compiled_submodels[id].device_it =
-            id != real_id ? m_compiled_submodels[real_id].device_it : m_dev_list.cbegin();
-
         if (forced_sub_devices.count(id)) {
             std::string forced_device = forced_sub_devices[id];
             auto forced_dev_it = std::find(m_dev_list.begin(), m_dev_list.end(), forced_device);
@@ -565,7 +562,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 // FIXME: This is not really a device enforcement as the fallback
                 // procedure will be in place still
                 LOG_INFO("Force Subgraph[" << id << "] target device to " << *forced_dev_it);
-                m_compiled_submodels[real_id].device_it = forced_dev_it;
+                m_compiled_submodels[real_id].direct_device = *forced_dev_it;
             }
         }  // if(forced_device_opt)
 
@@ -1262,9 +1259,7 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s1
             auto& subm = m_compiled_submodels[i];
             auto real_idx = subm.replaced_by.value_or(i);
             // Write device idx
-            // FIXME: if there is no compiled submodel, device_it is not set.
-            std::size_t device_idx = m_compiled_submodels[real_idx].device_it - m_dev_list.begin();
-            write(model_stream, real_idx == i ? device_idx : 0);
+            write(model_stream, real_idx == i ? submodel_device_idx(i) : 0);
             // Write ICompiledModel if it's there
             if (subm.compiled_model) {
                 write(model_stream, true);
@@ -1462,7 +1457,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
                 compiled->m_compiled_submodels[i].compiled_model =
                     plugin->get_core()->import_model(buffer, device, import_config);
             }
-            compiled->m_compiled_submodels[i].device_it = compiled->m_dev_list.begin() + device_idx;
+            compiled->m_compiled_submodels[i].direct_device = device;
 
             // Create unified deserialization context for submodels with dynamic mechanisms
             // (Pyramid Attention, Host Flash Attention, etc.)
@@ -1505,6 +1500,7 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
 
         const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
         auto& func_desc = m_compiled_submodels[real_idx];
+        auto func_dev = submodel_device(real_idx);
         auto& desc_closure = comp_model_desc.closure.get();
 
         for (std::size_t cidx = 0; cidx < desc_closure.closure.size(); ++cidx) {
@@ -1514,7 +1510,7 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
                 continue;
             }
             NPUW_ASSERT(desc_closure.closure_uid[cidx] != -1);
-            desc_closure.closure[cidx] = m_weights_bank->get(desc_closure.closure_uid[cidx], *func_desc.device_it);
+            desc_closure.closure[cidx] = m_weights_bank->get(desc_closure.closure_uid[cidx], func_dev);
         }
     }
 }
@@ -1545,13 +1541,14 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
 
             const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
             auto& func_desc = m_compiled_submodels[real_idx];
+            auto func_dev = submodel_device(real_idx);
 
             for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
                 if (comp_model_desc.closure.unsafe_get().closure[tidx]) {
                     continue;  // host-side closure
                 }
                 comp_model_desc.closure.unsafe_get().closure_uid[tidx] =
-                    m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], *func_desc.device_it);
+                    m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], func_dev);
             }
         }
 
@@ -1570,6 +1567,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
             auto& func_desc = m_compiled_submodels[real_idx];
             auto& desc_closure = comp_model_desc.closure.unsafe_get();
+            auto func_dev = submodel_device(real_idx);
 
             for (std::size_t tidx = 0; tidx < desc_closure.closure.size(); ++tidx) {
                 if (desc_closure.closure[tidx]) {
@@ -1579,7 +1577,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
                 }
                 const auto& uid = desc_closure.closure_uid[tidx];
                 NPUW_ASSERT(uid != -1);  // All tensors should be registered at this point
-                desc_closure.closure[tidx] = m_weights_bank->get(uid, *func_desc.device_it);
+                desc_closure.closure[tidx] = m_weights_bank->get(uid, func_dev);
                 // FIXME: find a more reliable way to do so
                 desc_closure.is_remote[tidx] = m_weights_bank->is_remote(uid);
             }
@@ -1636,8 +1634,15 @@ void ov::npuw::CompiledModel::detach_memory() {
         if (!proto_comp_model_desc.model || !proto_comp_model_desc.compiled_model) {
             continue;  // optimized-out OR already cleared - skip
         }
-        if ((proto_comp_model_desc.device_it + 1 == m_dev_list.end()) || no_runtime_fallback) {
-            LOG_INFO("No fallback expected - clear the OV model for Subgraph[" << idx << "]");
+
+        // FIXME: In the final version, the fail-safety awareness should've been gone completely
+        if (auto failsafe = std::dynamic_pointer_cast<failsafe::CompiledModel>(proto_comp_model_desc.compiled_model._ptr)) {
+            if (failsafe->is_at_last_device() || no_runtime_fallback) {
+                LOG_INFO("No fallback expected - clear the OV model for Subgraph[" << idx << "]");
+                proto_comp_model_desc.model.reset();
+            }
+        } else {
+            // Not a failsafe subgraph - just reset
             proto_comp_model_desc.model.reset();
         }
 
@@ -1744,7 +1749,6 @@ void ov::npuw::CompiledModel::report_io() const {
 }
 
 bool ov::npuw::CompiledModel::compile_for_success(std::size_t id) {
-    // Assume device_it is some always-valid starting point.
     // FIXME: And who guarantees it? Abstraction leaks are everywhere
     if (m_compiled_submodels[id].replaced_by && m_compiled_submodels[id].replaced_by != id) {
         LOG_BLOCK();
@@ -1755,20 +1759,14 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id) {
     }
 
     std::vector<std::string> candidate_devices;
-    const bool allow_runtime_failover = m_cfg.get<::intel_npu::NPUW_FALLBACK_EXEC>();
-    for (auto iter = m_compiled_submodels[id].device_it; iter != m_dev_list.cend(); ++iter) {
+    for (auto &&device_name : m_dev_list) {
         LOG_BLOCK();
-        const auto& device_name = *iter;
         if (m_compiled_submodels[id].devices_to_avoid.count(device_name) > 0) {
             LOG_INFO(device_name << " was found in the 'Avoid' list for this subgraph, skipping...");
             continue;
         }
         candidate_devices.push_back(device_name);
-        if (!allow_runtime_failover) {
-            break;
-        }
     }
-
     if (candidate_devices.empty()) {
         return false;
     }
@@ -1798,6 +1796,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id) {
         }
 
         ov::SoPtr<ov::ICompiledModel> compiled_model;
+        // FIXME: Concurrent write access to the profile map, if compiled in parallel
         m_profile["compile/" + device + profile_suffix].record([&]() {
             compiled_model = compile_submodel(model, device);
         });
@@ -1874,14 +1873,9 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id) {
         }
     }
 
-    std::string active_device = candidate_devices.front();
-    if (auto wrapped_failsafe = std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(desc.compiled_model._ptr)) {
-        active_device = wrapped_failsafe->active_device_name();
-    }
+    // FIXME: Workaround assignment here
+    desc.direct_device = candidate_devices.front();
 
-    auto active_device_it = std::find(m_dev_list.cbegin(), m_dev_list.cend(), active_device);
-    OPENVINO_ASSERT(active_device_it != m_dev_list.cend(), "Failsafe selected an unknown device");
-    desc.device_it = active_device_it;
     return true;
 }
 
@@ -1892,7 +1886,8 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
 
     // set exclusive_async_requests in case when model is split
     // NOTE(dm): Not sure if it is required for the NPUW plugin, but likely it is
-    auto& device_config = m_meta_devices[device];
+    // Make a copy here as the map will be modified per-subgraph
+    auto device_config = m_meta_devices[device];
 
     if (ov::npuw::util::starts_with(device, "NPU") && m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>()) {
         device_config["NPU_RUN_INFERENCES_SEQUENTIALLY"] = "YES";
@@ -2161,10 +2156,18 @@ std::shared_ptr<ov::npuw::IBaseInferRequest> ov::npuw::CompiledModel::create_bas
         return true;  // no spatial & subgraphs requiring unpack found
     };
 
+    auto no_fail_safety = [&]() {
+        return m_dev_list.size() > 1 && !m_cfg.get<::intel_npu::NPUW_FALLBACK_EXEC>();
+    };
+
     std::shared_ptr<ov::npuw::IBaseInferRequest> result;
-    if (m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() && no_spatial_unpack()) {
+    const bool unfold_set = m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>();
+    if (unfold_set && no_spatial_unpack() && no_fail_safety()) {
         result = std::make_shared<ov::npuw::UnfoldInferRequest>(non_const_this_sptr);
     } else {
+        if (unfold_set) {
+            LOG_WARN("UNFOLD_IREQS is skipped due to risky conditions identified");
+        }
         result = std::make_shared<ov::npuw::JustInferRequest>(non_const_this_sptr);
     }
     NPUW_ASSERT(result);
@@ -2232,9 +2235,18 @@ std::string ov::npuw::CompiledModel::submodel_device(const std::size_t idx) cons
         return failsafe_model->active_device_name();
     }
 
-    NPUW_ASSERT(comp_subm_desc.device_it != m_dev_list.end());
-    return *comp_subm_desc.device_it;
+    // If failsafe model cast didn't work, it must be a direct-compiled model
+    NPUW_ASSERT(!comp_subm_desc.direct_device.empty());
+    return comp_subm_desc.direct_device;
 }
+
+std::size_t ov::npuw::CompiledModel::submodel_device_idx(const std::size_t idx) const {
+    // FIXME: Inefficient stub, serialization only
+    auto it = std::find(m_dev_list.begin(), m_dev_list.end(), submodel_device(idx));
+    NPUW_ASSERT(it != m_dev_list.end());
+    return it - m_dev_list.begin();
+}
+
 
 bool ov::npuw::CompiledModel::unpack_required(const std::size_t idx) const {
     auto& comp_model_desc = m_compiled_submodels.at(idx);

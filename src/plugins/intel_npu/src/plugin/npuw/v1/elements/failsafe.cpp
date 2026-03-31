@@ -161,6 +161,10 @@ std::string ov::npuw::failsafe::CompiledModel::active_device_name() const {
     return m_devices[current.device_index];
 }
 
+bool ov::npuw::failsafe::CompiledModel::is_at_last_device() const {
+    return active_device_index() + 1 == m_devices.size();
+}
+
 void ov::npuw::failsafe::CompiledModel::export_model(std::ostream& model) const {
     std::lock_guard<std::mutex> lock(m_mutex);
     ensure_active_compiled_model_locked().compiled_model->export_model(model);
@@ -225,7 +229,6 @@ void ov::npuw::failsafe::InferRequest::infer() {
     std::vector<Binding> input_tensors;
     std::vector<Binding> output_tensors;
     bool need_rebind = false;
-
 
     ensure_inner_request_locked();
     for (auto &&port : m_failsafe_compiled_model->inputs()) {
