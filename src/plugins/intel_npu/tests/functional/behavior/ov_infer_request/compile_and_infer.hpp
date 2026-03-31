@@ -135,6 +135,53 @@ TEST_P(OVCompileAndInferRequest, AsyncInferRequest) {
     ASSERT_TRUE(is_called);
 }
 
+TEST_P(OVCompileAndInferRequest, RunInferenceEvictGraphMemoryAndRunningAgain) {
+    OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
+    ov::InferRequest req;
+    OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+    OV_ASSERT_NO_THROW(req.infer());
+
+    OV_ASSERT_NO_THROW(execNet.release_memory());
+
+    OV_ASSERT_NO_THROW(req.infer());
+}
+
+// Disabled test that checks that memory eviction works correctly and does not cause memory leaks after inference runs.
+// The test is disabled due to the fact that it requires another check of the memory since device_alloc_mem_size doesn't
+// provide memory feedback after eviction is called.
+TEST_P(OVCompileAndInferRequest, DISABLED_CheckMemoryAfterEvictGraphMemoryAfterAndAfterRunningInferAgain) {
+    if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
+        GTEST_SKIP() << "Memory eviction is not supported by the current driver version.";
+    }
+
+    OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
+    ov::InferRequest req;
+    OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+    OV_ASSERT_NO_THROW(req.infer());
+
+    uint64_t device_alloc_mem_size = 0;
+    OV_ASSERT_NO_THROW(
+        device_alloc_mem_size =
+            core->get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()).as<uint64_t>());
+
+    OV_ASSERT_NO_THROW(execNet.release_memory());
+
+    uint64_t device_alloc_mem_size_after_evict = 0;
+    OV_ASSERT_NO_THROW(
+        device_alloc_mem_size_after_evict =
+            core->get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()).as<uint64_t>());
+
+    OV_ASSERT_NO_THROW(req.infer());
+
+    uint64_t device_alloc_mem_size_final = 0;
+    OV_ASSERT_NO_THROW(
+        device_alloc_mem_size_final =
+            core->get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()).as<uint64_t>());
+
+    ASSERT_EQ(device_alloc_mem_size, device_alloc_mem_size_final);
+    ASSERT_LT(device_alloc_mem_size_after_evict, device_alloc_mem_size);
+}
+
 TEST_P(OVCompileAndInferRequest, PluginWorkloadType) {
     configuration[workload_type.name()] = WorkloadType::DEFAULT;
     auto supportedProperties = core->get_property("NPU", supported_properties.name()).as<std::vector<PropertyName>>();
