@@ -30,8 +30,18 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             NPUW_ASSERT(input.get_partial_shape().size() == 3u);
             NPUW_ASSERT(input.get_partial_shape()[2].is_static());
             new_shape = ov::PartialShape({1, input_size, input.get_partial_shape()[2]});
+        } else if (input_name.find("deepstack_visual_embeds") != std::string::npos) {
+            // NB: VLMs case, model accepts inputs_embeds[BATCH, SEQ_LEN, EMB_SIZE]
+            NPUW_ASSERT(input.get_partial_shape().size() == 3u);
+            NPUW_ASSERT(input.get_partial_shape()[2].is_static());
+            new_shape = ov::PartialShape({3, input_size, input.get_partial_shape()[2]});
         } else if (input_name.find("attention_mask") != std::string::npos) {
             new_shape = ov::PartialShape({1, kvcache_size});
+            if (lhs_seq_size && kvcache_size > 4)
+                // NB: for whisper kvcache model attn mask should be size + 1
+                new_shape = ov::PartialShape({1, kvcache_size + 1});
+        } else if (input_name.find("visual_pos_masks") != std::string::npos) {
+            new_shape = ov::PartialShape({2, input_size});
             if (lhs_seq_size && kvcache_size > 4)
                 // NB: for whisper kvcache model attn mask should be size + 1
                 new_shape = ov::PartialShape({1, kvcache_size + 1});
