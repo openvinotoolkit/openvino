@@ -186,15 +186,15 @@ CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
 
         auto c_type = const_node->get_element_type();
 
-        // // Skip FP16 compression for scalar constants with significant rounding error.
-        // // Scalar constants often serve as mathematical scale factors (e.g., log(16) in attention
-        // // bucketing) where FP16 rounding error cascades through every computation that uses them.
-        // if (ov::shape_size(const_node->get_shape()) == 1) {
-        //     if (c_type == ov::element::f32 && scalar_has_high_f16_error<float>(*const_node))
-        //         return false;
-        //     if (c_type == ov::element::f64 && scalar_has_high_f16_error<double>(*const_node))
-        //         return false;
-        // }
+        // Skip FP16 compression for scalar constants with significant rounding error.
+        // Scalar constants often serve as mathematical scale factors (e.g., log(16) in attention
+        // bucketing) where FP16 rounding error cascades through every computation that uses them.
+        if (ov::shape_size(const_node->get_shape()) == 1) {
+            if (c_type == ov::element::f32 && scalar_has_high_f16_error<float>(*const_node))
+                return false;
+            if (c_type == ov::element::f64 && scalar_has_high_f16_error<double>(*const_node))
+                return false;
+        }
 
         std::shared_ptr<ov::Node> new_const;
 
@@ -212,13 +212,15 @@ CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
             if (size == 0)
                 return false;
             const auto* src_data = const_node->get_data_ptr<float>();
-            auto num_out_of_range =
-                ov::reference::count_out_of_f16_range(src_data, size);
-            num_out_of_range += ov::reference::count_lossy_f16_compression(src_data, size);
+
+            // Single-pass check: counts out-of-range and bails on any lossy element (JIT accelerated)
+            auto check = ov::reference::check_f16_compression(src_data, size);
+            if (check.has_lossy)
+                return false;
 
             // if more than 75% of a FP32 constant do not fit into FP16 keep in FP32
             const float keep_threshold = 0.75f;
-            const float out_of_range_proportion = static_cast<float>(num_out_of_range) / static_cast<float>(size);
+            const float out_of_range_proportion = static_cast<float>(check.out_of_range_count) / static_cast<float>(size);
             if (out_of_range_proportion >= keep_threshold)
                 return false;
 
