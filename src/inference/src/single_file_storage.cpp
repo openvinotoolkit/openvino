@@ -114,10 +114,12 @@ bool SingleFileStorage::build_content_index(std::ifstream& stream) {
             return false;
         }
         const auto blob_data_pos = s.tellg();
+        OPENVINO_ASSERT(blob_data_pos >= 0, "Invalid blob data position ", blob_data_pos, " for blob id ", id);
         const auto blob_data_size =
             static_cast<std::streamoff>(size - sizeof(id) - sizeof(padding_size) - padding_size);
-        m_blob_index[id].offset = blob_data_pos;
-        m_blob_index[id].size = blob_data_size;
+        OPENVINO_ASSERT(blob_data_size >= 0, "Invalid blob size ", blob_data_size, " for blob id ", id);
+        m_blob_index[id].offset = static_cast<size_t>(blob_data_pos);
+        m_blob_index[id].size = static_cast<size_t>(blob_data_size);
         if (blob_data_pos + blob_data_size > end_pos) {
             return false;
         }
@@ -226,8 +228,10 @@ void SingleFileStorage::write_blob_entry(std::ofstream& stream, BlobIdType blob_
         s.write(reinterpret_cast<const char*>(&blob_id), sizeof(blob_id));
         write_padding(s, blob_alignment);
         blob_pos = s.tellp();
+        OPENVINO_ASSERT(blob_pos >= 0, "Invalid blob data position ", blob_pos, " for blob id ", blob_id);
         writer(s);
         blob_size = s.tellp() - blob_pos;
+        OPENVINO_ASSERT(blob_size >= 0, "Invalid blob size ", blob_size, " for blob id ", blob_id);
     };
     write_tlv_record(stream, static_cast<TLVTraits::TagType>(Tag::Blob), blob_writer);
 
@@ -239,7 +243,7 @@ void SingleFileStorage::write_blob_entry(std::ofstream& stream, BlobIdType blob_
     };
     write_tlv_record(stream, static_cast<TLVTraits::TagType>(Tag::BlobMap), blob_map_writer);
 
-    m_blob_index[blob_id] = {blob_pos, blob_size, std::move(model_name)};
+    m_blob_index[blob_id] = {static_cast<size_t>(blob_pos), static_cast<size_t>(blob_size), std::move(model_name)};
 }
 
 void SingleFileStorage::write_cache_entry(const std::string& blob_id, StreamWriter writer) {
@@ -256,12 +260,11 @@ void SingleFileStorage::read_cache_entry(const std::string& blob_id, bool enable
     if (std::filesystem::exists(m_file_path) && has_blob_id(cid)) {
         const auto& [blob_pos, blob_size, model_name] = m_blob_index[cid];
         if (enable_mmap) {
-            // CVS-181859 Extend memory mapping helpers to suport partial file mapping
             CompiledBlobVariant compiled_blob{std::in_place_index<0>,
-                                              ov::read_tensor_data(m_file_path,
-                                                                   element::u8,
-                                                                   {static_cast<PartialShape::value_type>(blob_size)},
-                                                                   blob_pos)};
+                                              read_tensor_data(m_file_path,
+                                                               element::u8,
+                                                               {static_cast<PartialShape::value_type>(blob_size)},
+                                                               blob_pos)};
             reader(compiled_blob);
         } else {
             std::ifstream stream(m_file_path, std::ios::binary);
