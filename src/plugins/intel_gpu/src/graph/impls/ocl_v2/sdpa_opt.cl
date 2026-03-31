@@ -1030,6 +1030,9 @@ KERNEL(sdpa_opt)(
 #if IS_CAUSAL
     const int default_this_work_item_max_seq_idx = target_seq_idx + sglid;
     const int default_this_work_item_min_seq_idx = 0;
+
+    int this_work_item_max_seq_idx_temp = default_this_work_item_max_seq_idx;
+    int this_work_item_min_seq_idx_temp = default_this_work_item_min_seq_idx;
     #if IS_PAGED_ATTENTION
 
         #if HAS_TOKEN_TYPE_IDS
@@ -1053,23 +1056,25 @@ KERNEL(sdpa_opt)(
                 }
                 token_group_begin = new_group_begin + 1;
             }
-            const int this_work_item_max_seq_idx = token_group_end;
+            this_work_item_max_seq_idx_temp = token_group_end;
+            this_work_item_min_seq_idx_temp = token_group_begin;
             const int max_token_group_end_for_this_sg = sub_group_reduce_max(token_group_end) + 1;
-        #else
-            const int this_work_item_max_seq_idx = default_this_work_item_max_seq_idx;
         #endif
 
         #if SLIDING_WINDOW_SIZE != 0
             const int default_this_work_item_min_seq_idx_sliding_window = default_this_work_item_max_seq_idx - SLIDING_WINDOW_SIZE + 1;
             #if HAS_TOKEN_TYPE_IDS
-                const int this_work_item_min_seq_idx = min(token_group_begin, default_this_work_item_min_seq_idx_sliding_window);
+                this_work_item_min_seq_idx_temp = min(this_work_item_min_seq_idx_temp, default_this_work_item_min_seq_idx_sliding_window);
             #else
-                const int this_work_item_min_seq_idx = default_this_work_item_min_seq_idx_sliding_window;
+                this_work_item_min_seq_idx_temp = default_this_work_item_min_seq_idx_sliding_window;
             #endif
         #else
-            const int this_work_item_min_seq_idx = default_this_work_item_min_seq_idx;
+            this_work_item_min_seq_idx_temp = default_this_work_item_min_seq_idx;
         #endif //< SLIDING_WINDOW_SIZE
     #endif //< IS_PAGED_ATTENTION
+
+    const int this_work_item_min_seq_idx = this_work_item_min_seq_idx_temp;
+    const int this_work_item_max_seq_idx = this_work_item_max_seq_idx_temp;
 #endif //< IS_CAUSAL
 
     const uint num_read_blocks = K_HEAD_SIZE == V_HEAD_SIZE ? 1 :  CEIL_DIV(K_HEAD_SIZE, V_HEAD_SIZE);
