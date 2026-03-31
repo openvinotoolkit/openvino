@@ -29,7 +29,7 @@
 #include "common/bench_config.hpp"
 #include "common/bench_types.hpp"
 #include "common/bench_timer.hpp"
-#include "kernels/kernel_registry.hpp"
+#include "primitives/kernel_registry.hpp"
 
 // ============================================================================
 // gflags definitions

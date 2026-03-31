@@ -622,7 +622,7 @@ bench_kernel/
 │   ├── bench_timer.hpp        # Performance timer, test status, statistics
 │   ├── bench_reference.hpp    # CPU reference implementations (~50 functions)
 │   └── bench_utils.hpp        # Utilities (memory, comparison, tolerance)
-├── kernels/
+├── primitives/
 │   ├── kernel_base.hpp        # Base class for all kernel drivers
 │   ├── bench_fc.cpp           # FC driver
 │   ├── bench_gemm.cpp         # Gemm driver

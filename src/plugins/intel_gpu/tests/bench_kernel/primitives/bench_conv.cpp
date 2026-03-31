@@ -163,12 +163,7 @@ public:
             aux_ids.push_back(aux_id);
         }
 
-        // Follow unit-test quantize pattern when two aux tensors are provided with quantize post-op:
-        // use aux_0/aux_1 as quantize in_lo/in_hi and keep convolution bias empty.
-        bool use_aux_for_quant_inputs = has_quantize_post_op && aux_ids.size() >= 2;
-        std::string bias_id = use_aux_for_quant_inputs ? "" : (aux_ids.size() > 0 ? aux_ids[0] : "");
-        std::string quant_in_lo_aux_id = use_aux_for_quant_inputs ? aux_ids[0] : "";
-        std::string quant_in_hi_aux_id = use_aux_for_quant_inputs ? aux_ids[1] : "";
+        std::string bias_id = aux_ids.size() > 0 ? aux_ids[0] : "";
         std::string w_zp_id = "";
         std::string a_zp_id = "";
         std::string compensation_id = "";
@@ -289,14 +284,8 @@ public:
                     std::string in_hi_id = po_id + "_in_hi";
                     std::string out_lo_id = po_id + "_out_lo";
                     std::string out_hi_id = po_id + "_out_hi";
-                    bool use_aux_quant_params = !is_intermediate && use_aux_for_quant_inputs;
-                    if (!use_aux_quant_params) {
-                        make_scalar(in_lo_id, lo);
-                        make_scalar(in_hi_id, hi);
-                    } else {
-                        in_lo_id = quant_in_lo_aux_id;
-                        in_hi_id = quant_in_hi_aux_id;
-                    }
+                    make_scalar(in_lo_id, lo);
+                    make_scalar(in_hi_id, hi);
                     make_scalar(out_lo_id, lo);
                     make_scalar(out_hi_id, hi);
 

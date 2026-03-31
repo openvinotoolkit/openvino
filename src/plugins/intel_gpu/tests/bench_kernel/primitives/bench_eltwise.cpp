@@ -4,6 +4,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 #include <iostream>
 #include <iomanip>
 
@@ -18,6 +19,7 @@
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/activation.hpp>
+#include <intel_gpu/primitives/quantize.hpp>
 
 #include "kernel_base.hpp"
 #include "kernel_registry.hpp"
@@ -100,6 +102,20 @@ public:
             config.pythondiv != 0));
         std::string last_prim_id = "eltwise_prim";
 
+        auto compute_broadcast_shape = [](const std::vector<int64_t>& a,
+                                          const std::vector<int64_t>& b) {
+            size_t rank = std::max(a.size(), b.size());
+            std::vector<int64_t> out(rank, 1);
+            for (size_t i = 0; i < rank; ++i) {
+                int64_t av = (i < rank - a.size()) ? 1 : a[i - (rank - a.size())];
+                int64_t bv = (i < rank - b.size()) ? 1 : b[i - (rank - b.size())];
+                out[i] = std::max(av, bv);
+            }
+            return out;
+        };
+        std::vector<int64_t> out_shape = compute_broadcast_shape(shapes[0], shapes[1]);
+        std::map<int, ref::elt_ref_data> elt_data_map;
+
         // Determine which post-ops to apply after the eltwise primitive.
         // If eltwise_mode comes from post_ops[0], that entry is "consumed" as the
         // main eltwise mode; remaining entries are chained as GPU primitives.
@@ -108,20 +124,100 @@ public:
             post_op_start = 1;
         }
 
-        // Chain activation / quantize post-ops in the GPU topology
+        // Chain post-ops in the GPU topology and keep the runtime chain for CPU reference.
+        std::vector<post_op_entry> runtime_post_ops;
+        int runtime_post_op_idx = 0;
         for (size_t pi = post_op_start; pi < post_ops.size(); ++pi) {
             const auto& po = post_ops[pi];
-            if (po.kind == post_op_kind::activation) {
-                if (skip_activation_chain) {
-                    continue;
+            switch (po.kind) {
+                case post_op_kind::activation: {
+                    if (skip_activation_chain) {
+                        break;
+                    }
+                    auto act = map_activation(po.act_func, po.alpha);
+                    std::string act_id = "act_" + std::to_string(pi);
+                    topology.add(cldnn::activation(act_id,
+                        cldnn::input_info(last_prim_id), act, {po.alpha, po.beta}));
+                    last_prim_id = act_id;
+                    runtime_post_ops.push_back(po);
+                    runtime_post_op_idx++;
+                    break;
                 }
-                auto act = map_activation(po.act_func, po.alpha);
-                std::string act_id = "act_" + std::to_string(pi);
-                topology.add(cldnn::activation(act_id,
-                    cldnn::input_info(last_prim_id), act, {po.alpha, po.beta}));
-                last_prim_id = act_id;
+                case post_op_kind::eltwise: {
+                    std::vector<int64_t> elt_shape = out_shape;
+                    if (po.elt_broadcast == broadcast_spec::per_oc) {
+                        elt_shape.assign(out_shape.size(), 1);
+                        if (!elt_shape.empty()) elt_shape[0] = out_shape[0];
+                        if (elt_shape.size() > 1) elt_shape[1] = out_shape[1];
+                    } else if (po.elt_broadcast == broadcast_spec::per_tensor) {
+                        elt_shape.assign(out_shape.size(), 1);
+                    }
+
+                    std::string elt_data_id = "elt_data_" + std::to_string(pi);
+                    ov::PartialShape elt_ps(std::vector<ov::Dimension>(elt_shape.begin(), elt_shape.end()));
+                    cldnn::layout elt_layout(elt_ps, po.elt_dt, get_format_for_rank(elt_shape.size()));
+                    auto elt_mem = engine.allocate_memory(elt_layout);
+                    fill_memory_random(elt_mem, *stream, po.elt_dt);
+
+                    if (config.is_acc()) {
+                        elt_data_map[runtime_post_op_idx] = {read_memory_to_f32(elt_mem, *stream), elt_shape};
+                    }
+
+                    topology.add(cldnn::data(elt_data_id, elt_mem));
+                    std::string elt_id = "elt_post_" + std::to_string(pi);
+                    topology.add(cldnn::eltwise(elt_id,
+                        {cldnn::input_info(last_prim_id), cldnn::input_info(elt_data_id)},
+                        map_eltwise_mode(po.elt_mode)));
+                    last_prim_id = elt_id;
+                    runtime_post_ops.push_back(po);
+                    runtime_post_op_idx++;
+                    break;
+                }
+                case post_op_kind::quantize: {
+                    float lo = 0.0f;
+                    float hi = 255.0f;
+                    int levels = 256;
+                    switch (po.quant_out_dt) {
+                        case cldnn::data_types::i8: lo = -128.0f; hi = 127.0f; levels = 256; break;
+                        case cldnn::data_types::u8: lo = 0.0f; hi = 255.0f; levels = 256; break;
+                        case cldnn::data_types::i4: lo = -8.0f; hi = 7.0f; levels = 16; break;
+                        case cldnn::data_types::u4: lo = 0.0f; hi = 15.0f; levels = 16; break;
+                        default: break;
+                    }
+
+                    auto make_scalar = [&](const std::string& name, float val) {
+                        cldnn::layout scalar_layout({1, 1, 1, 1}, cldnn::data_types::f32, cldnn::format::bfyx);
+                        auto mem = engine.allocate_memory(scalar_layout);
+                        { auto lock = cldnn::mem_lock<float>(mem, *stream); lock[0] = val; }
+                        topology.add(cldnn::data(name, mem));
+                    };
+
+                    std::string q_id = "quant_" + std::to_string(pi);
+                    std::string in_lo = q_id + "_in_lo";
+                    std::string in_hi = q_id + "_in_hi";
+                    std::string out_lo = q_id + "_out_lo";
+                    std::string out_hi = q_id + "_out_hi";
+                    make_scalar(in_lo, lo);
+                    make_scalar(in_hi, hi);
+                    make_scalar(out_lo, lo);
+                    make_scalar(out_hi, hi);
+
+                    topology.add(cldnn::quantize(q_id,
+                        cldnn::input_info(last_prim_id),
+                        cldnn::input_info(in_lo), cldnn::input_info(in_hi),
+                        cldnn::input_info(out_lo), cldnn::input_info(out_hi),
+                        levels, po.quant_out_dt));
+                    last_prim_id = q_id;
+                    runtime_post_ops.push_back(po);
+                    runtime_post_op_idx++;
+                    break;
+                }
+                default:
+                    break;
             }
         }
+
+        add_terminal_post_op_consumer_reorder(topology, config, runtime_post_ops, last_prim_id, dt);
 
         cldnn::network network(engine, topology, exec_config);
         for (size_t i = 0; i < memories.size(); ++i) {
@@ -158,18 +254,9 @@ public:
             // Apply the same quantization to reference so comparison is valid.
             ref::apply_quantize_ref(ref_out, dt);
 
-            // Apply activation post-ops to reference (e.g. relu)
-            for (size_t pi = post_op_start; pi < post_ops.size(); ++pi) {
-                const auto& po = post_ops[pi];
-                if (po.kind == post_op_kind::activation) {
-                    if (skip_activation_chain) {
-                        continue;
-                    }
-                    auto act = map_activation(po.act_func, po.alpha);
-                    for (auto& v : ref_out) {
-                        v = ref::apply_activation(v, act, po.alpha, po.beta);
-                    }
-                }
+            bool can_check = ref::apply_post_ops_ref(ref_out, runtime_post_ops, out_shape, elt_data_map);
+            if (!can_check) {
+                test_passed = false;
             }
 
             float atol, rtol;
@@ -238,14 +325,16 @@ public:
         auto dts = config.data_types;
         cldnn::data_types dt = dts.size() > 0 ? dts[0] : cldnn::data_types::f16;
 
-        // Get activation function from post-ops
+        // Get base activation function from post-ops
         auto post_ops = parse_post_ops(config.attr_post_ops_str);
         cldnn::activation_func act = cldnn::activation_func::relu;
         float alpha = 0.0f, beta = 0.0f;
+        size_t post_op_start = 0;
         if (!post_ops.empty() && post_ops[0].kind == post_op_kind::activation) {
             act = map_activation(post_ops[0].act_func, post_ops[0].alpha);
             alpha = post_ops[0].alpha;
             beta = post_ops[0].beta;
+            post_op_start = 1;
         }
 
         auto exec_config = make_exec_config(config, "act_prim");
@@ -261,6 +350,100 @@ public:
         topology.add(cldnn::input_layout("input", layout));
         topology.add(cldnn::activation("act_prim",
             cldnn::input_info("input"), act, {alpha, beta}));
+        std::string last_prim_id = "act_prim";
+        std::vector<int64_t> out_shape = shape;
+        std::map<int, ref::elt_ref_data> elt_data_map;
+        std::vector<post_op_entry> runtime_post_ops;
+
+        int runtime_post_op_idx = 0;
+        for (size_t pi = post_op_start; pi < post_ops.size(); ++pi) {
+            const auto& po = post_ops[pi];
+            switch (po.kind) {
+                case post_op_kind::activation: {
+                    std::string po_id = "act_post_" + std::to_string(pi);
+                    topology.add(cldnn::activation(po_id,
+                        cldnn::input_info(last_prim_id),
+                        map_activation(po.act_func, po.alpha),
+                        {po.alpha, po.beta}));
+                    last_prim_id = po_id;
+                    runtime_post_ops.push_back(po);
+                    runtime_post_op_idx++;
+                    break;
+                }
+                case post_op_kind::eltwise: {
+                    std::vector<int64_t> elt_shape = out_shape;
+                    if (po.elt_broadcast == broadcast_spec::per_oc) {
+                        elt_shape.assign(out_shape.size(), 1);
+                        if (!elt_shape.empty()) elt_shape[0] = out_shape[0];
+                        if (elt_shape.size() > 1) elt_shape[1] = out_shape[1];
+                    } else if (po.elt_broadcast == broadcast_spec::per_tensor) {
+                        elt_shape.assign(out_shape.size(), 1);
+                    }
+
+                    std::string elt_data_id = "elt_data_" + std::to_string(pi);
+                    ov::PartialShape elt_ps(std::vector<ov::Dimension>(elt_shape.begin(), elt_shape.end()));
+                    cldnn::layout elt_layout(elt_ps, po.elt_dt, get_format_for_rank(elt_shape.size()));
+                    auto elt_mem = engine.allocate_memory(elt_layout);
+                    fill_memory_random(elt_mem, *stream, po.elt_dt);
+                    if (config.is_acc()) {
+                        elt_data_map[runtime_post_op_idx] = {read_memory_to_f32(elt_mem, *stream), elt_shape};
+                    }
+                    topology.add(cldnn::data(elt_data_id, elt_mem));
+
+                    std::string po_id = "elt_post_" + std::to_string(pi);
+                    topology.add(cldnn::eltwise(po_id,
+                        {cldnn::input_info(last_prim_id), cldnn::input_info(elt_data_id)},
+                        map_eltwise_mode(po.elt_mode)));
+                    last_prim_id = po_id;
+                    runtime_post_ops.push_back(po);
+                    runtime_post_op_idx++;
+                    break;
+                }
+                case post_op_kind::quantize: {
+                    float lo = 0.0f;
+                    float hi = 255.0f;
+                    int levels = 256;
+                    switch (po.quant_out_dt) {
+                        case cldnn::data_types::i8: lo = -128.0f; hi = 127.0f; levels = 256; break;
+                        case cldnn::data_types::u8: lo = 0.0f; hi = 255.0f; levels = 256; break;
+                        case cldnn::data_types::i4: lo = -8.0f; hi = 7.0f; levels = 16; break;
+                        case cldnn::data_types::u4: lo = 0.0f; hi = 15.0f; levels = 16; break;
+                        default: break;
+                    }
+
+                    auto make_scalar = [&](const std::string& name, float val) {
+                        cldnn::layout scalar_layout({1, 1, 1, 1}, cldnn::data_types::f32, cldnn::format::bfyx);
+                        auto mem = engine.allocate_memory(scalar_layout);
+                        { auto lock = cldnn::mem_lock<float>(mem, *stream); lock[0] = val; }
+                        topology.add(cldnn::data(name, mem));
+                    };
+
+                    std::string q_id = "quant_" + std::to_string(pi);
+                    std::string in_lo = q_id + "_in_lo";
+                    std::string in_hi = q_id + "_in_hi";
+                    std::string out_lo = q_id + "_out_lo";
+                    std::string out_hi = q_id + "_out_hi";
+                    make_scalar(in_lo, lo);
+                    make_scalar(in_hi, hi);
+                    make_scalar(out_lo, lo);
+                    make_scalar(out_hi, hi);
+
+                    topology.add(cldnn::quantize(q_id,
+                        cldnn::input_info(last_prim_id),
+                        cldnn::input_info(in_lo), cldnn::input_info(in_hi),
+                        cldnn::input_info(out_lo), cldnn::input_info(out_hi),
+                        levels, po.quant_out_dt));
+                    last_prim_id = q_id;
+                    runtime_post_ops.push_back(po);
+                    runtime_post_op_idx++;
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+
+        add_terminal_post_op_consumer_reorder(topology, config, runtime_post_ops, last_prim_id, dt);
 
         cldnn::network network(engine, topology, exec_config);
         network.set_input_data("input", mem);
@@ -276,9 +459,17 @@ public:
         // Accuracy mode
         if (config.is_acc()) {
             auto outputs = network.execute();
-            auto gpu_out = read_network_output_f32(outputs, "act_prim", *stream);
+            auto gpu_out = read_network_output_f32(outputs, last_prim_id, *stream);
             auto input_f32 = read_memory_to_f32(mem, *stream);
             auto ref_out = ref::activation(input_f32, act, alpha, beta);
+
+            // Activation output follows primitive output dtype.
+            ref::apply_quantize_ref(ref_out, dt);
+
+            bool can_check = ref::apply_post_ops_ref(ref_out, runtime_post_ops, out_shape, elt_data_map);
+            if (!can_check) {
+                test_passed = false;
+            }
 
             float atol, rtol;
             get_default_tolerance(dt, atol, rtol);
