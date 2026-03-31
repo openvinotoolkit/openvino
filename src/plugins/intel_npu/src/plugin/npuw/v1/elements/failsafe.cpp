@@ -48,8 +48,8 @@ void copy_tensor_data(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITe
 std::shared_ptr<ov::ICompiledModel> ov::npuw::failsafe::CompiledModel::create(
     const std::shared_ptr<ov::Model>& model,
     const std::shared_ptr<const ov::IPlugin>& plugin,
-    std::vector<std::string> devices,
-    Factory factory) {
+    const std::vector<std::string> &devices,
+    const Factory &factory) {
     OPENVINO_ASSERT(!devices.empty(), "Failsafe compiled model requires at least one device");
     OPENVINO_ASSERT(static_cast<bool>(factory), "Failsafe compiled model requires a factory");
 
@@ -61,7 +61,7 @@ std::shared_ptr<ov::ICompiledModel> ov::npuw::failsafe::CompiledModel::create(
         return compiled_model;
     }
 
-    auto compiled_model = std::make_shared<CompiledModel>(model, plugin, std::move(devices), std::move(factory));
+    auto compiled_model = std::make_shared<CompiledModel>(model, plugin, devices, factory);
     std::lock_guard<std::mutex> lock(compiled_model->m_mutex);
     compiled_model->ensure_active_compiled_model_locked();
     return compiled_model;
@@ -69,11 +69,11 @@ std::shared_ptr<ov::ICompiledModel> ov::npuw::failsafe::CompiledModel::create(
 
 ov::npuw::failsafe::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                  const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                 std::vector<std::string> devices,
-                                                 Factory factory)
-    : ov::ICompiledModel(model, plugin),
-      m_devices(std::move(devices)),
-      m_factory(std::move(factory)) {
+                                                 const std::vector<std::string> &devices,
+                                                 const Factory &factory)
+     : ov::ICompiledModel(model, plugin),
+       m_devices(devices),
+       m_factory(factory) {
     OPENVINO_ASSERT(!m_devices.empty(), "Failsafe compiled model requires at least one device");
     OPENVINO_ASSERT(static_cast<bool>(m_factory), "Failsafe compiled model requires a factory");
 }
@@ -161,6 +161,10 @@ std::string ov::npuw::failsafe::CompiledModel::active_device_name() const {
     return m_devices[current.device_index];
 }
 
+bool ov::npuw::failsafe::CompiledModel::is_at_last_device() const {
+    return active_device_index() + 1 == m_devices.size();
+}
+
 void ov::npuw::failsafe::CompiledModel::export_model(std::ostream& model) const {
     std::lock_guard<std::mutex> lock(m_mutex);
     ensure_active_compiled_model_locked().compiled_model->export_model(model);
@@ -204,7 +208,6 @@ void ov::npuw::failsafe::InferRequest::ensure_inner_request_locked() const {
     }
 
     m_request = m_failsafe_compiled_model->create_request(m_generation);
-    rebind_public_input_tensors_locked();
 }
 
 ov::npuw::failsafe::InferRequest::PortKey ov::npuw::failsafe::InferRequest::port_key_locked(
@@ -218,107 +221,36 @@ bool ov::npuw::failsafe::InferRequest::is_output_port_locked(const ov::Output<co
     return port_key_locked(port).is_output;
 }
 
-ov::npuw::failsafe::InferRequest::PortTensors& ov::npuw::failsafe::InferRequest::get_or_create_port_tensors_locked(
-    const ov::Output<const ov::Node>& port) const {
-    auto [it, _] = m_public_tensors.try_emplace(port_key_locked(port), PortTensors{port, {}});
-    auto& stored = it->second;
-    if (!stored.tensors.empty()) {
-        return stored;
-    }
-
-    auto tensors = m_request->get_tensors(port);
-    if (!tensors.empty()) {
-        stored.tensors.reserve(tensors.size());
-        for (const auto& tensor : tensors) {
-            stored.tensors.push_back(allocate_tensor_like(tensor));
-        }
-    } else {
-        stored.tensors.push_back(allocate_tensor_like(m_request->get_tensor(port)));
-    }
-
-    if (is_output_port_locked(port)) {
-        auto current_tensors = m_request->get_tensors(port);
-        if (!current_tensors.empty()) {
-            OPENVINO_ASSERT(current_tensors.size() == stored.tensors.size(),
-                            "Failsafe output tensor count mismatch for port ",
-                            port);
-            for (std::size_t idx = 0; idx < current_tensors.size(); ++idx) {
-                copy_tensor_data(current_tensors[idx], stored.tensors[idx]);
-            }
-        } else {
-            copy_tensor_data(m_request->get_tensor(port), stored.tensors.front());
-        }
-    } else {
-        bind_public_input_tensors_locked(stored.port, stored.tensors);
-    }
-
-    return stored;
-}
-
-void ov::npuw::failsafe::InferRequest::bind_public_input_tensors_locked(
-    const ov::Output<const ov::Node>& port,
-    const std::vector<ov::SoPtr<ov::ITensor>>& tensors) const {
-    if (tensors.empty()) {
-        return;
-    }
-
-    // Output tensors stay wrapper-owned/public. If the caller overrides an
-    // output buffer via set_tensor()/set_tensors(), infer() copies the current
-    // inner-request outputs into that buffer after execution and after failover.
-    if (is_output_port_locked(port)) {
-        return;
-    }
-
-    if (tensors.size() == 1u) {
-        m_request->set_tensor(port, tensors.front());
-    } else {
-        m_request->set_tensors(port, tensors);
-    }
-}
-
-void ov::npuw::failsafe::InferRequest::sync_public_output_tensors_locked() const {
-    for (const auto& [_, stored] : m_public_tensors) {
-        if (!is_output_port_locked(stored.port) || stored.tensors.empty()) {
-            continue;
-        }
-
-        auto current_tensors = m_request->get_tensors(stored.port);
-        if (!current_tensors.empty()) {
-            OPENVINO_ASSERT(current_tensors.size() == stored.tensors.size(),
-                            "Failsafe output tensor count mismatch for port ",
-                            stored.port);
-            for (std::size_t idx = 0; idx < current_tensors.size(); ++idx) {
-                if (current_tensors[idx]._ptr != stored.tensors[idx]._ptr) {
-                    copy_tensor_data(current_tensors[idx], stored.tensors[idx]);
-                }
-            }
-            continue;
-        }
-
-        const auto current = m_request->get_tensor(stored.port);
-        if (current._ptr != stored.tensors.front()._ptr) {
-            copy_tensor_data(current, stored.tensors.front());
-        }
-    }
-}
-
-void ov::npuw::failsafe::InferRequest::rebind_public_input_tensors_locked() const {
-    for (const auto& [_, stored] : m_public_tensors) {
-        if (stored.tensors.empty()) {
-            continue;
-        }
-        bind_public_input_tensors_locked(stored.port, stored.tensors);
-    }
-}
 
 void ov::npuw::failsafe::InferRequest::infer() {
     std::lock_guard<std::mutex> lock(m_mutex);
 
+    using Binding = std::pair<ov::Output<const ov::Node>, ov::SoPtr<ov::ITensor>>;
+    std::vector<Binding> input_tensors;
+    std::vector<Binding> output_tensors;
+    bool need_rebind = false;
+
+    ensure_inner_request_locked();
+    for (auto &&port : m_failsafe_compiled_model->inputs()) {
+        input_tensors.push_back(Binding{port, m_request->get_tensor(port)});
+    }
+    for (auto &&port : m_failsafe_compiled_model->outputs()) {
+        output_tensors.push_back(Binding{port, m_request->get_tensor(port)});
+    }
+
     while (true) {
         ensure_inner_request_locked();
         try {
+            if (need_rebind) {
+                for (auto &&binding : input_tensors) {
+                    m_request->set_tensor(binding.first, binding.second);
+                }
+                for (auto &&binding : output_tensors) {
+                    m_request->set_tensor(binding.first, binding.second);
+                }
+            }
             m_request->infer();
-            sync_public_output_tensors_locked();
+            need_rebind = false;
             return;
         } catch (...) {
             {
@@ -327,6 +259,7 @@ void ov::npuw::failsafe::InferRequest::infer() {
             }
             m_request.reset();
             m_generation = std::numeric_limits<std::size_t>::max();
+            need_rebind = true;
         }
     }
 }
@@ -334,37 +267,17 @@ void ov::npuw::failsafe::InferRequest::infer() {
 ov::SoPtr<ov::ITensor> ov::npuw::failsafe::InferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
     std::lock_guard<std::mutex> lock(m_mutex);
     ensure_inner_request_locked();
-    return get_or_create_port_tensors_locked(port).tensors.front();
+    return m_request->get_tensor(port);
 }
 
 void ov::npuw::failsafe::InferRequest::set_tensor(const ov::Output<const ov::Node>& port,
                                                   const ov::SoPtr<ov::ITensor>& tensor) {
     std::lock_guard<std::mutex> lock(m_mutex);
-    const auto key = port_key_locked(port);
-    m_public_tensors[key] = PortTensors{port, {tensor}};
     ensure_inner_request_locked();
-    bind_public_input_tensors_locked(port, {tensor});
-}
-
-std::vector<ov::SoPtr<ov::ITensor>> ov::npuw::failsafe::InferRequest::get_tensors(
-    const ov::Output<const ov::Node>& port) const {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    ensure_inner_request_locked();
-    return get_or_create_port_tensors_locked(port).tensors;
-}
-
-void ov::npuw::failsafe::InferRequest::set_tensors(const ov::Output<const ov::Node>& port,
-                                                   const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    const auto key = port_key_locked(port);
-    m_public_tensors[key] = PortTensors{port, tensors};
-    ensure_inner_request_locked();
-    bind_public_input_tensors_locked(port, tensors);
+    m_request->set_tensor(port, tensor);
 }
 
 void ov::npuw::failsafe::InferRequest::check_tensors() const {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    ensure_inner_request_locked();
 }
 
 std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::failsafe::InferRequest::query_state() const {
