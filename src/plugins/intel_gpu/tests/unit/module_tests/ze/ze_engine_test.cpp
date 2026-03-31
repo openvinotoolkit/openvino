@@ -4,7 +4,7 @@
 
 #ifdef OV_GPU_WITH_ZE_RT
 
-#include "test_utils.h"
+#include "ze_test_context.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "ze/ze_memory.hpp"
@@ -14,22 +14,16 @@
 #include <vector>
 
 using namespace cldnn;
-using namespace ::tests;
+using namespace ze_tests;
 
 
 TEST(ze_engine, memory_creation) {
-	std::shared_ptr<engine> ze_test_engine = nullptr;
-	try {
-		ze_test_engine = create_test_engine(engine_types::ze, runtime_types::ze);
-	} catch (const std::exception& e) {
-		GTEST_SKIP() << e.what();
-	}
-
+    auto ze_test_context = create_ze_test_context();
+    auto ze_test_engine = ze_test_context.ze_test_engine;
+    auto ze_test_stream = ze_test_context.ze_test_stream;
 	ASSERT_NE(ze_test_engine, nullptr);
 	ASSERT_EQ(ze_test_engine->type(), engine_types::ze);
 	ASSERT_EQ(ze_test_engine->runtime_type(), runtime_types::ze);
-
-	auto ze_test_stream = ze_test_engine->create_stream(get_test_default_config(*ze_test_engine));
 
 	std::shared_ptr<memory> mem = nullptr;
 	layout layout_to_allocate = {{2, 4}, data_types::u8, format::bfyx};
@@ -80,20 +74,15 @@ TEST(ze_engine, memory_creation) {
 }
 
 TEST(ze_engine, memory_creation_usm_host) {
-    std::shared_ptr<engine> ze_test_engine = nullptr;
-    try {
-        ze_test_engine = create_test_engine(engine_types::ze, runtime_types::ze);
-    } catch (const std::exception& e) {
-        GTEST_SKIP() << e.what();
-    }
+    auto ze_test_context = create_ze_test_context();
+    auto ze_test_engine = ze_test_context.ze_test_engine;
+    auto ze_test_stream = ze_test_context.ze_test_stream;
 
     ASSERT_NE(ze_test_engine, nullptr);
 
     if (!ze_test_engine->supports_allocation(allocation_type::usm_host)) {
         GTEST_SKIP() << "usm_host allocation is not supported on this device";
     }
-
-    auto ze_test_stream = ze_test_engine->create_stream(get_test_default_config(*ze_test_engine));
 
     const layout test_layout = {{1, 1, 16, 1}, data_types::u8, format::bfyx};
 
@@ -116,20 +105,15 @@ TEST(ze_engine, memory_creation_usm_host) {
 }
 
 TEST(ze_engine, memory_creation_usm_device) {
-    std::shared_ptr<engine> ze_test_engine = nullptr;
-    try {
-        ze_test_engine = create_test_engine(engine_types::ze, runtime_types::ze);
-    } catch (const std::exception& e) {
-        GTEST_SKIP() << e.what();
-    }
+    auto ze_test_context = create_ze_test_context();
+    auto ze_test_engine = ze_test_context.ze_test_engine;
+    auto ze_test_stream = ze_test_context.ze_test_stream;
 
     ASSERT_NE(ze_test_engine, nullptr);
 
     if (!ze_test_engine->supports_allocation(allocation_type::usm_device)) {
         GTEST_SKIP() << "usm_device allocation is not supported on this device";
     }
-
-    auto ze_test_stream = ze_test_engine->create_stream(get_test_default_config(*ze_test_engine));
 
     const layout test_layout = {{1, 1, 16, 1}, data_types::u8, format::bfyx};
 
@@ -152,20 +136,15 @@ TEST(ze_engine, memory_creation_usm_device) {
 }
 
 TEST(ze_engine, memory_creation_usm_shared) {
-    std::shared_ptr<engine> ze_test_engine = nullptr;
-    try {
-        ze_test_engine = create_test_engine(engine_types::ze, runtime_types::ze);
-    } catch (const std::exception& e) {
-        GTEST_SKIP() << e.what();
-    }
+    auto ze_test_context = create_ze_test_context();
+    auto ze_test_engine = ze_test_context.ze_test_engine;
+    auto ze_test_stream = ze_test_context.ze_test_stream;
 
     ASSERT_NE(ze_test_engine, nullptr);
 
     if (!ze_test_engine->supports_allocation(allocation_type::usm_shared)) {
         GTEST_SKIP() << "usm_shared allocation is not supported on this device";
     }
-
-    auto ze_test_stream = ze_test_engine->create_stream(get_test_default_config(*ze_test_engine));
 
     const layout test_layout = {{1, 1, 16, 1}, data_types::u8, format::bfyx};
 
@@ -191,12 +170,9 @@ TEST(ze_engine, large_allocation) {
 	// This test is used for manual testing only.
 	GTEST_SKIP();
 
-	std::shared_ptr<engine> ze_test_engine = nullptr;
-	try {
-		ze_test_engine = create_test_engine(engine_types::ze, runtime_types::ze);
-	} catch (const std::exception& e) {
-		GTEST_SKIP() << e.what();
-	}
+    auto ze_test_context = create_ze_test_context();
+    auto ze_test_engine = ze_test_context.ze_test_engine;
+    auto ze_test_stream = ze_test_context.ze_test_stream;
 
 	ASSERT_NE(ze_test_engine, nullptr);
 

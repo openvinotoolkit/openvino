@@ -4,7 +4,7 @@
 
 #ifdef OV_GPU_WITH_ZE_RT
 
-#include "test_utils.h"
+#include "ze_test_context.hpp"
 
 #include "intel_gpu/runtime/device.hpp"
 #include "intel_gpu/runtime/memory_caps.hpp"
@@ -17,7 +17,7 @@
 #include <vector>
 
 using namespace cldnn;
-using namespace ::tests;
+using namespace ze_tests;
 
 
 namespace {
