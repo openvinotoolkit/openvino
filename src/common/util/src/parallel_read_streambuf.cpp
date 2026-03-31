@@ -23,7 +23,6 @@ ParallelReadStreamBuf::ParallelReadStreamBuf(const std::filesystem::path& path,
       m_file_offset(header_offset),
       m_header_offset(header_offset),
       m_threshold(threshold) {
-
     ov::util::get_file_handle_and_size(path, m_file_offset, m_handle, m_file_size);
 }
 

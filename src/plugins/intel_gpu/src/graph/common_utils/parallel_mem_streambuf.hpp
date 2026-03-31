@@ -17,8 +17,7 @@ namespace ov::intel_gpu {
 // direct pread/ReadFile calls replace the 2x-RAM mmap+memcpy path.
 class ParallelMemStreamBuf : public std::streambuf {
 public:
-    explicit ParallelMemStreamBuf(const void* data, size_t size,
-                                  size_t threshold = ov::util::DEFAULT_PARALLEL_IO_THRESHOLD);
+    explicit ParallelMemStreamBuf(const void* data, size_t size, size_t threshold = ov::util::DEFAULT_PARALLEL_IO_THRESHOLD);
 
     ~ParallelMemStreamBuf() override = default;
 

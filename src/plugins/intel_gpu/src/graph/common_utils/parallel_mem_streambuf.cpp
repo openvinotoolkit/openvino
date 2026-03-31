@@ -83,9 +83,7 @@ ParallelMemStreamBuf::int_type ParallelMemStreamBuf::uflow() {
     return traits_type::to_int_type(*m_current++);
 }
 
-ParallelMemStreamBuf::pos_type ParallelMemStreamBuf::seekoff(off_type off,
-                                                             std::ios_base::seekdir way,
-                                                             std::ios_base::openmode which) {
+ParallelMemStreamBuf::pos_type ParallelMemStreamBuf::seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode which) {
     if (m_file_buf) {
         return m_file_buf->pubseekoff(off, way, which);
     }

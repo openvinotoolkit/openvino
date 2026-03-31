@@ -35,7 +35,6 @@ namespace ov::util {
  */
 class ParallelReadStreamBuf : public std::streambuf {
 public:
-
     /**
      * @param path           Path to the file to read.
      * @param header_offset  Initial file position (absolute offset from the start
@@ -67,7 +66,7 @@ private:
     std::filesystem::path m_path;
     FileHandle m_handle = INVALID_FILE_HANDLE;  ///< platform file handle
 
-    std::streamoff m_file_offset = 0;        ///< absolute file offset of next byte to read
+    std::streamoff m_file_offset = 0;    ///< absolute file offset of next byte to read
     std::streamoff m_header_offset = 0;  ///< absolute file offset of logical stream start
     std::streamoff m_file_size = 0;
     size_t m_threshold = DEFAULT_PARALLEL_IO_THRESHOLD;

@@ -4,13 +4,13 @@
 
 #include "openvino/util/parallel_io.hpp"
 
-// clang-format-off
+// clang-format off
 #ifndef NOMINMAX
 #    define NOMINMAX
 #endif
 #include <windows.h>
 #include <psapi.h>
-// clang-format-on
+// clang-format on
 
 #include <cstdint>
 #include <stdexcept>
