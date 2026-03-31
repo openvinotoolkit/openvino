@@ -263,7 +263,7 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         return stream.enqueue_kernel(*stage.kernel, params, {}, events, needs_completion_event);
     }
 
-    virtual std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& instance) const {
+    virtual std::vector<size_t> get_stages_execution_order(const cldnn::kernel_impl_params& impl_params) const {
         return _order;
     }
 
@@ -275,7 +275,7 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
 
         update_rt_params(instance);
 
-        const auto& exec_stages = get_stages_execution_order(instance);
+        const auto& exec_stages = get_stages_execution_order(*instance.get_impl_params());
 
         if (exec_stages.size() == 1) {
             return execute_stage(events, instance, *_stages[exec_stages[0]]);
@@ -316,9 +316,9 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         }
     }
 
-    std::pair<std::string, std::string> get_kernels_dump_info(std::shared_ptr<const cldnn::primitive_inst> instance = nullptr) const override {
+    std::pair<std::string, std::string> get_kernels_dump_info(const cldnn::kernel_impl_params& impl_params) const override {
         std::string entry_points;
-        const auto& updated_order = instance && !instance->get_impl_params()->is_dynamic() ? get_stages_execution_order(*instance.get()) : _order;
+        const auto& updated_order = !impl_params.is_dynamic() ? get_stages_execution_order(impl_params) : _order;
 
         for (size_t i = 0; i < updated_order.size(); ++i) {
             const auto& stage = _stages[updated_order[i]];

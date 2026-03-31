@@ -311,9 +311,10 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 
         auto preferred_impl_type = get_preferred_impl_type();
         if (preferred_impl_type != impl_types::onednn && preferred_impl_type != impl_types::cpu) {
+            auto dump_info = selected_impl->get_kernels_dump_info(*get_kernel_impl_params());
             json_composite cl_dump_info;
-            cl_dump_info.add("batch_hash", selected_impl->get_kernels_dump_info().first);
-            cl_dump_info.add("kernel_entry", selected_impl->get_kernels_dump_info().second);
+            cl_dump_info.add("batch_hash", dump_info.first);
+            cl_dump_info.add("kernel_entry", dump_info.second);
             node_info->add("cl dump_ info", cl_dump_info);
         }
 #ifdef __clang__

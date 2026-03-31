@@ -246,7 +246,7 @@ void dump_graph_init(std::ofstream& graph,
             if (node->get_selected_impl() == nullptr) {
                 graph << "none";
             } else {
-                const auto& dump_info = node->get_selected_impl()->get_kernels_dump_info(inst);
+                const auto& dump_info = node->get_selected_impl()->get_kernels_dump_info(*node->get_kernel_impl_params());
                 if (!dump_info.second.empty()) {
                     graph << dump_info.second;
                 } else {

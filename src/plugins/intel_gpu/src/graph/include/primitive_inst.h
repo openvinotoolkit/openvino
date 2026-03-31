@@ -128,8 +128,8 @@ struct primitive_impl {
         }
     }
     // Returns a pair of batch program hash and kernel entry of each ocl impl. Returns "" for other impl types.
-    // If static instance is provided, then only actually executed kernel entries are returned.
-    virtual std::pair<std::string, std::string> get_kernels_dump_info(std::shared_ptr<const cldnn::primitive_inst> instance = nullptr) const {
+    // If static impl_params is provided, then only actually executed kernel entries are returned.
+    virtual std::pair<std::string, std::string> get_kernels_dump_info(const cldnn::kernel_impl_params& impl_params) const {
         return std::make_pair("", "");
     }
 

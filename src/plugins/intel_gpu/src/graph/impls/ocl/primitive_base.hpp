@@ -309,7 +309,7 @@ protected:
         }
     }
 
-    std::pair<std::string, std::string> get_kernels_dump_info(std::shared_ptr<const cldnn::primitive_inst> instance = nullptr) const override {
+    std::pair<std::string, std::string> get_kernels_dump_info(const cldnn::kernel_impl_params& impl_params) const override {
         std::string entry_points;
 
         for (size_t i = 0; i < _kernel_data.kernels.size(); ++i) {
