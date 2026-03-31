@@ -67,7 +67,7 @@ TEST(ze_event, can_create_user_event_as_not_complete_set_and_wait) {
 }
 
 /*
-COUNTER BASER EVENTS:
+COUNTER BASED EVENTS:
 */
 
 TEST(ze_event, can_create_counter_based_event) {
