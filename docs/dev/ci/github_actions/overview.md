@@ -7,10 +7,9 @@ detailed instructions where necessary.
 ## Table of Contents
 
 * [Workflows overview](#workflows)
+  * [Reusing GitHub Actions](#reusing-github-actions)
   * [Triggers and schedules](#workflows-triggers-and-schedule)
-  * [Required workflows](#required-workflows)
-  * [Workflow structure](#structure-of-the-workflows)
-  * [Workflow and job organisation](#workflows-and-jobs-organisation)
+  * [Workflow structure](#workflow-structure)
   * [Security considerations](#security-considerations)
 * [Finding results, artifacts and logs](#finding-results-artifacts-and-logs)
 * [Custom actions overview](#custom-actions)
@@ -18,7 +17,7 @@ detailed instructions where necessary.
 * [Docker images overview](#docker-images)
 * [Caches overview](#caches)
 * [How to add new tests](#adding-new-tests)
-* [Optimizing workflow based on PR changes](#optimizing-workflow-based-on-PR-changes)
+* [Optimizing workflow based on PR changes](#optimizing-workflows-based-on-PR-changes)
 * [Merge Queue](#merge-queue)
 
 ## Workflows
@@ -32,18 +31,18 @@ They include:
 * information about the environment in which the commands should be executed
 
 
-You can find all workflows for this repository in the [workflows folder](../../../../.github/workflows).
+You can find all workflows for this repository in the [workflows folder](/.github/workflows).
 The three main ones, providing most coverage for different operating systems, are:
-* [Linux](../../../../.github/workflows/ubuntu_22.yml)
-* [Windows](../../../../.github/workflows/windows.yml)
-* [macOS](../../../../.github/workflows/mac.yml)
+* [Linux](/.github/workflows/ubuntu_22.yml)
+* [Windows](/.github/workflows/windows_vs2022_release.yml)
+* [macOS](/.github/workflows/mac_arm64.yml)
 
 Additionally, several supporting workflows build and test OpenVINO for other operating systems and processor architectures:
-* [Android](../../../../.github/workflows/android.yml)
-* [Fedora](../../../../.github/workflows/fedora_29.yml)
-* [Linux Conditional Compilation](../../../../.github/workflows/linux_conditional_compilation.yml)
-* [Linux RISC-V](../../../../.github/workflows/linux_riscv.yml)
-* [Windows Conditional Compilation](../../../../.github/workflows/windows_conditional_compilation.yml)
+* [Android](/.github/workflows/android.yml)
+* [Fedora](/.github/workflows/fedora_29.yml)
+* [Linux Conditional Compilation](/.github/workflows/linux_conditional_compilation.yml)
+* [Linux RISC-V](/.github/workflows/linux_riscv.yml)
+* [Windows Conditional Compilation](/.github/workflows/windows_conditional_compilation.yml)
 
 ### Reusing GitHub Actions
 
@@ -58,7 +57,7 @@ and see what and how to [obtain additional actions](https://github.com/marketpla
 Workflows run whenever they are triggered by predefined [events](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows).
 These triggers **are not** mutually exclusive and multiple can be used by one workflow.
 The OpenVINO repository has three, and as you may see in the example below, they are all
-included in the [Linux workflow](../../../../.github/workflows/ubuntu_22.yml). They are:
+included in the [Linux workflow](/.github/workflows/ubuntu_22.yml). They are:
 
 * `on: schedule` - schedule trigger
   * This trigger runs the workflow on a specified interval (e.g., nightly).
@@ -131,7 +130,7 @@ The workflow structures for Linux, Windows, and macOS are mostly the same:
 **NOTE**: some workflows may use the same structure, while others may lack the last 3 steps,
 with tests coming right after the `Build` step.
 
-Overview of the [Linux workflow](../../../../.github/workflows/ubuntu_22.yml).
+Overview of the [Linux workflow](/.github/workflows/ubuntu_22.yml).
 There are several jobs present:
 
 ```yaml
@@ -169,7 +168,7 @@ Each job has several keys that describe its environment. Consider checking a com
 
 This section describes the specifics of the OpenVINO CI environment.
 
-Overview of the [Linux workflow's](../../../../.github/workflows/ubuntu_22.yml) `Python_Unit_Tests` job:
+Overview of the [Linux workflow's](/.github/workflows/ubuntu_22.yml) `Python_Unit_Tests` job:
 ```yaml
   Python_Unit_Tests:
     name: Python unit tests

@@ -1115,6 +1115,13 @@ void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_i
     if (is_recreate) {
         submodel_desc.pyramid_infer_requests.clear();
         submodel_desc.pyramid_pipeline_requests.clear();
+        // Also release anchor tensors for this submodel so stale buffers are not retained
+        m_pyramid_anchor_tensors.erase(std::remove_if(m_pyramid_anchor_tensors.begin(),
+                                                      m_pyramid_anchor_tensors.end(),
+                                                      [real_idx](const auto& e) {
+                                                          return e.first == real_idx;
+                                                      }),
+                                       m_pyramid_anchor_tensors.end());
     }
 
     // Allocate storage for infer requests
@@ -1175,6 +1182,17 @@ void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_i
         submodel_desc.pyramid_infer_requests[last_model_idx] = m_subrequests[real_idx];
         if (is_piped) {
             submodel_desc.pyramid_pipeline_requests[last_model_idx] = m_funcall_pipeline[real_idx].subrequest;
+        }
+
+        // Anchor input tensors here; see m_pyramid_anchor_tensors.
+        const size_t num_inputs = submodel_desc.compiled_model->inputs().size();
+        for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
+            auto main_input = submodel_desc.compiled_model->inputs()[input_idx];
+            m_pyramid_anchor_tensors.emplace_back(real_idx, m_subrequests[real_idx]->get_tensor(main_input));
+            if (is_piped) {
+                m_pyramid_anchor_tensors.emplace_back(real_idx,
+                                                      m_funcall_pipeline[real_idx].subrequest->get_tensor(main_input));
+            }
         }
     }
 
