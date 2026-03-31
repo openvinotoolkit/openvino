@@ -377,7 +377,7 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_PreScaledQue
     const bool casual = false;
 
     {
-        auto sdp = std::make_shared<v13::ScaledDotProductAttention>(query_prescaled,
+        auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(query_prescaled,
                                                                     key,
                                                                     value,
                                                                     attention_mask,
