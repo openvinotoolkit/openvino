@@ -86,7 +86,6 @@
 #include "snippets/op/loop.hpp"
 #include "snippets/op/powerstatic.hpp"
 #include "snippets/op/rank_normalization.hpp"
-#include "snippets/op/reduce.hpp"
 #include "snippets/op/reorder.hpp"
 #include "snippets/op/reshape.hpp"
 #include "snippets/op/result.hpp"
@@ -97,6 +96,10 @@
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 #include "utils/general_utils.h"
 #include "xbyak_riscv/xbyak_riscv.hpp"
+
+#if defined(OPENVINO_ARCH_RISCV64)
+#    include "snippets/op/reduce.hpp"
+#endif
 
 #ifdef SNIPPETS_DEBUG_CAPS
 #    include "emitters/snippets/riscv64/jit_debug_emitter.hpp"
