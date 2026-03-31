@@ -9,7 +9,6 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
-#include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/erf.hpp"
 #include "openvino/op/gather.hpp"
@@ -106,11 +105,11 @@ namespace ov::test {
 using op::v0::Concat, op::v0::Constant, op::v0::Parameter;
 using ov::op::v1::Add, ov::op::v1::Divide, ov::op::v0::Erf;
 
-using testing::HasSubstr, testing::Values, testing::ElementsAre, testing::Pointwise, testing::FloatNear;
+using testing::HasSubstr, testing::Values, testing::Pointwise, testing::FloatNear;
 
 TEST(constantfold_subgraph, fold_unsupported_precision_multiple_nodes) {
     auto init = Constant::create(element::f16, Shape{1, 1, 1, 2}, {10.f, 20.f});
-    auto a = Constant::create(element::f16, Shape{1}, {1.5});
+    auto a = Constant::create(element::f16, Shape{1}, {1.5f});
     auto div = std::make_shared<Divide>(init, a);
     auto erf = std::make_shared<Erf>(div);
     auto b = Constant::create(element::f16, Shape{1}, {10.f});
