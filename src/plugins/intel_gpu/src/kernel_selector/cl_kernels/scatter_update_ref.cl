@@ -238,6 +238,8 @@ KERNEL(scatter_update_ref)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 }
 
+#undef INDICES_SIZE
+#undef GET_UPDATES_INDEX
 #undef GET_OUTPUT_INDEX
 #undef GET_INPUT_INDEX
 #undef ORDER
