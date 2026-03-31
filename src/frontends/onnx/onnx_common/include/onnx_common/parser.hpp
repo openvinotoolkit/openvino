@@ -7,6 +7,7 @@
 
 #include <fstream>
 #include <string>
+#include <filesystem>
 
 namespace ov {
 namespace frontend {
@@ -18,10 +19,7 @@ using namespace ::ONNX_NAMESPACE;
 /// \param   file_path    Path to the file containing an ONNX model.
 ///
 /// \return  The parsed in-memory representation of the ONNX model
-ModelProto parse_from_file(const std::string& file_path);
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-ModelProto parse_from_file(const std::wstring& file_path);
-#endif
+ModelProto parse_from_file(const std::filesystem::path& file_path);
 
 /// \brief   Parses an ONNX model from a stream (representing for example a file)
 ///

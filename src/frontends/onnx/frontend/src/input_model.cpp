@@ -16,30 +16,17 @@
 using namespace ov;
 using namespace ov::frontend::onnx;
 
-InputModel::InputModel(const std::string& path, const bool enable_mmap, frontend::ExtensionHolder extensions)
+InputModel::InputModel(const std::filesystem::path& path, const bool enable_mmap, frontend::ExtensionHolder extensions)
     : m_editor{std::make_shared<ONNXModelEditor>(path, enable_mmap, std::move(extensions))} {}
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-InputModel::InputModel(const std::wstring& path, const bool enable_mmap, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<ONNXModelEditor>(path, enable_mmap, std::move(extensions))} {}
-#endif
 
 InputModel::InputModel(std::istream& model_stream, const bool enable_mmap, frontend::ExtensionHolder extensions)
     : m_editor{std::make_shared<ONNXModelEditor>(model_stream, "", enable_mmap, std::move(extensions))} {}
 
 InputModel::InputModel(std::istream& model_stream,
-                       const std::string& path,
+                       const std::filesystem::path& path,
                        const bool enable_mmap,
                        frontend::ExtensionHolder extensions)
     : m_editor{std::make_shared<ONNXModelEditor>(model_stream, path, enable_mmap, std::move(extensions))} {}
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-InputModel::InputModel(std::istream& model_stream,
-                       const std::wstring& path,
-                       const bool enable_mmap,
-                       frontend::ExtensionHolder extensions)
-    : InputModel(model_stream, ov::util::wstring_to_string(path), enable_mmap, std::move(extensions)) {}
-#endif
 
 InputModel::InputModel(std::shared_ptr<ModelProto> model_proto, frontend::ExtensionHolder extensions)
     : m_editor{std::make_shared<ONNXModelEditor>(model_proto, std::move(extensions))} {}
