@@ -104,7 +104,7 @@ jobs:
         continue-on-error: true
 
       # - name: Run Paddle frontend unit tests
-      #   run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/paddle_tests --gtest_filter=-*IE_GPU*
+      #   run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_paddle_tests --gtest_filter=-*IE_GPU*
       #   continue-on-error: true
 
       - name: Run TensorFlow frontend unit tests

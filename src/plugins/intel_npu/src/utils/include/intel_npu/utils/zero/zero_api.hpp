@@ -65,7 +65,8 @@ namespace intel_npu {
     symbol_statement(zeCommandListGetNextCommandIdExp)        \
     symbol_statement(zeCommandListUpdateMutableCommandsExp)   \
     symbol_statement(zeInitDrivers)                           \
-    symbol_statement(zelGetLoaderVersion)
+    symbol_statement(zelGetLoaderVersion)                     \
+    symbol_statement(zelSetDriverTeardown)
 // clang-format on
 
 class ZeroApi {

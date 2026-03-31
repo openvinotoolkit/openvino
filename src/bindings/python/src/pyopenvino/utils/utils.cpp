@@ -336,24 +336,6 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
     return properties_to_cpp;
 }
 
-std::string convert_path_to_string(const py::object& path) {
-    // import pathlib.Path
-    py::object Path = py::module_::import("pathlib").attr("Path");
-    // check if model path is either a string or pathlib.Path
-    if (py::isinstance(path, Path) || py::isinstance<py::str>(path)) {
-        return py::str(path);
-    }
-    // Convert bytes to string
-    if (py::isinstance<py::bytes>(path)) {
-        return path.cast<std::string>();
-    }
-    std::stringstream str;
-    str << "Path: '" << path << "'"
-        << " does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path. "
-           "Examples:\n(1) '/home/user/models/model.onnx'\n(2) Path('/home/user/models/model/model.onnx')";
-    OPENVINO_THROW(str.str());
-}
-
 std::shared_ptr<ov::Model> convert_to_model(const py::object& obj) {
     if (!py::isinstance(obj, py::module_::import("openvino").attr("Model"))) {
         throw py::type_error("Incompatible `model` argument. Please provide a valid openvino.Model instance.");

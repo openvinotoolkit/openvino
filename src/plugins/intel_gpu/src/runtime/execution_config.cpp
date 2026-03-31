@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/kv_cache.hpp"
 #include "intel_gpu/op/sdpa.hpp"
@@ -10,6 +12,7 @@
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/istft.hpp"
@@ -149,13 +152,15 @@ void ExecutionConfig::finalize(cldnn::engine& engine) {
     PluginConfig::finalize(ctx.get(), nullptr);
 }
 
-void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTMap& rt_info, bool is_llm, bool is_paged_attention_model) {
-    const auto& info = dynamic_cast<const RemoteContextImpl*>(context)->get_engine().get_device_info();
+void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTMap& rt_info, bool is_llm, bool is_paged_attention_model, bool has_lora) {
+    const auto* remote_context = dynamic_cast<const RemoteContextImpl*>(context);
+    OPENVINO_ASSERT(remote_context != nullptr, "Expected GPU RemoteContextImpl in ExecutionConfig::apply_rt_info");
+    const auto& info = remote_context->get_engine().get_device_info();
     if (is_paged_attention_model || !info.supports_immad) {
         apply_rt_info_property(ov::hint::kv_cache_precision, rt_info);
     }
 
-    if (!is_llm) {
+    if (!is_llm || (has_lora && !info.supports_immad)) {
         apply_rt_info_property(ov::hint::activations_scale_factor, rt_info);
     }
 
@@ -185,7 +190,12 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
 
         return false;
     });
-    apply_rt_info(context, get_rt_info(model), is_LLM, is_paged_attention_model);
+    const auto has_lora = std::any_of(model.get_variables().begin(), model.get_variables().end(),
+        [](const std::shared_ptr<ov::op::util::Variable>& var) {
+            return var->get_info().variable_id.find("lora_state_") == 0;
+        });
+
+    apply_rt_info(context, get_rt_info(model), is_LLM, is_paged_attention_model, has_lora);
 
     const auto& ops = model.get_ops();
 

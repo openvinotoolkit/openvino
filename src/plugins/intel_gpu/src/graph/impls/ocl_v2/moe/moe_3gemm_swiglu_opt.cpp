@@ -12,7 +12,6 @@
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #    include <initializer_list>
 #    include <oneapi/dnnl/dnnl.hpp>
-#    include <oneapi/dnnl/dnnl_ocl.hpp>
 #    include <sstream>
 #    include <string_view>
 #    include <tuple>
@@ -169,6 +168,8 @@ struct onednn_matmul {
         with_bin_mul_per_row_sum,
         with_silu,
         with_silu_bin_mul,
+        with_sigmoid,
+        with_bin_mul_sum,
     };
     int bin_post_id = -1;
     bool bin_per_row = false;
@@ -184,6 +185,14 @@ struct onednn_matmul {
         if (t == type::with_bin_mul) {
             bin_post_id = 0;
             post_op_bin_mul(true);
+        }
+        if (t == type::with_bin_mul_sum) {
+            bin_post_id = 0;
+            post_op_bin_mul(false);
+            post_op_sum();
+        }
+        if (t == type::with_sigmoid) {
+            postops.append_eltwise(dnnl::algorithm::eltwise_logistic, 1.0f, 0.0f);
         }
         if (t == type::with_bin_mul_per_row) {
             bin_post_id = 0;
@@ -366,6 +375,33 @@ protected:
     }
 };
 
+class MoE3GemmSwigluSigmoidBiasTopK : public KernelGenerator {
+public:
+    MoE3GemmSwigluSigmoidBiasTopK() : KernelGenerator("moe_3gemm_swiglu_fuse", "sigmoid_bias_topk") {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = KernelGenerator::get_jit_constants(params);
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
+        jit.make("SIGMOID_BIAS_TOPK_ENABLE", 1);
+        jit.make("TOP_K", desc->_config.top_k);
+        jit.make("VALUE_NUM", desc->_config.num_expert);
+        jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
+        jit.make("MOE_DTYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        Arguments args;
+
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {}};
+    }
+};
+
 class MoE3GemmSwigluGather : public KernelGenerator {
 public:
     MoE3GemmSwigluGather() : KernelGenerator("moe_3gemm_swiglu_fuse", "gather") {}
@@ -432,7 +468,7 @@ protected:
 static size_t get_seq_len(cldnn::layout& layout) {
     auto shape = layout.get_shape();
     size_t seq_len = static_cast<size_t>(shape[0]);
-    if (shape.size() == 4) {
+    if (shape.size() >= 3) {
         seq_len = static_cast<size_t>(shape[0] * shape[1]);
     }
     return seq_len;
@@ -679,14 +715,22 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
 
 class MoE3GemmSwigluMLPGateUp : public KernelGenerator {
 public:
-    MoE3GemmSwigluMLPGateUp() : KernelGenerator("moe_3gemm_swiglu_mlp", "gate_up") {}
+    MoE3GemmSwigluMLPGateUp(bool disable_shared_experts = false)
+        : KernelGenerator("moe_3gemm_swiglu_mlp", "gate_up"),
+          _disable_shared_experts(disable_shared_experts) {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         add_common_consts(params, jit);
         jit.make("GATE_UP_ENABLE", 1);
-
+        if (!_disable_shared_experts && desc->_config.num_shared_expert > 0 &&
+            params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)) {
+            jit.make("SHARED_EXPERT_ENABLE", 1);
+        } else {
+            jit.make("SHARED_EXPERT_ENABLE", 0);
+        }
         return jit;
     }
 
@@ -698,17 +742,29 @@ protected:
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
         return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {}};
     }
+
+private:
+    bool _disable_shared_experts;
 };
 
 class MoE3GemmSwigluMLPDown : public KernelGenerator {
 public:
-    MoE3GemmSwigluMLPDown() : KernelGenerator("moe_3gemm_swiglu_mlp", "down") {}
+    MoE3GemmSwigluMLPDown(bool disable_shared_experts = false)
+        : KernelGenerator("moe_3gemm_swiglu_mlp", "down"),
+          _disable_shared_experts(disable_shared_experts) {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         add_common_consts(params, jit);
         jit.make("DOWN_ENABLE", 1);
+        if (!_disable_shared_experts && desc->_config.num_shared_expert > 0 &&
+            params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)) {
+            jit.make("SHARED_EXPERT_ENABLE", 1);
+        } else {
+            jit.make("SHARED_EXPERT_ENABLE", 0);
+        }
         return jit;
     }
 
@@ -720,17 +776,29 @@ protected:
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
         return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {}};
     }
+
+private:
+    bool _disable_shared_experts;
 };
 
 class MoE3GemmSwigluMLPReduce : public KernelGenerator {
 public:
-    MoE3GemmSwigluMLPReduce() : KernelGenerator("moe_3gemm_swiglu_mlp", "reduce") {}
+    MoE3GemmSwigluMLPReduce(bool disable_shared_experts = false)
+        : KernelGenerator("moe_3gemm_swiglu_mlp", "reduce"),
+          _disable_shared_experts(disable_shared_experts) {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         add_common_consts(params, jit);
         jit.make("REDUCE_ENABLE", 1);
+        if (!_disable_shared_experts && desc->_config.num_shared_expert > 0 &&
+            params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)) {
+            jit.make("SHARED_EXPERT_ENABLE", 1);
+        } else {
+            jit.make("SHARED_EXPERT_ENABLE", 0);
+        }
         return jit;
     }
 
@@ -742,6 +810,9 @@ protected:
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
         return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {}};
     }
+
+private:
+    bool _disable_shared_experts;
 };
 
 dnnl::memory convert2dnnl(const memory::ptr& ptr, const std::vector<int64_t>& dim, dnnl::memory::format_tag tag, int64_t offset = 0) {
@@ -755,6 +826,7 @@ class moe_3gemm_swiglu_opt_impl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoE3GemmSwigluImpl)
     Stage::Ptr softmax_topk = make_stage<MoE3GemmSwigluSoftMaxTopK>();
+    Stage::Ptr sigmoid_bias_topk = make_stage<MoE3GemmSwigluSigmoidBiasTopK>();
     Stage::Ptr gather = make_stage<MoE3GemmSwigluGather>();
     Stage::Ptr scatter = make_stage<MoE3GemmSwigluScatter>();
     Stage::Ptr mlp_gate_up = make_stage<MoE3GemmSwigluMLPGateUp>();
@@ -796,6 +868,11 @@ public:
         memory::ptr scale[3];
         memory::ptr zp[3];
         memory::ptr bias[3];
+
+        // Shared expert: Gate, Up, Down, ScalarGate
+        memory::ptr shared_weight[4];
+        memory::ptr shared_scale[4];
+        memory::ptr shared_zp[4];
     } moe_fusion_weights;
 
     struct scratch_buffers {
@@ -825,8 +902,16 @@ public:
     std::vector<std::vector<dnnl_weights>> _dnnl_weights;
     int _hidden_size;
     int _intermediate_size;
+    int _shared_intermediate_size;
     int _gate_up_group_size;
     int _down_group_size;
+
+    bool _has_shared_expert = false;
+    // Shared expert primitives
+    std::shared_ptr<onednn_linear> _shared_gate_proj;
+    std::shared_ptr<onednn_linear> _shared_up_proj;
+    std::shared_ptr<onednn_linear> _shared_down_proj;
+    std::shared_ptr<onednn_linear> _shared_gate_gate_proj;  // The scalar gate for shared expert
 
     moe_3gemm_swiglu_opt_impl() : PrimitiveImplOCL(moe_3gemm_swiglu_opt::get_type_info_static()) {}
     moe_3gemm_swiglu_opt_impl(const program_node& node, const RuntimeParams& params) : moe_3gemm_swiglu_opt_impl() {
@@ -855,7 +940,8 @@ public:
 
         auto& engine = params.prog->get_engine();
         const auto& info = engine.get_device_info();
-        if (info.arch < gpu_arch::xe2) {
+        // FIXME: CVS-182236 Prefill performance on discrete GPU is bad when using micro_gemm_prefill, need to investigate further, disable it for now.
+        if (info.arch < gpu_arch::xe2 || info.dev_type == cldnn::device_type::discrete_gpu) {
             use_micro_gemm_prefill = false;
             GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): use_micro_gemm_prefill=" << use_micro_gemm_prefill
                                    << ", arch=" << static_cast<int>(info.arch) << std::endl;
@@ -871,7 +957,14 @@ public:
         }
 
         // Don't change the order of stages
-        add_stage(softmax_topk, params);
+        auto routing_type = node.as<moe_3gemm_fused_compressed>().get_primitive()->_config.routing_type;
+        if (routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SOFTMAX) {
+            add_stage(softmax_topk, params);
+        } else if (routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS) {
+            add_stage(sigmoid_bias_topk, params);
+        } else {
+            OPENVINO_THROW("Unsupported routing type for moe_3gemm_swiglu_opt_impl: ", static_cast<int>(routing_type));
+        }
         add_stage(gather, params);
         add_stage(scatter, params);
         add_stage(mlp_gate_up, params);
@@ -960,6 +1053,128 @@ public:
         }
     }
 
+    void init_shared_primitives(cldnn::engine& engine, const struct moe_fusion_weights_base_addr& addr, int batch) {
+        if (_shared_gate_proj && _shared_gate_proj->m_batch == batch)
+            return;
+
+        if (!addr.shared_weight[0]) {
+            _has_shared_expert = false;
+            return;
+        }
+
+        _shared_intermediate_size = static_cast<int>(addr.shared_weight[0]->get_layout().count() / _hidden_size);
+        auto eng = engine.get_onednn_engine();
+        using t = onednn_matmul::type;
+
+        // 1. Up (Standard Linear)
+        auto up_w_dt = convert_data_type(addr.shared_weight[1]->get_layout().data_type);
+        auto up_w = convert2dnnl(addr.shared_weight[1], {_hidden_size, _shared_intermediate_size}, dnnl::memory::format_tag::ba);
+        auto up_s = addr.shared_scale[1]
+                        ? convert2dnnl(addr.shared_scale[1], {_hidden_size / _gate_up_group_size, _shared_intermediate_size}, dnnl::memory::format_tag::ab)
+                        : dnnl::memory();
+        auto up_z = addr.shared_zp[1]
+                        ? convert2dnnl(addr.shared_zp[1], {_hidden_size / _gate_up_group_size, _shared_intermediate_size}, dnnl::memory::format_tag::ab)
+                        : dnnl::memory();
+        _shared_up_proj = std::make_shared<onednn_linear>(onednn_linear::create(eng,
+                                                                                dnnl::memory::data_type::f16,
+                                                                                up_w_dt,
+                                                                                batch,
+                                                                                _hidden_size,
+                                                                                _shared_intermediate_size,
+                                                                                _gate_up_group_size,
+                                                                                t::none,
+                                                                                up_w,
+                                                                                up_s,
+                                                                                up_z));
+
+        // 2. Gate (SiLU + BinMul)
+        auto gate_w_dt = convert_data_type(addr.shared_weight[0]->get_layout().data_type);
+        auto gate_w = convert2dnnl(addr.shared_weight[0], {_hidden_size, _shared_intermediate_size}, dnnl::memory::format_tag::ba);
+        auto gate_s = addr.shared_scale[0]
+                          ? convert2dnnl(addr.shared_scale[0], {_hidden_size / _gate_up_group_size, _shared_intermediate_size}, dnnl::memory::format_tag::ab)
+                          : dnnl::memory();
+        auto gate_z = addr.shared_zp[0]
+                          ? convert2dnnl(addr.shared_zp[0], {_hidden_size / _gate_up_group_size, _shared_intermediate_size}, dnnl::memory::format_tag::ab)
+                          : dnnl::memory();
+        _shared_gate_proj = std::make_shared<onednn_linear>(onednn_linear::create(eng,
+                                                                                  dnnl::memory::data_type::f16,
+                                                                                  gate_w_dt,
+                                                                                  batch,
+                                                                                  _hidden_size,
+                                                                                  _shared_intermediate_size,
+                                                                                  _gate_up_group_size,
+                                                                                  t::with_silu_bin_mul,
+                                                                                  gate_w,
+                                                                                  gate_s,
+                                                                                  gate_z));
+
+        // 3. Scalar Gate (Sigmoid)
+        // It is very small weight with shape of [Hidden, 1], and not need to keep compressed, so KeepMOE3GemmConstPrecision will not keep its precision and
+        // ConvertPrecision will convert to f16. So Scalar gate is [Hidden, 1], f16 weights, no scale/zp for now
+        dnnl::memory sg_w;
+        dnnl::memory::data_type sg_w_dt = dnnl::memory::data_type::f16;
+        if (addr.shared_weight[3]) {
+            sg_w_dt = convert_data_type(addr.shared_weight[3]->get_layout().data_type);
+            sg_w = convert2dnnl(addr.shared_weight[3], {_hidden_size, 1}, dnnl::memory::format_tag::ba);
+        }
+
+        if (sg_w) {
+            _shared_gate_gate_proj = std::make_shared<onednn_linear>(
+                onednn_linear::
+                    create(eng, dnnl::memory::data_type::f16, sg_w_dt, batch, _hidden_size, 1, -1, t::with_sigmoid, sg_w, dnnl::memory(), dnnl::memory()));
+        }
+
+        // 4. Down (BinMul + Sum)
+        auto down_w_dt = convert_data_type(addr.shared_weight[2]->get_layout().data_type);
+        auto down_w = convert2dnnl(addr.shared_weight[2], {_shared_intermediate_size, _hidden_size}, dnnl::memory::format_tag::ba);
+        auto down_s = addr.shared_scale[2]
+                          ? convert2dnnl(addr.shared_scale[2], {_shared_intermediate_size / _down_group_size, _hidden_size}, dnnl::memory::format_tag::ab)
+                          : dnnl::memory();
+        auto down_z = addr.shared_zp[2]
+                          ? convert2dnnl(addr.shared_zp[2], {_shared_intermediate_size / _down_group_size, _hidden_size}, dnnl::memory::format_tag::ab)
+                          : dnnl::memory();
+        _shared_down_proj = std::make_shared<onednn_linear>(onednn_linear::create(eng,
+                                                                                  dnnl::memory::data_type::f16,
+                                                                                  down_w_dt,
+                                                                                  batch,
+                                                                                  _shared_intermediate_size,
+                                                                                  _hidden_size,
+                                                                                  _down_group_size,
+                                                                                  t::with_bin_mul_sum,
+                                                                                  down_w,
+                                                                                  down_s,
+                                                                                  down_z));
+    }
+
+    void execute_shared_expert(dnnl::stream& stream, int batch, memory::ptr input_mem, memory::ptr output_mem, scratch_buffers& scratch) {
+        if (!_shared_gate_proj || !_shared_up_proj || !_shared_down_proj || !_shared_gate_gate_proj) {
+            return;
+        }
+
+        auto input_dnnl = convert2dnnl(input_mem, {batch, _hidden_size}, dnnl::memory::format_tag::ab);
+        auto output_dnnl = convert2dnnl(output_mem, {batch, _hidden_size}, dnnl::memory::format_tag::ab);
+
+        auto up_mem_dnnl = convert2dnnl(scratch.up, {batch, _shared_intermediate_size}, dnnl::memory::format_tag::ab);
+        auto gate_mem_dnnl = convert2dnnl(scratch.gate, {batch, _shared_intermediate_size}, dnnl::memory::format_tag::ab);
+        // Reuse routing weights or topk_weights buffer as temp for scalar gate [Batch, 1]
+        // This buffer is usually [Batch, MaxTopK]. Check if big enough. Batch=1 -> TopK. Batch>1 -> Batch*TopK.
+        // We only use [Batch, 1] part.
+        auto scalar_gate_mem = scratch.topk_weights;
+        auto scalar_gate_dnnl = convert2dnnl(scalar_gate_mem, {batch, 1}, dnnl::memory::format_tag::ab);
+
+        // 1. Up Proj
+        _shared_up_proj->forward(stream, batch, input_dnnl, up_mem_dnnl, dnnl::memory());
+
+        // 2. Gate Proj (Fused with SiLU and BinMul(up))
+        _shared_gate_proj->forward(stream, batch, input_dnnl, gate_mem_dnnl, up_mem_dnnl);
+
+        // 3. Scalar Gate Proj (Fused with Sigmoid)
+        _shared_gate_gate_proj->forward(stream, batch, input_dnnl, scalar_gate_dnnl, dnnl::memory());
+
+        // 4. Down Proj (Fused with BinMul(Scalar) and Sum)
+        _shared_down_proj->forward(stream, batch, gate_mem_dnnl, output_dnnl, scalar_gate_dnnl);
+    }
+
     void load(BinaryInputBuffer& ib) override {
         PrimitiveImplOCL::load(ib);
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
@@ -985,16 +1200,17 @@ public:
         auto hidden_states_layout = params.input_layouts[0];
         auto token_num = get_seq_len(hidden_states_layout);
         auto data_type = hidden_states_layout.data_type;
+        bool has_shared_expert = params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT);
 
         std::vector<BufferDescriptor> internal_buffers;
         // softmax+topk
         layout layout_topk_id(ov::Shape{token_num, max_topk}, data_types::u32, cldnn::format::bfyx);
-        layout layout_topk_weights(ov::Shape{token_num, max_topk}, data_type, cldnn::format::bfyx);
+        layout layout_topk_weights(ov::Shape{token_num, max_topk + (has_shared_expert ? 1 : 0)}, data_type, cldnn::format::bfyx);
         internal_buffers.emplace_back(layout_topk_id, true);       // 0: topk_id
         internal_buffers.emplace_back(layout_topk_weights, true);  // 1: topk_weights
 
         // To support micro_gemm, prefill need to allocate max_topk * token_num for input data of micro_gemm
-        auto max_batch = max_topk * token_num;
+        auto max_batch = has_shared_expert ? (max_topk + 1) * token_num : max_topk * token_num;
         layout layout_gateup_out(ov::Shape{max_batch, static_cast<size_t>(config.inter_size)}, data_type, cldnn::format::bfyx);
         layout layout_down_out(ov::Shape{max_batch, static_cast<size_t>(config.hidden_size)}, data_type, cldnn::format::bfyx);
         internal_buffers.emplace_back(layout_gateup_out, true);  // 2: up output
@@ -1004,7 +1220,7 @@ public:
         //         scratch.gate = gate(scratch.x) * scratch.up
         //         scratch.y = down(scratch.gate) * routing_weights
         internal_buffers.emplace_back(layout_down_out, true);  // 4: up/gate input, scratch.x has same layout with down output
-        layout routing_layout(ov::Shape{token_num * max_topk}, data_type, cldnn::format::bfyx);
+        layout routing_layout(ov::Shape{max_batch}, data_type, cldnn::format::bfyx);
         internal_buffers.emplace_back(routing_layout, true);     // 5: routing_weights
         internal_buffers.emplace_back(layout_gateup_out, true);  // 6: gate output, scratch.gate has same layout with up
         // expert masks for gpu
@@ -1064,6 +1280,28 @@ public:
         scratch.moe_fusion_wei_addr.weight[2] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_2));
         scratch.moe_fusion_wei_addr.scale[2] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SCALE_2));
         scratch.moe_fusion_wei_addr.zp[2] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_2));
+
+        // shared expert
+        size_t dep_count = instance.dependencies().size();
+        if (dep_count >= static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_GATE_WEIGHT) + 1) {
+            // Gate
+            scratch.moe_fusion_wei_addr.shared_weight[0] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT));
+            scratch.moe_fusion_wei_addr.shared_scale[0] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_SCALE));
+            scratch.moe_fusion_wei_addr.shared_zp[0] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_ZP));
+
+            // Up
+            scratch.moe_fusion_wei_addr.shared_weight[1] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_UP_WEIGHT));
+            scratch.moe_fusion_wei_addr.shared_scale[1] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_UP_SCALE));
+            scratch.moe_fusion_wei_addr.shared_zp[1] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_UP_ZP));
+
+            // Down
+            scratch.moe_fusion_wei_addr.shared_weight[2] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_DOWN_WEIGHT));
+            scratch.moe_fusion_wei_addr.shared_scale[2] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_DOWN_SCALE));
+            scratch.moe_fusion_wei_addr.shared_zp[2] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_DOWN_ZP));
+
+            // Scalar Gate - f16
+            scratch.moe_fusion_wei_addr.shared_weight[3] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_GATE_WEIGHT));
+        }
     }
 
     void get_expert_mask_from_gpu(const MOE3GemmFusedCompressed::Config& config, memory::ptr mem, stream& stream, expert_mask_cpu& expert_mask) {
@@ -1194,7 +1432,6 @@ public:
         return std::make_tuple(mem, layout);
     }
 
-    bool print_wei = false;
     cldnn::event::ptr exec_single_token(const std::vector<cldnn::event::ptr>& events,
                                         typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                         scratch_buffers& scratch) {
@@ -1205,7 +1442,6 @@ public:
         auto batch_mem_ptr = scratch.topk_id;
         auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES));
         auto routing_mem_ptr = scratch.topk_weights;
-
         _hidden_size = static_cast<int>(cur_moe->_config.hidden_size);
         _intermediate_size = static_cast<int>(cur_moe->_config.inter_size);
 
@@ -1228,30 +1464,64 @@ public:
         const auto& mlp_down_zp_mem = scratch.moe_fusion_wei_addr.zp[2];
         event::ptr ret;
 
+        size_t compute_experts = static_cast<size_t>(max_topk);
+        Stage* stage_gate_up = mlp_gate_up.get();
+        Stage* stage_down = mlp_down.get();
+        Stage* stage_reduce = mlp_reduce.get();
+
+        std::vector<memory::ptr> extra_args_gate_up;
+        std::vector<memory::ptr> extra_args_down;
+
+        if (_has_shared_expert) {
+            compute_experts += 1;
+
+            extra_args_gate_up = {scratch.moe_fusion_wei_addr.shared_weight[0],
+                                  scratch.moe_fusion_wei_addr.shared_scale[0],
+                                  scratch.moe_fusion_wei_addr.shared_zp[0],
+                                  scratch.moe_fusion_wei_addr.shared_weight[1],
+                                  scratch.moe_fusion_wei_addr.shared_scale[1],
+                                  scratch.moe_fusion_wei_addr.shared_zp[1],
+                                  scratch.moe_fusion_wei_addr.shared_weight[3],
+                                  routing_mem_ptr};
+
+            extra_args_down = {scratch.moe_fusion_wei_addr.shared_weight[2],
+                               scratch.moe_fusion_wei_addr.shared_scale[2],
+                               scratch.moe_fusion_wei_addr.shared_zp[2]};
+        }
         {
             // scratch.up = up(x) * silu(gate(x))
-            auto ret_event = execute_stage(
-                events,
-                instance,
-                *mlp_gate_up,
-                {batch_mem_ptr, mlp_gate_wei_mem, mlp_gate_scale_mem, mlp_gate_zp_mem, mlp_up_wei_mem, mlp_up_scale_mem, mlp_up_zp_mem, hidden_states_mem_ptr},
-                {scratch.up},
-                {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
-                {1, subgroup_size, SUBGROUP_NUM});
+            std::vector<memory::ptr> args_gate_up =
+                {batch_mem_ptr, mlp_gate_wei_mem, mlp_gate_scale_mem, mlp_gate_zp_mem, mlp_up_wei_mem, mlp_up_scale_mem, mlp_up_zp_mem};
+            if (_has_shared_expert)
+                args_gate_up.insert(args_gate_up.end(), extra_args_gate_up.begin(), extra_args_gate_up.end());
+            args_gate_up.push_back(hidden_states_mem_ptr);
+
+            auto ret_event = execute_stage(events,
+                                           instance,
+                                           *stage_gate_up,
+                                           args_gate_up,
+                                           {scratch.up},
+                                           {compute_experts, subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
+                                           {1, subgroup_size, SUBGROUP_NUM});
 
             // scratch.y = down(scratch.up) * weight[expert_no]
+            std::vector<memory::ptr> args_down = {batch_mem_ptr, mlp_down_wei_mem, mlp_down_scale_mem, mlp_down_zp_mem};
+            if (_has_shared_expert)
+                args_down.insert(args_down.end(), extra_args_down.begin(), extra_args_down.end());
+            args_down.push_back(scratch.up);
+            args_down.push_back(routing_mem_ptr);
             ret_event = execute_stage({ret_event},
                                       instance,
-                                      *mlp_down,
-                                      {batch_mem_ptr, mlp_down_wei_mem, mlp_down_scale_mem, mlp_down_zp_mem, scratch.up, routing_mem_ptr},
+                                      *stage_down,
+                                      args_down,
                                       {scratch.y},
-                                      {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
+                                      {compute_experts, subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
                                       {1, subgroup_size, SUBGROUP_NUM});
 
             // final = sum(scratch.y)
             ret = execute_stage({ret_event},
                                 instance,
-                                *mlp_reduce,
+                                *stage_reduce,
                                 {scratch.y},
                                 {final_hidden_states_mem_ptr},
                                 {static_cast<size_t>(1), static_cast<size_t>(_hidden_size)},
@@ -1735,22 +2005,49 @@ public:
         auto& cur_net = instance.get_network();
         auto& stream = cur_net.get_stream();
         cldnn::event::ptr ret_env = nullptr;
+        _has_shared_expert = (config.num_shared_expert > 0);
+
+        if (_has_shared_expert) {
+            if (config.num_shared_expert > 1) {
+                OPENVINO_THROW("num_shared_expert=", config.num_shared_expert, " is not supported yet, only support 0 or 1");
+            }
+            auto shared_expert_weight_layout = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT))->get_layout();
+            auto hidden_size = static_cast<int>(cur_moe->_config.hidden_size);
+            _shared_intermediate_size = static_cast<int>(shared_expert_weight_layout.count() / hidden_size);
+            OPENVINO_ASSERT(_shared_intermediate_size == _intermediate_size, "Shared expert _intermediate_size should be same with moe experts");
+        }
 
         auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES));
         size_t token_num = get_seq_len(hidden_states_layout);
         scratch_buffers scratch;
         prepare_internal_buffers(instance, scratch, token_num);
 
-        // softmax+topk
+        // routing: softmax+topk or sigmoid+bias+topk
         auto lws_size = config.num_expert;
-        auto topk_event = execute_stage(events,
-                                        instance,
-                                        *softmax_topk,
-                                        {instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_WEIGHTS))},
-                                        {scratch.topk_id, scratch.topk_weights},
-                                        {static_cast<size_t>(token_num), lws_size},
-                                        {1, lws_size},
-                                        instance.needs_completion_event());
+        cldnn::event::ptr topk_event;
+        if (config.routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SOFTMAX) {
+            topk_event = execute_stage(events,
+                                       instance,
+                                       *softmax_topk,
+                                       {instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_WEIGHTS))},
+                                       {scratch.topk_id, scratch.topk_weights},
+                                       {token_num, lws_size},
+                                       {1, lws_size},
+                                       instance.needs_completion_event());
+        } else if (config.routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS) {
+            topk_event = execute_stage(events,
+                                       instance,
+                                       *sigmoid_bias_topk,
+                                       {instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_WEIGHTS)),
+                                        instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_BIAS)),
+                                        instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_EPS))},
+                                       {scratch.topk_id, scratch.topk_weights},
+                                       {token_num, lws_size},
+                                       {1, lws_size},
+                                       instance.needs_completion_event());
+        } else {
+            OPENVINO_THROW("Unsupported routing type ", static_cast<int>(config.routing_type));
+        }
 
         // Single token is a special case, we don't need to do gather/scatter,
         // and we can apply optimal kernels against memory bound to improve performance.
@@ -1758,9 +2055,9 @@ public:
             return exec_single_token({topk_event}, instance, scratch);
         }
 
+        auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
         // onednn path will accumulate to the output
         if (!use_micro_gemm_prefill) {
-            auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
             final_hidden_states_mem_ptr->fill(stream, false);
         }
         const bool use_gpu_mask_gen = use_gpu_mask_gen_prefill;
@@ -1776,6 +2073,17 @@ public:
             ret_env = exec_prefill_micro_gemm({topk_event}, instance, scratch, use_gpu_mask_gen);
         } else {
             ret_env = exec_prefill_onednn({topk_event}, stream, instance, scratch);
+        }
+
+        if (_has_shared_expert) {
+            auto& engine = instance.get_network().get_engine();
+            init_shared_primitives(engine, scratch.moe_fusion_wei_addr, static_cast<int>(token_num));
+            // execute_shared_expert will read the output of moe_gemm_down, so it should be after ret_env is ready, but it doesn't need to wait for ret_env to
+            // be ready, since execute_shared_expert will be serialized with the following kernels by onednn stream, just make sure ret_env is submitted before
+            // execute_shared_expert.
+            // if (ret_env)
+            //     ret_env->wait();
+            execute_shared_expert(stream.get_onednn_stream(), static_cast<int>(token_num), hidden_states_mem_ptr, final_hidden_states_mem_ptr, scratch);
         }
         // Wait for the final event to be ready
         // ret_env->wait();

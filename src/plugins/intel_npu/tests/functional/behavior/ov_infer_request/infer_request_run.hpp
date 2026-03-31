@@ -17,10 +17,12 @@
 #include "behavior/ov_infer_request/inference.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/core/log.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/compiled_model.hpp"
@@ -34,6 +36,22 @@ using CompilationParams = std::tuple<std::string,  // Device name
 
 using ::testing::AllOf;
 using ::testing::HasSubstr;
+
+namespace {
+class LogCallbackGuard {
+public:
+    explicit LogCallbackGuard(const std::function<void(std::string_view)>& callback) {
+        ov::util::set_log_callback(callback);
+    }
+
+    ~LogCallbackGuard() {
+        ov::util::reset_log_callback();
+    }
+
+    LogCallbackGuard(const LogCallbackGuard&) = delete;
+    LogCallbackGuard& operator=(const LogCallbackGuard&) = delete;
+};
+}  // namespace
 
 namespace ov {
 namespace test {
@@ -125,6 +143,68 @@ public:
     }
 };
 
+using BooleanPrecisionCompilationParams = std::tuple<std::string,  // Device name
+                                                     ov::AnyMap,   // Config
+                                                     bool,         // With warmup infer()
+                                                     bool>;        // With reset Infer Request
+
+class BooleanPrecisionInferRequestRunTests : public ov::test::behavior::OVPluginTestBase,
+                                             public testing::WithParamInterface<BooleanPrecisionCompilationParams> {
+protected:
+    std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
+    ov::AnyMap configuration;
+    std::shared_ptr<ov::Model> ov_model;
+    bool withWarmUpInfer = false;
+    bool withResetInferRequest = false;
+
+    std::shared_ptr<ov::Model> createTwoInputLessEqualModel(const PartialShape& shape = {2, 16, 16, 16}) {
+        auto param0 = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, shape);
+        param0->get_output_tensor(0).set_names({"tensor_input_0"});
+        param0->set_layout("N...");
+        auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, shape);
+        param1->get_output_tensor(0).set_names({"tensor_input_1"});
+        param1->set_layout("N...");
+        auto lessEqual = std::make_shared<ov::op::v1::LessEqual>(param0, param1);
+        auto result = std::make_shared<ov::op::v0::Result>(lessEqual);
+        result->get_output_tensor(0).set_names({"tensor_output"});
+
+        auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param0, param1});
+        model->set_friendly_name("TwoInputLessEqual");
+        return model;
+    }
+
+    std::shared_ptr<ov::Model> createTwoInputNonZeroAddModel(const PartialShape& shape = {2, 16, 16, 16}) {
+        auto param0 = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, shape);
+        param0->get_output_tensor(0).set_names({"tensor_input_0"});
+        param0->set_layout("N...");
+        auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, shape);
+        param1->get_output_tensor(0).set_names({"tensor_input_1"});
+        param1->set_layout("N...");
+        auto nonZero0 = std::make_shared<ov::op::v3::NonZero>(param0);
+        auto nonZero1 = std::make_shared<ov::op::v3::NonZero>(param1);
+        // NonZero Op returns 2D tensor [rank(data), num_non_zero] where second value is dynamic depending on the input
+        // need to workaround this for NPU_BATCH_MODE=PLUGIN using intermediary op e.g. ShapeOf
+        auto shapeOf0 = std::make_shared<ov::op::v0::ShapeOf>(nonZero0);
+        auto shapeOf1 = std::make_shared<ov::op::v0::ShapeOf>(nonZero1);
+        auto add = std::make_shared<ov::op::v1::Add>(shapeOf0, shapeOf1);
+        auto result = std::make_shared<ov::op::v0::Result>(add);
+        result->get_output_tensor(0).set_names({"tensor_output"});
+
+        auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param0, param1});
+        model->set_friendly_name("TwoTwoInputNonZeroAddModel");
+        return model;
+    }
+
+public:
+    void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+        std::tie(target_device, configuration, withWarmUpInfer, withResetInferRequest) = this->GetParam();
+        OVPluginTestBase::SetUp();
+        ov_model = createTwoInputNonZeroAddModel();
+    }
+};
+
 TEST_P(InferRequestRunTests, AllocatorCanDisposeBlobWhenOnlyInferRequestIsInScope) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED() {
         ov::InferRequest req;
@@ -190,11 +270,123 @@ TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsAsyncInfers) {
     }
 }
 
+TEST_P(BooleanPrecisionInferRequestRunTests, BooleanTensorDataTypesForBooleanModelsWork) {
+    // TODO: Also test createTwoInputLessEqualModel model when we have compiler support
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::CompiledModel compiled_model_boolean, compiled_model_boolean_imported;
+    std::shared_ptr<ov::InferRequest> infer_request_boolean, infer_request_boolean_imported;
+
+    try {
+        (void)core->get_property(target_device, ov::intel_npu::batch_mode);
+    } catch (...) {
+        configuration.erase(ov::intel_npu::batch_mode.name());
+    }
+
+    bool isPVDriver = (core->get_property(target_device, ov::intel_npu::driver_version) == 1688);
+
+    bool isDriverCompiler =
+        (configuration.find(ov::intel_npu::compiler_type.name()) != configuration.end() &&
+         configuration.find(ov::intel_npu::compiler_type.name())->second.as<ov::intel_npu::CompilerType>() ==
+             ov::intel_npu::CompilerType::DRIVER);
+    if (isPVDriver && isDriverCompiler) {
+        GTEST_SKIP() << "CID from PV driver cannot compile models with boolean inputs!";
+    }
+
+    OV_ASSERT_NO_THROW(compiled_model_boolean = core->compile_model(ov_model, target_device, configuration));
+    OPENVINO_ASSERT(compiled_model_boolean.input(0).get_element_type() == ov::element::boolean);
+    OPENVINO_ASSERT(compiled_model_boolean.input(1).get_element_type() == ov::element::boolean);
+
+    if (!isPVDriver) {
+        std::stringstream ss;
+        compiled_model_boolean.export_model(ss);
+        OV_ASSERT_NO_THROW(compiled_model_boolean_imported = core->import_model(ss, target_device, configuration));
+        infer_request_boolean_imported =
+            std::make_shared<ov::InferRequest>(compiled_model_boolean_imported.create_infer_request());
+    }
+    infer_request_boolean = std::make_shared<ov::InferRequest>(compiled_model_boolean.create_infer_request());
+
+    const auto infer_requests =
+        (isPVDriver
+             ? std::vector<std::shared_ptr<ov::InferRequest>>{infer_request_boolean}
+             : std::vector<std::shared_ptr<ov::InferRequest>>{infer_request_boolean, infer_request_boolean_imported});
+
+    auto [importMemoryBatchedTensor,
+          importMemoryTensor_1,
+          importMemoryTensor_2,
+          unalignedBatchedTensor,
+          unalignedTensor_1,
+          unalignedTensor_2] = ov::test::utils::allocate_tensors(ov_model, ov::element::boolean);
+
+    ov::Tensor ref_import_tensor(importMemoryBatchedTensor.get_element_type(), importMemoryBatchedTensor.get_shape());
+    ov::Tensor ref_tensor_unaligned(unalignedBatchedTensor.get_element_type(), unalignedBatchedTensor.get_shape());
+    importMemoryBatchedTensor.copy_to(ref_import_tensor);
+    unalignedBatchedTensor.copy_to(ref_tensor_unaligned);
+
+    for (auto infer_request : infer_requests) {
+        auto reset_infer_request_cb = [&infer_request]() {
+            auto compiled_model = infer_request->get_compiled_model();
+            infer_request = std::make_shared<ov::InferRequest>(compiled_model.create_infer_request());
+        };
+
+        if (withWarmUpInfer) {
+            infer_request->infer();
+        }
+
+        const auto& compiled_model = infer_request->get_compiled_model();
+
+        OV_ASSERT_NO_THROW(
+            ov::test::utils::set_tensors_and_infer(infer_request,
+                                                   /* should_infer = */ false,
+                                                   withResetInferRequest,
+                                                   compiled_model.input(0),
+                                                   std::vector<ov::Tensor>{importMemoryTensor_1, unalignedTensor_2},
+                                                   reset_infer_request_cb));
+        OV_ASSERT_NO_THROW(
+            ov::test::utils::set_tensors_and_infer(infer_request,
+                                                   /* should_infer = */ true,
+                                                   withResetInferRequest,
+                                                   compiled_model.input(1),
+                                                   std::vector<ov::Tensor>{importMemoryTensor_2, unalignedTensor_1},
+                                                   reset_infer_request_cb));
+
+        OV_ASSERT_NO_THROW(ov::test::utils::set_tensor_and_infer(infer_request,
+                                                                 /* should_infer = */ false,
+                                                                 withResetInferRequest,
+                                                                 compiled_model.input(0),
+                                                                 importMemoryBatchedTensor,
+                                                                 reset_infer_request_cb));
+        OV_ASSERT_NO_THROW(ov::test::utils::set_tensor_and_infer(infer_request,
+                                                                 /* should_infer = */ true,
+                                                                 withResetInferRequest,
+                                                                 compiled_model.input(1),
+                                                                 unalignedBatchedTensor,
+                                                                 reset_infer_request_cb));
+
+        OV_ASSERT_NO_THROW(
+            ov::test::utils::set_tensors_and_infer(infer_request,
+                                                   /* should_infer = */ false,
+                                                   withResetInferRequest,
+                                                   compiled_model.input(0),
+                                                   std::vector<ov::Tensor>{unalignedTensor_1, importMemoryTensor_1},
+                                                   reset_infer_request_cb));
+        OV_ASSERT_NO_THROW(
+            ov::test::utils::set_tensors_and_infer(infer_request,
+                                                   /* should_infer = */ true,
+                                                   withResetInferRequest,
+                                                   compiled_model.input(1),
+                                                   std::vector<ov::Tensor>{unalignedTensor_2, importMemoryTensor_2},
+                                                   reset_infer_request_cb));
+    }  // for infer_request
+
+    // ensure user tensors don't get altered during tests
+    OV_ASSERT_NO_THROW(ov::test::utils::compare(ref_import_tensor, importMemoryBatchedTensor, ov::element::boolean));
+    OV_ASSERT_NO_THROW(ov::test::utils::compare(ref_tensor_unaligned, importMemoryBatchedTensor, ov::element::boolean));
+}
+
 using ProfilingBlob = InferRequestRunTests;
 
 TEST_P(ProfilingBlob, NoProfilingCompileProfilingImport) {
-    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStructs =
-        std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
     if (initStructs->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
         std::cout << "Skip since driver extension version is lower than expected\n";
         GTEST_SKIP();
@@ -222,8 +414,7 @@ TEST_P(ProfilingBlob, NoProfilingCompileProfilingImport) {
 }
 
 TEST_P(ProfilingBlob, ProfilingCompileNoProfilingImport) {
-    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStructs =
-        std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
     if (initStructs->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
         std::cout << "Skip since driver extension version is lower than expected\n";
         GTEST_SKIP();
@@ -247,8 +438,7 @@ TEST_P(ProfilingBlob, ProfilingCompileNoProfilingImport) {
 }
 
 TEST_P(ProfilingBlob, ProfilingCompileProfilingImport) {
-    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStructs =
-        std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
     if (initStructs->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
         std::cout << "Skip since driver extension version is lower than expected\n";
         GTEST_SKIP();
@@ -904,7 +1094,7 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq2) {
             return property == intel_npu::run_inferences_sequentially.name();
         });
 
-    if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->getCommandQueueDdiTable().version() >=
+    if (::intel_npu::ZeroInitStructsHolder::getInstance()->getCommandQueueDdiTable().version() >=
         ZE_MAKE_VERSION(1, 1)) {
         ASSERT_TRUE(isRunInferencesSequentially);
 
@@ -2105,6 +2295,304 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterStateTensorsUseImportCpuVa1) {
     ::operator delete(state_data[0], std::align_val_t(4096));
     ::operator delete(state_data[1], std::align_val_t(64));
     ::operator delete(state_data[2], std::align_val_t(4096));
+}
+
+TEST_P(CpuVaTensorsTests, checkResultsAfterRawMemoryIsDestroyedAndReallocatedAfterEachRun) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto zeroInit = ::intel_npu::ZeroInitStructsHolder::getInstance();
+    if (!zeroInit->isExternalMemoryStandardAllocationSupported()) {
+        GTEST_SKIP() << "External memory standard allocation is not supported on this platform.";
+    }
+
+    ov::Core internal_core;
+    ov::InferRequest inference_request;
+    std::string logs;
+    std::mutex logs_mutex;
+    auto shape = Shape{1, 16, 16, 16};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(ov::element::f32, shape, "N...");
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
+    {
+        // don't flood console with messages from model compilation
+        LogCallbackGuard log_callback_guard(log_cb);
+        ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, configuration);
+        inference_request = compiled_model.create_infer_request();
+    }
+    logs.clear();
+
+    for (size_t i = 0; i < 10; ++i) {
+        float* input_data = static_cast<float*>(::operator new(shape_size * sizeof(float), std::align_val_t(4096)));
+        float* output_data = static_cast<float*>(::operator new(shape_size * sizeof(float), std::align_val_t(4096)));
+        for (size_t j = 0; j < shape_size; ++j) {
+            input_data[j] = static_cast<float>(i);
+        }
+
+        {
+            LogCallbackGuard log_callback_guard(log_cb);
+            inference_request.set_input_tensor(ov::Tensor{ov::element::f32, shape, input_data});
+            inference_request.set_output_tensor(ov::Tensor{ov::element::f32, shape, output_data});
+            inference_request.infer();
+        }
+
+        ASSERT_NE(logs.find("deallocate the tensor data"), std::string::npos);
+
+        logs.clear();
+
+        for (size_t j = 0; j < shape_size; ++j) {
+            EXPECT_NEAR(output_data[j], input_data[j] + 1.0f, 1e-5)
+                << "Run " << i << ": Expected=" << input_data[j] + 1.0f << ", actual=" << output_data[j]
+                << " for index " << j;
+        }
+
+        ::operator delete(input_data, std::align_val_t(4096));
+        ::operator delete(output_data, std::align_val_t(4096));
+    }
+}
+
+TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameRawMemoryMultipleTimes) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto zeroInit = ::intel_npu::ZeroInitStructsHolder::getInstance();
+    if (!zeroInit->isExternalMemoryStandardAllocationSupported()) {
+        GTEST_SKIP() << "External memory standard allocation is not supported on this platform.";
+    }
+
+    ov::Core internal_core;
+    ov::InferRequest inference_request;
+    std::string logs;
+    std::mutex logs_mutex;
+    auto shape = Shape{1, 16, 16, 16};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(ov::element::f32, shape, "N...");
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    float* input_data = static_cast<float*>(::operator new(shape_size * sizeof(float), std::align_val_t(4096)));
+    float* output_data = static_cast<float*>(::operator new(shape_size * sizeof(float), std::align_val_t(4096)));
+
+    internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
+    {
+        // don't flood console with messages from model compilation
+        LogCallbackGuard log_callback_guard(log_cb);
+        ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, configuration);
+        inference_request = compiled_model.create_infer_request();
+        inference_request.set_input_tensor(ov::Tensor{ov::element::f32, shape, input_data});
+        inference_request.set_output_tensor(ov::Tensor{ov::element::f32, shape, output_data});
+    }
+    logs.clear();
+
+    for (size_t i = 0; i < 10; ++i) {
+        for (size_t j = 0; j < shape_size; ++j) {
+            input_data[j] = static_cast<float>(i);
+        }
+
+        {
+            LogCallbackGuard log_callback_guard(log_cb);
+            inference_request.infer();
+        }
+
+        if (i == 0) {
+            ASSERT_EQ(logs.find("import the tensor data"), std::string::npos);
+        } else {
+            ASSERT_NE(logs.find("import the tensor data"), std::string::npos);
+        }
+        ASSERT_NE(logs.find("deallocate the tensor data"), std::string::npos);
+
+        logs.clear();
+
+        for (size_t j = 0; j < shape_size; ++j) {
+            EXPECT_NEAR(output_data[j], input_data[j] + 1.0f, 1e-5)
+                << "Run " << i << ": Expected=" << input_data[j] + 1.0f << ", actual=" << output_data[j]
+                << " for index " << j;
+        }
+    }
+
+    ::operator delete(input_data, std::align_val_t(4096));
+    ::operator delete(output_data, std::align_val_t(4096));
+}
+
+TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameZeroTensorMultipleTimes) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto zeroInit = ::intel_npu::ZeroInitStructsHolder::getInstance();
+    if (!zeroInit->isExternalMemoryStandardAllocationSupported()) {
+        GTEST_SKIP() << "External memory standard allocation is not supported on this platform.";
+    }
+
+    ov::Core internal_core;
+    ov::InferRequest inference_request;
+    float *input_data, *output_data;
+    ov::Tensor input_tensor, output_tensor;
+    std::string logs;
+    std::mutex logs_mutex;
+    auto shape = Shape{1, 16, 16, 16};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(ov::element::f32, shape, "N...");
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
+    {
+        // don't flood console with messages from model compilation
+        LogCallbackGuard log_callback_guard(log_cb);
+        ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, configuration);
+        inference_request = compiled_model.create_infer_request();
+        input_tensor = inference_request.get_input_tensor();
+        output_tensor = inference_request.get_output_tensor();
+        input_data = input_tensor.data<float>();
+        output_data = output_tensor.data<float>();
+    }
+    logs.clear();
+
+    for (size_t i = 0; i < 10; ++i) {
+        for (size_t j = 0; j < shape_size; ++j) {
+            input_data[j] = static_cast<float>(i);
+        }
+
+        {
+            LogCallbackGuard log_callback_guard(log_cb);
+            inference_request.infer();
+        }
+
+        ASSERT_EQ(logs.find("import the tensor data"), std::string::npos);
+        ASSERT_EQ(logs.find("deallocate the tensor data"), std::string::npos);
+
+        logs.clear();
+
+        for (size_t j = 0; j < shape_size; ++j) {
+            EXPECT_NEAR(output_data[j], input_data[j] + 1.0f, 1e-5)
+                << "Run " << i << ": Expected=" << input_data[j] + 1.0f << ", actual=" << output_data[j]
+                << " for index " << j;
+        }
+    }
+}
+
+TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameZeroHostTensorMultipleTimes) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto zeroInit = ::intel_npu::ZeroInitStructsHolder::getInstance();
+    if (!zeroInit->isExternalMemoryStandardAllocationSupported()) {
+        GTEST_SKIP() << "External memory standard allocation is not supported on this platform.";
+    }
+
+    ov::Core internal_core;
+    auto context = internal_core.get_default_context(target_device);
+    ov::InferRequest inference_request;
+    std::string logs;
+    std::mutex logs_mutex;
+    auto shape = Shape{1, 16, 16, 16};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(ov::element::f32, shape, "N...");
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    ov::Tensor input_tensor = context.create_host_tensor(ov::element::f32, shape);
+    ov::Tensor output_tensor = context.create_host_tensor(ov::element::f32, shape);
+    float* input_data = input_tensor.data<float>();
+    float* output_data = output_tensor.data<float>();
+
+    internal_core.set_property(target_device, ov::log::level(ov::log::Level::DEBUG));
+    {
+        // don't flood console with messages from model compilation
+        LogCallbackGuard log_callback_guard(log_cb);
+        ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, configuration);
+        inference_request = compiled_model.create_infer_request();
+        inference_request.set_input_tensor(input_tensor);
+        inference_request.set_output_tensor(output_tensor);
+    }
+    logs.clear();
+
+    for (size_t i = 0; i < 10; ++i) {
+        for (size_t j = 0; j < shape_size; ++j) {
+            input_data[j] = static_cast<float>(i);
+        }
+
+        {
+            LogCallbackGuard log_callback_guard(log_cb);
+            inference_request.infer();
+        }
+
+        ASSERT_EQ(logs.find("import the tensor data"), std::string::npos);
+        ASSERT_EQ(logs.find("deallocate the tensor data"), std::string::npos);
+
+        logs.clear();
+
+        for (size_t j = 0; j < shape_size; ++j) {
+            EXPECT_NEAR(output_data[j], input_data[j] + 1.0f, 1e-5)
+                << "Run " << i << ": Expected=" << input_data[j] + 1.0f << ", actual=" << output_data[j]
+                << " for index " << j;
+        }
+    }
+}
+
+TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameRawMemoryMultipleTimesAllocatingRandomZeroMemoryInBetween) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto zeroInit = ::intel_npu::ZeroInitStructsHolder::getInstance();
+    if (!zeroInit->isExternalMemoryStandardAllocationSupported()) {
+        GTEST_SKIP() << "External memory standard allocation is not supported on this platform.";
+    }
+
+    ov::Core internal_core;
+    auto context = internal_core.get_default_context(target_device);
+    auto shape = Shape{1, 16, 16, 16};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(ov::element::f32, shape, "N...");
+    std::vector<ov::Tensor> input_tensor;
+
+    float* input_data = static_cast<float*>(::operator new(shape_size * sizeof(float), std::align_val_t(4096)));
+    float* output_data = static_cast<float*>(::operator new(shape_size * sizeof(float), std::align_val_t(4096)));
+
+    ov::CompiledModel compiled_model = internal_core.compile_model(model, target_device, configuration);
+    auto inference_request = compiled_model.create_infer_request();
+    inference_request.set_input_tensor(ov::Tensor{ov::element::f32, shape, input_data});
+    inference_request.set_output_tensor(ov::Tensor{ov::element::f32, shape, output_data});
+
+    for (size_t i = 0; i < 5; ++i) {
+        for (size_t j = 0; j < shape_size; ++j) {
+            input_data[j] = static_cast<float>(i);
+        }
+
+        input_tensor.push_back(context.create_host_tensor(ov::element::f32, shape));
+        input_tensor.push_back(context.create_host_tensor(ov::element::f32, shape));
+        input_tensor.push_back(context.create_host_tensor(ov::element::f32, shape));
+        input_tensor.push_back(context.create_host_tensor(ov::element::f32, shape));
+
+        OV_ASSERT_NO_THROW(inference_request.infer());
+
+        for (size_t j = 0; j < shape_size; ++j) {
+            EXPECT_NEAR(output_data[j], input_data[j] + 1.0f, 1e-5)
+                << "Run " << i << ": Expected=" << input_data[j] + 1.0f << ", actual=" << output_data[j]
+                << " for index " << j;
+        }
+    }
+
+    ::operator delete(input_data, std::align_val_t(4096));
+    ::operator delete(output_data, std::align_val_t(4096));
 }
 
 }  // namespace behavior

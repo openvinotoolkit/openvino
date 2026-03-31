@@ -80,6 +80,7 @@ int get_prelu_mask_from_layouts(const std::function<layout()>& get_output_layout
                                 int32_t slope_input_idx);
 
 std::string memory_desc_to_string(const dnnl::memory::desc& desc);
+std::string dnnl_status_to_string(dnnl_status_t status);
 
 }  // namespace onednn
 }  // namespace cldnn

@@ -223,7 +223,7 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     GPU_DEBUG_TRACE_DETAIL << "\t weight group size: " << group_size << "\n";
 
     micro::GEMMProblem problem_moe;
-    micro::GEMMProtocol::Options opts_moe;
+    micro::GEMMOptions opts_moe;
     opts_moe.slmPtr = true;
     opts_moe.kParallelLocal = !is_prefill;
     enum class MICRO_DIMENSIONALITY { NONE = -1, SCALAR = 0, VECTOR = 1, MATRIX = 2 };
@@ -328,11 +328,6 @@ DispatchDataFunc MoE3GemmMicroGenerator::get_dispatch_data_func() const {
         default:
             OPENVINO_THROW("Unsupported input tensor shape size: ", input_layout.get_shape().size());
         }
-
-        auto cur_moe = params.typed_desc<moe_3gemm_fused_compressed>();
-        const auto& config = cur_moe->_config;
-        n = n * config.top_k;
-        GPU_DEBUG_TRACE_DETAIL << "\t n = " << n << std::endl;
 
         const auto& experts_weight_shape = experts_weight_layout.get_shape();
         size_t m = experts_weight_shape[1];

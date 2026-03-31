@@ -15,6 +15,7 @@ constexpr std::string_view AUTO_DETECT = "AUTO_DETECT";  // Auto detection
 constexpr std::string_view NPU3720 = "3720";             // NPU3720
 constexpr std::string_view NPU4000 = "4000";             // NPU4000
 constexpr std::string_view NPU5010 = "5010";             // NPU5010
+constexpr std::string_view NPU5020 = "5020";             // NPU5020
 
 /**
  * @brief Converts the given platform value to the standard one.
@@ -349,20 +350,6 @@ static constexpr ov::Property<bool> weightless_blob{"NPU_WEIGHTLESS_BLOB"};
 
 /**
  * @brief [Only for NPU Plugin]
- * Type: bool. Default is "true".
- *
- * This config option concerns the algorithm used for serializing the "ov::Model" at compilation time in order to be
- * passed through the driver.
- *
- * The base serializer is the OV implementation of the "XmlSerializer" without any extensions. All weights are copied in
- * a separate buffer. By turning this off, the NPU extension of the serializer is enabled. This allows optimizing the
- * process by storing metadata (memory location & bytes size) instead of weights values. However, this solution may be
- * less reliable.
- */
-static constexpr ov::Property<bool> use_base_model_serializer{"NPU_USE_BASE_MODEL_SERIALIZER"};
-
-/**
- * @brief [Only for NPU Plugin]
  * Type: enum. Default is "AUTO".
  *
  * This config option concerns the algorithm used for serializing the "ov::Model" at compilation time in order to be
@@ -371,8 +358,6 @@ static constexpr ov::Property<bool> use_base_model_serializer{"NPU_USE_BASE_MODE
  * The value chosen for this option will impact memory usage, since some versions clone the values of the weights in a
  * separate buffer. If this option is set to "AUTO", the plugin will use the latest version that is compatible with the
  * current compiler.
- *
- * @note This feature is a work-in-progress and may not yet work as intended.
  */
 static constexpr ov::Property<ModelSerializerVersion> model_serializer_version{"NPU_MODEL_SERIALIZER_VERSION"};
 
@@ -464,6 +449,15 @@ static constexpr ov::Property<bool> import_raw_blob{"NPU_IMPORT_RAW_BLOB"};
  * This option allows to skip writing plugin metadata to compiled model when exporting it
  */
 static constexpr ov::Property<bool> export_raw_blob{"NPU_EXPORT_RAW_BLOB"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is true.
+ * This option allows to enable/disable the usage of a shared common queue for all compiled models. If set to false,
+ * each compiled model will have its own common queue. This option is added for enabling the isolation of compiled
+ * models from each other, which can be required for some use cases.
+ */
+static constexpr ov::Property<bool> shared_common_queue{"NPU_SHARED_COMMON_QUEUE"};
 
 }  // namespace intel_npu
 }  // namespace ov

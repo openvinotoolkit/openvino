@@ -100,13 +100,13 @@ activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_fact
         if (transformation_callback(scaled_op))
             return false;
 
-        // in the case of decompressed_to_f32 nodes, no need to apply activations scaling
+        // If a decompressed_to_f32 Convert node is present, we need to add scale_up layer after it.
         std::shared_ptr<ov::Node> output_of_scaled_op = scaled_op;
         auto child_node = scaled_op->get_output_target_inputs(0).begin()->get_node();
         if (scaled_op->get_output_target_inputs(0).size() == 1 && ov::is_type<v0::Convert>(child_node) &&
             ov::fp16_compression_is_disabled(child_node->shared_from_this()) &&
             constant_folding_is_disabled(child_node->shared_from_this())) {
-            return false;
+            output_of_scaled_op = child_node->shared_from_this();
         }
 
         const std::vector<float> scale_up_value = {scale_factor};

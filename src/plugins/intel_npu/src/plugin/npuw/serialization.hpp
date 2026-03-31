@@ -36,7 +36,7 @@ const constexpr ov::npuw::s11n::IndicatorType NPUW_COMPILED_MODEL_INDICATOR =
 const constexpr ov::npuw::s11n::IndicatorType NPUW_LLM_COMPILED_MODEL_INDICATOR =
     {char{0x4c}, char{0x4c}, char{0x4d}, char{0x43}, char{0x4d}, char{0x4f}};
 
-const constexpr char* NPUW_SERIALIZATION_VERSION = "0.19";
+const constexpr char* NPUW_SERIALIZATION_VERSION = "0.20";
 
 // Forward declaration
 namespace intel_npu {
@@ -161,14 +161,17 @@ struct WeightsContext {
 struct SubmodelDeserializeCtx {
     SubmodelDeserializeCtx(const std::shared_ptr<const ov::IPlugin>& _plugin,
                            const std::string& _device,
-                           const ov::SoPtr<ov::ICompiledModel>& _compiled_model)
+                           const ov::SoPtr<ov::ICompiledModel>& _compiled_model,
+                           const std::map<std::string, Any>& _import_config = {})
         : plugin(_plugin),
           device(_device),
-          compiled_model(_compiled_model) {}
+          compiled_model(_compiled_model),
+          import_config(_import_config) {}
 
     std::shared_ptr<const ov::IPlugin> plugin;
     std::string device;
     const ov::SoPtr<ov::ICompiledModel>& compiled_model;
+    std::map<std::string, Any> import_config;
 };
 
 BF16Cache get_bf16_consts(const std::shared_ptr<ov::Model>& model);

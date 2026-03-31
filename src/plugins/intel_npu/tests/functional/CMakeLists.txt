@@ -42,7 +42,11 @@ ov_add_test_target(
   "${CMAKE_CURRENT_SOURCE_DIR}/behavior"
   "${CMAKE_CURRENT_SOURCE_DIR}/internal"
   OBJECT_FILES
+  "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/async_infer_request.cpp"
+  "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/compiled_model.cpp"
+  "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/metadata.cpp"
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/remote_context.cpp"
+  "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/transformations.cpp"
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/properties.cpp"
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/metrics.cpp"
   LINK_LIBRARIES
@@ -64,7 +68,7 @@ if(WIN32)
 endif()
 
 set_target_properties(
-  ${TARGET_NAME} PROPERTIES FOLDER ${CMAKE_CURRENT_SOURCE_DIR} CXX_STANDARD 17)
+  ${TARGET_NAME} PROPERTIES CXX_STANDARD 17)
 
 if(MSVC)
   # Enforce standards conformance on MSVC

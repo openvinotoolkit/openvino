@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <ze_api.h>
 #include <ze_graph_ext.h>
 
 #include <memory>
@@ -13,7 +12,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include "intel_npu/network_metadata.hpp"
+#include "intel_npu/common/network_metadata.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "model_serializer.hpp"
@@ -84,7 +83,7 @@ public:
                                           const void* data,
                                           const std::vector<size_t>& strides) const;
 
-    void initializeGraph(const GraphDescriptor& graphDescriptor, uint32_t commandQueueGroupOrdinal) const;
+    void initializeGraph(const GraphDescriptor& graphDescriptor) const;
 
     bool isBlobDataImported(const GraphDescriptor& graphDescriptor) const;
 
@@ -94,7 +93,7 @@ private:
                      std::vector<IODescriptor>& inputs,
                      std::vector<IODescriptor>& outputs) const;
 
-    void initializeGraphThroughCommandList(ze_graph_handle_t graphHandle, uint32_t commandQueueGroupOrdinal) const;
+    void initializeGraphThroughCommandList(ze_graph_handle_t graphHandle) const;
 
     bool canCpuVaBeImported(const void* data, size_t size) const;
 

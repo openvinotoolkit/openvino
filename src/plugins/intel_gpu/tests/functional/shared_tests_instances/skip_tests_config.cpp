@@ -245,6 +245,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
         } else {
             // CVS-172342
             patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_3D_weight.*)"));
+            // MoE patterns are not supported on the platforms without immad (fusion transformation are disabled)
+            patterns.push_back(std::regex(R"(.*smoke_MoE3GemmCompressedFusion.*)"));
         }
 
         return patterns;

@@ -48,9 +48,8 @@ BrgemmExternalRepackingAdjuster::BrgemmExternalRepackingAdjuster(const ov::snipp
         OPENVINO_ASSERT(idx < params.size(), "Incorrect index of repacked input");
 
         auto config = RepackedInputConfig{get_kernel_config(params[idx])};
-        // `desc() == nullptr` means repacking has to be executed at runtime.
-        // If descriptor is already set, weights were prepacked beforehand and only offsets must be adjusted.
-        if (!input_repacker.desc()) {
+        // If not already repacked at compile time, create a runtime executor for it.
+        if (!input_repacker.already_repacked()) {
             config.executor = create_executor(config.kernel_config, configurator->get_cache());
             config.needs_runtime_repacking = true;
         }

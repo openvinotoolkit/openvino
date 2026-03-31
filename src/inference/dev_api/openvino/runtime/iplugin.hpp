@@ -10,6 +10,7 @@
 #pragma once
 
 #include <memory>
+#include <filesystem>
 
 #include "openvino/core/any.hpp"
 #include "openvino/core/deprecated.hpp"
@@ -110,12 +111,12 @@ public:
                                                               const ov::AnyMap& properties) const = 0;
 
     /**
-     * @brief Compiles model from ov::Model object
-     * @param model_path A path to model (path can be converted from unicode representation)
+     * @brief Compiles a model from a file path
+     * @param model_path A path to model
      * @param properties A ov::AnyMap of properties relevant only for this load operation
      * @return Created Compiled Model object
      */
-    virtual std::shared_ptr<ov::ICompiledModel> compile_model(const std::string& model_path,
+    virtual std::shared_ptr<ov::ICompiledModel> compile_model(const std::filesystem::path& model_path,
                                                               const ov::AnyMap& properties) const;
 
     /**

@@ -2820,6 +2820,8 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                 if (thread_idx >= threads_num) {
                     return mean_internal;
                 }
+                // coverity[INTEGER_OVERFLOW] thread_idx < threads_num and
+                // aux_buffer_size * num_threads <= mean_buffer_size guaranteed
                 auto* mean_buffer_ptr = &mean_buffer[aux_buffer_size * thread_idx];
                 for (size_t i = 0; i < blk_size; i++) {
                     mean_buffer_ptr[i] = 0.F;

@@ -13,7 +13,8 @@ cmake-build*
 
 # developer tools
 *.idea
-.vscode
+.clangd
+.vscode/
 .vs/
 .vsconan/
 .DS_Store

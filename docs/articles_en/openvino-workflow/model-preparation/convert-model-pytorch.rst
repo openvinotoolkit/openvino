@@ -198,6 +198,58 @@ Here is an example of how to convert a model obtained with ``torch.export``:
    exported_model = export(model, (torch.randn(1, 3, 224, 224),))
    ov_model = convert_model(exported_model)
 
+Using the ``dynamo`` parameter
+++++++++++++++++++++++++++++++
+
+Instead of calling ``torch.export.export`` manually, you can pass ``dynamo=True`` to
+``openvino.convert_model`` and it will use ``torch.export`` internally. This approach
+requires ``example_input`` and PyTorch >= 2.6:
+
+.. code-block:: py
+   :force:
+
+   import torch
+   import openvino as ov
+   from torchvision.models import resnet50, ResNet50_Weights
+
+   model = resnet50(weights=ResNet50_Weights.DEFAULT)
+   model.eval()
+   ov_model = ov.convert_model(model, example_input=torch.randn(1, 3, 224, 224), dynamo=True)
+
+By default, the exported model has fully static shapes taken from ``example_input``.
+To make certain dimensions dynamic, combine ``dynamo=True`` with the ``input`` parameter.
+Dimensions marked as ``-1`` become dynamic, while fixed values remain static:
+
+.. code-block:: py
+   :force:
+
+   from openvino import PartialShape
+
+   # Only the batch dimension is dynamic
+   ov_model = ov.convert_model(
+       model,
+       example_input=torch.randn(1, 3, 224, 224),
+       dynamo=True,
+       input=PartialShape([-1, 3, 224, 224]),
+   )
+
+You can also specify constrained dimensions using ``Dimension`` with min/max bounds.
+This maps to ``torch.export.Dim`` with explicit constraints, enabling tighter shape
+validation during export:
+
+.. code-block:: py
+   :force:
+
+   from openvino import Dimension, PartialShape
+
+   # Batch between 1 and 8, spatial dims between 128 and 512
+   ov_model = ov.convert_model(
+       model,
+       example_input=torch.randn(1, 3, 224, 224),
+       dynamo=True,
+       input=PartialShape([Dimension(1, 8), 3, Dimension(128, 512), Dimension(128, 512)]),
+   )
+
 Converting a PyTorch Model from Disk
 ####################################
 

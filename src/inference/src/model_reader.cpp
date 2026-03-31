@@ -122,10 +122,10 @@ std::shared_ptr<ov::Model> read_model(const std::filesystem::path& model_path,
     ov::frontend::FrontEnd::Ptr FE;
     ov::frontend::InputModel::Ptr inputModel;
 
-    ov::AnyVector params{model_path.native()};
+    ov::AnyVector params{model_path};
 
     if (!bin_path.empty()) {
-        params.emplace_back(bin_path.native());
+        params.emplace_back(bin_path);
     }
     params.emplace_back(enable_mmap);
 

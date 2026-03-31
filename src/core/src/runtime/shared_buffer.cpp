@@ -49,8 +49,10 @@ public:
     }
     std::shared_ptr<AlignedBuffer> get_source_buffer() const override {
         if (auto mmap = m_mem.lock()) {
-            // Use 3-arg constructor (no descriptor) to avoid infinite recursion:
-            return std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(mmap->data(), mmap->size(), mmap);
+            return std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(mmap->data(),
+                                                                             mmap->size(),
+                                                                             mmap,
+                                                                             create_base_descriptor(m_id, 0, nullptr));
         }
         return nullptr;
     }
@@ -60,8 +62,8 @@ protected:
     size_t m_id;
 };
 
-std::shared_ptr<ov::IBufferDescriptor> ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>::create_mmap_descriptor(
-    const std::shared_ptr<ov::MappedMemory>& mmap) const {
+std::shared_ptr<ov::IBufferDescriptor> ov::detail::create_mmap_descriptor(
+    const std::shared_ptr<ov::MappedMemory>& mmap) {
     return std::make_shared<MMapDescriptor>(std::weak_ptr<ov::MappedMemory>(mmap),
                                             mmap ? static_cast<size_t>(mmap->get_id()) : 0);
 }
