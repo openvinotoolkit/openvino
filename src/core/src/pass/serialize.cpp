@@ -44,17 +44,6 @@ std::filesystem::path provide_bin_path(const std::filesystem::path& xml_path) {
     return bin_path;
 }
 
-void convert_py_rt_info(ov::Model& model) {
-    // TODO xxx-105807: if rt_info is set in python api as a string ['precise_0'] = '',
-    //  we need to convert value to a class in order to have rt_info in the IR. The code below will convert
-    // ['precise_0'] = '' into => rt_info['precise_0'] = DisableFP16Compression{}
-    for (auto& node : model.get_ops()) {
-        if (fp16_compression_is_disabled(node)) {
-            disable_fp16_compression(node);
-        }
-    }
-}
-
 void serialize_func(std::ostream& xml_file,
                     std::ostream& bin_file,
                     std::shared_ptr<ov::Model> model,
