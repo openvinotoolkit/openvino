@@ -173,7 +173,7 @@ ov::Shape calc_static_shape_for_file(size_t max_size,
 
     auto max_size_to_read = max_size - offset;
 
-    const auto elements_to_read = util::get_max_elements_for_memory_size(element_type, max_size_to_read);
+    const auto elements_to_read = util::get_elements_number(element_type, max_size_to_read);
     const auto expected_memory_size = util::get_memory_size_safe(element_type, Shape{elements_to_read});
     OPENVINO_ASSERT(expected_memory_size && max_size_to_read == *expected_memory_size,
                     "Cannot fit available bytes into requested PartialShape ",

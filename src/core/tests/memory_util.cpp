@@ -107,7 +107,7 @@ public:
 
 TEST_P(GetMaxElementsForMemorySizeTest, calculate_max_elements) {
     const auto& [type, memory_size, exp_elements] = GetParam();
-    EXPECT_EQ(util::get_max_elements_for_memory_size(type, memory_size), exp_elements);
+    EXPECT_EQ(ov::util::get_elements_number(type, memory_size), exp_elements);
 }
 
 INSTANTIATE_TEST_SUITE_P(bit_type_precision,
@@ -137,17 +137,22 @@ INSTANTIATE_TEST_SUITE_P(nibble_type_precision,
 INSTANTIATE_TEST_SUITE_P(split_bit_type_precision,
                          GetMaxElementsForMemorySizeTest,
                          testing::Values(std::make_tuple(element::u3, 0, 0),
-                                         std::make_tuple(element::u3, 1, 2),
-                                         std::make_tuple(element::u3, 2, 5),
+                                         std::make_tuple(element::u3, 1, 0),
+                                         std::make_tuple(element::u3, 2, 0),
                                          std::make_tuple(element::u3, 3, 8),
-                                         std::make_tuple(element::u3, 4, 10),
-                                         std::make_tuple(element::u3, 11, 29),
+                                         std::make_tuple(element::u3, 5, 8),
+                                         std::make_tuple(element::u3, 6, 16),
+                                         std::make_tuple(element::u3, 11, 24),
+                                         std::make_tuple(element::u3, 12, 32),
                                          std::make_tuple(element::u6, 0, 0),
-                                         std::make_tuple(element::u6, 1, 1),
-                                         std::make_tuple(element::u6, 2, 2),
+                                         std::make_tuple(element::u6, 1, 0),
+                                         std::make_tuple(element::u6, 2, 0),
                                          std::make_tuple(element::u6, 3, 4),
-                                         std::make_tuple(element::u6, 4, 5),
-                                         std::make_tuple(element::u6, 11, 14)),
+                                         std::make_tuple(element::u6, 4, 4),
+                                         std::make_tuple(element::u6, 5, 4),
+                                         std::make_tuple(element::u6, 6, 8),
+                                         std::make_tuple(element::u6, 11, 12),
+                                         std::make_tuple(element::u6, 12, 16)),
                          GetMaxElementsForMemorySizeTest::get_test_name);
 
 INSTANTIATE_TEST_SUITE_P(byte_type_precision,

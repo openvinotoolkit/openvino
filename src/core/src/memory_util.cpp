@@ -52,9 +52,11 @@ std::optional<size_t> get_memory_size_safe(const element::Type& type, const ov::
     return byte_size ? get_memory_size_safe(type, *byte_size) : byte_size;
 }
 
-size_t get_max_elements_for_memory_size(const element::Type& type, const size_t memory_size) {
+size_t get_elements_number(const element::Type& type, const size_t memory_size) {
     if (element::is_split_bit_type(type)) {
-        return (memory_size * (24 / type.bitwidth())) / 3;
+        const size_t elements_per_storage_unit = 24 / type.bitwidth();
+        const size_t full_storage_units = memory_size / 3;
+        return full_storage_units * elements_per_storage_unit;
     } else {
         return (memory_size * 8) / type.bitwidth();
     }
