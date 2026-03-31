@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/util/parallel_mem_streambuf.hpp"
+#include "parallel_mem_streambuf.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -13,7 +13,7 @@
 
 #include "openvino/util/parallel_io.hpp"
 
-namespace ov::util {
+namespace ov::intel_gpu {
 
 ParallelMemStreamBuf::ParallelMemStreamBuf(const void* data, size_t size, size_t threshold)
     : m_begin(static_cast<const char*>(data)),
@@ -30,7 +30,7 @@ ParallelMemStreamBuf::ParallelMemStreamBuf(const void* data, size_t size, size_t
         std::streamoff file_off = 0;
         if (ov::util::get_mmap_file_info(data, file_path, file_off)) {
             try {
-                m_file_buf = std::make_unique<ParallelReadStreamBuf>(file_path, file_off, threshold);
+                m_file_buf = std::make_unique<ov::util::ParallelReadStreamBuf>(file_path, file_off, threshold);
             } catch (...) {
                 // File became inaccessible after mmap detection; fall through to memcpy path.
             }
@@ -126,7 +126,7 @@ void ParallelMemStreamBuf::parallel_copy(char* dst, const char* src, size_t size
     // (Linux) or PFN-lock contention (Windows).  Use hardware_concurrency as
     // the upper bound, consistent with parallel_read.
     const size_t hw_conc = std::max(size_t{1}, static_cast<size_t>(std::thread::hardware_concurrency()));
-    const size_t num_chunks = std::max(size_t{1}, std::min(size / DEFAULT_PARALLEL_IO_MIN_CHUNK, hw_conc));
+    const size_t num_chunks = std::max(size_t{1}, std::min(size / ov::util::DEFAULT_PARALLEL_IO_MIN_CHUNK, hw_conc));
     const size_t chunk_size = (size + num_chunks - 1) / num_chunks;
 
     ov::util::prefetch_memory(src, size);
@@ -154,4 +154,4 @@ void ParallelMemStreamBuf::parallel_copy(char* dst, const char* src, size_t size
     }
 }
 
-}  // namespace ov::util
+}  // namespace ov::intel_gpu
