@@ -62,13 +62,9 @@ ConstantWriter::FilePosition ConstantWriter::write(const char* ptr,
 }
 
 ConstantWriter::FilePosition ConstantWriter::write(const std::vector<std::string_view>& chunks, size_t& new_size) {
-    const FilePosition write_pos = m_binary_output.get().tellp();
-    const auto offset = write_pos - m_blob_offset;
-
     new_size = 0;
-    for (const auto& sv : chunks) {
+    for (const auto& sv : chunks)
         new_size += sv.size();
-    }
 
     if (m_enable_compression) {
         HashValue hash = 0;
@@ -76,20 +72,27 @@ ConstantWriter::FilePosition ConstantWriter::write(const std::vector<std::string
             hash = util::u64_hash_combine(hash, ov::runtime::compute_hash(sv.data(), sv.size()));
         }
 
-        const auto [it, inserted] = m_string_hash_to_file_positions.emplace(hash, offset);
+        // Insert a placeholder so tellp() is only called on the first write for
+        // this hash, not on dedup hits. String chunks are transient; hash-only
+        // dedup is used (no memcmp fallback).
+        auto [it, inserted] = m_string_hash_to_file_positions.emplace(hash, FilePosition{});
         if (!inserted) {
             return it->second;
         }
 
+        it->second = m_binary_output.get().tellp() - m_blob_offset;
         m_data_hash = util::u64_hash_combine(m_data_hash, hash);
-    } else {
-        m_data_hash = util::u64_hash_combine(m_data_hash, new_size);
+        for (const auto& sv : chunks) {
+            m_binary_output.get().write(sv.data(), sv.size());
+        }
+        return it->second;
     }
 
+    m_data_hash = util::u64_hash_combine(m_data_hash, new_size);
+    const FilePosition offset = m_binary_output.get().tellp() - m_blob_offset;
     for (const auto& sv : chunks) {
         m_binary_output.get().write(sv.data(), sv.size());
     }
-
     return offset;
 }
 

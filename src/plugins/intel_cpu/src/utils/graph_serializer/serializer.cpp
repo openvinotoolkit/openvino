@@ -52,17 +52,16 @@ public:
     }
 
     WeightlessWriter::FilePosition write(const std::vector<std::string_view>& chunks, size_t& new_size) override {
-        new_size = 0;
-        for (const auto& sv : chunks) {
-            new_size += sv.size();
-        }
+        if (!m_skip_weights)
+            return util::ConstantWriter::write(chunks, new_size);
 
-        if (m_skip_weights) {
-            FilePosition offset = m_offset;
-            m_offset += new_size;
-            return offset;
-        }
-        return util::ConstantWriter::write(chunks, new_size);
+        new_size = 0;
+        for (const auto& sv : chunks)
+            new_size += sv.size();
+
+        const FilePosition offset = m_offset;
+        m_offset += new_size;
+        return offset;
     }
 
     void skip_weights(bool skip_weights) {
