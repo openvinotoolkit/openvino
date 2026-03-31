@@ -226,6 +226,10 @@ protected:
     }
 
     std::pair<std::string, std::string> get_kernels_dump_info(const cldnn::kernel_impl_params& impl_params) const override {
+        if (!kernel_dump_info.second.empty()) {
+            return kernel_dump_info;
+        }
+
         std::string entry_points;
         size_t kernel_idx = 0;
 

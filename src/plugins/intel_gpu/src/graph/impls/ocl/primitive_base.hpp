@@ -238,6 +238,7 @@ protected:
     event::ptr execute_impl(const std::vector<event::ptr>& events,
                             typed_primitive_inst<PType>& instance) override {
         stream& stream = instance.get_network().get_stream();
+        kernel_dump_info.second.clear();
         if (instance.can_be_optimized()) {
             return stream.aggregate_events(events, events.size() > 1, instance.is_output());
         }
@@ -273,6 +274,11 @@ protected:
                 tmp_events = {ev};
             }
             all_events.push_back(ev);
+
+            if (!kernel_dump_info.second.empty()) {
+                kernel_dump_info.second += " ";
+            }
+            kernel_dump_info.second += _kernels[kd_idx]->get_id();
         }
 
         if ((all_events.size() == 0) && (tmp_events.size() > 0))
@@ -310,6 +316,10 @@ protected:
     }
 
     std::pair<std::string, std::string> get_kernels_dump_info(const cldnn::kernel_impl_params& impl_params) const override {
+        if (!kernel_dump_info.second.empty()) {
+            return kernel_dump_info;
+        }
+
         std::string entry_points;
 
         for (size_t i = 0; i < _kernel_data.kernels.size(); ++i) {
