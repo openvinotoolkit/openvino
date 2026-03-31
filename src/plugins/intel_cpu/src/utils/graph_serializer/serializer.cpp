@@ -11,6 +11,7 @@
 #include <memory>
 #include <ostream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "openvino/core/model.hpp"
@@ -50,10 +51,10 @@ public:
         return offset;
     }
 
-    WeightlessWriter::FilePosition write_scatter(const std::vector<Chunk>& chunks, size_t& new_size) override {
+    WeightlessWriter::FilePosition write(const std::vector<std::string_view>& chunks, size_t& new_size) override {
         new_size = 0;
-        for (const auto& chunk : chunks) {
-            new_size += chunk.size;
+        for (const auto& sv : chunks) {
+            new_size += sv.size();
         }
 
         if (m_skip_weights) {
@@ -61,7 +62,7 @@ public:
             m_offset += new_size;
             return offset;
         }
-        return util::ConstantWriter::write_scatter(chunks, new_size);
+        return util::ConstantWriter::write(chunks, new_size);
     }
 
     void skip_weights(bool skip_weights) {

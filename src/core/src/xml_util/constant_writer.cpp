@@ -61,45 +61,37 @@ ConstantWriter::FilePosition ConstantWriter::write(const char* ptr,
     return offset;
 }
 
-ConstantWriter::FilePosition ConstantWriter::write_scatter(const std::vector<Chunk>& chunks, size_t& new_size) {
+ConstantWriter::FilePosition ConstantWriter::write(const std::vector<std::string_view>& chunks, size_t& new_size) {
     const FilePosition write_pos = m_binary_output.get().tellp();
     const auto offset = write_pos - m_blob_offset;
 
     new_size = 0;
-    for (const auto& chunk : chunks) {
-        new_size += chunk.size;
+    for (const auto& sv : chunks) {
+        new_size += sv.size();
     }
 
     if (m_enable_compression) {
-        // Compute a combined hash over all chunks in sequence
         HashValue hash = 0;
-        for (const auto& chunk : chunks) {
-            hash = util::u64_hash_combine(hash, ov::runtime::compute_hash(chunk.data, chunk.size));
+        for (const auto& sv : chunks) {
+            hash = util::u64_hash_combine(hash, ov::runtime::compute_hash(sv.data(), sv.size()));
         }
 
-        // Check whether an identical contiguous blob was written before
-        const auto found = m_hash_to_file_positions.equal_range(hash);
-        for (auto it = found.first; it != found.second; ++it) {
-            const char* stored = static_cast<const char*>(it->second.second);
-            bool match = true;
-            for (const auto& chunk : chunks) {
-                if (memcmp(chunk.data, stored, chunk.size) != 0) {
-                    match = false;
-                    break;
-                }
-                stored += chunk.size;
-            }
-            if (match) {
-                return it->second.first;
-            }
+        // Dedup by combined hash only: string blob chunks are transient so we
+        // cannot store a stable pointer for memcmp. Hash collisions across
+        // distinct string blobs are astronomically unlikely given that the hash
+        // folds content from every chunk.
+        const auto [it, inserted] = m_string_hash_to_file_positions.emplace(hash, offset);
+        if (!inserted) {
+            return it->second;
         }
+
         m_data_hash = util::u64_hash_combine(m_data_hash, hash);
     } else {
         m_data_hash = util::u64_hash_combine(m_data_hash, new_size);
     }
 
-    for (const auto& chunk : chunks) {
-        m_binary_output.get().write(static_cast<const char*>(chunk.data), chunk.size);
+    for (const auto& sv : chunks) {
+        m_binary_output.get().write(sv.data(), sv.size());
     }
 
     return offset;

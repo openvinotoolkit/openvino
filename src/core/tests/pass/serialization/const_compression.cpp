@@ -378,8 +378,7 @@ TEST_F(SerializationConstantCompressionTest, EmptyAndNotEmptyConstantsDifferentV
 }
 
 TEST_F(SerializationConstantCompressionTest, StringConstantsRoundTrip) {
-    // Two vocabularies that share "UNKNOWN" at index 0 triggering the dedup path for the
-    // second constant, and one fully unique constant
+    // Three distinct string constant tensors: verify each one round-trips with exact string content.
     auto vocab_A = ov::op::v0::Constant::create(ov::element::string,
                                                 ov::Shape{4},
                                                 std::vector<std::string>{"UNKNOWN", "cat", "dog", "fish"});
@@ -437,8 +436,8 @@ TEST_F(SerializationConstantCompressionTest, IdenticalStringConstantsRoundTrip) 
     ov::Core core;
     auto model_imported = core.read_model(m_out_xml_path_1, m_out_bin_path_1);
 
-    for (const auto& op : model_imported->get_ordered_ops()) {
-        if (const auto c = std::dynamic_pointer_cast<ov::op::v0::Constant>(op)) {
+    for (const auto& result : model_imported->get_results()) {
+        if (const auto c = std::dynamic_pointer_cast<ov::op::v0::Constant>(result->get_input_node_shared_ptr(0))) {
             if (c->get_element_type() == ov::element::string) {
                 EXPECT_EQ(c->get_vector<std::string>(), vocab);
             }

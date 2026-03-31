@@ -6,6 +6,7 @@
 
 #include <iostream>
 #include <map>
+#include <string_view>
 #include <vector>
 
 #include "openvino/core/attribute_visitor.hpp"
@@ -20,11 +21,6 @@ public:
     using HashValue = size_t;
     using ConstWritePositions = std::multimap<HashValue, std::pair<FilePosition, const void*>>;
 
-    struct Chunk {
-        const void* data;
-        size_t size;
-    };
-
     ConstantWriter(std::ostream& bin_data, bool enable_compression = true);
     virtual ~ConstantWriter();
 
@@ -35,7 +31,7 @@ public:
                                ov::element::Type src_type = ov::element::dynamic,
                                bool ptr_is_temporary = false);
 
-    virtual FilePosition write_scatter(const std::vector<Chunk>& chunks, size_t& new_size);
+    virtual FilePosition write(const std::vector<std::string_view>& chunks, size_t& new_size);
 
     uint64_t get_data_hash() const {
         return m_data_hash;
@@ -48,6 +44,7 @@ private:
                                                          size_t& compressed_size);
 
     ConstWritePositions m_hash_to_file_positions;
+    std::map<HashValue, FilePosition> m_string_hash_to_file_positions;  // hash-only dedup for string blobs
     std::reference_wrapper<std::ostream> m_binary_output;
     bool m_enable_compression;
     FilePosition m_blob_offset;  // blob offset inside output stream
