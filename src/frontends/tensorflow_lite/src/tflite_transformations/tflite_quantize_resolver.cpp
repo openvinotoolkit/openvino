@@ -53,7 +53,7 @@ pass::TFLQuantizeConvert::TFLQuantizeConvert() {
                 return false;
             consumer_convert->input(0).replace_source_output(producer->output(0));
             consumer_convert->output(0).replace(producer->output(0));
-            ov::copy_runtime_info({consumer_convert, producer}, producer);
+            ov::copy_runtime_info(consumer_convert, producer);
             return true;
         };
 
