@@ -217,7 +217,7 @@ private:
     void init_profiling();
 
     struct CompiledModelDesc {
-        DevList::const_iterator device_it;
+        std::string tmp_target_device;
         std::set<std::string> devices_to_avoid;
         std::shared_ptr<ov::Model> model;
         ov::SoPtr<ov::ICompiledModel> compiled_model;

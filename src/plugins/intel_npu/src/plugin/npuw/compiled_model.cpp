@@ -86,6 +86,17 @@ bool should_use_weightless_flow(const ov::AnyMap& non_npuw_props,
 
     return is_weightless;
 }
+
+std::set<std::string> device_list_to_set(const std::string &device_list) {
+    std::set<std::string> result;
+    if (!device_list.empty()) {
+        const auto devices = ov::DeviceIDParser::get_hetero_devices(device_list);
+        for (auto&& d : devices) {
+            result.insert(std::move(d));
+        }
+    }
+    return result;
+}
 }  // anonymous namespace
 
 namespace ov {
@@ -520,8 +531,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         fsd_opt.erase(last_pos, 4);
         fsd_opt.insert(last_pos, std::to_string(end_sub_idx));
     }
-
-    forced_sub_devices = ::intel_npu ::OptionParser<std::map<std::size_t, std::string>>::parse(fsd_opt);
+    forced_sub_devices = ::intel_npu::OptionParser<std::map<std::size_t, std::string>>::parse(fsd_opt);
 
     // Exclude optimized out subgraphs from compilation target beforehand - otherwise we might get head and repeated
     // block in the same chunk
@@ -543,18 +553,14 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         NPUW_ASSERT(!subgraph._optimized_out);
 
         const std::size_t real_id = m_compiled_submodels[id].replaced_by.value_or(id);
-        if (!orderedSubgraphs[real_id]._avoid_list.empty()) {
-            const auto devices_to_avoid = ov::DeviceIDParser::get_hetero_devices(orderedSubgraphs[real_id]._avoid_list);
-            for (auto&& d : devices_to_avoid) {
-                m_compiled_submodels[real_id].devices_to_avoid.insert(std::move(d));
-            }
-        }
+        m_compiled_submodels[real_id].devices_to_avoid = device_list_to_set(orderedSubgraphs[real_id]._avoid_list);
 
-        m_compiled_submodels[id].device_it =
-            id != real_id ? m_compiled_submodels[real_id].device_it : m_dev_list.cbegin();
-
+        // NB: Relaxing functionality here to switch on Failsafe, so..
+        // no iteration will happen.
         if (forced_sub_devices.count(id)) {
             std::string forced_device = forced_sub_devices[id];
+            // FIXME: This check can only be done once, when the forced list is created.
+            // Also now it is redundant and can be relaxed (it was bound around device_it)
             auto forced_dev_it = std::find(m_dev_list.begin(), m_dev_list.end(), forced_device);
             if (forced_dev_it == m_dev_list.end()) {
                 LOG_WARN("Target device for Subgraph[" << id << "] was set to " << forced_device
@@ -564,7 +570,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 // FIXME: This is not really a device enforcement as the fallback
                 // procedure will be in place still
                 LOG_INFO("Force Subgraph[" << id << "] target device to " << *forced_dev_it);
-                m_compiled_submodels[real_id].device_it = forced_dev_it;
+                m_compiled_submodels[real_id].tmp_target_device = *forced_dev_it;
             }
         }  // if(forced_device_opt)
 
@@ -598,10 +604,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (par_opt) {
         ov::parallel_for(idx_subgraph_to_compile.size(), compile);
     } else {
-        // TODO: Introduce npuw::serial(i, f) instead where f is a _funcall
-        for (std::size_t i = 0u; i < idx_subgraph_to_compile.size(); i++) {
-            compile(i);
-        }
+        ov::npuw::util::non_parallel_for(idx_subgraph_to_compile.size(), compile);
     }
 
     // Finalize memory in closures and weight banks
@@ -1265,8 +1268,12 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s1
             auto real_idx = subm.replaced_by.value_or(i);
             // Write device idx
             // FIXME: if there is no compiled submodel, device_it is not set.
-            std::size_t device_idx = m_compiled_submodels[real_idx].device_it - m_dev_list.begin();
-            write(model_stream, real_idx == i ? device_idx : 0);
+            auto dev_idx = [&]() {
+                auto it = std::find(m_dev_list.begin(), m_dev_list.end(), m_compiled_submodels[real_idx].tmp_target_device);
+                NPUW_ASSERT(it != m_dev_list.end());
+                return it - m_dev_list.begin();
+            };
+            write(model_stream, real_idx == i ? dev_idx() : 0);
             // Write ICompiledModel if it's there
             if (subm.compiled_model) {
                 write(model_stream, true);
@@ -1464,7 +1471,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
                 compiled->m_compiled_submodels[i].compiled_model =
                     plugin->get_core()->import_model(buffer, device, import_config);
             }
-            compiled->m_compiled_submodels[i].device_it = compiled->m_dev_list.begin() + device_idx;
+            compiled->m_compiled_submodels[i].tmp_target_device = device;
 
             // Create unified deserialization context for submodels with dynamic mechanisms
             // (Pyramid Attention, Host Flash Attention, etc.)
@@ -1516,7 +1523,7 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
                 continue;
             }
             NPUW_ASSERT(desc_closure.closure_uid[cidx] != -1);
-            desc_closure.closure[cidx] = m_weights_bank->get(desc_closure.closure_uid[cidx], *func_desc.device_it);
+            desc_closure.closure[cidx] = m_weights_bank->get(desc_closure.closure_uid[cidx], func_desc.tmp_target_device);
         }
     }
 }
@@ -1553,7 +1560,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
                     continue;  // host-side closure
                 }
                 comp_model_desc.closure.unsafe_get().closure_uid[tidx] =
-                    m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], *func_desc.device_it);
+                    m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], func_desc.tmp_target_device);
             }
         }
 
@@ -1581,7 +1588,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
                 }
                 const auto& uid = desc_closure.closure_uid[tidx];
                 NPUW_ASSERT(uid != -1);  // All tensors should be registered at this point
-                desc_closure.closure[tidx] = m_weights_bank->get(uid, *func_desc.device_it);
+                desc_closure.closure[tidx] = m_weights_bank->get(uid, func_desc.tmp_target_device);
                 // FIXME: find a more reliable way to do so
                 desc_closure.is_remote[tidx] = m_weights_bank->is_remote(uid);
             }
@@ -1638,10 +1645,11 @@ void ov::npuw::CompiledModel::detach_memory() {
         if (!proto_comp_model_desc.model || !proto_comp_model_desc.compiled_model) {
             continue;  // optimized-out OR already cleared - skip
         }
-        if ((proto_comp_model_desc.device_it + 1 == m_dev_list.end()) || no_runtime_fallback) {
+        // don't take failover into account for now
+        // if ((proto_comp_model_desc.device_it + 1 == m_dev_list.end()) || no_runtime_fallback) {
             LOG_INFO("No fallback expected - clear the OV model for Subgraph[" << idx << "]");
             proto_comp_model_desc.model.reset();
-        }
+        //}
 
         // No need to clear pyramid attention data - it's self-contained!
         // The _models_to_compile is already cleared in set_compiled_models()
@@ -1663,7 +1671,7 @@ std::string ov::npuw::CompiledModel::global_mem_device() const {
         if (!comp_model_desc.compiled_model) {
             continue;
         }
-        if (ov::npuw::util::starts_with(*comp_model_desc.device_it, "NPU")) {
+        if (ov::npuw::util::starts_with(comp_model_desc.tmp_target_device, "NPU")) {
             return "NPU";
         }
     }
@@ -1679,7 +1687,7 @@ std::string ov::npuw::CompiledModel::funcall_mem_device(const std::size_t idx) c
     }
 
     auto& comp_model_desc = m_compiled_submodels[idx];
-    return *comp_model_desc.device_it;
+    return comp_model_desc.tmp_target_device;
 }
 
 void ov::npuw::CompiledModel::remove_long_output_names(const std::shared_ptr<ov::Model>& model) {
@@ -1757,13 +1765,18 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id) {
         return true;
     }
 
-    for (auto iter = m_compiled_submodels[id].device_it; iter != m_dev_list.cend(); ++iter) {
+    if (!m_compiled_submodels[id].tmp_target_device.empty()) {
+        compile_for_device(id, m_compiled_submodels[id].tmp_target_device);
+        return true;
+    }
+
+    // NB: Do a simplified process for now
+    for (auto &&device_name : m_dev_list) {
         LOG_BLOCK();
-        const auto& device_name = *iter;
         if (m_compiled_submodels[id].devices_to_avoid.count(device_name) > 0) {
             LOG_INFO(device_name << " was found in the 'Avoid' list for this subgraph, skipping...");
         } else if (compile_for_device(id, device_name)) {
-            m_compiled_submodels[id].device_it = iter;
+            m_compiled_submodels[id].tmp_target_device = device_name;
             return true;  // success!
         }
     }
@@ -1809,25 +1822,16 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
         }
     }
 
-    try {
-        // WARNING: These requests can be issued in parallel, so timer should be thread-safe
+    // WARNING: These requests can be issued in parallel, so timer should be thread-safe
 
-        // Compile main model (normal models only)
-        compile_main_model(id, device_to_try);
+    // Compile main model (normal models only)
+    compile_main_model(id, device_to_try);
 
-        // Compile special model types
-        compile_moe_models(id, device_to_try);
-        compile_pyramid_attention_models(id, device_to_try);
-        compile_host_flash_attention_model(id, device_to_try);
-    } catch (const std::exception& ex) {
-        LOG_ERROR("Subgraph [" << id << "] Failed to compile: " << std::endl << ex.what());
-        dump_on_fail(id, device_to_try, ex.what());
-        return false;
-    } catch (...) {
-        LOG_ERROR("Subgraph [" << id << "] Failed to compile: Unknown error");
-        dump_on_fail(id, device_to_try, "Unknown error");
-        return false;
-    }
+    // Compile special model types
+    compile_moe_models(id, device_to_try);
+    compile_pyramid_attention_models(id, device_to_try);
+    compile_host_flash_attention_model(id, device_to_try);
+
     // Reached this point - all ok, stop the search
     LOG_INFO("Done (" << device_to_try << ")");
     return true;
@@ -1840,7 +1844,7 @@ void ov::npuw::CompiledModel::compile_main_model(std::size_t id, const std::stri
         return;
     }
 
-    // Normal compilation for standard models
+    // Normal compilation for standard models. DATA RACE HERE!
     m_profile["compile/" + device].record([&]() {
         m_compiled_submodels[id].compiled_model = compile_submodel(m_compiled_submodels[id].model, device);
     });
@@ -1861,6 +1865,7 @@ void ov::npuw::CompiledModel::compile_moe_models(std::size_t id, const std::stri
         for (const auto& entry : models_to_compile) {
             LOG_INFO("Compiling MoE expert model for chunk_size=" << entry.first);
 
+            // DATA RACE HERE!
             m_profile["compile/" + device + "/moe_chunk_" + std::to_string(entry.first)].record([&, entry]() {
                 auto compiled = compile_submodel(entry.second, device);
                 moe_experts.set_compiled_model(entry.first, std::move(compiled));
@@ -1920,21 +1925,15 @@ void ov::npuw::CompiledModel::compile_pyramid_attention_models(std::size_t id, c
         LOG_INFO("Compiling " << models_to_compile << " pyramid models in parallel...");
 
         auto compile_one_model = [&](size_t model_id) {
-            try {
-                const auto& model = pyramid_attn_models[model_id];
-                LOG_DEBUG("Compiling pyramid attention submodel[" << model_id << "]: " << model->get_friendly_name());
+            const auto& model = pyramid_attn_models[model_id];
+            LOG_DEBUG("Compiling pyramid attention submodel[" << model_id << "]: " << model->get_friendly_name());
 
-                auto compiled = compile_submodel(model, device);
-                OPENVINO_ASSERT(compiled, "Failed to compile pyramid attention submodel");
+            auto compiled = compile_submodel(model, device);
+            OPENVINO_ASSERT(compiled, "Failed to compile pyramid attention submodel");
 
-                compiled_models[model_id] = compiled;
+            compiled_models[model_id] = compiled;
 
-                LOG_INFO("Compiled pyramid attention submodel[" << model_id << "]");
-            } catch (const std::exception& ex) {
-                OPENVINO_THROW("Pyramid attention submodel[", model_id, "] compilation failed: ", ex.what());
-            } catch (...) {
-                OPENVINO_THROW("Pyramid attention submodel[", model_id, "] compilation failed with unknown error");
-            }
+            LOG_INFO("Compiled pyramid attention submodel[" << model_id << "]");
         };
 
         const bool par_opt = m_cfg.get<::intel_npu::NPUW_PARALLEL_COMPILE>();
@@ -1985,21 +1984,13 @@ void ov::npuw::CompiledModel::compile_host_flash_attention_model(std::size_t id,
 
     // Compile regular tile model
     LOG_INFO("Compiling flash attention regular tile model on " << device);
-    try {
-        auto compiled_tile_model = compile_submodel(hfa._tile_model_to_compile, device);
-        OPENVINO_ASSERT(compiled_tile_model, "Failed to compile host flash attention tile model");
 
-        hfa.set_compiled_tile_model(std::move(compiled_tile_model));
+    auto compiled_tile_model = compile_submodel(hfa._tile_model_to_compile, device);
+    OPENVINO_ASSERT(compiled_tile_model, "Failed to compile host flash attention tile model");
 
-        LOG_INFO("Successfully compiled host flash attention regular tile model");
-    } catch (const std::exception& ex) {
-        LOG_ERROR("Failed to compile host flash attention tile model: " << ex.what());
-        OPENVINO_THROW("Host flash attention tile model compilation failed: ", ex.what());
-    } catch (...) {
-        LOG_ERROR("Failed to compile host flash attention tile model: Unknown error");
-        OPENVINO_THROW("Host flash attention tile model compilation failed with unknown error");
-    }
+    hfa.set_compiled_tile_model(std::move(compiled_tile_model));
 
+    LOG_INFO("Successfully compiled host flash attention regular tile model");
     // Store the already-compiled final tile model reference
     // The final tile model was compiled at line ~1676 and stored in compiled_model
     hfa.set_compiled_final_tile_model(m_compiled_submodels[id].compiled_model);
@@ -2019,7 +2010,8 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
 
     // set exclusive_async_requests in case when model is split
     // NOTE(dm): Not sure if it is required for the NPUW plugin, but likely it is
-    auto& device_config = m_meta_devices[device];
+    // Make a device config COPY here!
+    auto device_config = m_meta_devices[device];
 
     if (ov::npuw::util::starts_with(device, "NPU") && m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>()) {
         device_config["NPU_RUN_INFERENCES_SEQUENTIALLY"] = "YES";
@@ -2354,8 +2346,7 @@ std::string ov::npuw::CompiledModel::submodel_device(const std::size_t idx) cons
         return m_ref_device;
     }
 
-    NPUW_ASSERT(comp_subm_desc.device_it != m_dev_list.end());
-    return *comp_subm_desc.device_it;
+    return comp_subm_desc.tmp_target_device;
 }
 
 bool ov::npuw::CompiledModel::unpack_required(const std::size_t idx) const {
