@@ -66,6 +66,17 @@ static inline ze_command_queue_priority_t toZeQueuePriority(const ov::hint::Prio
     }
 }
 
+static inline std::optional<ze_command_queue_workload_type_t> toZeQueueWorkloadType(const ov::WorkloadType val) {
+    switch (val) {
+    case ov::WorkloadType::DEFAULT:
+        return std::optional<ze_command_queue_workload_type_t>{ZE_WORKLOAD_TYPE_DEFAULT};
+    case ov::WorkloadType::EFFICIENT:
+        return std::optional<ze_command_queue_workload_type_t>{ZE_WORKLOAD_TYPE_BACKGROUND};
+    default:
+        OPENVINO_THROW("Incorrect workload type.");
+    }
+}
+
 static inline ov::element::Type_t toOVElementType(const ze_graph_argument_precision_t zeElementType) {
     switch (zeElementType) {
     case ZE_GRAPH_ARGUMENT_PRECISION_UNKNOWN:
@@ -196,6 +207,49 @@ static inline size_t get_capacity_size(const ov::Shape& shape, const ov::Strides
     }
 
     return capacity;
+}
+
+static inline uint32_t findCommandQueueGroupOrdinal(
+    ze_device_handle_t device_handle,
+    const ze_command_queue_group_property_flags_t command_queue_group_property) {
+    std::vector<ze_command_queue_group_properties_t> command_group_properties;
+    uint32_t command_queue_group_count = 0;
+
+    // Discover all command queue groups
+    THROW_ON_FAIL_FOR_LEVELZERO(
+        "zeDeviceGetCommandQueueGroupProperties",
+        intel_npu::zeDeviceGetCommandQueueGroupProperties(device_handle, &command_queue_group_count, nullptr));
+
+    command_group_properties.resize(command_queue_group_count);
+
+    for (auto& prop : command_group_properties) {
+        prop.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_GROUP_PROPERTIES;
+        prop.pNext = nullptr;
+    }
+
+    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetCommandQueueGroupProperties",
+                                intel_npu::zeDeviceGetCommandQueueGroupProperties(device_handle,
+                                                                                  &command_queue_group_count,
+                                                                                  command_group_properties.data()));
+
+    for (uint32_t index = 0; index < command_group_properties.size(); ++index) {
+        const auto& flags = command_group_properties[index].flags;
+        if (flags == command_queue_group_property) {
+            return index;
+        }
+    }
+
+    // if we don't find a group where only the proper flag is enabled then search for a group where that flag is
+    // enabled
+    for (uint32_t index = 0; index < command_group_properties.size(); ++index) {
+        const auto& flags = command_group_properties[index].flags;
+        if (flags & command_queue_group_property) {
+            return index;
+        }
+    }
+
+    // if still don't find compute flag, return 0
+    return 0;
 }
 
 }  // namespace zeroUtils
