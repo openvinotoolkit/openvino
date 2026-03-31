@@ -417,11 +417,20 @@ PairMICSetIO Group::metaInterconnect(const Group::GPtr& gptr_prod) const {
 
     auto ics = interconnect(gptr_prod);
     for (const auto& ic : ics) {
+        const auto prod_track_it = gptr_prod->m_reptrack.find(ic.input_node);
+        const auto cons_track_it = m_reptrack.find(ic.output_node);
+        if (prod_track_it == gptr_prod->m_reptrack.end() || cons_track_it == m_reptrack.end()) {
+            LOG_WARN("Online partitioning: missing reptrack while building metaInterconnect (prod="
+                     << gptr_prod->getId() << ", cons=" << getId() << ", input_node="
+                     << ic.input_node->get_friendly_name() << ", output_node=" << ic.output_node->get_friendly_name()
+                     << "). This candidate will be skipped.");
+            return {};
+        }
         mics.insert({ov::npuw::online::util::getMetaDesc(ic.input_node),
-                     gptr_prod->m_reptrack.at(ic.input_node),
+                     prod_track_it->second,
                      ic.input_port,
                      ov::npuw::online::util::getMetaDesc(ic.output_node),
-                     m_reptrack.at(ic.output_node),
+                     cons_track_it->second,
                      ic.output_port});
     }
 
@@ -446,7 +455,15 @@ std::unordered_set<Interconnect> Group::interconnect(const Group::GPtr& gptr_pro
     for (const auto& layer : m_content) {
         for (const auto& input_layer : locked_snapshot->getNodeProducers(layer)) {
             if (gptr_prod->m_content.find(input_layer) != gptr_prod->m_content.end()) {
-                auto ports = ports_map.at({input_layer, layer});
+                const auto ports_it = ports_map.find({input_layer, layer});
+                if (ports_it == ports_map.end()) {
+                    LOG_WARN("Online partitioning: ports map is missing an interconnect entry (prod="
+                             << gptr_prod->getId() << ", cons=" << getId() << ", input_layer="
+                             << input_layer->get_friendly_name() << ", layer=" << layer->get_friendly_name()
+                             << "). This edge will be ignored.");
+                    continue;
+                }
+                const auto& ports = ports_it->second;
                 ics.insert({input_layer, ports.first, layer, ports.second});
             }
         }
