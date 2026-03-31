@@ -243,7 +243,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         }
     }
 
-    return create_input_model(weights_path);
+    return create_input_model(std::move(weights_path));
 }
 
 std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const {

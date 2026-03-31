@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <istream>
 #include <memory>
+#include <unordered_map>
 
 #include "openvino/frontend/manager.hpp"
 #include "openvino/frontend/visibility.hpp"
