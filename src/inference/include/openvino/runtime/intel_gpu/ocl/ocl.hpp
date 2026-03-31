@@ -10,8 +10,20 @@
  */
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
+
+#include <CL/cl_ext.h>
+
+#ifndef CL_DEVICE_HANDLE_LIST_KHR
+#define CL_DEVICE_HANDLE_LIST_KHR 0x2051
+#endif
+
+#ifndef CL_DEVICE_HANDLE_LIST_END_KHR
+#define CL_DEVICE_HANDLE_LIST_END_KHR 0
+#endif
 
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp"
@@ -234,11 +246,19 @@ public:
         return static_cast<cl_context>(get_params().at(ov::intel_gpu::ocl_context.name()).as<gpu_handle_param>());
     }
 
+    cl_context get() const {
+        return static_cast<cl_context>(get_params().at(ov::intel_gpu::ocl_context.name()).as<gpu_handle_param>());
+    }
+
     /**
      * @brief OpenCL context handle conversion operator for the ClContext object.
      * @return `cl_context`
      */
     operator cl_context() {
+        return get();
+    }
+
+    operator cl_context() const {
         return get();
     }
 
@@ -327,7 +347,64 @@ public:
                         "Only SHARED_BUF memory type is currently supported for GPU shared_buffer API");
         OPENVINO_ASSERT(shared_buffer != nullptr,
                         "shared_buffer must not be nullptr for SHARED_BUF memory type");
-        return create_tensor(type, shape, static_cast<cl_mem>(shared_buffer));
+
+        size_t byte_size = type.size();
+        for (const auto& dim : shape) {
+            byte_size *= dim;
+        }
+
+        cl_int errcode_ret = CL_SUCCESS;
+        const auto cl_ctx = static_cast<cl_context>(get_params().at(ov::intel_gpu::ocl_context.name()).as<gpu_handle_param>());
+
+        size_t devices_size = 0;
+        errcode_ret = clGetContextInfo(cl_ctx, CL_CONTEXT_DEVICES, 0, nullptr, &devices_size);
+        OPENVINO_ASSERT(errcode_ret == CL_SUCCESS && devices_size >= sizeof(cl_device_id),
+                "Failed to query OpenCL context devices, error code: ",
+                errcode_ret);
+
+        std::vector<cl_device_id> devices(devices_size / sizeof(cl_device_id));
+        errcode_ret = clGetContextInfo(cl_ctx, CL_CONTEXT_DEVICES, devices_size, devices.data(), nullptr);
+        OPENVINO_ASSERT(errcode_ret == CL_SUCCESS && !devices.empty(),
+                "Failed to get OpenCL context devices, error code: ",
+                errcode_ret);
+
+        const auto device_id = devices.front();
+
+        const cl_mem_properties ext_mem_properties[] = {
+    #ifdef _WIN32
+            static_cast<cl_mem_properties>(CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KHR),
+    #else
+            static_cast<cl_mem_properties>(CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_FD_KHR),
+    #endif
+            static_cast<cl_mem_properties>(reinterpret_cast<intptr_t>(shared_buffer)),
+            static_cast<cl_mem_properties>(CL_DEVICE_HANDLE_LIST_KHR),
+            static_cast<cl_mem_properties>(reinterpret_cast<intptr_t>(device_id)),
+            static_cast<cl_mem_properties>(CL_DEVICE_HANDLE_LIST_END_KHR),
+            0
+        };
+
+        auto ext_mem_buffer = clCreateBufferWithProperties(cl_ctx,
+                                                           ext_mem_properties,
+                                                           0,
+                                                           byte_size,
+                                                           nullptr,
+                                                           &errcode_ret);
+
+        if (errcode_ret != CL_SUCCESS || ext_mem_buffer == nullptr) {
+            // Keep compatibility for existing callers that pass cl_mem wrapped as void*.
+            return create_tensor(type, shape, static_cast<cl_mem>(shared_buffer));
+        }
+
+        struct ClMemReleaser {
+            void operator()(cl_mem mem_obj) const {
+                if (mem_obj != nullptr) {
+                    clReleaseMemObject(mem_obj);
+                }
+            }
+        };
+
+        std::unique_ptr<_cl_mem, ClMemReleaser> ext_mem_guard(ext_mem_buffer);
+        return create_tensor(type, shape, ext_mem_buffer);
     }
 
     /**
