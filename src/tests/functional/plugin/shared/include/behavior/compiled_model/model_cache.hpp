@@ -12,9 +12,10 @@ namespace behavior {
 typedef std::tuple<bool, bool, ov::element::Type, ov::element::Type, ov::AnyMap, const char*>
     WeightlessCacheAccuracyTestParams;
 
-class WeightlessCacheAccuracy : public ::testing::Test, public ::testing::WithParamInterface<WeightlessCacheAccuracyTestParams> {
+class WeightlessCacheAccuracy : public ::testing::Test,
+                                public ::testing::WithParamInterface<WeightlessCacheAccuracyTestParams> {
 public:
-    static std::string get_test_case_name(const ::testing::TestParamInfo<WeightlessCacheAccuracyTestParams>& obj);
+    static std::string getTestCaseName(const ::testing::TestParamInfo<WeightlessCacheAccuracyTestParams>& obj);
 
 protected:
     std::shared_ptr<ov::Model> m_model;
