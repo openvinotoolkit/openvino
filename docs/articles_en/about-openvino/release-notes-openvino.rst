@@ -27,24 +27,25 @@ What's New
 
 * More Gen AI coverage and frameworks integrations to minimize code changes
 
-  * New models supported on CPUs & GPUs: GPT-OSS-20B, Qwen3-30B-A3B, MiniCPM-V-4_5-8B,  and MiniCPM-o-2.6.
-  * New models supported on NPUs: MiniCPM-o-2.6. In addition, NPU support is now available on Qwen2.5-1B-Instruct, Qwen3-Embedding-0.6B, Qwen-2.5-coder-0.5B.
-  * Preview: OpenVINO™ GenAI adds support for video generation pipeline based on LTX-Video model on CPU and GPUs.
-  * OpenVINO™ GenAI now adds word-level timestamp functionality to the Whisper Pipeline on CPUs, GPUs, and NPUs, enabling more accurate transcriptions and subtitling in line with OpenAI and FasterWhisper implementations.
-  * Phi-3-mini FastDraft model is now available on Hugging Face to accelerate LLM inference on NPUs. FastDraft optimizes speculative decoding for LLMs.
+  * New models supported on CPUs & GPUs: Trinity, YOLO26, Qwen3 VL  
+  * New models supported on CPUs: GPT-OSS 120B  
+  * Preview: Introducing the OpenVINO backend for llama.cpp, which enables optimized inference on Intel CPUs, GPUs, and NPUs. Validated on GGUF models such as Llama-3.2-1B-Instruct-GGUF, Phi-3-mini-4k-instruct-gguf, Qwen2.5-1.5B-Instruct-GGUF, and Mistral-7B-Instruct-v0.3.    
+  * New notebook: Unified VLM chatbot with video file support and interactive model switching across Qwen3-VL, Qwen2.5-VL, and LLaVa-NeXT-Video. 
 
 * Broader LLM model support and more model compression techniques
 
-  * OpenVINO™ GenAI and OpenVINO™ Model Server introduces EAGLE-3 speculative decoding to accelerate LLM inference using smarter token prediction on Intel CPUs and GPUs. Validated on Qwen3-8B model 
-  * With the new int4 data-aware weight compression for 3D MatMuls, the Neural Network Compression Framework enables MoE LLMs to run with reduced memory bandwidth, and improved accuracy compared to data-free schemes-delivering faster, more efficient deployment on resource-constrained devices.
-  * Preview: The Neural Network Compression Framework now supports per-layer and per-group Look-Up Tables (LUT) for FP8-4BLUT quantization. This enables fine-grained, codebook-based compression that reduces model size and bandwidth while improving inference speed and accuracy for LLMs and transformer workloads.
+  * OpenVINO™ GenAI adds TaylorSeer Lite caching for image and video generation, accelerating diffusion-transformer inference across Flux, SD3, and LTX-Video pipelines, aligned with Hugging Face Diffusers.  
+  * LTX-Video generation on GPU achieves end-to-end acceleration through fusion of RMSNorm and RoPE operators, significantly improving video generation performance.  
+  * OpenVINO™ GenAI adds dynamic LoRA support for Qwen3-VL and VL models with LLM, allowing developers to swap adapters at runtime for efficient serving of multiple model variants in production without reloading the base model.  
+  * Preview: The release-weights API for ov::Model enables memory reclamation during model compilation on NPUs, delivering dramatically lower peak memory consumption for edge and client deployments. Users must set this property in ov::Model, and it will be applied during compilation.  
 
 * More portability and performance to run AI at the edge, in the cloud or locally
 
-  * OpenVINO™ GenAI adds VLM pipeline support to enhance Agentic AI framework integration.​
-  * OpenVINO GenAI now supports speculative decoding for NPUs, delivering improved performance and efficient text generation through a small draft model that is periodically validated by the full-size model.
-  * Preview: NPU compiler integration with the NPU plugin enables ahead-of-time and on-device compilation without relying on OEM driver updates. Developers can enable this feature for a single, ready-to-ship package that reduces integration friction and accelerates time-to-value.
-  * OpenVINO™ Model Server adds enhanced support for audio endpoint plus agentic continuous batching and concurrent runs for improved LLM performance in agentic workflows on Intel CPUs and GPUs.
+  * Introducing support for Intel® Core™ Series 3 processors (formerly codenamed Wildcat Lake) and Intel® Arc™ Pro B70 Graphics with 32GB memory for single-GPU inference on 20–30B parameter LLMs  
+  * Prompt Lookup Decoding extended to vision-language pipelines, delivering significantly faster token generation for multimodal workloads on Intel CPUs and GPUs.  
+  * OpenVINO™ GenAI now has a smaller runtime footprint after eliminating ICU DLL dependencies from tokenization, leading to reduced memory usage, faster startup, and easier deployment.  
+  * OpenVINO GenAI introduces WhisperPipeline for Node.js via its NPM package, delivering production-ready speech recognition with word-level audio-to-text transcription.  
+  * OpenVINO™ Model Server enhances support for Qwen3-MOE and GPT-OSS-20b models, delivering improved performance, accuracy, and robust concurrent request handling with continuous batching. These pre-optimized models are available on Hugging Face for easy deployment. Additionally, the Model Server introduces image inpainting and outpainting capabilities via the /image endpoint for AI image editing. 
 
 OpenVINO™ Runtime
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
