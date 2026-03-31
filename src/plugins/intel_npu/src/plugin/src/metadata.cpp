@@ -46,18 +46,10 @@ void OpenvinoVersion::read(const ov::Tensor& tensor) {
     _patch = *reinterpret_cast<const decltype(_patch)*>(tensor.data<const char>() + sizeof(_major) + sizeof(_minor));
 }
 
-void OpenvinoVersion::write(
-    std::ostream& stream,
-    const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt) {
-    const std::string_view major(reinterpret_cast<const char*>(&_major), sizeof(_major));
-    const std::string_view minor(reinterpret_cast<const char*>(&_minor), sizeof(_minor));
-    const std::string_view patch(reinterpret_cast<const char*>(&_patch), sizeof(_patch));
-    if (encryptionCallbackOpt.has_value()) {
-        stream << encryptionCallbackOpt.value()(std::string(major)) << encryptionCallbackOpt.value()(std::string(minor))
-               << encryptionCallbackOpt.value()(std::string(patch));
-        return;
-    }
-    stream << major << minor << patch;
+void OpenvinoVersion::write(std::ostream& stream) {
+    stream.write(reinterpret_cast<const char*>(&_major), sizeof(_major));
+    stream.write(reinterpret_cast<const char*>(&_minor), sizeof(_minor));
+    stream.write(reinterpret_cast<const char*>(&_patch), sizeof(_patch));
 }
 
 size_t OpenvinoVersion::get_openvino_version_size() const {
@@ -138,35 +130,16 @@ void MetadataBase::read_data_from_source(char* destination, const size_t size) {
     }
 }
 
-void MetadataBase::write_data_from_raw_data(
-    std::ostream& stream,
-    const char* source,
-    const size_t size,
-    const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt) {
-    const std::string_view raw_data_view(source, size);
-    if (encryptionCallbackOpt.has_value()) {
-        stream << encryptionCallbackOpt.value()(std::string(raw_data_view));
-        return;
-    }
-    stream << raw_data_view;
-}
-
-void MetadataBase::append_padding_blob_size_and_magic(
-    std::ostream& stream,
-    const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt) {
+void MetadataBase::append_padding_blob_size_and_magic(std::ostream& stream) {
     size_t metadataSize = get_metadata_size() + sizeof(_blobDataSize) + MAGIC_BYTES.size();
     size_t size = utils::align_size_to_standard_page_size(metadataSize);
     size_t paddingSize = size - metadataSize;
     if (paddingSize > 0) {
-        char fill_ch = encryptionCallbackOpt.has_value() ? encryptionCallbackOpt.value()('\0').at(0) : 0;
-        std::fill_n(std::ostream_iterator<char>(stream), paddingSize, fill_ch);
+        std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
     }
 
-    write_data_from_raw_data(stream,
-                             reinterpret_cast<const char*>(&_blobDataSize),
-                             sizeof(_blobDataSize),
-                             encryptionCallbackOpt);
-    write_data_from_raw_data(stream, MAGIC_BYTES.data(), MAGIC_BYTES.size(), encryptionCallbackOpt);
+    stream.write(reinterpret_cast<const char*>(&_blobDataSize), sizeof(_blobDataSize));
+    stream.write(MAGIC_BYTES.data(), MAGIC_BYTES.size());
 }
 
 void Metadata<METADATA_VERSION_2_0>::read() {
@@ -254,75 +227,46 @@ void Metadata<METADATA_VERSION_2_4>::read() {
     _compilerVersion = compilerVersion != 0 ? std::optional(compilerVersion) : std::nullopt;
 }
 
-void Metadata<METADATA_VERSION_2_0>::write(
-    std::ostream& stream,
-    const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt) {
-    write_data_from_raw_data(stream, reinterpret_cast<const char*>(&_version), sizeof(_version), encryptionCallbackOpt);
-    _ovVersion.write(stream, encryptionCallbackOpt);
+void Metadata<METADATA_VERSION_2_0>::write(std::ostream& stream) {
+    stream.write(reinterpret_cast<const char*>(&_version), sizeof(_version));
+    _ovVersion.write(stream);
 }
 
-void Metadata<METADATA_VERSION_2_1>::write(
-    std::ostream& stream,
-    const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt) {
-    Metadata<METADATA_VERSION_2_0>::write(stream, encryptionCallbackOpt);
+void Metadata<METADATA_VERSION_2_1>::write(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_0>::write(stream);
 
     _numberOfInits = _initSizes.has_value() ? _initSizes->size() : 0;
-    write_data_from_raw_data(stream,
-                             reinterpret_cast<const char*>(&_numberOfInits),
-                             sizeof(_numberOfInits),
-                             encryptionCallbackOpt);
+    stream.write(reinterpret_cast<const char*>(&_numberOfInits), sizeof(_numberOfInits));
 
     if (_initSizes.has_value()) {
         for (uint64_t initSize : _initSizes.value()) {
-            write_data_from_raw_data(stream,
-                                     reinterpret_cast<const char*>(&initSize),
-                                     sizeof(initSize),
-                                     encryptionCallbackOpt);
+            stream.write(reinterpret_cast<const char*>(&initSize), sizeof(initSize));
         }
     }
 }
 
-void Metadata<METADATA_VERSION_2_2>::write(
-    std::ostream& stream,
-    const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt) {
-    Metadata<METADATA_VERSION_2_1>::write(stream, encryptionCallbackOpt);
+void Metadata<METADATA_VERSION_2_2>::write(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_1>::write(stream);
 
     int64_t batchValue = _batchSize.value_or(0);
-    write_data_from_raw_data(stream,
-                             reinterpret_cast<const char*>(&batchValue),
-                             sizeof(batchValue),
-                             encryptionCallbackOpt);
+    stream.write(reinterpret_cast<const char*>(&batchValue), sizeof(batchValue));
 }
 
-void Metadata<METADATA_VERSION_2_3>::write(
-    std::ostream& stream,
-    const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt) {
-    Metadata<METADATA_VERSION_2_2>::write(stream, encryptionCallbackOpt);
+void Metadata<METADATA_VERSION_2_3>::write(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_2>::write(stream);
 
     const uint64_t numberOfInputLayouts = _inputLayouts.has_value() ? _inputLayouts->size() : 0;
     const uint64_t numberOfOutputLayouts = _outputLayouts.has_value() ? _outputLayouts->size() : 0;
-    write_data_from_raw_data(stream,
-                             reinterpret_cast<const char*>(&numberOfInputLayouts),
-                             sizeof(numberOfInputLayouts),
-                             encryptionCallbackOpt);
-    write_data_from_raw_data(stream,
-                             reinterpret_cast<const char*>(&numberOfOutputLayouts),
-                             sizeof(numberOfOutputLayouts),
-                             encryptionCallbackOpt);
+    stream.write(reinterpret_cast<const char*>(&numberOfInputLayouts), sizeof(numberOfInputLayouts));
+    stream.write(reinterpret_cast<const char*>(&numberOfOutputLayouts), sizeof(numberOfOutputLayouts));
 
     const auto writeLayouts = [&](const std::optional<std::vector<ov::Layout>>& layouts) {
         if (layouts.has_value()) {
             for (const ov::Layout& layout : layouts.value()) {
                 const std::string layoutString = layout.to_string();
                 const uint16_t stringLength = static_cast<uint16_t>(layoutString.size());
-                write_data_from_raw_data(stream,
-                                         reinterpret_cast<const char*>(&stringLength),
-                                         sizeof(stringLength),
-                                         encryptionCallbackOpt);
-                write_data_from_raw_data(stream,
-                                         reinterpret_cast<const char*>(layoutString.c_str()),
-                                         layoutString.size(),
-                                         encryptionCallbackOpt);
+                stream.write(reinterpret_cast<const char*>(&stringLength), sizeof(stringLength));
+                stream.write(layoutString.c_str(), stringLength);
             }
         }
     };
@@ -337,7 +281,7 @@ void Metadata<METADATA_VERSION_2_4>::write(std::ostream& stream) {
     uint32_t compilerVersion = _compilerVersion.value_or(0);
     stream.write(reinterpret_cast<const char*>(&compilerVersion), sizeof(compilerVersion));
 
-    append_padding_blob_size_and_magic(stream, encryptionCallbackOpt);
+    append_padding_blob_size_and_magic(stream);
 }
 
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {
