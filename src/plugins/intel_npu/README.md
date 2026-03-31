@@ -222,7 +222,7 @@ The following properties are supported (may differ based on current system confi
 | `ov::intel_npu::turbo`/</br>`NPU_TURBO` | RW | Set Turbo mode on/off | `YES`/ `NO`| `NO` |
 | `ov::intel_npu::platform`/</br>`NPU_PLATFORM` | RW | Selects the target compilation platform. Used in offline compilation | `3720`/</br>`4000`</br>`5010` | `AUTO_DETECT` |
 | `ov::intel_npu::tiles`/</br>`NPU_TILES` | RW | Sets the number of npu tiles to compile the model for | `[0-]` | `-1` |
-| `ov::intel_npu::max_tiles`/</br>`NPU_MAX_TILES` | RW | Maximum number of tiles supported by the device we compile for. Can be set for offline compilation. If not set, it will be populated by driver.| `[0-]` | `[1-6] depends on npu platform` |
+| `ov::intel_npu::max_tiles`/</br>`NPU_MAX_TILES` | RO | Maximum number of tiles supported by the device we compile for. It will be populated by driver, if present. | `[1-6] depends on npu platform` | `[-1]` |
 | `ov::intel_npu::bypass_umd_caching`/</br>`NPU_BYPASS_UMD_CACHING` | RW | Bypass the caching of compiled models in UMD. | `YES`/ `NO`| `NO` |
 | `ov::intel_npu::defer_weights_load`/</br>`NPU_DEFER_WEIGHTS_LOAD` | RW | Delay loading the weights until inference is created. | `YES`/ `NO`| `NO` |
 | `ov::intel_npu::run_inferences_sequentially`/</br>`NPU_RUN_INFERENCES_SEQUENTIALLY` | RW | Run inferences in async mode sequentially in the order in which they are started to optimize host scheduling. | `YES`/ `NO`| `NO` |
@@ -296,7 +296,7 @@ Supported values:
 ### ov::intel_npu::max_tiles and ov::intel_npu::tiles
 
 For on-device compilation, the plugin queries the driver for the available number of tiles and sets `ov::intel_npu::max_tiles`.  
-`ov::intel_npu::max_tiles` is a read-write property to allow users to set it during offline compilation.  
+`ov::intel_npu::max_tiles` is a read-only property, and it will not be listed as supported in cases where no device is present.
 Note that `ov::intel_npu::max_tiles` represents the maximum number of tiles available, but the compiler may target a lower number of tiles depending on other properties. Users can set ``ov::intel_npu::tiles`` to override the number of tiles selected by the compiler based on other properties.  
 
 When setting ``ov::intel_npu::tiles``, users must ensure that the value does not exceed ``ov::intel_npu::max_tiles``.  
