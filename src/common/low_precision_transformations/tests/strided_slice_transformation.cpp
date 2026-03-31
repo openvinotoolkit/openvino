@@ -70,7 +70,7 @@ public:
     void SetUp() override {
         const auto& [inputShape, testValues] = GetParam();
 
-        actualFunction = ov::builder::subgraph::StridedSliceFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::StridedSliceFunction::get(
             testValues.actual.inputPrecision,
             inputShape,
             testValues.actual.dequantization,
@@ -87,9 +87,10 @@ public:
         transformer.add<ov::pass::low_precision::StridedSliceTransformation, ov::op::v1::StridedSlice>(testValues.params);
         transformer.transform(actualFunction);
 
-        referenceFunction = ov::builder::subgraph::StridedSliceFunction::getReference(
+        referenceFunction = ov::builder::subgraph::StridedSliceFunction::get(
             testValues.expected.inputPrecision,
             inputShape,
+            testValues.expected.dequantizationBefore,
             testValues.layerParams.begin,
             testValues.layerParams.end,
             testValues.layerParams.strides,
@@ -98,8 +99,6 @@ public:
             testValues.layerParams.newAxisMask,
             testValues.layerParams.shrinkAxisMask,
             testValues.layerParams.elipsisMask,
-            testValues.expected.dequantizationBefore,
-            testValues.expected.preicsionAfterOperation,
             testValues.expected.dequantizationAfter);
     }
 

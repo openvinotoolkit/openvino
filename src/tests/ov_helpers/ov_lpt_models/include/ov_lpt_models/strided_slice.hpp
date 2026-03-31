@@ -16,7 +16,7 @@ namespace subgraph {
 
 class StridedSliceFunction {
 public:
-    static std::shared_ptr<ov::Model> getOriginal(
+    static std::shared_ptr<ov::Model> get(
         const ov::element::Type inputPrecision,
         const ov::PartialShape& inputShape,
         const ov::builder::subgraph::DequantizationOperations& dequantization,
@@ -27,7 +27,8 @@ public:
         const std::vector<int64_t>& endMask,
         const std::vector<int64_t>& newAxisMask,
         const std::vector<int64_t>& shrinkAxisMask,
-        const std::vector<int64_t>& elipsisMask);
+        const std::vector<int64_t>& elipsisMask,
+        const ov::builder::subgraph::DequantizationOperations& dequantizationAfter = {});
 
     // Variant where begin, end and strides are graph inputs (Parameters).
     // The PartialShape arguments describe the shape of each parameter.
@@ -44,7 +45,7 @@ public:
         const std::vector<int64_t>& endMask,
         const ov::builder::subgraph::DequantizationOperations& dequantizationAfter = {});
 
-    static std::shared_ptr<ov::Model> getOriginal(
+    static std::shared_ptr<ov::Model> get(
         const ov::element::Type inputPrecision,
         const ov::PartialShape& inputShape,
         const ov::builder::subgraph::FakeQuantizeOnData& fakeQuantize,
@@ -53,24 +54,9 @@ public:
         const std::vector<int64_t>& strides,
         const std::vector<int64_t>& beginMask,
         const std::vector<int64_t>& endMask,
-        const std::vector<int64_t>& newAxisMask = {},
-        const std::vector<int64_t>& shrinkAxisMask = {},
-        const std::vector<int64_t>& elipsisMask = {});
-
-    static std::shared_ptr<ov::Model> getReference(
-        const ov::element::Type inputPrecision,
-        const ov::PartialShape& inputShape,
-        const std::vector<int64_t>& begin,
-        const std::vector<int64_t>& end,
-        const std::vector<int64_t>& strides,
-        const std::vector<int64_t>& beginMask,
-        const std::vector<int64_t>& endMask,
         const std::vector<int64_t>& newAxisMask,
         const std::vector<int64_t>& shrinkAxisMask,
-        const std::vector<int64_t>& elipsisMask,
-        const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
-        const ov::element::Type precisionAfterOperation,
-        const ov::builder::subgraph::DequantizationOperations& dequantizationAfter);
+        const std::vector<int64_t>& elipsisMask);
 };
 
 }  // namespace subgraph
