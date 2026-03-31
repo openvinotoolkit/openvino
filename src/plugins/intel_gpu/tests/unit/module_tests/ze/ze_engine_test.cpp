@@ -21,6 +21,7 @@ TEST(ze_engine, memory_creation) {
     auto ze_test_context = create_ze_test_context();
     auto ze_test_engine = ze_test_context.ze_test_engine;
     auto ze_test_stream = ze_test_context.ze_test_stream;
+
 	ASSERT_NE(ze_test_engine, nullptr);
 	ASSERT_EQ(ze_test_engine->type(), engine_types::ze);
 	ASSERT_EQ(ze_test_engine->runtime_type(), runtime_types::ze);
