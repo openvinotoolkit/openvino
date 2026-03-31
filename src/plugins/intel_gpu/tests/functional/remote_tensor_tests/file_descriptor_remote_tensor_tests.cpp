@@ -40,6 +40,90 @@ std::shared_ptr<ov::Model> make_passthrough_model(const ov::Shape& shape) {
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 }
 
+#ifdef _WIN32
+#ifdef ENABLE_DX11
+struct Dx11TestContext {
+    CComPtr<ID3D11Device> device;
+    CComPtr<ID3D11DeviceContext> device_ctx;
+};
+
+Dx11TestContext create_dx11_test_context() {
+    IDXGIFactory* raw_factory = nullptr;
+    HRESULT hr = CreateDXGIFactory(__uuidof(IDXGIFactory), reinterpret_cast<void**>(&raw_factory));
+    EXPECT_FALSE(FAILED(hr));
+    CComPtr<IDXGIFactory> factory(raw_factory);
+
+    CComPtr<IDXGIAdapter> intel_adapter;
+    const unsigned int ref_intel_vendor_id = 0x8086;
+    UINT adapter_index = 0;
+    IDXGIAdapter* raw_adapter = nullptr;
+    while (factory->EnumAdapters(adapter_index, &raw_adapter) != DXGI_ERROR_NOT_FOUND) {
+        CComPtr<IDXGIAdapter> adapter(raw_adapter);
+        DXGI_ADAPTER_DESC desc{};
+        adapter->GetDesc(&desc);
+        if (desc.VendorId == ref_intel_vendor_id) {
+            intel_adapter = adapter;
+            break;
+        }
+        ++adapter_index;
+    }
+
+    if (!intel_adapter) {
+        GTEST_SKIP() << "No Intel DXGI adapter found";
+    }
+
+    D3D_FEATURE_LEVEL feature_levels[] = {D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0};
+    D3D_FEATURE_LEVEL feature_level;
+    ID3D11Device* raw_device = nullptr;
+    ID3D11DeviceContext* raw_ctx = nullptr;
+    hr = D3D11CreateDevice(intel_adapter,
+                           D3D_DRIVER_TYPE_UNKNOWN,
+                           nullptr,
+                           0,
+                           feature_levels,
+                           ARRAYSIZE(feature_levels),
+                           D3D11_SDK_VERSION,
+                           &raw_device,
+                           &feature_level,
+                           &raw_ctx);
+    EXPECT_FALSE(FAILED(hr));
+
+    return {CComPtr<ID3D11Device>(raw_device), CComPtr<ID3D11DeviceContext>(raw_ctx)};
+}
+
+CComPtr<ID3D11Buffer> create_dx11_buffer(ID3D11Device* device, size_t byte_size, const void* data = nullptr) {
+    D3D11_BUFFER_DESC desc{};
+    desc.ByteWidth = static_cast<UINT>(byte_size);
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
+    desc.CPUAccessFlags = 0;
+    desc.MiscFlags = 0;
+
+    D3D11_SUBRESOURCE_DATA init_data{};
+    init_data.pSysMem = data;
+
+    ID3D11Buffer* raw_buffer = nullptr;
+    HRESULT hr = device->CreateBuffer(&desc, data ? &init_data : nullptr, &raw_buffer);
+    EXPECT_FALSE(FAILED(hr));
+    return CComPtr<ID3D11Buffer>(raw_buffer);
+}
+
+CComPtr<ID3D11Buffer> create_dx11_staging_buffer(ID3D11Device* device, size_t byte_size) {
+    D3D11_BUFFER_DESC desc{};
+    desc.ByteWidth = static_cast<UINT>(byte_size);
+    desc.Usage = D3D11_USAGE_STAGING;
+    desc.BindFlags = 0;
+    desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    desc.MiscFlags = 0;
+
+    ID3D11Buffer* raw_buffer = nullptr;
+    HRESULT hr = device->CreateBuffer(&desc, nullptr, &raw_buffer);
+    EXPECT_FALSE(FAILED(hr));
+    return CComPtr<ID3D11Buffer>(raw_buffer);
+}
+#endif
+#endif
+
 // -----------------------------------------------------------------------
 // Test: create_tensor with shared_buffer + MemType::SHARED_BUF
 // -----------------------------------------------------------------------
@@ -53,18 +137,18 @@ TEST(GpuSharedBufferRemoteTensor, smoke_CreateTensorFromSharedBufferApi_Basic) {
 
     auto cl_ctx = static_cast<cl_context>(ctx.get());
     cl_int err = CL_SUCCESS;
-    cl_mem cl_buffer = clCreateBuffer(cl_ctx,
+    cl_mem d3d_buffer = clCreateBuffer(cl_ctx,
                                       CL_MEM_READ_WRITE,
                                       expected.size() * sizeof(float),
                                       nullptr,
                                       &err);
     ASSERT_EQ(err, CL_SUCCESS);
-    ASSERT_NE(cl_buffer, nullptr);
+    ASSERT_NE(d3d_buffer, nullptr);
 
     auto remote_tensor = ctx.create_tensor(
         ov::element::f32,
         shape,
-        static_cast<void*>(cl_buffer),
+        static_cast<void*>(d3d_buffer),
         ov::intel_gpu::MemType::SHARED_BUF);
 
     ov::Tensor host_src(ov::element::f32, shape);
@@ -79,7 +163,7 @@ TEST(GpuSharedBufferRemoteTensor, smoke_CreateTensorFromSharedBufferApi_Basic) {
         EXPECT_FLOAT_EQ(actual[i], expected[i]) << "Mismatch at index " << i;
     }
 
-    clReleaseMemObject(cl_buffer);
+    clReleaseMemObject(d3d_buffer);
 }
 
 // -----------------------------------------------------------------------
@@ -99,18 +183,18 @@ TEST(GpuSharedBufferRemoteTensor, smoke_InferenceWithSharedBufferApi) {
 
     auto cl_ctx = static_cast<cl_context>(ctx.get());
     cl_int err = CL_SUCCESS;
-    cl_mem cl_buffer = clCreateBuffer(cl_ctx,
+    cl_mem d3d_buffer = clCreateBuffer(cl_ctx,
                                       CL_MEM_READ_WRITE,
                                       input_data.size() * sizeof(float),
                                       nullptr,
                                       &err);
     ASSERT_EQ(err, CL_SUCCESS);
-    ASSERT_NE(cl_buffer, nullptr);
+    ASSERT_NE(d3d_buffer, nullptr);
 
     auto input_tensor = ctx.create_tensor(
         ov::element::f32,
         shape,
-        static_cast<void*>(cl_buffer),
+        static_cast<void*>(d3d_buffer),
         ov::intel_gpu::MemType::SHARED_BUF);
 
     ov::Tensor host_src(ov::element::f32, shape);
@@ -126,7 +210,7 @@ TEST(GpuSharedBufferRemoteTensor, smoke_InferenceWithSharedBufferApi) {
         EXPECT_FLOAT_EQ(actual[i], input_data[i]) << "Mismatch at index " << i;
     }
 
-    clReleaseMemObject(cl_buffer);
+    clReleaseMemObject(d3d_buffer);
 }
 
 // -----------------------------------------------------------------------
@@ -163,13 +247,13 @@ TEST(GpuSharedBufferRemoteTensor, smoke_SharedBufferApi_ChangingTensors) {
     auto cl_ctx = static_cast<cl_context>(ctx.get());
     const size_t byte_size = ov::shape_size(shape) * sizeof(float);
     cl_int err = CL_SUCCESS;
-    cl_mem cl_buffer = clCreateBuffer(cl_ctx, CL_MEM_READ_WRITE, byte_size, nullptr, &err);
+    cl_mem d3d_buffer = clCreateBuffer(cl_ctx, CL_MEM_READ_WRITE, byte_size, nullptr, &err);
     ASSERT_EQ(err, CL_SUCCESS);
-    ASSERT_NE(cl_buffer, nullptr);
+    ASSERT_NE(d3d_buffer, nullptr);
 
     auto remote_tensor = ctx.create_tensor(ov::element::f32,
                                            shape,
-                                           static_cast<void*>(cl_buffer),
+                                           static_cast<void*>(d3d_buffer),
                                            ov::intel_gpu::MemType::SHARED_BUF);
 
     ov::Tensor check_remote_tensor;
@@ -194,7 +278,7 @@ TEST(GpuSharedBufferRemoteTensor, smoke_SharedBufferApi_ChangingTensors) {
     ASSERT_NO_THROW(infer_req.set_output_tensor(random_output));
     ASSERT_NO_THROW(infer_req.infer());
 
-    clReleaseMemObject(cl_buffer);
+    clReleaseMemObject(d3d_buffer);
 }
 
 // -----------------------------------------------------------------------
@@ -212,13 +296,13 @@ TEST(GpuSharedBufferRemoteTensor, smoke_OutputDataFromMultipleRuns) {
 
     auto cl_ctx = static_cast<cl_context>(ctx.get());
     cl_int err = CL_SUCCESS;
-    cl_mem cl_buffer = clCreateBuffer(cl_ctx, CL_MEM_READ_WRITE, byte_size, nullptr, &err);
+    cl_mem d3d_buffer = clCreateBuffer(cl_ctx, CL_MEM_READ_WRITE, byte_size, nullptr, &err);
     ASSERT_EQ(err, CL_SUCCESS);
-    ASSERT_NE(cl_buffer, nullptr);
+    ASSERT_NE(d3d_buffer, nullptr);
 
     auto remote_tensor = ctx.create_tensor(ov::element::f32,
                                            shape,
-                                           static_cast<void*>(cl_buffer),
+                                           static_cast<void*>(d3d_buffer),
                                            ov::intel_gpu::MemType::SHARED_BUF);
 
     ov::Tensor input_data(ov::element::f32, shape);
@@ -241,7 +325,7 @@ TEST(GpuSharedBufferRemoteTensor, smoke_OutputDataFromMultipleRuns) {
     EXPECT_NE(output_one.data(), output_two.data());
     EXPECT_EQ(std::memcmp(output_one.data(), output_two.data(), output_one.get_byte_size()), 0);
 
-    clReleaseMemObject(cl_buffer);
+    clReleaseMemObject(d3d_buffer);
 }
 
 #ifdef _WIN32
@@ -251,66 +335,12 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx11ModificationProbeFailsAfterGpuAlloca
     ov::Core core;
     const ov::Shape shape{16};
     const size_t byte_size = ov::shape_size(shape) * sizeof(float);
-
-    IDXGIFactory* raw_factory = nullptr;
-    HRESULT hr = CreateDXGIFactory(__uuidof(IDXGIFactory), reinterpret_cast<void**>(&raw_factory));
-    ASSERT_FALSE(FAILED(hr));
-    CComPtr<IDXGIFactory> factory(raw_factory);
-
-    CComPtr<IDXGIAdapter> intel_adapter;
-    const unsigned int ref_intel_vendor_id = 0x8086;
-    UINT adapter_index = 0;
-    IDXGIAdapter* raw_adapter = nullptr;
-    while (factory->EnumAdapters(adapter_index, &raw_adapter) != DXGI_ERROR_NOT_FOUND) {
-        CComPtr<IDXGIAdapter> adapter(raw_adapter);
-        DXGI_ADAPTER_DESC desc{};
-        adapter->GetDesc(&desc);
-        if (desc.VendorId == ref_intel_vendor_id) {
-            intel_adapter = adapter;
-            break;
-        }
-        ++adapter_index;
-    }
-
-    if (!intel_adapter) {
-        GTEST_SKIP() << "No Intel DXGI adapter found";
-    }
-
-    D3D_FEATURE_LEVEL feature_levels[] = {D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0};
-    D3D_FEATURE_LEVEL feature_level;
-    ID3D11Device* raw_device = nullptr;
-    ID3D11DeviceContext* raw_ctx = nullptr;
-    hr = D3D11CreateDevice(intel_adapter,
-                           D3D_DRIVER_TYPE_UNKNOWN,
-                           nullptr,
-                           0,
-                           feature_levels,
-                           ARRAYSIZE(feature_levels),
-                           D3D11_SDK_VERSION,
-                           &raw_device,
-                           &feature_level,
-                           &raw_ctx);
-    ASSERT_FALSE(FAILED(hr));
-
-    CComPtr<ID3D11Device> device(raw_device);
-    CComPtr<ID3D11DeviceContext> device_ctx(raw_ctx);
+    auto dx11 = create_dx11_test_context();
 
     std::vector<float> init(ov::shape_size(shape), 3.0f);
-    D3D11_BUFFER_DESC buf_desc{};
-    buf_desc.ByteWidth = static_cast<UINT>(byte_size);
-    buf_desc.Usage = D3D11_USAGE_DEFAULT;
-    buf_desc.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
-    buf_desc.CPUAccessFlags = 0;
-    buf_desc.MiscFlags = 0;
-    D3D11_SUBRESOURCE_DATA init_data{};
-    init_data.pSysMem = init.data();
+    auto dx_buffer = create_dx11_buffer(dx11.device, byte_size, init.data());
 
-    ID3D11Buffer* raw_buffer = nullptr;
-    hr = device->CreateBuffer(&buf_desc, &init_data, &raw_buffer);
-    ASSERT_FALSE(FAILED(hr));
-    CComPtr<ID3D11Buffer> dx_buffer(raw_buffer);
-
-    auto d3d_ctx = ov::intel_gpu::ocl::D3DContext(core, device);
+    auto d3d_ctx = ov::intel_gpu::ocl::D3DContext(core, dx11.device);
     auto remote_tensor = d3d_ctx.create_tensor(ov::element::f32, shape, dx_buffer);
 
     auto model = make_passthrough_model(shape);
@@ -322,12 +352,50 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx11ModificationProbeFailsAfterGpuAlloca
     // Probe: attempt DX11 CPU mapping-based tensor modification after GPU allocation/use.
     // For DEFAULT usage DX11 buffer this must fail (no CPU write mapping supported).
     D3D11_MAPPED_SUBRESOURCE mapped{};
-    hr = device_ctx->Map(dx_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+    auto hr = dx11.device_ctx->Map(dx_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
     EXPECT_TRUE(FAILED(hr));
     if (SUCCEEDED(hr)) {
-        device_ctx->Unmap(dx_buffer, 0);
+        dx11.device_ctx->Unmap(dx_buffer, 0);
         FAIL() << "DX11 modification probe unexpectedly succeeded";
     }
+}
+
+TEST(GpuSharedBufferRemoteTensor, smoke_Dx11RemoteInputToRemoteOutputCopyAndCompare) {
+    ov::Core core;
+    const ov::Shape shape{16};
+    const size_t element_count = ov::shape_size(shape);
+    const size_t byte_size = element_count * sizeof(float);
+    auto dx11 = create_dx11_test_context();
+
+    std::vector<float> input_init(element_count, 2.0f);
+    auto dx_input_buffer = create_dx11_buffer(dx11.device, byte_size, input_init.data());
+    auto dx_output_buffer = create_dx11_buffer(dx11.device, byte_size);
+
+    auto d3d_ctx = ov::intel_gpu::ocl::D3DContext(core, dx11.device);
+    auto remote_input_tensor = d3d_ctx.create_tensor(ov::element::f32, shape, dx_input_buffer);
+    auto remote_output_tensor = d3d_ctx.create_tensor(ov::element::f32, shape, dx_output_buffer);
+
+    auto model = make_passthrough_model(shape);
+    auto compiled = core.compile_model(model, d3d_ctx);
+    auto infer_req = compiled.create_infer_request();
+    infer_req.set_input_tensor(remote_input_tensor);
+    infer_req.set_output_tensor(remote_output_tensor);
+    infer_req.infer();
+
+    auto dx_output_staging = create_dx11_staging_buffer(dx11.device, byte_size);
+
+    dx11.device_ctx->CopyResource(dx_output_staging, dx_output_buffer);
+
+    D3D11_MAPPED_SUBRESOURCE output_mapped{};
+    auto hr = dx11.device_ctx->Map(dx_output_staging, 0, D3D11_MAP_READ, 0, &output_mapped);
+    ASSERT_FALSE(FAILED(hr));
+
+    const auto* output_values = static_cast<const float*>(output_mapped.pData);
+    for (size_t i = 0; i < element_count; ++i) {
+        EXPECT_FLOAT_EQ(output_values[i], 2.0f) << "Mismatch at index " << i;
+    }
+
+    dx11.device_ctx->Unmap(dx_output_staging, 0);
 }
 
 #endif  // ENABLE_DX11
