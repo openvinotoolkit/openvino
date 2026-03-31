@@ -21,4 +21,10 @@ target_include_directories(${TARGET_NAME}
         $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
+
+message("==check==> test 1 OPENVINO_STATIC_LIBRARY")
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(${TARGET_NAME} PRIVATE OPENVINO_STATIC_LIBRARY)
+endif()
+
 message("==check==> test 2   remove openvino::runtime::dev and logger from link library of ${TARGET_NAME} <====")
