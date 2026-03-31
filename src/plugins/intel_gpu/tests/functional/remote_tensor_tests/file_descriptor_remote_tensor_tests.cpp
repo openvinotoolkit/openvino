@@ -27,9 +27,11 @@
 #include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
 namespace {
 
@@ -396,6 +398,79 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx11RemoteInputToRemoteOutputCopyAndComp
     }
 
     dx11.device_ctx->Unmap(dx_output_staging, 0);
+}
+
+TEST(GpuSharedBufferRemoteTensor, smoke_Dx11SharedRGBASurfaceInference) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    auto dx11 = create_dx11_test_context();
+
+    D3D11_TEXTURE2D_DESC texture_description = {0};
+    texture_description.Width = 64;
+    texture_description.Height = 48;
+    texture_description.MipLevels = 1;
+    texture_description.ArraySize = 1;
+    texture_description.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    texture_description.SampleDesc.Count = 1;
+    texture_description.Usage = D3D11_USAGE_DEFAULT;
+    texture_description.BindFlags = 0;
+    texture_description.MiscFlags = 0;
+
+    ID3D11Texture2D* raw_texture = nullptr;
+    auto hr = dx11.device->CreateTexture2D(&texture_description, nullptr, &raw_texture);
+    ASSERT_FALSE(FAILED(hr));
+    CComPtr<ID3D11Texture2D> dx11_texture(raw_texture);
+
+    std::vector<uint8_t> frame_data(texture_description.Width * texture_description.Height * 4);
+    for (size_t index = 0; index < frame_data.size(); ++index) {
+        frame_data[index] = static_cast<uint8_t>(index % 255);
+    }
+
+    dx11.device_ctx->UpdateSubresource(dx11_texture,
+                                       0,
+                                       nullptr,
+                                       frame_data.data(),
+                                       texture_description.Width * 4,
+                                       0);
+
+    const ov::Shape input_shape = {1, texture_description.Height, texture_description.Width, 4};
+
+    ov::Core core;
+    auto model = ov::test::utils::make_conv_pool_relu({1, 4, texture_description.Height, texture_description.Width});
+
+    using namespace ov::preprocess;
+    auto preproc = PrePostProcessor(model);
+    preproc.input().tensor().set_element_type(ov::element::u8)
+                          .set_layout("NHWC")
+                          .set_memory_type(ov::intel_gpu::memory_type::surface);
+    preproc.input().preprocess().convert_element_type(ov::element::f32);
+    preproc.input().model().set_layout("NCHW");
+    auto function = preproc.build();
+
+    auto input = function->get_parameters().at(0);
+    auto output = function->get_results().at(0);
+
+    auto regular_compiled_model = core.compile_model(function, ov::test::utils::DEVICE_GPU);
+    auto regular_request = regular_compiled_model.create_infer_request();
+    ov::Tensor host_tensor(ov::element::u8, input_shape, frame_data.data());
+    regular_request.set_tensor(input, host_tensor);
+    regular_request.infer();
+    auto regular_output = regular_request.get_tensor(output);
+
+    auto d3d_ctx = ov::intel_gpu::ocl::D3DContext(core, dx11.device);
+    auto shared_compiled_model = core.compile_model(function, d3d_ctx);
+    auto shared_request = shared_compiled_model.create_infer_request();
+    auto shared_tensor = d3d_ctx.create_tensor(ov::element::u8, input_shape, dx11_texture);
+    ov::intel_gpu::ocl::D3DSurface2DTensor::type_check(shared_tensor);
+    shared_request.set_tensor(input, shared_tensor);
+    shared_request.infer();
+    auto shared_output = shared_request.get_tensor(output);
+
+    ASSERT_EQ(regular_output.get_size(), shared_output.get_size());
+    OV_ASSERT_NO_THROW(regular_output.data());
+    OV_ASSERT_NO_THROW(shared_output.data());
+    ov::test::utils::compare(regular_output, shared_output);
 }
 
 #endif  // ENABLE_DX11
