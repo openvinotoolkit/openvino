@@ -4,12 +4,10 @@
 
 #pragma once
 
-#include "openvino/core/node.hpp"
+#include "openvino/op/gated_delta_net.hpp"
 #include "utils.hpp"
 
 namespace ov::op::internal {
-
-class GatedDeltaNet;
 
 template <class T, class TRShape = result_shape_t<T>>
 std::vector<TRShape> shape_infer(const GatedDeltaNet* op, const std::vector<T>& input_shapes) {
