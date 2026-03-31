@@ -2530,9 +2530,7 @@ StreamsCalculationTestCase _1sockets_mock_latency_11 = {
     "LATENCY",
     {},
     {{6, 2, 0, 4, 0, 0, 0}},
-    {{1, ALL_PROC, 6, 0, 0},
-     {0, MAIN_CORE_PROC, 2, 0, 0},
-     {0, LP_EFFICIENT_CORE_PROC, 4, 0, 0}},
+    {{1, ALL_PROC, 6, 0, 0}, {0, MAIN_CORE_PROC, 2, 0, 0}, {0, LP_EFFICIENT_CORE_PROC, 4, 0, 0}},
 };
 StreamsCalculationTestCase _1sockets_mock_latency_12 = {
     1,
@@ -2543,9 +2541,7 @@ StreamsCalculationTestCase _1sockets_mock_latency_12 = {
     "LATENCY",
     {},
     {{6, 2, 0, 4, 0, 0, 0}},
-    {{1, ALL_PROC, 4, 0, 0},
-     {0, MAIN_CORE_PROC, 2, 0, 0},
-     {0, LP_EFFICIENT_CORE_PROC, 2, 0, 0}},
+    {{1, ALL_PROC, 4, 0, 0}, {0, MAIN_CORE_PROC, 2, 0, 0}, {0, LP_EFFICIENT_CORE_PROC, 2, 0, 0}},
 };
 StreamsCalculationTestCase _1sockets_mock_latency_13 = {
     1,
@@ -2809,9 +2805,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_49 = {
      {104, 52, 0, 0, 52, 0, 0},
      {104, 52, 0, 0, 52, 1, 0},
      {104, 52, 0, 0, 52, 2, 1}},
-    {{1, ALL_PROC, 80, -1, 1},
-     {0, MAIN_CORE_PROC, 52, 3, 1},
-     {0, MAIN_CORE_PROC, 28, 2, 1}},
+    {{1, ALL_PROC, 80, -1, 1}, {0, MAIN_CORE_PROC, 52, 3, 1}, {0, MAIN_CORE_PROC, 28, 2, 1}},
 };
 StreamsCalculationTestCase _2sockets_mock_latency_50 = {
     1,
@@ -2848,9 +2842,7 @@ StreamsCalculationTestCase _1sockets_mock_TP_1 = {
     "LATENCY",
     {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL},
     {{8, 8, 0, 0, 0, 0, 0}},
-    {{1, MAIN_CORE_PROC, 16, 0, 0},
-     {-1, MAIN_CORE_PROC, 8, 0, 0},
-     {-1, MAIN_CORE_PROC, 8, 0, 0}},
+    {{1, MAIN_CORE_PROC, 16, 0, 0}, {-1, MAIN_CORE_PROC, 8, 0, 0}, {-1, MAIN_CORE_PROC, 8, 0, 0}},
 };
 StreamsCalculationTestCase _1sockets_mock_TP_2 = {
     1,
@@ -2861,9 +2853,7 @@ StreamsCalculationTestCase _1sockets_mock_TP_2 = {
     "LATENCY",
     {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL},
     {{8, 8, 0, 0, 0, 0, 0}},
-    {{1, MAIN_CORE_PROC, 2, 0, 0},
-     {-1, MAIN_CORE_PROC, 1, 0, 0},
-     {-1, MAIN_CORE_PROC, 1, 0, 0}},
+    {{1, MAIN_CORE_PROC, 2, 0, 0}, {-1, MAIN_CORE_PROC, 1, 0, 0}, {-1, MAIN_CORE_PROC, 1, 0, 0}},
 };
 
 TEST_P(StreamsCalculationTests, StreamsCalculation) {}

@@ -396,12 +396,11 @@ struct StreamsInfoBuilder {
                            const std::vector<std::vector<int>>& one_proc_table,
                            [[maybe_unused]] int num_threads,
                            IStreamsExecutor::Config::StreamsMode sub_streams_model) {
-        bool needs_mix =
-            (one_proc_info[PROC_NUMA_NODE_ID] < 0) || (one_proc_info[PROC_SOCKET_ID] < 0) ||
-            ((one_proc_info[MAIN_CORE_PROC] > 0) &&
-             (one_proc_info[MAIN_CORE_PROC] < stream_info[THREADS_PER_STREAM])) ||
-            ((one_proc_info[MAIN_CORE_PROC] == 0) && (one_proc_info[EFFICIENT_CORE_PROC] > 0) &&
-             (one_proc_info[EFFICIENT_CORE_PROC] < stream_info[THREADS_PER_STREAM]));
+        bool needs_mix = (one_proc_info[PROC_NUMA_NODE_ID] < 0) || (one_proc_info[PROC_SOCKET_ID] < 0) ||
+                         ((one_proc_info[MAIN_CORE_PROC] > 0) &&
+                          (one_proc_info[MAIN_CORE_PROC] < stream_info[THREADS_PER_STREAM])) ||
+                         ((one_proc_info[MAIN_CORE_PROC] == 0) && (one_proc_info[EFFICIENT_CORE_PROC] > 0) &&
+                          (one_proc_info[EFFICIENT_CORE_PROC] < stream_info[THREADS_PER_STREAM]));
 
         if (needs_mix) {
             add_mixed_stream(one_proc_info,
@@ -432,13 +431,11 @@ struct StreamsInfoBuilder {
             return;
         }
         if (n_threads_per_stream == -1) {
-            stream_info[THREADS_PER_STREAM] =
-                any_of(proc_type, EFFICIENT_CORE_PROC, LP_EFFICIENT_CORE_PROC) ? 2 : 1;
+            stream_info[THREADS_PER_STREAM] = any_of(proc_type, EFFICIENT_CORE_PROC, LP_EFFICIENT_CORE_PROC) ? 2 : 1;
         }
         stream_info[PROC_TYPE] = proc_type;
         set_ids(one_proc_info);
-        stream_info[NUMBER_OF_STREAMS] =
-            static_cast<int>(one_proc_info[proc_type] / stream_info[THREADS_PER_STREAM]);
+        stream_info[NUMBER_OF_STREAMS] = static_cast<int>(one_proc_info[proc_type] / stream_info[THREADS_PER_STREAM]);
         if (n_streams < stream_info[NUMBER_OF_STREAMS]) {
             stream_info[NUMBER_OF_STREAMS] = n_streams;
         }
@@ -526,8 +523,7 @@ struct StreamsInfoBuilder {
             if ((model_prefer_threads == proc_type_table[0][MAIN_CORE_PROC]) &&
                 (proc_type_table[0][MAIN_CORE_PROC] > 0)) {
                 stream_info[PROC_TYPE] = MAIN_CORE_PROC;
-                n_threads_per_stream =
-                    proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][HYPER_THREADING_PROC];
+                n_threads_per_stream = proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][HYPER_THREADING_PROC];
                 stream_info[THREADS_PER_STREAM] = n_threads_per_stream;
                 set_ids(proc_type_table[0]);
             } else if (proc_type_table[0][MAIN_CORE_PROC] == 0) {
@@ -543,8 +539,7 @@ struct StreamsInfoBuilder {
             } else {
                 stream_info[PROC_TYPE] = ALL_PROC;
                 n_threads_per_stream = proc_type_table[0][ALL_PROC] - proc_type_table[0][LP_EFFICIENT_CORE_PROC];
-                if (proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0 &&
-                    proc_type_table[0][EFFICIENT_CORE_PROC] == 0) {
+                if (proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0 && proc_type_table[0][EFFICIENT_CORE_PROC] == 0) {
                     n_threads_per_stream = std::max(model_prefer_threads, n_threads_per_stream);
                     n_threads_per_stream = std::min(n_threads_per_stream, proc_type_table[0][ALL_PROC]);
                 }
@@ -612,7 +607,7 @@ struct StreamsInfoBuilder {
             n_threads_per_stream =
                 std::min((n_threads / n_streams),
                          proc_type_table[0][MAIN_CORE_PROC] == 0 ? proc_type_table[0][EFFICIENT_CORE_PROC]
-                                                                  : proc_type_table[0][MAIN_CORE_PROC]);
+                                                                 : proc_type_table[0][MAIN_CORE_PROC]);
             adjust_threads_per_stream();
         }
     }
@@ -770,9 +765,8 @@ struct StreamsInfoBuilder {
             for (auto& row : remain) {
                 if ((table[i][STREAM_NUMA_NODE_ID] == row[PROC_NUMA_NODE_ID]) &&
                     (table[i][STREAM_SOCKET_ID] == row[PROC_SOCKET_ID])) {
-                    row[table[i][PROC_TYPE]] -=
-                        (table[i][NUMBER_OF_STREAMS] == 0 ? 1 : table[i][NUMBER_OF_STREAMS]) *
-                        table[i][THREADS_PER_STREAM];
+                    row[table[i][PROC_TYPE]] -= (table[i][NUMBER_OF_STREAMS] == 0 ? 1 : table[i][NUMBER_OF_STREAMS]) *
+                                                table[i][THREADS_PER_STREAM];
                 }
             }
         }
@@ -790,8 +784,7 @@ struct StreamsInfoBuilder {
             } else {
                 for (size_t n_node = 1; (n_node < proc_type_table.size()) && (n_streams > 0); n_node++) {
                     if ((proc_type_table[n_node][n_type] >= stream_info[THREADS_PER_STREAM]) &&
-                        ((current_socket_id < 0) ||
-                         (proc_type_table[n_node][PROC_SOCKET_ID] == current_socket_id))) {
+                        ((current_socket_id < 0) || (proc_type_table[n_node][PROC_SOCKET_ID] == current_socket_id))) {
                         distribute_streams_per_node(n_type, proc_type_table[n_node]);
                     }
                 }
@@ -812,8 +805,7 @@ struct StreamsInfoBuilder {
             } else {
                 for (size_t n_node = 0; (n_node < proc_socket_table.size()) && (n_streams > 0); n_node++) {
                     if ((proc_socket_table[n_node][ALL_PROC] >= stream_info[THREADS_PER_STREAM]) &&
-                        ((current_socket_id < 0) ||
-                         (proc_socket_table[n_node][PROC_SOCKET_ID] == current_socket_id))) {
+                        ((current_socket_id < 0) || (proc_socket_table[n_node][PROC_SOCKET_ID] == current_socket_id))) {
                         add_mixed_stream(proc_socket_table[n_node],
                                          proc_type_table,
                                          n_threads_per_stream,
@@ -851,11 +843,10 @@ struct StreamsInfoBuilder {
                     for (auto& row : remain_proc_type_table) {
                         if ((streams_info_table[i][STREAM_NUMA_NODE_ID] == row[PROC_NUMA_NODE_ID]) &&
                             (streams_info_table[i][STREAM_SOCKET_ID] == row[PROC_SOCKET_ID])) {
-                            row[streams_info_table[i][PROC_TYPE]] -=
-                                (streams_info_table[i][NUMBER_OF_STREAMS] == 0
-                                     ? 1
-                                     : streams_info_table[i][NUMBER_OF_STREAMS]) *
-                                streams_info_table[i][THREADS_PER_STREAM];
+                            row[streams_info_table[i][PROC_TYPE]] -= (streams_info_table[i][NUMBER_OF_STREAMS] == 0
+                                                                          ? 1
+                                                                          : streams_info_table[i][NUMBER_OF_STREAMS]) *
+                                                                     streams_info_table[i][THREADS_PER_STREAM];
                         }
                     }
                 }
@@ -914,8 +905,7 @@ struct StreamsInfoBuilder {
         int total_streams = n_streams;
 
         if (stream_info[PROC_TYPE] == INIT_VAL) {
-            bool is_multi_socket_tp =
-                (n_streams == 1) && (proc_type_table.size() > 1) && has_tensor_parallel_policy();
+            bool is_multi_socket_tp = (n_streams == 1) && (proc_type_table.size() > 1) && has_tensor_parallel_policy();
 
             if (is_multi_socket_tp) {
                 populate_table_tensor_parallel();
