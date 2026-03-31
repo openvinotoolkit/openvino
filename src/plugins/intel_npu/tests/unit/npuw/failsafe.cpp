@@ -94,9 +94,6 @@ public:
     void infer() override;
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
-    std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& port) const override;
-    void set_tensors(const ov::Output<const ov::Node>& port,
-                     const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
     void check_tensors() const override {}
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
         return {};
@@ -198,20 +195,6 @@ void TestInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
         m_state->bound_input_ptrs.push_back(tensor->data());
     }
     ov::ISyncInferRequest::set_tensor(port, tensor);
-}
-
-std::vector<ov::SoPtr<ov::ITensor>> TestInferRequest::get_tensors(const ov::Output<const ov::Node>& port) const {
-    return ov::ISyncInferRequest::get_tensors(port);
-}
-
-void TestInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
-                                   const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
-    if (is_input_port(port)) {
-        for (const auto& tensor : tensors) {
-            m_state->bound_input_ptrs.push_back(tensor->data());
-        }
-    }
-    ov::ISyncInferRequest::set_tensors(port, tensors);
 }
 
 ov::npuw::failsafe::CompiledModel::Factory make_factory(

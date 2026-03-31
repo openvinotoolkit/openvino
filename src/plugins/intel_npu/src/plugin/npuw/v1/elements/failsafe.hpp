@@ -28,13 +28,13 @@ public:
 
     static std::shared_ptr<ov::ICompiledModel> create(const std::shared_ptr<ov::Model>& model,
                                                       const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                      std::vector<std::string> devices,
-                                                      Factory factory);
+                                                      const std::vector<std::string> &devices,
+                                                      const Factory &factory);
 
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
-                  std::vector<std::string> devices,
-                  Factory factory);
+                  const std::vector<std::string> &devices,
+                  const Factory &factory);
 
     void export_model(std::ostream& model) const override;
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
@@ -76,11 +76,6 @@ public:
 
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
-
-    std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& port) const override;
-    void set_tensors(const ov::Output<const ov::Node>& port,
-                     const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
-
     void check_tensors() const override;
 
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
@@ -104,25 +99,20 @@ private:
         }
     };
 
-    struct PortTensors {
+    struct PortTensor {
         ov::Output<const ov::Node> port;
-        std::vector<ov::SoPtr<ov::ITensor>> tensors;
+        ov::SoPtr<ov::ITensor> tensor;
     };
 
     void ensure_inner_request_locked() const;
     PortKey port_key_locked(const ov::Output<const ov::Node>& port) const;
     bool is_output_port_locked(const ov::Output<const ov::Node>& port) const;
-    PortTensors& get_or_create_port_tensors_locked(const ov::Output<const ov::Node>& port) const;
-    void bind_public_input_tensors_locked(const ov::Output<const ov::Node>& port,
-                                          const std::vector<ov::SoPtr<ov::ITensor>>& tensors) const;
-    void sync_public_output_tensors_locked() const;
-    void rebind_public_input_tensors_locked() const;
 
     std::shared_ptr<const CompiledModel> m_failsafe_compiled_model;
     mutable std::mutex m_mutex;
     mutable std::shared_ptr<ov::IAsyncInferRequest> m_request;
     mutable std::size_t m_generation = std::numeric_limits<std::size_t>::max();
-    mutable std::map<PortKey, PortTensors> m_public_tensors;
+    mutable std::map<PortKey, PortTensor> m_public_tensors;
 };
 
 }  // namespace ov::npuw::failsafe
