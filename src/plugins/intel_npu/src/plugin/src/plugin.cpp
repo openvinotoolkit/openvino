@@ -244,7 +244,6 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(QDQ_OPTIMIZATION);
     REGISTER_OPTION(QDQ_OPTIMIZATION_AGGRESSIVE);
     REGISTER_OPTION(STEPPING);
-    REGISTER_OPTION(MAX_TILES);
     REGISTER_OPTION(DISABLE_VERSION_CHECK);
     REGISTER_OPTION(EXPORT_RAW_BLOB);
     REGISTER_OPTION(IMPORT_RAW_BLOB);
@@ -258,8 +257,12 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
     REGISTER_OPTION(MODEL_SERIALIZER_VERSION);
     REGISTER_OPTION(ENABLE_STRIDES_FOR);
+    REGISTER_OPTION(SHARED_COMMON_QUEUE);
 
     if (backend) {
+        // Options registered only if drivers is present and supports the corresponding extension
+        REGISTER_OPTION(MAX_TILES);
+
         if (backend->isCommandQueueExtSupported()) {
             REGISTER_OPTION(WORKLOAD_TYPE);
         }
@@ -273,75 +276,10 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
 
     // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
     // to enable those for OV Core to query. Note: do this last to not filter them out. register npuw caching properties
-    REGISTER_OPTION(NPU_USE_NPUW);
-    REGISTER_OPTION(NPUW_DEVICES);
-    REGISTER_OPTION(NPUW_SUBMODEL_DEVICE);
-    REGISTER_OPTION(NPUW_WEIGHTS_BANK);
-    REGISTER_OPTION(NPUW_WEIGHTS_BANK_ALLOC);
-    REGISTER_OPTION(NPUW_ONLINE_PIPELINE);
-    REGISTER_OPTION(NPUW_ONLINE_AVOID);
-    REGISTER_OPTION(NPUW_ONLINE_ISOLATE);
-    REGISTER_OPTION(NPUW_ONLINE_NO_FOLD);
-    REGISTER_OPTION(NPUW_ONLINE_MIN_SIZE);
-    REGISTER_OPTION(NPUW_ONLINE_KEEP_BLOCKS);
-    REGISTER_OPTION(NPUW_ONLINE_KEEP_BLOCK_SIZE);
-    REGISTER_OPTION(NPUW_ATTN);
-    REGISTER_OPTION(NPUW_ATTN_HFA_FUSED);
-    REGISTER_OPTION(NPUW_FOLD);
-    REGISTER_OPTION(NPUW_CWAI);
-    REGISTER_OPTION(NPUW_DQ);
-    REGISTER_OPTION(NPUW_DQ_FULL);
-    REGISTER_OPTION(NPUW_PMM);
-    REGISTER_OPTION(NPUW_MM_GATED);
-    REGISTER_OPTION(NPUW_SLICE_OUT);
-    REGISTER_OPTION(NPUW_SPATIAL);
-    REGISTER_OPTION(NPUW_SPATIAL_NWAY);
-    REGISTER_OPTION(NPUW_SPATIAL_DYN);
-    REGISTER_OPTION(NPUW_F16IC);
-    REGISTER_OPTION(NPUW_HOST_GATHER);
-    REGISTER_OPTION(NPUW_DCOFF_TYPE);
-    REGISTER_OPTION(NPUW_DCOFF_SCALE);
-    REGISTER_OPTION(NPUW_FUNCALL_FOR_ALL);
-    REGISTER_OPTION(NPUW_FUNCALL_ASYNC);
-    REGISTER_OPTION(NPUW_UNFOLD_IREQS);
-    REGISTER_OPTION(NPUW_FALLBACK_EXEC);
-    REGISTER_OPTION(NPUW_LLM);
-    REGISTER_OPTION(NPUW_LLM_BATCH_DIM);
-    REGISTER_OPTION(NPUW_LLM_SEQ_LEN_DIM);
-    REGISTER_OPTION(NPUW_LLM_MAX_PROMPT_LEN);
-    REGISTER_OPTION(NPUW_LLM_MAX_GENERATION_TOKEN_LEN);
-    REGISTER_OPTION(NPUW_LLM_MIN_RESPONSE_LEN);
-    REGISTER_OPTION(NPUW_LLM_OPTIMIZE_V_TENSORS);
-    REGISTER_OPTION(NPUW_LLM_OPTIMIZE_FP8);
-    REGISTER_OPTION(NPUW_LLM_CACHE_ROPE);
-    REGISTER_OPTION(NPUW_LLM_PREFILL_MOE_HINT);
-    REGISTER_OPTION(NPUW_LLM_GENERATE_MOE_HINT);
-    REGISTER_OPTION(NPUW_LLM_GENERATE_PYRAMID);
-    REGISTER_OPTION(NPUW_LLM_PREFILL_CHUNK_SIZE);
-    REGISTER_OPTION(NPUW_LLM_SHARED_HEAD);
-    REGISTER_OPTION(NPUW_LLM_MAX_LORA_RANK);
-    REGISTER_OPTION(NPUW_LLM_ENABLE_PREFIX_CACHING);
-    REGISTER_OPTION(NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE);
-    REGISTER_OPTION(NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS);
-    REGISTER_OPTION(NPUW_WHISPER);
-    REGISTER_OPTION(NPUW_WHISPER_EOS_TOKEN);
-    REGISTER_OPTION(NPUW_EAGLE);
-    REGISTER_OPTION(NPUW_TEXT_EMBED);
-    REGISTER_OPTION(NPUW_LLM_PREFILL_HINT);
-    REGISTER_OPTION(NPUW_LLM_PREFILL_CONFIG);
-    REGISTER_OPTION(NPUW_LLM_ADDITIONAL_PREFILL_CONFIG);
-    REGISTER_OPTION(NPUW_LLM_PREFILL_ATTENTION_HINT);
-    REGISTER_OPTION(NPUW_LLM_GENERATE_HINT);
-    REGISTER_OPTION(NPUW_LLM_GENERATE_CONFIG);
-    REGISTER_OPTION(NPUW_LLM_ADDITIONAL_GENERATE_CONFIG);
-    REGISTER_OPTION(NPUW_LLM_GENERATE_ATTENTION_HINT);
-    REGISTER_OPTION(NPUW_LLM_SHARED_LM_HEAD_CONFIG);
-    REGISTER_OPTION(NPUW_LLM_ADDITIONAL_SHARED_LM_HEAD_CONFIG);
-    REGISTER_OPTION(NPUW_KOKORO);
-    REGISTER_OPTION(NPUW_KOKORO_BLOCK_SIZE);
-    REGISTER_OPTION(NPUW_KOKORO_OVERLAP_SIZE);
-    REGISTER_OPTION(NPUW_MOE_TOKEN_CHUNK_SIZE);
-    REGISTER_OPTION(NPUW_MOE_POOL_SIZE);
+    for_each_exposed_npuw_option([&](auto tag) {
+        using Opt = typename decltype(tag)::type;
+        REGISTER_OPTION(Opt);
+    });
 
     config.enableRuntimeOptions();
 
@@ -572,7 +510,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     // Update stepping w/ information from driver, unless provided by user or we are off-device
-    // Ignore, if compilation was requested for platform, different from current
+    // Ignore if compilation was requested for a platform that is different from the current one
     if (!localConfig.has<STEPPING>() && device != nullptr && device->getName() == compilationPlatform) {
         try {
             localConfig.update({{ov::intel_npu::stepping.name(), std::to_string(device->getSubDevId())}});
@@ -582,13 +520,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
     // Update max_tiles w/ information from driver, unless provided by user or we are off-device
-    // Ignore, if compilation was requested for platform, different from current
+    // Ignore if compilation was requested for a platform that is different from the current one
     if (!localConfig.has<MAX_TILES>() && device != nullptr && device->getName() == compilationPlatform) {
         try {
             localConfig.update({{ov::intel_npu::max_tiles.name(), std::to_string(device->getMaxNumSlices())}});
         } catch (...) {
-            _logger.warning("Max tiles information not implemented by selected backend. Skipping. Please provide "
-                            "NPU_MAX_TILES if required.");
+            _logger.warning("Max tiles information not implemented by selected backend. Default value will be used.");
         }
     }
 

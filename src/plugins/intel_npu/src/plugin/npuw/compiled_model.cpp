@@ -59,6 +59,33 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     }
     return result;
 }
+
+bool can_use_weightless_flow(const ::intel_npu::Config& config) {
+    return config.get<::intel_npu::NPUW_FOLD>() || config.get<::intel_npu::NPUW_CWAI>();
+}
+
+bool should_use_weightless_flow(const ov::AnyMap& non_npuw_props,
+                                const ::intel_npu::Config& config,
+                                const std::unordered_map<const void*, std::size_t>& const_to_offset) {
+    if (!can_use_weightless_flow(config)) {
+        return false;
+    }
+
+    bool is_weightless = true;
+    if (auto it = non_npuw_props.find(ov::enable_weightless.name()); it != non_npuw_props.end()) {
+        is_weightless = it->second.as<bool>();
+    } else if (auto it = non_npuw_props.find(ov::cache_mode.name());
+               it != non_npuw_props.end() && it->second.as<ov::CacheMode>() == ov::CacheMode::OPTIMIZE_SPEED) {
+        is_weightless = false;
+    }
+
+    // Weightless serialization is only valid when WAI metadata was generated.
+    if (is_weightless && const_to_offset.empty()) {
+        is_weightless = false;
+    }
+
+    return is_weightless;
+}
 }  // anonymous namespace
 
 namespace ov {
@@ -1020,15 +1047,9 @@ void ov::npuw::CompiledModel::export_model(std::ostream& stream) const {
     }
 
     // Identify either full flow or weightless
-    bool is_weightless = true;
-    if (auto it = m_non_npuw_props.find(ov::enable_weightless.name()); it != m_non_npuw_props.end()) {
-        if (!it->second.as<bool>()) {
-            is_weightless = false;
-        }
-    } else if (auto it = m_non_npuw_props.find(ov::cache_mode.name());
-               it != m_non_npuw_props.end() && it->second.as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
+    bool is_weightless = should_use_weightless_flow(m_non_npuw_props, m_cfg, m_const_to_offset);
+    if (!is_weightless) {
         LOG_INFO("Serialization will be done via flow with weights.");
-        is_weightless = false;
     }
 
     // Write header regardless of encryption requirement - to identify NPUW serializated blobs
@@ -1228,15 +1249,7 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s1
         }
 
         // Write flow identifier
-        bool is_weightless = true;
-        if (auto it = m_non_npuw_props.find(ov::enable_weightless.name()); it != m_non_npuw_props.end()) {
-            if (!it->second.as<bool>()) {
-                is_weightless = false;
-            }
-        } else if (m_non_npuw_props.count(ov::cache_mode.name()) &&
-                   m_non_npuw_props.at(ov::cache_mode.name()).as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
-            is_weightless = false;
-        }
+        bool is_weightless = should_use_weightless_flow(m_non_npuw_props, m_cfg, m_const_to_offset);
         write(model_stream, is_weightless);
 
         // Write bf16 consts cache
