@@ -103,7 +103,8 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
     // TODO xxx-105807: if rt_info is set in python api as a string ['precise_0'] = '',
     //  we need to convert the legacy attribute to the new DisablePrecisionConversion format.
-    ov::pass::ConvertLegacyPrecisionAttribute().run_on_model(model);
+    // ov::pass::ConvertLegacyPrecisionAttribute().run_on_model(model);
+    // TEST
 
     if (m_xmlFile && m_binFile) {
         serialize_func(*m_xmlFile, *m_binFile, model, m_version);
