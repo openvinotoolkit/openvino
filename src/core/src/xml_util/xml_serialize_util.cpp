@@ -5,9 +5,8 @@
 #include "openvino/xml_util/xml_serialize_util.hpp"
 
 #include <functional>
-#include <string_view>
-
 #include <pugixml.hpp>
+#include <string_view>
 
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/except.hpp"
