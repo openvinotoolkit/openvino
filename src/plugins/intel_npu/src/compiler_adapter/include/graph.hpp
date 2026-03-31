@@ -58,6 +58,8 @@ public:
 
     std::optional<bool> is_profiling_blob() const override;
 
+    void evict_memory() override;
+
     ~Graph() override;
 
 protected:

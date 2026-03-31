@@ -640,4 +640,12 @@ bool ZeGraphExtWrappers::isPluginModelHashSupported() const {
     return _graphExtVersion > ZE_MAKE_VERSION(1, 13);
 }
 
+void ZeGraphExtWrappers::evict_memory(const GraphDescriptor& graphDescriptor) const {
+    if (_graphExtVersion < ZE_MAKE_VERSION(1, 16)) {
+        _logger.warning("Memory eviction is not supported by the current driver version.");
+        return;
+    }
+    _zeroInitStruct->getGraphDdiTable().pfnEvict(graphDescriptor._handle);
+}
+
 }  // namespace intel_npu
