@@ -18,7 +18,7 @@ target_include_directories(${TARGET_NAME}
     PUBLIC
         $<BUILD_INTERFACE:${NPU_UTILS_SOURCE_DIR}/include>
 )
-target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime::dev openvino_npu_logger_utils)
+target_link_libraries(${TARGET_NAME} PUBLIC openvino_npu_logger_utils)
 
 #
 # targets install
