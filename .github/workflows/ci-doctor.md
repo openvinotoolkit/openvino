@@ -14,12 +14,12 @@ on:
       link:
          description: "Link to a workflow to investigate (for manual testing across repositories)"
          required: false
-# Disable automatic triggering on workflow_run events during manual testing.
-#   workflow_run:
-#     workflows:
-#       - "Linux (Ubuntu 22.04, Python 3.11)"
-#     types:
-#       - completed
+  workflow_run:
+    workflows:
+      - "Linux (Ubuntu 22.04, Python 3.11)"
+      - "Windows (VS 2022, Python 3.11, Release)"
+    types:
+      - completed
 
 rate-limit:
   max: 5 # Maximum runs per window
@@ -35,8 +35,9 @@ network: defaults
 
 safe-outputs:
   create-issue:
-    title-prefix: "[CI Failure Doctor]"
-    labels: [automation, ci]
+    title-prefix: "[CI Failure Doctor] "
+    labels: ["category: CI"]
+    assignees: [akashchi]  
   add-comment:
   update-issue:
   messages:
@@ -44,7 +45,7 @@ safe-outputs:
 
 tools:
   github:
-    toolsets: [repos, issues, pull_requests, actions]
+    toolsets: [default, actions]  # default: context, repos, issues, pull_requests; actions: workflow logs
   cache-memory: true
 
 timeout-minutes: 20
@@ -68,7 +69,7 @@ You are the CI Failure Doctor, an expert investigative agent that analyzes faile
 
 **Trigger detection:**
 
-- If triggered by `workflow_run` event: ONLY proceed if `${{ github.event.workflow_run.conclusion }}` is `failure` or `cancelled`. Exit immediately if successful.
+- If triggered by `workflow_run` event: ONLY proceed if `${{ github.event.workflow_run.conclusion }}` is `failure` or `cancelled`. If the workflow was successful, call the `noop` tool and exit immediately.
 - If triggered by `workflow_run` event and the run was on a **pull request**: verify `github.event.workflow_run.pull_requests[0].base.ref` is `master`. Exit immediately if the PR targets a different base branch.
 - If triggered by `workflow_dispatch` event: check if `${{ github.event.inputs.run_id }}` is provided, use that run ID to fetch the workflow run details. If no `run_id` is provided, check if `${{ github.event.inputs.link }}` is provided, use that workflow link to fetch the workflow run details. If neither is provided, exit immediately.
 
@@ -139,7 +140,7 @@ You are the CI Failure Doctor, an expert investigative agent that analyzes faile
 ### Phase 6: Looking for existing issues and closing older ones
 
 1. **Search for existing CI failure doctor issues**
-   - Use GitHub Issues search to find issues with labels "automation" and "ci" and title prefix "[CI Failure Doctor]"
+   - Use GitHub Issues search to find issues with label "category: CI" and title prefix "[CI Failure Doctor]"
    - Look for both open and recently closed issues (within the last 7 days)
    - Search for keywords, error messages, and patterns from the current failure
 2. **Judge each match for relevance**
@@ -254,6 +255,8 @@ You **MUST** always end by calling exactly one of these safe output tools before
 - **`missing_data`**: When you cannot gather the information needed to complete the investigation
 
 **Never complete without calling a safe output tool.** If in doubt, call `noop` with a brief summary of what you found.
+
+Example noop call: `{"noop": {"message": "No action needed: [brief explanation]"}}`
 
 ## Cache Usage Strategy
 
