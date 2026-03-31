@@ -60,6 +60,7 @@ protected:
      */
     size_t _batch_size;
 
+    std::shared_ptr<CommandQueue> _command_queue = nullptr;
     std::vector<std::unique_ptr<Fence>> _fences;
     std::shared_ptr<EventPool> _event_pool;
     std::vector<std::shared_ptr<Event>> _events;
