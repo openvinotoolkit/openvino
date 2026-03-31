@@ -81,6 +81,7 @@ public:
     bool is_gather_closure(size_t idx, size_t cidx) override;
     bool unpack_required(size_t idx, size_t cidx) override;
     bool needs_copy_closure(size_t idx, size_t cidx) override;
+    std::string subgraph_device(size_t idx) override;
 
 protected:
     ////////////////////////////////////
@@ -88,7 +89,7 @@ protected:
     void prepare_for_infer() override;
     bool valid_subrequest(std::size_t idx) const override;
     void start_subrequest(std::size_t idx) override;
-    void run_subrequest_for_success(std::size_t idx, bool& failover) override;
+    void run_subrequest_for_success(std::size_t idx) override;
     void subscribe_subrequest(std::size_t idx, Completed cb) override;
     void complete_subrequest(std::size_t idx) override;
     void cancel_subrequest(std::size_t idx) override;
@@ -135,7 +136,6 @@ protected:
                                                int64_t tile_length);
 
     void connect_subrequests();
-    void recreate_subrequests(std::size_t idx);
 
     // Helper function to setup pyramid attention infer requests
     void setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate);
@@ -148,9 +148,6 @@ protected:
 
     // Helper function to initialize/reinitialize MoE executor
     void initialize_moe_executor();
-
-    // Helper function to recreate MoE resources after subrequest recreation
-    void recreate_moe_resources(std::size_t idx, std::size_t real_idx);
 
     FuncMemMgr m_func_mem_mgr;                       // Owns memory
     std::map<LinkFrom, TensorPtr> m_funcall_result;  // Provides a convenient link
