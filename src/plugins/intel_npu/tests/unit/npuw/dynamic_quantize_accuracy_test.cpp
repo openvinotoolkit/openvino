@@ -5,20 +5,26 @@
 // Unit tests for DynamicQuantize decomposition accuracy.
 //
 // All models use fp16 input/output — this is the native precision of the
-// KV-cache compression subgraphs we want to test.  The roundtrip graph is:
-//   Parameter(f16) → Convert(f32) → DynamicQuantize → dequant chain → Convert(f16) → Result(f16)
+// KV-cache compression subgraphs we want to test.
 //
-// Input data is generated in f32 then rounded to fp16, so the source
-// distribution is exactly fp16-representable.  This ensures that quantization
-// error measurements are not polluted by f32→f16 conversion artifacts.
+// The test builds models that mirror the real KV-cache compression pipeline,
+// which in production consists of TWO separate compiled models:
 //
-// Two test cases share the same parameterized fixture:
-//   RoundtripAccuracy       — uses model->evaluate() (reference interpreter,
-//                             always available, no device dependency)
-//   DeviceRoundtripAccuracy — compiles on a real device via ov::Core and runs
-//                             inference.  Enabled by setting the environment
-//                             variable OV_DQ_TEST_DEVICE (e.g. "CPU", "NPU").
-//                             Skips gracefully when the device is unavailable.
+//   1. Quantize model (applied to each new token being stored):
+//        Parameter(f16) -> Convert(f32) -> DynamicQuantize -> [q, scale, zp] Results
+//
+//   2. Dequantize model (applied when reading cached tokens for attention):
+//        Parameters(q_i8, scale_f32, zp_i8) -> dequant chain -> Result(f16)
+//
+// Test cases:
+//   RoundtripAccuracy           - single fused roundtrip model via evaluate()
+//   SplitModelRoundtripAccuracy - separate quantize + dequantize models via
+//                                 evaluate(), validates that each model works
+//                                 independently and that the roundtrip through
+//                                 both produces acceptable accuracy
+//   DeviceRoundtripAccuracy     - opt-in device test (OV_DQ_TEST_DEVICE env var)
+//                                 using the split model approach; catches
+//                                 compilation failures for quantize-only models
 //
 // The dequantize chain matches the actual product code in create_dequant_nodes():
 //   deq = (convert(q, f32) - convert(zp, f32)) * scale_f32
@@ -42,6 +48,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/intel_npu/properties.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
 
 namespace {
@@ -82,30 +89,14 @@ AccuracyMetrics compute_metrics(const float* original, const float* reconstructe
 }
 
 // ============================================================================
-// Build a roundtrip model using the actual production decomposition passes.
-// The model always uses fp16 I/O to match the real KV-cache pipeline:
-//   Parameter(f16) → Convert(f32) → [DQ + dequant in f32] → Convert(f16) → Result(f16)
-//
-// The DynamicQuantize node is named with "key" so the decomposition pass
-// selects reduction_axis=3 (the key-cache embedding dimension).
+// Shared helpers for DQ config and decompose pass
 // ============================================================================
-std::shared_ptr<Model> build_roundtrip_model(const Shape& shape,
-                                             int decompose_version) {
-    // ── Step 1: build the complete quantize → dequant graph ──────────────
-
-    auto input = std::make_shared<op::v0::Parameter>(element::f16, shape);
-    input->set_friendly_name("input");
-
-    // Convert fp16 input to f32 for the quantize core
-    auto dq_input = std::make_shared<op::v0::Convert>(input, element::f32);
-    dq_input->set_friendly_name("input_cvt_f32");
-
+op::internal::DynamicQuantize::Attributes make_dq_config(const Shape& shape,
+                                                          int decompose_version) {
     op::internal::DynamicQuantize::Attributes config;
     config.quantization_type = op::internal::DynamicQuantize::QuantizationType::Asymmetric;
     config.scale_dt = element::f32;
     config.group_sizes = std::vector<uint64_t>(shape.size(), 1);
-
-    // V2 uses u8, V1/V3 use i8
     if (decompose_version == 2) {
         config.quantization_dt = element::u8;
         config.zp_dt = element::u8;
@@ -113,37 +104,10 @@ std::shared_ptr<Model> build_roundtrip_model(const Shape& shape,
         config.quantization_dt = element::i8;
         config.zp_dt = element::i8;
     }
+    return config;
+}
 
-    auto dq = std::make_shared<op::internal::DynamicQuantize>(dq_input, config);
-    // Name must contain "key" so the pass picks reduction_axis=3
-    dq->set_friendly_name("DynamicQuantize/0/key");
-
-    // Dequant chain: deq = (convert(q, f32) - convert(zp, f32)) * scale
-    // This mirrors create_dequant_nodes() in production code.
-    auto q_f32 = std::make_shared<op::v0::Convert>(dq->output(0), element::f32);
-    auto zp_f32 = std::make_shared<op::v0::Convert>(dq->output(2), element::f32);
-    auto sub_zp = std::make_shared<op::v1::Subtract>(q_f32, zp_f32);
-    auto reconstructed = std::make_shared<op::v1::Multiply>(sub_zp, dq->output(1));
-
-    // Convert result back to f16
-    auto output_cvt = std::make_shared<op::v0::Convert>(reconstructed, element::f16);
-    output_cvt->set_friendly_name("output_cvt_f16");
-
-    auto result = std::make_shared<op::v0::Result>(output_cvt);
-    result->set_friendly_name("result_reconstructed");
-
-    auto model = std::make_shared<Model>(
-        ResultVector{result},
-        ParameterVector{input},
-        "roundtrip_fp16_v" + std::to_string(decompose_version));
-
-    model->validate_nodes_and_infer_types();
-
-    // ── Step 2: run the decompose pass ───────────────────────────────────
-    // The pass pattern-matches DynamicQuantize and replaces it in-place.
-    // The dequant chain (already connected to DQ outputs) transparently
-    // picks up the decomposed quantize subgraph.
-
+void run_decompose_pass(const std::shared_ptr<Model>& model, int decompose_version) {
     pass::Manager manager("decompose_dq");
     switch (decompose_version) {
     case 1:
@@ -160,17 +124,146 @@ std::shared_ptr<Model> build_roundtrip_model(const Shape& shape,
     }
     manager.run_passes(model);
     model->validate_nodes_and_infer_types();
+}
 
+// ============================================================================
+// Build a single fused roundtrip model:
+//   Parameter(f16) -> Convert(f32) -> [DQ + dequant in f32] -> Convert(f16) -> Result(f16)
+//
+// The DynamicQuantize node is named with "key" so the decomposition pass
+// selects reduction_axis=3 (the key-cache embedding dimension).
+// ============================================================================
+std::shared_ptr<Model> build_roundtrip_model(const Shape& shape,
+                                             int decompose_version) {
+    auto input = std::make_shared<op::v0::Parameter>(element::f16, shape);
+    input->set_friendly_name("input");
+
+    auto dq_input = std::make_shared<op::v0::Convert>(input, element::f32);
+    dq_input->set_friendly_name("input_cvt_f32");
+
+    auto config = make_dq_config(shape, decompose_version);
+
+    auto dq = std::make_shared<op::internal::DynamicQuantize>(dq_input, config);
+    dq->set_friendly_name("DynamicQuantize/0/key");
+
+    // Dequant chain: deq = (convert(q, f32) - convert(zp, f32)) * scale
+    auto q_f32 = std::make_shared<op::v0::Convert>(dq->output(0), element::f32);
+    auto zp_f32 = std::make_shared<op::v0::Convert>(dq->output(2), element::f32);
+    auto sub_zp = std::make_shared<op::v1::Subtract>(q_f32, zp_f32);
+    auto reconstructed = std::make_shared<op::v1::Multiply>(sub_zp, dq->output(1));
+
+    auto output_cvt = std::make_shared<op::v0::Convert>(reconstructed, element::f16);
+    output_cvt->set_friendly_name("output_cvt_f16");
+
+    auto result = std::make_shared<op::v0::Result>(output_cvt);
+    result->set_friendly_name("result_reconstructed");
+
+    auto model = std::make_shared<Model>(
+        ResultVector{result},
+        ParameterVector{input},
+        "roundtrip_fp16_v" + std::to_string(decompose_version));
+
+    model->validate_nodes_and_infer_types();
+    run_decompose_pass(model, decompose_version);
+    return model;
+}
+
+// ============================================================================
+// Build a quantize-only model (matches the real "store new token" path):
+//   Parameter(f16) -> Convert(f32) -> DynamicQuantize -> Results(q, scale, zp)
+//
+// In production this is compiled as a separate subgraph.  A compilation
+// failure here (which has been observed) would go unnoticed with a single
+// fused roundtrip model.
+// ============================================================================
+std::shared_ptr<Model> build_quantize_model(const Shape& shape,
+                                            int decompose_version) {
+    auto input = std::make_shared<op::v0::Parameter>(element::f16, shape);
+    input->set_friendly_name("input");
+
+    auto cvt_f32 = std::make_shared<op::v0::Convert>(input, element::f32);
+    cvt_f32->set_friendly_name("input_cvt_f32");
+
+    auto config = make_dq_config(shape, decompose_version);
+
+    auto dq = std::make_shared<op::internal::DynamicQuantize>(cvt_f32, config);
+    dq->set_friendly_name("DynamicQuantize/0/key");
+
+    auto result_q = std::make_shared<op::v0::Result>(dq->output(0));
+    result_q->set_friendly_name("result_quantized");
+
+    auto result_scale = std::make_shared<op::v0::Result>(dq->output(1));
+    result_scale->set_friendly_name("result_scale");
+
+    auto result_zp = std::make_shared<op::v0::Result>(dq->output(2));
+    result_zp->set_friendly_name("result_zp");
+
+    auto model = std::make_shared<Model>(
+        ResultVector{result_q, result_scale, result_zp},
+        ParameterVector{input},
+        "quantize_fp16_v" + std::to_string(decompose_version));
+
+    model->validate_nodes_and_infer_types();
+    run_decompose_pass(model, decompose_version);
+    return model;
+}
+
+// ============================================================================
+// Build a dequantize-only model (matches the real "read cached tokens" path):
+//   Parameters(q, scale, zp) -> (convert(q,f32) - convert(zp,f32)) * scale
+//                             -> Convert(f16) -> Result
+//
+// This mirrors create_dequant_nodes() in the production code.
+// No decompose pass needed -- the dequant chain is plain arithmetic.
+// ============================================================================
+std::shared_ptr<Model> build_dequantize_model(const Shape& shape,
+                                              int decompose_version) {
+    auto config = make_dq_config(shape, decompose_version);
+
+    auto param_q = std::make_shared<op::v0::Parameter>(config.quantization_dt, shape);
+    param_q->set_friendly_name("quantized_data");
+
+    // Scale/ZP shape: same as data but with embedding dim (last) collapsed to 1
+    Shape scale_shape = shape;
+    scale_shape.back() = 1;
+
+    auto param_scale = std::make_shared<op::v0::Parameter>(element::f32, scale_shape);
+    param_scale->set_friendly_name("scale");
+
+    auto param_zp = std::make_shared<op::v0::Parameter>(config.zp_dt, scale_shape);
+    param_zp->set_friendly_name("zero_point");
+
+    // Dequant chain: (convert(q, f32) - convert(zp, f32)) * scale
+    auto q_f32 = std::make_shared<op::v0::Convert>(param_q, element::f32);
+    q_f32->set_friendly_name("q_cvt_f32");
+    auto zp_f32 = std::make_shared<op::v0::Convert>(param_zp, element::f32);
+    zp_f32->set_friendly_name("zp_cvt_f32");
+    auto sub_zp = std::make_shared<op::v1::Subtract>(q_f32, zp_f32);
+    sub_zp->set_friendly_name("sub_zp");
+    auto dequantized = std::make_shared<op::v1::Multiply>(sub_zp, param_scale);
+    dequantized->set_friendly_name("dequantized");
+
+    auto output_cvt = std::make_shared<op::v0::Convert>(dequantized, element::f16);
+    output_cvt->set_friendly_name("output_cvt_f16");
+
+    auto result = std::make_shared<op::v0::Result>(output_cvt);
+    result->set_friendly_name("result_dequantized");
+
+    auto model = std::make_shared<Model>(
+        ResultVector{result},
+        ParameterVector{param_q, param_scale, param_zp},
+        "dequantize_fp16_v" + std::to_string(decompose_version));
+
+    model->validate_nodes_and_infer_types();
     return model;
 }
 
 // ============================================================================
 // Data generation helpers
 // Generated values are rounded to fp16 so the source distribution is exactly
-// representable — no f32→f16 conversion artifacts in error measurements.
+// representable -- no f32->f16 conversion artifacts in error measurements.
 // ============================================================================
 
-// Round a float value through fp16 and back
 static float to_fp16(float v) {
     return static_cast<float>(ov::float16(v));
 }
@@ -202,8 +295,6 @@ std::vector<float> generate_gen_gaussian_data(size_t count, float mu, float alph
 
 // ============================================================================
 // Helper: evaluate a roundtrip model via the reference interpreter.
-// The model has fp16 I/O.  Input data is provided as f32 (already fp16-rounded),
-// converted to fp16 for the model, output converted back to f32 for comparison.
 // ============================================================================
 AccuracyMetrics evaluate_roundtrip(const std::shared_ptr<Model>& model,
                                    const float* input_data,
@@ -222,7 +313,6 @@ AccuracyMetrics evaluate_roundtrip(const std::shared_ptr<Model>& model,
     bool ok = model->evaluate(outputs, inputs);
     EXPECT_TRUE(ok) << "Model evaluation failed for " << model->get_friendly_name();
 
-    // Convert fp16 output to f32 for metric computation
     std::vector<float> output_f32(element_count);
     const auto* src = outputs[0].data<ov::float16>();
     for (size_t i = 0; i < element_count; ++i) {
@@ -233,9 +323,103 @@ AccuracyMetrics evaluate_roundtrip(const std::shared_ptr<Model>& model,
 }
 
 // ============================================================================
+// Helper: run split quantize -> dequantize pipeline via the reference
+// interpreter.  Executes two separate model->evaluate() calls, passing
+// intermediate tensors (q, scale, zp) from the quantize model to the
+// dequantize model -- exactly as the real NPU pipeline does.
+// ============================================================================
+AccuracyMetrics evaluate_split_roundtrip(const std::shared_ptr<Model>& quant_model,
+                                         const std::shared_ptr<Model>& dequant_model,
+                                         const float* input_data,
+                                         size_t element_count) {
+    // Step 1: run quantize model
+    auto quant_input = Tensor(element::f16, quant_model->get_parameters()[0]->get_shape());
+    auto* q_dst = quant_input.data<ov::float16>();
+    for (size_t i = 0; i < element_count; ++i) {
+        q_dst[i] = ov::float16(input_data[i]);
+    }
+
+    TensorVector quant_outputs;
+    for (size_t i = 0; i < quant_model->get_results().size(); ++i) {
+        const auto& res = quant_model->get_results()[i];
+        quant_outputs.emplace_back(res->get_output_element_type(0), res->get_output_shape(0));
+    }
+
+    TensorVector quant_inputs{quant_input};
+    bool ok = quant_model->evaluate(quant_outputs, quant_inputs);
+    EXPECT_TRUE(ok) << "Quantize model evaluation failed";
+
+    // Step 2: run dequantize model
+    TensorVector dequant_inputs{quant_outputs[0], quant_outputs[1], quant_outputs[2]};
+
+    auto dequant_output = Tensor(element::f16, dequant_model->get_results()[0]->get_output_shape(0));
+    TensorVector dequant_outputs{dequant_output};
+
+    ok = dequant_model->evaluate(dequant_outputs, dequant_inputs);
+    EXPECT_TRUE(ok) << "Dequantize model evaluation failed";
+
+    std::vector<float> output_f32(element_count);
+    const auto* src = dequant_outputs[0].data<ov::float16>();
+    for (size_t i = 0; i < element_count; ++i) {
+        output_f32[i] = static_cast<float>(src[i]);
+    }
+
+    return compute_metrics(input_data, output_f32.data(), element_count);
+}
+
+// ============================================================================
+// Helper: run split quantize -> dequantize pipeline on a real device.
+// Compiles and infers each model separately, passing intermediate tensors.
+// ============================================================================
+AccuracyMetrics evaluate_split_roundtrip_on_device(const std::shared_ptr<Model>& quant_model,
+                                                   const std::shared_ptr<Model>& dequant_model,
+                                                   const std::string& device_name,
+                                                   const float* input_data,
+                                                   size_t element_count) {
+    Core core;
+    ov::AnyMap device_config;
+    if (device_name == "NPU") {
+        device_config[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::PLUGIN;
+    }
+
+    // Step 1: compile and run quantize model
+    auto compiled_quant = core.compile_model(quant_model, device_name, device_config);
+    auto quant_request = compiled_quant.create_infer_request();
+
+    auto quant_input = Tensor(element::f16, quant_model->get_parameters()[0]->get_shape());
+    auto* q_dst = quant_input.data<ov::float16>();
+    for (size_t i = 0; i < element_count; ++i) {
+        q_dst[i] = ov::float16(input_data[i]);
+    }
+    quant_request.set_input_tensor(quant_input);
+    quant_request.infer();
+
+    auto tensor_q = quant_request.get_output_tensor(0);
+    auto tensor_scale = quant_request.get_output_tensor(1);
+    auto tensor_zp = quant_request.get_output_tensor(2);
+
+    // Step 2: compile and run dequantize model
+    auto compiled_dequant = core.compile_model(dequant_model, device_name, device_config);
+    auto dequant_request = compiled_dequant.create_infer_request();
+
+    dequant_request.set_input_tensor(0, tensor_q);
+    dequant_request.set_input_tensor(1, tensor_scale);
+    dequant_request.set_input_tensor(2, tensor_zp);
+    dequant_request.infer();
+
+    auto output_tensor = dequant_request.get_output_tensor();
+
+    std::vector<float> output_f32(element_count);
+    const auto* src = output_tensor.data<ov::float16>();
+    for (size_t i = 0; i < element_count; ++i) {
+        output_f32[i] = static_cast<float>(src[i]);
+    }
+
+    return compute_metrics(input_data, output_f32.data(), element_count);
+}
+
+// ============================================================================
 // Helper: evaluate a roundtrip model on a real device via ov::Core.
-// The model always has fp16 I/O.  Input data is provided as f32
-// (already fp16-rounded), output is compared as f32.
 // ============================================================================
 AccuracyMetrics evaluate_roundtrip_on_device(const std::shared_ptr<Model>& model,
                                              const std::string& device_name,
@@ -243,6 +427,9 @@ AccuracyMetrics evaluate_roundtrip_on_device(const std::shared_ptr<Model>& model
                                              size_t element_count) {
     Core core;
     ov::AnyMap device_config;
+    if (device_name == "NPU") {
+        device_config[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::PLUGIN;
+    }
 
     auto compiled = core.compile_model(model, device_name, device_config);
     auto infer_request = compiled.create_infer_request();
@@ -282,14 +469,12 @@ enum class DistributionKind { Uniform, GenGaussian };
 
 struct DQTestParams {
     std::string name;
-    int decompose_version;  // 1, 2, or 3 — selects the production decomposition pass
+    int decompose_version;
     Shape shape;
     unsigned seed;
     DistributionKind dist_kind;
-    // Uniform distribution params
     float uniform_min;
     float uniform_max;
-    // Generalized Gaussian params
     float ggd_mu;
     float ggd_alpha;
     float ggd_beta;
@@ -326,7 +511,15 @@ protected:
         }
     }
 
-    // Shared setup: build fp16 model + generate fp16-rounded data
+    size_t compute_element_count(const Shape& shape) {
+        size_t n = 1;
+        for (auto d : shape) {
+            n *= d;
+        }
+        return n;
+    }
+
+    // Setup for the single fused roundtrip model
     struct TestContext {
         std::shared_ptr<Model> model;
         std::vector<float> data;
@@ -335,10 +528,7 @@ protected:
 
     TestContext setup_test() {
         const auto& p = GetParam();
-        size_t element_count = 1;
-        for (auto d : p.shape) {
-            element_count *= d;
-        }
+        size_t element_count = compute_element_count(p.shape);
         auto data = generate_data(p, element_count);
         EXPECT_EQ(data.size(), element_count);
 
@@ -347,9 +537,32 @@ protected:
 
         return {model, std::move(data), element_count};
     }
+
+    // Setup for the split quantize + dequantize models
+    struct SplitTestContext {
+        std::shared_ptr<Model> quant_model;
+        std::shared_ptr<Model> dequant_model;
+        std::vector<float> data;
+        size_t element_count;
+    };
+
+    SplitTestContext setup_split_test() {
+        const auto& p = GetParam();
+        size_t element_count = compute_element_count(p.shape);
+        auto data = generate_data(p, element_count);
+        EXPECT_EQ(data.size(), element_count);
+
+        auto quant_model = build_quantize_model(p.shape, p.decompose_version);
+        auto dequant_model = build_dequantize_model(p.shape, p.decompose_version);
+
+        ov::save_model(quant_model, "debug_quant_model_"+std::to_string(element_count) + "_v"+std::to_string(p.decompose_version)+".xml");
+        ov::save_model(dequant_model, "debug_dequant_model_"+std::to_string(element_count) + "_v"+std::to_string(p.decompose_version)+".xml");
+
+        return {quant_model, dequant_model, std::move(data), element_count};
+    }
 };
 
-// ── Reference interpreter test (always runs) ─────────────────────────────────
+// -- Reference interpreter test -- single fused roundtrip (always runs) -------
 
 TEST_P(DynamicQuantizeAccuracyTest, RoundtripAccuracy) {
     auto [model, data, element_count] = setup_test();
@@ -364,38 +577,62 @@ TEST_P(DynamicQuantizeAccuracyTest, RoundtripAccuracy) {
         << "V" << p.decompose_version << " relative L2 too high";
 }
 
-// ── Device-based inference test (opt-in via OV_DQ_TEST_DEVICE env var) ───────
+// -- Reference interpreter test -- split quantize + dequantize models ---------
+// This matches the real pipeline: two separate models with intermediate
+// tensors passed between them.
+
+TEST_P(DynamicQuantizeAccuracyTest, SplitModelRoundtripAccuracy) {
+    auto [quant_model, dequant_model, data, element_count] = setup_split_test();
+    const auto& p = GetParam();
+
+    auto metrics = evaluate_split_roundtrip(quant_model, dequant_model,
+                                            data.data(), element_count);
+
+    std::cout << p.name << " (V" << p.decompose_version << ", fp16) [split evaluate]:"
+              << std::endl;
+    print_metrics("  split roundtrip", metrics);
+
+    EXPECT_LT(metrics.rel_l2_norm, kRelL2Threshold)
+        << "V" << p.decompose_version << " split model relative L2 too high";
+}
+
+// -- Device-based inference test -- split models (opt-in via OV_DQ_TEST_DEVICE)
+// Compiles quantize and dequantize models SEPARATELY on the device.
+// This catches compilation failures for quantize-only models (which have
+// been observed in practice) and measures real device error accumulation.
+//
 // Run with:  OV_DQ_TEST_DEVICE=CPU  ./ov_npu_unit_tests --gtest_filter=*DeviceRoundtripAccuracy*
 //            OV_DQ_TEST_DEVICE=NPU  ./ov_npu_unit_tests --gtest_filter=*DeviceRoundtripAccuracy*
 
 TEST_P(DynamicQuantizeAccuracyTest, DeviceRoundtripAccuracy) {
     const std::string device = get_test_device();
     if (device.empty()) {
-        GTEST_SKIP() << "OV_DQ_TEST_DEVICE not set — skipping device inference test";
+        GTEST_SKIP() << "OV_DQ_TEST_DEVICE not set -- skipping device inference test";
     }
 
-    auto [model, data, element_count] = setup_test();
+    auto [quant_model, dequant_model, data, element_count] = setup_split_test();
     const auto& p = GetParam();
 
-    // Reference: interpreter on the same fp16 model
-    auto ref_metrics = evaluate_roundtrip(model, data.data(), element_count);
+    // Reference: interpreter on the split models
+    auto ref_metrics = evaluate_split_roundtrip(quant_model, dequant_model,
+                                                data.data(), element_count);
 
     AccuracyMetrics dev_metrics;
     try {
-        dev_metrics = evaluate_roundtrip_on_device(model, device, data.data(), element_count);
+        dev_metrics = evaluate_split_roundtrip_on_device(quant_model, dequant_model,
+                                                         device, data.data(), element_count);
     } catch (const std::exception& e) {
         GTEST_SKIP() << "Device '" << device << "' is not available: " << e.what();
     }
 
-    std::cout << p.name << " (V" << p.decompose_version << ", fp16) [" << device << "]:" << std::endl;
+    std::cout << p.name << " (V" << p.decompose_version << ", fp16) [" << device
+              << ", split]:" << std::endl;
     print_metrics("  reference (evaluate)", ref_metrics);
     print_metrics("  device    (" + device + ")", dev_metrics);
 
-    // Device result must meet the same threshold
     EXPECT_LT(dev_metrics.rel_l2_norm, kRelL2Threshold)
         << "V" << p.decompose_version << " on " << device << ": relative L2 too high";
 
-    // Device result should not be dramatically worse than the interpreter
     if (ref_metrics.rel_l2_norm > 1e-9) {
         double ratio = dev_metrics.rel_l2_norm / ref_metrics.rel_l2_norm;
         EXPECT_LT(ratio, 4.0)
@@ -422,7 +659,7 @@ static DQTestParams make_ggd(const std::string& name, int version, Shape shape,
 // clang-format on
 
 // ============================================================================
-// Test instantiation — V1: handcrafted symmetric i8 [-127, 127]
+// Test instantiation -- V1: handcrafted symmetric i8 [-127, 127]
 // ============================================================================
 INSTANTIATE_TEST_SUITE_P(
     V1_Uniform,
@@ -448,7 +685,7 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 // ============================================================================
-// Test instantiation — V2: ONNX DynamicQuantizeLinear u8 [0, 255]
+// Test instantiation -- V2: ONNX DynamicQuantizeLinear u8 [0, 255]
 // ============================================================================
 INSTANTIATE_TEST_SUITE_P(
     V2_Uniform,
@@ -474,7 +711,7 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 // ============================================================================
-// Test instantiation — V3: compiler pattern style i8 [-128, 127]
+// Test instantiation -- V3: compiler pattern style i8 [-128, 127]
 // ============================================================================
 INSTANTIATE_TEST_SUITE_P(
     V3_Uniform,

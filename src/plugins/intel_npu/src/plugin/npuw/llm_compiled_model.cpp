@@ -861,7 +861,7 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov
     auto new_model=ppp.build();
 
     // assume for I8 we dont have support in model - TODO: add check based on presence of quantization ops like scale/subtrat/clamp
-    if (lptype == ov::element::i8) {
+    if (lptype == ov::element::i8 || lptype == ov::element::u8) {
         LOG_DEBUG("Running KV-cache compression passes, transforming  kv-cache precision: FP16->i8 on model[" << model->get_friendly_name() <<"]");
         ov::npuw::run_kv_cache_dynamic_qantization_passes(new_model, lptype);
     }

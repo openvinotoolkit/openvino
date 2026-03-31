@@ -417,13 +417,13 @@ void ov::npuw::run_kv_cache_dynamic_qantization_passes(const std::shared_ptr<ov:
         std::vector<uint64_t> shape_group_size(rank, 1);
 
         ov::op::internal::DynamicQuantize::Attributes config;
-        config.quantization_dt = element::i8;
+        config.quantization_dt = element::u8;
         config.quantization_type = qt_type;
         config.scale_dt = element::f32;
         config.group_sizes = shape_group_size;
 
         if (qt_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric) {
-            config.zp_dt = element::i8;
+            config.zp_dt = element::u8;
         }
 
         auto kv_dyn_quant = std::make_shared<ov::op::internal::DynamicQuantize>(dq_input, config);
@@ -464,7 +464,7 @@ void ov::npuw::run_kv_cache_dynamic_qantization_passes(const std::shared_ptr<ov:
         std::shared_ptr<ov::Node> fp_subtracted_zp = start_node;
         if (qt_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric) {
             //  Subtract zero-point - TODO: share this memory with DynamicQuantize/read/assign?
-            auto zp = create_parameter_with_name(ov::element::i8, clear_embedding_index(start_node, isKey), make_dq_param_name("zp"));
+            auto zp = create_parameter_with_name(ov::element::u8, clear_embedding_index(start_node, isKey), make_dq_param_name("zp"));
 
             //this probably to be optimized by compiler - but for now we need it to avoid types mismatch
             auto converted_zp = std::make_shared<ov::op::v0::Convert>(zp, ov::element::f32);
@@ -557,7 +557,7 @@ void ov::npuw::run_kv_cache_dynamic_qantization_passes(const std::shared_ptr<ov:
 
     //TODO: for now internal op DynamicQuantize not easily gets converted into IE so run decompose here
     ov::pass::Manager manager("insert_dq_internal_ops");
-    manager.register_pass<ov::npuw::DecomposeDynamicQuantize>();
+    manager.register_pass<ov::npuw::DecomposeDynamicQuantize2>();
     manager.run_passes(model);
 
     model->validate_nodes_and_infer_types();
