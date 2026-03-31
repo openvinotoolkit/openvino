@@ -72,9 +72,6 @@ ConstantWriter::FilePosition ConstantWriter::write(const std::vector<std::string
             hash = util::u64_hash_combine(hash, ov::runtime::compute_hash(sv.data(), sv.size()));
         }
 
-        // Insert a placeholder so tellp() is only called on the first write for
-        // this hash, not on dedup hits. String chunks are transient; hash-only
-        // dedup is used (no memcmp fallback).
         auto [it, inserted] = m_string_hash_to_file_positions.emplace(hash, FilePosition{});
         if (!inserted) {
             return it->second;
