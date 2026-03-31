@@ -2547,6 +2547,17 @@ StreamsCalculationTestCase _1sockets_mock_latency_12 = {
      {0, MAIN_CORE_PROC, 2, 0, 0},
      {0, LP_EFFICIENT_CORE_PROC, 2, 0, 0}},
 };
+StreamsCalculationTestCase _1sockets_mock_latency_13 = {
+    1,
+    false,
+    0,
+    0,
+    4,
+    "LATENCY",
+    {},
+    {{4, 0, 0, 4, 0, 0, 0}},
+    {{1, LP_EFFICIENT_CORE_PROC, 4, 0, 0}},
+};
 StreamsCalculationTestCase _2sockets_mock_latency_35 = {
     1,
     false,
@@ -3066,6 +3077,7 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _1sockets_mock_latency_10,
                                          _1sockets_mock_latency_11,
                                          _1sockets_mock_latency_12,
+                                         _1sockets_mock_latency_13,
                                          _1sockets_mock_TP_1,
                                          _1sockets_mock_TP_2));
 

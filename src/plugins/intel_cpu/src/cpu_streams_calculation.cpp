@@ -531,8 +531,13 @@ struct StreamsInfoBuilder {
                 stream_info[THREADS_PER_STREAM] = n_threads_per_stream;
                 set_ids(proc_type_table[0]);
             } else if (proc_type_table[0][MAIN_CORE_PROC] == 0) {
-                stream_info[PROC_TYPE] = EFFICIENT_CORE_PROC;
-                n_threads_per_stream = proc_type_table[0][EFFICIENT_CORE_PROC];
+                if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
+                    stream_info[PROC_TYPE] = EFFICIENT_CORE_PROC;
+                    n_threads_per_stream = proc_type_table[0][EFFICIENT_CORE_PROC];
+                } else {
+                    stream_info[PROC_TYPE] = LP_EFFICIENT_CORE_PROC;
+                    n_threads_per_stream = proc_type_table[0][LP_EFFICIENT_CORE_PROC];
+                }
                 stream_info[THREADS_PER_STREAM] = n_threads_per_stream;
                 set_ids(proc_type_table[0]);
             } else {
