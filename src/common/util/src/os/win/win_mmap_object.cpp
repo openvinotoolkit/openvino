@@ -75,14 +75,15 @@ public:
     void set(const std::filesystem::path& path, size_t offset, size_t size) {
         // Note that file can't be changed (renamed/deleted) until it's unmapped. FILE_SHARE_DELETE flag allow
         // rename/deletion, but it doesn't work with FAT32 filesystem (works on NTFS)
-        auto h = ::CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+        const auto h =
+            ::CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
         map(path, h, offset, size);
-        m_id = util::u64_hash_combine(offset, size);
-        m_id = util::u64_hash_combine(std::hash<std::filesystem::path::string_type>{}(path.native()), m_id);
+        m_id = util::u64_hash_combine({std::hash<std::filesystem::path::string_type>{}(path.native()), offset, size});
     }
 
     void set_from_handle(HANDLE h, size_t offset, size_t size) {
         map("<external_handle>", h, offset, size);
+        set_id(h, offset, size);
     }
 
     char* data() noexcept override {
@@ -97,7 +98,20 @@ public:
     }
 
 private:
-    void map(const std::filesystem::path& path, HANDLE h, const size_t offset, const size_t size) {
+    void set_id(const HANDLE h, const size_t offset, const size_t size) {
+        if (FILE_ID_INFO info; GetFileInformationByHandleEx(h, FileIdInfo, &info, sizeof(info))) {
+            static_assert(sizeof(info.FileId) == 16);
+            uint64_t fid_l, fid_r;
+            std::memcpy(&fid_l, &info.FileId, sizeof(fid_l));
+            std::memcpy(&fid_r, reinterpret_cast<const char*>(&info.FileId) + sizeof(fid_l), sizeof(fid_r));
+            m_id = util::u64_hash_combine({offset, size, info.VolumeSerialNumber, fid_l, fid_r});
+        } else {
+            throw std::runtime_error{"Cannot obtain file id info for handle " +
+                                     std::to_string(reinterpret_cast<uint64_t>(h))};
+        }
+    }
+
+    void map(const std::filesystem::path& path, const HANDLE h, const size_t offset, const size_t size) {
         if (h == INVALID_HANDLE_VALUE) {
             throw std::runtime_error("Can not open file " + util::path_to_string(path) +
                                      " for mapping. Ensure that file exists and has appropriate permissions");
@@ -154,7 +168,7 @@ std::shared_ptr<MappedMemory> load_mmap_object(const std::filesystem::path& path
     return holder;
 }
 
-std::shared_ptr<ov::MappedMemory> load_mmap_object_from_handle(FileHandle handle, size_t offset, size_t size) {
+std::shared_ptr<ov::MappedMemory> load_mmap_object(FileHandle handle, size_t offset, size_t size) {
     if (handle == INVALID_HANDLE_VALUE || handle == nullptr) {
         throw std::runtime_error("Invalid handle provided to load_mmap_object");
     }

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "llm_infer_request.hpp"
+#include "../llm_infer_request.hpp"
 
 namespace ov {
 namespace npuw {
