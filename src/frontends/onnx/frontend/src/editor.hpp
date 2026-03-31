@@ -197,7 +197,7 @@ public:
     /// Serializes in binary mode.
     ///
     /// \param out_file_path A path to the file where the modified model should be dumped.
-    void serialize(const std::filesystem::path& out_file_path) const;  // todo ?
+    void serialize(const std::filesystem::path& out_file_path) const;
 
     /// \brief Returns the InputEdge based on a node (node name or output name)
     ///        and an input (input name or input index).
