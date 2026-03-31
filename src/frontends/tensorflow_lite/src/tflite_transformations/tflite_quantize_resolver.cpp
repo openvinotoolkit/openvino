@@ -45,13 +45,35 @@ pass::TFLQuantizeConvert::TFLQuantizeConvert() {
         auto tfl_quantize = ov::as_type_ptr<TFLQuantize>(tfl_quantize_node);
         if (!tfl_quantize)
             return false;
-        tfl_quantize->set_type(type);
-        convert->output(0).replace(tfl_quantize->output(0));
-        return true;
+
+        auto output_targets = tfl_quantize->get_output_target_inputs(0);
+
+        // Matcher guarantees at least one Convert consumer for this TFLQuantize.
+        if (output_targets.size() == 1) {
+            tfl_quantize->set_type(type);
+            convert->output(0).replace(tfl_quantize->output(0));
+            return true;
+        }
+
+        // If there are multiple consumers of TFLQuantize, we cannot just change its output type to f32.
+        auto new_tfl_quantize = std::make_shared<TFLQuantize>(tfl_quantize->input_value(0),
+                                                              tfl_quantize->get_info(),
+                                                              tfl_quantize->get_original_type());
+        new_tfl_quantize->set_type(type);
+        bool replaced = false;
+        for (const auto& target : output_targets) {
+            auto consumer_convert = ov::as_type_ptr<v0::Convert>(target.get_node()->shared_from_this());
+            if (consumer_convert && consumer_convert->get_destination_type() == element::f32) {
+                consumer_convert->input(0).replace_source_output(new_tfl_quantize->output(0));
+                consumer_convert->output(0).replace(new_tfl_quantize->output(0));
+                replaced = true;
+            }
+        }
+        return replaced;
     };
 
     auto m =
-        std::make_shared<pattern::Matcher>(convert_label, "ov::frontend::tensorflow_lite::pass::TFLQuantizeResolver");
+        std::make_shared<pattern::Matcher>(convert_label, "ov::frontend::tensorflow_lite::pass::TFLQuantizeConvert");
     register_matcher(m, callback);
 }
 
