@@ -545,7 +545,13 @@ struct StreamsInfoBuilder {
                 }
             }
         } else {
+            // Fallback for single-socket or tensor-parallel when model_prefer_threads == 0.
+            // Ensure n_threads_per_stream is always positive, even on LP-only systems where
+            // ALL_PROC == LP_EFFICIENT_CORE_PROC and the original difference would be zero.
             n_threads_per_stream = proc_type_table[0][ALL_PROC] - proc_type_table[0][LP_EFFICIENT_CORE_PROC];
+            if (n_threads_per_stream <= 0) {
+                n_threads_per_stream = std::max(1, proc_type_table[0][ALL_PROC]);
+            }
         }
     }
 
