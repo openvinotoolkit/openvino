@@ -166,6 +166,7 @@ Operation Specifications
    PSROIPooling-1 <operation-specs/detection/psroi-pooling-1>
    Pad-1 <operation-specs/movement/pad-1>
    Pad-12 <operation-specs/movement/pad-12>
+   PagedGatedDeltaNet <operation-specs/internal/paged-gated-delta-net>
    Parameter-1 <operation-specs/infrastructure/parameter-1>
    Power-1 <operation-specs/arithmetic/power-1>
    PriorBoxClustered-1 <operation-specs/detection/prior-box-clustered-1>
