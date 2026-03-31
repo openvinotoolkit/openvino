@@ -66,7 +66,8 @@ ConstantWriter::FilePosition ConstantWriter::write(const std::vector<std::string
     for (const auto& sv : chunks)
         new_size += sv.size();
 
-    const FilePosition offset = m_binary_output.get().tellp() - m_blob_offset;
+    const FilePosition write_pos = m_binary_output.get().tellp();
+    const FilePosition offset = write_pos - m_blob_offset;
 
     if (m_enable_compression) {
         HashValue hash = 0;
