@@ -882,8 +882,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
             const auto& rt_info = model->get_rt_info();
             auto weights_path = rt_info.find("__weights_path");
             if (weights_path != rt_info.end()) {
-                parsed.m_config[ov::weights_path.name()] =
-                    ov::util::path_to_string(weights_path->second.as<std::filesystem::path>());
+                parsed.m_config[ov::weights_path.name()] = weights_path->second;
             }
         }
 
