@@ -28,7 +28,7 @@
 #
 # Source: githubnext/agentics/workflows/ci-doctor.md@0aa94a6e40aeaf131118476bc6a07e55c4ceb147
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"2a124397257b30f474e2efb5de607409569d7e6b752dad90759205986c2de3b7","compiler_version":"v0.51.5"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"9c24c5687ab8294b452012a1e361a3d128f4cc2fb5e8c0317a7da7abff36d164","compiler_version":"v0.51.5"}
 
 name: "CI Failure Doctor"
 "on":
@@ -40,6 +40,15 @@ name: "CI Failure Doctor"
       run_id:
         description: Workflow run ID to investigate (for manual testing)
         required: false
+  workflow_run:
+    # zizmor: ignore[dangerous-triggers] - workflow_run trigger is secured with role and fork validation
+    branches:
+    - master
+    types:
+    - completed
+    workflows:
+    - Linux (Ubuntu 22.04, Python 3.11)
+    - Windows (VS 2022, Python 3.11, Release)
 
 permissions: {}
 
@@ -51,9 +60,12 @@ run-name: "CI Failure Doctor"
 jobs:
   activation:
     needs: pre_activation
+    # zizmor: ignore[dangerous-triggers] - workflow_run trigger is secured with role and fork validation
     if: >
-      (needs.pre_activation.outputs.activated == 'true') && (github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'failure' &&
-      (github.event.workflow_run.head_branch == 'master' || github.event.workflow_run.event == 'pull_request')))
+      ((needs.pre_activation.outputs.activated == 'true') && (github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'failure' &&
+      (github.event.workflow_run.head_branch == 'master' || github.event.workflow_run.event == 'pull_request')))) &&
+      ((github.event_name != 'workflow_run') || ((github.event.workflow_run.repository.id == github.repository_id) &&
+      (!(github.event.workflow_run.repository.fork))))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -283,6 +295,8 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions: read-all
+    concurrency:
+      group: "gh-aw-copilot-${{ github.workflow }}"
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -375,7 +389,7 @@ jobs:
           cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
           [
             {
-              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"[CI Failure Doctor]\". Labels [automation ci] will be automatically added.",
+              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"[CI Failure Doctor] \". Labels [category: CI] will be automatically added. Assignees [akashchi] will be automatically assigned.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -812,7 +826,7 @@ jobs:
                   "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
                   "GITHUB_READ_ONLY": "1",
-                  "GITHUB_TOOLSETS": "repos,issues,pull_requests,actions"
+                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests,actions"
                 }
               },
               "safeoutputs": {
@@ -1237,13 +1251,25 @@ jobs:
     permissions:
       actions: read
     outputs:
-      activated: ${{ steps.check_rate_limit.outputs.rate_limit_ok == 'true' }}
+      activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_rate_limit.outputs.rate_limit_ok == 'true') }}
       matched_command: ''
     steps:
       - name: Setup Scripts
         uses: github/gh-aw/actions/setup@88319be75ab1adc60640307a10e5cf04b3deff1e # v0.51.5
         with:
           destination: /opt/gh-aw/actions
+      - name: Check team membership for workflow
+        id: check_membership
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_REQUIRED_ROLES: admin,maintainer,write
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_membership.cjs');
+            await main();
       - name: Check user rate limit
         id: check_rate_limit
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -1312,7 +1338,7 @@ jobs:
           GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,telemetry.enterprise.githubcopilot.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":1},\"create_issue\":{\"labels\":[\"automation\",\"ci\"],\"max\":1,\"title_prefix\":\"[CI Failure Doctor]\"},\"missing_data\":{},\"missing_tool\":{},\"update_issue\":{\"allow_body\":true,\"max\":1}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":1},\"create_issue\":{\"assignees\":[\"akashchi\"],\"labels\":[\"category: CI\"],\"max\":1,\"title_prefix\":\"[CI Failure Doctor] \"},\"missing_data\":{},\"missing_tool\":{},\"update_issue\":{\"allow_body\":true,\"max\":1}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
