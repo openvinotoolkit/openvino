@@ -120,12 +120,12 @@ In order to test applications without hardware one can use emulation software. T
 
 For example, to emulate RVV 0.7.1:
 ```sh
-<riscv_toolchain_root>/bin/qemu-riscv64 -cpu rv64,x-v=true,vext_spec=v0.7.1 <executable_file_path>
+<riscv_toolchain_root>/bin/qemu-riscv64 -cpu rv64,v=true,vext_spec=v0.7.1 <executable_file_path>
 ```
 
 Or to emulate RVV 1.0:
 ```sh
-<riscv_toolchain_root>/bin/qemu-riscv64 -cpu rv64,x-v=true,vext_spec=v1.0 <executable_file_path>
+<riscv_toolchain_root>/bin/qemu-riscv64 -cpu rv64,v=true,vext_spec=v1.0 <executable_file_path>
 ```
 
 ## See also
