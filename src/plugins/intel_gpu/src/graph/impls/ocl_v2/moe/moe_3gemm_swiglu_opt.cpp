@@ -10,6 +10,7 @@
 #define DEBUG_MOE_LOG 0
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+#    include <algorithm>
 #    include <initializer_list>
 #    include <oneapi/dnnl/dnnl.hpp>
 #    include <oneapi/dnnl/dnnl_ocl.hpp>
@@ -1902,7 +1903,7 @@ public:
         dnnl::memory::desc down_zp_md;
         bool has_zp = false;
     };
-    using grouped_kernel_lru = LruCache<int, std::shared_ptr<grouped_onednn_kernel>, std::hash<int>>;
+    using grouped_kernel_lru = LruCache<std::pair<int, int>, std::shared_ptr<grouped_onednn_kernel>, PairHash>;
     grouped_kernel_lru _grouped_kernels{128};
     onednn_kernel& get_kernel(int n_token, int expert_no, typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
         auto key = std::make_pair(n_token, expert_no);
@@ -1964,11 +1965,49 @@ public:
         return *_kernels.get(key);
     }
 
-    // Build (and cache) three grouped dnnl::matmul primitives for gate/up/down,
-    // keyed by total_gathered_tokens to handle variable-length prefill batches.
-    grouped_onednn_kernel& get_grouped_kernel(int total_tokens, typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
-        if (_grouped_kernels.has(total_tokens)) {
-            return *_grouped_kernels.get(total_tokens);
+    // Quantize max_tokens_per_expert into a bucketed upper bound to limit the
+    // number of distinct cached primitives while keeping dispatch-safe values.
+    //
+    // Strategy adapts bucket granularity to total_tokens:
+    //   total_tokens <= 128  : no bucketing (host overhead dominates)
+    //   128 < total <= 1024  : 4 buckets, bucket_size aligned to 32
+    //   1024 < total <= 8192 : 8 buckets, bucket_size aligned to 32
+    //   total > 8192         : fixed bucket_size = 1024
+    // The last bucket always caps at total_tokens to guarantee safety.
+    static int bucket_max_variable_dim(int max_tokens_per_expert, int total_tokens) {
+        if (max_tokens_per_expert <= 0 || total_tokens <= 0)
+            return total_tokens;
+
+        // Short sequences: host-side overhead dominates, skip bucketing
+        if (total_tokens <= 128)
+            return total_tokens;
+
+        int bucket_size;
+        if (total_tokens <= 1024) {
+            // 4 buckets, first 3 have 32-aligned width, last = total_tokens
+            bucket_size = (((total_tokens + 3) / 4) + 31) / 32 * 32;
+        } else if (total_tokens <= 8192) {
+            // 8 buckets, first 7 have 32-aligned width, last = total_tokens
+            bucket_size = (((total_tokens + 7) / 8) + 31) / 32 * 32;
+        } else {
+            // Fixed 1024-wide buckets for very long sequences
+            bucket_size = 1024;
+        }
+
+        // Snap up to bucket ceiling, clamp to total_tokens for the last bucket
+        // int bucketed = ((max_tokens_per_expert + bucket_size - 1) / bucket_size) * bucket_size;
+        // return std::min(bucketed, total_tokens);
+        return std::min(bucket_size, total_tokens);
+    }
+
+    // Build (and cache) three grouped dnnl::matmul primitives for gate/up/down.
+    // Cache key is (total_tokens, bucketed_max_variable_dim). The adaptive
+    // bucketing limits distinct primitives to 4-10 per total_tokens value.
+    grouped_onednn_kernel& get_grouped_kernel(int total_tokens, int max_tokens_per_expert, typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
+        int max_variable_dim = bucket_max_variable_dim(max_tokens_per_expert, total_tokens);
+        auto key = std::make_pair(total_tokens, max_variable_dim);
+        if (_grouped_kernels.has(key)) {
+            return *_grouped_kernels.get(key);
         }
 
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
@@ -2012,8 +2051,11 @@ public:
             }
 
             // Grouped src/dst: tokens are grouped by expert along axis-0
-            auto src_md = dnnl::memory::desc::grouped(dnnl::memory::dims{total_tokens, K}, a_dt, 0, num_experts);
-            auto dst_md = dnnl::memory::desc::grouped(dnnl::memory::dims{total_tokens, N}, a_dt, 0, num_experts);
+            // max_variable_dim provides a static per-group upper bound for dispatch optimization
+            auto src_md =
+                dnnl::memory::desc::grouped(dnnl::memory::dims{total_tokens, K}, a_dt, 0, num_experts, dnnl::memory::data_type::s32, max_variable_dim);
+            auto dst_md =
+                dnnl::memory::desc::grouped(dnnl::memory::dims{total_tokens, N}, a_dt, 0, num_experts, dnnl::memory::data_type::s32, max_variable_dim);
             // Weight: logical [E, K, N], physical layout acb -> stored as [E, N, K]
             auto w_md = dnnl::memory::desc(dnnl::memory::dims{num_experts, K, N}, w_dt, dnnl::memory::format_tag::acb);
 
@@ -2051,8 +2093,8 @@ public:
         if (has_zp)
             gk->down_zp_md = make_quant_md(num_experts, K_d, _down_group_size, N_d, dw_dt);
 
-        _grouped_kernels.add(total_tokens, gk);
-        return *_grouped_kernels.get(total_tokens);
+        _grouped_kernels.add(key, gk);
+        return *_grouped_kernels.get(key);
     }
 
     //  inputs 0 is hidden_states, inputs 1 is router_logits[num_tokens, NUM_EXPERTS=128]
@@ -2242,8 +2284,15 @@ public:
         }
         int total_gathered_tokens = static_cast<int>(token_num) * max_topk;
 
+        // Compute actual max tokens assigned to any single expert.
+        int max_tokens_per_expert = 0;
+        if (num_actually_used_experts > 0) {
+            max_tokens_per_expert = *std::max_element(tokens_lens_per_expert_cpu.begin(), tokens_lens_per_expert_cpu.begin() + num_actually_used_experts);
+        }
+
         GPU_DEBUG_TRACE_DETAIL << "\nexec_prefill_grouped_gemm: token_num=" << token_num << ", total_gathered_tokens=" << total_gathered_tokens
-                               << ", num_actually_used_experts=" << num_actually_used_experts << std::endl;
+                               << ", max_tokens_per_expert=" << max_tokens_per_expert << ", num_actually_used_experts=" << num_actually_used_experts
+                               << std::endl;
 
         // Upload scratch metadata for the scatter_reduce and gather kernels
         intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT]
@@ -2290,7 +2339,7 @@ public:
         // ----------------------------------------------------------------
         // Steps 3-5: OneDNN grouped GEMM – gate, up, SiLU, down
         // ----------------------------------------------------------------
-        auto& gk = get_grouped_kernel(total_gathered_tokens, instance);
+        auto& gk = get_grouped_kernel(static_cast<int>(token_num), max_tokens_per_expert, instance);
         auto* offsets_ptr = intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS]->buffer_ptr();
 
         // Helper: wrap a flat USM buffer as an OneDNN grouped memory (data + expert row-offsets)
