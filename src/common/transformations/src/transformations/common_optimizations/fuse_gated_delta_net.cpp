@@ -32,6 +32,12 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/non_zero.hpp"
+#include "openvino/op/gather_nd.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -42,6 +48,7 @@
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/utils/utils.hpp"
+#include "transformations/utils/print_model.hpp"
 
 namespace pattern = ov::pass::pattern;
 namespace v0 = ov::op::v0;
@@ -358,6 +365,69 @@ ov::pass::FuseL2NormIntoGDN::FuseL2NormIntoGDN() {
     register_matcher(m, callback);
 }
 
+
+ov::pass::FuseQKRepeatIntoGDN::FuseQKRepeatIntoGDN() {
+    auto query = pattern::any_input(pattern::shape_matches("[?, ?, head_num, qk_head_size]"));
+    auto key = pattern::any_input(pattern::shape_matches("[?, ?, head_num, qk_head_size]"));
+    auto value = pattern::any_input(pattern::has_static_rank());
+    auto init_state = pattern::any_input(pattern::has_static_rank());
+    auto gate = pattern::any_input(pattern::has_static_rank());
+    auto beta = pattern::any_input(pattern::has_static_rank());
+
+    auto transpose_Transpose_3 = pattern::wrap_type<v1::Transpose>({query, {2,1,0,3}});
+    auto unsqueeze_Unsqueeze = pattern::wrap_type<v0::Unsqueeze>({transpose_Transpose_3, 1});
+    
+    
+    
+    auto shape_of_query = pattern::wrap_type<op::v3::ShapeOf>({query}, {{"output_type", "i64"}});
+    auto size_Gather_15 = pattern::wrap_type<op::v8::Gather>({shape_of_query, {2}, 0}, {{"batch_dims", 0}});
+    auto full_Broadcast = pattern::wrap_type<op::v3::Broadcast>({2, size_Gather_15}, {{"mode", "numpy"}});
+    auto max_ReduceMax = pattern::wrap_type<v1::ReduceMax>({full_Broadcast, {0}}, {{"keep_dims", false}});
+    auto Unsqueeze_2989 = pattern::wrap_type<v0::Unsqueeze>({max_ReduceMax, 0});
+    auto size_ShapeOf_16 = pattern::wrap_type<op::v3::ShapeOf>({transpose_Transpose_3}, {{"output_type", "i64"}});
+    auto Gather_36898 = pattern::wrap_type<op::v8::Gather>({size_ShapeOf_16, {1,2}, 0}, {{"batch_dims", 0}});
+    auto ListConstruct_8 = pattern::wrap_type<v0::Concat>({{1}, Unsqueeze_2989, Gather_36898, {"qk_head_size"}}, {{"axis", 0}});
+    auto expand_Broadcast = pattern::wrap_type<op::v3::Broadcast>({unsqueeze_Unsqueeze, ListConstruct_8}, {{"mode", "bidirectional"}});
+    
+    auto arange_Range = pattern::wrap_type<op::v4::Range>({0, max_ReduceMax, 1}, {{"output_type", "i64"}});
+    auto unsqueeze_Unsqueeze_1 = pattern::wrap_type<op::v0::Unsqueeze>({full_Broadcast, 1});
+    auto lt_Less = pattern::wrap_type<v1::Less>({arange_Range, unsqueeze_Unsqueeze_1}, {{"auto_broadcast", "numpy"}});
+    auto index_NonZero = pattern::wrap_type<op::v3::NonZero>({lt_Less}, {{"output_type", "i64"}});
+    auto index_Transpose = pattern::wrap_type<op::v1::Transpose>({index_NonZero, {1,0}}); 
+    auto index_GatherND = pattern::wrap_type<op::v8::GatherND>({expand_Broadcast, index_Transpose}, {{"batch_dims", 0}});
+    auto transpose_Transpose_4 = pattern::wrap_type<op::v1::Transpose>({index_GatherND, {2,1,0,3}});
+    
+    auto transpose_Transpose_6 = pattern::wrap_type<op::v1::Transpose>({key, {2,1,0,3}});
+    auto unsqueeze_Unsqueeze_2 = pattern::wrap_type<v0::Unsqueeze>({transpose_Transpose_6, 1});
+    auto expand_Broadcast_1 = pattern::wrap_type<op::v3::Broadcast>({unsqueeze_Unsqueeze_2, ListConstruct_8}, {{"mode", "bidirectional"}});
+    auto index_GatherND_1 = pattern::wrap_type<op::v8::GatherND>({expand_Broadcast_1, index_Transpose}, {{"batch_dims", 0}});
+    auto transpose_Transpose_7 = pattern::wrap_type<op::v1::Transpose>({index_GatherND_1, {2,1,0,3}});
+ 
+    auto gdn = pattern::wrap_type<ov::op::internal::GatedDeltaNet>(
+        {transpose_Transpose_4, transpose_Transpose_7, value, init_state, gate, beta});
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto gdn_node = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(pattern_map.at(gdn).get_node_shared_ptr());
+        auto new_gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(pattern_map.at(query),
+                                                                         pattern_map.at(key),
+                                                                         pattern_map.at(value),
+                                                                         pattern_map.at(init_state),
+                                                                         pattern_map.at(gate),
+                                                                         pattern_map.at(beta),
+                                                                         gdn_node->get_fuse_qk_l2norm(),
+                                                                         gdn_node->get_q_l2_norm_eps(),
+                                                                         gdn_node->get_k_l2_norm_eps());
+        ov::copy_runtime_info(gdn_node, new_gdn);
+        new_gdn->set_friendly_name(gdn_node->get_friendly_name());
+        ov::replace_node(gdn_node, new_gdn);
+        return true;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(gdn, "FuseQKRepeatIntoGDN");
+    register_matcher(m, callback);
+}
+
 bool ov::pass::GatedDeltaNetFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(GatedDeltaNetFusion);
     ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
@@ -367,5 +437,6 @@ bool ov::pass::GatedDeltaNetFusion::run_on_model(const std::shared_ptr<ov::Model
     // remove redundant transpose after loop fusion, which are inserted by FuseGDNLoop
     symbolic_ctx_manager->register_pass<ov::pass::TransposeFuse>();
     symbolic_ctx_manager->register_pass<ov::pass::FuseL2NormIntoGDN>();
+    symbolic_ctx_manager->register_pass<ov::pass::FuseQKRepeatIntoGDN>();
     return symbolic_optimizations.run_on_model(model);
 }

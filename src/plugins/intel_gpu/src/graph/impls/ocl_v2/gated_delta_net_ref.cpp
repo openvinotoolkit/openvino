@@ -1,0 +1,205 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "gated_delta_net_ref.hpp"
+
+#include "intel_gpu/primitives/gated_delta_net.hpp"
+#include "primitive_ocl_base.hpp"
+#include "utils/kernel_generator.hpp"
+
+namespace ov::intel_gpu::ocl {
+namespace {
+
+constexpr size_t v_block_size = 4;
+
+size_t get_subgroup_size(gpu_arch arch) {
+    switch (arch) {
+    case gpu_arch::gen9:
+    case gpu_arch::gen11:
+    case gpu_arch::xe_lp:
+    case gpu_arch::xe_hp:
+    case gpu_arch::xe_hpg:
+        return 8;
+    case gpu_arch::xe_hpc:
+    case gpu_arch::xe2:
+    case gpu_arch::xe3:
+        return 16;
+    default:
+        return 0;
+    }
+}
+
+class GatedDeltaNetRefGenerator : public KernelGenerator {
+public:
+    GatedDeltaNetRefGenerator() : KernelGenerator("gated_delta_net_ref") {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = KernelGenerator::get_jit_constants(params);
+        auto desc = params.typed_desc<gated_delta_net>();
+        const auto& q_shape = params.get_input_layout(0).get_partial_shape();
+        const size_t q_head_nums = q_shape[2].get_length();
+        const size_t k_head_dims = q_shape[3].get_length();
+        const auto& v_shape = params.get_input_layout(2).get_partial_shape();
+        const size_t v_head_nums = v_shape[2].get_length();
+        const size_t v_head_dims = v_shape[3].get_length();
+        const float scale_factor = 1.0f / std::sqrt(static_cast<double>(k_head_dims));
+        const auto output_state = params.output_layouts.size() > 1 ? 1 : 0;
+
+        jit.make("K_HEAD_NUM", q_head_nums);
+        jit.make("V_HEAD_NUM", v_head_nums);
+        jit.make("K_HEAD_DIM", k_head_dims);
+        jit.make("V_HEAD_DIM", v_head_dims);
+        jit.make("SUBGROUP_SIZE", get_subgroup_size(params.get_device_info().arch));
+        jit.make("FUSE_QK_L2NORM", desc->fuse_qk_l2norm ? 1 : 0);
+        jit.make("Q_L2_NORM_EPS", desc->q_l2_norm_eps);
+        jit.make("K_L2_NORM_EPS", desc->k_l2_norm_eps);
+        jit.make("SCALE_FACTOR", scale_factor);
+        jit.make("OUTPUT_STATE", output_state);
+
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        Arguments args;
+
+        for (uint32_t i = 0; i < params.input_layouts.size(); i++) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, i});
+        }
+
+        for (uint32_t i = 0; i < params.output_layouts.size(); i++) {
+            args.push_back({ArgumentDescriptor::Types::OUTPUT, i});
+        }
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 3});
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 4});
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 5});
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 6});
+
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+            assert(!params.is_dynamic());
+            auto& wgs = kd.params.workGroups;
+
+            const auto& q_shape = params.get_input_layout(0).get_partial_shape();
+            const auto& v_shape = params.get_input_layout(2).get_partial_shape();
+            const size_t batch = q_shape[0].get_length();
+            const size_t seq_len = q_shape[1].get_length();
+            const size_t head_nums = v_shape[2].get_length();
+            const size_t v_head_dims = v_shape[3].get_length();
+            const size_t v_blocks = (v_head_dims + v_block_size - 1) / v_block_size;
+            const size_t subgroup_size = get_subgroup_size(params.get_device_info().arch);
+
+            auto get_head_offset = [](const cldnn::layout& layout) {
+                const auto& lower_pads = layout.data_padding._lower_size;
+                return lower_pads.size() > 2 ? lower_pads[2] : 0;
+            };
+
+            const auto& q_pitches = params.input_layouts[0].get_pitches();
+            const auto& k_pitches = params.input_layouts[1].get_pitches();
+            const auto& v_pitches = params.input_layouts[2].get_pitches();
+
+            size_t query_offset = get_head_offset(params.input_layouts[0]);
+            size_t key_offset = get_head_offset(params.input_layouts[1]);
+            size_t value_offset = get_head_offset(params.input_layouts[2]);
+
+            const int32_t q_t_stride = q_pitches.size() > 1 ? static_cast<int32_t>(q_pitches[1]) : static_cast<int32_t>(q_shape[2].get_length() * q_shape[3].get_length());
+            const int32_t k_t_stride = k_pitches.size() > 1 ? static_cast<int32_t>(k_pitches[1]) : static_cast<int32_t>(q_shape[2].get_length() * q_shape[3].get_length());
+            const int32_t v_t_stride = v_pitches.size() > 1 ? static_cast<int32_t>(v_pitches[1]) : static_cast<int32_t>(v_shape[2].get_length() * v_shape[3].get_length());
+
+            wgs.global = {batch, head_nums, v_blocks * subgroup_size};
+            wgs.local = {1, 1, subgroup_size};
+
+            kd.params.scalars.clear();
+            std::vector<int32_t> scalars{static_cast<int32_t>(seq_len),
+                                         static_cast<int32_t>(query_offset),
+                                         static_cast<int32_t>(key_offset),
+                                         static_cast<int32_t>(value_offset),
+                                         q_t_stride,
+                                         k_t_stride,
+                                         v_t_stride};
+            for (auto i : scalars) {
+                scalar_desc desc;
+                desc.t = scalar_desc::Types::INT32;
+                desc.v.s32 = static_cast<int32_t>(i);
+                kd.params.scalars.push_back(desc);
+            }
+        }};
+    }
+};
+
+class GatedDeltaNetRefImpl : public PrimitiveImplOCL {
+public:
+    DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::GatedDeltaNetRefImpl)
+
+    Stage::Ptr gated_delta_net = make_stage<GatedDeltaNetRefGenerator>();
+
+    GatedDeltaNetRefImpl() : PrimitiveImplOCL(GatedDeltaNetRef::get_type_info_static()) {}
+    GatedDeltaNetRefImpl(const program_node& node, const RuntimeParams& params) : GatedDeltaNetRefImpl() {
+        add_stage(gated_delta_net, params);
+    }
+
+    [[nodiscard]] cldnn::kernel_arguments_data get_arguments(const cldnn::primitive_inst& instance) const override {
+        auto args = PrimitiveImplOCL::get_arguments(instance);
+        const auto& desc = instance.get_typed_desc<cldnn::gated_delta_net>();
+
+        if (!desc->variable_info.variable_id.empty()) {
+            auto& variable = instance.get_network().get_variable(desc->variable_info.variable_id);
+
+            OPENVINO_ASSERT(args.inputs.size() >= 6, "[GPU] gated_delta_net expects 6 inputs");
+            OPENVINO_ASSERT(args.outputs.size() >= 2, "[GPU] gated_delta_net expects 2 outputs");
+
+            // Reuse variable state once initialized; otherwise use initial_state input.
+            if (variable.is_set()) {
+                args.inputs[3] = variable.get_memory();
+            }
+            // Write updated state directly to variable memory and avoid explicit Assign.
+            args.outputs[1] = variable.get_memory();
+        }
+
+        return args;
+    }
+
+    cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance) override {
+        const auto& desc = instance.get_typed_desc<cldnn::gated_delta_net>();
+
+        if (!desc->variable_info.variable_id.empty()) {
+            auto& variable = instance.get_network().get_variable(desc->variable_info.variable_id);
+
+            // Keep variable layout in sync with runtime state shape.
+            variable.set_layout(instance.input_memory_ptr(3)->get_layout());
+
+            // State source can change from initial_state -> variable after first iteration.
+            for (const auto& stage_id : _order) {
+                _stages[stage_id]->kd.need_args_update = true;
+            }
+
+            auto ev = PrimitiveImplOCL::execute(events, instance);
+            variable.set();
+            return ev;
+        }
+
+        return PrimitiveImplOCL::execute(events, instance);
+    }
+
+    [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
+        return make_deep_copy<GatedDeltaNetRefImpl>(this);
+    }
+};
+
+}  // namespace
+
+std::unique_ptr<primitive_impl> GatedDeltaNetRef::create_impl(const program_node& node, const RuntimeParams& params) const {
+    assert(node.is_type<gated_delta_net>());
+    return std::make_unique<GatedDeltaNetRefImpl>(node, params);
+}
+
+}  // namespace ov::intel_gpu::ocl
+
+BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::GatedDeltaNetRefImpl)
