@@ -316,7 +316,7 @@ void sort_table_by_numa_node_id(int current_numa_node, std::vector<std::vector<i
             }
         }
     }
-};
+}
 
 struct StreamsInfoBuilder {
     const int input_streams;
@@ -365,7 +365,7 @@ struct StreamsInfoBuilder {
         int total_threads = stream_info[THREADS_PER_STREAM];
         int socket_id = stream_info[STREAM_SOCKET_ID];
         int node_start = one_proc_table.size() == 1 ? 0 : 1;
-        int node_end = static_cast<int>(one_proc_table.size() == 1 ? 1 : one_proc_table.size());
+        auto node_end = static_cast<int>(one_proc_table.size() == 1 ? 1 : one_proc_table.size());
 
         for (int n_mode = current_socket_id < 0 ? 1 : 3; (n_mode > 0) && (total_threads > 0); n_mode--) {
             for (int n = MAIN_CORE_PROC; (n <= HYPER_THREADING_PROC) && (total_threads > 0); n++) {
@@ -489,12 +489,12 @@ struct StreamsInfoBuilder {
         }
     }
 
-    bool has_tensor_parallel_policy() const {
+    [[nodiscard]] bool has_tensor_parallel_policy() const {
         return hint_model_distribution_policy.find(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL) !=
                hint_model_distribution_policy.end();
     }
 
-    bool is_latency_mode() const {
+    [[nodiscard]] bool is_latency_mode() const {
         return ((!input_streams_changed) &&
                 (input_perf_hint == ov::util::to_string(ov::hint::PerformanceMode::LATENCY))) ||
                ((input_streams_changed) && (input_streams == 1));
@@ -879,7 +879,7 @@ struct StreamsInfoBuilder {
                              ALL_PROC);
         } else if (stream_info[PROC_TYPE] == MAIN_CORE_PROC) {
             if (stream_info[THREADS_PER_STREAM] == proc_socket_table[0][MAIN_CORE_PROC]) {
-                streams_info_table.push_back(std::move(stream_info));
+                streams_info_table.push_back(stream_info);
             } else {
                 stream_info[PROC_TYPE] = ALL_PROC;
                 streams_info_table.push_back(stream_info);
@@ -889,10 +889,10 @@ struct StreamsInfoBuilder {
                 streams_info_table.push_back(stream_info);
                 stream_info[PROC_TYPE] = HYPER_THREADING_PROC;
                 stream_info[THREADS_PER_STREAM] = proc_socket_table[0][HYPER_THREADING_PROC];
-                streams_info_table.push_back(std::move(stream_info));
+                streams_info_table.push_back(stream_info);
             }
         } else {
-            streams_info_table.push_back(std::move(stream_info));
+            streams_info_table.push_back(stream_info);
         }
     }
 
@@ -932,7 +932,7 @@ struct StreamsInfoBuilder {
 
         populate_streams_info_table();
 
-        return std::move(streams_info_table);
+        return streams_info_table;
     }
 
 private:
@@ -946,7 +946,7 @@ private:
      * @param socket_id   The stream's target socket (-1 means any).
      * @param row_socket  The socket id of the row being tested.
      */
-    bool matches_socket_mode(int n_mode, int socket_id, int row_socket) const {
+    [[nodiscard]] bool matches_socket_mode(int n_mode, int socket_id, int row_socket) const {
         switch (n_mode) {
         case 3:
             return (current_socket_id == row_socket) && ((socket_id < 0) || (socket_id == row_socket));

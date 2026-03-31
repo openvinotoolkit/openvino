@@ -30,7 +30,7 @@ class StreamsCalculationTests : public ov::test::TestsCommon,
                                 public testing::WithParamInterface<std::tuple<StreamsCalculationTestCase>> {
 public:
     void SetUp() override {
-        const auto& test_data = std::get<0>(GetParam());
+        auto test_data = std::get<0>(GetParam());
 
         std::vector<std::vector<int>> test_stream_info_table =
             ov::intel_cpu::get_streams_info_table(test_data.input_streams,
