@@ -66,30 +66,26 @@ ConstantWriter::FilePosition ConstantWriter::write(const std::vector<std::string
     for (const auto& sv : chunks)
         new_size += sv.size();
 
+    const FilePosition offset = m_binary_output.get().tellp() - m_blob_offset;
+
     if (m_enable_compression) {
         HashValue hash = 0;
         for (const auto& sv : chunks) {
             hash = util::u64_hash_combine(hash, ov::runtime::compute_hash(sv.data(), sv.size()));
         }
 
-        auto [it, inserted] = m_string_hash_to_file_positions.emplace(hash, FilePosition{});
+        const auto [it, inserted] = m_string_hash_to_file_positions.emplace(hash, offset);
         if (!inserted) {
             return it->second;
         }
 
-        it->second = m_binary_output.get().tellp() - m_blob_offset;
         m_data_hash = util::u64_hash_combine(m_data_hash, hash);
-        for (const auto& sv : chunks) {
-            m_binary_output.get().write(sv.data(), sv.size());
-        }
-        return it->second;
+    } else {
+        m_data_hash = util::u64_hash_combine(m_data_hash, new_size);
     }
 
-    m_data_hash = util::u64_hash_combine(m_data_hash, new_size);
-    const FilePosition offset = m_binary_output.get().tellp() - m_blob_offset;
-    for (const auto& sv : chunks) {
+    for (const auto& sv : chunks)
         m_binary_output.get().write(sv.data(), sv.size());
-    }
     return offset;
 }
 
