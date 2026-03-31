@@ -13,6 +13,7 @@
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
 namespace intel_npu {
@@ -489,29 +490,26 @@ void DynamicGraph::update_network_name(std::string_view name) {
     _metadata.name = name;
 }
 
-const std::shared_ptr<CommandQueue>& DynamicGraph::get_command_queue() const {
-    return _commandQueue;
+CommandQueueDesc DynamicGraph::get_command_queue_desc() const {
+    std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
+    return _commandQueueDesc;
 }
 
-void DynamicGraph::set_workload_type(const ov::WorkloadType workloadType) const {
-    std::lock_guard<std::mutex> lock(_commandQueueMutex);
-    if (_commandQueue == nullptr) {
+void DynamicGraph::set_workload_type(const ov::WorkloadType workloadType) {
+    if (_zeroInitStruct == nullptr) {
         return;
     }
 
-    ze_command_queue_workload_type_t zeWorkloadType;
-    switch (workloadType) {
-    case ov::WorkloadType::DEFAULT:
-        zeWorkloadType = ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_DEFAULT;
-        break;
-    case ov::WorkloadType::EFFICIENT:
-        zeWorkloadType = ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_BACKGROUND;
-        break;
-    default:
-        OPENVINO_THROW("Unknown value for WorkloadType!");
+    std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
+    auto zeWorkloadType = zeroUtils::toZeQueueWorkloadType(workloadType);
+    if (_commandQueueDesc.workload == zeWorkloadType) {
+        return;
     }
+    _commandQueueDesc.workload = zeWorkloadType;
 
-    _commandQueue->setWorkloadType(zeWorkloadType);
+    const ZeroCmdQueueKey key{_zeroInitStruct->getContext(), _zeroInitStruct->getDevice(), _commandQueueDesc};
+    const auto queueKeyHash = ZeroCmdQueueKeyHash{}(key);
+    _commandQueueDesc.key = static_cast<uint64_t>(queueKeyHash);
 }
 
 void DynamicGraph::set_argument_value(uint32_t argi, const void* argv) const {
@@ -554,34 +552,39 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
         return;
     }
 
-    if (_commandQueue == nullptr) {
-        _logger.debug("Graph initialize without graph handle");
+    _logger.debug("Graph initialize without graph handle");
 
-        uint32_t commandQueueOptions = 0;
-        if (config.has<TURBO>() && config.get<TURBO>()) {
-            OPENVINO_ASSERT(_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0),
-                            "Turbo is not supported by the current driver");
-            commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
-        }
-        OPENVINO_ASSERT(!(_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-                          config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()),
-                        "Running inferences sequentially is not supported by the current driver");
-
-        {
-            std::lock_guard<std::mutex> lock(_commandQueueMutex);
-            _commandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
-                                                           zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                           commandQueueOptions);
-        }
-
-        if (config.has<WORKLOAD_TYPE>()) {
-            set_workload_type(config.get<WORKLOAD_TYPE>());
-        }
-
-        _logger.debug("Graph initialize finish");
-
-        _batchSize = determine_batch_size();
+    uint32_t commandQueueOptions = 0;
+    if (config.has<TURBO>() && config.get<TURBO>()) {
+        OPENVINO_ASSERT(_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0),
+                        "Turbo is not supported by the current driver");
+        _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in command queue options");
+        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
     }
+    if (config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        OPENVINO_ASSERT(_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1),
+                        "Running inferences sequentially is not supported by the current driver");
+        _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC in command queue options");
+        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
+        _commandQueueDesc = CommandQueueDesc{
+            zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
+            config.has<WORKLOAD_TYPE>() ? zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>()) : std::nullopt,
+            commandQueueOptions,
+            this,
+            config.get<SHARED_COMMON_QUEUE>()};
+
+        const ZeroCmdQueueKey key{_zeroInitStruct->getContext(), _zeroInitStruct->getDevice(), _commandQueueDesc};
+        const auto queueKeyHash = ZeroCmdQueueKeyHash{}(key);
+        _commandQueueDesc.key = static_cast<uint64_t>(queueKeyHash);
+    }
+
+    _logger.debug("Graph initialize finish");
+
+    _batchSize = determine_batch_size();
 
     // To ensure that the initialization of the graph does not exit prematurely due to nullptrs
     _init_completed.store(true, std::memory_order_release);
@@ -667,10 +670,6 @@ const std::optional<std::size_t> DynamicGraph::get_batch_size() const {
 DynamicGraph::~DynamicGraph() {
     if (!_lastSubmittedEvent.empty()) {
         _lastSubmittedEvent.clear();
-    }
-
-    if (_commandQueue != nullptr) {
-        _commandQueue.reset();
     }
 }
 
