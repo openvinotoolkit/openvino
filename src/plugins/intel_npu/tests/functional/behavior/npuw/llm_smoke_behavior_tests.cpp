@@ -47,7 +47,7 @@ public:
     }
 
     const std::shared_ptr<ov::Model> build_multiouts_llm_model(const bool with_pooled_output) {
-        ov::test::npuw::ModelConfig cfg;
+        ov::test::npuw::LLMConfig cfg;
         cfg.add_hidden_states_output = true;
         cfg.hidden_states_output_name = "hidden_states";
 
@@ -57,7 +57,7 @@ public:
         }
 
         ov::test::npuw::ModelBuilder builder;
-        return builder.build_model(cfg);
+        return builder.build_llm(cfg);
     }
 
 protected:
