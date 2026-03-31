@@ -224,7 +224,7 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_ScalarScale_
     }
 }
 
-TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_DynamicScale_MultiplyAfterMatMul) {
+TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_DynamicScale) {
     const PartialShape query_shape{-1, -1, 64};
     const PartialShape key_shape{-1, -1, 64};
     const PartialShape value_shape{-1, -1, 64};
@@ -353,7 +353,7 @@ const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(std::
     return result;
 }
 
-TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_PreScaledQuery_MultiplyAfterMatMul) {
+TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_PreScaledQuery) {
     // Scale is always applied after MatMul(Q, K^T) per SDPA specification,
     // regardless of whether Q is pre-scaled.
     // This produces: (Q_prescaled @ K^T) * scale.
