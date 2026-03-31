@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
-#include <algorithm>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/paged_gated_delta_net.hpp>
 #include <numeric>
@@ -20,12 +20,13 @@ using namespace ::tests;
 namespace {
 
 struct paged_gated_delta_net_test_params {
-    int32_t tokens;
-    int32_t num_sequences;
-    int32_t qk_heads;
-    int32_t v_heads;
-    int32_t head_size;
-    ov::element::Type precision;
+    std::vector<int32_t> subsequence_tokens;  // Explicit token count for each subsequence
+    std::vector<int32_t> past_lens;           // Explicit past length for each subsequence
+    std::vector<int32_t> cache_intervals;     // Explicit cache interval for each subsequence
+    int32_t qk_heads;                         // Number of query/key heads
+    int32_t v_heads;                          // Number of value heads
+    int32_t head_size;                        // Per-head hidden size (K and V dims in this test)
+    ov::element::Type precision;              // Data precision for query/key/value/state tensors
 };
 
 struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_gated_delta_net_test_params> {
@@ -44,14 +45,6 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
         for (size_t i = 0; i < n; i++) {
             dst[i] *= inv * scale;
         }
-    }
-
-    template <typename T>
-    static T to_data_type(float v) {
-        if constexpr (std::is_same<T, ov::float16>::value) {
-            return ov::float16(v);
-        }
-        return static_cast<T>(v);
     }
 
     template <typename T>
@@ -136,7 +129,7 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
                             out_v += s * q_norm[k_idx];
                         }
 
-                        output[(token * v_heads + h) * head_size + v_idx] = to_data_type<T>(out_v);
+                        output[(token * v_heads + h) * head_size + v_idx] = static_cast<T>(out_v);
                     }
 
                     if (interval > 0 && seq_blocks > 0) {
@@ -148,8 +141,7 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
                                 const int32_t block_id = block_indices[block_begin + slot];
                                 for (int32_t k_idx = 0; k_idx < head_size; k_idx++) {
                                     for (int32_t v_idx = 0; v_idx < head_size; v_idx++) {
-                                        recurrent_state_table[state_off(block_id, h, k_idx, v_idx)] =
-                                            to_data_type<T>(state[k_idx * head_size + v_idx]);
+                                        recurrent_state_table[state_off(block_id, h, k_idx, v_idx)] = static_cast<T>(state[k_idx * head_size + v_idx]);
                                     }
                                 }
                             }
@@ -164,14 +156,19 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
     void execute_t(const paged_gated_delta_net_test_params& p) {
         auto& engine = get_test_engine();
 
-        const int32_t tokens = p.tokens;
-        const int32_t num_sequences = p.num_sequences;
+        const auto& subseq_tokens = p.subsequence_tokens;
+        const auto& param_past_lens = p.past_lens;
+        const auto& param_cache_intervals = p.cache_intervals;
+        const int32_t num_sequences = static_cast<int32_t>(subseq_tokens.size());
+        const int32_t tokens = static_cast<int32_t>(std::accumulate(subseq_tokens.begin(), subseq_tokens.end(), size_t{0}));
         const int32_t qk_heads = p.qk_heads;
         const int32_t v_heads = p.v_heads;
         const int32_t head_size = p.head_size;
 
         OPENVINO_ASSERT(num_sequences > 1, "Test should cover num_sequences > 1");
         OPENVINO_ASSERT(tokens >= num_sequences, "tokens should be >= num_sequences");
+        OPENVINO_ASSERT(static_cast<int32_t>(param_past_lens.size()) == num_sequences, "past_lens size must match number of subsequences");
+        OPENVINO_ASSERT(static_cast<int32_t>(param_cache_intervals.size()) == num_sequences, "cache_intervals size must match number of subsequences");
 
         std::vector<int32_t> subsequence_begins;
         std::vector<int32_t> past_lens;
@@ -190,14 +187,15 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
         int32_t acc_tokens = 0;
         int32_t total_blocks = 0;
         for (int32_t seq = 0; seq < num_sequences; seq++) {
-            const int32_t rem_tokens = tokens - acc_tokens;
-            const int32_t rem_seq = num_sequences - seq;
-            const int32_t seq_tokens = rem_tokens / rem_seq;
+            const int32_t seq_tokens = static_cast<int32_t>(subseq_tokens[seq]);
+            OPENVINO_ASSERT(seq_tokens > 0, "Each subsequence must contain at least one token");
             acc_tokens += seq_tokens;
             subsequence_begins.push_back(acc_tokens);
 
-            const int32_t seq_past_len = 1 + (seq % 3);
-            const int32_t seq_interval = 2 + (seq % 2);
+            const int32_t seq_past_len = param_past_lens[seq];
+            const int32_t seq_interval = param_cache_intervals[seq];
+            OPENVINO_ASSERT(seq_past_len >= 0, "past_len must be non-negative");
+            OPENVINO_ASSERT(seq_interval > 0, "cache_interval must be > 0");
             past_lens.push_back(seq_past_len);
             cache_interval.push_back(seq_interval);
 
@@ -314,7 +312,7 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
                       head_size,
                       ref_output);
 
-        const float tol = std::is_same<T, ov::float16>::value ? 0.03f : 1e-4f;
+        const float tol = std::is_same<T, ov::float16>::value ? 0.01f : 1e-6f;
 
         {
             cldnn::mem_lock<T, mem_lock_type::read> out_lock(out_mem, get_test_stream());
@@ -348,10 +346,15 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
     }
 
     static std::string PrintToStringParamName(const testing::TestParamInfo<paged_gated_delta_net_test_params>& info) {
-        std::string result = "paged_gated_delta_net_gpu_test_" + info.param.precision.to_string() + "_" +
-                             std::to_string(info.param.tokens) + "_" + std::to_string(info.param.num_sequences) + "_" +
-                             std::to_string(info.param.qk_heads) + "_" +
-                             std::to_string(info.param.v_heads) + "_" + std::to_string(info.param.head_size);
+        std::string subseq_tokens_str;
+        for (size_t i = 0; i < info.param.subsequence_tokens.size(); i++) {
+            if (i > 0)
+                subseq_tokens_str += "-";
+            subseq_tokens_str += std::to_string(info.param.subsequence_tokens[i]);
+        }
+
+        std::string result = "paged_gated_delta_net_gpu_test_" + info.param.precision.to_string() + "_" + subseq_tokens_str + "_" +
+                             std::to_string(info.param.qk_heads) + "_" + std::to_string(info.param.v_heads) + "_" + std::to_string(info.param.head_size);
         return result;
     }
 };
@@ -362,18 +365,34 @@ TEST_P(paged_gated_delta_net_gpu_test, basic) {
 
 INSTANTIATE_TEST_SUITE_P(smoke_paged_gated_delta_net_gpu_test,
                          paged_gated_delta_net_gpu_test,
+                         // Parameter order:
+                         // {subsequence_tokens, past_lens, cache_intervals, qk_heads, v_heads, head_size, precision}
                          ::testing::Values(
-                             paged_gated_delta_net_test_params{6, 2, 2, 2, 16, ov::element::f16},
-                             paged_gated_delta_net_test_params{6, 2, 2, 4, 16, ov::element::f16},
-                             paged_gated_delta_net_test_params{6, 2, 2, 2, 64, ov::element::f16},
-                             paged_gated_delta_net_test_params{6, 2, 2, 4, 64, ov::element::f16},
-                             paged_gated_delta_net_test_params{6, 2, 2, 2, 128, ov::element::f16},
-                             paged_gated_delta_net_test_params{9, 3, 2, 2, 64, ov::element::f16},
-                             paged_gated_delta_net_test_params{9, 3, 2, 2, 128, ov::element::f16},
-                             paged_gated_delta_net_test_params{6, 2, 2, 2, 16, ov::element::f32},
-                             paged_gated_delta_net_test_params{6, 2, 2, 2, 64, ov::element::f32},
-                             paged_gated_delta_net_test_params{6, 2, 2, 2, 128, ov::element::f32},
-                             paged_gated_delta_net_test_params{9, 3, 2, 2, 64, ov::element::f32}),
+                             // f16: decode stage (past_len > 0), head_size 16/64/128, different sequence counts.
+                             paged_gated_delta_net_test_params{{3, 3}, {2, 3}, {2, 3}, 2, 2, 16, ov::element::f16},
+                             paged_gated_delta_net_test_params{{2, 3, 2}, {1, 2, 4}, {2, 3, 2}, 2, 2, 64, ov::element::f16},
+                             paged_gated_delta_net_test_params{{1, 2, 3, 2}, {1, 3, 2, 4}, {2, 2, 3, 4}, 2, 2, 128, ov::element::f16},
+                             // f16: prefill stage (all past_len = 0), head_size 16/64/128, different sequence counts.
+                             paged_gated_delta_net_test_params{{3, 2}, {0, 0}, {2, 2}, 2, 2, 16, ov::element::f16},
+                             paged_gated_delta_net_test_params{{2, 2, 2}, {0, 0, 0}, {2, 2, 2}, 2, 2, 64, ov::element::f16},
+                             paged_gated_delta_net_test_params{{1, 2, 2, 3}, {0, 0, 0, 0}, {2, 2, 3, 2}, 2, 2, 128, ov::element::f16},
+                             // f16: mixed stage (some past_len = 0, some past_len > 0), head_size 16/64/128.
+                             paged_gated_delta_net_test_params{{4, 2}, {0, 3}, {2, 2}, 2, 2, 16, ov::element::f16},
+                             paged_gated_delta_net_test_params{{1, 4, 2}, {0, 2, 0}, {2, 3, 2}, 2, 2, 64, ov::element::f16},
+                             paged_gated_delta_net_test_params{{2, 1, 3, 2}, {0, 4, 0, 1}, {2, 2, 3, 2}, 2, 2, 128, ov::element::f16},
+
+                             // f32: decode stage (past_len > 0), head_size 16/64/128, different sequence counts.
+                             paged_gated_delta_net_test_params{{3, 3}, {2, 3}, {2, 3}, 2, 2, 16, ov::element::f32},
+                             paged_gated_delta_net_test_params{{2, 3, 2}, {1, 2, 4}, {2, 3, 2}, 2, 2, 64, ov::element::f32},
+                             paged_gated_delta_net_test_params{{1, 2, 3, 2}, {1, 3, 2, 4}, {2, 2, 3, 4}, 2, 2, 128, ov::element::f32},
+                             // f32: prefill stage (all past_len = 0), head_size 16/64/128, different sequence counts.
+                             paged_gated_delta_net_test_params{{3, 2}, {0, 0}, {2, 2}, 2, 2, 16, ov::element::f32},
+                             paged_gated_delta_net_test_params{{2, 2, 2}, {0, 0, 0}, {2, 2, 2}, 2, 2, 64, ov::element::f32},
+                             paged_gated_delta_net_test_params{{1, 2, 2, 3}, {0, 0, 0, 0}, {2, 2, 3, 2}, 2, 2, 128, ov::element::f32},
+                             // f32: mixed stage (some past_len = 0, some past_len > 0), head_size 16/64/128.
+                             paged_gated_delta_net_test_params{{4, 2}, {0, 3}, {2, 2}, 2, 2, 16, ov::element::f32},
+                             paged_gated_delta_net_test_params{{1, 4, 2}, {0, 2, 0}, {2, 3, 2}, 2, 2, 64, ov::element::f32},
+                             paged_gated_delta_net_test_params{{2, 1, 3, 2}, {0, 4, 0, 1}, {2, 2, 3, 2}, 2, 2, 128, ov::element::f32}),
                          paged_gated_delta_net_gpu_test::PrintToStringParamName);
 
 }  // namespace
