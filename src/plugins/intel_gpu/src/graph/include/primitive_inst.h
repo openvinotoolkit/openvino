@@ -24,6 +24,7 @@
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "impls/ocl/kernels_cache.hpp"
+#include <chrono>
 
 // TODO: add generic interface for weights_reorder_params and get rid of this dependency
 #include "impls/ocl/kernel_selector_helper.h"
@@ -527,6 +528,10 @@ private:
     void do_runtime_skip_scatter_update();
     void do_runtime_skip_lora();
     void do_runtime_skip_resample();
+
+#ifdef GPU_DEBUG_CONFIG
+    friend class PrimitiveInstDebugHelper;
+#endif
 };
 
 /*

@@ -4,6 +4,9 @@
 
 #include "debug_helper.hpp"
 #include <regex>
+#ifdef __linux__
+#include <unistd.h>  // write(), STDERR_FILENO
+#endif
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/util/file_util.hpp"
@@ -15,8 +18,45 @@
 #include "condition_inst.h"
 #include "program_dump_graph.h"
 
+#include "intel_gpu/primitives/activation.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/gemm.hpp"
+#include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
+#include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/convolution.hpp"
+#include "intel_gpu/primitives/pooling.hpp"
+#include "intel_gpu/primitives/reduce.hpp"
+#include "intel_gpu/primitives/softmax.hpp"
+#include "intel_gpu/primitives/mvn.hpp"
+#include "intel_gpu/primitives/swiglu.hpp"
+#include "intel_gpu/primitives/gather.hpp"
+#include "intel_gpu/primitives/rope.hpp"
+#include "intel_gpu/primitives/crop.hpp"
+#include "intel_gpu/primitives/strided_slice.hpp"
+#include "intel_gpu/primitives/broadcast.hpp"
+#include "intel_gpu/primitives/select.hpp"
+#include "intel_gpu/primitives/scatter_update.hpp"
+#include "intel_gpu/primitives/concatenation.hpp"
+#include "intel_gpu/primitives/rms.hpp"
+#include "intel_gpu/primitives/tile.hpp"
+#include "intel_gpu/primitives/normalize.hpp"
+#include "intel_gpu/primitives/gather_elements.hpp"
+#include "intel_gpu/primitives/scatter_nd_update.hpp"
+#include "intel_gpu/primitives/scatter_elements_update.hpp"
+#include "intel_gpu/primitives/group_normalization.hpp"
+#include "intel_gpu/primitives/quantize.hpp"
+#include "intel_gpu/primitives/deconvolution.hpp"
+#include "intel_gpu/primitives/resample.hpp"
+#include "intel_gpu/primitives/permute.hpp"
+#include "intel_gpu/primitives/adaptive_pooling.hpp"
+#include "intel_gpu/primitives/arg_max_min.hpp"
+#include "intel_gpu/primitives/col2im.hpp"
+#include "intel_gpu/primitives/detection_output.hpp"
+
 #include <iomanip>
 #include <fstream>
+#include <sstream>
 #include <sys/stat.h>
 
 namespace cldnn {
@@ -763,6 +803,470 @@ void NetworkDebugHelper::dump_memory_pool(std::string dump_path, int64_t curr_it
     GPU_DEBUG_COUT << " * Variable              : " << get_mb_size(usm_device_var_mem_size)     << std::endl;
     GPU_DEBUG_COUT << " * ETC                   : " << get_mb_size(usm_device_etc_size)         << std::endl;
     GPU_DEBUG_COUT << "------------------------------------------------------------------------" << std::endl;
+}
+
+// ============================================================================
+// Bench kernel verbose logging infrastructure
+// Controlled by ov::intel_gpu::bench_verbose debug option:
+//   =1  Output execution log without timing
+//   =2  Output execution log with timing (host-side wall-clock, no -pc needed)
+// Format: ov_gpu_bench,exec,type=TYPE,id=ID,impl=IMPL,kernel=KERNEL,
+//         in0=DT:DxDx...,in1=DT:DxDx...,out0=DT:DxDx...,fused=OP+OP,time=US
+// ============================================================================
+namespace {
+
+static int get_bench_verbose_level() {
+    static int level = ExecutionConfig::get_bench_verbose();
+    return level;
+}
+
+static std::string activation_func_name(cldnn::activation_func func) {
+    switch (func) {
+        case cldnn::activation_func::none: return "none";
+        case cldnn::activation_func::relu: return "relu";
+        case cldnn::activation_func::relu_negative_slope: return "relu_negative_slope";
+        case cldnn::activation_func::gelu: return "gelu";
+        case cldnn::activation_func::gelu_tanh: return "gelu_tanh";
+        case cldnn::activation_func::swish: return "swish";
+        case cldnn::activation_func::hswish: return "hswish";
+        case cldnn::activation_func::abs: return "abs";
+        case cldnn::activation_func::clamp: return "clamp";
+        case cldnn::activation_func::elu: return "elu";
+        case cldnn::activation_func::exp: return "exp";
+        case cldnn::activation_func::floor: return "floor";
+        case cldnn::activation_func::ceil: return "ceil";
+        case cldnn::activation_func::hard_sigmoid: return "hard_sigmoid";
+        case cldnn::activation_func::hsigmoid: return "hsigmoid";
+        case cldnn::activation_func::hyperbolic_tan: return "tanh";
+        case cldnn::activation_func::linear: return "linear";
+        case cldnn::activation_func::log: return "log";
+        case cldnn::activation_func::log2: return "log2";
+        case cldnn::activation_func::logistic: return "sigmoid";
+        case cldnn::activation_func::mish: return "mish";
+        case cldnn::activation_func::negative: return "negative";
+        case cldnn::activation_func::pow: return "pow";
+        case cldnn::activation_func::reciprocal: return "reciprocal";
+        case cldnn::activation_func::selu: return "selu";
+        case cldnn::activation_func::sign: return "sign";
+        case cldnn::activation_func::sin: return "sin";
+        case cldnn::activation_func::cos: return "cos";
+        case cldnn::activation_func::softrelu: return "softrelu";
+        case cldnn::activation_func::softplus: return "softplus";
+        case cldnn::activation_func::softsign: return "softsign";
+        case cldnn::activation_func::sqrt: return "sqrt";
+        case cldnn::activation_func::square: return "square";
+        case cldnn::activation_func::tan: return "tan";
+        case cldnn::activation_func::erf: return "erf";
+        case cldnn::activation_func::round_half_to_even: return "round";
+        default: return "act_unknown";
+    }
+}
+
+static std::string eltwise_mode_name(cldnn::eltwise_mode mode) {
+    switch (mode) {
+        case cldnn::eltwise_mode::sum: return "sum";
+        case cldnn::eltwise_mode::sub: return "sub";
+        case cldnn::eltwise_mode::prod: return "prod";
+        case cldnn::eltwise_mode::div: return "div";
+        case cldnn::eltwise_mode::max: return "max";
+        case cldnn::eltwise_mode::min: return "min";
+        case cldnn::eltwise_mode::pow: return "pow";
+        case cldnn::eltwise_mode::mod: return "mod";
+        case cldnn::eltwise_mode::eq: return "eq";
+        case cldnn::eltwise_mode::ne: return "ne";
+        case cldnn::eltwise_mode::lt: return "lt";
+        case cldnn::eltwise_mode::le: return "le";
+        case cldnn::eltwise_mode::gt: return "gt";
+        case cldnn::eltwise_mode::ge: return "ge";
+        case cldnn::eltwise_mode::squared_diff: return "squared_diff";
+        case cldnn::eltwise_mode::logic_and: return "logic_and";
+        case cldnn::eltwise_mode::logic_or: return "logic_or";
+        case cldnn::eltwise_mode::logic_xor: return "logic_xor";
+        case cldnn::eltwise_mode::floor_mod: return "floor_mod";
+        default: return "eltwise_unknown";
+    }
+}
+
+static std::string layout_to_bench_str(const layout& l) {
+    std::stringstream ss;
+    ss << ov::element::Type(l.data_type).get_type_name() << ":";
+    auto ps = l.get_partial_shape();
+    for (size_t d = 0; d < ps.size(); d++) {
+        if (d > 0) ss << "x";
+        if (ps[d].is_dynamic())
+            ss << "?";
+        else
+            ss << ps[d].get_length();
+    }
+    // Append layout format (e.g. ":bfyx", ":b_fs_yx_fsv16")
+    ss << ":" << l.format.to_string();
+    return ss.str();
+}
+
+static std::string fused_ops_to_bench_str(const std::vector<cldnn::fused_primitive_desc>& fused_desc) {
+    if (fused_desc.empty()) return "none";
+    std::stringstream ss;
+    for (size_t i = 0; i < fused_desc.size(); i++) {
+        if (i > 0) ss << "+";
+        const auto& fd = fused_desc[i];
+        auto type_str = fd.desc->type_string();
+        if (fd.is_type<activation>()) {
+            auto act = fd.typed_desc<activation>();
+            ss << "activation_" << activation_func_name(act->activation_function);
+            // Append alpha:beta when non-zero (e.g. swish:1, relu_negative_slope:0.1, linear:0.5:0.3)
+            float a = act->additional_params.a;
+            float b = act->additional_params.b;
+            // Some activations have implicit alpha (e.g. swish always uses beta=1 in OpenVINO)
+            if (act->activation_function == cldnn::activation_func::swish && a == 0.0f)
+                a = 1.0f;
+            if (a != 0.0f || b != 0.0f) {
+                ss << ":" << a;
+                if (b != 0.0f)
+                    ss << ":" << b;
+            }
+        } else if (fd.is_type<eltwise>()) {
+            auto elt = fd.typed_desc<eltwise>();
+            ss << "eltwise_" << eltwise_mode_name(elt->mode);
+            // Append 2nd input dt from external dependency (e.g. eltwise_sum:f16)
+            bool found_ext = false;
+            for (const auto& inp : fd.inputs) {
+                if (inp.m_type == FusedInputType::EXTERNAL) {
+                    ss << ":" << ov::element::Type(inp.m_element_type).get_type_name();
+                    found_ext = true;
+                    break;
+                }
+            }
+            // Fallback: use output layout dt if no external input found
+            if (!found_ext) {
+                ss << ":" << ov::element::Type(fd.output_layout.data_type).get_type_name();
+            }
+        } else {
+            ss << type_str;
+        }
+    }
+    return ss.str();
+}
+
+}  // anonymous namespace
+
+PrimitiveInstDebugHelper::PrimitiveInstDebugHelper(primitive_inst& inst)
+    : m_inst(inst) {
+    start_bench_timing();
+}
+
+PrimitiveInstDebugHelper::~PrimitiveInstDebugHelper() {
+    stop_bench_timing();
+    dump_bench_kernel_verbose();
+}
+
+void PrimitiveInstDebugHelper::start_bench_timing() {
+    if (get_bench_verbose_level() >= 2) {
+        m_inst.get_network().get_stream().finish();  // full GPU sync before timing
+        m_bench_start_time = std::chrono::high_resolution_clock::now();
+        m_bench_time_us = 0.0;
+    }
+}
+
+void PrimitiveInstDebugHelper::stop_bench_timing() {
+    if (get_bench_verbose_level() >= 2) {
+        auto ev = m_inst._impl_params->out_event;
+        if (ev) {
+            m_inst.get_network().get_stream().wait_for_events({ev});
+        } else {
+            m_inst.get_network().get_stream().finish();
+        }
+        auto end_time = std::chrono::high_resolution_clock::now();
+        m_bench_time_us = std::chrono::duration<double, std::micro>(end_time - m_bench_start_time).count();
+    }
+}
+
+void PrimitiveInstDebugHelper::dump_bench_kernel_verbose() const {
+    const int bench_level = get_bench_verbose_level();
+    if (bench_level <= 0) return;
+
+    // One-time header with device info
+    static bool header_printed = false;
+    if (!header_printed) {
+        header_printed = true;
+        const auto& dev_info = m_inst.get_network().get_engine().get_device_info();
+        auto gpu_id = m_inst.get_network().get_config().get_property(ov::device::id.name()).as<std::string>();
+        std::string hdr = "ov_gpu_bench,info,device=" + dev_info.dev_name
+                        + ",driver=" + dev_info.driver_version
+                        + ",gpu_id=" + gpu_id + "\n";
+        auto ret = ::write(STDERR_FILENO, hdr.data(), hdr.size());
+        (void)ret;
+    }
+
+    // Cache gpu_id for each exec line
+    static std::string cached_gpu_id;
+    if (cached_gpu_id.empty()) {
+        cached_gpu_id = m_inst.get_network().get_config().get_property(ov::device::id.name()).as<std::string>();
+    }
+
+    const auto& params = *m_inst._impl_params;
+    std::stringstream ss;
+    ss << "ov_gpu_bench,exec";
+    ss << ",device=gpu." << cached_gpu_id;
+    ss << ",type=" << params.desc->type_string();
+    ss << ",id=" << m_inst.id();
+
+    // impl type
+    if (m_inst._impl && m_inst._impl->m_manager) {
+        ss << ",impl=" << m_inst._impl->m_manager->get_impl_type();
+    } else {
+        ss << ",impl=unknown";
+    }
+
+    // kernel name
+    ss << ",kernel=" << (m_inst._impl ? m_inst._impl->get_kernel_name() : "unknown");
+
+    // Input layouts
+    for (size_t i = 0; i < params.input_layouts.size(); i++) {
+        ss << ",in" << i << "=" << layout_to_bench_str(params.input_layouts[i]);
+    }
+
+    // Output layouts
+    for (size_t i = 0; i < params.output_layouts.size(); i++) {
+        ss << ",out" << i << "=" << layout_to_bench_str(params.output_layouts[i]);
+    }
+
+    // Fused ops
+    ss << ",fused=" << fused_ops_to_bench_str(params.fused_desc);
+
+    // Primitive-specific attributes
+    auto type_str = params.desc->type_string();
+    if (type_str == "reorder") {
+        auto prim = std::static_pointer_cast<const reorder>(params.desc);
+        if (prim->truncate) {
+            ss << ",truncate=1";
+        }
+    } else if (type_str == "gemm") {
+        auto prim = std::static_pointer_cast<const gemm>(params.desc);
+        ss << ",transpose_a=" << prim->transpose_input0;
+        ss << ",transpose_b=" << prim->transpose_input1;
+        if (!prim->input0_transpose_order.empty()) {
+            ss << ",order0=";
+            for (size_t i = 0; i < prim->input0_transpose_order.size(); i++) {
+                if (i > 0) ss << ":";
+                ss << prim->input0_transpose_order[i];
+            }
+        }
+        if (!prim->input1_transpose_order.empty()) {
+            ss << ",order1=";
+            for (size_t i = 0; i < prim->input1_transpose_order.size(); i++) {
+                if (i > 0) ss << ":";
+                ss << prim->input1_transpose_order[i];
+            }
+        }
+    } else if (type_str == "scaled_dot_product_attention") {
+        auto prim = std::static_pointer_cast<const scaled_dot_product_attention>(params.desc);
+        ss << ",is_causal=" << prim->is_causal;
+        auto dump_order = [&](const std::string& name, const std::vector<int64_t>& order) {
+            ss << "," << name << "=";
+            for (size_t i = 0; i < order.size(); i++) {
+                if (i > 0) ss << ":";
+                ss << order[i];
+            }
+        };
+        dump_order("order_q", prim->input_q_transpose_order);
+        dump_order("order_k", prim->input_k_transpose_order);
+        dump_order("order_v", prim->input_v_transpose_order);
+        dump_order("order_out", prim->output_transpose_order);
+        if (prim->scale_val.has_value()) {
+            ss << ",scale_val=" << prim->scale_val.value();
+        }
+    } else if (type_str == "fully_connected") {
+        auto prim = std::static_pointer_cast<const fully_connected>(params.desc);
+        ss << ",compressed=" << prim->compressed_weights;
+        ss << ",dynamic_quantized=" << prim->dynamic_quantized_activation;
+    } else if (type_str == "convolution") {
+        auto prim = std::static_pointer_cast<const convolution>(params.desc);
+        ss << ",groups=" << prim->groups;
+        auto dump_vec = [&](const std::string& name, const auto& vec) {
+            ss << "," << name << "=";
+            for (size_t i = 0; i < vec.size(); i++) {
+                if (i > 0) ss << "x";
+                ss << vec[i];
+            }
+        };
+        dump_vec("strides", prim->stride);
+        dump_vec("dilations", prim->dilation);
+        dump_vec("padding_begin", prim->padding_begin);
+        dump_vec("padding_end", prim->padding_end);
+        ss << ",grouped_weights_shape=" << prim->grouped_weights_shape;
+    } else if (type_str == "pooling") {
+        auto prim = std::static_pointer_cast<const pooling>(params.desc);
+        ss << ",pool_mode=" << static_cast<int>(prim->mode);
+        auto dump_vec = [&](const std::string& name, const auto& vec) {
+            ss << "," << name << "=";
+            for (size_t i = 0; i < vec.size(); i++) {
+                if (i > 0) ss << "x";
+                ss << vec[i];
+            }
+        };
+        dump_vec("kernel", prim->size);
+        dump_vec("pool_strides", prim->stride);
+        dump_vec("pads_begin", prim->pads_begin);
+        dump_vec("pads_end", prim->pads_end);
+        ss << ",rounding_type=" << static_cast<int>(prim->rounding_type);
+    } else if (type_str == "reduce") {
+        auto prim = std::static_pointer_cast<const reduce>(params.desc);
+        ss << ",reduce_mode=" << static_cast<int>(prim->mode);
+        ss << ",keep_dims=" << prim->keep_dims;
+        ss << ",reduce_axes=";
+        for (size_t i = 0; i < prim->axes.size(); i++) {
+            if (i > 0) ss << ":";
+            ss << prim->axes[i];
+        }
+    } else if (type_str == "softmax") {
+        auto prim = std::static_pointer_cast<const softmax>(params.desc);
+        ss << ",axis=" << prim->dimension;
+    } else if (type_str == "mvn") {
+        auto prim = std::static_pointer_cast<const mvn>(params.desc);
+        ss << ",normalize_variance=" << prim->normalize_variance;
+        ss << ",epsilon=" << prim->epsilon;
+        ss << ",eps_inside_sqrt=" << prim->eps_inside_sqrt;
+    } else if (type_str == "eltwise") {
+        auto prim = std::static_pointer_cast<const eltwise>(params.desc);
+        ss << ",eltwise_mode=" << static_cast<int>(prim->mode);
+        ss << ",pythondiv=" << prim->m_pythondiv;
+    } else if (type_str == "swiglu") {
+        auto prim = std::static_pointer_cast<const swiglu>(params.desc);
+        ss << ",glu_type=" << static_cast<int>(prim->glu_type);
+        ss << ",split_axis=" << prim->axis;
+        ss << ",split_length=" << prim->glu_stride;
+        ss << ",gate_idx=" << prim->gate_idx;
+    } else if (type_str == "gather") {
+        auto prim = std::static_pointer_cast<const gather>(params.desc);
+        ss << ",gather_axis=" << prim->axis;
+        ss << ",batch_dim=" << prim->batch_dim;
+        ss << ",support_neg_ind=" << prim->support_neg_ind;
+    } else if (type_str == "rope") {
+        auto prim = std::static_pointer_cast<const rope>(params.desc);
+        ss << ",head_cnt=" << prim->config.head_cnt;
+        ss << ",head_size=" << prim->config.head_size;
+        ss << ",rotary_ndims=" << prim->config.rotary_ndims;
+        ss << ",is_interleaved=" << prim->config.is_interleaved;
+        ss << ",is_chatglm=" << prim->config.is_chatglm;
+        ss << ",is_qwen=" << prim->config.is_qwen;
+        ss << ",input_trans0213=" << prim->config.input_trans0213;
+        ss << ",slice_start=" << prim->config.slice_start;
+        ss << ",slice_stop=" << prim->config.slice_stop;
+        ss << ",gather_rank=" << prim->gather_rank;
+    } else if (type_str == "crop") {
+        auto prim = std::static_pointer_cast<const crop>(params.desc);
+        auto off = prim->offsets;
+        ss << ",offsets=" << off.batch[0] << ":" << off.feature[0]
+           << ":" << off.spatial[1] << ":" << off.spatial[0];
+    } else if (type_str == "strided_slice") {
+        auto prim = std::static_pointer_cast<const strided_slice>(params.desc);
+        auto dump_ivec = [&](const std::string& name, const std::vector<int64_t>& v) {
+            ss << "," << name << "=";
+            for (size_t i = 0; i < v.size(); i++) {
+                if (i > 0) ss << ":";
+                ss << v[i];
+            }
+        };
+        dump_ivec("ss_begin", prim->begin);
+        dump_ivec("ss_end", prim->end);
+        dump_ivec("ss_strides", prim->strides);
+        dump_ivec("begin_mask", prim->begin_mask);
+        dump_ivec("end_mask", prim->end_mask);
+        dump_ivec("shrink_axis_mask", prim->shrink_axis_mask);
+        dump_ivec("new_axis_mask", prim->new_axis_mask);
+    } else if (type_str == "concatenation") {
+        auto prim = std::static_pointer_cast<const concatenation>(params.desc);
+        ss << ",concat_axis=" << prim->axis;
+    } else if (type_str == "scatter_update") {
+        auto prim = std::static_pointer_cast<const scatter_update>(params.desc);
+        ss << ",gather_axis=" << prim->axis;
+    } else if (type_str == "rms") {
+        auto prim = std::static_pointer_cast<const rms>(params.desc);
+        ss << ",epsilon=" << prim->epsilon;
+    } else if (type_str == "tile") {
+        auto prim = std::static_pointer_cast<const tile>(params.desc);
+        ss << ",tile_repeats=";
+        for (size_t i = 0; i < prim->repeats.size(); ++i) {
+            if (i) ss << ":";
+            ss << prim->repeats[i];
+        }
+    } else if (type_str == "normalize") {
+        auto prim = std::static_pointer_cast<const normalize>(params.desc);
+        ss << ",across_spatial=" << prim->across_spatial;
+        ss << ",epsilon=" << prim->epsilon;
+    } else if (type_str == "gather_elements") {
+        auto prim = std::static_pointer_cast<const gather_elements>(params.desc);
+        ss << ",gather_axis=" << prim->axis;
+    } else if (type_str == "scatter_nd_update") {
+        auto prim = std::static_pointer_cast<const scatter_nd_update>(params.desc);
+        ss << ",indices_rank=" << prim->indices_rank;
+    } else if (type_str == "scatter_elements_update") {
+        auto prim = std::static_pointer_cast<const scatter_elements_update>(params.desc);
+        ss << ",axis=" << prim->axis;
+    } else if (type_str == "group_normalization") {
+        auto prim = std::static_pointer_cast<const group_normalization>(params.desc);
+        ss << ",num_groups=" << prim->num_groups;
+        ss << ",epsilon=" << prim->epsilon;
+    } else if (type_str == "quantize") {
+        auto prim = std::static_pointer_cast<const quantize>(params.desc);
+        ss << ",levels=" << prim->levels;
+    } else if (type_str == "deconvolution") {
+        auto prim = std::static_pointer_cast<const deconvolution>(params.desc);
+        ss << ",groups=" << prim->groups;
+        ss << ",grouped_weights_shape=" << (prim->grouped_weights_shape ? 1 : 0);
+        ss << ",strides=";
+        for (size_t i = 0; i < prim->stride.size(); ++i) { if (i) ss << "x"; ss << prim->stride[i]; }
+        ss << ",dilations=";
+        for (size_t i = 0; i < prim->dilations.size(); ++i) { if (i) ss << "x"; ss << prim->dilations[i]; }
+        ss << ",padding_begin=";
+        for (size_t i = 0; i < prim->pads_begin.size(); ++i) { if (i) ss << "x"; ss << prim->pads_begin[i]; }
+        ss << ",padding_end=";
+        for (size_t i = 0; i < prim->pads_end.size(); ++i) { if (i) ss << "x"; ss << prim->pads_end[i]; }
+    } else if (type_str == "resample") {
+        auto prim = std::static_pointer_cast<const resample>(params.desc);
+        ss << ",resample_mode=" << static_cast<int>(prim->operation_type);
+        ss << ",resample_sizes=";
+        for (size_t i = 0; i < prim->sizes.size(); ++i) { if (i) ss << ":"; ss << prim->sizes[i]; }
+    } else if (type_str == "permute") {
+        auto prim = std::static_pointer_cast<const permute>(params.desc);
+        ss << ",permute_order=";
+        for (size_t i = 0; i < prim->permute_order.size(); ++i) { if (i) ss << ":"; ss << prim->permute_order[i]; }
+    } else if (type_str == "adaptive_pooling") {
+        auto prim = std::static_pointer_cast<const adaptive_pooling>(params.desc);
+        ss << ",adaptive_pool_mode=" << static_cast<int>(prim->mode);
+    } else if (type_str == "arg_max_min") {
+        auto prim = std::static_pointer_cast<const arg_max_min>(params.desc);
+        ss << ",topk_mode=" << static_cast<int>(prim->mode);
+        ss << ",top_k=" << prim->top_k;
+        ss << ",axis=" << prim->axis;
+    } else if (type_str == "col2im") {
+        auto prim = std::static_pointer_cast<const col2im>(params.desc);
+        ss << ",strides=";
+        for (size_t i = 0; i < prim->stride.size(); ++i) { if (i) ss << "x"; ss << prim->stride[i]; }
+        ss << ",dilations=";
+        for (size_t i = 0; i < prim->dilation.size(); ++i) { if (i) ss << "x"; ss << prim->dilation[i]; }
+        ss << ",col2im_output_shape=";
+        for (size_t i = 0; i < prim->output_shape.size(); ++i) { if (i) ss << "x"; ss << prim->output_shape[i]; }
+        ss << ",col2im_kernel_shape=";
+        for (size_t i = 0; i < prim->kernel_shape.size(); ++i) { if (i) ss << "x"; ss << prim->kernel_shape[i]; }
+    } else if (type_str == "detection_output") {
+        auto prim = std::static_pointer_cast<const detection_output>(params.desc);
+        ss << ",det_num_classes=" << prim->num_classes;
+        ss << ",det_keep_top_k=" << prim->keep_top_k;
+        ss << ",det_top_k=" << prim->top_k;
+        ss << ",det_nms_threshold=" << prim->nms_threshold;
+        ss << ",det_confidence_threshold=" << prim->confidence_threshold;
+        ss << ",det_code_type=" << static_cast<int>(prim->code_type);
+        ss << ",det_share_location=" << (prim->share_location ? 1 : 0);
+    }
+
+    // Timing: use pre-recorded host-side wall-clock time (no ov::enable_profiling needed)
+    ss << ",time=" << std::fixed << std::setprecision(3) << m_bench_time_us;
+
+    // Use single write() syscall to avoid interleaving with other threads' output
+    std::string msg = ss.str() + "\n";
+    auto ret = ::write(STDERR_FILENO, msg.data(), msg.size());
+    (void)ret;
 }
 
 }  // namespace cldnn

@@ -5,3 +5,4 @@
 add_subdirectory(common)
 add_subdirectory(unit)
 add_subdirectory(functional)
+add_subdirectory(bench_kernel)

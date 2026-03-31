@@ -1,0 +1,139 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <string>
+#include <vector>
+#include <iostream>
+#include <iomanip>
+
+#include <intel_gpu/runtime/engine.hpp>
+#include <intel_gpu/runtime/memory.hpp>
+#include <intel_gpu/runtime/execution_config.hpp>
+#include <intel_gpu/runtime/stream.hpp>
+#include <intel_gpu/runtime/internal_properties.hpp>
+#include <intel_gpu/graph/topology.hpp>
+#include <intel_gpu/graph/network.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/tile.hpp>
+
+#include "kernel_base.hpp"
+#include "kernel_registry.hpp"
+#include "common/bench_config.hpp"
+#include "common/bench_timer.hpp"
+#include "common/bench_types.hpp"
+#include "common/bench_utils.hpp"
+#include "common/bench_reference.hpp"
+
+namespace bench_kernel {
+
+// ============================================================================
+// Tile kernel benchmark
+//
+// Usage:
+//   --tile --dt=f16 --shapes=1x4096 --repeats=1:3
+//
+// Replicates input tensor along each dimension by repeat counts.
+// ============================================================================
+
+class bench_tile : public kernel_base {
+public:
+    std::string name() const override { return "tile"; }
+
+    void run_single(cldnn::engine& engine, const bench_config& config) override {
+        auto shapes = parse_shapes(config.shapes_str);
+        if (shapes.empty()) {
+            throw std::runtime_error("Tile requires at least 1 shape (input). Got: " + config.shapes_str);
+        }
+
+        auto dt = config.data_types.empty() ? cldnn::data_types::f16 : config.data_types[0];
+
+        // Parse repeats from config (colon-separated)
+        std::vector<int64_t> repeats;
+        if (!config.tile_repeats.empty()) {
+            repeats = parse_colon_vec(config.tile_repeats);
+        }
+        if (repeats.empty()) {
+            repeats.resize(shapes[0].size(), 2);  // default: repeat 2x each dim
+        }
+
+        // Compute output shape
+        auto& in_shape = shapes[0];
+        size_t rank = in_shape.size();
+        repeats.resize(rank, 1);  // pad with 1s if shorter
+
+        auto exec_config = make_exec_config(config, "tile_prim");
+        auto stream = engine.create_stream(exec_config);
+
+        ov::PartialShape ps(std::vector<ov::Dimension>(in_shape.begin(), in_shape.end()));
+        cldnn::layout input_layout(ps, dt, cldnn::format::bfyx);
+        auto input_mem = engine.allocate_memory(input_layout);
+        fill_memory_random(input_mem, *stream, dt);
+
+        cldnn::topology topology;
+        topology.add(cldnn::input_layout("input", input_layout));
+        topology.add(cldnn::tile("tile_prim", cldnn::input_info("input"), repeats));
+
+        cldnn::network network(engine, topology, exec_config);
+        network.set_input_data("input", input_mem);
+
+        auto wall_start = std::chrono::high_resolution_clock::now();
+        bool test_passed = true;
+        acc_result acc_res;
+        bool has_acc = false;
+        perf_timer timer;
+        bool has_perf = false;
+
+        if (config.is_acc()) {
+            auto outputs = network.execute();
+            auto gpu_out = read_network_output_f32(outputs, "tile_prim", *stream);
+            auto input_f32 = read_memory_to_f32(input_mem, *stream);
+
+            // Reference: tile by repeating input data
+            std::vector<int64_t> out_shape(rank);
+            for (size_t i = 0; i < rank; ++i) out_shape[i] = in_shape[i] * repeats[i];
+            size_t out_total = 1;
+            for (auto d : out_shape) out_total *= d;
+
+            std::vector<float> ref_out(out_total);
+            // Compute strides for input
+            std::vector<size_t> in_strides(rank, 1), out_strides(rank, 1);
+            for (int d = (int)rank - 2; d >= 0; --d) {
+                in_strides[d] = in_strides[d+1] * in_shape[d+1];
+                out_strides[d] = out_strides[d+1] * out_shape[d+1];
+            }
+            for (size_t idx = 0; idx < out_total; ++idx) {
+                size_t in_idx = 0, rem = idx;
+                for (size_t d = 0; d < rank; ++d) {
+                    size_t coord = rem / out_strides[d];
+                    rem %= out_strides[d];
+                    in_idx += (coord % in_shape[d]) * in_strides[d];
+                }
+                ref_out[idx] = input_f32[in_idx];
+            }
+
+            float atol, rtol;
+            get_default_tolerance(dt, atol, rtol);
+            acc_res = compare_f32(gpu_out, ref_out, atol, rtol);
+            has_acc = true;
+            reported_acc_ = {true, acc_res.total_elements, acc_res.mismatches, acc_res.max_abs_diff, acc_res.max_rel_diff};
+            if (!acc_res.pass) test_passed = false;
+        }
+
+        if (config.is_perf()) {
+            run_perf(network, config, timer);
+            has_perf = true;
+            reported_timer_ = timer;
+        }
+
+        auto wall_end = std::chrono::high_resolution_clock::now();
+        double wall_ms = std::chrono::duration<double, std::milli>(wall_end - wall_start).count();
+        print_result(network, "tile_prim", config, test_passed, false, wall_ms,
+                     has_acc ? &acc_res : nullptr, has_perf ? &timer : nullptr);
+        finalize_result(test_passed);
+    }
+};
+
+REGISTER_KERNEL(bench_tile)
+
+}  // namespace bench_kernel
