@@ -126,14 +126,17 @@ public:
         if (config.is_acc()) {
             auto outputs = network.execute();
             auto gpu_out = read_network_output_f32(outputs, "gather_prim", *stream);
-            auto dict_f32 = read_memory_to_f32(dict_mem, *stream);
             // Read indices as i32
             auto idx_f32 = read_memory_to_f32(idx_mem, *stream);
             std::vector<int32_t> indices(idx_f32.size());
             for (size_t i = 0; i < idx_f32.size(); ++i)
                 indices[i] = static_cast<int32_t>(idx_f32[i]);
 
-            auto ref_out = ref::gather(dict_f32, indices, dict_shape, idx_shape, axis);
+            // Use targeted memory read: only reads the gathered rows from dict_mem
+            // instead of materializing the full dict as float (critical for large
+            // embedding tables, e.g., 128256x4096 u8 = 524 MB → 2 GB f32)
+            auto ref_out = ref::gather_ref_from_mem(dict_mem, *stream, dict_shape, dict_dt,
+                                                    indices, idx_shape, norm_axis);
 
             float atol, rtol;
             get_default_tolerance(dict_dt, atol, rtol);

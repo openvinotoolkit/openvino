@@ -35,40 +35,45 @@ namespace bench_kernel {
 // ============================================================================
 
 template <typename T>
-static void fill_random(cldnn::memory::ptr mem, cldnn::stream& stream, float low = -1.0f, float high = 1.0f) {
+static void fill_random(cldnn::memory::ptr mem, cldnn::stream& stream,
+                        float low = -1.0f, float high = 1.0f, uint32_t seed = 42) {
     auto lock = cldnn::mem_lock<T>(mem, stream);
-    std::mt19937 gen(42);
+    std::mt19937 gen(seed);
     std::uniform_real_distribution<float> dist(low, high);
     for (size_t i = 0; i < lock.size(); ++i) {
         lock[i] = static_cast<T>(dist(gen));
     }
 }
 
-inline void fill_memory_random(cldnn::memory::ptr mem, cldnn::stream& stream, cldnn::data_types dt) {
+// fill_memory_random — seed lets callers use different seeds per tensor to avoid
+// pathological correlations (e.g. same seed for input+weight gives sum-of-squares
+// output ~K/3, amplifying f16 accumulation errors beyond tolerance).
+inline void fill_memory_random(cldnn::memory::ptr mem, cldnn::stream& stream,
+                               cldnn::data_types dt, uint32_t seed = 42) {
     switch (dt) {
         case cldnn::data_types::f32:
-            fill_random<float>(mem, stream);
+            fill_random<float>(mem, stream, -1.0f, 1.0f, seed);
             break;
         case cldnn::data_types::f16:
-            fill_random<ov::float16>(mem, stream);
+            fill_random<ov::float16>(mem, stream, -1.0f, 1.0f, seed);
             break;
         case cldnn::data_types::i8:
-            fill_random<int8_t>(mem, stream, -5.0f, 5.0f);
+            fill_random<int8_t>(mem, stream, -5.0f, 5.0f, seed);
             break;
         case cldnn::data_types::u8:
-            fill_random<uint8_t>(mem, stream, 0.0f, 10.0f);
+            fill_random<uint8_t>(mem, stream, 0.0f, 10.0f, seed);
             break;
         case cldnn::data_types::i32:
-            fill_random<int32_t>(mem, stream, -100.0f, 100.0f);
+            fill_random<int32_t>(mem, stream, -100.0f, 100.0f, seed);
             break;
         case cldnn::data_types::i64:
-            fill_random<int64_t>(mem, stream, -100.0f, 100.0f);
+            fill_random<int64_t>(mem, stream, -100.0f, 100.0f, seed);
             break;
         default:
             // For i4/u4 etc., fill underlying bytes
             {
                 auto lock = cldnn::mem_lock<uint8_t>(mem, stream);
-                std::mt19937 gen(42);
+                std::mt19937 gen(seed);
                 std::uniform_int_distribution<int> dist(0, 255);
                 for (size_t i = 0; i < lock.size(); ++i) {
                     lock[i] = static_cast<uint8_t>(dist(gen));
@@ -292,7 +297,13 @@ inline cldnn::ExecutionConfig make_exec_config(const bench_config& config,
         // which determines kernel selection (e.g., opt vs ref kernel).
         // Falls back to format::any (runtime chooses) when not specified.
         cldnn::format out_fmt = get_output_format(config);
-        ov::intel_gpu::ImplementationDesc impl_desc = {out_fmt, config.force_impl_str, config.impl};
+        // force_impl names an OCL kernel — ensure impl_type::ocl is used so the
+        // OCL kernel selector (not oneDNN auto-selection) handles it. Without
+        // this, impl==any allows oneDNN to win and force_impl is silently ignored.
+        impl_type effective_impl = config.impl;
+        if (!config.force_impl_str.empty() && effective_impl == impl_type::any)
+            effective_impl = impl_type::ocl;
+        ov::intel_gpu::ImplementationDesc impl_desc = {out_fmt, config.force_impl_str, effective_impl};
         exec_config.set_property(
             ov::intel_gpu::force_implementations(
                 ov::intel_gpu::ImplForcingMap{{prim_id, impl_desc}}));

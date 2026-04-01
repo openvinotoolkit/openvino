@@ -57,7 +57,9 @@ public:
         auto stream = engine.create_stream(exec_config);
 
         auto& input_shape = shapes[0];
-        auto& crop_shape = shapes[1];
+        // Verbose log for crop/slice may include intermediate tensors (begin, end, strides)
+        // before the output shape. Use the last shape as the crop (output) size.
+        auto& crop_shape = shapes.back();
 
         // Use original dimensionality with ov::PartialShape (no 4D padding needed)
         ov::PartialShape input_ps(std::vector<ov::Dimension>(input_shape.begin(), input_shape.end()));

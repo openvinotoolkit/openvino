@@ -48,6 +48,7 @@ PRIMITIVE_ATTR_KEYS = {
     # fully_connected
     "compressed", "dynamic_quantized", "dynamic_quantized_zp",
     "dynamic_quantized_precomputed_reduction", "fc_input_size", "fc_weights_rank",
+    "attr_scales", "attr_zero_points",
     # convolution
     "groups", "strides", "dilations", "padding_begin", "padding_end", "grouped_weights_shape",
     # pooling
@@ -775,6 +776,8 @@ def entry_to_bench_cmd(entry: BenchVerboseEntry, device: int = 0) -> Optional[st
         "dynamic_quantized_precomputed_reduction": "--dynamic_quantized_precomputed_reduction",
         "fc_input_size": "--fc_input_size",
         "fc_weights_rank": "--fc_weights_rank",
+        "attr_scales": "--attr-scales",
+        "attr_zero_points": "--attr-zero-points",
         # convolution
         "groups": "--groups",
         "strides": "--strides",
@@ -1175,10 +1178,11 @@ def main():
                     if '--impl=' not in cmd:
                         cmd += f' --impl={args.impl}'
 
-                lines.append(comment)
                 if args.batch:
+                    lines.append(comment)
                     lines.append(cmd)
                 else:
+                    lines.append(comment)
                     lines.append(f"ov_gpu_bench_kernel {cmd} --device={device_id}")
     else:
         parser.print_help()
@@ -1190,8 +1194,8 @@ def main():
     if args.output:
         with open(args.output, 'w') as f:
             f.write(output_text)
-        print(f"Written {len([l for l in lines if not l.startswith('#')])} commands to {args.output}",
-              file=sys.stderr)
+        cmd_count = len([l for l in lines if l and not l.startswith('#')])
+        print(f"Written {cmd_count} commands to {args.output}", file=sys.stderr)
     else:
         print(output_text)
 

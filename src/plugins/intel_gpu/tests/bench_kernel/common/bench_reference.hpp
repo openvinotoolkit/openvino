@@ -24,13 +24,32 @@
 
 #include "openvino/core/type/float16.hpp"
 
-#include <thread>
+#include <cstdlib>
+#include <tbb/parallel_for.h>
+#include <tbb/blocked_range.h>
 
 #include "bench_types.hpp"
 #include "bench_attrs.hpp"
 #include "bench_utils.hpp"
 
 namespace bench_kernel {
+
+inline bool bench_ref_parallel_enabled() {
+    const char* env = std::getenv("OV_BENCH_REF_PARALLEL");
+    if (!env || env[0] == '\0')
+        return true;
+
+    if (env[0] == '0')
+        return false;
+    if ((env[0] == 'f' || env[0] == 'F') && (env[1] == 'a' || env[1] == 'A'))
+        return false;
+    if ((env[0] == 'n' || env[0] == 'N') && (env[1] == 'o' || env[1] == 'O'))
+        return false;
+    if ((env[0] == 'o' || env[0] == 'O') && (env[1] == 'f' || env[1] == 'F'))
+        return false;
+
+    return true;
+}
 
 // ============================================================================
 // GPU output reader: read memory to std::vector<float>
@@ -294,14 +313,31 @@ inline std::vector<float> fc(const std::vector<float>& input,
         for (size_t i = 1; i < input_shape.size() - 1; ++i) seq *= input_shape[i];
 
         std::vector<float> output(static_cast<size_t>(batch * seq * OC), 0.0f);
-        for (int64_t n = 0; n < batch; ++n) {
-            for (int64_t s = 0; s < seq; ++s) {
-                for (int64_t o = 0; o < OC; ++o) {
-                    float sum = 0.0f;
-                    for (int64_t i = 0; i < IC; ++i) {
-                        sum += input[(n * seq + s) * IC + i] * weight[(n * OC + o) * IC + i];
+
+        if (bench_ref_parallel_enabled() && batch >= 4) {
+            tbb::parallel_for(tbb::blocked_range<int64_t>(0, batch), [&](const tbb::blocked_range<int64_t>& r) {
+                for (int64_t n = r.begin(); n != r.end(); ++n) {
+                    for (int64_t s = 0; s < seq; ++s) {
+                        for (int64_t o = 0; o < OC; ++o) {
+                            float sum = 0.0f;
+                            for (int64_t i = 0; i < IC; ++i) {
+                                sum += input[(n * seq + s) * IC + i] * weight[(n * OC + o) * IC + i];
+                            }
+                            output[(n * seq + s) * OC + o] = sum;
+                        }
                     }
-                    output[(n * seq + s) * OC + o] = sum;
+                }
+            });
+        } else {
+            for (int64_t n = 0; n < batch; ++n) {
+                for (int64_t s = 0; s < seq; ++s) {
+                    for (int64_t o = 0; o < OC; ++o) {
+                        float sum = 0.0f;
+                        for (int64_t i = 0; i < IC; ++i) {
+                            sum += input[(n * seq + s) * IC + i] * weight[(n * OC + o) * IC + i];
+                        }
+                        output[(n * seq + s) * OC + o] = sum;
+                    }
                 }
             }
         }
@@ -314,13 +350,29 @@ inline std::vector<float> fc(const std::vector<float>& input,
 
     std::vector<float> output(static_cast<size_t>(B * OC), 0.0f);
 
-    for (int64_t b = 0; b < B; ++b) {
-        for (int64_t o = 0; o < OC; ++o) {
-            float sum = 0.0f;
-            for (int64_t i = 0; i < IC; ++i) {
-                sum += input[b * IC + i] * weight[o * IC + i];
+    if (bench_ref_parallel_enabled() && (B * OC) >= 1024) {
+        // Parallelize over B×OC flat space to cover both large-batch and large-OC cases
+        // (e.g., lm_head: B=1, OC=128256 would not fire under the old B>=4 condition)
+        tbb::parallel_for(tbb::blocked_range<int64_t>(0, B * OC), [&](const tbb::blocked_range<int64_t>& r) {
+            for (int64_t bo = r.begin(); bo != r.end(); ++bo) {
+                int64_t b = bo / OC;
+                int64_t o = bo % OC;
+                float sum = 0.0f;
+                for (int64_t i = 0; i < IC; ++i) {
+                    sum += input[b * IC + i] * weight[o * IC + i];
+                }
+                output[bo] = sum;
             }
-            output[b * OC + o] = sum;
+        });
+    } else {
+        for (int64_t b = 0; b < B; ++b) {
+            for (int64_t o = 0; o < OC; ++o) {
+                float sum = 0.0f;
+                for (int64_t i = 0; i < IC; ++i) {
+                    sum += input[b * IC + i] * weight[o * IC + i];
+                }
+                output[b * OC + o] = sum;
+            }
         }
     }
     return output;
@@ -610,22 +662,12 @@ inline std::vector<float> convNd(const std::vector<float>& input,
 
         // The conv2d_kernel lambda already loops over n=0..N internally,
         // so we call it once (not inside an outer N loop).
-        {
-            unsigned int num_threads = std::min(static_cast<unsigned int>(OC),
-                                                std::max(1u, std::thread::hardware_concurrency()));
-            if (OC <= 4 || num_threads <= 1) {
-                conv2d_kernel(0, OC);
-            } else {
-                std::vector<std::thread> threads;
-                int64_t chunk = (OC + static_cast<int64_t>(num_threads) - 1) / static_cast<int64_t>(num_threads);
-                for (unsigned int t = 0; t < num_threads; ++t) {
-                    int64_t oc_begin = static_cast<int64_t>(t) * chunk;
-                    int64_t oc_end = std::min(oc_begin + chunk, OC);
-                    if (oc_begin >= OC) break;
-                    threads.emplace_back(conv2d_kernel, oc_begin, oc_end);
-                }
-                for (auto& th : threads) th.join();
-            }
+        if (bench_ref_parallel_enabled() && OC >= 4) {
+            tbb::parallel_for(tbb::blocked_range<int64_t>(0, OC), [&](const tbb::blocked_range<int64_t>& r) {
+                conv2d_kernel(r.begin(), r.end());
+            });
+        } else {
+            conv2d_kernel(0, OC);
         }
         return output;
     }
@@ -724,20 +766,12 @@ inline std::vector<float> convNd(const std::vector<float>& input,
     };
 
     {
-        unsigned int num_threads = std::min(static_cast<unsigned int>(OC),
-                                            std::max(1u, std::thread::hardware_concurrency()));
-        if (OC <= 4 || num_threads <= 1) {
-            convNd_kernel(0, OC);
+        if (bench_ref_parallel_enabled() && OC >= 4) {
+            tbb::parallel_for(tbb::blocked_range<int64_t>(0, OC), [&](const tbb::blocked_range<int64_t>& r) {
+                convNd_kernel(r.begin(), r.end());
+            });
         } else {
-            std::vector<std::thread> threads;
-            int64_t chunk = (OC + static_cast<int64_t>(num_threads) - 1) / static_cast<int64_t>(num_threads);
-            for (unsigned int t = 0; t < num_threads; ++t) {
-                int64_t oc_begin = static_cast<int64_t>(t) * chunk;
-                int64_t oc_end = std::min(oc_begin + chunk, OC);
-                if (oc_begin >= OC) break;
-                threads.emplace_back(convNd_kernel, oc_begin, oc_end);
-            }
-            for (auto& th : threads) th.join();
+            convNd_kernel(0, OC);
         }
     }
     return output;
@@ -1831,27 +1865,138 @@ inline std::vector<float> gather(const std::vector<float>& dict,
     int64_t num_idx = static_cast<int64_t>(indices.size());
 
     std::vector<float> output(out_total);
-    for (int64_t b = 0; b < before; ++b) {
-        for (int64_t idx_i = 0; idx_i < num_idx; ++idx_i) {
-            int32_t idx_val = indices[idx_i];
-            // Normalize negative indices per OpenVINO Gather-8 spec
-            if (idx_val < 0) idx_val += static_cast<int32_t>(dict_shape[axis]);
-            // Out-of-range indices → output filled with 0 (per spec)
-            if (idx_val < 0 || idx_val >= static_cast<int32_t>(dict_shape[axis])) {
-                for (int64_t a = 0; a < after; ++a) {
+
+    if (bench_ref_parallel_enabled() && (before * num_idx * after) >= 1024) {
+        tbb::parallel_for(tbb::blocked_range<int64_t>(0, before * num_idx * after),
+            [&](const tbb::blocked_range<int64_t>& r) {
+            for (int64_t flat_idx = r.begin(); flat_idx != r.end(); ++flat_idx) {
+                int64_t b = flat_idx / (num_idx * after);
+                int64_t remainder = flat_idx % (num_idx * after);
+                int64_t idx_i = remainder / after;
+                int64_t a = remainder % after;
+
+                int32_t idx_val = indices[idx_i];
+                // Normalize negative indices per OpenVINO Gather-8 spec
+                if (idx_val < 0) idx_val += static_cast<int32_t>(dict_shape[axis]);
+                // Out-of-range indices → output filled with 0 (per spec)
+                if (idx_val < 0 || idx_val >= static_cast<int32_t>(dict_shape[axis])) {
                     int64_t out_offset = b * num_idx * after + idx_i * after + a;
                     output[out_offset] = 0.0f;
+                } else {
+                    int64_t dict_offset = b * dict_shape[axis] * after + idx_val * after + a;
+                    int64_t out_offset = b * num_idx * after + idx_i * after + a;
+                    output[out_offset] = dict[dict_offset];
                 }
-                continue;
             }
-            for (int64_t a = 0; a < after; ++a) {
-                int64_t dict_offset = b * dict_shape[axis] * after + idx_val * after + a;
-                int64_t out_offset = b * num_idx * after + idx_i * after + a;
-                output[out_offset] = dict[dict_offset];
+        });
+    } else {
+        for (int64_t b = 0; b < before; ++b) {
+            for (int64_t idx_i = 0; idx_i < num_idx; ++idx_i) {
+                int32_t idx_val = indices[idx_i];
+                // Normalize negative indices per OpenVINO Gather-8 spec
+                if (idx_val < 0) idx_val += static_cast<int32_t>(dict_shape[axis]);
+                // Out-of-range indices → output filled with 0 (per spec)
+                if (idx_val < 0 || idx_val >= static_cast<int32_t>(dict_shape[axis])) {
+                    for (int64_t a = 0; a < after; ++a) {
+                        int64_t out_offset = b * num_idx * after + idx_i * after + a;
+                        output[out_offset] = 0.0f;
+                    }
+                    continue;
+                }
+                for (int64_t a = 0; a < after; ++a) {
+                    int64_t dict_offset = b * dict_shape[axis] * after + idx_val * after + a;
+                    int64_t out_offset = b * num_idx * after + idx_i * after + a;
+                    output[out_offset] = dict[dict_offset];
+                }
             }
         }
     }
     return output;
+}
+
+// ============================================================================
+// Gather reference directly from GPU memory (axis=0, before=1 fast path)
+// Avoids materializing the full dict as float — critical for large embedding
+// tables (e.g., 128256x4096 u8 = 524 MB → 2 GB f32).
+// Falls back to the full-dict gather() for non-trivial axis or before > 1.
+// ============================================================================
+inline std::vector<float> gather_ref_from_mem(
+    cldnn::memory::ptr dict_mem,
+    cldnn::stream& stream,
+    const std::vector<int64_t>& dict_shape,
+    cldnn::data_types dict_dt,
+    const std::vector<int32_t>& indices,
+    const std::vector<int64_t>& idx_shape,
+    int64_t axis) {
+    int64_t rank = static_cast<int64_t>(dict_shape.size());
+    if (axis < 0) axis += rank;
+
+    int64_t before = 1;
+    for (int64_t i = 0; i < axis; ++i) before *= dict_shape[i];
+    int64_t after = 1;
+    for (int64_t i = axis + 1; i < rank; ++i) after *= dict_shape[i];
+    int64_t axis_dim = dict_shape[axis];
+    int64_t num_idx = static_cast<int64_t>(indices.size());
+
+    // Only use targeted (sparse) path for axis=0 with before=1 (typical embedding lookup)
+    if (before != 1) {
+        auto dict_f32 = read_memory_to_f32(dict_mem, stream);
+        return gather(dict_f32, indices, dict_shape, idx_shape, axis);
+    }
+
+    // Copy device memory to host if necessary
+    cldnn::memory::ptr host_mem = dict_mem;
+    if (dict_mem->get_allocation_type() == cldnn::allocation_type::usm_device) {
+        auto* eng = dict_mem->get_engine();
+        host_mem = eng->allocate_memory(dict_mem->get_layout(), cldnn::allocation_type::usm_host);
+        host_mem->copy_from(stream, *dict_mem, true);
+    }
+
+    std::vector<float> ref_out(static_cast<size_t>(num_idx * after), 0.0f);
+
+    // Read only the gathered rows from the dict using a type-specific lock
+    // Each row has `after` elements; row r starts at flat index r * after
+    auto do_gather = [&](auto type_tag) {
+        using T = decltype(type_tag);
+        auto lock = cldnn::mem_lock<T>(host_mem, stream);
+        if (bench_ref_parallel_enabled() && num_idx * after >= 1024) {
+            tbb::parallel_for(tbb::blocked_range<int64_t>(0, num_idx),
+                [&](const tbb::blocked_range<int64_t>& r) {
+                for (int64_t ii = r.begin(); ii != r.end(); ++ii) {
+                    int32_t idx = indices[ii];
+                    if (idx < 0) idx += static_cast<int32_t>(axis_dim);
+                    if (idx < 0 || idx >= static_cast<int32_t>(axis_dim)) continue;
+                    int64_t off = idx * after;
+                    for (int64_t j = 0; j < after; ++j)
+                        ref_out[ii * after + j] = static_cast<float>(lock[off + j]);
+                }
+            });
+        } else {
+            for (int64_t ii = 0; ii < num_idx; ++ii) {
+                int32_t idx = indices[ii];
+                if (idx < 0) idx += static_cast<int32_t>(axis_dim);
+                if (idx < 0 || idx >= static_cast<int32_t>(axis_dim)) continue;
+                int64_t off = idx * after;
+                for (int64_t j = 0; j < after; ++j)
+                    ref_out[ii * after + j] = static_cast<float>(lock[off + j]);
+            }
+        }
+    };
+
+    switch (dict_dt) {
+        case cldnn::data_types::f32:  do_gather(float{});           break;
+        case cldnn::data_types::f16:  do_gather(ov::float16{});     break;
+        case cldnn::data_types::i8:   do_gather(int8_t{});          break;
+        case cldnn::data_types::u8:   do_gather(uint8_t{});         break;
+        case cldnn::data_types::i32:  do_gather(int32_t{});         break;
+        case cldnn::data_types::i64:  do_gather(int64_t{});         break;
+        default: {
+            // Fallback for unusual types: full materialization
+            auto dict_f32 = read_memory_to_f32(host_mem, stream);
+            return gather(dict_f32, indices, dict_shape, idx_shape, axis);
+        }
+    }
+    return ref_out;
 }
 
 // ============================================================================

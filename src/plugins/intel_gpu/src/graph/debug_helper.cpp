@@ -1092,6 +1092,58 @@ void PrimitiveInstDebugHelper::dump_bench_kernel_verbose() const {
         ss << ",dynamic_quantized_precomputed_reduction=" << prim->dynamic_quantized_precomputed_reduction;
         ss << ",fc_input_size=" << prim->input_size;
         ss << ",fc_weights_rank=" << prim->weights_rank;
+
+        // Emit bench attrs so converter can reconstruct FC scales/zero-points.
+        // Input convention: in0=src, in1=weights, then optional wei_scale/wei_zp/src_scale/src_zp.
+        auto is_int_dt = [](cldnn::data_types dt) {
+            return dt == cldnn::data_types::i8 || dt == cldnn::data_types::u8 ||
+                   dt == cldnn::data_types::i4 || dt == cldnn::data_types::u4 ||
+                   dt == cldnn::data_types::i32 || dt == cldnn::data_types::u32 ||
+                   dt == cldnn::data_types::i64 || dt == cldnn::data_types::u64;
+        };
+
+        std::vector<std::string> scale_attrs;
+        std::vector<std::string> zp_attrs;
+        size_t attr_input_idx = 2;
+
+        if (prim->compressed_weights && params.input_layouts.size() > attr_input_idx) {
+            auto wei_scale_dt = dt_to_str(params.input_layouts[attr_input_idx].data_type);
+            scale_attrs.push_back(std::string("wei:per_oc:") + wei_scale_dt);
+            attr_input_idx++;
+
+            if (params.input_layouts.size() > attr_input_idx &&
+                is_int_dt(params.input_layouts[attr_input_idx].data_type)) {
+                auto wei_zp_dt = dt_to_str(params.input_layouts[attr_input_idx].data_type);
+                zp_attrs.push_back(std::string("wei:per_oc:") + wei_zp_dt);
+                attr_input_idx++;
+            }
+        }
+
+        if (prim->dynamic_quantized_activation && params.input_layouts.size() > attr_input_idx) {
+            auto src_scale_dt = dt_to_str(params.input_layouts[attr_input_idx].data_type);
+            scale_attrs.push_back(std::string("src:per_token:") + src_scale_dt);
+            attr_input_idx++;
+
+            if (prim->dynamic_quantized_activation_zp && params.input_layouts.size() > attr_input_idx) {
+                auto src_zp_dt = dt_to_str(params.input_layouts[attr_input_idx].data_type);
+                zp_attrs.push_back(std::string("src:per_token:") + src_zp_dt);
+            }
+        }
+
+        if (!scale_attrs.empty()) {
+            ss << ",attr_scales=";
+            for (size_t i = 0; i < scale_attrs.size(); ++i) {
+                if (i > 0) ss << "+";
+                ss << scale_attrs[i];
+            }
+        }
+        if (!zp_attrs.empty()) {
+            ss << ",attr_zero_points=";
+            for (size_t i = 0; i < zp_attrs.size(); ++i) {
+                if (i > 0) ss << "+";
+                ss << zp_attrs[i];
+            }
+        }
     } else if (type_str == "convolution") {
         auto prim = std::static_pointer_cast<const convolution>(params.desc);
         ss << ",groups=" << prim->groups;

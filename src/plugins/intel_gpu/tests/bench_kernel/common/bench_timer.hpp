@@ -158,6 +158,8 @@ struct acc_summary {
     size_t mismatches = 0;
     float max_abs_diff = 0.0f;
     float max_rel_diff = 0.0f;
+    double total_latency_ms = 0.0;   // accumulated per-test latency for acc runs
+    size_t latency_count = 0;        // number of acc tests contributing latency
 
     bool empty() const { return !valid; }
 };
@@ -189,6 +191,8 @@ struct bench_stat {
                     acc_data.max_abs_diff = other.acc_data.max_abs_diff;
                 if (other.acc_data.max_rel_diff > acc_data.max_rel_diff)
                     acc_data.max_rel_diff = other.acc_data.max_rel_diff;
+                acc_data.total_latency_ms += other.acc_data.total_latency_ms;
+                acc_data.latency_count += other.acc_data.latency_count;
             }
         }
     }
@@ -211,7 +215,12 @@ struct bench_stat {
             std::cout << "total acc: elements=" << acc_data.total_elements
                       << " mismatches=" << acc_data.mismatches
                       << " max_abs=" << std::scientific << std::setprecision(4) << acc_data.max_abs_diff
-                      << " max_rel=" << acc_data.max_rel_diff
+                      << " max_rel=" << acc_data.max_rel_diff;
+            if (acc_data.latency_count > 0) {
+                std::cout << std::fixed << std::setprecision(3)
+                          << " latency_ms=" << (acc_data.total_latency_ms / static_cast<double>(acc_data.latency_count));
+            }
+            std::cout
                       << std::endl;
         }
     }

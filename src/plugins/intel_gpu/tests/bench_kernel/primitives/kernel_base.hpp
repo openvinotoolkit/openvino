@@ -8,6 +8,7 @@
 #include <memory>
 #include <iostream>
 #include <iomanip>
+#include <chrono>
 
 #include <intel_gpu/runtime/engine.hpp>
 
@@ -34,8 +35,15 @@ public:
         stat.tests = 1;
         reported_timer_.reset();
         reported_acc_ = acc_summary{};
+        auto run_start = std::chrono::high_resolution_clock::now();
         try {
             run_single(engine, config);
+            auto run_end = std::chrono::high_resolution_clock::now();
+            double run_latency_ms = std::chrono::duration<double, std::milli>(run_end - run_start).count();
+            if (reported_acc_.valid && reported_acc_.latency_count == 0) {
+                reported_acc_.total_latency_ms = run_latency_ms;
+                reported_acc_.latency_count = 1;
+            }
             stat.passed = 1;
             stat.perf_data.merge(reported_timer_);
             stat.acc_data = reported_acc_;

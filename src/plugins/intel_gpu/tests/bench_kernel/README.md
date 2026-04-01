@@ -78,8 +78,9 @@ Values: `ocl` (OpenCL), `onednn` (oneDNN). Empty for auto-selection (default).
 ### --force_impl
 
 `--force_impl=KERNEL_NAME` forces a specific OCL kernel implementation by name.
-**Requires `--impl=ocl`** — the `kernel_name` forcing mechanism is only used by
-the OCL kernel selector and has no effect on oneDNN kernels.
+If `--impl` is not specified (auto mode), `bench_kernel` automatically switches
+the forced primitive to OCL so the requested kernel can be selected.
+If `--impl=onednn` is explicitly set, `--force_impl` has no effect.
 
 The kernel name must exactly match one of the registered GPU kernel names
 (e.g., `gemm_tiled_opt`, `fully_connected_gpu_bf_tiled`,
@@ -89,11 +90,11 @@ Examples:
 ```sh
 # Force a specific Gemm OCL kernel
 ./ov_gpu_bench_kernel --gemm --dt=f16 --shapes=8x16x64:8x64x16 \
-    --impl=ocl --force_impl=gemm_tiled_opt --mode=c --device=1
+    --force_impl=gemm_tiled_opt --mode=c --device=1
 
 # Force a specific FC OCL kernel
-./ov_gpu_bench_kernel --fc --dt=f16 --shapes=1x4096:4096x4096 \
-    --impl=ocl --force_impl=fully_connected_gpu_bf_tiled --mode=p --device=1
+./ov_gpu_bench_kernel --fc --dt=f16 --shapes=1x2048:4096x2048 \
+    --force_impl=fully_connected_gpu_bf_tiled --mode=p --device=1
 ```
 
 ### --shapes
@@ -611,9 +612,7 @@ python3 scripts/bench_kernel_converter.py -i verbose.log -o batch.txt --summary
 ```
 
 When `debug_helper` emits a line with `unsupported=1`, the converter treats it as a non-reproducible bench entry and
-skips command generation for that line. This converter-side filtering is only one source of non-supported cases;
-hand-written bench commands can still report `UNIMPLEMENTED` directly if the requested primitive or path is not
-implemented in `bench_kernel`.
+skips command generation for that line.
 
 ---
 
