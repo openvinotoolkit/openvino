@@ -24,10 +24,42 @@ size_t get_subgroup_size(gpu_arch arch) {
     case gpu_arch::xe_hpc:
     case gpu_arch::xe2:
     case gpu_arch::xe3:
-        return 16;
     default:
-        return 8;
+        return 16;
     }
+}
+
+size_t get_vec_size(const RuntimeParams& params) {
+    const auto& q_layout = params.get_input_layout(paged_gated_delta_net::QUERY);
+    const auto& q_shape = q_layout.get_partial_shape();
+    const auto& v_shape = params.get_input_layout(paged_gated_delta_net::VALUE).get_partial_shape();
+
+    const size_t k_head_dims = q_shape[2].get_length();
+    const size_t v_head_dims = v_shape[2].get_length();
+    const size_t subgroup_size = get_subgroup_size(params.get_device_info().arch);
+
+    if ((k_head_dims % 16) != 0 || (v_head_dims % 16) != 0) {
+        return 1;
+    }
+
+    size_t vec_size = 1;
+    switch (q_layout.data_type) {
+    case ov::element::f16:
+        vec_size = 8;
+        break;
+    case ov::element::f32:
+        vec_size = 8;
+        break;
+    default:
+        vec_size = 1;
+        break;
+    }
+
+    while (vec_size > 1 && ((k_head_dims % (subgroup_size * vec_size)) != 0)) {
+        vec_size /= 2;
+    }
+
+    return vec_size;
 }
 
 class PagedGatedDeltaNetRefGenerator : public KernelGenerator {
@@ -53,6 +85,7 @@ protected:
         jit.make("V_HEAD_DIM", v_head_dims);
         jit.make("V_BLOCK_SIZE", v_block_size);
         jit.make("SUBGROUP_SIZE", get_subgroup_size(params.get_device_info().arch));
+        jit.make("K_VEC_SIZE", get_vec_size(params));
         jit.make("SCALE_FACTOR", scale_factor);
 
         return jit;
