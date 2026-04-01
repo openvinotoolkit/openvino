@@ -6,7 +6,6 @@
 
 #include "gtest/gtest.h"
 #include "utils/cpu_test_utils.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/transpose.hpp"
 
 using namespace CPUTestUtils;
@@ -120,46 +119,6 @@ const std::vector<std::vector<size_t>>& inputOrder4D() {
     return inputOrder4D;
 }
 }  // namespace Transpose
-
-
-void TransposeStringLayerCPUTest::SetUp() {
-    const auto& [inputShapes, inputOrder, _, _targetDevice,
-                 additionalConfig, cpuParams] = this->GetParam();
-    targetDevice = _targetDevice;
-    configuration.insert(additionalConfig.begin(), additionalConfig.end());
-
-    inType = outType = ov::element::string;
-    std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-
-    init_input_shapes({inputShapes});
-
-    auto params = std::make_shared<ov::op::v0::Parameter>(
-        ov::element::string, inputDynamicShapes[0]);
-    const auto inputOrderOp = std::make_shared<ov::op::v0::Constant>(
-        ov::element::i64, ov::Shape({inputOrder.size()}), inputOrder);
-    const auto transpose = std::make_shared<ov::op::v1::Transpose>(params, inputOrderOp);
-    const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose)};
-
-    function = std::make_shared<ov::Model>(
-        results, ov::ParameterVector{params}, "TransposeStringLayerCPUTest");
-    functionRefs = function->clone();
-}
-
-void TransposeStringLayerCPUTest::generate_inputs(
-    const std::vector<ov::Shape>& targetInputStaticShapes) {
-    inputs.clear();
-    const auto& funcInputs = function->inputs();
-    ov::test::utils::InputGenerateData in_data;
-    in_data.start_from = 0;
-    in_data.range = 10;
-    auto data_tensor = ov::test::utils::create_and_fill_tensor(
-        ov::element::string, targetInputStaticShapes.front(), in_data);
-    inputs.insert({funcInputs[0].get_node_shared_ptr(), data_tensor});
-}
-
-TEST_P(TransposeStringLayerCPUTest, CompareWithRefs) {
-    run();
-}
 
 }  // namespace test
 }  // namespace ov

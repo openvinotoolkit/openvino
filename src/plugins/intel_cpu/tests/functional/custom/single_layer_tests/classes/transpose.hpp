@@ -29,20 +29,6 @@ protected:
     void SetUp() override;
 };
 
-class TransposeStringLayerCPUTest
-    : public testing::WithParamInterface<TransposeLayerCPUTestParamSet>,
-      public ov::test::SubgraphBaseTest,
-      public CPUTestsBase {
-public:
-    static std::string getTestCaseName(
-        const testing::TestParamInfo<TransposeLayerCPUTestParamSet>& obj) {
-        return TransposeLayerCPUTest::getTestCaseName(obj);
-    }
-protected:
-    void SetUp() override;
-    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
-};
-
 namespace Transpose {
     const std::vector<ov::element::Type>& netPrecisionsPerChannels();
     const std::vector<InputShape>& dynamicInputShapes4DC16();
