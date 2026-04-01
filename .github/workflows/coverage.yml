@@ -103,6 +103,14 @@ jobs:
         with:
           submodules: 'true'
 
+      - name: Setup Python 3.11
+        uses: ./.github/actions/setup_python
+        with:
+          version: '3.11'
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
+
       - name: Install coverage helper dependency
         run: python3 -m pip install pyyaml
 
@@ -390,9 +398,18 @@ jobs:
         with:
           submodules: 'true'
           sparse-checkout: |
+            .github/actions/setup_python/action.yml
             tools/coverage
             src/bindings/js
           sparse-checkout-cone-mode: false
+
+      - name: Setup Python 3.11
+        uses: ./.github/actions/setup_python
+        with:
+          version: '3.11'
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
 
       - name: Install coverage helper dependency
         run: python3 -m pip install pyyaml

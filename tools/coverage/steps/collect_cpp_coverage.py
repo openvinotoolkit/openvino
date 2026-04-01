@@ -157,7 +157,7 @@ def _run_lcov_capture(
         "--rc",
         "geninfo_unexecuted_blocks=1",
         "--ignore-errors",
-        "gcov,source,graph,mismatch",
+        "gcov,source,graph",
         "--compat",
         "split_crc=auto",
     ]
@@ -325,7 +325,7 @@ def run(ctx: CoverageContext) -> None:
             "--remove",
             str(merged_info),
             "--ignore-errors",
-            "unused,mismatch",
+            "unused",
             f"{src_dir}/build/*",
             f"{src_dir}/build_js/*",
             f"{src_dir}/*.pb.cc",

@@ -236,7 +236,9 @@ def run(ctx: CoverageContext) -> None:
             skipped.append(f"{test.name} (unknown kind: {test.kind})")
             duration_rows.append((test.name, "skipped", 0.0))
 
-    run_cmd(["python3", "-m", "coverage", "xml", "-o", str(ctx.workspace / "python-coverage.xml")])
+    xml_rc = run_cmd(["python3", "-m", "coverage", "xml", "-o", str(ctx.workspace / "python-coverage.xml")], check=False)
+    if xml_rc != 0:
+        warn("Failed to export python-coverage.xml; continuing without Python XML coverage output.")
     _write_duration_report(ctx, duration_rows)
 
     total_failed = len(failed)
