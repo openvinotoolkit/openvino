@@ -25,6 +25,10 @@
 #define CL_DEVICE_HANDLE_LIST_END_KHR 0
 #endif
 
+#ifndef CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KMT_KHR
+#define CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KMT_KHR 0x2062
+#endif
+
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
@@ -353,6 +357,8 @@ public:
             byte_size *= dim;
         }
 
+        // External-memory import needs OpenCL 3.0 buffer-properties API in headers.
+#if defined(CL_VERSION_3_0)
         cl_int errcode_ret = CL_SUCCESS;
         const auto cl_ctx = static_cast<cl_context>(get_params().at(ov::intel_gpu::ocl_context.name()).as<gpu_handle_param>());
 
@@ -370,41 +376,51 @@ public:
 
         const auto device_id = devices.front();
 
-        const cl_mem_properties ext_mem_properties[] = {
-    #ifdef _WIN32
-            static_cast<cl_mem_properties>(CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KHR),
-    #else
-            static_cast<cl_mem_properties>(CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_FD_KHR),
-    #endif
+        auto try_import_external_mem = [&](cl_mem_properties handle_type) -> cl_mem {
+            const cl_mem_properties ext_mem_properties[] = {
+            handle_type,
             static_cast<cl_mem_properties>(reinterpret_cast<intptr_t>(shared_buffer)),
             static_cast<cl_mem_properties>(CL_DEVICE_HANDLE_LIST_KHR),
             static_cast<cl_mem_properties>(reinterpret_cast<intptr_t>(device_id)),
             static_cast<cl_mem_properties>(CL_DEVICE_HANDLE_LIST_END_KHR),
             0
+            };
+
+            return clCreateBufferWithProperties(cl_ctx,
+                            ext_mem_properties,
+                            CL_MEM_READ_WRITE,
+                            byte_size,
+                            nullptr,
+                            &errcode_ret);
         };
 
-        auto ext_mem_buffer = clCreateBufferWithProperties(cl_ctx,
-                                                           ext_mem_properties,
-                                                           0,
-                                                           byte_size,
-                                                           nullptr,
-                                                           &errcode_ret);
-
-        if (errcode_ret != CL_SUCCESS || ext_mem_buffer == nullptr) {
-            // Keep compatibility for existing callers that pass cl_mem wrapped as void*.
-            return create_tensor(type, shape, static_cast<cl_mem>(shared_buffer));
+        cl_mem ext_mem_buffer = nullptr;
+    #ifdef _WIN32
+        // Win32 sharing can expose either NT or KMT handles depending on DXGI sharing mode.
+        ext_mem_buffer = try_import_external_mem(static_cast<cl_mem_properties>(CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KHR));
+        if ((errcode_ret != CL_SUCCESS || ext_mem_buffer == nullptr)) {
+            ext_mem_buffer = try_import_external_mem(static_cast<cl_mem_properties>(CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KMT_KHR));
         }
+    #else
+        ext_mem_buffer = try_import_external_mem(static_cast<cl_mem_properties>(CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_FD_KHR));
+    #endif
 
-        struct ClMemReleaser {
-            void operator()(cl_mem mem_obj) const {
-                if (mem_obj != nullptr) {
-                    clReleaseMemObject(mem_obj);
+        if (errcode_ret == CL_SUCCESS && ext_mem_buffer != nullptr) {
+            struct ClMemReleaser {
+                void operator()(cl_mem mem_obj) const {
+                    if (mem_obj != nullptr) {
+                        clReleaseMemObject(mem_obj);
+                    }
                 }
-            }
-        };
+            };
 
-        std::unique_ptr<_cl_mem, ClMemReleaser> ext_mem_guard(ext_mem_buffer);
-        return create_tensor(type, shape, ext_mem_buffer);
+            std::unique_ptr<_cl_mem, ClMemReleaser> ext_mem_guard(ext_mem_buffer);
+            return create_tensor(type, shape, ext_mem_buffer);
+        }
+#endif
+
+        // Keep compatibility for existing callers that pass cl_mem wrapped as void*.
+        return create_tensor(type, shape, static_cast<cl_mem>(shared_buffer));
     }
 
     /**
