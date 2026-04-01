@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import platform
 
 import pytest
 import random
@@ -61,6 +62,10 @@ class TestEdsrConvertModel(TestTorchConvertModel):
             cleanup_dir(hf_cache_dir)
         super().teardown_method()
 
+    @pytest.mark.skipif(
+        condition=platform.machine() in ("arm", "armv7l", "aarch64", "arm64", "ARM64"),
+        reason="Not supported on ARM",
+    )
     @pytest.mark.parametrize("name", ["edsr"])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, ie_device):
