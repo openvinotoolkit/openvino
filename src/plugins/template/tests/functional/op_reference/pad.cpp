@@ -2249,6 +2249,7 @@ std::vector<PadParams> generateStringParams() {
             "pad_string_2d_cols_only"),
 
         // 3-D
+        // slice 2 = original slice 1 + 1 row of "?" at end for dim1
         PadParams(reference_tests::Tensor(ET, {2, 2, 2}, std::vector<T>{"a", "b", "c", "d", "e", "f", "g", "h"}),
                   reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{1, 0, 0}),
                   reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{0, 1, 0}),
@@ -2280,4 +2281,34 @@ INSTANTIATE_TEST_SUITE_P(smoke_Pad_String_With_Hardcoded_Refs,
                          ReferencePadV12StringTest,
                          testing::ValuesIn(generateStringParams()),
                          ReferencePadTest::getTestCaseName);
+
+// Test that non-CONSTANT pad modes are rejected for element::string at construction/validation time.
+TEST(ReferencePadV12StringNegative, NonConstantModeThrows) {
+    const auto data = std::make_shared<op::v0::Parameter>(element::string, Shape{4});
+    const auto pads_begin = op::v0::Constant::create(element::i64, Shape{1}, {1});
+    const auto pads_end   = op::v0::Constant::create(element::i64, Shape{1}, {1});
+    for (const auto mode : {op::PadMode::EDGE, op::PadMode::REFLECT, op::PadMode::SYMMETRIC}) {
+        EXPECT_THROW(std::make_shared<op::v12::Pad>(data, pads_begin, pads_end, mode),
+                     ov::Exception)
+            << "Expected throw for pad mode " << as_string(mode);
+    }
+}
+
+// Test that the 3-input ctor (omitted pad_value) defaults to empty string for element::string.
+TEST(ReferencePadV12StringDefaultPadValue, DefaultsToEmptyString) {
+    const auto data = std::make_shared<op::v0::Parameter>(element::string, Shape{3});
+    const auto pads_begin = op::v0::Constant::create(element::i64, Shape{1}, {1});
+    const auto pads_end   = op::v0::Constant::create(element::i64, Shape{1}, {1});
+    // Must not throw — default pad value for string should be ""
+    std::shared_ptr<op::v12::Pad> pad;
+    ASSERT_NO_THROW(pad = std::make_shared<op::v12::Pad>(data, pads_begin, pads_end, op::PadMode::CONSTANT));
+    // Verify output shape: {3} + 1 + 1 = {5}
+    EXPECT_EQ(pad->get_output_partial_shape(0), PartialShape({5}));
+    // Verify the default pad_value constant is an empty string
+    const auto pad_val_const = ov::as_type_ptr<op::v0::Constant>(pad->get_input_node_shared_ptr(3));
+    ASSERT_NE(pad_val_const, nullptr);
+    EXPECT_EQ(pad_val_const->get_element_type(), element::string);
+    EXPECT_EQ(pad_val_const->cast_vector<std::string>(), std::vector<std::string>{""})
+        << "Default pad value for string Pad should be empty string";
+}
 }  // namespace
