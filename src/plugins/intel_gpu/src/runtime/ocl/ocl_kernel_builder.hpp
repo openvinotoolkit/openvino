@@ -14,6 +14,9 @@
 #error "ocl_kernel_builder.hpp expects OpenCL C++ bindings to throw exceptions"
 #endif
 
+// Move this macro to some common header in the future
+#define DISCARD_RETURN(func_call) static_cast<void>(func_call)
+
 namespace cldnn {
 namespace ocl {
 
@@ -58,8 +61,8 @@ class ocl_kernel_builder : public kernel_builder{
             cl::vector<cl::Kernel> kernels;
             try {
                 // We can safely ignore return values here as those function should throw in case of errors
-                static_cast<void>(program.build({m_device.get_device()}, options.c_str()));
-                static_cast<void>(program.createKernels(&kernels));
+                DISCARD_RETURN(program.build({m_device.get_device()}, options.c_str()));
+                DISCARD_RETURN(program.createKernels(&kernels));
             } catch (const cl::BuildError& err) {
                 GPU_DEBUG_INFO << "-------- Kernel build error" << std::endl;
                 auto log = err.getBuildLog();
@@ -83,3 +86,4 @@ class ocl_kernel_builder : public kernel_builder{
 }  // namespace ocl
 }  // namespace cldnn
 
+#undef DISCARD_RETURN
