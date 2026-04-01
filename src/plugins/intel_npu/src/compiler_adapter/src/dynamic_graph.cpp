@@ -450,10 +450,27 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_b
         blobSize = _blob->get_byte_size();
     }
 
-    if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
-        OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
+    size_t size = utils::align_size_to_standard_page_size(blobSize);
+    size_t paddingSize = size - blobSize;
+
+    if (encryptionCallbackOpt.has_value()) {
+        std::string tmpBlobStr(reinterpret_cast<const char*>(blobPtr), blobSize);
+        if (paddingSize > 0) {
+            // need to encrypt blob as a whole with padding included, otherwise encryption key mismatches might occur
+            std::fill_n(std::back_inserter(tmpBlobStr), paddingSize, 0);
+        }
+        auto encryptedBlobStr = encryptionCallbackOpt.value()(tmpBlobStr);
+
+        if (size > static_cast<decltype(size)>(std::numeric_limits<std::streamsize>::max())) {
+            OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
+        }
+        stream.write(encryptedBlobStr.c_str(), static_cast<std::streamsize>(size));
+    } else {
+        if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
+            OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
+        }
+        stream.write(reinterpret_cast<const char*>(blobPtr), static_cast<std::streamsize>(blobSize));
     }
-    stream.write(reinterpret_cast<const char*>(blobPtr), static_cast<std::streamsize>(blobSize));
 
     if (!stream) {
         _logger.error("Write blob to stream failed. Blob is broken!");
@@ -466,19 +483,19 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_b
             result = ((result << 7) + result) + static_cast<uint32_t>(*it);
         }
 
-        std::stringstream str;
-        str << "Blob size: " << blobSize << ", hash: " << std::hex << result;
-        _logger.info(str.str().c_str());
+        _logger.info("Blob size: %ld, hash: %x", blobSize, result);
     }
 
-    size_t size = utils::align_size_to_standard_page_size(blobSize);
-    size_t paddingSize = size - blobSize;
     if (paddingSize > 0) {
-        std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
-        if (!stream) {
-            _logger.error("Write padding to stream failed. Blob is broken!");
-            return std::make_pair(0, std::nullopt);
+        if (!encryptionCallbackOpt.has_value()) {
+            std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
+
+            if (!stream) {
+                _logger.error("Write padding to stream failed. Blob is broken!");
+                return std::make_pair(0, std::nullopt);
+            }
         }
+
         _logger.info("Blob size with padding: %ld", size);
     }
     _logger.info("Write blob to stream successfully.");

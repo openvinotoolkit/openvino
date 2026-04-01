@@ -106,10 +106,6 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(
         blobSize = _blob->get_byte_size();
     }
 
-    if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
-        OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
-    }
-
     size_t size = utils::align_size_to_standard_page_size(blobSize);
     size_t paddingSize = size - blobSize;
 
@@ -126,6 +122,9 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(
         }
         stream.write(encryptedBlobStr.c_str(), static_cast<std::streamsize>(size));
     } else {
+        if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
+            OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
+        }
         stream.write(reinterpret_cast<const char*>(blobPtr), static_cast<std::streamsize>(blobSize));
     }
 
