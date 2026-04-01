@@ -133,9 +133,6 @@ def run(ctx: CoverageContext) -> None:
     runtime_ld_library_path = _compose_runtime_ld_library_path(ctx)
     os.environ["LD_LIBRARY_PATH"] = f"{runtime_ld_library_path}:{os.environ.get('LD_LIBRARY_PATH', '')}".rstrip(":")
 
-    run_cmd(["npm", "i"], cwd=ctx.paths.js_dir)
-    run_cmd(["npm", "i", "--no-save", "c8"], cwd=ctx.paths.js_dir)
-
     executed = 0
     skipped_count = 0
     failed: list[str] = []

@@ -134,7 +134,6 @@ def _remove_gcda_files(paths: list[Path]) -> int:
 def _run_lcov_capture(
     *,
     directory: Path,
-    build_directory: Path,
     base_directory: Path,
     output_file: Path,
     label: str,
@@ -150,8 +149,6 @@ def _run_lcov_capture(
         "--capture",
         "--directory",
         str(directory),
-        "--build-directory",
-        str(build_directory),
         "--base-directory",
         str(base_directory),
         "--output-file",
@@ -260,7 +257,6 @@ def run(ctx: CoverageContext) -> None:
         main_info = trace_dir / "main-build.info"
         _run_lcov_capture(
             directory=ctx.paths.build_dir,
-            build_directory=ctx.paths.build_dir,
             base_directory=src_dir,
             output_file=main_info,
             label="C/C++ main capture",
@@ -275,7 +271,6 @@ def run(ctx: CoverageContext) -> None:
         js_info = trace_dir / "js-build.info"
         _run_lcov_capture(
             directory=ctx.paths.build_js_dir,
-            build_directory=ctx.paths.build_js_dir,
             base_directory=src_dir,
             output_file=js_info,
             label="C/C++ JS-side capture",
@@ -299,7 +294,6 @@ def run(ctx: CoverageContext) -> None:
             tracefile = trace_dir / f"{run_dir.name}-main.info"
             _run_lcov_capture(
                 directory=staged_main_dir,
-                build_directory=ctx.paths.build_dir,
                 base_directory=src_dir,
                 output_file=tracefile,
                 label=f"C/C++ staged main capture ({run_dir.name})",
@@ -312,7 +306,6 @@ def run(ctx: CoverageContext) -> None:
             tracefile = trace_dir / f"{run_dir.name}-js.info"
             _run_lcov_capture(
                 directory=staged_js_dir,
-                build_directory=ctx.paths.build_js_dir,
                 base_directory=src_dir,
                 output_file=tracefile,
                 label=f"C/C++ staged JS capture ({run_dir.name})",

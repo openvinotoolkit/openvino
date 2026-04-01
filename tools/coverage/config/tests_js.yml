@@ -51,7 +51,7 @@ tests:
 
   - name: npm run test:e2e
     kind: command
-    command: "Xvfb :99 & export DISPLAY=:99 && npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=false --exclude 'tests/**' --exclude 'thirdparty/**' npm run test:e2e --loglevel=silly"
+    command: "npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=false --exclude 'tests/**' --exclude 'thirdparty/**' npm run test:e2e --loglevel=silly"
 
   - name: js_gpu_compile_model_smoke
     kind: command

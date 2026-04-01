@@ -59,14 +59,6 @@ def _selected_test_names() -> list[str]:
     return [name.strip() for name in raw.split(",") if name.strip()]
 
 
-def _find_openvino_wheel(wheels_dir: Path) -> Path:
-    """Return the generated OpenVINO wheel from the install output."""
-    candidates = sorted(wheels_dir.glob("openvino-*.whl"))
-    if not candidates:
-        raise FileNotFoundError(f"OpenVINO wheel not found in {wheels_dir}")
-    return candidates[0]
-
-
 def _write_duration_report(ctx: CoverageContext, rows: list[tuple[str, str, float]]) -> None:
     """Write per-test duration data for the current Python run."""
     report_path = ctx.workspace / "python-test-durations.csv"
@@ -179,13 +171,6 @@ def run(ctx: CoverageContext) -> None:
     onnx_py_tests = ctx.workspace / "src" / "frontends" / "onnx" / "tests" / "tests_python"
     layer_tests = ctx.workspace / "tests" / "layer_tests"
     py_cov_config = ctx.workspace / ".python_coverage_ci.rc"
-
-    run_cmd(["python3", "-m", "pip", "install", "-r", str(tests_dir / "bindings/python/requirements_test.txt")])
-    run_cmd(["python3", "-m", "pip", "install", "-r", str(tests_dir / "layer_tests/requirements.txt")])
-    run_cmd(["python3", "-m", "pip", "install", "-r", str(tests_dir / "requirements_onnx")])
-    run_cmd(["python3", "-m", "pip", "install", "-r", str(tests_dir / "requirements_jax")])
-    wheel = _find_openvino_wheel(ctx.paths.install_pkg_dir / "wheels")
-    run_cmd(["python3", "-m", "pip", "install", "--force-reinstall", str(wheel)])
 
     runtime_ld_library_path = _compose_runtime_ld_library_path(ctx)
     os.environ["LD_LIBRARY_PATH"] = f"{runtime_ld_library_path}:{os.environ.get('LD_LIBRARY_PATH', '')}".rstrip(":")
