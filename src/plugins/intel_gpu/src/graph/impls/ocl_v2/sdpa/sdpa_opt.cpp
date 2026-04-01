@@ -113,6 +113,7 @@ public:
         bool is_indirect = need_indirect_load(static_cast<scaled_dot_product_attention_inst&>(instance));
         GPU_DEBUG_TRACE_DETAIL << "execute indirect = " << is_indirect << ", prefill = " << is_prefill << "\n";
         update_rt_params(instance);
+        clear_kernel_entries_info();
 #ifdef ENABLE_ONEDNN_FOR_GPU
         if (has_stage(regular_micro_multi_tokens) && is_prefill && !is_indirect) {
             GPU_DEBUG_TRACE_DETAIL << "execute regular_micro_multi_tokens for prefill \n";

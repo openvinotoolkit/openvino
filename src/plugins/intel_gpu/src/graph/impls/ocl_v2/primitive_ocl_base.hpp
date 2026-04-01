@@ -47,7 +47,18 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
     std::unique_ptr<ImplRuntimeParams> m_rt_params = nullptr;
 
     // a pair of batch program hash and kernel entry hash of each ocl impl.
-    std::pair<std::string, std::string> kernel_dump_info;
+    mutable std::pair<std::string, std::string> kernel_dump_info;
+
+    void clear_kernel_entries_info() const {
+        kernel_dump_info.second.clear();
+    }
+
+    void add_kernel_entry_info(const std::string& kernel_entry) const {
+        if (!kernel_dump_info.second.empty()) {
+            kernel_dump_info.second += " ";
+        }
+        kernel_dump_info.second += kernel_entry;
+    }
 
     template <typename CodeGenType, typename... Args>
     Stage::Ptr make_stage(Args&&... args) {
@@ -260,6 +271,8 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         GPU_DEBUG_TRACE_DETAIL << "Enqueue stage " << stage.kernel->get_id() << " : gws=[" << gws[0] << ", " << gws[1] << ", " << gws[2] << "] " << "lws=["
                                << lws[0] << ", " << lws[1] << ", " << lws[2] << "]" << (needs_completion_event ? " has_completion_event=true" : "") << '\n';
 
+        add_kernel_entry_info(stage.kernel->get_id());
+
         return stream.enqueue_kernel(*stage.kernel, params, {}, events, needs_completion_event);
     }
 
@@ -268,6 +281,8 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
     }
 
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance) override {
+        clear_kernel_entries_info();
+
         cldnn::stream& stream = instance.get_network().get_stream();
         if (instance.can_be_optimized()) {
             return stream.aggregate_events(events, events.size() > 1, instance.is_output());
@@ -317,6 +332,10 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
     }
 
     std::pair<std::string, std::string> get_kernels_dump_info(const cldnn::kernel_impl_params& impl_params) const override {
+        if (!kernel_dump_info.second.empty()) {
+            return kernel_dump_info;
+        }
+
         std::string entry_points;
         const auto& updated_order = !impl_params.is_dynamic() ? get_stages_execution_order(impl_params) : _order;
 
