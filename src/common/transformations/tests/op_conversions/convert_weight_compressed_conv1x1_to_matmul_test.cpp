@@ -47,11 +47,10 @@ struct Conv1x1ToMatmulTestParams {
 
 std::shared_ptr<ov::Model> gen_model(const Conv1x1ToMatmulTestParams& p) {
     int input_batch = p.with_batched_input ? 4 : 1;
-    auto input = std::make_shared<ov::opset1::Parameter>(
-        ov::element::f16,
-        (p.activation_op_type == "Reshape" && p.with_act_new_reshape)
-         ? ov::Shape{(size_t)input_batch, 1, 2, 5}
-         : ov::Shape{(size_t)input_batch, 1, 1, 10});
+    auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16,
+                                                         (p.activation_op_type == "Reshape" && p.with_act_new_reshape)
+                                                             ? ov::Shape{(size_t)input_batch, 1, 2, 5}
+                                                             : ov::Shape{(size_t)input_batch, 1, 1, 10});
 
     std::shared_ptr<ov::Node> act_node;
     if (p.activation_op_type == "Transpose") {
@@ -131,11 +130,10 @@ std::shared_ptr<ov::Model> gen_model(const Conv1x1ToMatmulTestParams& p) {
 
 std::shared_ptr<ov::Model> gen_model_ref(const Conv1x1ToMatmulTestParams& p) {
     int input_batch = p.with_batched_input ? 4 : 1;
-    auto input = std::make_shared<ov::opset1::Parameter>(
-        ov::element::f16,
-        (p.activation_op_type == "Reshape" && p.with_act_new_reshape)
-         ? ov::Shape{(size_t)input_batch, 1, 2, 5}
-         : ov::Shape{(size_t)input_batch, 1, 1, 10});
+    auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16,
+                                                         (p.activation_op_type == "Reshape" && p.with_act_new_reshape)
+                                                             ? ov::Shape{(size_t)input_batch, 1, 2, 5}
+                                                             : ov::Shape{(size_t)input_batch, 1, 1, 10});
 
     std::shared_ptr<ov::Node> weights_node;
     ov::ParameterVector params = {input};
