@@ -11,7 +11,6 @@
 #include "openvino/frontend/onnx/graph_iterator.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
-#include "openvino/util/wstring_convert_util.hpp"
 
 using ::ONNX_NAMESPACE::AttributeProto_AttributeType;
 using ::ONNX_NAMESPACE::GraphProto;
@@ -29,9 +28,9 @@ namespace frontend {
 namespace onnx {
 
 class DecoderProtoTensor;
-using MappedMemoryHandles = std::shared_ptr<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>;
+using MappedMemoryHandles = std::shared_ptr<std::map<std::filesystem::path, std::shared_ptr<ov::MappedMemory>>>;
 using LocalMemoryHandles = std::shared_ptr<std::vector<std::shared_ptr<uint8_t>>>;
-using LocalStreamHandles = std::shared_ptr<std::map<std::string, std::shared_ptr<std::ifstream>>>;
+using LocalStreamHandles = std::shared_ptr<std::map<std::filesystem::path, std::shared_ptr<std::ifstream>>>;
 
 enum GraphIteratorProtoMemoryManagementMode : int {
     Undefined = 0,

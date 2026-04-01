@@ -852,11 +852,11 @@ InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& gra
         m_model_dir = graph_iterator->get_model_dir();
     }
     if (m_enable_mmap) {
-        m_mmap_cache = std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>();
+        m_mmap_cache = std::make_shared<std::map<std::filesystem::path, std::shared_ptr<ov::MappedMemory>>>();
         m_stream_cache = nullptr;
     } else {
         m_mmap_cache = nullptr;
-        m_stream_cache = std::make_shared<std::map<std::string, std::shared_ptr<std::ifstream>>>();
+        m_stream_cache = std::make_shared<std::map<std::filesystem::path, std::shared_ptr<std::ifstream>>>();
     }
     load_model();
 }
