@@ -483,8 +483,8 @@ class jit_check_f16_compression : public jit::Generator {
 public:
     typedef struct {
         const void* src;
-        void* oor_dst;      // size_t* — output: out-of-range count
-        void* lossy_dst;    // size_t* — output: lossy count (0 or non-zero)
+        void* oor_dst;    // size_t* — output: out-of-range count
+        void* lossy_dst;  // size_t* — output: lossy count (0 or non-zero)
         const size_t count;
     } args_t;
 
@@ -514,7 +514,7 @@ private:
         // YMM register allocation
         // Range check constants (same as jit_count_out_of_range)
         auto data_vec = ymm1;
-        auto mask_vec = ymm2;       // OOR mask per chunk
+        auto mask_vec = ymm2;  // OOR mask per chunk
         auto mask_vec_xmm = xmm2;
         auto tmp_vec = ymm3;
         auto oor_accum = ymm4;
@@ -526,11 +526,12 @@ private:
         auto f16_zero_vec = ymm9;
         auto i32_ones_vec = ymm10;
         // Lossy check constants
-        auto abs_err_vec = ymm11;    // 1.0f broadcast
-        auto abs_mask_vec = ymm0;    // 0x7FFFFFFF broadcast (for fabs)
+        auto abs_err_vec = ymm11;  // 1.0f broadcast
+        auto abs_mask_vec = ymm0;  // 0x7FFFFFFF broadcast (for fabs)
+        auto rel_err_vec = ymm12;  // 1e-4f broadcast (for relative error threshold)
         // Temps for lossy computation (reused per chunk)
         auto diff_vec = ymm14;
-        auto rt_vec_xmm = xmm15;   // for f32->f16->f32 roundtrip
+        auto rt_vec_xmm = xmm15;  // for f32->f16->f32 roundtrip
 
         Label exit_lossy, exit_normal;
 
@@ -544,6 +545,7 @@ private:
         static const float f16_min_neg = -ov::float16::from_bits(0x0001);
         static const int32_t i32_one = 1;
         static const float abs_err_val = 1.0f;
+        static const float rel_err_val = 1e-4f;
         static const uint32_t abs_mask_val = 0x7FFFFFFF;
 
         static const float max_pos_bounds[8] =
@@ -557,9 +559,16 @@ private:
         static const int32_t i32_ones[8] = {i32_one, i32_one, i32_one, i32_one, i32_one, i32_one, i32_one, i32_one};
         static const float abs_errs[8] =
             {abs_err_val, abs_err_val, abs_err_val, abs_err_val, abs_err_val, abs_err_val, abs_err_val, abs_err_val};
-        static const uint32_t abs_masks[8] =
-            {abs_mask_val, abs_mask_val, abs_mask_val, abs_mask_val,
-             abs_mask_val, abs_mask_val, abs_mask_val, abs_mask_val};
+        static const float rel_errs[8] =
+            {rel_err_val, rel_err_val, rel_err_val, rel_err_val, rel_err_val, rel_err_val, rel_err_val, rel_err_val};
+        static const uint32_t abs_masks[8] = {abs_mask_val,
+                                              abs_mask_val,
+                                              abs_mask_val,
+                                              abs_mask_val,
+                                              abs_mask_val,
+                                              abs_mask_val,
+                                              abs_mask_val,
+                                              abs_mask_val};
 
         auto load_vec = [this](Ymm vec, size_t ptr) {
             mov(r15, ptr);
@@ -572,6 +581,7 @@ private:
         load_vec(f16_min_neg_vec, (size_t)min_neg_bounds);
         load_vec(i32_ones_vec, (size_t)i32_ones);
         load_vec(abs_err_vec, (size_t)abs_errs);
+        load_vec(rel_err_vec, (size_t)rel_errs);
         load_vec(abs_mask_vec, (size_t)abs_masks);
         vxorps(f16_zero_vec, f16_zero_vec, f16_zero_vec);
         vxorps(oor_accum, oor_accum, oor_accum);
@@ -608,24 +618,32 @@ private:
 
             // === Lossy check for in-range elements ===
             // Roundtrip: f32 -> f16 -> f32
-            vcvtps2ph(rt_vec_xmm, data_vec, 0);     // f32 -> f16 (8 values)
-            vcvtph2ps(diff_vec, rt_vec_xmm);         // f16 -> f32 (roundtripped)
+            vcvtps2ph(rt_vec_xmm, data_vec, 0);  // f32 -> f16 (8 values)
+            vcvtph2ps(diff_vec, rt_vec_xmm);     // f16 -> f32 (roundtripped)
 
             // abs_diff = |data - roundtripped|
             vsubps(diff_vec, data_vec, diff_vec);
-            vandps(diff_vec, diff_vec, abs_mask_vec); // diff_vec = |diff|
+            vandps(diff_vec, diff_vec, abs_mask_vec);  // diff_vec = |diff|
 
             // lossy = |diff| > abs_error (1.0)
             vcmpps(tmp_vec, diff_vec, abs_err_vec, _cmp_gt_os);  // |diff| > 1.0
 
             // Exclude out-of-range elements: keep only in-range lossy
-            vandnps(tmp_vec, mask_vec, tmp_vec);     // tmp_vec = NOT(oor) AND lossy
+            vandnps(tmp_vec, mask_vec, tmp_vec);  // tmp_vec = NOT(oor) AND lossy
 
             // Early exit if ANY element is lossy
-            vtestps(tmp_vec, tmp_vec);               // ZF=1 if all zeros
-            jnz(exit_lossy, T_NEAR);                // bail if any lossy
+            vtestps(tmp_vec, tmp_vec);  // ZF=1 if all zeros
+            jnz(exit_lossy, T_NEAR);    // bail if any lossy
 
-            // === Accumulate OOR count (only reached if no lossy in this chunk) ===
+            // === Relative error check: count elements where |diff| > |value| * 1e-4 ===
+            // (equivalent to abs_diff / |value| > 1e-4, but avoids division)
+            vandps(tmp_vec, data_vec, abs_mask_vec);         // tmp_vec = |data|
+            vmulps(tmp_vec, tmp_vec, rel_err_vec);           // tmp_vec = |data| * 1e-4
+            vcmpps(tmp_vec, diff_vec, tmp_vec, _cmp_gt_os);  // 1 where |diff| > |data|*1e-4
+            vandnps(tmp_vec, mask_vec, tmp_vec);             // exclude OOR (avoid double-count)
+            vorps(mask_vec, mask_vec, tmp_vec);              // combine OOR + relative-error
+
+            // === Accumulate combined OOR + relative-error count ===
             vandps(mask_vec, mask_vec, i32_ones_vec);
             vphaddd(mask_vec, mask_vec, mask_vec);
             vpermq(mask_vec, mask_vec, 0x08);
@@ -662,10 +680,10 @@ private:
         vpxor(mask_vec, mask_vec, mask_vec);  // zero
         vmovups(yword[r8], mask_vec);         // zero-pad buffer
 
-        copy<float>(r8, reg_src, reg_sz);     // copy remaining elements
-        emit_kernel(r8);                      // process (zeros won't trigger OOR or lossy)
+        copy<float>(r8, reg_src, reg_sz);  // copy remaining elements
+        emit_kernel(r8);                   // process (zeros won't trigger OOR or lossy)
 
-        add(rsp, vlen * sizeof(float));       // free stack (only reached if no lossy)
+        add(rsp, vlen * sizeof(float));  // free stack (only reached if no lossy)
 
         // --- Normal exit: no lossy elements found ---
         L(exit_normal);
@@ -688,9 +706,9 @@ private:
 
         // --- Lossy exit: bail immediately (jumped from kernel via jnz) ---
         L(exit_lossy);
-        mov(rsp, reg_saved_rsp);         // restore rsp (handles both main loop and tail cases)
+        mov(rsp, reg_saved_rsp);  // restore rsp (handles both main loop and tail cases)
         xor_(rsi, rsi);
-        mov(qword[reg_oor_dst], rsi);    // oor_count = 0 (meaningless, caller checks lossy first)
+        mov(qword[reg_oor_dst], rsi);  // oor_count = 0 (meaningless, caller checks lossy first)
         mov(rsi, 1);
         mov(qword[reg_lossy_dst], rsi);  // lossy = 1
         postamble();
@@ -796,20 +814,23 @@ F16CompressionCheckResult check_f16_compression(const float* arg, size_t count) 
         }
     }
 #endif  // OV_CORE_USE_XBYAK_JIT
+    constexpr double max_relative_error = 1e-4;
     constexpr double max_abs_error = 1.0;
 
     size_t out_of_range = 0;
     for (size_t i = 0; i < count; ++i) {
         const float v = arg[i];
-        if ((std::abs(v) < float16::from_bits(0x0001) && v != 0.0f) ||
-            v > std::numeric_limits<float16>::max() ||
+        if ((std::abs(v) < float16::from_bits(0x0001) && v != 0.0f) || v > std::numeric_limits<float16>::max() ||
             v < std::numeric_limits<float16>::lowest()) {
             ++out_of_range;
         } else {
             const double roundtripped = static_cast<double>(static_cast<float>(static_cast<float16>(v)));
             const double abs_diff = std::abs(v - roundtripped);
             if (abs_diff > max_abs_error) {
-                return {0, true};  // bail: significant absolute precision loss
+                return {0, true};
+            }
+            if (v != 0.0f && abs_diff / std::abs(v) > max_relative_error) {
+                ++out_of_range;
             }
         }
     }

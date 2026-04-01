@@ -656,11 +656,9 @@ TEST_F(TransformationTestsF, CompressConstants_compress_scalar_exact_f16) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
-// Non-scalar constants should be compressed even if individual elements have high FP16
-// rounding error. The scalar error check only applies to numel == 1 constants.
-TEST_F(TransformationTestsF, CompressConstants_compress_non_scalar_with_high_error) {
+TEST_F(TransformationTestsF, CompressConstants_skip_non_scalar_with_high_error_more_than_75) {
     // Model: Parameter -> Multiply(input, Const({2.7725887, 2.7725887, 2.7725887, 2.7725887})) -> Result
-    // Non-scalar (numel=4) with high per-element error -> still compressed.
+    // Non-scalar (numel=4) with high per-element error -> compressed.
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 4});
         auto scale =
@@ -670,16 +668,6 @@ TEST_F(TransformationTestsF, CompressConstants_compress_non_scalar_with_high_err
 
         manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
         manager.register_pass<ov::pass::CompressFloatConstants>();
-    }
-
-    {
-        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 4});
-        // Non-scalar constant compressed to FP16 + Convert (error check is scalar-only)
-        auto scale =
-            v0::Constant::create(ov::element::f16, ov::Shape{4}, {2.7725887f, 2.7725887f, 2.7725887f, 2.7725887f});
-        auto convert = std::make_shared<v0::Convert>(scale, ov::element::f32);
-        auto mul = std::make_shared<ov::opset8::Multiply>(input, convert);
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
