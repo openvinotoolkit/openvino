@@ -149,7 +149,7 @@ details::OptionValue::~OptionValue() = default;
 // OptionsDesc
 //
 
-details::OptionConcept OptionsDesc::get(std::string_view key, OptionMode mode) const {
+details::OptionConcept OptionsDesc::get(std::string_view key) const {
     std::string searchKey{key};
     const auto itDeprecated = _deprecated.find(std::string(key));
     if (itDeprecated != _deprecated.end()) {
@@ -163,18 +163,7 @@ details::OptionConcept OptionsDesc::get(std::string_view key, OptionMode mode) c
                     key.data(),
                     "' is not supported for current configuration");
 
-    const auto& desc = itMain->second;
-
-    if (mode == OptionMode::RunTime) {
-        if (desc.mode() == OptionMode::CompileTime) {
-            _log.warning("%s option '%s' was used in %s mode",
-                         stringifyEnum(desc.mode()).data(),
-                         key.data(),
-                         stringifyEnum(mode).data());
-        }
-    }
-
-    return desc;
+    return itMain->second;
 }
 
 void OptionsDesc::reset() {
@@ -266,11 +255,11 @@ bool Config::has(std::string key) const {
     return _impl.count(key) != 0;
 }
 
-void Config::update(const ConfigMap& options, OptionMode mode) {
+void Config::update(const ConfigMap& options) {
     for (const auto& p : options) {
         _log.trace("Update option '%s' to value '%s'", p.first.c_str(), p.second.c_str());
 
-        const auto opt = _desc->get(p.first, mode);
+        const auto opt = _desc->get(p.first);
         _impl[opt.key().data()] = opt.validateAndParse(p.second);
     }
 }

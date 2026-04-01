@@ -68,4 +68,5 @@ TEST(op, opset_multi_thread) {
     doTest(ov::get_opset14);
     doTest(ov::get_opset15);
     doTest(ov::get_opset16);
+    doTest(ov::get_opset17);
 }

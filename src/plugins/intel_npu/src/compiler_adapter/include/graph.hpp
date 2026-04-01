@@ -8,7 +8,8 @@
 
 #include <ze_graph_ext.h>
 
-#include "compiler_impl.hpp"
+#include <mutex>
+
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -25,7 +26,6 @@ public:
           std::optional<ov::Tensor> blob,
           const FilteredConfig& config,
           const bool blobIsPersistent = false,
-          const ov::SoPtr<VCLCompilerImpl>& compiler = {nullptr},
           const bool calledFromWeightlessGraph = false);
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
@@ -37,17 +37,14 @@ public:
                                          const void* data,
                                          const std::vector<size_t>& strides) const override;
 
-    void initialize(const FilteredConfig& config) override;
-
     const NetworkMetadata& get_metadata() const override;
     ze_graph_handle_t get_handle() const override;
 
     void update_network_name(std::string_view name) override;
 
-    const std::shared_ptr<CommandQueue>& get_command_queue() const override;
-    uint32_t get_command_queue_group_ordinal() const override;
-
-    void set_workload_type(const ov::WorkloadType workloadType) const override;
+    CommandQueueDesc get_command_queue_desc() const override;
+    void set_workload_type(const ov::WorkloadType workloadType) override;
+    void set_model_priority(const ov::hint::Priority modelPriority) override;
 
     void set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList) override;
     const std::shared_ptr<Event>& get_last_submitted_event(size_t indexOfCommandList) const override;
@@ -65,6 +62,8 @@ public:
     ~Graph() override;
 
 protected:
+    void initialize_impl(const FilteredConfig& config) override;
+
     bool release_blob(const FilteredConfig& config);
     std::optional<size_t> determine_batch_size();
 
@@ -75,8 +74,8 @@ protected:
     GraphDescriptor _graphDesc;
     NetworkMetadata _metadata;
 
-    std::shared_ptr<CommandQueue> _commandQueue;
-    uint32_t _commandQueueGroupOrdinal = 0;
+    mutable std::mutex _commandQueueDescMutex;
+    CommandQueueDesc _commandQueueDesc;
     std::vector<std::shared_ptr<Event>> _lastSubmittedEvent;
 
     std::optional<ov::Tensor> _blob;
@@ -95,7 +94,6 @@ protected:
      */
     std::optional<std::size_t> _batchSize = std::nullopt;
 
-    const ov::SoPtr<VCLCompilerImpl> _compiler;
     Logger _logger;
 };
 
