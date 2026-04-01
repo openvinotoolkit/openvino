@@ -130,36 +130,6 @@ jobs:
           # pytorch test requirements
           ${{ env.PIP_INSTALL_COMMAND }} -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch
 
-      - name: Debug HF token resolution (Linux/macOS)
-        if: ${{ runner.os != 'Windows' }}
-        shell: bash
-        run: |
-          python3 - <<'EOF'
-          from huggingface_hub import get_token
-          import os
-          token = get_token()
-          if token:
-              print(f'HF token resolved: {token[:4]}...{token[-4:]} (length={len(token)})')
-          else:
-              print('WARNING: No HF token found by huggingface_hub')
-          print(f'HF_TOKEN_PATH={os.environ.get("HF_TOKEN_PATH", "not set")}')
-          EOF
-
-      - name: Debug HF token resolution (Windows)
-        if: ${{ runner.os == 'Windows' }}
-        shell: pwsh
-        run: |
-          python3 -c @'
-          from huggingface_hub import get_token
-          import os
-          token = get_token()
-          if token:
-              print(f"HF token resolved: {token[:4]}...{token[-4:]} (length={len(token)})")
-          else:
-              print("WARNING: No HF token found by huggingface_hub")
-          print(f"HF_TOKEN_PATH={os.environ.get('HF_TOKEN_PATH', 'not set')}")
-          '@
-
       - name: PyTorch torch.compile TORCHFX Layer Tests
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS' && runner.arch != 'ARM64' && runner.os != 'Windows' }} # Ticket: 126287
         run: |
