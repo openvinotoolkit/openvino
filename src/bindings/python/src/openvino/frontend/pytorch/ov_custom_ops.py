@@ -15,6 +15,8 @@ Import this module to trigger registration::
     import openvino.frontend.pytorch.ov_custom_ops  # noqa: F401
 """
 
+from __future__ import annotations
+
 import logging
 
 import torch
@@ -34,7 +36,7 @@ _ov_ext_lib.define(
 
 
 @torch.library.impl(_ov_ext_lib, "linear", "Meta")
-def _linear_meta(data, weight, bias):
+def _linear_meta(data: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor | None) -> torch.Tensor:
     out_features = weight.shape[0]
     return torch.empty(
         *data.shape[:-1], out_features,
@@ -42,7 +44,7 @@ def _linear_meta(data, weight, bias):
 
 
 @torch.library.impl(_ov_ext_lib, "linear", "CPU")
-def _linear_cpu(data, weight, bias):
+def _linear_cpu(data: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor | None) -> torch.Tensor:
     out = torch.mm(
         data.reshape(-1, data.shape[-1]).float(),
         weight.float().t())
@@ -60,14 +62,20 @@ _ov_ext_lib.define(
 
 
 @torch.library.impl(_ov_ext_lib, "embedding", "Meta")
-def _embedding_meta(weight, indices, padding_idx, scale_grad_by_freq, sparse):
+def _embedding_meta(
+    weight: torch.Tensor, indices: torch.Tensor, padding_idx: int | None,
+    scale_grad_by_freq: bool, sparse: bool,
+) -> torch.Tensor:
     return torch.empty(
         *indices.shape, weight.shape[1],
         dtype=torch.float32, device="meta")
 
 
 @torch.library.impl(_ov_ext_lib, "embedding", "CPU")
-def _embedding_cpu(weight, indices, padding_idx, scale_grad_by_freq, sparse):
+def _embedding_cpu(
+    weight: torch.Tensor, indices: torch.Tensor, padding_idx: int | None,
+    scale_grad_by_freq: bool, sparse: bool,
+) -> torch.Tensor:
     return torch.nn.functional.embedding(
         indices, weight.float(),
         padding_idx=padding_idx,
@@ -84,7 +92,7 @@ _ov_ext_lib.define(
 
 
 @torch.library.impl(_ov_ext_lib, "conv1d", "Meta")
-def _conv1d_meta(data, weight, bias):
+def _conv1d_meta(data: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor | None) -> torch.Tensor:
     # Output feature count comes from the second dimension of weight.
     out_features = weight.shape[1]
     return torch.empty(
@@ -93,7 +101,7 @@ def _conv1d_meta(data, weight, bias):
 
 
 @torch.library.impl(_ov_ext_lib, "conv1d", "CPU")
-def _conv1d_cpu(data, weight, bias):
+def _conv1d_cpu(data: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor | None) -> torch.Tensor:
     out = torch.mm(
         data.reshape(-1, data.shape[-1]).float(),
         weight.float())
@@ -109,14 +117,14 @@ _ov_ext_lib.define("bmm(Tensor batch1, Tensor batch2) -> Tensor")
 
 
 @torch.library.impl(_ov_ext_lib, "bmm", "Meta")
-def _bmm_meta(batch1, batch2):
+def _bmm_meta(batch1: torch.Tensor, batch2: torch.Tensor) -> torch.Tensor:
     return torch.empty(
         batch1.shape[0], batch1.shape[1], batch2.shape[2],
         dtype=torch.float32, device="meta")
 
 
 @torch.library.impl(_ov_ext_lib, "bmm", "CPU")
-def _bmm_cpu(batch1, batch2):
+def _bmm_cpu(batch1: torch.Tensor, batch2: torch.Tensor) -> torch.Tensor:
     return torch.bmm(batch1.float(), batch2.float())
 
 
@@ -131,7 +139,11 @@ _ov_ext_lib.define(
 
 
 @torch.library.impl(_ov_ext_lib, "awq_gemm", "Meta")
-def _awq_gemm_meta(data, qweight, qzeros, scales, group_size, w_bit, bias):
+def _awq_gemm_meta(
+    data: torch.Tensor, qweight: torch.Tensor, qzeros: torch.Tensor,
+    scales: torch.Tensor, group_size: int, w_bit: int,
+    bias: torch.Tensor | None,
+) -> torch.Tensor:
     pack_num = 32 // w_bit
     out_features = qweight.shape[1] * pack_num
     return torch.empty(
@@ -140,7 +152,11 @@ def _awq_gemm_meta(data, qweight, qzeros, scales, group_size, w_bit, bias):
 
 
 @torch.library.impl(_ov_ext_lib, "awq_gemm", "CPU")
-def _awq_gemm_cpu(data, qweight, qzeros, scales, group_size, w_bit, bias):
+def _awq_gemm_cpu(
+    data: torch.Tensor, qweight: torch.Tensor, qzeros: torch.Tensor,
+    scales: torch.Tensor, group_size: int, w_bit: int,
+    bias: torch.Tensor | None,
+) -> torch.Tensor:
     # Placeholder – actual dequantisation happens in the C++ OV translator.
     # This fallback produces the right shape for tracing / testing.
     pack_num = 32 // w_bit
@@ -162,7 +178,10 @@ _ov_ext_lib.define(
 
 
 @torch.library.impl(_ov_ext_lib, "bit_linear", "Meta")
-def _bit_linear_meta(data, weight, weight_scale, bias):
+def _bit_linear_meta(
+    data: torch.Tensor, weight: torch.Tensor, weight_scale: torch.Tensor,
+    bias: torch.Tensor | None,
+) -> torch.Tensor:
     # BitNet weight packing: out_features is weight.shape[0]
     out_features = weight.shape[0]
     return torch.empty(
@@ -171,7 +190,10 @@ def _bit_linear_meta(data, weight, weight_scale, bias):
 
 
 @torch.library.impl(_ov_ext_lib, "bit_linear", "CPU")
-def _bit_linear_cpu(data, weight, weight_scale, bias):
+def _bit_linear_cpu(
+    data: torch.Tensor, weight: torch.Tensor, weight_scale: torch.Tensor,
+    bias: torch.Tensor | None,
+) -> torch.Tensor:
     out_features = weight.shape[0]
     out = torch.zeros(
         *data.shape[:-1], out_features,

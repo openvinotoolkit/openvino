@@ -2,14 +2,17 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Optional
+from __future__ import annotations
+
+from typing import Any, Callable
+
 import torch
 from openvino.frontend.pytorch import ModuleExtension, gptq
 from openvino.frontend.pytorch.patch_model import (
     patch_model, unpatch_model, patch_model_for_export)
 
 
-def detect_quantized_model(model: torch.nn.Module) -> Optional[str]:
+def detect_quantized_model(model: torch.nn.Module) -> str | None:
     """Detects the quantization method used in a given PyTorch model.
 
     Args:
@@ -60,7 +63,9 @@ def unpatch_quantized(model: torch.nn.Module) -> None:
                       "_openvino_quantized_patch_orig_forward")  # type: ignore
 
 
-def _build_quantized_extensions(quant_type, for_export=False):
+def _build_quantized_extensions(
+    quant_type: str | None, for_export: bool = False,
+) -> dict[Any, ModuleExtension] | None:
     """Build ModuleExtension dict for the given quantization type.
 
     Args:
@@ -76,12 +81,15 @@ def _build_quantized_extensions(quant_type, for_export=False):
     def fp32_tensor(*shape: int) -> torch.Tensor:
         return torch.full(shape, 0.5, dtype=torch.float32)
 
-    extensions = {}  # type: ignore[var-annotated]
+    extensions: dict[Any, ModuleExtension] = {}
     if quant_type == "awq":
         try:
             from awq.modules.linear import WQLinear_GEMM
 
-            def _awq_convert(module, target_op, *args, **kwargs):
+            def _awq_convert(
+                module: Any, target_op: Callable[..., torch.Tensor],
+                *args: Any, **kwargs: Any,
+            ) -> torch.Tensor:
                 gs = module.group_size if for_export else torch.tensor(module.group_size)
                 wb = module.w_bit if for_export else torch.tensor(module.w_bit)
                 return target_op(
