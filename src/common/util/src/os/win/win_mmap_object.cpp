@@ -168,7 +168,7 @@ std::shared_ptr<MappedMemory> load_mmap_object(const std::filesystem::path& path
     return holder;
 }
 
-std::shared_ptr<ov::MappedMemory> load_mmap_object_from_handle(FileHandle handle, size_t offset, size_t size) {
+std::shared_ptr<ov::MappedMemory> load_mmap_object(FileHandle handle, size_t offset, size_t size) {
     if (handle == INVALID_HANDLE_VALUE || handle == nullptr) {
         throw std::runtime_error("Invalid handle provided to load_mmap_object");
     }

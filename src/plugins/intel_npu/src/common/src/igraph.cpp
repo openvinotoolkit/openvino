@@ -50,11 +50,11 @@ void IGraph::update_network_name(std::string_view) {
     OPENVINO_THROW("update_network_name not implemented");
 }
 
-const std::shared_ptr<CommandQueue>& IGraph::get_command_queue() const {
-    OPENVINO_THROW("get_command_queue not implemented");
+CommandQueueDesc IGraph::get_command_queue_desc() const {
+    OPENVINO_THROW("get_command_queue_desc not implemented");
 }
 
-void IGraph::set_workload_type(const ov::WorkloadType) const {
+void IGraph::set_workload_type(const ov::WorkloadType) {
     OPENVINO_THROW("set_workload_type not implemented");
 }
 
