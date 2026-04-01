@@ -341,7 +341,7 @@ void SingleFileStorage::initialize(std::shared_ptr<ov::wsh::Context> weight_shar
         util::Version file_version;
         read_version(stream, file_version);
         OPENVINO_ASSERT(util::is_version_compatible(m_version, file_version), "Incompatible cache format");
-        build_content_index(stream);
+        OPENVINO_ASSERT(build_content_index(stream), "The cache file may be corrupted or in an unsupported format");
     }
 }
 
