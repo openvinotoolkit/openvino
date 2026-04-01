@@ -694,28 +694,32 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             _logger.info("Blob compatibility check skipped.");
         }
 
+        ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
+        ov::Tensor tensor;
         if (auto it = npuPluginProperties.find(ov::cache_encryption_callbacks.name());
             it != npuPluginProperties.end()) {
             std::string blobStr;
-            blobStr.resize(blobSize);
+            blobStr.resize(blobSize);  // +1x blob size
             if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
                 OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
             }
             stream.read(&blobStr.at(0), static_cast<std::streamsize>(blobSize));
-            // +1x blob size below, ov::EncryptionCallbacks should work with ov::Tensor instead of std::string to avoid
-            // this
-            auto decryptedBlobSO =
-                std::make_shared<std::string>(it->second.as<ov::EncryptionCallbacks>().decrypt(blobStr));
-            blobStr.clear();  // move is not permitted above
-            const ov::Tensor decryptedBlobView(ov::element::u8, ov::Shape{blobSize}, decryptedBlobSO->c_str());
+            auto decryptedBlobStr = it->second.as<ov::EncryptionCallbacks>().decrypt(blobStr);  // +2x blob size
+            blobStr.clear();  // -1x blob size, move is not permitted above
 
-            auto decryptedBlobViewImpl = ov::get_tensor_impl(decryptedBlobView);
-            decryptedBlobViewImpl._so = decryptedBlobSO;  // keep decrypted string alive and ov::Tensor as its wrapper
-            return parse(ov::make_tensor(decryptedBlobViewImpl), std::move(metadata), npuPluginProperties);
+            size_t alignedSize = utils::align_size_to_standard_page_size(decryptedBlobStr.size());
+            size_t paddingSize = alignedSize - decryptedBlobStr.size();
+            tensor = ov::Tensor(ov::element::u8,
+                                ov::Shape{alignedSize},
+                                customAllocator);  // +2x blob size again, cannot use custom allocator for std::string
+                                                   // for its data address to be aligned to 4KB
+            std::memcpy(tensor.data<char>(), decryptedBlobStr.c_str(), decryptedBlobStr.size());
+            std::memset(tensor.data<char>() + decryptedBlobStr.size(), 0, paddingSize);
+            decryptedBlobStr.clear();  // -1x blob size, but still additional one in ov::Tensor above
+            return parse(tensor, std::move(metadata), npuPluginProperties);
         }
 
-        ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
-        ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
+        tensor = ov::Tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
         if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
             OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
         }
@@ -780,16 +784,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
 
         if (auto it = npuPluginProperties.find(ov::cache_encryption_callbacks.name());
             it != npuPluginProperties.end()) {
-            std::string blobStr(compiledBlob.data<const char>(), compiledBlob.get_byte_size());
-            // +1x blob size below, ov::EncryptionCallbacks should work with ov::Tensor instead of std::string to avoid
-            // this
-            auto decryptedBlobSO =
-                std::make_shared<std::string>(it->second.as<ov::EncryptionCallbacks>().decrypt(blobStr));
-            blobStr.clear();  // move is not permitted above
-            const ov::Tensor decryptedBlobView(ov::element::u8, ov::Shape{blobSize}, decryptedBlobSO->c_str());
-            auto decryptedBlobViewImpl = ov::get_tensor_impl(decryptedBlobView);
-            decryptedBlobViewImpl._so = decryptedBlobSO;
-            return parse(ov::make_tensor(decryptedBlobViewImpl), std::move(metadata), npuPluginProperties);
+            ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
+            std::string blobStr(compiledBlob.data<const char>(), compiledBlob.get_byte_size());  // +1x blob size
+            auto decryptedBlobStr = it->second.as<ov::EncryptionCallbacks>().decrypt(blobStr);   // + 2x blob size
+            blobStr.clear();  // -1x blob size, move is not permitted above
+
+            size_t alignedSize = utils::align_size_to_standard_page_size(decryptedBlobStr.size());
+            size_t paddingSize = alignedSize - decryptedBlobStr.size();
+            ov::Tensor tensor(ov::element::u8, ov::Shape{alignedSize}, customAllocator);
+            std::memcpy(tensor.data<char>(), decryptedBlobStr.c_str(), decryptedBlobStr.size());
+            std::memset(tensor.data<char>() + decryptedBlobStr.size(), 0, paddingSize);
+            decryptedBlobStr.clear();  // -1x blob size, but still additional one in ov::Tensor above
+            return parse(tensor, std::move(metadata), npuPluginProperties);
         }
         const ov::Tensor roiTensor(compiledBlob,
                                    ov::Coordinate{0},
