@@ -304,7 +304,7 @@ public:
         auto zero_f = register_new_node<v1::ConvertLike>(zero_i, query);
 
         auto build_extract_dim_subgraph = [this, &zero_i](const std::shared_ptr<v3::ShapeOf>& shape_of,
-                                                        const int64_t idx) -> std::shared_ptr<ov::Node> {
+                                                          const int64_t idx) -> std::shared_ptr<ov::Node> {
             const auto dim_to_extract_const = v0::Constant::create(element::i32, Shape{}, {idx});
             const auto gather = std::make_shared<v8::Gather>(shape_of, dim_to_extract_const, zero_i);
 
@@ -359,9 +359,9 @@ public:
             if (!node->get_causal()) {
                 mask = node->input_value(3);
 
-                // two types of masks are supported. A boolean mask where a value of True indicates that the element should
-                // take part in attention. A float mask of the same type as query, key, value that is added to the attention
-                // score.
+                // two types of masks are supported. A boolean mask where a value of True indicates that the element
+                // should take part in attention. A float mask of the same type as query, key, value that is added to
+                // the attention score.
                 if (mask.get_element_type() == element::boolean) {
                     atten_mask = register_new_node<v1::Select>(mask, zero_f, minus_inf);
                 } else {
@@ -374,7 +374,8 @@ public:
                 auto tsl = register_new_node<v0::Unsqueeze>(target_s_len, zero_i);
                 auto mask_shape = register_new_node<v0::Concat>(OutputVector{tsl, ssl}, 0);
                 mask = register_new_node<v1::Broadcast>(minus_inf, mask_shape);
-                auto horizontal_range = register_new_node<v4::Range>(zero_i, source_s_len, one_i, element::i32)->output(0);
+                auto horizontal_range =
+                    register_new_node<v4::Range>(zero_i, source_s_len, one_i, element::i32)->output(0);
                 horizontal_range = register_new_node<v0::Unsqueeze>(horizontal_range, zero_i);
                 auto stop = register_new_node<v1::Add>(target_s_len, one_i);
                 auto vertical_range = register_new_node<v4::Range>(one_i, stop, one_i, element::i32)->output(0);
@@ -394,7 +395,7 @@ public:
             auto one_i = register_new_node(v0::Constant::create(element::i32, Shape{1}, {1}));
 
             auto q_last_but_one_dim = register_new_node<v1::Subtract>(register_new_node<v0::ShapeOf>(q_shape),
-                                                                    v0::Constant::create(element::i64, Shape{}, {1}));
+                                                                      v0::Constant::create(element::i64, Shape{}, {1}));
             auto sink_target_shape_1 = register_new_node<v8::Slice>(q_shape, zero_i, q_last_but_one_dim, one_i);
             auto sink_target_shape = register_new_node<v0::Concat>(OutputVector{sink_target_shape_1, one_i}, 0);
             auto sink_broadcast = register_new_node<v1::Broadcast>(sink, sink_target_shape);

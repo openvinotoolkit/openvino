@@ -229,7 +229,8 @@ ov::SoPtr<ov::ITensor> ov::npuw::WhisperInferRequest::get_tensor(const ov::Outpu
             if (name.find("cross_attention_qk_scaled_scores_") != std::string::npos) {
                 auto alignment_tensor = m_alignment_tensors.at(name);
                 if (!alignment_tensor) {
-                    OPENVINO_THROW("Cross-attention qk scaled scores tensor is not available. Please run inference first.");
+                    OPENVINO_THROW(
+                        "Cross-attention qk scaled scores tensor is not available. Please run inference first.");
                 }
                 return alignment_tensor;
             }
