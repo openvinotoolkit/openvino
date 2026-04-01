@@ -38,21 +38,22 @@
 namespace cldnn {
 namespace ze {
 
-inline std::shared_ptr<::ov::ZeroApi> get_ze_api_instance() {
+inline const ::ov::ZeroApi& get_ze_api_instance() {
     // Load ZeroApi on first call and keep it alive
     static std::shared_ptr<::ov::ZeroApi> ze_api = ::ov::ZeroApi::get_instance();
-    return ze_api;
+    OPENVINO_ASSERT(ze_api != nullptr, "Failed to load ze_loader library");
+    return *ze_api;
 }
 
 // All Level Zero calls should go through this wrapper
 #define symbol_statement(symbol)                                                                            \
     template <typename... Args>                                                                             \
     inline typename std::invoke_result<decltype(&::symbol), Args...>::type wrapped_##symbol(Args... args) { \
-        const auto& ptr = get_ze_api_instance();                                                            \
-        if (ptr->symbol == nullptr) {                                                                       \
+        const auto& ze_api = get_ze_api_instance();                                                         \
+        if (ze_api.symbol == nullptr) {                                                                     \
             OPENVINO_THROW("Unsupported symbol " #symbol);                                                  \
         }                                                                                                   \
-        return ptr->symbol(std::forward<Args>(args)...);                                                    \
+        return ze_api.symbol(std::forward<Args>(args)...);                                                  \
     }
 symbols_list();
 weak_symbols_list();
