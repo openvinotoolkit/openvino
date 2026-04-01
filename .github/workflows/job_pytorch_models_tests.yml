@@ -95,19 +95,14 @@ jobs:
           wheels-dir-path: ${{ env.INSTALL_DIR }}
           wheels-to-install: 'openvino openvino_tokenizers'
 
-      - name: Install PyTorch tests requirements
+      - name: Install PyTorch tests requirements and requirements for timm/tv tests
         run: |
-          python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_pytorch
-        env:
-          CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python${{ env.PYTHON_VERSION }}
-
-      - name: Install deps for Timm/Torchvision/Edsr tests
-        if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope1' }}
-        run: |
-          python3 -m pip install \
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_pytorch \
             -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/timm.txt \
             -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/edsr.txt \
             -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/torchvision.txt
+        env:
+          CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python${{ env.PYTHON_VERSION }}
 
       - name: PyTorch Models Tests Timm and Torchvision
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope1' }}
@@ -123,6 +118,7 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope2' }}
         run: |
           python3 -m pip install \
+            -r ${INSTALL_TEST_DIR}/requirements_pytorch \
             -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/hf_transformers.txt \
             -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/easyocr.txt \
             -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/gfpgan.txt \
@@ -142,6 +138,7 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope2' }}
         run: |
           python3 -m pip install \
+            -r ${INSTALL_TEST_DIR}/requirements_pytorch \
             -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/llm.txt
 
       - name: PyTorch LLM Model Tests
@@ -180,6 +177,7 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |
           python3 -m pip install \
+            -r ${INSTALL_TEST_DIR}/requirements_pytorch \
             -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/optimum_intel.txt
 
       - name: PagedAttention Test
@@ -203,6 +201,7 @@ jobs:
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pip install \
+            -r ${INSTALL_TEST_DIR}/requirements_pytorch \
             -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/compile_gptq.txt
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_gptq_torchfx_transformations.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_gptqpattern_tests.html --self-contained-html -v --tb=short
         env:
@@ -212,7 +211,9 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/moe.txt
+          python3 -m pip install \
+            -r ${INSTALL_TEST_DIR}/requirements_pytorch \
+            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/moe.txt
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_moe_transformation.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_moe_tests.html --self-contained-html -vvv -s --tb=short -n 2
         env:
           TEST_DEVICE: CPU
@@ -221,7 +222,9 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/rope.txt
+          python3 -m pip install \
+            -r ${INSTALL_TEST_DIR}/requirements_pytorch \
+            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/rope.txt
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_transformations.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_rope_tests.html --self-contained-html -v --tb=short -n 2
         env:
           TEST_DEVICE: CPU
