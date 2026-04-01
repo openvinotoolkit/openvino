@@ -1999,7 +1999,18 @@ template <element::Type_t ET, element::Type_t ET_INT>
 std::vector<PadParams> generateParamsTooLarge() {
     using T = typename element_type_traits<ET>::value_type;
     using T_INT = typename element_type_traits<ET_INT>::value_type;
+    // Use a dim value close to max so that adding padding causes size_t overflow.
+    // ov::util::dim::padded returns inf_bound (SIZE_MAX) in that case, which
+    // causes set_shape / memory allocation to throw.
+    constexpr auto max_dim = static_cast<T_INT>(std::numeric_limits<size_t>::max() - 1);
     std::vector<PadParams> params{
+        PadParams(reference_tests::Tensor(ET, {1}, std::vector<T>{1}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{max_dim}),
+                  reference_tests::Tensor(ET, {1}, std::vector<T>{0}),
+                  op::PadMode::CONSTANT,
+                  "pad_dim_overflow"),
+
         PadParams(reference_tests::Tensor(ET,
                                           {2, 2},
                                           std::vector<T>{

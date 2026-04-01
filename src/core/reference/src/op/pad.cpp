@@ -208,7 +208,7 @@ void pad(const char* data,
 }
 
 void pad(const std::string* data,
-         const std::string& pad_value,
+         std::string_view pad_value,
          std::string* out,
          const Shape& data_shape,
          const Shape& out_shape,

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/shape.hpp"
@@ -23,7 +24,7 @@ void pad(const char* data,
          const op::PadMode pad_mode);
 
 void pad(const std::string* data,
-         const std::string& pad_value,
+         std::string_view pad_value,
          std::string* out,
          const Shape& data_shape,
          const Shape& out_shape,
