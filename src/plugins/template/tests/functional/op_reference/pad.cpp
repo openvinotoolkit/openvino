@@ -2000,9 +2000,6 @@ std::vector<PadParams> generateParamsTooLarge() {
     using T = typename element_type_traits<ET>::value_type;
     using T_INT = typename element_type_traits<ET_INT>::value_type;
     std::vector<PadParams> params{
-        // CONSTANT mode where negative pads make the output dimension mathematically
-        // negative (dim=3, total_pad=-5 → output=-2). The result wraps to a huge
-        // size_t value, causing set_shape / memory allocation to throw.
         PadParams(reference_tests::Tensor(ET, {3}, std::vector<T>{1, 2, 3}),
                   reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{0}),
                   reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{-5}),
@@ -2210,6 +2207,59 @@ std::vector<PadParams> generateStringParams() {
                   op::PadMode::CONSTANT,
                   reference_tests::Tensor(ET, {}, std::vector<T>{""}),
                   "pad_string_1d_negative_crop"),
+
+        // 1-D, pad only at end
+        PadParams(reference_tests::Tensor(ET, {3}, std::vector<T>{"x", "yy", "zzz"}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{0}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{3}),
+                  reference_tests::Tensor(ET, {6}, std::vector<T>{"x", "yy", "zzz", "", "", ""}),
+                  op::PadMode::CONSTANT,
+                  reference_tests::Tensor(ET, {}, std::vector<T>{""}),
+                  "pad_string_1d_end_only"),
+
+        // 1-D, pad both sides with non-empty pad value
+        PadParams(reference_tests::Tensor(ET, {3}, std::vector<T>{"a", "bb", "ccc"}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{1}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
+                  reference_tests::Tensor(ET, {6}, std::vector<T>{"FILL", "a", "bb", "ccc", "FILL", "FILL"}),
+                  op::PadMode::CONSTANT,
+                  reference_tests::Tensor(ET, {}, std::vector<T>{"FILL"}),
+                  "pad_string_1d_both_sides_non_empty"),
+
+        // 2-D, pad rows only (begin and end)
+        PadParams(reference_tests::Tensor(ET, {2, 3}, std::vector<T>{"a", "b", "c", "d", "e", "f"}),
+                  reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, 0}),
+                  reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{1, 0}),
+                  reference_tests::Tensor(
+                      ET,
+                      {5, 3},
+                      std::vector<T>{"X", "X", "X", "X", "X", "X", "a", "b", "c", "d", "e", "f", "X", "X", "X"}),
+                  op::PadMode::CONSTANT,
+                  reference_tests::Tensor(ET, {}, std::vector<T>{"X"}),
+                  "pad_string_2d_rows_only"),
+
+        // 2-D, pad columns only
+        PadParams(
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{"a", "b", "c", "d", "e", "f"}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, 1}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, 2}),
+            reference_tests::Tensor(ET, {2, 6}, std::vector<T>{"", "a", "b", "c", "", "", "", "d", "e", "f", "", ""}),
+            op::PadMode::CONSTANT,
+            reference_tests::Tensor(ET, {}, std::vector<T>{""}),
+            "pad_string_2d_cols_only"),
+
+        // 3-D
+        PadParams(reference_tests::Tensor(ET, {2, 2, 2}, std::vector<T>{"a", "b", "c", "d", "e", "f", "g", "h"}),
+                  reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{1, 0, 0}),
+                  reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{0, 1, 0}),
+                  reference_tests::Tensor(
+                      ET,
+                      {3, 3, 2},
+                      std::vector<
+                          T>{"?", "?", "?", "?", "?", "?", "a", "b", "c", "d", "?", "?", "e", "f", "g", "h", "?", "?"}),
+                  op::PadMode::CONSTANT,
+                  reference_tests::Tensor(ET, {}, std::vector<T>{"?"}),
+                  "pad_string_3d"),
     };
 }
 
