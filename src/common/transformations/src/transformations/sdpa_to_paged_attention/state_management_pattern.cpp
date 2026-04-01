@@ -198,15 +198,6 @@ static std::shared_ptr<ov::Node> handle_baichuan2_13b_alibi(
     return res_alibi_slopes;
 }
 
-static std::shared_ptr<ov::Node> handle_gemma3_token_type_ids(
-    const std::map<std::string, std::shared_ptr<v0::Parameter>>& optional_model_wide_params) {
-    auto param = optional_model_wide_params.at("token_type_ids");
-    if (param->get_element_type() != ov::element::i32) {
-        return std::make_shared<v0::Convert>(param, ov::element::i32);
-    }
-    return param;
-}
-
 static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> phi3_sliding_window_pattern() {
     auto offset = wrap_type<v0::Constant>();
     auto t196 = wrap_type<v1::Add>({any_input(), offset});
@@ -757,7 +748,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         OPENVINO_ASSERT(pa_arguments.size() == 25);
 
         if (*has_token_type_ids) {
-            pa_arguments.insert(pa_arguments.begin() + 25, handle_gemma3_token_type_ids(optional_model_wide_params));
+            std::shared_ptr<ov::Node> token_type_ids = optional_model_wide_params.at("token_type_ids");
+            if (token_type_ids->get_element_type() != element::i32) {
+                token_type_ids = std::make_shared<v0::Convert>(token_type_ids, element::i32);
+            }
+            pa_arguments.insert(pa_arguments.begin() + 25, token_type_ids);
         } else {
             pa_arguments.insert(pa_arguments.begin() + 25, v0::Constant::create(element::i32, Shape{0}, {}));
         }
