@@ -13,6 +13,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/vm/npu_vm_execute.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
@@ -207,13 +208,14 @@ void DynamicPipeline::push() {
         // L0 wrapper handle closed command list
         command_lists->resetCommandList();
 
-        dynamicGraph->execute(_init_structs,
-                              command_lists->getBinding(),
-                              command_lists->getHandles(),
-                              commandQueueHandle,
-                              fence,
-                              event,
-                              nullptr);
+        auto engine = static_cast<npu_mlir_runtime_handle_t>(dynamicGraph->get_mlir_engine());
+        vm_execute_graph(engine,
+                         _init_structs,
+                         command_lists->getBinding(),
+                         command_lists->getHandles(),
+                         commandQueueHandle,
+                         fence,
+                         event);
     }
 
     _logger.debug("push - completed");

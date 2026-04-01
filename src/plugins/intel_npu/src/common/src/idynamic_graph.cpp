@@ -117,16 +117,6 @@ void IDynamicGraph::GraphArguments::setArgumentProperties(uint32_t argi,
     }
 }
 
-void IDynamicGraph::execute(const std::shared_ptr<ZeroInitStructsHolder>&,
-                            GraphArguments&,
-                            std::vector<ze_command_list_handle_t>&,
-                            ze_command_queue_handle_t,
-                            ze_fence_handle_t,
-                            ze_event_handle_t,
-                            ze_graph_profiling_pool_handle_t) {
-    OPENVINO_THROW("execute not implemented");
-}
-
 void IDynamicGraph::getBinding(GraphArguments&) {
     OPENVINO_THROW("getBinding not implemented");
 }

@@ -26,6 +26,7 @@ target_link_libraries(${TARGET_NAME}
     PRIVATE
         openvino_npu_common
         openvino::npu_al
+        openvino::npu_vm_utils
 )
 #
 # targets install

@@ -59,13 +59,16 @@ public:
     IDynamicGraph() = default;
     ~IDynamicGraph() override = default;
 
-    virtual void execute(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                         GraphArguments& args,
-                         std::vector<ze_command_list_handle_t>& commandLists,
-                         ze_command_queue_handle_t commandQueue,
-                         ze_fence_handle_t inferenceFence,
-                         ze_event_handle_t event,
-                         ze_graph_profiling_pool_handle_t profiling);
+    /**
+     * @brief Returns the opaque MLIR engine handle owned by the graph.
+     *
+     * The pipeline casts this to @c npu_mlir_runtime_handle_t and passes it to
+     * @c vm_execute_graph() so that the graph object does not need to hold
+     * inference-request-specific state.
+     */
+    virtual void* get_mlir_engine() const {
+        return nullptr;
+    }
 
     virtual void getBinding(GraphArguments& args);
 
