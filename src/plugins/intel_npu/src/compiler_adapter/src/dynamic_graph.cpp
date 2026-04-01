@@ -4,7 +4,6 @@
 
 #include "dynamic_graph.hpp"
 
-#include <iostream>
 #include <iterator>
 
 #include "compiler_impl.hpp"
@@ -34,13 +33,7 @@ public:
     uint64_t getNumSubgraphs() override {
         return _engineProperties.numOfSubGraphs;
     }
-    void executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                      DynamicGraph::GraphArguments& args,
-                      std::vector<ze_command_list_handle_t>& commandLists,
-                      ze_command_queue_handle_t commandQueue,
-                      ze_fence_handle_t inferenceFence,
-                      ze_event_handle_t event,
-                      ze_graph_profiling_pool_handle_t profiling) override;
+
     void getBinding(DynamicGraph::GraphArguments& binding) override;
 
     virtual ~DynamicGraphImpl() {
@@ -247,8 +240,6 @@ void DynamicGraphImpl::prepareMetadata(NetworkMetadata& metadata) {
 void DynamicGraphImpl::getBinding(DynamicGraph::GraphArguments& binding) {
     binding = _binding;
 }
-
-void DynamicGraphImpl::initializeDynamicGraphExecution(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata) {
     createExecutionEngine(blob);
     prepareMetadata(metadata);
 
@@ -299,74 +290,14 @@ void DynamicGraphImpl::setArgumentValueWithStrides(uint32_t argi,
     }
 }
 
-void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                                    IDynamicGraph::GraphArguments& args,
-                                    std::vector<ze_command_list_handle_t>& commandLists,
-                                    ze_command_queue_handle_t commandQueue,
-                                    ze_fence_handle_t fence,
-                                    ze_event_handle_t event,
-                                    ze_graph_profiling_pool_handle_t profiling) {
-    std::shared_ptr<DynamicGraph::GraphArgumentsImpl> argsImpl =
-        args._impl ? std::static_pointer_cast<DynamicGraph::GraphArgumentsImpl>(args._impl)
-                   : std::make_shared<DynamicGraph::GraphArgumentsImpl>();
-
-    npu_vm_runtime_execute_params_t* params = &argsImpl->_executeParams;
-
-    for (auto& in : args._inputs) {
-        std::shared_ptr<DynamicGraph::MemRefTypeImpl> inImpl =
-            std::static_pointer_cast<DynamicGraph::MemRefTypeImpl>(in._impl);
-        if (inImpl == nullptr) {
-            inImpl = std::make_shared<DynamicGraph::MemRefTypeImpl>();
-            in._impl = inImpl;
-        }
-        inImpl->UpdateMemRefHandleStatus(in);
-        if (args._impl == nullptr) {
-            argsImpl->_inputMemRefs.push_back(inImpl->_memRef);
-        }
-    }
-    for (auto& out : args._outputs) {
-        std::shared_ptr<DynamicGraph::MemRefTypeImpl> outImpl =
-            std::static_pointer_cast<DynamicGraph::MemRefTypeImpl>(out._impl);
-        if (outImpl == nullptr) {
-            outImpl = std::make_shared<DynamicGraph::MemRefTypeImpl>();
-            out._impl = outImpl;
-        }
-        outImpl->UpdateMemRefHandleStatus(out);
-        if (args._impl == nullptr) {
-            argsImpl->_outputMemRefs.push_back(outImpl->_memRef);
-        }
-    }
-
-    params->pInputs = argsImpl->_inputMemRefs.data();
-    params->numOfInputs = static_cast<uint32_t>(argsImpl->_inputMemRefs.size());
-    params->pOutputs = argsImpl->_outputMemRefs.data();
-    params->numOfOutputs = static_cast<uint32_t>(argsImpl->_outputMemRefs.size());
-    params->ctx = zeroInitStruct->getContext();
-    params->device = zeroInitStruct->getDevice();
-    params->graphDdiTableExt = zeroInitStruct->getGraphDdiTable().getImpl();
-    params->commandLists = commandLists.data();
-    params->numCommandLists = static_cast<uint64_t>(commandLists.size());
-    params->commandQueue = commandQueue;
-    params->inferenceFence = fence;
-    params->event = event;
-
-    if (npuVMRuntimeExecute(_engine, params) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
-        OPENVINO_THROW("Failed to execute VM runtime engine");
-    }
-
-    if (args._impl == nullptr) {
-        args._impl = argsImpl;
-    }
-}
-
 void DynamicGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescriptors,
                                           std::vector<MemRefType>& outputDescriptors) {
     std::vector<npu_vm_runtime_mem_ref_handle_t> inputs;
     for (auto& in : inputDescriptors) {
-        std::shared_ptr<DynamicGraph::MemRefTypeImpl> inImpl =
-            std::static_pointer_cast<DynamicGraph::MemRefTypeImpl>(in._impl);
+        std::shared_ptr<MemRefTypeImpl> inImpl =
+            std::static_pointer_cast<MemRefTypeImpl>(in._impl);
         if (inImpl == nullptr) {
-            inImpl = std::make_shared<DynamicGraph::MemRefTypeImpl>();
+            inImpl = std::make_shared<MemRefTypeImpl>();
             in._impl = inImpl;
         }
         inImpl->UpdateMemRefHandleStatus(in);
@@ -374,10 +305,10 @@ void DynamicGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescript
     }
     std::vector<npu_vm_runtime_mem_ref_handle_t> outputs;
     for (auto& out : outputDescriptors) {
-        std::shared_ptr<DynamicGraph::MemRefTypeImpl> outImpl =
-            std::static_pointer_cast<DynamicGraph::MemRefTypeImpl>(out._impl);
+        std::shared_ptr<MemRefTypeImpl> outImpl =
+            std::static_pointer_cast<MemRefTypeImpl>(out._impl);
         if (outImpl == nullptr) {
-            outImpl = std::make_shared<DynamicGraph::MemRefTypeImpl>();
+            outImpl = std::make_shared<MemRefTypeImpl>();
             out._impl = outImpl;
         }
         outImpl->UpdateMemRefHandleStatus(out);
@@ -679,19 +610,9 @@ DynamicGraph::~DynamicGraph() {
     }
 }
 
-void DynamicGraph::execute(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                           DynamicGraph::GraphArguments& args,
-                           std::vector<ze_command_list_handle_t>& commandLists,
-                           ze_command_queue_handle_t commandQueue,
-                           ze_fence_handle_t inferenceFence,
-                           ze_event_handle_t event,
-                           ze_graph_profiling_pool_handle_t profiling) {
-    auto impl = reinterpret_cast<DynamicGraphImpl*>(_impl.get());
-
-    if (impl == nullptr)
-        return;
-
-    impl->executeGraph(zeroInitStruct, args, commandLists, commandQueue, inferenceFence, event, profiling);
+void* DynamicGraph::get_mlir_engine() const {
+    auto* impl = reinterpret_cast<DynamicGraphImpl*>(_impl.get());
+    return impl ? impl->_engine : nullptr;
 }
 
 void DynamicGraph::getBinding(GraphArguments& args) {
