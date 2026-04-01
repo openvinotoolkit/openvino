@@ -10,6 +10,9 @@
 #include "ocl_device.hpp"
 #include "ocl_kernel.hpp"
 
+#ifndef CL_HPP_ENABLE_EXCEPTIONS
+#error "ocl_kernel_builder.hpp expects OpenCL C++ bindings to throw exceptions"
+#endif
 
 namespace cldnn {
 namespace ocl {
@@ -54,8 +57,9 @@ class ocl_kernel_builder : public kernel_builder{
             cl::Program program(program_handle);
             cl::vector<cl::Kernel> kernels;
             try {
-                program.build({m_device.get_device()}, options.c_str());
-                program.createKernels(&kernels);
+                // We can safely ignore return values here as those function should throw in case of errors
+                static_cast<void>(program.build({m_device.get_device()}, options.c_str()));
+                static_cast<void>(program.createKernels(&kernels));
             } catch (const cl::BuildError& err) {
                 GPU_DEBUG_INFO << "-------- Kernel build error" << std::endl;
                 auto log = err.getBuildLog();
