@@ -153,7 +153,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     if (auto token_type_ids_param = get_parameter(model, "token_type_ids")) {
         token_type_ids_param->validate_and_infer_types();
-        optional_model_wide_params["token_type_ids"] = token_type_ids_param;
+        optional_model_wide_params["token_type_ids"] = std::move(token_type_ids_param);
     }
 
     std::shared_ptr<v0::Parameter> position_ids;
@@ -162,7 +162,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         model->add_parameters({position_ids});
     } else {
         position_ids = ov::as_type_ptr<v0::Parameter>(model->input("position_ids").get_node_shared_ptr());
-        const auto position_ids_shape = position_ids->get_partial_shape();
+        const auto& position_ids_shape = position_ids->get_partial_shape();
 
         if (position_ids_shape.rank().is_static() && position_ids_shape.rank().get_length() == 2) {
             position_ids->set_partial_shape(PartialShape{-1});
