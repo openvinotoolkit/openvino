@@ -36,7 +36,7 @@ _ov_ext_lib.define(
 
 
 @torch.library.impl(_ov_ext_lib, "linear", "Meta")
-def _linear_meta(data: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor | None) -> torch.Tensor:
+def _linear_meta(data: torch.Tensor, weight: torch.Tensor, _bias: torch.Tensor | None) -> torch.Tensor:
     out_features = weight.shape[0]
     return torch.empty(
         *data.shape[:-1], out_features,
@@ -63,8 +63,8 @@ _ov_ext_lib.define(
 
 @torch.library.impl(_ov_ext_lib, "embedding", "Meta")
 def _embedding_meta(
-    weight: torch.Tensor, indices: torch.Tensor, padding_idx: int | None,
-    scale_grad_by_freq: bool, sparse: bool,
+    weight: torch.Tensor, indices: torch.Tensor, _padding_idx: int | None,
+    _scale_grad_by_freq: bool, _sparse: bool,
 ) -> torch.Tensor:
     return torch.empty(
         *indices.shape, weight.shape[1],
@@ -92,7 +92,7 @@ _ov_ext_lib.define(
 
 
 @torch.library.impl(_ov_ext_lib, "conv1d", "Meta")
-def _conv1d_meta(data: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor | None) -> torch.Tensor:
+def _conv1d_meta(data: torch.Tensor, weight: torch.Tensor, _bias: torch.Tensor | None) -> torch.Tensor:
     # Output feature count comes from the second dimension of weight.
     out_features = weight.shape[1]
     return torch.empty(
@@ -140,9 +140,9 @@ _ov_ext_lib.define(
 
 @torch.library.impl(_ov_ext_lib, "awq_gemm", "Meta")
 def _awq_gemm_meta(
-    data: torch.Tensor, qweight: torch.Tensor, qzeros: torch.Tensor,
-    scales: torch.Tensor, group_size: int, w_bit: int,
-    bias: torch.Tensor | None,
+    data: torch.Tensor, qweight: torch.Tensor, _qzeros: torch.Tensor,
+    _scales: torch.Tensor, _group_size: int, w_bit: int,
+    _bias: torch.Tensor | None,
 ) -> torch.Tensor:
     pack_num = 32 // w_bit
     out_features = qweight.shape[1] * pack_num
@@ -153,8 +153,8 @@ def _awq_gemm_meta(
 
 @torch.library.impl(_ov_ext_lib, "awq_gemm", "CPU")
 def _awq_gemm_cpu(
-    data: torch.Tensor, qweight: torch.Tensor, qzeros: torch.Tensor,
-    scales: torch.Tensor, group_size: int, w_bit: int,
+    data: torch.Tensor, qweight: torch.Tensor, _qzeros: torch.Tensor,
+    _scales: torch.Tensor, _group_size: int, w_bit: int,
     bias: torch.Tensor | None,
 ) -> torch.Tensor:
     # Placeholder – actual dequantisation happens in the C++ OV translator.
@@ -179,8 +179,8 @@ _ov_ext_lib.define(
 
 @torch.library.impl(_ov_ext_lib, "bit_linear", "Meta")
 def _bit_linear_meta(
-    data: torch.Tensor, weight: torch.Tensor, weight_scale: torch.Tensor,
-    bias: torch.Tensor | None,
+    data: torch.Tensor, weight: torch.Tensor, _weight_scale: torch.Tensor,
+    _bias: torch.Tensor | None,
 ) -> torch.Tensor:
     # BitNet weight packing: out_features is weight.shape[0]
     out_features = weight.shape[0]
@@ -191,7 +191,7 @@ def _bit_linear_meta(
 
 @torch.library.impl(_ov_ext_lib, "bit_linear", "CPU")
 def _bit_linear_cpu(
-    data: torch.Tensor, weight: torch.Tensor, weight_scale: torch.Tensor,
+    data: torch.Tensor, weight: torch.Tensor, _weight_scale: torch.Tensor,
     bias: torch.Tensor | None,
 ) -> torch.Tensor:
     out_features = weight.shape[0]
