@@ -59,7 +59,7 @@ public:
      */
     std::shared_ptr<wsh::Context> get_context() const override;
 
-    void initialize(std::shared_ptr<ov::wsh::Context> weight_sharing_context) override;
+    void initialize(std::shared_ptr<ov::wsh::Context> weight_sharing_context = {}) override;
 
     using BlobIdType = uint64_t;
     using DataIdType = uint64_t;
