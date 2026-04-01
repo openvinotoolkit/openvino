@@ -549,6 +549,8 @@ void Subgraph::initConstantRepackedMask() {
     // erases already-repacked entries from input_repackers at runtime, so a later call to
     // getConstantRepackedMask() would incorrectly return 0 instead of the compile-time mask.
     m_constant_repacked_mask = getConstantRepackedMask();
+#else
+    m_constant_repacked_mask = 0;
 #endif
 }
 
