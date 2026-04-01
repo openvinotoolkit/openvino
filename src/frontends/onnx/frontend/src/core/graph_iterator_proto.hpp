@@ -70,10 +70,7 @@ public:
     /// Verifies file is supported
     template <typename T>
     static bool is_supported(const std::basic_string<T>& path) {
-        FRONT_END_GENERAL_CHECK(ov::util::file_exists(path),
-                                "Could not open the file: \"",
-                                ov::util::path_to_string(path),
-                                '"');
+        FRONT_END_GENERAL_CHECK(ov::util::file_exists(path), "Could not open the file: ", path);
         try {
             std::streamsize file_size = ov::util::file_size(path);
             // Skip files which less than size of file identifier
