@@ -280,9 +280,10 @@ jobs:
         run: |
           rm -rf "${COVERAGE_NOTES_DIR}"
           mkdir -p "${COVERAGE_NOTES_DIR}/main-build"
-          rsync -a --prune-empty-dirs \
-            --include='*/' --include='*.gcno' --exclude='*' \
-            "${BUILD_DIR}/" "${COVERAGE_NOTES_DIR}/main-build/"
+          (
+            cd "${BUILD_DIR}"
+            find . -type f -name '*.gcno' -exec cp --parents {} "${COVERAGE_NOTES_DIR}/main-build/" \;
+          )
 
       - name: Build Debian packages
         if: ${{ inputs.build-debian-packages }}
@@ -343,9 +344,10 @@ jobs:
         if: ${{ inputs.upload-coverage-notes && fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
         run: |
           mkdir -p "${COVERAGE_NOTES_DIR}/js-build"
-          rsync -a --prune-empty-dirs \
-            --include='*/' --include='*.gcno' --exclude='*' \
-            "${BUILD_DIR}/" "${COVERAGE_NOTES_DIR}/js-build/"
+          (
+            cd "${BUILD_DIR}"
+            find . -type f -name '*.gcno' -exec cp --parents {} "${COVERAGE_NOTES_DIR}/js-build/" \;
+          )
 
       - name: Build RPM packages
         if: ${{ inputs.build-rpm-packages }}

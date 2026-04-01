@@ -486,8 +486,8 @@ jobs:
           overwrite: true
 
   CoverageSummary:
-    if: ${{ always() }}
-    needs: [CoverageCpp, CoveragePython, CoverageJS]
+    if: ${{ always() && needs.Build.result == 'success' }}
+    needs: [Build, CoverageCpp, CoveragePython, CoverageJS]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
