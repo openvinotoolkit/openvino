@@ -156,15 +156,17 @@ bool LinearIR::is_dynamic() const {
 }
 
 void LinearIR::update_dynamic_state() {
+    bool is_dynamic = false;
     for (const auto& param_expr : m_parameter_expressions) {
-        m_is_dynamic = m_is_dynamic || utils::is_dynamic_vdims(param_expr->get_output_port_descriptor(0)->get_shape());
+        is_dynamic = is_dynamic || utils::is_dynamic_vdims(param_expr->get_output_port_descriptor(0)->get_shape());
     }
     for (const auto& result_expr : m_result_expressions) {
-        m_is_dynamic = m_is_dynamic || utils::is_dynamic_vdims(result_expr->get_input_port_descriptor(0)->get_shape());
+        is_dynamic = is_dynamic || utils::is_dynamic_vdims(result_expr->get_input_port_descriptor(0)->get_shape());
     }
     for (const auto& [loop_id, loop_info] : m_loop_manager->get_map()) {
-        m_is_dynamic = m_is_dynamic || loop_info->is_dynamic();
+        is_dynamic = is_dynamic || loop_info->is_dynamic();
     }
+    m_is_dynamic = is_dynamic;
 }
 
 void LinearIR::debug_print(bool tds_as_pointers) const {
