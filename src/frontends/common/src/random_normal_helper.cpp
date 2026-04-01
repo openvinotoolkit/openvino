@@ -64,8 +64,8 @@ OutputVector make_random_normal(pass::NodeRegistry& registry,
     auto sum = registry.make<op::v1::Add>(product, mean);
 
     // if we don't disable down-casting then log(float32_min) gives -inf
-    ov::disable_fp16_compression(uniform_1);
-    ov::disable_fp16_compression(log);
+    disable_fp16_compression(uniform_1);
+    disable_fp16_compression(log);
 
     return {sum};
 }

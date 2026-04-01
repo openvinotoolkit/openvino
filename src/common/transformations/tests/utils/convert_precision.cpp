@@ -376,13 +376,13 @@ TEST(TransformationTests, ConvertPrecision_Range_i32_to_i64) {
         auto add = std::make_shared<v1::Add>(reshape, add_const);
         auto res = std::make_shared<v0::Result>(add);
 
-        disable_fp16_compression(start);
-        disable_fp16_compression(reduction_axes);
-        disable_fp16_compression(stop);
-        disable_fp16_compression(step);
-        disable_fp16_compression(range);
-        disable_fp16_compression(add_const);
-        disable_fp16_compression(add);
+        ov::disable_fp16_compression(start);
+        ov::disable_fp16_compression(reduction_axes);
+        ov::disable_fp16_compression(stop);
+        ov::disable_fp16_compression(step);
+        ov::disable_fp16_compression(range);
+        ov::disable_fp16_compression(add_const);
+        ov::disable_fp16_compression(add);
 
         model = std::make_shared<Model>(OutputVector{res}, ParameterVector{param});
 

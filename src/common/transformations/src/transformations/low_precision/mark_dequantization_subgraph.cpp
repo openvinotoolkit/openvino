@@ -378,7 +378,7 @@ KeepDequantizationPrecision::KeepDequantizationPrecision(const element::TypeVect
         for (const auto& node_to_mark : nodes_to_mark) {
             if (pt_map.count(node_to_mark)) {
                 auto node_ptr = pt_map.at(node_to_mark).get_node_shared_ptr();
-                ov::disable_fp16_compression(node_ptr);
+                disable_fp16_compression(node_ptr);
             }
         }
 
