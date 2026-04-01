@@ -62,16 +62,18 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
     unsigned int stride_x = (poolingAttrs.stride.size() >= 2U) ? poolingAttrs.stride[1] : poolingAttrs.stride[0];
     unsigned int stride_y = (poolingAttrs.stride.size() >= 2U) ? poolingAttrs.stride[0] : 1;
 
-    auto [pool_type, exclude_padding] = [&]() -> std::pair<PoolingType, bool> {
-        if (poolingAttrs.algorithm == Algorithm::PoolingMax) {
-            return {PoolingType::MAX, (poolingAttrs.pad_type != op::PadType::EXPLICIT)};
-        }
-        if (poolingAttrs.algorithm == Algorithm::PoolingAvg) {
-            return {PoolingType::AVG, poolingAttrs.exclude_pad};
-        }
+    PoolingType pool_type;
+    bool exclude_padding = false;
+    if (poolingAttrs.algorithm == Algorithm::PoolingMax) {
+        pool_type = PoolingType::MAX;
+        exclude_padding = (poolingAttrs.pad_type != op::PadType::EXPLICIT);
+    } else if (poolingAttrs.algorithm == Algorithm::PoolingAvg) {
+        pool_type = PoolingType::AVG;
+        exclude_padding = poolingAttrs.exclude_pad;
+    } else {
         DEBUG_LOG("Unknown pooling algorithm: ", static_cast<int>(poolingAttrs.algorithm));
-        return {PoolingType::MAX, false};
-    }();
+        return false;
+    }
 
     // The combination of parameters: NCHW + CEIL gives an accuracy problem in AvgPool.
     // One workaround is to disable the ACL executor for these parameters.
@@ -81,18 +83,22 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
         DEBUG_LOG("NCHW + CEIL gives an accuracy problem in ACL AvgPool. ACL executor will not be created.");
         return false;
     }
-    auto round = [&]() -> DimensionRoundingType {
-        switch (poolingAttrs.rounding) {
-        case op::RoundingType::FLOOR:
-            return DimensionRoundingType::FLOOR;
-        case op::RoundingType::CEIL:
-        case op::RoundingType::CEIL_TORCH:
-            return DimensionRoundingType::CEIL;
-        default:
-            DEBUG_LOG("Unknown rounding type: ", poolingAttrs.rounding);
-            return DimensionRoundingType::FLOOR;
-        }
-    }();
+    DimensionRoundingType round;
+    switch (poolingAttrs.rounding) {
+    case op::RoundingType::FLOOR:
+        round = DimensionRoundingType::FLOOR;
+        break;
+    case op::RoundingType::CEIL:
+        round = DimensionRoundingType::CEIL;
+        break;
+    // CEIL_TORCH type is mapped to ACL CEIL type
+    case op::RoundingType::CEIL_TORCH:
+        round = DimensionRoundingType::CEIL;
+        break;
+    default:
+        DEBUG_LOG("Unknown rounding type: ", poolingAttrs.rounding);
+        return false;
+    }
 
     if (srcDimsSize == 5) {
         if (dstDescsSize > 1) {
