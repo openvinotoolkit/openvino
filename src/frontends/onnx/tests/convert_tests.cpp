@@ -60,3 +60,19 @@ TEST(ONNXFeConvertException, exception_if_both_unsupported_onnx_validation_excep
                     ov::AssertFailure,
                     testing::HasSubstr("only 'DCR' and 'CRD' modes are supported"));
 }
+
+/// Tests QLinearConcat conversion with missing X input triplet (X, X_scale, X_zero_point)
+/// Has 2 inputs and satisfies the (2 + 3*N) % 3 == 0 condition, but doesn't satisfy the >= 5 condition
+TEST(ONNXFeConvertException, exception_if_qlinear_concat_missing_x_input_triplet) {
+    OV_EXPECT_THROW(convert_model("com.microsoft/qlinear_concat_missing_x_input_triplet.onnx"),
+                    ov::AssertFailure,
+                    testing::AllOf(testing::HasSubstr("expected 2 + 3*N inputs"), testing::HasSubstr(" got: 2")));
+}
+
+/// Tests QLinearConcat conversion with incomplete X input triplet (X, X_scale, X_zero_point)
+/// Has 6 inputs and satisfies the >= 5 condition, but doesn't satisfy the (2 + 3*N) % 3 == 0 condition
+TEST(ONNXFeConvertException, exception_if_qlinear_concat_invalid_x_input_triplet) {
+    OV_EXPECT_THROW(convert_model("com.microsoft/qlinear_concat_invalid_x_input_triplet.onnx"),
+                    ov::AssertFailure,
+                    testing::AllOf(testing::HasSubstr("expected 2 + 3*N inputs"), testing::HasSubstr(" got: 6")));
+}

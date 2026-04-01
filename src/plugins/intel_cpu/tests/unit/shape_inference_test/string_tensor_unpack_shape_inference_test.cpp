@@ -92,6 +92,48 @@ TEST_F(StringTensorUnpackStaticShapeInferenceTest, data_from_tensor_accessor_4) 
     EXPECT_EQ(output_shapes[2], StaticShape({18}));
 }
 
+TEST_F(StringTensorUnpackStaticShapeInferenceTest, zero_dim_no_tensor_accessor_1d) {
+    const auto data = std::make_shared<Parameter>(element::string, ov::PartialShape::dynamic());
+    const auto op = make_op(data);
+
+    const auto input_shapes = StaticShapeVector{ov::Shape{0}};
+    auto shape_infer = make_shape_inference(op);
+    const auto input_shape_refs = make_static_shape_refs(input_shapes);
+    const auto output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
+    EXPECT_EQ(output_shapes.size(), 3);
+    EXPECT_EQ(output_shapes[0], StaticShape({0}));
+    EXPECT_EQ(output_shapes[1], StaticShape({0}));
+    EXPECT_EQ(output_shapes[2], StaticShape({0}));
+}
+
+TEST_F(StringTensorUnpackStaticShapeInferenceTest, zero_dim_no_tensor_accessor_2d) {
+    const auto data = std::make_shared<Parameter>(element::string, ov::PartialShape::dynamic());
+    const auto op = make_op(data);
+
+    const auto input_shapes = StaticShapeVector{ov::Shape{0, 3}};
+    auto shape_infer = make_shape_inference(op);
+    const auto input_shape_refs = make_static_shape_refs(input_shapes);
+    const auto output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
+    EXPECT_EQ(output_shapes.size(), 3);
+    EXPECT_EQ(output_shapes[0], StaticShape({0, 3}));
+    EXPECT_EQ(output_shapes[1], StaticShape({0, 3}));
+    EXPECT_EQ(output_shapes[2], StaticShape({0}));
+}
+
+TEST_F(StringTensorUnpackStaticShapeInferenceTest, zero_dim_no_tensor_accessor_3d) {
+    const auto data = std::make_shared<Parameter>(element::string, ov::PartialShape::dynamic());
+    const auto op = make_op(data);
+
+    const auto input_shapes = StaticShapeVector{ov::Shape{2, 0, 3}};
+    auto shape_infer = make_shape_inference(op);
+    const auto input_shape_refs = make_static_shape_refs(input_shapes);
+    const auto output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
+    EXPECT_EQ(output_shapes.size(), 3);
+    EXPECT_EQ(output_shapes[0], StaticShape({2, 0, 3}));
+    EXPECT_EQ(output_shapes[1], StaticShape({2, 0, 3}));
+    EXPECT_EQ(output_shapes[2], StaticShape({0}));
+}
+
 TEST_P(StringTensorUnpackStaticTestSuite, StringTensorUnpackStaticShapeInference) {
     const auto& param = GetParam();
     const auto& input_strings = std::get<0>(param);
