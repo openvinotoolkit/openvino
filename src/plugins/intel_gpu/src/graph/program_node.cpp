@@ -195,17 +195,17 @@ void program_node::remove_dependency(size_t idx) {
     dependencies.erase(dependencies.begin() + idx);
 }
 
-const std::unordered_set<uint32_t>& program_node::get_memory_dependencies() const { return memory_dependencies; }
+const std::vector<uint32_t>& program_node::get_memory_dependencies() const { return memory_dependencies; }
 
 void program_node::add_memory_dependency(std::vector<size_t> prim_list) {
     for (size_t val : prim_list) {
-        memory_dependencies.insert(static_cast<uint32_t>(val));
+        memory_dependencies.emplace_back(static_cast<int32_t>(val));
     }
 }
 
 void program_node::add_memory_dependency(const program_node& dep) {
     if (dep.may_use_mempool() && may_use_mempool())
-        memory_dependencies.insert(static_cast<uint32_t>(dep.get_unique_id()));
+        memory_dependencies.emplace_back(static_cast<uint32_t>(dep.get_unique_id()));
 }
 
 std::unique_ptr<json_composite> program_node::desc_to_json() const {
