@@ -136,6 +136,16 @@ bool Tensor::is_continuous() const {
 }
 
 namespace {
+/**
+ * @brief Resolves a static shape from a partial shape and available size in bytes for given element type.
+ * @param available_size Size in bytes, must exactly fit the resolved tensor data.
+ * @param element_type The element type of the tensor, used to calculate the size of the tensor data.
+ * @param partial_shape The partial shape of the tensor. If it has (at most one) dynamic dimension, it will be computed.
+ * @return The resolved static shape.
+ * @throw ov::Exception if the partial shape has more than one dynamic dimension,
+ *        or if the available size is inexact to fit the tensor data of resolved static shape,
+ *        or if the dynamic dimension cannot be resolved to fit the available size.
+ */
 Shape resolve_static_shape(size_t available_size,
                            const element::Type& element_type,
                            const PartialShape& partial_shape) {
@@ -239,7 +249,13 @@ Tensor read_tensor_data(const std::filesystem::path& file_name,
                                           partial_shape,
                                           offset_in_bytes);
     } else {
-        const auto available_size = std::filesystem::file_size(file_name) - offset_in_bytes;
+        const auto file_size = std::filesystem::file_size(file_name);
+        OPENVINO_ASSERT(offset_in_bytes <= file_size,
+                        "Requested space exceeds available bounds: offset=",
+                        offset_in_bytes,
+                        " file size=",
+                        file_size);
+        const auto available_size = static_cast<size_t>(file_size - offset_in_bytes);
         const auto static_shape = resolve_static_shape(available_size, element_type, partial_shape);
         const auto tensor = std::make_shared<ov::Tensor>(element_type, static_shape);
         read_tensor_via_ifstream(file_name, *tensor.get(), offset_in_bytes);
