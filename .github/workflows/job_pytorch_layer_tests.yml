@@ -33,7 +33,7 @@ jobs:
   PyTorch_Layer_Tests:
     name: PyTorch Layer Tests
     timeout-minutes: 60
-    runs-on: aks-win-8-cores-16gb-test-st
+    runs-on: ${{ inputs.runner }}
     container:
       image: ${{ inputs.image }}
       volumes:
@@ -45,7 +45,7 @@ jobs:
         shell: ${{ contains(inputs.runner, 'win') && 'pwsh' || 'bash' }}
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-      HF_TOKEN_PATH: ${{ contains(inputs.runner, 'win') && 'C:\xmount\secrets\huggingface\hf-token' || '/secrets/huggingface/hf-token' }}
+      HF_TOKEN_PATH: ${{ contains(inputs.runner, 'win') && 'C:\mount\secrets\huggingface\hf-token' || '/secrets/huggingface/hf-token' }}
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
