@@ -230,14 +230,26 @@ static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
     }
 
 VCLApi::VCLApi() : _logger("VCLApi", Logger::global().level()) {
-    const std::filesystem::path baseName = "openvino_intel_npu_compiler";
+    std::filesystem::path baseName = "openvino_intel_npu_compiler_loader";
+    std::filesystem::path libpath{};
+
     try {
-        auto libpath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName);
-        _logger.debug("Try to load openvino_intel_npu_compiler");
+        libpath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName);
+        _logger.debug("Try to load %s", baseName.string().c_str());
         this->lib = ov::util::load_shared_object(libpath);
     } catch (const std::runtime_error& error) {
-        _logger.debug("Failed to load openvino_intel_npu_compiler");
-        OPENVINO_THROW(error.what());
+        _logger.debug("Failed to load %s: %s", baseName.string().c_str(), error.what());
+
+        // TODO: remove fallback loading logic after all components switch to "openvino_intel_npu_compiler_loader"
+        baseName = "openvino_intel_npu_compiler";
+        _logger.debug("Trying to load %s", baseName.string().c_str());
+        try {
+            libpath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName);
+            this->lib = ov::util::load_shared_object(libpath);
+        } catch (const std::runtime_error& error) {
+            _logger.debug("Failed to load a fallback library: %s", baseName.string().c_str());
+            OPENVINO_THROW(error.what());
+        }
     }
 
     try {
@@ -246,7 +258,7 @@ VCLApi::VCLApi() : _logger("VCLApi", Logger::global().level()) {
         vcl_symbols_list();
 #undef vcl_symbol_statement
     } catch (const std::runtime_error& error) {
-        _logger.debug("Failed to get formal symbols from openvino_intel_npu_compiler");
+        _logger.debug("Failed to get formal symbols from %s", baseName.string().c_str());
         OPENVINO_THROW(error.what());
     }
 
@@ -254,7 +266,7 @@ VCLApi::VCLApi() : _logger("VCLApi", Logger::global().level()) {
     try {                                                                                                     \
         this->vcl_symbol = reinterpret_cast<decltype(&::vcl_symbol)>(ov::util::get_symbol(lib, #vcl_symbol)); \
     } catch (const std::runtime_error&) {                                                                     \
-        _logger.debug("Failed to get %s from openvino_intel_npu_compiler", #vcl_symbol);                      \
+        _logger.debug("Failed to get %s from %s", #vcl_symbol, baseName.string().c_str());                    \
         this->vcl_symbol = nullptr;                                                                           \
     }
     vcl_weak_symbols_list();
@@ -360,14 +372,13 @@ std::shared_ptr<void> VCLCompilerImpl::getLinkedLibrary() const {
     return VCLApi::getInstance()->getLibrary();
 }
 
-NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model,
-                                            const FilteredConfig& config) const {
+ov::Tensor VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model, const FilteredConfig& config) const {
     return compile(model, config, false);
 }
 
-NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model,
-                                            const FilteredConfig& config,
-                                            const bool storeWeightlessCacheAttributeFlag) const {
+ov::Tensor VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model,
+                                    const FilteredConfig& config,
+                                    const bool storeWeightlessCacheAttributeFlag) const {
     _logger.debug("compile start");
 
     /// Check the linked vcl version whether supported in plugin
@@ -442,12 +453,8 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
                       allocator.m_size,
                       static_cast<void*>(allocator.m_allocated));
 
-        // Use empty metadata as VCL does not support metadata extraction
-        NetworkMetadata metadata;
-
         _logger.debug("compile end, blob size:%d", allocator.m_size);
-        return NetworkDescription(make_tensor_from_aligned_addr(allocator.m_allocated, allocator.m_size),
-                                  std::move(metadata));
+        return make_tensor_from_aligned_addr(allocator.m_allocated, allocator.m_size);
     } else {
         OPENVINO_THROW("Not supported VCL version: %d.%d, please use VCL 6.1 or later",
                        _vclVersion.major,
@@ -455,9 +462,8 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     }
 }
 
-std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneShot(
-    const std::shared_ptr<ov::Model>& model,
-    const FilteredConfig& config) const {
+std::vector<ov::Tensor> VCLCompilerImpl::compileWsOneShot(const std::shared_ptr<ov::Model>& model,
+                                                          const FilteredConfig& config) const {
     _logger.debug("compileWsOneShot start");
 
     /// Check the linked vcl version whether supported in plugin
@@ -517,30 +523,20 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
         OPENVINO_THROW("Failed to create VCL executable, blobCount is zero");
     }
 
-    std::vector<std::shared_ptr<NetworkDescription>> networkDescrs;
+    std::vector<ov::Tensor> initMainTensors;
     for (auto& blob : allocator.m_info) {
-        // Use empty metadata as VCL does not support metadata extraction
-        NetworkMetadata metadata;
-        networkDescrs.emplace_back(
-            std::make_shared<NetworkDescription>(make_tensor_from_aligned_addr(blob.first, blob.second),
-                                                 std::move(metadata)));
+        initMainTensors.emplace_back(make_tensor_from_aligned_addr(blob.first, blob.second));
     }
-    return networkDescrs;
+    return initMainTensors;
 }
 
-NetworkDescription VCLCompilerImpl::compileWsIterative(const std::shared_ptr<ov::Model>& model,
-                                                       const FilteredConfig& config,
-                                                       size_t callNumber) const {
+ov::Tensor VCLCompilerImpl::compileWsIterative(const std::shared_ptr<ov::Model>& model,
+                                               const FilteredConfig& config,
+                                               size_t callNumber) const {
     _logger.debug("compileWsIterative start");
     FilteredConfig updatedConfig = config;
     updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber)}});
     return compile(model, updatedConfig, true);
-}
-
-intel_npu::NetworkMetadata VCLCompilerImpl::parse(const std::vector<uint8_t>& network,
-                                                  const FilteredConfig& config) const {
-    // VCL returns empty metadata. In plugin adapter, use driver metadata instead.
-    OPENVINO_THROW_NOT_IMPLEMENTED("VCL does not support parse.");
 }
 
 std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(const std::vector<uint8_t>& profData,

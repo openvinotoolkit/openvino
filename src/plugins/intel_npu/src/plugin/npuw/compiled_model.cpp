@@ -59,6 +59,33 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     }
     return result;
 }
+
+bool can_use_weightless_flow(const ::intel_npu::Config& config) {
+    return config.get<::intel_npu::NPUW_FOLD>() || config.get<::intel_npu::NPUW_CWAI>();
+}
+
+bool should_use_weightless_flow(const ov::AnyMap& non_npuw_props,
+                                const ::intel_npu::Config& config,
+                                const std::unordered_map<const void*, std::size_t>& const_to_offset) {
+    if (!can_use_weightless_flow(config)) {
+        return false;
+    }
+
+    bool is_weightless = true;
+    if (auto it = non_npuw_props.find(ov::enable_weightless.name()); it != non_npuw_props.end()) {
+        is_weightless = it->second.as<bool>();
+    } else if (auto it = non_npuw_props.find(ov::cache_mode.name());
+               it != non_npuw_props.end() && it->second.as<ov::CacheMode>() == ov::CacheMode::OPTIMIZE_SPEED) {
+        is_weightless = false;
+    }
+
+    // Weightless serialization is only valid when WAI metadata was generated.
+    if (is_weightless && const_to_offset.empty()) {
+        is_weightless = false;
+    }
+
+    return is_weightless;
+}
 }  // anonymous namespace
 
 namespace ov {
@@ -172,7 +199,7 @@ ov::npuw::ICompiledModel::ICompiledModel(const std::shared_ptr<ov::Model>& model
 ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                        const std::shared_ptr<const ov::IPlugin>& plugin,
                                        const ov::AnyMap& properties)
-    : ov::npuw::ICompiledModel(model, plugin),
+    : ov::npuw::ICompiledModel_v0(model, plugin),
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
       m_cfg(m_options_desc),
       m_name(model->get_friendly_name()),
@@ -595,7 +622,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                        const std::shared_ptr<const ov::IPlugin>& plugin,
                                        const bool serialized)
-    : ov::npuw::ICompiledModel(model, plugin),
+    : ov::npuw::ICompiledModel_v0(model, plugin),
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
       m_cfg(m_options_desc),
       m_name(model->get_friendly_name()),
@@ -1020,15 +1047,9 @@ void ov::npuw::CompiledModel::export_model(std::ostream& stream) const {
     }
 
     // Identify either full flow or weightless
-    bool is_weightless = true;
-    if (auto it = m_non_npuw_props.find(ov::enable_weightless.name()); it != m_non_npuw_props.end()) {
-        if (!it->second.as<bool>()) {
-            is_weightless = false;
-        }
-    } else if (auto it = m_non_npuw_props.find(ov::cache_mode.name());
-               it != m_non_npuw_props.end() && it->second.as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
+    bool is_weightless = should_use_weightless_flow(m_non_npuw_props, m_cfg, m_const_to_offset);
+    if (!is_weightless) {
         LOG_INFO("Serialization will be done via flow with weights.");
-        is_weightless = false;
     }
 
     // Write header regardless of encryption requirement - to identify NPUW serializated blobs
@@ -1228,15 +1249,7 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s1
         }
 
         // Write flow identifier
-        bool is_weightless = true;
-        if (auto it = m_non_npuw_props.find(ov::enable_weightless.name()); it != m_non_npuw_props.end()) {
-            if (!it->second.as<bool>()) {
-                is_weightless = false;
-            }
-        } else if (m_non_npuw_props.count(ov::cache_mode.name()) &&
-                   m_non_npuw_props.at(ov::cache_mode.name()).as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
-            is_weightless = false;
-        }
+        bool is_weightless = should_use_weightless_flow(m_non_npuw_props, m_cfg, m_const_to_offset);
         write(model_stream, is_weightless);
 
         // Write bf16 consts cache
@@ -1506,6 +1519,18 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
             desc_closure.closure[cidx] = m_weights_bank->get(desc_closure.closure_uid[cidx], *func_desc.device_it);
         }
     }
+}
+
+std::size_t ov::npuw::CompiledModel::num_submodels() const {
+    return m_compiled_submodels.size();
+}
+
+std::shared_ptr<ov::npuw::weights::Bank> ov::npuw::CompiledModel::get_weights_bank() const {
+    return m_weights_bank;
+}
+
+void ov::npuw::CompiledModel::set_weights_bank(std::shared_ptr<ov::npuw::weights::Bank> bank) {
+    m_weights_bank = std::move(bank);
 }
 
 void ov::npuw::CompiledModel::finalize_weights_bank() {
