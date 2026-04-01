@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -140,6 +140,48 @@ public:
 
 private:
     size_t _offset = 16;
+};
+
+std::tuple</* importMemoryBatched */ ov::Tensor,
+           /* importMemoryTensor_1 */ ov::Tensor,
+           /* importMemoryTensor_2 */ ov::Tensor,
+           /* unalignedBatchedTensor */ ov::Tensor,
+           /* unalignedTensor_1 */ ov::Tensor,
+           /* unalignedTensor_2 */ ov::Tensor>
+allocate_tensors(const std::shared_ptr<ov::Model>& model, const ov::element::Type& element_type);
+
+template <typename T, typename U>
+void set_tensor_and_infer(const std::shared_ptr<T>& infer_request,
+                          const bool should_infer,
+                          const bool withResetInferRequest,
+                          const ov::Output<const ov::Node>& port,
+                          const U& tensor,
+                          const std::function<void(void)>& reset_cb) {
+    infer_request->set_tensor(port, tensor);
+    if (should_infer) {
+        infer_request->infer();
+    }
+
+    if (withResetInferRequest) {
+        reset_cb();
+    }
+};
+
+template <typename T, typename U>
+void set_tensors_and_infer(const std::shared_ptr<T>& infer_request,
+                           const bool should_infer,
+                           const bool withResetInferRequest,
+                           const ov::Output<const ov::Node>& port,
+                           const std::vector<U>& tensors,
+                           const std::function<void(void)>& reset_cb) {
+    infer_request->set_tensors(port, tensors);
+    if (should_infer) {
+        infer_request->infer();
+    }
+
+    if (withResetInferRequest) {
+        reset_cb();
+    }
 };
 
 }  // namespace utils

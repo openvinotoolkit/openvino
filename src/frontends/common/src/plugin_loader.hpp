@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,8 +44,8 @@ class PluginInfo {
     bool load_internal();
 
 public:
-    std::string m_file_name;  // Plugin file name, e.g. "libopenvino_ir_frontend.so"
-    std::string m_file_path;  // Plugin file full path
+    std::filesystem::path m_file_name;  // Plugin file name, e.g. "libopenvino_ir_frontend.so"
+    std::filesystem::path m_file_path;  // Plugin file full path
 
     PluginInfo() = default;
 
@@ -77,7 +77,7 @@ public:
 
 // Searches for available plugins in a specified directory
 // Appends found plugins to existing list
-void find_plugins(const std::string& dir_name, std::vector<PluginInfo>& res);
+void find_plugins(const std::filesystem::path& dir_name, std::vector<PluginInfo>& res);
 
 }  // namespace frontend
 }  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -205,10 +205,11 @@ format format::get_default_format(size_t rank, bool is_weights, bool is_grouped)
                 default_fmt = cldnn::format::goizyx;
             }
         } else {
-            if (rank == 4) {
-                default_fmt = cldnn::format::oiyx;
-            } else if (rank == 5) {
+            if (rank == 5) {
                 default_fmt = cldnn::format::oizyx;
+            } else {
+                // Default format for non-grouped weights: oiyx for rank!=5 (including 3D and 4D)
+                default_fmt = cldnn::format::oiyx;
             }
         }
     } else {

@@ -1,11 +1,12 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/core/extension.hpp"
 
 #include <gtest/gtest.h>
-#include <stdio.h>
+
+#include <filesystem>
 
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -13,16 +14,17 @@
 #include "openvino/core/so_extension.hpp"
 #include "openvino/util/file_util.hpp"
 
-inline std::string get_extension_path() {
-    return ov::util::make_plugin_library_name<char>(ov::test::utils::getExecutableDirectory(),
-                                                    std::string("openvino_template_extension") + OV_BUILD_POSTFIX);
+inline std::filesystem::path get_extension_path() {
+    return ov::util::make_plugin_library_name(
+        ov::util::make_path(ov::test::utils::getExecutableDirectory()),
+        std::filesystem::path("openvino_template_extension").concat(OV_BUILD_POSTFIX));
 }
 
 inline std::wstring get_extension_wdir() {
     std::wstring dir = ov::util::string_to_wstring(ov::test::utils::getExecutableDirectory());
-    dir.push_back(ov::util::FileTraits<wchar_t>::file_separator);
+    dir.push_back(ov::test::utils::FileTraits<wchar_t>::file_separator);
     dir += ov::util::string_to_wstring("晚安_путь_к_файлу");
-    dir.push_back(ov::util::FileTraits<wchar_t>::file_separator);
+    dir.push_back(ov::test::utils::FileTraits<wchar_t>::file_separator);
     ov::util::create_directory_recursive(dir);
     return dir;
 }
@@ -37,9 +39,9 @@ TEST(extension, load_extension_wstring) {
     std::wstring wdir_ext_path = wdir + ov::util::string_to_wstring(ov::util::make_plugin_library_name<char>(
                                             "",
                                             std::string("openvino_template_extension") + OV_BUILD_POSTFIX));
-    _wrename(ov::util::string_to_wstring(get_extension_path()).c_str(), wdir_ext_path.c_str());
-    EXPECT_NO_THROW(ov::detail::load_extensions(wdir_ext_path));
-    _wrename(wdir_ext_path.c_str(), ov::util::string_to_wstring(get_extension_path()).c_str());
+    _wrename(get_extension_path().c_str(), wdir_ext_path.c_str());
+    EXPECT_NO_THROW(ov::detail::load_extensions(ov::util::make_path(wdir_ext_path)));
+    _wrename(wdir_ext_path.c_str(), get_extension_path().c_str());
     _wrmdir(wdir.c_str());
 }
 #endif

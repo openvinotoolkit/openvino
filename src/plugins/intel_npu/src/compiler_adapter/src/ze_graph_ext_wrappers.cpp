@@ -1,16 +1,15 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ze_graph_ext_wrappers.hpp"
-
-#include <ze_mem_import_system_memory_ext.h>
 
 #include <string_view>
 
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
@@ -135,6 +134,18 @@ ZeGraphExtWrappers::ZeGraphExtWrappers(const std::shared_ptr<ZeroInitStructsHold
     _logger.info("Graph ext version used by zero wrapper: %d.%d",
                  ZE_MAJOR_VERSION(_graphExtVersion),
                  ZE_MINOR_VERSION(_graphExtVersion));
+
+    _isCompilerOptionQuerySupported = (_graphExtVersion >= ZE_MAKE_VERSION(1, 11));
+#ifdef _WIN32
+    if (_isCompilerOptionQuerySupported) {
+        // Windows driver shall return NO_THROW_ON_UNSUPPORTED_FEATURE as supported to go further here
+        _isCompilerOptionQuerySupported =
+            _zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(_zeroInitStruct->getDevice(),
+                                                                             ZE_NPU_DRIVER_OPTIONS,
+                                                                             "NO_THROW_ON_UNSUPPORTED_FEATURE",
+                                                                             nullptr) == ZE_RESULT_SUCCESS;
+    }
+#endif
 }
 
 ZeGraphExtWrappers::~ZeGraphExtWrappers() {
@@ -241,11 +252,10 @@ void ZeGraphExtWrappers::setGraphArgumentValueWithStrides(const GraphDescriptor&
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnSetArgumentValue2 for data", result, _zeroInitStruct->getGraphDdiTable());
 }
 
-void ZeGraphExtWrappers::initializeGraph(const GraphDescriptor& graphDescriptor,
-                                         uint32_t commandQueueGroupOrdinal) const {
+void ZeGraphExtWrappers::initializeGraph(const GraphDescriptor& graphDescriptor) const {
     if (_graphExtVersion < ZE_MAKE_VERSION(1, 8)) {
         _logger.debug("Use initializeGraphThroughCommandList for ext version smaller than 1.8");
-        initializeGraphThroughCommandList(graphDescriptor._handle, commandQueueGroupOrdinal);
+        initializeGraphThroughCommandList(graphDescriptor._handle);
     } else {
         _logger.debug("Initialize graph based on graph properties for ext version larger than 1.8");
         ze_graph_properties_2_t properties = {};
@@ -259,20 +269,17 @@ void ZeGraphExtWrappers::initializeGraph(const GraphDescriptor& graphDescriptor,
         }
 
         if (properties.initStageRequired & ZE_GRAPH_STAGE_COMMAND_LIST_INITIALIZE) {
-            initializeGraphThroughCommandList(graphDescriptor._handle, commandQueueGroupOrdinal);
+            initializeGraphThroughCommandList(graphDescriptor._handle);
         }
     }
 }
 
-void ZeGraphExtWrappers::initializeGraphThroughCommandList(ze_graph_handle_t graphHandle,
-                                                           uint32_t commandQueueGroupOrdinal) const {
+void ZeGraphExtWrappers::initializeGraphThroughCommandList(ze_graph_handle_t graphHandle) const {
     _logger.debug("initializeGraphThroughCommandList init start - create graphCommandList");
-    CommandList graphCommandList(_zeroInitStruct, commandQueueGroupOrdinal);
-    _logger.debug("initializeGraphThroughCommandList - create graphCommandQueue");
-    std::shared_ptr<CommandQueue> graphCommandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
-                                                                                     ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
-                                                                                     commandQueueGroupOrdinal,
-                                                                                     false);
+    CommandList graphCommandList(_zeroInitStruct);
+    _logger.debug("initializeGraphThroughCommandList - get commandQueue");
+    const auto graphCommandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, CommandQueueDesc{});
+
     _logger.debug("initializeGraphThroughCommandList - create fence");
     Fence fence(graphCommandQueue);
 
@@ -402,7 +409,17 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(SerializedIR serializedIR
                                                                  _zeroInitStruct->getDevice(),
                                                                  &desc,
                                                                  &graphHandle);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate2", result, _zeroInitStruct->getGraphDdiTable());
+    if (result != ZE_RESULT_SUCCESS) {
+        OPENVINO_THROW("Compilation failed. Level0 pfnCreate2 result: ",
+                       ze_result_to_string(result),
+                       ", code 0x",
+                       std::hex,
+                       uint64_t(result),
+                       " - ",
+                       ze_result_to_description(result),
+                       " . ",
+                       intel_npu::zeroUtils::getLatestBuildError(_zeroInitStruct->getGraphDdiTable()));
+    }
 
     return GraphDescriptor{graphHandle};
 }
@@ -547,21 +564,12 @@ NetworkMetadata ZeGraphExtWrappers::getNetworkMeta(GraphDescriptor& graphDescrip
     return meta;
 }
 
-std::string ZeGraphExtWrappers::getCompilerSupportedOptions() const {
+std::optional<std::string> ZeGraphExtWrappers::getCompilerSupportedOptions() const {
     // Early exit if api is not supported
-    if (_graphExtVersion < ZE_MAKE_VERSION(1, 11)) {
-        return {};
+    if (!_isCompilerOptionQuerySupported) {
+        _logger.debug("Compiler options query is not supported by the driver - skipping!");
+        return std::nullopt;
     }
-
-#ifdef _WIN32
-    // Driver shall return NO_THROW_ON_UNSUPPORTED_FEATURE as supported to go further here
-    if (_zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(_zeroInitStruct->getDevice(),
-                                                                         ZE_NPU_DRIVER_OPTIONS,
-                                                                         "NO_THROW_ON_UNSUPPORTED_FEATURE",
-                                                                         nullptr) != ZE_RESULT_SUCCESS) {
-        return {};
-    }
-#endif
 
     // 1. ask driver for size of compiler supported options list
     _logger.debug("pfnCompilerGetSupportedOptions - obtain string size");
@@ -584,43 +592,32 @@ std::string ZeGraphExtWrappers::getCompilerSupportedOptions() const {
             if (result == ZE_RESULT_SUCCESS) {
                 // convert received buff to string
                 std::string supported_options_list_str(sup_options_chr.data());
-                // cleanup
                 return supported_options_list_str;
             } else if (result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) {
-                // cleanup
-                return {};
+                return std::nullopt;
             } else {
-                // cleanup
                 THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCompilerGetSupportedOptions",
                                                 result,
                                                 _zeroInitStruct->getGraphDdiTable())
             }
         }
     } else if ((result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) || (result == ZE_RESULT_ERROR_DEPENDENCY_UNAVAILABLE)) {
-        return {};
+        return std::nullopt;
     } else {
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCompilerGetSupportedOptions", result, _zeroInitStruct->getGraphDdiTable())
     }
 
-    _logger.debug("pfnCompilerGetSupportedOptions - list size 0 - skipping!");
-    return {};
+    _logger.debug("pfnCompilerGetSupportedOptions - list size 0!");
+    return "";
 }
 
-bool ZeGraphExtWrappers::isOptionSupported(std::string optName, std::optional<std::string> optValue) const {
+std::optional<bool> ZeGraphExtWrappers::isOptionSupported(std::string optName,
+                                                          std::optional<std::string> optValue) const {
     // Early exit if api is not supported
-    if (_graphExtVersion < ZE_MAKE_VERSION(1, 11)) {
-        return false;
+    if (!_isCompilerOptionQuerySupported) {
+        _logger.debug("Compiler option query is not supported by the driver - skipping!");
+        return std::nullopt;
     }
-
-#ifdef _WIN32
-    // Driver shall return NO_THROW_ON_UNSUPPORTED_FEATURE as supported to go further here
-    if (_zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(_zeroInitStruct->getDevice(),
-                                                                         ZE_NPU_DRIVER_OPTIONS,
-                                                                         "NO_THROW_ON_UNSUPPORTED_FEATURE",
-                                                                         nullptr) != ZE_RESULT_SUCCESS) {
-        return false;
-    }
-#endif
 
     const char* optname_ch = optName.c_str();
     const char* optvalue_ch = optValue.has_value() ? optValue.value().c_str() : nullptr;
@@ -637,40 +634,6 @@ bool ZeGraphExtWrappers::isOptionSupported(std::string optName, std::optional<st
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCompilerIsOptionSupported", result, _zeroInitStruct->getGraphDdiTable());
     }
     return false;
-}
-
-bool ZeGraphExtWrappers::isTurboOptionSupported(const ze_graph_compiler_version_info_t& compilerVersion) const {
-    auto checkCompilerVersion = [](const ze_graph_compiler_version_info_t& compilerVersion) {
-        if ((compilerVersion.major < 7) || (compilerVersion.major == 7 && compilerVersion.minor < 21)) {
-            return false;
-        }
-
-        return true;
-    };
-
-    if (_graphExtVersion < ZE_MAKE_VERSION(1, 11)) {
-        return checkCompilerVersion(compilerVersion);
-    }
-
-#ifdef _WIN32
-    // Driver shall return NO_THROW_ON_UNSUPPORTED_FEATURE as supported to go further here
-    if (_zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(_zeroInitStruct->getDevice(),
-                                                                         ZE_NPU_DRIVER_OPTIONS,
-                                                                         "NO_THROW_ON_UNSUPPORTED_FEATURE",
-                                                                         nullptr) != ZE_RESULT_SUCCESS) {
-        return checkCompilerVersion(compilerVersion);
-    }
-#endif
-
-    bool is_supported = false;
-    try {
-        is_supported = isOptionSupported("NPU_TURBO");
-    } catch (...) {
-        // mute it, not critical
-        is_supported = false;
-    }
-
-    return is_supported;
 }
 
 bool ZeGraphExtWrappers::isPluginModelHashSupported() const {

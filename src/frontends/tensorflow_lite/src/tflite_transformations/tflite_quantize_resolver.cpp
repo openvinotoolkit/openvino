@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,8 +63,14 @@ ov::Shape get_quant_shape(const ov::Output<ov::Node>& output,
         FRONT_END_GENERAL_CHECK(output.get_partial_shape().rank().is_static(),
                                 "Per-Channel Quantization of tensor with dynamic rank");
         auto rank = output.get_partial_shape().size();
+        auto axis = quantization->get_axis();
+        FRONT_END_GENERAL_CHECK(axis >= 0 && static_cast<size_t>(axis) < rank,
+                                "Per-Channel Quantization axis ",
+                                axis,
+                                " is out of range for tensor of rank ",
+                                rank);
         shape = ov::Shape(rank, 1);
-        shape[quantization->get_axis()] = size;
+        shape[static_cast<size_t>(axis)] = size;
     }
     return shape;
 }

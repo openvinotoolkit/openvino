@@ -1,11 +1,11 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import paddle
 import numpy as np
 import os
 import sys
-from save_model import saveModel 
+from save_model import saveModel
 
 if paddle.__version__ >= '2.6.0':
     import paddle.base as fluid

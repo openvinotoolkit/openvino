@@ -1,10 +1,11 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME "openvino_npu_driver_compiler_adapter")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
+
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
@@ -26,6 +27,7 @@ target_link_libraries(${TARGET_NAME}
         openvino_npu_common
         openvino::npu_al
         openvino::xml_util
+        openvino::npu_vm_runtime_api
 )
 
 #

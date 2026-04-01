@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -113,7 +113,7 @@ protected:
             std::make_shared<ov::op::v3::ScatterElementsUpdate>(dataParams[0], indicesParam, dataParams[1], axisNode);
 
         ov::ParameterVector allParams{dataParams[0], indicesParam, dataParams[1]};
-        function = makeNgraphFunction(inputPrecision, allParams, scatter, "ScatterElementsUpdateLayerCPUTest");
+        function = create_ov_model(inputPrecision, allParams, scatter, "ScatterElementsUpdateLayerCPUTest");
     }
 };
 

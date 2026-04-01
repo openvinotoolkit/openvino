@@ -1,5 +1,6 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include "pyramid_attention.hpp"
 
@@ -275,6 +276,7 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
         }
 
         auto concat_op = std::dynamic_pointer_cast<ov::op::v0::Concat>(concat_node);
+        NPUW_ASSERT(concat_op != nullptr);
         const auto& concat_out_shape = concat_op->get_output_partial_shape(0);
         const auto concat_axis =
             ov::util::try_normalize_axis(concat_op->get_axis(), concat_out_shape.rank(), *concat_op);

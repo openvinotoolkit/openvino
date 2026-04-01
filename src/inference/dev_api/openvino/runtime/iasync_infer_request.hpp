@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -193,6 +193,7 @@ protected:
 
     Pipeline m_pipeline;       //!< Pipeline variable that should be filled by inherited class.
     Pipeline m_sync_pipeline;  //!< Synchronous pipeline variable that should be filled by inherited class.
+    uint64_t m_infer_id;       //!< Id of inference request execution. Should be increased on each inference start.
 
 private:
     enum InferState { IDLE, BUSY, CANCELLED, STOP };

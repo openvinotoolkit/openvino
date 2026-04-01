@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -13,7 +13,7 @@ if(CMAKE_COMPILER_IS_GNUCXX AND LINUX AND CMAKE_CXX_COMPILER_VERSION VERSION_LES
 endif()
 
 if(WIN32)
-    set(CMAKE_SHARED_LINKER_FLAGS /DELAYLOAD:NODE.EXE)
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DELAYLOAD:NODE.EXE")
     set(CMAKE_JS_LIB ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/node.lib)
     set(CMAKE_JS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/win_delay_load_hook.cc)
 

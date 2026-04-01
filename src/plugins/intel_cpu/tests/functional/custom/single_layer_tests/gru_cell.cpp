@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -92,7 +92,7 @@ protected:
         auto gruCellOp =
             ov::test::utils::make_gru(paramsOuts, WRB, hiddenSize, activations, {}, {}, clip, linearBeforeReset);
 
-        function = makeNgraphFunction(netPrecision, params, gruCellOp, "GRUCell");
+        function = create_ov_model(netPrecision, params, gruCellOp, "GRUCell");
     }
 };
 

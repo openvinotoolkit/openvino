@@ -1,18 +1,7 @@
-/*******************************************************************************
- * Copyright (c) 2022-2025 Intel Corporation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *******************************************************************************/
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include <cm/cm.h>
 #include <cm/cmtl.h>
 
@@ -67,61 +56,37 @@ template <typename T1, typename T2>
 CM_INLINE void Transpose_16x16(matrix_ref<T1, 16, 16> in,
                                matrix_ref<T2, 16, 16> out) {
   matrix<T2, 16, 16> bBuf;
-  bBuf.row(0) = in.template select<4, 1, 4, 4>(0, 0);   // 0,4,8,c
-  bBuf.row(1) = in.template select<4, 1, 4, 4>(4, 0);   // 0,4,8,c
-  bBuf.row(2) = in.template select<4, 1, 4, 4>(8, 0);   // 0,4,8,c
-  bBuf.row(3) = in.template select<4, 1, 4, 4>(12, 0);  // 0,4,8,c
-  bBuf.row(4) = in.template select<4, 1, 4, 4>(0, 1);   // 1,5,9,d
-  bBuf.row(5) = in.template select<4, 1, 4, 4>(4, 1);   // 1,5,9,d
-  bBuf.row(6) = in.template select<4, 1, 4, 4>(8, 1);   // 1,5,9,d
-  bBuf.row(7) = in.template select<4, 1, 4, 4>(12, 1);  // 1,5,9,d
-  bBuf.row(8) = in.template select<4, 1, 4, 4>(0, 2);   // 2,6,a,e
-  bBuf.row(9) = in.template select<4, 1, 4, 4>(4, 2);   // 2,6,a,e
-  bBuf.row(10) = in.template select<4, 1, 4, 4>(8, 2);  // 2,6,a,e
-  bBuf.row(11) = in.template select<4, 1, 4, 4>(12, 2); // 2,6,a,e
-  bBuf.row(12) = in.template select<4, 1, 4, 4>(0, 3);  // 3,7,b,f
-  bBuf.row(13) = in.template select<4, 1, 4, 4>(4, 3);  // 3,7,b,f
-  bBuf.row(14) = in.template select<4, 1, 4, 4>(8, 3);  // 3,7,b,f
-  bBuf.row(15) = in.template select<4, 1, 4, 4>(12, 3); // 3,7,b,f
-
-  out.row(0) = bBuf.template select<4, 1, 4, 4>(0, 0);   // 0
-  out.row(1) = bBuf.template select<4, 1, 4, 4>(4, 0);   // 1
-  out.row(2) = bBuf.template select<4, 1, 4, 4>(8, 0);   // 2
-  out.row(3) = bBuf.template select<4, 1, 4, 4>(12, 0);  // 3
-  out.row(4) = bBuf.template select<4, 1, 4, 4>(0, 1);   // 4
-  out.row(5) = bBuf.template select<4, 1, 4, 4>(4, 1);   // 5
-  out.row(6) = bBuf.template select<4, 1, 4, 4>(8, 1);   // 6
-  out.row(7) = bBuf.template select<4, 1, 4, 4>(12, 1);  // 7
-  out.row(8) = bBuf.template select<4, 1, 4, 4>(0, 2);   // 8
-  out.row(9) = bBuf.template select<4, 1, 4, 4>(4, 2);   // 9
-  out.row(10) = bBuf.template select<4, 1, 4, 4>(8, 2);  // a
-  out.row(11) = bBuf.template select<4, 1, 4, 4>(12, 2); // b
-  out.row(12) = bBuf.template select<4, 1, 4, 4>(0, 3);  // c
-  out.row(13) = bBuf.template select<4, 1, 4, 4>(4, 3);  // d
-  out.row(14) = bBuf.template select<4, 1, 4, 4>(8, 3);  // e
-  out.row(15) = bBuf.template select<4, 1, 4, 4>(12, 3); // f
+  #pragma unroll
+  for (int k = 0; k < 16; k++) {
+    bBuf.row(k) = in.template select<2, 1, 8, 2>((k * 2) % 16, k / 8);
+  }
+  #pragma unroll
+  for (int k = 0; k < 16; k++) {
+    out.row(k) = bBuf.template select<2, 1, 8, 2>((k * 2) % 16, k / 8);
+  }
+  for (int k = 0; k < 16; k++) {
+    bBuf.row(k) = out.template select<2, 1, 8, 2>((k * 2) % 16, k / 8);
+  }
+  #pragma unroll
+  for (int k = 0; k < 16; k++) {
+    out.row(k) = bBuf.template select<2, 1, 8, 2>((k * 2) % 16, k / 8);
+  }
 }
 
 template <typename T1, typename T2>
 CM_INLINE void Transpose_8x8(matrix_ref<T1, 8, 8> in, matrix_ref<T2, 8, 8> out) {
-  matrix<T2, 8, 8> temp;
-  temp.row(0) = in.template select<2, 1, 4, 2>(0, 0);
-  temp.row(1) = in.template select<2, 1, 4, 2>(2, 0);
-  temp.row(2) = in.template select<2, 1, 4, 2>(4, 0);
-  temp.row(3) = in.template select<2, 1, 4, 2>(6, 0);
-  temp.row(4) = in.template select<2, 1, 4, 2>(0, 1);
-  temp.row(5) = in.template select<2, 1, 4, 2>(2, 1);
-  temp.row(6) = in.template select<2, 1, 4, 2>(4, 1);
-  temp.row(7) = in.template select<2, 1, 4, 2>(6, 1);
+    matrix<T2, 8, 8> temp;
+    #pragma unroll
+    for (int i = 0; i < 4; ++i) {
+        temp.row(i)     = in.template select<2, 1, 4, 2>(i * 2, 0);
+        temp.row(i + 4) = in.template select<2, 1, 4, 2>(i * 2, 1);
+    }
 
-  out.row(0) = temp.template select<4, 1, 2, 4>(0, 0);
-  out.row(2) = temp.template select<4, 1, 2, 4>(0, 1);
-  out.row(4) = temp.template select<4, 1, 2, 4>(0, 2);
-  out.row(6) = temp.template select<4, 1, 2, 4>(0, 3);
-  out.row(1) = temp.template select<4, 1, 2, 4>(4, 0);
-  out.row(3) = temp.template select<4, 1, 2, 4>(4, 1);
-  out.row(5) = temp.template select<4, 1, 2, 4>(4, 2);
-  out.row(7) = temp.template select<4, 1, 2, 4>(4, 3);
+    #pragma unroll
+    for (int i = 0; i < 4; ++i) {
+        out.row(i * 2)     = temp.template select<4, 1, 2, 4>(0, i);
+        out.row(i * 2 + 1) = temp.template select<4, 1, 2, 4>(4, i);
+    }
 }
 
 // function templates cannot be partially specialized; use overloading to achieve the same effect
@@ -356,65 +321,64 @@ vector<float, cols> online_softmax_update(matrix_ref<T, rows, cols> St, vector_r
     #define cm_load_transpose cm_load<lsc::Transpose>
     #define cm_load_vnni cm_load<lsc::VNNI>
     #define cm_store_normal cm_store
-#else
-    // simulation of LSC API using SVM API
-    template <typename T = int, unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
-    inline void cm_load_normal(vector_ref<T, NBlocks*BlockH*BlockW> Res, const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc, int16_t Pred = 1) {
-        static_assert(NBlocks == 1);
-        auto pitch = Desc.get_pitch() + 1;
-        auto base = reinterpret_cast<svmptr_t>(Desc.get_base() + Desc.get_block_y()*pitch + Desc.get_block_x() * sizeof(T));
-        #pragma unroll
-        for(int i = 0; i < BlockH; i++) {
-            cm_svm_block_read(base + i * pitch, Res.select<BlockW, 1>(i*BlockW));
-        }
-    }
+    // // simulation of LSC API using SVM API
+    // template <typename T = int, unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
+    // inline void cm_load_normal(vector_ref<T, NBlocks*BlockH*BlockW> Res, const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc, int16_t Pred = 1) {
+    //     static_assert(NBlocks == 1);
+    //     auto pitch = Desc.get_pitch() + 1;
+    //     auto base = reinterpret_cast<svmptr_t>(Desc.get_base() + Desc.get_block_y()*pitch + Desc.get_block_x() * sizeof(T));
+    //     #pragma unroll
+    //     for(int i = 0; i < BlockH; i++) {
+    //         cm_svm_block_read(base + i * pitch, Res.select<BlockW, 1>(i*BlockW));
+    //     }
+    // }
 
-    template <typename T = int, unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
-    inline void cm_load_transpose(vector_ref<T, NBlocks*BlockW*BlockH> Res, const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc, int16_t Pred = 1) {
-        static_assert(NBlocks == 1);
-        auto pitch = Desc.get_pitch() + 1;
-        auto base = reinterpret_cast<svmptr_t>(Desc.get_base() + Desc.get_block_y()*pitch + Desc.get_block_x() * sizeof(T));
-        matrix<T, BlockH, BlockW> temp;
-        #pragma unroll
-        for(int i = 0; i < BlockH; i++) {
-            cm_svm_block_read(base + i * pitch, temp[i]);
-        }
-        Transpose2DMatrix(temp, Res.format<T, BlockW, BlockH>());
-    }
+    // template <typename T = int, unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
+    // inline void cm_load_transpose(vector_ref<T, NBlocks*BlockW*BlockH> Res, const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc, int16_t Pred = 1) {
+    //     static_assert(NBlocks == 1);
+    //     auto pitch = Desc.get_pitch() + 1;
+    //     auto base = reinterpret_cast<svmptr_t>(Desc.get_base() + Desc.get_block_y()*pitch + Desc.get_block_x() * sizeof(T));
+    //     matrix<T, BlockH, BlockW> temp;
+    //     #pragma unroll
+    //     for(int i = 0; i < BlockH; i++) {
+    //         cm_svm_block_read(base + i * pitch, temp[i]);
+    //     }
+    //     Transpose2DMatrix(temp, Res.format<T, BlockW, BlockH>());
+    // }
 
-    // in VNNI case, NBlocks is increasing along X dimension (increase cache-line usage)
-    template <typename T = int, unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
-    inline void cm_load_vnni(vector_ref<T, NBlocks*BlockW*BlockH> Res, const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc, int16_t Pred = 1) {
-        static_assert(NBlocks == 1 || NBlocks == 2);
-        // each block must be a full XMX B matrix
-        static_assert(BlockH == REG_K);
-        static_assert(BlockW == REG_N);
-        auto pitch = Desc.get_pitch() + 1;
-        auto base = reinterpret_cast<svmptr_t>(Desc.get_base() + Desc.get_block_y()*pitch + Desc.get_block_x() * sizeof(T));
-        matrix<T, BlockH, NBlocks * BlockW> temp;
-        #pragma unroll
-        for(int i = 0; i < BlockH; i++) {
-            cm_svm_block_read(base + i * pitch, temp[i]);
-        }
+    // // in VNNI case, NBlocks is increasing along X dimension (increase cache-line usage)
+    // template <typename T = int, unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
+    // inline void cm_load_vnni(vector_ref<T, NBlocks*BlockW*BlockH> Res, const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc, int16_t Pred = 1) {
+    //     static_assert(NBlocks == 1 || NBlocks == 2);
+    //     // each block must be a full XMX B matrix
+    //     static_assert(BlockH == REG_K);
+    //     static_assert(BlockW == REG_N);
+    //     auto pitch = Desc.get_pitch() + 1;
+    //     auto base = reinterpret_cast<svmptr_t>(Desc.get_base() + Desc.get_block_y()*pitch + Desc.get_block_x() * sizeof(T));
+    //     matrix<T, BlockH, NBlocks * BlockW> temp;
+    //     #pragma unroll
+    //     for(int i = 0; i < BlockH; i++) {
+    //         cm_svm_block_read(base + i * pitch, temp[i]);
+    //     }
 
-        auto out_vnni = Res.format<T, NBlocks * (BlockH/2), 2*BlockW>();
-        #pragma unroll
-        for(int i = 0; i < NBlocks; i ++) {
-            out_vnni.select<BlockH/2, 1, BlockW, 2>(i*(BlockH/2), 0) = temp.select<BlockH/2, 2, BlockW, 1>(0, i*BlockW);
-            out_vnni.select<BlockH/2, 1, BlockW, 2>(i*(BlockH/2), 1) = temp.select<BlockH/2, 2, BlockW, 1>(1, i*BlockW);
-        }
-    }
+    //     auto out_vnni = Res.format<T, NBlocks * (BlockH/2), 2*BlockW>();
+    //     #pragma unroll
+    //     for(int i = 0; i < NBlocks; i ++) {
+    //         out_vnni.select<BlockH/2, 1, BlockW, 2>(i*(BlockH/2), 0) = temp.select<BlockH/2, 2, BlockW, 1>(0, i*BlockW);
+    //         out_vnni.select<BlockH/2, 1, BlockW, 2>(i*(BlockH/2), 1) = temp.select<BlockH/2, 2, BlockW, 1>(1, i*BlockW);
+    //     }
+    // }
 
-    template <typename T = int, unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
-    inline void cm_store_normal(const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc, vector_ref<T, NBlocks*BlockW*BlockH> Res) {
-        static_assert(NBlocks == 1);
-        auto pitch = Desc.get_pitch() + 1;
-        auto base = reinterpret_cast<svmptr_t>(Desc.get_base() + Desc.get_block_y()*pitch + Desc.get_block_x() * sizeof(T));
-        #pragma unroll
-        for(int i = 0; i < BlockH; i++) {
-            cm_svm_block_write(base + i * pitch, Res.select<BlockW, 1>(i*BlockW));
-        }
-    }
+    // template <typename T = int, unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
+    // inline void cm_store_normal(const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc, vector_ref<T, NBlocks*BlockW*BlockH> Res) {
+    //     static_assert(NBlocks == 1);
+    //     auto pitch = Desc.get_pitch() + 1;
+    //     auto base = reinterpret_cast<svmptr_t>(Desc.get_base() + Desc.get_block_y()*pitch + Desc.get_block_x() * sizeof(T));
+    //     #pragma unroll
+    //     for(int i = 0; i < BlockH; i++) {
+    //         cm_svm_block_write(base + i * pitch, Res.select<BlockW, 1>(i*BlockW));
+    //     }
+    // }
 #endif
 
 //===============================================================================================

@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,13 +11,12 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
-#include "common_test_utils/test_constants.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_mem.hpp"
 #include "intel_npu/utils/zero/zero_mem_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
+#include "model_serializer.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
-#include "vcl_serializer.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 #include "zero_init_mock.hpp"
 
@@ -30,15 +29,6 @@ namespace {
 size_t calculate_size_with_alignment_padding(size_t size, size_t alignment) {
     return size + alignment - (size % alignment);
 }
-
-size_t get_file_size(std::ifstream& file) {
-    auto size = file.tellg();
-    file.seekg(0, std::ios::end);
-    size = file.tellg() - size;
-    file.seekg(0, std::ios::beg);
-
-    return size;
-}
 }  // namespace
 
 namespace ov::test::behavior {
@@ -47,8 +37,8 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<CompilationParamsAndExtensionVersion>& obj) {
         std::string targetDevice;
         ov::AnyMap configuration;
-        int graphExtVersion;
-        std::tie(targetDevice, configuration, graphExtVersion) = obj.param;
+        uint32_t zeGraphNpuExtVersion;
+        std::tie(targetDevice, configuration, zeGraphNpuExtVersion) = obj.param;
         std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
 
         std::ostringstream result;
@@ -60,39 +50,68 @@ public:
                 configItem.second.print(result);
             }
         }
-        result << "graphExtVersion=" + std::to_string(ZE_MAJOR_VERSION(graphExtVersion)) + "." +
-                      std::to_string(ZE_MINOR_VERSION(graphExtVersion));
+        result << "zeGraphNpuExtVersion=" + std::to_string(ZE_MAJOR_VERSION(zeGraphNpuExtVersion)) + "." +
+                      std::to_string(ZE_MINOR_VERSION(zeGraphNpuExtVersion));
 
         return result.str();
     }
 
+    size_t make_blob() {
+        size_t alignedSize = 0;
+        // use local zeGraphExt;
+        auto localZeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
+        GraphDescriptor localGraphDescriptor = {};
+        serializeIR();
+        localGraphDescriptor = localZeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache());
+        const uint8_t* blobPtr = nullptr;
+        std::vector<uint8_t> blobVec;  // plugin needs to keep a copy of the blob for older drivers
+        size_t blobSize = 0;
+        localZeGraphExt->getGraphBinary(localGraphDescriptor, blobVec, blobPtr, blobSize);
+
+        alignedSize = calculate_size_with_alignment_padding(blobSize, ::utils::STANDARD_PAGE_SIZE);
+        blob = ::operator new(alignedSize, std::align_val_t(::utils::STANDARD_PAGE_SIZE));
+        std::memcpy(blob, blobPtr, blobSize);
+        localZeGraphExt->destroyGraph(localGraphDescriptor);
+
+        return alignedSize;
+    }
+
 protected:
     void SetUp() override {
-        using namespace ::driver_compiler_utils;
-
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-        std::tie(targetDevice, configuration, graphExtVersion) = this->GetParam();
-
-        const std::string BLOB_NAME = "blob_compat_dummy_model_MTL_ov_2025_4_0_driver_2020509.blob";
-        blobPath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + BLOB_NAME;
+        std::tie(targetDevice, configuration, zeGraphNpuExtVersion) = this->GetParam();
 
         model = ov::test::utils::make_multi_single_conv();
+        blob = nullptr;
 
-        std::shared_ptr<ZeroInitStructsMock> zeroInitMock = std::make_shared<ZeroInitStructsMock>(graphExtVersion);
+        std::shared_ptr<ZeroInitStructsMock> zeroInitMock =
+            std::make_shared<ZeroInitStructsMock>(::intel_npu::test_constants::TARGET_ZE_DRIVER_NPU_EXT_VERSION,
+                                                  zeGraphNpuExtVersion);
         zeroInitStruct = std::reinterpret_pointer_cast<ZeroInitStructsHolder>(zeroInitMock);
         zeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
     }
 
     void TearDown() override {
         zeGraphExt->destroyGraph(graphDescriptor);
+        if (blob) {
+            ::operator delete(blob, std::align_val_t(::utils::STANDARD_PAGE_SIZE));
+        }
     }
 
     void serializeIR() {
         auto compilerProperties = zeroInitStruct->getCompilerProperties();
         const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
+        // The test is not concerned with validating the serialization algorithm. Choose the "all-weights-copy" as the
+        // safest version.
         serializedIR =
-            driver_compiler_utils::serializeIR(model, compilerProperties.compilerVersion, maxOpsetVersion, true);
+            ::intel_npu::compiler_utils::serializeIR(model,
+                                                     compilerProperties.compilerVersion,
+                                                     maxOpsetVersion,
+                                                     ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY,
+                                                     [](const std::string&, const std::optional<std::string>&) {
+                                                         return true;
+                                                     });
     }
 
     bool bypassUmdCache() {
@@ -119,14 +138,15 @@ protected:
     std::shared_ptr<ZeGraphExtWrappers> zeGraphExt;
     ov::AnyMap configuration;
 
-    SerializedIR serializedIR;
+    ::intel_npu::SerializedIR serializedIR;
     GraphDescriptor graphDescriptor;
 
     std::shared_ptr<ov::Model> model;
+    void* blob;
 
     std::string targetDevice;
     std::string blobPath;
-    int graphExtVersion;
+    uint32_t zeGraphNpuExtVersion;
 };
 
 using ZeroGraphCompilationTests = ZeroGraphTest;
@@ -134,23 +154,13 @@ using ZeroGraphCompilationTests = ZeroGraphTest;
 TEST_P(ZeroGraphCompilationTests, GetGraphInitIR) {
     serializeIR();
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache()));
-
-    uint32_t initCommandQueueOrdinal = 0;
-    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
-                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
-    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
+    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
 }
 
 TEST_P(ZeroGraphCompilationTests, GetInitSetArgsDestroyGraphAlignedMemoryIR) {
     serializeIR();
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache()));
-
-    uint32_t initCommandQueueOrdinal = 0;
-    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
-                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
-    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
+    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
 
     size_t totalSize = 1 * 3 * 24 * 24 * sizeof(float);
     std::shared_ptr<ZeroMem> buffer;
@@ -163,27 +173,11 @@ TEST_P(ZeroGraphCompilationTests, GetInitSetArgsDestroyGraphAlignedMemoryIR) {
 }
 
 TEST_P(ZeroGraphTest, GetGraphInitBlob) {
-    std::string platform = ov::test::utils::getTestsPlatformFromEnvironmentOr(targetDevice);
-    size_t pos = platform.find("3720");
-    if (pos != std::string::npos) {
-        std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
-        ASSERT_TRUE(blobStream.is_open());
-        size_t size = get_file_size(blobStream);
+    size_t alignedSize = 0;
+    OV_ASSERT_NO_THROW(alignedSize = make_blob());
 
-        std::vector<uint8_t> blob(size);
-        blobStream.read(reinterpret_cast<char*>(blob.data()), size);
-        blobStream.close();
-
-        OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob.data(), blob.size()));
-
-        uint32_t initCommandQueueOrdinal = 0;
-        OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
-                               zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                       ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
-        OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
-    } else {
-        GTEST_SKIP() << "Skip due to incompatible blob format on this platform.";
-    }
+    OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, alignedSize));
+    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
 }
 
 TEST_P(ZeroGraphTest, GetNetworkMeta) {
@@ -199,119 +193,60 @@ TEST_P(ZeroGraphTest, QueryGraph) {
 }
 
 TEST_P(ZeroGraphTest, GetGraphBinary) {
-    std::string platform = ov::test::utils::getTestsPlatformFromEnvironmentOr(targetDevice);
-    size_t pos = platform.find("3720");
-    if (pos != std::string::npos) {
-        std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
-        ASSERT_TRUE(blobStream.is_open());
-        size_t size = get_file_size(blobStream);
+    size_t alignedSize = 0;
+    OV_ASSERT_NO_THROW(alignedSize = make_blob());
 
-        std::vector<uint8_t> blob(size);
-        blobStream.read(reinterpret_cast<char*>(blob.data()), size);
-        blobStream.close();
+    OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, alignedSize));
+    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
 
-        OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob.data(), blob.size()));
-
-        uint32_t initCommandQueueOrdinal = 0;
-        OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
-                               zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                       ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
-        OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
-
-        const uint8_t* blobPtr = nullptr;
-        OV_ASSERT_NO_THROW(zeGraphExt->getGraphBinary(graphDescriptor, blob, blobPtr, size));
-    } else {
-        GTEST_SKIP() << "Skip due to incompatible blob format on this platform.";
-    }
+    const uint8_t* blobPtr = nullptr;
+    std::vector<uint8_t> blobVec;
+    OV_ASSERT_NO_THROW(zeGraphExt->getGraphBinary(graphDescriptor, blobVec, blobPtr, alignedSize));
 }
 
 TEST_P(ZeroGraphTest, SetGraphArgOnNullBuffer) {
     serializeIR();
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache()));
-
-    uint32_t initCommandQueueOrdinal = 0;
-    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
-                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
-    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
+    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
 
     ASSERT_ANY_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, nullptr));
 }
 
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryMallocBlob) {
-    std::string platform = ov::test::utils::getTestsPlatformFromEnvironmentOr(targetDevice);
-    size_t pos = platform.find("3720");
-    if (pos != std::string::npos) {
-        std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
-        ASSERT_TRUE(blobStream.is_open());
-        size_t size = get_file_size(blobStream);
-        size = calculate_size_with_alignment_padding(size, ::utils::STANDARD_PAGE_SIZE);
+    size_t alignedSize = 0;
+    OV_ASSERT_NO_THROW(alignedSize = make_blob());
 
-        uint8_t* blob = static_cast<uint8_t*>(::operator new(size, std::align_val_t(::utils::STANDARD_PAGE_SIZE)));
-        blobStream.read(reinterpret_cast<char*>(blob), size);
-        blobStream.close();
+    OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, alignedSize));
+    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
 
-        OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, size));
+    std::shared_ptr<ZeroMem> buffer;
+    OV_ASSERT_NO_THROW(buffer = ZeroMemPool::get_instance().allocate_zero_memory(zeroInitStruct,
+                                                                                 alignedSize,
+                                                                                 ::utils::STANDARD_PAGE_SIZE,
+                                                                                 false));
 
-        uint32_t initCommandQueueOrdinal = 0;
-        OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
-                               zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                       ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
-        OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
-
-        std::shared_ptr<ZeroMem> buffer;
-        OV_ASSERT_NO_THROW(buffer = ZeroMemPool::get_instance().allocate_zero_memory(zeroInitStruct,
-                                                                                     size,
-                                                                                     ::utils::STANDARD_PAGE_SIZE,
-                                                                                     false));
-
-        OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, buffer->data()));
-
-        ::operator delete(blob, std::align_val_t(::utils::STANDARD_PAGE_SIZE));
-    } else {
-        GTEST_SKIP() << "Skip due to incompatible blob format on this platform.";
-    }
+    OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, buffer->data()));
 }
 
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryMallocBlob) {
-    std::string platform = ov::test::utils::getTestsPlatformFromEnvironmentOr(targetDevice);
-    size_t pos = platform.find("3720");
-    if (pos != std::string::npos) {
-        std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
-        ASSERT_TRUE(blobStream.is_open());
-        size_t size = get_file_size(blobStream);
+    size_t alignedSize = 0;
+    OV_ASSERT_NO_THROW(alignedSize = make_blob());
 
-        uint8_t* blob = static_cast<uint8_t*>(::operator new(size, std::align_val_t(::utils::STANDARD_PAGE_SIZE)));
-        blobStream.read(reinterpret_cast<char*>(blob), size);
-        blobStream.close();
+    OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, alignedSize));
+    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
 
-        OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, size));
+    std::shared_ptr<ZeroMem> buffer;
+    OV_ASSERT_NO_THROW(buffer = ZeroMemPool::get_instance().allocate_zero_memory(zeroInitStruct,
+                                                                                 alignedSize,
+                                                                                 ::utils::STANDARD_PAGE_SIZE,
+                                                                                 false));
 
-        uint32_t initCommandQueueOrdinal = 0;
-        OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
-                               zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                       ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
-        OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
-
-        std::shared_ptr<ZeroMem> buffer;
-        OV_ASSERT_NO_THROW(buffer = ZeroMemPool::get_instance().allocate_zero_memory(zeroInitStruct,
-                                                                                     size,
-                                                                                     ::utils::STANDARD_PAGE_SIZE,
-                                                                                     false));
-
-        OV_ASSERT_NO_THROW(
-            zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, static_cast<char*>(buffer->data()) + 1));
-
-        ::operator delete(blob, std::align_val_t(::utils::STANDARD_PAGE_SIZE));
-    } else {
-        GTEST_SKIP() << "Skip due to incompatible blob format on this platform.";
-    }
+    OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, static_cast<char*>(buffer->data()) + 1));
 }
 
 TEST_P(ZeroGraphTest, SetUnalignedAddressBlob) {
     // create blob -> compile model first
-    void* blob = nullptr;
     void* blobAddressUnaligned = nullptr;
     size_t alignedSize;
     {
@@ -335,19 +270,12 @@ TEST_P(ZeroGraphTest, SetUnalignedAddressBlob) {
     }
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blobAddressUnaligned, alignedSize));
-    uint32_t initCommandQueueOrdinal = 0;
-    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
-                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
-    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
+    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
     ASSERT_FALSE(zeGraphExt->isBlobDataImported(graphDescriptor));
-
-    ::operator delete(blob, std::align_val_t(::utils::STANDARD_PAGE_SIZE));
 }
 
 TEST_P(ZeroGraphTest, SetUnalignedSizeBlob) {
     // create blob -> compile model first
-    void* blob = nullptr;
     size_t alignedSize;
     size_t unalignedSize;
     {
@@ -370,54 +298,24 @@ TEST_P(ZeroGraphTest, SetUnalignedSizeBlob) {
     }
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, unalignedSize));
-
-    uint32_t initCommandQueueOrdinal = 0;
-    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
-                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
-    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
+    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
 
     ASSERT_FALSE(zeGraphExt->isBlobDataImported(graphDescriptor));
-
-    ::operator delete(blob, std::align_val_t(::utils::STANDARD_PAGE_SIZE));
 }
 
 TEST_P(ZeroGraphTest, SetAlignedBlob) {
     // create blob -> compile model first
-    void* blob = nullptr;
-    size_t alignedSize;
-    {
-        // use local zeGraphExt;
-        auto localZeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
-        GraphDescriptor localGraphDescriptor;
-        serializeIR();
-        OV_ASSERT_NO_THROW(localGraphDescriptor =
-                               localZeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache()));
-        const uint8_t* blobPtr = nullptr;
-        std::vector<uint8_t> blobVec;  // plugin needs to keep a copy of the blob for older drivers
-        size_t blobSize = 0;
-        OV_ASSERT_NO_THROW(localZeGraphExt->getGraphBinary(localGraphDescriptor, blobVec, blobPtr, blobSize));
-
-        alignedSize = calculate_size_with_alignment_padding(blobSize, ::utils::STANDARD_PAGE_SIZE);
-        blob = ::operator new(alignedSize, std::align_val_t(::utils::STANDARD_PAGE_SIZE));
-        std::memcpy(blob, blobPtr, blobSize);
-        localZeGraphExt->destroyGraph(localGraphDescriptor);
-    }
+    size_t alignedSize = 0;
+    OV_ASSERT_NO_THROW(alignedSize = make_blob());
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, alignedSize));
-    uint32_t initCommandQueueOrdinal = 0;
-    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
-                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
-    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
+    OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
     if (zeroInitStruct->getGraphDdiTable().version() >= ZE_MAKE_VERSION(1, 13) &&
         zeroInitStruct->isExternalMemoryStandardAllocationSupported()) {
         ASSERT_TRUE(zeGraphExt->isBlobDataImported(graphDescriptor));
     } else {
         ASSERT_FALSE(zeGraphExt->isBlobDataImported(graphDescriptor));
     }
-
-    ::operator delete(blob, std::align_val_t(::utils::STANDARD_PAGE_SIZE));
 }
 
 #ifdef _WIN32
@@ -433,5 +331,39 @@ TEST_P(ZeroGraphTest, CheckNoThrowOnUnsupportedFeature) {
     }
 }
 #endif
+
+using IsOptionSupported = ZeroGraphTest;
+
+TEST_P(IsOptionSupported, GetCompilerSupportedOptions) {
+    std::optional<std::string> compilerSupportedOptions;
+    OV_ASSERT_NO_THROW(compilerSupportedOptions = zeGraphExt->getCompilerSupportedOptions());
+    if (zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 11)) {
+        ASSERT_FALSE(compilerSupportedOptions.has_value());
+    } else {
+        ASSERT_TRUE(compilerSupportedOptions.has_value());
+    }
+}
+
+TEST_P(IsOptionSupported, PropertyNotSupportedByDriver) {
+    std::optional<bool> isOptionSupportedResult;
+    OV_ASSERT_NO_THROW(isOptionSupportedResult = zeGraphExt->isOptionSupported("FAKE_OPTION"));
+    if (zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 11)) {
+        ASSERT_FALSE(isOptionSupportedResult.has_value());
+    } else {
+        ASSERT_TRUE(isOptionSupportedResult.has_value());
+        ASSERT_FALSE(isOptionSupportedResult.value());
+    }
+}
+
+TEST_P(IsOptionSupported, PropertySupportedByDriver) {
+    std::optional<bool> isOptionSupportedResult;
+    OV_ASSERT_NO_THROW(isOptionSupportedResult = zeGraphExt->isOptionSupported("PERFORMANCE_HINT"));
+    if (zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 11)) {
+        ASSERT_FALSE(isOptionSupportedResult.has_value());
+    } else {
+        ASSERT_TRUE(isOptionSupportedResult.has_value());
+        ASSERT_TRUE(isOptionSupportedResult.value());
+    }
+}
 
 }  // namespace ov::test::behavior

@@ -1,5 +1,8 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """
- Copyright (C) 2018-2025 Intel Corporation
+ Copyright (C) 2018-2026 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -24,7 +27,7 @@ import numpy as np
 import zipfile
 
 import logging as log
-from common.common_utils import shell
+from common.common_utils import shell, retry
 from shutil import which
 import openvino as ov
 
@@ -47,6 +50,11 @@ def get_cmd_output(*cmd):
     return output
 
 
+@retry(max_retries=3, exceptions=(requests.RequestException,), delay=5, exponential_backoff=True)
+def _requests_get(url):
+    return requests.get(url)
+
+
 def download(test_data_dir, file_path):
     if file_path.exists():
         return file_path
@@ -58,15 +66,15 @@ def download(test_data_dir, file_path):
             with lock_path.open('bx'):
                 if not file_path.exists():
                     if test_data_dir / 'bvlcalexnet-12.onnx' == file_path:
-                        response = requests.get("https://github.com/onnx/models/raw/main/validated/vision/classification/alexnet/model/bvlcalexnet-12.onnx?download=")
+                        response = _requests_get("https://media.githubusercontent.com/media/onnx/models/4c46cd00fbdb7cd30b6c1c17ab54f2e1f4f7b177/validated/vision/classification/alexnet/model/bvlcalexnet-12.onnx?download=true")
                         with file_path.open('wb') as nfnet:
                             nfnet.write(response.content)
                     elif test_data_dir / 'efficientnet-lite4-11-qdq.onnx' == file_path:
-                        response = requests.get("https://github.com/onnx/models/raw/main/validated/vision/classification/efficientnet-lite4/model/efficientnet-lite4-11-qdq.onnx?download=")
+                        response = _requests_get("https://media.githubusercontent.com/media/onnx/models/4c46cd00fbdb7cd30b6c1c17ab54f2e1f4f7b177/validated/vision/classification/efficientnet-lite4/model/efficientnet-lite4-11-qdq.onnx?download=true")
                         with file_path.open('wb') as nfnet:
                             nfnet.write(response.content)
                     else:
-                        response = requests.get("https://storage.openvinotoolkit.org/repositories/openvino/ci_dependencies/test/2021.4/samples_smoke_tests_data_2021.4.zip")
+                        response = _requests_get("https://storage.openvinotoolkit.org/repositories/openvino/ci_dependencies/test/2021.4/samples_smoke_tests_data_2021.4.zip")
                         with zipfile.ZipFile(io.BytesIO(response.content)) as zfile:
                             zfile.extractall(test_data_dir)
                         cv2.imwrite(str(test_data_dir / 'dog-224x224.bmp'), cv2.resize(cv2.imread(str(test_data_dir / 'samples_smoke_tests_data_2021.4/validation_set/227x227/dog.bmp')), (224, 224)))
@@ -167,7 +175,7 @@ class SamplesCommonTestClass():
         is_windows = sys.platform.startswith('win')
         if 'python' in sample_type.lower():
             executable_path += '.py'
-            if is_windows: 
+            if is_windows:
                 executable_path = 'python ' + executable_path
             else:
                 executable_path = 'python3 ' + executable_path
@@ -302,5 +310,5 @@ class SamplesCommonTestClass():
         # Check return code
         if (retcode != 0):
             log.error(stderr)
-        assert retcode == 0, "Sample execution failed"     
+        assert retcode == 0, "Sample execution failed"
         return stdout

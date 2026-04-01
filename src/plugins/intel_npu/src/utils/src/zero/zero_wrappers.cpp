@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,38 +59,52 @@ Event::~Event() {
     _handle = nullptr;
 }
 
-CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const uint32_t& group_ordinal)
+CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs)
     : _init_structs(init_structs),
       _log("CommandList", Logger::global().level()) {
     ze_mutable_command_list_exp_desc_t mutable_desc = {ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_LIST_EXP_DESC, nullptr, 0};
-    ze_command_list_desc_t desc = {ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, &mutable_desc, group_ordinal, 0};
+    ze_command_list_desc_t desc = {ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC,
+                                   &mutable_desc,
+                                   _init_structs->getCommandQueueGroupOrdinal(),
+                                   0};
     THROW_ON_FAIL_FOR_LEVELZERO(
         "zeCommandListCreate",
         zeCommandListCreate(_init_structs->getContext(), _init_structs->getDevice(), &desc, &_handle));
 
-    uint32_t mutable_command_list_ext_version = _init_structs->getMutableCommandListExtVersion();
-    if (mutable_command_list_ext_version >= ZE_MAKE_VERSION(1, 0)) {
-        ze_mutable_command_id_exp_desc_t mutable_cmd_id_desc = {};
+    try {
+        uint32_t mutable_command_list_ext_version = _init_structs->getMutableCommandListExtVersion();
+        if (mutable_command_list_ext_version >= ZE_MAKE_VERSION(1, 0)) {
+            ze_mutable_command_id_exp_desc_t mutable_cmd_id_desc = {};
 
-        mutable_cmd_id_desc.stype = ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_ID_EXP_DESC;
+            mutable_cmd_id_desc.stype = ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_ID_EXP_DESC;
 
-        if (mutable_command_list_ext_version >= ZE_MAKE_VERSION(1, 1)) {
-            mutable_cmd_id_desc.flags = ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENTS;
-        } else {
-            mutable_cmd_id_desc.flags = ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT_DEPRECATED;
-        };
+            if (mutable_command_list_ext_version >= ZE_MAKE_VERSION(1, 1)) {
+                mutable_cmd_id_desc.flags = ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENTS;
+            } else {
+                mutable_cmd_id_desc.flags = ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT_DEPRECATED;
+            };
 
-        auto result = zeCommandListGetNextCommandIdExp(_handle, &mutable_cmd_id_desc, &_command_id);
-        if (result == ZE_RESULT_ERROR_INVALID_ENUMERATION) {
-            // If ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENTS is not supported by the driver, try again with
-            // ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT_DEPRECATED
-            mutable_cmd_id_desc.flags = ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT_DEPRECATED;
+            auto result = zeCommandListGetNextCommandIdExp(_handle, &mutable_cmd_id_desc, &_command_id);
+            if (result == ZE_RESULT_ERROR_INVALID_ENUMERATION) {
+                // If ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENTS is not supported by the driver, try again with
+                // ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT_DEPRECATED
+                mutable_cmd_id_desc.flags = ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT_DEPRECATED;
 
-            THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListGetNextCommandIdExp",
-                                        zeCommandListGetNextCommandIdExp(_handle, &mutable_cmd_id_desc, &_command_id))
-        } else {
-            THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListGetNextCommandIdExp", result)
+                THROW_ON_FAIL_FOR_LEVELZERO(
+                    "zeCommandListGetNextCommandIdExp",
+                    zeCommandListGetNextCommandIdExp(_handle, &mutable_cmd_id_desc, &_command_id));
+            } else {
+                THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListGetNextCommandIdExp", result);
+            }
         }
+    } catch (...) {
+        auto result = zeCommandListDestroy(_handle);
+        _handle = nullptr;
+        if (ZE_RESULT_SUCCESS != result) {
+            _log.error("zeCommandListDestroy failed %#X", uint64_t(result));
+        }
+
+        throw;
     }
 }
 void CommandList::reset() const {
@@ -189,34 +203,55 @@ void CommandList::updateMutableCommandListWithStrides(uint32_t index,
                                 zeCommandListUpdateMutableCommandsExp(_handle, &mutable_commands_exp_desc_t));
 }
 
-CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                           const ze_command_queue_priority_t& priority,
-                           const uint32_t group_ordinal,
-                           const uint32_t command_queue_options)
+CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const CommandQueueDesc& desc)
     : _init_structs(init_structs),
+      _desc(desc),
       _log("CommandQueue", Logger::global().level()) {
-    ze_command_queue_desc_t queue_desc =
-        {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr, group_ordinal, 0, 0, ZE_COMMAND_QUEUE_MODE_DEFAULT, priority};
+    ze_command_queue_desc_t ze_queue_desc = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC,
+                                             nullptr,
+                                             _init_structs->getCommandQueueGroupOrdinal(),
+                                             0,
+                                             0,
+                                             ZE_COMMAND_QUEUE_MODE_DEFAULT,
+                                             _desc.priority};
     ze_command_queue_desc_npu_ext_t turbo_cfg = {};
     ze_command_queue_desc_npu_ext_2_t command_queue_desc = {};
 
-    if (command_queue_options) {
+    if (_desc.options) {
         if (_init_structs->getCommandQueueDdiTable().version() == ZE_MAKE_VERSION(1, 0)) {
             turbo_cfg.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT;
-            turbo_cfg.turbo = command_queue_options & ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
-
-            queue_desc.pNext = &turbo_cfg;
+            turbo_cfg.turbo = _desc.options & ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
+            ze_queue_desc.pNext = &turbo_cfg;
         } else if (_init_structs->getCommandQueueDdiTable().version() > ZE_MAKE_VERSION(1, 0)) {
             command_queue_desc.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT_2;
-            command_queue_desc.options = command_queue_options;
-
-            queue_desc.pNext = &command_queue_desc;
+            command_queue_desc.options = _desc.options;
+            ze_queue_desc.pNext = &command_queue_desc;
         }
     }
 
     THROW_ON_FAIL_FOR_LEVELZERO(
         "zeCommandQueueCreate",
-        zeCommandQueueCreate(_init_structs->getContext(), _init_structs->getDevice(), &queue_desc, &_handle));
+        zeCommandQueueCreate(_init_structs->getContext(), _init_structs->getDevice(), &ze_queue_desc, &_handle));
+
+    if (_desc.workload.has_value()) {
+        try {
+            if (_init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
+                THROW_ON_FAIL_FOR_LEVELZERO(
+                    "zeSetWorkloadType",
+                    _init_structs->getCommandQueueDdiTable().pfnSetWorkloadType(_handle, _desc.workload.value()));
+            } else {
+                OPENVINO_THROW("The WorkloadType property is not supported by the current Driver Version!");
+            }
+        } catch (...) {
+            auto result = zeCommandQueueDestroy(_handle);
+            _handle = nullptr;
+            if (ZE_RESULT_SUCCESS != result) {
+                _log.error("zeCommandQueueDestroy failed %#X", uint64_t(result));
+            }
+
+            throw;
+        }
+    }
 }
 void CommandQueue::executeCommandList(CommandList& command_list) const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandQueueExecuteCommandLists",
@@ -226,16 +261,6 @@ void CommandQueue::executeCommandList(CommandList& command_list, Fence& fence) c
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandQueueExecuteCommandLists",
                                 zeCommandQueueExecuteCommandLists(_handle, 1, &command_list._handle, fence.handle()));
 }
-
-void CommandQueue::setWorkloadType(ze_command_queue_workload_type_t workloadType) const {
-    if (_init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
-        THROW_ON_FAIL_FOR_LEVELZERO("zeSetWorkloadType",
-                                    _init_structs->getCommandQueueDdiTable().pfnSetWorkloadType(_handle, workloadType));
-    } else {
-        OPENVINO_THROW("The WorkloadType property is not supported by the current Driver Version!");
-    }
-}
-
 CommandQueue::~CommandQueue() {
     auto result = zeCommandQueueDestroy(_handle);
     if (ZE_RESULT_SUCCESS != result) {

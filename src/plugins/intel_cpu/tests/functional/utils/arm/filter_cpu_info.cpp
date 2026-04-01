@@ -1,7 +1,8 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/runtime/system_conf.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
 #include "utils/general_utils.h"
@@ -62,8 +63,15 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice(const std::vector<CPUSpeci
 }
 
 std::vector<CPUSpecificParams> filterCPUInfoForDeviceWithFP16(const std::vector<CPUSpecificParams>& allParams) {
-    std::vector<CPUSpecificParams> resCPUParams;
-    return resCPUParams;
+    std::vector<CPUSpecificParams> specificParams;
+    if (!ov::with_cpu_neon_fp16()) {
+        return specificParams;
+    }
+    std::copy_if(allParams.begin(), allParams.end(), std::back_inserter(specificParams), [](const CPUSpecificParams& item) {
+        const auto& selected = std::get<3>(item);
+        return selected.find("acl") != std::string::npos;
+    });
+    return specificParams;
 }
 
 std::vector<CPUSpecificParams> filterCPUSpecificParams(const std::vector<CPUSpecificParams> &paramsVector) {

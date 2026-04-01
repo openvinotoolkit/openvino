@@ -1,10 +1,13 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <ze_api.h>
+#include <ze_command_queue_npu_ext.h>
+
+#include <optional>
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
@@ -14,6 +17,34 @@
 namespace intel_npu {
 class CommandList;
 class CommandQueue;
+
+struct CommandQueueDesc {
+    ze_command_queue_priority_t priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
+    std::optional<ze_command_queue_workload_type_t> workload = std::nullopt;
+    uint32_t options = 0;
+    const void* owner_tag = nullptr;
+    bool shared_common_queue = true;
+    uint64_t key = 0;
+
+    bool operator==(const CommandQueueDesc& other) const {
+        if (priority != other.priority || workload != other.workload || options != other.options ||
+            shared_common_queue != other.shared_common_queue) {
+            return false;
+        }
+        // pointer is only meaningful when the device-sync flag is active
+        const bool use_owner_tag = (options & ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC) != 0 || !shared_common_queue;
+        const bool other_use_owner_tag =
+            (other.options & ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC) != 0 || !other.shared_common_queue;
+        if (use_owner_tag || other_use_owner_tag) {
+            // when owner_tag participates in the key, require it to be non-null and equal on both sides
+            if (owner_tag == nullptr || other.owner_tag == nullptr || owner_tag != other.owner_tag) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+};
 
 class EventPool {
 public:
@@ -61,7 +92,7 @@ class CommandList {
 public:
     friend class CommandQueue;
     CommandList() = delete;
-    CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const uint32_t& group_ordinal);
+    CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs);
     CommandList(const CommandList&) = delete;
     CommandList(CommandList&&) = delete;
     CommandList& operator=(const CommandList&) = delete;
@@ -121,10 +152,7 @@ private:
 class CommandQueue {
 public:
     CommandQueue() = delete;
-    CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                 const ze_command_queue_priority_t& priority,
-                 const uint32_t group_ordinal,
-                 const uint32_t command_queue_options = 0);
+    CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const CommandQueueDesc& desc);
     CommandQueue(const CommandQueue&) = delete;
     CommandQueue(CommandQueue&&) = delete;
     CommandQueue& operator=(const CommandQueue&) = delete;
@@ -132,14 +160,18 @@ public:
 
     void executeCommandList(CommandList& command_list) const;
     void executeCommandList(CommandList& command_list, Fence& fence) const;
-    void setWorkloadType(ze_command_queue_workload_type_t workloadType) const;
     ~CommandQueue();
     inline ze_command_queue_handle_t handle() const {
         return _handle;
     }
+    inline CommandQueueDesc desc() const {
+        return _desc;
+    }
 
 private:
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
+
+    CommandQueueDesc _desc;
 
     Logger _log;
 

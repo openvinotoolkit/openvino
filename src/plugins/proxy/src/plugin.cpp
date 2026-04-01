@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -394,7 +394,7 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::
     return std::make_shared<ov::proxy::CompiledModel>(device_model, plugin, remote_context);
 }
 
-std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::string& model_path,
+std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::filesystem::path& model_path,
                                                                      const ov::AnyMap& properties) const {
     auto dev_name = get_fallback_device(get_device_from_config(properties));
     auto device_config = construct_device_config(dev_name, m_configs, properties);

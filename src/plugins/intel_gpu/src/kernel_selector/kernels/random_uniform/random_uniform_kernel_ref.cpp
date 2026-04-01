@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,14 +22,14 @@ size_t GetGwsSize(const random_uniform_params &params) {
     return CeilDiv(shapeSize, step);
 }
 
-CommonDispatchData SetDefault(const random_uniform_params &params) {
+}  // namespace
+
+CommonDispatchData RandomUniformKernelRef::SetDefault(const random_uniform_params &params) const {
     CommonDispatchData dispatchData;
     dispatchData.gws = {GetGwsSize(params), 1, 1};
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
     return dispatchData;
 }
-
-}  // namespace
 
 JitConstants RandomUniformKernelRef::GetJitConstants(const random_uniform_params &params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);

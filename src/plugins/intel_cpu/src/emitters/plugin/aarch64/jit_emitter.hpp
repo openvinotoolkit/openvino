@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,10 @@
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/emitter.hpp"
 
+#ifdef SNIPPETS_DEBUG_CAPS
+#    include "emitters/snippets/common/jit_debug_emitter_base.hpp"
+#endif
+
 namespace ov::intel_cpu::aarch64 {
 
 enum emitter_in_out_map : uint8_t {
@@ -32,7 +36,7 @@ enum emitter_in_out_map : uint8_t {
 
 class jit_emitter : public ov::snippets::Emitter {
 public:
-    jit_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+    jit_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                 ov::element::Type exec_prc = ov::element::f32,
                 emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec)
@@ -43,7 +47,7 @@ public:
           p_table(0),
           l_table(new Xbyak_aarch64::Label()) {}
 
-    jit_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+    jit_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                 [[maybe_unused]] const std::shared_ptr<ov::Node>& n,
                 ov::element::Type exec_prc = ov::element::f32,
@@ -57,10 +61,10 @@ public:
 
     void emit_data() const override;
 
-    virtual size_t get_inputs_count() const = 0;
-    virtual size_t get_aux_vecs_count() const;
-    virtual size_t get_aux_gprs_count() const;
-    emitter_in_out_map get_in_out_type() const;
+    [[nodiscard]] virtual size_t get_inputs_count() const = 0;
+    [[nodiscard]] virtual size_t get_aux_vecs_count() const;
+    [[nodiscard]] virtual size_t get_aux_gprs_count() const;
+    [[nodiscard]] emitter_in_out_map get_in_out_type() const;
 
     /**
      * @brief Returns supported precisions.
@@ -79,7 +83,7 @@ protected:
     mutable std::vector<size_t> aux_vec_idxs;
     mutable std::vector<size_t> aux_gpr_idxs;
 
-    dnnl::impl::cpu::aarch64::jit_generator* h;
+    dnnl::impl::cpu::aarch64::jit_generator_t* h;
     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa_;
     ov::element::Type exec_prc_;
 
@@ -133,12 +137,12 @@ protected:
 
     mapped_table_t entry_map_;
 
-    Xbyak_aarch64::AdrImm table_val(const std::string& key, size_t key_off_val_shift = 0) const {
+    [[nodiscard]] Xbyak_aarch64::AdrImm table_val(const std::string& key, size_t key_off_val_shift = 0) const {
         const int32_t off = table_off(key, key_off_val_shift);
         return Xbyak_aarch64::ptr(p_table, off);
     }
 
-    Xbyak_aarch64::AdrNoOfs table_val2(const std::string& key, size_t key_off_val_shift = 0) const {
+    [[nodiscard]] Xbyak_aarch64::AdrNoOfs table_val2(const std::string& key, size_t key_off_val_shift = 0) const {
         const int32_t off = table_off(key, key_off_val_shift);
         h->add_imm(h->X_DEFAULT_ADDR, p_table, off, h->X_TMP_0);
         return Xbyak_aarch64::ptr(h->X_DEFAULT_ADDR);
@@ -168,7 +172,7 @@ private:
     // General-purpose Registers
     static const std::vector<size_t> store_gpr_regs;
 
-    size_t table_off(const std::string& key, const size_t key_off_val_shift = 0) const {
+    [[nodiscard]] size_t table_off(const std::string& key, const size_t key_off_val_shift = 0) const {
         // assumption: all table entries sharing the same key also
         // share their broadcast property
         const auto it = entry_map_.find(key);  // search an entry for a key
@@ -192,6 +196,14 @@ private:
     void restore_context(const std::vector<size_t>& gpr_regs,
                          const std::vector<size_t>& vec_regs,
                          const std::unordered_set<size_t>& ignore_vec_regs = {}) const;
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    template <typename>
+    friend class ov::intel_cpu::jit_debug_emitter_base_common;
+    template <typename>
+    friend class jit_debug_emitter_aarch64_base;
+    friend class jit_debug_emitter;
+#endif
 };
 
 }  // namespace ov::intel_cpu::aarch64

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ using PagedAttentionExtension = ov::op::PagedAttentionExtension;
 namespace ov::intel_gpu {
 
 static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared_ptr<ov::op::PagedAttentionExtension>& op) {
-    validate_inputs_count(op, {25});
+    validate_inputs_count(op, {26});
     auto inputs = p.GetInputInfo(op);
     auto prim = cldnn::paged_attention(layer_type_name_ID(op), inputs);
 
@@ -122,10 +122,16 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     prim.num_outputs = 1;
 
     if (op->get_output_size() > 1) {
-        const auto scores_output_idx = 1;
-        const auto& users = op->get_output_target_inputs(scores_output_idx);
-        if (users.size() > 0) {
+        if (!op->get_output_target_inputs(1).empty()) {
             prim.num_outputs++; // Add scores output
+        } else {
+            prim.has_score_aggregation = false;
+        }
+
+        if (!op->get_output_target_inputs(2).empty()) {
+            prim.num_outputs++; // Add diversity outut
+        } else {
+            prim.has_adaptive_rkv = false;
         }
     }
 

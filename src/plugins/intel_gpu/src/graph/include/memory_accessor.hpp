@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,6 +58,7 @@ struct MemoryAccessor : public ov::ITensorAccessor {
 
         const auto t_iter = m_ptrs->find(port);
         if (t_iter != m_ptrs->cend()) {
+            OPENVINO_ASSERT(t_iter->second, "memory pointer is null for port ", port);
             m_accessed_data = t_iter->second;
             return {m_accessed_data->get_layout().data_type,
                     m_accessed_data->get_layout().get_shape(),

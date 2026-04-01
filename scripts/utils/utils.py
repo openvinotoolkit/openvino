@@ -1,8 +1,8 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import subprocess
+import subprocess  # nosec B404
 import tarfile
 from datetime import datetime
 from shutil import copyfile, copytree, rmtree
