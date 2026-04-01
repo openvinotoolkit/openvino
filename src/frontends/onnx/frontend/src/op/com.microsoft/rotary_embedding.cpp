@@ -13,22 +13,15 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/op/greater.hpp"
-#include "openvino/op/greater_eq.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/scaled_dot_product_attention.hpp"
-#include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/slice.hpp"
 #include "openvino/op/split.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
@@ -42,9 +35,15 @@ namespace com_microsoft {
 namespace opset_1 {
 
 ov::OutputVector make_split(const ov::Output<ov::Node>& value, int64_t num_splits, int64_t axis) {
-    using namespace ov::op;
     const auto axis_node = v0::Constant::create(ov::element::i64, ov::Shape{}, {axis});
-    const auto split = std::make_shared<v1::Split>(value, axis_node, num_splits);
+    const auto shape = std::make_shared<v3::ShapeOf>(value, ov::element::i64);
+    const auto zero = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    const auto axis_idx = v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
+    const auto dim_size = std::make_shared<v8::Gather>(shape, axis_idx, zero);
+    const auto n = v0::Constant::create(ov::element::i64, ov::Shape{1}, {num_splits});
+    const auto each_len = std::make_shared<v1::Divide>(dim_size, n);
+    const auto split_lengths = std::make_shared<v3::Broadcast>(each_len, n);
+    const auto split = std::make_shared<v1::VariadicSplit>(value, axis_node, split_lengths);
 
     return split->outputs();
 }
@@ -60,7 +59,7 @@ ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node& node) {
     // Original documentation:
     // https://github.com/microsoft/onnxruntime/blob/main/docs/ContribOperators.md#com.microsoft.RotaryEmbedding
     const auto inputs = node.get_ov_inputs();
-    const auto& input = inputs[0];         // [bs,seqlen,hidden] or [bs,num_heads,seqlen,headsize]
+    const auto& input = inputs[0];         // [bs,seqlen,hidden] or [bs,num_heads,seqlen,head_size]
     const auto& position_ids = inputs[1];  // [seqlen] or [bs, seqlen]
     const auto& cos_cache = inputs[2];     // [max_seqlen, head_size/2]
     const auto& sin_cache = inputs[3];     // [max_seqlen, head_size/2]
@@ -68,7 +67,6 @@ ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node& node) {
     const auto interleaved = node.get_attribute_value<int64_t>("interleaved");  // required
     const auto minus_one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
     const auto zero = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
-    const auto one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
     const auto two = v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
 
     const auto cos = std::make_shared<v8::Gather>(cos_cache,
@@ -102,42 +100,73 @@ ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node& node) {
         const auto input_shape_prev_2 = get_dimensions(input_shape, {0, 1});
         auto new_input_shape = std::make_shared<v0::Concat>(ov::NodeVector{input_shape_prev_2, minus_one, headsize}, 0);
         auto input_reshaped =
-            std::make_shared<v1::Reshape>(input, new_input_shape, false);  // [bs,seqlen,num_heads,headsize]
-        input_4d = std::make_shared<v1::Transpose>(input_reshaped, perm);  // [bs,num_heads,seqlen,headsize]
+            std::make_shared<v1::Reshape>(input, new_input_shape, false);  // [bs,seqlen,num_heads,head_size]
+        input_4d = std::make_shared<v1::Transpose>(input_reshaped, perm);  // [bs,num_heads,seqlen,head_size]
     }
 
-    ov::Output<ov::Node> output;
-    if (interleaved) {
-        auto input_4d_shape = std::make_shared<v3::ShapeOf>(input_4d);
-        auto dim_bns = get_dimensions(input_4d_shape, {0, 1, 2});
-        auto half_head_size = v0::Constant::create(ov::element::i64, ov::Shape{1}, {last_dim.get_length()});
-        auto split_input_shape = std::make_shared<v0::Concat>(ov::NodeVector{dim_bns, half_head_size, two}, 0);
-        auto reshaped_input = std::make_shared<v1::Reshape>(input_4d, split_input_shape, false);
-
-        auto in_split = make_split(reshaped_input, 2, -1);
-        split_input_shape = std::make_shared<v0::Concat>(ov::NodeVector{dim_bns, half_head_size}, 0);
-        auto in_split_0 = std::make_shared<v1::Reshape>(in_split[0], split_input_shape, false);
-        auto in_split_1 = std::make_shared<v1::Reshape>(in_split[1], split_input_shape, false);
-
-        auto res_0 = std::make_shared<v1::Subtract>(std::make_shared<v1::Multiply>(in_split_0, cos),
-                                                    std::make_shared<v1::Multiply>(in_split_1, sin));
-        auto res_1 = std::make_shared<v1::Add>(std::make_shared<v1::Multiply>(in_split_0, sin),
-                                               std::make_shared<v1::Multiply>(in_split_1, cos));
-
-        split_input_shape = std::make_shared<v0::Concat>(ov::NodeVector{dim_bns, half_head_size, one}, 0);
-        auto res_0_5d = std::make_shared<v1::Reshape>(res_0, split_input_shape, false);
-        auto res_1_5d = std::make_shared<v1::Reshape>(res_1, split_input_shape, false);
-
-        auto concat_ret = std::make_shared<v0::Concat>(ov::NodeVector{res_0_5d, res_1_5d}, -1);
-        output = std::make_shared<v1::Reshape>(concat_ret, input_4d_shape,
-                                               false);  // [bs,num_heads,seqlen,headsize]
+    // Unsqueeze cos/sin to 4D [?, 1, ?, head_size/2] to match RoPE fusion pattern
+    ov::Output<ov::Node> cos_4d, sin_4d;
+    const auto cos_out_rank = cos->get_output_partial_shape(0).rank();
+    if (cos_out_rank.is_static() && cos_out_rank.get_length() == 2) {
+        // cos is [seqlen, head_size/2] → [1, 1, seqlen, head_size/2]
+        auto axes = v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1});
+        cos_4d = std::make_shared<v0::Unsqueeze>(cos, axes);
+        sin_4d = std::make_shared<v0::Unsqueeze>(sin, axes);
     } else {
-        auto in_split = make_split(input_4d, 2, -1);  // [bs,num_heads,seqlen,headsize/2]
-        auto res_0 = std::make_shared<v1::Subtract>(std::make_shared<v1::Multiply>(in_split[0], cos),
-                                                    std::make_shared<v1::Multiply>(in_split[1], sin));
-        auto res_1 = std::make_shared<v1::Add>(std::make_shared<v1::Multiply>(in_split[0], sin),
-                                               std::make_shared<v1::Multiply>(in_split[1], cos));
-        output = std::make_shared<v0::Concat>(ov::NodeVector{res_0, res_1}, -1);  // [bs,num_heads,seqlen,headsize]
+        // cos is [bs, seqlen, head_size/2] → [bs, 1, seqlen, head_size/2]
+        auto axes = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+        cos_4d = std::make_shared<v0::Unsqueeze>(cos, axes);
+        sin_4d = std::make_shared<v0::Unsqueeze>(sin, axes);
+    }
+
+    // For interleaved mode, deinterleave first so the core RoPE formula is identical
+    ov::Output<ov::Node> rope_input = input_4d;
+    std::shared_ptr<v3::ShapeOf> input_4d_shape;
+    std::shared_ptr<ov::Node> dim_bns;
+    std::shared_ptr<v0::Constant> half_head_size;
+    std::shared_ptr<v0::Constant> perm_5d;
+    if (interleaved) {
+        input_4d_shape = std::make_shared<v3::ShapeOf>(input_4d);
+        dim_bns = get_dimensions(input_4d_shape, {0, 1, 2});
+        half_head_size = v0::Constant::create(ov::element::i64, ov::Shape{1}, {last_dim.get_length()});
+        perm_5d = v0::Constant::create(ov::element::i64, ov::Shape{5}, {0, 1, 2, 4, 3});
+
+        // Deinterleave: [bs,num_heads,seqlen,head_size]
+        //   → reshape [bs,num_heads,seqlen,head_size/2,2]
+        //   → transpose [bs,num_heads,seqlen,2,head_size/2]
+        //   → reshape [bs,num_heads,seqlen,head_size]  (now [first_half, second_half])
+        auto deinterleave_5d = std::make_shared<v0::Concat>(ov::NodeVector{dim_bns, half_head_size, two}, 0);
+        auto reshaped_5d = std::make_shared<v1::Reshape>(input_4d, deinterleave_5d, false);
+        auto transposed_5d = std::make_shared<v1::Transpose>(reshaped_5d, perm_5d);
+        rope_input = std::make_shared<v1::Reshape>(transposed_5d, input_4d_shape, false);
+    }
+
+    // Core RoPE formula (matches RoPEFusionGPTOSS pattern for both modes)
+    // first_ = first_half * cos - second_half * sin
+    // second_ = second_half * cos + first_half * sin
+    auto in_split = make_split(rope_input, 2, -1);  // [bs,num_heads,seqlen,head_size/2]
+    auto first_half_mul_cos = std::make_shared<v1::Multiply>(in_split[0], cos_4d);
+    auto second_half_mul_sin = std::make_shared<v1::Multiply>(in_split[1], sin_4d);
+    const auto neg_one = v0::Constant::create(ov::element::f32, ov::Shape{}, {-1.0f});
+    auto neg_second_sin = std::make_shared<v1::Multiply>(second_half_mul_sin, neg_one);
+    auto res_0 = std::make_shared<v1::Add>(first_half_mul_cos, neg_second_sin);
+    auto second_half_mul_cos = std::make_shared<v1::Multiply>(in_split[1], cos_4d);
+    auto first_half_mul_sin = std::make_shared<v1::Multiply>(in_split[0], sin_4d);
+    auto res_1 = std::make_shared<v1::Add>(second_half_mul_cos, first_half_mul_sin);
+    ov::Output<ov::Node> output =
+        std::make_shared<v0::Concat>(ov::NodeVector{res_0, res_1}, -1);  // [bs,num_heads,seqlen,head_size]
+
+    // For interleaved mode, re-interleave the result
+    if (interleaved) {
+        // Re-interleave: [bs,num_heads,seqlen,head_size]
+        //   → reshape [bs,num_heads,seqlen,2,head_size/2]
+        //   → transpose [bs,num_heads,seqlen,head_size/2,2]
+        //   → reshape [bs,num_heads,seqlen,head_size]
+        auto reinterleave_5d = std::make_shared<v0::Concat>(ov::NodeVector{dim_bns, two, half_head_size}, 0);
+        auto result_5d = std::make_shared<v1::Reshape>(output, reinterleave_5d, false);
+        auto result_transposed = std::make_shared<v1::Transpose>(result_5d, perm_5d);
+        output = std::make_shared<v1::Reshape>(result_transposed, input_4d_shape,
+                                               false);  // [bs,num_heads,seqlen,head_size]
     }
 
     if (input_is_3d) {

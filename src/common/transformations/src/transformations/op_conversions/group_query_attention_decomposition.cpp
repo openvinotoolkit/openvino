@@ -14,6 +14,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
@@ -24,11 +25,11 @@
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using ov::pass::pattern::Matcher;
@@ -230,11 +231,19 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
 }
 
 // make split functions is a copy-past from ONNX FE. TODO: move it to one place
+// make split functions is a copy-past from ONNX FE. TODO: move it to one place
 ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::make_split(const ov::Output<ov::Node>& value,
                                                                         int64_t num_splits,
                                                                         int64_t axis) {
     const auto axis_node = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {axis}));
-    const auto split = register_new_node<v1::Split>(value, axis_node, num_splits);
+    const auto shape = register_new_node<v3::ShapeOf>(value);
+    const auto zero = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    const auto axis_idx = v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
+    const auto dim_size = register_new_node<v8::Gather>(shape, axis_idx, zero);
+    const auto n = v0::Constant::create(ov::element::i64, ov::Shape{1}, {num_splits});
+    const auto each_len = register_new_node<v1::Divide>(dim_size, n);
+    const auto split_lengths = register_new_node<v3::Broadcast>(each_len, n);
+    const auto split = register_new_node<v1::VariadicSplit>(value, axis_node, split_lengths);
 
     return split->outputs();
 }
@@ -257,42 +266,59 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::rotaryEmbe
                                                                                       ov::Output<ov::Node> cos,
                                                                                       ov::Output<ov::Node> sin,
                                                                                       bool interleaved) {
-    auto zero = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
-    auto one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto two = v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
 
+    // Unsqueeze cos/sin to 4D [1, 1, seqlen, head_size/2] to match RoPE fusion pattern
+    auto unsqueeze_axes = v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1});
+    auto cos_4d = register_new_node<v0::Unsqueeze>(cos, unsqueeze_axes);
+    auto sin_4d = register_new_node<v0::Unsqueeze>(sin, unsqueeze_axes);
+
+    // For interleaved mode, deinterleave first so the core RoPE formula is identical
+    ov::Output<ov::Node> rope_input = input;
+    std::shared_ptr<v3::ShapeOf> input_shape;
+    std::shared_ptr<ov::Node> dim_bns, half_head_size;
+    std::shared_ptr<v0::Constant> perm_5d;
     if (interleaved) {
-        auto two = v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
-        auto cos_last_dim = get_dimensions(cos.get_node_shared_ptr(), {-1});
-        auto input_shape = register_new_node<v3::ShapeOf>(input);
-        auto dim_bns = get_dimensions(input_shape, {0, 1, 2});
+        input_shape = register_new_node<v3::ShapeOf>(input);
+        dim_bns = get_dimensions(input_shape, {0, 1, 2});
+        half_head_size = get_dimensions(cos.get_node_shared_ptr(), {-1});
+        perm_5d = v0::Constant::create(ov::element::i64, ov::Shape{5}, {0, 1, 2, 4, 3});
 
-        auto negtive_one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
-        auto split_input_shape = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, cos_last_dim, two}, 0);
-        auto reshaped_input = register_new_node<v1::Reshape>(input, split_input_shape, false);
-
-        auto in_split = make_split(reshaped_input, 2, -1);
-        split_input_shape = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, cos_last_dim}, 0);
-        auto in_split_0 = register_new_node<v1::Reshape>(in_split[0], split_input_shape, false);
-        auto in_split_1 = register_new_node<v1::Reshape>(in_split[1], split_input_shape, false);
-
-        auto res_0 = register_new_node<v1::Subtract>(register_new_node<v1::Multiply>(in_split_0, cos),
-                                                     register_new_node<v1::Multiply>(in_split_1, sin));
-        auto res_1 = register_new_node<v1::Add>(register_new_node<v1::Multiply>(in_split_0, sin),
-                                                register_new_node<v1::Multiply>(in_split_1, cos));
-
-        split_input_shape = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, cos_last_dim, one}, 0);
-        auto res_0_5d = register_new_node<v1::Reshape>(res_0, split_input_shape, false);
-        auto res_1_5d = register_new_node<v1::Reshape>(res_1, split_input_shape, false);
-
-        auto concat_ret = register_new_node<v0::Concat>(ov::NodeVector{res_0_5d, res_1_5d}, -1);
-        return register_new_node<v1::Reshape>(concat_ret, input_shape, false);
-    } else {
-        auto in_split = make_split(input, 2, -1);
-        auto res_0 = register_new_node<v1::Subtract>(register_new_node<v1::Multiply>(in_split[0], cos),
-                                                     register_new_node<v1::Multiply>(in_split[1], sin));
-        auto res_1 = register_new_node<v1::Add>(register_new_node<v1::Multiply>(in_split[0], sin),
-                                                register_new_node<v1::Multiply>(in_split[1], cos));
-
-        return register_new_node<v0::Concat>(ov::NodeVector{res_0, res_1}, -1);
+        // Deinterleave: [bs,nh,seq,head_size]
+        //   -> reshape [bs,nh,seq,head_size/2,2]
+        //   -> transpose [bs,nh,seq,2,head_size/2]
+        //   -> reshape [bs,nh,seq,head_size]  (now [first_half, second_half])
+        auto deinterleave_5d = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, half_head_size, two}, 0);
+        auto reshaped_5d = register_new_node<v1::Reshape>(input, deinterleave_5d, false);
+        auto transposed_5d = register_new_node<v1::Transpose>(reshaped_5d, perm_5d);
+        rope_input = register_new_node<v1::Reshape>(transposed_5d, input_shape, false);
     }
+
+    // Core RoPE formula (matches RoPEFusionGPTOSS pattern for both modes)
+    // first_ = first_half * cos - second_half * sin
+    // second_ = second_half * cos + first_half * sin
+    auto in_split = make_split(rope_input, 2, -1);
+    auto first_half_mul_cos = register_new_node<v1::Multiply>(in_split[0], cos_4d);
+    auto second_half_mul_sin = register_new_node<v1::Multiply>(in_split[1], sin_4d);
+    auto neg_one = v0::Constant::create(ov::element::f32, ov::Shape{}, {-1.0f});
+    auto neg_second_sin = register_new_node<v1::Multiply>(second_half_mul_sin, neg_one);
+    auto res_0 = register_new_node<v1::Add>(first_half_mul_cos, neg_second_sin);
+    auto second_half_mul_cos = register_new_node<v1::Multiply>(in_split[1], cos_4d);
+    auto first_half_mul_sin = register_new_node<v1::Multiply>(in_split[0], sin_4d);
+    auto res_1 = register_new_node<v1::Add>(second_half_mul_cos, first_half_mul_sin);
+    ov::Output<ov::Node> output = register_new_node<v0::Concat>(ov::NodeVector{res_0, res_1}, -1);
+
+    // For interleaved mode, re-interleave the result
+    if (interleaved) {
+        // Re-interleave: [bs,nh,seq,head_size]
+        //   -> reshape [bs,nh,seq,2,head_size/2]
+        //   -> transpose [bs,nh,seq,head_size/2,2]
+        //   -> reshape [bs,nh,seq,head_size]
+        auto reinterleave_5d = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, two, half_head_size}, 0);
+        auto result_5d = register_new_node<v1::Reshape>(output, reinterleave_5d, false);
+        auto result_transposed = register_new_node<v1::Transpose>(result_5d, perm_5d);
+        output = register_new_node<v1::Reshape>(result_transposed, input_shape, false);
+    }
+
+    return output.get_node_shared_ptr();
 }
