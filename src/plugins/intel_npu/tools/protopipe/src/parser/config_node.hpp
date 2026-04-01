@@ -63,8 +63,15 @@ public:
     template <typename Key>
     const ConfigNode& operator[](const Key& key) const;
 
+    struct ConfigKey {
+        YAML::Node _node;
+
+        template <typename T>
+        T as() const { return _node.as<T>(); }
+    };
+
     struct KeyValueProxy {
-        std::string first;
+        ConfigKey first;
         const ConfigNode& second;
 
         const KeyValueProxy* operator->() const { return this; }
@@ -95,10 +102,17 @@ public:
 
         KeyValueProxy operator*() const {
             if (_parent._node.IsMap()) {
-                const std::string& key = _cachedKeys[_index];
-                return KeyValueProxy{key, _parent[key]};
+                const std::string& keyStr = _cachedKeys[_index];
+                YAML::Node keyNode;
+                for (const auto& kv : _parent._node) {
+                    if (kv.first.as<std::string>() == keyStr) {
+                        keyNode = kv.first;
+                        break;
+                    }
+                }
+                return KeyValueProxy{ConfigKey{keyNode}, _parent[keyStr]};
             } else {
-                return KeyValueProxy{"", _parent[_index]};
+                return KeyValueProxy{ConfigKey{YAML::Node()}, _parent[_index]};
             }
         }
 
@@ -158,7 +172,7 @@ private:
     }
 
     YAML::Node _node;
-    bool _isRoot = true;
+    bool _isRoot;
     mutable std::unordered_set<std::string> _keys;
     mutable std::unordered_map<std::string, std::unique_ptr<ConfigNode>> _children;
 };

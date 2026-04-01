@@ -13,7 +13,7 @@ ScenarioParser::ScenarioParser(const std::string& filepath): m_filepath(filepath
 }
 
 Config ScenarioParser::parseScenarios(const ReplaceBy& replace_by) {
-    ConfigNode root = {YAML::LoadFile(m_filepath), true};
+    const ConfigNode root = {YAML::LoadFile(m_filepath), true};
     // TODO: Extend to any other config syntax
     return parseConfig(root, replace_by);
 }

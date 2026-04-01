@@ -159,7 +159,7 @@ struct convert<std::map<K, V>> {
             return false;
         }
         for (const auto& itr : node) {
-            map.emplace(itr.first, itr.second.as<V>());
+            map.emplace(itr.first.as<K>(), itr.second.as<V>());
         }
         return true;
     }
