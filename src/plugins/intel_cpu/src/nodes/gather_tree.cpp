@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "cpu_memory.h"
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "gather_tree.h"
 #include "graph_context.h"
@@ -24,7 +25,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -97,13 +97,15 @@ void GatherTree::execute([[maybe_unused]] const dnnl::stream& strm) {
                              getSrcMemoryAtPort(GATHER_TREE_PARENT_IDX),
                              getSrcMemoryAtPort(GATHER_TREE_MAX_SEQ_LEN),
                              getSrcMemoryAtPort(GATHER_TREE_END_TOKEN),
-                             getDstMemoryAtPort(0));
+                             getDstMemoryAtPort(0),
+                             context->getCpuParallel());
     } else {
         execPtr->exec<int32_t>(getSrcMemoryAtPort(GATHER_TREE_STEP_IDX),
                                getSrcMemoryAtPort(GATHER_TREE_PARENT_IDX),
                                getSrcMemoryAtPort(GATHER_TREE_MAX_SEQ_LEN),
                                getSrcMemoryAtPort(GATHER_TREE_END_TOKEN),
-                               getDstMemoryAtPort(0));
+                               getDstMemoryAtPort(0),
+                               context->getCpuParallel());
     }
 }
 
@@ -153,7 +155,8 @@ void GatherTree::GatherTreeExecutor::exec(const MemoryPtr& stepIdxMemPtr,
                                           const MemoryPtr& parentIdxMemPtr,
                                           const MemoryPtr& maxSeqLenMemPtr,
                                           const MemoryPtr& endTokenMemPtr,
-                                          const MemoryPtr& dstMemPtr) {
+                                          const MemoryPtr& dstMemPtr,
+                                          const CpuParallelPtr& cpuParallel) {
     const auto* stepIdx = stepIdxMemPtr->getDataAs<DATA_T>();
     const auto* parentIdx = parentIdxMemPtr->getDataAs<DATA_T>();
     const auto* maxSeqLen = maxSeqLenMemPtr->getDataAs<DATA_T>();
@@ -161,7 +164,7 @@ void GatherTree::GatherTreeExecutor::exec(const MemoryPtr& stepIdxMemPtr,
     auto* finalIdx = dstMemPtr->getDataAs<DATA_T>();
 
     bool incorrectResult = false;
-    parallel_for2d(batchSize, beamWidth, [&](size_t batch, size_t beam) {
+    cpuParallel->parallel_for2d(batchSize, beamWidth, [&](size_t batch, size_t beam) {
         int32_t maxSequenceInBeam = std::min<int32_t>(maxTime, static_cast<int32_t>(maxSeqLen[batch]));
         if (maxSequenceInBeam > 0) {
             int32_t time = (maxTime - 1);

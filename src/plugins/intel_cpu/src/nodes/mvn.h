@@ -123,7 +123,8 @@ private:
         virtual void exec(const uint8_t* in_ptr_,
                           uint8_t* dst_data,
                           const void* post_ops_data_,
-                          const VectorDims& shape5d) = 0;
+                          const VectorDims& shape5d,
+                          const CpuParallelPtr& cpu_parallel) = 0;
         virtual ~MVNExecutorBase() = default;
 
     protected:
@@ -143,11 +144,20 @@ private:
         void exec(const uint8_t* src_data,
                   uint8_t* dst_data,
                   const void* post_ops_data_,
-                  const VectorDims& shape5d) override;
+                  const VectorDims& shape5d,
+                  const CpuParallelPtr& cpu_parallel) override;
 
     private:
-        void mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const void* post_ops_data_, const VectorDims& shape5d);
-        void mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const void* post_ops_data_, const VectorDims& shape5d);
+        void mvn_pln(const uint8_t* src_data,
+                     uint8_t* dst_data,
+                     const void* post_ops_data_,
+                     const VectorDims& shape5d,
+                     const CpuParallelPtr& cpu_parallel);
+        void mvn_blk(const uint8_t* src_data,
+                     uint8_t* dst_data,
+                     const void* post_ops_data_,
+                     const VectorDims& shape5d,
+                     const CpuParallelPtr& cpu_parallel);
         void mvn_nspc(const uint8_t* src_data,
                       uint8_t* dst_data,
                       const void* post_ops_data_,
@@ -165,10 +175,14 @@ private:
         void exec(const uint8_t* src_data,
                   uint8_t* dst_data,
                   const void* post_ops_data_,
-                  const VectorDims& shape5d) override;
+                  const VectorDims& shape5d,
+                  const CpuParallelPtr& cpu_parallel) override;
 
     private:
-        void mvn_ref(const uint8_t* src_data, uint8_t* dst_data, const VectorDims& shape5d);
+        void mvn_ref(const uint8_t* src_data,
+                     uint8_t* dst_data,
+                     const VectorDims& shape5d,
+                     const CpuParallelPtr& cpu_parallel);
     };
 };
 

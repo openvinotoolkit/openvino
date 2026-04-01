@@ -1,0 +1,155 @@
+ir_version: 6
+producer_name: "OpenVINO ONNX Frontend"
+# Test model for topological sort in GraphIteratorProto.
+# This model has a Loop node that references "outer_value" in its body,
+# but "outer_value" is produced by a node defined AFTER the Loop node.
+# Without topological sorting, this model would fail to load.
+graph {
+  name: "unsorted_loop_test"
+  # Loop node comes FIRST but references "outer_value" which is produced LATER
+  node {
+    input: "trip_count"
+    input: ""
+    input: "a_init"
+    output: "a_final"
+    output: "a_values"
+    op_type: "Loop"
+    name: "loop_node"
+    attribute {
+      name: "body"
+      g {
+        name: "loop_body"
+        # This node references "outer_value" from parent scope
+        node {
+          input: "a_in"
+          input: "outer_value"
+          output: "current_a"
+          name: "loop_body_add"
+          op_type: "Add"
+        }
+        node {
+          input: "cond"
+          output: "cond_out"
+          name: "cond_identity"
+          op_type: "Identity"
+        }
+        node {
+          input: "current_a"
+          output: "a_out"
+          name: "output_accumulator"
+          op_type: "Identity"
+        }
+        input {
+          name: "i"
+          type {
+            tensor_type {
+              elem_type: 7
+              shape {
+                dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+        input {
+          name: "cond"
+          type {
+            tensor_type {
+              elem_type: 9
+            }
+          }
+        }
+        input {
+          name: "a_in"
+          type {
+            tensor_type {
+              elem_type: 1
+            }
+          }
+        }
+        output {
+          name: "cond_out"
+          type {
+            tensor_type {
+              elem_type: 9
+            }
+          }
+        }
+        output {
+          name: "current_a"
+          type {
+            tensor_type {
+              elem_type: 1
+            }
+          }
+        }
+        output {
+          name: "a_out"
+          type {
+            tensor_type {
+              elem_type: 1
+            }
+          }
+        }
+      }
+      type: GRAPH
+    }
+  }
+  # This node produces "outer_value" but is defined AFTER the Loop
+  # The topological sort should reorder this to come before the Loop
+  node {
+    input: "scale"
+    input: "scale"
+    name: "mul_node"
+    op_type: "Mul"
+    output: "outer_value"
+  }
+  initializer {
+    dims: 1
+    data_type: 7
+    int64_data: 3
+    name: "trip_count"
+  }
+  initializer {
+    dims: 1
+    data_type: 1
+    float_data: 2
+    name: "scale"
+  }
+  input {
+    name: "a_init"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "a_final"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+  output {
+    name: "a_values"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+}
+opset_import {
+  version: 11
+}

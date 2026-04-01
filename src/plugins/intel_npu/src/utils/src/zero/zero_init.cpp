@@ -8,13 +8,13 @@
 #include <ze_context_npu_ext.h>
 #include <ze_driver_npu_ext.h>
 #include <ze_graph_ext.h>
-#include <ze_mem_import_system_memory_ext.h>
 
 #include <regex>
 
 #include "intel_npu/utils/zero/zero_utils.hpp"
 
 namespace {
+
 #ifdef _WIN32
 constexpr uint32_t WIN_DRIVER_NO_MCL_SUPPORT = 2688;
 #endif
@@ -25,6 +25,7 @@ constexpr uint32_t TARGET_ZE_COMMAND_QUEUE_NPU_EXT_VERSION = ZE_COMMAND_QUEUE_NP
 constexpr uint32_t TARGET_ZE_PROFILING_NPU_EXT_VERSION = ZE_PROFILING_DATA_EXT_VERSION_1_0;
 constexpr uint32_t TARGET_ZE_CONTEXT_NPU_EXT_VERSION = ZE_CONTEXT_NPU_EXT_VERSION_1_0;
 constexpr uint32_t TARGET_ZE_MUTABLE_COMMAND_LIST_EXT_VERSION = ZE_MUTABLE_COMMAND_LIST_EXP_VERSION_1_1;
+constexpr uint32_t TARGET_ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION = ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION_1_0;
 
 constexpr ze_driver_uuid_t uuid = ze_intel_npu_driver_uuid;
 
@@ -80,8 +81,16 @@ void ZeroInitStructsHolder::initNpuDriver() {
         }
     };
 
+    bool get_loader_version = false;
+
     auto fallbackToZeDriverGet = [&]() {
         _log.debug("ZeroInitStructsHolder::initNpuDriver - zeInitDrivers not supported, fallback to zeDriverGet");
+
+        if (get_loader_version) {
+            // With a newer Loader but an older Driver where zeInitDriver is not supported, we still need to call zeInit
+            _log.debug("ZeroInitStructsHolder::initNpuDriver - performing zeInit on NPU only");
+            THROW_ON_FAIL_FOR_LEVELZERO("zeInit", zeInit(ZE_INIT_FLAG_VPU_ONLY));
+        }
 
         uint32_t drivers_count = 0;
         THROW_ON_FAIL_FOR_LEVELZERO("zeDriverGet", zeDriverGet(&drivers_count, nullptr));
@@ -94,7 +103,6 @@ void ZeroInitStructsHolder::initNpuDriver() {
     };
 
     zel_version_t loader_version = {};
-    bool get_loader_version = false;
     try {
         _log.debug("ZeroInitStructsHolder::initNpuDriver - performing zelGetLoaderVersion");
         zel_component_version_t version;
@@ -306,8 +314,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     // The 2688 Windows driver version doesn't support as expected the MutableCommandList feature
     if (_driver_properties.driverVersion != WIN_DRIVER_NO_MCL_SUPPORT) {
 #endif
-        [[maybe_unused]] std::string mutuable_command_list_ext_name;
-        std::tie(_mutable_command_list_ext_version, mutuable_command_list_ext_name) =
+        std::tie(_mutable_command_list_ext_version, std::ignore) =
             queryDriverExtensionVersion(ZE_MUTABLE_COMMAND_LIST_EXP_NAME,
                                         TARGET_ZE_MUTABLE_COMMAND_LIST_EXT_VERSION,
                                         extProps,
@@ -385,6 +392,24 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
             _external_memory_standard_allocation_supported = true;
         }
     }
+
+    uint32_t external_memory_mapping_ext_version = 0;
+    std::tie(external_memory_mapping_ext_version, std::ignore) =
+        queryDriverExtensionVersion(ZE_EXTERNAL_MEMORY_MAPPING_EXT_NAME,
+                                    TARGET_ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION,
+                                    extProps,
+                                    count);
+
+    _log.debug("External memory mapping version %d.%d",
+               ZE_MAJOR_VERSION(external_memory_mapping_ext_version),
+               ZE_MINOR_VERSION(external_memory_mapping_ext_version));
+
+    if (external_memory_mapping_ext_version > 0) {
+        _external_memory_standard_allocation_supported = true;
+    }
+
+    _command_queue_group_ordinal =
+        zeroUtils::findCommandQueueGroupOrdinal(_device_handle, ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
 }
 
 const std::shared_ptr<ZeroInitStructsHolder> ZeroInitStructsHolder::getInstance() {

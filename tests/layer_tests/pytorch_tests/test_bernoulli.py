@@ -39,9 +39,8 @@ class TestBernoulli(PytorchLayerTest):
                 bernoulli_res = torch.bernoulli(input, generator=self.gen, out=out)
                 return bernoulli_res
 
-        ref_net = None
 
-        return aten_bernoulli(out, seed), ref_net, "aten::bernoulli"
+        return aten_bernoulli(out, seed), "aten::bernoulli"
 
     @pytest.mark.parametrize("input", [
         np.array([[0, 1, 0, 0], [0, 0, 0, 1], [1, 0, 0, 0]]),
@@ -86,9 +85,8 @@ class TestBernoulliWithP(PytorchLayerTest):
                 bernoulli_res = torch.bernoulli(input, self.p, generator=self.gen)
                 return bernoulli_res
 
-        ref_net = None
 
-        return aten_bernoulli(p, seed), ref_net, "aten::bernoulli"
+        return aten_bernoulli(p, seed), "aten::bernoulli"
 
     @pytest.mark.parametrize("input", [
         np.array([[0, 1, 0, 0], [0, 0, 0, 1], [1, 0, 0, 0]]),

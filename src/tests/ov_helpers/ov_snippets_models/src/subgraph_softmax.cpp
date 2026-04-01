@@ -6,6 +6,7 @@
 #include "openvino/opsets/opset1.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "snippets/op/result.hpp"
 #include <snippets/op/subgraph.hpp>
 #include <snippets/op/reduce.hpp>
 #include <snippets/op/powerstatic.hpp>
@@ -60,8 +61,9 @@ std::shared_ptr<ov::Model> SoftmaxFunction::initLowered() const {
     const auto reduce_sum = std::make_shared<ov::snippets::op::ReduceSum>(exp, normalized_axis);
     const auto power = std::make_shared<ov::snippets::op::PowerStatic>(reduce_sum, -1.f);
     const auto multiply = std::make_shared<ov::op::v1::Multiply>(exp, power);
+    auto snippets_result = std::make_shared<ov::snippets::op::Result>(multiply);
 
-    return std::make_shared<ov::Model>(OutputVector{multiply}, ParameterVector{data});
+    return std::make_shared<ov::Model>(OutputVector{snippets_result}, ParameterVector{data});
 }
 
 std::shared_ptr<ov::Model> AddSoftmaxFunction::initOriginal() const {

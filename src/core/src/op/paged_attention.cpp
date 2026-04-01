@@ -79,8 +79,8 @@ void PagedAttentionExtension::validate_and_infer_types() {
     OV_OP_SCOPE(PagedAttentionExtension_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_size() == 25,
-                          "PagedAttensionExtension expects 25 inputs, but it has ",
+                          get_input_size() == 26,
+                          "PagedAttensionExtension expects 26 inputs, but it has ",
                           get_input_size());
 
     // format: Node*, input_idx, name, {rank_list}, {type_list}
@@ -109,6 +109,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 22, "adaptive_rkv_evictable_sizes", {1}, {element::i32});
     input_check(this, 23, "adaptive_rkv_diversity_block_set_indices", {1}, {element::i32});
     input_check(this, 24, "adaptive_rkv_diversity_block_set_indices_begins", {1}, {element::i32});
+    input_check(this, 25, "token_type_ids", {1, 2}, {element::i32});
 
     // value head_size may be not same with key
     auto out_ps = get_input_partial_shape(0);
