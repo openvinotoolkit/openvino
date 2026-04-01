@@ -48,9 +48,12 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/llm_infer_request.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/llm_infer_base_request.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/llm_eagle3_extension.cpp
-            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/whisper_infer_request.cpp
-            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/embedding_infer_request.cpp
-            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/embedding_model_utils.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/whisper/whisper_infer_request.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/whisper/prepare_whisper_model.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/embedding/embedding_infer_request.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/embedding/prepare_embedding_model.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/embedding/redirect_new_kv_to_output.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/embedding/remove_empty_kv_inputs.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/base_sync_infer_request.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/just_sync_infer_request.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/unfold_sync_infer_request.cpp
@@ -60,6 +63,7 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/serialization.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/util.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/util_xarch.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/v1/elements/failsafe.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/lazy_tensor.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/attention.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/pyramid_attention.cpp
@@ -76,6 +80,17 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/moe_transformations/moe_unroll_patterns.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/moe_transformations/device_routed_moe_transform.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/moe_transformations/gather_to_2d_gather.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/moe_transformations/apply_moe_device_routed_transforms.cpp
+            # npuw_transformations
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/convert_kvcache_to_precision.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/decompose_gqa.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/lora_stateful_to_stateless.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/optimize_value_tensors.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/patch_phi3_sliding_mask.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/phi3_sliding_mask.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/reshape_sliced_head_to_static.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/reshape_to_static.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/slice_out_embeds.cpp
             # kokoro pipeline
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/pipelines/kokoro/kokoro_compiled_model.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/pipelines/kokoro/kokoro_infer_request.cpp
@@ -100,4 +115,10 @@ install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION tests
         COMPONENT tests
         EXCLUDE_FROM_ALL
+)
+
+target_sources(${TARGET_NAME} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_compiled_model_graph_options_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/partitioning_options_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_options_smoke_test.cpp
 )
