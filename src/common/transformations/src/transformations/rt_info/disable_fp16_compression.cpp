@@ -47,9 +47,9 @@ void ov::disable_compression_from_to(const std::shared_ptr<Node>& node,
                                      const element::Type& from,
                                      const element::Type& to) {
     auto& rt_info = node->get_rt_info();
-    if (rt_info.count(DisablePrecisionConversion::get_type_info_static())) {
-        auto& dpc_attribute =
-            rt_info.at(DisablePrecisionConversion::get_type_info_static()).as<DisablePrecisionConversion>();
+    auto it = rt_info.find(DisablePrecisionConversion::get_type_info_static());
+    if (it != rt_info.end()) {
+        auto& dpc_attribute = it->second.as<DisablePrecisionConversion>();
         dpc_attribute.m_disabled_precisions[from].insert(to);
     } else {
         rt_info[DisablePrecisionConversion::get_type_info_static()] = DisablePrecisionConversion(from, to);
@@ -74,13 +74,14 @@ void ov::enable_compression_from_to(const std::shared_ptr<Node>& node,
                                     const element::Type& from,
                                     const element::Type& to) {
     auto& rt_info = node->get_rt_info();
-    if (rt_info.count(DisablePrecisionConversion::get_type_info_static())) {
-        auto& dpc_attribute =
-            rt_info.at(DisablePrecisionConversion::get_type_info_static()).as<DisablePrecisionConversion>();
-        if (dpc_attribute.m_disabled_precisions.count(from)) {
-            dpc_attribute.m_disabled_precisions[from].erase(to);
-            if (dpc_attribute.m_disabled_precisions[from].empty()) {
-                dpc_attribute.m_disabled_precisions.erase(from);
+    auto it = rt_info.find(DisablePrecisionConversion::get_type_info_static());
+    if (it != rt_info.end()) {
+        auto& dpc_attribute = it->second.as<DisablePrecisionConversion>();
+        auto from_it = dpc_attribute.m_disabled_precisions.find(from);
+        if (from_it != dpc_attribute.m_disabled_precisions.end()) {
+            from_it->second.erase(to);
+            if (from_it->second.empty()) {
+                dpc_attribute.m_disabled_precisions.erase(from_it);
             }
         }
     }
@@ -104,18 +105,19 @@ bool ov::is_compression_disabled_from_to(const std::shared_ptr<const Node>& node
                                          const element::Type& from,
                                          const element::Type& to) {
     auto& rt_info = node->get_rt_info();
-    if (rt_info.count(DisablePrecisionConversion::get_type_info_static())) {
-        auto& dpc_attribute =
-            rt_info.at(DisablePrecisionConversion::get_type_info_static()).as<DisablePrecisionConversion>();
+    auto it = rt_info.find(DisablePrecisionConversion::get_type_info_static());
+    if (it != rt_info.end()) {
+        auto& dpc_attribute = it->second.as<DisablePrecisionConversion>();
 
-        auto it = dpc_attribute.m_disabled_precisions.find(element::dynamic);
-        if (it != dpc_attribute.m_disabled_precisions.end() &&
-            (it->second.count(element::dynamic) || it->second.count(to))) {
+        auto dyn_it = dpc_attribute.m_disabled_precisions.find(element::dynamic);
+        if (dyn_it != dpc_attribute.m_disabled_precisions.end() &&
+            (dyn_it->second.count(element::dynamic) || dyn_it->second.count(to))) {
             return true;
         }
 
-        if (dpc_attribute.m_disabled_precisions.count(from)) {
-            const auto& to_set = dpc_attribute.m_disabled_precisions.at(from);
+        auto from_it = dpc_attribute.m_disabled_precisions.find(from);
+        if (from_it != dpc_attribute.m_disabled_precisions.end()) {
+            const auto& to_set = from_it->second;
             if (to_set.count(to) || to_set.count(element::dynamic)) {
                 return true;
             }

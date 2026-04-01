@@ -674,9 +674,10 @@ def test_serialize_rt_info(request, tmp_path):
 
 def test_serialize_node_rt_info_disable_fp16(request, tmp_path):
     # Setting rt_info["precise_0"] = "" on a node from Python simulates
-    # disabling FP16 compression. During serialization, "precise_0" should be
-    # converted into a proper DisablePrecisionConversion{} class so the attribute
-    # persists in the IR. This test verifies the round-trip.
+    # disabling FP16 compression. During serialization, "precise_0" is
+    # converted into a DisablePrecisionConversion attribute so the flag
+    # persists in the IR. After deserialization the key becomes
+    # "DisablePrecisionConversion_0". This test verifies the round-trip.
     core = Core()
     xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
 
@@ -693,7 +694,7 @@ def test_serialize_node_rt_info_disable_fp16(request, tmp_path):
 
     for op in res_model.get_ops():
         if op.get_friendly_name() == "relu_node":
-            assert "precise_0" in op.get_rt_info()
+            assert "DisablePrecisionConversion_0" in op.get_rt_info()
 
     os.remove(xml_path)
     os.remove(bin_path)
