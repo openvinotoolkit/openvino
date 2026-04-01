@@ -93,15 +93,16 @@ jobs:
       - name: Install CMake 4.3 (Linux)
         if: runner.os == 'Linux'
         run: |
-          wget -q https://cmake.org/files/v4.3/cmake-4.3.0-linux-x86_64.sh
-          sh cmake-4.3.0-linux-x86_64.sh --skip-license --prefix=/usr/local
-          rm cmake-4.3.0-linux-x86_64.sh
+          ARCH=$(uname -m)
+          curl -sLO https://cmake.org/files/v4.3/cmake-4.3.0-linux-${ARCH}.sh
+          sh cmake-4.3.0-linux-${ARCH}.sh --skip-license --prefix=/usr/local
+          rm cmake-4.3.0-linux-${ARCH}.sh
           cmake --version
 
       - name: Install CMake 4.3 (macOS)
         if: runner.os == 'macOS'
         run: |
-          wget -q https://cmake.org/files/v4.3/cmake-4.3.0-macos-universal.tar.gz
+          curl -sLO https://cmake.org/files/v4.3/cmake-4.3.0-macos-universal.tar.gz
           tar -xzf cmake-4.3.0-macos-universal.tar.gz
           sudo cp -R cmake-4.3.0-macos-universal/CMake.app/Contents/bin/* /usr/local/bin/
           sudo cp -R cmake-4.3.0-macos-universal/CMake.app/Contents/share/* /usr/local/share/
