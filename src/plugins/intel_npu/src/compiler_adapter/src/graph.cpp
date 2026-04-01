@@ -10,6 +10,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
 namespace intel_npu {
@@ -49,29 +50,43 @@ void Graph::update_network_name(std::string_view name) {
     _metadata.name = name;
 }
 
-const std::shared_ptr<CommandQueue>& Graph::get_command_queue() const {
-    return _commandQueue;
+CommandQueueDesc Graph::get_command_queue_desc() const {
+    std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
+    return _commandQueueDesc;
 }
 
-void Graph::set_workload_type(const ov::WorkloadType workloadType) const {
-    std::lock_guard<std::mutex> lock(_commandQueueMutex);
-    if (_commandQueue == nullptr) {
+void Graph::set_workload_type(const ov::WorkloadType workloadType) {
+    if (_zeroInitStruct == nullptr) {
         return;
     }
 
-    ze_command_queue_workload_type_t zeWorkloadType;
-    switch (workloadType) {
-    case ov::WorkloadType::DEFAULT:
-        zeWorkloadType = ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_DEFAULT;
-        break;
-    case ov::WorkloadType::EFFICIENT:
-        zeWorkloadType = ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_BACKGROUND;
-        break;
-    default:
-        OPENVINO_THROW("Unknown value for WorkloadType!");
+    std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
+    auto zeWorkloadType = zeroUtils::toZeQueueWorkloadType(workloadType);
+    if (_commandQueueDesc.workload == zeWorkloadType) {
+        return;
+    }
+    _commandQueueDesc.workload = zeWorkloadType;
+
+    const ZeroCmdQueueKey key{_zeroInitStruct->getContext(), _zeroInitStruct->getDevice(), _commandQueueDesc};
+    const auto queueKeyHash = ZeroCmdQueueKeyHash{}(key);
+    _commandQueueDesc.key = static_cast<uint64_t>(queueKeyHash);
+}
+
+void Graph::set_model_priority(const ov::hint::Priority modelPriority) {
+    if (_zeroInitStruct == nullptr) {
+        return;
     }
 
-    _commandQueue->setWorkloadType(zeWorkloadType);
+    std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
+    auto zeModelPriority = zeroUtils::toZeQueuePriority(modelPriority);
+    if (_commandQueueDesc.priority == zeModelPriority) {
+        return;
+    }
+    _commandQueueDesc.priority = zeModelPriority;
+
+    const ZeroCmdQueueKey key{_zeroInitStruct->getContext(), _zeroInitStruct->getDevice(), _commandQueueDesc};
+    const auto queueKeyHash = ZeroCmdQueueKeyHash{}(key);
+    _commandQueueDesc.key = static_cast<uint64_t>(queueKeyHash);
 }
 
 ze_graph_handle_t Graph::get_handle() const {
@@ -180,14 +195,18 @@ void Graph::initialize_impl(const FilteredConfig& config) {
     }
 
     {
-        std::lock_guard<std::mutex> lock(_commandQueueMutex);
-        _commandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
-                                                       zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                       commandQueueOptions);
-    }
+        std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
+        _commandQueueDesc = CommandQueueDesc{
+            zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
+            config.has<WORKLOAD_TYPE>() ? zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>()) : std::nullopt,
+            commandQueueOptions,
+            this,
+            config.get<SHARED_COMMON_QUEUE>(),
+        };
 
-    if (config.has<WORKLOAD_TYPE>()) {
-        set_workload_type(config.get<WORKLOAD_TYPE>());
+        const ZeroCmdQueueKey key{_zeroInitStruct->getContext(), _zeroInitStruct->getDevice(), _commandQueueDesc};
+        const auto queueKeyHash = ZeroCmdQueueKeyHash{}(key);
+        _commandQueueDesc.key = static_cast<uint64_t>(queueKeyHash);
     }
 
     _zeGraphExt->initializeGraph(_graphDesc);
@@ -339,10 +358,6 @@ Graph::~Graph() {
 
     if (!_lastSubmittedEvent.empty()) {
         _lastSubmittedEvent.clear();
-    }
-
-    if (_commandQueue != nullptr) {
-        _commandQueue.reset();
     }
 }
 
