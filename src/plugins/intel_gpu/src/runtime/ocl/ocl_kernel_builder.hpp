@@ -52,9 +52,11 @@ class ocl_kernel_builder : public kernel_builder{
                 OPENVINO_THROW("[GPU] Failed to create program during kernel build process");
             }
             cl::Program program(program_handle);
-            if (program.build({m_device.get_device()}, options.c_str()) != CL_SUCCESS) {
+            try {
+                program.build({m_device.get_device()}, options.c_str());
+            } catch (const cl::BuildError& err) {
                 GPU_DEBUG_INFO << "-------- Kernel build error" << std::endl;
-                auto log = program.getBuildInfo<CL_PROGRAM_BUILD_LOG>();
+                auto log = err.getBuildLog();
                 for (auto &e : log) {
                     GPU_DEBUG_INFO << e.second;
                 }
@@ -62,8 +64,10 @@ class ocl_kernel_builder : public kernel_builder{
                 OPENVINO_THROW("[GPU] Failed to build program");
             }
             cl::vector<cl::Kernel> kernels;
-            if (program.createKernels(&kernels) != CL_SUCCESS) {
-                OPENVINO_THROW("[GPU] Failed to create kernels");
+            try {
+                program.createKernels(&kernels);
+            } catch (const cl::Error& err) {
+                OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
             }
             for (auto& k : kernels) {
                 const auto &entry_point = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
