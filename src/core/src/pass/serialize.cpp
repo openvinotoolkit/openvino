@@ -44,6 +44,13 @@ std::filesystem::path provide_bin_path(const std::filesystem::path& xml_path) {
     return bin_path;
 }
 
+inline void convert_py_rt_info(std::shared_ptr<ov::Model> model) {
+    // TODO xxx-105807: if rt_info is set in python api as a string ['precise_0'] = '',
+    //  we need to convert value to a class in order to have rt_info in the IR. The code below will convert
+    // ['precise_0'] = '' into => rt_info['precise_0'] = DisablePrecisionConversion{}
+    ov::pass::ConvertLegacyPrecisionAttribute().run_on_model(model);
+}
+
 void serialize_func(std::ostream& xml_file,
                     std::ostream& bin_file,
                     std::shared_ptr<ov::Model> model,
@@ -77,13 +84,6 @@ void serialize_func(std::ostream& xml_file,
     xml_doc.save(xml_file);
     xml_file.flush();
     bin_file.flush();
-}
-
-inline void convert_py_rt_info(std::shared_ptr<ov::Model> model) {
-    // TODO xxx-105807: if rt_info is set in python api as a string ['precise_0'] = '',
-    //  we need to convert value to a class in order to have rt_info in the IR. The code below will convert
-    // ['precise_0'] = '' into => rt_info['precise_0'] = DisablePrecisionConversion{}
-    ov::pass::ConvertLegacyPrecisionAttribute().run_on_model(model);
 }
 
 void serialize_func(std::ostream& xml_file,
