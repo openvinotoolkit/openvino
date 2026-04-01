@@ -160,9 +160,7 @@ public:
         options->add<::intel_npu::MODEL_SERIALIZER_VERSION>();
         options->add<::intel_npu::ENABLE_CPU_PINNING>();
         npu_config = std::make_unique<::intel_npu::FilteredConfig>(options);
-        ::intel_npu::Config::ConfigMap configMap{
-            /* { ::intel_npu::PLATFORM::key().data(),
-             ov::intel_npu::Platform::standardize(ov::test::utils::getTestsPlatformFromEnvironmentOr(target_device)) } */ };
+        ::intel_npu::Config::ConfigMap configMap;
         npu_config->enable(::intel_npu::PLATFORM::key().data(), true);
         npu_config->enable(::intel_npu::MODEL_SERIALIZER_VERSION::key().data(), true);
         npu_config->enable(::intel_npu::ENABLE_CPU_PINNING::key().data(), true);
@@ -227,6 +225,8 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
         npu_config->update({{::intel_npu::MODEL_SERIALIZER_VERSION::key().data(),
                              ::intel_npu::MODEL_SERIALIZER_VERSION::toString(
                                  ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY)}});
+    } else {
+        npu_config->enable(::intel_npu::MODEL_SERIALIZER_VERSION::key().data(), false);
     }
 
     // logic for batch
