@@ -268,6 +268,8 @@ bool MHAParallelWAOptimizer::split(const ov::Shape& shape,
                                    size_t optimal_parallelism_work_amount,
                                    size_t& batch_m_dim,
                                    size_t& new_m_dim) {
+    std::cout << "[ INFO ] MHAParallelWAOptimizer is applied with optimal_parallelism_work_amount = "
+              << optimal_parallelism_work_amount << std::endl;
     // Shape must have at least 2 dimensions (M and K); shapes like [] or [K] are not splittable
     if (shape.size() < 2) {
         return false;
