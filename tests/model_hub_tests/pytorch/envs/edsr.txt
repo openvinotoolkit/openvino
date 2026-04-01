@@ -1,3 +1,3 @@
 # Extra dependencies for test_edsr.py
-super-image==0.2.0
+super-image==0.1.7
 requests
