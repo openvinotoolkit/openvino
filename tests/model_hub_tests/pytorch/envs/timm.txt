@@ -1,2 +1,3 @@
 # Extra dependencies for test_timm.py
 timm==1.0.24
+huggingface-hub==0.25.2
