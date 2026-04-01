@@ -3,9 +3,12 @@
 //
 
 #include <algorithm>
+#include <functional>
 #include <intel_npu/ops/flash_attention_tile.hpp>
 #include <limits>
+#include <numeric>
 #include <openvino/core/type/element_type.hpp>
+#include <openvino/core/type/float16.hpp>
 #include <vector>
 
 #include "openvino/core/partial_shape.hpp"
@@ -24,9 +27,12 @@ void flash_attention_evaluate(const float* query,
                               const float* attention_mask,
                               bool is_head,
                               bool is_tail,
-                              bool attention_mask_broadcasted,
+                              int32_t mask_batch_stride,
+                              int32_t mask_head_stride,
+                              int32_t mask_B,
                               int32_t B,
-                              int32_t H,
+                              int32_t H_q,
+                              int32_t H_kv,
                               int32_t L,
                               int32_t S,
                               int32_t E,
@@ -34,20 +40,24 @@ void flash_attention_evaluate(const float* query,
     std::vector<float> scores(S);
     std::vector<float> exp_scores(S);
 
-    for (int32_t b = 0; b < B; ++b) {
-        for (int32_t h = 0; h < H; ++h) {
-            auto q_ptr = query + b * H * L * E + h * L * E;
-            auto k_ptr = key + b * H * S * E + h * S * E;
-            auto v_ptr = value + b * H * S * Ev + h * S * Ev;
+    const auto gqa_group_size = H_q / H_kv;
 
-            const float* m_ptr = attention_mask;
-            if (attention_mask != nullptr && !attention_mask_broadcasted) {
-                m_ptr = attention_mask + b * H * L * S + h * L * S;
+    for (int32_t b = 0; b < B; ++b) {
+        for (int32_t h = 0; h < H_q; ++h) {
+            auto kv_h = h / gqa_group_size;
+            auto q_ptr = query + b * H_q * L * E + h * L * E;
+            auto k_ptr = key + b * H_kv * S * E + kv_h * S * E;
+            auto v_ptr = value + b * H_kv * S * Ev + kv_h * S * Ev;
+
+            const float* m_ptr = nullptr;
+            if (attention_mask != nullptr) {
+                const auto mask_b = (mask_B > 0) ? (b % mask_B) : 0;
+                m_ptr = attention_mask + mask_b * mask_batch_stride + h * mask_head_stride;
             }
 
-            auto out_ptr = running_output + b * H * L * Ev + h * L * Ev;
-            auto max_ptr = running_max + b * H * L + h * L;
-            auto sum_ptr = running_sum + b * H * L + h * L;
+            auto out_ptr = running_output + b * H_q * L * Ev + h * L * Ev;
+            auto max_ptr = running_max + b * H_q * L + h * L;
+            auto sum_ptr = running_sum + b * H_q * L + h * L;
 
             for (int32_t l = 0; l < L; ++l) {
                 auto q_row = q_ptr + l * E;
@@ -150,18 +160,37 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
     l_dim = *(query_shape.end() - 2);
     e_dim = *(query_shape.end() - 1);
 
+    // Split query dims into true batch dims and head dim.
+    // For rank 3: [H, L, E] -> batch_dims=[], head_dim=H
+    // For rank 4: [B, H, L, E] -> batch_dims=[B], head_dim=H
+    auto q_head_dim = *(query_shape.end() - 3);
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           !q_head_dim.is_static() || q_head_dim.get_length() > 0,
+                           "Query head dimension must be positive.");
     auto query_batch_dims = query_shape;
-    query_batch_dims.resize(query_shape.size() - 2);
+    query_batch_dims.resize(query_shape.size() - 3);
+
+    // Helper: check that KV head dim is compatible with Q head dim (GQA: Q heads divisible by KV heads)
+    auto is_gqa_compatible = [](const DimType& q_head, const DimType& kv_head) -> bool {
+        if (q_head.is_static() && kv_head.is_static()) {
+            return q_head.get_length() > 0 && kv_head.get_length() > 0 &&
+                   q_head.get_length() % kv_head.get_length() == 0;
+        }
+        return true;  // allow dynamic dims
+    };
 
     const auto& key_shape = input_shapes[1];
     const auto& key_rank = key_shape.rank();
-    const bool& key_input_correctness =
-        key_rank.get_length() >= 3 &&
-        ov::PartialShape::broadcast_merge_into(
-            query_batch_dims,
-            ov::PartialShape(std::vector<DimType>(key_shape.begin(), key_shape.end() - 2)),
-            AutoBroadcastType::NUMPY) &&
-        DimType::merge(e_dim, e_dim, *(key_shape.end() - 1));
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           key_rank.get_length() >= 3,
+                           "Key input rank length must be at least 3 or more.");
+    auto key_batch_dims = ov::PartialShape(std::vector<DimType>(key_shape.begin(), key_shape.end() - 3));
+    auto kv_head_dim = *(key_shape.end() - 3);
+    const bool key_input_correctness = ov::PartialShape::merge_into(query_batch_dims, key_batch_dims) &&
+                                       is_gqa_compatible(q_head_dim, kv_head_dim) &&
+                                       DimType::merge(e_dim, e_dim, *(key_shape.end() - 1));
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
                            key_input_correctness,
@@ -171,13 +200,15 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
 
     const auto& value_shape = input_shapes[2];
     const auto& value_rank = value_shape.rank();
-    const bool& value_input_correctness =
-        value_rank.get_length() >= 3 &&
-        ov::PartialShape::broadcast_merge_into(
-            query_batch_dims,
-            ov::PartialShape(std::vector<DimType>(value_shape.begin(), value_shape.end() - 2)),
-            AutoBroadcastType::NUMPY) &&
-        DimType::merge(s_dim, s_dim, *(value_shape.end() - 2));
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           value_rank.get_length() >= 3,
+                           "Value input rank length must be at least 3 or more.");
+    auto value_batch_dims = ov::PartialShape(std::vector<DimType>(value_shape.begin(), value_shape.end() - 3));
+    auto v_head_dim = *(value_shape.end() - 3);
+    const bool value_input_correctness =
+        ov::PartialShape::merge_into(query_batch_dims, value_batch_dims) && is_gqa_compatible(q_head_dim, v_head_dim) &&
+        DimType::merge(kv_head_dim, kv_head_dim, v_head_dim) && DimType::merge(s_dim, s_dim, *(value_shape.end() - 2));
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
                            value_input_correctness,
@@ -185,14 +216,17 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
 
     ev_dim = *(value_shape.end() - 1);
 
+    // Reconstruct full Q batch dims (including head dim) for running state validation
+    auto q_full_batch_dims = query_batch_dims;
+    q_full_batch_dims.push_back(q_head_dim);
+
     const auto& running_output_shape = input_shapes[3];
     const auto& running_output_rank = running_output_shape.rank();
-    const bool& running_output_correctness =
+    auto running_output_batch_head =
+        ov::PartialShape(std::vector<DimType>(running_output_shape.begin(), running_output_shape.end() - 2));
+    const bool running_output_correctness =
         running_output_rank.get_length() >= 3 &&
-        ov::PartialShape::broadcast_merge_into(
-            query_batch_dims,
-            ov::PartialShape(std::vector<DimType>(running_output_shape.begin(), running_output_shape.end() - 2)),
-            AutoBroadcastType::NUMPY) &&
+        ov::PartialShape::merge_into(q_full_batch_dims, running_output_batch_head) &&
         (*(running_output_shape.end() - 1) == ev_dim) && (*(running_output_shape.end() - 2) == l_dim);
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
@@ -201,13 +235,11 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
 
     const auto& running_max_shape = input_shapes[4];
     const auto& running_max_rank = running_max_shape.rank();
-    const bool& running_max_correctness =
-        running_max_rank.get_length() >= 2 &&
-        ov::PartialShape::broadcast_merge_into(
-            query_batch_dims,
-            ov::PartialShape(std::vector<DimType>(running_max_shape.begin(), running_max_shape.end() - 1)),
-            AutoBroadcastType::NUMPY) &&
-        (*(running_max_shape.end() - 1) == l_dim);
+    auto running_max_batch_head =
+        ov::PartialShape(std::vector<DimType>(running_max_shape.begin(), running_max_shape.end() - 1));
+    const bool running_max_correctness = running_max_rank.get_length() >= 2 &&
+                                         ov::PartialShape::merge_into(q_full_batch_dims, running_max_batch_head) &&
+                                         (*(running_max_shape.end() - 1) == l_dim);
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
                            running_max_correctness,
@@ -215,13 +247,11 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
 
     const auto& running_sum_shape = input_shapes[5];
     const auto& running_sum_rank = running_sum_shape.rank();
-    const bool& running_sum_correctness =
-        running_sum_rank.get_length() >= 2 &&
-        ov::PartialShape::broadcast_merge_into(
-            query_batch_dims,
-            ov::PartialShape(std::vector<DimType>(running_sum_shape.begin(), running_sum_shape.end() - 1)),
-            AutoBroadcastType::NUMPY) &&
-        (*(running_sum_shape.end() - 1) == l_dim);
+    auto running_sum_batch_head =
+        ov::PartialShape(std::vector<DimType>(running_sum_shape.begin(), running_sum_shape.end() - 1));
+    const bool running_sum_correctness = running_sum_rank.get_length() >= 2 &&
+                                         ov::PartialShape::merge_into(q_full_batch_dims, running_sum_batch_head) &&
+                                         (*(running_sum_shape.end() - 1) == l_dim);
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
                            running_sum_correctness,
@@ -229,31 +259,40 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
 
     if (has_attention_mask) {
         const auto& attention_mask = input_shapes[6];
-        const auto& attention_mask_rank = attention_mask.rank();
-        const auto& attention_mask_rank_len = attention_mask_rank.get_length();
-        bool attention_mask_input_correctness = attention_mask_rank_len >= 2 &&
-                                                DimType::broadcast_merge(l_dim, l_dim, *(attention_mask.end() - 2)) &&
-                                                DimType::broadcast_merge(s_dim, s_dim, *(attention_mask.end() - 1));
-        if (attention_mask_rank_len >= 3) {
-            attention_mask_input_correctness =
-                attention_mask_input_correctness &&
-                ov::PartialShape::broadcast_merge_into(
-                    query_batch_dims,
-                    ov::PartialShape(std::vector<DimType>(attention_mask.begin(), attention_mask.end() - 2)),
-                    AutoBroadcastType::NUMPY);
-        }
+        const auto attention_mask_rank_len = attention_mask.rank().get_length();
+        // Mask rank is limited to 2, 3, or 4: [L,S], [H,L,S], or [B,H,L,S].
+        // Higher ranks would require per-dimension broadcast strides in evaluate().
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
-                               attention_mask_input_correctness,
-                               "Attention mask input shape not compatible with other inputs.");
+                               attention_mask_rank_len >= 2 && attention_mask_rank_len <= 4,
+                               "Attention mask rank must be 2, 3, or 4; got ",
+                               attention_mask_rank_len,
+                               ".");
+        // L and S must match exactly — the evaluator indexes the mask as [*, L, S]
+        // without per-element stride logic, so broadcasting on these dims is not supported.
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               DimType::merge(l_dim, l_dim, *(attention_mask.end() - 2)) &&
+                                   DimType::merge(s_dim, s_dim, *(attention_mask.end() - 1)),
+                               "Attention mask L and S dims must match query L and key S.");
+        // Broadcast-merge the leading [B, H] dims against the mask's leading dims.
+        auto expected = q_full_batch_dims;
+        auto mask_batch_head = ov::PartialShape(std::vector<DimType>(attention_mask.begin(), attention_mask.end() - 2));
+        NODE_SHAPE_INFER_CHECK(
+            op,
+            input_shapes,
+            ov::PartialShape::broadcast_merge_into(expected,
+                                                   mask_batch_head,
+                                                   ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY)),
+            "Attention mask batch/head dims not compatible with query.");
     }
 
-    auto result_running_output_shape = query_batch_dims;
+    auto result_running_output_shape = q_full_batch_dims;
     result_running_output_shape.push_back(l_dim);
     result_running_output_shape.push_back(ev_dim);
 
     // Running max and sum have the same shape
-    auto result_running_max_and_sum_shape = query_batch_dims;
+    auto result_running_max_and_sum_shape = q_full_batch_dims;
     result_running_max_and_sum_shape.push_back(l_dim);
 
     return {result_running_output_shape, result_running_max_and_sum_shape, result_running_max_and_sum_shape};
@@ -358,40 +397,108 @@ bool FlashAttentionTile::has_evaluate() const {
     switch (get_input_element_type(0)) {
     case element::f16:
     case element::f32:
-        return (get_input_element_type(RUNNING_SUM) == element::f32);
+        return true;
     default:
         return false;
     }
 };
 
+template <typename T>
+static void convert_to_float(const T* src, float* dst, size_t count) {
+    for (size_t i = 0; i < count; ++i) {
+        dst[i] = static_cast<float>(src[i]);
+    }
+}
+
+template <typename T>
+static void convert_from_float(const float* src, T* dst, size_t count) {
+    for (size_t i = 0; i < count; ++i) {
+        dst[i] = static_cast<T>(src[i]);
+    }
+}
+
+static ov::Tensor to_f32(const ov::Tensor& tensor) {
+    if (tensor.get_element_type() == ov::element::f32) {
+        return tensor;
+    }
+    ov::Tensor result(ov::element::f32, tensor.get_shape());
+    if (tensor.get_element_type() == ov::element::f16) {
+        convert_to_float(tensor.data<const ov::float16>(), result.data<float>(), tensor.get_size());
+    } else if (tensor.get_element_type() == ov::element::boolean) {
+        // Additive mask: true (attend) -> 0.0, false (mask out) -> -inf
+        const auto* src = tensor.data<const char>();
+        auto* dst = result.data<float>();
+        for (size_t i = 0; i < tensor.get_size(); ++i) {
+            dst[i] = src[i] ? 0.0f : -std::numeric_limits<float>::infinity();
+        }
+    } else {
+        OPENVINO_THROW("Unsupported element type in to_f32: ", tensor.get_element_type());
+    }
+    return result;
+}
+
+static void from_f32(const ov::Tensor& f32_tensor, ov::Tensor& dst_tensor) {
+    if (dst_tensor.get_element_type() == ov::element::f32) {
+        return;
+    }
+    if (dst_tensor.get_element_type() != ov::element::f16) {
+        OPENVINO_THROW("Unsupported element type in from_f32: ", dst_tensor.get_element_type());
+    }
+    convert_from_float(f32_tensor.data<const float>(), dst_tensor.data<ov::float16>(), dst_tensor.get_size());
+}
+
 static bool evaluate_flash_attention_impl(ov::TensorVector& outputs,
                                           const ov::TensorVector& inputs,
                                           const FlashAttentionTile::Config& config) {
     const auto& query_shape = inputs[QUERY].get_shape();
-    const auto B = static_cast<int32_t>((query_shape.size() == 4) ? *(query_shape.end() - 4) : 1);
-    const auto H = static_cast<int32_t>(*(query_shape.end() - 3));
+    const auto B = static_cast<int32_t>(
+        std::accumulate(query_shape.begin(), query_shape.end() - 3, size_t{1}, std::multiplies<size_t>()));
+    const auto H_q = static_cast<int32_t>(*(query_shape.end() - 3));
     const auto L = static_cast<int32_t>(*(query_shape.end() - 2));
     const auto E = static_cast<int32_t>(*(query_shape.end() - 1));
 
     const auto& key_shape = inputs[KEY].get_shape();
+    const auto H_kv = static_cast<int32_t>(*(key_shape.end() - 3));
+    if (H_q == 0 || H_kv == 0 || H_q % H_kv != 0) {
+        return false;
+    }
     const auto S = static_cast<int32_t>(*(key_shape.end() - 2));
 
     const auto& value_shape = inputs[VALUE].get_shape();
     const auto Ev = static_cast<int32_t>(*(value_shape.end() - 1));
 
-    const auto out_elems = B * H * L * Ev;
-    const auto state_elems = B * H * L;
+    const auto out_elems = B * H_q * L * Ev;
+    const auto state_elems = B * H_q * L;
 
     const auto* query = inputs[QUERY].data<const float>();
     const auto* key = inputs[KEY].data<const float>();
     const auto* value = inputs[VALUE].data<const float>();
 
     const float* attention_mask = nullptr;
-    auto attention_mask_broadcasted = false;
-    if (inputs.size() >= 7 && inputs[ATTENTION_MASK].get_size() > 1) {
-        attention_mask = inputs[ATTENTION_MASK].data<const float>();
+    int32_t mask_batch_stride = 0;
+    int32_t mask_head_stride = 0;
+    int32_t mask_B = 0;
+    ov::Tensor mask_f32;
+    if (inputs.size() >= 7) {
+        mask_f32 = to_f32(inputs[ATTENTION_MASK]);
+        attention_mask = mask_f32.data<const float>();
         const auto& mask_shape = inputs[ATTENTION_MASK].get_shape();
-        attention_mask_broadcasted = (*(mask_shape.end() - 3) == 1);
+        const auto mask_rank = mask_shape.size();
+        const auto mask_L = static_cast<int32_t>(*(mask_shape.end() - 2));
+        const auto mask_S = static_cast<int32_t>(*(mask_shape.end() - 1));
+        if (mask_rank >= 3) {
+            const auto mask_H = static_cast<int32_t>(*(mask_shape.end() - 3));
+            if (mask_H > 1) {
+                mask_head_stride = mask_L * mask_S;
+            }
+            if (mask_rank == 4) {
+                mask_B = static_cast<int32_t>(mask_shape[0]);
+                if (mask_B > 1) {
+                    mask_batch_stride = mask_H * mask_L * mask_S;
+                }
+            }
+            OPENVINO_ASSERT(mask_rank <= 4, "Attention mask rank > 4 is not supported; got rank ", mask_rank);
+        }
     }
 
     auto* out_output = outputs[OUTPUT].data<float>();
@@ -416,9 +523,12 @@ static bool evaluate_flash_attention_impl(ov::TensorVector& outputs,
                              attention_mask,
                              config.is_head,
                              config.is_tail,
-                             attention_mask_broadcasted,
+                             mask_batch_stride,
+                             mask_head_stride,
+                             mask_B,
                              B,
-                             H,
+                             H_q,
+                             H_kv,
                              L,
                              S,
                              E,
@@ -428,11 +538,38 @@ static bool evaluate_flash_attention_impl(ov::TensorVector& outputs,
 
 inline bool FlashAttentionTile::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     auto input_type = get_input_element_type(QUERY);
-    if (input_type != ov::element::f32) {
+    if (input_type == ov::element::f32) {
+        return evaluate_flash_attention_impl(outputs, inputs, m_config);
+    }
+
+    if (input_type != ov::element::f16) {
         return false;
     }
 
-    return evaluate_flash_attention_impl(outputs, inputs, m_config);
+    // Convert f16 inputs to f32 for computation
+    ov::TensorVector f32_inputs;
+    f32_inputs.reserve(inputs.size());
+    for (size_t i = 0; i < inputs.size(); ++i) {
+        f32_inputs.push_back(to_f32(inputs[i]));
+    }
+
+    // Allocate f32 outputs
+    ov::TensorVector f32_outputs;
+    f32_outputs.reserve(outputs.size());
+    for (size_t i = 0; i < outputs.size(); ++i) {
+        f32_outputs.emplace_back(ov::element::f32, outputs[i].get_shape());
+    }
+
+    if (!evaluate_flash_attention_impl(f32_outputs, f32_inputs, m_config)) {
+        return false;
+    }
+
+    // Convert f32 outputs back to original types
+    for (size_t i = 0; i < outputs.size(); ++i) {
+        from_f32(f32_outputs[i], outputs[i]);
+    }
+
+    return true;
 }
 
 const FlashAttentionTile::Config& FlashAttentionTile::get_config() const {

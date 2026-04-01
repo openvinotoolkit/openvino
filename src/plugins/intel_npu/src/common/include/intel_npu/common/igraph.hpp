@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "intel_npu/common/filtered_config.hpp"
-#include "intel_npu/network_metadata.hpp"
+#include "intel_npu/common/network_metadata.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/profiling_info.hpp"
@@ -48,9 +48,9 @@ public:
 
     virtual void update_network_name(std::string_view name);
 
-    virtual const std::shared_ptr<CommandQueue>& get_command_queue() const;
-
-    virtual void set_workload_type(const ov::WorkloadType workloadType) const;
+    virtual CommandQueueDesc get_command_queue_desc() const;
+    virtual void set_workload_type(const ov::WorkloadType workloadType);
+    virtual void set_model_priority(const ov::hint::Priority modelPriority);
 
     std::mutex& get_mutex() {
         return _initialize_mutex;
