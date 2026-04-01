@@ -696,7 +696,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
         if (auto it = npuPluginProperties.find(ov::cache_encryption_callbacks.name());
             it != npuPluginProperties.end()) {
-            std::string blobStr(blobSize, '\0');
+            std::string blobStr;
+            blobStr.resize(blobSize);
             if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
                 OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
             }
@@ -704,7 +705,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             // +1x blob size below, ov::EncryptionCallbacks should work with ov::Tensor instead of std::string to avoid
             // this
             auto decryptedBlobSO =
-                std::make_shared<std::string>(it->second.as<ov::EncryptionCallbacks>().decrypt(std::move(blobStr)));
+                std::make_shared<std::string>(it->second.as<ov::EncryptionCallbacks>().decrypt(blobStr));
+            blobStr.clear();  // move is not permitted above
             const ov::Tensor decryptedBlobView(ov::element::u8, ov::Shape{blobSize}, decryptedBlobSO->c_str());
 
             auto decryptedBlobViewImpl = ov::get_tensor_impl(decryptedBlobView);
@@ -782,7 +784,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
             // +1x blob size below, ov::EncryptionCallbacks should work with ov::Tensor instead of std::string to avoid
             // this
             auto decryptedBlobSO =
-                std::make_shared<std::string>(it->second.as<ov::EncryptionCallbacks>().decrypt(std::move(blobStr)));
+                std::make_shared<std::string>(it->second.as<ov::EncryptionCallbacks>().decrypt(blobStr));
+            blobStr.clear();  // move is not permitted above
             const ov::Tensor decryptedBlobView(ov::element::u8, ov::Shape{blobSize}, decryptedBlobSO->c_str());
             auto decryptedBlobViewImpl = ov::get_tensor_impl(decryptedBlobView);
             decryptedBlobViewImpl._so = decryptedBlobSO;
