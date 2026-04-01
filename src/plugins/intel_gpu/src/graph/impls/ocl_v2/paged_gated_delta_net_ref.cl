@@ -72,11 +72,9 @@ KERNEL(paged_gated_delta_net_ref)
             continue;
 
         if (interval > 0 && seq_blocks > 0 && past_len > 0) {
-            int init_slot = (past_len - 1) / interval;
-            if (init_slot >= seq_blocks)
-                init_slot = seq_blocks - 1;
-            if (init_slot >= 0) {
-                int block_id = block_indices[block_begin + init_slot];
+            const int read_slot = 0;
+            if (read_slot < seq_blocks) {
+                int block_id = block_indices[block_begin + read_slot];
                 int base = (block_id * V_HEAD_NUM + h) * (K_HEAD_DIM * V_HEAD_DIM) + curr_iv;
                 for (int ks = 0; ks < K_SLICE_SIZE; ks++) {
                     const int k_idx = lid + ks * SUBGROUP_SIZE;
@@ -160,9 +158,10 @@ KERNEL(paged_gated_delta_net_ref)
 
         if (interval > 0 && seq_blocks > 0) {
             const int local_token_idx = token - token_begin;
-            const int absolute_token_idx = past_len + local_token_idx;
-            if (((absolute_token_idx + 1) % interval) == 0) {
-                const int slot = absolute_token_idx / interval;
+            const int processed_tokens = local_token_idx + 1;
+            const bool should_store = ((processed_tokens % interval) == 0) || (token == token_end - 1);
+            if (should_store) {
+                const int slot = (processed_tokens + interval - 1) / interval;
                 if (slot < seq_blocks) {
                     const int block_id = block_indices[block_begin + slot];
                     for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {

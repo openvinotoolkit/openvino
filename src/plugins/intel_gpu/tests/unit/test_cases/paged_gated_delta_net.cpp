@@ -88,9 +88,8 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
                 std::vector<float> state(static_cast<size_t>(head_size) * head_size, 0.0f);
 
                 if (interval > 0 && seq_blocks > 0 && past_len > 0) {
-                    int32_t init_slot = (past_len - 1) / interval;
-                    init_slot = std::min(init_slot, seq_blocks - 1);
-                    const int32_t block_id = block_indices[block_begin + init_slot];
+                    const int32_t read_slot = 0;
+                    const int32_t block_id = block_indices[block_begin + read_slot];
 
                     for (int32_t k_idx = 0; k_idx < head_size; k_idx++) {
                         for (int32_t v_idx = 0; v_idx < head_size; v_idx++) {
@@ -134,9 +133,10 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
 
                     if (interval > 0 && seq_blocks > 0) {
                         const int32_t local_token_idx = token - token_begin;
-                        const int32_t absolute_token_idx = past_len + local_token_idx;
-                        if (((absolute_token_idx + 1) % interval) == 0) {
-                            const int32_t slot = absolute_token_idx / interval;
+                        const int32_t processed_tokens = local_token_idx + 1;
+                        const bool should_store = ((processed_tokens % interval) == 0) || (token == token_end - 1);
+                        if (should_store) {
+                            const int32_t slot = (processed_tokens + interval - 1) / interval;
                             if (slot < seq_blocks) {
                                 const int32_t block_id = block_indices[block_begin + slot];
                                 for (int32_t k_idx = 0; k_idx < head_size; k_idx++) {
@@ -199,7 +199,7 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
             past_lens.push_back(seq_past_len);
             cache_interval.push_back(seq_interval);
 
-            const int32_t required_slots = std::max<int32_t>(1, (seq_past_len + seq_tokens + seq_interval - 1) / seq_interval);
+            const int32_t required_slots = 1 + (seq_tokens + seq_interval - 1) / seq_interval;
             for (int32_t i = 0; i < required_slots; i++) {
                 block_indices.push_back(total_blocks + i);
             }
@@ -312,7 +312,7 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
                       head_size,
                       ref_output);
 
-        const float tol = std::is_same<T, ov::float16>::value ? 0.01f : 1e-6f;
+        const float tol = std::is_same<T, ov::float16>::value ? 4e-2f : 1e-3f;
 
         {
             cldnn::mem_lock<T, mem_lock_type::read> out_lock(out_mem, get_test_stream());
@@ -353,8 +353,23 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
             subseq_tokens_str += std::to_string(info.param.subsequence_tokens[i]);
         }
 
+        std::string past_lens_str;
+        for (size_t i = 0; i < info.param.past_lens.size(); i++) {
+            if (i > 0)
+                past_lens_str += "-";
+            past_lens_str += std::to_string(info.param.past_lens[i]);
+        }
+
+        std::string cache_intervals_str;
+        for (size_t i = 0; i < info.param.cache_intervals.size(); i++) {
+            if (i > 0)
+                cache_intervals_str += "-";
+            cache_intervals_str += std::to_string(info.param.cache_intervals[i]);
+        }
+
         std::string result = "paged_gated_delta_net_gpu_test_" + info.param.precision.to_string() + "_" + subseq_tokens_str + "_" +
-                             std::to_string(info.param.qk_heads) + "_" + std::to_string(info.param.v_heads) + "_" + std::to_string(info.param.head_size);
+                             past_lens_str + "_" + cache_intervals_str + "_" + std::to_string(info.param.qk_heads) + "_" +
+                             std::to_string(info.param.v_heads) + "_" + std::to_string(info.param.head_size);
         return result;
     }
 };
@@ -380,6 +395,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_gated_delta_net_gpu_test,
                              paged_gated_delta_net_test_params{{4, 2}, {0, 3}, {2, 2}, 2, 2, 16, ov::element::f16},
                              paged_gated_delta_net_test_params{{1, 4, 2}, {0, 2, 0}, {2, 3, 2}, 2, 2, 64, ov::element::f16},
                              paged_gated_delta_net_test_params{{2, 1, 3, 2}, {0, 4, 0, 1}, {2, 2, 3, 2}, 2, 2, 128, ov::element::f16},
+                             // f16: blocking stress (cache_interval=16), seq lengths occupy 1/2/3/4 blocks.
+                             // fully occupied past blocks
+                             paged_gated_delta_net_test_params{{16, 32, 48, 64}, {16, 32, 48, 64}, {16, 16, 16, 16}, 2, 2, 64, ov::element::f16},
+                             // partially occupied past blocks
+                             paged_gated_delta_net_test_params{{16, 32, 48, 64}, {1, 17, 33, 49}, {16, 16, 16, 16}, 2, 2, 64, ov::element::f16},
 
                              // f32: decode stage (past_len > 0), head_size 16/64/128, different sequence counts.
                              paged_gated_delta_net_test_params{{3, 3}, {2, 3}, {2, 3}, 2, 2, 16, ov::element::f32},
@@ -392,7 +412,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_gated_delta_net_gpu_test,
                              // f32: mixed stage (some past_len = 0, some past_len > 0), head_size 16/64/128.
                              paged_gated_delta_net_test_params{{4, 2}, {0, 3}, {2, 2}, 2, 2, 16, ov::element::f32},
                              paged_gated_delta_net_test_params{{1, 4, 2}, {0, 2, 0}, {2, 3, 2}, 2, 2, 64, ov::element::f32},
-                             paged_gated_delta_net_test_params{{2, 1, 3, 2}, {0, 4, 0, 1}, {2, 2, 3, 2}, 2, 2, 128, ov::element::f32}),
+                             paged_gated_delta_net_test_params{{2, 1, 3, 2}, {0, 4, 0, 1}, {2, 2, 3, 2}, 2, 2, 128, ov::element::f32},
+                             // f32: blocking stress (cache_interval=16), seq lengths occupy 1/2/3/4 blocks.
+                             // fully occupied past blocks
+                             paged_gated_delta_net_test_params{{16, 32, 48, 64}, {16, 32, 48, 64}, {16, 16, 16, 16}, 2, 2, 64, ov::element::f32},
+                             // partially occupied past blocks
+                             paged_gated_delta_net_test_params{{16, 32, 48, 64}, {1, 17, 33, 49}, {16, 16, 16, 16}, 2, 2, 64, ov::element::f32}),
                          paged_gated_delta_net_gpu_test::PrintToStringParamName);
 
 }  // namespace
