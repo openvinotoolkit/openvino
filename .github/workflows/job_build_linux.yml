@@ -114,7 +114,7 @@ jobs:
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '${{ github.workspace }}/openvino/manifest.yml'
       PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}_release
-      COVERAGE_NOTES_DIR: ${{ env.BUILD_DIR }}/coverage_build_notes
+      COVERAGE_NOTES_DIR: ${{ github.workspace }}/openvino/openvino_build/coverage_build_notes
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
         shell: bash
