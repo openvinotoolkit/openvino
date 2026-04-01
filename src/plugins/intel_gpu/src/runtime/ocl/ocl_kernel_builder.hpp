@@ -73,6 +73,9 @@ class ocl_kernel_builder : public kernel_builder{
                 OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
             } catch (const cl::Error& err) {
                 OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+            } catch (...) {
+                // We should never hit this catch block
+                OPENVINO_THROW("[GPU] Unknown error during kernel build process");
             }
             for (auto& k : kernels) {
                 const auto &entry_point = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
