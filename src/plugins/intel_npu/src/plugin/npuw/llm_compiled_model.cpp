@@ -808,17 +808,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             m_kvcache_desc.max_prompt_size = whisper_kvcache_size - 1;
         }
 
-        ov::npuw::util::PrepareWhisperPrefillModel(m_kvcache_desc.max_prompt_size,
-                                                   whisper_lhs_seq_size,
-                                                   whisper_decompose_sdpa)
-            .run_on_model(prefill_model);                                          // Whisper decoder model
+        auto prepare_prefill_model = ov::npuw::util::PrepareWhisperPrefillModel(m_kvcache_desc.max_prompt_size,
+                                                                                whisper_lhs_seq_size,
+                                                                                whisper_decompose_sdpa);
+        prepare_prefill_model.run_on_model(prefill_model);                         // Whisper decoder model
         ov::npuw::util::PrepareWhisperKVCacheModel().run_on_model(kvcache_model);  // Whisper decoder_with_past model
 
         // FIXME: Whisper Decompose SDPA
         // WA: to mock new "cross_attention_qk_scaled_scores" outputs in original model
         if (whisper_decompose_sdpa) {
+            m_decomposed_sdpa_size = prepare_prefill_model.get_decomposed_sdpa_size();
             auto& mutable_outputs = const_cast<std::vector<ov::Output<const ov::Node>>&>(this->outputs());
-            for (int idx = 0; idx < m_decomposed_sdpa_size; idx++) {
+            for (size_t idx = 0; idx < m_decomposed_sdpa_size; idx++) {
                 auto fake_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{});
                 auto fake_result = std::make_shared<ov::op::v0::Result>(fake_param);
                 fake_result->output(0).get_tensor().add_names({"cross_attention_qk_scaled_scores","cross_attention_qk_scaled_scores_" + std::to_string(idx)});

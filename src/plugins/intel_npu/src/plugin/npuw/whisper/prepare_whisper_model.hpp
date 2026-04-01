@@ -17,7 +17,7 @@ class PrepareWhisperPrefillModel : public ov::pass::ModelPass {
     uint32_t m_max_prompt_size;
     uint32_t m_lhs_seq_size;
     bool m_decompose_sdpa;
-    uint32_t m_decomposed_layers_size;
+    size_t m_decomposed_layers_size;
 
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::PrepareWhisperPrefillModel");
@@ -28,6 +28,11 @@ public:
           m_decomposed_layers_size(0) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+
+    // FIXME: Whisper Decompose SDPA
+    size_t get_decomposed_sdpa_size() const {
+        return m_decomposed_layers_size;
+    }
 };
 
 class PrepareWhisperKVCacheModel : public ov::pass::ModelPass {

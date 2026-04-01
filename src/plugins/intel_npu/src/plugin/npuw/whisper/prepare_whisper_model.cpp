@@ -693,7 +693,6 @@ size_t add_cross_attention_qk_scaled_scores_outputs_for_whisper(std::shared_ptr<
             continue;
         }
 
-        // model->add_output(op->output(0)).add_names({"cross_attention_qk_scaled_scores_" + std::to_string(idx)});
         model->add_output(op->output(0)).set_names({"cross_attention_qk_scaled_scores_" + std::to_string(idx)});
         idx++;
     }

@@ -60,7 +60,7 @@ void ov::npuw::WhisperInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_i
 
     // for word-level timestamps
     auto decomposed_sdpa_size = m_npuw_llm_compiled_model->m_decomposed_sdpa_size;
-    for (int idx = 0; idx < decomposed_sdpa_size; idx++) {
+    for (size_t idx = 0; idx < decomposed_sdpa_size; idx++) {
         auto name = "cross_attention_qk_scaled_scores_" + std::to_string(idx);
         m_alignment_tensors.insert({name, m_prefill_request->get_tensor(m_prefill_out_ports.at(name))});
     }
