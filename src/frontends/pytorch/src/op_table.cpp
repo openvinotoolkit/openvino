@@ -226,6 +226,7 @@ OP_CONVERTER(translate_randn_like);
 OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_reflection_pad_nd);
 OP_CONVERTER(translate_relu6);
+OP_CONVERTER(translate_rrelu_with_noise_functional);
 OP_CONVERTER(translate_rrelu);
 OP_CONVERTER(translate_remainder);
 OP_CONVERTER(translate_repeat_interleave);
@@ -688,6 +689,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::relu", op::optional_out<op::translate_1to1_match_1_inputs<opset10::Relu>, 1>},
         {"aten::relu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
         {"aten::relu6", op::translate_relu6},
+        {"aten::rrelu_with_noise_functional",op::translate_rrelu_with_noise_functional},
+        {"aten::rrelu_with_noise_functional_",op::inplace_op<op::translate_rrelu_with_noise_functional>},
         {"aten::rrelu", op::translate_rrelu},
         {"aten::rrelu_", op::inplace_op<op::translate_rrelu>},
         {"aten::remainder", op::translate_remainder},
@@ -1064,6 +1067,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.reflection_pad3d.default", op::translate_reflection_pad_nd},
         {"aten.relu.default", op::translate_1to1_match_1_inputs<opset10::Relu>},
         {"aten.relu_.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
+        {"aten.rrelu_with_noise_functional.default",op::translate_rrelu_with_noise_functional},
+        {"aten.rrelu_with_noise_functional_.default",op::inplace_op<op::translate_rrelu_with_noise_functional>},
         {"aten.rrelu.default", op::translate_rrelu},
         {"aten.rrelu_.default", op::inplace_op<op::translate_rrelu>},
         {"aten.remainder.default", op::translate_remainder},
