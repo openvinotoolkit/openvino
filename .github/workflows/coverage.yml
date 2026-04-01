@@ -77,7 +77,7 @@ jobs:
   CoverageCpp:
     name: Coverage C++
     needs: [Docker, Build]
-    runs-on: ubuntu-latest-64-cores
+    runs-on: aks-linux-8-cores-32gb
     container:
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
       volumes:
@@ -201,7 +201,7 @@ jobs:
   CoveragePython:
     name: Coverage Python
     needs: [Docker, Build]
-    runs-on: ubuntu-latest-8-cores
+    runs-on: aks-linux-4-cores-16gb
     container:
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
       volumes:
@@ -343,7 +343,7 @@ jobs:
   CoverageJS:
     name: Coverage JS
     needs: [Docker, Build]
-    runs-on: ubuntu-latest-8-cores
+    runs-on: aks-linux-4-cores-16gb
     container:
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
       volumes:
