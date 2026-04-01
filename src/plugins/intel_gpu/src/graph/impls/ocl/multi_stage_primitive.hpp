@@ -41,6 +41,17 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
     // a pair of batch program hash and kernel entry hash of each ocl impl.
     std::pair<std::string, std::string> kernel_dump_info;
 
+    void clear_kernel_entries_info() {
+        kernel_dump_info.second.clear();
+    }
+
+    void add_kernel_entry_info(const std::string& kernel_entry) {
+        if (!kernel_dump_info.second.empty()) {
+            kernel_dump_info.second += " ";
+        }
+        kernel_dump_info.second += kernel_entry;
+    }
+
     multi_stage_primitive() : _kernels_data({}), _kernels({}) {}
 
     multi_stage_primitive(const multi_stage_primitive<PType>& other)

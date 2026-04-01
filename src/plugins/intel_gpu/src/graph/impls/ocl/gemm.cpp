@@ -93,7 +93,6 @@ protected:
         stream& stream = instance.get_network().get_stream();
         std::vector<event::ptr> tmp_events(events);
         std::vector<event::ptr> all_events;
-        kernel_dump_info.second.clear();
         size_t kernel_offset = 0;
         for (size_t s = 0; s < stage; s++) {
             kernel_offset += _kernels_data[s].kernels.size();
@@ -128,11 +127,7 @@ protected:
                 tmp_events = {ev};
             }
             all_events.push_back(ev);
-
-            if (!kernel_dump_info.second.empty()) {
-                kernel_dump_info.second += " ";
-            }
-            kernel_dump_info.second += _kernels[idx_final]->get_id();
+            add_kernel_entry_info(_kernels[idx_final]->get_id());
         }
 
         return stream.aggregate_events(all_events, all_events.size() > 1);
@@ -160,6 +155,8 @@ protected:
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, gemm_inst& instance) override {
+        clear_kernel_entries_info();
+
         if (instance.get_input_layout(0).count() == 0 ||
             instance.get_input_layout(1).count() == 0) {
             stream& stream = instance.get_network().get_stream();
