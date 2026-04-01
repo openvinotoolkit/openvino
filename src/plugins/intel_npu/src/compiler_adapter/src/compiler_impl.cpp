@@ -230,26 +230,14 @@ static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
     }
 
 VCLApi::VCLApi() : _logger("VCLApi", Logger::global().level()) {
-    std::filesystem::path baseName = "openvino_intel_npu_compiler_loader";
-    std::filesystem::path libpath{};
-
+    const auto baseName = "openvino_intel_npu_compiler_loader";
     try {
-        libpath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName);
-        _logger.debug("Try to load %s", baseName.string().c_str());
+        const auto libpath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName);
+        _logger.debug("Try to load %s", baseName);
         this->lib = ov::util::load_shared_object(libpath);
     } catch (const std::runtime_error& error) {
-        _logger.debug("Failed to load %s: %s", baseName.string().c_str(), error.what());
-
-        // TODO: remove fallback loading logic after all components switch to "openvino_intel_npu_compiler_loader"
-        baseName = "openvino_intel_npu_compiler";
-        _logger.debug("Trying to load %s", baseName.string().c_str());
-        try {
-            libpath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName);
-            this->lib = ov::util::load_shared_object(libpath);
-        } catch (const std::runtime_error& error) {
-            _logger.debug("Failed to load a fallback library: %s", baseName.string().c_str());
-            OPENVINO_THROW(error.what());
-        }
+        _logger.debug("Failed to load %s: %s", baseName, error.what());
+        OPENVINO_THROW(error.what());
     }
 
     try {
@@ -258,7 +246,7 @@ VCLApi::VCLApi() : _logger("VCLApi", Logger::global().level()) {
         vcl_symbols_list();
 #undef vcl_symbol_statement
     } catch (const std::runtime_error& error) {
-        _logger.debug("Failed to get formal symbols from %s", baseName.string().c_str());
+        _logger.debug("Failed to get formal symbols from %s", baseName);
         OPENVINO_THROW(error.what());
     }
 
@@ -266,7 +254,7 @@ VCLApi::VCLApi() : _logger("VCLApi", Logger::global().level()) {
     try {                                                                                                     \
         this->vcl_symbol = reinterpret_cast<decltype(&::vcl_symbol)>(ov::util::get_symbol(lib, #vcl_symbol)); \
     } catch (const std::runtime_error&) {                                                                     \
-        _logger.debug("Failed to get %s from %s", #vcl_symbol, baseName.string().c_str());                    \
+        _logger.debug("Failed to get %s from %s", #vcl_symbol, baseName);                    \
         this->vcl_symbol = nullptr;                                                                           \
     }
     vcl_weak_symbols_list();
