@@ -135,7 +135,7 @@ TEST_P(OVCompileAndInferRequest, AsyncInferRequest) {
     ASSERT_TRUE(is_called);
 }
 
-TEST_P(OVCompileAndInferRequest, RunInferenceEvictGraphMemoryAndRunningAgain) {
+TEST_P(OVCompileAndInferRequest, EvictGraphMemoryThenInferAgain) {
     OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
     ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
@@ -149,7 +149,7 @@ TEST_P(OVCompileAndInferRequest, RunInferenceEvictGraphMemoryAndRunningAgain) {
 // Disabled test that checks that memory eviction works correctly and does not cause memory leaks after inference runs.
 // The test is disabled due to the fact that it requires another check of the memory since device_alloc_mem_size doesn't
 // provide memory feedback after eviction is called.
-TEST_P(OVCompileAndInferRequest, DISABLED_CheckMemoryAfterEvictGraphMemoryAfterAndAfterRunningInferAgain) {
+TEST_P(OVCompileAndInferRequest, DISABLED_CheckMemoryAfterEvictGraphMemoryAndAfterRunningInferAgain) {
     if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
         GTEST_SKIP() << "Memory eviction is not supported by the current driver version.";
     }

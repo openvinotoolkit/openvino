@@ -642,10 +642,16 @@ bool ZeGraphExtWrappers::isPluginModelHashSupported() const {
 
 void ZeGraphExtWrappers::evict_memory(const GraphDescriptor& graphDescriptor) const {
     if (_graphExtVersion < ZE_MAKE_VERSION(1, 16)) {
-        _logger.warning("Memory eviction is not supported by the current driver version.");
+        _logger.info("Memory eviction is not supported by the current driver version.");
         return;
     }
-    _zeroInitStruct->getGraphDdiTable().pfnEvict(graphDescriptor._handle);
+    if (graphDescriptor._handle == nullptr) {
+        _logger.info("Graph handle is null, nothing to release memory.");
+        return;
+    }
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnEvict",
+                                    _zeroInitStruct->getGraphDdiTable().pfnEvict(graphDescriptor._handle),
+                                    _zeroInitStruct->getGraphDdiTable());
 }
 
 }  // namespace intel_npu
