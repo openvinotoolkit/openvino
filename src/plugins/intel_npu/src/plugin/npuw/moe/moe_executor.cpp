@@ -6,7 +6,6 @@
 
 #include "../compiled_model.hpp"  // For CompiledModel::CompiledModelDesc
 #include "../logging.hpp"
-#include "../v1/elements/failsafe.hpp"
 #include "moe_infer_utils.hpp"
 #include "moe_types.hpp"  // For MoEIO definition
 #include "openvino/core/except.hpp"
@@ -204,26 +203,10 @@ void MoEExecutor::run(size_t real_idx, size_t idx) {
     const auto num_active_experts = m_config.num_active_experts;
     const auto input_token_count = m_config.input_token_count;
     const auto processing_mode = m_config.get_processing_mode();
-    const auto active_device = get_device_name(real_idx, nullptr);
 
     LOG_DEBUG("MoE Config: num_experts=" << num_experts << ", num_active_experts=" << num_active_experts
                                          << ", input_token_count=" << input_token_count
                                           << ", mode=" << get_mode_name(processing_mode));
-
-    #if 0
-    if (processing_mode == MoEProcessingMode::EXPERT_ITERATIVE && m_resources.device_name != active_device) {
-        LOG_INFO("Reallocating MoE iterative output buffer for failover to " << active_device << "...");
-        LOG_BLOCK();
-
-        const size_t active_experts = m_config.num_active_experts;
-        const size_t embed_dim = m_config.expert_hidden_dim;
-        ov::Shape buffer_shape = {active_experts, 1, input_token_count, embed_dim};
-        auto any_compiled_model = m_config.compiled_models.begin()->second;
-        auto output_element_type = any_compiled_model->outputs()[0].get_element_type();
-        m_resources.expert_output_accumulator = m_allocator(output_element_type, buffer_shape, active_device);
-        m_resources.device_name = active_device;
-    }
-    #endif
 
     // Get I/O for this sublayer
     const auto& io = m_moe_io[idx];

@@ -54,7 +54,6 @@ std::string ov::npuw::JustInferRequest::subgraph_device(size_t idx) {
     return m_npuw_model->submodel_device(idx);
 }
 
-
 // ====================================================================================================
 // Memory Access Simulation & Function Memory Management
 // ====================================================================================================
