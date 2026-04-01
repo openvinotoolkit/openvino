@@ -54,6 +54,7 @@ std::vector<size_t> get_updated_order(const std::vector<size_t>& order, size_t m
 }
 
 ov::snippets::VectorDims unsqueeze_m_dim(ov::snippets::VectorDims shape, size_t m_index) {
+    OPENVINO_ASSERT(m_index < shape.size(), "m_index must be less than shape size");
     shape.insert(shape.begin() + m_index, 1);
     return shape;
 }
@@ -62,6 +63,7 @@ ov::snippets::VectorDims reshape_m_dim(ov::snippets::VectorDims shape,
                                        size_t m_index,
                                        size_t batch_m_dim,
                                        size_t new_m_dim) {
+    OPENVINO_ASSERT(m_index < shape.size(), "m_index must be less than shape size");
     if (shape[m_index] == 1) {
         return unsqueeze_m_dim(std::move(shape), m_index);
     }
@@ -268,8 +270,6 @@ bool MHAParallelWAOptimizer::split(const ov::Shape& shape,
                                    size_t optimal_parallelism_work_amount,
                                    size_t& batch_m_dim,
                                    size_t& new_m_dim) {
-    std::cout << "[ INFO ] MHAParallelWAOptimizer is applied with optimal_parallelism_work_amount = "
-              << optimal_parallelism_work_amount << std::endl;
     // Shape must have at least 2 dimensions (M and K); shapes like [] or [K] are not splittable
     if (shape.size() < 2) {
         return false;
