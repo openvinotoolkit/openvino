@@ -18,6 +18,7 @@
 #include <functional>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <optional>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -62,18 +63,22 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
     unsigned int stride_x = (poolingAttrs.stride.size() >= 2U) ? poolingAttrs.stride[1] : poolingAttrs.stride[0];
     unsigned int stride_y = (poolingAttrs.stride.size() >= 2U) ? poolingAttrs.stride[0] : 1;
 
-    PoolingType pool_type = PoolingType::MAX;
-    bool exclude_padding = false;
-    if (poolingAttrs.algorithm == Algorithm::PoolingMax) {
-        pool_type = PoolingType::MAX;
-        exclude_padding = (poolingAttrs.pad_type != op::PadType::EXPLICIT);
-    } else if (poolingAttrs.algorithm == Algorithm::PoolingAvg) {
-        pool_type = PoolingType::AVG;
-        exclude_padding = poolingAttrs.exclude_pad;
-    } else {
+    const auto poolTypeOpt = [&]() -> std::optional<PoolingType> {
+        if (poolingAttrs.algorithm == Algorithm::PoolingMax) {
+            return PoolingType::MAX;
+        }
+        if (poolingAttrs.algorithm == Algorithm::PoolingAvg) {
+            return PoolingType::AVG;
+        }
         DEBUG_LOG("Unknown pooling algorithm: ", static_cast<int>(poolingAttrs.algorithm));
+        return std::nullopt;
+    }();
+    if (!poolTypeOpt) {
         return false;
     }
+    const auto pool_type = poolTypeOpt.value();
+    const bool exclude_padding =
+        (pool_type == PoolingType::MAX) ? (poolingAttrs.pad_type != op::PadType::EXPLICIT) : poolingAttrs.exclude_pad;
 
     // The combination of parameters: NCHW + CEIL gives an accuracy problem in AvgPool.
     // One workaround is to disable the ACL executor for these parameters.
@@ -83,19 +88,22 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
         DEBUG_LOG("NCHW + CEIL gives an accuracy problem in ACL AvgPool. ACL executor will not be created.");
         return false;
     }
-    DimensionRoundingType round = DimensionRoundingType::FLOOR;
-    switch (poolingAttrs.rounding) {
-    case op::RoundingType::FLOOR:
-        round = DimensionRoundingType::FLOOR;
-        break;
-    case op::RoundingType::CEIL:
-    case op::RoundingType::CEIL_TORCH:
-        round = DimensionRoundingType::CEIL;
-        break;
-    default:
-        DEBUG_LOG("Unknown rounding type: ", poolingAttrs.rounding);
+    const auto roundOpt = [&]() -> std::optional<DimensionRoundingType> {
+        switch (poolingAttrs.rounding) {
+        case op::RoundingType::FLOOR:
+            return DimensionRoundingType::FLOOR;
+        case op::RoundingType::CEIL:
+        case op::RoundingType::CEIL_TORCH:
+            return DimensionRoundingType::CEIL;
+        default:
+            DEBUG_LOG("Unknown rounding type: ", poolingAttrs.rounding);
+            return std::nullopt;
+        }
+    }();
+    if (!roundOpt) {
         return false;
     }
+    const auto round = roundOpt.value();
 
     if (srcDimsSize == 5) {
         if (dstDescsSize > 1) {
