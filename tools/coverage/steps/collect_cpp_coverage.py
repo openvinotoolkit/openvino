@@ -43,7 +43,7 @@ def _prefilter_incompatible_gcda(root: Path, *, label: str, gcno_root: Path | No
 
     This is a proactive cleanup step before running ``lcov``. It filters out
     stale, unreadable, or mismatched coverage data so one bad ``.gcda`` file
-    does not break capture for the whole shard.
+    does not break capture for the whole run.
     """
     if not root.exists():
         return

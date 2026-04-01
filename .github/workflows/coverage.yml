@@ -1,15 +1,7 @@
 name: Code coverage
+
 on:
   workflow_dispatch:
-    inputs:
-      test_profile:
-        description: 'Coverage lanes to execute'
-        required: false
-        default: cpu
-        type: choice
-        options:
-          - cpu
-          - cpu_gpu
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -18,981 +10,518 @@ concurrency:
 permissions: read-all
 
 env:
-  CMAKE_BUILD_TYPE: 'Release'
-  PARALLEL_JOBS: '64'
-  CPP_TEST_CONCURRENCY: '1'
-  CPP_TESTS_PER_JOB: '5'
-  PY_TESTS_PER_JOB: '5'
+  TEST_PROFILE: cpu
   PYTEST_XDIST_WORKERS: '4'
   JS_TEST_CONCURRENCY: '1'
-  COVERAGE_SELECTION: ${{ github.event_name == 'workflow_dispatch' && inputs.test_profile || 'cpu' }}
+  NODE_VERSION: '21'
   NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
 
 jobs:
-  ResolveMatrix:
-    runs-on: ubuntu-latest
+  Docker:
+    runs-on: aks-linux-4-cores-16gb-docker-build
+    container:
+      image: openvinogithubactions.azurecr.io/docker_build:0.2
+      volumes:
+        - /mount:/mount
     outputs:
-      matrix: ${{ steps.resolve.outputs.matrix }}
-      lanes: ${{ steps.resolve.outputs.lanes }}
+      images: ${{ steps.handle_docker.outputs.images }}
     steps:
-      - name: Checkout sources for matrix tools
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+      - name: Checkout
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+
+      - uses: ./.github/actions/handle_docker
+        id: handle_docker
         with:
-          fetch-depth: 0
-          submodules: 'true'
+          images: |
+            ov_build/ubuntu_22_04_x64
+            ov_test/ubuntu_22_04_x64
+          registry: 'openvinogithubactions.azurecr.io'
+          dockerfiles_root_dir: '.github/dockerfiles'
+          changed_components: '{"Coverage":true}'
 
-      - name: Resolve coverage lanes
-        id: resolve
-        env:
-          COVERAGE_SELECTION: ${{ env.COVERAGE_SELECTION }}
-        run: |
-          python3 tools/coverage/ci_matrix.py resolve-lanes \
-            --selection "${COVERAGE_SELECTION}" >> "$GITHUB_OUTPUT"
+  Build:
+    name: Build coverage artifacts
+    needs: Docker
+    uses: ./.github/workflows/job_build_linux.yml
+    with:
+      runner: 'aks-linux-16-cores-32gb'
+      image: ${{ fromJSON(needs.Docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
+      affected-components: '{"JS_API":true}'
+      event-name: ${{ github.event_name }}
+      os: 'ubuntu_22_04'
+      build-js: true
+      build-additional-python-packages: false
+      upload-coverage-notes: true
+      cmake-options: >-
+        -G 'Ninja Multi-Config'
+        -DENABLE_NCC_STYLE=OFF
+        -DENABLE_TESTS=ON
+        -DENABLE_FUNCTIONAL_TESTS=ON
+        -DENABLE_STRICT_DEPENDENCIES=OFF
+        -DENABLE_SYSTEM_OPENCL=ON
+        -DCMAKE_VERBOSE_MAKEFILE=ON
+        -DCPACK_GENERATOR=TGZ
+        -DENABLE_WHEEL=ON
+        -DENABLE_PYTHON=ON
+        -DENABLE_JS=ON
+        -DENABLE_COVERAGE=ON
+        -DENABLE_OV_ONNX_FRONTEND=ON
+        -DENABLE_OV_PADDLE_FRONTEND=ON
+        -DENABLE_OV_TF_FRONTEND=ON
+        -DENABLE_OV_TF_LITE_FRONTEND=ON
+        -DENABLE_INTEL_GPU=OFF
+        -DENABLE_ONEDNN_FOR_GPU=OFF
 
-  BuildCoverageArtifacts:
-    name: Build coverage artifact (${{ matrix.lane }})
-    needs: ResolveMatrix
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.ResolveMatrix.outputs.matrix) }}
+  CoverageCpp:
+    name: Coverage C++
+    needs: [Docker, Build]
     runs-on: ubuntu-latest-64-cores
+    container:
+      image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
+      volumes:
+        - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro
+        - /mount:/mount
+        - ${{ github.workspace }}:${{ github.workspace }}
+    defaults:
+      run:
+        shell: bash
     env:
-      TEST_PROFILE: ${{ matrix.test_profile }}
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      INSTALL_PKG_DIR: ${{ github.workspace }}/install
+      BIN_DIR: ${{ github.workspace }}/install/tests
+      BUILD_DIR: ${{ github.workspace }}/openvino/openvino_build
+      BUILD_JS_DIR: ${{ github.workspace }}/openvino/openvino_build_js
+      COVERAGE_WRITE_STEP_SUMMARY: 'false'
     steps:
-      - name: Setup python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: '3.10.10'
-          architecture: 'x64'
-
-      - name: Setup Node.js
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
-        with:
-          node-version: '22'
-
-      - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@5ebbd400eff9e74630f759d94ddd7b6c26299639 # v1.2.20
-        with:
-          max-size: 50G
-
-      - name: Clone OpenVINO
+      - name: Checkout sources
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           submodules: 'true'
 
-      - name: Install dependencies
-        run: python3 ${{ github.workspace }}/tools/coverage/coverage.py step install-deps
-
-      - name: Configure OpenVINO with CMake
-        env:
-          CC: gcc
-          CXX: g++
-        run: python3 ${{ github.workspace }}/tools/coverage/coverage.py step configure
-
-      - name: Build and install
-        run: python3 ${{ github.workspace }}/tools/coverage/coverage.py step build-install
-
-      - name: Prepare reusable build artifact
-        run: |
-          set -euxo pipefail
-          artifact_dir="${{ github.workspace }}/coverage-build-artifact"
-          rm -rf "${artifact_dir}"
-          mkdir -p "${artifact_dir}"
-
-          rsync -a "${{ github.workspace }}/bin/" "${artifact_dir}/bin/"
-          rsync -a "${{ github.workspace }}/install_pkg/" "${artifact_dir}/install_pkg/"
-          mkdir -p "${artifact_dir}/src/bindings/js/node"
-          rsync -a "${{ github.workspace }}/src/bindings/js/node/bin/" "${artifact_dir}/src/bindings/js/node/bin/"
-
-          rsync -a --prune-empty-dirs \
-            --include='*/' --include='*.gcno' --exclude='*' \
-            "${{ github.workspace }}/build/" "${artifact_dir}/build/"
-
-          rsync -a --prune-empty-dirs \
-            --include='*/' --include='*.gcno' --exclude='*' \
-            "${{ github.workspace }}/build_js/" "${artifact_dir}/build_js/"
-
-          du -sh "${artifact_dir}" || true
-
-      - name: Upload reusable build artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: coverage-build-${{ matrix.lane }}-${{ github.run_id }}
-          path: coverage-build-artifact
-          if-no-files-found: error
-          retention-days: 3
-          compression-level: 0
-          overwrite: true
-
-  ResolveCppShards:
-    name: Resolve C++ coverage shards
-    if: ${{ always() && needs.ResolveMatrix.result == 'success' && needs.BuildCoverageArtifacts.result == 'success' }}
-    needs: [ResolveMatrix, BuildCoverageArtifacts]
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.resolve.outputs.matrix }}
-      count: ${{ steps.resolve.outputs.count }}
-    steps:
-      - name: Checkout sources for C++ shard discovery
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
-        with:
-          fetch-depth: 0
-          submodules: 'true'
-
-      - name: Setup python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: '3.10.10'
-          architecture: 'x64'
-
-      - name: Install shard discovery prerequisites
+      - name: Install coverage helper dependency
         run: python3 -m pip install pyyaml
 
-      - name: Resolve C++ shard matrix
-        id: resolve
-        env:
-          BASE_MATRIX: ${{ needs.ResolveMatrix.outputs.matrix }}
-          CPP_TESTS_PER_JOB: ${{ env.CPP_TESTS_PER_JOB }}
-        run: |
-          python3 tools/coverage/ci_matrix.py resolve-shards \
-            --suite cpp \
-            --base-matrix-json "${BASE_MATRIX}" \
-            --tests-per-job "${CPP_TESTS_PER_JOB}" >> "$GITHUB_OUTPUT"
-
-  CoverageCpp:
-    name: Coverage C++ (${{ matrix.lane }} / shard ${{ matrix.cpp_shard_index }}/${{ matrix.cpp_shard_count }})
-    if: ${{ always() && needs.ResolveMatrix.result == 'success' && needs.ResolveCppShards.result == 'success' }}
-    needs: [ResolveMatrix, BuildCoverageArtifacts, ResolveCppShards]
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.ResolveCppShards.outputs.matrix) }}
-    runs-on: ${{ fromJSON(matrix.cpp_runner) }}
-    env:
-      TEST_PROFILE: ${{ matrix.test_profile }}
-      CXX_TEST_NAMES: ${{ matrix.cpp_test_names }}
-      COVERAGE_WRITE_STEP_SUMMARY: 'false'
-    steps:
-      - name: Setup python
-        if: ${{ matrix.lane != 'gpu' }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
-          python-version: '3.10.10'
-          architecture: 'x64'
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
 
-      - name: Install python from apt (GPU lane)
-        if: ${{ matrix.lane == 'gpu' }}
-        run: |
-          sudo apt --assume-yes update
-          sudo apt --assume-yes install python3 python3-pip python3-venv
-          python3 --version
-          python3 -m pip --version
+      - name: Download OpenVINO tests
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_DIR }}
 
-      - name: Prepare C++ artifact staging directory
-        id: artifact_staging
+      - name: Download coverage build notes
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: coverage_build_notes
+          path: ${{ github.workspace }}/coverage_notes
+
+      - name: Extract OpenVINO packages
         run: |
-          dir="${RUNNER_TEMP}/coverage-cpp-${{ matrix.lane }}-shard-${{ matrix.cpp_shard_label }}"
-          mkdir -p "${dir}"
-          echo "ARTIFACT_STAGING_DIR=${dir}" >> "$GITHUB_ENV"
+          pigz -dc openvino_package.tar.gz | tar -xf - -C "${INSTALL_DIR}"
+          pigz -dc openvino_tests.tar.gz | tar -xf - -C "${INSTALL_DIR}"
+        working-directory: ${{ env.INSTALL_DIR }}
+
+      - name: Restore coverage notes
+        run: |
+          set -euo pipefail
+          notes_root="${{ github.workspace }}/coverage_notes"
+          if [[ -d "${notes_root}/coverage_build_notes" ]]; then
+            notes_root="${notes_root}/coverage_build_notes"
+          fi
+          rm -rf "${BUILD_DIR}" "${BUILD_JS_DIR}"
+          mkdir -p "${BUILD_DIR}" "${BUILD_JS_DIR}"
+          cp -a "${notes_root}/main-build/." "${BUILD_DIR}/"
+          if [[ -d "${notes_root}/js-build" ]]; then
+            cp -a "${notes_root}/js-build/." "${BUILD_JS_DIR}/"
+          fi
+
+      - name: Run CPU C++ coverage tests
+        run: python3 tools/coverage/coverage.py step run-cpp-tests
+
+      - name: Detect CPU native coverage data
+        id: detect_gcda_cpu
+        run: |
+          if find "${BUILD_DIR}" "${BUILD_JS_DIR}" -type f -name '*.gcda' -print -quit | grep -q .; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate CPU native C/C++ coverage report
+        if: ${{ steps.detect_gcda_cpu.outputs.exists == 'true' }}
+        run: python3 tools/coverage/coverage.py step collect-cpp-coverage
+
+      - name: Collect C++ CPU results
+        id: cpu_artifact
+        if: ${{ always() }}
+        run: |
+          dir="${RUNNER_TEMP}/coverage-cpp-cpu"
+          python3 tools/coverage/ci_reports.py collect-suite-results \
+            --workspace "${{ github.workspace }}" \
+            --suite cpp \
+            --profile cpu \
+            --lane cpu \
+            --artifact-name coverage-cpp-cpu \
+            --artifact-dir "${dir}"
           echo "dir=${dir}" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout sources for path mapping
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
-        with:
-          fetch-depth: 0
-          submodules: 'true'
-
-      - name: Seed C++ shard duration report
-        run: |
-          python3 tools/coverage/ci_reports.py init-shard-artifact \
-            --suite cpp \
-            --artifact-dir "${ARTIFACT_STAGING_DIR}" \
-            --lane "${{ matrix.lane }}" \
-            --artifact-name "coverage-cpp-${{ matrix.lane }}-shard-${{ matrix.cpp_shard_label }}" \
-            --shard-label "${{ matrix.cpp_shard_label }}" \
-            --shard-index "${{ matrix.cpp_shard_index }}" \
-            --shard-count "${{ matrix.cpp_shard_count }}" \
-            --test-names "${CXX_TEST_NAMES}"
-
-      - name: Download reusable build artifact
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          name: coverage-build-${{ matrix.lane }}-${{ github.run_id }}
-          path: ${{ github.workspace }}/_artifact
-
-      - name: Restore build artifact into workspace
-        id: restore_artifact
-        run: |
-          set -euo pipefail
-          src="${{ github.workspace }}/_artifact/coverage-build-artifact"
-          if [[ ! -d "${src}" ]]; then
-            src="${{ github.workspace }}/_artifact"
-          fi
-
-          if [[ -d "${src}/build" && -d "${src}/install_pkg" && -d "${src}/bin" ]]; then
-            rm -rf "${{ github.workspace }}/bin" "${{ github.workspace }}/install_pkg" "${{ github.workspace }}/build" "${{ github.workspace }}/build_js" "${{ github.workspace }}/src/bindings/js/node/bin"
-            mkdir -p "${{ github.workspace }}/src/bindings/js/node"
-
-            rsync -a "${src}/bin/" "${{ github.workspace }}/bin/"
-            rsync -a "${src}/install_pkg/" "${{ github.workspace }}/install_pkg/"
-            rsync -a "${src}/build/" "${{ github.workspace }}/build/"
-            if [[ -d "${src}/build_js" ]]; then
-              rsync -a "${src}/build_js/" "${{ github.workspace }}/build_js/"
-            fi
-            if [[ -d "${src}/src/bindings/js/node/bin" ]]; then
-              rsync -a "${src}/src/bindings/js/node/bin/" "${{ github.workspace }}/src/bindings/js/node/bin/"
-            fi
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-            echo "Build artifact restored from: ${src}"
-          else
-            echo "Build artifact is missing required directories"
-            exit 1
-          fi
-
-      - name: Restore executable bits for C++ test binaries
-        run: |
-          set -euo pipefail
-          target="${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}"
-          if [[ -d "${target}" ]]; then
-            find "${target}" -type f -exec chmod u+x {} +
-          fi
-
-      - name: Install GPU runtime stack
-        if: ${{ matrix.requires_gpu_runtime }}
-        run: |
-          set -euo pipefail
-          sudo apt --assume-yes update
-          sudo apt --assume-yes install wget software-properties-common ca-certificates gpg-agent tzdata clinfo
-          tmpdir="$(mktemp -d)"
-          pushd "${tmpdir}"
-          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-core_1.0.15985.7_amd64.deb
-          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-opencl_1.0.15985.7_amd64.deb
-          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu-dbgsym_1.3.28454.6_amd64.ddeb
-          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu_1.3.28454.6_amd64.deb
-          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd-dbgsym_24.05.28454.6_amd64.ddeb
-          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd_24.05.28454.6_amd64.deb
-          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/libigdgmm12_22.3.11_amd64.deb
-          sudo dpkg -i ./*.deb || sudo apt-get --assume-yes install -f
-          popd
-          sudo rm -rf "${tmpdir}"
-          sudo apt --assume-yes install \
-            libegl-mesa0 libegl1-mesa libegl1-mesa-dev libgbm1 libgl1-mesa-dev libgl1-mesa-dri \
-            libglapi-mesa libgles2-mesa-dev libglx-mesa0 libxatracker2 mesa-va-drivers \
-            mesa-vdpau-drivers mesa-vulkan-drivers va-driver-all
-          wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | sudo gpg --yes --dearmor --output /usr/share/keyrings/intel-graphics.gpg
-          echo "deb [arch=amd64,i386 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy unified" | sudo tee /etc/apt/sources.list.d/intel-gpu-jammy.list
-          sudo apt update
-          sudo apt --assume-yes install libze-intel-gpu1 libze1 intel-opencl-icd libze-dev intel-ocloc intel-level-zero-gpu-raytracing
-
-      - name: Verify GPU devices
-        if: ${{ matrix.requires_gpu_runtime }}
-        run: clinfo
-
-      - name: Install C++ coverage prerequisites
-        run: |
-          sudo apt --assume-yes update
-          sudo apt --assume-yes install lcov ca-certificates libtbb12
-          python3 -m pip install --upgrade pip
-          python3 -m pip install pyyaml
-
-      - name: Run selected C++ coverage tests
-        run: |
-          echo "C++ shard ${{ matrix.cpp_shard_index }}/${{ matrix.cpp_shard_count }} running ${{ matrix.cpp_test_count }} test(s)"
-          echo "Selected tests: ${{ matrix.cpp_test_names }}"
-          python3 ${{ github.workspace }}/tools/coverage/coverage.py step run-cpp-tests
-
-      - name: Detect native coverage data (C++)
-        id: detect_gcda
-        run: |
-          search_roots=()
-          for root in \
-            "${{ github.workspace }}/build" \
-            "${{ github.workspace }}/build_js" \
-            "${{ github.workspace }}/.tmp/cpp-gcov"; do
-            if [[ -d "${root}" ]]; then
-              search_roots+=("${root}")
-            fi
-          done
-          if (( ${#search_roots[@]} > 0 )) && find "${search_roots[@]}" -type f -name '*.gcda' -print -quit | grep -q .; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Generate native C/C++ coverage report (C++ tests)
-        if: ${{ steps.detect_gcda.outputs.exists == 'true' }}
-        run: python3 ${{ github.workspace }}/tools/coverage/coverage.py step collect-cpp-coverage
-
-      - name: Verify C++ coverage file
-        id: verify_cpp_cov
-        run: |
-          target="${{ github.workspace }}/coverage.info"
-          if [[ -s "${target}" ]]; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Using coverage file: ${target}"
-            ls -lh "${target}" || true
-            grep -m 3 '^SF:' "${target}" || true
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "Coverage file missing or empty: ${target}"
-            exit 1
-          fi
-
-      - name: Cleanup staging/gcno files before Codecov (C++)
-        if: ${{ always() }}
-        continue-on-error: true
-        run: |
-          rm -rf "${{ github.workspace }}/_artifact" || true
-          for d in build build_js install_pkg bin; do
-            if [[ -d "${{ github.workspace }}/${d}" ]]; then
-              find "${{ github.workspace }}/${d}" -type f -name '*.gcno' -delete || true
-            fi
-          done
-
-      - name: Refresh C++ artifact staging directory
-        if: ${{ always() }}
-        continue-on-error: true
-        run: |
-          mkdir -p "${ARTIFACT_STAGING_DIR}"
-          if [[ -f "${{ github.workspace }}/coverage.info" ]]; then
-            cp "${{ github.workspace }}/coverage.info" "${ARTIFACT_STAGING_DIR}/coverage.info"
-          fi
-          if [[ -f "${{ github.workspace }}/cpp-test-durations.csv" ]]; then
-            cp "${{ github.workspace }}/cpp-test-durations.csv" "${ARTIFACT_STAGING_DIR}/cpp-test-durations.csv"
-          fi
-          if [[ -f "${{ github.workspace }}/cpp-coverage-stats.env" ]]; then
-            cp "${{ github.workspace }}/cpp-coverage-stats.env" "${ARTIFACT_STAGING_DIR}/cpp-coverage-stats.env"
-          fi
-          if [[ -d "${{ github.workspace }}/coverage-report" ]]; then
-            rm -rf "${ARTIFACT_STAGING_DIR}/coverage-report"
-            rsync -a "${{ github.workspace }}/coverage-report/" "${ARTIFACT_STAGING_DIR}/coverage-report/"
-          fi
-
-      - name: Upload C++ coverage artifact
-        if: ${{ always() }}
-        continue-on-error: true
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: coverage-cpp-${{ matrix.lane }}-shard-${{ matrix.cpp_shard_label }}
-          path: ${{ steps.artifact_staging.outputs.dir }}
-          if-no-files-found: warn
-          retention-days: 14
-          compression-level: 0
-          overwrite: true
-
-      - name: Upload Codecov (C++ runtime, C++ suite)
-        if: ${{ steps.verify_cpp_cov.outputs.exists == 'true' }}
+      - name: Upload Codecov (C++ runtime, CPU)
+        if: ${{ hashFiles('coverage.info') != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: coverage.info
           disable_search: true
           plugins: noop
-          flags: cpp-runtime-cpp-${{ matrix.lane }}-shard-${{ matrix.cpp_shard_label }}
+          flags: cpp-runtime-cpp-cpu
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: true
           verbose: true
 
-  ResolvePythonShards:
-    name: Resolve Python coverage shards
-    if: ${{ always() && needs.ResolveMatrix.result == 'success' && needs.BuildCoverageArtifacts.result == 'success' }}
-    needs: [ResolveMatrix, BuildCoverageArtifacts]
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.resolve.outputs.matrix }}
-      count: ${{ steps.resolve.outputs.count }}
-    steps:
-      - name: Checkout sources for Python shard discovery
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
-        with:
-          fetch-depth: 0
-          submodules: 'true'
-
-      - name: Setup python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: '3.10.10'
-          architecture: 'x64'
-
-      - name: Install shard discovery prerequisites
-        run: python3 -m pip install pyyaml
-
-      - name: Resolve Python shard matrix
-        id: resolve
-        env:
-          BASE_MATRIX: ${{ needs.ResolveMatrix.outputs.matrix }}
-          PY_TESTS_PER_JOB: ${{ env.PY_TESTS_PER_JOB }}
-        run: |
-          python3 tools/coverage/ci_matrix.py resolve-shards \
-            --suite python \
-            --base-matrix-json "${BASE_MATRIX}" \
-            --tests-per-job "${PY_TESTS_PER_JOB}" >> "$GITHUB_OUTPUT"
-
-  CoveragePython:
-    name: Coverage Python (${{ matrix.lane }} / shard ${{ matrix.py_shard_index }}/${{ matrix.py_shard_count }})
-    if: ${{ always() && needs.ResolveMatrix.result == 'success' && needs.ResolvePythonShards.result == 'success' }}
-    needs: [ResolveMatrix, BuildCoverageArtifacts, ResolvePythonShards]
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.ResolvePythonShards.outputs.matrix) }}
-    runs-on: ${{ fromJSON(matrix.python_runner) }}
-    env:
-      TEST_PROFILE: ${{ matrix.test_profile }}
-      PY_TEST_NAMES: ${{ matrix.py_test_names }}
-      COVERAGE_WRITE_STEP_SUMMARY: 'false'
-    steps:
-      - name: Setup python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: '3.10.10'
-          architecture: 'x64'
-
-      - name: Prepare Python artifact staging directory
-        id: artifact_staging
-        run: |
-          dir="${RUNNER_TEMP}/coverage-python-${{ matrix.lane }}-shard-${{ matrix.py_shard_label }}"
-          mkdir -p "${dir}"
-          echo "ARTIFACT_STAGING_DIR=${dir}" >> "$GITHUB_ENV"
-          echo "dir=${dir}" >> "$GITHUB_OUTPUT"
-
-      - name: Checkout sources for path mapping
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
-        with:
-          fetch-depth: 0
-          submodules: 'true'
-
-      - name: Seed Python shard duration report
-        run: |
-          python3 tools/coverage/ci_reports.py init-shard-artifact \
-            --suite python \
-            --artifact-dir "${ARTIFACT_STAGING_DIR}" \
-            --lane "${{ matrix.lane }}" \
-            --artifact-name "coverage-python-${{ matrix.lane }}-shard-${{ matrix.py_shard_label }}" \
-            --shard-label "${{ matrix.py_shard_label }}" \
-            --shard-index "${{ matrix.py_shard_index }}" \
-            --shard-count "${{ matrix.py_shard_count }}" \
-            --test-names "${PY_TEST_NAMES}"
-
-      - name: Download reusable build artifact
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          name: coverage-build-${{ matrix.lane }}-${{ github.run_id }}
-          path: ${{ github.workspace }}/_artifact
-
-      - name: Restore build artifact into workspace
-        id: restore_artifact
-        run: |
-          set -euo pipefail
-          src="${{ github.workspace }}/_artifact/coverage-build-artifact"
-          if [[ ! -d "${src}" ]]; then
-            src="${{ github.workspace }}/_artifact"
-          fi
-
-          if [[ -d "${src}/build" && -d "${src}/install_pkg" && -d "${src}/bin" ]]; then
-            rm -rf "${{ github.workspace }}/bin" "${{ github.workspace }}/install_pkg" "${{ github.workspace }}/build" "${{ github.workspace }}/build_js" "${{ github.workspace }}/src/bindings/js/node/bin"
-            mkdir -p "${{ github.workspace }}/src/bindings/js/node"
-
-            rsync -a "${src}/bin/" "${{ github.workspace }}/bin/"
-            rsync -a "${src}/install_pkg/" "${{ github.workspace }}/install_pkg/"
-            rsync -a "${src}/build/" "${{ github.workspace }}/build/"
-            if [[ -d "${src}/build_js" ]]; then
-              rsync -a "${src}/build_js/" "${{ github.workspace }}/build_js/"
-            fi
-            if [[ -d "${src}/src/bindings/js/node/bin" ]]; then
-              rsync -a "${src}/src/bindings/js/node/bin/" "${{ github.workspace }}/src/bindings/js/node/bin/"
-            fi
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-            echo "Build artifact restored from: ${src}"
-          else
-            echo "Build artifact is missing required directories"
-            exit 1
-          fi
-
-      - name: Install GPU runtime stack
-        if: ${{ matrix.requires_gpu_runtime }}
-        run: |
-          set -euo pipefail
-          sudo apt --assume-yes update
-          sudo apt --assume-yes install wget software-properties-common ca-certificates gpg-agent tzdata clinfo
-          tmpdir="$(mktemp -d)"
-          pushd "${tmpdir}"
-          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-core_1.0.15985.7_amd64.deb
-          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-opencl_1.0.15985.7_amd64.deb
-          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu-dbgsym_1.3.28454.6_amd64.ddeb
-          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu_1.3.28454.6_amd64.deb
-          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd-dbgsym_24.05.28454.6_amd64.ddeb
-          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd_24.05.28454.6_amd64.deb
-          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/libigdgmm12_22.3.11_amd64.deb
-          sudo dpkg -i ./*.deb || sudo apt-get --assume-yes install -f
-          popd
-          sudo rm -rf "${tmpdir}"
-          sudo apt --assume-yes install \
-            libegl-mesa0 libegl1-mesa libegl1-mesa-dev libgbm1 libgl1-mesa-dev libgl1-mesa-dri \
-            libglapi-mesa libgles2-mesa-dev libglx-mesa0 libxatracker2 mesa-va-drivers \
-            mesa-vdpau-drivers mesa-vulkan-drivers va-driver-all
-          wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | sudo gpg --yes --dearmor --output /usr/share/keyrings/intel-graphics.gpg
-          echo "deb [arch=amd64,i386 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy unified" | sudo tee /etc/apt/sources.list.d/intel-gpu-jammy.list
-          sudo apt update
-          sudo apt --assume-yes install libze-intel-gpu1 libze1 intel-opencl-icd libze-dev intel-ocloc intel-level-zero-gpu-raytracing
-
-      - name: Verify GPU devices
-        if: ${{ matrix.requires_gpu_runtime }}
-        run: clinfo
-
-      - name: Install Python coverage prerequisites
-        run: |
-          sudo apt --assume-yes update
-          sudo apt --assume-yes install lcov ca-certificates libtbb12
-          python3 -m pip install --upgrade pip
-          python3 -m pip install pyyaml coverage pytest pytest-cov pytest-xdist[psutil]
-
-      - name: Run Python API/Frontend/Layer/OVC tests with coverage
-        run: |
-          echo "Python shard ${{ matrix.py_shard_index }}/${{ matrix.py_shard_count }} running ${{ matrix.py_test_count }} test(s)"
-          echo "Selected tests: ${{ matrix.py_test_names }}"
-          python3 ${{ github.workspace }}/tools/coverage/coverage.py step run-python-tests
-
-      - name: Detect native coverage data (Python-driven)
-        id: detect_gcda
-        run: |
-          if find "${{ github.workspace }}/build" "${{ github.workspace }}/build_js" -type f -name '*.gcda' -print -quit | grep -q .; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Generate native C/C++ coverage report (Python-driven)
-        if: ${{ steps.detect_gcda.outputs.exists == 'true' }}
-        run: python3 ${{ github.workspace }}/tools/coverage/coverage.py step collect-cpp-coverage
-
-      - name: Verify Python coverage file
-        id: verify_py_cov
-        run: |
-          target="${{ github.workspace }}/python-coverage.xml"
-          if [[ -s "${target}" ]]; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Using coverage file: ${target}"
-            ls -lh "${target}" || true
-            head -n 5 "${target}" || true
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "Coverage file missing or empty: ${target}"
-            exit 1
-          fi
-
-      - name: Verify native C/C++ coverage file (Python-driven)
-        id: verify_cpp_cov
-        run: |
-          target="${{ github.workspace }}/coverage.info"
-          if [[ -s "${target}" ]]; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Using native coverage file: ${target}"
-            ls -lh "${target}" || true
-            grep -m 3 '^SF:' "${target}" || true
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "Coverage file missing or empty: ${target}"
-          fi
-
-      - name: Cleanup staging/gcno files before Codecov (Python)
-        if: ${{ always() }}
-        continue-on-error: true
-        run: |
-          rm -rf "${{ github.workspace }}/_artifact" || true
-          for d in build build_js install_pkg bin; do
-            if [[ -d "${{ github.workspace }}/${d}" ]]; then
-              find "${{ github.workspace }}/${d}" -type f -name '*.gcno' -delete || true
-            fi
-          done
-
-      - name: Refresh Python artifact staging directory
-        if: ${{ always() }}
-        continue-on-error: true
-        run: |
-          mkdir -p "${ARTIFACT_STAGING_DIR}"
-          for file in python-coverage.xml coverage.info python-test-durations.csv python-coverage-stats.env; do
-            if [[ -f "${{ github.workspace }}/${file}" ]]; then
-              cp "${{ github.workspace }}/${file}" "${ARTIFACT_STAGING_DIR}/${file}"
-            fi
-          done
-          if [[ -d "${{ github.workspace }}/coverage-report" ]]; then
-            rm -rf "${ARTIFACT_STAGING_DIR}/coverage-report"
-            rsync -a "${{ github.workspace }}/coverage-report/" "${ARTIFACT_STAGING_DIR}/coverage-report/"
-          fi
-
-      - name: Upload Python coverage artifact
+      - name: Upload C++ CPU artifact
         if: ${{ always() }}
         continue-on-error: true
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: coverage-python-${{ matrix.lane }}-shard-${{ matrix.py_shard_label }}
-          path: ${{ steps.artifact_staging.outputs.dir }}
+          name: coverage-cpp-cpu
+          path: ${{ steps.cpu_artifact.outputs.dir }}
           if-no-files-found: warn
           retention-days: 14
           compression-level: 0
           overwrite: true
 
-      - name: Upload Codecov (Python API)
-        if: ${{ steps.verify_py_cov.outputs.exists == 'true' }}
+  CoveragePython:
+    name: Coverage Python
+    needs: [Docker, Build]
+    runs-on: ubuntu-latest-8-cores
+    container:
+      image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
+      volumes:
+        - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro
+        - /mount:/mount
+        - ${{ github.workspace }}:${{ github.workspace }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      INSTALL_PKG_DIR: ${{ github.workspace }}/install
+      BUILD_DIR: ${{ github.workspace }}/openvino/openvino_build
+      BUILD_JS_DIR: ${{ github.workspace }}/openvino/openvino_build_js
+      COVERAGE_WRITE_STEP_SUMMARY: 'false'
+    steps:
+      - name: Checkout sources
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          submodules: 'true'
+
+      - name: Install Python coverage dependencies
+        run: python3 -m pip install pyyaml coverage pytest pytest-cov pytest-xdist[psutil]
+
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO wheels
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: openvino_wheels
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download coverage build notes
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: coverage_build_notes
+          path: ${{ github.workspace }}/coverage_notes
+
+      - name: Extract OpenVINO packages
+        run: |
+          pigz -dc openvino_package.tar.gz | tar -xf - -C "${INSTALL_DIR}"
+          pigz -dc openvino_tests.tar.gz | tar -xf - -C "${INSTALL_DIR}"
+        working-directory: ${{ env.INSTALL_DIR }}
+
+      - name: Restore coverage notes
+        run: |
+          set -euo pipefail
+          notes_root="${{ github.workspace }}/coverage_notes"
+          if [[ -d "${notes_root}/coverage_build_notes" ]]; then
+            notes_root="${notes_root}/coverage_build_notes"
+          fi
+          rm -rf "${BUILD_DIR}" "${BUILD_JS_DIR}"
+          mkdir -p "${BUILD_DIR}" "${BUILD_JS_DIR}"
+          cp -a "${notes_root}/main-build/." "${BUILD_DIR}/"
+          if [[ -d "${notes_root}/js-build" ]]; then
+            cp -a "${notes_root}/js-build/." "${BUILD_JS_DIR}/"
+          fi
+
+      - name: Run CPU Python coverage tests
+        run: python3 tools/coverage/coverage.py step run-python-tests
+
+      - name: Detect CPU native coverage data
+        id: detect_py_gcda_cpu
+        run: |
+          if find "${BUILD_DIR}" "${BUILD_JS_DIR}" -type f -name '*.gcda' -print -quit | grep -q .; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate CPU native C/C++ coverage report
+        if: ${{ steps.detect_py_gcda_cpu.outputs.exists == 'true' }}
+        run: python3 tools/coverage/coverage.py step collect-cpp-coverage
+
+      - name: Collect Python CPU results
+        id: cpu_artifact
+        if: ${{ always() }}
+        run: |
+          dir="${RUNNER_TEMP}/coverage-python-cpu"
+          python3 tools/coverage/ci_reports.py collect-suite-results \
+            --workspace "${{ github.workspace }}" \
+            --suite python \
+            --profile cpu \
+            --lane cpu \
+            --artifact-name coverage-python-cpu \
+            --artifact-dir "${dir}"
+          echo "dir=${dir}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Codecov (Python API, CPU)
+        if: ${{ hashFiles('python-coverage.xml') != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: python-coverage.xml
           disable_search: true
           plugins: noop
-          flags: python-api-frontend-layer-ovc-${{ matrix.lane }}-shard-${{ matrix.py_shard_label }}
+          flags: python-api-frontend-layer-ovc-cpu
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: true
           verbose: true
 
-      - name: Upload Codecov (C++ runtime, Python suite)
-        if: ${{ steps.verify_cpp_cov.outputs.exists == 'true' }}
+      - name: Upload Codecov (C++ runtime, Python suite, CPU)
+        if: ${{ hashFiles('coverage.info') != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: coverage.info
           disable_search: true
           plugins: noop
-          flags: cpp-runtime-python-${{ matrix.lane }}-shard-${{ matrix.py_shard_label }}
+          flags: cpp-runtime-python-cpu
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: true
           verbose: true
 
-  ResolveJsShards:
-    name: Resolve JS coverage shards
-    if: ${{ always() && needs.ResolveMatrix.result == 'success' && needs.BuildCoverageArtifacts.result == 'success' }}
-    needs: [ResolveMatrix, BuildCoverageArtifacts]
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.resolve.outputs.matrix }}
-      count: ${{ steps.resolve.outputs.count }}
-    steps:
-      - name: Checkout sources for JS shard discovery
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
-        with:
-          fetch-depth: 0
-          submodules: 'true'
-
-      - name: Setup python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: '3.10.10'
-          architecture: 'x64'
-
-      - name: Install shard discovery prerequisites
-        run: python3 -m pip install pyyaml
-
-      - name: Resolve JS shard matrix
-        id: resolve
-        env:
-          BASE_MATRIX: ${{ needs.ResolveMatrix.outputs.matrix }}
-        run: |
-          python3 tools/coverage/ci_matrix.py resolve-shards \
-            --suite js \
-            --base-matrix-json "${BASE_MATRIX}" \
-            --tests-per-job 1 >> "$GITHUB_OUTPUT"
-
-  CoverageJS:
-    name: Coverage JS (${{ matrix.lane }} / shard ${{ matrix.js_shard_index }}/${{ matrix.js_shard_count }})
-    if: ${{ always() && needs.ResolveMatrix.result == 'success' && needs.ResolveJsShards.result == 'success' }}
-    needs: [ResolveMatrix, BuildCoverageArtifacts, ResolveJsShards]
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.ResolveJsShards.outputs.matrix) }}
-    runs-on: ${{ fromJSON(matrix.js_runner) }}
-    env:
-      TEST_PROFILE: ${{ matrix.test_profile }}
-      JS_TEST_NAMES: ${{ matrix.js_test_names }}
-      COVERAGE_WRITE_STEP_SUMMARY: 'false'
-    steps:
-      - name: Setup python
-        if: ${{ matrix.lane != 'gpu' }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: '3.10.10'
-          architecture: 'x64'
-
-      - name: Install python from apt (GPU lane)
-        if: ${{ matrix.lane == 'gpu' }}
-        run: |
-          sudo apt --assume-yes update
-          sudo apt --assume-yes install python3 python3-pip python3-venv
-          python3 --version
-          python3 -m pip --version
-
-      - name: Setup Node.js
-        if: ${{ matrix.lane != 'gpu' }}
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
-        with:
-          node-version: '22'
-
-      - name: Install Node.js from apt (GPU lane)
-        if: ${{ matrix.lane == 'gpu' }}
-        run: |
-          sudo apt --assume-yes update
-          sudo apt --assume-yes install nodejs npm
-          node --version
-          npm --version
-
-      - name: Prepare JS artifact staging directory
-        id: artifact_staging
-        run: |
-          dir="${RUNNER_TEMP}/coverage-js-${{ matrix.lane }}-shard-${{ matrix.js_shard_label }}"
-          mkdir -p "${dir}"
-          echo "ARTIFACT_STAGING_DIR=${dir}" >> "$GITHUB_ENV"
-          echo "dir=${dir}" >> "$GITHUB_OUTPUT"
-
-      - name: Checkout sources for path mapping
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
-        with:
-          fetch-depth: 0
-          submodules: 'true'
-
-      - name: Seed JS shard duration report
-        run: |
-          python3 tools/coverage/ci_reports.py init-shard-artifact \
-            --suite js \
-            --artifact-dir "${ARTIFACT_STAGING_DIR}" \
-            --lane "${{ matrix.lane }}" \
-            --artifact-name "coverage-js-${{ matrix.lane }}-shard-${{ matrix.js_shard_label }}" \
-            --shard-label "${{ matrix.js_shard_label }}" \
-            --shard-index "${{ matrix.js_shard_index }}" \
-            --shard-count "${{ matrix.js_shard_count }}" \
-            --test-names "${JS_TEST_NAMES}"
-
-      - name: Download reusable build artifact
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          name: coverage-build-${{ matrix.lane }}-${{ github.run_id }}
-          path: ${{ github.workspace }}/_artifact
-
-      - name: Restore build artifact into workspace
-        id: restore_artifact
-        run: |
-          set -euo pipefail
-          src="${{ github.workspace }}/_artifact/coverage-build-artifact"
-          if [[ ! -d "${src}" ]]; then
-            src="${{ github.workspace }}/_artifact"
-          fi
-
-          if [[ -d "${src}/build_js" && -d "${src}/src/bindings/js/node/bin" && -d "${src}/install_pkg" ]]; then
-            rm -rf "${{ github.workspace }}/bin" "${{ github.workspace }}/install_pkg" "${{ github.workspace }}/build" "${{ github.workspace }}/build_js" "${{ github.workspace }}/src/bindings/js/node/bin"
-            mkdir -p "${{ github.workspace }}/src/bindings/js/node"
-
-            if [[ -d "${src}/bin" ]]; then
-              rsync -a "${src}/bin/" "${{ github.workspace }}/bin/"
-            fi
-            rsync -a "${src}/install_pkg/" "${{ github.workspace }}/install_pkg/"
-            if [[ -d "${src}/build" ]]; then
-              rsync -a "${src}/build/" "${{ github.workspace }}/build/"
-            fi
-            rsync -a "${src}/build_js/" "${{ github.workspace }}/build_js/"
-            rsync -a "${src}/src/bindings/js/node/bin/" "${{ github.workspace }}/src/bindings/js/node/bin/"
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-            echo "Build artifact restored from: ${src}"
-          else
-            echo "Build artifact is missing required JS directories"
-            exit 1
-          fi
-
-      - name: Install GPU runtime stack
-        if: ${{ matrix.requires_gpu_runtime }}
-        run: |
-          set -euo pipefail
-          sudo apt --assume-yes update
-          sudo apt --assume-yes install wget software-properties-common ca-certificates gpg-agent tzdata clinfo
-          tmpdir="$(mktemp -d)"
-          pushd "${tmpdir}"
-          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-core_1.0.15985.7_amd64.deb
-          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-opencl_1.0.15985.7_amd64.deb
-          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu-dbgsym_1.3.28454.6_amd64.ddeb
-          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu_1.3.28454.6_amd64.deb
-          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd-dbgsym_24.05.28454.6_amd64.ddeb
-          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd_24.05.28454.6_amd64.deb
-          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/libigdgmm12_22.3.11_amd64.deb
-          sudo dpkg -i ./*.deb || sudo apt-get --assume-yes install -f
-          popd
-          sudo rm -rf "${tmpdir}"
-          sudo apt --assume-yes install \
-            libegl-mesa0 libegl1-mesa libegl1-mesa-dev libgbm1 libgl1-mesa-dev libgl1-mesa-dri \
-            libglapi-mesa libgles2-mesa-dev libglx-mesa0 libxatracker2 mesa-va-drivers \
-            mesa-vdpau-drivers mesa-vulkan-drivers va-driver-all
-          wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | sudo gpg --yes --dearmor --output /usr/share/keyrings/intel-graphics.gpg
-          echo "deb [arch=amd64,i386 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy unified" | sudo tee /etc/apt/sources.list.d/intel-gpu-jammy.list
-          sudo apt update
-          sudo apt --assume-yes install libze-intel-gpu1 libze1 intel-opencl-icd libze-dev intel-ocloc intel-level-zero-gpu-raytracing
-
-      - name: Verify GPU devices
-        if: ${{ matrix.requires_gpu_runtime }}
-        run: clinfo
-
-      - name: Install JS coverage prerequisites
-        run: |
-          sudo apt --assume-yes update
-          sudo apt --assume-yes install lcov xvfb ca-certificates libtbb12
-          python3 -m pip install --upgrade pip
-          python3 -m pip install pyyaml
-
-      - name: Run Node.js bindings unit/e2e tests with coverage
-        run: |
-          echo "JS shard ${{ matrix.js_shard_index }}/${{ matrix.js_shard_count }} running ${{ matrix.js_test_count }} test(s)"
-          echo "Selected tests: ${{ matrix.js_test_names }}"
-          python3 ${{ github.workspace }}/tools/coverage/coverage.py step run-js-tests
-
-      - name: Detect native coverage data (JS-driven)
-        id: detect_gcda
-        run: |
-          if find "${{ github.workspace }}/build" "${{ github.workspace }}/build_js" -type f -name '*.gcda' -print -quit | grep -q .; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Generate native C/C++ coverage report (JS-driven)
-        if: ${{ steps.detect_gcda.outputs.exists == 'true' }}
-        run: python3 ${{ github.workspace }}/tools/coverage/coverage.py step collect-cpp-coverage
-
-      - name: Verify JS coverage file
-        id: verify_js_cov
-        run: |
-          target="${{ github.workspace }}/js-lcov.info"
-          if [[ -s "${target}" ]]; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Using coverage file: ${target}"
-            ls -lh "${target}" || true
-            grep -m 3 '^SF:' "${target}" || true
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "Coverage file missing or empty: ${target}"
-            exit 1
-          fi
-
-      - name: Verify native C/C++ coverage file (JS-driven)
-        id: verify_cpp_cov
-        run: |
-          target="${{ github.workspace }}/coverage.info"
-          if [[ -s "${target}" ]]; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Using native coverage file: ${target}"
-            ls -lh "${target}" || true
-            grep -m 3 '^SF:' "${target}" || true
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "Coverage file missing or empty: ${target}"
-          fi
-
-      - name: Cleanup staging/gcno files before Codecov (JS)
-        if: ${{ always() }}
-        continue-on-error: true
-        run: |
-          rm -rf "${{ github.workspace }}/_artifact" || true
-          for d in build build_js install_pkg bin; do
-            if [[ -d "${{ github.workspace }}/${d}" ]]; then
-              find "${{ github.workspace }}/${d}" -type f -name '*.gcno' -delete || true
-            fi
-          done
-
-      - name: Refresh JS artifact staging directory
-        if: ${{ always() }}
-        continue-on-error: true
-        run: |
-          mkdir -p "${ARTIFACT_STAGING_DIR}"
-          for file in js-lcov.info coverage.info js-test-durations.csv js-coverage-stats.env; do
-            if [[ -f "${{ github.workspace }}/${file}" ]]; then
-              cp "${{ github.workspace }}/${file}" "${ARTIFACT_STAGING_DIR}/${file}"
-            fi
-          done
-          if [[ -d "${{ github.workspace }}/coverage-report" ]]; then
-            rm -rf "${ARTIFACT_STAGING_DIR}/coverage-report"
-            rsync -a "${{ github.workspace }}/coverage-report/" "${ARTIFACT_STAGING_DIR}/coverage-report/"
-          fi
-
-      - name: Upload JS coverage artifact
+      - name: Upload Python CPU artifact
         if: ${{ always() }}
         continue-on-error: true
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: coverage-js-${{ matrix.lane }}-shard-${{ matrix.js_shard_label }}
-          path: ${{ steps.artifact_staging.outputs.dir }}
+          name: coverage-python-cpu
+          path: ${{ steps.cpu_artifact.outputs.dir }}
           if-no-files-found: warn
           retention-days: 14
           compression-level: 0
           overwrite: true
 
-      - name: Upload Codecov (Node.js bindings)
-        if: ${{ steps.verify_js_cov.outputs.exists == 'true' }}
+  CoverageJS:
+    name: Coverage JS
+    needs: [Docker, Build]
+    runs-on: ubuntu-latest-8-cores
+    container:
+      image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
+      volumes:
+        - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro
+        - /mount:/mount
+        - ${{ github.workspace }}:${{ github.workspace }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_PKG_DIR: ${{ github.workspace }}/install
+      JS_DIR: ${{ github.workspace }}/src/bindings/js/node
+      BUILD_DIR: ${{ github.workspace }}/openvino/openvino_build
+      BUILD_JS_DIR: ${{ github.workspace }}/openvino/openvino_build_js
+      COVERAGE_WRITE_STEP_SUMMARY: 'false'
+    steps:
+      - name: Checkout sources
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          submodules: 'true'
+
+      - name: Install coverage helper dependency
+        run: python3 -m pip install pyyaml
+
+      - name: Setup Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ${{ env.JS_DIR }}/package-lock.json
+
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO Node package
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: openvino_node_npm_package
+          path: ${{ env.JS_DIR }}
+
+      - name: Download coverage build notes
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: coverage_build_notes
+          path: ${{ github.workspace }}/coverage_notes
+
+      - name: Extract OpenVINO package
+        run: pigz -dc openvino_package.tar.gz | tar -xf - -C "${INSTALL_DIR}"
+        working-directory: ${{ env.INSTALL_DIR }}
+
+      - name: Extract OpenVINO Node package
+        run: pigz -dc openvino_node_npm_package.tar.gz | tar -xf - -C "${JS_DIR}"
+        working-directory: ${{ env.JS_DIR }}
+
+      - name: Restore coverage notes
+        run: |
+          set -euo pipefail
+          notes_root="${{ github.workspace }}/coverage_notes"
+          if [[ -d "${notes_root}/coverage_build_notes" ]]; then
+            notes_root="${notes_root}/coverage_build_notes"
+          fi
+          rm -rf "${BUILD_DIR}" "${BUILD_JS_DIR}"
+          mkdir -p "${BUILD_DIR}" "${BUILD_JS_DIR}"
+          cp -a "${notes_root}/main-build/." "${BUILD_DIR}/"
+          if [[ -d "${notes_root}/js-build" ]]; then
+            cp -a "${notes_root}/js-build/." "${BUILD_JS_DIR}/"
+          fi
+
+      - name: Run CPU JS coverage tests
+        run: python3 tools/coverage/coverage.py step run-js-tests
+
+      - name: Detect CPU native coverage data
+        id: detect_js_gcda_cpu
+        run: |
+          if find "${BUILD_DIR}" "${BUILD_JS_DIR}" -type f -name '*.gcda' -print -quit | grep -q .; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate CPU native C/C++ coverage report
+        if: ${{ steps.detect_js_gcda_cpu.outputs.exists == 'true' }}
+        run: python3 tools/coverage/coverage.py step collect-cpp-coverage
+
+      - name: Collect JS CPU results
+        id: cpu_artifact
+        if: ${{ always() }}
+        run: |
+          dir="${RUNNER_TEMP}/coverage-js-cpu"
+          python3 tools/coverage/ci_reports.py collect-suite-results \
+            --workspace "${{ github.workspace }}" \
+            --suite js \
+            --profile cpu \
+            --lane cpu \
+            --artifact-name coverage-js-cpu \
+            --artifact-dir "${dir}"
+          echo "dir=${dir}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Codecov (JS bindings, CPU)
+        if: ${{ hashFiles('js-lcov.info') != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: js-lcov.info
           disable_search: true
           plugins: noop
-          flags: nodejs-bindings-unit-e2e-${{ matrix.lane }}-shard-${{ matrix.js_shard_label }}
+          flags: nodejs-bindings-unit-e2e-cpu
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: true
           verbose: true
 
-      - name: Upload Codecov (C++ runtime, JS suite)
-        if: ${{ steps.verify_cpp_cov.outputs.exists == 'true' }}
+      - name: Upload Codecov (C++ runtime, JS suite, CPU)
+        if: ${{ hashFiles('coverage.info') != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: coverage.info
           disable_search: true
           plugins: noop
-          flags: cpp-runtime-js-${{ matrix.lane }}-shard-${{ matrix.js_shard_label }}
+          flags: cpp-runtime-js-cpu
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: true
           verbose: true
 
+      - name: Upload JS CPU artifact
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: coverage-js-cpu
+          path: ${{ steps.cpu_artifact.outputs.dir }}
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 0
+          overwrite: true
+
   CoverageSummary:
-    if: ${{ always() && needs.ResolveMatrix.result == 'success' }}
-    needs: [ResolveMatrix, BuildCoverageArtifacts, ResolveCppShards, ResolvePythonShards, ResolveJsShards, CoverageCpp, CoveragePython, CoverageJS]
+    if: ${{ always() }}
+    needs: [CoverageCpp, CoveragePython, CoverageJS]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout sources for summary tools
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+      - name: Checkout sources
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
         with:
-          fetch-depth: 0
-          submodules: 'true'
-
-      - name: Setup python for summary tools
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: '3.10.10'
-          architecture: 'x64'
+          sparse-checkout: |
+            tools/coverage
+          submodules: 'false'
 
       - name: Download C++ artifacts
-        if: ${{ needs.ResolveCppShards.outputs.count != '0' }}
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           pattern: coverage-cpp-*
           path: ${{ github.workspace }}/artifacts/cpp
 
       - name: Download Python artifacts
-        if: ${{ needs.ResolvePythonShards.outputs.count != '0' }}
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           pattern: coverage-python-*
           path: ${{ github.workspace }}/artifacts/python
 
       - name: Download JS artifacts
-        if: ${{ needs.ResolveJsShards.outputs.count != '0' }}
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           pattern: coverage-js-*
           path: ${{ github.workspace }}/artifacts/js
 
       - name: Generate final summary
-        env:
-          COVERAGE_SELECTION: ${{ env.COVERAGE_SELECTION }}
-          SELECTED_LANES: ${{ needs.ResolveMatrix.outputs.lanes }}
         run: |
           python3 tools/coverage/ci_reports.py render-summary \
             --workspace "${{ github.workspace }}" \
             --summary-file "${GITHUB_STEP_SUMMARY}" \
-            --selection "${COVERAGE_SELECTION}" \
-            --selected-lanes "${SELECTED_LANES}"
+            --selection "cpu" \
+            --selected-lanes "cpu"
 
       - name: Merge duration reports
         run: |

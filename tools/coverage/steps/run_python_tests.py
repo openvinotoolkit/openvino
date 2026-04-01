@@ -52,7 +52,7 @@ def _expand(value: str) -> str:
 
 
 def _selected_test_names() -> list[str]:
-    """Read the optional Python shard test selection from the environment."""
+    """Read the optional Python test selection from the environment."""
     raw = os.environ.get("PY_TEST_NAMES", "").strip()
     if not raw:
         return []
@@ -68,7 +68,7 @@ def _find_openvino_wheel(wheels_dir: Path) -> Path:
 
 
 def _write_duration_report(ctx: CoverageContext, rows: list[tuple[str, str, float]]) -> None:
-    """Write per-test duration data for the Python shard."""
+    """Write per-test duration data for the current Python run."""
     report_path = ctx.workspace / "python-test-durations.csv"
     with report_path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)
@@ -88,7 +88,7 @@ def _write_stats_report(
     skipped: int,
     not_run: int = 0,
 ) -> None:
-    """Write aggregate Python shard execution counters."""
+    """Write aggregate Python execution counters."""
     report_path = ctx.workspace / "python-coverage-stats.env"
     report_path.write_text(
         "\n".join(

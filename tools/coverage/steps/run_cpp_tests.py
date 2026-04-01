@@ -69,7 +69,7 @@ def _gcov_stage_root(ctx: CoverageContext) -> Path:
 
 
 def _selected_test_names() -> list[str]:
-    """Read the optional C++ shard test selection from the environment."""
+    """Read the optional C++ test selection from the environment."""
     raw = os.environ.get("CXX_TEST_NAMES", "").strip()
     if not raw:
         return []
@@ -162,7 +162,7 @@ def _run_test(
 
 
 def _write_duration_report(ctx: CoverageContext, results: list[_CppTestRunResult]) -> None:
-    """Write per-test duration data for the C++ shard."""
+    """Write per-test duration data for the current C++ run."""
     report_path = ctx.workspace / "cpp-test-durations.csv"
     with report_path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)
@@ -185,7 +185,7 @@ def _write_stats_report(
     skipped: int,
     not_run: int = 0,
 ) -> None:
-    """Write aggregate C++ shard execution counters."""
+    """Write aggregate C++ execution counters."""
     report_path = ctx.workspace / "cpp-coverage-stats.env"
     report_path.write_text(
         "\n".join(
@@ -297,7 +297,7 @@ def _run_tests_parallel(
 
 
 def run(ctx: CoverageContext) -> None:
-    """Execute configured C++ tests and record shard statistics."""
+    """Execute configured C++ tests and record execution statistics."""
     config = ctx.workspace / "tools" / "coverage" / "config" / "tests_cpp.yml"
     tests = load_cpp_tests(config, ctx.test_profile)
     selected_names = _selected_test_names()

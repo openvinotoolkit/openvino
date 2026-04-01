@@ -390,7 +390,7 @@ def _load_yaml(path: Path) -> dict[str, Any]:
     try:
         import yaml  # type: ignore[import-not-found]
     except ModuleNotFoundError as exc:
-        raise RuntimeError("PyYAML is required. Run install-deps step first.") from exc
+        raise RuntimeError("PyYAML is required in the coverage runtime environment.") from exc
 
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     if not isinstance(data, dict):
@@ -506,28 +506,11 @@ def validate_configs(config_dir: Path) -> list[ConfigValidationIssue]:
 
 
 STEP_MODULES: dict[str, str] = {
-    "install-deps": "steps.install_deps",
-    "configure": "steps.configure",
-    "build-install": "steps.build_install",
     "run-cpp-tests": "steps.run_cpp_tests",
     "run-python-tests": "steps.run_python_tests",
     "run-js-tests": "steps.run_js_tests",
     "collect-cpp-coverage": "steps.collect_cpp_coverage",
-    "write-summary": "steps.write_summary",
-    "package-artifacts": "steps.package_artifacts",
 }
-
-RUN_ALL_ORDER = [
-    "install-deps",
-    "configure",
-    "build-install",
-    "run-cpp-tests",
-    "run-python-tests",
-    "run-js-tests",
-    "collect-cpp-coverage",
-    "write-summary",
-    "package-artifacts",
-]
 
 
 def _apply_common_env(args: argparse.Namespace) -> None:
@@ -560,15 +543,6 @@ def _apply_common_env(args: argparse.Namespace) -> None:
     if js_test_concurrency is not None:
         os.environ["JS_TEST_CONCURRENCY"] = str(js_test_concurrency)
 
-    install_nodejs = getattr(args, "install_nodejs", None)
-    if install_nodejs is not None:
-        os.environ["OVCOV_INSTALL_NODEJS"] = "true" if install_nodejs else "false"
-
-    nodejs_version = getattr(args, "nodejs_version", None)
-    if nodejs_version:
-        os.environ["OVCOV_NODEJS_VERSION"] = str(nodejs_version)
-
-
 def _load_context(args: argparse.Namespace) -> CoverageContext:
     """Create a coverage context for the current command."""
     _apply_common_env(args)
@@ -598,86 +572,6 @@ def _command_step(args: argparse.Namespace) -> int:
     """Run a single named workflow step."""
     ctx = _load_context(args)
     _run_step(ctx, args.step_name)
-    return 0
-
-
-def _command_run_all(args: argparse.Namespace) -> int:
-    """Run a range of workflow steps in sequence."""
-    ctx = _load_context(args)
-
-    try:
-        start_index = RUN_ALL_ORDER.index(args.from_step) if args.from_step else 0
-    except ValueError as exc:
-        raise ValueError(f"Unknown --from step: {args.from_step}") from exc
-
-    try:
-        end_index = RUN_ALL_ORDER.index(args.to_step) if args.to_step else len(RUN_ALL_ORDER) - 1
-    except ValueError as exc:
-        raise ValueError(f"Unknown --to step: {args.to_step}") from exc
-
-    if start_index > end_index:
-        raise ValueError("Invalid range: --from is after --to")
-
-    # In local mode, clear accumulated state only for full runs from the first step.
-    # Partial reruns (e.g. --from collect-cpp-coverage) should preserve existing test stats.
-    if not ctx.io.is_github_mode and start_index == 0:
-        ctx.io.local_summary_file.write_text("", encoding="utf-8")
-        ctx.io.local_env_file.write_text("", encoding="utf-8")
-        for key in (
-            "CXX_TESTS_TOTAL",
-            "CXX_TESTS_EXECUTED",
-            "CXX_TESTS_PASSED",
-            "CXX_TESTS_FAILED",
-            "CXX_TESTS_SKIPPED",
-            "PY_TESTS_TOTAL",
-            "PY_TESTS_PASSED",
-            "PY_TESTS_FAILED",
-            "PY_TESTS_SKIPPED",
-            "JS_TESTS_TOTAL",
-            "JS_TESTS_PASSED",
-            "JS_TESTS_FAILED",
-            "JS_TESTS_SKIPPED",
-        ):
-            os.environ.pop(key, None)
-
-    failed_steps: list[str] = []
-
-    for step_name in RUN_ALL_ORDER[start_index : end_index + 1]:
-        if step_name == "install-deps" and not args.install_deps:
-            log("Skipping install-deps step (use --install-deps to enable)")
-            continue
-
-        try:
-            _run_step(ctx, step_name)
-        except Exception as exc:  # noqa: BLE001
-            error(f"Step failed: {step_name}: {exc}")
-            failed_steps.append(step_name)
-            if args.strict:
-                break
-
-    log("Local coverage outputs:")
-    log(f"  {ctx.workspace / 'coverage.info'}")
-    log(f"  {ctx.workspace / 'python-coverage.xml'}")
-    log(f"  {ctx.workspace / 'js-lcov.info'}")
-    log(f"  {ctx.workspace / 'coverage-report' / 'index.html'}")
-    log(f"  {ctx.io.summary_file}")
-
-    if not ctx.io.is_github_mode:
-        summary_path = ctx.io.summary_file
-        if summary_path.exists():
-            summary_text = summary_path.read_text(encoding="utf-8").strip()
-            if summary_text:
-                print()
-                print("===== Coverage Summary =====")
-                print(summary_text)
-                print("===== End Coverage Summary =====")
-                print()
-
-    if failed_steps:
-        error(f"Completed with failed steps: {', '.join(failed_steps)}")
-        return 1
-
-    log("Completed successfully")
     return 0
 
 
@@ -766,30 +660,12 @@ def _add_common_options(parser: argparse.ArgumentParser, *, include_profile: boo
     parser.add_argument("--cpp-test-concurrency", type=int, default=None)
     parser.add_argument("--pytest-workers", type=int, default=None)
     parser.add_argument("--js-test-concurrency", type=int, default=None)
-    parser.add_argument(
-        "--install-nodejs",
-        action="store_true",
-        help="Install Node.js in install-deps step (recommended for local runs that include JS tests).",
-    )
-    parser.add_argument(
-        "--nodejs-version",
-        default=os.environ.get("OVCOV_NODEJS_VERSION", "22"),
-        help="Node.js major version for --install-nodejs (default: 22).",
-    )
 
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the top-level CLI parser for coverage tooling."""
-    parser = argparse.ArgumentParser(description="OpenVINO coverage workflow orchestrator")
+    parser = argparse.ArgumentParser(description="OpenVINO coverage test helpers")
     subparsers = parser.add_subparsers(dest="command", required=True)
-
-    run_all_parser = subparsers.add_parser("run-all", help="Run all coverage steps")
-    _add_common_options(run_all_parser)
-    run_all_parser.add_argument("--install-deps", action="store_true", help="Run install-deps step")
-    run_all_parser.add_argument("--from", dest="from_step", choices=RUN_ALL_ORDER)
-    run_all_parser.add_argument("--to", dest="to_step", choices=RUN_ALL_ORDER)
-    run_all_parser.add_argument("--strict", action="store_true", help="Stop on first failure")
-    run_all_parser.set_defaults(func=_command_run_all)
 
     step_parser = subparsers.add_parser("step", help="Run one coverage step")
     _add_common_options(step_parser)

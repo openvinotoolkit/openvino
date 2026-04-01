@@ -34,7 +34,7 @@ def _compose_runtime_ld_library_path(ctx: CoverageContext) -> str:
 
 
 def _selected_test_names() -> list[str]:
-    """Read the optional JS shard test selection from the environment."""
+    """Read the optional JS test selection from the environment."""
     raw = os.environ.get("JS_TEST_NAMES", "").strip()
     if not raw:
         return []
@@ -42,7 +42,7 @@ def _selected_test_names() -> list[str]:
 
 
 def _write_duration_report(ctx: CoverageContext, rows: list[tuple[str, str, float]]) -> None:
-    """Write per-test duration data for the JS shard."""
+    """Write per-test duration data for the current JS run."""
     report_path = ctx.workspace / "js-test-durations.csv"
     with report_path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)
@@ -62,7 +62,7 @@ def _write_stats_report(
     skipped: int,
     not_run: int = 0,
 ) -> None:
-    """Write aggregate JS shard execution counters."""
+    """Write aggregate JS execution counters."""
     report_path = ctx.workspace / "js-coverage-stats.env"
     report_path.write_text(
         "\n".join(
@@ -83,8 +83,7 @@ def run(ctx: CoverageContext) -> None:
     """Execute configured JS tests and export coverage results."""
     if shutil.which("node") is None or shutil.which("npm") is None:
         raise RuntimeError(
-            "Node.js/npm are not available. Install them first, for example via: "
-            "`python3 tools/coverage/coverage.py step install-deps --install-nodejs --nodejs-version 22`"
+            "Node.js/npm are not available in the coverage runtime environment."
         )
 
     config = ctx.workspace / "tools" / "coverage" / "config" / "tests_js.yml"

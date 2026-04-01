@@ -5,9 +5,17 @@ from __future__ import annotations
 
 import argparse
 import csv
-from collections import defaultdict
 import json
 from pathlib import Path
+import shutil
+import sys
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from coverage import load_cpp_tests, load_js_tests, load_python_tests
 
 
 METADATA_FILE = "coverage-artifact-metadata.json"
@@ -17,8 +25,6 @@ SUITE_DEFS = {
     "cpp": {
         "label": "C++",
         "artifacts_dir": "cpp",
-        "artifact_glob": "coverage-cpp-*",
-        "artifact_prefix": "coverage-cpp-",
         "stats_file": "cpp-coverage-stats.env",
         "duration_file": "cpp-test-durations.csv",
         "coverage_file": "coverage.info",
@@ -32,8 +38,6 @@ SUITE_DEFS = {
     "python": {
         "label": "Python",
         "artifacts_dir": "python",
-        "artifact_glob": "coverage-python-*",
-        "artifact_prefix": "coverage-python-",
         "stats_file": "python-coverage-stats.env",
         "duration_file": "python-test-durations.csv",
         "coverage_file": "python-coverage.xml",
@@ -47,8 +51,6 @@ SUITE_DEFS = {
     "js": {
         "label": "JS",
         "artifacts_dir": "js",
-        "artifact_glob": "coverage-js-*",
-        "artifact_prefix": "coverage-js-",
         "stats_file": "js-coverage-stats.env",
         "duration_file": "js-test-durations.csv",
         "coverage_file": "js-lcov.info",
@@ -60,80 +62,13 @@ SUITE_DEFS = {
         "not_run_key": "JS_TESTS_NOT_RUN",
     },
 }
-
-
-def _split_test_names(raw: str) -> list[str]:
-    """Split a comma-separated test list into normalized names."""
-    return [name.strip() for name in raw.split(",") if name.strip()]
-
-
-def _write_env_file(path: Path, values: list[tuple[str, str]]) -> None:
-    """Write simple KEY=VALUE pairs to an env-style file."""
-    path.write_text("\n".join(f"{key}={value}" for key, value in values) + "\n", encoding="utf-8")
-
-
-def init_shard_artifact(
-    *,
-    suite: str,
-    artifact_dir: Path,
-    lane: str,
-    artifact_name: str,
-    shard_label: str,
-    shard_index: int,
-    shard_count: int,
-    test_names: str,
-) -> None:
-    """Create initial shard metadata, stats, and duration files."""
-    suite_def = SUITE_DEFS[suite]
-    artifact_dir.mkdir(parents=True, exist_ok=True)
-
-    tests = _split_test_names(test_names)
-    total = len(tests)
-
-    duration_path = artifact_dir / str(suite_def["duration_file"])
-    with duration_path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.writer(handle)
-        writer.writerow(["test_name", "status", "duration_seconds", "duration_minutes"])
-        for test_name in tests:
-            writer.writerow([test_name, "not_run", "0.000", "0.000"])
-
-    stats_values: list[tuple[str, str]] = [(str(suite_def["total_key"]), str(total))]
-    executed_key = suite_def["executed_key"]
-    if executed_key:
-        stats_values.append((str(executed_key), "0"))
-    stats_values.extend(
-        [
-            (str(suite_def["passed_key"]), "0"),
-            (str(suite_def["failed_key"]), "0"),
-            (str(suite_def["skipped_key"]), "0"),
-            (str(suite_def["not_run_key"]), str(total)),
-        ]
-    )
-    _write_env_file(artifact_dir / str(suite_def["stats_file"]), stats_values)
-
-    metadata = {
-        "suite": suite,
-        "lane": lane,
-        "artifact_name": artifact_name,
-        "shard_label": shard_label,
-        "shard_index": shard_index,
-        "shard_count": shard_count,
-    }
-    (artifact_dir / METADATA_FILE).write_text(
-        json.dumps(metadata, separators=(",", ":")) + "\n",
-        encoding="utf-8",
-    )
-
-
 def _read_json_file(path: Path) -> dict[str, object]:
-    """Read a JSON file and return an empty dict when it is missing."""
     if not path.is_file():
         return {}
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def _read_env_file(path: Path) -> dict[str, str]:
-    """Read a simple env-style file into a dictionary."""
     values: dict[str, str] = {}
     if not path.is_file():
         return values
@@ -146,154 +81,138 @@ def _read_env_file(path: Path) -> dict[str, str]:
 
 
 def _to_int(values: dict[str, str], key: str | None) -> int:
-    """Parse an integer metric from an env-style mapping."""
     if not key:
         return 0
-    raw = values.get(key, "0").strip()
     try:
-        return int(raw)
+        return int(values.get(key, "0").strip())
     except ValueError:
         return 0
 
 
-def _artifact_lane(artifact_name: str, prefix: str) -> str:
-    """Extract the lane name from a shard artifact name."""
-    suffix = artifact_name[len(prefix) :]
-    return suffix.split("-shard-", 1)[0]
+def _load_test_names(*, workspace: Path, suite: str, profile: str) -> list[str]:
+    config_root = workspace / "tools" / "coverage" / "config"
+    if suite == "cpp":
+        return [test.name for test in load_cpp_tests(config_root / "tests_cpp.yml", profile)]
+    if suite == "python":
+        return [test.name for test in load_python_tests(config_root / "tests_python.yml", profile)]
+    if suite == "js":
+        return [test.name for test in load_js_tests(config_root / "tests_js.yml", profile)]
+    raise ValueError(f"Unsupported suite: {suite}")
+
+
+def collect_suite_results(
+    *,
+    workspace: Path,
+    suite: str,
+    profile: str,
+    lane: str,
+    artifact_name: str,
+    artifact_dir: Path,
+) -> None:
+    suite_def = SUITE_DEFS[suite]
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+
+    tests = _load_test_names(workspace=workspace, suite=suite, profile=profile)
+    total = len(tests)
+
+    metadata = {"suite": suite, "lane": lane, "artifact_name": artifact_name}
+    (artifact_dir / METADATA_FILE).write_text(json.dumps(metadata, separators=(",", ":")) + "\n", encoding="utf-8")
+
+    duration_path = artifact_dir / str(suite_def["duration_file"])
+    with duration_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["test_name", "status", "duration_seconds", "duration_minutes"])
+        for test_name in tests:
+            writer.writerow([test_name, "not_run", "0.000", "0.000"])
+
+    stats_lines = [f"{suite_def['total_key']}={total}"]
+    if suite_def["executed_key"]:
+        stats_lines.append(f"{suite_def['executed_key']}=0")
+    stats_lines.extend(
+        [
+            f"{suite_def['passed_key']}=0",
+            f"{suite_def['failed_key']}=0",
+            f"{suite_def['skipped_key']}=0",
+            f"{suite_def['not_run_key']}={total}",
+        ]
+    )
+    (artifact_dir / str(suite_def["stats_file"])).write_text("\n".join(stats_lines) + "\n", encoding="utf-8")
+
+    for filename in [str(suite_def["duration_file"]), str(suite_def["stats_file"]), str(suite_def["coverage_file"])]:
+        source = workspace / filename
+        if source.is_file():
+            shutil.copy2(source, artifact_dir / filename)
 
 
 def _collect_artifacts(*, workspace: Path, suite_key: str) -> list[dict[str, object]]:
-    """Collect downloaded shard artifacts for one suite."""
     suite_def = SUITE_DEFS[suite_key]
     root = workspace / "artifacts" / suite_def["artifacts_dir"]
     if not root.exists():
         return []
 
     artifacts: list[dict[str, object]] = []
-    seen_dirs: set[Path] = set()
-
     for metadata_path in sorted(root.rglob(METADATA_FILE)):
-        artifact_dir = metadata_path.parent
         metadata = _read_json_file(metadata_path)
-        if not metadata:
-            continue
-        if str(metadata.get("suite", "")).strip() != suite_key:
-            continue
-        seen_dirs.add(artifact_dir.resolve())
-        artifacts.append(
-            {
-                "artifact_dir": artifact_dir,
-                "artifact_name": str(metadata.get("artifact_name", "")).strip() or artifact_dir.name,
-                "lane": str(metadata.get("lane", "")).strip(),
-            }
-        )
-
-    if artifacts:
-        return artifacts
-
-    for artifact_dir in sorted(root.glob(suite_def["artifact_glob"])):
-        if not artifact_dir.is_dir():
-            continue
-        resolved = artifact_dir.resolve()
-        if resolved in seen_dirs:
+        if not metadata or str(metadata.get("suite", "")).strip() != suite_key:
             continue
         artifacts.append(
             {
-                "artifact_dir": artifact_dir,
-                "artifact_name": artifact_dir.name,
-                "lane": _artifact_lane(artifact_dir.name, suite_def["artifact_prefix"]),
+                "artifact_dir": metadata_path.parent,
+                "artifact_name": str(metadata.get("artifact_name", metadata_path.parent.name)).strip(),
+                "lane": str(metadata.get("lane", "")).strip() or "-",
             }
         )
-
     return artifacts
 
 
-def _flag_patterns(suite: str, lane: str) -> list[str]:
-    """Return Codecov flag patterns expected for a suite/lane pair."""
+def _flag_patterns(suite: str, lane: str) -> str:
     if suite == "cpp":
-        return [f"cpp-runtime-cpp-{lane}-shard-*"]
+        return f"`cpp-runtime-cpp-{lane}`"
     if suite == "python":
-        return [
-            f"python-api-frontend-layer-ovc-{lane}-shard-*",
-            f"cpp-runtime-python-{lane}-shard-*",
-        ]
+        return f"`python-api-frontend-layer-ovc-{lane}`, `cpp-runtime-python-{lane}`"
     if suite == "js":
-        return [
-            f"nodejs-bindings-unit-e2e-{lane}-shard-*",
-            f"cpp-runtime-js-{lane}-shard-*",
-        ]
+        return f"`nodejs-bindings-unit-e2e-{lane}`, `cpp-runtime-js-{lane}`"
     raise ValueError(f"Unsupported suite: {suite}")
 
 
 def render_summary(*, workspace: Path, summary_file: Path, selection: str, selected_lanes: str) -> None:
-    """Render the final GitHub summary from downloaded shard artifacts."""
     rows: list[dict[str, object]] = []
-    overall = {"total": 0, "executed": 0, "passed": 0, "failed": 0, "skipped": 0, "not_run": 0, "shards": 0}
+    overall = {"total": 0, "executed": 0, "passed": 0, "failed": 0, "skipped": 0, "not_run": 0}
 
     for suite_key, suite_def in SUITE_DEFS.items():
-        grouped: dict[tuple[str, str], dict[str, int]] = defaultdict(
-            lambda: {
-                "shards": 0,
-                "total": 0,
-                "executed": 0,
-                "passed": 0,
-                "failed": 0,
-                "skipped": 0,
-                "not_run": 0,
-                "report_size": 0,
-            }
-        )
         for artifact in _collect_artifacts(workspace=workspace, suite_key=suite_key):
             artifact_dir = Path(artifact["artifact_dir"])
-            artifact_name = str(artifact["artifact_name"])
             lane = str(artifact["lane"])
-            stats = _read_env_file(artifact_dir / suite_def["stats_file"])
-            total = _to_int(stats, suite_def["total_key"])
-            passed = _to_int(stats, suite_def["passed_key"])
-            failed = _to_int(stats, suite_def["failed_key"])
-            skipped = _to_int(stats, suite_def["skipped_key"])
-            not_run = _to_int(stats, suite_def["not_run_key"])
-            executed = (
-                _to_int(stats, suite_def["executed_key"])
-                if suite_def["executed_key"]
-                else max(0, total - skipped - not_run)
-            )
-            coverage_file = artifact_dir / suite_def["coverage_file"]
+            stats = _read_env_file(artifact_dir / str(suite_def["stats_file"]))
+            total = _to_int(stats, str(suite_def["total_key"]))
+            passed = _to_int(stats, str(suite_def["passed_key"]))
+            failed = _to_int(stats, str(suite_def["failed_key"]))
+            skipped = _to_int(stats, str(suite_def["skipped_key"]))
+            not_run = _to_int(stats, str(suite_def["not_run_key"]))
+            executed = _to_int(stats, suite_def["executed_key"]) if suite_def["executed_key"] else max(0, total - skipped - not_run)
+            coverage_file = artifact_dir / str(suite_def["coverage_file"])
             report_size = coverage_file.stat().st_size if coverage_file.is_file() else 0
 
-            group = grouped[(lane, suite_def["label"])]
-            group["shards"] += 1
-            group["total"] += total
-            group["executed"] += executed
-            group["passed"] += passed
-            group["failed"] += failed
-            group["skipped"] += skipped
-            group["not_run"] += not_run
-            group["report_size"] += report_size
-
-        for (lane, suite_label), group in sorted(grouped.items()):
             rows.append(
                 {
                     "lane": lane,
-                    "suite": suite_label,
-                    "shards": group["shards"],
-                    "total": group["total"],
-                    "executed": group["executed"],
-                    "passed": group["passed"],
-                    "failed": group["failed"],
-                    "skipped": group["skipped"],
-                    "not_run": group["not_run"],
-                    "report_size": group["report_size"],
-                    "flags": ", ".join(f"`{flag}`" for flag in _flag_patterns(suite_key, lane)),
+                    "suite": suite_def["label"],
+                    "total": total,
+                    "executed": executed,
+                    "passed": passed,
+                    "failed": failed,
+                    "skipped": skipped,
+                    "not_run": not_run,
+                    "report_size": report_size,
+                    "flags": _flag_patterns(suite_key, lane),
                 }
             )
-            overall["shards"] += group["shards"]
-            overall["total"] += group["total"]
-            overall["executed"] += group["executed"]
-            overall["passed"] += group["passed"]
-            overall["failed"] += group["failed"]
-            overall["skipped"] += group["skipped"]
-            overall["not_run"] += group["not_run"]
+            overall["total"] += total
+            overall["executed"] += executed
+            overall["passed"] += passed
+            overall["failed"] += failed
+            overall["skipped"] += skipped
+            overall["not_run"] += not_run
 
     pass_rate = (overall["passed"] * 100.0) / overall["executed"] if overall["executed"] else 0.0
 
@@ -315,40 +234,31 @@ def render_summary(*, workspace: Path, summary_file: Path, selection: str, selec
         f"| Failed | {overall['failed']} |",
         f"| Skipped | {overall['skipped']} |",
         f"| Not run | {overall['not_run']} |",
-        f"| Shards | {overall['shards']} |",
         "",
         "### By Lane And Suite",
-        "| Lane | Suite | Shards | Total | Executed | Passed | Failed | Skipped | Not run | Report Size (bytes) | Codecov Flags |",
-        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+        "| Lane | Suite | Total | Executed | Passed | Failed | Skipped | Not run | Report Size (bytes) | Codecov Flags |",
+        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
     ]
 
     if rows:
-        for row in rows:
+        for row in sorted(rows, key=lambda item: (str(item["lane"]), str(item["suite"]))):
             lines.append(
-                f"| {row['lane']} | {row['suite']} | {row['shards']} | {row['total']} | {row['executed']} | "
+                f"| {row['lane']} | {row['suite']} | {row['total']} | {row['executed']} | "
                 f"{row['passed']} | {row['failed']} | {row['skipped']} | {row['not_run']} | {row['report_size']} | {row['flags']} |"
             )
     else:
-        lines.append("| - | - | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | - |")
+        lines.append("| - | - | 0 | 0 | 0 | 0 | 0 | 0 | 0 | - |")
 
-    lines.extend(
-        [
-            "",
-            "Merged duration artifact: `coverage-test-durations` (`coverage-test-durations-all.csv`)",
-            "",
-        ]
-    )
+    lines.extend(["", "Merged duration artifact: `coverage-test-durations` (`coverage-test-durations-all.csv`)", ""])
     summary_file.write_text("\n".join(lines), encoding="utf-8")
 
 
 def merge_durations(*, workspace: Path, output: Path) -> None:
-    """Merge per-shard duration CSV files into one report."""
     rows: list[dict[str, str]] = []
-
     for suite_key, suite_def in SUITE_DEFS.items():
         for artifact in _collect_artifacts(workspace=workspace, suite_key=suite_key):
             artifact_dir = Path(artifact["artifact_dir"])
-            report = artifact_dir / suite_def["duration_file"]
+            report = artifact_dir / str(suite_def["duration_file"])
             if not report.is_file():
                 continue
             artifact_name = str(artifact["artifact_name"])
@@ -368,8 +278,7 @@ def merge_durations(*, workspace: Path, output: Path) -> None:
                         }
                     )
 
-    rows.sort(key=lambda row: (-float(row["duration_seconds"] or 0), row["suite"], row["test_name"]))
-
+    rows.sort(key=lambda row: (-float(row["duration_seconds"] or 0), row["suite"], row["lane"], row["test_name"]))
     with output.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(
             handle,
@@ -382,19 +291,16 @@ def merge_durations(*, workspace: Path, output: Path) -> None:
 
 
 def _parse_args() -> argparse.Namespace:
-    """Build and parse the command line for report helpers."""
     parser = argparse.ArgumentParser(description="Coverage CI report helpers")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    init = subparsers.add_parser("init-shard-artifact", help="Initialize shard artifact metadata, duration CSV, and stats files")
-    init.add_argument("--suite", choices=sorted(SUITE_DEFS), required=True)
-    init.add_argument("--artifact-dir", type=Path, required=True)
-    init.add_argument("--lane", required=True)
-    init.add_argument("--artifact-name", required=True)
-    init.add_argument("--shard-label", required=True)
-    init.add_argument("--shard-index", type=int, required=True)
-    init.add_argument("--shard-count", type=int, required=True)
-    init.add_argument("--test-names", default="")
+    collect = subparsers.add_parser("collect-suite-results", help="Prepare one suite artifact with fallback files and real outputs")
+    collect.add_argument("--workspace", type=Path, required=True)
+    collect.add_argument("--suite", choices=sorted(SUITE_DEFS), required=True)
+    collect.add_argument("--profile", required=True)
+    collect.add_argument("--lane", required=True)
+    collect.add_argument("--artifact-name", required=True)
+    collect.add_argument("--artifact-dir", type=Path, required=True)
 
     render = subparsers.add_parser("render-summary", help="Render the aggregated GitHub summary from downloaded artifacts")
     render.add_argument("--workspace", type=Path, required=True)
@@ -402,7 +308,7 @@ def _parse_args() -> argparse.Namespace:
     render.add_argument("--selection", required=True)
     render.add_argument("--selected-lanes", required=True)
 
-    merge = subparsers.add_parser("merge-durations", help="Merge shard duration CSV files from downloaded artifacts")
+    merge = subparsers.add_parser("merge-durations", help="Merge suite duration CSV files from downloaded artifacts")
     merge.add_argument("--workspace", type=Path, required=True)
     merge.add_argument("--output", type=Path, required=True)
 
@@ -410,18 +316,15 @@ def _parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
-    """Dispatch the selected report helper command."""
     args = _parse_args()
-    if args.command == "init-shard-artifact":
-        init_shard_artifact(
+    if args.command == "collect-suite-results":
+        collect_suite_results(
+            workspace=args.workspace.resolve(),
             suite=args.suite,
-            artifact_dir=args.artifact_dir.resolve(),
+            profile=args.profile,
             lane=args.lane,
             artifact_name=args.artifact_name,
-            shard_label=args.shard_label,
-            shard_index=args.shard_index,
-            shard_count=args.shard_count,
-            test_names=args.test_names,
+            artifact_dir=args.artifact_dir.resolve(),
         )
         return 0
     if args.command == "render-summary":
