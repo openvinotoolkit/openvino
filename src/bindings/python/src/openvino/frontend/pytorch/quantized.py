@@ -125,7 +125,7 @@ def _build_quantized_extensions(quant_type, for_export=False):
 def patch_quantized_for_export(model: torch.nn.Module) -> None:
     """Patch a quantized model for ``torch.export`` using ``torch.library`` custom ops.
 
-    This is the ``torch.export`` counterpart of :func:`patch_quantized`.
+    This is the ``torch.export`` counterpart of ``patch_quantized``.
     GPTQ models are not supported in the export path and will raise
     ``RuntimeError``.
 
@@ -147,7 +147,7 @@ def patch_quantized_for_export(model: torch.nn.Module) -> None:
 
 
 def unpatch_quantized_for_export(model: torch.nn.Module) -> None:
-    """Revert patching applied by :func:`patch_quantized_for_export`.
+    """Revert patching applied by ``patch_quantized_for_export``.
 
     Args:
         model (torch.nn.Module): The model to unpatch.

@@ -172,7 +172,7 @@ def _unpatch_torch_functions():
 def patch_model_for_export(model, module_extensions, orig_forward_name):
     """Patch model modules for ``torch.export`` by replacing forwards with ``torch.ops.ov_ext.*`` calls.
 
-    Unlike :func:`patch_model` (which uses ``torch.autograd.Function`` / ``torch.jit.ignore``
+    Unlike ``patch_model`` (which uses ``torch.autograd.Function`` / ``torch.jit.ignore``
     for TorchScript tracing), this function creates forwards that call registered
     ``torch.library`` custom ops so that ``torch.export`` captures them as
     ``call_function`` nodes in the FX graph.
@@ -292,7 +292,7 @@ def __make_16bit_exportable(model: torch.nn.Module,
                             patch_condition=None):
     """Prepare a 16-bit PyTorch model for ``torch.export`` with OpenVINO.
 
-    Same purpose as :func:`__make_16bit_traceable` but uses
+    Same purpose as ``__make_16bit_traceable`` but uses
     ``torch.library`` custom ops instead of ``torch.autograd.Function``
     so the model can be exported via ``torch.export.export``.
     """

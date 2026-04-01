@@ -34,21 +34,21 @@ _ov_ext_lib.define(
 
 
 @torch.library.impl(_ov_ext_lib, "linear", "Meta")
-def _linear_meta(input, weight, bias):
+def _linear_meta(data, weight, bias):
     out_features = weight.shape[0]
     return torch.empty(
-        *input.shape[:-1], out_features,
+        *data.shape[:-1], out_features,
         dtype=torch.float32, device="meta")
 
 
 @torch.library.impl(_ov_ext_lib, "linear", "CPU")
-def _linear_cpu(input, weight, bias):
+def _linear_cpu(data, weight, bias):
     out = torch.mm(
-        input.reshape(-1, input.shape[-1]).float(),
+        data.reshape(-1, data.shape[-1]).float(),
         weight.float().t())
     if bias is not None:
         out = out + bias.float()
-    return out.reshape(*input.shape[:-1], weight.shape[0])
+    return out.reshape(*data.shape[:-1], weight.shape[0])
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -84,22 +84,22 @@ _ov_ext_lib.define(
 
 
 @torch.library.impl(_ov_ext_lib, "conv1d", "Meta")
-def _conv1d_meta(input, weight, bias):
-    # Conv1D: out_features = weight.shape[1]
+def _conv1d_meta(data, weight, bias):
+    # Output feature count comes from the second dimension of weight.
     out_features = weight.shape[1]
     return torch.empty(
-        *input.shape[:-1], out_features,
+        *data.shape[:-1], out_features,
         dtype=torch.float32, device="meta")
 
 
 @torch.library.impl(_ov_ext_lib, "conv1d", "CPU")
-def _conv1d_cpu(input, weight, bias):
+def _conv1d_cpu(data, weight, bias):
     out = torch.mm(
-        input.reshape(-1, input.shape[-1]).float(),
+        data.reshape(-1, data.shape[-1]).float(),
         weight.float())
     if bias is not None:
         out = out + bias.float()
-    return out.reshape(*input.shape[:-1], weight.shape[1])
+    return out.reshape(*data.shape[:-1], weight.shape[1])
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -131,23 +131,23 @@ _ov_ext_lib.define(
 
 
 @torch.library.impl(_ov_ext_lib, "awq_gemm", "Meta")
-def _awq_gemm_meta(input, qweight, qzeros, scales, group_size, w_bit, bias):
+def _awq_gemm_meta(data, qweight, qzeros, scales, group_size, w_bit, bias):
     pack_num = 32 // w_bit
     out_features = qweight.shape[1] * pack_num
     return torch.empty(
-        *input.shape[:-1], out_features,
+        *data.shape[:-1], out_features,
         dtype=torch.float32, device="meta")
 
 
 @torch.library.impl(_ov_ext_lib, "awq_gemm", "CPU")
-def _awq_gemm_cpu(input, qweight, qzeros, scales, group_size, w_bit, bias):
+def _awq_gemm_cpu(data, qweight, qzeros, scales, group_size, w_bit, bias):
     # Placeholder – actual dequantisation happens in the C++ OV translator.
     # This fallback produces the right shape for tracing / testing.
     pack_num = 32 // w_bit
     out_features = qweight.shape[1] * pack_num
     out = torch.zeros(
-        *input.shape[:-1], out_features,
-        dtype=torch.float32, device=input.device)
+        *data.shape[:-1], out_features,
+        dtype=torch.float32, device=data.device)
     if bias is not None:
         out = out + bias.float()
     return out
@@ -162,20 +162,20 @@ _ov_ext_lib.define(
 
 
 @torch.library.impl(_ov_ext_lib, "bit_linear", "Meta")
-def _bit_linear_meta(input, weight, weight_scale, bias):
+def _bit_linear_meta(data, weight, weight_scale, bias):
     # BitNet weight packing: out_features is weight.shape[0]
     out_features = weight.shape[0]
     return torch.empty(
-        *input.shape[:-1], out_features,
+        *data.shape[:-1], out_features,
         dtype=torch.float32, device="meta")
 
 
 @torch.library.impl(_ov_ext_lib, "bit_linear", "CPU")
-def _bit_linear_cpu(input, weight, weight_scale, bias):
+def _bit_linear_cpu(data, weight, weight_scale, bias):
     out_features = weight.shape[0]
     out = torch.zeros(
-        *input.shape[:-1], out_features,
-        dtype=torch.float32, device=input.device)
+        *data.shape[:-1], out_features,
+        dtype=torch.float32, device=data.device)
     if bias is not None:
         out = out + bias.float()
     return out
