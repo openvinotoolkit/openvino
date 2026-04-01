@@ -7,6 +7,7 @@
 #include <map>
 #include <iostream>
 #include <iomanip>
+#include <sstream>
 
 #include <intel_gpu/runtime/engine.hpp>
 #include <intel_gpu/runtime/memory.hpp>
@@ -54,13 +55,17 @@ public:
         }
 
         auto dts = config.data_types;
-        cldnn::data_types dt = dts.size() > 0 ? dts[0] : cldnn::data_types::f16;
-        bool int_output_dt = (dt == cldnn::data_types::i8 || dt == cldnn::data_types::u8 ||
-                      dt == cldnn::data_types::i32 || dt == cldnn::data_types::i64);
+        cldnn::data_types default_input_dt = dts.size() > 0 ? dts[0] : cldnn::data_types::f16;
+        // The primitive's own output dtype follows the first dtype token (legacy behavior).
+        // If fused post-ops include quantize, final output dtype is derived from post-ops.
+        cldnn::data_types primitive_output_dt = default_input_dt;
 
         // Determine eltwise mode: config.eltwise_mode takes priority (direct from verbose log),
         // then fall back to post-ops string, then default to sum
         auto post_ops = parse_post_ops(config.attr_post_ops_str);
+        cldnn::data_types final_output_dt = get_terminal_post_op_dtype(post_ops, primitive_output_dt);
+        bool int_output_dt = (final_output_dt == cldnn::data_types::i8 || final_output_dt == cldnn::data_types::u8 ||
+              final_output_dt == cldnn::data_types::i32 || final_output_dt == cldnn::data_types::i64);
         bool has_quantize_post_op = false;
         for (const auto& po : post_ops) {
             if (po.kind == post_op_kind::quantize) {
@@ -69,6 +74,51 @@ public:
             }
         }
         bool skip_activation_chain = int_output_dt && has_quantize_post_op;
+
+        auto parse_colon_floats = [](const std::string& s) {
+            std::vector<float> out;
+            if (s.empty()) return out;
+            std::istringstream iss(s);
+            std::string tok;
+            while (std::getline(iss, tok, ':')) {
+                out.push_back(std::stof(tok));
+            }
+            return out;
+        };
+
+        auto parse_stride_tensors = [](const std::string& s) {
+            std::vector<cldnn::tensor> out;
+            if (s.empty()) return out;
+            std::istringstream tensor_iss(s);
+            std::string tensor_tok;
+            while (std::getline(tensor_iss, tensor_tok, ';')) {
+                if (tensor_tok.empty()) {
+                    continue;
+                }
+                std::vector<cldnn::tensor::value_type> dims;
+                std::istringstream dim_iss(tensor_tok);
+                std::string dim_tok;
+                while (std::getline(dim_iss, dim_tok, ':')) {
+                    dims.push_back(static_cast<cldnn::tensor::value_type>(std::stoll(dim_tok)));
+                }
+                out.emplace_back(dims);
+            }
+            return out;
+        };
+
+        auto to_broadcast_type = [](const std::string& s) {
+            if (s == "none" || s == "NONE" || s == "0")
+                return ov::op::AutoBroadcastType::NONE;
+            if (s == "pdpd" || s == "PDPD" || s == "2")
+                return ov::op::AutoBroadcastType::PDPD;
+            return ov::op::AutoBroadcastType::NUMPY;
+        };
+
+        auto coeffs = parse_colon_floats(config.eltwise_coefficients);
+        auto stride_vec = parse_stride_tensors(config.eltwise_stride);
+        ov::op::AutoBroadcastSpec elt_broadcast_spec(
+            to_broadcast_type(config.eltwise_broadcast_type),
+            config.eltwise_broadcast_axis);
         cldnn::eltwise_mode mode = cldnn::eltwise_mode::sum;
         if (config.eltwise_mode >= 0) {
             mode = static_cast<cldnn::eltwise_mode>(config.eltwise_mode);
@@ -76,31 +126,70 @@ public:
             mode = map_eltwise_mode(post_ops[0].elt_mode);
         }
 
+        // If eltwise mode is explicitly provided from verbose and fused eltwise post-ops
+        // are present, trailing inputs can represent post-op tensors rather than
+        // base eltwise operands.
+        size_t post_op_start = 0;
+        if (config.eltwise_mode < 0 && !post_ops.empty() && post_ops[0].kind == post_op_kind::eltwise) {
+            post_op_start = 1;
+        }
+        size_t fused_eltwise_post_count = 0;
+        for (size_t pi = post_op_start; pi < post_ops.size(); ++pi) {
+            if (post_ops[pi].kind == post_op_kind::eltwise) {
+                fused_eltwise_post_count++;
+            }
+        }
+
         auto exec_config = make_exec_config(config, "eltwise_prim");
         auto stream = engine.create_stream(exec_config);
 
         cldnn::topology topology;
-        std::vector<cldnn::input_info> inputs;
         std::vector<cldnn::memory::ptr> memories;
+        const size_t total_input_count = shapes.size();
+        size_t base_input_count = total_input_count;
+        if (config.eltwise_mode >= 0 && fused_eltwise_post_count > 0 && total_input_count >= 2 + fused_eltwise_post_count) {
+            base_input_count = total_input_count - fused_eltwise_post_count;
+        }
+        base_input_count = std::max<size_t>(2, std::min(base_input_count, total_input_count));
 
-        for (size_t i = 0; i < shapes.size(); ++i) {
+        for (size_t i = 0; i < total_input_count; ++i) {
             std::string id = "input" + std::to_string(i);
             ov::PartialShape ps(std::vector<ov::Dimension>(shapes[i].begin(), shapes[i].end()));
             // Use per-input data type: dt[0] for input0, dt[1] for input1 (if available)
-            cldnn::data_types input_dt = (dts.size() > i) ? dts[i] : dt;
+            cldnn::data_types input_dt = (dts.size() > i) ? dts[i] : default_input_dt;
             cldnn::layout layout(ps, input_dt, get_input_format(config, i, shapes[i].size()));
             auto mem = engine.allocate_memory(layout);
             fill_memory_random(mem, *stream, input_dt);
             topology.add(cldnn::input_layout(id, layout));
-            inputs.push_back(cldnn::input_info(id));
             memories.push_back(mem);
         }
 
-        topology.add(cldnn::eltwise("eltwise_prim", inputs, mode,
-            {}, dt,
-            ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY),
-            config.pythondiv != 0));
+        // Eltwise primitive path is binary-oriented in shape inference.
+        // Support N inputs by chaining binary eltwise ops left-to-right.
+        if (!stride_vec.empty()) {
+            if (base_input_count != 2 || !coeffs.empty() || config.pythondiv != 0) {
+                throw std::runtime_error("eltwise_stride supports only binary eltwise without coefficients/pythondiv");
+            }
+            topology.add(cldnn::eltwise("eltwise_prim",
+                cldnn::input_info("input0"), cldnn::input_info("input1"),
+                stride_vec, mode, elt_broadcast_spec));
+        } else {
+            topology.add(cldnn::eltwise("eltwise_prim", {cldnn::input_info("input0"), cldnn::input_info("input1")}, mode,
+                coeffs, primitive_output_dt,
+                elt_broadcast_spec,
+                config.pythondiv != 0));
+        }
         std::string last_prim_id = "eltwise_prim";
+        for (size_t i = 2; i < base_input_count; ++i) {
+            std::string elt_chain_id = "eltwise_chain_" + std::to_string(i);
+            topology.add(cldnn::eltwise(elt_chain_id,
+                {cldnn::input_info(last_prim_id), cldnn::input_info("input" + std::to_string(i))},
+                mode,
+                {}, primitive_output_dt,
+                elt_broadcast_spec,
+                config.pythondiv != 0));
+            last_prim_id = elt_chain_id;
+        }
 
         auto compute_broadcast_shape = [](const std::vector<int64_t>& a,
                                           const std::vector<int64_t>& b) {
@@ -113,20 +202,16 @@ public:
             }
             return out;
         };
-        std::vector<int64_t> out_shape = compute_broadcast_shape(shapes[0], shapes[1]);
-        std::map<int, ref::elt_ref_data> elt_data_map;
-
-        // Determine which post-ops to apply after the eltwise primitive.
-        // If eltwise_mode comes from post_ops[0], that entry is "consumed" as the
-        // main eltwise mode; remaining entries are chained as GPU primitives.
-        size_t post_op_start = 0;
-        if (config.eltwise_mode < 0 && !post_ops.empty() && post_ops[0].kind == post_op_kind::eltwise) {
-            post_op_start = 1;
+        std::vector<int64_t> out_shape = shapes[0];
+        for (size_t i = 1; i < base_input_count; ++i) {
+            out_shape = compute_broadcast_shape(out_shape, shapes[i]);
         }
+        std::map<int, ref::elt_ref_data> elt_data_map;
 
         // Chain post-ops in the GPU topology and keep the runtime chain for CPU reference.
         std::vector<post_op_entry> runtime_post_ops;
         int runtime_post_op_idx = 0;
+        size_t fused_eltwise_input_used = 0;
         for (size_t pi = post_op_start; pi < post_ops.size(); ++pi) {
             const auto& po = post_ops[pi];
             switch (po.kind) {
@@ -153,20 +238,34 @@ public:
                         elt_shape.assign(out_shape.size(), 1);
                     }
 
-                    std::string elt_data_id = "elt_data_" + std::to_string(pi);
-                    ov::PartialShape elt_ps(std::vector<ov::Dimension>(elt_shape.begin(), elt_shape.end()));
-                    cldnn::layout elt_layout(elt_ps, po.elt_dt, get_format_for_rank(elt_shape.size()));
-                    auto elt_mem = engine.allocate_memory(elt_layout);
-                    fill_memory_random(elt_mem, *stream, po.elt_dt);
-
-                    if (config.is_acc()) {
-                        elt_data_map[runtime_post_op_idx] = {read_memory_to_f32(elt_mem, *stream), elt_shape};
+                    std::string elt_data_id;
+                    cldnn::input_info elt_input;
+                    size_t post_tensor_idx = base_input_count + fused_eltwise_input_used;
+                    if (post_tensor_idx < memories.size()) {
+                        // Use trailing logged input as fused eltwise tensor.
+                        elt_data_id = "input" + std::to_string(post_tensor_idx);
+                        elt_input = cldnn::input_info(elt_data_id);
+                        if (config.is_acc()) {
+                            elt_data_map[runtime_post_op_idx] = {read_memory_to_f32(memories[post_tensor_idx], *stream), shapes[post_tensor_idx]};
+                        }
+                        fused_eltwise_input_used++;
+                    } else {
+                        // Fallback for manually-crafted commands without explicit fused tensor inputs.
+                        elt_data_id = "elt_data_" + std::to_string(pi);
+                        ov::PartialShape elt_ps(std::vector<ov::Dimension>(elt_shape.begin(), elt_shape.end()));
+                        cldnn::layout elt_layout(elt_ps, po.elt_dt, get_format_for_rank(elt_shape.size()));
+                        auto elt_mem = engine.allocate_memory(elt_layout);
+                        fill_memory_random(elt_mem, *stream, po.elt_dt);
+                        topology.add(cldnn::data(elt_data_id, elt_mem));
+                        elt_input = cldnn::input_info(elt_data_id);
+                        if (config.is_acc()) {
+                            elt_data_map[runtime_post_op_idx] = {read_memory_to_f32(elt_mem, *stream), elt_shape};
+                        }
                     }
 
-                    topology.add(cldnn::data(elt_data_id, elt_mem));
                     std::string elt_id = "elt_post_" + std::to_string(pi);
                     topology.add(cldnn::eltwise(elt_id,
-                        {cldnn::input_info(last_prim_id), cldnn::input_info(elt_data_id)},
+                        {cldnn::input_info(last_prim_id), elt_input},
                         map_eltwise_mode(po.elt_mode)));
                     last_prim_id = elt_id;
                     runtime_post_ops.push_back(po);
@@ -217,7 +316,7 @@ public:
             }
         }
 
-        add_terminal_post_op_consumer_reorder(topology, config, runtime_post_ops, last_prim_id, dt);
+        add_terminal_post_op_consumer_reorder(topology, config, runtime_post_ops, last_prim_id, primitive_output_dt);
 
         cldnn::network network(engine, topology, exec_config);
         for (size_t i = 0; i < memories.size(); ++i) {
@@ -237,10 +336,20 @@ public:
             auto outputs = network.execute();
             auto gpu_out = read_network_output_f32(outputs, last_prim_id, *stream);
 
-            // Read inputs
-            std::vector<float> in0 = read_memory_to_f32(memories[0], *stream);
-            std::vector<float> in1 = read_memory_to_f32(memories[1], *stream);
-            auto ref_out = ref::eltwise(in0, in1, mode, shapes[0], shapes[1]);
+            // Read all inputs and fold N-ary eltwise reference left-to-right.
+            // This mirrors the N-input eltwise primitive execution path.
+            std::vector<std::vector<float>> input_vals;
+            input_vals.reserve(memories.size());
+            for (size_t i = 0; i < memories.size(); ++i) {
+                input_vals.push_back(read_memory_to_f32(memories[i], *stream));
+            }
+
+            auto ref_out = input_vals[0];
+            std::vector<int64_t> ref_shape = shapes[0];
+            for (size_t i = 1; i < base_input_count; ++i) {
+                ref_out = ref::eltwise(ref_out, input_vals[i], mode, ref_shape, shapes[i]);
+                ref_shape = compute_broadcast_shape(ref_shape, shapes[i]);
+            }
 
             // GPU with pythondiv uses floor-division for integer output types.
             // Keep floating-point outputs as true division.
@@ -252,7 +361,7 @@ public:
 
             // GPU eltwise output is quantized to the output dtype (e.g., u8 saturate).
             // Apply the same quantization to reference so comparison is valid.
-            ref::apply_quantize_ref(ref_out, dt);
+            ref::apply_quantize_ref(ref_out, primitive_output_dt);
 
             bool can_check = ref::apply_post_ops_ref(ref_out, runtime_post_ops, out_shape, elt_data_map);
             if (!can_check) {
@@ -260,16 +369,16 @@ public:
             }
 
             float atol, rtol;
-            get_default_tolerance(dt, atol, rtol);
+            get_default_tolerance(final_output_dt, atol, rtol);
 
             // When output is integer (e.g. i32) but an input is float (e.g. f16),
             // GPU and CPU reference may differ by ±1 due to intermediate f16
             // truncation vs f32 rounding before floor/cast.  This is within spec.
-            bool has_int_output = (dt == cldnn::data_types::i32 || dt == cldnn::data_types::i64 ||
-                                   dt == cldnn::data_types::u8  || dt == cldnn::data_types::i8);
+            bool has_int_output = (final_output_dt == cldnn::data_types::i32 || final_output_dt == cldnn::data_types::i64 ||
+                                   final_output_dt == cldnn::data_types::u8  || final_output_dt == cldnn::data_types::i8);
             bool has_float_input = false;
-            for (size_t i = 0; i < dts.size(); ++i) {
-                auto idt = (dts.size() > i) ? dts[i] : dt;
+            for (size_t i = 0; i < memories.size(); ++i) {
+                auto idt = (dts.size() > i) ? dts[i] : default_input_dt;
                 if (idt == cldnn::data_types::f16 || idt == cldnn::data_types::f32) {
                     has_float_input = true;
                     break;
@@ -323,7 +432,8 @@ public:
         }
 
         auto dts = config.data_types;
-        cldnn::data_types dt = dts.size() > 0 ? dts[0] : cldnn::data_types::f16;
+        cldnn::data_types input_dt = dts.size() > 0 ? dts[0] : cldnn::data_types::f16;
+        cldnn::data_types output_dt = (dts.size() > 1) ? dts.back() : input_dt;
 
         // Get base activation function from post-ops
         auto post_ops = parse_post_ops(config.attr_post_ops_str);
@@ -342,9 +452,9 @@ public:
 
         auto& shape = shapes[0];
         ov::PartialShape ps(std::vector<ov::Dimension>(shape.begin(), shape.end()));
-        cldnn::layout layout(ps, dt, get_input_format(config, 0, shape.size()));
+        cldnn::layout layout(ps, input_dt, get_input_format(config, 0, shape.size()));
         auto mem = engine.allocate_memory(layout);
-        fill_memory_random(mem, *stream, dt);
+        fill_memory_random(mem, *stream, input_dt);
 
         cldnn::topology topology;
         topology.add(cldnn::input_layout("input", layout));
@@ -443,7 +553,7 @@ public:
             }
         }
 
-        add_terminal_post_op_consumer_reorder(topology, config, runtime_post_ops, last_prim_id, dt);
+        add_terminal_post_op_consumer_reorder(topology, config, runtime_post_ops, last_prim_id, output_dt);
 
         cldnn::network network(engine, topology, exec_config);
         network.set_input_data("input", mem);
@@ -464,7 +574,7 @@ public:
             auto ref_out = ref::activation(input_f32, act, alpha, beta);
 
             // Activation output follows primitive output dtype.
-            ref::apply_quantize_ref(ref_out, dt);
+            ref::apply_quantize_ref(ref_out, output_dt);
 
             bool can_check = ref::apply_post_ops_ref(ref_out, runtime_post_ops, out_shape, elt_data_map);
             if (!can_check) {
@@ -472,7 +582,7 @@ public:
             }
 
             float atol, rtol;
-            get_default_tolerance(dt, atol, rtol);
+            get_default_tolerance(output_dt, atol, rtol);
             acc_res = compare_f32(gpu_out, ref_out, atol, rtol);
             has_acc = true;
             reported_acc_ = {true, acc_res.total_elements, acc_res.mismatches, acc_res.max_abs_diff, acc_res.max_rel_diff};

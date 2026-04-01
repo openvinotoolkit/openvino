@@ -6,6 +6,7 @@
 #include <vector>
 #include <iostream>
 #include <iomanip>
+#include <sstream>
 
 #include <intel_gpu/runtime/engine.hpp>
 #include <intel_gpu/runtime/memory.hpp>
@@ -59,10 +60,22 @@ public:
         auto mem = engine.allocate_memory(layout);
         fill_memory_random(mem, *stream, dt);
 
-        // Normalize across all dims except batch (axes [1, ..., rank-1])
+        // Parse reduction axes from config or use default [1, ..., rank-1]
         std::vector<int64_t> reduction_axes;
-        for (size_t i = 1; i < shape.size(); ++i) {
-            reduction_axes.push_back(static_cast<int64_t>(i));
+        if (!config.mvn_reduction_axes.empty()) {
+            // Parse colon-separated axes
+            std::istringstream axes_stream(config.mvn_reduction_axes);
+            std::string axis_str;
+            while (std::getline(axes_stream, axis_str, ':')) {
+                if (!axis_str.empty()) {
+                    reduction_axes.push_back(static_cast<int64_t>(std::stoll(axis_str)));
+                }
+            }
+        } else {
+            // Default: normalize across all dims except batch (axes [1, ..., rank-1])
+            for (size_t i = 1; i < shape.size(); ++i) {
+                reduction_axes.push_back(static_cast<int64_t>(i));
+            }
         }
 
         cldnn::topology topology;

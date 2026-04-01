@@ -547,7 +547,7 @@ impl_info: fc_bf_tiled__f16
 |--------|---------|
 | `PASSED` | GPU output matched CPU reference (or perf-only completed successfully) |
 | `FAILED` | Accuracy mismatch or runtime error |
-| `UNIMPLEMENTED` | CPU reference not available for this kernel/config |
+| `UNIMPLEMENTED` | Requested primitive itself is not implemented in `bench_kernel`, or correctness checking or a specific bench/runtime path is not implemented for this kernel/config |
 | `SKIPPED` | Test intentionally skipped (e.g., reference too slow for large problem) |
 
 ### Auto-Skip for Large Convolutions
@@ -605,7 +605,15 @@ python3 scripts/bench_kernel_converter.py -i verbose.log -o batch.txt --mode=c
 
 # Filter specific kernel
 python3 scripts/bench_kernel_converter.py -i verbose.log -o fc_batch.txt -k fc --uniq
+
+# Show summary, including entries marked unsupported=1 by debug_helper
+python3 scripts/bench_kernel_converter.py -i verbose.log -o batch.txt --summary
 ```
+
+When `debug_helper` emits a line with `unsupported=1`, the converter treats it as a non-reproducible bench entry and
+skips command generation for that line. This converter-side filtering is only one source of non-supported cases;
+hand-written bench commands can still report `UNIMPLEMENTED` directly if the requested primitive or path is not
+implemented in `bench_kernel`.
 
 ---
 

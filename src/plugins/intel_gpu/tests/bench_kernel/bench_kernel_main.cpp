@@ -170,6 +170,12 @@ DEFINE_string(order_k, "", "SDPA: K transpose order");
 DEFINE_string(order_v, "", "SDPA: V transpose order");
 DEFINE_string(order_out, "", "SDPA: output transpose order");
 DEFINE_string(scale_val, "", "SDPA: explicit scale value");
+DEFINE_int32(compressed, -1, "FullyConnected: compressed weights hint (-1=auto, 0|1)");
+DEFINE_int32(dynamic_quantized, -1, "FullyConnected: dynamic quantized activation hint (-1=auto, 0|1)");
+DEFINE_int32(dynamic_quantized_zp, -1, "FullyConnected: dynamic quantized activation zp hint (-1=auto, 0|1)");
+DEFINE_int32(dynamic_quantized_precomputed_reduction, -1, "FullyConnected: dynamic quantized precomputed reduction hint (-1=auto, 0|1)");
+DEFINE_int32(fc_input_size, -1, "FullyConnected: input rank hint (-1=auto)");
+DEFINE_int32(fc_weights_rank, -1, "FullyConnected: weights rank hint (-1=auto)");
 DEFINE_int32(groups, 1, "Conv: filter groups");
 DEFINE_string(strides, "", "Conv: stride (e.g. 2x2)");
 DEFINE_string(dilations, "", "Conv: dilation (e.g. 1x1)");
@@ -189,8 +195,13 @@ DEFINE_int32(axis, -1, "Softmax/Gather: axis (-1=last dim)");
 DEFINE_int32(normalize_variance, 1, "MVN: normalize variance (0|1)");
 DEFINE_string(epsilon, "", "MVN: epsilon value");
 DEFINE_int32(eps_inside_sqrt, 0, "MVN: epsilon inside sqrt (0|1)");
+DEFINE_string(mvn_reduction_axes, "", "MVN: reduction axes (e.g., 1:2:3)");
 DEFINE_int32(eltwise_mode, -1, "Eltwise: mode (-1=from post-ops)");
 DEFINE_int32(pythondiv, 0, "Eltwise: python-style division (0|1)");
+DEFINE_string(eltwise_coefficients, "", "Eltwise: coefficients for sum mode (e.g. 1.0:0.5)");
+DEFINE_string(eltwise_stride, "", "Eltwise: per-input stride tensors (semicolon separated)");
+DEFINE_string(eltwise_broadcast_type, "", "Eltwise: auto broadcast type (numpy|pdpd|none)");
+DEFINE_int32(eltwise_broadcast_axis, -1, "Eltwise: auto broadcast axis for PDPD");
 DEFINE_int32(glu_type, 0, "SwiGLU: GLU type (0=Swish)");
 DEFINE_int32(split_axis, -1, "SwiGLU: split axis (-1=last)");
 DEFINE_int32(split_length, -1, "SwiGLU: split length (-1=auto)");
@@ -255,6 +266,12 @@ DEFINE_int32(top_k, 1, "ArgMaxMin: number of top elements");
 // Col2Im-specific
 DEFINE_string(col2im_output_shape, "", "Col2Im: output spatial shape (e.g. 4x4)");
 DEFINE_string(col2im_kernel_shape, "", "Col2Im: kernel shape (e.g. 3x3)");
+DEFINE_string(col2im_padding_begin, "", "Col2Im: padding begin (e.g. 1x1)");
+DEFINE_string(col2im_padding_end, "", "Col2Im: padding end (e.g. 1x1)");
+
+// ScatterElementsUpdate-specific
+DEFINE_int32(scatter_mode, 0, "ScatterElementsUpdate: reduction mode");
+DEFINE_int32(scatter_use_init_val, 1, "ScatterElementsUpdate: use initial value (0|1)");
 
 // DetectionOutput-specific
 DEFINE_int32(det_num_classes, 21, "DetectionOutput: number of classes");
@@ -266,6 +283,16 @@ DEFINE_int32(det_code_type, 1, "DetectionOutput: code type (0=corner, 1=center_s
 DEFINE_int32(det_share_location, 1, "DetectionOutput: share location (0|1)");
 DEFINE_int32(det_background_label_id, 0, "DetectionOutput: background label id");
 DEFINE_int32(det_variance_encoded, 0, "DetectionOutput: variance encoded in target (0|1)");
+DEFINE_double(det_eta, 1.0, "DetectionOutput: eta (adaptive NMS)");
+DEFINE_int32(det_prior_info_size, 4, "DetectionOutput: prior info size");
+DEFINE_int32(det_prior_coordinates_offset, 0, "DetectionOutput: prior coordinates offset");
+DEFINE_int32(det_prior_is_normalized, 1, "DetectionOutput: prior is normalized (0|1)");
+DEFINE_int32(det_input_width, -1, "DetectionOutput: input width (-1=auto)");
+DEFINE_int32(det_input_height, -1, "DetectionOutput: input height (-1=auto)");
+DEFINE_int32(det_decrease_label_id, 0, "DetectionOutput: decrease label id (0|1)");
+DEFINE_int32(det_clip_before_nms, 0, "DetectionOutput: clip before NMS (0|1)");
+DEFINE_int32(det_clip_after_nms, 0, "DetectionOutput: clip after NMS (0|1)");
+DEFINE_double(det_objectness_score, 0.0, "DetectionOutput: objectness score");
 
 // New primitive-specific attributes
 DEFINE_int32(cum_exclusive, 0, "CumSum: exclusive (0|1)");
@@ -457,6 +484,12 @@ static bench_kernel::bench_config build_config(const std::string& kernel_name,
     cfg.order_v              = FLAGS_order_v;
     cfg.order_out            = FLAGS_order_out;
     cfg.scale_val            = FLAGS_scale_val;
+    cfg.compressed           = FLAGS_compressed;
+    cfg.dynamic_quantized    = FLAGS_dynamic_quantized;
+    cfg.dynamic_quantized_zp = FLAGS_dynamic_quantized_zp;
+    cfg.dynamic_quantized_precomputed_reduction = FLAGS_dynamic_quantized_precomputed_reduction;
+    cfg.fc_input_size        = FLAGS_fc_input_size;
+    cfg.fc_weights_rank      = FLAGS_fc_weights_rank;
     cfg.groups               = FLAGS_groups;
     cfg.strides              = FLAGS_strides;
     cfg.dilations            = FLAGS_dilations;
@@ -476,8 +509,13 @@ static bench_kernel::bench_config build_config(const std::string& kernel_name,
     cfg.normalize_variance   = FLAGS_normalize_variance;
     cfg.epsilon              = FLAGS_epsilon;
     cfg.eps_inside_sqrt      = FLAGS_eps_inside_sqrt;
+    cfg.mvn_reduction_axes   = FLAGS_mvn_reduction_axes;
     cfg.eltwise_mode         = FLAGS_eltwise_mode;
     cfg.pythondiv            = FLAGS_pythondiv;
+    cfg.eltwise_coefficients = FLAGS_eltwise_coefficients;
+    cfg.eltwise_stride       = FLAGS_eltwise_stride;
+    cfg.eltwise_broadcast_type = FLAGS_eltwise_broadcast_type;
+    cfg.eltwise_broadcast_axis = FLAGS_eltwise_broadcast_axis;
     cfg.glu_type             = FLAGS_glu_type;
     cfg.split_axis           = FLAGS_split_axis;
     cfg.split_length         = FLAGS_split_length;
@@ -529,6 +567,20 @@ static bench_kernel::bench_config build_config(const std::string& kernel_name,
     cfg.det_share_location   = FLAGS_det_share_location;
     cfg.det_background_label_id = FLAGS_det_background_label_id;
     cfg.det_variance_encoded = FLAGS_det_variance_encoded;
+    cfg.det_eta              = static_cast<float>(FLAGS_det_eta);
+    cfg.det_prior_info_size  = FLAGS_det_prior_info_size;
+    cfg.det_prior_coordinates_offset = FLAGS_det_prior_coordinates_offset;
+    cfg.det_prior_is_normalized = FLAGS_det_prior_is_normalized;
+    cfg.det_input_width      = FLAGS_det_input_width;
+    cfg.det_input_height     = FLAGS_det_input_height;
+    cfg.det_decrease_label_id = FLAGS_det_decrease_label_id;
+    cfg.det_clip_before_nms  = FLAGS_det_clip_before_nms;
+    cfg.det_clip_after_nms   = FLAGS_det_clip_after_nms;
+    cfg.det_objectness_score = static_cast<float>(FLAGS_det_objectness_score);
+    cfg.col2im_padding_begin = FLAGS_col2im_padding_begin;
+    cfg.col2im_padding_end   = FLAGS_col2im_padding_end;
+    cfg.scatter_mode         = FLAGS_scatter_mode;
+    cfg.scatter_use_init_val = FLAGS_scatter_use_init_val;
     // New primitive-specific attributes
     cfg.cum_exclusive        = FLAGS_cum_exclusive;
     cfg.cum_reverse          = FLAGS_cum_reverse;
@@ -574,6 +626,20 @@ static bench_kernel::bench_config build_config(const std::string& kernel_name,
     cfg.batch_file           = FLAGS_batch;
     cfg.parse_common();
     return cfg;
+}
+
+static bench_kernel::bench_stat report_unimplemented_result(const bench_kernel::bench_config& cfg,
+                                                            const std::string& reason) {
+    bench_kernel::bench_stat stat;
+    stat.tests = 1;
+    stat.unimplemented = 1;
+
+    std::cout << "impl_info: unimplemented" << std::endl;
+    std::cout << std::fixed << std::setprecision(2);
+    std::cout << cfg.test_index << ":" << bench_kernel::to_string(bench_kernel::test_status::unimplemented)
+              << " (0.00 ms) " << reason
+              << " __REPRO: " << cfg.repro_str() << std::endl;
+    return stat;
 }
 
 static void list_devices() {
@@ -780,6 +846,12 @@ static std::pair<std::string, bench_kernel::bench_config> parse_batch_cmd_line(c
         } else if (try_parse(token, "--order_v=", cfg.order_v)) {
         } else if (try_parse(token, "--order_out=", cfg.order_out)) {
         } else if (try_parse(token, "--scale_val=", cfg.scale_val)) {
+        } else if (try_parse_int(token, "--compressed=", cfg.compressed)) {
+        } else if (try_parse_int(token, "--dynamic_quantized=", cfg.dynamic_quantized)) {
+        } else if (try_parse_int(token, "--dynamic_quantized_zp=", cfg.dynamic_quantized_zp)) {
+        } else if (try_parse_int(token, "--dynamic_quantized_precomputed_reduction=", cfg.dynamic_quantized_precomputed_reduction)) {
+        } else if (try_parse_int(token, "--fc_input_size=", cfg.fc_input_size)) {
+        } else if (try_parse_int(token, "--fc_weights_rank=", cfg.fc_weights_rank)) {
         } else if (try_parse_int(token, "--groups=", cfg.groups)) {
         } else if (try_parse(token, "--strides=", cfg.strides)) {
         } else if (try_parse(token, "--dilations=", cfg.dilations)) {
@@ -799,8 +871,13 @@ static std::pair<std::string, bench_kernel::bench_config> parse_batch_cmd_line(c
         } else if (try_parse_int(token, "--normalize_variance=", cfg.normalize_variance)) {
         } else if (try_parse(token, "--epsilon=", cfg.epsilon)) {
         } else if (try_parse_int(token, "--eps_inside_sqrt=", cfg.eps_inside_sqrt)) {
+        } else if (try_parse(token, "--mvn_reduction_axes=", cfg.mvn_reduction_axes)) {
         } else if (try_parse_int(token, "--eltwise_mode=", cfg.eltwise_mode)) {
         } else if (try_parse_int(token, "--pythondiv=", cfg.pythondiv)) {
+        } else if (try_parse(token, "--eltwise_coefficients=", cfg.eltwise_coefficients)) {
+        } else if (try_parse(token, "--eltwise_stride=", cfg.eltwise_stride)) {
+        } else if (try_parse(token, "--eltwise_broadcast_type=", cfg.eltwise_broadcast_type)) {
+        } else if (try_parse_int(token, "--eltwise_broadcast_axis=", cfg.eltwise_broadcast_axis)) {
         } else if (try_parse_int(token, "--glu_type=", cfg.glu_type)) {
         } else if (try_parse_int(token, "--split_axis=", cfg.split_axis)) {
         } else if (try_parse_int(token, "--split_length=", cfg.split_length)) {
@@ -852,6 +929,20 @@ static std::pair<std::string, bench_kernel::bench_config> parse_batch_cmd_line(c
         } else if (try_parse_int(token, "--det_share_location=", cfg.det_share_location)) {
         } else if (try_parse_int(token, "--det_background_label_id=", cfg.det_background_label_id)) {
         } else if (try_parse_int(token, "--det_variance_encoded=", cfg.det_variance_encoded)) {
+        } else if (try_parse_float(token, "--det_eta=", cfg.det_eta)) {
+        } else if (try_parse_int(token, "--det_prior_info_size=", cfg.det_prior_info_size)) {
+        } else if (try_parse_int(token, "--det_prior_coordinates_offset=", cfg.det_prior_coordinates_offset)) {
+        } else if (try_parse_int(token, "--det_prior_is_normalized=", cfg.det_prior_is_normalized)) {
+        } else if (try_parse_int(token, "--det_input_width=", cfg.det_input_width)) {
+        } else if (try_parse_int(token, "--det_input_height=", cfg.det_input_height)) {
+        } else if (try_parse_int(token, "--det_decrease_label_id=", cfg.det_decrease_label_id)) {
+        } else if (try_parse_int(token, "--det_clip_before_nms=", cfg.det_clip_before_nms)) {
+        } else if (try_parse_int(token, "--det_clip_after_nms=", cfg.det_clip_after_nms)) {
+        } else if (try_parse_float(token, "--det_objectness_score=", cfg.det_objectness_score)) {
+        } else if (try_parse(token, "--col2im_padding_begin=", cfg.col2im_padding_begin)) {
+        } else if (try_parse(token, "--col2im_padding_end=", cfg.col2im_padding_end)) {
+        } else if (try_parse_int(token, "--scatter_mode=", cfg.scatter_mode)) {
+        } else if (try_parse_int(token, "--scatter_use_init_val=", cfg.scatter_use_init_val)) {
         // New primitive-specific attribute flags
         } else if (try_parse_int(token, "--cum_exclusive=", cfg.cum_exclusive)) {
         } else if (try_parse_int(token, "--cum_reverse=", cfg.cum_reverse)) {
@@ -902,6 +993,8 @@ static std::pair<std::string, bench_kernel::bench_config> parse_batch_cmd_line(c
             auto it = SHORT_TO_FULL.find(kname);
             if (it != SHORT_TO_FULL.end()) {
                 kernel_name = it->second;
+            } else {
+                kernel_name = kname;
             }
         }
     }
@@ -949,14 +1042,6 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // Check kernel is registered (skip check if batch file will provide kernel names)
-    auto& registry = bench_kernel::kernel_registry::instance();
-    if (!kernel_name.empty() && !registry.has(kernel_name)) {
-        std::cerr << "Error: Kernel '" << kernel_name << "' is not implemented yet." << std::endl;
-        registry.list_all();
-        return 1;
-    }
-
     // Collect shapes: --shapes= flag takes priority, then positional arg
     std::string shapes_str = FLAGS_shapes;
     if (shapes_str.empty()) {
@@ -967,6 +1052,17 @@ int main(int argc, char* argv[]) {
             shapes_str = arg;
             break;
         }
+    }
+
+    // Check kernel is registered (skip check if batch file will provide kernel names)
+    auto& registry = bench_kernel::kernel_registry::instance();
+    if (!kernel_name.empty() && !registry.has(kernel_name)) {
+        auto cfg = build_config(kernel_name, shapes_str);
+        cfg.test_index = 0;
+        auto total_stat = report_unimplemented_result(cfg,
+                            "Kernel '" + kernel_name + "' is not implemented in bench_kernel");
+        total_stat.print();
+        return 0;
     }
 
     // Create engine (treat -1 as 0)
@@ -1004,7 +1100,11 @@ int main(int argc, char* argv[]) {
                     continue;
                 }
                 if (!registry.has(cmd_kernel)) {
-                    std::cerr << "Warning: Unknown kernel '" << cmd_kernel << "' in batch line, skipping." << std::endl;
+                    cmd_cfg.test_index = test_counter++;
+                    auto stat = report_unimplemented_result(
+                        cmd_cfg,
+                        "Kernel '" + cmd_kernel + "' is not implemented in bench_kernel");
+                    total_stat.merge(stat);
                     continue;
                 }
                 cmd_cfg.test_index = test_counter++;

@@ -149,6 +149,8 @@ public:
         // Optional extra inputs from verbose log (in2+):
         // bias, weights_zero_points, activations_zero_points, compensation
         std::vector<std::string> aux_ids;
+        std::vector<float> bias_f32_saved;
+        std::vector<int64_t> bias_shape_saved;
         for (size_t aux_idx = 2; aux_idx < shapes.size(); ++aux_idx) {
             const auto& aux_shape = shapes[aux_idx];
             cldnn::data_types aux_dt = dts.size() > aux_idx ? dts[aux_idx] : cldnn::data_types::f32;
@@ -157,6 +159,11 @@ public:
             cldnn::layout aux_layout(aux_ps, aux_dt, aux_fmt);
             auto aux_mem = engine.allocate_memory(aux_layout);
             fill_memory_random(aux_mem, *stream, aux_dt);
+
+            if (config.is_acc() && aux_idx == 2) {
+                bias_f32_saved = read_memory_to_f32(aux_mem, *stream);
+                bias_shape_saved = aux_shape;
+            }
 
             std::string aux_id = "aux_" + std::to_string(aux_idx - 2);
             topology.add(cldnn::data(aux_id, aux_mem));
@@ -353,6 +360,36 @@ public:
                 out_shape.push_back(out_d);
             }
 
+            // Add bias term to reference output when bias tensor is present.
+            if (!bias_f32_saved.empty() && out_shape.size() >= 2) {
+                int64_t N = out_shape[0];
+                int64_t C = out_shape[1];
+                size_t spatial = 1;
+                for (size_t d = 2; d < out_shape.size(); ++d)
+                    spatial *= static_cast<size_t>(out_shape[d]);
+
+                auto get_bias = [&](int64_t n, int64_t c) {
+                    if (bias_f32_saved.size() == 1)
+                        return bias_f32_saved[0];
+                    if (bias_shape_saved.size() >= 2 && bias_shape_saved[1] == C &&
+                        bias_f32_saved.size() == static_cast<size_t>(C))
+                        return bias_f32_saved[static_cast<size_t>(c)];
+                    if (bias_shape_saved.size() >= 2 && bias_shape_saved[0] == N && bias_shape_saved[1] == C &&
+                        bias_f32_saved.size() == static_cast<size_t>(N * C))
+                        return bias_f32_saved[static_cast<size_t>(n * C + c)];
+                    return bias_f32_saved[static_cast<size_t>(c) % bias_f32_saved.size()];
+                };
+
+                for (int64_t n = 0; n < N; ++n) {
+                    for (int64_t c = 0; c < C; ++c) {
+                        float b = get_bias(n, c);
+                        size_t base = static_cast<size_t>((n * C + c) * static_cast<int64_t>(spatial));
+                        for (size_t s = 0; s < spatial; ++s)
+                            ref_out[base + s] += b;
+                    }
+                }
+            }
+
             // Apply post-ops to reference
             bool can_check = ref::apply_post_ops_ref(ref_out, post_ops, out_shape, elt_data_map);
             if (can_check) {
@@ -361,6 +398,16 @@ public:
                 int quant_count = static_cast<int>(std::count_if(post_ops.begin(), post_ops.end(),
                     [](const post_op_entry& po) { return po.kind == post_op_kind::quantize; }));
                 if (quant_count > 0) { atol = std::max(atol, static_cast<float>(quant_count)); }
+                bool has_mixed_quant_chain = quant_count > 0 && std::any_of(post_ops.begin(), post_ops.end(),
+                    [](const post_op_entry& po) {
+                        return po.kind == post_op_kind::eltwise ||
+                               (po.kind == post_op_kind::activation && po.act_func == activation_func::clamp);
+                    });
+                // Quantized mixed chains may differ by ~1 LSB on a tiny fraction of elements
+                // due to backend rounding order. Allow small slack to avoid false negatives.
+                if (has_mixed_quant_chain) {
+                    atol = std::max(atol, 1.1f);
+                }
                 // Exponential-family post-ops amplify small conv errors
                 bool has_exp_postop = std::any_of(post_ops.begin(), post_ops.end(),
                     [](const post_op_entry& po) {
@@ -394,6 +441,7 @@ public:
                 float threshold = 0.0f;
                 // Allow small mismatch ratio for exp post-ops (f16 amplification)
                 if (has_exp_postop) threshold = 0.01f;
+                if (has_mixed_quant_chain) threshold = std::max(threshold, 1e-5f);
                 acc_res = compare_f32(gpu_out, ref_out, atol, rtol, threshold);
                 has_acc = true;
                 reported_acc_ = {true, acc_res.total_elements, acc_res.mismatches, acc_res.max_abs_diff, acc_res.max_rel_diff};

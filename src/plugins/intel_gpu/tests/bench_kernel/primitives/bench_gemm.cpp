@@ -51,6 +51,7 @@ public:
         auto input0_shape = shapes[0];
         auto input1_shape = shapes[1];
         bool has_input2 = shapes.size() >= 3;
+        std::vector<int64_t> input2_shape;
 
         // Strip trailing 1-dimensions (verbose log pads to 4D)
         auto strip_trailing_ones = [](std::vector<int64_t>& shape) {
@@ -106,7 +107,7 @@ public:
         // Optional third input (for beta * C)
         cldnn::memory::ptr input2_mem;
         if (has_input2) {
-            auto& input2_shape = shapes[2];
+            input2_shape = shapes[2];
             ov::PartialShape input2_ps(std::vector<ov::Dimension>(input2_shape.begin(), input2_shape.end()));
             cldnn::layout input2_layout(input2_ps, input_dt, get_input_format(config, 2, input2_shape.size()));
             input2_mem = engine.allocate_memory(input2_layout);
@@ -329,13 +330,6 @@ public:
             bool use_transpose_b = config.gemm_order1.empty() && config.transpose_b != 0;
             auto ref_out = ref::gemm(a_data, a_shape, b_data, b_shape, use_transpose_a, use_transpose_b);
 
-            // If 3-input (C = A*B + C), add C to reference
-            if (has_input2) {
-                for (size_t i = 0; i < ref_out.size() && i < c_f32_saved.size(); ++i) {
-                    ref_out[i] += c_f32_saved[i];
-                }
-            }
-
             // Gemm output shape: [..., M, N] from permuted shapes
             size_t rk = a_shape.size();
             int64_t M_out = use_transpose_a ? a_shape[rk - 1] : a_shape[rk - 2];
@@ -344,6 +338,15 @@ public:
             for (size_t i = 0; i < rk - 2; ++i) out_shape.push_back(a_shape[i]);
             out_shape.push_back(M_out);
             out_shape.push_back(N_out);
+
+            // If 3-input (C = A*B + C), apply numpy-style broadcast add.
+            if (has_input2) {
+                ref_out = ref::eltwise(ref_out,
+                                       c_f32_saved,
+                                       cldnn::eltwise_mode::sum,
+                                       out_shape,
+                                       input2_shape);
+            }
 
             // Apply output permutation if specified
             if (!config.gemm_order_out.empty()) {

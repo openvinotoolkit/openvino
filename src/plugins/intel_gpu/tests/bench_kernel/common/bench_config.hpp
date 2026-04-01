@@ -135,6 +135,14 @@ struct bench_config {
     std::string  order_out;             // --order_out=0:2:1:3
     std::string  scale_val;             // --scale_val=0.088388
 
+    // FullyConnected-specific (from verbose log)
+    int          compressed = -1;       // --compressed=0|1 (-1=auto)
+    int          dynamic_quantized = -1; // --dynamic_quantized=0|1 (-1=auto)
+    int          dynamic_quantized_zp = -1; // --dynamic_quantized_zp=0|1 (-1=auto)
+    int          dynamic_quantized_precomputed_reduction = -1; // --dynamic_quantized_precomputed_reduction=0|1 (-1=auto)
+    int          fc_input_size = -1;    // --fc_input_size=N (-1=auto)
+    int          fc_weights_rank = -1;  // --fc_weights_rank=N (-1=auto)
+
     // Convolution-specific
     int          groups = 1;            // --groups=N
     std::string  strides;               // --strides=2x2
@@ -163,10 +171,15 @@ struct bench_config {
     int          normalize_variance = 1;  // --normalize_variance=0|1
     std::string  epsilon;               // --epsilon=1e-6
     int          eps_inside_sqrt = 0;   // --eps_inside_sqrt=0|1
+    std::string  mvn_reduction_axes;    // --mvn_reduction_axes=1:2:3
 
     // Eltwise-specific
     int          eltwise_mode = -1;     // --eltwise_mode=N (-1=from post-ops)
     int          pythondiv = 0;         // --pythondiv=0|1
+    std::string  eltwise_coefficients;  // --eltwise_coefficients=1.0:0.5
+    std::string  eltwise_stride;        // --eltwise_stride=t0d0:t0d1:...;t1d0:t1d1:...
+    std::string  eltwise_broadcast_type; // --eltwise_broadcast_type=numpy|pdpd|none
+    int          eltwise_broadcast_axis = -1; // --eltwise_broadcast_axis=N
 
     // SwiGLU-specific
     int          glu_type = 0;          // --glu_type=N (0=Swish)
@@ -190,6 +203,12 @@ struct bench_config {
     int          slice_start = 0;       // --slice_start=N
     int          slice_stop = 0;        // --slice_stop=N
     int          gather_rank = 0;       // --gather_rank=N
+    int          output_trans0213 = 0;  // --output_trans0213=0|1
+    int          use_rope_cache = 0;   // --use_rope_cache=0|1
+    int          support_2d_rope = 0;  // --support_2d_rope=0|1
+    int          support_3d_rope = 0;  // --support_3d_rope=0|1
+    int          is_ltx_video = 0;     // --is_ltx_video=0|1
+    int          gather_position_arg_id = 0; // --gather_position_arg_id=N
 
     // Crop-specific
     std::string  offsets;               // --offsets=0:0:0:0
@@ -243,6 +262,12 @@ struct bench_config {
     // Col2Im-specific
     std::string  col2im_output_shape;    // --col2im_output_shape=4x4
     std::string  col2im_kernel_shape;    // --col2im_kernel_shape=3x3
+    std::string  col2im_padding_begin;   // --col2im_padding_begin=1x1
+    std::string  col2im_padding_end;     // --col2im_padding_end=1x1
+
+    // ScatterElementsUpdate-specific
+    int          scatter_mode = 0;       // --scatter_mode=0 (Reduction mode)
+    int          scatter_use_init_val = 1; // --scatter_use_init_val=0|1
 
     // DetectionOutput-specific
     int          det_num_classes = 21;   // --det_num_classes=N
@@ -254,6 +279,16 @@ struct bench_config {
     int          det_share_location = 1; // --det_share_location=0|1
     int          det_background_label_id = 0;  // --det_background_label_id=N
     int          det_variance_encoded = 0;  // --det_variance_encoded=0|1
+    float        det_eta = 1.0f;         // --det_eta=N (for adaptive NMS)
+    int          det_prior_info_size = 4; // --det_prior_info_size=N
+    int          det_prior_coordinates_offset = 0; // --det_prior_coordinates_offset=N
+    int          det_prior_is_normalized = 1; // --det_prior_is_normalized=0|1
+    int          det_input_width = -1;   // --det_input_width=N (-1=auto)
+    int          det_input_height = -1;  // --det_input_height=N (-1=auto)
+    int          det_decrease_label_id = 0; // --det_decrease_label_id=0|1
+    int          det_clip_before_nms = 0; // --det_clip_before_nms=0|1
+    int          det_clip_after_nms = 0;  // --det_clip_after_nms=0|1
+    float        det_objectness_score = 0.0f; // --det_objectness_score=0.5
 
     // CumSum-specific
     int          cum_exclusive = 0;      // --cum_exclusive=0|1
@@ -395,6 +430,13 @@ struct bench_config {
         if (!order_v.empty()) s += " --order_v=" + order_v;
         if (!order_out.empty()) s += " --order_out=" + order_out;
         if (!scale_val.empty()) s += " --scale_val=" + scale_val;
+        // -- FullyConnected --
+        if (compressed >= 0) s += " --compressed=" + std::to_string(compressed);
+        if (dynamic_quantized >= 0) s += " --dynamic_quantized=" + std::to_string(dynamic_quantized);
+        if (dynamic_quantized_zp >= 0) s += " --dynamic_quantized_zp=" + std::to_string(dynamic_quantized_zp);
+        if (dynamic_quantized_precomputed_reduction >= 0) s += " --dynamic_quantized_precomputed_reduction=" + std::to_string(dynamic_quantized_precomputed_reduction);
+        if (fc_input_size > 0) s += " --fc_input_size=" + std::to_string(fc_input_size);
+        if (fc_weights_rank > 0) s += " --fc_weights_rank=" + std::to_string(fc_weights_rank);
         // -- Convolution --
         if (groups != 1) s += " --groups=" + std::to_string(groups);
         if (!strides.empty()) s += " --strides=" + strides;
@@ -419,9 +461,14 @@ struct bench_config {
         if (normalize_variance != 1) s += " --normalize_variance=" + std::to_string(normalize_variance);
         if (!epsilon.empty()) s += " --epsilon=" + epsilon;
         if (eps_inside_sqrt != 0) s += " --eps_inside_sqrt=" + std::to_string(eps_inside_sqrt);
+        if (!mvn_reduction_axes.empty()) s += " --mvn_reduction_axes=" + mvn_reduction_axes;
         // -- Eltwise --
         if (eltwise_mode >= 0) s += " --eltwise_mode=" + std::to_string(eltwise_mode);
         if (pythondiv != 0) s += " --pythondiv=" + std::to_string(pythondiv);
+        if (!eltwise_coefficients.empty()) s += " --eltwise_coefficients=" + eltwise_coefficients;
+        if (!eltwise_stride.empty()) s += " --eltwise_stride=" + eltwise_stride;
+        if (!eltwise_broadcast_type.empty()) s += " --eltwise_broadcast_type=" + eltwise_broadcast_type;
+        if (eltwise_broadcast_axis >= 0) s += " --eltwise_broadcast_axis=" + std::to_string(eltwise_broadcast_axis);
         // -- SwiGLU --
         if (glu_type != 0) s += " --glu_type=" + std::to_string(glu_type);
         if (split_axis != -1) s += " --split_axis=" + std::to_string(split_axis);
@@ -588,8 +635,13 @@ struct bench_config {
         if (!attr_post_ops_str.empty())
             std::cout << "  post_ops:   " << attr_post_ops_str << std::endl;
         std::cout << "  mode:       " << mode2str(mode) << std::endl;
-        std::cout << "  warmup:     " << warmup_iters << std::endl;
-        std::cout << "  perf_iters: " << perf_iters << std::endl;
+        if (is_perf()) {
+            std::cout << "  warmup:     " << warmup_iters << std::endl;
+            std::cout << "  perf_iters: " << perf_iters << std::endl;
+        } else {
+            std::cout << "  warmup:     n/a (accuracy mode)" << std::endl;
+            std::cout << "  perf_iters: n/a (accuracy mode)" << std::endl;
+        }
         std::cout << std::endl;
     }
 };

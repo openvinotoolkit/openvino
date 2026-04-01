@@ -59,7 +59,9 @@ public:
         auto stream = engine.create_stream(exec_config);
 
         auto& input_shape = shapes[0];
-        auto& output_shape = shapes[1];
+        // mode=c reproductions may pass begin/end/strides tensor shapes between
+        // input and output, i.e. input:begin:end:strides:output.
+        auto& output_shape = (shapes.size() >= 5) ? shapes.back() : shapes[1];
         size_t input_rank = input_shape.size();
 
         // Input memory

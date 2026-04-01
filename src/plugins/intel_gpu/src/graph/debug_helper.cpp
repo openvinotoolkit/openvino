@@ -887,6 +887,15 @@ static std::string eltwise_mode_name(cldnn::eltwise_mode mode) {
     }
 }
 
+static const char* auto_broadcast_type_name(ov::op::AutoBroadcastType type) {
+    switch (type) {
+        case ov::op::AutoBroadcastType::NONE: return "none";
+        case ov::op::AutoBroadcastType::NUMPY: return "numpy";
+        case ov::op::AutoBroadcastType::PDPD: return "pdpd";
+        default: return "unknown";
+    }
+}
+
 static std::string layout_to_bench_str(const layout& l) {
     std::stringstream ss;
     ss << ov::element::Type(l.data_type).get_type_name() << ":";
@@ -1079,6 +1088,10 @@ void PrimitiveInstDebugHelper::dump_bench_kernel_verbose() const {
         auto prim = std::static_pointer_cast<const fully_connected>(params.desc);
         ss << ",compressed=" << prim->compressed_weights;
         ss << ",dynamic_quantized=" << prim->dynamic_quantized_activation;
+        ss << ",dynamic_quantized_zp=" << prim->dynamic_quantized_activation_zp;
+        ss << ",dynamic_quantized_precomputed_reduction=" << prim->dynamic_quantized_precomputed_reduction;
+        ss << ",fc_input_size=" << prim->input_size;
+        ss << ",fc_weights_rank=" << prim->weights_rank;
     } else if (type_str == "convolution") {
         auto prim = std::static_pointer_cast<const convolution>(params.desc);
         ss << ",groups=" << prim->groups;
@@ -1126,10 +1139,36 @@ void PrimitiveInstDebugHelper::dump_bench_kernel_verbose() const {
         ss << ",normalize_variance=" << prim->normalize_variance;
         ss << ",epsilon=" << prim->epsilon;
         ss << ",eps_inside_sqrt=" << prim->eps_inside_sqrt;
+        if (!prim->reduction_axes.empty()) {
+            ss << ",mvn_reduction_axes=";
+            for (size_t i = 0; i < prim->reduction_axes.size(); ++i) {
+                if (i > 0) ss << ":";
+                ss << prim->reduction_axes[i];
+            }
+        }
     } else if (type_str == "eltwise") {
         auto prim = std::static_pointer_cast<const eltwise>(params.desc);
         ss << ",eltwise_mode=" << static_cast<int>(prim->mode);
         ss << ",pythondiv=" << prim->m_pythondiv;
+        if (!prim->coefficients.empty()) {
+            ss << ",eltwise_coefficients=";
+            for (size_t i = 0; i < prim->coefficients.size(); ++i) {
+                if (i > 0) ss << ":";
+                ss << prim->coefficients[i];
+            }
+        }
+        if (!prim->stride.empty()) {
+            ss << ",eltwise_stride=";
+            for (size_t i = 0; i < prim->stride.size(); ++i) {
+                if (i > 0) ss << ";";
+                for (size_t j = 0; j < prim->stride[i].raw.size(); ++j) {
+                    if (j > 0) ss << ":";
+                    ss << prim->stride[i].raw[j];
+                }
+            }
+        }
+        ss << ",eltwise_broadcast_type=" << auto_broadcast_type_name(prim->broadcast_spec.m_type);
+        ss << ",eltwise_broadcast_axis=" << prim->broadcast_spec.m_axis;
     } else if (type_str == "swiglu") {
         auto prim = std::static_pointer_cast<const swiglu>(params.desc);
         ss << ",glu_type=" << static_cast<int>(prim->glu_type);
@@ -1150,6 +1189,12 @@ void PrimitiveInstDebugHelper::dump_bench_kernel_verbose() const {
         ss << ",is_chatglm=" << prim->config.is_chatglm;
         ss << ",is_qwen=" << prim->config.is_qwen;
         ss << ",input_trans0213=" << prim->config.input_trans0213;
+        ss << ",output_trans0213=" << prim->config.output_trans0213;
+        ss << ",use_rope_cache=" << prim->config.use_rope_cache;
+        ss << ",support_2d_rope=" << prim->config.support_2d_rope;
+        ss << ",support_3d_rope=" << prim->config.support_3d_rope;
+        ss << ",is_ltx_video=" << prim->config.is_ltx_video;
+        ss << ",gather_position_arg_id=" << prim->config.gather_position_arg_id;
         ss << ",slice_start=" << prim->config.slice_start;
         ss << ",slice_stop=" << prim->config.slice_stop;
         ss << ",gather_rank=" << prim->gather_rank;
@@ -1203,6 +1248,8 @@ void PrimitiveInstDebugHelper::dump_bench_kernel_verbose() const {
     } else if (type_str == "scatter_elements_update") {
         auto prim = std::static_pointer_cast<const scatter_elements_update>(params.desc);
         ss << ",axis=" << prim->axis;
+        ss << ",scatter_mode=" << static_cast<int>(prim->mode);
+        ss << ",scatter_use_init_val=" << prim->use_init_val;
     } else if (type_str == "group_normalization") {
         auto prim = std::static_pointer_cast<const group_normalization>(params.desc);
         ss << ",num_groups=" << prim->num_groups;
@@ -1234,6 +1281,11 @@ void PrimitiveInstDebugHelper::dump_bench_kernel_verbose() const {
     } else if (type_str == "adaptive_pooling") {
         auto prim = std::static_pointer_cast<const adaptive_pooling>(params.desc);
         ss << ",adaptive_pool_mode=" << static_cast<int>(prim->mode);
+        ss << ",adaptive_pool_out=";
+        for (size_t i = 0; i < prim->output_size.raw.size(); ++i) {
+            if (i) ss << ":";
+            ss << prim->output_size.raw[i];
+        }
     } else if (type_str == "arg_max_min") {
         auto prim = std::static_pointer_cast<const arg_max_min>(params.desc);
         ss << ",topk_mode=" << static_cast<int>(prim->mode);
@@ -1245,6 +1297,10 @@ void PrimitiveInstDebugHelper::dump_bench_kernel_verbose() const {
         for (size_t i = 0; i < prim->stride.size(); ++i) { if (i) ss << "x"; ss << prim->stride[i]; }
         ss << ",dilations=";
         for (size_t i = 0; i < prim->dilation.size(); ++i) { if (i) ss << "x"; ss << prim->dilation[i]; }
+        ss << ",col2im_padding_begin=";
+        for (size_t i = 0; i < prim->padding_begin.size(); ++i) { if (i) ss << "x"; ss << prim->padding_begin[i]; }
+        ss << ",col2im_padding_end=";
+        for (size_t i = 0; i < prim->padding_end.size(); ++i) { if (i) ss << "x"; ss << prim->padding_end[i]; }
         ss << ",col2im_output_shape=";
         for (size_t i = 0; i < prim->output_shape.size(); ++i) { if (i) ss << "x"; ss << prim->output_shape[i]; }
         ss << ",col2im_kernel_shape=";
@@ -1253,11 +1309,25 @@ void PrimitiveInstDebugHelper::dump_bench_kernel_verbose() const {
         auto prim = std::static_pointer_cast<const detection_output>(params.desc);
         ss << ",det_num_classes=" << prim->num_classes;
         ss << ",det_keep_top_k=" << prim->keep_top_k;
-        ss << ",det_top_k=" << prim->top_k;
-        ss << ",det_nms_threshold=" << prim->nms_threshold;
-        ss << ",det_confidence_threshold=" << prim->confidence_threshold;
-        ss << ",det_code_type=" << static_cast<int>(prim->code_type);
         ss << ",det_share_location=" << (prim->share_location ? 1 : 0);
+        ss << ",det_background_label_id=" << prim->background_label_id;
+        ss << ",det_nms_threshold=" << prim->nms_threshold;
+        ss << ",det_top_k=" << prim->top_k;
+        ss << ",det_eta=" << prim->eta;
+        ss << ",det_code_type=" << static_cast<int>(prim->code_type);
+        ss << ",det_variance_encoded=" << (prim->variance_encoded_in_target ? 1 : 0);
+        ss << ",det_confidence_threshold=" << prim->confidence_threshold;
+        ss << ",det_prior_info_size=" << prim->prior_info_size;
+        ss << ",det_prior_coordinates_offset=" << prim->prior_coordinates_offset;
+        ss << ",det_prior_is_normalized=" << (prim->prior_is_normalized ? 1 : 0);
+        ss << ",det_input_width=" << prim->input_width;
+        ss << ",det_input_height=" << prim->input_height;
+        ss << ",det_decrease_label_id=" << (prim->decrease_label_id ? 1 : 0);
+        ss << ",det_clip_before_nms=" << (prim->clip_before_nms ? 1 : 0);
+        ss << ",det_clip_after_nms=" << (prim->clip_after_nms ? 1 : 0);
+        ss << ",det_objectness_score=" << prim->objectness_score;
+    } else {
+        ss << ",unsupported=" << type_str;
     }
 
     // Timing: use pre-recorded host-side wall-clock time (no ov::enable_profiling needed)

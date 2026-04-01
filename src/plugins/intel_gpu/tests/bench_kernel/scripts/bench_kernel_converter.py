@@ -46,7 +46,8 @@ PRIMITIVE_ATTR_KEYS = {
     # sdpa
     "is_causal", "order_q", "order_k", "order_v", "order_out", "scale_val",
     # fully_connected
-    "compressed", "dynamic_quantized",
+    "compressed", "dynamic_quantized", "dynamic_quantized_zp",
+    "dynamic_quantized_precomputed_reduction", "fc_input_size", "fc_weights_rank",
     # convolution
     "groups", "strides", "dilations", "padding_begin", "padding_end", "grouped_weights_shape",
     # pooling
@@ -56,16 +57,19 @@ PRIMITIVE_ATTR_KEYS = {
     # softmax
     "axis",
     # mvn
-    "normalize_variance", "epsilon", "eps_inside_sqrt",
+    "normalize_variance", "epsilon", "eps_inside_sqrt", "mvn_reduction_axes",
     # eltwise
-    "eltwise_mode", "pythondiv",
+    "eltwise_mode", "pythondiv", "eltwise_coefficients", "eltwise_stride",
+    "eltwise_broadcast_type", "eltwise_broadcast_axis",
     # swiglu
     "glu_type", "split_axis", "split_length", "gate_idx",
     # gather
     "gather_axis", "batch_dim", "support_neg_ind",
     # rope
     "head_cnt", "head_size", "rotary_ndims", "is_interleaved", "is_chatglm",
-    "is_qwen", "input_trans0213", "slice_start", "slice_stop", "gather_rank",
+    "is_qwen", "input_trans0213", "output_trans0213", "use_rope_cache",
+    "support_2d_rope", "support_3d_rope", "is_ltx_video", "gather_position_arg_id",
+    "slice_start", "slice_stop", "gather_rank",
     # crop
     "offsets",
     # strided_slice
@@ -83,17 +87,28 @@ PRIMITIVE_ATTR_KEYS = {
     "levels",
     # scatter_nd_update
     "indices_rank",
+    # scatter_elements_update
+    "axis", "scatter_mode", "scatter_use_init_val",
     # detection_output
-    "det_num_classes", "det_keep_top_k", "det_top_k",
-    "det_nms_threshold", "det_confidence_threshold",
-    "det_code_type", "det_share_location",
-    "det_background_label_id", "det_variance_encoded",
+    "det_num_classes", "det_keep_top_k", "det_share_location", "det_background_label_id",
+    "det_nms_threshold", "det_top_k", "det_eta", "det_code_type", "det_variance_encoded",
+    "det_confidence_threshold", "det_prior_info_size", "det_prior_coordinates_offset",
+    "det_prior_is_normalized", "det_input_width", "det_input_height", "det_decrease_label_id",
+    "det_clip_before_nms", "det_clip_after_nms", "det_objectness_score",
+    # adaptive_pooling
+    "adaptive_pool_mode", "adaptive_pool_out",
+    # arg_max_min
+    "topk_mode", "top_k",
+    # col2im
+    "col2im_output_shape", "col2im_kernel_shape", "col2im_padding_begin", "col2im_padding_end",
     # resample
     "resample_sizes", "resample_mode",
     # permute
     "permute_order",
     # broadcast
     "broadcast_axes", "broadcast_target",
+    # generic marker for bench reproduction gaps
+    "unsupported",
 }
 
 class BenchVerboseEntry:
@@ -104,8 +119,8 @@ class BenchVerboseEntry:
         self.prim_id: str = ""         # e.g. fc_0, convolution:Multiply_19322
         self.impl: str = ""            # e.g. ocl, onednn
         self.kernel: str = ""          # e.g. jit:ir, fc_bf_tiled
-        self.inputs: List[Tuple[str, List[int]]] = []   # [(dt, [dims]), ...]
-        self.outputs: List[Tuple[str, List[int]]] = []   # [(dt, [dims]), ...]
+        self.inputs: List[Tuple[str, List[int], str]] = []   # [(dt, [dims], fmt), ...]
+        self.outputs: List[Tuple[str, List[int], str]] = []   # [(dt, [dims], fmt), ...]
         self.fused_ops: List[str] = []  # e.g. ["activation_relu", "eltwise_sum"]
         self.truncate: bool = False        # reorder truncation mode (Convert op)
         self.time_us: float = 0.0
@@ -379,6 +394,104 @@ def _trim_trailing_ones(dims: List[int], min_rank: int = 1) -> List[int]:
     return result
 
 
+def _parse_colon_ints(raw: str) -> List[int]:
+    if not raw:
+        return []
+    vals = []
+    for t in raw.split(":"):
+        t = t.strip()
+        if not t:
+            vals.append(0)
+            continue
+        try:
+            vals.append(int(t))
+        except ValueError:
+            vals.append(0)
+    return vals
+
+
+def _is_valid_dtype_token(dt: str) -> bool:
+    valid = {
+        "f16", "f32", "f64", "bf16",
+        "i4", "u4", "i8", "u8", "i16", "u16", "i32", "u32", "i64", "u64",
+        "bin",
+    }
+    return dt in valid
+
+
+def _infer_strided_slice_end(entry: BenchVerboseEntry) -> None:
+    """Infer ss_end when verbose log omits it but end_mask requires explicit end.
+
+    This commonly happens in some LLM traces where begin/stride/masks are logged,
+    but ss_end is absent. Bench reproduction then defaults ss_end to zeros which
+    changes slice semantics and causes accuracy mismatches.
+    """
+    if entry.prim_type != "strided_slice":
+        return
+    if entry.attrs.get("ss_end", ""):
+        return
+    if not entry.inputs or not entry.outputs:
+        return
+
+    in_shape = entry.inputs[0][1]
+    out_shape = entry.outputs[0][1]
+    if not in_shape or not out_shape:
+        return
+
+    begin = _parse_colon_ints(entry.attrs.get("ss_begin", ""))
+    strides = _parse_colon_ints(entry.attrs.get("ss_strides", ""))
+    begin_mask = _parse_colon_ints(entry.attrs.get("begin_mask", ""))
+    end_mask = _parse_colon_ints(entry.attrs.get("end_mask", ""))
+    new_axis_mask = _parse_colon_ints(entry.attrs.get("new_axis_mask", ""))
+    shrink_axis_mask = _parse_colon_ints(entry.attrs.get("shrink_axis_mask", ""))
+
+    # Conservative scope: infer only non-new/non-shrink slices with matching rank.
+    if any(v != 0 for v in new_axis_mask) or any(v != 0 for v in shrink_axis_mask):
+        return
+    if len(in_shape) != len(out_shape):
+        return
+
+    rank = max(len(in_shape), len(begin), len(strides), len(begin_mask), len(end_mask))
+    begin += [0] * (rank - len(begin))
+    strides += [1] * (rank - len(strides))
+    begin_mask += [0] * (rank - len(begin_mask))
+    end_mask += [0] * (rank - len(end_mask))
+
+    inferred_end = [0] * rank
+    for d in range(rank):
+        if d >= len(in_shape):
+            inferred_end[d] = 0
+            continue
+
+        dim_size = in_shape[d]
+        stride = strides[d] if strides[d] != 0 else 1
+
+        if begin_mask[d] != 0:
+            b = 0 if stride > 0 else max(dim_size - 1, 0)
+        else:
+            b = begin[d]
+            if b < 0:
+                b += dim_size
+            if stride > 0:
+                b = max(0, min(b, max(dim_size - 1, 0)))
+            else:
+                b = max(0, min(b, max(dim_size - 1, 0)))
+
+        if end_mask[d] != 0:
+            inferred_end[d] = dim_size if stride > 0 else -1
+            continue
+
+        out_dim = out_shape[d]
+        inferred = b + out_dim * stride
+        if stride > 0:
+            inferred = max(0, min(inferred, dim_size))
+        else:
+            inferred = max(-1, min(inferred, dim_size - 1))
+        inferred_end[d] = inferred
+
+    entry.attrs["ss_end"] = ":".join(str(v) for v in inferred_end)
+
+
 def _fix_permute_order(entry: BenchVerboseEntry) -> None:
     """Pad permute_order to match input shape rank.
 
@@ -469,10 +582,28 @@ def entry_to_bench_cmd(entry: BenchVerboseEntry, device: int = 0) -> Optional[st
     # Fix known verbose log inaccuracies before conversion
     _fix_pooling_rounding_type(entry)
     _fix_permute_order(entry)
+    _infer_strided_slice_end(entry)
+
+    if "unsupported" in entry.attrs:
+        return None
 
     primitive = TYPE_TO_PRIMITIVE.get(entry.prim_type)
     if primitive is None:
         return None
+
+    # Guardrail: skip malformed GEMM signatures that cannot form valid matrix ops.
+    # Some verbose traces for LLM pipelines include auxiliary tensors that do not
+    # represent a valid GEMM B operand shape for bench reproduction.
+    if primitive == "gemm" and len(entry.inputs) >= 2:
+        a_dims = _trim_trailing_ones(entry.inputs[0][1], min_rank=2)
+        b_dims = _trim_trailing_ones(entry.inputs[1][1], min_rank=2)
+        if len(a_dims) < 2 or len(b_dims) < 2:
+            return None
+        k = a_dims[-1]
+        bk0 = b_dims[-2]
+        bk1 = b_dims[-1]
+        if k > 0 and bk0 > 0 and bk1 > 0 and k != bk0 and k != bk1:
+            return None
 
     def _append_shape(shape_list: List[str], dims: List[int]) -> None:
         s = dims_to_str(dims)
@@ -486,8 +617,10 @@ def entry_to_bench_cmd(entry: BenchVerboseEntry, device: int = 0) -> Optional[st
     dts = [dt for dt, _dims, *_rest in entry.inputs]
     if entry.outputs:
         dts.append(entry.outputs[0][0])
-    if dts:
-        parts.append(f"--dt={':'.join(dts)}")
+
+    # Guardrail: skip malformed dtype streams (e.g. accidental numeric token).
+    if any(not _is_valid_dtype_token(dt) for dt in dts):
+        return None
 
     # Shapes: preserve all logged input shapes for every primitive.
     # Keep primitive-specific normalization where historically needed.
@@ -508,6 +641,38 @@ def entry_to_bench_cmd(entry: BenchVerboseEntry, device: int = 0) -> Optional[st
         if primitive == "strided_slice":
             out_dims = _trim_trailing_ones(out_dims)
         _append_shape(shapes, out_dims)
+
+    # Broadcast bench kernel expects data tensor + target shape semantics.
+    # Runtime verbose may include auxiliary axes input that should not be treated
+    # as a separate data tensor in bench command generation.
+    if primitive == "broadcast" and entry.outputs and shapes:
+        target_shape = dims_to_str(entry.outputs[0][1])
+        shapes = [shapes[0], target_shape]
+        if dts:
+            out_dt = entry.outputs[0][0]
+            dts = [dts[0], out_dt]
+
+    # Heuristic for eltwise fused with quantize:
+    # bench command should focus on core eltwise inputs and explicit fused-eltwise
+    # operands, while dropping extra logged aux tensors that belong to quantize
+    # internals in runtime verbose.
+    if primitive == "eltwise" and shapes:
+        fused_eltwise_count = sum(1 for f in entry.fused_ops if f.startswith("eltwise_"))
+        has_fused_quantize = any(f.startswith("quantize") for f in entry.fused_ops)
+        if has_fused_quantize and len(shapes) > 2:
+            keep_inputs = min(len(shapes), 2 + fused_eltwise_count)
+            if keep_inputs < 2:
+                keep_inputs = 2
+            shapes = shapes[:keep_inputs]
+            if dts:
+                if entry.outputs:
+                    input_dts = dts[:-1][:keep_inputs]
+                    dts = input_dts + [dts[-1]]
+                else:
+                    dts = dts[:keep_inputs]
+
+    if dts:
+        parts.append(f"--dt={':'.join(dts)}")
 
     if any(not s for s in shapes):
         return None
@@ -569,6 +734,11 @@ def entry_to_bench_cmd(entry: BenchVerboseEntry, device: int = 0) -> Optional[st
                     # Pass through alpha[:beta] → e.g. "swish:1" or "linear:0.5:0.3"
                     mapped = mapped + ":" + ":".join(params)
                 elif base_name.startswith("eltwise_") and params:
+                    # For GEMM with explicit input2 (beta*C), fused eltwise_sum often
+                    # reflects the same accumulation path. Emitting both causes double-add
+                    # in bench reproduction and accuracy mismatches.
+                    if primitive == "gemm" and base_name == "eltwise_sum" and len(entry.inputs) >= 3:
+                        continue
                     # Pass through eltwise dt → e.g. "sum:f16"
                     mapped = mapped + ":" + ":".join(params)
                 elif base_name == "quantize" and quant_dt:
@@ -598,6 +768,13 @@ def entry_to_bench_cmd(entry: BenchVerboseEntry, device: int = 0) -> Optional[st
         "order_v": "--order_v",
         "order_out": "--order_out",
         "scale_val": "--scale_val",
+        # fully_connected
+        "compressed": "--compressed",
+        "dynamic_quantized": "--dynamic_quantized",
+        "dynamic_quantized_zp": "--dynamic_quantized_zp",
+        "dynamic_quantized_precomputed_reduction": "--dynamic_quantized_precomputed_reduction",
+        "fc_input_size": "--fc_input_size",
+        "fc_weights_rank": "--fc_weights_rank",
         # convolution
         "groups": "--groups",
         "strides": "--strides",
@@ -622,9 +799,14 @@ def entry_to_bench_cmd(entry: BenchVerboseEntry, device: int = 0) -> Optional[st
         "normalize_variance": "--normalize_variance",
         "epsilon": "--epsilon",
         "eps_inside_sqrt": "--eps_inside_sqrt",
+        "mvn_reduction_axes": "--mvn_reduction_axes",
         # eltwise
         "eltwise_mode": "--eltwise_mode",
         "pythondiv": "--pythondiv",
+        "eltwise_coefficients": "--eltwise_coefficients",
+        "eltwise_stride": "--eltwise_stride",
+        "eltwise_broadcast_type": "--eltwise_broadcast_type",
+        "eltwise_broadcast_axis": "--eltwise_broadcast_axis",
         # swiglu
         "glu_type": "--glu_type",
         "split_axis": "--split_axis",
@@ -642,9 +824,19 @@ def entry_to_bench_cmd(entry: BenchVerboseEntry, device: int = 0) -> Optional[st
         "is_chatglm": "--is_chatglm",
         "is_qwen": "--is_qwen",
         "input_trans0213": "--input_trans0213",
+        "output_trans0213": "--output_trans0213",
+        "use_rope_cache": "--use_rope_cache",
+        "support_2d_rope": "--support_2d_rope",
+        "support_3d_rope": "--support_3d_rope",
+        "is_ltx_video": "--is_ltx_video",
+        "gather_position_arg_id": "--gather_position_arg_id",
         "slice_start": "--slice_start",
         "slice_stop": "--slice_stop",
         "gather_rank": "--gather_rank",
+        # scatter_elements_update
+        "axis": "--axis",
+        "scatter_mode": "--scatter_mode",
+        "scatter_use_init_val": "--scatter_use_init_val",
         # crop
         "offsets": "--offsets",
         # strided_slice
@@ -684,16 +876,28 @@ def entry_to_bench_cmd(entry: BenchVerboseEntry, device: int = 0) -> Optional[st
         # col2im
         "col2im_output_shape": "--col2im_output_shape",
         "col2im_kernel_shape": "--col2im_kernel_shape",
+        "col2im_padding_begin": "--col2im_padding_begin",
+        "col2im_padding_end": "--col2im_padding_end",
         # detection_output
         "det_num_classes": "--det_num_classes",
         "det_keep_top_k": "--det_keep_top_k",
-        "det_top_k": "--det_top_k",
-        "det_nms_threshold": "--det_nms_threshold",
-        "det_confidence_threshold": "--det_confidence_threshold",
-        "det_code_type": "--det_code_type",
         "det_share_location": "--det_share_location",
         "det_background_label_id": "--det_background_label_id",
+        "det_nms_threshold": "--det_nms_threshold",
+        "det_top_k": "--det_top_k",
+        "det_eta": "--det_eta",
+        "det_code_type": "--det_code_type",
         "det_variance_encoded": "--det_variance_encoded",
+        "det_confidence_threshold": "--det_confidence_threshold",
+        "det_prior_info_size": "--det_prior_info_size",
+        "det_prior_coordinates_offset": "--det_prior_coordinates_offset",
+        "det_prior_is_normalized": "--det_prior_is_normalized",
+        "det_input_width": "--det_input_width",
+        "det_input_height": "--det_input_height",
+        "det_decrease_label_id": "--det_decrease_label_id",
+        "det_clip_before_nms": "--det_clip_before_nms",
+        "det_clip_after_nms": "--det_clip_after_nms",
+        "det_objectness_score": "--det_objectness_score",
     }
     for attr_key, flag in ATTR_FLAG_MAP.items():
         if attr_key in entry.attrs and entry.attrs[attr_key] != "":
@@ -739,7 +943,7 @@ def entry_to_comment(entry: BenchVerboseEntry) -> str:
 # ============================================================================
 
 def generate_llm_fc_batch(model_dim: int = 4096, ffn_dim: int = 11008,
-                          vocab_size: int = 32000, batch_sizes: List[int] = None) -> List[str]:
+                          vocab_size: int = 32000, batch_sizes: Optional[List[int]] = None) -> List[str]:
     """Generate FC benchmark batch for LLM-like architecture."""
     if batch_sizes is None:
         batch_sizes = [1, 4, 16, 32]
@@ -768,7 +972,7 @@ def generate_llm_fc_batch(model_dim: int = 4096, ffn_dim: int = 11008,
 
 
 def generate_sdpa_batch(num_heads: int = 32, head_dim: int = 128,
-                        seq_lengths: List[int] = None, batch: int = 1) -> List[str]:
+                        seq_lengths: Optional[List[int]] = None, batch: int = 1) -> List[str]:
     """Generate SDPA benchmark batch for attention workloads."""
     if seq_lengths is None:
         seq_lengths = [128, 256, 512, 1024, 2048]
@@ -886,12 +1090,20 @@ def main():
         # Print summary if requested
         if args.summary:
             type_counts = {}
+            unsupported_count = 0
             for e in entries:
                 type_counts[e.prim_type] = type_counts.get(e.prim_type, 0) + 1
+                if "unsupported" in e.attrs:
+                    unsupported_count += 1
             print("=== Verbose Log Summary ===", file=sys.stderr)
             print(f"Total entries: {len(entries)}", file=sys.stderr)
+            print(f"Unsupported for bench reproduction: {unsupported_count}", file=sys.stderr)
             for t, c in sorted(type_counts.items(), key=lambda x: -x[1]):
                 mapped = TYPE_TO_PRIMITIVE.get(t, "SKIP")
+                unsupported_types = sorted({e.attrs["unsupported"] for e in entries
+                                            if e.prim_type == t and "unsupported" in e.attrs})
+                if unsupported_types:
+                    mapped = f"{mapped} (unsupported={':'.join(unsupported_types)})"
                 print(f"  {t}: {c} -> {mapped}", file=sys.stderr)
             print("===========================", file=sys.stderr)
 
@@ -904,9 +1116,11 @@ def main():
                     filtered.append(e)
             entries = filtered
 
-        # Filter out unsupported types and concat (verbose log doesn't capture multi-input concat)
+        # Filter out unsupported types, explicit unsupported verbose entries,
+        # and concat (verbose log doesn't capture multi-input concat)
         entries = [e for e in entries
                    if TYPE_TO_PRIMITIVE.get(e.prim_type) is not None
+                   and "unsupported" not in e.attrs
                    and e.prim_type != "concatenation"]
 
         # Deduplication

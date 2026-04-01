@@ -92,6 +92,9 @@ public:
                                     weight_dt == cldnn::data_types::u4 ||
                                     weight_dt == cldnn::data_types::i8 ||
                                     weight_dt == cldnn::data_types::u8);
+        if (config.compressed >= 0) {
+            compressed_weights = (config.compressed != 0);
+        }
 
         // Parse attributes
         auto scales = parse_scales(config.attr_scales_str);
@@ -128,6 +131,12 @@ public:
 
         size_t output_dim_size = input_shape.size();
         size_t weights_rank = weight_shape.size();
+        if (config.fc_input_size > 0) {
+            output_dim_size = static_cast<size_t>(config.fc_input_size);
+        }
+        if (config.fc_weights_rank > 0) {
+            weights_rank = static_cast<size_t>(config.fc_weights_rank);
+        }
 
         // Build topology
         cldnn::topology topology;
