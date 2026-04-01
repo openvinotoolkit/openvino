@@ -460,6 +460,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_b
             std::fill_n(std::back_inserter(tmpBlobStr), paddingSize, 0);
         }
         auto encryptedBlobStr = encryptionCallbackOpt.value()(tmpBlobStr);
+        tmpBlobStr.clear();
 
         if (size > static_cast<decltype(size)>(std::numeric_limits<std::streamsize>::max())) {
             OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
@@ -495,7 +496,6 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_b
                 return std::make_pair(0, std::nullopt);
             }
         }
-
         _logger.info("Blob size with padding: %ld", size);
     }
     _logger.info("Write blob to stream successfully.");
