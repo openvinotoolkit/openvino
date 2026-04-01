@@ -9,8 +9,9 @@
 
 enum class LogLevel {
     None = 0,
-    Info = 1,
-    Debug = 2,
+    Warn = 1,
+    Info = 2,
+    Debug = 3,
 };
 
 class Logger {
@@ -25,5 +26,6 @@ private:
     std::stringstream m_ss;
 };
 
+#define LOG_WARN() Logger{LogLevel::Warn}.stream()
 #define LOG_INFO() Logger{LogLevel::Info}.stream()
 #define LOG_DEBUG() Logger{LogLevel::Debug}.stream()

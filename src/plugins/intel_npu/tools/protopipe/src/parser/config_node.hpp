@@ -24,17 +24,16 @@ public:
         if (_isRoot) {
             std::vector<std::string> unusedKeys = getUnusedKeys();
             if (!unusedKeys.empty()) {
-                std::string unusedKeysStr = "Unused keys: ";
+                std::string unusedKeysStr = "Unused config keys: ";
                 for (size_t i = 0; i < unusedKeys.size(); ++i) {
                     unusedKeysStr += unusedKeys[i];
                     if (i < unusedKeys.size() - 1) unusedKeysStr += " ";
                 }
-                LOG_INFO() << unusedKeysStr << std::endl;
+                LOG_WARN() << unusedKeysStr << std::endl;
             }
         }
     }
 
-    // Delete copy to avoid issues with child storage
     ConfigNode(const ConfigNode&) = delete;
     ConfigNode& operator=(const ConfigNode&) = delete;
 
@@ -140,7 +139,7 @@ public:
 
         ConfigNode& _parent;
         std::size_t _index;
-        mutable std::vector<std::string> _cachedKeys;
+        std::vector<std::string> _cachedKeys;
     };
 
     const_iterator begin() const {

@@ -19,6 +19,9 @@ std::stringstream& Logger::stream() {
 Logger::~Logger() {
     if (m_lvl <= Logger::global_lvl) {
         switch (m_lvl) {
+        case LogLevel::Warn:
+            std::cout << "[ WARN ] " << m_ss.str();
+            break;
         case LogLevel::Info:
             std::cout << "[ INFO ] " << m_ss.str();
             break;
