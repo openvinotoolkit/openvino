@@ -37,10 +37,10 @@ DisableFP16CompForGemma3RMSPattern::DisableFP16CompForGemma3RMSPattern() {
 
         auto rms_post = pattern_map.at(rms_post_m).get_node_shared_ptr();
         if (rms_post) {
-            ov::disable_compression_to(rms_post, element::f16);
+            ov::disable_fp16_compression(rms_post);
         }
 
-        ov::disable_compression_to(rms, element::f16);
+        ov::disable_fp16_compression(rms);
         return true;
     };
 

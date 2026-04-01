@@ -588,7 +588,7 @@ std::ostream& operator<<(std::ostream& os, const PrintableModel& model) {
     os << prefix << "}\n";
     os << prefix << "fp16_compress disabled Ngraph nodes:\n";
     for (const auto& op : f.get_ordered_ops()) {
-        if (ov::is_compression_disabled_to(op, ov::element::f16) && !ov::as_type_ptr<op::v0::Constant>(op)) {
+        if (ov::fp16_compression_is_disabled(op) && !ov::as_type_ptr<op::v0::Constant>(op)) {
             os << "\t" << tag << op->get_friendly_name() << "\n";
         }
     }

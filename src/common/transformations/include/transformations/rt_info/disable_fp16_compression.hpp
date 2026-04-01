@@ -16,13 +16,10 @@
 
 namespace ov {
 
-OPENVINO_DEPRECATED("Use disable_compression_to/disable_compression_from_to instead")
 TRANSFORMATIONS_API void disable_fp16_compression(const std::shared_ptr<Node>& node);
 
-OPENVINO_DEPRECATED("Use enable_compression_to/enable_compression_from_to instead")
 TRANSFORMATIONS_API void enable_fp16_compression(const std::shared_ptr<Node>& node);
 
-OPENVINO_DEPRECATED("Use is_compression_disabled_to/is_compression_disabled_from_to instead")
 TRANSFORMATIONS_API bool fp16_compression_is_disabled(const std::shared_ptr<const Node>& node);
 
 TRANSFORMATIONS_API void postpone_fp16_compression(RTMap& rt_info);

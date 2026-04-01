@@ -12,13 +12,11 @@ bool ov::pass::ConvertLegacyPrecisionAttribute::run_on_model(const std::shared_p
     RUN_ON_MODEL_SCOPE(ConvertLegacyPrecisionAttribute);
     bool changed = false;
     for (const auto& node : model->get_ordered_ops()) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
         if (node->get_rt_info().count(DisableFP16Compression::get_type_info_static())) {
             node->get_rt_info().erase(DisableFP16Compression::get_type_info_static());  // remove legacy attribute
             disable_compression_to(node, element::f16);
             changed = true;
         }
-        OPENVINO_SUPPRESS_DEPRECATED_END
 
         if (auto sub_graph_node = ov::as_type_ptr<op::util::MultiSubGraphOp>(node)) {
             for (size_t i = 0; i < sub_graph_node->get_internal_subgraphs_size(); ++i) {

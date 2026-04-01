@@ -95,10 +95,10 @@ static void run_test(std::shared_ptr<ov::Model> model,
         if (it != expected_fp16_disabled_status.end()) {
             bool expected_status = it->second;
             if (expected_status) {
-                ASSERT_TRUE(ov::is_compression_disabled_to(op, ov::element::f16))
+                ASSERT_TRUE(ov::fp16_compression_is_disabled(op))
                     << "FP16 compression is not disabled for node: " << op->get_friendly_name();
             } else {
-                ASSERT_FALSE(ov::is_compression_disabled_to(op, ov::element::f16))
+                ASSERT_FALSE(ov::fp16_compression_is_disabled(op))
                     << "FP16 compression is unexpectedly disabled for node: " << op->get_friendly_name();
             }
         }

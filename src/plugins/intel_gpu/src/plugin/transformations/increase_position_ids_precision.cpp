@@ -476,7 +476,7 @@ DisableFP16ComForGPTOSSROPEPattern::DisableFP16ComForGPTOSSROPEPattern() {
         if (!sin_node || transformation_callback(sin_node))
             return false;
         auto freq_const_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(freq_const).get_node_shared_ptr());
-        ov::disable_compression_to(freq_const_node, element::f16);
+        ov::disable_fp16_compression(freq_const_node);
         return true;
     };
 

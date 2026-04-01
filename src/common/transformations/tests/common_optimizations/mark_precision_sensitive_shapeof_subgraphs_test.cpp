@@ -80,10 +80,10 @@ TEST_F(TransformationTestsF, MarkEntireShapeSubgraphs_whole_shape_subgraph_is_ma
         auto new_shape = std::make_shared<opset10::Convert>(div, element::i64);
 
         auto reshape = std::make_shared<opset10::Reshape>(input_1, new_shape, false);
-        disable_compression_to(convert_to_float, element::f16);
-        disable_compression_to(const_denominator, element::f16);
-        disable_compression_to(div, element::f16);
-        disable_compression_to(new_shape, element::f16);
+        disable_fp16_compression(convert_to_float);
+        disable_fp16_compression(const_denominator);
+        disable_fp16_compression(div);
+        disable_fp16_compression(new_shape);
         model_ref = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{input_1, input_2});
     }
 }
@@ -136,13 +136,13 @@ TEST_F(TransformationTestsF, MarkEntireShapeSubgraphs_whole_shape_subgraph_is_ma
         auto slice = std::make_shared<opset10::StridedSlice>(input_1, begin, concat_with_ends, begin_mask, end_mask);
         auto result = std::make_shared<opset10::Result>(slice);
 
-        disable_compression_to(gather_1, element::f16);
-        disable_compression_to(convert_to_float, element::f16);
-        disable_compression_to(const_denominator, element::f16);
-        disable_compression_to(div, element::f16);
-        disable_compression_to(new_dim_size, element::f16);
-        disable_compression_to(const_ends, element::f16);
-        disable_compression_to(concat_with_ends, element::f16);
+        disable_fp16_compression(gather_1);
+        disable_fp16_compression(convert_to_float);
+        disable_fp16_compression(const_denominator);
+        disable_fp16_compression(div);
+        disable_fp16_compression(new_dim_size);
+        disable_fp16_compression(const_ends);
+        disable_fp16_compression(concat_with_ends);
         model_ref = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_1});
     }
 }
@@ -228,15 +228,15 @@ TEST_F(TransformationTestsF, MarkEntireShapeSubgraphs_whole_shape_subgraph_is_ma
         auto result_1 = std::make_shared<opset10::Result>(add_1);
         auto result_2 = std::make_shared<opset10::Result>(interpolate);
 
-        disable_compression_to(gather_1, element::f16);
-        disable_compression_to(convert_1, element::f16);
-        disable_compression_to(convert_2, element::f16);
-        disable_compression_to(const_2, element::f16);
-        disable_compression_to(div_1, element::f16);
-        disable_compression_to(const_3, element::f16);
-        disable_compression_to(concat, element::f16);
-        disable_compression_to(mul_1, element::f16);
-        disable_compression_to(convert_3, element::f16);
+        disable_fp16_compression(gather_1);
+        disable_fp16_compression(convert_1);
+        disable_fp16_compression(convert_2);
+        disable_fp16_compression(const_2);
+        disable_fp16_compression(div_1);
+        disable_fp16_compression(const_3);
+        disable_fp16_compression(concat);
+        disable_fp16_compression(mul_1);
+        disable_fp16_compression(convert_3);
 
         model_ref = std::make_shared<Model>(OutputVector{result_1, result_2}, ParameterVector{input_1, input_2});
     }
@@ -271,7 +271,7 @@ TEST_F(TransformationTestsF, MarkConstantsInShapeSubgraphs_only_consts_marked_1)
         auto new_shape = std::make_shared<opset10::Convert>(div, element::i64);
         auto reshape = std::make_shared<opset10::Reshape>(input_1, new_shape, false);
 
-        disable_compression_to(const_denominator, element::f16);
+        disable_fp16_compression(const_denominator);
 
         model_ref = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{input_1, input_2});
     }
@@ -326,8 +326,8 @@ TEST_F(TransformationTestsF, MarkConstantsInShapeSubgraphs_only_consts_marked_2)
         auto slice = std::make_shared<opset10::StridedSlice>(input_1, begin, concat_with_ends, begin_mask, end_mask);
         auto result = std::make_shared<opset10::Result>(slice);
 
-        disable_compression_to(const_denominator, element::f16);
-        disable_compression_to(const_ends, element::f16);
+        disable_fp16_compression(const_denominator);
+        disable_fp16_compression(const_ends);
         model_ref = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_1});
     }
 }

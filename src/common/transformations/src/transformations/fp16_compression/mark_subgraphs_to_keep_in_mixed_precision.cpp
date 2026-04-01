@@ -130,7 +130,7 @@ public:
             for (const auto& output : node->outputs()) {
                 for (const auto& out_inputs : output.get_target_inputs()) {
                     if (out_inputs.get_element_type().is_real() &&
-                        is_compression_disabled_to(out_inputs.get_node()->shared_from_this(), element::f16)) {
+                        fp16_compression_is_disabled(out_inputs.get_node()->shared_from_this())) {
                         has_marked_output = true;
                     }
                 }
@@ -148,7 +148,7 @@ public:
                     return false;
             }
 
-            disable_compression_to(node, element::f16);
+            disable_fp16_compression(node);
             return true;
         };
 
@@ -182,12 +182,12 @@ public:
                 if (!in_node.get_element_type().is_real())
                     continue;
                 if (is_fq_path(in_node.get_node_shared_ptr())) {
-                    enable_compression_to(node, element::f16);
+                    enable_fp16_compression(node);
                     return true;
                 }
 
-                if (is_compression_disabled_to(in_node.get_node_shared_ptr(), element::f16)) {
-                    disable_compression_to(node, element::f16);
+                if (fp16_compression_is_disabled(in_node.get_node_shared_ptr())) {
+                    disable_fp16_compression(node);
                     is_changed = true;
                     break;
                 }
@@ -262,7 +262,7 @@ public:
             if (!is_reduceop_path(node))
                 return false;
 
-            disable_compression_to(node, element::f16);
+            disable_fp16_compression(node);
             return true;
         };
         auto m = make_shared<pattern::Matcher>(exp_pattern, matcher_name);
@@ -283,7 +283,7 @@ public:
             if (!node)
                 return false;
 
-            disable_compression_to(node, element::f16);
+            disable_fp16_compression(node);
             for (const auto& output : node->outputs()) {
                 auto target_inputs = output.get_target_inputs();
                 for (const auto& input : target_inputs) {
@@ -390,7 +390,7 @@ public:
                     if (val > float16_min_normalized)
                         return false;
             }
-            disable_compression_to(m.get_match_root(), element::f16);
+            disable_fp16_compression(m.get_match_root());
             return true;
         };
 
@@ -448,7 +448,7 @@ public:
                 auto is_quantize = as_type_ptr<v0::FakeQuantize>(input_node);
                 if (is_quantize || is_fq_path(input_node)) {
                     mark_fq_path(node);
-                    enable_compression_to(node, element::f16);
+                    enable_fp16_compression(node);
                     is_changed = true;
                 }
             }

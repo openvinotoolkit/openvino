@@ -1316,7 +1316,7 @@ bool fuse_type_to_constant(const std::shared_ptr<ov::Node>& node,
                            const precisions_map& precisions,
                            const std::vector<Input<Node>>& consumers) {
     // Consts marked with is_keep_const_precision should be kept in their own precision until they reach the plugin
-    if (is_keep_const_precision(node))  // leave for now
+    if (is_keep_const_precision(node))
         return false;
 
     auto from = node->get_element_type();

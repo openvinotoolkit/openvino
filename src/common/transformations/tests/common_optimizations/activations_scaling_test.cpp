@@ -85,7 +85,7 @@ TEST_F(TransformationTestsF, ScaleDownSingleLayerTest_f32) {
         auto weights_const1 = v0::Constant::create(ov::element::f16, ov::Shape{8, 16}, {1});
         auto matmul1 = std::make_shared<v0::MatMul>(matmul0, weights_const1);
         auto convert = std::make_shared<v0::Convert>(matmul1, ov::element::f32);
-        disable_compression_to(convert, ov::element::f16);
+        disable_fp16_compression(convert);
         disable_constant_folding(convert);
         auto convert_f16 = std::make_shared<v0::Convert>(convert, ov::element::f16);
         auto result = std::make_shared<v0::Result>(convert_f16);

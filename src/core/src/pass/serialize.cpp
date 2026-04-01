@@ -79,6 +79,13 @@ void serialize_func(std::ostream& xml_file,
     bin_file.flush();
 }
 
+inline void convert_py_rt_info(std::shared_ptr<ov::Model> model) {
+    // TODO xxx-105807: if rt_info is set in python api as a string ['precise_0'] = '',
+    //  we need to convert value to a class in order to have rt_info in the IR. The code below will convert
+    // ['precise_0'] = '' into => rt_info['precise_0'] = DisablePrecisionConversion{}
+    ov::pass::ConvertLegacyPrecisionAttribute().run_on_model(model);
+}
+
 void serialize_func(std::ostream& xml_file,
                     std::ostream& bin_file,
                     std::shared_ptr<ov::Model> model,
@@ -105,8 +112,7 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     OPENVINO_ASSERT(model, "ov::Model not provided");
 
     model->validate_nodes_and_infer_types();
-    // convert_py_rt_info(*model);
-    // TEST
+    convert_py_rt_info(model);
 
     if (m_xml_file && m_bin_file) {
         serialize_func(*m_xml_file, *m_bin_file, model, m_version);
