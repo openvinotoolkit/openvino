@@ -8,6 +8,7 @@
 #include "llm_compiled_model_utils.hpp"
 #include "partitioning/partitioning.hpp"
 #include "intel_npu/config/config.hpp"
+#include "npuw_transformations/optimize_value_tensors.hpp"
 
 /*
 * conditional compilation that can be used during test regression debug

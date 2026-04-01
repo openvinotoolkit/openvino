@@ -6,8 +6,8 @@
 
 #include "intel_npu/common/icompiled_model.hpp"
 #include "intel_npu/common/igraph.hpp"
+#include "intel_npu/common/network_metadata.hpp"
 #include "intel_npu/common/npu.hpp"
-#include "intel_npu/network_metadata.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_tensor.hpp"
 #include "zero_pipeline.hpp"
