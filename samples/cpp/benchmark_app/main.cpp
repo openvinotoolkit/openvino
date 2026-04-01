@@ -675,7 +675,8 @@ int main(int argc, char* argv[]) {
                                               inputFiles,
                                               FLAGS_scale_values,
                                               FLAGS_mean_values,
-                                              compiledModel.inputs());
+                                              compiledModel.inputs(),
+                                              (bool)FLAGS_compile_only);
             if (batchSize == 0) {
                 batchSize = 1;
             }
@@ -723,7 +724,8 @@ int main(int argc, char* argv[]) {
                                               FLAGS_scale_values,
                                               FLAGS_mean_values,
                                               inputInfo,
-                                              reshape);
+                                              reshape,
+                                              (bool)FLAGS_compile_only);
             if (reshape) {
                 benchmark_app::PartialShapes shapes = {};
                 for (auto& item : app_inputs_info[0])
@@ -903,7 +905,8 @@ int main(int argc, char* argv[]) {
                                               inputFiles,
                                               FLAGS_scale_values,
                                               FLAGS_mean_values,
-                                              compiledModel.inputs());
+                                              compiledModel.inputs(),
+                                              (bool)FLAGS_compile_only);
             isDynamicNetwork = areNetworkInputsDynamic(app_inputs_info.at(0));
 
             batchSize = get_batch_size(app_inputs_info.at(0));
@@ -913,6 +916,23 @@ int main(int argc, char* argv[]) {
             if (batchSize == 0) {
                 batchSize = 1;
             }
+        }
+
+        if (FLAGS_compile_only) {
+            slog::info << "Model compiled successfully. Skipping inference due to -compile_only flag." << slog::endl;
+            next_step("skipped"); // 8 - Querying optimal runtime parameters
+            next_step("skipped"); // 9 - Creating infer requests and preparing input tensors
+            next_step("skipped"); // 10 - Measuring performance
+            // ----------------- 11. Dumping statistics report
+            // -------------------------------------------------------------
+            next_step();
+            if (!FLAGS_dump_config.empty()) {
+                dump_config(FLAGS_dump_config, config);
+                slog::info << "OpenVINO Runtime configuration settings were dumped to " << FLAGS_dump_config << slog::endl;
+            }
+            if (statistics)
+                statistics->dump();
+            return 0;
         }
 
         bool allow_inference_only_or_sync = can_measure_as_static(app_inputs_info);

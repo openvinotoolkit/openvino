@@ -480,7 +480,8 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                                                        const std::string& scale_string,
                                                        const std::string& mean_string,
                                                        const std::vector<ov::Output<const ov::Node>>& input_info,
-                                                       bool& reshape_required) {
+                                                       bool& reshape_required,
+                                                       bool compile_only) {
     std::map<std::string, std::vector<std::string>> shape_map = parse_input_parameters(shape_string, input_info);
     std::map<std::string, std::vector<std::string>> data_shapes_map =
         parse_input_parameters(data_shapes_string, input_info);
@@ -711,9 +712,11 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
             } else if (!data_shapes_map.empty()) {
                 throw std::logic_error("Can't find model input name \"" + name + "\" in \"-data_shape " +
                                        data_shapes_string + "\" command line parameter");
-            } else {
+            } else if (!compile_only) {
                 throw std::logic_error("-i or -data_shape command line parameter should be set for all inputs in case "
-                                       "of model with dynamic shapes.");
+                                       "of model with dynamic shapes. "
+                                       "If you only need to compile the model without running inference, "
+                                       "use -compile_only flag to skip this requirement.");
             }
 
             // Update shape with batch if needed (only in static shape case)
@@ -772,7 +775,8 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                                                        const std::map<std::string, std::vector<std::string>>& fileNames,
                                                        const std::string& scale_string,
                                                        const std::string& mean_string,
-                                                       const std::vector<ov::Output<const ov::Node>>& input_info) {
+                                                       const std::vector<ov::Output<const ov::Node>>& input_info,
+                                                       bool compile_only) {
     bool reshape_required = false;
     return get_inputs_info(shape_string,
                            layout_string,
@@ -782,7 +786,8 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                            scale_string,
                            mean_string,
                            input_info,
-                           reshape_required);
+                           reshape_required,
+                           compile_only);
 }
 
 void dump_config(const std::string& filename, const std::map<std::string, ov::AnyMap>& config) {
