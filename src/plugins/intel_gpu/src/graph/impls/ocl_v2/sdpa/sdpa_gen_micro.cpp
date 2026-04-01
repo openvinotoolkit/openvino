@@ -1169,8 +1169,8 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         // tile element vector = sg_tile_m * max_BC / sg_size; must be <= 16 (max defined vl).
         const bool block2d_compatible = (sg_tile_m * 8 / sg_size) <= 16;  // sg_tile_m <= 32
         const bool use_block2d = lda % 16 == 0 && vbytes % 4 == 0 && block2d_compatible;
-        GPU_DEBUG_INFO << "BLOCK_2D_A check: sg_tile_m=" << sg_tile_m << " sg_size=" << sg_size << " lda=" << lda << " vbytes=" << vbytes
-                       << " block2d_compatible=" << block2d_compatible << " => " << (use_block2d ? "enabled" : "disabled") << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "BLOCK_2D_A check: sg_tile_m=" << sg_tile_m << " sg_size=" << sg_size << " lda=" << lda << " vbytes=" << vbytes
+                               << " block2d_compatible=" << block2d_compatible << " => " << (use_block2d ? "enabled" : "disabled") << std::endl;
         if (use_block2d)
             jit.make("BLOCK_2D_A", 1);
     }
