@@ -24,7 +24,7 @@ void pad(const char* data,
          const op::PadMode pad_mode);
 
 void pad(const std::string* data,
-         std::string_view pad_value,
+         const std::string_view pad_value,
          std::string* out,
          const Shape& data_shape,
          const Shape& out_shape,
