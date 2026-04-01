@@ -1,4 +1,4 @@
 # Extra dependencies for test_timm.py
 timm==1.0.24
-huggingface-hub==0.25.2
-transformers==4.47.1
+# Prevent numpy upgrade on ARM64 where numpy 2.x causes test failures
+numpy==1.26.4; python_version < "3.12" and platform_machine == "aarch64"
