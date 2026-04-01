@@ -1999,17 +1999,16 @@ template <element::Type_t ET, element::Type_t ET_INT>
 std::vector<PadParams> generateParamsTooLarge() {
     using T = typename element_type_traits<ET>::value_type;
     using T_INT = typename element_type_traits<ET_INT>::value_type;
-    // Use a dim value close to max so that adding padding causes size_t overflow.
-    // ov::util::dim::padded returns inf_bound (SIZE_MAX) in that case, which
-    // causes set_shape / memory allocation to throw.
-    constexpr auto max_dim = static_cast<T_INT>(std::numeric_limits<size_t>::max() - 1);
     std::vector<PadParams> params{
-        PadParams(reference_tests::Tensor(ET, {1}, std::vector<T>{1}),
-                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
-                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{max_dim}),
+        // CONSTANT mode where negative pads make the output dimension mathematically
+        // negative (dim=3, total_pad=-5 → output=-2). The result wraps to a huge
+        // size_t value, causing set_shape / memory allocation to throw.
+        PadParams(reference_tests::Tensor(ET, {3}, std::vector<T>{1, 2, 3}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{0}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{-5}),
                   reference_tests::Tensor(ET, {1}, std::vector<T>{0}),
                   op::PadMode::CONSTANT,
-                  "pad_dim_overflow"),
+                  "pad_negative_output_dim"),
 
         PadParams(reference_tests::Tensor(ET,
                                           {2, 2},
