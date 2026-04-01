@@ -62,7 +62,7 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
     unsigned int stride_x = (poolingAttrs.stride.size() >= 2U) ? poolingAttrs.stride[1] : poolingAttrs.stride[0];
     unsigned int stride_y = (poolingAttrs.stride.size() >= 2U) ? poolingAttrs.stride[0] : 1;
 
-    PoolingType pool_type;
+    PoolingType pool_type = PoolingType::MAX;
     bool exclude_padding = false;
     if (poolingAttrs.algorithm == Algorithm::PoolingMax) {
         pool_type = PoolingType::MAX;
@@ -83,15 +83,12 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
         DEBUG_LOG("NCHW + CEIL gives an accuracy problem in ACL AvgPool. ACL executor will not be created.");
         return false;
     }
-    DimensionRoundingType round;
+    DimensionRoundingType round = DimensionRoundingType::FLOOR;
     switch (poolingAttrs.rounding) {
     case op::RoundingType::FLOOR:
         round = DimensionRoundingType::FLOOR;
         break;
     case op::RoundingType::CEIL:
-        round = DimensionRoundingType::CEIL;
-        break;
-    // CEIL_TORCH type is mapped to ACL CEIL type
     case op::RoundingType::CEIL_TORCH:
         round = DimensionRoundingType::CEIL;
         break;
