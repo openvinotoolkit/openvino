@@ -255,12 +255,12 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
 
     auto compiledModel = std::make_shared<intel_npu::CompiledModel>(
         ov_model,
-        std::make_shared<ov::test::utils::MockPlugin>(),
+        std::make_shared<ov::test::utils::MockPlugin>(),  // MockPlugin needed only to avoid throw for nullptr
         device,
         graph,
         *npu_config,
         batch,
-        /* encryptionCallbackOpt = */ std::nullopt);  // MockPlugin needed only to avoid throw for nullptr
+        /* encryptionCallbackOpt = */ std::nullopt);
     OPENVINO_ASSERT(compiledModel->inputs()[0].get_element_type() == element_type);
     OPENVINO_ASSERT(compiledModel->inputs()[1].get_element_type() == element_type);
 
