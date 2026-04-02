@@ -15,6 +15,7 @@ env:
   TEST_PROFILE: cpu
   PYTEST_XDIST_WORKERS: '4'
   JS_TEST_CONCURRENCY: '1'
+  ENABLE_BRANCH_COVERAGE: 'true'
   LCOV_CAPTURE_TIMEOUT_SECONDS: '3600'
   NODE_VERSION: '21'
   NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt

@@ -79,6 +79,20 @@ def _write_stats_report(
     )
 
 
+def _copy_js_lcov(*, source: Path, target: Path, branch_coverage: bool) -> None:
+    """Copy JS LCOV output and optionally strip branch records."""
+    if not branch_coverage:
+        filtered_lines = []
+        for line in source.read_text(encoding="utf-8", errors="replace").splitlines():
+            if line.startswith(("BRDA:", "BRF:", "BRH:")):
+                continue
+            filtered_lines.append(line)
+        target.write_text("\n".join(filtered_lines) + "\n", encoding="utf-8")
+        return
+
+    shutil.copyfile(source, target)
+
+
 def run(ctx: CoverageContext) -> None:
     """Execute configured JS tests and export coverage results."""
     if shutil.which("node") is None or shutil.which("npm") is None:
@@ -167,7 +181,7 @@ def run(ctx: CoverageContext) -> None:
     source = ctx.workspace / "js-coverage" / "lcov.info"
     target = ctx.workspace / "js-lcov.info"
     if source.exists():
-        shutil.copyfile(source, target)
+        _copy_js_lcov(source=source, target=target, branch_coverage=ctx.branch_coverage)
 
     _write_duration_report(ctx, duration_rows)
 

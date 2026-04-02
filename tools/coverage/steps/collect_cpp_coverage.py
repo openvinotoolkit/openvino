@@ -469,6 +469,7 @@ def _run_lcov_capture(
     output_file: Path,
     label: str,
     debug_dir: Path,
+    branch_coverage: bool,
 ) -> None:
     """Capture one lcov tracefile, retrying after gcda cleanup when needed.
 
@@ -492,6 +493,8 @@ def _run_lcov_capture(
         "--compat",
         "split_crc=auto",
     ]
+    if branch_coverage:
+        cmd.extend(["--rc", "lcov_branch_coverage=1"])
 
     timeout_seconds = int(os.environ.get("LCOV_CAPTURE_TIMEOUT_SECONDS", "3600"))
     max_attempts = 32
@@ -578,7 +581,7 @@ def _collect_staged_gcov_runs(ctx: CoverageContext) -> list[Path]:
     return sorted(path for path in runs_root.iterdir() if path.is_dir())
 
 
-def _merge_tracefiles(tracefiles: list[Path], output: Path) -> None:
+def _merge_tracefiles(tracefiles: list[Path], output: Path, *, branch_coverage: bool) -> None:
     """Merge captured lcov tracefiles into the final coverage report.
 
     Coverage may be captured from the main build, the JS build, and staged
@@ -595,6 +598,8 @@ def _merge_tracefiles(tracefiles: list[Path], output: Path) -> None:
         return
 
     cmd = ["lcov"]
+    if branch_coverage:
+        cmd.extend(["--rc", "lcov_branch_coverage=1"])
     for tracefile in tracefiles:
         cmd.extend(["-a", str(tracefile)])
     cmd.extend(["-o", str(output)])
@@ -692,6 +697,7 @@ def run(ctx: CoverageContext) -> None:
             output_file=main_info,
             label="C/C++ main capture",
             debug_dir=trace_dir,
+            branch_coverage=ctx.branch_coverage,
         )
     else:
         if not has_staged_main_gcda:
@@ -707,6 +713,7 @@ def run(ctx: CoverageContext) -> None:
             output_file=js_info,
             label="C/C++ JS-side capture",
             debug_dir=trace_dir,
+            branch_coverage=ctx.branch_coverage,
         )
         tracefiles.append(js_info)
     else:
@@ -731,6 +738,7 @@ def run(ctx: CoverageContext) -> None:
                 output_file=tracefile,
                 label=f"C/C++ staged main capture ({run_dir.name})",
                 debug_dir=trace_dir,
+                branch_coverage=ctx.branch_coverage,
             )
             tracefiles.append(tracefile)
 
@@ -744,10 +752,11 @@ def run(ctx: CoverageContext) -> None:
                 output_file=tracefile,
                 label=f"C/C++ staged JS capture ({run_dir.name})",
                 debug_dir=trace_dir,
+                branch_coverage=ctx.branch_coverage,
             )
             tracefiles.append(tracefile)
 
-    _merge_tracefiles(tracefiles, merged_info)
+    _merge_tracefiles(tracefiles, merged_info, branch_coverage=ctx.branch_coverage)
 
     normalization_stats = _normalize_and_filter_tracefile(tracefile=merged_info, workspace=src_dir, debug_dir=trace_dir)
 
@@ -773,6 +782,7 @@ def run(ctx: CoverageContext) -> None:
             "--prefix",
             str(src_dir),
             "--synthesize-missing",
+            *(["--branch-coverage"] if ctx.branch_coverage else []),
         ],
         check=False,
     )

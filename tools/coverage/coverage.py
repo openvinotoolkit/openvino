@@ -239,6 +239,7 @@ class CoverageContext:
     cpp_test_concurrency: int
     pytest_workers: int
     js_test_concurrency: int
+    branch_coverage: bool
     test_profile: str
     cc: str
     cxx: str
@@ -264,11 +265,18 @@ class CoverageContext:
                 return fallback
             return int(raw)
 
+        def _bool_env(name: str, fallback: bool) -> bool:
+            raw = os.environ.get(name)
+            if raw is None or raw.strip() == "":
+                return fallback
+            return raw.strip().lower() in {"1", "true", "yes", "on"}
+
         cpu_count = os.cpu_count() or 1
         parallel_jobs = _int_env("PARALLEL_JOBS", cpu_count)
         cpp_test_concurrency = max(1, _int_env("CPP_TEST_CONCURRENCY", 1))
         pytest_workers = _int_env("PYTEST_XDIST_WORKERS", 1)
         js_concurrency = _int_env("JS_TEST_CONCURRENCY", 1)
+        branch_coverage = _bool_env("ENABLE_BRANCH_COVERAGE", False)
 
         test_profile = os.environ.get("TEST_PROFILE", "cpu").strip()
         if test_profile not in SUPPORTED_PROFILES:
@@ -295,6 +303,7 @@ class CoverageContext:
         os.environ["CPP_TEST_CONCURRENCY"] = str(cpp_test_concurrency)
         os.environ["PYTEST_XDIST_WORKERS"] = str(pytest_workers)
         os.environ["JS_TEST_CONCURRENCY"] = str(js_concurrency)
+        os.environ["ENABLE_BRANCH_COVERAGE"] = "true" if branch_coverage else "false"
         os.environ["TEST_PROFILE"] = test_profile
         os.environ["RUN_GPU_TESTS"] = "true" if profile_flags.run_gpu_tests else "false"
         os.environ["RUN_NPU_TESTS"] = "true" if profile_flags.run_npu_tests else "false"
@@ -306,6 +315,7 @@ class CoverageContext:
             cpp_test_concurrency=cpp_test_concurrency,
             pytest_workers=pytest_workers,
             js_test_concurrency=js_concurrency,
+            branch_coverage=branch_coverage,
             test_profile=test_profile,
             cc=cc,
             cxx=cxx,
@@ -333,6 +343,7 @@ class CoverageContext:
     def log_profile(self) -> None:
         """Print the resolved profile and accelerator flags."""
         print(f"[coverage] TEST_PROFILE={self.test_profile}")
+        print(f"[coverage] ENABLE_BRANCH_COVERAGE={'true' if self.branch_coverage else 'false'}")
         print(f"[coverage] RUN_GPU_TESTS={'true' if self.run_gpu_tests else 'false'}")
         print(f"[coverage] RUN_NPU_TESTS={'true' if self.run_npu_tests else 'false'}")
         print(f"[coverage] GPU_FLAGS={' '.join(self.gpu_flags)}")

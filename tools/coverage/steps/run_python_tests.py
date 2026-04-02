@@ -12,10 +12,13 @@ import time
 from coverage_workflow import CoverageContext, env_from_assignments, load_python_tests, run_cmd, warn
 
 
-PYCOV_CONFIG = """[run]
+def _pycov_config(*, branch_coverage: bool) -> str:
+    """Build the coverage.py config used by pytest-cov and coverage CLI."""
+    branch_line = "branch = True\n" if branch_coverage else ""
+    return f"""[run]
 source =
     openvino
-omit =
+{branch_line}omit =
     */tests/*
     */thirdparty/*
     */docs/*
@@ -191,7 +194,8 @@ def run(ctx: CoverageContext) -> None:
     os.environ["PY_COV_CONFIG"] = str(py_cov_config)
     os.environ["PYTEST_XDIST_WORKERS"] = str(ctx.pytest_workers)
 
-    py_cov_config.write_text(PYCOV_CONFIG, encoding="utf-8")
+    py_cov_config.write_text(_pycov_config(branch_coverage=ctx.branch_coverage), encoding="utf-8")
+    os.environ["COVERAGE_RCFILE"] = str(py_cov_config)
     run_cmd(["python3", "-m", "coverage", "erase"])
 
     executed = 0

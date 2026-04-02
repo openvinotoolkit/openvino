@@ -27,4 +27,5 @@ Important environment variables used by the workflow:
 - `CXX_TEST_NAMES`
 - `PY_TEST_NAMES`
 - `JS_TEST_NAMES`
+- `ENABLE_BRANCH_COVERAGE`
 - `COVERAGE_WRITE_STEP_SUMMARY=false`
