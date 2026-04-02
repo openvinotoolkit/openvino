@@ -47,7 +47,7 @@ Step 1: Install OpenVINO Core Components
       cd <user_home>/Downloads
 
 
-4. Download the `OpenVINO Runtime archive file for macOS <https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.0/macos/>`__,
+4. Download the `OpenVINO Runtime archive file for macOS <https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.1/macos/>`__,
    extract the files, rename the extracted folder and move it to the desired path:
 
    .. tab-set::
@@ -57,9 +57,9 @@ Step 1: Install OpenVINO Core Components
 
          .. code-block:: sh
 
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.0/macos/openvino_toolkit_macos_12_6_2026.0.0.20965.c6d6a13a886_arm64.tgz --output openvino_2026.0.0.tgz
-            tar -xf openvino_2026.0.0.tgz
-            sudo mv openvino_toolkit_macos_12_6_2026.0.0.20965.c6d6a13a886_arm64 /opt/intel/openvino_2026.0.0
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.1/macos/openvino_toolkit_macos_12_6_2026.1.0.21367.63e31528c62_arm64.tgz --output openvino_2026.1.0.tgz
+            tar -xf openvino_2026.1.0.tgz
+            sudo mv openvino_toolkit_macos_12_6_2026.1.0.21367.63e31528c62_arm64 /opt/intel/openvino_2026.1.0
 
 
 5. (Optional) Install *numpy* Python Library:
@@ -68,18 +68,18 @@ Step 1: Install OpenVINO Core Components
 
       This step is required only when you decide to use Python API.
 
-   You can use the ``requirements.txt`` file from the ``/opt/intel/openvino_2026.0.0/python`` folder:
+   You can use the ``requirements.txt`` file from the ``/opt/intel/openvino_2026.1.0/python`` folder:
 
    .. code-block:: sh
 
-      cd /opt/intel/openvino_2026.0.0
+      cd /opt/intel/openvino_2026.1.0
       python3 -m pip install -r ./python/requirements.txt
 
 6. For simplicity, it is useful to create a symbolic link as below:
 
    .. code-block:: sh
 
-      sudo ln -s /opt/intel/openvino_2026.0.0 /opt/intel/openvino_2026
+      sudo ln -s /opt/intel/openvino_2026.1.0 /opt/intel/openvino_2026
 
    .. note::
 

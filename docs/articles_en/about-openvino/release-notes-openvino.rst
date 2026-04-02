@@ -138,7 +138,7 @@ OpenVINO™ Model Server
 * Added support for Qwen3-VL models with function calling capabilities, enabling this vision language model in agentic scenarios.  
 * Extended ``/image`` endpoint to support inpainting and outpainting capabilities. It is now possible to pass the input image along with a mask to edit parts of the image or to extend the input image. 
 * Other improvements and fixes: 
-  * Server logs now report current KV cache allocation alongside current usage metrics. With dynamic cache size (default setting), allocation automatically scales during runtime based on the request’s concurrency and processed context length. 
+  * Server logs now report current KV cache allocation alongside current usage metrics. With dynamic cache size (default setting), allocation automatically scales during runtime based on the request's concurrency and processed context length. 
   * Generation request cancellation is now supported for NPU devices, where requests from disconnected clients will be cancelled. 
   * The finish reason now returns ``tool_calls`` when the model generates a function call, in line with OpenAI API standards. 
   * Corrected tokens usage reporting in the text generation last streaming event with NPU execution  
@@ -207,7 +207,7 @@ Known Issues
 | Description:
 | Performance regression on large number of computer vision models compared to OpenVINO 2026.0 
   release. For models showing regression, it's recommended to quantize and convert the model 
-    using OpenVINO 2026.0.
+  using OpenVINO 2026.0.
 
 Previous 2026 releases
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
