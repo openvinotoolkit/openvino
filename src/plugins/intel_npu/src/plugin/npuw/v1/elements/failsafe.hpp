@@ -17,6 +17,7 @@
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 
 namespace ov::npuw::failsafe {
 
@@ -24,12 +25,12 @@ class InferRequest;
 
 class CompiledModel final : public ov::ICompiledModel {
 public:
-    using Factory = std::function<std::shared_ptr<ov::ICompiledModel>(const std::string& device)>;
+    using Factory = std::function<ov::SoPtr<ov::ICompiledModel>(const std::string& device)>;
 
-    static std::shared_ptr<ov::ICompiledModel> create(const std::shared_ptr<ov::Model>& model,
-                                                      const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                      const std::vector<std::string> &devices,
-                                                      const Factory &factory);
+    static ov::SoPtr<ov::ICompiledModel> create(const std::shared_ptr<ov::Model>& model,
+                                                const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                const std::vector<std::string> &devices,
+                                                const Factory &factory);
 
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -55,7 +56,7 @@ private:
     struct ActiveState {
         std::size_t device_index = 0;
         std::size_t generation = 0;
-        std::shared_ptr<ov::ICompiledModel> compiled_model;
+        ov::SoPtr<ov::ICompiledModel> compiled_model;
     };
 
     ActiveState ensure_active_compiled_model_locked() const;

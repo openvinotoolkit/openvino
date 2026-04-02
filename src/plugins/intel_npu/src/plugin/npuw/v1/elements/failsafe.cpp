@@ -45,7 +45,7 @@ void copy_tensor_data(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITe
 
 }  // namespace
 
-std::shared_ptr<ov::ICompiledModel> ov::npuw::failsafe::CompiledModel::create(
+ov::SoPtr<ov::ICompiledModel> ov::npuw::failsafe::CompiledModel::create(
     const std::shared_ptr<ov::Model>& model,
     const std::shared_ptr<const ov::IPlugin>& plugin,
     const std::vector<std::string> &devices,
@@ -55,7 +55,7 @@ std::shared_ptr<ov::ICompiledModel> ov::npuw::failsafe::CompiledModel::create(
 
     if (devices.size() == 1u) {
         auto compiled_model = factory(devices.front());
-        OPENVINO_ASSERT(compiled_model != nullptr,
+        OPENVINO_ASSERT(compiled_model._ptr != nullptr,
                         "Failsafe factory returned null compiled model for device ",
                         devices.front());
         return compiled_model;
@@ -64,7 +64,7 @@ std::shared_ptr<ov::ICompiledModel> ov::npuw::failsafe::CompiledModel::create(
     auto compiled_model = std::make_shared<CompiledModel>(model, plugin, devices, factory);
     std::lock_guard<std::mutex> lock(compiled_model->m_mutex);
     compiled_model->ensure_active_compiled_model_locked();
-    return compiled_model;
+    return {compiled_model, {}};
 }
 
 ov::npuw::failsafe::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -88,7 +88,7 @@ ov::npuw::failsafe::CompiledModel::ActiveState ov::npuw::failsafe::CompiledModel
     for (std::size_t idx = 0; idx < m_devices.size(); ++idx) {
         try {
             auto compiled_model = m_factory(m_devices[idx]);
-            OPENVINO_ASSERT(compiled_model != nullptr,
+            OPENVINO_ASSERT(compiled_model._ptr != nullptr,
                             "Failsafe factory returned null compiled model for device ",
                             m_devices[idx]);
             m_active_state = ActiveState{idx, 0u, std::move(compiled_model)};
@@ -113,7 +113,7 @@ ov::npuw::failsafe::CompiledModel::ActiveState ov::npuw::failsafe::CompiledModel
     for (std::size_t idx = current.device_index + 1; idx < m_devices.size(); ++idx) {
         try {
             auto compiled_model = m_factory(m_devices[idx]);
-            OPENVINO_ASSERT(compiled_model != nullptr,
+            OPENVINO_ASSERT(compiled_model._ptr != nullptr,
                             "Failsafe factory returned null compiled model for device ",
                             m_devices[idx]);
             m_active_state = ActiveState{idx, current.generation + 1u, std::move(compiled_model)};
