@@ -32,7 +32,7 @@ op::util::PadBase::PadBase(const Output<Node>& arg,
           pads_begin,
           pads_end,
           arg.get_element_type() == element::string
-              ? op::v0::Constant::create(element::string, Shape{}, std::vector<std::string>{""})
+              ? op::v0::Constant::create(arg.get_element_type(), Shape{}, std::initializer_list<std::string>{""})
               : op::v0::Constant::create(arg.get_element_type(), Shape{}, {0})}),
       m_pad_mode{pad_mode} {
     mark_as_precision_sensitive(input(1));

@@ -2286,11 +2286,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_Pad_String_With_Hardcoded_Refs,
 TEST(ReferencePadV12StringNegative, NonConstantModeThrows) {
     const auto data = std::make_shared<op::v0::Parameter>(element::string, Shape{4});
     const auto pads_begin = op::v0::Constant::create(element::i64, Shape{1}, {1});
-    const auto pads_end   = op::v0::Constant::create(element::i64, Shape{1}, {1});
+    const auto pads_end = op::v0::Constant::create(element::i64, Shape{1}, {1});
     for (const auto mode : {op::PadMode::EDGE, op::PadMode::REFLECT, op::PadMode::SYMMETRIC}) {
-        EXPECT_THROW(std::make_shared<op::v12::Pad>(data, pads_begin, pads_end, mode),
-                     ov::Exception)
-            << "Expected throw for pad mode " << as_string(mode);
+        EXPECT_THROW(std::make_shared<op::v12::Pad>(data, pads_begin, pads_end, mode), ov::Exception)
+            << "Expected throw for pad mode " << mode;
     }
 }
 
@@ -2298,7 +2297,7 @@ TEST(ReferencePadV12StringNegative, NonConstantModeThrows) {
 TEST(ReferencePadV12StringDefaultPadValue, DefaultsToEmptyString) {
     const auto data = std::make_shared<op::v0::Parameter>(element::string, Shape{3});
     const auto pads_begin = op::v0::Constant::create(element::i64, Shape{1}, {1});
-    const auto pads_end   = op::v0::Constant::create(element::i64, Shape{1}, {1});
+    const auto pads_end = op::v0::Constant::create(element::i64, Shape{1}, {1});
     // Must not throw — default pad value for string should be ""
     std::shared_ptr<op::v12::Pad> pad;
     ASSERT_NO_THROW(pad = std::make_shared<op::v12::Pad>(data, pads_begin, pads_end, op::PadMode::CONSTANT));
