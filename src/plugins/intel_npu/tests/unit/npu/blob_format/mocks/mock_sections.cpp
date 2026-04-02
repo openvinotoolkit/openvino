@@ -4,6 +4,8 @@
 
 #include "mock_sections.hpp"
 
+#include <algorithm>
+
 MockSection_1::MockSection_1(double value) : ISection(MockTypes::MOCK_1), value(value) {}
 
 void MockSection_1::write(std::ostream& stream, BlobWriter* writer) {
@@ -12,6 +14,10 @@ void MockSection_1::write(std::ostream& stream, BlobWriter* writer) {
 
 double MockSection_1::get_value() const {
     return value;
+}
+
+bool MockSection_1::lazy_check() const {
+    return value < VALID_THRESHOLD;
 }
 
 std::shared_ptr<ISection> MockSection_1::read(BlobReader* blob_reader, const size_t section_length) {
@@ -36,6 +42,12 @@ void MockSection_2::write(std::ostream& stream, BlobWriter* writer) {
 
 std::vector<double> MockSection_2::get_values() const {
     return values;
+}
+
+bool MockSection_2::lazy_check() const {
+    return std::all_of(values.begin(), values.end(), [](double v) {
+        return v < VALID_THRESHOLD;
+    });
 }
 
 uint64_t MockSection_2::write_size(size_t n_values, uint64_t start_offset) {
@@ -73,6 +85,10 @@ void MockSection_3::write(std::ostream& stream, BlobWriter* writer) {
 
 std::pair<double, std::vector<double>> MockSection_3::get_values() const {
     return {section_1->get_value(), section_2->get_values()};
+}
+
+bool MockSection_3::lazy_check() const {
+    return section_1->lazy_check() && section_2->lazy_check();
 }
 
 std::shared_ptr<ISection> MockSection_3::read(BlobReader* blob_reader, const size_t section_length) {
@@ -145,6 +161,27 @@ const std::unordered_map<SectionID, std::shared_ptr<ISection>>& MockSectionWithT
 
 OffsetsTable MockSectionWithTable::get_embedded_table() const {
     return embedded_table;
+}
+
+void MockSectionWithTable::set_driver_probe(DriverProbe probe) {
+    query_driver = std::move(probe);
+}
+
+bool MockSectionWithTable::lazy_check() const {
+    if (!section_1->lazy_check()) {
+        return false;
+    }
+
+    // query the driver for each section type
+    std::unordered_set<SectionType> probed;
+    for (const auto& [id, section] : parsed_reachables) {
+        const SectionType t = id.type;
+        if (probed.insert(t).second && query_driver && !query_driver(t)) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 std::shared_ptr<ISection> MockSectionWithTable::read_embedded(BlobReader* blob_reader,
