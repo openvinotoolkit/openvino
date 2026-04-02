@@ -29,6 +29,7 @@
 #include "executor_pa_common.hpp"
 #include "nodes/kernels/scaled_attn/common.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/reference/adaptive_rkv_diversity.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "paged_attn_kernel.hpp"
@@ -2314,6 +2315,95 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
     }
 
+    void compute_adaptive_rkv_diversity(const PlainTensor& k_cache,
+                                        int32_t adaptive_rkv_start_size,
+                                        const PlainTensor& adaptive_rkv_evictable_sizes,
+                                        const PlainTensor& adaptive_rkv_diversity_block_set_indices,
+                                        const PlainTensor& adaptive_rkv_diversity_block_set_indices_begins,
+                                        PlainTensor& output_arkv_similarity) {
+        const size_t B_seq = adaptive_rkv_evictable_sizes.size(0);
+        const size_t Hk = _helper.Hk;
+        const size_t S = _helper.S;
+        const size_t block_size = _helper._block_size;
+        auto* output_ptr = output_arkv_similarity.ptr<float>();
+        size_t output_offset = 0;
+
+        for (size_t seq_idx = 0; seq_idx < B_seq; seq_idx++) {
+            const auto evictable_size = static_cast<size_t>(adaptive_rkv_evictable_sizes.ptr<int32_t>()[seq_idx]);
+            if (evictable_size == 0) {
+                continue;
+            }
+
+            const auto block_set_begin =
+                static_cast<size_t>(adaptive_rkv_diversity_block_set_indices_begins.ptr<int32_t>()[seq_idx]);
+            const auto block_set_end =
+                static_cast<size_t>(adaptive_rkv_diversity_block_set_indices_begins.ptr<int32_t>()[seq_idx + 1]);
+            const auto block_count = block_set_end - block_set_begin;
+            const auto token_count = block_count * block_size;
+
+            OPENVINO_ASSERT(token_count >= static_cast<size_t>(adaptive_rkv_start_size) + evictable_size,
+                            "Adaptive RKV diversity block set is too small for requested start and eviction sizes");
+
+            std::vector<float> key_data(Hk * token_count * S);
+
+            for (size_t hk = 0; hk < Hk; hk++) {
+                for (size_t block_idx = 0; block_idx < block_count; block_idx++) {
+                    const auto block_number = static_cast<size_t>(
+                        adaptive_rkv_diversity_block_set_indices.ptr<int32_t>()[block_set_begin + block_idx]);
+                    auto* dst = key_data.data() + hk * token_count * S + block_idx * block_size * S;
+
+                    if constexpr (any_of(KEY_PREC, ov::element::u8, ov::element::u4)) {
+                        auto* src =
+                            k_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type, KEY_PREC>(block_number,
+                                                                                                            hk);
+                        dequant<float, KEY_PREC>(dst,
+                                                 src,
+                                                 block_size,
+                                                 S,
+                                                 block_size,
+                                                 _helper._params.key_group_size,
+                                                 _helper._params.quant_key_bychannel);
+                    } else if constexpr (KEY_PREC == ov::element::i8) {
+                        auto* src = k_cache.ptr<int8_t, KEY_PREC>(block_number, hk, 0, 0);
+                        const size_t group_size = _helper._params.key_group_size;
+                        constexpr size_t param_size = sizeof(float);
+                        size_t row_stride = 0;
+                        for (size_t src_offset = 0; src_offset < S; src_offset += group_size) {
+                            row_stride += group_size + param_size;
+                        }
+                        for (size_t token_idx = 0; token_idx < block_size; token_idx++) {
+                            auto* row_src = reinterpret_cast<uint8_t*>(src) + token_idx * row_stride;
+                            size_t src_offset = 0;
+                            size_t dst_offset = token_idx * S;
+                            while (dst_offset < (token_idx + 1) * S) {
+                                auto* params = reinterpret_cast<float*>(row_src + src_offset);
+                                attn_dequant_kernel<float, KEY_PREC>(row_src + src_offset + param_size,
+                                                                     dst + dst_offset,
+                                                                     group_size,
+                                                                     params);
+                                src_offset += group_size + param_size;
+                                dst_offset += group_size;
+                            }
+                        }
+                    } else {
+                        auto* src = k_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type>(block_number, hk);
+                        cvt_copy(dst, src, block_size, S, S, S);
+                    }
+                }
+            }
+
+            ov::reference::AdaptiveRKVDiversityCalculator<float> calculator(static_cast<size_t>(adaptive_rkv_start_size),
+                                                                            evictable_size,
+                                                                            block_size);
+            const auto diversity = calculator.calculate_block_diversity(key_data.data(), ov::Shape{Hk, token_count, S});
+
+            for (const auto& block : diversity) {
+                std::copy(block.begin(), block.end(), output_ptr + output_offset);
+                output_offset += block.size();
+            }
+        }
+    }
+
     void execute(const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr> outputs) override {
         PlainTensor q;
         PlainTensor k;
@@ -2427,6 +2517,15 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                 score_aggregation_window,
                 sinks,
                 sparse_attention_mask);
+
+        if (adaptive_rkv_evictable_sizes && adaptive_rkv_diversity_block_set_indices) {
+            compute_adaptive_rkv_diversity(k_cache,
+                                           adaptive_rkv_start_size,
+                                           adaptive_rkv_evictable_sizes,
+                                           adaptive_rkv_diversity_block_set_indices,
+                                           adaptive_rkv_diversity_block_set_indices_begins,
+                                           output_arkv_similarity);
+        }
     }
 };
 #endif
