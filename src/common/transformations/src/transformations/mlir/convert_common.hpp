@@ -40,19 +40,27 @@ Location createLocation(MLIRContext* ctx, NodePtr node);
 
 bool elementwise_no_broadcast_predicate(const ov::Output<ov::Node>& output);
 
-// Borrowed it from TPP-MLIR. FIXME: Do we have a better upstreamed alternative?
 template <typename T>
-mlir::arith::ConstantOp getConstant(OpBuilder &builder, const ov::element::Type& precision, T value) {
-    auto unkLoc = builder.getUnknownLoc();
+mlir::arith::ConstantOp getConstant(OpBuilder& builder,
+                                    const mlir::Type& type,
+                                    T value,
+                                    std::optional<mlir::Location> loc = std::nullopt) {
     TypedAttr attr;
-    auto type = importPrecision(builder.getContext(), precision);
-    if(precision.is_integral()) {
+    if (type.isInteger()) {
         attr = builder.getIntegerAttr(type, int64_t(value));
-    } else if(precision.is_real()) {
+    } else if (type.isFloat()) {
         attr = builder.getFloatAttr(type, double(value));
     }
     assert(attr && "Unsupported ConstantOp type");
-    return builder.create<arith::ConstantOp>(unkLoc, type, attr);
+    return arith::ConstantOp::create(builder, loc.value_or(builder.getUnknownLoc()), type, attr);
+}
+
+template <typename T>
+mlir::arith::ConstantOp getConstant(OpBuilder& builder,
+                                    const ov::element::Type& precision,
+                                    T value,
+                                    std::optional<mlir::Location> loc = std::nullopt) {
+    return getConstant(builder, importPrecision(builder.getContext(), precision), value, loc);
 }
 
 bool has_dynamic_rank(NodePtr node);

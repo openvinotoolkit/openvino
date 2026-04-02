@@ -10,6 +10,11 @@
 #include <openvino/op/divide.hpp>
 #include <openvino/op/multiply.hpp>
 #include <openvino/op/relu.hpp>
+#include <openvino/op/reduce_max.hpp>
+#include <openvino/op/reduce_mean.hpp>
+#include <openvino/op/reduce_min.hpp>
+#include <openvino/op/reduce_prod.hpp>
+#include <openvino/op/reduce_sum.hpp>
 #include <openvino/op/subtract.hpp>
 #include <openvino/pass/graph_rewrite.hpp>
 #include <openvino/pass/manager.hpp>
@@ -85,6 +90,7 @@
 #include "op/unsqueeze.hpp"
 #include "op/sdpa.hpp"
 #include "op/binary_eltwise.hpp"
+#include "op/reduce.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/symbol.hpp"
@@ -326,6 +332,11 @@ void injectMLIR(std::shared_ptr<ov::Model> model,
     manager.register_pass<BinaryEltwisePattern<v1::Subtract, linalg::SubOp>>();
     manager.register_pass<BinaryEltwisePattern<v1::Multiply, linalg::MulOp>>();
     manager.register_pass<BinaryEltwisePattern<v1::Divide, linalg::DivOp>>();
+    manager.register_pass<ReducePattern<v1::ReduceMax>>();
+    manager.register_pass<ReducePattern<v1::ReduceMean>>();
+    manager.register_pass<ReducePattern<v1::ReduceMin>>();
+    manager.register_pass<ReducePattern<v1::ReduceProd>>();
+    manager.register_pass<ReducePattern<v1::ReduceSum>>();
     manager.register_pass<ConcatPattern>();
     manager.register_pass<ReluPattern>();
     manager.register_pass<FloorPattern>();
