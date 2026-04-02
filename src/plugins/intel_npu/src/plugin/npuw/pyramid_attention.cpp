@@ -8,21 +8,10 @@
 #include <utility>
 
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "util.hpp"
-// #include "openvino/op/add.hpp"
-// #include "openvino/op/broadcast.hpp"
-// #include "openvino/op/concat.hpp"
-// #include "openvino/op/matmul.hpp"
-// #include "openvino/op/reshape.hpp"
-// #include "openvino/op/softmax.hpp"
-#include "openvino/opsets/opset13.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/pass/matcher_pass.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/validate.hpp"
-
-namespace opp = ov::pass::pattern;
 
 namespace ov {
 namespace npuw {

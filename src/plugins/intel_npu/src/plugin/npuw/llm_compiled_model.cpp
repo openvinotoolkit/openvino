@@ -907,6 +907,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             ov::npuw::RedirectNewKvToOutput().run_on_model(generate_model_variants[i]);
         }
     }
+    LOG_DEBUG("Converting KV-cache in generate model to" << kv_kache_storage_type);
     for (size_t i = 0; i < generate_model_variants.size(); ++i) {
         ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type).run_on_model(generate_model_variants[i]);
     }

@@ -6,6 +6,7 @@
 
 #include <limits>
 
+#include "../util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/convert.hpp"
@@ -21,7 +22,6 @@
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
-#include "../util.hpp"
 
 namespace opp = ov::pass::pattern;
 namespace {
