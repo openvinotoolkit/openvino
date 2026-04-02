@@ -44,7 +44,7 @@ private:
                                                          size_t& compressed_size);
 
     ConstWritePositions m_hash_to_file_positions;
-    std::map<HashValue, FilePosition> m_string_hash_to_file_positions;
+    std::vector<std::vector<char>> m_packed_string_data;
     std::reference_wrapper<std::ostream> m_binary_output;
     bool m_enable_compression;
     FilePosition m_blob_offset;  // blob offset inside output stream

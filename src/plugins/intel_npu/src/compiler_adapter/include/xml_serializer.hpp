@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <string_view>
-
 #include "openvino/pass/serialize.hpp"
 #include "openvino/xml_util/xml_serialize_util.hpp"
 
@@ -20,11 +18,6 @@ public:
     explicit WeightlessWriter(ov::util::ConstantWriter& other) : ov::util::ConstantWriter(other) {}
 
     FilePosition write(const char*, size_t, size_t&, bool, ov::element::Type, bool) override {
-        return 0;
-    }
-
-    FilePosition write(const std::vector<std::string_view>&, size_t& new_size) override {
-        new_size = 0;
         return 0;
     }
 };

@@ -123,11 +123,6 @@ public:
         // use new_size not modified and return offset 0 to store these in modifed IR (xmL) only
         return 0;
     }
-
-    FilePosition write(const std::vector<std::string_view>&, size_t& new_size) override {
-        new_size = 0;
-        return 0;
-    }
 };
 
 // Custom serializer to store weights in the map during serialization (which not exists in original model)
@@ -140,24 +135,6 @@ public:
     FilePosition write(const char* ptr, size_t size, size_t& new_size, bool, ov::element::Type, bool) override {
         auto weights = std::make_shared<ov::AlignedBuffer>(size);
         std::memcpy(weights->get_ptr(), ptr, size);
-
-        auto w_id = reinterpret_cast<size_t>(weights.get());
-        m_weights_map.get().emplace(w_id, std::move(weights));
-        return static_cast<FilePosition>(w_id);
-    }
-
-    FilePosition write(const std::vector<std::string_view>& chunks, size_t& new_size) override {
-        new_size = 0;
-        for (const auto& sv : chunks) {
-            new_size += sv.size();
-        }
-
-        auto weights = std::make_shared<ov::AlignedBuffer>(new_size);
-        char* dst = weights->get_ptr<char>();
-        for (const auto& sv : chunks) {
-            std::memcpy(dst, sv.data(), sv.size());
-            dst += sv.size();
-        }
 
         auto w_id = reinterpret_cast<size_t>(weights.get());
         m_weights_map.get().emplace(w_id, std::move(weights));
