@@ -64,6 +64,72 @@ Common Plugin
 * Fix memory leaks and application crashes related to using CRT library (Windows). 
 
 
+CPU Device Plugin
+---------------------------------------------------------------------------------------------
+
+* Model inference performance has been optimized on Intel® Core™ Ultra Series 3 with 2 P-cores + 4 LPE-cores.  
+* XAttention now maintains proper accuracy when enabled, resolving previous accuracy issues. 
+* The accuracy issue with long prompt input has been fixed. 
+* Upgraded oneDNN version to v3.10. 
+* Improve Gemma3 image comprehension by implementing a custom attention mask pattern. 
+
+GPU Device Plugin
+---------------------------------------------------------------------------------------------
+
+* Performance has been improved for LTX-Video model. 
+* Preview: Experimental L0 backend support for Xe2+ GPUs. Documentation is provided `here <https://github.com/openvinotoolkit/openvino/pull/34727/changes#diff-c0c2a7f47dd4d4c967eb34bf9691372c31f58f9dad77d294dd237d02aa002a1a>`__  
+* Memory optimization for SD3.5 Flash 
+* XAttention (Block Sparse Attention with Antidiagonal Scoring) is now initially supported on Intel's Xe1 architecture to improve time-to-first token. (Xe2/3 is already supported). Performance has been improved for low threshold scenarios. 
+
+NPU Device Plugin
+---------------------------------------------------------------------------------------------
+
+* Batching changes in NPU plugin: 
+  * Eliminated the unconditional model clone in the Plugin batching path to reduce memory usage. The model is no longer cloned until after the initial Plugin batch-related checks have been performed. 
+  * Input and output layouts must be specified for Plugin batching to be applied. If layouts are not provided, the model will be compiled as-is, without any preliminary batch processing in the NPU Plugin. 
+* Support for IO strides has been added. During model compilation, users can specify which input/output ports should accept tensors with strides using the new property: ``ov::intel_npu::enable_strides_for``. All desired IO ports must be selected at compilation time. Support for all IO ports is not enabled by default since it can reduce model performance. This feature is supported only with the NPU driver, starting from 32.0.100.4621 (Windows driver) or 1.30 (Linux driver). NPU Plugin will report the property as supported only when dependencies are met. Applications should first check if this property is supported. 
+* Fixed accuracy issues with INT8-ASYM Vocabulary on Gemma-2, also improved performance for this path. 
+* Introduced Flash Attention support on for Intel® Core™ Ultra Series 3, allows faster LLM compilation for NPU with longer contexts. 
+* Improved Long RoPE support for Phi models. 
+
+OpenVINO Python API
+---------------------------------------------------------------------------------------------
+
+* Fixed ``ov::Tensor`` creation from NumPy scalar data 
+* Added support for ``pathlib.Path`` objects in ``Core.add_extension`` and ``FrontEndManager.register_front_end`` to unify handling of file path arguments. 
+
+OpenVINO Node.js API
+---------------------------------------------------------------------------------------------
+
+* The `` openvino-genai-node `` NPM package has been updated to include the following improvements: 
+
+  * Implemented WhisperPipeline: audio-to-text pipeline with word-level transcription, allowing users to generate precise and detailed speech recognition results. 
+  * New method getGenerationConfig is now available for LLMPipeline, VLMPipeline, and WhisperPipeline, allowing users to quickly retrieve default configuration values and streamline their setup process. 
+  * ChatHistory is now supported in VLMPipeline, enabling users to manage conversation context more effectively during generation. 
+  * Async error handling in LLMPipeline has been refactored, preserving existing behavior while improving internal error processing during asynchronous calls, resulting in a more stable and reliable user experience. 
+
+PyTorch Framework Support
+---------------------------------------------------------------------------------------------
+
+* The torch.export path has been significantly improved, aligning TorchFX operation coverage with the TorchScript path. 
+* Support for float16 and bfloat16 data types has been added for constant input value extraction. 
+
+
+ONNX Framework Support
+---------------------------------------------------------------------------------------------
+
+* The Attention operation (Opset 23) is now supported, including multi-head, group query, and multi-query attention modes with KV caching, causal masking, softcap, and boolean/float attention masks. This enables direct conversion of transformer-based ONNX models without manual decomposition. 
+* Sequence data type support has been extended with SequenceConstruct, SequenceEmpty, SequenceInsert, and ConcatFromSequence operations, enabling loop-based sequence accumulation patterns commonly found in control-flow models. 
+* Support for FP8 quantization types (f8e4m3, f8e5m2) and block-wise quantization has been added to the QuantizeLinear and DequantizeLinear operations. 
+
+TensorFlow Framework Support
+---------------------------------------------------------------------------------------------
+* An issue in NonMaxSuppressionV2 where the iou_threshold parameter was ignored has been fixed. 
+
+TensorFlow Lite Framework Support
+---------------------------------------------------------------------------------------------
+* The TransposeConv operation has been fixed to correctly apply bias inputs. 
+
 
 
 Previous 2026 releases
