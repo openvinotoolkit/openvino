@@ -130,6 +130,48 @@ TensorFlow Lite Framework Support
 ---------------------------------------------------------------------------------------------
 * The TransposeConv operation has been fixed to correctly apply bias inputs. 
 
+OpenVINO™ Model Server
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+* Enhanced support for Qwen3-MOE models and GPT-OSS-20b delivers improved performance, accuracy, and robust concurrent request handling with continuous batching capabilities. These models are now available in pre-optimized OpenVINO™ format directly on the Hugging Face hub, making it very easy to deploy them. 
+* Added support for Qwen3-VL models with function calling capabilities, enabling this vision language model in agentic scenarios.  
+* Extended ``/image`` endpoint to support inpainting and outpainting capabilities. It is now possible to pass the input image along with a mask to edit parts of the image or to extend the input image. 
+* Other improvements and fixes: 
+  * Server logs now report current KV cache allocation alongside current usage metrics. With dynamic cache size (default setting), allocation automatically scales during runtime based on the request's concurrency and processed context length. 
+  * Generation request cancellation is now supported for NPU devices, where requests from disconnected clients will be cancelled. 
+  * The finish reason now returns ``tool_calls`` when the model generates a function call, in line with OpenAI API standards. 
+  * Corrected tokens usage reporting in the text generation last streaming event with NPU execution  
+  * Added extra streaming event right after the first token is generated, in line with OpenAI API. This will correct TTFT metric benchmarking using tools relying on streaming events. 
+  * Enhanced error handling for Hugging Face Hub model pulling/downloads includes retry and resume capabilities to address network connectivity issues with large model files. Download operations can now recover from previous errors or be reported in logs when recovery is not possible. 
+
+Neural Network Compression Framework
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+* Added experimental support for NVFP4 data type. 
+* Introduced an additional RoPe ignored pattern without the transpose node to support 4-bit compression for models like Phi-3.5-MoE-instruct. 
+* Migrated TorchFX backend support from torch.ao to `torchao <https://github.com/pytorch/ao>`__. 
+* Upgraded PyTorch version to 2.10.0. 
+* Upgraded ONNX version to 1.20.1 and ONNX Runtime to 1.24.3.  
+
+OpenVINO Tokenizers
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+* Added precomputed Unicode normalization maps to reduce first inference time and memory consumption. 
+* Remove ICU library from dependencies, reducing binary size, build time, and complexity. 
+
+OpenVINO™ GenAI
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+* Extended prompt lookup decoding support to Vision-Language Models (VLMs) to improve tokens per second (TPS) performance. 
+* New ``AggregationMode.ADAPTIVE_RKV`` eviction strategy that keeps the highest attention-mass blocks and fills remaining slots with the most semantically diverse ones. 
+* VLMPipeline now supports Qwen3-VL. 
+* LoRA adapters can now be applied to VLMPipeline (only applied to the language-model (LLM) part), enabling task-specific fine-tuning without reloading the base model. 
+* Improved VLM image resizing accuracy. 
+* TaylorSeer Lite caching is now available for Flux, Stable Diffusion 3, and LTX-Video (disabled by default). 
+* LoRA adapters in GGUF format can now be loaded directly into LLMPipeline and VLMPipeline. 
+* TextEmbeddingPipeline now supports dynamic input shapes via the NPUW plugin, enabling NPU inference for a wider range of embedding models. 
+* Improved pipeline loading time through asynchronous tokenizer warmup. 
+
 
 
 Previous 2026 releases
