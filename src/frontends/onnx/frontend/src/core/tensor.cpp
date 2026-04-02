@@ -444,7 +444,8 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
         }
     }
     std::shared_ptr<ov::AlignedBuffer> constant_buffer;
-    if (has_external_data()) {
+    bool external_data_valid = has_external_data();
+    if (external_data_valid) {
         const auto ext_data = m_tensor_place != nullptr
                                   ? detail::TensorExternalData(*m_tensor_place->get_data_location(),
                                                                reinterpret_cast<size_t>(m_tensor_place->get_data()),
@@ -464,9 +465,12 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
     }
 
     if (element_count != shape_elements && !(element_count == 0 && m_shape.empty())) {
-        throw error::invalid_external_data(
-            "The size of the external data file does not match the byte size of an initializer '" + get_name() +
-            "' in the model");
+        std::string error_msg =
+            external_data_valid
+                ? "The size of the external data file does not match the byte size of an initializer '"
+                : "The size of the initializer does not match the number of elements implied by its shape for tensor '";
+        error_msg += get_name() + "' in the model";
+        throw error::invalid_external_data(error_msg);
     }
 
     if (element_count == 0) {
