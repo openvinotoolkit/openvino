@@ -73,9 +73,8 @@ void run_reference(const std::vector<float>& query,
             std::vector<float> state(static_cast<size_t>(head_size) * head_size, 0.0f);
 
             if (seq_interval > 0 && seq_blocks > 0 && seq_past_len > 0) {
-                int32_t init_slot = (seq_past_len - 1) / seq_interval;
-                init_slot = std::min(init_slot, seq_blocks - 1);
-                const int32_t block_id = block_indices[block_begin + init_slot];
+                const int32_t read_slot = 0;
+                const int32_t block_id = block_indices[block_begin + read_slot];
                 for (int32_t k_idx = 0; k_idx < head_size; k_idx++) {
                     for (int32_t v_idx = 0; v_idx < head_size; v_idx++) {
                         state[k_idx * head_size + v_idx] = recurrent_state_table[state_off(block_id, h, k_idx, v_idx)];
@@ -118,11 +117,10 @@ void run_reference(const std::vector<float>& query,
 
                 if (seq_interval > 0 && seq_blocks > 0) {
                     const int32_t token_idx_in_subsequence = token - token_begin;
-                    // Index on this sequence timeline: [past tokens] + [current chunk tokens].
-                    // This is not a global token index across all sequences.
-                    const int32_t sequence_timeline_token_idx = seq_past_len + token_idx_in_subsequence;
-                    if (((sequence_timeline_token_idx + 1) % seq_interval) == 0) {
-                        const int32_t slot = sequence_timeline_token_idx / seq_interval;
+                    const int32_t processed_tokens = token_idx_in_subsequence + 1;
+                    const bool should_store = ((processed_tokens % seq_interval) == 0) || (token == token_end - 1);
+                    if (should_store) {
+                        const int32_t slot = (processed_tokens + seq_interval - 1) / seq_interval;
                         if (slot < seq_blocks) {
                             const int32_t block_id = block_indices[block_begin + slot];
                             for (int32_t k_idx = 0; k_idx < head_size; k_idx++) {
@@ -191,8 +189,7 @@ TEST_P(PagedGatedDeltaNetKernelTest, MatchesReferenceAndUpdatesState) {
         past_lens.push_back(seq_past_len);
         cache_interval.push_back(seq_interval);
 
-        const int32_t required_slots =
-            std::max<int32_t>(1, (seq_past_len + seq_length + seq_interval - 1) / seq_interval);
+        const int32_t required_slots = 1 + (seq_length + seq_interval - 1) / seq_interval;
         for (int32_t i = 0; i < required_slots; i++) {
             block_indices.push_back(total_blocks + i);
         }

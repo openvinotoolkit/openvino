@@ -201,9 +201,8 @@ void recurrent_linear_attn_paged(const ov::intel_cpu::PlainTensor& query,
         }
 
         if (seq_interval > 0 && seq_blocks > 0 && seq_past_len > 0) {
-            int32_t init_slot = (seq_past_len - 1) / seq_interval;
-            init_slot = std::min(init_slot, seq_blocks - 1);
-            const int32_t block_id = block_indices.at<int32_t>({static_cast<size_t>(block_begin + init_slot)});
+            const int32_t read_slot = 0;
+            const int32_t block_id = block_indices.at<int32_t>({static_cast<size_t>(block_begin + read_slot)});
             for (size_t j = 0; j < k_head_dims; j++) {
                 init_state[j] = recurrent_state_table.at<float>({static_cast<size_t>(block_id), i_h, j, i_v});
             }
@@ -242,9 +241,10 @@ void recurrent_linear_attn_paged(const ov::intel_cpu::PlainTensor& query,
 
             if (seq_interval > 0 && seq_blocks > 0) {
                 const int32_t local_token_idx = token - token_begin;
-                const int32_t absolute_token_idx = seq_past_len + local_token_idx;
-                if (((absolute_token_idx + 1) % seq_interval) == 0) {
-                    const int32_t slot = absolute_token_idx / seq_interval;
+                const int32_t processed_tokens = local_token_idx + 1;
+                const bool should_store = ((processed_tokens % seq_interval) == 0) || (token == token_end - 1);
+                if (should_store) {
+                    const int32_t slot = (processed_tokens + seq_interval - 1) / seq_interval;
                     if (slot < seq_blocks) {
                         const int32_t block_id = block_indices.at<int32_t>({static_cast<size_t>(block_begin + slot)});
                         for (size_t j = 0; j < k_head_dims; j++) {
