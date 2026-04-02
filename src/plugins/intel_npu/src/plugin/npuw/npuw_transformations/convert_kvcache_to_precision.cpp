@@ -94,7 +94,6 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov
 
     return new_model;
 }
-}
 
 }  // namespace
 
