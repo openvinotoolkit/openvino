@@ -1269,7 +1269,7 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s1
             // Write device idx
             // FIXME: if there is no compiled submodel, device_it is not set.
             auto dev_idx = [&]() {
-                auto it = std::find(m_dev_list.begin(), m_dev_list.end(), m_compiled_submodels[real_idx].tmp_target_device);
+                auto it = std::find(m_dev_list.begin(), m_dev_list.end(), submodel_device(real_idx));
                 NPUW_ASSERT(it != m_dev_list.end());
                 return it - m_dev_list.begin();
             };
@@ -1523,7 +1523,7 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
                 continue;
             }
             NPUW_ASSERT(desc_closure.closure_uid[cidx] != -1);
-            desc_closure.closure[cidx] = m_weights_bank->get(desc_closure.closure_uid[cidx], func_desc.tmp_target_device);
+            desc_closure.closure[cidx] = m_weights_bank->get(desc_closure.closure_uid[cidx], submodel_device(real_idx));
         }
     }
 }
@@ -1560,7 +1560,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
                     continue;  // host-side closure
                 }
                 comp_model_desc.closure.unsafe_get().closure_uid[tidx] =
-                    m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], func_desc.tmp_target_device);
+                    m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], submodel_device(real_idx));
             }
         }
 
@@ -1588,7 +1588,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
                 }
                 const auto& uid = desc_closure.closure_uid[tidx];
                 NPUW_ASSERT(uid != -1);  // All tensors should be registered at this point
-                desc_closure.closure[tidx] = m_weights_bank->get(uid, func_desc.tmp_target_device);
+                desc_closure.closure[tidx] = m_weights_bank->get(uid, submodel_device(real_idx));
                 // FIXME: find a more reliable way to do so
                 desc_closure.is_remote[tidx] = m_weights_bank->is_remote(uid);
             }
@@ -1671,7 +1671,7 @@ std::string ov::npuw::CompiledModel::global_mem_device() const {
         if (!comp_model_desc.compiled_model) {
             continue;
         }
-        if (ov::npuw::util::starts_with(comp_model_desc.tmp_target_device, "NPU")) {
+        if (ov::npuw::util::starts_with(submodel_device(idx), "NPU")) {
             return "NPU";
         }
     }
@@ -1686,8 +1686,7 @@ std::string ov::npuw::CompiledModel::funcall_mem_device(const std::size_t idx) c
         return device_alloc;
     }
 
-    auto& comp_model_desc = m_compiled_submodels[idx];
-    return comp_model_desc.tmp_target_device;
+    return submodel_device(idx);
 }
 
 void ov::npuw::CompiledModel::remove_long_output_names(const std::shared_ptr<ov::Model>& model) {
