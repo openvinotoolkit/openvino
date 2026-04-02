@@ -103,17 +103,6 @@ jobs:
         with:
           submodules: 'true'
 
-      - name: Setup Python 3.11
-        uses: ./.github/actions/setup_python
-        with:
-          version: '3.11'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
-          self-hosted-runner: 'true'
-
-      - name: Install coverage helper dependency
-        run: python3 -m pip install pyyaml
-
       - name: Download OpenVINO package
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
@@ -392,27 +381,11 @@ jobs:
       COVERAGE_WRITE_STEP_SUMMARY: 'false'
       DISPLAY: ':99'
     steps:
-      - name: Fetch OpenVINO JS sources
+      - name: Checkout sources
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           submodules: 'true'
-          sparse-checkout: |
-            .github/actions/setup_python/action.yml
-            tools/coverage
-            src/bindings/js
-          sparse-checkout-cone-mode: false
-
-      - name: Setup Python 3.11
-        uses: ./.github/actions/setup_python
-        with:
-          version: '3.11'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
-          self-hosted-runner: 'true'
-
-      - name: Install coverage helper dependency
-        run: python3 -m pip install pyyaml
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
@@ -455,6 +428,20 @@ jobs:
       - name: Install JS coverage dependencies
         working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: npm i --no-save c8
+
+      - name: Setup Python 3.11
+        uses: ./.github/actions/setup_python
+        with:
+          version: '3.11'
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
+
+      - name: Install coverage helper dependency
+        run: python3 -m pip install pyyaml
+
+      - name: Verify Python coverage helper environment
+        run: python3 -c "import sys, yaml; print(sys.executable); print(yaml.__file__)"
 
       - name: Restore coverage notes
         run: |

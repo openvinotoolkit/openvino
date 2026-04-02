@@ -162,11 +162,21 @@ def _run_lcov_capture(
         "split_crc=auto",
     ]
 
+    timeout_seconds = 900
     max_attempts = 32
     for attempt in range(1, max_attempts + 1):
         display = " ".join(shlex.quote(part) for part in cmd)
         print(f"[coverage] $ {display}  # {label} (attempt {attempt}/{max_attempts})")
-        completed = subprocess.run(cmd, text=True, capture_output=True)
+        try:
+            completed = subprocess.run(cmd, text=True, capture_output=True, timeout=timeout_seconds)
+        except subprocess.TimeoutExpired as exc:
+            stderr_tail = (exc.stderr or "").strip().splitlines()[-8:]
+            if stderr_tail:
+                warn(
+                    f"{label}: lcov capture timed out after {timeout_seconds}s with tail:\n"
+                    + "\n".join(stderr_tail)
+                )
+            raise RuntimeError(f"{label}: lcov capture timed out after {timeout_seconds}s") from exc
 
         if completed.returncode == 0 and output_file.exists() and output_file.stat().st_size > 0:
             return
@@ -188,6 +198,7 @@ def _run_lcov_capture(
         stderr_tail = (completed.stderr or "").strip().splitlines()[-8:]
         if stderr_tail:
             warn(f"{label}: lcov capture failed (attempt {attempt}) with tail:\n" + "\n".join(stderr_tail))
+        raise RuntimeError(f"{label}: lcov capture failed without recoverable gcda cleanup")
 
     raise RuntimeError(f"{label}: failed to capture coverage after {max_attempts} attempts")
 
