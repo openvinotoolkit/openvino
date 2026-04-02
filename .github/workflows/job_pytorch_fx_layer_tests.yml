@@ -58,12 +58,12 @@ jobs:
           echo "HF_TOKEN_PATH=${HF_TOKEN_PATH}"
           ls -la "${HF_TOKEN_PATH}" 2>&1 || echo "File not found: ${HF_TOKEN_PATH}"
 
-      - name: Debug HF token path (Windows)
-        if: ${{ runner.os == 'Windows' }}
-        shell: pwsh
-        run: |
-          Write-Host "HF_TOKEN_PATH=$env:HF_TOKEN_PATH"
-          if (Test-Path $env:HF_TOKEN_PATH) { Get-Item $env:HF_TOKEN_PATH } else { Write-Host "File not found: $env:HF_TOKEN_PATH" }
+      # - name: Debug HF token path (Windows)
+      #   if: ${{ runner.os == 'Windows' }}
+      #   shell: pwsh
+      #   run: |
+      #     Write-Host "HF_TOKEN_PATH=$env:HF_TOKEN_PATH"
+      #     if (Test-Path $env:HF_TOKEN_PATH) { Get-Item $env:HF_TOKEN_PATH } else { Write-Host "File not found: $env:HF_TOKEN_PATH" }
 
       - name: Fetch setup_python and install wheels actions
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
