@@ -384,27 +384,27 @@ void SimpleIfNoRedefinePathTest::generate_inputs(const std::vector<ov::Shape>& t
     constexpr size_t kInputStep = 13;
 
     ov::test::utils::InputGenerateData in_data;
-    in_data.start_from = static_cast<int32_t>(kStart + static_cast<int32_t>(inputGenIter % kRange));
+    in_data.start_from = static_cast<int32_t>(kStart + static_cast<int32_t>(m_input_gen_iter % kRange));
     in_data.range = kRange;
     ov::Tensor input = ov::test::utils::create_and_fill_tensor(function->inputs()[0].get_element_type(),
                                                                targetInputStaticShapes[0],
                                                                in_data);
     in_data.start_from =
-        static_cast<int32_t>(kStart + static_cast<int32_t>((inputGenIter + kSecondInputOffset) % kRange));
+        static_cast<int32_t>(kStart + static_cast<int32_t>((m_input_gen_iter + kSecondInputOffset) % kRange));
     ov::Tensor input2 = ov::test::utils::create_and_fill_tensor(function->inputs()[1].get_element_type(),
                                                                 targetInputStaticShapes[1],
                                                                 in_data);
 
     ov::Tensor condTensor(ov::element::boolean, targetInputStaticShapes[2]);
-    const bool currentCond = condIter >= 2;
+    const bool currentCond = m_cond_iter >= 2;
     condTensor.data<bool>()[0] = currentCond;
 
     inputs.clear();
     inputs.insert({function->inputs()[0].get_node_shared_ptr(), input});
     inputs.insert({function->inputs()[1].get_node_shared_ptr(), input2});
     inputs.insert({function->inputs()[2].get_node_shared_ptr(), condTensor});
-    inputGenIter += kInputStep;
-    condIter++;
+    m_input_gen_iter += kInputStep;
+    m_cond_iter++;
 }
 
 }  // namespace test

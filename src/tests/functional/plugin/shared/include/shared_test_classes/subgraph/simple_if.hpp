@@ -69,8 +69,8 @@ public:
 protected:
     void SetUp() override;
 
-    size_t condIter = 0;
-    size_t inputGenIter = 0;
+    size_t m_cond_iter = 0;
+    size_t m_input_gen_iter = 0;
 };
 }  // namespace test
 }  // namespace ov
