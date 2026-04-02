@@ -1018,13 +1018,91 @@ std::vector<ov::npuw::util::SDPAPatternNodes> find_sdpa_pattern_nodes_internal(c
         return nullptr;
     };
 
+    auto try_extract_kv_index_from_name = [](const std::string& name) -> std::optional<size_t> {
+        if (auto key_idx = ov::npuw::util::isPastKeyValuesKey(name)) {
+            return static_cast<size_t>(key_idx.value());
+        }
+        if (auto value_idx = ov::npuw::util::isPastKeyValuesValue(name)) {
+            return static_cast<size_t>(value_idx.value());
+        }
+        return std::nullopt;
+    };
+
+    auto try_extract_kv_index_from_node = [&](const std::shared_ptr<ov::Node>& node) -> std::optional<size_t> {
+        if (!node) {
+            return std::nullopt;
+        }
+
+        if (auto idx = try_extract_kv_index_from_name(node->get_friendly_name())) {
+            return idx;
+        }
+
+        for (const auto& out : node->outputs()) {
+            for (const auto& tensor_name : out.get_names()) {
+                if (auto idx = try_extract_kv_index_from_name(tensor_name)) {
+                    return idx;
+                }
+            }
+        }
+
+        return std::nullopt;
+    };
+
+    auto infer_pattern_index = [&](const ov::npuw::util::SDPAPatternNodes& candidate) -> std::optional<size_t> {
+        auto try_from_concat = [&](const std::shared_ptr<ov::Node>& concat) -> std::optional<size_t> {
+            if (!concat || !ov::is_type<ov::op::v0::Concat>(concat)) {
+                return std::nullopt;
+            }
+
+            for (size_t input_idx = 0; input_idx < concat->get_input_size(); ++input_idx) {
+                auto input_node = concat->input(input_idx).get_source_output().get_node_shared_ptr();
+                if (auto idx = try_extract_kv_index_from_node(input_node)) {
+                    return idx;
+                }
+            }
+
+            return std::nullopt;
+        };
+
+        auto try_from_matmul_input = [&](const std::shared_ptr<ov::Node>& matmul,
+                                         size_t input_idx) -> std::optional<size_t> {
+            if (!matmul || input_idx >= matmul->get_input_size()) {
+                return std::nullopt;
+            }
+            auto input_node = matmul->input(input_idx).get_source_output().get_node_shared_ptr();
+            return try_extract_kv_index_from_node(input_node);
+        };
+
+        if (auto idx = try_from_concat(candidate.past_key_concat_node)) {
+            return idx;
+        }
+        if (auto idx = try_from_concat(candidate.past_value_concat_node)) {
+            return idx;
+        }
+        if (auto idx = try_extract_kv_index_from_node(candidate.past_key_param_node)) {
+            return idx;
+        }
+        if (auto idx = try_extract_kv_index_from_node(candidate.past_value_param_node)) {
+            return idx;
+        }
+        if (auto idx = try_from_matmul_input(candidate.matmul1_node, 1)) {
+            return idx;
+        }
+        if (auto idx = try_from_matmul_input(candidate.matmul2_node, 1)) {
+            return idx;
+        }
+
+        return std::nullopt;
+    };
+
     // Search for the pattern: MatMul -> Add -> Softmax -> MatMul
     auto ops = model->get_ordered_ops();
-    //hope order meets past_key_value indexing system
-    size_t past_kv_index = 0;
+    size_t softmax_order_idx = 0;
     for (auto&& node : ops) {
         if (ov::is_type<ov::op::v8::Softmax>(node)) {
-            ov::npuw::util::SDPAPatternNodes &current_node = pattern_nodes[past_kv_index++];
+            const size_t current_order_idx = softmax_order_idx++;
+            ov::npuw::util::SDPAPatternNodes candidate;
+            auto& current_node = candidate;
             current_node.softmax_node = node;
 
             // Check if softmax is fed by Add
@@ -1060,19 +1138,48 @@ std::vector<ov::npuw::util::SDPAPatternNodes> find_sdpa_pattern_nodes_internal(c
 
             if (current_node.is_valid()) {
                 current_node.log_pattern();
-                // break;  // Found complete pattern
             }
+
+            auto pattern_idx = infer_pattern_index(candidate);
+            if (!pattern_idx.has_value()) {
+                const bool has_kv_concat = static_cast<bool>(candidate.past_key_concat_node) ||
+                                           static_cast<bool>(candidate.past_value_concat_node);
+                if (!has_kv_concat) {
+                    // No concat path means this Softmax->MatMul chain is not tied to KV-cache SDPA layout.
+                    if (!findAll && pattern_nodes.empty()) {
+                        return {};
+                    }
+                    continue;
+                }
+
+                // Fallback to traversal order for graphs where concat inputs are wrapped
+                // (e.g., Gather/ReadValue chains) and index can't be extracted from names.
+                if (!findAll && pattern_nodes.empty()) {
+                    return {};
+                }
+                pattern_idx = current_order_idx;
+            }
+
+            auto& target = pattern_nodes[pattern_idx.value()];
+            target.softmax_node = candidate.softmax_node;
+            target.add_node = candidate.add_node;
+            target.matmul1_node = candidate.matmul1_node;
+            target.matmul2_node = candidate.matmul2_node;
+            target.past_key_concat_node = candidate.past_key_concat_node;
+            target.past_value_concat_node = candidate.past_value_concat_node;
         }
     }
 
     // resonstruct nodes vector using indexes
     std::vector<ov::npuw::util::SDPAPatternNodes> result;
-    past_kv_index = 0;
+    size_t past_kv_index = 0;
     for (auto &&map_element : pattern_nodes) {
-        // check_order - if invalid - return null vector
-        if (map_element.first != past_kv_index++) {
+        // In find-all mode, keep discovered patterns even if some indices are missing.
+        // In single-pattern mode, preserve strict contiguous index expectation.
+        if (!findAll && map_element.first != past_kv_index) {
             return {};
         }
+        ++past_kv_index;
         result.emplace_back(std::move(map_element.second));
     }
 

@@ -384,8 +384,8 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
     auto pattern_nodes_list = ov::npuw::util::find_all_sdpa_pattern_nodes(model);
 
     if (pattern_nodes_list.empty()) {
-        LOG_WARN("Failed to find SDPA pattern nodes in model " << model->get_friendly_name());
-        return ;
+        LOG_WARN("Failed to find SDPA pattern nodes in model " << model->get_friendly_name()
+                 << ". Will skip past-cache dequantization rewiring and keep present-cache quantization only.");
     }
 
     // in per token quantization lets use 1 scale/zp per token, effectively means shape should be clear from embeddings

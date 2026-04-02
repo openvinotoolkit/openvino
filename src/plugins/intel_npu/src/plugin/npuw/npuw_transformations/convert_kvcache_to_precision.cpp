@@ -4,6 +4,8 @@
 
 #include "convert_kvcache_to_precision.hpp"
 
+#include <regex>
+
 #include "../logging.hpp"
 #include "low_precision/concat.hpp"
 #include "low_precision/kv_cache_concat.hpp"
@@ -67,28 +69,54 @@ public:
 
 std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov::Model>& model,
                                                         const ov::element::Type lptype) {
+
+
+    // Resolve storage types first and apply them through PPP for both inputs and outputs.
+    // Default path keeps KV cache in f16; integer hint uses key=i8/u8 and value=i4.
+    auto key_storage_type = lptype;
+    auto value_storage_type = lptype;
+
+    const bool use_integer_kv_storage = (lptype == ov::element::i8 || lptype == ov::element::u8);
+    if (use_integer_kv_storage) {
+        key_storage_type = lptype;
+        value_storage_type = ov::element::i4;
+    } 
+
     ov::preprocess::PrePostProcessor ppp(model);
 
+    const std::regex past_key_re(R"(past_key_values\.\d+\.key)");
+    const std::regex past_value_re(R"(past_key_values\.\d+\.value)");
+    const std::regex present_key_re(R"(present\.\d+\.key)");
+    const std::regex present_value_re(R"(present\.\d+\.value)");
+
     for (const auto& tensor : model->inputs()) {
-        if (tensor.get_any_name().find("past_key") != std::string::npos) {
-            ppp.input(tensor.get_any_name()).tensor().set_element_type(lptype);
+        const auto& name = tensor.get_any_name();
+        if (std::regex_match(name, past_key_re)) {
+            ppp.input(name).tensor().set_element_type(key_storage_type);
+        } else if (std::regex_match(name, past_value_re)) {
+            ppp.input(name).tensor().set_element_type(value_storage_type);
         }
     }
 
     for (const auto& tensor : model->outputs()) {
-        if (tensor.get_any_name().find("present") != std::string::npos) {
-            ppp.output(tensor.get_any_name()).tensor().set_element_type(lptype);
+        const auto& name = tensor.get_any_name();
+        if (std::regex_match(name, present_key_re)) {
+            ppp.output(name).tensor().set_element_type(key_storage_type);
+        } else if (std::regex_match(name, present_value_re)) {
+            ppp.output(name).tensor().set_element_type(value_storage_type);
         }
     }
-    auto new_model=ppp.build();
+    auto new_model = ppp.build();
 
-    // assume for I8 we dont have support in model - TODO: add check based on presence of quantization ops like scale/subtrat/clamp
-    if (lptype == ov::element::i8 || lptype == ov::element::u8) {
-        LOG_DEBUG("Running KV-cache compression passes, transforming  kv-cache precision: FP16->i8 on model[" << model->get_friendly_name() <<"]");
-        ov::npuw::KVCacheCompressionParams dq_params; 
-        dq_params.key.quantization_dt = lptype;
-        dq_params.value.quantization_dt = ov::element::i4;
+    if (use_integer_kv_storage) {
+        ov::npuw::KVCacheCompressionParams dq_params;
+        dq_params.key.quantization_dt = key_storage_type;
+        dq_params.key.quantization_type = ov::npuw::KVCacheCompressionConfig::QuantizationType::Asymmetric;
+        dq_params.value.quantization_dt = value_storage_type;
         dq_params.value.quantization_type = ov::npuw::KVCacheCompressionConfig::QuantizationType::Symmetric;
+
+        LOG_DEBUG("Running KV-cache compression passes: key=" << key_storage_type << ", value="
+                  << value_storage_type << " on model[" << model->get_friendly_name() << "]");
         ov::npuw::run_kv_cache_dynamic_quantization_passes(new_model, dq_params);
     }
 

@@ -40,7 +40,7 @@
 #include <string>
 #include <vector>
 
-#include "kv_cache_compressed.hpp"
+#include "npuw_transformations/kv_cache_compressed.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
@@ -596,9 +596,6 @@ protected:
 
         auto quant_model = build_quantize_model(p.shape, p);
         auto dequant_model = build_dequantize_model(p.shape, p);
-
-        ov::save_model(quant_model, "debug_quant_model_"+std::to_string(element_count) + "_v"+std::to_string(p.decompose_version)+".xml");
-        ov::save_model(dequant_model, "debug_dequant_model_"+std::to_string(element_count) + "_v"+std::to_string(p.decompose_version)+".xml");
 
         return {quant_model, dequant_model, std::move(data), element_count};
     }

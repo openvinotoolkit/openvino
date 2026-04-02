@@ -34,6 +34,7 @@
 #include <algorithm>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -71,6 +72,15 @@ protected:
         merge_props(props, extra_props);
         return std::make_unique<ov::npuw::LLMCompiledModel>(
             build_llm_test_model(), m_plugin, props, recorder.make_factory());
+    }
+
+    std::unique_ptr<ov::npuw::LLMCompiledModel> create_compiled_model(const std::shared_ptr<ov::Model>& model,
+                                                                       const ov::AnyMap& extra_props,
+                                                                       RecordingFactory& recorder) const {
+        auto props = base_props();
+        merge_props(props, extra_props);
+        return std::make_unique<ov::npuw::LLMCompiledModel>(
+            model, m_plugin, props, recorder.make_factory());
     }
 
     std::unique_ptr<ov::npuw::LLMCompiledModel> create_whisper_compiled_model(const ov::AnyMap& extra_props,
@@ -152,16 +162,61 @@ protected:
                                                std::string_view needle,
                                                ov::element::Type expected_type) {
         bool found_any = false;
+        std::ostringstream mismatch;
+        bool has_mismatch = false;
+
         for (const auto& input : model->inputs()) {
             if (port_has_name(input, needle)) {
                 found_any = true;
-                if (input.get_element_type() != expected_type)
-                    return false;
+                if (input.get_element_type() != expected_type) {
+                    has_mismatch = true;
+                    mismatch << "\n  - type=" << input.get_element_type() << ", names={";
+                    bool first = true;
+                    for (const auto& name : input.get_names()) {
+                        if (!first) {
+                            mismatch << ", ";
+                        }
+                        mismatch << name;
+                        first = false;
+                    }
+                    if (first) {
+                        mismatch << "<none>";
+                    }
+                    mismatch << "}";
+                }
             }
         }
-        if (!found_any)
-            throw std::runtime_error(std::string("No input matching needle '") + std::string(needle) +
-                                     "' found in model '" + model->get_friendly_name() + "'");
+        if (!found_any) {
+            std::ostringstream ss;
+            ss << "No input matching needle '" << needle << "' found in model '" << model->get_friendly_name()
+               << "'. Available inputs:";
+
+            for (const auto& input : model->inputs()) {
+                ss << "\n  - type=" << input.get_element_type() << ", names={";
+                bool first = true;
+                for (const auto& name : input.get_names()) {
+                    if (!first) {
+                        ss << ", ";
+                    }
+                    ss << name;
+                    first = false;
+                }
+                if (first) {
+                    ss << "<none>";
+                }
+                ss << "}";
+            }
+
+            throw std::runtime_error(ss.str());
+        }
+
+        if (has_mismatch) {
+            ADD_FAILURE() << "Inputs matching needle '" << needle << "' in model '" << model->get_friendly_name()
+                          << "' do not all have expected type " << expected_type
+                          << ". Mismatched inputs:" << mismatch.str();
+            return false;
+        }
+
         return true;
     }
 
@@ -171,16 +226,41 @@ protected:
                                                 std::string_view needle,
                                                 ov::element::Type expected_type) {
         bool found_any = false;
+        std::ostringstream mismatch;
+        bool has_mismatch = false;
+
         for (const auto& output : model->outputs()) {
             if (port_has_name(output, needle)) {
                 found_any = true;
-                if (output.get_element_type() != expected_type)
-                    return false;
+                if (output.get_element_type() != expected_type) {
+                    has_mismatch = true;
+                    mismatch << "\n  - type=" << output.get_element_type() << ", names={";
+                    bool first = true;
+                    for (const auto& name : output.get_names()) {
+                        if (!first) {
+                            mismatch << ", ";
+                        }
+                        mismatch << name;
+                        first = false;
+                    }
+                    if (first) {
+                        mismatch << "<none>";
+                    }
+                    mismatch << "}";
+                }
             }
         }
         if (!found_any)
             throw std::runtime_error(std::string("No output matching needle '") + std::string(needle) +
                                      "' found in model '" + model->get_friendly_name() + "'");
+
+        if (has_mismatch) {
+            ADD_FAILURE() << "Outputs matching needle '" << needle << "' in model '" << model->get_friendly_name()
+                          << "' do not all have expected type " << expected_type
+                          << ". Mismatched outputs:" << mismatch.str();
+            return false;
+        }
+
         return true;
     }
 

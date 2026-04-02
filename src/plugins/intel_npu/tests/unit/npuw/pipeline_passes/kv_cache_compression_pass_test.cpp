@@ -32,9 +32,11 @@
 
 #include <cmath>
 #include <random>
+#include <regex>
 #include <unordered_map>
 
-#include "npuw/kv_cache_compressed.hpp"
+#include "npuw_transformations/kv_cache_compressed.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/matmul.hpp"
@@ -47,6 +49,36 @@
 namespace {
 
 using namespace ov;
+
+std::shared_ptr<Model> apply_kv_cache_io_precision_for_test(const std::shared_ptr<Model>& model,
+                                                            const element::Type key_type,
+                                                            const element::Type value_type) {
+    ov::preprocess::PrePostProcessor ppp(model);
+    const std::regex past_key_re(R"(past_key_values\.\d+\.key)");
+    const std::regex past_value_re(R"(past_key_values\.\d+\.value)");
+    const std::regex present_key_re(R"(present\.\d+\.key)");
+    const std::regex present_value_re(R"(present\.\d+\.value)");
+
+    for (const auto& tensor : model->inputs()) {
+        const auto& name = tensor.get_any_name();
+        if (std::regex_match(name, past_key_re)) {
+            ppp.input(name).tensor().set_element_type(key_type);
+        } else if (std::regex_match(name, past_value_re)) {
+            ppp.input(name).tensor().set_element_type(value_type);
+        }
+    }
+
+    for (const auto& tensor : model->outputs()) {
+        const auto& name = tensor.get_any_name();
+        if (std::regex_match(name, present_key_re)) {
+            ppp.output(name).tensor().set_element_type(key_type);
+        } else if (std::regex_match(name, present_value_re)) {
+            ppp.output(name).tensor().set_element_type(value_type);
+        }
+    }
+
+    return ppp.build();
+}
 
 // ============================================================================
 // Model builder
@@ -523,6 +555,92 @@ struct DecodeLoopParams {
 
 class KVCacheMultiStepDecodeTest : public ::testing::TestWithParam<DecodeLoopParams> {};
 
+TEST_P(KVCacheMultiStepDecodeTest, TransformedModelIoTypesMatchQuantConfig) {
+    const auto& p = GetParam();
+
+    constexpr size_t WINDOW = 2;
+    auto xform_model = build_decode_step_model(WINDOW);
+    xform_model = apply_kv_cache_io_precision_for_test(xform_model, p.key_dt, p.val_dt);
+    ASSERT_NO_THROW(ov::npuw::run_kv_cache_dynamic_quantization_passes(
+        xform_model, p.to_compression_params()));
+    ASSERT_NO_THROW(xform_model->validate_nodes_and_infer_types());
+
+    const bool key_asym = (p.key_quant_type == QuantizationType::Asymmetric);
+    const bool val_asym = (p.val_quant_type == QuantizationType::Asymmetric);
+
+    auto expect_param_type = [&](const std::string& name, const element::Type expected) {
+        const auto it = std::find_if(xform_model->get_parameters().begin(),
+                                     xform_model->get_parameters().end(),
+                                     [&](const auto& prm) {
+                                         return prm->get_friendly_name() == name;
+                                     });
+        ASSERT_NE(it, xform_model->get_parameters().end()) << "Missing parameter: " << name;
+        EXPECT_EQ((*it)->get_element_type(), expected)
+            << "Parameter '" << name << "' has unexpected type";
+    };
+
+    auto expect_param_absent = [&](const std::string& name) {
+        const auto it = std::find_if(xform_model->get_parameters().begin(),
+                                     xform_model->get_parameters().end(),
+                                     [&](const auto& prm) {
+                                         return prm->get_friendly_name() == name;
+                                     });
+        EXPECT_EQ(it, xform_model->get_parameters().end()) << "Unexpected parameter: " << name;
+    };
+
+    auto expect_result_type = [&](const std::string& name, const element::Type expected) {
+        const auto it = std::find_if(xform_model->get_results().begin(),
+                                     xform_model->get_results().end(),
+                                     [&](const auto& res) {
+                                         return res->get_friendly_name() == name;
+                                     });
+        ASSERT_NE(it, xform_model->get_results().end()) << "Missing result: " << name;
+        EXPECT_EQ((*it)->get_input_element_type(0), expected)
+            << "Result '" << name << "' has unexpected type";
+    };
+
+    auto expect_result_absent = [&](const std::string& name) {
+        const auto it = std::find_if(xform_model->get_results().begin(),
+                                     xform_model->get_results().end(),
+                                     [&](const auto& res) {
+                                         return res->get_friendly_name() == name;
+                                     });
+        EXPECT_EQ(it, xform_model->get_results().end()) << "Unexpected result: " << name;
+    };
+
+    expect_param_type("past_key_values.0.key", p.key_dt);
+    expect_param_type("past_key_values.0.value", p.val_dt);
+    expect_param_type("DynamicQuantize/0/past_key_values/key/scale", element::f32);
+    expect_param_type("DynamicQuantize/0/past_key_values/value/scale", element::f32);
+
+    if (key_asym) {
+        expect_param_type("DynamicQuantize/0/past_key_values/key/zp", p.key_dt);
+    } else {
+        expect_param_absent("DynamicQuantize/0/past_key_values/key/zp");
+    }
+    if (val_asym) {
+        expect_param_type("DynamicQuantize/0/past_key_values/value/zp", p.val_dt);
+    } else {
+        expect_param_absent("DynamicQuantize/0/past_key_values/value/zp");
+    }
+
+    expect_result_type("present.0.key", p.key_dt);
+    expect_result_type("present.0.value", p.val_dt);
+    expect_result_type("DynamicQuantize/0/present/key/scale", element::f32);
+    expect_result_type("DynamicQuantize/0/present/value/scale", element::f32);
+
+    if (key_asym) {
+        expect_result_type("DynamicQuantize/0/present/key/zp", p.key_dt);
+    } else {
+        expect_result_absent("DynamicQuantize/0/present/key/zp");
+    }
+    if (val_asym) {
+        expect_result_type("DynamicQuantize/0/present/value/zp", p.val_dt);
+    } else {
+        expect_result_absent("DynamicQuantize/0/present/value/zp");
+    }
+}
+
 TEST_P(KVCacheMultiStepDecodeTest, DecodeLoopAccuracy) {
     const auto& p = GetParam();
 
@@ -538,8 +656,6 @@ TEST_P(KVCacheMultiStepDecodeTest, DecodeLoopAccuracy) {
     ASSERT_NO_THROW(ov::npuw::run_kv_cache_dynamic_quantization_passes(
         xform_model, p.to_compression_params()));
     ASSERT_NO_THROW(xform_model->validate_nodes_and_infer_types());
-    ov::save_model(xform_model, "xform_model_" + p.name + ".xml");
-    ov::save_model(ref_model, "ref_model_" + p.name + ".xml");
 
     std::mt19937 rng(77);
     std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
