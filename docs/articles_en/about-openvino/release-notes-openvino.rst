@@ -180,14 +180,27 @@ Jupyter Notebooks
 -----------------------------
 
 New models and use cases: 
-* `MiniCPM-o 4.5 Multimodal Chatbot with OpenVINO (experimental) <https://openvinotoolkit.github.io/openvino_notebooks/?search=minicpm-o+4.5 >`__ 
-* `LLM Code Assistant with OpenVINO <https://openvinotoolkit.github.io/openvino_notebooks/?search=llm+code+assistant >`__ 
-* `Visual-Language Models (VLM) Chatbot with Generate API <https://openvinotoolkit.github.io/openvino_notebooks/?search=vlm-powered >`__ 
-* `PaddleOCR-VL for Document Parsing (experimental) <https://openvinotoolkit.github.io/openvino_notebooks/?search=paddleocr-vl >`__ 
+* `MiniCPM-o 4.5 Multimodal Chatbot with OpenVINO (experimental) <https://openvinotoolkit.github.io/openvino_notebooks/?search=minicpm-o+4.5>`__ 
+* `LLM Code Assistant with OpenVINO <https://openvinotoolkit.github.io/openvino_notebooks/?search=llm+code+assistant>`__ 
+* `Visual-Language Models (VLM) Chatbot with Generate API <https://openvinotoolkit.github.io/openvino_notebooks/?search=vlm-powered>`__ 
+* `PaddleOCR-VL for Document Parsing (experimental) <https://openvinotoolkit.github.io/openvino_notebooks/?search=paddleocr-vl>`__ 
 
-Archived Notebooks Tab: Added a dedicated "Archived" tab to the `OpenVINO Notebooks portal <https://openvinotoolkit.github.io/openvino_notebooks/ >`__. Users can now easily search and browse older or deprecated notebooks, keeping the main catalog focused on the latest updates while retaining access to historical content. 
+Archived Notebooks Tab: Added a dedicated "Archived" tab to the `OpenVINO Notebooks portal <https://openvinotoolkit.github.io/openvino_notebooks/>`__. Users can now easily search and browse older or deprecated notebooks, keeping the main catalog focused on the latest updates while retaining access to historical content. 
 
+Known Issues
+-----------------------------
 
+| **Component: NPU compiler**
+| ID: 180626
+| Description:
+| gemma-3-12B accuracy on NPU is low.
+
+| **Component: NPU compiler**
+| ID: 183423, 181329
+| Description:
+| Performance regression on large number of computer vision models compared to OpenVINO 2026.0 
+  release. For models showing regression, it's recommended to quantize and convert the model 
+  using OpenVINO 2026.0.
 
 Previous 2026 releases
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
