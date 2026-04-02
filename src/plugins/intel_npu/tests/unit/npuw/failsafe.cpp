@@ -16,6 +16,7 @@
 #include "v1/elements/failsafe.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/properties.hpp"
 
 namespace {
 
@@ -127,6 +128,9 @@ public:
     ov::Any get_property(const std::string& name) const override {
         if (name == kCandidateProperty) {
             return m_state->name;
+        }
+        if (name == ov::execution_devices.name()) {
+            return std::vector<std::string>{m_state->name};
         }
         OPENVINO_THROW("Unsupported property: ", name);
     }
@@ -441,4 +445,39 @@ TEST(FailsafeCompiledModelTest, InferFailureWithoutFallbackPropagatesError) {
     } catch (const ov::Exception& ex) {
         EXPECT_NE(error_message(ex).find("infer failed for NPU"), std::string::npos);
     }
+}
+
+TEST(FailsafeCompiledModelTest, ExecutionDevicesReturnsActiveDevice) {
+    auto model = make_test_model();
+    auto plugin = std::make_shared<NullPlugin>();
+    auto npu = std::make_shared<CandidateState>(CandidateState{"NPU"});
+    auto cpu = std::make_shared<CandidateState>(CandidateState{"CPU"});
+
+    auto compiled = std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(
+        ov::npuw::failsafe::CompiledModel::create(
+            model, plugin, {"NPU", "CPU"},
+            make_factory(model, plugin, {{"NPU", npu}, {"CPU", cpu}})));
+
+    ASSERT_NE(compiled, nullptr);
+    EXPECT_EQ(compiled->active_device_name(), "NPU");
+    auto devices = compiled->get_property(ov::execution_devices.name()).as<std::vector<std::string>>();
+    EXPECT_EQ(devices, (std::vector<std::string>{"NPU"}));
+}
+
+TEST(FailsafeCompiledModelTest, ExecutionDevicesUpdatesAfterFailover) {
+    auto model = make_test_model();
+    auto plugin = std::make_shared<NullPlugin>();
+    auto npu = std::make_shared<CandidateState>(CandidateState{"NPU"});
+    auto cpu = std::make_shared<CandidateState>(CandidateState{"CPU"});
+
+    // NPU compile fails → failsafe falls back to CPU at creation time.
+    auto compiled = std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(
+        ov::npuw::failsafe::CompiledModel::create(
+            model, plugin, {"NPU", "CPU"},
+            make_factory(model, plugin, {{"NPU", npu}, {"CPU", cpu}}, {"NPU"})));
+
+    ASSERT_NE(compiled, nullptr);
+    EXPECT_EQ(compiled->active_device_name(), "CPU");
+    auto devices = compiled->get_property(ov::execution_devices.name()).as<std::vector<std::string>>();
+    EXPECT_EQ(devices, (std::vector<std::string>{"CPU"}));
 }

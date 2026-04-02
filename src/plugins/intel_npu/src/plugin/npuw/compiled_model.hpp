@@ -124,7 +124,7 @@ private:
     friend class LLMInferRequest;
     friend class moe::MoEExecutor;
 
-    bool compile_for_success(std::size_t id);
+    bool compile_for_success(std::size_t id, const std::string& forced_device = {});
     bool compile_for_device(std::size_t id, const std::string& device_to_try);
     ov::SoPtr<ov::ICompiledModel> compile_submodel(const std::shared_ptr<ov::Model>& submodel,
                                                    const std::string& device);
@@ -217,7 +217,6 @@ private:
     void init_profiling();
 
     struct CompiledModelDesc {
-        std::string tmp_target_device;
         std::set<std::string> devices_to_avoid;
         std::shared_ptr<ov::Model> model;
         ov::SoPtr<ov::ICompiledModel> compiled_model;

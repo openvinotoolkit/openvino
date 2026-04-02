@@ -557,6 +557,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
         // NB: Relaxing functionality here to switch on Failsafe, so..
         // no iteration will happen.
+        std::string forced_dev;
         if (forced_sub_devices.count(id)) {
             std::string forced_device = forced_sub_devices[id];
             // FIXME: This check can only be done once, when the forced list is created.
@@ -570,13 +571,13 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 // FIXME: This is not really a device enforcement as the fallback
                 // procedure will be in place still
                 LOG_INFO("Force Subgraph[" << id << "] target device to " << *forced_dev_it);
-                m_compiled_submodels[real_id].tmp_target_device = *forced_dev_it;
+                forced_dev = *forced_dev_it;
             }
         }  // if(forced_device_opt)
 
         LOG_INFO("Compiling Subgraph[" << id << "]: " << m_compiled_submodels[real_id].model->get_friendly_name()
                                        << "...");
-        if (!compile_for_success(id)) {
+        if (!compile_for_success(id, forced_dev)) {
             OPENVINO_THROW("Failed to compile ",
                            m_compiled_submodels[real_id].model->get_friendly_name(),
                            " for all devices in [",
@@ -1471,7 +1472,6 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
                 compiled->m_compiled_submodels[i].compiled_model =
                     plugin->get_core()->import_model(buffer, device, import_config);
             }
-            compiled->m_compiled_submodels[i].tmp_target_device = device;
 
             // Create unified deserialization context for submodels with dynamic mechanisms
             // (Pyramid Attention, Host Flash Attention, etc.)
@@ -1753,7 +1753,7 @@ void ov::npuw::CompiledModel::report_io() const {
     }
 }
 
-bool ov::npuw::CompiledModel::compile_for_success(std::size_t id) {
+bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::string& forced_device) {
     // Assume device_it is some always-valid starting point.
     // FIXME: And who guarantees it? Abstraction leaks are everywhere
     if (m_compiled_submodels[id].replaced_by && m_compiled_submodels[id].replaced_by != id) {
@@ -1764,8 +1764,8 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id) {
         return true;
     }
 
-    if (!m_compiled_submodels[id].tmp_target_device.empty()) {
-        compile_for_device(id, m_compiled_submodels[id].tmp_target_device);
+    if (!forced_device.empty()) {
+        compile_for_device(id, forced_device);
         return true;
     }
 
@@ -1775,7 +1775,6 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id) {
         if (m_compiled_submodels[id].devices_to_avoid.count(device_name) > 0) {
             LOG_INFO(device_name << " was found in the 'Avoid' list for this subgraph, skipping...");
         } else if (compile_for_device(id, device_name)) {
-            m_compiled_submodels[id].tmp_target_device = device_name;
             return true;  // success!
         }
     }
@@ -2345,7 +2344,9 @@ std::string ov::npuw::CompiledModel::submodel_device(const std::size_t idx) cons
         return m_ref_device;
     }
 
-    return comp_subm_desc.tmp_target_device;
+    const auto exec_devs =
+        comp_subm_desc.compiled_model->get_property(ov::execution_devices.name()).as<std::vector<std::string>>();
+    return exec_devs.empty() ? "" : exec_devs.front();
 }
 
 bool ov::npuw::CompiledModel::unpack_required(const std::size_t idx) const {
