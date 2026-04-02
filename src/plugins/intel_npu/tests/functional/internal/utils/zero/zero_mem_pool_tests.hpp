@@ -201,6 +201,84 @@ TEST_P(ZeroMemPoolTests, MultiThreadingImportMemoryReUseAndDestroyIt) {
     }
 }
 
+TEST_P(ZeroMemPoolTests, GetInstanceReturnsSamePoolForSameInitStruct) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto instance_0 = ::intel_npu::ZeroMemPool::get_instance(init_struct);
+    auto instance_1 = ::intel_npu::ZeroMemPool::get_instance(init_struct);
+
+    ASSERT_NE(instance_0, nullptr);
+    ASSERT_NE(instance_1, nullptr);
+    ASSERT_EQ(instance_0.get(), instance_1.get());
+}
+
+TEST_P(ZeroMemPoolTests, GetExceptionWhenInitStructDestroyedButTryToCreateTensor) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto local_init_struct = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+    auto local_instance = ::intel_npu::ZeroMemPool::get_instance(local_init_struct);
+    local_init_struct = {};
+
+    ASSERT_THROW(local_instance->allocate_zero_memory(4096, 4096), ::ov::AssertFailure);
+}
+
+TEST_P(ZeroMemPoolTests, GetInstanceReturnsDifferentPoolsForDifferentInitStructs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto init_struct_1 = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+    auto init_struct_2 = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+
+    auto instance_0 = ::intel_npu::ZeroMemPool::get_instance(init_struct_1);
+    auto instance_1 = ::intel_npu::ZeroMemPool::get_instance(init_struct_2);
+
+    ASSERT_NE(instance_0, nullptr);
+    ASSERT_NE(instance_1, nullptr);
+    ASSERT_NE(instance_0.get(), instance_1.get());
+}
+
+TEST_P(ZeroMemPoolTests, GetInstanceSharedHandleOutlivesInitStructReference) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto local_init_struct = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+    auto local_instance = ::intel_npu::ZeroMemPool::get_instance(local_init_struct);
+
+    ASSERT_NE(local_instance, nullptr);
+    local_init_struct = {};
+
+    // shared_ptr ownership of the pool instance remains valid after dropping this local init_struct reference.
+    ASSERT_NE(local_instance, nullptr);
+
+    // Also ensure get_instance still works for the fixture-held init_struct after the local release.
+    auto fixture_instance = ::intel_npu::ZeroMemPool::get_instance(init_struct);
+    ASSERT_NE(fixture_instance, nullptr);
+}
+
+TEST_P(ZeroMemPoolTests, CheckDifferentZeroStructsHolderInstances) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto init_struct_1 = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+    auto init_struct_2 = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+
+    auto mem0 = ::intel_npu::ZeroMemPool::get_instance(init_struct)->allocate_zero_memory(4096, 4096);
+    auto mem1 = ::intel_npu::ZeroMemPool::get_instance(init_struct_1)->allocate_zero_memory(4096, 4096);
+    mem1 = {};
+    init_struct_1 = {};
+
+    mem1 = ::intel_npu::ZeroMemPool::get_instance(init_struct_2)->allocate_zero_memory(4096, 4096);
+
+    ASSERT_TRUE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), mem0->data()));
+    ASSERT_FALSE(
+        ::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct_2->getContext(), mem0->data()));
+    ASSERT_FALSE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), mem1->data()));
+
+    mem0 = {};
+    mem1 = {};
+    init_struct_2 = {};
+
+    auto instance = ::intel_npu::ZeroMemPool::get_instance(init_struct);
+    ASSERT_NE(instance, nullptr);
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
