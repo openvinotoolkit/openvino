@@ -156,7 +156,7 @@ struct SubgraphKey {
 struct SubgraphCodeGeneratorKey {
     SubgraphCodeGeneratorKey(std::shared_ptr<SubgraphAttrs> attrs_,
                              uint32_t broadcasting_mask_,
-                             uint32_t constant_repacked_mask_ = 0)
+                             uint32_t constant_repacked_mask_)
         : attrs(std::move(attrs_)),
           broadcasting_mask(broadcasting_mask_),
           constant_repacked_mask(constant_repacked_mask_) {}
@@ -872,7 +872,7 @@ void Subgraph::prepareParams() {
             //    configuration
             // 3. Create SubgraphDynamicSpecializedExecutor
             const auto code_gen_result = cache->getOrCreate(
-                SubgraphCodeGeneratorKey(subgraph_attrs, getBroadcastingMask(in_shapes)),
+                SubgraphCodeGeneratorKey(subgraph_attrs, getBroadcastingMask(in_shapes), key.constant_repacked_mask),
                 [this](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
                     return std::make_shared<SubgraphCodeGenerator>(key.attrs,
                                                                    std::make_shared<CPURuntimeConfig>(),
