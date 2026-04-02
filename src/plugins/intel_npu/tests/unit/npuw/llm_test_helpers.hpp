@@ -93,6 +93,26 @@ inline std::shared_ptr<ov::Model> build_moe_llm_test_model() {
     return mb.build_llm(cfg);
 }
 
+inline std::shared_ptr<ov::Model> build_sliding_window_test_model(size_t window_size = 512,
+                                                                  bool alternating = false) {
+    auto cfg = make_test_model_config();
+    cfg.sliding_window_size = window_size;
+    cfg.alternating_attention = alternating;
+    ModelBuilder mb;
+    return mb.build_llm(cfg);
+}
+
+inline std::shared_ptr<ov::Model> build_token_type_ids_test_model(size_t window_size = 512,
+                                                                  bool alternating = true) {
+    auto cfg = make_test_model_config();
+    cfg.sliding_window_size = window_size;
+    cfg.alternating_attention = alternating;
+    cfg.use_inputs_embeds = true;
+    cfg.use_token_type_ids = true;
+    ModelBuilder mb;
+    return mb.build_llm(cfg);
+}
+
 class NullPlugin : public ov::IPlugin {
 public:
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,

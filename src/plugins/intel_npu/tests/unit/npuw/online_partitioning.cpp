@@ -8,6 +8,7 @@
 
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
+#include "llm_test_helpers.hpp"
 #include "model_builder.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -813,4 +814,37 @@ TEST(OnlinePartitioningTest, IsRegularCrossGroupConsumerCase_Gemma4KVSharingPatt
     // isRegularCrossGroupConsumerCase detects the interior-Relu bank asymmetry
     // (block 5 has external consumer, others do not) → irregular_io=true.
     EXPECT_TRUE(ens.irregular_io);
+}
+
+TEST(OnlinePartitioningTest, SlidingWindowAllLayers_ModelBuilds) {
+    auto model = ov::test::npuw::build_sliding_window_test_model();
+    ASSERT_NE(model, nullptr);
+
+    bool has_attention_mask = false;
+    for (const auto& param : model->get_parameters()) {
+        if (param->get_friendly_name() == "attention_mask")
+            has_attention_mask = true;
+    }
+    EXPECT_TRUE(has_attention_mask);
+}
+
+TEST(OnlinePartitioningTest, SlidingWindowAlternating_ModelBuilds) {
+    auto model = ov::test::npuw::build_sliding_window_test_model(512, true);
+    ASSERT_NE(model, nullptr);
+}
+
+TEST(OnlinePartitioningTest, TokenTypeIds_HasCorrectInputs) {
+    auto model = ov::test::npuw::build_token_type_ids_test_model();
+    ASSERT_NE(model, nullptr);
+
+    bool has_token_type_ids = false;
+    bool has_inputs_embeds = false;
+    for (const auto& param : model->get_parameters()) {
+        if (param->get_friendly_name() == "token_type_ids")
+            has_token_type_ids = true;
+        if (param->get_friendly_name() == "inputs_embeds")
+            has_inputs_embeds = true;
+    }
+    EXPECT_TRUE(has_token_type_ids);
+    EXPECT_TRUE(has_inputs_embeds);
 }
