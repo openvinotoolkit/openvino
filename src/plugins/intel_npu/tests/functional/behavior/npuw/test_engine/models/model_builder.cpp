@@ -1294,28 +1294,50 @@ static ov::Output<ov::Node> make_sliding_window_mask(const ov::Output<ov::Node>&
 
 /// Modify mask so image tokens (token_type_ids==1) get bidirectional attention among themselves.
 /// base_mask: [batch, 1, seq, total_seq] float mask.
-/// token_type_ids: [batch, seq] i64 (0=text, 1=image).
-/// For positions where both Q and K are image tokens, forces mask to 0.0 (attend).
+/// token_type_ids: [batch, total_seq] i64 (0=text, 1=image) — same length as attention_mask.
+/// seq_source: input_ids or inputs_embeds output (for extracting current seq_len).
+/// With KV cache, seq < total_seq, so Q-side token types are the LAST seq_len entries
+/// of token_type_ids (using offset = total_seq - seq_len), matching the causal mask logic.
 static ov::Output<ov::Node> make_vlm_bidirectional_modifier(const ov::Output<ov::Node>& base_mask,
                                                             const ov::Output<ov::Node>& token_type_ids_output,
+                                                            const ov::Output<ov::Node>& seq_source,
                                                             ov::element::Type prec) {
     auto image_const = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {1});
 
-    auto is_image = std::make_shared<ov::op::v1::Equal>(token_type_ids_output, image_const);
-    is_image->set_friendly_name("model.tti.is_image");
-
-    // Q axis: [batch, seq] -> [batch, 1, seq, 1]
-    auto q_axes = ov::opset11::Constant::create(ov::element::i64, ov::Shape{2}, {1, 3});
-    auto q_is_image = std::make_shared<ov::opset11::Unsqueeze>(is_image, q_axes);
-    q_is_image->set_friendly_name("model.tti.q_is_image");
-
-    // K axis: [batch, seq] -> [batch, 1, 1, total_seq]
-    auto k_axes = ov::opset11::Constant::create(ov::element::i64, ov::Shape{2}, {1, 2});
-    auto k_is_image = std::make_shared<ov::opset11::Unsqueeze>(is_image, k_axes);
+    // K axis: full token_type_ids [batch, total_seq] → is_image → [batch, 1, 1, total_seq]
+    auto k_is_image = std::make_shared<ov::op::v1::Equal>(token_type_ids_output, image_const);
     k_is_image->set_friendly_name("model.tti.k_is_image");
+    auto k_axes = ov::opset11::Constant::create(ov::element::i64, ov::Shape{2}, {1, 2});
+    auto k_is_image_4d = std::make_shared<ov::opset11::Unsqueeze>(k_is_image, k_axes);
+    k_is_image_4d->set_friendly_name("model.tti.k_is_image_4d");
+
+    // Q axis: slice last seq_len entries from token_type_ids using offset = total_seq - seq_len.
+    auto tti_shape = std::make_shared<ov::opset11::ShapeOf>(token_type_ids_output, ov::element::i64);
+    auto ids_shape = std::make_shared<ov::opset11::ShapeOf>(seq_source, ov::element::i64);
+    auto idx1 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {1});
+    auto axis0 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto total_seq = std::make_shared<ov::opset11::Gather>(tti_shape, idx1, axis0);
+    auto seq_len = std::make_shared<ov::opset11::Gather>(ids_shape, idx1, axis0);
+    auto offset = std::make_shared<ov::opset11::Subtract>(total_seq, seq_len);
+    offset->set_friendly_name("model.tti.offset");
+
+    auto step = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto seq_axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto offset_1d = std::make_shared<ov::opset11::Unsqueeze>(offset, axis0);
+    auto total_seq_1d = std::make_shared<ov::opset11::Unsqueeze>(total_seq, axis0);
+
+    auto q_tti_slice =
+        std::make_shared<ov::op::v8::Slice>(token_type_ids_output, offset_1d, total_seq_1d, step, seq_axis);
+    q_tti_slice->set_friendly_name("model.tti.q_slice");
+
+    auto q_is_image = std::make_shared<ov::op::v1::Equal>(q_tti_slice, image_const);
+    q_is_image->set_friendly_name("model.tti.q_is_image");
+    auto q_axes = ov::opset11::Constant::create(ov::element::i64, ov::Shape{2}, {1, 3});
+    auto q_is_image_4d = std::make_shared<ov::opset11::Unsqueeze>(q_is_image, q_axes);
+    q_is_image_4d->set_friendly_name("model.tti.q_is_image_4d");
 
     // Both Q and K are image tokens -> bidirectional attention
-    auto both_image = std::make_shared<ov::op::v1::LogicalAnd>(q_is_image, k_is_image);
+    auto both_image = std::make_shared<ov::op::v1::LogicalAnd>(q_is_image_4d, k_is_image_4d);
     both_image->set_friendly_name("model.tti.both_image");
 
     auto attend = ov::opset11::Constant::create(prec, ov::Shape{}, {0.0f});
@@ -1926,9 +1948,9 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     // Apply VLM bidirectional modifier for image tokens
     if (config.use_token_type_ids && token_type_ids_output.get_node()) {
         if (full_mask.get_node())
-            full_mask = make_vlm_bidirectional_modifier(full_mask, token_type_ids_output, prec);
+            full_mask = make_vlm_bidirectional_modifier(full_mask, token_type_ids_output, seq_source, prec);
         if (sliding_mask.get_node())
-            sliding_mask = make_vlm_bidirectional_modifier(sliding_mask, token_type_ids_output, prec);
+            sliding_mask = make_vlm_bidirectional_modifier(sliding_mask, token_type_ids_output, seq_source, prec);
     }
 
     auto default_mask = full_mask.get_node() ? full_mask : sliding_mask;
