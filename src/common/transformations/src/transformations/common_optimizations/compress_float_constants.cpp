@@ -167,7 +167,7 @@ bool has_high_f16_abs_error(const ov::op::v0::Constant& const_node, double max_a
     static_assert(sizeof(T) >= 4);
     const auto size = ov::shape_size(const_node.get_shape());
     const T* data = const_node.get_data_ptr<T>();
-    const double f16_max = static_cast<double>(std::numeric_limits<ov::float16>::max());
+    static const double f16_max = static_cast<double>(std::numeric_limits<ov::float16>::max());
     for (size_t i = 0; i < size; ++i) {
         const double val = static_cast<double>(data[i]);
         // Only check finite, non-zero values within FP16 representable range
