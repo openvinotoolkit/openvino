@@ -140,45 +140,29 @@ void compress_model_to_f16(const std::shared_ptr<Model>& model, bool postponed) 
 
 namespace {
 
-// Returns true if a scalar constant of type T loses significant precision when rounded to FP16.
-// Used to protect mathematical scale factors (e.g., log(16) in attention bucketing) from FP16
-// rounding errors that cascade through every computation referencing them.
+// Returns true if any element in the constant has FP16 roundtrip error exceeding either threshold.
+// Absolute threshold protects constants with large values (e.g. RoPE frequency tables with values
+// >1024 where FP16 ULP exceeds 1.0). Relative threshold protects scalar math constants (e.g.
+// log(16)) where even small absolute error is significant relative to the value.
+// Out-of-range values (beyond FP16 representable range) are skipped — they are handled
+// separately by the 75% out-of-range threshold with clamping.
 template <typename T>
-bool scalar_has_high_f16_error(const ov::op::v0::Constant& const_node) {
-    constexpr double max_relative_error = 1e-4;
-    static_assert(sizeof(T) >= 4);
-    const T src = *const_node.get_data_ptr<T>();
-    if (std::isfinite(src) && src != T{0}) {
-        const double src_val = static_cast<double>(src);
-        const ov::float16 f16_val = static_cast<ov::float16>(src);
-        const double roundtripped = static_cast<double>(static_cast<T>(f16_val));
-        return std::abs(src_val - roundtripped) / std::abs(src_val) > max_relative_error;
-    }
-    return false;
-}
-
-// Returns true if any in-range element in the constant has absolute FP16 roundtrip error
-// exceeding the threshold. Protects constants like RoPE frequency tables where
-// large values (>1024) lose significant precision in FP16.
-// Out-of-range values (beyond FP16 representable range) are skipped here because
-// they are already handled by the separate 75% out-of-range threshold with clamping.
-template <typename T>
-bool has_high_f16_abs_error(const ov::op::v0::Constant& const_node, double max_abs_error) {
+bool has_high_f16_error(const ov::op::v0::Constant& const_node, double max_abs_error, double max_rel_error) {
     static_assert(sizeof(T) >= 4);
     const auto size = ov::shape_size(const_node.get_shape());
     const T* data = const_node.get_data_ptr<T>();
     static const double f16_max = static_cast<double>(std::numeric_limits<ov::float16>::max());
     for (size_t i = 0; i < size; ++i) {
-        const double val = static_cast<double>(data[i]);
-        // Only check finite, non-zero values within FP16 representable range
-        if (!std::isfinite(data[i]) || data[i] == T{0} || std::abs(val) > f16_max) {
+        if (!std::isfinite(data[i]) || data[i] == T{0})
             continue;
-        }
+        const double val = static_cast<double>(data[i]);
+        if (std::abs(val) > f16_max)
+            continue;
         const ov::float16 f16_val = static_cast<ov::float16>(data[i]);
         const double roundtripped = static_cast<double>(static_cast<T>(f16_val));
-        if (std::abs(val - roundtripped) > max_abs_error) {
+        const double abs_err = std::abs(val - roundtripped);
+        if (abs_err > max_abs_error || abs_err / std::abs(val) > max_rel_error)
             return true;
-        }
     }
     return false;
 }
@@ -207,16 +191,18 @@ CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
         // Non-scalar: absolute threshold (1.0) — protects frequency tables (e.g. RoPE) where
         // large values (>1024) lose significant precision in FP16 and the error compounds
         // through iterative computations (e.g. 50-step denoising with CFG).
+        // Note: relative threshold cannot be applied to non-scalar constants because normal
+        // weights (values ~1.0) have relative FP16 error ~4e-4 which exceeds 1e-4 threshold.
+        constexpr double no_check = std::numeric_limits<double>::infinity();
         if (ov::shape_size(const_node->get_shape()) == 1) {
-            if (c_type == ov::element::f32 && scalar_has_high_f16_error<float>(*const_node))
+            if (c_type == ov::element::f32 && has_high_f16_error<float>(*const_node, no_check, 1e-4))
                 return false;
-            if (c_type == ov::element::f64 && scalar_has_high_f16_error<double>(*const_node))
+            if (c_type == ov::element::f64 && has_high_f16_error<double>(*const_node, no_check, 1e-4))
                 return false;
         } else {
-            constexpr double max_abs_error = 1.0;
-            if (c_type == ov::element::f32 && has_high_f16_abs_error<float>(*const_node, max_abs_error))
+            if (c_type == ov::element::f32 && has_high_f16_error<float>(*const_node, 1.0, no_check))
                 return false;
-            if (c_type == ov::element::f64 && has_high_f16_abs_error<double>(*const_node, max_abs_error))
+            if (c_type == ov::element::f64 && has_high_f16_error<double>(*const_node, 1.0, no_check))
                 return false;
         }
 
