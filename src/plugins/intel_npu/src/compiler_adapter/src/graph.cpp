@@ -72,6 +72,23 @@ void Graph::set_workload_type(const ov::WorkloadType workloadType) {
     _commandQueueDesc.key = static_cast<uint64_t>(queueKeyHash);
 }
 
+void Graph::set_model_priority(const ov::hint::Priority modelPriority) {
+    if (_zeroInitStruct == nullptr) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
+    auto zeModelPriority = zeroUtils::toZeQueuePriority(modelPriority);
+    if (_commandQueueDesc.priority == zeModelPriority) {
+        return;
+    }
+    _commandQueueDesc.priority = zeModelPriority;
+
+    const ZeroCmdQueueKey key{_zeroInitStruct->getContext(), _zeroInitStruct->getDevice(), _commandQueueDesc};
+    const auto queueKeyHash = ZeroCmdQueueKeyHash{}(key);
+    _commandQueueDesc.key = static_cast<uint64_t>(queueKeyHash);
+}
+
 ze_graph_handle_t Graph::get_handle() const {
     return _graphDesc._handle;
 }
