@@ -45,12 +45,13 @@ bool read_tlv_string(std::istream& stream, std::string& str) {
     TLVTraits::TagType tag;
     TLVTraits::LengthType size;
     std::vector<char> buffer;
-    const auto read = read_tlv_record(stream, tag, size, buffer);
-    if (read) {
+    if (read_tlv_record(stream, tag, size, buffer)) {
         OPENVINO_ASSERT(SingleFileStorage::Tag{tag} == SingleFileStorage::Tag::String);
         str = std::string{buffer.begin(), buffer.end()};
+        return true;
+    } else {
+        return false;
     }
-    return read;
 }
 
 void write_padding(std::ostream& stream, uint64_t alignment) {
@@ -96,35 +97,40 @@ SingleFileStorage::SingleFileStorage(const std::filesystem::path& path)
 
 bool SingleFileStorage::build_content_index(std::ifstream& stream) {
     const auto current_pos = stream.tellg();
-    const auto end_pos = stream.seekg(0, std::ios::end).tellg();
+    const auto stream_end = stream.seekg(0, std::ios::end).tellg();
     stream.seekg(current_pos);
-    const auto blob_reader = [this, end_pos](std::istream& s, TLVTraits::LengthType size) {
+    const auto blob_reader = [this, stream_end](std::istream& s, TLVTraits::LengthType size) {
         if (size == 0) {
             return true;
+        }
+        constexpr auto header_size = sizeof(BlobIdType) + sizeof(PadSizeType);
+        if (size < header_size) {
+            return false;
+        }
+        const auto record_begin = s.tellg();
+        const auto record_end = record_begin + static_cast<std::streamoff>(size);
+        if (record_end > stream_end || record_end < record_begin) {
+            return false;
         }
         BlobIdType id;
         PadSizeType padding_size;
         s.read(reinterpret_cast<char*>(&id), sizeof(id));
         s.read(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
-        if (s.tellg() + static_cast<std::streamoff>(padding_size) > end_pos) {
+        if (!s.good() || padding_size > size - header_size) {
             return false;
         }
-        s.seekg(padding_size, std::ios::cur);
+        const auto blob_data_pos = s.seekg(padding_size, std::ios::cur).tellg();
         if (!s.good()) {
             return false;
         }
-        const auto blob_data_pos = s.tellg();
-        OPENVINO_ASSERT(blob_data_pos >= 0, "Invalid blob data position ", blob_data_pos, " for blob id ", id);
-        const auto blob_data_size =
-            static_cast<std::streamoff>(size - sizeof(id) - sizeof(padding_size) - padding_size);
-        OPENVINO_ASSERT(blob_data_size >= 0, "Invalid blob size ", blob_data_size, " for blob id ", id);
-        m_blob_index[id].offset = static_cast<size_t>(blob_data_pos);
-        m_blob_index[id].size = static_cast<size_t>(blob_data_size);
-        if (blob_data_pos + blob_data_size > end_pos) {
+        const auto blob_data_size = static_cast<std::streamoff>(size - header_size - padding_size);
+        s.seekg(blob_data_size, std::ios::cur);
+        if (!s.good()) {
             return false;
         }
-        s.seekg(blob_data_size, std::ios::cur);
-        return s.good();
+        m_blob_index[id].offset = static_cast<size_t>(blob_data_pos);
+        m_blob_index[id].size = static_cast<size_t>(blob_data_size);
+        return true;
     };
     const auto blob_map_reader = [this](std::istream& s, TLVTraits::LengthType size) {
         if (size == 0) {
@@ -137,29 +143,34 @@ bool SingleFileStorage::build_content_index(std::ifstream& stream) {
         }
         if (std::string model_name; read_tlv_string(s, model_name)) {
             m_blob_index[id].model_name = std::move(model_name);
+            return true;
+        } else {
+            return false;
         }
-        return s.good();
     };
-    const auto constant_meta_reader = [this, end_pos](std::istream& s, TLVTraits::LengthType size) {
+    const auto constant_meta_reader = [this, stream_end](std::istream& s, TLVTraits::LengthType size) {
         if (size == 0) {
             return true;
         }
-        if (s.tellg() + static_cast<std::streamoff>(size) > end_pos) {
+        if (size < sizeof(uint64_t) || s.tellg() + static_cast<std::streamoff>(size) > stream_end) {
             return false;
         }
         uint64_t source_id;
         s.read(reinterpret_cast<char*>(&source_id), sizeof(source_id));
-        auto left_size = size - sizeof(source_id);
+        if (!s.good()) {
+            return false;
+        }
+        auto remaining_size = size - sizeof(source_id);
 
-        while (s.good() && left_size > 0) {
+        while (s.good() && remaining_size > 0) {
             uint64_t const_id, const_offset, const_size;
             uint8_t const_type;
             constexpr auto const_meta_size =
                 sizeof(const_id) + sizeof(const_offset) + sizeof(const_size) + sizeof(const_type);
-            if (left_size < const_meta_size) {
+            if (remaining_size < const_meta_size) {
                 return false;
             }
-            left_size -= const_meta_size;
+            remaining_size -= const_meta_size;
             s.read(reinterpret_cast<char*>(&const_id), sizeof(const_id));
             s.read(reinterpret_cast<char*>(&const_offset), sizeof(const_offset));
             s.read(reinterpret_cast<char*>(&const_size), sizeof(const_size));
@@ -173,29 +184,30 @@ bool SingleFileStorage::build_content_index(std::ifstream& stream) {
         }
         return s.good();
     };
-    const auto constant_source_reader = [this, end_pos](std::istream& s, TLVTraits::LengthType size) {
+    const auto constant_source_reader = [this, stream_end](std::istream& s, TLVTraits::LengthType size) {
         if (size == 0) {
             return true;
         }
-        DataIdType device_id, source_id;
-        PadSizeType padding_size;
-        if (size < sizeof(device_id) + sizeof(source_id) + sizeof(padding_size) ||
-            s.tellg() + static_cast<std::streamoff>(size) > end_pos) {
+        constexpr auto header_size = sizeof(DataIdType) + sizeof(DataIdType) + sizeof(PadSizeType);
+        if (size < header_size || s.tellg() + static_cast<std::streamoff>(size) > stream_end) {
             return false;
         }
+        DataIdType device_id, source_id;
+        PadSizeType padding_size;
         s.read(reinterpret_cast<char*>(&device_id), sizeof(device_id));
         s.read(reinterpret_cast<char*>(&source_id), sizeof(source_id));
         s.read(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
-        if (s.tellg() + static_cast<std::streamoff>(padding_size) > end_pos) {
+        if (!s.good() || padding_size > size - header_size ||
+            s.tellg() + static_cast<std::streamoff>(padding_size) > stream_end) {
             return false;
         }
         s.seekg(padding_size, std::ios::cur);
         if (!s.good()) {
             return false;
         }
-        const auto weight_size = size - sizeof(device_id) - sizeof(source_id) - sizeof(padding_size) - padding_size;
+        const auto weight_size = size - header_size - padding_size;
         m_shared_context->m_cache_sources[source_id] = {};
-        if (s.tellg() + static_cast<std::streamoff>(weight_size) > end_pos) {
+        if (s.tellg() + static_cast<std::streamoff>(weight_size) > stream_end) {
             return false;
         }
         s.seekg(weight_size, std::ios::cur);

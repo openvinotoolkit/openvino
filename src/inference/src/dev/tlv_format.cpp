@@ -48,6 +48,12 @@ static bool read_record(std::istream& stream, TLVTraits::TagType& tag, TLVTraits
         data.clear();
         return true;
     }
+    const auto current_pos = stream.tellg();
+    const auto remaining_offset = stream.seekg(0, std::ios::end).tellg() - current_pos;
+    stream.seekg(current_pos);
+    if (remaining_offset < static_cast<std::streamoff>(size)) {
+        return false;
+    }
     data.resize(size);
     stream.read(reinterpret_cast<char*>(data.data()), size);
     return stream.good();
