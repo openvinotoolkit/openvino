@@ -31,7 +31,7 @@ ov::OutputVector lp_norm(const ov::frontend::onnx::Node& node) {
 
     const auto normalize_axis_const = v0::Constant::create(ov::element::i64, {}, {normalize_axis});
     std::shared_ptr<ov::Node> norm =
-        ov::op::util::lp_norm(data, normalize_axis_const, static_cast<std::size_t>(p_norm), 0.0f, true);
+        ov::op::util::lp_norm(data, normalize_axis_const, static_cast<std::size_t>(p_norm), 1e-10f, true);
 
     return {std::make_shared<v1::Divide>(data, norm)};
 }
