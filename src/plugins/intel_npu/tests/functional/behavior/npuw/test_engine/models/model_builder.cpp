@@ -141,7 +141,6 @@ ov::Output<ov::Node> make_transformer_layers(const ov::Output<ov::Node>& initial
 }
 
 
-
 std::shared_ptr<ov::Model> ModelBuilder::get_model_with_one_op() {
     auto param = std::make_shared<ov::opset11::Parameter>(ov::element::i64, ov::PartialShape{1, 3, 2, 2});
     param->set_friendly_name("input");
@@ -720,7 +719,35 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
         beam_idx_output = beam_idx->output(0);
     }
 
-    auto sdpa_mask = make_causal_mask(seq_source, attention_mask->output(0), prec);
+    ov::Output<ov::Node> token_type_ids_output;
+    if (config.use_token_type_ids) {
+        auto tti = parameter(ov::element::i64, ov::PartialShape{-1, -1}, "token_type_ids");
+        token_type_ids_output = tti->output(0);
+    }
+
+    const bool has_sliding = config.sliding_window_size > 0;
+
+    ov::Output<ov::Node> full_mask;
+    ov::Output<ov::Node> sliding_mask;
+
+    // Need full causal mask unless every layer is sliding
+    if (!has_sliding || config.alternating_attention) {
+        full_mask = make_causal_mask(seq_source, attention_mask->output(0), prec);
+    }
+    if (has_sliding) {
+        sliding_mask =
+            make_sliding_window_mask(seq_source, attention_mask->output(0), prec, config.sliding_window_size);
+    }
+
+    // Apply VLM bidirectional modifier for image tokens
+    if (config.use_token_type_ids && token_type_ids_output.get_node()) {
+        if (full_mask.get_node())
+            full_mask = make_vlm_bidirectional_modifier(full_mask, token_type_ids_output, prec);
+        if (sliding_mask.get_node())
+            sliding_mask = make_vlm_bidirectional_modifier(sliding_mask, token_type_ids_output, prec);
+    }
+
+    auto default_mask = full_mask.get_node() ? full_mask : sliding_mask;
 
     // Shared GQA broadcast shape (embedding models only)
     ov::Output<ov::Node> shared_broadcast;
@@ -744,7 +771,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     attn.bias_fn = config.attn_bias;
     attn.qk_norm = config.qk_norm;
     attn.rope_fn = config.rope;
-    attn.sdpa_mask = sdpa_mask;
+    attn.sdpa_mask = default_mask;
     attn.shared_broadcast_shape = shared_broadcast;
 
     if (config.use_kv_cache) {
@@ -777,6 +804,10 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
                                 config.num_layers,
                                 "model.layers.",
                                 [&](const ov::Output<ov::Node>& input, const std::string& prefix, size_t layer) {
+                                    // Per-layer mask: alternating = even->sliding, odd->full
+                                    if (has_sliding && config.alternating_attention) {
+                                        attn.sdpa_mask = (layer % 2 == 0) ? sliding_mask : full_mask;
+                                    }
                                     if (config.pre_norm) {
                                         return make_pre_norm_layer(
                                             input,
