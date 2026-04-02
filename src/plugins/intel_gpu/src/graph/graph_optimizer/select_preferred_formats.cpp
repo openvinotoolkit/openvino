@@ -86,10 +86,10 @@ static void optimize_permute_conv(program_node& node) {
         return;
 
     auto pnode_upstream_fmt = pnode.get_dependency(0).get_preferred_output_fmt();
+    auto node_fmt = node.get_preferred_output_fmt();
 
-    bool is_compatible_format = (pnode_upstream_fmt == format::bfyx
-                                 || pnode_upstream_fmt == format::any
-    );
+    bool is_compatible_format = ((pnode_upstream_fmt == format::bfyx || pnode_upstream_fmt == format::any)
+                                && (node_fmt == format::byxf));
 
     if (!is_compatible_format)
         return;
