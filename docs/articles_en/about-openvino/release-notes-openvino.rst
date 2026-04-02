@@ -172,6 +172,21 @@ OpenVINO™ GenAI
 * TextEmbeddingPipeline now supports dynamic input shapes via the NPUW plugin, enabling NPU inference for a wider range of embedding models. 
 * Improved pipeline loading time through asynchronous tokenizer warmup. 
 
+Other Changes and Known Issues
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+Jupyter Notebooks
+-----------------------------
+
+New models and use cases: 
+* `MiniCPM-o 4.5 Multimodal Chatbot with OpenVINO (experimental) <https://openvinotoolkit.github.io/openvino_notebooks/?search=minicpm-o+4.5 >`__ 
+* `LLM Code Assistant with OpenVINO <https://openvinotoolkit.github.io/openvino_notebooks/?search=llm+code+assistant >`__ 
+* `Visual-Language Models (VLM) Chatbot with Generate API <https://openvinotoolkit.github.io/openvino_notebooks/?search=vlm-powered >`__ 
+* `PaddleOCR-VL for Document Parsing (experimental) <https://openvinotoolkit.github.io/openvino_notebooks/?search=paddleocr-vl >`__ 
+
+Archived Notebooks Tab: Added a dedicated "Archived" tab to the `OpenVINO Notebooks portal <https://openvinotoolkit.github.io/openvino_notebooks/ >`__. Users can now easily search and browse older or deprecated notebooks, keeping the main catalog focused on the latest updates while retaining access to historical content. 
+
 
 
 Previous 2026 releases
