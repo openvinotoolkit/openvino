@@ -733,3 +733,31 @@ TEST(OnlinePartitioningTest, IsRegularParameterCase_PrefillModel_InputsEmbeds) {
     // isRegularParameterCase must detect this structural asymmetry and set irregular_io=true.
     EXPECT_TRUE(ens.irregular_io);
 }
+
+// Regression: GQA models (num_kv_heads < num_heads) must build correctly and produce
+// the Unsqueeze→Broadcast→Reshape chain that matches NPUW's AttentionBroadcast pattern.
+TEST(OnlinePartitioningTest, GQA_ModelBuildsCorrectly) {
+    LLMConfig config;
+    config.num_layers = 4;
+    config.hidden_size = 64;
+    config.num_heads = 4;
+    config.head_dim = 16;
+    config.num_kv_heads = 2;  // GQA: 4 heads / 2 KV heads = 2x repeat
+    config.vocab_size = 256;
+
+    ModelBuilder mb;
+    auto model = mb.build_llm(config);
+    ASSERT_NE(model, nullptr);
+
+    // Verify the GQA broadcast chain exists (Unsqueeze→Broadcast→Reshape per layer)
+    size_t broadcast_count = 0;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (op->get_type_name() == std::string("Broadcast") &&
+            op->get_friendly_name().find("repeat") != std::string::npos) {
+            broadcast_count++;
+        }
+    }
+    // Each of 4 layers has K repeat + V repeat = 2 broadcasts per layer
+    EXPECT_EQ(broadcast_count, config.num_layers * 2)
+        << "GQA model should have 2 Broadcast ops (K+V repeat) per layer";
+}

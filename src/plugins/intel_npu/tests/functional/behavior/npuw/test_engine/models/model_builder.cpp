@@ -569,15 +569,24 @@ ov::Output<ov::Node> make_repeat_kv(const ov::Output<ov::Node>& kv,
     if (shared_broadcast_shape.get_node()) {
         broadcast_shape_output = shared_broadcast_shape;
     } else {
+        // Build 5D broadcast shape [batch, kv_heads, n_rep, seq, head_dim] matching
+        // the AttentionBroadcast pattern: Concat({Gather(ShapeOf), any, any, any}).
+        // The first Gather extracts batch_and_kv_heads, the rest are the rep/seq/dim constants.
         auto shape_of_kv = std::make_shared<ov::opset11::ShapeOf>(kv, ov::element::i64);
+        shape_of_kv->set_friendly_name(name + "_shapeof");
         auto gather_axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0});
         auto idx_01 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1});
         auto batch_kv_heads = std::make_shared<ov::opset11::Gather>(shape_of_kv, idx_01, gather_axis);
+        batch_kv_heads->set_friendly_name(name + "_batch_kv_heads");
         auto n_rep_const = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {static_cast<int64_t>(n_rep)});
-        auto idx_23 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{2}, {2, 3});
-        auto seq_head_dim = std::make_shared<ov::opset11::Gather>(shape_of_kv, idx_23, gather_axis);
-        auto broadcast_shape =
-            std::make_shared<ov::opset11::Concat>(ov::OutputVector{batch_kv_heads, n_rep_const, seq_head_dim}, 0);
+        auto idx_2 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+        auto seq_dim = std::make_shared<ov::opset11::Gather>(shape_of_kv, idx_2, gather_axis);
+        seq_dim->set_friendly_name(name + "_seq_dim");
+        auto head_dim_const =
+            ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {static_cast<int64_t>(head_dim)});
+        auto broadcast_shape = std::make_shared<ov::opset11::Concat>(
+            ov::OutputVector{batch_kv_heads, n_rep_const, seq_dim, head_dim_const},
+            0);
         broadcast_shape->set_friendly_name(name + "_broadcast_shape");
         broadcast_shape_output = broadcast_shape->output(0);
     }
