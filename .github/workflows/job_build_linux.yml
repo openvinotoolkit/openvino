@@ -114,7 +114,7 @@ jobs:
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '${{ github.workspace }}/openvino/manifest.yml'
       PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}_release
-      COVERAGE_NOTES_DIR: ${{ github.workspace }}/openvino/openvino_build/coverage_build_notes
+      COVERAGE_NOTES_DIR: ${{ github.workspace }}/coverage_build_notes
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
         shell: bash
@@ -275,15 +275,39 @@ jobs:
         run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_tests.tar.gz
         working-directory: ${{ env.INSTALL_TEST_DIR }}
 
+      - name: Print native coverage tool versions
+        if: ${{ inputs.upload-coverage-notes }}
+        run: |
+          mkdir -p "${COVERAGE_NOTES_DIR}"
+          {
+            for tool in gcc g++ gcov lcov cmake ninja; do
+              echo "## ${tool}"
+              if command -v "${tool}" >/dev/null 2>&1; then
+                command -v "${tool}"
+                "${tool}" --version | head -n 3
+              else
+                echo "not installed"
+              fi
+              echo
+            done
+          } | tee "${COVERAGE_NOTES_DIR}/build-native-coverage-tool-versions.txt"
+
       - name: Capture coverage notes for main build
         if: ${{ inputs.upload-coverage-notes }}
         run: |
-          rm -rf "${COVERAGE_NOTES_DIR}"
+          rm -rf "${COVERAGE_NOTES_DIR}/main-build"
           mkdir -p "${COVERAGE_NOTES_DIR}/main-build"
           (
             cd "${BUILD_DIR}"
             find . -type f -name '*.gcno' -exec cp --parents {} "${COVERAGE_NOTES_DIR}/main-build/" \;
           )
+          {
+            echo "captured_from=${BUILD_DIR}"
+            echo "snapshot=main-build"
+            echo "gcno_count=$(find "${BUILD_DIR}" -type f -name '*.gcno' | wc -l)"
+            echo "sample_gcno:"
+            find "${BUILD_DIR}" -type f -name '*.gcno' | sort | sed -n '1,40p'
+          } | tee "${COVERAGE_NOTES_DIR}/main-build-inventory.txt"
 
       - name: Build Debian packages
         if: ${{ inputs.build-debian-packages }}
@@ -348,6 +372,13 @@ jobs:
             cd "${BUILD_DIR}"
             find . -type f -name '*.gcno' -exec cp --parents {} "${COVERAGE_NOTES_DIR}/js-build/" \;
           )
+          {
+            echo "captured_from=${BUILD_DIR}"
+            echo "snapshot=js-build"
+            echo "gcno_count=$(find "${BUILD_DIR}" -type f -name '*.gcno' | wc -l)"
+            echo "sample_gcno:"
+            find "${BUILD_DIR}" -type f -name '*.gcno' | sort | sed -n '1,40p'
+          } | tee "${COVERAGE_NOTES_DIR}/js-build-inventory.txt"
 
       - name: Build RPM packages
         if: ${{ inputs.build-rpm-packages }}

@@ -12,6 +12,11 @@ from pathlib import Path
 from coverage_workflow import CoverageContext, run_cmd, warn
 
 
+def _slugify(value: str) -> str:
+    """Convert a label into a filesystem-friendly fragment."""
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", value).strip("-") or "capture"
+
+
 def _has_gcda(root: Path) -> bool:
     """Return whether a directory tree contains any gcda files."""
     if not root.exists():
@@ -131,12 +136,111 @@ def _remove_gcda_files(paths: list[Path]) -> int:
     return removed
 
 
+def _tool_version_report() -> str:
+    """Capture native coverage tool versions for debugging."""
+    commands = (
+        ("gcc", ["gcc", "--version"]),
+        ("g++", ["g++", "--version"]),
+        ("gcov", ["gcov", "--version"]),
+        ("lcov", ["lcov", "--version"]),
+        ("genhtml", ["genhtml", "--version"]),
+    )
+
+    lines: list[str] = []
+    for name, cmd in commands:
+        resolved = shutil.which(name)
+        lines.append(f"## {name}")
+        lines.append(f"path: {resolved or 'not found'}")
+        if resolved is None:
+            lines.append("")
+            continue
+        completed = subprocess.run(cmd, text=True, capture_output=True)
+        lines.append(f"exit_code: {completed.returncode}")
+        output = (completed.stdout or completed.stderr or "").strip()
+        if output:
+            lines.extend(output.splitlines()[:3])
+        lines.append("")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _tree_inventory_report(
+    *,
+    root: Path,
+    label: str,
+    gcno_root: Path,
+    alt_gcno_root: Path | None = None,
+    limit: int = 20,
+) -> str:
+    """Summarize gcda/gcno layout and sample expected note matches."""
+    lines = [f"# {label}", f"root={root}", f"gcno_root={gcno_root}"]
+    if alt_gcno_root is not None:
+        lines.append(f"alt_gcno_root={alt_gcno_root}")
+
+    if not root.exists():
+        lines.append("exists=false")
+        return "\n".join(lines) + "\n"
+
+    local_gcno_files = sorted(root.rglob("*.gcno"))
+    gcda_files = sorted(root.rglob("*.gcda"))
+    lines.extend(
+        [
+            "exists=true",
+            f"gcno_count={len(local_gcno_files)}",
+            f"gcda_count={len(gcda_files)}",
+        ]
+    )
+
+    if gcda_files:
+        local_matches = 0
+        alt_matches = 0
+        missing_matches = 0
+        lines.append("sample_gcda_to_gcno:")
+        for gcda in gcda_files:
+            rel = gcda.relative_to(root)
+            local_gcno = gcno_root / rel.with_suffix(".gcno")
+            alt_gcno = alt_gcno_root / rel.with_suffix(".gcno") if alt_gcno_root is not None else None
+            local_exists = local_gcno.exists()
+            alt_exists = alt_gcno.exists() if alt_gcno is not None else False
+            if local_exists:
+                local_matches += 1
+            elif alt_exists:
+                alt_matches += 1
+            else:
+                missing_matches += 1
+
+        lines.extend(
+            [
+                f"matching_gcno_in_primary_root={local_matches}",
+                f"matching_gcno_only_in_alt_root={alt_matches}",
+                f"matching_gcno_missing_in_both={missing_matches}",
+            ]
+        )
+
+        for gcda in gcda_files[:limit]:
+            rel = gcda.relative_to(root)
+            local_gcno = gcno_root / rel.with_suffix(".gcno")
+            alt_gcno = alt_gcno_root / rel.with_suffix(".gcno") if alt_gcno_root is not None else None
+            lines.append(
+                "  "
+                + f"gcda={gcda} | primary_gcno_exists={local_gcno.exists()} | primary_gcno={local_gcno}"
+                + (f" | alt_gcno_exists={alt_gcno.exists()} | alt_gcno={alt_gcno}" if alt_gcno is not None else "")
+            )
+
+    if local_gcno_files:
+        lines.append("sample_gcno:")
+        lines.extend(f"  {path}" for path in local_gcno_files[:limit])
+
+    return "\n".join(lines) + "\n"
+
+
 def _run_lcov_capture(
     *,
     directory: Path,
     base_directory: Path,
     output_file: Path,
     label: str,
+    debug_dir: Path,
 ) -> None:
     """Capture one lcov tracefile, retrying after gcda cleanup when needed.
 
@@ -166,39 +270,59 @@ def _run_lcov_capture(
     max_attempts = 32
     for attempt in range(1, max_attempts + 1):
         display = " ".join(shlex.quote(part) for part in cmd)
+        log_file = debug_dir / f"{_slugify(label)}.attempt{attempt}.log"
         print(f"[coverage] $ {display}  # {label} (attempt {attempt}/{max_attempts})")
         try:
             completed = subprocess.run(cmd, text=True, capture_output=True, timeout=timeout_seconds)
         except subprocess.TimeoutExpired as exc:
-            stderr_tail = (exc.stderr or "").strip().splitlines()[-8:]
-            if stderr_tail:
+            stdout_text = exc.stdout or ""
+            stderr_text = exc.stderr or ""
+            log_file.write_text(
+                f"$ {display}\nexit_code=timeout\n\n[stdout]\n{stdout_text}\n\n[stderr]\n{stderr_text}\n",
+                encoding="utf-8",
+            )
+            combined_tail = (stdout_text.splitlines() + stderr_text.splitlines())[-40:]
+            if combined_tail:
                 warn(
-                    f"{label}: lcov capture timed out after {timeout_seconds}s with tail:\n"
-                    + "\n".join(stderr_tail)
+                    f"{label}: lcov capture timed out after {timeout_seconds}s; full log: {log_file}\n"
+                    + "\n".join(combined_tail)
                 )
             raise RuntimeError(f"{label}: lcov capture timed out after {timeout_seconds}s") from exc
+
+        stdout_text = completed.stdout or ""
+        stderr_text = completed.stderr or ""
+        log_file.write_text(
+            f"$ {display}\nexit_code={completed.returncode}\n\n[stdout]\n{stdout_text}\n\n[stderr]\n{stderr_text}\n",
+            encoding="utf-8",
+        )
 
         if completed.returncode == 0 and output_file.exists() and output_file.stat().st_size > 0:
             return
 
-        log_text = f"{completed.stdout or ''}\n{completed.stderr or ''}"
+        log_text = f"{stdout_text}\n{stderr_text}"
         bad_files = _extract_problematic_gcda(log_text)
         removed = _remove_gcda_files(bad_files)
 
         if removed > 0:
             preview = ", ".join(str(p) for p in bad_files[:3])
             more = "" if len(bad_files) <= 3 else f", ... (+{len(bad_files) - 3} more)"
-            warn(f"{label}: removed {removed} problematic .gcda file(s): {preview}{more}")
+            warn(f"{label}: removed {removed} problematic .gcda file(s): {preview}{more}; lcov log: {log_file}")
             continue
 
         if output_file.exists() and output_file.stat().st_size > 0:
-            warn(f"{label}: lcov returned {completed.returncode}, but {output_file.name} was produced; continuing.")
+            warn(
+                f"{label}: lcov returned {completed.returncode}, but {output_file.name} was produced; "
+                f"continuing. lcov log: {log_file}"
+            )
             return
 
-        stderr_tail = (completed.stderr or "").strip().splitlines()[-8:]
-        if stderr_tail:
-            warn(f"{label}: lcov capture failed (attempt {attempt}) with tail:\n" + "\n".join(stderr_tail))
-        raise RuntimeError(f"{label}: lcov capture failed without recoverable gcda cleanup")
+        combined_tail = (stdout_text.splitlines() + stderr_text.splitlines())[-40:]
+        if combined_tail:
+            warn(
+                f"{label}: lcov capture failed (attempt {attempt}); full log: {log_file}\n"
+                + "\n".join(combined_tail)
+            )
+        raise RuntimeError(f"{label}: lcov capture failed without recoverable gcda cleanup; see {log_file}")
 
     raise RuntimeError(f"{label}: failed to capture coverage after {max_attempts} attempts")
 
@@ -257,9 +381,63 @@ def run(ctx: CoverageContext) -> None:
     has_staged_main_gcda = any(_has_gcda(run_dir / "build") for run_dir in staged_runs)
     has_staged_js_gcda = any(_has_gcda(run_dir / "build_js") for run_dir in staged_runs)
 
+    tool_report = _tool_version_report()
+    (trace_dir / "tool-versions.txt").write_text(tool_report, encoding="utf-8")
+    print("[coverage] Native coverage tool versions:")
+    print(tool_report.rstrip())
+
+    (trace_dir / "main-build-before-prefilter.txt").write_text(
+        _tree_inventory_report(
+            root=ctx.paths.build_dir,
+            label="main build before prefilter",
+            gcno_root=ctx.paths.build_dir,
+            alt_gcno_root=ctx.paths.build_js_dir if ctx.paths.build_js_dir.exists() else None,
+        ),
+        encoding="utf-8",
+    )
+    (trace_dir / "js-build-before-prefilter.txt").write_text(
+        _tree_inventory_report(
+            root=ctx.paths.build_js_dir,
+            label="js build before prefilter",
+            gcno_root=ctx.paths.build_js_dir,
+            alt_gcno_root=ctx.paths.build_dir if ctx.paths.build_dir.exists() else None,
+        ),
+        encoding="utf-8",
+    )
+
     _prefilter_incompatible_gcda(ctx.paths.build_dir, label="main build")
     if ctx.paths.build_js_dir.exists():
         _prefilter_incompatible_gcda(ctx.paths.build_js_dir, label="js build")
+
+    (trace_dir / "main-build-after-prefilter.txt").write_text(
+        _tree_inventory_report(
+            root=ctx.paths.build_dir,
+            label="main build after prefilter",
+            gcno_root=ctx.paths.build_dir,
+            alt_gcno_root=ctx.paths.build_js_dir if ctx.paths.build_js_dir.exists() else None,
+        ),
+        encoding="utf-8",
+    )
+    (trace_dir / "js-build-after-prefilter.txt").write_text(
+        _tree_inventory_report(
+            root=ctx.paths.build_js_dir,
+            label="js build after prefilter",
+            gcno_root=ctx.paths.build_js_dir,
+            alt_gcno_root=ctx.paths.build_dir if ctx.paths.build_dir.exists() else None,
+        ),
+        encoding="utf-8",
+    )
+    print(f"[coverage] Wrote native coverage inventories under {trace_dir}")
+    for inventory_name in (
+        "main-build-before-prefilter.txt",
+        "main-build-after-prefilter.txt",
+        "js-build-before-prefilter.txt",
+        "js-build-after-prefilter.txt",
+    ):
+        inventory_path = trace_dir / inventory_name
+        if inventory_path.is_file():
+            print(f"[coverage] ===== {inventory_name} =====")
+            print("\n".join(inventory_path.read_text(encoding="utf-8").splitlines()[:40]))
 
     has_main_gcda = _has_gcda(ctx.paths.build_dir)
     has_js_gcda = _has_gcda(ctx.paths.build_js_dir)
@@ -271,6 +449,7 @@ def run(ctx: CoverageContext) -> None:
             base_directory=src_dir,
             output_file=main_info,
             label="C/C++ main capture",
+            debug_dir=trace_dir,
         )
     else:
         if not has_staged_main_gcda:
@@ -285,6 +464,7 @@ def run(ctx: CoverageContext) -> None:
             base_directory=src_dir,
             output_file=js_info,
             label="C/C++ JS-side capture",
+            debug_dir=trace_dir,
         )
         tracefiles.append(js_info)
     else:
@@ -308,6 +488,7 @@ def run(ctx: CoverageContext) -> None:
                 base_directory=src_dir,
                 output_file=tracefile,
                 label=f"C/C++ staged main capture ({run_dir.name})",
+                debug_dir=trace_dir,
             )
             tracefiles.append(tracefile)
 
@@ -320,6 +501,7 @@ def run(ctx: CoverageContext) -> None:
                 base_directory=src_dir,
                 output_file=tracefile,
                 label=f"C/C++ staged JS capture ({run_dir.name})",
+                debug_dir=trace_dir,
             )
             tracefiles.append(tracefile)
 

@@ -143,6 +143,16 @@ def collect_suite_results(
         if source.is_file():
             shutil.copy2(source, artifact_dir / filename)
 
+    versions_file = workspace / "native-coverage-tool-versions.txt"
+    if versions_file.is_file():
+        shutil.copy2(versions_file, artifact_dir / versions_file.name)
+
+    debug_dir = workspace / ".tmp" / "cpp-coverage-parts"
+    if debug_dir.is_dir():
+        destination = artifact_dir / "native-cpp-debug"
+        shutil.rmtree(destination, ignore_errors=True)
+        shutil.copytree(debug_dir, destination)
+
 
 def _collect_artifacts(*, workspace: Path, suite_key: str) -> list[dict[str, object]]:
     suite_def = SUITE_DEFS[suite_key]

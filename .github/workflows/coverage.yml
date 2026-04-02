@@ -137,6 +137,12 @@ jobs:
           if [[ -d "${notes_root}/coverage_build_notes" ]]; then
             notes_root="${notes_root}/coverage_build_notes"
           fi
+          for inventory in build-native-coverage-tool-versions.txt main-build-inventory.txt js-build-inventory.txt; do
+            if [[ -f "${notes_root}/${inventory}" ]]; then
+              echo "===== ${inventory} ====="
+              sed -n '1,120p' "${notes_root}/${inventory}"
+            fi
+          done
           rm -rf "${BUILD_DIR}" "${BUILD_JS_DIR}"
           mkdir -p "${BUILD_DIR}" "${BUILD_JS_DIR}"
           cp -a "${notes_root}/main-build/." "${BUILD_DIR}/"
@@ -151,6 +157,21 @@ jobs:
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
+
+      - name: Print native coverage tool versions
+        run: |
+          {
+            for tool in gcc g++ gcov lcov genhtml; do
+              echo "## ${tool}"
+              if command -v "${tool}" >/dev/null 2>&1; then
+                command -v "${tool}"
+                "${tool}" --version | head -n 3
+              else
+                echo "not installed"
+              fi
+              echo
+            done
+          } | tee "${OV_WORKSPACE}/native-coverage-tool-versions.txt"
 
       - name: Install coverage helper dependency
         run: python3 -m pip install pyyaml
@@ -280,6 +301,12 @@ jobs:
           if [[ -d "${notes_root}/coverage_build_notes" ]]; then
             notes_root="${notes_root}/coverage_build_notes"
           fi
+          for inventory in build-native-coverage-tool-versions.txt main-build-inventory.txt js-build-inventory.txt; do
+            if [[ -f "${notes_root}/${inventory}" ]]; then
+              echo "===== ${inventory} ====="
+              sed -n '1,120p' "${notes_root}/${inventory}"
+            fi
+          done
           rm -rf "${BUILD_DIR}" "${BUILD_JS_DIR}"
           mkdir -p "${BUILD_DIR}" "${BUILD_JS_DIR}"
           cp -a "${notes_root}/main-build/." "${BUILD_DIR}/"
@@ -294,6 +321,21 @@ jobs:
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
+
+      - name: Print native coverage tool versions
+        run: |
+          {
+            for tool in gcc g++ gcov lcov genhtml; do
+              echo "## ${tool}"
+              if command -v "${tool}" >/dev/null 2>&1; then
+                command -v "${tool}"
+                "${tool}" --version | head -n 3
+              else
+                echo "not installed"
+              fi
+              echo
+            done
+          } | tee "${OV_WORKSPACE}/native-coverage-tool-versions.txt"
 
       - name: Install coverage Python dependencies
         run: python3 -m pip install pyyaml coverage pytest pytest-cov pytest-xdist[psutil]
@@ -460,6 +502,21 @@ jobs:
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
 
+      - name: Print native coverage tool versions
+        run: |
+          {
+            for tool in gcc g++ gcov lcov genhtml; do
+              echo "## ${tool}"
+              if command -v "${tool}" >/dev/null 2>&1; then
+                command -v "${tool}"
+                "${tool}" --version | head -n 3
+              else
+                echo "not installed"
+              fi
+              echo
+            done
+          } | tee "${OV_WORKSPACE}/native-coverage-tool-versions.txt"
+
       - name: Install coverage helper dependency
         run: python3 -m pip install pyyaml
 
@@ -473,10 +530,17 @@ jobs:
           if [[ -d "${notes_root}/coverage_build_notes" ]]; then
             notes_root="${notes_root}/coverage_build_notes"
           fi
+          for inventory in build-native-coverage-tool-versions.txt main-build-inventory.txt js-build-inventory.txt; do
+            if [[ -f "${notes_root}/${inventory}" ]]; then
+              echo "===== ${inventory} ====="
+              sed -n '1,120p' "${notes_root}/${inventory}"
+            fi
+          done
           rm -rf "${BUILD_DIR}" "${BUILD_JS_DIR}"
           mkdir -p "${BUILD_DIR}" "${BUILD_JS_DIR}"
           cp -a "${notes_root}/main-build/." "${BUILD_DIR}/"
           if [[ -d "${notes_root}/js-build" ]]; then
+            cp -a "${notes_root}/js-build/." "${BUILD_DIR}/"
             cp -a "${notes_root}/js-build/." "${BUILD_JS_DIR}/"
           fi
 
