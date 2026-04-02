@@ -31,7 +31,7 @@ jobs:
   PyTorch_FX_Layer_Tests:
     name: PyTorch FX Layer Tests
     timeout-minutes: 60
-    runs-on: aks-win-16-cores-32gb-st
+    runs-on: aks-linux-4-cores-16gb-st
     container:
       image: ${{ inputs.image }}
       volumes:
@@ -51,12 +51,12 @@ jobs:
       HF_HUB_VERBOSITY: debug
       TRANSFORMERS_VERBOSITY: debug
     steps:
-      - name: Debug HF token path (Linux/macOS)
-        if: ${{ runner.os != 'Windows' }}
-        shell: bash
-        run: |
-          echo "HF_TOKEN_PATH=${HF_TOKEN_PATH}"
-          ls -la "${HF_TOKEN_PATH}" 2>&1 || echo "File not found: ${HF_TOKEN_PATH}"
+      # - name: Debug HF token path (Linux/macOS)
+      #   if: ${{ runner.os != 'Windows' }}
+      #   shell: bash
+      #   run: |
+      #     echo "HF_TOKEN_PATH=${HF_TOKEN_PATH}"
+      #     ls -la "${HF_TOKEN_PATH}" 2>&1 || echo "File not found: ${HF_TOKEN_PATH}"
 
       # - name: Debug HF token path (Windows)
       #   if: ${{ runner.os == 'Windows' }}

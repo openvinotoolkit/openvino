@@ -33,7 +33,7 @@ jobs:
   JAX_Layer_Tests:
     name: JAX Layer Tests
     timeout-minutes: 40
-    runs-on: ${{ inputs.runner }}
+    runs-on: aks-linux-4-cores-16gb-st
     container:
       image: ${{ inputs.image }}
       volumes:
