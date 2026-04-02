@@ -1,8 +1,9 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include "openvino/op/transpose.hpp"
+
+#include <string>
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
