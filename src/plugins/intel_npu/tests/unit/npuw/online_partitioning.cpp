@@ -20,6 +20,49 @@
 using ov::test::npuw::ModelBuilder;
 using ov::test::npuw::LLMConfig;
 
+namespace ov::npuw::online::test {
+
+class GroupTestAccess {
+public:
+    static void eraseReptrack(const Group::GPtr& group, const detail::OVNodePtr& node) {
+        group->m_reptrack.erase(node);
+    }
+};
+
+class SnapshotTestAccess {
+public:
+    static void identifyUniques(const std::shared_ptr<Snapshot>& snap) {
+        snap->identifyUniques();
+    }
+
+    static detail::GPtrSet getRepGroups(const std::shared_ptr<Snapshot>& snap, const Group::GPtr& group) {
+        return snap->getRepGroups(group);
+    }
+
+    static std::shared_ptr<Repeated> tryGrowRepeatingGroups(const std::shared_ptr<Snapshot>& snap,
+                                                             const detail::GPtrSet& repeating_groups) {
+        return snap->tryGrowRepeatingGroups(repeating_groups);
+    }
+
+    static std::shared_ptr<Repeated> tryMergeTriangles(const std::shared_ptr<Snapshot>& snap,
+                                                       const detail::GPtrSet& repeating_groups) {
+        return snap->tryMergeTriangles(repeating_groups);
+    }
+
+    static std::shared_ptr<Repeated> tryMergeTriangles(const std::shared_ptr<Snapshot>& snap,
+                                                       const std::vector<Group::GPtr>& prods,
+                                                       const std::vector<std::vector<Group::GPtr>>& conss) {
+        return snap->tryMergeTriangles(prods, conss);
+    }
+
+    static void erasePortsMap(const std::shared_ptr<Snapshot>& snap,
+                              const std::pair<detail::OVNodePtr, detail::OVNodePtr>& key) {
+        snap->m_ports_map.erase(key);
+    }
+};
+
+}  // namespace ov::npuw::online::test
+
 namespace {
 
 ::intel_npu::Config createConfigWithKeepBlockSize(std::size_t size) {
@@ -468,6 +511,122 @@ TEST(OnlinePartitioningTest, Partitioning_Compiler_RepeatedBlocks_RepeatedModel)
         snap->fuseRemnantsExtended();
         EXPECT_LT(iter_fr, sizes_fr.size());
         EXPECT_EQ(snap->graphSize(), sizes_fr[iter_fr++]);
+    });
+}
+
+TEST(OnlinePartitioningTest, Partitioning_RepeatedBlocks_IncompleteMetadata_DoesNotThrow) {
+    ModelBuilder mb;
+    auto model = mb.get_model_with_repeated_blocks();
+
+    auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
+    ov::npuw::online::PassContext ctx;
+    ctx.keep_blocks = 1;
+    snap->setCtx(ctx);
+
+    snap->buildGraph();
+    snap->earlyAvoids();
+    snap->earlyRegroup();
+    ov::npuw::online::test::SnapshotTestAccess::identifyUniques(snap);
+
+    auto g = snap->getGraph();
+
+    ov::npuw::online::Group::GPtr rep_prod = nullptr;
+    ov::npuw::online::Group::GPtr rep_cons = nullptr;
+    ov::npuw::online::Interconnect rep_ic{};
+    bool found_rep_edge = false;
+
+    for (const auto& cons_nh : g->sorted()) {
+        if (!g->contains(cons_nh)) {
+            continue;
+        }
+
+        auto cons = g->meta(cons_nh).get<ov::npuw::online::Group::GPtr>();
+        if (!cons->repeated()) {
+            continue;
+        }
+
+        for (const auto& prod_nh : cons->srcNodes()) {
+            auto prod = g->meta(prod_nh).get<ov::npuw::online::Group::GPtr>();
+            if (!prod->repeated() || prod->repeated() == cons->repeated()) {
+                continue;
+            }
+
+            const auto ics = cons->interconnect(prod);
+            if (ics.empty()) {
+                continue;
+            }
+
+            rep_prod = prod;
+            rep_cons = cons;
+            rep_ic = *ics.begin();
+            found_rep_edge = true;
+            break;
+        }
+
+        if (found_rep_edge) {
+            break;
+        }
+    }
+
+    ASSERT_TRUE(found_rep_edge);
+
+    // Reproduce original failure mode: break both reptrack and ports metadata for one edge.
+    ov::npuw::online::test::GroupTestAccess::eraseReptrack(rep_prod, rep_ic.input_node);
+    ov::npuw::online::test::GroupTestAccess::eraseReptrack(rep_cons, rep_ic.output_node);
+    ov::npuw::online::test::SnapshotTestAccess::erasePortsMap(snap, {rep_ic.input_node, rep_ic.output_node});
+
+    const auto repeating_groups = ov::npuw::online::test::SnapshotTestAccess::getRepGroups(snap, rep_cons);
+    ASSERT_FALSE(repeating_groups.empty());
+
+    EXPECT_NO_THROW({
+        (void)ov::npuw::online::test::SnapshotTestAccess::tryGrowRepeatingGroups(snap, repeating_groups);
+    });
+    EXPECT_NO_THROW({
+        (void)ov::npuw::online::test::SnapshotTestAccess::tryMergeTriangles(snap, repeating_groups);
+    });
+
+    // Also cover the second-order triangle path with incomplete metadata.
+    std::vector<ov::npuw::online::Group::GPtr> tri_prods;
+    std::vector<std::vector<ov::npuw::online::Group::GPtr>> tri_conss;
+
+    for (const auto& prod_nh : g->sorted()) {
+        if (!g->contains(prod_nh)) {
+            continue;
+        }
+
+        auto prod = g->meta(prod_nh).get<ov::npuw::online::Group::GPtr>();
+        if (prod->dstNodes().empty()) {
+            continue;
+        }
+
+        auto cons = g->meta(prod->dstNodes().front()).get<ov::npuw::online::Group::GPtr>();
+        if (cons->srcNodes().size() > 1 || cons->dstNodes().empty()) {
+            continue;
+        }
+
+        const auto ics = cons->interconnect(prod);
+        if (ics.empty()) {
+            continue;
+        }
+
+        // Ensure the metaInterconnect call in tryMergeTriangles(prods, conss) sees incomplete data.
+        const auto& ic = *ics.begin();
+        ov::npuw::online::test::GroupTestAccess::eraseReptrack(prod, ic.input_node);
+        ov::npuw::online::test::GroupTestAccess::eraseReptrack(cons, ic.output_node);
+        ov::npuw::online::test::SnapshotTestAccess::erasePortsMap(snap, {ic.input_node, ic.output_node});
+
+        tri_prods.push_back(prod);
+        tri_conss.push_back({cons});
+        if (tri_prods.size() == 2) {
+            break;
+        }
+    }
+
+    ASSERT_EQ(tri_prods.size(), 2);
+    ASSERT_EQ(tri_conss.size(), 2);
+
+    EXPECT_NO_THROW({
+        (void)ov::npuw::online::test::SnapshotTestAccess::tryMergeTriangles(snap, tri_prods, tri_conss);
     });
 }
 
