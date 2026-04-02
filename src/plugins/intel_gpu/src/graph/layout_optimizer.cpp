@@ -174,8 +174,16 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         }
     }
 
-    // Ref kernels are the main for depth_to_space and region_yolo and strided_slice. It can do anything.
-    if (next.is_type<depth_to_space>() || next.is_type<region_yolo>() ||
+    // depth_to_space is rank-preserving by op semantics.
+    // Allow fusing only when the reorder does not change input rank for depth_to_space.
+    if (next.is_type<depth_to_space>()) {
+        const auto prev_rank = prev.get_output_layout().get_rank();
+        const auto next_input_rank = next.get_input_layout(0).get_rank();
+        return prev_rank == next_input_rank;
+    }
+
+    // Ref kernels are the main for region_yolo and strided_slice. It can do anything.
+    if (next.is_type<region_yolo>() ||
         (next.is_type<strided_slice>() && next.get_preferred_impl_type() != cldnn::impl_types::cpu))
         return true;
 
@@ -400,8 +408,16 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         is_dynamic = true;
     }
 
-    // Ref kernels are the main for depth_to_space, region_yolo and detection_output. It can do anything. Should not see next.
-    if (prev.is_type<depth_to_space>() || prev.is_type<region_yolo>()
+    // depth_to_space is rank-preserving by op semantics.
+    // Allow fusing only when the reorder does not change output rank.
+    if (prev.is_type<depth_to_space>()) {
+        const auto prev_rank = prev.get_output_layout().get_rank();
+        const auto reordered_rank = node.get_output_layout().get_rank();
+        return prev_rank == reordered_rank;
+    }
+
+    // Ref kernels are the main for region_yolo and detection_output. It can do anything. Should not see next.
+    if (prev.is_type<region_yolo>()
         || (prev.is_type<detection_output>() && prev.get_preferred_impl_type() != cldnn::impl_types::cpu))
         return true;
 
