@@ -326,7 +326,6 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
                                    past_value_sequence_dims};
 }
 
-
 std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov::Model>& model) {
     // Validate and setup pyramid attention
     auto validation_result = validate_and_setup_pyramid_attention(model);

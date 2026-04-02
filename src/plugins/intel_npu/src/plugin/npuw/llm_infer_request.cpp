@@ -616,7 +616,6 @@ void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
 
         auto chunk_prefill_kvcache_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
 
-
         // NB: Use fill_tensor_bytes to zero-fill regardless of element type.
         // After KV cache compression, past KV inputs may be i8 precision, and
         // fill_tensor<ov::float16> would fail with a type mismatch error.

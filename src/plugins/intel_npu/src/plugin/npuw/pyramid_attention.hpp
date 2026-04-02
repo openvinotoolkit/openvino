@@ -60,9 +60,6 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
 // Helper function to validate model and extract necessary information for pyramid attention
 std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(const std::shared_ptr<ov::Model>& model);
 
-
-
-
 // Function to find mask parameter by traversing from Add node
 std::shared_ptr<ov::op::v0::Parameter> find_mask_parameter(const std::shared_ptr<ov::Node>& add_node);
 

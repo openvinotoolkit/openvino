@@ -13,8 +13,8 @@ namespace ov::npuw {
 struct KVCacheCompressionConfig {
     enum class QuantizationType { Symmetric, Asymmetric };
 
-    QuantizationType  quantization_type = QuantizationType::Asymmetric;
-    ov::element::Type quantization_dt   = ov::element::u8;
+    QuantizationType quantization_type = QuantizationType::Asymmetric;
+    ov::element::Type quantization_dt = ov::element::u8;
 };
 
 /// Independent compression parameters for key and value caches.
@@ -23,7 +23,8 @@ struct KVCacheCompressionParams {
     KVCacheCompressionConfig value;
 };
 
-void run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov::Model>& model, const KVCacheCompressionParams& params);
+void run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov::Model>& model,
+                                              const KVCacheCompressionParams& params);
 
 /// Decomposition passes for ov::op::internal::DynamicQuantize.
 

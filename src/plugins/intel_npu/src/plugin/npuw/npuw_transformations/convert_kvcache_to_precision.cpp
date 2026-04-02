@@ -7,6 +7,7 @@
 #include <regex>
 
 #include "../logging.hpp"
+#include "kv_cache_compressed.hpp"
 #include "low_precision/concat.hpp"
 #include "low_precision/kv_cache_concat.hpp"
 #include "low_precision/low_precision.hpp"
@@ -20,7 +21,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/op_conversions/fake_convert_decomposition.hpp"
-#include "kv_cache_compressed.hpp"
 
 namespace opp = ov::pass::pattern;
 
@@ -69,8 +69,6 @@ public:
 
 std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov::Model>& model,
                                                         const ov::element::Type lptype) {
-
-
     // Resolve storage types first and apply them through PPP for both inputs and outputs.
     // Default path keeps KV cache in f16; integer hint uses key=i8/u8 and value=i4.
     auto key_storage_type = lptype;
@@ -80,7 +78,7 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov
     if (use_integer_kv_storage) {
         key_storage_type = lptype;
         value_storage_type = ov::element::i4;
-    } 
+    }
 
     ov::preprocess::PrePostProcessor ppp(model);
 
@@ -115,8 +113,8 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov
         dq_params.value.quantization_dt = value_storage_type;
         dq_params.value.quantization_type = ov::npuw::KVCacheCompressionConfig::QuantizationType::Symmetric;
 
-        LOG_DEBUG("Running KV-cache compression passes: key=" << key_storage_type << ", value="
-                  << value_storage_type << " on model[" << model->get_friendly_name() << "]");
+        LOG_DEBUG("Running KV-cache compression passes: key=" << key_storage_type << ", value=" << value_storage_type
+                                                              << " on model[" << model->get_friendly_name() << "]");
         ov::npuw::run_kv_cache_dynamic_quantization_passes(new_model, dq_params);
     }
 

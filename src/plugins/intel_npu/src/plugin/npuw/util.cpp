@@ -966,13 +966,12 @@ std::optional<int> ov::npuw::util::isPresentKeyValuesValue(const std::string& st
     return std::nullopt;
 }
 
-
 namespace {
 
-std::vector<ov::npuw::util::SDPAPatternNodes> find_sdpa_pattern_nodes_internal(const std::shared_ptr<ov::Model>& model, bool findAll) {
+std::vector<ov::npuw::util::SDPAPatternNodes> find_sdpa_pattern_nodes_internal(const std::shared_ptr<ov::Model>& model,
+                                                                               bool findAll) {
     // Find decomposed SDPA pattern components
     std::map<size_t, ov::npuw::util::SDPAPatternNodes> pattern_nodes;
-
 
     // Find past key and value parameter nodes
     for (auto input : model->inputs()) {
@@ -989,7 +988,7 @@ std::vector<ov::npuw::util::SDPAPatternNodes> find_sdpa_pattern_nodes_internal(c
 
     // Helper lambda to trace from MatMul to find Concat node
     auto find_concat_from_matmul = [](const std::shared_ptr<ov::Node>& matmul_node,
-                                        size_t input_idx) -> std::shared_ptr<ov::Node> {
+                                      size_t input_idx) -> std::shared_ptr<ov::Node> {
         if (!matmul_node)
             return nullptr;
 
@@ -1173,7 +1172,7 @@ std::vector<ov::npuw::util::SDPAPatternNodes> find_sdpa_pattern_nodes_internal(c
     // resonstruct nodes vector using indexes
     std::vector<ov::npuw::util::SDPAPatternNodes> result;
     size_t past_kv_index = 0;
-    for (auto &&map_element : pattern_nodes) {
+    for (auto&& map_element : pattern_nodes) {
         // In find-all mode, keep discovered patterns even if some indices are missing.
         // In single-pattern mode, preserve strict contiguous index expectation.
         if (!findAll && map_element.first != past_kv_index) {
@@ -1187,12 +1186,13 @@ std::vector<ov::npuw::util::SDPAPatternNodes> find_sdpa_pattern_nodes_internal(c
 }
 }  // namespace
 
-std::vector<ov::npuw::util::SDPAPatternNodes> ov::npuw::util::find_all_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model) {
-    return  find_sdpa_pattern_nodes_internal(model, true);
+std::vector<ov::npuw::util::SDPAPatternNodes> ov::npuw::util::find_all_sdpa_pattern_nodes(
+    const std::shared_ptr<ov::Model>& model) {
+    return find_sdpa_pattern_nodes_internal(model, true);
 }
 
 ov::npuw::util::SDPAPatternNodes ov::npuw::util::find_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model) {
-    auto internal_nodes =  find_sdpa_pattern_nodes_internal(model, false);
+    auto internal_nodes = find_sdpa_pattern_nodes_internal(model, false);
     if (internal_nodes.size() != 1) {
         return {};
     }

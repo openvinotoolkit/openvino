@@ -5,9 +5,9 @@
 #pragma once
 
 #include <future>
+#include <optional>
 #include <random>
 #include <string>
-#include <optional>
 
 #include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
@@ -223,7 +223,6 @@ struct SDPAPatternNodes {
 SDPAPatternNodes find_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model);
 std::vector<SDPAPatternNodes> find_all_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model);
 
-
 template <typename T>
 void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) {
     T* tensor_data = tensor->data<T>();
@@ -277,7 +276,6 @@ private:
     std::shared_future<void> future;
     mutable bool done = false;
 };
-
 
 std::optional<int> isPastKeyValuesKey(const std::string& str);
 std::optional<int> isPastKeyValuesValue(const std::string& str);

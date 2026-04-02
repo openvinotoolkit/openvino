@@ -885,7 +885,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                 " variants were optimized, which is not allowed.");
             }
         }
-        LOG_DEBUG("No V-tensors were optimized2");
         if (!prefill_attn_dyn && ov::npuw::util::OptimizeValueTensors(true).run_on_model(prefill_model)) {
             LOG_DEBUG("V-tensors tranposed in prefill model");
             m_kvcache_desc.v_tensors_transposed_pre = true;
@@ -895,8 +894,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
     if (!m_is_embedding) {
         if (!m_use_chunk_prefill) {
-            LOG_DEBUG("No V-tensors were optimized3.1");
-            ov::save_model(prefill_model, "prefill_before_removing_kv_inputs.xml");
+            LOG_DEBUG("Removing EmptyKVInputs");
             NPUW_ASSERT(ov::npuw::RemoveEmptyKVInputs().run_on_model(prefill_model));
         } else {
             LOG_DEBUG("Don't remove input key/values from prefill model.");
@@ -914,7 +912,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
     LOG_DEBUG("Converting KV-cache in prefill model to" << kv_kache_storage_type);
     ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type).run_on_model(prefill_model);
-    ov::save_model(prefill_model, "prefill_after_converting_kv_cache.xml");
 
     auto prefill_config =
         prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
@@ -944,7 +941,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (npuw_llm_props.count("NPUW_LLM_GENERATE_ATTENTION_HINT")) {
         generate_config["NPUW_ATTN"] = npuw_llm_props["NPUW_LLM_GENERATE_ATTENTION_HINT"];
     }
-LOG_DEBUG("No V-tensors were optimized6");
+
     // Generate a random weights bank name unique to this LLMCompiledModel object
     auto weights_bank_name = ov::npuw::util::generate_random_string();
     LOG_VERB("Generated a unique weights bank name: " << weights_bank_name);
@@ -965,7 +962,6 @@ LOG_DEBUG("No V-tensors were optimized6");
     if (generate_attn_dyn || generate_attn_pyramid || generate_attn_hfa) {
         merge_config_with(generate_config, dyn_attn_opts);
     }
-LOG_DEBUG("No V-tensors were optimized7");
     if (is_moe) {
         // Apply MoE configuration for prefill stage
         const auto prefill_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>();
@@ -984,7 +980,6 @@ LOG_DEBUG("No V-tensors were optimized7");
             LOG_INFO("DEVICE_ROUTED MoE transformations completed");
         }
     }
-LOG_DEBUG("No V-tensors were optimized8");
     // Note: with dynamic attention in EITHER STAGE, we have to
     // explicitly disable the run-time fallback to so extra ov::Model
     // references won't be held by the npuw::CompiledModel, resulting
