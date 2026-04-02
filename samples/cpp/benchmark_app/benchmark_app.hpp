@@ -55,7 +55,9 @@ static const char target_device_message[] =
 /// @brief message for iterations count
 static const char iterations_count_message[] =
     "Optional. Number of iterations. "
-    "If not specified, the number of iterations is calculated depending on a device.";
+    "If not specified, the number of iterations is calculated depending on a device. "
+    "Set -niter 0 to compile the model and exit without running inference "
+    "(useful for models with dynamic shapes that would otherwise require -shape, -data_shape, or -i).";
 
 // @brief message for enabling caching
 static const char cache_dir_message[] = "Optional. Enables caching of loaded models to specified directory. "
@@ -253,11 +255,6 @@ static const char no_warmup_message[] =
     "Optional. Skip warmup inference. Useful for benchmarking purposes in simulated environments.\n"
     "Otherwise, not recommended.";
 
-static constexpr char compile_only_message[] =
-    "Optional. Compile the model and exit without running inference. "
-    "Useful for validating model compilation, especially for models with dynamic shapes "
-    "that would otherwise require -shape, -data_shape, or -i to be specified.";
-
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -392,9 +389,6 @@ DEFINE_string(dump_config, "", dump_config_message);
 /// @brief Skips warmup inference and measures only the first inference
 DEFINE_bool(no_warmup, false, no_warmup_message);
 
-/// @brief Compile the model and exit without running inference
-DEFINE_bool(compile_only, false, compile_only_message);
-
 /**
  * @brief This function show a help message
  */
@@ -429,7 +423,6 @@ static void show_usage() {
     std::cout << "    -inference_only         " << inference_only_message << std::endl;
     std::cout << "    -infer_precision        " << inference_precision_message << std::endl;
     std::cout << "    -no_warmup                    " << no_warmup_message << std::endl;
-    std::cout << "    -compile_only                 " << compile_only_message << std::endl;
     std::cout << std::endl;
     std::cout << "Preprocessing options:" << std::endl;
     std::cout << "    -ip   <value>           " << inputs_precision_message << std::endl;

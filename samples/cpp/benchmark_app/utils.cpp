@@ -716,7 +716,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                 throw std::logic_error("-i or -data_shape command line parameter should be set for all inputs in case "
                                        "of model with dynamic shapes. "
                                        "If you only need to compile the model without running inference, "
-                                       "use -compile_only flag to skip this requirement.");
+                                       "use -niter 0 to skip this requirement.");
             }
 
             // Update shape with batch if needed (only in static shape case)

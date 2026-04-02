@@ -268,6 +268,74 @@ def test_benchmark_app_no_warmup_help(sample_language):
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 @pytest.mark.parametrize('device', get_devices())
+def test_compile_only_via_niter_0(sample_language, device, cache, tmp_path):
+    """Test that -niter 0 compiles the model and exits without running inference."""
+    output = get_cmd_output(
+        get_executable(sample_language),
+        *prepend(cache, 'dog-224x224.bmp', 'bvlcalexnet-12.onnx', tmp_path),
+        '-d', device,
+        '-niter', '0',
+    )
+    assert 'FPS' not in output
+    assert 'Model compiled successfully' in output
+    assert 'Skipping inference due to -niter 0' in output
+    assert '(skipped)' in output
+
+
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+@pytest.mark.parametrize('device', get_devices())
+def test_compile_only_niter_0_dynamic_shape(sample_language, device, tmp_path):
+    """Test that -niter 0 compiles a dynamic-shape model without requiring -data_shape or -i."""
+    param = opset.parameter([-1, -1, 3, -1], ov.Type.f32, name='input')
+    result = opset.result(opset.relu(param), name='output')
+    model = ov.Model([result], [param], 'dynamic_model')
+
+    model_path = tmp_path / 'dynamic_model.xml'
+    ov.save_model(model, model_path)
+
+    output = get_cmd_output(
+        get_executable(sample_language),
+        '-m', model_path,
+        '-d', device,
+        '-niter', '0',
+    )
+    assert 'FPS' not in output
+    assert 'Model compiled successfully' in output
+    assert 'Skipping inference due to -niter 0' in output
+
+
+@pytest.mark.parametrize('device', get_devices())
+def test_compile_only_niter_0_compiled_blob(device, tmp_path):
+    """Test that -niter 0 works with a pre-compiled blob model (C++ only, blob path)."""
+    param = opset.parameter([1, 3, 224, 224], ov.Type.f32, name='input')
+    result = opset.result(opset.relu(param), name='output')
+    model = ov.Model([result], [param], 'static_model')
+
+    blob_path = tmp_path / 'model.blob'
+    core = ov.Core()
+    blob_path.write_bytes(core.compile_model(model, device).export_model().getvalue())
+
+    output = get_cmd_output(
+        get_executable('C++'),
+        '-m', blob_path,
+        '-d', device,
+        '-niter', '0',
+    )
+    assert 'FPS' not in output
+    assert 'Model compiled successfully' in output
+    assert 'Skipping inference due to -niter 0' in output
+
+
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+def test_niter_0_in_help(sample_language):
+    """Test that -niter help text documents the compile-only special case."""
+    output = get_cmd_output(get_executable(sample_language), '-h')
+    assert '-niter' in output
+    assert 'niter 0' in output
+
+
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+@pytest.mark.parametrize('device', get_devices())
 @pytest.mark.parametrize('api', ['sync', 'async'])
 def test_benchmark_app_no_warmup_with_api_modes(sample_language, device, api, cache, tmp_path):
     """Test -no_warmup flag works with different API modes"""

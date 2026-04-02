@@ -98,6 +98,11 @@ def main():
         def is_flag_set_in_command_line(flag):
             return any(x.strip('-') == flag for x, y in command_line_arguments)
 
+        # When -niter 0 is explicitly passed, compile the model and exit without running inference.
+        # Useful for validating compilation of models with dynamic shapes that would otherwise
+        # require -shape, -data_shape, or -i to be specified.
+        compile_only = is_flag_set_in_command_line('niter') and args.number_iterations == 0
+
         device_name = args.target_device
 
         devices = parse_devices(device_name)
@@ -489,6 +494,19 @@ def main():
                                           ])
             app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.scale_values, args.mean_values, compiled_model.inputs)
             batch_size = get_network_batch_size(app_inputs_info)
+
+        if compile_only:
+            logger.info("Model compiled successfully. Skipping inference due to -niter 0.")
+            next_step(additional_info='skipped')  # 8 - Querying optimal runtime parameters
+            next_step(additional_info='skipped')  # 9 - Creating infer requests and preparing input tensors
+            next_step(additional_info='skipped')  # 10 - Measuring performance
+            next_step()                           # 11 - Dumping statistics report
+            if args.dump_config:
+                dump_config(args.dump_config, config)
+                logger.info(f"OpenVINO configuration settings were dumped to {args.dump_config}")
+            if statistics:
+                statistics.dump()
+            return
 
         # --------------------- 8. Querying optimal runtime parameters --------------------------------------------------
         next_step()
