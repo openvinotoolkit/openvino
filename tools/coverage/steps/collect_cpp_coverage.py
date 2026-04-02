@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import shlex
 import shutil
@@ -15,6 +16,15 @@ from coverage_workflow import CoverageContext, run_cmd, warn
 def _slugify(value: str) -> str:
     """Convert a label into a filesystem-friendly fragment."""
     return re.sub(r"[^A-Za-z0-9._-]+", "-", value).strip("-") or "capture"
+
+
+def _as_text(value: str | bytes | None) -> str:
+    """Normalize subprocess output to text."""
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return value
 
 
 def _has_gcda(root: Path) -> bool:
@@ -134,6 +144,53 @@ def _remove_gcda_files(paths: list[Path]) -> int:
         except OSError:
             continue
     return removed
+
+
+def _classify_unwanted_gcda(rel_path: Path) -> str | None:
+    """Return the exclusion reason for a gcda file we never want to capture."""
+    rel = rel_path.as_posix()
+    padded = f"/{rel}/"
+
+    if rel.endswith(".pb.cc.gcda") or rel.endswith(".pb.h.gcda"):
+        return "generated-protobuf"
+    if rel.startswith("thirdparty/") or "/thirdparty/" in padded:
+        return "thirdparty"
+    if "/tests/" in padded or rel.startswith("tests/"):
+        return "tests"
+    if rel.startswith("docs/") or "/docs/" in padded:
+        return "docs"
+    if rel.startswith("samples/") or "/samples/" in padded:
+        return "samples"
+    if rel.startswith("tools/") or "/tools/" in padded:
+        return "tools"
+    return None
+
+
+def _prune_unwanted_gcda(root: Path, *, label: str) -> None:
+    """Delete gcda files that are known to be excluded from the final report.
+
+    This reduces lcov capture time by removing whole classes of files that we
+    already strip later via ``lcov --remove`` and never want to upload.
+    """
+    if not root.exists():
+        return
+
+    removed = 0
+    reasons: dict[str, int] = {}
+    for gcda in root.rglob("*.gcda"):
+        reason = _classify_unwanted_gcda(gcda.relative_to(root))
+        if reason is None:
+            continue
+        try:
+            gcda.unlink()
+            removed += 1
+            reasons[reason] = reasons.get(reason, 0) + 1
+        except OSError:
+            continue
+
+    if removed:
+        details = ", ".join(f"{name}={count}" for name, count in sorted(reasons.items()))
+        warn(f"{label}: pre-pruned {removed} unwanted gcda files before lcov capture ({details})")
 
 
 def _tool_version_report() -> str:
@@ -266,17 +323,20 @@ def _run_lcov_capture(
         "split_crc=auto",
     ]
 
-    timeout_seconds = 900
+    timeout_seconds = int(os.environ.get("LCOV_CAPTURE_TIMEOUT_SECONDS", "3600"))
     max_attempts = 32
     for attempt in range(1, max_attempts + 1):
         display = " ".join(shlex.quote(part) for part in cmd)
         log_file = debug_dir / f"{_slugify(label)}.attempt{attempt}.log"
-        print(f"[coverage] $ {display}  # {label} (attempt {attempt}/{max_attempts})")
+        print(
+            f"[coverage] $ {display}  # {label} "
+            f"(attempt {attempt}/{max_attempts}, timeout={timeout_seconds}s)"
+        )
         try:
             completed = subprocess.run(cmd, text=True, capture_output=True, timeout=timeout_seconds)
         except subprocess.TimeoutExpired as exc:
-            stdout_text = exc.stdout or ""
-            stderr_text = exc.stderr or ""
+            stdout_text = _as_text(exc.stdout)
+            stderr_text = _as_text(exc.stderr)
             log_file.write_text(
                 f"$ {display}\nexit_code=timeout\n\n[stdout]\n{stdout_text}\n\n[stderr]\n{stderr_text}\n",
                 encoding="utf-8",
@@ -289,8 +349,8 @@ def _run_lcov_capture(
                 )
             raise RuntimeError(f"{label}: lcov capture timed out after {timeout_seconds}s") from exc
 
-        stdout_text = completed.stdout or ""
-        stderr_text = completed.stderr or ""
+        stdout_text = _as_text(completed.stdout)
+        stderr_text = _as_text(completed.stderr)
         log_file.write_text(
             f"$ {display}\nexit_code={completed.returncode}\n\n[stdout]\n{stdout_text}\n\n[stderr]\n{stderr_text}\n",
             encoding="utf-8",
@@ -309,10 +369,18 @@ def _run_lcov_capture(
             warn(f"{label}: removed {removed} problematic .gcda file(s): {preview}{more}; lcov log: {log_file}")
             continue
 
-        if output_file.exists() and output_file.stat().st_size > 0:
+        finished_info = "Finished .info-file creation" in log_text
+        excluded_match = re.search(r"Excluded data for (\d+) files due to include/exclude options", log_text)
+        excluded_suffix = f", excluded={excluded_match.group(1)}" if excluded_match else ""
+        if output_file.exists():
+            size_bytes = output_file.stat().st_size
+        else:
+            size_bytes = -1
+
+        if output_file.exists() and (size_bytes > 0 or finished_info):
             warn(
-                f"{label}: lcov returned {completed.returncode}, but {output_file.name} was produced; "
-                f"continuing. lcov log: {log_file}"
+                f"{label}: lcov returned {completed.returncode}, but {output_file.name} was produced "
+                f"(size={size_bytes} bytes{excluded_suffix}); continuing. lcov log: {log_file}"
             )
             return
 
@@ -404,6 +472,10 @@ def run(ctx: CoverageContext) -> None:
         ),
         encoding="utf-8",
     )
+
+    _prune_unwanted_gcda(ctx.paths.build_dir, label="main build")
+    if ctx.paths.build_js_dir.exists():
+        _prune_unwanted_gcda(ctx.paths.build_js_dir, label="js build")
 
     _prefilter_incompatible_gcda(ctx.paths.build_dir, label="main build")
     if ctx.paths.build_js_dir.exists():
