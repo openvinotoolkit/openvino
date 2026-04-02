@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#define CMPA_DEBUG_ALL_MASKED
+// #define CMPA_DEBUG_ALL_MASKED  // Enable verbose cm_printf logging (opt-in; do not enable by default)
 #ifndef CM_HAS_LSC_UNTYPED_2D
 
 #if CMPA_KVCACHE_U8
