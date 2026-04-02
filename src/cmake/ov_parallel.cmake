@@ -77,6 +77,24 @@ endfunction()
 
 macro(ov_find_package_tbb)
     if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" OR THREADING STREQUAL "TBB_ADAPTIVE") AND NOT TBB_FOUND)
+        if(ANDROID)
+            set(_ov_android_tbbroot_defined FALSE)
+            set(_ov_android_tbb_dir_defined FALSE)
+
+            if(DEFINED TBBROOT OR DEFINED ENV{TBBROOT})
+                set(_ov_android_tbbroot_defined TRUE)
+            endif()
+            if(DEFINED TBB_DIR OR DEFINED ENV{TBB_DIR})
+                set(_ov_android_tbb_dir_defined TRUE)
+            endif()
+
+            if(NOT _ov_android_tbbroot_defined OR NOT _ov_android_tbb_dir_defined)
+                message(FATAL_ERROR
+                    "Android build with TBB threading requires a separately built oneTBB package. "
+                    "Configure OpenVINO with -DTBBROOT=<path> and -DTBB_DIR=<path>/lib/cmake/TBB.")
+            endif()
+        endif()
+
         # conan generates TBBConfig.cmake files, which follows cmake's
         # SameMajorVersion scheme, while TBB itself follows AnyNewerVersion one
         # see https://cmake.org/cmake/help/latest/module/CMakePackageConfigHelpers.html#generating-a-package-version-file
@@ -187,6 +205,11 @@ macro(ov_find_package_tbb)
             if(NOT TBB_FOUND)
                 # system TBB failed to be found
                 set(ENABLE_SYSTEM_TBB OFF CACHE BOOL "" FORCE)
+
+                if(ANDROID)
+                    message(FATAL_ERROR
+                        "TBB was not found for Android. Provide -DTBBROOT and -DTBB_DIR when configuring OpenVINO.")
+                endif()
 
                 # TBB on system is not found, download prebuilt one
                 # if TBBROOT env variable is not defined
