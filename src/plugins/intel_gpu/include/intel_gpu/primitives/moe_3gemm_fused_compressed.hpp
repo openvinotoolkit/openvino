@@ -8,6 +8,7 @@
 
 #include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
 #include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/memory.hpp"
 #include "primitive.hpp"
 
 namespace cldnn {

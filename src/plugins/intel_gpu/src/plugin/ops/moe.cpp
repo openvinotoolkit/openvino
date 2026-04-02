@@ -26,6 +26,7 @@
 #include "intel_gpu/primitives/moe_gemm.hpp"
 #include "intel_gpu/primitives/moe_mask_gen.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/core/model.hpp"
 
 namespace ov {
 namespace op {
