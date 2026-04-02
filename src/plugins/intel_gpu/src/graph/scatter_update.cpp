@@ -63,6 +63,9 @@ void scatter_update_inst::update_output_memory() {
     if (_node != nullptr)
         build_deps();
 
+    if (input_memory_ptr() == nullptr)
+        return;
+
     // Can_be_optimized nodes are allocating from memory_pool too. In this case,
     // we need release the legacy output memory from memory pool explicitly.
     if (static_cast<bool>(_outputs[0]) &&

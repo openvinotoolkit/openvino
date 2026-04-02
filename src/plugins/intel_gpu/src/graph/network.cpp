@@ -387,6 +387,10 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
     std::vector<primitive_inst*> chain;
     std::stack<const primitive_inst*> candidates;
     auto& eng = get_engine();
+
+    if (p_inst->output_memory_ptr())
+        _in_out_shared_mem_types.push_back(p_inst->output_memory_ptr()->get_internal_params().mem_type);
+
     const auto& mem_orig = p_inst->output_memory();
 
     auto add_mdata_chain = [&](primitive_inst* p_inst) {
@@ -554,6 +558,10 @@ void network::allocate_primitives() {
             if (!node->get_dependencies().empty() && opt_inst->dependencies().empty()) {
                 opt_inst->build_deps();
             }
+            // Skip if the dependency's memory is not yet allocated (e.g. lazy input_layout).
+            // The output memory will be set up at runtime when the input becomes available.
+            if (!opt_inst->dependencies().empty() && opt_inst->dep_memory_ptr(0) == nullptr)
+                continue;
             opt_inst->update_output_memory();
         }
     }
@@ -870,10 +878,15 @@ std::vector<primitive_id> network::get_input_ids() const {
     return ret;
 }
 
-std::vector<layout> network::get_input_layouts() const {
+std::vector<layout> network::get_input_layouts() {
     std::vector<layout> ret;
     ret.reserve(_inputs.size());
-    for (auto const& input : _inputs) ret.push_back(input->output_memory_ptr()->get_layout());
+    for (auto const& input : _inputs) {
+        if (input->output_memory_ptr())
+            _in_out_shared_mem_types.push_back(input->output_memory_ptr()->get_internal_params().mem_type);
+
+        ret.push_back(input->output_memory_ptr() ? input->output_memory_ptr()->get_layout() : input->get_output_layout());
+    }
     return ret;
 }
 
