@@ -933,15 +933,16 @@ int main(int argc, char* argv[]) {
 
         if (compile_only) {
             slog::info << "Model compiled successfully. Skipping inference due to -niter 0." << slog::endl;
-            next_step("skipped"); // 8 - Querying optimal runtime parameters
-            next_step("skipped"); // 9 - Creating infer requests and preparing input tensors
-            next_step("skipped"); // 10 - Measuring performance
+            next_step("skipped");  // 8 - Querying optimal runtime parameters
+            next_step("skipped");  // 9 - Creating infer requests and preparing input tensors
+            next_step("skipped");  // 10 - Measuring performance
             // ----------------- 11. Dumping statistics report
             // -------------------------------------------------------------
             next_step();
             if (!FLAGS_dump_config.empty()) {
                 dump_config(FLAGS_dump_config, config);
-                slog::info << "OpenVINO Runtime configuration settings were dumped to " << FLAGS_dump_config << slog::endl;
+                slog::info << "OpenVINO Runtime configuration settings were dumped to " << FLAGS_dump_config
+                           << slog::endl;
             }
             if (statistics)
                 statistics->dump();
