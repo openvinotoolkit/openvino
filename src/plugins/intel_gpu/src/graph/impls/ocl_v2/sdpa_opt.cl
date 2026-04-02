@@ -359,7 +359,7 @@ KERNEL(sdpa_opt)(
 
                     uint query_offset = head_idx_index + sglid;
                     unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
-                        query_offset + = seq_idx * K_HEAD_SIZE;
+                        query_offset += seq_idx * K_HEAD_SIZE;
                         INPUT0_TYPE q_val0 = query_local[query_offset];
                         INPUT0_TYPE q_val1 = query_local[query_offset+ SUBGROUP_SIZE];
                         acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(q_val0), TO_SOFTMAX_ACCUMULATOR_TYPE(key_val0), acc[seq_idx]);
@@ -380,7 +380,7 @@ KERNEL(sdpa_opt)(
 
                     uint query_offset = head_idx_index + sglid;
                     unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
-                        query_offset + = seq_idx * K_HEAD_SIZE;
+                        query_offset += seq_idx * K_HEAD_SIZE;
                         INPUT0_TYPE q_val0 = query_local[query_offset];
                         acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(q_val0), TO_SOFTMAX_ACCUMULATOR_TYPE(key_val0), acc[seq_idx]);
                     }
