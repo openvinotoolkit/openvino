@@ -41,7 +41,7 @@ What's New
 
 * More portability and performance to run AI at the edge, in the cloud or locally
 
-  * Introducing support for Intel® Core™ Series 3 processors (formerly codenamed Wildcat Lake) and Intel® Arc™ Pro B70 Graphics with 32GB memory for single-GPU inference on 20–30B parameter LLMs  
+  * Introducing support for Intel® Core™ Series 3 processors (formerly codenamed Wildcat Lake) and Intel® Arc™ Pro B70 Graphics with 32GB memory for single-GPU inference on 20-30B parameter LLMs  
   * Prompt Lookup Decoding extended to vision-language pipelines, delivering significantly faster token generation for multimodal workloads on Intel CPUs and GPUs.  
   * OpenVINO™ GenAI now has a smaller runtime footprint after eliminating ICU DLL dependencies from tokenization, leading to reduced memory usage, faster startup, and easier deployment.  
   * OpenVINO GenAI introduces WhisperPipeline for Node.js via its NPM package, delivering production-ready speech recognition with word-level audio-to-text transcription.  
