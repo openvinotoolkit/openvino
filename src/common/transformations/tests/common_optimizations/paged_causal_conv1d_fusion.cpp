@@ -1,0 +1,165 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "transformations/common_optimizations/paged_causal_conv1d_fusion.hpp"
+
+#include <gtest/gtest.h>
+
+#include <cstdlib>
+#include <string>
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/paged_causal_conv1d.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/swish.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/sdpa_to_paged_attention.hpp"
+#include "openvino/runtime/core.hpp"
+
+namespace {
+
+using namespace ov;
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v4 = ov::op::v4;
+namespace v8 = ov::op::v8;
+
+std::shared_ptr<v0::Parameter> make_i32_param(const std::string& name, const Shape& shape) {
+    auto p = std::make_shared<v0::Parameter>(element::i32, shape);
+    p->set_friendly_name(name);
+    p->get_output_tensor(0).set_names({name});
+    return p;
+}
+
+std::shared_ptr<ov::Model> build_model(bool add_present_state_result) {
+    const Shape input_shape{2, 3};
+    const Shape state_shape{2, 3, 4};
+
+    auto input_embeds = std::make_shared<v0::Parameter>(element::f32, input_shape);
+    auto past_state = std::make_shared<v0::Parameter>(element::f32, state_shape);
+    past_state->get_output_tensor(0).set_names({"cache_params.past.conv.0"});
+
+    auto part_shape = v0::Constant::create(element::i64, Shape{3}, {2, 3, 1});
+    auto part0 = std::make_shared<v1::Reshape>(input_embeds, part_shape, false);
+    auto part1 = std::make_shared<v1::Reshape>(input_embeds, part_shape, false);
+    auto part2 = std::make_shared<v1::Reshape>(input_embeds, part_shape, false);
+
+    auto token_concat = std::make_shared<v0::Concat>(OutputVector{part0, part1, part2}, -1);
+    auto transpose_order = v0::Constant::create(element::i64, Shape{3}, {0, 2, 1});
+    auto token_transpose = std::make_shared<v1::Transpose>(token_concat, transpose_order);
+
+    auto state_concat = std::make_shared<v0::Concat>(OutputVector{past_state, token_transpose}, -1);
+
+    auto weights = v0::Constant::create(element::f32, Shape{3, 1, 1, 4}, std::vector<float>(12, 0.25f));
+    auto group_conv = std::make_shared<v1::GroupConvolution>(state_concat, weights, Strides{1}, CoordinateDiff{0},
+                                                             CoordinateDiff{0}, Strides{1});
+
+    auto neg_one = v0::Constant::create(element::i64, Shape{1}, {-1});
+    auto one = v0::Constant::create(element::i64, Shape{1}, {1});
+    auto slice_begin = std::make_shared<v1::Multiply>(neg_one, one);
+    auto slice_end = v0::Constant::create(element::i64, Shape{1}, {std::numeric_limits<int64_t>::max()});
+    auto slice_step = v0::Constant::create(element::i64, Shape{1}, {1});
+    auto slice_axis = v0::Constant::create(element::i64, Shape{1}, {2});
+
+    auto slice2 = std::make_shared<v8::Slice>(group_conv, slice_begin, slice_end, slice_step, slice_axis);
+    auto swish = std::make_shared<v4::Swish>(slice2);
+
+    auto state_slice = std::make_shared<v8::Slice>(state_concat, slice_begin, slice_end, slice_step, slice_axis);
+    ResultVector results;
+    results.push_back(std::make_shared<v0::Result>(swish));
+
+    if (add_present_state_result) {
+        auto present_res = std::make_shared<v0::Result>(state_slice);
+        present_res->get_output_tensor(0).set_names({"cache_params.present.conv.0"});
+        results.push_back(present_res);
+    }
+
+    auto subsequence_begins = make_i32_param("subsequence_begins", Shape{3});
+    auto block_indices = make_i32_param("block_indices", Shape{5});
+    auto block_indices_begins = make_i32_param("block_indices_begins", Shape{3});
+    auto past_lens = make_i32_param("past_lens", Shape{2});
+    auto cache_interval = make_i32_param("cache_interval", Shape{2});
+
+    ParameterVector params{input_embeds, past_state, subsequence_begins, block_indices, block_indices_begins,
+                           past_lens, cache_interval};
+    return std::make_shared<ov::Model>(results, params);
+}
+
+}  // namespace
+
+class PagedCausalConv1DFusionTest : public ::TransformationTestsF {};
+
+TEST_F(PagedCausalConv1DFusionTest, DoesNotFuseWithoutPresentStateResult) {
+    model = build_model(false);
+    model_ref = build_model(false);
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::PagedCausalConv1DFusion>();
+    manager.run_passes(model);
+
+    compare_functions(model, model_ref);
+}
+
+TEST_F(PagedCausalConv1DFusionTest, FusesWhenPresentStateIsResult) {
+    model = build_model(true);
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::PagedCausalConv1DFusion>();
+    manager.run_passes(model);
+
+    size_t pcc_count = 0;
+    size_t group_conv_count = 0;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (std::string(op->get_type_name()) == "PagedCausalConv1D") {
+            ++pcc_count;
+        }
+        if (ov::is_type<ov::op::v1::GroupConvolution>(op)) {
+            ++group_conv_count;
+        }
+    }
+    EXPECT_EQ(pcc_count, 1u);
+    EXPECT_EQ(group_conv_count, 0u);
+}
+
+TEST(PagedCausalConv1DRealModel, RealModelAfterPATransformation) {
+    const char* model_path = std::getenv("OV_PCC_REAL_MODEL_PATH");
+    if (!model_path || std::string(model_path).empty()) {
+        GTEST_SKIP() << "OV_PCC_REAL_MODEL_PATH is not set";
+    }
+
+    ov::Core core;
+    auto model = core.read_model(model_path);
+
+    ov::pass::Manager precondition_manager;
+    precondition_manager.register_pass<ov::pass::PrepareSDPAToPARepresentation>(
+        false,
+        false,
+        false,
+        false,
+        false);
+    precondition_manager.register_pass<ov::pass::SDPAToPagedAttention>(false, false, false, false, false, false);
+    precondition_manager.run_passes(model);
+
+    ov::pass::Manager fusion_manager;
+    fusion_manager.register_pass<ov::pass::PagedCausalConv1DFusion>();
+    fusion_manager.run_passes(model);
+
+    size_t pcc_count = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (std::string(node->get_type_name()) == "PagedCausalConv1D") {
+            ++pcc_count;
+        }
+    }
+
+    EXPECT_GE(pcc_count, 1u);
+}

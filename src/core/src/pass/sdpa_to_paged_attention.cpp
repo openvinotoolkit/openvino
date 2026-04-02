@@ -21,7 +21,200 @@
 #include "transformations/utils/print_model.hpp"
 #include "transformations/utils/utils.hpp"
 
+using namespace ov;
 using namespace ov::op;
+using namespace ov::pass;
+
+namespace {
+
+struct PARepresentationContext {
+    ParameterVector model_wide_params;
+    std::map<std::string, std::shared_ptr<v0::Parameter>> optional_model_wide_params;
+    std::shared_ptr<v0::Parameter> max_context_len;
+    std::shared_ptr<ov::Node> processed_input_ids;
+    std::shared_ptr<v0::Parameter> position_ids;
+    std::shared_ptr<ov::Node> unsqueezed_position_ids;
+};
+
+static std::shared_ptr<v0::Parameter> get_parameter(const std::shared_ptr<ov::Model>& model, const std::string& name) {
+    for (const auto& input : model->inputs()) {
+        if (input.get_names().count(name)) {
+            auto param = ov::as_type_ptr<v0::Parameter>(input.get_node_shared_ptr());
+            OPENVINO_ASSERT(param,
+                            "The model is in the inconsistent state. Found input '",
+                            name,
+                            "', but couldn't cast it to v0::Parameter.");
+            return param;
+        }
+    }
+    return nullptr;
+}
+
+static std::shared_ptr<v0::Parameter> create_or_get_named_parameter(const std::shared_ptr<ov::Model>& model,
+                                                                     const std::string& name,
+                                                                     const ov::element::Type& type,
+                                                                     const ov::PartialShape& pshape) {
+    if (auto param = get_parameter(model, name)) {
+        return param;
+    }
+    auto param = std::make_shared<v0::Parameter>(type, pshape);
+    param->set_friendly_name(name);
+    OPENVINO_ASSERT(param->get_output_size() == 1);
+    param->get_output_tensor(0).set_names({name});
+    model->add_parameters({param});
+    return param;
+}
+
+static PARepresentationContext prepare_sdpa_to_pa_representation(const std::shared_ptr<ov::Model>& model,
+                                                                 bool use_per_layer_block_indices_inputs,
+                                                                 bool allow_score_aggregation,
+                                                                 bool allow_cache_rotation,
+                                                                 bool allow_xattention,
+                                                                 bool allow_adaptive_rkv,
+                                                                 bool allow_qq_bias) {
+    OPENVINO_ASSERT(!model->get_variables().empty(),
+                    "Model is supposed to be stateful, cannot perform "
+                    "the SDPAToPagedAttention transformation. "
+                    "For proper conversion run: optimum-cli export openvino --task text-generation-with-past instead "
+                    "of --task text-generation");
+
+    OPENVINO_ASSERT(ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model),
+                    "No ScaledDotProductAttention operation observed in the graph, cannot perform "
+                    "the SDPAToPagedAttention transformation.");
+
+    const bool already_prepared = (get_parameter(model, "past_lens") != nullptr);
+
+    PARepresentationContext context;
+    context.max_context_len = create_or_get_named_parameter(model, "max_context_len", element::i32, PartialShape{});
+    context.model_wide_params = {
+        create_or_get_named_parameter(model, "past_lens", element::i32, PartialShape{-1}),
+        create_or_get_named_parameter(model, "subsequence_begins", element::i32, PartialShape{-1}),
+        create_or_get_named_parameter(model, "block_indices_begins", element::i32, PartialShape{-1}),
+    };
+
+    if (!use_per_layer_block_indices_inputs) {
+        auto block_indices = create_or_get_named_parameter(model, "block_indices", element::i32, PartialShape{-1});
+        context.model_wide_params.insert(context.model_wide_params.begin() + 2, block_indices);
+    }
+
+    if (allow_score_aggregation) {
+        context.optional_model_wide_params["score_aggregation_window"] =
+            create_or_get_named_parameter(model, "score_aggregation_window", element::i32, PartialShape{-1});
+    }
+
+    if (allow_cache_rotation) {
+        context.optional_model_wide_params["model_rotation_trig_lut"] =
+            create_or_get_named_parameter(model, "rotation_trig_lut", element::f32, PartialShape{-1, -1});
+    }
+
+    if (allow_xattention) {
+        context.optional_model_wide_params["xattention_block_size"] =
+            create_or_get_named_parameter(model, "xattention_block_size", element::i32, PartialShape{});
+        context.optional_model_wide_params["xattention_stride"] =
+            create_or_get_named_parameter(model, "xattention_stride", element::i32, PartialShape{});
+    }
+
+    if (allow_adaptive_rkv) {
+        context.optional_model_wide_params["adaptive_rkv_start_size"] =
+            create_or_get_named_parameter(model, "adaptive_rkv_start_size", element::i32, PartialShape{});
+        context.optional_model_wide_params["adaptive_rkv_evictable_sizes"] =
+            create_or_get_named_parameter(model, "adaptive_rkv_evictable_sizes", element::i32, PartialShape{-1});
+    }
+
+    if (allow_qq_bias) {
+        context.optional_model_wide_params["qq_bias"] =
+            create_or_get_named_parameter(model, "qq_bias", element::u8, PartialShape{-1});
+        context.optional_model_wide_params["qq_bias_begins"] =
+            create_or_get_named_parameter(model, "qq_bias_begins", element::i32, PartialShape{-1});
+    }
+
+    if (already_prepared) {
+        // Graph modifications (input_ids reshape, position_ids replacement, pattern passes) were already
+        // applied by a prior PrepareSDPAToPARepresentation run. Rebuild context fields from existing params.
+        context.position_ids = get_parameter(model, "position_ids");
+        OPENVINO_ASSERT(context.position_ids,
+                        "Model was expected to have 'position_ids' parameter after preparation.");
+        // Reconstruct unsqueezed_position_ids: it is the sole consumer of position_ids in the graph.
+        const auto& pos_targets = context.position_ids->get_output_target_inputs(0);
+        OPENVINO_ASSERT(!pos_targets.empty(), "position_ids parameter has no consumers after preparation.");
+        context.unsqueezed_position_ids = pos_targets.begin()->get_node()->shared_from_this();
+        // Reconstruct processed_input_ids: find input_ids or inputs_embeds and walk to its Unsqueeze consumer.
+        std::shared_ptr<v0::Parameter> input_ids_node;
+        for (const auto& name : {"input_ids", "inputs_embeds"}) {
+            if ((input_ids_node = get_parameter(model, name))) {
+                break;
+            }
+        }
+        OPENVINO_ASSERT(input_ids_node, "The model doesn't contain input_ids or input_embeds input. Aborting.");
+        const auto& input_ids_targets = input_ids_node->get_output_target_inputs(0);
+        OPENVINO_ASSERT(!input_ids_targets.empty(), "input_ids parameter has no consumers after preparation.");
+        context.processed_input_ids = input_ids_targets.begin()->get_node()->shared_from_this();
+        return context;
+    }
+
+    std::shared_ptr<v0::Parameter> input_ids_node;
+    for (const auto& name : {"input_ids", "inputs_embeds"}) {
+        if ((input_ids_node = get_parameter(model, name))) {
+            break;
+        }
+    }
+    OPENVINO_ASSERT(input_ids_node, "The model doesn't contain input_ids or input_embeds input. Aborting.");
+
+    if (input_ids_node->get_friendly_name() == "input_ids") {
+        input_ids_node->set_partial_shape(PartialShape{-1});
+    } else if (input_ids_node->get_friendly_name() == "inputs_embeds") {
+        input_ids_node->set_partial_shape(PartialShape{-1, -1});
+    }
+
+    const auto input_ids_target_inputs = input_ids_node->get_output_target_inputs(0);
+    context.processed_input_ids =
+        std::make_shared<v0::Unsqueeze>(input_ids_node, v0::Constant::create(element::i32, Shape{}, {1}));
+    for (const auto& target : input_ids_target_inputs) {
+        target.replace_source_output(context.processed_input_ids);
+    }
+
+    if (auto token_type_ids_param = get_parameter(model, "token_type_ids")) {
+        token_type_ids_param->validate_and_infer_types();
+        context.optional_model_wide_params["token_type_ids"] = std::move(token_type_ids_param);
+    }
+
+    context.position_ids = create_or_get_named_parameter(model, "position_ids", element::i64, PartialShape{-1});
+    const auto& position_ids_shape = context.position_ids->get_partial_shape();
+    if (position_ids_shape.rank().is_static() && position_ids_shape.rank().get_length() == 2) {
+        context.position_ids->set_partial_shape(PartialShape{-1});
+    } else if (position_ids_shape.rank().is_static() && position_ids_shape.rank().get_length() == 3) {
+        context.position_ids->set_partial_shape(PartialShape{position_ids_shape[0], -1});
+    } else if (!(position_ids_shape.rank().is_static() && position_ids_shape.rank().get_length() == 1)) {
+        OPENVINO_THROW("Unexpected shape for position_ids input: expected rank 1, 2 or 3, observed ",
+                       position_ids_shape.rank().is_static() ? position_ids_shape.rank().get_length() : -1);
+    }
+    context.position_ids->validate_and_infer_types();
+
+    const auto position_ids_target_inputs = context.position_ids->get_output_target_inputs(0);
+    context.unsqueezed_position_ids =
+        std::make_shared<v0::Unsqueeze>(context.position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
+    for (const auto& target : position_ids_target_inputs) {
+        target.replace_source_output(context.unsqueezed_position_ids);
+    }
+
+    ov::pass::Manager manager("Prepare SDPA to PA representation");
+    manager.set_per_pass_validation(false);
+    manager.register_pass<PrevSequenceLengthPattern>(
+        context.processed_input_ids,
+        context.max_context_len,
+        context.position_ids);
+    manager.register_pass<TotalSequenceLengthPattern>(context.max_context_len);
+    manager.register_pass<TotalSequenceLengthPatternQwen>(context.max_context_len);
+    manager.register_pass<TotalSequenceLengthPatternCodeGen2>(context.max_context_len);
+    manager.register_pass<PositionIDsReplacer>(context.unsqueezed_position_ids);
+    manager.register_pass<PositionIDsReplacerQwen>(context.unsqueezed_position_ids);
+    manager.register_pass<PositionIDsReplacerCodeGen2>(context.position_ids);
+    manager.run_passes(model);
+
+    return context;
+}
+
+}  // namespace
 
 ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_indices_inputs,
                                                      bool use_score_outputs,
@@ -38,115 +231,39 @@ ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_in
       m_allow_adaptive_rkv(allow_adaptive_rkv),
       m_allow_qq_bias(allow_qq_bias) {}
 
-static std::shared_ptr<v0::Parameter> named_parameter(std::shared_ptr<v0::Parameter> node, const char* name) {
-    // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a
-    // given single name)
-    node->set_friendly_name(name);
-    OPENVINO_ASSERT(node->get_output_size() == 1);
-    node->get_output_tensor(0).set_names({name});
-    return node;
+ov::pass::PrepareSDPAToPARepresentation::PrepareSDPAToPARepresentation(bool use_per_layer_block_indices_inputs,
+                                                                                                                                             bool allow_score_aggregation,
+                                                                                                                                             bool allow_cache_rotation,
+                                                                                                                                             bool allow_xattention,
+                                                                                                                                             bool allow_adaptive_rkv)
+        : m_use_per_layer_block_indices_inputs(use_per_layer_block_indices_inputs),
+            m_allow_score_aggregation(allow_score_aggregation),
+            m_allow_cache_rotation(allow_cache_rotation),
+            m_allow_xattention(allow_xattention),
+            m_allow_adaptive_rkv(allow_adaptive_rkv) {}
+
+bool ov::pass::PrepareSDPAToPARepresentation::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_MODEL_SCOPE(PrepareSDPAToPARepresentation);
+    prepare_sdpa_to_pa_representation(model,
+                                      m_use_per_layer_block_indices_inputs,
+                                      m_allow_score_aggregation,
+                                      m_allow_cache_rotation,
+                                      m_allow_xattention,
+                                      m_allow_adaptive_rkv,
+                                      false);
+    return true;
 }
 
 bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(SDPAToPagedAttention);
 
-    OPENVINO_ASSERT(!model->get_variables().empty(),
-                    "Model is supposed to be stateful, cannot perform "
-                    "the SDPAToPagedAttention transformation. "
-                    "For proper conversion run: optimum-cli export openvino --task text-generation-with-past instead "
-                    "of --task text-generation");
-
-    OPENVINO_ASSERT(ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model),
-                    "No ScaledDotProductAttention operation observed in the graph, cannot perform "
-                    "the SDPAToPagedAttention transformation.");
-
-    std::map<std::string, std::shared_ptr<v0::Parameter>> optional_model_wide_params;
-
-    auto max_context_len =
-        named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "max_context_len");
-    ParameterVector model_wide_params{
-        named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "past_lens"),
-        named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "subsequence_begins"),
-        named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices_begins"),
-    };
-    if (!m_use_per_layer_block_indices_inputs) {
-        auto block_indices =
-            named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices");
-        model_wide_params.insert(model_wide_params.begin() + 2, block_indices);
-    }
-
-    if (m_allow_score_aggregation) {
-        optional_model_wide_params["score_aggregation_window"] =
-            named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
-                            "score_aggregation_window");
-    }
-
-    if (m_allow_cache_rotation) {
-        optional_model_wide_params["model_rotation_trig_lut"] =
-            named_parameter(std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1}), "rotation_trig_lut");
-    }
-
-    if (m_allow_xattention) {
-        optional_model_wide_params["xattention_block_size"] =
-            named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "xattention_block_size");
-        optional_model_wide_params["xattention_stride"] =
-            named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "xattention_stride");
-    }
-
-    if (m_allow_adaptive_rkv) {
-        optional_model_wide_params["adaptive_rkv_start_size"] =
-            named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "adaptive_rkv_start_size");
-        optional_model_wide_params["adaptive_rkv_evictable_sizes"] =
-            named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
-                            "adaptive_rkv_evictable_sizes");
-    }
-
-    if (m_allow_qq_bias) {
-        optional_model_wide_params["qq_bias"] =
-            named_parameter(std::make_shared<v0::Parameter>(element::u8, PartialShape{-1}), "qq_bias");
-        optional_model_wide_params["qq_bias_begins"] =
-            named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "qq_bias_begins");
-    }
-
-    auto get_parameter = [=](const std::shared_ptr<ov::Model>& model,
-                             const std::string& name) -> std::shared_ptr<v0::Parameter> {
-        for (const auto& param : model->inputs()) {
-            const auto& names = param.get_names();
-            if (names.count(name)) {
-                if (auto casted_param = ov::as_type_ptr<v0::Parameter>(param.get_node_shared_ptr())) {
-                    return casted_param;
-                } else {
-                    OPENVINO_THROW("The model is in the inconsistent state. Found input '",
-                                   name,
-                                   "', but couldn't cast it to v0::Parameter.");
-                }
-            }
-        }
-
-        return nullptr;
-    };
-
-    std::shared_ptr<v0::Parameter> input_ids_node;
-    for (const auto& name : {"input_ids", "inputs_embeds"}) {
-        if ((input_ids_node = get_parameter(model, name))) {
-            break;
-        }
-    }
-
-    OPENVINO_ASSERT(input_ids_node, "The model doesn't contain input_ids or input_embeds input. Aborting.");
-
-    if (input_ids_node->get_friendly_name() == "input_ids") {
-        input_ids_node->set_partial_shape(PartialShape{-1});
-    } else if (input_ids_node->get_friendly_name() == "inputs_embeds") {
-        input_ids_node->set_partial_shape(PartialShape{-1, -1});
-    }
-
-    auto input_ids_target_inputs = input_ids_node->get_output_target_inputs(0);
-    auto processed_input_ids =
-        std::make_shared<v0::Unsqueeze>(input_ids_node, v0::Constant::create(element::i32, Shape{}, {1}));
-    for (const auto& target : input_ids_target_inputs) {
-        target.replace_source_output(processed_input_ids);
-    }
+    auto context = prepare_sdpa_to_pa_representation(model,
+                                                     m_use_per_layer_block_indices_inputs,
+                                                     m_allow_score_aggregation,
+                                                     m_allow_cache_rotation,
+                                                     m_allow_xattention,
+                                                     m_allow_adaptive_rkv,
+                                                     m_allow_qq_bias);
 
     ParameterVector kv_parameters;
     ParameterVector block_indices_inputs_for_each_layer;
@@ -160,49 +277,14 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     ResultVector score_results;
     ResultVector adaptive_rkv_diversity_results;
 
-    if (auto token_type_ids_param = get_parameter(model, "token_type_ids")) {
-        token_type_ids_param->validate_and_infer_types();
-        optional_model_wide_params["token_type_ids"] = std::move(token_type_ids_param);
-    }
-
-    std::shared_ptr<v0::Parameter> position_ids;
-    if (!get_parameter(model, "position_ids")) {
-        position_ids = named_parameter(std::make_shared<v0::Parameter>(element::i64, PartialShape{-1}), "position_ids");
-        model->add_parameters({position_ids});
-    } else {
-        position_ids = ov::as_type_ptr<v0::Parameter>(model->input("position_ids").get_node_shared_ptr());
-        const auto& position_ids_shape = position_ids->get_partial_shape();
-
-        if (position_ids_shape.rank().is_static() && position_ids_shape.rank().get_length() == 2) {
-            position_ids->set_partial_shape(PartialShape{-1});
-        } else if (position_ids_shape.rank().is_static() && position_ids_shape.rank().get_length() == 3) {
-            // Qwen2.5 VL M-RoPE: set position_ids to [3, total_token_num] -> Unsqueeze(axis=-1) -> [3, total_token_num,
-            // 1]
-            position_ids->set_partial_shape(PartialShape{position_ids_shape[0], -1});
-        } else {
-            OPENVINO_THROW("Unexpected shape for position_ids input: expected rank 2 or 3, observed ",
-                           position_ids_shape.rank().is_static() ? position_ids_shape.rank().get_length() : -1);
-        }
-
-        position_ids->validate_and_infer_types();
-    }
-    auto position_ids_target_inputs = position_ids->get_output_target_inputs(0);
-
-    std::shared_ptr<ov::Node> unsqueezed_position_ids =
-        std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
-
-    for (const auto& target : position_ids_target_inputs) {
-        target.replace_source_output(unsqueezed_position_ids);
-    }
-
     int layer_index = 0;
 
     ov::pass::Manager manager("SDPA to PA");
     manager.set_per_pass_validation(false);
     manager.register_pass<StateManagementPattern>(kv_parameters,
-                                                  model_wide_params,
+                                                  context.model_wide_params,
                                                   layer_index,
-                                                  max_context_len->output(0),
+                                                  context.max_context_len->output(0),
                                                   block_indices_inputs_for_each_layer,
                                                   score_results,
                                                   m_use_per_layer_block_indices_inputs,
@@ -218,15 +300,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer,
                                                   adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
                                                   adaptive_rkv_diversity_results,
-                                                  optional_model_wide_params,
+                                                  context.optional_model_wide_params,
                                                   var_ids_to_remove);
-    manager.register_pass<PrevSequenceLengthPattern>(processed_input_ids, max_context_len, position_ids);
-    manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
-    manager.register_pass<TotalSequenceLengthPatternQwen>(max_context_len);
-    manager.register_pass<TotalSequenceLengthPatternCodeGen2>(max_context_len);
-    manager.register_pass<PositionIDsReplacer>(unsqueezed_position_ids);
-    manager.register_pass<PositionIDsReplacerQwen>(unsqueezed_position_ids);
-    manager.register_pass<PositionIDsReplacerCodeGen2>(position_ids);
     manager.run_passes(model);
 
     {
@@ -246,21 +321,9 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     for (auto& param_name : {"beam_idx", "attention_mask"}) {
         if (auto param = get_parameter(model, param_name)) {
-            model->remove_parameter(param);
-
-            if (param->output(0).get_target_inputs().size() == 0) {
-                std::stringstream consumers;
-                consumers << std::endl;
-                for (auto& input : param->output(0).get_target_inputs()) {
-                    consumers << *input.get_node() << std::endl;
-                }
-                OPENVINO_ASSERT(param->output(0).get_target_inputs().size() == 0,
-                                "PagedAttention transformation failed: couldn't remove ",
-                                param->output(0).get_target_inputs().size(),
-                                " inputs of ",
-                                param_name,
-                                " input: ",
-                                consumers.str());
+            const auto consumers_count = param->output(0).get_target_inputs().size();
+            if (consumers_count == 0) {
+                model->remove_parameter(param);
             }
         }
     }
@@ -274,36 +337,50 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     }
 
     if (m_allow_score_aggregation) {
-        model->add_parameters({optional_model_wide_params["score_aggregation_window"]});
+        if (!get_parameter(model, "score_aggregation_window")) {
+            model->add_parameters({context.optional_model_wide_params["score_aggregation_window"]});
+        }
     }
 
     if (m_allow_cache_rotation) {
         model->add_parameters(rotated_block_indices_inputs_for_each_layer);
         model->add_parameters(rotation_deltas_inputs_for_each_layer);
-        model->add_parameters({optional_model_wide_params["model_rotation_trig_lut"]});
+        if (!get_parameter(model, "rotation_trig_lut")) {
+            model->add_parameters({context.optional_model_wide_params["model_rotation_trig_lut"]});
+        }
     }
 
     if (m_allow_xattention) {
         model->add_parameters(xattention_threshold_inputs_for_each_layer);
-        model->add_parameters({optional_model_wide_params["xattention_block_size"]});
-        model->add_parameters({optional_model_wide_params["xattention_stride"]});
+        if (!get_parameter(model, "xattention_block_size")) {
+            model->add_parameters({context.optional_model_wide_params["xattention_block_size"]});
+        }
+        if (!get_parameter(model, "xattention_stride")) {
+            model->add_parameters({context.optional_model_wide_params["xattention_stride"]});
+        }
     }
     if (m_allow_adaptive_rkv) {
-        model->add_parameters({optional_model_wide_params["adaptive_rkv_start_size"]});
-        model->add_parameters({optional_model_wide_params["adaptive_rkv_evictable_sizes"]});
+        if (!get_parameter(model, "adaptive_rkv_start_size")) {
+            model->add_parameters({context.optional_model_wide_params["adaptive_rkv_start_size"]});
+        }
+        if (!get_parameter(model, "adaptive_rkv_evictable_sizes")) {
+            model->add_parameters({context.optional_model_wide_params["adaptive_rkv_evictable_sizes"]});
+        }
         model->add_parameters(adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer);
         model->add_parameters(adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer);
         model->add_results(adaptive_rkv_diversity_results);
     }
 
     if (m_allow_qq_bias) {
-        model->add_parameters({optional_model_wide_params["qq_bias"]});
-        model->add_parameters({optional_model_wide_params["qq_bias_begins"]});
+        if (!get_parameter(model, "qq_bias")) {
+            model->add_parameters({context.optional_model_wide_params["qq_bias"]});
+        }
+        if (!get_parameter(model, "qq_bias_begins")) {
+            model->add_parameters({context.optional_model_wide_params["qq_bias_begins"]});
+        }
     }
 
     model->add_parameters(kv_parameters);
-    model->add_parameters(model_wide_params);
-    model->add_parameters({std::move(max_context_len)});
     model->validate_nodes_and_infer_types();
     return true;
 }

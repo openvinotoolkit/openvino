@@ -11,6 +11,32 @@
 
 namespace ov {
 namespace pass {
+
+/**
+ * @brief The transformation converts model inputs and helper subgraphs to PagedAttention-compatible representation.
+ * The pass is intended to be executed as a prerequisite before SDPA->PA and PagedCausalConv1D-related fusions.
+ * 
+ * \\ingroup ov_pass_cpp_api
+ */
+class OPENVINO_API PrepareSDPAToPARepresentation : public ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("PrepareSDPAToPARepresentation");
+
+    explicit PrepareSDPAToPARepresentation(bool use_per_layer_block_indices_inputs = false,
+                                           bool allow_score_aggregation = false,
+                                           bool allow_cache_rotation = false,
+                                           bool allow_xattention = false,
+                                           bool allow_adaptive_rkv = false);
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+
+private:
+    bool m_use_per_layer_block_indices_inputs;
+    bool m_allow_score_aggregation;
+    bool m_allow_cache_rotation;
+    bool m_allow_xattention;
+    bool m_allow_adaptive_rkv;
+};
+
 /**
  * @brief The transformation replaces KV-cache processing part in LLMs by PagedAttention operation.
  * NOTE:

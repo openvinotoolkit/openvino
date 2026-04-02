@@ -42,6 +42,7 @@
 #include "transformations/common_optimizations/normalize_l2_fusion.hpp"
 #include "transformations/common_optimizations/optimize_strided_slice.hpp"
 #include "transformations/common_optimizations/pad_fusion.hpp"
+#include "transformations/common_optimizations/paged_causal_conv1d_fusion.hpp"
 #include "transformations/common_optimizations/pull_transpose_through_fq.hpp"
 #include "transformations/common_optimizations/random_uniform_fusion.hpp"
 #include "transformations/common_optimizations/reduce_merge.hpp"
@@ -131,6 +132,8 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
 
     using namespace ov::pass;
     REGISTER_PASS(manager, DisableDecompressionConvertConstantFolding)
+    // PagedCausalConv1DFusion must run before SliceToStridedSlice converts v8::Slice to v1::StridedSlice
+    REGISTER_PASS(manager, PagedCausalConv1DFusion)
     // MOCTransformations contain StridedSliceOptimization transformation,
     // so we must call SliceToStridedSlice before MOCTransformations call
     REGISTER_PASS(manager, SliceToStridedSlice, true)
