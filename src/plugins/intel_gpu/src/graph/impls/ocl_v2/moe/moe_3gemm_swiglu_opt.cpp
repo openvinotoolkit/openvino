@@ -13,10 +13,10 @@
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #    include <chrono>
-#    include <initializer_list>
-#    include <cstdlib>
 #    include <cstdint>
+#    include <cstdlib>
 #    include <fstream>
+#    include <initializer_list>
 #    include <iostream>
 #    include <limits>
 #    include <mutex>
@@ -993,8 +993,8 @@ public:
         _lru_expert_num = params.typed_desc<moe_3gemm_fused_compressed>()->_lru_expert_num;
         if (_lru_expert_num > 0 && use_micro_gemm_prefill) {
             use_micro_gemm_prefill = false;
-            GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): force disable micro_gemm prefill in OTD mode, lru_expert_num="
-                                   << _lru_expert_num << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): force disable micro_gemm prefill in OTD mode, lru_expert_num=" << _lru_expert_num
+                                   << std::endl;
         }
 
         // Don't change the order of stages
@@ -1077,20 +1077,20 @@ public:
                         convert2dnnl(moe_fusion_wei_addr.weight[i], {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ba, wei_offset);
 
                     // scale shape: [ic / ic_group_size, oc], type: f16
-                    int64_t scale_offset =
-                        j * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size, moe_fusion_wei_addr.scale[i]->get_layout());
+                    int64_t scale_offset = j * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size,
+                                                               moe_fusion_wei_addr.scale[i]->get_layout());
                     dnnl_weights[i].scale = convert2dnnl(moe_fusion_wei_addr.scale[i],
-                                                        {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},
-                                                        dnnl::memory::format_tag::ab,
-                                                        scale_offset);
+                                                         {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},
+                                                         dnnl::memory::format_tag::ab,
+                                                         scale_offset);
 
                     // zp shape: [ic / ic_group_size, oc], type: u4/i8
                     int64_t zp_offset =
                         j * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size, moe_fusion_wei_addr.zp[i]->get_layout());
                     dnnl_weights[i].zp = convert2dnnl(moe_fusion_wei_addr.zp[i],
-                                                    {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},
-                                                    dnnl::memory::format_tag::ab,
-                                                    zp_offset);
+                                                      {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},
+                                                      dnnl::memory::format_tag::ab,
+                                                      zp_offset);
                 }
             }
         }
@@ -1489,7 +1489,7 @@ public:
             if (pos != std::string::npos && pos + 1 < id.size()) {
                 std::string numStr = id.substr(pos + 1);
                 layer = atoi(numStr.c_str());
-            } 
+            }
         }
         return layer;
     }
@@ -1515,7 +1515,7 @@ public:
         }
 
     private:
-#ifdef _WIN32
+#    ifdef _WIN32
         using native_handle_t = HANDLE;
         static constexpr native_handle_t invalid_handle() {
             return INVALID_HANDLE_VALUE;
@@ -1523,13 +1523,8 @@ public:
 
         static native_handle_t open_native_handle(const std::string& weights_path) {
             auto path = std::filesystem::path(weights_path);
-            auto handle = CreateFileW(path.native().c_str(),
-                                      GENERIC_READ,
-                                      FILE_SHARE_READ | FILE_SHARE_WRITE,
-                                      nullptr,
-                                      OPEN_EXISTING,
-                                      FILE_ATTRIBUTE_NORMAL,
-                                      nullptr);
+            auto handle =
+                CreateFileW(path.native().c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
             if (handle == INVALID_HANDLE_VALUE) {
                 throw std::runtime_error("Failed to open weight file for OTD streaming read");
             }
@@ -1563,7 +1558,7 @@ public:
             }
             return true;
         }
-#else
+#    else
         using native_handle_t = int;
         static constexpr native_handle_t invalid_handle() {
             return -1;
@@ -1598,7 +1593,7 @@ public:
             }
             return true;
         }
-#endif
+#    endif
 
         void open_shared_handle() {
             _shared_handle = open_native_handle(_weights_path);
@@ -1626,15 +1621,17 @@ public:
     }
 
     static void fill_weights_memory(cldnn::stream& exec_stream,
-        const cldnn::moe_3gemm_fused_compressed& desc,
-        cldnn::moe_weights& wei_mem, const std::vector<uint32_t>& experts_list, const std::vector<uint32_t>& lru_experts) {
+                                    const cldnn::moe_3gemm_fused_compressed& desc,
+                                    cldnn::moe_weights& wei_mem,
+                                    const std::vector<uint32_t>& experts_list,
+                                    const std::vector<uint32_t>& lru_experts) {
         const auto num_expert = static_cast<size_t>(desc._config.num_expert);
         const auto& weight_bin_offsets = desc._weight_bin_offsets;
         const auto& weights_path = desc._weights_path;
 
         OPENVINO_ASSERT(!weights_path.empty(), "weights path is empty for OTD weight loading");
         OPENVINO_ASSERT(weight_bin_offsets.size() == cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count,
-                "Unexpected number of MOE weight offsets");
+                        "Unexpected number of MOE weight offsets");
 
         static std::once_flag file_size_flag;
         static size_t weight_file_size = 0;
@@ -1646,15 +1643,11 @@ public:
             weight_file_size = static_cast<size_t>(end_pos);
         });
 
-        static const std::array<const char*, cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count> tensor_names = {{
-            "gate_w", "up_w", "down_w", "gate_s", "up_s", "down_s", "gate_z", "up_z", "down_z"
-        }};
+        static const std::array<const char*, cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count> tensor_names = {
+            {"gate_w", "up_w", "down_w", "gate_s", "up_s", "down_s", "gate_z", "up_z", "down_z"}};
 
         const bool transpose_scale_zp = std::getenv("MOE_OTD_DISABLE_SCALE_ZP_TRANSPOSE") == nullptr;
-        auto maybe_transpose_scale_zp = [&](const char* tensor_name,
-                                            const cldnn::layout& layout,
-                                            std::vector<uint8_t>& payload,
-                                            size_t per_expert_size) {
+        auto maybe_transpose_scale_zp = [&](const char* tensor_name, const cldnn::layout& layout, std::vector<uint8_t>& payload, size_t per_expert_size) {
             if (!transpose_scale_zp || tensor_name == nullptr) {
                 return;
             }
@@ -1679,23 +1672,11 @@ public:
             const size_t group_size = static_cast<size_t>(desc._config.group_size);
             size_t group_count = 1;
             if (group_size != 0 && group_size != std::numeric_limits<size_t>::max()) {
-                OPENVINO_ASSERT(ic % group_size == 0,
-                                "Invalid group_size for OTD transpose: tensor=",
-                                tensor_name,
-                                ", ic=",
-                                ic,
-                                ", group_size=",
-                                group_size);
+                OPENVINO_ASSERT(ic % group_size == 0, "Invalid group_size for OTD transpose: tensor=", tensor_name, ", ic=", ic, ", group_size=", group_size);
                 group_count = ic / group_size;
             }
 
-            OPENVINO_ASSERT(oc > 0 && group_count > 0,
-                            "Invalid dims for OTD transpose: tensor=",
-                            tensor_name,
-                            ", oc=",
-                            oc,
-                            ", group_count=",
-                            group_count);
+            OPENVINO_ASSERT(oc > 0 && group_count > 0, "Invalid dims for OTD transpose: tensor=", tensor_name, ", oc=", oc, ", group_count=", group_count);
 
             const size_t elem_count = oc * group_count;
             if (is_scale) {
@@ -1714,9 +1695,7 @@ public:
                     for (size_t g = 0; g < group_count; g++) {
                         const size_t src_elem_idx = o * group_count + g;
                         const size_t dst_elem_idx = g * oc + o;
-                        std::memcpy(transposed.data() + dst_elem_idx * elem_size,
-                                    payload.data() + src_elem_idx * elem_size,
-                                    elem_size);
+                        std::memcpy(transposed.data() + dst_elem_idx * elem_size, payload.data() + src_elem_idx * elem_size, elem_size);
                     }
                 }
                 payload.swap(transposed);
@@ -1724,11 +1703,7 @@ public:
             }
 
             // ZP is packed as 4-bit values (low nibble first). Unpack -> transpose -> repack.
-            OPENVINO_ASSERT(elem_count % 2 == 0,
-                            "Unexpected odd element count for packed zp tensor=",
-                            tensor_name,
-                            ", elem_count=",
-                            elem_count);
+            OPENVINO_ASSERT(elem_count % 2 == 0, "Unexpected odd element count for packed zp tensor=", tensor_name, ", elem_count=", elem_count);
             OPENVINO_ASSERT(elem_count / 2 == per_expert_size,
                             "Unexpected zp payload size for tensor=",
                             tensor_name,
@@ -1755,8 +1730,7 @@ public:
 
             std::vector<uint8_t> repacked(per_expert_size, 0);
             for (size_t i = 0; i < per_expert_size; i++) {
-                repacked[i] = static_cast<uint8_t>((transposed_unpacked[2 * i] & 0x0F) |
-                                                   ((transposed_unpacked[2 * i + 1] & 0x0F) << 4));
+                repacked[i] = static_cast<uint8_t>((transposed_unpacked[2 * i] & 0x0F) | ((transposed_unpacked[2 * i + 1] & 0x0F) << 4));
             }
             payload.swap(repacked);
         };
@@ -1767,11 +1741,7 @@ public:
             size_t dst_offset = 0;
         };
 
-        auto make_tensor_fill_plan = [&] (size_t base_offset,
-                                          cldnn::memory_ptr mem,
-                                          size_t expert_no,
-                                          size_t lru_expert_no,
-                                          const char* tensor_name) {
+        auto make_tensor_fill_plan = [&](size_t base_offset, cldnn::memory_ptr mem, size_t expert_no, size_t lru_expert_no, const char* tensor_name) {
             tensor_fill_plan plan;
             if (!mem)
                 return plan;
@@ -1800,10 +1770,7 @@ public:
             return plan;
         };
 
-        auto copy_tensor_to_memory = [&] (cldnn::memory_ptr mem,
-                                          const tensor_fill_plan& plan,
-                                          std::vector<uint8_t>& payload,
-                                          const char* tensor_name) {
+        auto copy_tensor_to_memory = [&](cldnn::memory_ptr mem, const tensor_fill_plan& plan, std::vector<uint8_t>& payload, const char* tensor_name) {
             if (!mem || plan.per_expert_size == 0) {
                 return;
             }
@@ -1819,30 +1786,16 @@ public:
                            true);
         };
 
-        const std::array<cldnn::memory_ptr, cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count> tensors_by_offset = {{
-            wei_mem.gate_w,
-            wei_mem.up_w,
-            wei_mem.down_w,
-            wei_mem.gate_s,
-            wei_mem.up_s,
-            wei_mem.down_s,
-            wei_mem.gate_z,
-            wei_mem.up_z,
-            wei_mem.down_z
-        }};
+        const std::array<cldnn::memory_ptr, cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count> tensors_by_offset = {
+            {wei_mem.gate_w, wei_mem.up_w, wei_mem.down_w, wei_mem.gate_s, wei_mem.up_s, wei_mem.down_s, wei_mem.gate_z, wei_mem.up_z, wei_mem.down_z}};
 
         size_t i = 0;
-        for (uint32_t expert: experts_list) {
+        for (uint32_t expert : experts_list) {
             auto& weight_reader = get_thread_local_weight_reader(weights_path);
 
-            for (size_t offset_pos = 0;
-                 offset_pos < static_cast<size_t>(cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count);
-                 offset_pos++) {
-                auto plan = make_tensor_fill_plan(weight_bin_offsets[offset_pos],
-                                                  tensors_by_offset[offset_pos],
-                                                  expert,
-                                                  lru_experts[i],
-                                                  tensor_names[offset_pos]);
+            for (size_t offset_pos = 0; offset_pos < static_cast<size_t>(cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count); offset_pos++) {
+                auto plan =
+                    make_tensor_fill_plan(weight_bin_offsets[offset_pos], tensors_by_offset[offset_pos], expert, lru_experts[i], tensor_names[offset_pos]);
                 std::vector<uint8_t> payload;
 
                 if (plan.per_expert_size != 0) {
@@ -1854,7 +1807,6 @@ public:
             }
             i++;
         }
-
     }
 
     static uint32_t get_lru_expert_no(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, uint32_t expert, LRUCache& cache) {
@@ -1862,11 +1814,9 @@ public:
         auto& stream = instance.get_network().get_stream();
         size_t layer = get_layer(instance);
         auto item = cache.get_lru_item(layer, expert);
-        OPENVINO_ASSERT(item.first <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()),
-                        "LRU slot index overflow: ",
-                        item.first);
+        OPENVINO_ASSERT(item.first <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()), "LRU slot index overflow: ", item.first);
         const auto lru_slot = static_cast<uint32_t>(item.first);
-        if(!item.second) {
+        if (!item.second) {
             std::vector<uint32_t> experts_list_single;
             experts_list_single.push_back(expert);
             std::vector<uint32_t> lru_experts_list_single;
@@ -1882,7 +1832,7 @@ public:
                                         LRUCache& cache) {
         auto& cur_net = instance.get_network();
         auto& stream = cur_net.get_stream();
-        if(_lru_expert_num) {
+        if (_lru_expert_num) {
             stream.finish();
         }
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
@@ -1898,7 +1848,7 @@ public:
         const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
         const size_t max_work_group_size = instance.get_impl_params()->get_device_info().max_work_group_size;
 
-        if(_lru_expert_num) {
+        if (_lru_expert_num) {
             cldnn::moe_weights shell_params = instance._weights;
             auto& engine = instance.get_network().get_engine();
             uint32_t* p_expert = (uint32_t*)batch_mem_ptr->buffer_ptr();
@@ -1907,13 +1857,13 @@ public:
                 experts_list.push_back(*p_expert++);
             }
             if (!scratch._index_initialized) {
-                size_t experts_index_size = 4 * max_topk; // each expert has 4 bytes
+                size_t experts_index_size = 4 * max_topk;  // each expert has 4 bytes
                 auto layout_expert = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(experts_index_size)}, ov::element::i8, cldnn::format::bfyx);
                 // auto alloc_type = engine.get_preferred_memory_allocation_type(false);
                 scratch._expert_index_buffer = engine.allocate_memory(layout_expert, allocation_type::usm_host, false);
                 // instance._expert_index_buffer = engine.allocate_memory(layout_expert, alloc_type, false);
                 scratch._index_initialized = true;
-            } 
+            }
             uint32_t* p_expert_index = (uint32_t*)scratch._expert_index_buffer->buffer_ptr();
             for (int i = 0; i < max_topk; i++) {
                 auto expert_no = experts_list[i];
@@ -2059,11 +2009,7 @@ public:
             expert_to_lru.reserve(topk_count);
             for (size_t i = 0; i < topk_count; i++) {
                 auto expert_no = expert_ids[i];
-                OPENVINO_ASSERT(expert_no < static_cast<uint32_t>(num_total_experts),
-                                "expert_no ",
-                                expert_no,
-                                " exceed max_expert_num ",
-                                num_total_experts);
+                OPENVINO_ASSERT(expert_no < static_cast<uint32_t>(num_total_experts), "expert_no ", expert_no, " exceed max_expert_num ", num_total_experts);
                 auto it = expert_to_lru.find(expert_no);
                 if (it == expert_to_lru.end()) {
                     auto lru_expert_no = get_lru_expert_no(instance, expert_no, cache);
@@ -2401,8 +2347,8 @@ public:
                                              dnnl_weights[2].weight,
                                              dnnl_weights[2].scale,
                                              dnnl_weights[2].zp);
-        // each time dnnl_weights updated need refresh kernel cache in OTD mode, if not, the stream engine context and memory storage engine context will mismatch,
-        // dnnl kernel will report invalid_arguments and fail or compute wrong and output wrong tokens. if any perf concerns, need deep dive here.
+        // each time dnnl_weights updated need refresh kernel cache in OTD mode, if not, the stream engine context and memory storage engine context will
+        // mismatch, dnnl kernel will report invalid_arguments and fail or compute wrong and output wrong tokens. if any perf concerns, need deep dive here.
         if (_lru_expert_num) {
             _otd_kernel_holder = kernel;
             return *_otd_kernel_holder;
@@ -2429,7 +2375,7 @@ public:
                                           cldnn::stream& stream,
                                           typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                           scratch_buffers& scratch,
-                                                                                    LRUCache& cache) {
+                                          LRUCache& cache) {
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
         const auto& config = cur_moe->_config;
         auto& dnn_stream = stream.get_onednn_stream();
@@ -2476,21 +2422,23 @@ public:
                 auto lru_expert_no = get_lru_expert_no(instance, static_cast<uint32_t>(expert_no), cache);
                 auto& params = instance._weights;
 
-                #define CONVERT_DNNL(name, i)  \
-                    int64_t wei_offset##i = lru_expert_no * dnnl_weights[i].ic * dnnl_weights[i].oc / 2; \
-                    int64_t scale_offset##i = lru_expert_no * dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size * 2; \
-                    int64_t zp_offset##i = lru_expert_no * dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size / 2; \
-                    dnnl_weights[i].weight = convert2dnnl(params.name##_w, {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ba, wei_offset##i); \
-                    dnnl_weights[i].scale = convert2dnnl(params.name##_s, \
-                                                        {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc}, \
-                                                        dnnl::memory::format_tag::ab, scale_offset##i); \
-                    dnnl_weights[i].zp = convert2dnnl(params.name##_z, \
-                                                    {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc}, \
-                                                    dnnl::memory::format_tag::ab, zp_offset##i);
+#    define CONVERT_DNNL(name, i)                                                                                                                      \
+        int64_t wei_offset##i = lru_expert_no * dnnl_weights[i].ic * dnnl_weights[i].oc / 2;                                                           \
+        int64_t scale_offset##i = lru_expert_no * dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size * 2;                         \
+        int64_t zp_offset##i = lru_expert_no * dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size / 2;                            \
+        dnnl_weights[i].weight = convert2dnnl(params.name##_w, {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ba, wei_offset##i); \
+        dnnl_weights[i].scale = convert2dnnl(params.name##_s,                                                                                          \
+                                             {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},                                 \
+                                             dnnl::memory::format_tag::ab,                                                                             \
+                                             scale_offset##i);                                                                                         \
+        dnnl_weights[i].zp = convert2dnnl(params.name##_z,                                                                                             \
+                                          {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},                                    \
+                                          dnnl::memory::format_tag::ab,                                                                                \
+                                          zp_offset##i);
                 CONVERT_DNNL(gate, 0)
                 CONVERT_DNNL(up, 1)
                 CONVERT_DNNL(down, 2)
-                #undef CONVERT_DNNL
+#    undef CONVERT_DNNL
             }
             auto& dnnl_weights = _dnnl_weights[expert_no];
 

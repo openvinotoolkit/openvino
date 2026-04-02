@@ -4,30 +4,32 @@
 
 #pragma once
 #include <functional>
-#include <unordered_map>
 #include <list>
-#include <utility>
-#include "intel_gpu/runtime/engine.hpp"
 #include <memory>
+#include <unordered_map>
+#include <utility>
+
+#include "intel_gpu/runtime/engine.hpp"
 
 class LRUCache {
 public:
     using EvictCallback = std::function<void(size_t layer, size_t expert, void* addr, void* params)>;
 
-    enum NodeAction {
-        INSERT,
-        REFRESH
-    };
+    enum NodeAction { INSERT, REFRESH };
 
     LRUCache(size_t max_total_experts, EvictCallback cb = nullptr);
     NodeAction insert_or_refresh(size_t layer, size_t expert, void* addr, void* params = nullptr);
 
     std::pair<size_t, bool> get_lru_item(size_t layer, size_t expert);
-    size_t get_total_experts() const { return m_total_experts; }
+    size_t get_total_experts() const {
+        return m_total_experts;
+    }
 
     void evict_one();
 
-    size_t size() const { return m_total_experts; }
+    size_t size() const {
+        return m_total_experts;
+    }
     std::pair<size_t, bool> get_item(size_t layer, size_t expert);
 
     void set_filled(size_t lru_expert_no) {
@@ -38,6 +40,7 @@ public:
     }
 
     bool m_initialized = false;
+
 private:
     struct Key {
         size_t layer;
