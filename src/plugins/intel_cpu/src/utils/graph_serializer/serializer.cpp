@@ -11,8 +11,6 @@
 #include <memory>
 #include <ostream>
 #include <string>
-#include <string_view>
-#include <vector>
 
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
@@ -48,20 +46,6 @@ public:
             offset = util::ConstantWriter::write(ptr, size, new_size, compress_to_fp16, src_type, ptr_is_temporary);
         }
 
-        return offset;
-    }
-
-    WeightlessWriter::FilePosition write(const std::vector<std::string_view>& chunks, size_t& new_size) override {
-        if (!m_skip_weights) {
-            return util::ConstantWriter::write(chunks, new_size);
-        }
-        new_size = 0;
-        for (const auto& sv : chunks) {
-            new_size += sv.size();
-        }
-
-        const FilePosition offset = m_offset;
-        m_offset += new_size;
         return offset;
     }
 
