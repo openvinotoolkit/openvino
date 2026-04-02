@@ -55,6 +55,7 @@ Common Plugin
 ---------------------------------------------------------------------------------------------
 
 * Introduced new properties: 
+
   * ``CACHE_PATH`` is fully compatible to ``CACHE_DIR`` but natively supports ``std::filesystem::path``. 
   * ``CACHE_BLOB_ID`` (preview) - Allows users to specify a custom ID for the compiled model in cache. This can accelerate model import times, but users must ensure ID uniqueness to prevent collisions. 
 * Improve error messages in ``IStreamsExecutor::Config::set_property`` 
@@ -85,6 +86,7 @@ NPU Device Plugin
 ---------------------------------------------------------------------------------------------
 
 * Batching changes in NPU plugin: 
+
   * Eliminated the unconditional model clone in the Plugin batching path to reduce memory usage. The model is no longer cloned until after the initial Plugin batch-related checks have been performed. 
   * Input and output layouts must be specified for Plugin batching to be applied. If layouts are not provided, the model will be compiled as-is, without any preliminary batch processing in the NPU Plugin. 
 * Support for IO strides has been added. During model compilation, users can specify which input/output ports should accept tensors with strides using the new property: ``ov::intel_npu::enable_strides_for``. All desired IO ports must be selected at compilation time. Support for all IO ports is not enabled by default since it can reduce model performance. This feature is supported only with the NPU driver, starting from 32.0.100.4621 (Windows driver) or 1.30 (Linux driver). NPU Plugin will report the property as supported only when dependencies are met. Applications should first check if this property is supported. 
@@ -137,6 +139,7 @@ OpenVINO™ Model Server
 * Added support for Qwen3-VL models with function calling capabilities, enabling this vision language model in agentic scenarios.  
 * Extended ``/image`` endpoint to support inpainting and outpainting capabilities. It is now possible to pass the input image along with a mask to edit parts of the image or to extend the input image. 
 * Other improvements and fixes: 
+
   * Server logs now report current KV cache allocation alongside current usage metrics. With dynamic cache size (default setting), allocation automatically scales during runtime based on the request's concurrency and processed context length. 
   * Generation request cancellation is now supported for NPU devices, where requests from disconnected clients will be cancelled. 
   * The finish reason now returns ``tool_calls`` when the model generates a function call, in line with OpenAI API standards. 
