@@ -89,20 +89,56 @@ AccuracyMetrics compute_metrics(const float* original, const float* reconstructe
 }
 
 // ============================================================================
+// Test parameter definition
+// ============================================================================
+enum class DistributionKind { Uniform, GenGaussian };
+
+struct DQTestParams {
+    std::string name;
+    int decompose_version;
+    Shape shape;
+    unsigned seed;
+    DistributionKind dist_kind;
+    float uniform_min;
+    float uniform_max;
+    float ggd_mu;
+    float ggd_alpha;
+    float ggd_beta;
+    // Quantization config overrides.
+    // quant_dt == element::dynamic → infer from decompose_version (u8 for v2, i8 otherwise)
+    element::Type quant_dt  = element::dynamic;
+    bool          is_symmetric = false;  // true = symmetric (no ZP, 2 DQ outputs)
+    double        threshold    = 0.02;   // rel-L2 pass threshold
+};
+
+std::ostream& operator<<(std::ostream& os, const DQTestParams& p) {
+    return os << p.name;
+}
+
+
+// ============================================================================
 // Shared helpers for DQ config and decompose pass
 // ============================================================================
 op::internal::DynamicQuantize::Attributes make_dq_config(const Shape& shape,
-                                                          int decompose_version) {
+                                                          const DQTestParams& p) {
+    using QT = op::internal::DynamicQuantize::QuantizationType;
+
+    // Resolve effective quantization dtype: explicit override beats version default.
+    const element::Type quant_dt = (p.quant_dt != element::dynamic)
+                                       ? p.quant_dt
+                                       : (p.decompose_version == 2 ? element::u8 : element::i8);
+
     op::internal::DynamicQuantize::Attributes config;
-    config.quantization_type = op::internal::DynamicQuantize::QuantizationType::Asymmetric;
-    config.scale_dt = element::f32;
+    config.scale_dt    = element::f32;
+    config.quantization_dt = quant_dt;
     config.group_sizes = std::vector<uint64_t>(shape.size(), 1);
-    if (decompose_version == 2) {
-        config.quantization_dt = element::u8;
-        config.zp_dt = element::u8;
+
+    if (p.is_symmetric) {
+        config.quantization_type = QT::Symmetric;
+        config.zp_dt             = element::dynamic;  // no zero-point
     } else {
-        config.quantization_dt = element::i8;
-        config.zp_dt = element::i8;
+        config.quantization_type = QT::Asymmetric;
+        config.zp_dt             = quant_dt;
     }
     return config;
 }
@@ -134,23 +170,30 @@ void run_decompose_pass(const std::shared_ptr<Model>& model, int decompose_versi
 // selects reduction_axis=3 (the key-cache embedding dimension).
 // ============================================================================
 std::shared_ptr<Model> build_roundtrip_model(const Shape& shape,
-                                             int decompose_version) {
+                                             const DQTestParams& p) {
     auto input = std::make_shared<op::v0::Parameter>(element::f16, shape);
     input->set_friendly_name("input");
 
     auto dq_input = std::make_shared<op::v0::Convert>(input, element::f32);
     dq_input->set_friendly_name("input_cvt_f32");
 
-    auto config = make_dq_config(shape, decompose_version);
+    auto config = make_dq_config(shape, p);
 
     auto dq = std::make_shared<op::internal::DynamicQuantize>(dq_input, config);
     dq->set_friendly_name("DynamicQuantize/0/key");
 
-    // Dequant chain: deq = (convert(q, f32) - convert(zp, f32)) * scale
+    // Dequant chain depends on symmetry:
+    //   Symmetric:  q * scale
+    //   Asymmetric: (q - zp) * scale
     auto q_f32 = std::make_shared<op::v0::Convert>(dq->output(0), element::f32);
-    auto zp_f32 = std::make_shared<op::v0::Convert>(dq->output(2), element::f32);
-    auto sub_zp = std::make_shared<op::v1::Subtract>(q_f32, zp_f32);
-    auto reconstructed = std::make_shared<op::v1::Multiply>(sub_zp, dq->output(1));
+    std::shared_ptr<Node> dequant_input;
+    if (p.is_symmetric) {
+        dequant_input = q_f32;
+    } else {
+        auto zp_f32 = std::make_shared<op::v0::Convert>(dq->output(2), element::f32);
+        dequant_input = std::make_shared<op::v1::Subtract>(q_f32, zp_f32);
+    }
+    auto reconstructed = std::make_shared<op::v1::Multiply>(dequant_input, dq->output(1));
 
     auto output_cvt = std::make_shared<op::v0::Convert>(reconstructed, element::f16);
     output_cvt->set_friendly_name("output_cvt_f16");
@@ -161,10 +204,10 @@ std::shared_ptr<Model> build_roundtrip_model(const Shape& shape,
     auto model = std::make_shared<Model>(
         ResultVector{result},
         ParameterVector{input},
-        "roundtrip_fp16_v" + std::to_string(decompose_version));
+        "roundtrip_fp16_v" + std::to_string(p.decompose_version));
 
     model->validate_nodes_and_infer_types();
-    run_decompose_pass(model, decompose_version);
+    run_decompose_pass(model, p.decompose_version);
     return model;
 }
 
@@ -177,14 +220,14 @@ std::shared_ptr<Model> build_roundtrip_model(const Shape& shape,
 // fused roundtrip model.
 // ============================================================================
 std::shared_ptr<Model> build_quantize_model(const Shape& shape,
-                                            int decompose_version) {
+                                            const DQTestParams& p) {
     auto input = std::make_shared<op::v0::Parameter>(element::f16, shape);
     input->set_friendly_name("input");
 
     auto cvt_f32 = std::make_shared<op::v0::Convert>(input, element::f32);
     cvt_f32->set_friendly_name("input_cvt_f32");
 
-    auto config = make_dq_config(shape, decompose_version);
+    auto config = make_dq_config(shape, p);
 
     auto dq = std::make_shared<op::internal::DynamicQuantize>(cvt_f32, config);
     dq->set_friendly_name("DynamicQuantize/0/key");
@@ -195,16 +238,20 @@ std::shared_ptr<Model> build_quantize_model(const Shape& shape,
     auto result_scale = std::make_shared<op::v0::Result>(dq->output(1));
     result_scale->set_friendly_name("result_scale");
 
-    auto result_zp = std::make_shared<op::v0::Result>(dq->output(2));
-    result_zp->set_friendly_name("result_zp");
+    ResultVector results{result_q, result_scale};
+    if (!p.is_symmetric) {
+        auto result_zp = std::make_shared<op::v0::Result>(dq->output(2));
+        result_zp->set_friendly_name("result_zp");
+        results.push_back(result_zp);
+    }
 
     auto model = std::make_shared<Model>(
-        ResultVector{result_q, result_scale, result_zp},
+        results,
         ParameterVector{input},
-        "quantize_fp16_v" + std::to_string(decompose_version));
+        "quantize_fp16_v" + std::to_string(p.decompose_version));
 
     model->validate_nodes_and_infer_types();
-    run_decompose_pass(model, decompose_version);
+    run_decompose_pass(model, p.decompose_version);
     return model;
 }
 
@@ -217,8 +264,8 @@ std::shared_ptr<Model> build_quantize_model(const Shape& shape,
 // No decompose pass needed -- the dequant chain is plain arithmetic.
 // ============================================================================
 std::shared_ptr<Model> build_dequantize_model(const Shape& shape,
-                                              int decompose_version) {
-    auto config = make_dq_config(shape, decompose_version);
+                                              const DQTestParams& p) {
+    auto config = make_dq_config(shape, p);
 
     auto param_q = std::make_shared<op::v0::Parameter>(config.quantization_dt, shape);
     param_q->set_friendly_name("quantized_data");
@@ -230,17 +277,30 @@ std::shared_ptr<Model> build_dequantize_model(const Shape& shape,
     auto param_scale = std::make_shared<op::v0::Parameter>(element::f32, scale_shape);
     param_scale->set_friendly_name("scale");
 
-    auto param_zp = std::make_shared<op::v0::Parameter>(config.zp_dt, scale_shape);
-    param_zp->set_friendly_name("zero_point");
-
-    // Dequant chain: (convert(q, f32) - convert(zp, f32)) * scale
+    // Dequant chain depends on symmetry:
+    //   Symmetric:  convert(q, f32) * scale
+    //   Asymmetric: (convert(q, f32) - convert(zp, f32)) * scale
     auto q_f32 = std::make_shared<op::v0::Convert>(param_q, element::f32);
     q_f32->set_friendly_name("q_cvt_f32");
-    auto zp_f32 = std::make_shared<op::v0::Convert>(param_zp, element::f32);
-    zp_f32->set_friendly_name("zp_cvt_f32");
-    auto sub_zp = std::make_shared<op::v1::Subtract>(q_f32, zp_f32);
-    sub_zp->set_friendly_name("sub_zp");
-    auto dequantized = std::make_shared<op::v1::Multiply>(sub_zp, param_scale);
+
+    std::shared_ptr<Node> dequant_input;
+    ParameterVector params{param_q, param_scale};
+
+    if (p.is_symmetric) {
+        dequant_input = q_f32;
+    } else {
+        auto param_zp = std::make_shared<op::v0::Parameter>(config.zp_dt, scale_shape);
+        param_zp->set_friendly_name("zero_point");
+        params.push_back(param_zp);
+
+        auto zp_f32 = std::make_shared<op::v0::Convert>(param_zp, element::f32);
+        zp_f32->set_friendly_name("zp_cvt_f32");
+        auto sub_zp = std::make_shared<op::v1::Subtract>(q_f32, zp_f32);
+        sub_zp->set_friendly_name("sub_zp");
+        dequant_input = sub_zp;
+    }
+
+    auto dequantized = std::make_shared<op::v1::Multiply>(dequant_input, param_scale);
     dequantized->set_friendly_name("dequantized");
 
     auto output_cvt = std::make_shared<op::v0::Convert>(dequantized, element::f16);
@@ -251,8 +311,8 @@ std::shared_ptr<Model> build_dequantize_model(const Shape& shape,
 
     auto model = std::make_shared<Model>(
         ResultVector{result},
-        ParameterVector{param_q, param_scale, param_zp},
-        "dequantize_fp16_v" + std::to_string(decompose_version));
+        params,
+        "dequantize_fp16_v" + std::to_string(p.decompose_version));
 
     model->validate_nodes_and_infer_types();
     return model;
@@ -350,7 +410,8 @@ AccuracyMetrics evaluate_split_roundtrip(const std::shared_ptr<Model>& quant_mod
     EXPECT_TRUE(ok) << "Quantize model evaluation failed";
 
     // Step 2: run dequantize model
-    TensorVector dequant_inputs{quant_outputs[0], quant_outputs[1], quant_outputs[2]};
+    // Pass all quantize outputs as dequantize inputs (2 for symmetric, 3 for asymmetric).
+    TensorVector dequant_inputs(quant_outputs.begin(), quant_outputs.end());
 
     auto dequant_output = Tensor(element::f16, dequant_model->get_results()[0]->get_output_shape(0));
     TensorVector dequant_outputs{dequant_output};
@@ -394,9 +455,8 @@ AccuracyMetrics evaluate_split_roundtrip_on_device(const std::shared_ptr<Model>&
     quant_request.set_input_tensor(quant_input);
     quant_request.infer();
 
-    auto tensor_q = quant_request.get_output_tensor(0);
+    auto tensor_q     = quant_request.get_output_tensor(0);
     auto tensor_scale = quant_request.get_output_tensor(1);
-    auto tensor_zp = quant_request.get_output_tensor(2);
 
     // Step 2: compile and run dequantize model
     auto compiled_dequant = core.compile_model(dequant_model, device_name, device_config);
@@ -404,7 +464,12 @@ AccuracyMetrics evaluate_split_roundtrip_on_device(const std::shared_ptr<Model>&
 
     dequant_request.set_input_tensor(0, tensor_q);
     dequant_request.set_input_tensor(1, tensor_scale);
-    dequant_request.set_input_tensor(2, tensor_zp);
+    // For asymmetric quantization a ZP tensor exists as the 3rd output/input.
+    const bool has_zp = (quant_model->get_results().size() == 3);
+    if (has_zp) {
+        auto tensor_zp = quant_request.get_output_tensor(2);
+        dequant_request.set_input_tensor(2, tensor_zp);
+    }
     dequant_request.infer();
 
     auto output_tensor = dequant_request.get_output_tensor();
@@ -462,35 +527,12 @@ std::string get_test_device() {
     return env ? std::string(env) : std::string{};
 }
 
-// ============================================================================
-// Test parameter definition
-// ============================================================================
-enum class DistributionKind { Uniform, GenGaussian };
-
-struct DQTestParams {
-    std::string name;
-    int decompose_version;
-    Shape shape;
-    unsigned seed;
-    DistributionKind dist_kind;
-    float uniform_min;
-    float uniform_max;
-    float ggd_mu;
-    float ggd_alpha;
-    float ggd_beta;
-};
-
-std::ostream& operator<<(std::ostream& os, const DQTestParams& p) {
-    return os << p.name;
-}
 
 // ============================================================================
 // Parameterized test fixture
 // ============================================================================
 class DynamicQuantizeAccuracyTest : public ::testing::TestWithParam<DQTestParams> {
 protected:
-    static constexpr double kRelL2Threshold = 0.02;
-
     static void print_metrics(const std::string& label, const AccuracyMetrics& m) {
         std::cout << "  " << label
                   << ": L2=" << m.l2_norm
@@ -532,7 +574,7 @@ protected:
         auto data = generate_data(p, element_count);
         EXPECT_EQ(data.size(), element_count);
 
-        auto model = build_roundtrip_model(p.shape, p.decompose_version);
+        auto model = build_roundtrip_model(p.shape, p);
         model->validate_nodes_and_infer_types();
 
         return {model, std::move(data), element_count};
@@ -552,8 +594,8 @@ protected:
         auto data = generate_data(p, element_count);
         EXPECT_EQ(data.size(), element_count);
 
-        auto quant_model = build_quantize_model(p.shape, p.decompose_version);
-        auto dequant_model = build_dequantize_model(p.shape, p.decompose_version);
+        auto quant_model = build_quantize_model(p.shape, p);
+        auto dequant_model = build_dequantize_model(p.shape, p);
 
         ov::save_model(quant_model, "debug_quant_model_"+std::to_string(element_count) + "_v"+std::to_string(p.decompose_version)+".xml");
         ov::save_model(dequant_model, "debug_dequant_model_"+std::to_string(element_count) + "_v"+std::to_string(p.decompose_version)+".xml");
@@ -573,7 +615,7 @@ TEST_P(DynamicQuantizeAccuracyTest, RoundtripAccuracy) {
     std::cout << p.name << " (V" << p.decompose_version << ", fp16) [evaluate]:" << std::endl;
     print_metrics("  roundtrip", metrics);
 
-    EXPECT_LT(metrics.rel_l2_norm, kRelL2Threshold)
+    EXPECT_LT(metrics.rel_l2_norm, p.threshold)
         << "V" << p.decompose_version << " relative L2 too high";
 }
 
@@ -592,7 +634,7 @@ TEST_P(DynamicQuantizeAccuracyTest, SplitModelRoundtripAccuracy) {
               << std::endl;
     print_metrics("  split roundtrip", metrics);
 
-    EXPECT_LT(metrics.rel_l2_norm, kRelL2Threshold)
+    EXPECT_LT(metrics.rel_l2_norm, p.threshold)
         << "V" << p.decompose_version << " split model relative L2 too high";
 }
 
@@ -630,7 +672,7 @@ TEST_P(DynamicQuantizeAccuracyTest, DeviceRoundtripAccuracy) {
     print_metrics("  reference (evaluate)", ref_metrics);
     print_metrics("  device    (" + device + ")", dev_metrics);
 
-    EXPECT_LT(dev_metrics.rel_l2_norm, kRelL2Threshold)
+    EXPECT_LT(dev_metrics.rel_l2_norm, p.threshold)
         << "V" << p.decompose_version << " on " << device << ": relative L2 too high";
 
     if (ref_metrics.rel_l2_norm > 1e-9) {
@@ -655,6 +697,28 @@ static DQTestParams make_ggd(const std::string& name, int version, Shape shape,
                              float mu, float alpha, float beta, unsigned seed) {
     return {name, version, shape, seed, DistributionKind::GenGaussian,
             0.0f, 0.0f, mu, alpha, beta};
+}
+
+// Symmetric i4 factories: decompose_version=1 (V1 now handles i4 via dtype dispatch),
+// is_symmetric=true (2 DQ outputs, no ZP), higher threshold (coarser 4-bit grid).
+static DQTestParams make_sym_i4_uniform(const std::string& name, Shape shape,
+                                        float lo, float hi, unsigned seed) {
+    DQTestParams p = make_uniform(name, 1, shape, lo, hi, seed);
+    p.quant_dt     = element::i4;
+    p.is_symmetric = true;
+    p.threshold    = 0.15;  // i4: ±7 levels → higher quantisation error
+    return p;
+}
+
+static DQTestParams make_sym_i4_ggd(const std::string& name, Shape shape,
+                                    float mu, float alpha, float beta, unsigned seed) {
+    DQTestParams p = make_ggd(name, 1, shape, mu, alpha, beta, seed);
+    p.quant_dt     = element::i4;
+    p.is_symmetric = true;
+    // GGD heavy-tail distributions produce outliers that compress the i4 scale,
+    // causing higher quantisation error than uniform data (~0.25 observed).
+    p.threshold    = 0.40;
+    return p;
 }
 // clang-format on
 
@@ -732,6 +796,32 @@ INSTANTIATE_TEST_SUITE_P(
         make_ggd("V3_HeavyTails",   3, {1, 8, 1024, 128}, 0.018f, 1.121f, 0.923f, 42),
         make_ggd("V3_NearLaplace",  3, {1, 8, 1024, 128}, 0.032f, 1.388f, 1.016f, 77),
         make_ggd("V3_NearNormal",   3, {1, 8, 1024, 128}, -0.027f, 1.830f, 1.271f, 123)
+    ),
+    [](const ::testing::TestParamInfo<DQTestParams>& info) { return info.param.name; }
+);
+
+// ============================================================================
+// Test instantiation -- V1 symmetric i4: handcrafted symmetric i4 [-7, 7]
+// ============================================================================
+INSTANTIATE_TEST_SUITE_P(
+    V1_Symmetric_i4_Uniform,
+    DynamicQuantizeAccuracyTest,
+    ::testing::Values(
+        make_sym_i4_uniform("V1_i4_SmallRange",   {1, 8, 64, 128},   -1.0f,  1.0f,  42),
+        make_sym_i4_uniform("V1_i4_WiderRange",   {1, 8, 64, 128},   -10.0f, 10.0f, 77),
+        make_sym_i4_uniform("V1_i4_AsymPositive", {1, 8, 64, 128},   0.0f,   5.0f,  999),
+        make_sym_i4_uniform("V1_i4_LargeSeq",     {1, 8, 1024, 128}, -3.0f,  3.0f,  314)
+    ),
+    [](const ::testing::TestParamInfo<DQTestParams>& info) { return info.param.name; }
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    V1_Symmetric_i4_GenGaussian,
+    DynamicQuantizeAccuracyTest,
+    ::testing::Values(
+        make_sym_i4_ggd("V1_i4_HeavyTails",  {1, 8, 1024, 128}, 0.018f, 1.121f, 0.923f, 42),
+        make_sym_i4_ggd("V1_i4_NearLaplace", {1, 8, 1024, 128}, 0.032f, 1.388f, 1.016f, 77),
+        make_sym_i4_ggd("V1_i4_NearNormal",  {1, 8, 1024, 128}, -0.027f, 1.830f, 1.271f, 123)
     ),
     [](const ::testing::TestParamInfo<DQTestParams>& info) { return info.param.name; }
 );
