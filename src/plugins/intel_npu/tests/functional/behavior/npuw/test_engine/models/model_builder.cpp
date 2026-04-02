@@ -742,9 +742,9 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     // Apply VLM bidirectional modifier for image tokens
     if (config.use_token_type_ids && token_type_ids_output.get_node()) {
         if (full_mask.get_node())
-            full_mask = make_vlm_bidirectional_modifier(full_mask, token_type_ids_output, prec);
+            full_mask = make_vlm_bidirectional_modifier(full_mask, token_type_ids_output, seq_source, prec);
         if (sliding_mask.get_node())
-            sliding_mask = make_vlm_bidirectional_modifier(sliding_mask, token_type_ids_output, prec);
+            sliding_mask = make_vlm_bidirectional_modifier(sliding_mask, token_type_ids_output, seq_source, prec);
     }
 
     auto default_mask = full_mask.get_node() ? full_mask : sliding_mask;
