@@ -99,7 +99,7 @@ class GetMaxElementsForMemorySizeTest : public testing::TestWithParam<MaxElement
 
 TEST_P(GetMaxElementsForMemorySizeTest, calculate_max_elements) {
     const auto& [type, memory_size, exp_elements] = GetParam();
-    EXPECT_EQ(ov::util::get_elements_count(type, memory_size), exp_elements);
+    EXPECT_EQ(ov::util::get_elements_capacity(type, memory_size), exp_elements);
 }
 
 INSTANTIATE_TEST_SUITE_P(bit_type_precision,

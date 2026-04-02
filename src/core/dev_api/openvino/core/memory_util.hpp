@@ -48,7 +48,7 @@ OPENVINO_API std::optional<size_t> get_memory_size_safe(const element::Type& typ
  * @return Maximum count of elements that can fit into the given memory size, or 0 if the element type has 0 bitwidth
  *         e.g. type is dynamic.
  */
-OPENVINO_API size_t get_elements_count(const element::Type& type, const size_t memory_size);
+OPENVINO_API size_t get_elements_capacity(const element::Type& type, const size_t memory_size);
 
 /**
  * @brief Calculates padding size in bytes to align given position to specified alignment.

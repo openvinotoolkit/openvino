@@ -169,7 +169,7 @@ Shape resolve_static_shape(size_t available_size,
         }
         OPENVINO_ASSERT(slice_size > 0, "Cannot fit available bytes into requested PartialShape");
 
-        const auto elements_to_read = util::get_elements_count(element_type, available_size);
+        const auto elements_to_read = util::get_elements_capacity(element_type, available_size);
         auto new_dimension = Dimension(elements_to_read) / slice_size;
         OPENVINO_ASSERT(partial_shape[*dynamic_dimension_index].compatible(new_dimension),
                         "Cannot fit available bytes into requested PartialShape ",
@@ -181,7 +181,7 @@ Shape resolve_static_shape(size_t available_size,
     }
 
     const auto requested_size = util::get_memory_size_safe(element_type, static_shape);
-    OPENVINO_ASSERT(requested_size && *requested_size == available_size,
+    OPENVINO_ASSERT(requested_size && *requested_size <= available_size,
                     "Requested space exceeds available bounds: available bytes=",
                     available_size,
                     " requested size=",

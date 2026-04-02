@@ -67,7 +67,7 @@ std::optional<size_t> get_memory_size_safe(const element::Type& type, const ov::
     return byte_size ? get_memory_size_safe(type, *byte_size) : byte_size;
 }
 
-size_t get_elements_count(const element::Type& type, const size_t memory_size) {
+size_t get_elements_capacity(const element::Type& type, const size_t memory_size) {
     if (type.bitwidth() == 0) {
         return 0;
     } else if (element::is_split_bit_type(type)) {
