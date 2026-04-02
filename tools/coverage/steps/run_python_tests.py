@@ -13,6 +13,8 @@ from coverage_workflow import CoverageContext, env_from_assignments, load_python
 
 
 PYCOV_CONFIG = """[run]
+source =
+    openvino
 omit =
     */tests/*
     */thirdparty/*
@@ -23,6 +25,12 @@ omit =
     */src/bindings/python/tests/*
     *.pb.cc
     *.pb.h
+
+[paths]
+openvino =
+    src/bindings/python/src/openvino
+    */site-packages/openvino
+    */dist-packages/openvino
 """
 
 

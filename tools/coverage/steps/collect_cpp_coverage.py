@@ -146,6 +146,15 @@ def _remove_gcda_files(paths: list[Path]) -> int:
     return removed
 
 
+def _is_relative_to(path: Path, root: Path) -> bool:
+    """Return whether ``path`` is located under ``root``."""
+    try:
+        path.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
 def _classify_unwanted_gcda(rel_path: Path) -> str | None:
     """Return the exclusion reason for a gcda file we never want to capture."""
     rel = rel_path.as_posix()
@@ -156,6 +165,30 @@ def _classify_unwanted_gcda(rel_path: Path) -> str | None:
     if rel.startswith("thirdparty/") or "/thirdparty/" in padded:
         return "thirdparty"
     if "/tests/" in padded or rel.startswith("tests/"):
+        return "tests"
+    if rel.startswith("docs/") or "/docs/" in padded:
+        return "docs"
+    if rel.startswith("samples/") or "/samples/" in padded:
+        return "samples"
+    if rel.startswith("tools/") or "/tools/" in padded:
+        return "tools"
+    return None
+
+
+def _classify_unwanted_source(rel_path: Path) -> str | None:
+    """Return the exclusion reason for a source file path in a tracefile."""
+    rel = rel_path.as_posix()
+    padded = f"/{rel}/"
+
+    if rel.endswith(".pb.cc") or rel.endswith(".pb.h"):
+        return "generated-protobuf"
+    if rel.startswith("openvino_build/") or rel.startswith("openvino_build_js/"):
+        return "build-tree"
+    if rel.startswith("build/") or rel.startswith("build_js/"):
+        return "build-tree"
+    if rel.startswith("thirdparty/") or "/thirdparty/" in padded:
+        return "thirdparty"
+    if rel.startswith("tests/") or "/tests/" in padded:
         return "tests"
     if rel.startswith("docs/") or "/docs/" in padded:
         return "docs"
@@ -191,6 +224,132 @@ def _prune_unwanted_gcda(root: Path, *, label: str) -> None:
     if removed:
         details = ", ".join(f"{name}={count}" for name, count in sorted(reasons.items()))
         warn(f"{label}: pre-pruned {removed} unwanted gcda files before lcov capture ({details})")
+
+
+def _resolve_trace_source_path(raw_path: str, *, workspace: Path) -> Path | None:
+    """Resolve an ``SF:`` path from lcov into an existing file under the repo."""
+    raw = raw_path.strip()
+    if not raw:
+        return None
+
+    candidates: list[Path] = []
+    path = Path(raw)
+    if path.is_absolute():
+        candidates.append(path)
+    else:
+        stripped = raw.removeprefix("./")
+        if stripped:
+            candidates.append(workspace / stripped)
+            candidates.append(workspace.parent / stripped)
+            repo_prefix = f"{workspace.name}/"
+            if stripped.startswith(repo_prefix):
+                candidates.append(workspace / stripped[len(repo_prefix) :])
+
+    seen: set[str] = set()
+    for candidate in candidates:
+        try:
+            resolved = candidate.resolve(strict=False)
+        except OSError:
+            resolved = candidate
+        key = str(resolved)
+        if key in seen:
+            continue
+        seen.add(key)
+        if resolved.exists() and resolved.is_file() and _is_relative_to(resolved, workspace):
+            return resolved
+
+    return None
+
+
+def _normalize_and_filter_tracefile(*, tracefile: Path, workspace: Path, debug_dir: Path) -> dict[str, int]:
+    """Normalize ``SF:`` paths and drop records that should not be uploaded."""
+    stats: dict[str, int] = {
+        "total_records": 0,
+        "kept_records": 0,
+        "dropped_missing_sf": 0,
+        "dropped_unresolved": 0,
+        "dropped_outside_workspace": 0,
+        "dropped_excluded": 0,
+        "rewritten_paths": 0,
+    }
+    excluded_reasons: dict[str, int] = {}
+    unresolved_samples: list[str] = []
+
+    if not tracefile.is_file():
+        return stats
+
+    input_lines = tracefile.read_text(encoding="utf-8", errors="replace").splitlines()
+    output_lines: list[str] = []
+    record: list[str] = []
+
+    def flush_record(lines: list[str]) -> None:
+        if not lines:
+            return
+        stats["total_records"] += 1
+
+        sf_index = next((idx for idx, line in enumerate(lines) if line.startswith("SF:")), None)
+        if sf_index is None:
+            stats["dropped_missing_sf"] += 1
+            return
+
+        raw_source = lines[sf_index][3:]
+        resolved = _resolve_trace_source_path(raw_source, workspace=workspace)
+        if resolved is None:
+            stats["dropped_unresolved"] += 1
+            if len(unresolved_samples) < 20:
+                unresolved_samples.append(raw_source)
+            return
+
+        if not _is_relative_to(resolved, workspace):
+            stats["dropped_outside_workspace"] += 1
+            return
+
+        rel_source = resolved.relative_to(workspace)
+        exclude_reason = _classify_unwanted_source(rel_source)
+        if exclude_reason is not None:
+            stats["dropped_excluded"] += 1
+            excluded_reasons[exclude_reason] = excluded_reasons.get(exclude_reason, 0) + 1
+            return
+
+        normalized_source = str(resolved)
+        if normalized_source != raw_source:
+            lines[sf_index] = f"SF:{normalized_source}"
+            stats["rewritten_paths"] += 1
+
+        output_lines.extend(lines)
+        stats["kept_records"] += 1
+
+    for line in input_lines:
+        record.append(line)
+        if line == "end_of_record":
+            flush_record(record)
+            record = []
+    flush_record(record)
+
+    tracefile.write_text(("\n".join(output_lines) + "\n") if output_lines else "", encoding="utf-8")
+
+    summary_lines = [
+        f"tracefile={tracefile}",
+        f"workspace={workspace}",
+        f"total_records={stats['total_records']}",
+        f"kept_records={stats['kept_records']}",
+        f"dropped_missing_sf={stats['dropped_missing_sf']}",
+        f"dropped_unresolved={stats['dropped_unresolved']}",
+        f"dropped_outside_workspace={stats['dropped_outside_workspace']}",
+        f"dropped_excluded={stats['dropped_excluded']}",
+        f"rewritten_paths={stats['rewritten_paths']}",
+    ]
+    if excluded_reasons:
+        summary_lines.append("excluded_reasons=" + ", ".join(f"{name}={count}" for name, count in sorted(excluded_reasons.items())))
+    if unresolved_samples:
+        summary_lines.append("unresolved_samples:")
+        summary_lines.extend(f"  {sample}" for sample in unresolved_samples)
+
+    summary_path = debug_dir / f"{tracefile.stem}.normalized-summary.txt"
+    summary_path.write_text("\n".join(summary_lines) + "\n", encoding="utf-8")
+    print(f"[coverage] ===== {summary_path.name} =====")
+    print("\n".join(summary_lines[:20]))
+    return stats
 
 
 def _tool_version_report() -> str:
@@ -314,7 +473,6 @@ def _run_lcov_capture(
         str(base_directory),
         "--output-file",
         str(output_file),
-        "--no-external",
         "--rc",
         "geninfo_unexecuted_blocks=1",
         "--ignore-errors",
@@ -579,39 +737,19 @@ def run(ctx: CoverageContext) -> None:
 
     _merge_tracefiles(tracefiles, merged_info)
 
+    normalization_stats = _normalize_and_filter_tracefile(tracefile=merged_info, workspace=src_dir, debug_dir=trace_dir)
+
     if not merged_info.exists() or merged_info.stat().st_size == 0:
         warn("coverage.info is empty; skipping lcov --remove and genhtml.")
-        shutil.rmtree(trace_dir, ignore_errors=True)
         return
-
-    run_cmd(
-        [
-            "lcov",
-            "--remove",
-            str(merged_info),
-            "--ignore-errors",
-            "unused",
-            f"{src_dir}/build/*",
-            f"{src_dir}/build_js/*",
-            f"{src_dir}/*.pb.cc",
-            f"{src_dir}/*.pb.h",
-            f"{src_dir}/*/tests/*",
-            f"{src_dir}/tests/*",
-            f"{src_dir}/docs/*",
-            f"{src_dir}/samples/*",
-            f"{src_dir}/tools/*",
-            f"{src_dir}/src/bindings/js/node/tests/*",
-            f"{src_dir}/src/bindings/python/tests/*",
-            f"{src_dir}/thirdparty/*",
-            "-o",
-            str(merged_info),
-        ]
+    print(
+        "[coverage] Normalized merged tracefile: "
+        f"kept={normalization_stats['kept_records']}, "
+        f"dropped_unresolved={normalization_stats['dropped_unresolved']}, "
+        f"dropped_excluded={normalization_stats['dropped_excluded']}, "
+        f"rewritten={normalization_stats['rewritten_paths']}"
     )
-
-    shutil.rmtree(trace_dir, ignore_errors=True)
-
-    run_cmd(["grep", "-m", "5", f"^SF:{src_dir}/build/", str(merged_info)], check=False)
-    run_cmd(["grep", "-m", "5", f"^SF:{src_dir}/build_js/", str(merged_info)], check=False)
+    run_cmd(["grep", "-m", "10", "^SF:", str(merged_info)], check=False)
 
     report_dir.mkdir(parents=True, exist_ok=True)
     genhtml_rc = run_cmd(

@@ -196,6 +196,20 @@ jobs:
         if: ${{ steps.detect_gcda_cpu.outputs.exists == 'true' }}
         run: python3 tools/coverage/coverage.py step collect-cpp-coverage
 
+      - name: Check CPU native coverage report
+        id: check_cpp_native_report
+        if: ${{ always() }}
+        run: |
+          if [[ -s "${OV_WORKSPACE}/coverage.info" ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            wc -c "${OV_WORKSPACE}/coverage.info"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            if [[ -f "${OV_WORKSPACE}/coverage.info" ]]; then
+              wc -c "${OV_WORKSPACE}/coverage.info"
+            fi
+          fi
+
       - name: Collect C++ CPU results
         id: cpu_artifact
         if: ${{ always() }}
@@ -211,7 +225,7 @@ jobs:
           echo "dir=${dir}" >> "$GITHUB_OUTPUT"
 
       - name: Upload Codecov (C++ runtime, CPU)
-        if: ${{ hashFiles('openvino/coverage.info') != '' }}
+        if: ${{ steps.check_cpp_native_report.outputs.ready == 'true' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: openvino/coverage.info
@@ -370,6 +384,30 @@ jobs:
         if: ${{ steps.detect_py_gcda_cpu.outputs.exists == 'true' }}
         run: python3 tools/coverage/coverage.py step collect-cpp-coverage
 
+      - name: Check Python coverage reports
+        id: check_python_reports
+        if: ${{ always() }}
+        run: |
+          if [[ -s "${OV_WORKSPACE}/python-coverage.xml" ]]; then
+            echo "python_xml_ready=true" >> "$GITHUB_OUTPUT"
+            wc -c "${OV_WORKSPACE}/python-coverage.xml"
+          else
+            echo "python_xml_ready=false" >> "$GITHUB_OUTPUT"
+            if [[ -f "${OV_WORKSPACE}/python-coverage.xml" ]]; then
+              wc -c "${OV_WORKSPACE}/python-coverage.xml"
+            fi
+          fi
+
+          if [[ -s "${OV_WORKSPACE}/coverage.info" ]]; then
+            echo "native_ready=true" >> "$GITHUB_OUTPUT"
+            wc -c "${OV_WORKSPACE}/coverage.info"
+          else
+            echo "native_ready=false" >> "$GITHUB_OUTPUT"
+            if [[ -f "${OV_WORKSPACE}/coverage.info" ]]; then
+              wc -c "${OV_WORKSPACE}/coverage.info"
+            fi
+          fi
+
       - name: Collect Python CPU results
         id: cpu_artifact
         if: ${{ always() }}
@@ -385,7 +423,7 @@ jobs:
           echo "dir=${dir}" >> "$GITHUB_OUTPUT"
 
       - name: Upload Codecov (Python API, CPU)
-        if: ${{ hashFiles('openvino/python-coverage.xml') != '' }}
+        if: ${{ steps.check_python_reports.outputs.python_xml_ready == 'true' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: openvino/python-coverage.xml
@@ -398,7 +436,7 @@ jobs:
           verbose: true
 
       - name: Upload Codecov (C++ runtime, Python suite, CPU)
-        if: ${{ hashFiles('openvino/coverage.info') != '' }}
+        if: ${{ steps.check_python_reports.outputs.native_ready == 'true' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: openvino/coverage.info
@@ -565,6 +603,20 @@ jobs:
         if: ${{ steps.detect_js_gcda_cpu.outputs.exists == 'true' }}
         run: python3 tools/coverage/coverage.py step collect-cpp-coverage
 
+      - name: Check JS native coverage report
+        id: check_js_native_report
+        if: ${{ always() }}
+        run: |
+          if [[ -s "${OV_WORKSPACE}/coverage.info" ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            wc -c "${OV_WORKSPACE}/coverage.info"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            if [[ -f "${OV_WORKSPACE}/coverage.info" ]]; then
+              wc -c "${OV_WORKSPACE}/coverage.info"
+            fi
+          fi
+
       - name: Collect JS CPU results
         id: cpu_artifact
         if: ${{ always() }}
@@ -593,7 +645,7 @@ jobs:
           verbose: true
 
       - name: Upload Codecov (C++ runtime, JS suite, CPU)
-        if: ${{ hashFiles('openvino/coverage.info') != '' }}
+        if: ${{ steps.check_js_native_report.outputs.ready == 'true' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: openvino/coverage.info
