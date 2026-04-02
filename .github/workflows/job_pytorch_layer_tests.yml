@@ -33,7 +33,7 @@ jobs:
   PyTorch_Layer_Tests:
     name: PyTorch Layer Tests
     timeout-minutes: 60
-    runs-on: aks-win-16-cores-32gb-st
+    runs-on: aks-linux-4-cores-16gb-st
     container:
       image: ${{ inputs.image }}
       volumes:
@@ -45,7 +45,7 @@ jobs:
         shell: ${{ contains(inputs.runner, 'win') && 'pwsh' || 'bash' }}
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-      #HF_TOKEN_PATH: ${{ contains(inputs.runner, 'win') && 'C:\mount\secrets\huggingface\hf-token' || '/secrets/huggingface/hf-token' }}
+      # HF_TOKEN_PATH: ${{ contains(inputs.runner, 'win') && 'C:\mount\secrets\huggingface\hf-token' || '/secrets/huggingface/hf-token' }}
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
@@ -53,12 +53,12 @@ jobs:
       HF_HUB_VERBOSITY: debug
       TRANSFORMERS_VERBOSITY: debug
     steps:
-      - name: Debug HF token path (Linux/macOS)
-        if: ${{ runner.os != 'Windows' }}
-        shell: bash
-        run: |
-          echo "HF_TOKEN_PATH=${HF_TOKEN_PATH}"
-          ls -la "${HF_TOKEN_PATH}" 2>&1 || echo "File not found: ${HF_TOKEN_PATH}"
+      # - name: Debug HF token path (Linux/macOS)
+      #   if: ${{ runner.os != 'Windows' }}
+      #   shell: bash
+      #   run: |
+      #     echo "HF_TOKEN_PATH=${HF_TOKEN_PATH}"
+      #     ls -la "${HF_TOKEN_PATH}" 2>&1 || echo "File not found: ${HF_TOKEN_PATH}"
 
       # - name: Debug HF token path (Windows)
       #   if: ${{ runner.os == 'Windows' }}

@@ -27,7 +27,7 @@ jobs:
   PyTorch_Models_Tests:
     name: PyTorch Models tests
     timeout-minutes: ${{ inputs.model_scope == 'precommit' && 90 || 400 }}
-    runs-on: ${{ inputs.runner }}
+    runs-on: aks-linux-4-cores-16gb-st
     container:
       image: ${{ inputs.image }}
       volumes:
@@ -47,13 +47,13 @@ jobs:
       HF_HUB_VERBOSITY: debug
       TRANSFORMERS_VERBOSITY: debug
     steps:
-      - name: Append the environment variable - load HF_TOKEN from file
-        shell: bash
-        run: |
-          HF_TOKEN="$(cat /secrets/huggingface/hf-token)"
-          echo "::add-mask::${HF_TOKEN}"
-          echo "HF_TOKEN=${HF_TOKEN}" >> $GITHUB_ENV
-          echo "✓ HuggingFace token loaded and masked"
+      # - name: Append the environment variable - load HF_TOKEN from file
+      #   shell: bash
+      #   run: |
+      #     HF_TOKEN="$(cat /secrets/huggingface/hf-token)"
+      #     echo "::add-mask::${HF_TOKEN}"
+      #     echo "HF_TOKEN=${HF_TOKEN}" >> $GITHUB_ENV
+      #     echo "✓ HuggingFace token loaded and masked"
 
       - name: Fetch setup_python and install wheels actions
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
