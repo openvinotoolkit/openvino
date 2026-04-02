@@ -9,6 +9,7 @@
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
@@ -276,9 +277,9 @@ void ZeGraphExtWrappers::initializeGraph(const GraphDescriptor& graphDescriptor)
 void ZeGraphExtWrappers::initializeGraphThroughCommandList(ze_graph_handle_t graphHandle) const {
     _logger.debug("initializeGraphThroughCommandList init start - create graphCommandList");
     CommandList graphCommandList(_zeroInitStruct);
-    _logger.debug("initializeGraphThroughCommandList - create graphCommandQueue");
-    std::shared_ptr<CommandQueue> graphCommandQueue =
-        std::make_shared<CommandQueue>(_zeroInitStruct, ZE_COMMAND_QUEUE_PRIORITY_NORMAL, false);
+    _logger.debug("initializeGraphThroughCommandList - get commandQueue");
+    const auto graphCommandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, CommandQueueDesc{});
+
     _logger.debug("initializeGraphThroughCommandList - create fence");
     Fence fence(graphCommandQueue);
 
