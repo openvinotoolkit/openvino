@@ -230,7 +230,7 @@ bool SingleFileStorage::has_blob_id(BlobIdType blob_id) const {
     return m_blob_index.find(blob_id) != m_blob_index.end();
 }
 
-void SingleFileStorage::write_blob_entry(std::ofstream& stream, BlobIdType blob_id, StreamWriter& writer) {
+void SingleFileStorage::write_blob_entry(std::fstream& stream, BlobIdType blob_id, StreamWriter& writer) {
     OPENVINO_ASSERT(!has_blob_id(blob_id), "Blob with id ", blob_id, " already exists in cache.");
 
     std::streampos blob_pos;
@@ -260,7 +260,9 @@ void SingleFileStorage::write_blob_entry(std::ofstream& stream, BlobIdType blob_
 
 void SingleFileStorage::write_cache_entry(const std::string& blob_id, StreamWriter writer) {
     ScopedLocale plocal_C(LC_ALL, "C");
-    std::ofstream stream(m_file_path, std::ios::binary | std::ios::in | std::ios::ate);
+    std::fstream stream(m_file_path, std::ios::binary | std::ios::in | std::ios::out);
+    OPENVINO_ASSERT(stream.good(), "Failed to open cache file ", m_file_path, " for writing blob id ", blob_id);
+    stream.seekp(0, std::ios::end);
     write_blob_entry(stream, convert_blob_id(blob_id), writer);
 }
 

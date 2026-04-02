@@ -78,7 +78,7 @@ private:
     bool build_content_index(std::ifstream& stream);
 
     static BlobIdType convert_blob_id(const std::string& blob_id);
-    void write_blob_entry(std::ofstream& stream, BlobIdType blob_id, StreamWriter& writer);
+    void write_blob_entry(std::fstream& stream, BlobIdType blob_id, StreamWriter& writer);
     bool has_blob_id(BlobIdType blob_id) const;
 };
 }  // namespace ov::runtime
