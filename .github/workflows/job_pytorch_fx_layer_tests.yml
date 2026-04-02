@@ -31,7 +31,7 @@ jobs:
   PyTorch_FX_Layer_Tests:
     name: PyTorch FX Layer Tests
     timeout-minutes: 60
-    runs-on: ${{ inputs.runner }}
+    runs-on: aks-win-16-cores-32gb-st
     container:
       image: ${{ inputs.image }}
       volumes:
