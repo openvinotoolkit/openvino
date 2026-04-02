@@ -7,9 +7,11 @@
 #include <behavior/compiled_model/import_export.hpp>
 #include <sstream>
 
+#include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "openvino/util/codec_xor.hpp"
 
 namespace ov {
 
@@ -96,6 +98,46 @@ TEST_P(OVCompiledGraphImportExportTestNPU, CheckSizeOfBlobIfMultipleOfPageSize) 
 
     ASSERT_TRUE(size_of_blob != 0) << "Size of the blob shall be different from 0";
     ASSERT_TRUE(size_of_blob % 4096 == 0) << "Size of the blob shall be multiple of 4096";
+}
+
+TEST_P(OVCompiledGraphImportExportTestNPU, ImportingEncryptedBlobThrows) {
+    ov::Core core;
+    std::stringstream encrypted_blob_stream;
+
+    if (ov::intel_npu::Platform::standardize(ov::test::utils::getTestPlatform()) == ov::intel_npu::Platform::NPU3720) {
+        GTEST_SKIP() << "MTL will not reject bad formats of blobs leading do 0xC0000005 SEH exceptions";
+    }
+
+    auto model = ov::test::utils::make_conv_pool_relu();
+    configuration.insert(ov::cache_encryption_callbacks(ov::EncryptionCallbacks{ov::util::codec_xor, nullptr}));
+    core.compile_model(model, target_device, configuration).export_model(encrypted_blob_stream);
+    configuration.erase(ov::cache_encryption_callbacks.name());
+    OV_EXPECT_THROW(
+        core.import_model(encrypted_blob_stream, target_device, configuration),
+        ov::Exception,
+        ::testing::HasSubstr(
+            "L0 pfnCreate2 result: ZE_RESULT_ERROR_INVALID_NATIVE_BINARY, code 0x7800000f - native binary is "
+            "not supported by the device"));
+}
+
+TEST_P(OVCompiledGraphImportExportTestNPU, SameEncryptedBlobViaExportAndManualFunctionCall) {
+    ov::Core core;
+    std::stringstream unencrypted_blob_stream, encrypted_blob_stream;
+
+    auto model = ov::test::utils::make_conv_pool_relu();
+    configuration.insert(ov::intel_npu::export_raw_blob(true));  // metadata is not encrypted, avoid exporting it
+    core.compile_model(model, target_device, configuration).export_model(unencrypted_blob_stream);
+    configuration.insert(ov::cache_encryption_callbacks(ov::EncryptionCallbacks{ov::util::codec_xor, nullptr}));
+    core.compile_model(model, target_device, configuration).export_model(encrypted_blob_stream);
+
+    std::string manual_encrypted_blob_str = ov::util::codec_xor(unencrypted_blob_stream.str());
+    std::string encrypted_blob_str = encrypted_blob_stream.str();
+
+    // Don't compare last 4096 bytes because padding that is unencrypted might be included in exported blob
+    ASSERT_EQ(std::strncmp(manual_encrypted_blob_str.c_str(),
+                           encrypted_blob_str.c_str(),
+                           manual_encrypted_blob_str.size() - 4096),
+              0);
 }
 
 }  // namespace behavior

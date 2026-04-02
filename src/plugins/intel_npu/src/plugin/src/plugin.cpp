@@ -606,6 +606,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     std::optional<std::function<std::string(const std::string&)>> encryptionCallback = std::nullopt;
     if (auto encryptionCallbackIt = localProperties.find(ov::cache_encryption_callbacks.name());
         encryptionCallbackIt != localProperties.end()) {
+        OPENVINO_ASSERT(encryptionCallbackIt->second.as<ov::EncryptionCallbacks>().encrypt != nullptr,
+                        "Null encryption function was given!");
         encryptionCallback = encryptionCallbackIt->second.as<ov::EncryptionCallbacks>().encrypt;
     }
 
@@ -698,6 +700,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         ov::Tensor tensor;
         if (auto it = npuPluginProperties.find(ov::cache_encryption_callbacks.name());
             it != npuPluginProperties.end()) {
+            OPENVINO_ASSERT(it->second.as<ov::EncryptionCallbacks>().decrypt != nullptr,
+                            "Null decrpytion function was given!");
             std::string blobStr;
             blobStr.resize(blobSize);  // +1x blob size
             if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
@@ -784,6 +788,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
 
         if (auto it = npuPluginProperties.find(ov::cache_encryption_callbacks.name());
             it != npuPluginProperties.end()) {
+            OPENVINO_ASSERT(it->second.as<ov::EncryptionCallbacks>().decrypt != nullptr,
+                            "Null decrpytion function was given!");
             ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
             std::string blobStr(compiledBlob.data<const char>(), compiledBlob.get_byte_size());  // +1x blob size
             auto decryptedBlobStr = it->second.as<ov::EncryptionCallbacks>().decrypt(blobStr);   // + 2x blob size
@@ -1000,6 +1006,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     std::optional<std::function<std::string(const std::string&)>> encryptionCallback = std::nullopt;
     if (auto encryptionCallbackIt = localProperties.find(ov::cache_encryption_callbacks.name());
         encryptionCallbackIt != localProperties.end()) {
+        OPENVINO_ASSERT(encryptionCallbackIt->second.as<ov::EncryptionCallbacks>().encrypt != nullptr,
+                        "Null encryption function was given!");
         encryptionCallback = encryptionCallbackIt->second.as<ov::EncryptionCallbacks>().encrypt;
     }
 
