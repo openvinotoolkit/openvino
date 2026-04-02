@@ -77,7 +77,6 @@ GPU Device Plugin
 ---------------------------------------------------------------------------------------------
 
 * Performance has been improved for LTX-Video model. 
-* Added support and optimization for Yolo26 model. 
 * Preview: Experimental L0 backend support for Xe2+ GPUs. Documentation is provided `here <https://github.com/openvinotoolkit/openvino/pull/34727/changes#diff-c0c2a7f47dd4d4c967eb34bf9691372c31f58f9dad77d294dd237d02aa002a1a>`__  
 * Memory optimization for SD3.5 Flash 
 * XAttention (Block Sparse Attention with Antidiagonal Scoring) is now initially supported on Intel's Xe1 architecture to improve time-to-first token. (Xe2/3 is already supported). Performance has been improved for low threshold scenarios. 
@@ -150,7 +149,6 @@ Neural Network Compression Framework
 
 * Added experimental support for NVFP4 data type. 
 * Introduced an additional RoPe ignored pattern without the transpose node to support 4-bit compression for models like Phi-3.5-MoE-instruct. 
-* Introduced TopK metatype support for TorchFX models to support models such as Yolo26. 
 * Migrated TorchFX backend support from torch.ao to `torchao <https://github.com/pytorch/ao>`__. 
 * Upgraded PyTorch version to 2.10.0. 
 * Upgraded ONNX version to 1.20.1 and ONNX Runtime to 1.24.3.  
@@ -186,11 +184,6 @@ New models and use cases:
 * `LLM Code Assistant with OpenVINO <https://openvinotoolkit.github.io/openvino_notebooks/?search=llm+code+assistant >`__ 
 * `Visual-Language Models (VLM) Chatbot with Generate API <https://openvinotoolkit.github.io/openvino_notebooks/?search=vlm-powered >`__ 
 * `PaddleOCR-VL for Document Parsing (experimental) <https://openvinotoolkit.github.io/openvino_notebooks/?search=paddleocr-vl >`__ 
-* `YOLOE-26 Open-Vocabulary Detection and Segmentation <https://openvinotoolkit.github.io/openvino_notebooks/?search=YOLOE-26+Open-Vocabulary >`__ 
-* `YOLOv26 Instance Segmentation <https://openvinotoolkit.github.io/openvino_notebooks/?search=yolov26-instance-segmentation >`__ 
-* `YOLOv26 Keypoint Detection <https://openvinotoolkit.github.io/openvino_notebooks/?search=yolov26-keypoint-detection >`__ 
-* `YOLOv26 Oriented Bounding Box (OBB) <https://openvinotoolkit.github.io/openvino_notebooks/?search=yolo26+Oriented+Bounding+Boxes >`__ 
-* `YOLOv26 Object Detection  <https://openvinotoolkit.github.io/openvino_notebooks/?search=yolo26+real-time+object+detection >`__ 
 
 Archived Notebooks Tab: Added a dedicated "Archived" tab to the `OpenVINO Notebooks portal <https://openvinotoolkit.github.io/openvino_notebooks/ >`__. Users can now easily search and browse older or deprecated notebooks, keeping the main catalog focused on the latest updates while retaining access to historical content. 
 
