@@ -11,7 +11,7 @@
 #include <algorithm>
 
 namespace {
-bool has_optimized_users(cldnn::input_layout_node const& node) {
+bool has_optimized_users(const cldnn::input_layout_node& node) {
     for (auto& user : node.get_users()) {
         if (user->can_be_optimized()) {
             return true;
@@ -25,14 +25,13 @@ bool has_optimized_users(cldnn::input_layout_node const& node) {
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(input_layout)
 
-input_layout_node::typed_program_node(const std::shared_ptr<input_layout> dprim, program& prog)
-    : parent(dprim, prog) {
+input_layout_node::typed_program_node(const std::shared_ptr<input_layout> dprim, program& prog) : parent(dprim, prog) {
     can_share_buffer(false);
 }
 
-input_layout_inst::typed_primitive_inst(network& network, input_layout_node const& node)
-    : parent(network, node, !node.is_dynamic() && (!network.is_internal() || has_optimized_users(node))) {
-    _has_valid_input = false;  // by default input for 'input_layout' is invalid as long as user doesn't call set_data
+input_layout_inst::typed_primitive_inst(network& network, const input_layout_node& node)
+    : parent(network, node, /*allocate_mem*/ false) {  // !node.is_dynamic() && (!network.is_internal() || has_optimized_users(node))) {
+    _has_valid_input = false;                          // by default input for 'input_layout' is invalid as long as user doesn't call set_data
 }
 
 event::ptr input_layout_inst::set_data(memory::ptr mem, bool need_to_check_memory_to_set) {
@@ -49,15 +48,17 @@ event::ptr input_layout_inst::set_data(memory::ptr mem, bool need_to_check_memor
 
     // Allow to set dummy simple_attached_memory empty tensor as network input
     if (mem->is_allocated_by(engine) || mem->get_layout().count() == 0) {
-        OPENVINO_ASSERT(!_outputs.empty(), "[GPU] Can't set data for empty input memory");
+        // Direct assignment — no copy, no pre-allocation waste
+        if (_outputs.empty()) {
+            _outputs.resize(1);
+        }
         _outputs[0] = mem;
     } else {
-        if (_outputs.empty() || !_outputs[0]) {
+        if (_outputs.empty()) {
             _outputs.resize(1);
-            _outputs[0] = engine.allocate_memory(mem->get_layout(), engine.get_preferred_memory_allocation_type(), false);
         }
-
-        if (ol.is_dynamic() && _outputs[0]->size() < mem->size()) {
+        // Only allocate if needed and not already large enough
+        if (!_outputs[0] || _outputs[0]->size() < mem->size()) {
             _outputs[0] = engine.allocate_memory(mem->get_layout(), engine.get_preferred_memory_allocation_type(), false);
         }
         mem_lock<uint8_t> src(mem, stream);
@@ -78,7 +79,7 @@ void input_layout_inst::update_shape() {
     _impl_params->output_layouts[0] = mem_layout;
 }
 
-std::string input_layout_inst::to_string(input_layout_node const& node) {
+std::string input_layout_inst::to_string(const input_layout_node& node) {
     auto node_info = node.desc_to_json();
 
     std::stringstream primitive_description;

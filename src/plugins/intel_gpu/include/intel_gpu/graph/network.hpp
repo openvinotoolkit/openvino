@@ -122,7 +122,7 @@ public:
 
     memory::ptr get_output_memory(const primitive_id& output_id);
     layout get_output_layout(const primitive_id& output_id) const;
-    std::vector<layout> get_input_layouts() const;
+    std::vector<layout> get_input_layouts();
 
     /// @brief Returns the list of @ref event for the primitives that were executed in network.
     std::map<primitive_id, event::ptr> get_executed_primitives() const {
