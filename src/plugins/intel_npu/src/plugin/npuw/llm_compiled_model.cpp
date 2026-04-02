@@ -1188,7 +1188,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
             m_kvcache_desc.dim & m_kvcache_desc.max_generation_token_len & m_kvcache_desc.v_tensors_transposed_pre &
             m_kvcache_desc.v_tensors_transposed_gen & m_prefill_chunk_size & m_use_chunk_prefill & m_max_lora_rank &
             m_enable_prefix_caching & m_prefix_caching_block_size & m_prefix_caching_max_num_blocks & m_is_whisper &
-            m_eos_token_id & m_is_eagle & m_is_embedding;
+            m_eos_token_id & m_decomposed_sdpa_size & m_is_eagle & m_is_embedding;
 
         // Write config
         stream & m_cfg;
@@ -1404,7 +1404,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
             compiled->m_kvcache_desc.v_tensors_transposed_gen & compiled->m_prefill_chunk_size &
             compiled->m_use_chunk_prefill & compiled->m_max_lora_rank & compiled->m_enable_prefix_caching &
             compiled->m_prefix_caching_block_size & compiled->m_prefix_caching_max_num_blocks & compiled->m_is_whisper &
-            compiled->m_eos_token_id & compiled->m_is_eagle & compiled->m_is_embedding;
+            compiled->m_eos_token_id & compiled->m_decomposed_sdpa_size & compiled->m_is_eagle & compiled->m_is_embedding;
 
         // Deserialize config
         stream & compiled->m_cfg;
