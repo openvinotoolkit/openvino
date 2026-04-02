@@ -663,7 +663,7 @@ void add_cache_position_input(const std::shared_ptr<ov::Model>& model) {
 void decompose_scaled_dot_product_attention_for_whisper(std::shared_ptr<ov::Model> model) {
     ov::pass::Manager manager;
     manager.register_pass<WhisperScaledDotProductAttentionDecomposition>();
-    auto result = manager.run_passes(model);
+    manager.run_passes(model);
 }
 
 // FIXME: Whisper Decompose SDPA
