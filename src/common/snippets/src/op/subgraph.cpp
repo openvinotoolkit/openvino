@@ -30,6 +30,8 @@
 #include "openvino/op/group_normalization.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/softmax.hpp"
@@ -123,6 +125,8 @@ auto Subgraph::is_domain_sensitive_op(const std::shared_ptr<ov::Node>& op) -> bo
                               ov::op::v1::Broadcast,
                               ov::op::v3::Broadcast,
                               ov::op::v12::GroupNormalization,
+                              ov::op::v1::ReduceSum,
+                              ov::op::v1::ReduceMax,
                               op::Reshape>(op);
 }
 
@@ -139,7 +143,7 @@ void Subgraph::init_config() {
         update(config.m_is_quantized, ov::is_type<ov::op::v0::FakeQuantize>(op));
         update(config.m_has_domain_sensitive_ops, is_domain_sensitive_op(op));
         update(config.m_has_broadcast_sensitive_ops,
-               ov::is_type_any_of<ov::op::v12::GroupNormalization, op::Reshape>(op));
+               ov::is_type_any_of<ov::op::v12::GroupNormalization, ov::snippets::op::Reshape>(op));
     }
 }
 

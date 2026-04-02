@@ -44,6 +44,7 @@ public:
 
     CommandQueueDesc get_command_queue_desc() const override;
     void set_workload_type(const ov::WorkloadType workloadType) override;
+    void set_model_priority(const ov::hint::Priority modelPriority) override;
 
     void set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList) override;
     const std::shared_ptr<Event>& get_last_submitted_event(size_t indexOfCommandList) const override;
