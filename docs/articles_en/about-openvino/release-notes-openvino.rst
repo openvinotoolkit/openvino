@@ -183,6 +183,7 @@ Jupyter Notebooks
 -----------------------------
 
 New models and use cases: 
+
 * `MiniCPM-o 4.5 Multimodal Chatbot with OpenVINO (experimental) <https://openvinotoolkit.github.io/openvino_notebooks/?search=minicpm-o+4.5>`__ 
 * `LLM Code Assistant with OpenVINO <https://openvinotoolkit.github.io/openvino_notebooks/?search=llm+code+assistant>`__ 
 * `Visual-Language Models (VLM) Chatbot with Generate API <https://openvinotoolkit.github.io/openvino_notebooks/?search=vlm-powered>`__ 
@@ -525,6 +526,7 @@ Deprecated and to be removed in the future
   * `Directed Acyclic Graph Scheduler <https://docs.openvino.ai/2026/model-server/ovms_docs_dag.html>`__ will be deprecated in favor of pipelines managed by MediaPipe scheduler and will be removed in 2026.3. That approach gives more flexibility, includes wider range of calculators and has support for using processing accelerators.
 
 * OpenVINO™ GenAI: 
+
   * ``start_chat()`` / ``finish_chat()`` APIs are deprecated and will be removed in a future major release. Pass a ChatHistory object directly to ``generate()`` instead. 
 
 Legal Information
