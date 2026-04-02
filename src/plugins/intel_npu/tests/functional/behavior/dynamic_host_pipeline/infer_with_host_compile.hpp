@@ -13,6 +13,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "intel_npu/utils/zero/zero_init.hpp"
@@ -32,7 +33,7 @@ inline std::shared_ptr<ov::Model> createMaxPoolModel() {
     const char* check_simple_model = std::getenv("CHECK_SIMPLE_MODEL");
     if (check_simple_model && std::string(check_simple_model) == "1") {
         auto input =
-            std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 16, 720, ov::Dimension(10, 1280)});
+            std::make_shared<ov::op::v0::Parameter>(element::f16, PartialShape{1, 16, 720, ov::Dimension(10, 1280)});
         input->set_friendly_name("input1");
 
         auto maxpool = std::make_shared<ov::op::v1::MaxPool>(input,
@@ -51,7 +52,7 @@ inline std::shared_ptr<ov::Model> createMaxPoolModel() {
     }
 
     auto input =
-        std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 16, 720, ov::Dimension(10, 1280)});
+        std::make_shared<ov::op::v0::Parameter>(element::f16, PartialShape{1, 16, 720, ov::Dimension(10, 1280)});
     input->set_friendly_name("input1");
 
     auto maxpool = std::make_shared<ov::op::v1::MaxPool>(input,
@@ -63,7 +64,7 @@ inline std::shared_ptr<ov::Model> createMaxPoolModel() {
                                                          op::PadType::EXPLICIT);
     maxpool->set_friendly_name("MaxPool_2");
 
-    auto scale = ov::opset6::Constant::create(element::f32, Shape{}, {2.0f});
+    auto scale = ov::opset6::Constant::create(element::f16, Shape{}, {2.0f});
     scale->set_friendly_name("scale_const");
 
     auto mul = std::make_shared<ov::op::v1::Multiply>(maxpool, scale);
@@ -207,6 +208,7 @@ protected:
 InferWithHostCompileTests::ScopedLogCapture::ScopedLogCapture()
     : callback([this](std::string_view s) {
           stream << s << std::endl;
+          std::cout << s << std::endl;
       }) {
     ov::util::set_log_callback(callback);
 }
@@ -224,15 +226,85 @@ std::string InferWithHostCompileTests::ScopedLogCapture::str() const {
     return stream.str();
 }
 
+namespace {
+
+template <typename T>
+void dumpValuesAsType(const ov::Tensor& tensor, size_t count, std::ostream& os) {
+    const T* data = tensor.data<const T>();
+    for (size_t i = 0; i < count; ++i) {
+        if constexpr (std::is_same_v<T, int8_t> || std::is_same_v<T, uint8_t>) {
+            os << static_cast<int>(data[i]) << " ";
+        } else if constexpr (std::is_same_v<T, ov::float16> || std::is_same_v<T, ov::bfloat16>) {
+            os << static_cast<float>(data[i]) << " ";
+        } else if constexpr (std::is_same_v<T, bool>) {
+            os << (data[i] ? 1 : 0) << " ";
+        } else {
+            os << data[i] << " ";
+        }
+    }
+}
+
+void dumpTensorValues(const ov::Tensor& tensor, size_t count, std::ostream& os) {
+    switch (tensor.get_element_type()) {
+    case ov::element::Type_t::boolean:
+        dumpValuesAsType<bool>(tensor, count, os);
+        break;
+    case ov::element::Type_t::bf16:
+        dumpValuesAsType<ov::bfloat16>(tensor, count, os);
+        break;
+    case ov::element::Type_t::f16:
+        dumpValuesAsType<ov::float16>(tensor, count, os);
+        break;
+    case ov::element::Type_t::f32:
+        dumpValuesAsType<float>(tensor, count, os);
+        break;
+    case ov::element::Type_t::f64:
+        dumpValuesAsType<double>(tensor, count, os);
+        break;
+    case ov::element::Type_t::i8:
+        dumpValuesAsType<int8_t>(tensor, count, os);
+        break;
+    case ov::element::Type_t::i16:
+        dumpValuesAsType<int16_t>(tensor, count, os);
+        break;
+    case ov::element::Type_t::i32:
+        dumpValuesAsType<int32_t>(tensor, count, os);
+        break;
+    case ov::element::Type_t::i64:
+        dumpValuesAsType<int64_t>(tensor, count, os);
+        break;
+    case ov::element::Type_t::u8:
+        dumpValuesAsType<uint8_t>(tensor, count, os);
+        break;
+    case ov::element::Type_t::u16:
+        dumpValuesAsType<uint16_t>(tensor, count, os);
+        break;
+    case ov::element::Type_t::u32:
+        dumpValuesAsType<uint32_t>(tensor, count, os);
+        break;
+    case ov::element::Type_t::u64:
+        dumpValuesAsType<uint64_t>(tensor, count, os);
+        break;
+    default: {
+        // Fallback to byte-wise dump for unsupported element types.
+        const uint8_t* data = tensor.data<const uint8_t>();
+        const size_t byteCount = std::min(count * tensor.get_element_type().size(), tensor.get_byte_size());
+        for (size_t i = 0; i < byteCount; ++i) {
+            os << static_cast<unsigned int>(data[i]) << " ";
+        }
+        break;
+    }
+    }
+}
+
+}  // namespace
+
 void InferWithHostCompileTests::dumpTensor(const ov::Tensor& tensor, std::string name) {
     std::cout << "Tensor name: " << name << ", shape: " << tensor.get_shape()
               << ", element type: " << tensor.get_element_type() << std::endl;
-    const float* data = tensor.data<float>();
     size_t count = ov::shape_size(tensor.get_shape());
     count = count > 50 ? 50 : count;
-    for (size_t i = 0; i < count; i++) {
-        std::cout << data[i] << " ";
-    }
+    dumpTensorValues(tensor, count, std::cout);
     std::cout << std::endl;
 
     // Add a random suffix to avoid collisions when tests run in parallel.
@@ -243,9 +315,7 @@ void InferWithHostCompileTests::dumpTensor(const ov::Tensor& tensor, std::string
         outFile << "Tensor name: " << name << ", shape: " << tensor.get_shape()
                 << ", element type: " << tensor.get_element_type() << std::endl;
         size_t totalCount = ov::shape_size(tensor.get_shape());
-        for (size_t i = 0; i < totalCount; i++) {
-            outFile << data[i] << " ";
-        }
+        dumpTensorValues(tensor, totalCount, outFile);
         outFile << std::endl;
     }
     std::cout << "Tensor data dumped to file: " << fileName << std::endl;
@@ -719,6 +789,93 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithAlignedTensor) {
                "inference, but got: "
             << logCapture.str();
     }
+}
+
+TEST_P(InferWithHostCompileTests, CompileAndInferWithRandomSize) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    auto model = createMaxPoolModel();
+    ov::CompiledModel compiledModel;
+
+    // Create log callback function which will store log to string, the set to ov
+    ScopedLogCapture logCapture;
+
+    core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
+
+    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
+
+    ov::InferRequest reqDynamic;
+    try {
+        reqDynamic = compiledModel.create_infer_request();
+    } catch (const ov::Exception& e) {
+        ASSERT_TRUE(std::string(e.what()).find("Cannot load library") != std::string::npos)
+            << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
+        GTEST_SKIP() << "Cannot load library, skip test.";
+    }
+
+    // create input tensor match the customized models
+    ov::Shape shape = {1, 16, 720, 720};
+    ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
+    OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor));
+    OV_ASSERT_NO_THROW(reqDynamic.infer());
+    // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected log to contain 'Reset command list to run with runtime', but got: " << logCapture.str();
+
+    logCapture.clear();
+    OV_ASSERT_NO_THROW(reqDynamic.infer());
+    // Reusing the same input should keep the existing command list intact.
+    ASSERT_TRUE(logContains(logCapture, "Reuse command list without update since no tensor change detected"))
+        << "Expected log to contain 'Reuse command list without update since no tensor change detected' for second "
+           "inference, but got: "
+        << logCapture.str();
+
+    logCapture.clear();
+    ov::Tensor inTensor1 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
+    OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor1));
+    OV_ASSERT_NO_THROW(reqDynamic.infer());
+    // Shape change should force runtime reconfiguration for the new tensor layout.
+    ASSERT_TRUE(logContains(logCapture, "Reuse command list without update since no tensor change detected"))
+        << "Expected log to contain 'Reuse command list without update since no tensor change detected' for third "
+           "inference, but got: "
+        << logCapture.str();
+
+    logCapture.clear();
+    ov::Shape shape2 = {1, 16, 720, 1024};
+    ov::Tensor inTensor2 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
+    OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor2));
+    OV_ASSERT_NO_THROW(reqDynamic.infer());
+    // Shape change should force runtime reconfiguration for the new tensor layout.
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected log to contain 'Reset command list to run with runtime' for fourth inference with new shape, but "
+           "got: "
+        << logCapture.str();
+
+    logCapture.clear();
+    ov::Shape shape3 = {1, 16, 720, 360};
+    ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape3, 100, 0);
+    OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor3));
+    OV_ASSERT_NO_THROW(reqDynamic.infer());
+    // Shape change should force runtime reconfiguration for the new tensor layout.
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected log to contain 'Reset command list to run with runtime' for fourth inference with new shape, but "
+           "got: "
+        << logCapture.str();
+
+    logCapture.clear();
+    ov::Shape shape4 = {1, 16, 720, 1280};
+    ov::Tensor inTensor4 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape4, 100, 0);
+    OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor4));
+    OV_ASSERT_NO_THROW(reqDynamic.infer());
+    // Shape change should force runtime reconfiguration for the new tensor layout.
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected log to contain 'Reset command list to run with runtime' for fourth inference with new shape, but "
+           "got: "
+        << logCapture.str();
 }
 
 }  // namespace behavior
