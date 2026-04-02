@@ -88,7 +88,9 @@ jobs:
     defaults:
       run:
         shell: bash
+        working-directory: ${{ github.workspace }}/openvino
     env:
+      OV_WORKSPACE: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       INSTALL_PKG_DIR: ${{ github.workspace }}/install
@@ -101,6 +103,7 @@ jobs:
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
+          path: openvino
           submodules: 'true'
 
       - name: Download OpenVINO package
@@ -141,6 +144,20 @@ jobs:
             cp -a "${notes_root}/js-build/." "${BUILD_JS_DIR}/"
           fi
 
+      - name: Setup Python 3.11
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: '3.11'
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
+
+      - name: Install coverage helper dependency
+        run: python3 -m pip install pyyaml
+
+      - name: Verify Python coverage helper environment
+        run: python3 -c "import sys, yaml; print(sys.executable); print(yaml.__file__)"
+
       - name: Run CPU C++ coverage tests
         run: python3 tools/coverage/coverage.py step run-cpp-tests
 
@@ -163,7 +180,7 @@ jobs:
         run: |
           dir="${RUNNER_TEMP}/coverage-cpp-cpu"
           python3 tools/coverage/ci_reports.py collect-suite-results \
-            --workspace "${{ github.workspace }}" \
+            --workspace "${{ env.OV_WORKSPACE }}" \
             --suite cpp \
             --profile cpu \
             --lane cpu \
@@ -172,10 +189,10 @@ jobs:
           echo "dir=${dir}" >> "$GITHUB_OUTPUT"
 
       - name: Upload Codecov (C++ runtime, CPU)
-        if: ${{ hashFiles('coverage.info') != '' }}
+        if: ${{ hashFiles('openvino/coverage.info') != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: coverage.info
+          files: openvino/coverage.info
           disable_search: true
           plugins: noop
           flags: cpp-runtime-cpp-cpu
@@ -209,7 +226,9 @@ jobs:
     defaults:
       run:
         shell: bash
+        working-directory: ${{ github.workspace }}/openvino
     env:
+      OV_WORKSPACE: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       INSTALL_PKG_DIR: ${{ github.workspace }}/install
@@ -221,6 +240,7 @@ jobs:
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
+          path: openvino
           submodules: 'true'
 
       - name: Download OpenVINO package
@@ -268,7 +288,7 @@ jobs:
           fi
 
       - name: Setup Python 3.11
-        uses: ./.github/actions/setup_python
+        uses: ./openvino/.github/actions/setup_python
         with:
           version: '3.11'
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
@@ -279,7 +299,7 @@ jobs:
         run: python3 -m pip install pyyaml coverage pytest pytest-cov pytest-xdist[psutil]
 
       - name: Install OpenVINO Python wheels
-        uses: ./.github/actions/install_ov_wheels
+        uses: ./openvino/.github/actions/install_ov_wheels
         with:
           wheels-dir-path: ${{ env.INSTALL_DIR }}
           wheels-to-install: 'openvino'
@@ -313,7 +333,7 @@ jobs:
         run: |
           dir="${RUNNER_TEMP}/coverage-python-cpu"
           python3 tools/coverage/ci_reports.py collect-suite-results \
-            --workspace "${{ github.workspace }}" \
+            --workspace "${{ env.OV_WORKSPACE }}" \
             --suite python \
             --profile cpu \
             --lane cpu \
@@ -322,10 +342,10 @@ jobs:
           echo "dir=${dir}" >> "$GITHUB_OUTPUT"
 
       - name: Upload Codecov (Python API, CPU)
-        if: ${{ hashFiles('python-coverage.xml') != '' }}
+        if: ${{ hashFiles('openvino/python-coverage.xml') != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: python-coverage.xml
+          files: openvino/python-coverage.xml
           disable_search: true
           plugins: noop
           flags: python-api-frontend-layer-ovc-cpu
@@ -335,10 +355,10 @@ jobs:
           verbose: true
 
       - name: Upload Codecov (C++ runtime, Python suite, CPU)
-        if: ${{ hashFiles('coverage.info') != '' }}
+        if: ${{ hashFiles('openvino/coverage.info') != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: coverage.info
+          files: openvino/coverage.info
           disable_search: true
           plugins: noop
           flags: cpp-runtime-python-cpu
@@ -372,10 +392,12 @@ jobs:
     defaults:
       run:
         shell: bash
+        working-directory: ${{ github.workspace }}/openvino
     env:
+      OV_WORKSPACE: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_PKG_DIR: ${{ github.workspace }}/install
-      OPENVINO_JS_DIR: ${{ github.workspace }}/src/bindings/js/node
+      OPENVINO_JS_DIR: ${{ github.workspace }}/openvino/src/bindings/js/node
       BUILD_DIR: ${{ github.workspace }}/openvino/openvino_build
       BUILD_JS_DIR: ${{ github.workspace }}/openvino/openvino_build_js
       COVERAGE_WRITE_STEP_SUMMARY: 'false'
@@ -385,6 +407,7 @@ jobs:
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
+          path: openvino
           submodules: 'true'
 
       - name: Download OpenVINO package
@@ -430,7 +453,7 @@ jobs:
         run: npm i --no-save c8
 
       - name: Setup Python 3.11
-        uses: ./.github/actions/setup_python
+        uses: ./openvino/.github/actions/setup_python
         with:
           version: '3.11'
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
@@ -483,7 +506,7 @@ jobs:
         run: |
           dir="${RUNNER_TEMP}/coverage-js-cpu"
           python3 tools/coverage/ci_reports.py collect-suite-results \
-            --workspace "${{ github.workspace }}" \
+            --workspace "${{ env.OV_WORKSPACE }}" \
             --suite js \
             --profile cpu \
             --lane cpu \
@@ -492,10 +515,10 @@ jobs:
           echo "dir=${dir}" >> "$GITHUB_OUTPUT"
 
       - name: Upload Codecov (JS bindings, CPU)
-        if: ${{ hashFiles('js-lcov.info') != '' }}
+        if: ${{ hashFiles('openvino/js-lcov.info') != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: js-lcov.info
+          files: openvino/js-lcov.info
           disable_search: true
           plugins: noop
           flags: nodejs-bindings-unit-e2e-cpu
@@ -505,10 +528,10 @@ jobs:
           verbose: true
 
       - name: Upload Codecov (C++ runtime, JS suite, CPU)
-        if: ${{ hashFiles('coverage.info') != '' }}
+        if: ${{ hashFiles('openvino/coverage.info') != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: coverage.info
+          files: openvino/coverage.info
           disable_search: true
           plugins: noop
           flags: cpp-runtime-js-cpu
