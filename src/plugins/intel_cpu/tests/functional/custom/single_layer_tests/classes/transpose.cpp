@@ -119,6 +119,5 @@ const std::vector<std::vector<size_t>>& inputOrder4D() {
     return inputOrder4D;
 }
 }  // namespace Transpose
-
 }  // namespace test
 }  // namespace ov
