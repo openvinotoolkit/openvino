@@ -27,7 +27,7 @@ What's New
 
 * More Gen AI coverage and frameworks integrations to minimize code changes
 
-  * New models supported on CPUs & GPUs: Trinity, YOLO26, Qwen3 VL  
+  * New models supported on CPUs & GPUs: Qwen3 VL  
   * New models supported on CPUs: GPT-OSS 120B  
   * Preview: Introducing the OpenVINO backend for llama.cpp, which enables optimized inference on Intel CPUs, GPUs, and NPUs. Validated on GGUF models such as Llama-3.2-1B-Instruct-GGUF, Phi-3-mini-4k-instruct-gguf, Qwen2.5-1.5B-Instruct-GGUF, and Mistral-7B-Instruct-v0.3.    
   * New notebook: Unified VLM chatbot with video file support and interactive model switching across Qwen3-VL, Qwen2.5-VL, and LLaVa-NeXT-Video. 
