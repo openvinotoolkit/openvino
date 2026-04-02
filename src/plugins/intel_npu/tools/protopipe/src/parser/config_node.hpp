@@ -13,6 +13,8 @@
 #include <unordered_map>
 #include <string>
 #include <vector>
+#include <type_traits>
+#include <utility>
 
 class ConfigNode {
 public:
@@ -51,7 +53,9 @@ public:
             return _node.as<T>();
         } else {
             T result;
-            YAML::convert<T>::decode(*this, result);
+            if (!YAML::convert<T>::decode(*this, result)) {
+                THROW_ERROR("Failed to convert config node to requested type");
+            }
             return result;
         }
     }
@@ -95,20 +99,13 @@ public:
         const_iterator(ConfigNode& parent, std::size_t index)
             : _parent(parent), _index(index) {
             if (_parent._node.IsMap()) {
-                cacheKeys();
+                cacheKeysAndNodes();
             }
         }
 
         KeyValueProxy operator*() const {
             if (_parent._node.IsMap()) {
-                const std::string& keyStr = _cachedKeys[_index];
-                YAML::Node keyNode;
-                for (const auto& kv : _parent._node) {
-                    if (kv.first.as<std::string>() == keyStr) {
-                        keyNode = kv.first;
-                        break;
-                    }
-                }
+                const auto& [keyStr, keyNode] = _cachedKeys[_index];
                 return KeyValueProxy{ConfigKey{keyNode}, _parent[keyStr]};
             } else {
                 return KeyValueProxy{ConfigKey{YAML::Node()}, _parent[_index]};
@@ -129,17 +126,17 @@ public:
         }
 
     private:
-        void cacheKeys() {
+        void cacheKeysAndNodes() {
             if (_cachedKeys.empty()) {
                 for (const auto& kv : _parent._node) {
-                    _cachedKeys.push_back(kv.first.as<std::string>());
+                    _cachedKeys.emplace_back(kv.first.as<std::string>(), kv.first);
                 }
             }
         }
 
         ConfigNode& _parent;
         std::size_t _index;
-        std::vector<std::string> _cachedKeys;
+        std::vector<std::pair<std::string, YAML::Node>> _cachedKeys;
     };
 
     const_iterator begin() const {
