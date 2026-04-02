@@ -328,11 +328,33 @@ static RoPEFrequencies build_rope_frequencies(size_t head_dim,
         inv_freq_data[i] =
             1.0f / std::pow(kRoPEBaseFrequency, static_cast<float>(2 * i) / static_cast<float>(head_dim));
     }
+    // inv_freq constant [1, half_dim, 1] — matches RopePatternLLama2 which expects a Constant
+    // followed by optional Convert and then Broadcast.
     auto inv_freq = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, half_dim, 1}, inv_freq_data);
     inv_freq->set_friendly_name(prefix + ".inv_freq");
 
-    // position_ids [batch, seq] -> Unsqueeze -> Convert(f32) -> MatMul(inv_freq)
-    // -> Transpose -> Concat(self,self) -> Sin/Cos -> Unsqueeze [batch, 1, seq, head_dim]
+    // Build dynamic broadcast shape: ShapeOf → Gather → Concat({batch, half_dim, 1})
+    // This chain matches NPUW's RopePatternLLama2 for sin/cos caching (LUT replacement).
+    auto pos_shape = std::make_shared<ov::opset11::ShapeOf>(position_ids, ov::element::i64);
+    pos_shape->set_friendly_name(prefix + ".pos_shape");
+
+    auto batch_idx = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+    auto gather_axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto batch_dim = std::make_shared<ov::opset11::Gather>(pos_shape, batch_idx, gather_axis);
+    batch_dim->set_friendly_name(prefix + ".batch_dim");
+
+    auto half_dim_const = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {static_cast<int64_t>(half_dim)});
+    auto one_const = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+
+    auto broadcast_shape = std::make_shared<ov::opset11::Concat>(
+        ov::OutputVector{batch_dim->output(0), half_dim_const->output(0), one_const->output(0)}, 0);
+    broadcast_shape->set_friendly_name(prefix + ".broadcast_shape");
+
+    auto inv_freq_broadcast =
+        std::make_shared<ov::op::v3::Broadcast>(inv_freq, broadcast_shape, ov::op::BroadcastType::BIDIRECTIONAL);
+    inv_freq_broadcast->set_friendly_name(prefix + ".inv_freq_broadcast");
+
+    // position_ids [batch, seq] -> Unsqueeze -> Convert(f32)
     auto unsq_axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1});
     auto unsqueezed = std::make_shared<ov::opset11::Unsqueeze>(position_ids, unsq_axis);
     unsqueezed->set_friendly_name(prefix + ".pos_unsqueeze");
@@ -340,7 +362,9 @@ static RoPEFrequencies build_rope_frequencies(size_t head_dim,
     auto converted = std::make_shared<ov::opset11::Convert>(unsqueezed, ov::element::f32);
     converted->set_friendly_name(prefix + ".pos_convert");
 
-    auto matmul = std::make_shared<ov::opset11::MatMul>(inv_freq, converted, false, false);
+    // MatMul(Broadcast(inv_freq), Convert(Unsqueeze(pos_ids)))
+    // [batch, half_dim, 1] × [batch, 1, seq] → [batch, half_dim, seq]
+    auto matmul = std::make_shared<ov::opset11::MatMul>(inv_freq_broadcast, converted, false, false);
     matmul->set_friendly_name(prefix + ".freq_matmul");
 
     auto perm = ov::opset11::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 2, 1});
