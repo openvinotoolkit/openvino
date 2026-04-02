@@ -236,6 +236,12 @@ def _resolve_trace_source_path(raw_path: str, *, workspace: Path) -> Path | None
     path = Path(raw)
     if path.is_absolute():
         candidates.append(path)
+        parts = path.parts[1:] if path.parts and path.parts[0] == path.anchor else path.parts
+        for start in range(len(parts)):
+            suffix = parts[start:]
+            if not suffix:
+                continue
+            candidates.append(workspace.joinpath(*suffix))
     else:
         stripped = raw.removeprefix("./")
         if stripped:
@@ -244,6 +250,12 @@ def _resolve_trace_source_path(raw_path: str, *, workspace: Path) -> Path | None
             repo_prefix = f"{workspace.name}/"
             if stripped.startswith(repo_prefix):
                 candidates.append(workspace / stripped[len(repo_prefix) :])
+            rel_parts = Path(stripped).parts
+            for start in range(len(rel_parts)):
+                suffix = rel_parts[start:]
+                if not suffix:
+                    continue
+                candidates.append(workspace.joinpath(*suffix))
 
     seen: set[str] = set()
     for candidate in candidates:
