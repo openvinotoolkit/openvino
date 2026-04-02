@@ -142,8 +142,8 @@ ParamsKey ResampleKernelPilRef::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
-    k.EnableReampleType(ResampleType::BILINEAR_PILLOW);
-    k.EnableReampleType(ResampleType::BICUBIC_PILLOW);
+    k.EnableResampleType(ResampleType::BILINEAR_PILLOW);
+    k.EnableResampleType(ResampleType::BICUBIC_PILLOW);
     return k;
 }
 

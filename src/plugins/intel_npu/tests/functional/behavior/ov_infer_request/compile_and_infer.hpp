@@ -265,6 +265,26 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadTypeUpdateAfterCompilation
     ASSERT_TRUE(is_called);
 }
 
+TEST_P(OVCompileAndInferRequest, CompiledModelModelPriorityUpdateAfterCompilation) {
+    configuration[hint::model_priority.name()] = hint::Priority::MEDIUM;
+    OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
+    ASSERT_EQ(execNet.get_property(hint::model_priority.name()).as<hint::Priority>(), hint::Priority::MEDIUM);
+
+    ov::AnyMap modelConfiguration;
+    ov::InferRequest req;
+
+    modelConfiguration[hint::model_priority.name()] = hint::Priority::HIGH;
+    OV_ASSERT_NO_THROW(execNet.set_property(modelConfiguration));
+    ASSERT_EQ(execNet.get_property(hint::model_priority.name()).as<hint::Priority>(), hint::Priority::HIGH);
+    OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+    OV_ASSERT_NO_THROW(req.infer());
+
+    modelConfiguration[hint::model_priority.name()] = hint::Priority::LOW;
+    OV_ASSERT_NO_THROW(execNet.set_property(modelConfiguration));
+    ASSERT_EQ(execNet.get_property(hint::model_priority.name()).as<hint::Priority>(), hint::Priority::LOW);
+    OV_ASSERT_NO_THROW(req.infer());
+}
+
 using OVCompileAndInferRequestMultiThreading = OVCompileAndInferRequest;
 
 TEST_P(OVCompileAndInferRequestMultiThreading, CreateInferRequestsAndRunOnDifferentThreads) {
@@ -303,7 +323,7 @@ TEST_P(OVCompileAndInferRequestMultiThreading, CreateInferRequestsAndRunOnDiffer
     }
 }
 
-TEST_P(OVCompileAndInferRequestMultiThreading, CreateInferRequestsAndRunOnDifferentThreadsWithWorkloadType) {
+TEST_P(OVCompileAndInferRequestMultiThreading, CreateInferRequestsAndRunOnDifferentThreadsWithWorkloadTypeAndPriority) {
     if (!isCommandQueueExtSupported()) {
         GTEST_SKIP() << "Workload type update is not supported with current driver.\n";
     }
@@ -325,6 +345,13 @@ TEST_P(OVCompileAndInferRequestMultiThreading, CreateInferRequestsAndRunOnDiffer
                     execNet.set_property(ov::workload_type(WorkloadType::DEFAULT));
                 } else {
                     execNet.set_property(ov::workload_type(WorkloadType::EFFICIENT));
+                }
+                if (i % 3 == 0) {
+                    execNet.set_property(ov::hint::model_priority(ov::hint::Priority::HIGH));
+                } else if (i % 3 == 1) {
+                    execNet.set_property(ov::hint::model_priority(ov::hint::Priority::MEDIUM));
+                } else {
+                    execNet.set_property(ov::hint::model_priority(ov::hint::Priority::LOW));
                 }
                 auto req = execNet.create_infer_request();
                 req.infer();
@@ -351,7 +378,7 @@ TEST_P(OVCompileAndInferRequestMultiThreading, CreateInferRequestsAndRunOnDiffer
 }
 
 TEST_P(OVCompileAndInferRequestMultiThreading,
-       CompileModelCreateInferRequestsAndRunOnDifferentThreadsWithWorkloadType) {
+       CompileModelCreateInferRequestsAndRunOnDifferentThreadsWithWorkloadTypeAndPriority) {
     if (!isCommandQueueExtSupported()) {
         GTEST_SKIP() << "Workload type update is not supported with current driver.\n";
     }
@@ -374,6 +401,13 @@ TEST_P(OVCompileAndInferRequestMultiThreading,
                     compiled_models[i].set_property(ov::workload_type(WorkloadType::DEFAULT));
                 } else {
                     compiled_models[i].set_property(ov::workload_type(WorkloadType::EFFICIENT));
+                }
+                if (i % 3 == 0) {
+                    compiled_models[i].set_property(ov::hint::model_priority(ov::hint::Priority::HIGH));
+                } else if (i % 3 == 1) {
+                    compiled_models[i].set_property(ov::hint::model_priority(ov::hint::Priority::MEDIUM));
+                } else {
+                    compiled_models[i].set_property(ov::hint::model_priority(ov::hint::Priority::LOW));
                 }
                 auto req = compiled_models[i].create_infer_request();
                 req.infer();
@@ -406,11 +440,22 @@ TEST_P(OVCompileAndInferRequestMultiThreading,
             ASSERT_EQ(compiled_models[i].get_property(ov::workload_type.name()).as<WorkloadType>(),
                       WorkloadType::EFFICIENT);
         }
+
+        if (i % 3 == 0) {
+            ASSERT_EQ(compiled_models[i].get_property(ov::hint::model_priority.name()).as<ov::hint::Priority>(),
+                      ov::hint::Priority::HIGH);
+        } else if (i % 3 == 1) {
+            ASSERT_EQ(compiled_models[i].get_property(ov::hint::model_priority.name()).as<ov::hint::Priority>(),
+                      ov::hint::Priority::MEDIUM);
+        } else {
+            ASSERT_EQ(compiled_models[i].get_property(ov::hint::model_priority.name()).as<ov::hint::Priority>(),
+                      ov::hint::Priority::LOW);
+        }
     }
 }
 
 TEST_P(OVCompileAndInferRequestMultiThreading,
-       CompileModelCreateInferRequestsAndRunOnDifferentThreadsWithWorkloadTypeAndSharedCommonQueueDisabled) {
+       CompileModelCreateInferRequestsAndRunOnDifferentThreadsWithWorkloadTypePriorityAndSharedCommonQueueDisabled) {
     if (!isCommandQueueExtSupported()) {
         GTEST_SKIP() << "Workload type update is not supported with current driver.\n";
     }
@@ -435,6 +480,13 @@ TEST_P(OVCompileAndInferRequestMultiThreading,
                 } else {
                     compiled_models[i].set_property(ov::workload_type(WorkloadType::EFFICIENT));
                 }
+                if (i % 3 == 0) {
+                    compiled_models[i].set_property(ov::hint::model_priority(ov::hint::Priority::HIGH));
+                } else if (i % 3 == 1) {
+                    compiled_models[i].set_property(ov::hint::model_priority(ov::hint::Priority::MEDIUM));
+                } else {
+                    compiled_models[i].set_property(ov::hint::model_priority(ov::hint::Priority::LOW));
+                }
                 auto req = compiled_models[i].create_infer_request();
                 req.infer();
             } catch (...) {
@@ -465,6 +517,17 @@ TEST_P(OVCompileAndInferRequestMultiThreading,
         } else {
             ASSERT_EQ(compiled_models[i].get_property(ov::workload_type.name()).as<WorkloadType>(),
                       WorkloadType::EFFICIENT);
+        }
+
+        if (i % 3 == 0) {
+            ASSERT_EQ(compiled_models[i].get_property(ov::hint::model_priority.name()).as<ov::hint::Priority>(),
+                      ov::hint::Priority::HIGH);
+        } else if (i % 3 == 1) {
+            ASSERT_EQ(compiled_models[i].get_property(ov::hint::model_priority.name()).as<ov::hint::Priority>(),
+                      ov::hint::Priority::MEDIUM);
+        } else {
+            ASSERT_EQ(compiled_models[i].get_property(ov::hint::model_priority.name()).as<ov::hint::Priority>(),
+                      ov::hint::Priority::LOW);
         }
     }
 }
