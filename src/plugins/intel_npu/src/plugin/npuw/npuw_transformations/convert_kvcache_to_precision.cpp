@@ -18,6 +18,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/op_conversions/fake_convert_decomposition.hpp"
+#include "kv_cache_compressed.hpp"
 
 namespace opp = ov::pass::pattern;
 
@@ -79,8 +80,20 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov
             ppp.output(tensor.get_any_name()).tensor().set_element_type(lptype);
         }
     }
+    auto new_model=ppp.build();
 
-    return ppp.build();
+    // assume for I8 we dont have support in model - TODO: add check based on presence of quantization ops like scale/subtrat/clamp
+    if (lptype == ov::element::i8 || lptype == ov::element::u8) {
+        LOG_DEBUG("Running KV-cache compression passes, transforming  kv-cache precision: FP16->i8 on model[" << model->get_friendly_name() <<"]");
+        ov::npuw::KVCacheCompressionParams dq_params; 
+        dq_params.key.quantization_dt = lptype;
+        dq_params.value.quantization_dt = ov::element::i4;
+        dq_params.value.quantization_type = ov::npuw::KVCacheCompressionConfig::QuantizationType::Symmetric;
+        ov::npuw::run_kv_cache_dynamic_quantization_passes(new_model, dq_params);
+    }
+
+    return new_model;
+}
 }
 
 }  // namespace
