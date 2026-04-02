@@ -164,10 +164,8 @@ TEST_P(ZeroGraphCompilationTests, GetInitSetArgsDestroyGraphAlignedMemoryIR) {
 
     size_t totalSize = 1 * 3 * 24 * 24 * sizeof(float);
     std::shared_ptr<ZeroMem> buffer;
-    OV_ASSERT_NO_THROW(buffer = ZeroMemPool::get_instance().allocate_zero_memory(zeroInitStruct,
-                                                                                 totalSize,
-                                                                                 ::utils::STANDARD_PAGE_SIZE,
-                                                                                 false));
+    OV_ASSERT_NO_THROW(buffer = ZeroMemPool::get_instance(zeroInitStruct)
+                                    ->allocate_zero_memory(totalSize, ::utils::STANDARD_PAGE_SIZE, false));
 
     OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, buffer->data()));
 }
@@ -221,10 +219,8 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryMallocBlob) {
     OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
 
     std::shared_ptr<ZeroMem> buffer;
-    OV_ASSERT_NO_THROW(buffer = ZeroMemPool::get_instance().allocate_zero_memory(zeroInitStruct,
-                                                                                 alignedSize,
-                                                                                 ::utils::STANDARD_PAGE_SIZE,
-                                                                                 false));
+    OV_ASSERT_NO_THROW(buffer = ZeroMemPool::get_instance(zeroInitStruct)
+                                    ->allocate_zero_memory(alignedSize, ::utils::STANDARD_PAGE_SIZE, false));
 
     OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, buffer->data()));
 }
@@ -237,10 +233,8 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryMallocBlob) {
     OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor));
 
     std::shared_ptr<ZeroMem> buffer;
-    OV_ASSERT_NO_THROW(buffer = ZeroMemPool::get_instance().allocate_zero_memory(zeroInitStruct,
-                                                                                 alignedSize,
-                                                                                 ::utils::STANDARD_PAGE_SIZE,
-                                                                                 false));
+    OV_ASSERT_NO_THROW(buffer = ZeroMemPool::get_instance(zeroInitStruct)
+                                    ->allocate_zero_memory(alignedSize, ::utils::STANDARD_PAGE_SIZE, false));
 
     OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, static_cast<char*>(buffer->data()) + 1));
 }

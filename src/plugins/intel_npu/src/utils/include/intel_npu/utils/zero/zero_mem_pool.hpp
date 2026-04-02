@@ -5,7 +5,9 @@
 #pragma once
 
 #include <future>
+#include <memory>
 #include <mutex>
+#include <unordered_map>
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
@@ -27,57 +29,50 @@ public:
     void operator=(ZeroMemPool&&) = delete;
 
     /**
-     * @brief Get static instance.
+     * @brief Get static instance for the given level zero context/device pair.
+     * @details Lazily cleans up pool instances for contexts that have been destroyed.
      */
-    static ZeroMemPool& get_instance();
+    static std::shared_ptr<ZeroMemPool> get_instance(const std::shared_ptr<ZeroInitStructsHolder>& init_structs);
 
     /**
      * @brief Returns a new memory region allocated in the level zero context and adds it to the pool.
-     * @param init_structs Holder for the level zero structures.
      * @param bytes Size in bytes of the memory that must be allocated.
      * @param alignment Alignment needed for the memory; it must be a multiple of the standard page size.
      * @param is_input Memory is used only as input or not.
      */
-    std::shared_ptr<ZeroMem> allocate_zero_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                                                  const size_t bytes,
+    std::shared_ptr<ZeroMem> allocate_zero_memory(const size_t bytes,
                                                   const size_t alignment,
                                                   const bool is_input = false);
 
     /**
      * @brief Returns an imported shared(CMX-DMA in case of Linux, NT handle in case of Windows) memory in the level
      * zero and adds it to the pool.
-     * @param init_structs Holder for the level zero structures.
      * @param data Memory to be imported.
      * @param bytes Size in bytes of the memory that must be allocated.
      */
-    std::shared_ptr<ZeroMem> import_shared_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                                                  const void* data,
-                                                  const size_t bytes);
+    std::shared_ptr<ZeroMem> import_shared_memory(const void* data, const size_t bytes);
 
     /**
      * @brief Performs a look-up in the pool to check if the entire range given by [data, data + bytes] was previously
      * allocated or imported. Returns a reference to the ZeroMem object stored in the pool in case the check is
      * successful, or tries to import memory in the level zero context, adds it to the pool, and returns it.
-     * @param init_structs Holder for the level zero structures.
      * @param data User memory to be checked.
      * @param bytes Size in bytes of the memory.
      * @param is_input Memory is used only as input or not.
      */
-    std::shared_ptr<ZeroMem> import_standard_allocation_memory(
-        const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-        const void* data,
-        const size_t bytes,
-        const bool is_input = false);
+    std::shared_ptr<ZeroMem> import_standard_allocation_memory(const void* data,
+                                                               const size_t bytes,
+                                                               const bool is_input = false);
 
 private:
-    ZeroMemPool();
+    ZeroMemPool(const std::shared_ptr<ZeroInitStructsHolder>& init_structs);
 
-    std::shared_ptr<ZeroMem> import_standard_allocation(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                                                        const void* data,
-                                                        const size_t bytes,
-                                                        const bool is_input);
+    std::shared_ptr<ZeroMem> import_standard_allocation(const void* data, const size_t bytes, const bool is_input);
+    std::shared_ptr<ZeroInitStructsHolder> lock_init_structs() const;
     void update_pool(const std::shared_ptr<intel_npu::ZeroMem>& zero_memory);
     void delete_pool_entry(ZeroMem* ptr);
+
+    std::weak_ptr<ZeroInitStructsHolder> _init_structs;
 
     std::unordered_map<uint64_t, std::weak_ptr<ZeroMem>> _pool;
     // pool to synchronize shared_ptr<ZeroMem> deleter and import_standard_allocation_memory method
