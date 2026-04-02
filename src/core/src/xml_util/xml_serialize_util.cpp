@@ -739,7 +739,7 @@ void XmlSerializer::on_adapter(const std::string& name, ov::ValueAccessor<void>&
             }
 
             size_t new_size = 0;
-            int64_t offset = get_constant_write_handler().write(chunks, new_size);
+            const auto offset = get_constant_write_handler().write(chunks, new_size);
 
             m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
             m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
