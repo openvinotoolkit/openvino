@@ -2616,7 +2616,7 @@ TEST(eltwise_gpu_int, basic_in4x4x4x4) {
                 std::vector<float>{
                     2.f,   2.f,  1.f,  1.f,
                     4.f,   4.f,  2.f,  1.f,
-                    4.f,   2.f,  8.f,  4.f,
+                    4.f,   2.f,  3.f,  4.f,
                     2.f,   2.f,  2.f,  4.f
                 } :
                 std::vector<float>{
@@ -2798,7 +2798,7 @@ TEST(eltwise_gpu_f32_int, basic_in4x4x4x4) {
                 std::vector<float>{
                     2.f,   2.f,  1.f,  1.f,
                     4.f,   4.f,  2.f,  1.f,
-                    4.f,   2.f,  8.f,  4.f,
+                    4.f,   2.f,  3.f,  4.f,
                     2.f,   2.f,  2.f,  4.f
                 } :
                 std::vector<float>{
