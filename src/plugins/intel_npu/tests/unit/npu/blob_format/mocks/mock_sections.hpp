@@ -11,8 +11,6 @@
 
 using namespace intel_npu;
 
-constexpr double VALID_THRESHOLD = 10.0;
-
 enum MockTypes {
     MOCK_1 = 4000,
     MOCK_2,
@@ -28,8 +26,6 @@ public:
 
     double get_value() const;
 
-    bool lazy_check() const;
-
     static std::shared_ptr<ISection> read(BlobReader* blob_reader, const size_t section_length);
 
 private:
@@ -43,8 +39,6 @@ public:
     void write(std::ostream& stream, BlobWriter* writer) override;
 
     std::vector<double> get_values() const;
-
-    bool lazy_check() const;
 
     static std::shared_ptr<ISection> read(BlobReader* blob_reader, const size_t section_length);
 
@@ -63,8 +57,6 @@ public:
     void write(std::ostream& stream, BlobWriter* writer) override;
 
     std::pair<double, std::vector<double>> get_values() const;
-
-    bool lazy_check() const;
 
     static std::shared_ptr<ISection> read(BlobReader* blob_reader, const size_t section_length);
 
@@ -87,14 +79,6 @@ public:
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>& get_reachables() const;
 
     OffsetsTable get_embedded_table() const;
-
-    // used for emulating a driver query: given a section, returns true if the driver claims to support it
-    using DriverProbe = std::function<bool(SectionType)>;
-
-    // this also may not be called, therefore assuming that all sections do not require support in the driver
-    void set_driver_probe(DriverProbe probe);
-
-    bool lazy_check() const;
 
     static std::shared_ptr<ISection> read(BlobReader* blob_reader, const size_t section_length);
 
@@ -119,5 +103,4 @@ private:
     // instead would it be worth to test a custom OffsetsTable with a different Entry layout?
     // even with flexible entry size?
     OffsetsTable embedded_table;
-    DriverProbe query_driver;
 };
