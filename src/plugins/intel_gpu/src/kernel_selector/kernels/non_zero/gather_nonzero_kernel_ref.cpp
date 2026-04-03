@@ -60,9 +60,15 @@ JitConstants GatherNonzeroKernelRef::GetJitConstants(const gather_nonzero_params
 
 CommonDispatchData GatherNonzeroKernelRef::SetDefault(const gather_nonzero_params& params) const {
     CommonDispatchData dispatchData;
+    const auto& input = params.inputs[0];
 
-    dispatchData.gws = {1, 1, 1};
-    dispatchData.lws = {1, 1, 1};
+    // Set 1 work group to avoid synchornization issue for summation of nonzero counting.
+    size_t max_dim_size = (input.LogicalSize() > params.engineInfo.maxWorkGroupSize) ? params.engineInfo.maxWorkGroupSize : input.LogicalSize();
+    // FixMe: This limit is created by the presence of a defined API between count_nonzero
+    // and gather_nonzero. Ideally, both need to be refactored into a single multikernel
+    // implementation
+    max_dim_size = std::min(max_dim_size, (size_t)1024);
+    dispatchData.lws = dispatchData.gws = {max_dim_size, 1, 1};
 
     return dispatchData;
 }
