@@ -26,23 +26,6 @@ namespace {
     OPENVINO_THROW("Failsafe ", stage, " fallback exhausted");
 }
 
-ov::SoPtr<ov::ITensor> allocate_tensor_like(const ov::SoPtr<ov::ITensor>& tensor) {
-    return ov::get_tensor_impl(ov::Tensor(tensor->get_element_type(), tensor->get_shape()));
-}
-
-// The wrapper keeps public output tensors stable across failover. For plain
-// host tensors the generic ITensor::copy_to path is not consistently available
-// in lightweight test doubles, so use memcpy for the common contiguous case and
-// fall back to plugin-provided copy_to for non-contiguous / remote tensors.
-void copy_tensor_data(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& dst) {
-    OPENVINO_ASSERT(src->get_byte_size() == dst->get_byte_size(), "Failsafe tensor copy size mismatch");
-    if (src->is_continuous() && dst->is_continuous()) {
-        std::memcpy(dst->data(), src->data(), src->get_byte_size());
-        return;
-    }
-    src->copy_to(dst._ptr);
-}
-
 }  // namespace
 
 ov::SoPtr<ov::ICompiledModel> ov::npuw::failsafe::CompiledModel::create(
