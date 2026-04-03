@@ -29,8 +29,8 @@ using ov::frontend::onnx::attention::get_dimensions;
 
 namespace opset_1 {
 ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
-    constexpr size_t inputs_count_min = 7;
-    constexpr size_t inputs_count_max = 14;
+    constexpr size_t inputs_count_min = 7;   // Taken from ONNX spec
+    constexpr size_t inputs_count_max = 14;  // Taken from ONNX spec
 
     // Minimum required inputs basing on the spec and ONNX Runtime code: 7
     // 0: packed QKV (mandatory)
@@ -46,6 +46,16 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     const auto do_rotary = node.get_attribute_value<int64_t>("do_rotary", 0);
     const auto rotary_interleaved = node.get_attribute_value<int64_t>("rotary_interleaved", 0);
 
+    if (0 != do_rotary) {
+        constexpr size_t cos_cache_index = 7;
+        constexpr size_t sin_cache_index = 8;
+
+        FRONT_END_OP_CONVERSION_CHECK(common::is_input_valid(onnx_op_inputs, sin_cache_index) &&
+                                          common::is_input_valid(onnx_op_inputs, cos_cache_index),
+                                      "GroupQueryAttention: cos_cache and sin_cache inputs are required when "
+                                      "do_rotary is enabled.");
+    }
+
     // In ONNX, the format of input QKV is [B, S, N*H] and of past_kv is [B, N, S, H]
     // In OV, we always use [B, N, S, H]
     auto perm = v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
@@ -54,11 +64,12 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     auto K = onnx_op_inputs[1];
     auto V = onnx_op_inputs[2];
 
-    FRONT_END_GENERAL_CHECK(!ov::op::util::is_null(Q), "GroupQueryAttention: Expecting Q/QKV not null.");
+    FRONT_END_OP_CONVERSION_CHECK(!ov::op::util::is_null(Q), "GroupQueryAttention: Expecting Q/QKV not null.");
 
     const auto& seqlens_k = onnx_op_inputs[5];
 
-    FRONT_END_GENERAL_CHECK(!ov::op::util::is_null(seqlens_k), "GroupQueryAttention: Expecting seqlens_k not null.");
+    FRONT_END_OP_CONVERSION_CHECK(!ov::op::util::is_null(seqlens_k),
+                                  "GroupQueryAttention: Expecting seqlens_k not null.");
 
     const auto q_shape_node = std::make_shared<v3::ShapeOf>(Q);
     const auto batch_size_node = detail::get_dimensions(q_shape_node, {0});
@@ -80,11 +91,11 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
 
         std::copy(split.begin(), split.end(), std::back_inserter(ov_op_inputs));
 
-        FRONT_END_GENERAL_CHECK(ov_op_inputs.size() == 3,
-                                "GroupQueryAttention: Expecting QKV split to produce 3 outputs.");
+        FRONT_END_OP_CONVERSION_CHECK(ov_op_inputs.size() == 3,
+                                      "GroupQueryAttention: Expecting QKV split to produce 3 outputs.");
     } else {
-        FRONT_END_GENERAL_CHECK(!ov::op::util::is_null(K), "GroupQueryAttention: Expecting K not null.");
-        FRONT_END_GENERAL_CHECK(!ov::op::util::is_null(V), "GroupQueryAttention: Expecting V not null.");
+        FRONT_END_OP_CONVERSION_CHECK(!ov::op::util::is_null(K), "GroupQueryAttention: Expecting K not null.");
+        FRONT_END_OP_CONVERSION_CHECK(!ov::op::util::is_null(V), "GroupQueryAttention: Expecting V not null.");
 
         auto num_heads_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {num_heads});
         auto head_size_node = std::make_shared<v1::Divide>(hidden_size_node, num_heads_node);
@@ -113,6 +124,9 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         ov_op_inputs.push_back(onnx_op_inputs[i]);
     }
 
+    // NOTE: GroupQueryAttention requires 7 inputs, while the internal implementation
+    // unconditionally accesses sin_cache and cos_cache at the moment.
+    // Null/dummy placeholders added for compatibility.
     constexpr size_t internal_inputs_count_min = 9;
 
     for (size_t i = ov_op_inputs.size(); i < internal_inputs_count_min; ++i) {
