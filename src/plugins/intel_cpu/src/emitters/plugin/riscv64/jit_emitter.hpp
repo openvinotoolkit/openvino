@@ -103,6 +103,9 @@ public:
     }
 
 protected:
+    // In the standard RISC-V calling convention, the stack pointer is always kept 16-byte aligned
+    static constexpr size_t sp_alignment = 16;
+
     static size_t get_max_gpr_count() {
         return 32;
     }
@@ -249,8 +252,6 @@ private:
     friend class jit_debug_emitter;
 #endif
 
-    // In the standard RISC-V calling convention, the stack pointer is always kept 16-byte aligned
-    const size_t sp_aligment = 16;
     // integer gpr byte size
     const size_t xlen = Xbyak_riscv::CPU().getXlen() / 8;
     // fp gpr byte size

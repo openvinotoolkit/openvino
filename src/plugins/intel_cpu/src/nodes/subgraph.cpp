@@ -77,7 +77,7 @@
 #endif
 
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
 #    include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
 #    include "snippets/lowered/pass/mark_loops.hpp"
 #    include "snippets/pass/propagate_precision.hpp"
@@ -657,7 +657,7 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
 
 Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
     ControlFlowPasses backend_passes;
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
     using PassPosition = ov::snippets::pass::PassPosition;
     using Place = PassPosition::Place;
 #endif
@@ -680,6 +680,14 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
 #    define SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(PASS_PLACE, TARGET_PASS, PASS, ...)
 #endif  // OPENVINO_ARCH_ARM64
 
+#if defined(OPENVINO_ARCH_RISCV64)
+#    define SNIPPETS_REGISTER_PASS_RELATIVE_RISCV64(PASS_PLACE, TARGET_PASS, PASS, ...)            \
+        backend_passes.emplace_back(PassPosition(PASS_PLACE, TARGET_PASS::get_type_info_static()), \
+                                    std::make_shared<PASS>(__VA_ARGS__))
+#else
+#    define SNIPPETS_REGISTER_PASS_RELATIVE_RISCV64(PASS_PLACE, TARGET_PASS, PASS, ...)
+#endif  // OPENVINO_ARCH_RISCV64
+
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
                                            ov::snippets::lowered::pass::MarkLoops,
                                            ov::intel_cpu::pass::BrgemmCPUBlocking);
@@ -700,6 +708,10 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
                                               ov::intel_cpu::pass::GemmCPUBlocking,
                                               ov::snippets::lowered::pass::InsertPerfCountVerbose,
                                               getName());
+        SNIPPETS_REGISTER_PASS_RELATIVE_RISCV64(Place::After,
+                                                ov::snippets::lowered::pass::MarkLoops,
+                                                ov::snippets::lowered::pass::InsertPerfCountVerbose,
+                                                getName());
     }
 #endif  // SNIPPETS_DEBUG_CAPS
 
@@ -737,6 +749,7 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
 
 #undef SNIPPETS_REGISTER_PASS_RELATIVE_X86_64
 #undef SNIPPETS_REGISTER_PASS_RELATIVE_ARM64
+#undef SNIPPETS_REGISTER_PASS_RELATIVE_RISCV64
     return backend_passes;
 }
 
