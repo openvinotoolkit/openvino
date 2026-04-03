@@ -29,13 +29,13 @@ public:
 
     static ov::SoPtr<ov::ICompiledModel> create(const std::shared_ptr<ov::Model>& model,
                                                 const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                const std::vector<std::string> &devices,
-                                                const Factory &factory);
+                                                const std::vector<std::string>& devices,
+                                                const Factory& factory);
 
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
-                  const std::vector<std::string> &devices,
-                  const Factory &factory);
+                  const std::vector<std::string>& devices,
+                  const Factory& factory);
 
     void export_model(std::ostream& model) const override;
     std::shared_ptr<const ov::Model> get_runtime_model() const override;

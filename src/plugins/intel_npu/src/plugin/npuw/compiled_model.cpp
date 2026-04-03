@@ -13,7 +13,6 @@
 #include "intel_npu/npu_private_properties.hpp"
 #include "just_sync_infer_request.hpp"
 #include "logging.hpp"
-#include "v1/elements/failsafe.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
@@ -27,6 +26,7 @@
 #include "plugin.hpp"
 #include "unfold_sync_infer_request.hpp"
 #include "util.hpp"
+#include "v1/elements/failsafe.hpp"
 
 // required for get_properties_per_device()
 #include "intel_npu/config/config.hpp"
@@ -88,7 +88,7 @@ bool should_use_weightless_flow(const ov::AnyMap& non_npuw_props,
     return is_weightless;
 }
 
-std::set<std::string> device_list_to_set(const std::string &device_list) {
+std::set<std::string> device_list_to_set(const std::string& device_list) {
     std::set<std::string> result;
     if (!device_list.empty()) {
         const auto devices = ov::DeviceIDParser::get_hetero_devices(device_list);
@@ -1660,8 +1660,8 @@ void ov::npuw::CompiledModel::detach_memory() {
         // it by weak_ptr) can recompile.  For non-failsafe compiled models (single
         // device) there is no fallback, so we can always release.
         bool can_clear = true;
-        auto failsafe = std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(
-            proto_comp_model_desc.compiled_model._ptr);
+        auto failsafe =
+            std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(proto_comp_model_desc.compiled_model._ptr);
         if (failsafe && !failsafe->is_at_last_device() && !no_runtime_fallback) {
             can_clear = false;
         }
@@ -1827,11 +1827,9 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
     // no runtime fallback is expected.  If the model has been cleared and failover fires
     // anyway, the lock() fails and the factory throws, which failsafe propagates correctly.
     auto make_factory = [this, id](const std::shared_ptr<ov::Model>& model,
-                                   const std::string& profile_suffix)
-        -> ov::npuw::failsafe::CompiledModel::Factory {
+                                   const std::string& profile_suffix) -> ov::npuw::failsafe::CompiledModel::Factory {
         std::weak_ptr<ov::Model> weak_model = model;
-        return [this, id, weak_model, profile_suffix](const std::string& device)
-            -> ov::SoPtr<ov::ICompiledModel> {
+        return [this, id, weak_model, profile_suffix](const std::string& device) -> ov::SoPtr<ov::ICompiledModel> {
             auto locked_model = weak_model.lock();
             OPENVINO_ASSERT(locked_model, "Failsafe factory: ov::Model was released before recompilation");
             ov::SoPtr<ov::ICompiledModel> compiled;
@@ -1847,8 +1845,10 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
     auto make_wrapped = [&](const std::shared_ptr<ov::Model>& model,
                             const std::string& profile_suffix,
                             const std::vector<std::string>& devs) -> ov::SoPtr<ov::ICompiledModel> {
-        return ov::npuw::failsafe::CompiledModel::create(
-            model, get_plugin(), devs, make_factory(model, profile_suffix));
+        return ov::npuw::failsafe::CompiledModel::create(model,
+                                                         get_plugin(),
+                                                         devs,
+                                                         make_factory(model, profile_suffix));
     };
 
     // Compile main or MoE expert models
@@ -1895,8 +1895,8 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
         std::vector<ov::SoPtr<ov::ICompiledModel>> compiled_models(total_models);
 
         auto compile_one = [&](size_t model_id) {
-            compiled_models[model_id] = make_wrapped(
-                pyramid_attn_models[model_id], "/pyramid_" + std::to_string(model_id), candidates);
+            compiled_models[model_id] =
+                make_wrapped(pyramid_attn_models[model_id], "/pyramid_" + std::to_string(model_id), candidates);
         };
 
         const bool par_opt = m_cfg.get<::intel_npu::NPUW_PARALLEL_COMPILE>();
