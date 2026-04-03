@@ -17,6 +17,7 @@
 #    include "openvino/reference/utils/jit_generator.hpp"
 
 namespace {
+#if (OV_ENABLE_EXTERNAL_SANITIZER == 1)
 // Custom allocator that rounds up the requested size to a full page boundary.
 // This ensures each CodeArray occupies complete pages so that setProtectModeRW()
 // called during destruction cannot strip the execute permission from pages that
@@ -38,6 +39,7 @@ Xbyak::Allocator& getPageAlignedAllocator() {
     static PageAlignedAllocator instance;
     return instance;
 }
+#endif
 }  // anonymous namespace
 
 namespace ov {
@@ -89,7 +91,15 @@ bool Generator::mayiuse(const cpu_isa_t cpu_isa) {
 bool Generator::is_x64() {
     return sizeof(void*) == 8;
 }
+
 Generator::Generator(cpu_isa_t isa, void* code_ptr, size_t code_size)
+// Note: the ASAN tools (e.g. clang's AddressSanitizer) may insert red zones around the allocated code buffer, and
+// change the buffer's attribute to non-executable. To avoid this, we use a custom allocator that rounds up the buffer
+// size to a full page boundary, so that each CodeArray occupies complete pages and setProtectModeRW() called during
+// destruction cannot strip the execute permission from pages that are simultaneously used by another live CodeArray
+// instance.
+// This only for ASAN, the production still keeps using original logic with default allocator, so the performance is not
+// affected.
 #    if (OV_ENABLE_EXTERNAL_SANITIZER == 1)
     : Xbyak::CodeGenerator(code_size, code_ptr, &getPageAlignedAllocator()),
 #    else
