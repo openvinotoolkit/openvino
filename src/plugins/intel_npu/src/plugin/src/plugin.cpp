@@ -701,7 +701,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         if (auto it = npuPluginProperties.find(ov::cache_encryption_callbacks.name());
             it != npuPluginProperties.end()) {
             OPENVINO_ASSERT(it->second.as<ov::EncryptionCallbacks>().decrypt != nullptr,
-                            "Null decrpytion function was given!");
+                            "Null decryption function was given!");
             std::string blobStr;
             blobStr.resize(blobSize);  // +1x blob size
             if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
