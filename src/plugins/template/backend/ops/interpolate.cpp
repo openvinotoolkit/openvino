@@ -424,9 +424,7 @@ template <>
 bool evaluate_node<ov::op::v4::Interpolate>(std::shared_ptr<ov::Node> node,
                                             ov::TensorVector& outputs,
                                             const ov::TensorVector& inputs) {
-    auto element_type = node->get_output_element_type(0);
-    if (ov::is_type<ov::op::v1::Select>(node) || ov::is_type<ov::op::util::BinaryElementwiseComparison>(node))
-        element_type = node->get_input_element_type(1);
+    const auto& element_type = node->get_output_element_type(0);
 
     switch (element_type) {
     case ov::element::boolean:
@@ -462,7 +460,7 @@ bool evaluate_node<ov::op::v4::Interpolate>(std::shared_ptr<ov::Node> node,
     case ov::element::u64:
         return evaluate<ov::element::u64>(ov::as_type_ptr<ov::op::v4::Interpolate>(node), outputs, inputs);
     default:
-        OPENVINO_THROW("Unhandled data type ", node->get_element_type().get_type_name(), " in evaluate_node()");
+        OPENVINO_THROW("Unhandled data type ", element_type, " in evaluate_node()");
     }
 }
 
