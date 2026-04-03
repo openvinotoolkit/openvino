@@ -3168,7 +3168,7 @@ void GraphOptimizer::MatchSdpaKvCache(Graph& graph) {
         auto&& childEdges = node->getChildEdgesAtPort(0);
         for (auto&& item : childEdges) {
             auto childNode = item->getChild();
-            if (none_of(childNode->getType(), Type::ScaledDotProductAttention, Type::ShapeOf)) {
+            if (none_of(childNode->getType(), Type::ScaledDotProductAttention, Type::ShapeOf, Type::Gather)) {
                 return false;
             }
 
