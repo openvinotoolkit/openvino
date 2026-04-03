@@ -684,6 +684,7 @@ const auto dynamic_shape_params_4D = testing::Combine(testing::Values(ov::elemen
                                                    testing::ValuesIn({disable_transpose, transpose_value}),
                                                    testing::Values(false));
 
+
 INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttnDynamic4D_GPU,
                          ScaledAttnLayerGPUTest,
                          dynamic_shape_params_4D,
