@@ -713,12 +713,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
             size_t alignedSize = utils::align_size_to_standard_page_size(decryptedBlobStr.size());
             size_t paddingSize = alignedSize - decryptedBlobStr.size();
-            tensor = ov::Tensor(ov::element::u8,
-                                ov::Shape{alignedSize},
-                                customAllocator);  // +2x blob size again, cannot use custom allocator for std::string
-                                                   // for its data address to be aligned to 4KB
+            ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
+            ov::Tensor tensor(ov::element::u8, ov::Shape{alignedSize}, customAllocator);
             std::memcpy(tensor.data<char>(), decryptedBlobStr.c_str(), decryptedBlobStr.size());
-            std::memset(tensor.data<char>() + decryptedBlobStr.size(), 0, paddingSize);
+            if (paddingSize) {
+                _logger.warning("Decrypted blob size was not page aligned, additional %zu bytes padding will be added",
+                                paddingSize);
+                std::memset(tensor.data<char>() + decryptedBlobStr.size(), 0, paddingSize);
+            }
             decryptedBlobStr.clear();  // -1x blob size, but still additional one in ov::Tensor above
             return parse(tensor, std::move(metadata), npuPluginProperties);
         }
@@ -790,16 +792,20 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
             it != npuPluginProperties.end()) {
             OPENVINO_ASSERT(it->second.as<ov::EncryptionCallbacks>().decrypt != nullptr,
                             "Null decrpytion function was given!");
-            ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
-            std::string blobStr(compiledBlob.data<const char>(), compiledBlob.get_byte_size());  // +1x blob size
-            auto decryptedBlobStr = it->second.as<ov::EncryptionCallbacks>().decrypt(blobStr);   // + 2x blob size
+            std::string blobStr(compiledBlob.data<const char>(), blobSize);                     // +1x blob size
+            auto decryptedBlobStr = it->second.as<ov::EncryptionCallbacks>().decrypt(blobStr);  // + 2x blob size
             blobStr.clear();  // -1x blob size, move is not permitted above
 
             size_t alignedSize = utils::align_size_to_standard_page_size(decryptedBlobStr.size());
             size_t paddingSize = alignedSize - decryptedBlobStr.size();
+            ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
             ov::Tensor tensor(ov::element::u8, ov::Shape{alignedSize}, customAllocator);
             std::memcpy(tensor.data<char>(), decryptedBlobStr.c_str(), decryptedBlobStr.size());
-            std::memset(tensor.data<char>() + decryptedBlobStr.size(), 0, paddingSize);
+            if (paddingSize) {
+                _logger.warning("Decrypted blob size was not page aligned, additional %zu bytes padding will be added",
+                                paddingSize);
+                std::memset(tensor.data<char>() + decryptedBlobStr.size(), 0, paddingSize);
+            }
             decryptedBlobStr.clear();  // -1x blob size, but still additional one in ov::Tensor above
             return parse(tensor, std::move(metadata), npuPluginProperties);
         }

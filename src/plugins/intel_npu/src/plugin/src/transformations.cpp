@@ -259,7 +259,7 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
                 updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
             }
         } else {
-            OPENVINO_THROW("Couldn't validate and reshape the model for PLUGIN batch mode. Error: {}", ex.what());
+            OPENVINO_THROW("Couldn't validate and reshape the model for PLUGIN batch mode. Error: ", ex.what());
         }
     }
 

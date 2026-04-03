@@ -118,6 +118,15 @@ TEST_P(OVCompiledGraphImportExportTestNPU, ImportingEncryptedBlobThrows) {
         ::testing::HasSubstr(
             "L0 pfnCreate2 result: ZE_RESULT_ERROR_INVALID_NATIVE_BINARY, code 0x7800000f - native binary is "
             "not supported by the device"));
+
+    auto encrypted_blob_str = encrypted_blob_stream.str();
+    ov::Tensor encrypted_blob_tensor(ov::element::u8, ov::Shape{encrypted_blob_str.size()}, encrypted_blob_str.c_str());
+    OV_EXPECT_THROW(
+        core.import_model(encrypted_blob_tensor, target_device, configuration),
+        ov::Exception,
+        ::testing::HasSubstr(
+            "L0 pfnCreate2 result: ZE_RESULT_ERROR_INVALID_NATIVE_BINARY, code 0x7800000f - native binary is "
+            "not supported by the device"));
 }
 
 TEST_P(OVCompiledGraphImportExportTestNPU, SameUnEncryptedBlobAfterDecryption) {
@@ -136,8 +145,14 @@ TEST_P(OVCompiledGraphImportExportTestNPU, SameUnEncryptedBlobAfterDecryption) {
         },
         ov::util::codec_xor}));  // need to change encryption to plain return function to avoid reencryption
     configuration.insert(ov::intel_npu::defer_weights_load(true));
-    core.import_model(encrypted_blob_stream, target_device, configuration).export_model(decrypted_blob_stream);
 
+    core.import_model(encrypted_blob_stream, target_device, configuration).export_model(decrypted_blob_stream);
+    ASSERT_EQ(unencrypted_blob_stream.str(), decrypted_blob_stream.str());
+
+    decrypted_blob_stream = {};
+    auto encrypted_blob_str = encrypted_blob_stream.str();
+    ov::Tensor encrypted_blob_tensor(ov::element::u8, ov::Shape{encrypted_blob_str.size()}, encrypted_blob_str.c_str());
+    core.import_model(encrypted_blob_tensor, target_device, configuration).export_model(decrypted_blob_stream);
     ASSERT_EQ(unencrypted_blob_stream.str(), decrypted_blob_stream.str());
 }
 

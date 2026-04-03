@@ -454,19 +454,26 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_b
     size_t paddingSize = size - blobSize;
     if (encryptionCallbackOpt.has_value()) {
         std::string tmpBlobStr(reinterpret_cast<const char*>(blobPtr), blobSize);
-        auto encryptedBlobStr = encryptionCallbackOpt.value()(tmpBlobStr);
-        tmpBlobStr.clear();
-        size = utils::align_size_to_standard_page_size(encryptedBlobStr.size());
-        paddingSize = size - encryptedBlobStr.size();
         if (paddingSize > 0) {
-            // cannot encrypt padding due to potential mismatches when decrypting
-            std::fill_n(std::back_inserter(encryptedBlobStr), paddingSize, 0);
+            // Pad plaintext before encryption so decrypting the full serialized buffer remains symmetric.
+            std::fill_n(std::back_inserter(tmpBlobStr), paddingSize, 0);
         }
 
-        if (size > static_cast<decltype(size)>(std::numeric_limits<std::streamsize>::max())) {
+        auto encryptedBlobStr = encryptionCallbackOpt.value()(tmpBlobStr);
+        tmpBlobStr.clear();
+
+        if (encryptedBlobStr.size() >
+            static_cast<decltype(encryptedBlobStr.size())>(std::numeric_limits<std::streamsize>::max())) {
             OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
         }
-        stream.write(encryptedBlobStr.c_str(), static_cast<std::streamsize>(size));
+
+        if (encryptedBlobStr.size() % utils::STANDARD_PAGE_SIZE != 0) {
+            _logger.warning("Encrypted blob size %zu is not page aligned, memory optimization when reading this blob "
+                            "won't be applied",
+                            encryptedBlobStr.size());
+        }
+
+        stream.write(encryptedBlobStr.c_str(), static_cast<std::streamsize>(encryptedBlobStr.size()));
     } else {
         if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
             OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
@@ -485,7 +492,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_b
             result = ((result << 7) + result) + static_cast<uint32_t>(*it);
         }
 
-        _logger.info("Blob size: %llu, hash: %x", blobSize, result);
+        _logger.info("Blob size: %zu, hash: %x", blobSize, result);
     }
 
     if (paddingSize > 0) {
@@ -496,8 +503,9 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_b
                 _logger.error("Write padding to stream failed. Blob is broken!");
                 return std::make_pair(0, std::nullopt);
             }
+
+            _logger.info("Blob size with padding: %zu", size);
         }
-        _logger.info("Blob size with padding: %llu", size);
     }
     _logger.info("Write blob to stream successfully.");
     return std::make_pair(size, std::nullopt);

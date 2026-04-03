@@ -223,19 +223,26 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
         size_t paddingSize = size - blobSize;
         if (encryptionCallbackOpt.has_value()) {
             std::string tmpBlobStr(reinterpret_cast<const char*>(blobRawPtr), blobSize);
-            auto encryptedBlobStr = encryptionCallbackOpt.value()(tmpBlobStr);
-            tmpBlobStr.clear();
-            size = utils::align_size_to_standard_page_size(encryptedBlobStr.size());
-            paddingSize = size - encryptedBlobStr.size();
             if (paddingSize > 0) {
-                // cannot encrypt padding due to potential mismatches when decrypting
-                std::fill_n(std::back_inserter(encryptedBlobStr), paddingSize, 0);
+                // Pad plaintext before encryption so decrypting the full serialized buffer remains symmetric.
+                std::fill_n(std::back_inserter(tmpBlobStr), paddingSize, 0);
             }
 
-            if (size > static_cast<decltype(size)>(std::numeric_limits<std::streamsize>::max())) {
+            auto encryptedBlobStr = encryptionCallbackOpt.value()(tmpBlobStr);
+            tmpBlobStr.clear();
+
+            if (encryptedBlobStr.size() >
+                static_cast<decltype(encryptedBlobStr.size())>(std::numeric_limits<std::streamsize>::max())) {
                 OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
             }
-            stream.write(encryptedBlobStr.c_str(), static_cast<std::streamsize>(size));
+
+            if (encryptedBlobStr.size() % utils::STANDARD_PAGE_SIZE != 0) {
+                _wgLogger.warning("Encrypted blob size %zu is not page aligned, memory optimization when reading this "
+                                  "blob won't be applied",
+                                  encryptedBlobStr.size());
+            }
+
+            stream.write(encryptedBlobStr.c_str(), static_cast<std::streamsize>(encryptedBlobStr.size()));
         } else {
             if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
                 OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
@@ -257,9 +264,9 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
             totalResult += result;
 
             if (blobIndex == MAIN_SCHEDULE_INDEX) {
-                _wgLogger.info("Main blob size: %llu, hash: %x", blobSize, result);
+                _wgLogger.info("Main blob size: %zu, hash: %x", blobSize, result);
             } else {
-                _wgLogger.info("Init part %llu blob size %llu, hash: %x", blobIndex, blobSize, result);
+                _wgLogger.info("Init part %zu blob size %llu, hash: %x", blobIndex, blobSize, result);
             }
         }
 
@@ -271,9 +278,9 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
                     _wgLogger.error("Write padding to stream failed. Blob is broken!");
                     return 0;
                 }
-            }
 
-            _wgLogger.info("Blob size with padding: %llu", size);
+                _wgLogger.info("Blob size with padding: %llu", size);
+            }
         }
 
         return size;
