@@ -69,8 +69,8 @@ private:
     std::filesystem::path m_file_path;
 
     struct BlobInfo {
-        size_t offset;
-        size_t size;
+        uint64_t offset;
+        uint64_t size;
         std::string model_name;
     };
     std::unordered_map<BlobIdType, BlobInfo> m_blob_index;

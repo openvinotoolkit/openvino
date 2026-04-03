@@ -51,7 +51,7 @@ static bool read_record(std::istream& stream, TLVTraits::TagType& tag, TLVTraits
     const auto current_pos = stream.tellg();
     const auto remaining_offset = stream.seekg(0, std::ios::end).tellg() - current_pos;
     stream.seekg(current_pos);
-    if (remaining_offset < static_cast<std::streamoff>(size)) {
+    if (!stream.good() || remaining_offset < static_cast<std::streamoff>(size)) {
         return false;
     }
     data.resize(size);

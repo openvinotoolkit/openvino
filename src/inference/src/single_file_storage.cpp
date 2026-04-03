@@ -128,8 +128,8 @@ bool SingleFileStorage::build_content_index(std::ifstream& stream) {
         if (!s.good()) {
             return false;
         }
-        m_blob_index[id].offset = static_cast<size_t>(blob_data_pos);
-        m_blob_index[id].size = static_cast<size_t>(blob_data_size);
+        m_blob_index[id].offset = static_cast<uint64_t>(blob_data_pos);
+        m_blob_index[id].size = static_cast<uint64_t>(blob_data_size);
         return true;
     };
     const auto blob_map_reader = [this](std::istream& s, TLVTraits::LengthType size) {
