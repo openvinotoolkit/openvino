@@ -30,7 +30,7 @@ jobs:
       labels: ${{ fromJSON(inputs.runner) }}
     defaults:
       run:
-        shell: pwsh
+        shell: powershell
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
