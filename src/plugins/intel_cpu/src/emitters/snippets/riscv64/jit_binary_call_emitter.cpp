@@ -6,12 +6,18 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <set>
 #include <utility>
 #include <vector>
 
+#include "emitters/plugin/riscv64/jit_emitter.hpp"
+#include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
+#include "nodes/kernels/riscv64/jit_generator.hpp"
 #include "openvino/core/except.hpp"
+#include "snippets/emitter.hpp"
 #include "utils/general_utils.h"
+#include "xbyak_riscv/xbyak_riscv.hpp"
 #include "xbyak_riscv/xbyak_riscv_csr.hpp"
 
 namespace ov::intel_cpu::riscv64 {

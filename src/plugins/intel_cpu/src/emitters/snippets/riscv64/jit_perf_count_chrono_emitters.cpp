@@ -7,9 +7,11 @@
 #ifdef SNIPPETS_DEBUG_CAPS
 
 #    include <cstddef>
-#    include <cstdint>
 #    include <vector>
 
+#    include "jit_binary_call_emitter.hpp"
+#    include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
+#    include "nodes/kernels/riscv64/jit_generator.hpp"
 #    include "openvino/core/except.hpp"
 #    include "openvino/core/type.hpp"
 #    include "snippets/lowered/expression.hpp"
