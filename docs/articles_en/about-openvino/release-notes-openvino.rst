@@ -103,7 +103,7 @@ OpenVINO Python API
 OpenVINO Node.js API
 ---------------------------------------------------------------------------------------------
 
-* The `` openvino-genai-node `` NPM package has been updated to include the following improvements: 
+* The ``openvino-genai-node`` NPM package has been updated to include the following improvements: 
 
   * Implemented WhisperPipeline: audio-to-text pipeline with word-level transcription, allowing users to generate precise and detailed speech recognition results. 
   * New method getGenerationConfig is now available for LLMPipeline, VLMPipeline, and WhisperPipeline, allowing users to quickly retrieve default configuration values and streamline their setup process. 
