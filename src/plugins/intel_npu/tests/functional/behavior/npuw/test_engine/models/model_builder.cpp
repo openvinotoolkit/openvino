@@ -5,9 +5,11 @@
 #include "model_builder.hpp"
 
 #include <algorithm>
+#include <climits>
 #include <unordered_map>
 
 #include "openvino/op/assign.hpp"
+#include "openvino/op/loop.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/sink.hpp"
@@ -865,6 +867,11 @@ static std::string make_kv_var_id(const std::string& layer, const std::string& i
     return "past_key_values." + layer + infix + kv_type + "present." + layer + infix + kv_type;
 }
 
+/// Hybrid model state naming: cache_params.past.{type}.{N}cache_params.present.{type}.{N}
+static std::string make_cache_params_var_id(const std::string& type, const std::string& idx) {
+    return "cache_params.past." + type + "." + idx + "cache_params.present." + type + "." + idx;
+}
+
 ov::Output<ov::Node> Attention::operator()(const ov::Output<ov::Node>& q,
                                            const ov::Output<ov::Node>& k,
                                            const ov::Output<ov::Node>& v,
@@ -1480,55 +1487,88 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     attn.sdpa_mask = sdpa_mask;
     attn.shared_broadcast_shape = shared_broadcast;
 
-    if (config.use_kv_cache) {
+    // For non-hybrid models, set up KV cache with standard past_key_values naming.
+    // For hybrid models, KV cache naming is set per-layer (cache_params prefix, attn-only index).
+    if (config.use_kv_cache && config.mamba_ratio == 0) {
         attn.kv_cache_fn = [&](const ov::Output<ov::Node>& k,
                                const ov::Output<ov::Node>& v,
                                size_t layer) -> std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> {
             auto layer_str = std::to_string(layer);
-            auto k_cache = make_kv_cache_concat(k,
-                                                seq_source,
-                                                beam_idx_output,
-                                                kv_heads,
-                                                config.head_dim,
-                                                make_kv_var_id(layer_str, ".", "key"),
-                                                prec);
-            auto v_cache = make_kv_cache_concat(v,
-                                                seq_source,
-                                                beam_idx_output,
-                                                kv_heads,
-                                                config.head_dim,
-                                                make_kv_var_id(layer_str, ".", "value"),
-                                                prec);
+            auto k_cache = make_kv_cache_concat(k, seq_source, beam_idx_output,
+                                                kv_heads, config.head_dim,
+                                                make_kv_var_id(layer_str, ".", "key"), prec);
+            auto v_cache = make_kv_cache_concat(v, seq_source, beam_idx_output,
+                                                kv_heads, config.head_dim,
+                                                make_kv_var_id(layer_str, ".", "value"), prec);
             m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(k_cache.assign));
             m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(v_cache.assign));
             return {k_cache.concatenated, v_cache.concatenated};
         };
     }
 
+    size_t linear_layer_count = 0;
+    size_t attn_layer_count = 0;
+
     auto current =
         make_transformer_layers(hidden_states,
                                 config.num_layers,
                                 "model.layers.",
                                 [&](const ov::Output<ov::Node>& input, const std::string& prefix, size_t layer) {
-                                    if (config.pre_norm) {
-                                        return make_pre_norm_layer(
-                                            input,
-                                            config.norm,
-                                            [&](const ov::Output<ov::Node>& normed, const std::string& pfx) {
-                                                return attn(normed, {}, pfx, layer);
-                                            },
-                                            config.ffn,
-                                            prefix);
-                                    } else {
-                                        return make_post_norm_layer(
-                                            input,
-                                            config.norm,
-                                            [&](const ov::Output<ov::Node>& inp, const std::string& pfx) {
-                                                return attn(inp, {}, pfx, layer);
-                                            },
-                                            config.ffn,
-                                            prefix);
+                                    // Hybrid dispatch: mamba_ratio=N means N linear-attention layers
+                                    // then 1 full-attention layer (matches HF full_attention_interval).
+                                    const bool is_linear = config.mamba_ratio > 0 &&
+                                        (layer % (config.mamba_ratio + 1)) < config.mamba_ratio;
+
+                                    if (is_linear) {
+                                        auto lin_idx = linear_layer_count++;
+                                        auto fn = [&, lin_idx](const ov::Output<ov::Node>& normed,
+                                                               const std::string& pfx) {
+                                            auto result = make_linear_attn_layer(
+                                                normed, seq_source, beam_idx_output, hs,
+                                                config.get_linear_num_key_heads(),
+                                                config.get_linear_key_head_dim(),
+                                                config.get_linear_num_value_heads(),
+                                                config.get_linear_value_head_dim(),
+                                                config.linear_conv_kernel_dim,
+                                                lin_idx, pfx, prec,
+                                                config.weight,
+                                                RMSNorm(config.get_value_dim(), prec));
+                                            m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(result.conv_assign));
+                                            m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(result.recurrent_assign));
+                                            return result.output;
+                                        };
+                                        return config.pre_norm
+                                            ? make_pre_norm_layer(input, config.norm, fn, config.ffn, prefix)
+                                            : make_post_norm_layer(input, config.norm, fn, config.ffn, prefix);
                                     }
+                                    // Full attention layer — set hybrid KV cache naming if needed
+                                    if (config.use_kv_cache && config.mamba_ratio > 0) {
+                                        auto attn_idx = attn_layer_count;
+                                        attn.kv_cache_fn = [&, attn_idx](const ov::Output<ov::Node>& k_proj,
+                                                                         const ov::Output<ov::Node>& v_proj,
+                                                                         size_t /*layer*/) {
+                                            auto idx_str = std::to_string(attn_idx);
+                                            auto k_cache = make_kv_cache_concat(k_proj, seq_source, beam_idx_output,
+                                                                                kv_heads, config.head_dim,
+                                                                                make_cache_params_var_id("key", idx_str),
+                                                                                prec);
+                                            auto v_cache = make_kv_cache_concat(v_proj, seq_source, beam_idx_output,
+                                                                                kv_heads, config.head_dim,
+                                                                                make_cache_params_var_id("value", idx_str),
+                                                                                prec);
+                                            m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(k_cache.assign));
+                                            m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(v_cache.assign));
+                                            return std::pair{k_cache.concatenated, v_cache.concatenated};
+                                        };
+                                    }
+                                    ++attn_layer_count;
+                                    auto fn = [&](const ov::Output<ov::Node>& normed,
+                                                  const std::string& pfx) {
+                                        return attn(normed, {}, pfx, layer);
+                                    };
+                                    return config.pre_norm
+                                        ? make_pre_norm_layer(input, config.norm, fn, config.ffn, prefix)
+                                        : make_post_norm_layer(input, config.norm, fn, config.ffn, prefix);
                                 });
 
     auto final_norm = config.norm(current, "model.norm");
@@ -2003,6 +2043,321 @@ std::shared_ptr<ov::Model> ModelBuilder::build_embedding_encoder(const BertConfi
                                 });
 
     return make_model(current, "last_hidden_state", "synthetic_encoder_model");
+}
+
+FixedStateResult make_fixed_state(const ov::Output<ov::Node>& batch_source,
+                                  const std::vector<int64_t>& state_dims,
+                                  const std::string& name,
+                                  ov::element::Type precision,
+                                  const ov::Output<ov::Node>& beam_idx) {
+    // Variable shape: [-1, dim1, dim2, ...]
+    std::vector<int64_t> var_shape_vec = {-1};
+    var_shape_vec.insert(var_shape_vec.end(), state_dims.begin(), state_dims.end());
+    auto var_shape = ov::PartialShape(var_shape_vec);
+    auto variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{var_shape, precision, name});
+
+    // Build init shape: [batch, dim1, dim2, ...]
+    auto shape_of = std::make_shared<ov::opset11::ShapeOf>(batch_source, ov::element::i64);
+    shape_of->set_friendly_name(name + "_shapeof");
+    auto zero_idx = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+    auto gather_axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto batch_dim = std::make_shared<ov::opset11::Gather>(shape_of, zero_idx, gather_axis);
+    batch_dim->set_friendly_name(name + "_batch_dim");
+
+    auto dims_const = ov::opset11::Constant::create(ov::element::i64,
+                                                     ov::Shape{state_dims.size()},
+                                                     state_dims);
+    auto init_shape = std::make_shared<ov::opset11::Concat>(
+        ov::OutputVector{batch_dim->output(0), dims_const->output(0)}, 0);
+    init_shape->set_friendly_name(name + "_init_shape");
+
+    auto zero_scalar = ov::opset11::Constant::create(precision, ov::Shape{}, {0.0f});
+    auto init_value = std::make_shared<ov::opset11::Broadcast>(zero_scalar, init_shape);
+    init_value->set_friendly_name(name + "_init");
+
+    auto read_value = std::make_shared<ov::op::v6::ReadValue>(init_value, variable);
+    read_value->set_friendly_name(name + "_read");
+
+    // Beam gather on batch axis (matches real model pattern — required for PA compatibility)
+    ov::Output<ov::Node> output = read_value->output(0);
+    if (beam_idx.get_node()) {
+        auto beam_gather = std::make_shared<ov::opset11::Gather>(
+            output, beam_idx, ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+        beam_gather->set_friendly_name(name + "_beam_gather");
+        output = beam_gather->output(0);
+    }
+
+    return {variable, output};
+}
+
+ov::Output<ov::Node> L2Norm::operator()(const ov::Output<ov::Node>& input, const std::string& name) const {
+    auto axes = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+    auto normed = std::make_shared<ov::op::v0::NormalizeL2>(input, axes, eps, ov::op::EpsMode::ADD);
+    normed->set_friendly_name(name);
+    return normed->output(0);
+}
+
+CausalConvResult make_causal_conv(const ov::Output<ov::Node>& input,
+                                  const ov::Output<ov::Node>& seq_source,
+                                  const ov::Output<ov::Node>& beam_idx,
+                                  size_t channels,
+                                  size_t kernel_size,
+                                  const std::string& state_name,
+                                  const std::string& prefix,
+                                  ov::element::Type prec) {
+    // Transpose to channel-first: [batch, seq, C] -> [batch, C, seq]
+    auto input_t = std::make_shared<ov::opset11::Transpose>(
+        input, ov::opset11::Constant::create(ov::element::i64, ov::Shape{3}, {0, 2, 1}));
+    input_t->set_friendly_name(prefix + "transpose_in");
+
+    // Sliding-window state: [batch, channels, kernel]
+    auto state = make_fixed_state(seq_source,
+        {static_cast<int64_t>(channels), static_cast<int64_t>(kernel_size)}, state_name, prec, beam_idx);
+
+    // Concat state with new input along temporal axis
+    auto cat = std::make_shared<ov::opset11::Concat>(
+        ov::OutputVector{state.read_value, input_t->output(0)}, 2);
+    cat->set_friendly_name(prefix + "concat");
+
+    // State update: keep last kernel_size positions
+    auto new_state = std::make_shared<ov::op::v8::Slice>(cat,
+        ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {-static_cast<int64_t>(kernel_size)}),
+        ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {INT64_MAX}),
+        ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
+        ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+    new_state->set_friendly_name(prefix + "new_state");
+    auto assign = std::make_shared<ov::op::v6::Assign>(new_state, state.variable);
+    assign->set_friendly_name(state_name + "_assign");
+
+    // Depthwise GroupConvolution: [batch, C, kernel+seq] -> [batch, C, seq+1]
+    auto weight = FloatWeight{prec}(prefix + "weight",
+        ov::Shape{channels, 1, 1, kernel_size}, prec);
+    auto conv = std::make_shared<ov::opset11::GroupConvolution>(
+        cat->output(0), weight,
+        ov::Strides{1}, ov::CoordinateDiff{0}, ov::CoordinateDiff{0}, ov::Strides{1});
+    conv->set_friendly_name(prefix + "group_conv");
+
+    // Drop first output element (valid conv artifact)
+    auto sliced = std::make_shared<ov::op::v8::Slice>(conv,
+        ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
+        ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {INT64_MAX}),
+        ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
+        ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+    sliced->set_friendly_name(prefix + "sliced");
+
+    auto activated = std::make_shared<ov::opset11::Swish>(sliced);
+    activated->set_friendly_name(prefix + "silu");
+
+    // Transpose back to channel-last: [batch, C, seq] -> [batch, seq, C]
+    auto output = std::make_shared<ov::opset11::Transpose>(
+        activated, ov::opset11::Constant::create(ov::element::i64, ov::Shape{3}, {0, 2, 1}));
+    output->set_friendly_name(prefix + "transpose_out");
+
+    CausalConvResult result;
+    result.output = output->output(0);
+    result.assign = assign;
+    return result;
+}
+
+/// SSM recurrence Loop body: per-timestep state update and query.
+///   h_new = h_prev * exp(decay) + outer(k, v)
+///   y = (q @ h_new) * gate
+/// params[0..6]: iter, q_t, k_t, v_t, decay_t, gate_t, h_prev
+/// results[0..2]: condition(true), h_new, y
+static std::shared_ptr<ov::Model> build_ssm_loop_body(ov::element::Type prec,
+                                                       int64_t H, int64_t Dk, int64_t Dv,
+                                                       ov::ParameterVector& params,
+                                                       ov::ResultVector& results) {
+    auto P = [&](ov::element::Type t, ov::PartialShape s) {
+        return params.emplace_back(std::make_shared<ov::op::v0::Parameter>(t, s));
+    };
+    /*iter*/ P(ov::element::i64, {});
+    auto q     = P(prec, {-1, H, 1, Dk});
+    auto k     = P(prec, {-1, H, 1, Dk});
+    auto v     = P(prec, {-1, H, 1, Dv});
+    auto decay = P(prec, {-1, H, 1});
+    auto gate  = P(prec, {-1, H, 1});
+    auto h     = P(prec, {-1, H, Dk, Dv});
+
+    // h_new = h_prev * exp(decay)[...,newaxis] + einsum(k, v → outer product)
+    auto unsq3 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {3});
+    auto h_new = std::make_shared<ov::opset11::Add>(
+        std::make_shared<ov::opset11::Multiply>(h,
+            std::make_shared<ov::opset11::Unsqueeze>(std::make_shared<ov::opset11::Exp>(decay), unsq3)),
+        std::make_shared<ov::opset11::Einsum>(ov::OutputVector{k, v}, "bhsk,bhsv->bhkv"));
+
+    // y = einsum(q, h_new → query) * gate[...,newaxis]
+    auto y = std::make_shared<ov::opset11::Multiply>(
+        std::make_shared<ov::opset11::Einsum>(ov::OutputVector{q, h_new}, "bhsk,bhkv->bhsv"),
+        std::make_shared<ov::opset11::Unsqueeze>(gate, unsq3));
+
+    results = {
+        std::make_shared<ov::op::v0::Result>(
+            ov::opset11::Constant::create(ov::element::boolean, ov::Shape{}, {true})),
+        std::make_shared<ov::op::v0::Result>(h_new),
+        std::make_shared<ov::op::v0::Result>(y),
+    };
+    return std::make_shared<ov::Model>(results, params);
+}
+
+RecurrentStateResult make_recurrent_state(const ov::Output<ov::Node>& query,
+                                          const ov::Output<ov::Node>& key,
+                                          const ov::Output<ov::Node>& value,
+                                          const ov::Output<ov::Node>& neg_decay,
+                                          const ov::Output<ov::Node>& gate,
+                                          const ov::Output<ov::Node>& seq_source,
+                                          const ov::Output<ov::Node>& beam_idx,
+                                          size_t num_heads,
+                                          size_t key_head_dim,
+                                          size_t value_head_dim,
+                                          const std::string& state_name,
+                                          const std::string& prefix,
+                                          ov::element::Type prec) {
+    const auto H = static_cast<int64_t>(num_heads);
+    const auto Dk = static_cast<int64_t>(key_head_dim);
+    const auto Dv = static_cast<int64_t>(value_head_dim);
+
+    // SSM state: [batch, H, Dk, Dv]
+    auto state = make_fixed_state(seq_source, {H, Dk, Dv}, state_name, prec, beam_idx);
+
+    // Reshape to multihead [batch, H, seq, dim] using existing helpers
+    auto q_mh = make_attention_transpose(make_multihead_reshape(query, num_heads, key_head_dim, prefix + "q_rs"), prefix + "q_mh");
+    auto k_mh = make_attention_transpose(make_multihead_reshape(key,   num_heads, key_head_dim, prefix + "k_rs"), prefix + "k_mh");
+    auto v_mh = make_attention_transpose(make_multihead_reshape(value, num_heads, value_head_dim, prefix + "v_rs"), prefix + "v_mh");
+
+    // Transpose decay/gate: [batch, seq, H] -> [batch, H, seq]
+    auto perm021 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{3}, {0, 2, 1});
+    auto decay_mh = std::make_shared<ov::opset11::Transpose>(neg_decay, perm021);
+    auto gate_mh  = std::make_shared<ov::opset11::Transpose>(gate, perm021);
+
+    // Trip count = seq_len (scalar)
+    auto seq_len = std::make_shared<ov::opset11::Gather>(
+        std::make_shared<ov::opset11::ShapeOf>(q_mh, ov::element::i64),
+        ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {2}),
+        ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+
+    // Build Loop body and wire it
+    ov::ParameterVector bp;
+    ov::ResultVector br;
+    auto body = build_ssm_loop_body(prec, H, Dk, Dv, bp, br);
+    //  bp: [iter, q, k, v, decay, gate, h]    br: [cond, h_new, y]
+
+    auto loop = std::make_shared<ov::op::v5::Loop>(seq_len,
+        ov::opset11::Constant::create(ov::element::boolean, ov::Shape{}, {true}));
+    loop->set_function(body);
+    loop->set_special_body_ports({-1, 0});
+
+    // Slice Q/K/V/decay/gate per timestep on seq axis (2)
+    ov::OutputVector sliced_srcs = {q_mh, k_mh, v_mh, decay_mh, gate_mh};
+    for (size_t i = 0; i < sliced_srcs.size(); ++i)
+        loop->set_sliced_input(bp[i + 1], sliced_srcs[i], 0, 1, 1, -1, 2);
+
+    loop->set_merged_input(bp[6], state.read_value, br[1]);  // h back-edge
+
+    auto output  = loop->get_concatenated_slices(br[2], 0, 1, 1, -1, 2);  // [batch, H, seq, Dv]
+    auto final_h = loop->get_iter_value(br[1], -1);                        // [batch, H, Dk, Dv]
+    loop->set_friendly_name(prefix + "loop");
+
+    auto assign = std::make_shared<ov::op::v6::Assign>(final_h, state.variable);
+    assign->set_friendly_name(state_name + "_assign");
+
+    // [batch, H, seq, Dv] -> [batch, seq, H, Dv]
+    auto out_t = make_attention_transpose(output, prefix + "output");
+
+    RecurrentStateResult result;
+    result.output = out_t;
+    result.assign = assign;
+    return result;
+}
+
+LinearAttnResult make_linear_attn_layer(
+    const ov::Output<ov::Node>& input,
+    const ov::Output<ov::Node>& seq_source,
+    const ov::Output<ov::Node>& beam_idx,
+    size_t hidden_size,
+    size_t num_key_heads,
+    size_t key_head_dim,
+    size_t num_value_heads,
+    size_t value_head_dim,
+    size_t conv_kernel,
+    size_t linear_layer_idx,
+    const std::string& prefix,
+    ov::element::Type prec,
+    const WeightFn& weight_fn,
+    const NormFn& norm_fn) {
+    const auto key_dim = num_key_heads * key_head_dim;
+    const auto value_dim = num_value_heads * value_head_dim;
+    const auto conv_dim = key_dim + 2 * value_dim;
+    auto layer_str = std::to_string(linear_layer_idx);
+    auto ap = prefix + "linear_attn.";
+
+    // Input projections
+    auto qkv = make_linear(input, hidden_size, conv_dim, ap + "in_proj_qkv", prec, weight_fn);
+    auto a_proj = make_linear(input, hidden_size, num_key_heads, ap + "in_proj_a", prec, weight_fn);
+    auto a_bias = FloatWeight{prec}(ap + "in_proj_a.bias", ov::Shape{1, 1, num_key_heads}, prec);
+    auto a_biased = std::make_shared<ov::opset11::Add>(a_proj, a_bias);
+    a_biased->set_friendly_name(ap + "in_proj_a_biased");
+    auto b_proj = make_linear(input, hidden_size, num_key_heads, ap + "in_proj_b", prec, weight_fn);
+    auto z_proj = make_linear(input, hidden_size, value_dim, ap + "in_proj_z", prec, weight_fn);
+
+    // Causal convolution with sliding-window state
+    auto conv = make_causal_conv(qkv, seq_source, beam_idx, conv_dim, conv_kernel,
+                                 make_cache_params_var_id("conv", layer_str), ap + "conv.", prec);
+
+    // QKV split: [batch, seq, conv_dim] -> Q[key_dim], K[value_dim], V[value_dim]
+    auto split_lens = ov::opset11::Constant::create(ov::element::i64, ov::Shape{3},
+        std::vector<int64_t>{static_cast<int64_t>(key_dim),
+                             static_cast<int64_t>(value_dim),
+                             static_cast<int64_t>(value_dim)});
+    auto qkv_split = std::make_shared<ov::opset11::VariadicSplit>(
+        conv.output, ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {-1}), split_lens);
+    qkv_split->set_friendly_name(ap + "qkv_split");
+
+    // L2 normalize Q and K
+    L2Norm l2norm(prec);
+    auto q = l2norm(qkv_split->output(0), ap + "q_l2norm");
+    auto k = l2norm(qkv_split->output(1), ap + "k_l2norm");
+
+    // Decay: -SoftPlus(a) (Exp applied per-timestep inside Loop)
+    auto sp = std::make_shared<ov::opset11::SoftPlus>(a_biased);
+    sp->set_friendly_name(ap + "softplus");
+    auto neg_decay = std::make_shared<ov::opset11::Multiply>(
+        sp, ov::opset11::Constant::create(prec, ov::Shape{}, {-1.0f}));
+    neg_decay->set_friendly_name(ap + "neg_decay");
+
+    // Gate: Sigmoid(b)
+    auto gate = std::make_shared<ov::opset11::Sigmoid>(b_proj);
+    gate->set_friendly_name(ap + "gate");
+
+    // SSM recurrent state (Loop op — matches real Qwen3.5)
+    auto ssm = make_recurrent_state(q, k, qkv_split->output(2),
+                                    neg_decay->output(0), gate->output(0),
+                                    seq_source, beam_idx,
+                                    num_key_heads, key_head_dim, value_head_dim,
+                                    make_cache_params_var_id("ssm", layer_str), ap + "ssm.", prec);
+
+    // Flatten heads: [batch, seq, num_heads, value_head_dim] -> [batch, seq, value_dim]
+    auto flat = std::make_shared<ov::opset11::Reshape>(ssm.output,
+        ov::opset11::Constant::create(ov::element::i64, ov::Shape{3},
+            std::vector<int64_t>{0, 0, static_cast<int64_t>(value_dim)}), true);
+    flat->set_friendly_name(ap + "flat");
+
+    // Output gating: Swish(z) * Norm(output)
+    auto normed = norm_fn(flat->output(0), ap + "norm");
+    auto z_gate = std::make_shared<ov::opset11::Swish>(z_proj);
+    z_gate->set_friendly_name(ap + "z_gate");
+    auto out_gated = std::make_shared<ov::opset11::Multiply>(z_gate, normed);
+    out_gated->set_friendly_name(ap + "out_gated");
+
+    // Out projection
+    auto output = make_linear(out_gated->output(0), value_dim, hidden_size,
+                              ap + "out_proj", prec, weight_fn);
+
+    LinearAttnResult result;
+    result.output = output;
+    result.conv_assign = conv.assign;
+    result.recurrent_assign = ssm.assign;
+    return result;
 }
 
 }  // namespace npuw
