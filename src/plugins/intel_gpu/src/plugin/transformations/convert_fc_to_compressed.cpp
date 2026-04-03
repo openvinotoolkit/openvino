@@ -55,10 +55,13 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         bool grouped = scale_shape.size() == weight_shape.size() + 1;
 
         bool weight_u8 = false;
+        bool weight_i8 = false;
         std::shared_ptr<ov::Node> weight_ptr =
             pattern_map.count(weights_const_m) ? pattern_map.at(weights_const_m).get_node_shared_ptr() : pattern_map.at(weights_param_m).get_node_shared_ptr();
         if (weight_ptr->get_element_type() == ov::element::u8)
             weight_u8 = true;
+        else if (weight_ptr->get_element_type() == ov::element::i8)
+            weight_i8 = true;
 
         auto reshape_const = [has_transpose, grouped, is_weight_3d](std::shared_ptr<ov::Node> node) {
             auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
@@ -95,6 +98,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
                 result = std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
             else if (weight_u8 && sub_with_convert)
                 result = std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
+            else if (weight_i8 && sub_with_convert)
+                result = std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::i8));
             else
                 result = std::dynamic_pointer_cast<ov::Node>(constant);
 
