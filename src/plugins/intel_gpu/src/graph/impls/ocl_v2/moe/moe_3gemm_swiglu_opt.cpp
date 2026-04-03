@@ -1903,7 +1903,7 @@ public:
         dnnl::memory::desc down_zp_md;
         bool has_zp = false;
     };
-    using grouped_kernel_lru = LruCache<std::pair<int, int>, std::shared_ptr<grouped_onednn_kernel>, PairHash>;
+    using grouped_kernel_lru = LruCache<int, std::shared_ptr<grouped_onednn_kernel>>;
     grouped_kernel_lru _grouped_kernels{128};
     onednn_kernel& get_kernel(int n_token, int expert_no, typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
         auto key = std::make_pair(n_token, expert_no);
@@ -1965,47 +1965,12 @@ public:
         return *_kernels.get(key);
     }
 
-    // Quantize max_tokens_per_expert into a bucketed upper bound to limit the
-    // number of distinct cached primitives while keeping dispatch-safe values.
-    //
-    // Strategy adapts bucket granularity to total_tokens:
-    //   total_tokens <= 128  : no bucketing (host overhead dominates)
-    //   128 < total <= 1024  : 4 buckets, bucket_size aligned to 32
-    //   1024 < total <= 8192 : 8 buckets, bucket_size aligned to 32
-    //   total > 8192         : fixed bucket_size = 1024
-    // The last bucket always caps at total_tokens to guarantee safety.
-    static int bucket_max_variable_dim(int max_tokens_per_expert, int total_tokens) {
-        if (max_tokens_per_expert <= 0 || total_tokens <= 0)
-            return total_tokens;
-
-        // Short sequences: host-side overhead dominates, skip bucketing
-        if (total_tokens <= 128)
-            return total_tokens;
-
-        int bucket_size;
-        if (total_tokens <= 1024) {
-            // 4 buckets, first 3 have 32-aligned width, last = total_tokens
-            bucket_size = (((total_tokens + 3) / 4) + 31) / 32 * 32;
-        } else if (total_tokens <= 8192) {
-            // 8 buckets, first 7 have 32-aligned width, last = total_tokens
-            bucket_size = (((total_tokens + 7) / 8) + 31) / 32 * 32;
-        } else {
-            // Fixed 1024-wide buckets for very long sequences
-            bucket_size = 1024;
-        }
-
-        // Snap up to bucket ceiling, clamp to total_tokens for the last bucket
-        // int bucketed = ((max_tokens_per_expert + bucket_size - 1) / bucket_size) * bucket_size;
-        // return std::min(bucketed, total_tokens);
-        return std::min(bucket_size, total_tokens);
-    }
-
     // Build (and cache) three grouped dnnl::matmul primitives for gate/up/down.
-    // Cache key is (total_tokens, bucketed_max_variable_dim). The adaptive
-    // bucketing limits distinct primitives to 4-10 per total_tokens value.
-    grouped_onednn_kernel& get_grouped_kernel(int total_tokens, int max_tokens_per_expert, typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
-        int max_variable_dim = bucket_max_variable_dim(max_tokens_per_expert, total_tokens);
-        auto key = std::make_pair(total_tokens, max_variable_dim);
+    // Cache key is total_tokens only — the per-request max_tokens_per_expert
+    // dispatch hint is passed as a runtime argument (DNNL_ARG_HINT_MAX_GROUP_M)
+    // at execute() time, so no recompilation is needed when it changes.
+    grouped_onednn_kernel& get_grouped_kernel(int total_tokens, typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
+        auto key = total_tokens;
         if (_grouped_kernels.has(key)) {
             return *_grouped_kernels.get(key);
         }
@@ -2051,11 +2016,8 @@ public:
             }
 
             // Grouped src/dst: tokens are grouped by expert along axis-0
-            // max_variable_dim provides a static per-group upper bound for dispatch optimization
-            auto src_md =
-                dnnl::memory::desc::grouped(dnnl::memory::dims{total_tokens, K}, a_dt, 0, num_experts, dnnl::memory::data_type::s32, max_variable_dim);
-            auto dst_md =
-                dnnl::memory::desc::grouped(dnnl::memory::dims{total_tokens, N}, a_dt, 0, num_experts, dnnl::memory::data_type::s32, max_variable_dim);
+            auto src_md = dnnl::memory::desc::grouped(dnnl::memory::dims{total_tokens, K}, a_dt, 0, num_experts, dnnl::memory::data_type::s32);
+            auto dst_md = dnnl::memory::desc::grouped(dnnl::memory::dims{total_tokens, N}, a_dt, 0, num_experts, dnnl::memory::data_type::s32);
             // Weight: logical [E, K, N], physical layout acb -> stored as [E, N, K]
             auto w_md = dnnl::memory::desc(dnnl::memory::dims{num_experts, K, N}, w_dt, dnnl::memory::format_tag::acb);
 
@@ -2339,8 +2301,15 @@ public:
         // ----------------------------------------------------------------
         // Steps 3-5: OneDNN grouped GEMM – gate, up, SiLU, down
         // ----------------------------------------------------------------
-        auto& gk = get_grouped_kernel(static_cast<int>(token_num), max_tokens_per_expert, instance);
+        auto& gk = get_grouped_kernel(total_gathered_tokens, instance);
         auto* offsets_ptr = intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS]->buffer_ptr();
+
+        // Runtime dispatch hint: actual max tokens assigned to any single expert.
+        // Passed as DNNL_ARG_HINT_MAX_GROUP_M to each grouped matmul execute(),
+        // allowing the kernel to reduce per-expert workgroup dispatch without
+        // recompiling the primitive.
+        auto hint_md = dnnl::memory::desc::host_scalar(dnnl::memory::data_type::s32);
+        dnnl::memory hint_mem(hint_md, static_cast<int32_t>(max_tokens_per_expert));
 
         // Helper: wrap a flat USM buffer as an OneDNN grouped memory (data + expert row-offsets)
         auto make_grouped_mem = [&](const dnnl::memory::desc& md, void* buf_ptr) {
@@ -2366,7 +2335,8 @@ public:
             std::unordered_map<int, dnnl::memory> args{{DNNL_ARG_SRC, src_mem},
                                                        {DNNL_ARG_WEIGHTS, w_mem},
                                                        {DNNL_ARG_DST, dst_mem},
-                                                       {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem}};
+                                                       {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
+                                                       {DNNL_ARG_HINT_MAX_GROUP_M, hint_mem}};
             if (gk.has_zp) {
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS,
                              dnnl::ocl_interop::make_memory(gk.gate_zp_md,
@@ -2393,7 +2363,8 @@ public:
             std::unordered_map<int, dnnl::memory> args{{DNNL_ARG_SRC, src_mem},
                                                        {DNNL_ARG_WEIGHTS, w_mem},
                                                        {DNNL_ARG_DST, dst_mem},
-                                                       {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem}};
+                                                       {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
+                                                       {DNNL_ARG_HINT_MAX_GROUP_M, hint_mem}};
             if (gk.has_zp) {
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS,
                              dnnl::ocl_interop::make_memory(gk.up_zp_md,
@@ -2435,7 +2406,8 @@ public:
             std::unordered_map<int, dnnl::memory> args{{DNNL_ARG_SRC, src_mem},
                                                        {DNNL_ARG_WEIGHTS, w_mem},
                                                        {DNNL_ARG_DST, dst_mem},
-                                                       {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem}};
+                                                       {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
+                                                       {DNNL_ARG_HINT_MAX_GROUP_M, hint_mem}};
             if (gk.has_zp) {
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS,
                              dnnl::ocl_interop::make_memory(gk.down_zp_md,
