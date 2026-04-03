@@ -294,6 +294,9 @@ Arguments SDPAOptGeneratorKVCopy::get_arguments_desc(const kernel_impl_params& p
     // K intermediate buffer, V intermediate buffer
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});
+    // Turbo rotation matrix (128x128 floats), QJL matrix (128x128 floats)
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 5});
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 6});
     return args;
 }
 
@@ -301,6 +304,8 @@ JitConstants SDPAOptGeneratorKVCopy::get_jit_constants(const kernel_impl_params&
     auto jit = SDPABase::get_jit_constants(params);
     jit.add(make_tensors_jit_constants(params));
     jit.make("SDPA_KV_COPY", 1);
+    constexpr size_t subgroup_size = 16;
+    jit.make("SUBGROUP_SIZE", subgroup_size);
     return jit;
 }
 
@@ -308,9 +313,12 @@ DispatchDataFunc SDPAOptGeneratorKVCopy::get_dispatch_data_func() const {
     return DispatchDataFunc{[](const RuntimeParams& impl_param, KernelData& kd, ImplRuntimeParams* rt_params) {
         auto& wgs = kd.params.workGroups;
         auto params = SDPABase::requires_shape_canonicalization(impl_param) ? SDPABase::static_canonicalize_shapes(impl_param) : impl_param;
-        const size_t total_elements = params.get_input_layout(1).get_linear_size();
-        wgs.global = {total_elements, 1, 1};
-        wgs.local = {1, 1, 1};
+        constexpr size_t turbo_d = 128;
+        const size_t k_total_elements = params.get_input_layout(1).get_linear_size();
+        const size_t v_total_elements = params.get_input_layout(2).get_linear_size();
+        const size_t total_blocks = k_total_elements / turbo_d + v_total_elements / turbo_d;
+        wgs.global = {total_blocks * turbo_d, 1, 1};
+        wgs.local = {turbo_d, 1, 1};
     }};
 }
 

@@ -15,6 +15,7 @@
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
+#include "intel_gpu/runtime/memory.hpp"
 #include "kv_cache_inst.h"
 #include "openvino/core/partial_shape.hpp"
 #include "primitive_inst.h"
@@ -22,9 +23,75 @@
 #include "sdpa_base.hpp"
 #include "sdpa_gen_opt.hpp"
 
+#include <cmath>
+#include <mutex>
+
 using namespace cldnn;
 
 namespace ov::intel_gpu::ocl {
+
+// ---- TurboQuant matrix precomputation (deterministic seed-based) ----
+
+namespace {
+
+constexpr int TURBO_D = 128;
+constexpr uint64_t TURBO_SEED_ROTATION = 42;
+constexpr uint64_t TURBO_SEED_QJL = 1042;
+
+struct TurboMatrices {
+    std::vector<float> rotation;  // 128x128
+    std::vector<float> qjl;      // 128x128
+};
+
+static TurboMatrices& get_turbo_matrices() {
+    static TurboMatrices matrices;
+    static std::once_flag flag;
+    std::call_once(flag, []() {
+        const int d = TURBO_D;
+        matrices.rotation.resize(d * d);
+        matrices.qjl.resize(d * d);
+
+        // LCG PRNG (matches reference implementation)
+        auto prng_normal = [](uint64_t& state) -> double {
+            state = state * 6364136223846793005ULL + 1442695040888963407ULL;
+            double u1 = static_cast<double>(state >> 11) / static_cast<double>(1ULL << 53);
+            if (u1 < 1e-15) u1 = 1e-15;
+            state = state * 6364136223846793005ULL + 1442695040888963407ULL;
+            double u2 = static_cast<double>(state >> 11) / static_cast<double>(1ULL << 53);
+            return std::sqrt(-2.0 * std::log(u1)) * std::cos(2.0 * M_PI * u2);
+        };
+
+        // Generate rotation matrix with QR decomposition (modified Gram-Schmidt)
+        uint64_t state = TURBO_SEED_ROTATION;
+        for (int i = 0; i < d * d; i++) {
+            matrices.rotation[i] = static_cast<float>(prng_normal(state));
+        }
+        for (int j = 0; j < d; j++) {
+            float norm = 0.0f;
+            for (int i = 0; i < d; i++) norm += matrices.rotation[i * d + j] * matrices.rotation[i * d + j];
+            norm = std::sqrt(norm);
+            if (norm > 1e-10f) {
+                for (int i = 0; i < d; i++) matrices.rotation[i * d + j] /= norm;
+            }
+            for (int k = j + 1; k < d; k++) {
+                float dot = 0.0f;
+                for (int i = 0; i < d; i++) dot += matrices.rotation[i * d + j] * matrices.rotation[i * d + k];
+                for (int i = 0; i < d; i++) matrices.rotation[i * d + k] -= dot * matrices.rotation[i * d + j];
+            }
+        }
+
+        // Generate QJL matrix (raw Gaussian, no QR decomposition)
+        state = TURBO_SEED_QJL;
+        for (int i = 0; i < d * d; i++) {
+            matrices.qjl[i] = static_cast<float>(prng_normal(state));
+        }
+    });
+    return matrices;
+}
+
+}  // namespace
+
+// ---- End TurboQuant matrix precomputation ----
 
 class SDPAOptImpl : public SDPAImplBase {
 public:
@@ -44,6 +111,7 @@ public:
     Stage::Ptr kv_copy = make_stage<SDPAOptGeneratorKVCopy>();
 
     mutable bool m_use_intermediate_kv = false;
+    mutable bool m_turbo_matrices_initialized = false;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     Stage::Ptr regular_micro_single_token = make_stage<SDPAMicroGenerator>(!prefill);
@@ -142,6 +210,21 @@ public:
         GPU_DEBUG_TRACE_DETAIL << "execute single_tokens with indirect = " << is_indirect << "\n";
 
         // Run KV copy stage to populate intermediate buffers, then use those for single_token
+        // Initialize turbo rotation/QJL matrices in internal buffers on first execution
+        if (!m_turbo_matrices_initialized) {
+            auto& stream = instance.get_network().get_stream();
+            auto& intermediates = instance.get_intermediates_memories();
+            const auto& turbo = get_turbo_matrices();
+            {
+                mem_lock<float, mem_lock_type::write> lock(intermediates[5], stream);
+                std::copy(turbo.rotation.begin(), turbo.rotation.end(), lock.data());
+            }
+            {
+                mem_lock<float, mem_lock_type::write> lock(intermediates[6], stream);
+                std::copy(turbo.qjl.begin(), turbo.qjl.end(), lock.data());
+            }
+            m_turbo_matrices_initialized = true;
+        }
         kv_copy->kd.need_args_update = true;
         kv_copy->kd.need_dispatch_data_update = true;
         auto ev_kv = execute_stage(events, instance, kv_copy);
@@ -191,6 +274,12 @@ public:
         const auto& v_layout = is_prefill ? layout({1}, params.get_input_layout(2).data_type, format::bfyx) : params_canonicalization.get_input_layout(2);
         internal_buffers.emplace_back(k_layout);
         internal_buffers.emplace_back(v_layout);
+
+        // Buffer 5: TurboQuant rotation matrix (128x128 floats), Buffer 6: TurboQuant QJL matrix (128x128 floats)
+        // Lockable so we can initialize from CPU with precomputed deterministic matrices
+        constexpr size_t turbo_mat_elements = TURBO_D * TURBO_D;
+        internal_buffers.emplace_back(turbo_mat_elements, ov::element::f32, /*lockable=*/true);
+        internal_buffers.emplace_back(turbo_mat_elements, ov::element::f32, /*lockable=*/true);
 
         return internal_buffers;
     }

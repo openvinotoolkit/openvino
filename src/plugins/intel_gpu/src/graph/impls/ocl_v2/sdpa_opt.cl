@@ -2177,16 +2177,151 @@ KERNEL(sdpa_opt_finalization_stage)(
 #endif
 
 #ifdef SDPA_KV_COPY
+
+#define TURBO_D 128
+#define TURBO_QJL_CONST 1.2533141373155003f
+
+// 3-bit optimal centroids for N(0, 1/128), pre-computed (Lloyd-Max)
+__constant float CENTROIDS_3BIT[8] = {
+    -0.190685f, -0.117832f, -0.065717f, -0.021460f,
+     0.021460f,  0.065717f,  0.117832f,  0.190685f
+};
+
+// Nearest centroid lookup for 3-bit quantization (8 centroids, midpoint-based)
+inline uint turbo_nearest_3bit(float val) {
+    if (val < -0.154259f) return 0;
+    if (val < -0.091775f) return 1;
+    if (val < -0.043589f) return 2;
+    if (val <  0.000000f) return 3;
+    if (val <  0.043589f) return 4;
+    if (val <  0.091775f) return 5;
+    if (val <  0.154259f) return 6;
+    return 7;
+}
+
+// TurboQuant (3-bit PolarQuant + 1-bit QJL) and TurboDequant in a single pass.
+// Each work group of TURBO_D (128) threads processes one 128-element block.
+// Flow: input -> normalize -> rotate -> 3bit quantize -> inverse rotate -> residual -> QJL -> reconstruct -> output
+REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
+__attribute__((reqd_work_group_size(TURBO_D, 1, 1)))
 KERNEL(sdpa_opt)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT1_TYPE* key_input,
     const __global INPUT2_TYPE* value_input,
     __global INPUT1_TYPE* key_output,
-    __global INPUT2_TYPE* value_output
+    __global INPUT2_TYPE* value_output,
+    const __global float* turbo_rotation,
+    const __global float* turbo_qjl
 ) {
-    const uint idx = get_global_id(0);
-    // Placeholder for future quantize/dequantize logic
-    key_output[idx] = key_input[idx];
-    value_output[idx] = value_input[idx];
+    const uint block_id = get_group_id(0);
+    const uint lid = get_local_id(0);  // 0..127
+
+    // Total number of 128-element blocks for key input
+    const uint k_total_elements = INPUT1_BATCH_NUM * INPUT1_FEATURE_NUM * INPUT1_SIZE_Y * INPUT1_SIZE_X;
+    const uint k_total_blocks = k_total_elements / TURBO_D;
+
+    // Determine if this block processes key or value
+    const bool is_value = (block_id >= k_total_blocks);
+    const uint actual_block = is_value ? (block_id - k_total_blocks) : block_id;
+    const uint base_offset = actual_block * TURBO_D;
+
+    // SLM for cooperative computation within the work group
+    __local float slm_vec[TURBO_D];
+    __local float slm_reduce[TURBO_D];
+
+    // === Step 1: Load input value (convert to float for computation) ===
+    float my_val;
+    if (is_value) {
+        my_val = (float)value_input[base_offset + lid];
+    } else {
+        my_val = (float)key_input[base_offset + lid];
+    }
+
+    // === Step 2: Compute L2 norm via parallel reduction ===
+    slm_reduce[lid] = my_val * my_val;
+    barrier(CLK_LOCAL_MEM_FENCE);
+    for (uint stride = TURBO_D / 2; stride > 0; stride >>= 1) {
+        if (lid < stride) {
+            slm_reduce[lid] += slm_reduce[lid + stride];
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+    const float norm = sqrt(slm_reduce[0]);
+    const float inv_norm = (norm > 1e-10f) ? (1.0f / norm) : 0.0f;
+
+    // === Step 3: Normalize ===
+    const float normalized = my_val * inv_norm;
+    slm_vec[lid] = normalized;
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    // === Step 4: Forward rotation (rotated = rotation @ normalized) ===
+    // Each thread computes one element of the rotated vector: dot product of rotation row with slm_vec
+    float rotated = 0.0f;
+    const uint rot_row_base = lid * TURBO_D;
+    for (uint j = 0; j < TURBO_D; j++) {
+        rotated += turbo_rotation[rot_row_base + j] * slm_vec[j];
+    }
+
+    // === Step 5: 3-bit quantization (nearest centroid) ===
+    const uint idx3 = turbo_nearest_3bit(rotated);
+    const float reconstructed = CENTROIDS_3BIT[idx3];
+
+    // === Step 6: Inverse rotation of reconstructed (mse_recon = rotation^T @ reconstructed) ===
+    // Store reconstructed values in SLM for cooperative matvec
+    slm_vec[lid] = reconstructed;
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    float mse_recon = 0.0f;
+    for (uint j = 0; j < TURBO_D; j++) {
+        // rotation^T: column lid of rotation = row j, col lid
+        mse_recon += turbo_rotation[j * TURBO_D + lid] * slm_vec[j];
+    }
+
+    // === Step 7: Compute residual = normalized - mse_recon ===
+    const float residual = normalized - mse_recon;
+    slm_vec[lid] = residual;
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    // === Step 8: Compute residual L2 norm ===
+    slm_reduce[lid] = residual * residual;
+    barrier(CLK_LOCAL_MEM_FENCE);
+    for (uint stride = TURBO_D / 2; stride > 0; stride >>= 1) {
+        if (lid < stride) {
+            slm_reduce[lid] += slm_reduce[lid + stride];
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+    const float rnorm = sqrt(slm_reduce[0]);
+    const float qjl_scale = TURBO_QJL_CONST / (float)TURBO_D * rnorm;
+
+    // === Step 9: QJL projection (projected = qjl_matrix @ residual) ===
+    float projected = 0.0f;
+    const uint qjl_row_base = lid * TURBO_D;
+    for (uint j = 0; j < TURBO_D; j++) {
+        projected += turbo_qjl[qjl_row_base + j] * slm_vec[j];
+    }
+
+    // === Step 10: Extract sign ===
+    const float sign_val = (projected >= 0.0f) ? 1.0f : -1.0f;
+    slm_vec[lid] = sign_val;
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    // === Step 11: QJL reconstruction (qjl_recon = qjl_matrix^T @ signs) ===
+    float qjl_recon = 0.0f;
+    for (uint j = 0; j < TURBO_D; j++) {
+        // qjl^T: column lid of qjl = row j, col lid
+        qjl_recon += turbo_qjl[j * TURBO_D + lid] * slm_vec[j];
+    }
+    qjl_recon *= qjl_scale;
+
+    // === Step 12: Final output = (mse_recon + qjl_recon) * norm ===
+    const float result = (mse_recon + qjl_recon) * norm;
+
+    if (is_value) {
+        value_output[base_offset + lid] = (INPUT2_TYPE)result;
+    } else {
+        key_output[base_offset + lid] = (INPUT1_TYPE)result;
+    }
 }
+
 #endif

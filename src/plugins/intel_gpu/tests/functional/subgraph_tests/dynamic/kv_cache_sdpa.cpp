@@ -155,24 +155,31 @@ public:
             return ov::test::utils::infer_on_template(ref_model, inputs);
         };
 
-        ov::element::Type inference_precision =
-            core->get_property(ov::test::utils::DEVICE_GPU, ov::hint::inference_precision);
-        auto compare_tensors = [&model, &inference_precision](const std::vector<ov::Tensor> expected,
-                                                              const std::vector<ov::Tensor>& actual) {
+        auto compare_tensors = [](const std::vector<ov::Tensor>& expected,
+                                  const std::vector<ov::Tensor>& actual,
+                                  double mse_threshold = 0.01) {
             ASSERT_EQ(expected.size(), actual.size());
-            const auto& compareMap = ov::test::utils::getCompareMap();
             for (size_t i = 0; i < expected.size(); i++) {
-                auto it = compareMap.find(ov::op::v13::ScaledDotProductAttention::get_type_info_static());
-                ASSERT_NE(it, compareMap.end());
-                it->second(model->get_result(),
-                           i,
-                           inference_precision,
-                           expected[i],
-                           actual[i],
-                           1e-1f,
-                           1e-1f,
-                           0.1f,
-                           1.f);
+                ASSERT_EQ(expected[i].get_shape(), actual[i].get_shape());
+                const size_t num_elements = expected[i].get_size();
+                ASSERT_GT(num_elements, 0u);
+
+                double sum_sq_diff = 0.0;
+                for (size_t j = 0; j < num_elements; j++) {
+                    double exp_val, act_val;
+                    if (expected[i].get_element_type() == ov::element::f16) {
+                        exp_val = static_cast<double>(static_cast<float>(expected[i].data<ov::float16>()[j]));
+                        act_val = static_cast<double>(static_cast<float>(actual[i].data<ov::float16>()[j]));
+                    } else {
+                        exp_val = static_cast<double>(expected[i].data<float>()[j]);
+                        act_val = static_cast<double>(actual[i].data<float>()[j]);
+                    }
+                    double diff = exp_val - act_val;
+                    sum_sq_diff += diff * diff;
+                }
+                double mse = sum_sq_diff / num_elements;
+                EXPECT_LT(mse, mse_threshold) << "MSE " << mse << " exceeds threshold " << mse_threshold
+                                               << " for tensor " << i << " with " << num_elements << " elements";
             }
         };
 
