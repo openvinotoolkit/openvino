@@ -1013,7 +1013,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     if (auto encryptionCallbackIt = localProperties.find(ov::cache_encryption_callbacks.name());
         encryptionCallbackIt != localProperties.end()) {
         encryptionCallback = encryptionCallbackIt->second.as<ov::EncryptionCallbacks>().encrypt;
-        if (encryptionCallback.value() == nullptr) {
+        if (!encryptionCallback.value()) {
             // User might give nullptr for encryption callback when importing
             encryptionCallback = std::nullopt;
         }
