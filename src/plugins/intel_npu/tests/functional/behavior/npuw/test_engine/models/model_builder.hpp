@@ -405,22 +405,22 @@ struct LLMConfig : public BaseModelConfig {
     bool pre_norm = true;
 };
 
-struct WhisperEncoderConfig : public BaseModelConfig {
+struct WhisperConfig : public BaseModelConfig {
     size_t encoder_layers = 0;
+    size_t decoder_layers = 0;
     size_t num_mel_bins = 80;
     size_t max_source_positions = 1500;
+    size_t max_target_positions = 448;
 
     size_t get_encoder_layers() const {
         return encoder_layers == 0 ? num_layers : encoder_layers;
     }
-};
-
-struct WhisperDecoderConfig : public BaseModelConfig {
-    size_t decoder_layers = 0;
-    size_t max_target_positions = 448;
-
     size_t get_decoder_layers() const {
         return decoder_layers == 0 ? num_layers : decoder_layers;
+    }
+    /// Encoder output sequence length after Conv1D preprocessing (stride=2 on 2*max_source_positions).
+    size_t get_encoder_seq_len() const {
+        return max_source_positions;
     }
 };
 
@@ -454,8 +454,8 @@ public:
                                                      const std::string& name);
 
     std::shared_ptr<ov::Model> build_llm(const LLMConfig& config);
-    std::shared_ptr<ov::Model> build_whisper_encoder(const WhisperEncoderConfig& config);
-    std::shared_ptr<ov::Model> build_whisper_decoder(const WhisperDecoderConfig& config);
+    std::shared_ptr<ov::Model> build_whisper_encoder(const WhisperConfig& config);
+    std::shared_ptr<ov::Model> build_whisper_decoder(const WhisperConfig& config);
     std::shared_ptr<ov::Model> build_embedding_encoder(const BertConfig& config);
 
     void clear();

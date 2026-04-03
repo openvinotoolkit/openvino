@@ -7,85 +7,75 @@
 #include <ze_api.h>
 #include <ze_command_queue_npu_ext.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
 #include <optional>
+#include <vector>
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
-#include "intel_npu/utils/zero/zero_utils.hpp"
 
 namespace intel_npu {
-class CommandList;
+
+namespace zero_hashing {
+inline constexpr uint64_t kFnvOffsetBasis64 = 1469598103934665603ULL;
+inline constexpr uint64_t kHashCombineConstant64 = 0x9e3779b97f4a7c15ULL;
+
+inline uint64_t hash_combine64(uint64_t seed, uint64_t value) {
+    return seed ^ (value + kHashCombineConstant64 + (seed << 6) + (seed >> 2));
+}
+}  // namespace zero_hashing
+
 class CommandQueue;
 
-struct CommandQueueDesc {
-    ze_command_queue_priority_t priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
-    std::optional<ze_command_queue_workload_type_t> workload = std::nullopt;
-    uint32_t options = 0;
-    const void* owner_tag = nullptr;
-    bool shared_common_queue = true;
-    uint64_t key = 0;
-
-    bool operator==(const CommandQueueDesc& other) const {
-        if (priority != other.priority || workload != other.workload || options != other.options ||
-            shared_common_queue != other.shared_common_queue) {
-            return false;
-        }
-        // pointer is only meaningful when the device-sync flag is active
-        const bool use_owner_tag = (options & ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC) != 0 || !shared_common_queue;
-        const bool other_use_owner_tag =
-            (other.options & ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC) != 0 || !other.shared_common_queue;
-        if (use_owner_tag || other_use_owner_tag) {
-            // when owner_tag participates in the key, require it to be non-null and equal on both sides
-            if (owner_tag == nullptr || other.owner_tag == nullptr || owner_tag != other.owner_tag) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-};
-
-class EventPool {
+class CommandQueueDesc {
 public:
-    EventPool() = delete;
-    EventPool(ze_device_handle_t device_handle, const ze_context_handle_t& context, uint32_t event_count);
-    EventPool(const EventPool&) = delete;
-    EventPool(EventPool&&) = delete;
-    EventPool& operator=(const EventPool&) = delete;
-    EventPool& operator=(EventPool&&) = delete;
-    ~EventPool();
-    inline ze_event_pool_handle_t handle() const {
-        return _handle;
+    friend class CommandQueue;
+
+    CommandQueueDesc();
+    CommandQueueDesc(ze_command_queue_priority_t priority,
+                     std::optional<ze_command_queue_workload_type_t> workload,
+                     uint32_t options,
+                     const void* owner_tag,
+                     bool shared_common_queue);
+
+    ze_command_queue_priority_t priority() const {
+        return _priority;
+    }
+    std::optional<ze_command_queue_workload_type_t> workload() const {
+        return _workload;
+    }
+    uint64_t key() const {
+        return _key;
     }
 
-private:
-    ze_event_pool_handle_t _handle = nullptr;
+    void set_priority(ze_command_queue_priority_t priority);
+    void set_workload(std::optional<ze_command_queue_workload_type_t> workload);
 
-    Logger _log;
-};
-
-class Event {
-public:
-    Event() = delete;
-    Event(const std::shared_ptr<EventPool>& event_pool, uint32_t event_index);
-    Event(const Event&) = delete;
-    Event(Event&&) = delete;
-    Event& operator=(const Event&) = delete;
-    Event& operator=(Event&&) = delete;
-
-    void AppendSignalEvent(CommandList& command_list) const;
-    void AppendWaitOnEvent(CommandList& command_list);
-    void AppendEventReset(CommandList& command_list) const;
-    void hostSynchronize() const;
-    void reset() const;
-    ~Event();
+    bool operator==(const CommandQueueDesc& other) const;
 
 private:
-    std::shared_ptr<EventPool> _event_pool;
-    ze_event_handle_t _handle = nullptr;
+    bool owner_tag_required() const;
+    void update_key();
 
-    Logger _log;
+    uint32_t options() const {
+        return _options;
+    }
+    const void* owner_tag() const {
+        return _owner_tag;
+    }
+    bool shared_common_queue() const {
+        return _shared_common_queue;
+    }
+
+    ze_command_queue_priority_t _priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
+    std::optional<ze_command_queue_workload_type_t> _workload = std::nullopt;
+    uint32_t _options = 0;
+    const void* _owner_tag = nullptr;
+    bool _shared_common_queue = true;
+    uint64_t _key = 0;
 };
 
 class CommandList {
@@ -176,6 +166,48 @@ private:
     Logger _log;
 
     ze_command_queue_handle_t _handle = nullptr;
+};
+
+class EventPool {
+public:
+    EventPool() = delete;
+    EventPool(ze_device_handle_t device_handle, const ze_context_handle_t& context, uint32_t event_count);
+    EventPool(const EventPool&) = delete;
+    EventPool(EventPool&&) = delete;
+    EventPool& operator=(const EventPool&) = delete;
+    EventPool& operator=(EventPool&&) = delete;
+    ~EventPool();
+    inline ze_event_pool_handle_t handle() const {
+        return _handle;
+    }
+
+private:
+    ze_event_pool_handle_t _handle = nullptr;
+
+    Logger _log;
+};
+
+class Event {
+public:
+    Event() = delete;
+    Event(const std::shared_ptr<EventPool>& event_pool, uint32_t event_index);
+    Event(const Event&) = delete;
+    Event(Event&&) = delete;
+    Event& operator=(const Event&) = delete;
+    Event& operator=(Event&&) = delete;
+
+    void AppendSignalEvent(CommandList& command_list) const;
+    void AppendWaitOnEvent(CommandList& command_list);
+    void AppendEventReset(CommandList& command_list) const;
+    void hostSynchronize() const;
+    void reset() const;
+    ~Event();
+
+private:
+    std::shared_ptr<EventPool> _event_pool;
+    ze_event_handle_t _handle = nullptr;
+
+    Logger _log;
 };
 
 }  // namespace intel_npu
