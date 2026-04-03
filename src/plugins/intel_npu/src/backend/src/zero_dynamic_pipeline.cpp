@@ -234,8 +234,10 @@ void DynamicPipeline::pull() {
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
         if (_sync_output_with_fences) {
+            std::cout << "use fence to synchronize" << std::endl;
             _fences.at(i)->hostSynchronize();
         } else {
+            std::cout << "use command to synchronize" << std::endl;
             _events.at(i)->hostSynchronize();
         }
         /// sample npu timestamps if feature was activated

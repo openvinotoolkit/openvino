@@ -878,6 +878,54 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithRandomSize) {
         << logCapture.str();
 }
 
+// Exercise imported Level Zero tensors and verify both output correctness and command-list pointer updates.
+TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensorWithoutReference) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    auto model = createMaxPoolModel();
+    ScopedLogCapture logCapture;
+
+    core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
+    ov::CompiledModel compiledModel;
+    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
+
+    ov::InferRequest reqDynamic;
+    try {
+        reqDynamic = compiledModel.create_infer_request();
+    } catch (const ov::Exception& e) {
+        ASSERT_TRUE(std::string(e.what()).find("Cannot load library") != std::string::npos)
+            << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
+        GTEST_SKIP() << "Cannot load library, skip test.";
+    }
+
+    // create input tensor match the customized models
+    ov::Shape shape = {1, 16, 720, 720};
+    ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
+    OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor));
+    OV_ASSERT_NO_THROW(reqDynamic.infer());
+    // Set new tensor with same shape, it can not be used by runtime directly, local LevelZero tensor are reused
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected log to contain 'Reset command list to run with runtime', but got: " << logCapture.str();
+
+    logCapture.clear();
+    auto zeroContext = core->get_default_context(target_device);
+    auto inputHostTensor = zeroContext.create_host_tensor(model->input().get_element_type(), shape);
+    auto hostTensorSource = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
+    ASSERT_EQ(hostTensorSource.get_byte_size(), inputHostTensor.get_byte_size())
+        << "Source and destination tensors must have identical byte sizes for copy";
+    std::memcpy(inputHostTensor.data(), hostTensorSource.data(), hostTensorSource.get_byte_size());
+    OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inputHostTensor));
+    OV_ASSERT_NO_THROW(reqDynamic.infer());
+    // Feeding a context-allocated host tensor should also update the command list to the new pointer.
+    ASSERT_TRUE(logContains(logCapture, "Update command list with new tensor pointer"))
+        << "Expected log to contain 'Update command list with new tensor pointer' for fourth inference, but got: "
+        << logCapture.str();
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
