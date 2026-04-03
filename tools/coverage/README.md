@@ -4,6 +4,7 @@ Coverage CI is driven by `.github/workflows/coverage.yml`.
 
 `tools/coverage` now contains only the helper code still used by that workflow:
 - suite definitions in `config/`
+- pinned CI Python dependencies in `requirements-ci.txt`
 - suite test runners in `steps/`
 - native C/C++ coverage collection in `steps/collect_cpp_coverage.py`
 - summary and duration aggregation in `ci_reports.py`

@@ -81,16 +81,76 @@ def _write_stats_report(
 
 def _copy_js_lcov(*, source: Path, target: Path, branch_coverage: bool) -> None:
     """Copy JS LCOV output and optionally strip branch records."""
+    workspace = Path(os.environ["OV_WORKSPACE"]).resolve()
     if not branch_coverage:
         filtered_lines = []
         for line in source.read_text(encoding="utf-8", errors="replace").splitlines():
             if line.startswith(("BRDA:", "BRF:", "BRH:")):
                 continue
+            if line.startswith("SF:"):
+                raw_source = line[3:].strip()
+                normalized = _normalize_js_source_path(raw_source, workspace=workspace)
+                if normalized is not None:
+                    line = f"SF:{normalized.as_posix()}"
             filtered_lines.append(line)
         target.write_text("\n".join(filtered_lines) + "\n", encoding="utf-8")
         return
 
-    shutil.copyfile(source, target)
+    normalized_lines = []
+    for line in source.read_text(encoding="utf-8", errors="replace").splitlines():
+        if line.startswith("SF:"):
+            raw_source = line[3:].strip()
+            normalized = _normalize_js_source_path(raw_source, workspace=workspace)
+            if normalized is not None:
+                line = f"SF:{normalized.as_posix()}"
+        normalized_lines.append(line)
+    target.write_text("\n".join(normalized_lines) + "\n", encoding="utf-8")
+
+
+def _normalize_js_source_path(raw_path: str, *, workspace: Path) -> Path | None:
+    """Normalize a JS LCOV source path to a repo-relative path."""
+    raw = raw_path.strip()
+    if not raw:
+        return None
+
+    candidates: list[Path] = []
+    path = Path(raw)
+    if path.is_absolute():
+        candidates.append(path)
+        parts = path.parts[1:] if path.parts and path.parts[0] == path.anchor else path.parts
+        for start in range(len(parts)):
+            suffix = parts[start:]
+            if suffix:
+                candidates.append(workspace.joinpath(*suffix))
+    else:
+        stripped = raw.removeprefix("./")
+        if stripped:
+            candidates.append(workspace / stripped)
+            repo_prefix = f"{workspace.name}/"
+            if stripped.startswith(repo_prefix):
+                candidates.append(workspace / stripped[len(repo_prefix) :])
+            rel_parts = Path(stripped).parts
+            for start in range(len(rel_parts)):
+                suffix = rel_parts[start:]
+                if suffix:
+                    candidates.append(workspace.joinpath(*suffix))
+
+    seen: set[str] = set()
+    for candidate in candidates:
+        try:
+            resolved = candidate.resolve(strict=False)
+        except OSError:
+            resolved = candidate
+        key = str(resolved)
+        if key in seen:
+            continue
+        seen.add(key)
+        if resolved.exists() and resolved.is_file():
+            try:
+                return resolved.relative_to(workspace)
+            except ValueError:
+                continue
+    return None
 
 
 def run(ctx: CoverageContext) -> None:

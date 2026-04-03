@@ -75,6 +75,7 @@ jobs:
         -DENABLE_OV_TF_FRONTEND=ON
         -DENABLE_OV_TF_LITE_FRONTEND=ON
         -DENABLE_INTEL_GPU=OFF
+        -DENABLE_INTEL_NPU=OFF
         -DENABLE_ONEDNN_FOR_GPU=OFF
 
   CoverageCpp:
@@ -175,8 +176,8 @@ jobs:
             done
           } | tee "${OV_WORKSPACE}/native-coverage-tool-versions.txt"
 
-      - name: Install coverage helper dependency
-        run: python3 -m pip install pyyaml
+      - name: Install coverage Python dependencies
+        run: python3 -m pip install -r tools/coverage/requirements-ci.txt
 
       - name: Verify Python coverage helper environment
         run: python3 -c "import sys, yaml; print(sys.executable); print(yaml.__file__)"
@@ -354,7 +355,7 @@ jobs:
           } | tee "${OV_WORKSPACE}/native-coverage-tool-versions.txt"
 
       - name: Install coverage Python dependencies
-        run: python3 -m pip install pyyaml coverage pytest pytest-cov pytest-xdist[psutil]
+        run: python3 -m pip install -r tools/coverage/requirements-ci.txt
 
       - name: Install OpenVINO Python wheels
         uses: ./openvino/.github/actions/install_ov_wheels
@@ -557,8 +558,8 @@ jobs:
             done
           } | tee "${OV_WORKSPACE}/native-coverage-tool-versions.txt"
 
-      - name: Install coverage helper dependency
-        run: python3 -m pip install pyyaml
+      - name: Install coverage Python dependencies
+        run: python3 -m pip install -r tools/coverage/requirements-ci.txt
 
       - name: Verify Python coverage helper environment
         run: python3 -c "import sys, yaml; print(sys.executable); print(yaml.__file__)"

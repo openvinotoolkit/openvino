@@ -18,6 +18,7 @@ def _pycov_config(*, branch_coverage: bool) -> str:
     return f"""[run]
 source =
     openvino
+relative_files = True
 {branch_line}omit =
     */tests/*
     */thirdparty/*

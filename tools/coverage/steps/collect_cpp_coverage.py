@@ -199,7 +199,17 @@ def _classify_unwanted_source(rel_path: Path) -> str | None:
     return None
 
 
-def _prune_unwanted_gcda(root: Path, *, label: str) -> None:
+def _classify_profile_unwanted_source(rel_path: Path, *, run_gpu_tests: bool, run_npu_tests: bool) -> str | None:
+    """Return profile-specific exclusion reasons for source paths."""
+    rel = rel_path.as_posix()
+    if not run_gpu_tests and rel.startswith("src/plugins/intel_gpu/"):
+        return "gpu-plugin-disabled"
+    if not run_npu_tests and rel.startswith("src/plugins/intel_npu/"):
+        return "npu-plugin-disabled"
+    return None
+
+
+def _prune_unwanted_gcda(root: Path, *, label: str, run_gpu_tests: bool, run_npu_tests: bool) -> None:
     """Delete gcda files that are known to be excluded from the final report.
 
     This reduces lcov capture time by removing whole classes of files that we
@@ -211,7 +221,10 @@ def _prune_unwanted_gcda(root: Path, *, label: str) -> None:
     removed = 0
     reasons: dict[str, int] = {}
     for gcda in root.rglob("*.gcda"):
-        reason = _classify_unwanted_gcda(gcda.relative_to(root))
+        rel = gcda.relative_to(root)
+        reason = _classify_unwanted_gcda(rel)
+        if reason is None:
+            reason = _classify_profile_unwanted_source(rel, run_gpu_tests=run_gpu_tests, run_npu_tests=run_npu_tests)
         if reason is None:
             continue
         try:
@@ -273,7 +286,14 @@ def _resolve_trace_source_path(raw_path: str, *, workspace: Path) -> Path | None
     return None
 
 
-def _normalize_and_filter_tracefile(*, tracefile: Path, workspace: Path, debug_dir: Path) -> dict[str, int]:
+def _normalize_and_filter_tracefile(
+    *,
+    tracefile: Path,
+    workspace: Path,
+    debug_dir: Path,
+    run_gpu_tests: bool,
+    run_npu_tests: bool,
+) -> dict[str, int]:
     """Normalize ``SF:`` paths and drop records that should not be uploaded."""
     stats: dict[str, int] = {
         "total_records": 0,
@@ -318,12 +338,18 @@ def _normalize_and_filter_tracefile(*, tracefile: Path, workspace: Path, debug_d
 
         rel_source = resolved.relative_to(workspace)
         exclude_reason = _classify_unwanted_source(rel_source)
+        if exclude_reason is None:
+            exclude_reason = _classify_profile_unwanted_source(
+                rel_source,
+                run_gpu_tests=run_gpu_tests,
+                run_npu_tests=run_npu_tests,
+            )
         if exclude_reason is not None:
             stats["dropped_excluded"] += 1
             excluded_reasons[exclude_reason] = excluded_reasons.get(exclude_reason, 0) + 1
             return
 
-        normalized_source = str(resolved)
+        normalized_source = rel_source.as_posix()
         if normalized_source != raw_source:
             lines[sf_index] = f"SF:{normalized_source}"
             stats["rewritten_paths"] += 1
@@ -648,9 +674,19 @@ def run(ctx: CoverageContext) -> None:
         encoding="utf-8",
     )
 
-    _prune_unwanted_gcda(ctx.paths.build_dir, label="main build")
+    _prune_unwanted_gcda(
+        ctx.paths.build_dir,
+        label="main build",
+        run_gpu_tests=ctx.run_gpu_tests,
+        run_npu_tests=ctx.run_npu_tests,
+    )
     if ctx.paths.build_js_dir.exists():
-        _prune_unwanted_gcda(ctx.paths.build_js_dir, label="js build")
+        _prune_unwanted_gcda(
+            ctx.paths.build_js_dir,
+            label="js build",
+            run_gpu_tests=ctx.run_gpu_tests,
+            run_npu_tests=ctx.run_npu_tests,
+        )
 
     _prefilter_incompatible_gcda(ctx.paths.build_dir, label="main build")
     if ctx.paths.build_js_dir.exists():
@@ -758,7 +794,13 @@ def run(ctx: CoverageContext) -> None:
 
     _merge_tracefiles(tracefiles, merged_info, branch_coverage=ctx.branch_coverage)
 
-    normalization_stats = _normalize_and_filter_tracefile(tracefile=merged_info, workspace=src_dir, debug_dir=trace_dir)
+    normalization_stats = _normalize_and_filter_tracefile(
+        tracefile=merged_info,
+        workspace=src_dir,
+        debug_dir=trace_dir,
+        run_gpu_tests=ctx.run_gpu_tests,
+        run_npu_tests=ctx.run_npu_tests,
+    )
 
     if not merged_info.exists() or merged_info.stat().st_size == 0:
         warn("coverage.info is empty; skipping lcov --remove and genhtml.")
@@ -779,11 +821,10 @@ def run(ctx: CoverageContext) -> None:
             str(merged_info),
             "--output-directory",
             str(report_dir),
-            "--prefix",
-            str(src_dir),
             "--synthesize-missing",
             *(["--branch-coverage"] if ctx.branch_coverage else []),
         ],
+        cwd=src_dir,
         check=False,
     )
     if genhtml_rc != 0:
