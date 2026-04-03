@@ -335,16 +335,16 @@ void SingleFileStorage::write_context(const weight_sharing::Context& context) {
         }
     }
     for (const auto& cache_registry : delta_cache_sources) {
-        const auto& [source_id, weight_buffer] = cache_registry;
+        const auto& source_id = cache_registry.first;
+        const auto& weight_buffer = cache_registry.second;
         if (auto weights = weight_buffer.m_weights.lock()) {
-            const auto weight_source_writer = [&](std::ostream& s) {
+            write_tlv_record(stream, static_cast<TLVTraits::TagType>(Tag::WeightSource), [&](std::ostream& s) {
                 const auto device_id = static_cast<uint64_t>(std::strtoul(weight_buffer.m_device.c_str(), nullptr, 10));
                 s.write(reinterpret_cast<const char*>(&device_id), sizeof(device_id));
                 s.write(reinterpret_cast<const char*>(&source_id), sizeof(source_id));
                 write_padding(s, blob_alignment);
                 s.write(reinterpret_cast<const char*>(weights->get_ptr()), weights->size());
-            };
-            write_tlv_record(stream, static_cast<TLVTraits::TagType>(Tag::WeightSource), weight_source_writer);
+            });
             m_shared_context->m_cache_sources[source_id] = weight_buffer;
         }
     }
