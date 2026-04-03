@@ -5,7 +5,6 @@
 include(CheckCXXCompilerFlag)
 
 if (ENABLE_SANITIZER)
-    set (ENABLE_EXTERNAL_SANITIZER ON)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         # the flag is available since MSVC 2019 16.9
         # see https://learn.microsoft.com/en-us/cpp/build/reference/fsanitize?view=msvc-160
@@ -152,7 +151,7 @@ if(DEFINED SANITIZER_COMPILER_FLAGS)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${SANITIZER_LINKER_FLAGS}")
 endif()
 
-if (ENABLE_EXTERNAL_SANITIZER)
+if (ENABLE_SANITIZER OR ENABLE_EXTERNAL_SANITIZER)
     add_compile_definitions(OV_ENABLE_EXTERNAL_SANITIZER=1)
 else()
     add_compile_definitions(OV_ENABLE_EXTERNAL_SANITIZER=0)

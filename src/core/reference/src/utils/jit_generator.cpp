@@ -90,7 +90,11 @@ bool Generator::is_x64() {
     return sizeof(void*) == 8;
 }
 Generator::Generator(cpu_isa_t isa, void* code_ptr, size_t code_size)
-    : Xbyak::CodeGenerator(code_size, code_ptr, OV_ENABLE_EXTERNAL_SANITIZER ? &getPageAlignedAllocator() : nullptr),
+#    if (OV_ENABLE_EXTERNAL_SANITIZER == 1)
+    : Xbyak::CodeGenerator(code_size, code_ptr, &getPageAlignedAllocator()),
+#    else
+    : Xbyak::CodeGenerator(code_size, code_ptr, nullptr),
+#    endif
       size_of_abi_save_regs(num_abi_save_gpr_regs * rax.getBit() / 8 + xmm_to_preserve * xmm_len),
       reg_EVEX_max_8b_offt(rbp) {
     if (isa == avx512_core) {
