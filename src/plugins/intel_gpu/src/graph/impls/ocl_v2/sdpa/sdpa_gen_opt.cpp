@@ -283,4 +283,35 @@ DispatchDataFunc SDPAOptGeneratorFinalization::get_dispatch_data_func() const {
     }};
 }
 
+Arguments SDPAOptGeneratorKVCopy::get_arguments_desc(const kernel_impl_params& params) const {
+    Arguments args;
+    if (params.is_dynamic()) {
+        args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+    }
+    // K input, V input
+    args.push_back({ArgumentDescriptor::Types::INPUT, 1});
+    args.push_back({ArgumentDescriptor::Types::INPUT, 2});
+    // K intermediate buffer, V intermediate buffer
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});
+    return args;
+}
+
+JitConstants SDPAOptGeneratorKVCopy::get_jit_constants(const kernel_impl_params& params) const {
+    auto jit = SDPABase::get_jit_constants(params);
+    jit.add(make_tensors_jit_constants(params));
+    jit.make("SDPA_KV_COPY", 1);
+    return jit;
+}
+
+DispatchDataFunc SDPAOptGeneratorKVCopy::get_dispatch_data_func() const {
+    return DispatchDataFunc{[](const RuntimeParams& impl_param, KernelData& kd, ImplRuntimeParams* rt_params) {
+        auto& wgs = kd.params.workGroups;
+        auto params = SDPABase::requires_shape_canonicalization(impl_param) ? SDPABase::static_canonicalize_shapes(impl_param) : impl_param;
+        const size_t total_elements = params.get_input_layout(1).get_linear_size();
+        wgs.global = {total_elements, 1, 1};
+        wgs.local = {1, 1, 1};
+    }};
+}
+
 }  // namespace ov::intel_gpu::ocl

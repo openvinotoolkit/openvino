@@ -41,6 +41,10 @@ public:
     Stage::Ptr indirect_finalization = make_stage<SDPAOptGeneratorFinalization>(indirect);
     Stage::Ptr regular_finalization = make_stage<SDPAOptGeneratorFinalization>(!indirect);
 
+    Stage::Ptr kv_copy = make_stage<SDPAOptGeneratorKVCopy>();
+
+    mutable bool m_use_intermediate_kv = false;
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
     Stage::Ptr regular_micro_single_token = make_stage<SDPAMicroGenerator>(!prefill);
     Stage::Ptr regular_micro_multi_tokens = make_stage<SDPAMicroGenerator>(prefill);
@@ -52,7 +56,8 @@ public:
         GPU_DEBUG_TRACE_DETAIL << "create stages for dynamic = " << params.is_dynamic() << "\n";
         if (params.is_dynamic()) {
             GPU_DEBUG_TRACE_DETAIL << "add stages for dynamic ...\n";
-            add_stage(regular_single_token, params);
+            add_stage(kv_copy, params);
+        add_stage(regular_single_token, params);
             add_stage(indirect_single_token, params);
             add_stage(regular_multi_tokens, params);
             add_stage(indirect_multi_tokens, params);
@@ -90,6 +95,7 @@ public:
                 }
             } else {
                 GPU_DEBUG_TRACE_DETAIL << "add stage single_tokens \n";
+                add_stage(kv_copy, params);
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 const auto& gfx_ver = params.get_program().get_engine().get_device_info().gfx_ver;
                 bool is_ARL_H = (gfx_ver.major == 12 && gfx_ver.minor == 74);
@@ -134,12 +140,32 @@ public:
 #endif
         const auto num_of_partitions = get_partitions_num(new_params, SDPAStage::SINGLE_TOKEN);
         GPU_DEBUG_TRACE_DETAIL << "execute single_tokens with indirect = " << is_indirect << "\n";
-        auto ev = execute_stage(events, instance, is_indirect ? indirect_single_token : regular_single_token);
+
+        // Run KV copy stage to populate intermediate buffers, then use those for single_token
+        kv_copy->kd.need_args_update = true;
+        kv_copy->kd.need_dispatch_data_update = true;
+        auto ev_kv = execute_stage(events, instance, kv_copy);
+        m_use_intermediate_kv = true;
+        auto& st_stage = is_indirect ? indirect_single_token : regular_single_token;
+        st_stage->kd.need_args_update = true;
+        auto ev = execute_stage({ev_kv}, instance, st_stage);
+        m_use_intermediate_kv = false;
+
         if (num_of_partitions > 1) {
             GPU_DEBUG_TRACE_DETAIL << "execute single_tokens_finalization (" << num_of_partitions << ") with indirect = " << is_indirect << "\n";
             ev = execute_stage({ev}, instance, is_indirect ? indirect_finalization : regular_finalization);
         }
         return ev;
+    }
+
+    [[nodiscard]] cldnn::kernel_arguments_data get_arguments(const cldnn::primitive_inst& instance) const override {
+        auto args = PrimitiveImplOCL::get_arguments(instance);
+        if (m_use_intermediate_kv && args.intermediates.size() > 4) {
+            // Swap K/V inputs with intermediate KV buffers so single_token reads from intermediates
+            args.inputs[1] = args.intermediates[3];
+            args.inputs[2] = args.intermediates[4];
+        }
+        return args;
     }
 
     [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const RuntimeParams& params) const override {
@@ -154,9 +180,17 @@ public:
         const size_t buf_elements_count = (num_of_partitions == 1 || is_prefill) ? 1 : params.output_layouts[0].count() / head_size * num_of_partitions;
         const size_t tmp_out_elements_count = (num_of_partitions == 1 || is_prefill) ? 2 : params.output_layouts[0].count() * num_of_partitions;
 
+        // Buffer 0: softmax exp_sums, Buffer 1: softmax max_logits, Buffer 2: tmp_out
         internal_buffers.emplace_back(buf_elements_count, ov::element::f32);
         internal_buffers.emplace_back(buf_elements_count, ov::element::f32);
         internal_buffers.emplace_back(tmp_out_elements_count, params.output_layouts[0].data_type);
+
+        // Buffer 3: intermediate K cache, Buffer 4: intermediate V cache (for KV copy stage)
+        // Use the exact same layout as K/V inputs (including padding) so single_token index calculations are correct
+        const auto& k_layout = is_prefill ? layout({1}, params.get_input_layout(1).data_type, format::bfyx) : params_canonicalization.get_input_layout(1);
+        const auto& v_layout = is_prefill ? layout({1}, params.get_input_layout(2).data_type, format::bfyx) : params_canonicalization.get_input_layout(2);
+        internal_buffers.emplace_back(k_layout);
+        internal_buffers.emplace_back(v_layout);
 
         return internal_buffers;
     }

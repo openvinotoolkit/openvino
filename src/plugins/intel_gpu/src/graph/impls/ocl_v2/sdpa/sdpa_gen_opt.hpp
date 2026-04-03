@@ -101,4 +101,12 @@ public:
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
 };
 
+class SDPAOptGeneratorKVCopy : public SDPAOptGeneratorBase {
+public:
+    SDPAOptGeneratorKVCopy() : SDPAOptGeneratorBase("sdpa_opt", "_kv_copy", false) {}
+    [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
+    [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
+};
+
 }  // namespace ov::intel_gpu::ocl

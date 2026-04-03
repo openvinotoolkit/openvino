@@ -2175,3 +2175,18 @@ KERNEL(sdpa_opt_finalization_stage)(
 }
 
 #endif
+
+#ifdef SDPA_KV_COPY
+KERNEL(sdpa_opt)(
+    OPTIONAL_SHAPE_INFO_ARG
+    const __global INPUT1_TYPE* key_input,
+    const __global INPUT2_TYPE* value_input,
+    __global INPUT1_TYPE* key_output,
+    __global INPUT2_TYPE* value_output
+) {
+    const uint idx = get_global_id(0);
+    // Placeholder for future quantize/dequantize logic
+    key_output[idx] = key_input[idx];
+    value_output[idx] = value_input[idx];
+}
+#endif
