@@ -5,8 +5,11 @@
 #pragma once
 
 #include <atomic>
+#include <functional>
 #include <memory>
 #include <mutex>
+#include <optional>
+#include <string>
 #include <vector>
 
 #include "intel_npu/common/filtered_config.hpp"
