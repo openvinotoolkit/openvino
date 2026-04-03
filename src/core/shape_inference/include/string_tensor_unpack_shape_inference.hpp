@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 
 #include "openvino/op/string_tensor_unpack.hpp"
@@ -39,6 +40,10 @@ std::vector<TRShape> shape_infer(const StringTensorUnpack* op,
             total_length += (*it).length();
         }
         output_shapes.emplace_back(TRShape{static_cast<typename TRShape::value_type>(total_length)});
+    } else if (std::any_of(data_shape.cbegin(), data_shape.cend(), [](const typename TShape::value_type& d) {
+                   return d == 0;
+               })) {
+        output_shapes.emplace_back(TRShape{static_cast<typename TRShape::value_type>(0)});
     } else {
         output_shapes.emplace_back(ov::PartialShape{ov::Dimension::dynamic()});
     }
