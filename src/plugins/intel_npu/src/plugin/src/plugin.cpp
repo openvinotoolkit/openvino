@@ -1006,9 +1006,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     std::optional<std::function<std::string(const std::string&)>> encryptionCallback = std::nullopt;
     if (auto encryptionCallbackIt = localProperties.find(ov::cache_encryption_callbacks.name());
         encryptionCallbackIt != localProperties.end()) {
-        OPENVINO_ASSERT(encryptionCallbackIt->second.as<ov::EncryptionCallbacks>().encrypt != nullptr,
-                        "Null encryption function was given!");
         encryptionCallback = encryptionCallbackIt->second.as<ov::EncryptionCallbacks>().encrypt;
+        if (encryptionCallback.value() == nullptr) {
+            // User might give nullptr for encryption callback when importing
+            encryptionCallback = std::nullopt;
+        }
     }
 
     OV_ITT_TASK_NEXT(PLUGIN_PARSE_MODEL, "parse");

@@ -881,4 +881,15 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- E207582 -->
+    <skip_config>
+        <message>Cannot use ENABLE_WEIGHTLESS with current driver</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <filter>.*WeightlessCacheAccuracy.*ENABLE_WEIGHTLESS.*NPU3720.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>

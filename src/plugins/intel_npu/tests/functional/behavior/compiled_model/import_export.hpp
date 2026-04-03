@@ -120,6 +120,27 @@ TEST_P(OVCompiledGraphImportExportTestNPU, ImportingEncryptedBlobThrows) {
             "not supported by the device"));
 }
 
+TEST_P(OVCompiledGraphImportExportTestNPU, SameUnEncryptedBlobAfterDecryption) {
+    ov::Core core;
+    std::stringstream unencrypted_blob_stream, encrypted_blob_stream, decrypted_blob_stream;
+
+    auto model = ov::test::utils::make_conv_pool_relu();
+    core.compile_model(model, target_device, configuration).export_model(unencrypted_blob_stream);
+    configuration.insert(
+        ov::cache_encryption_callbacks(ov::EncryptionCallbacks{ov::util::codec_xor, ov::util::codec_xor}));
+    core.compile_model(model, target_device, configuration).export_model(encrypted_blob_stream);
+    configuration.erase(ov::cache_encryption_callbacks.name());
+    configuration.insert(ov::cache_encryption_callbacks(ov::EncryptionCallbacks{
+        [](const std::string& str) {
+            return str;
+        },
+        ov::util::codec_xor}));  // need to change encryption to plain return function to avoid reencryption
+    configuration.insert(ov::intel_npu::defer_weights_load(true));
+    core.import_model(encrypted_blob_stream, target_device, configuration).export_model(decrypted_blob_stream);
+
+    ASSERT_EQ(unencrypted_blob_stream.str(), decrypted_blob_stream.str());
+}
+
 TEST_P(OVCompiledGraphImportExportTestNPU, SameEncryptedBlobViaExportAndManualFunctionCall) {
     ov::Core core;
     std::stringstream unencrypted_blob_stream, encrypted_blob_stream;

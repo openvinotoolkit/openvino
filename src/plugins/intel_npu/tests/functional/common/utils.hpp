@@ -65,10 +65,15 @@ struct GenericTestCaseNameClass {
     template <typename, typename = void>
     static constexpr bool hasGetTestCaseName = false;
 
+    template <typename, typename = void>
+    static constexpr bool has_get_test_case_name = false;
+
     template <typename T>
     static std::string getTestCaseName(const testing::TestParamInfo<typename T::ParamType>& obj) {
         if constexpr (hasGetTestCaseName<T>) {
             return T::getTestCaseName(obj);
+        } else if constexpr (has_get_test_case_name<T>) {
+            return T::get_test_case_name(obj);
         } else {
             std::ostringstream result;
             ::testing::PrintToStringParamName printToStringParamName;
@@ -84,6 +89,12 @@ constexpr bool
                                                  std::void_t<decltype(std::declval<T>().getTestCaseName(
                                                      std::declval<testing::TestParamInfo<typename T::ParamType>>()))>> =
         true;
+
+template <typename T>
+constexpr bool GenericTestCaseNameClass::has_get_test_case_name<
+    T,
+    std::void_t<decltype(std::declval<T>().get_test_case_name(
+        std::declval<testing::TestParamInfo<typename T::ParamType>>()))>> = true;
 
 namespace ov::test::behavior {
 inline std::shared_ptr<ov::Model> getDefaultNGraphFunctionForTheDeviceNPU(
