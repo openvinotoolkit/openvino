@@ -2150,7 +2150,7 @@ void ov::npuw::CompiledModel::dump_subgraph_composition(const std::vector<ov::np
     LOG_BLOCK();
 
     const std::string dump_dir = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS_DIR>();
-    const std::string sg_file = "npuw_" + m_name + ".sg";
+    const std::string sg_file = "npuw_" + m_name + ".xml.sg";
     const std::string sg_path = ov::util::path_join({dump_dir, sg_file}).string();
 
     // Collect unique subgraphs via replaced_by()
