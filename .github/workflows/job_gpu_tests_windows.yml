@@ -52,8 +52,8 @@ jobs:
       - name: Extract OpenVINO packages
         working-directory: ${{ env.INSTALL_DIR }}
         run: |
-          tar -xzf openvino_package.tar.gz
-          tar -xzf openvino_tests.tar.gz
+          Expand-Archive -Path "openvino_package.zip" -DestinationPath "." -Force
+          Expand-Archive -Path "openvino_tests.zip" -DestinationPath "." -Force
 
       # - name: Setup Python ${{ env.PYTHON_VERSION }}
       #   uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
