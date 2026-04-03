@@ -49,9 +49,10 @@ static bool read_record(std::istream& stream, TLVTraits::TagType& tag, TLVTraits
         return true;
     }
     const auto current_pos = stream.tellg();
-    const auto remaining_offset = stream.seekg(0, std::ios::end).tellg() - current_pos;
+    const auto stream_end = stream.seekg(0, std::ios::end).tellg();
     stream.seekg(current_pos);
-    if (!stream.good() || remaining_offset < static_cast<std::streamoff>(size)) {
+    const auto remaining_offset = stream.good() ? static_cast<TLVTraits::LengthType>(stream_end - current_pos) : 0u;
+    if (remaining_offset < size) {
         return false;
     }
     data.resize(size);
