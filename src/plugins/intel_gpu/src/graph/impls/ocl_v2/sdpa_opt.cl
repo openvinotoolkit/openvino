@@ -1676,7 +1676,7 @@ KERNEL(sdpa_opt)(
             }
 
             for (uint i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {
-                qk_acc[i] = qk_acc[i] / exp_sum_new;
+                qk_acc[i] = (exp_sum_new > SOFTMAX_ACCUMULATOR_VAL_ZERO) ? (qk_acc[i] / exp_sum_new) : SOFTMAX_ACCUMULATOR_VAL_ZERO;
             }
 
             if (sgid == 0) {
@@ -2051,8 +2051,8 @@ KERNEL(sdpa_opt)(
                     SOFTMAX_ACCUMULATOR_TYPE updated_exp_sum_cur = sub_group_broadcast(exp_sum_cur, seq_idx) * native_exp(sub_group_broadcast(max_val_cur, seq_idx) - total_max);
                     SOFTMAX_ACCUMULATOR_TYPE updated_total_exp_sum = updated_exp_sum_prev + updated_exp_sum_cur;
 
-                    if (start_partition_idx > 0) {
-                        OUTPUT_TYPE updated_prev_res = TO_SOFTMAX_ACCUMULATOR_TYPE(output_acc[seq_idx]) * updated_exp_sum_prev / updated_total_exp_sum;;
+                    if (start_partition_idx > 0 && updated_total_exp_sum > SOFTMAX_ACCUMULATOR_VAL_ZERO) {
+                        OUTPUT_TYPE updated_prev_res = TO_SOFTMAX_ACCUMULATOR_TYPE(output_acc[seq_idx]) * updated_exp_sum_prev / updated_total_exp_sum;
                         acc_output_res[seq_idx] *= updated_exp_sum_cur / updated_total_exp_sum;
                         acc_output_res[seq_idx] += updated_prev_res;
                     }
