@@ -247,15 +247,15 @@ void dump_graph_init(std::ofstream& graph,
                 graph << "none";
             } else {
                 const auto& dump_info = node->get_selected_impl()->get_kernels_dump_info(*node->get_kernel_impl_params());
-                if (!dump_info.second.empty()) {
-                    graph << dump_info.second;
+                if (dump_info.has_entries()) {
+                    graph << dump_info.get_entries();
                 } else {
                     graph << node->get_selected_impl()->get_kernel_name();
                 }
                 graph << " / " << node->get_preferred_impl_type();
 
-                if (!dump_info.first.empty()) {
-                    graph << "\\n batch_hash : " << dump_info.first;
+                if (!dump_info.get_batch_hash().empty()) {
+                    graph << "\\n batch_hash : " << dump_info.get_batch_hash();
                 }
             }
         }

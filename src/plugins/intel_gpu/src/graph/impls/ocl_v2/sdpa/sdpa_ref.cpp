@@ -134,7 +134,7 @@ public:
 
     [[nodiscard]] event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         update_rt_params(instance);
-        clear_kernel_entries_info();
+        kernel_dump_info.clear_entries();
 
         if (need_indirect_load(static_cast<scaled_dot_product_attention_inst&>(instance))) {
             return execute_stage(events, instance, indirect);

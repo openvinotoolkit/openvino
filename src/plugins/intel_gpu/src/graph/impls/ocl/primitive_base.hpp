@@ -42,8 +42,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     kernel_selector::kernel_data _kernel_data;
     std::vector<kernel::ptr> _kernels;
 
-    // a pair of batch program hash and kernel entry hash of each ocl impl.
-    std::pair<std::string, std::string> kernel_dump_info;
+    mutable KernelDumpInfo kernel_dump_info;
 
     typed_primitive_impl_ocl() : _kernel_data({}), _kernels({}) {}
 
@@ -143,7 +142,7 @@ protected:
         if (!_kernel_data.kernels.empty()) {
             auto compiled_kernels = kernels_cache.get_kernels(params);
             _kernels.insert(_kernels.begin(), compiled_kernels.begin(), compiled_kernels.end());
-            kernel_dump_info.first = std::to_string(kernels_cache.get_kernel_batch_hash(params));
+            kernel_dump_info.set_batch_hash(std::to_string(kernels_cache.get_kernel_batch_hash(params)));
         }
         this->can_share_kernels = kernels_cache.get_kernels_reuse();
     }
@@ -238,7 +237,7 @@ protected:
     event::ptr execute_impl(const std::vector<event::ptr>& events,
                             typed_primitive_inst<PType>& instance) override {
         stream& stream = instance.get_network().get_stream();
-        kernel_dump_info.second.clear();
+        kernel_dump_info.clear_entries();
         if (instance.can_be_optimized()) {
             return stream.aggregate_events(events, events.size() > 1, instance.is_output());
         }
@@ -275,10 +274,7 @@ protected:
             }
             all_events.push_back(ev);
 
-            if (!kernel_dump_info.second.empty()) {
-                kernel_dump_info.second += " ";
-            }
-            kernel_dump_info.second += _kernels[kd_idx]->get_id();
+            kernel_dump_info.add_entry_point(_kernels[kd_idx]->get_id());
         }
 
         if ((all_events.size() == 0) && (tmp_events.size() > 0))
@@ -315,30 +311,26 @@ protected:
         }
     }
 
-    std::pair<std::string, std::string> get_kernels_dump_info(const cldnn::kernel_impl_params& impl_params) const override {
-        if (!kernel_dump_info.second.empty()) {
+    // Regardless of the model's dynamism, the compile time graph will rely on the skip_execution mechanism to determine which kernels will be executed
+    // The runtime graph relies on the actual execution of the kernel in execute_impl(..)
+    KernelDumpInfo get_kernels_dump_info(const cldnn::kernel_impl_params& impl_params) const override {
+        if (kernel_dump_info.has_entries()) {
             return kernel_dump_info;
         }
-
-        std::string entry_points;
 
         for (size_t i = 0; i < _kernel_data.kernels.size(); ++i) {
             if (_kernel_data.kernels[i].skip_execution) {
                 continue;
             }
 
-            if (!entry_points.empty()) {
-                entry_points += " ";
-            }
-
             if (_kernel_data.kernels[i].code.kernelString) {
-                entry_points += _kernel_data.kernels[i].code.kernelString->entry_point;
+                kernel_dump_info.add_entry_point(_kernel_data.kernels[i].code.kernelString->entry_point);
             } else if (i < _kernels.size() && _kernels[i]) {
-                entry_points += _kernels[i]->get_id();
+                kernel_dump_info.add_entry_point(_kernels[i]->get_id());
             }
         }
 
-        return {kernel_dump_info.first, entry_points};
+        return kernel_dump_info;
     }
 
     virtual void update_dispatch_data(const kernel_impl_params& impl_params) {

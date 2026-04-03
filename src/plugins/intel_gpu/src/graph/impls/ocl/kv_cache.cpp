@@ -264,7 +264,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
                 tmp_events = {ev};
             }
             all_events.push_back(ev);
-            add_kernel_entry_info(_kernels[idx_final]->get_id());
+            kernel_dump_info.add_entry_point(_kernels[idx_final]->get_id());
         }
     }
 
@@ -276,7 +276,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         auto& variable = instance.get_network().get_variable(desc->variable_info.variable_id);
         std::vector<event::ptr> res_events;
         const auto& impl_param = *instance.get_impl_params();
-        clear_kernel_entries_info();
+        kernel_dump_info.clear_entries();
 
         if (const auto scatter_update_stage = stages.try_get_index(kv_stage::scatter_update)) {
             execute_stage(events, instance, res_events, *scatter_update_stage);

@@ -127,7 +127,7 @@ protected:
                 tmp_events = {ev};
             }
             all_events.push_back(ev);
-            add_kernel_entry_info(_kernels[idx_final]->get_id());
+            kernel_dump_info.add_entry_point(_kernels[idx_final]->get_id());
         }
 
         return stream.aggregate_events(all_events, all_events.size() > 1);
@@ -155,7 +155,7 @@ protected:
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, gemm_inst& instance) override {
-        clear_kernel_entries_info();
+        kernel_dump_info.clear_entries();
 
         if (instance.get_input_layout(0).count() == 0 ||
             instance.get_input_layout(1).count() == 0) {

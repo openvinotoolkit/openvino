@@ -15,6 +15,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "program_node.h"
 #include "primitive_type.h"
+#include "kernel_dump_info.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/helpers.hpp"
 #include "intel_gpu/graph/serialization/cl_kernel_data_serializer.hpp"
@@ -127,10 +128,10 @@ struct primitive_impl {
             ib >> dummy;
         }
     }
-    // Returns a pair of batch program hash and kernel entry of each ocl impl. Returns "" for other impl types.
+    // Returns a KernelDumpInfo object that contains a batch program hash and a kernel entry of each ocl impl. Returns empty object for other impl types.
     // If static impl_params is provided, then only actually executed kernel entries are returned.
-    virtual std::pair<std::string, std::string> get_kernels_dump_info(const cldnn::kernel_impl_params& impl_params) const {
-        return std::make_pair("", "");
+    virtual KernelDumpInfo get_kernels_dump_info(const cldnn::kernel_impl_params& impl_params) const {
+        return KernelDumpInfo{};
     }
 
     // If this flag is set as false, the memory allocated for this primitive is not allowed to be reused
