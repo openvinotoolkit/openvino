@@ -1,0 +1,355 @@
+/*******************************************************************************
+ * Copyright (c) 2018-2026 Intel Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *******************************************************************************/
+
+// Dedicated TurboQuant decoding kernel file.
+// This file is independent from pa_single_token.cm and keeps only code paths:
+//   KV_CACHE_COMPRESSION == 1
+//   KV_CACHE_COMPRESSION_BY_TOKEN == 1
+//   USE_LSC_BLOCK_2D_DESC == 1
+
+#if XE_ARCH < 2
+#error "cm_sdpa_2nd_turboquant requires XE_ARCH>=2"
+#endif
+
+#if TQ_BITS != 4
+#error "cm_sdpa_2nd_turboquant currently supports TQ_BITS==4"
+#endif
+
+#if !KV_CACHE_COMPRESSION
+#error "cm_sdpa_2nd_turboquant requires KV_CACHE_COMPRESSION==1"
+#endif
+
+#if !KV_CACHE_COMPRESSION_BY_TOKEN
+#error "cm_sdpa_2nd_turboquant requires KV_CACHE_COMPRESSION_BY_TOKEN==1"
+#endif
+
+#define REG_N 16
+#define USE_LSC_BLOCK_2D_DESC 1
+
+#define SystolicDepth 8
+#define RepeatCount 1
+#define VNNI_WIDTH 2
+#define REG_K (SystolicDepth * VNNI_WIDTH)
+#define REG_M RepeatCount
+#define KV_PARTITION_STEP_NUM  (KV_PARTITION_SIZE / KV_STEP)
+
+#define KV_SCALE_ZP_SIZE 4
+#define KV_ELEMENT_TYPE uint8_t
+
+extern "C" _GENX_MAIN_ void cm_sdpa_2nd_turboquant(
+	half* query [[type("svmptr_t")]],
+	uint8_t* key [[type("svmptr_t")]],
+	uint8_t* value [[type("svmptr_t")]],
+	int* past_lens [[type("svmptr_t")]],
+	int* block_indices [[type("svmptr_t")]],
+	int* block_indices_begins [[type("svmptr_t")]],
+	int* subsequence_begins [[type("svmptr_t")]],
+	float* output [[type("svmptr_t")]],
+	float* lse [[type("svmptr_t")]],
+	const half* tq_q_t [[type("svmptr_t")]],
+	const half* tq_centroids [[type("svmptr_t")]],
+	int q_len// 1
+	) {
+	const uint seq_idx = cm_global_id(0);
+	const uint kv_head_num_idx = cm_global_id(1) / Q_head_chunks_per_kv_head;
+	const uint head_num_idx = cm_global_id(1) * Q_head_chunk_size;
+	const uint wg_thread_id = cm_global_id(2);
+	const uint kv_partition_num = cm_group_count(2);
+	const uint kv_partition_idx = cm_group_id(2);
+
+	const uint kv_len = past_lens[seq_idx] + 1;
+	constexpr uint K_PACKED_BYTES = (HEAD_SIZE * TQ_BITS + 7) / 8;
+	constexpr uint K_TOKEN_BYTES = K_PACKED_BYTES + 2;
+
+	const uint start_block_idx = block_indices_begins[seq_idx] + kv_partition_idx * (KV_PARTITION_SIZE / KV_BLOCK_SIZE);
+
+	if (kv_partition_idx * KV_PARTITION_SIZE > kv_len) {
+		return;
+	}
+	const uint total_blocks_num = (kv_len + KV_BLOCK_SIZE - 1) / KV_BLOCK_SIZE;
+	constexpr uint kv_pitch = HEAD_SIZE * sizeof(KV_ELEMENT_TYPE);
+	// [TurboQuant affine decode params]
+	// Approximate centroid LUT by affine mapping: value = scale * idx + bias.
+	// We derive (scale, bias) from centroid endpoints.
+	half affine_scale_h = 0.0f;
+	half affine_bias_h = 0.0f;
+	{
+		vector<half, (1 << TQ_BITS)> centroid_h;
+		cm_svm_block_read<half, (1 << TQ_BITS)>((svmptr_t)tq_centroids, centroid_h);
+		affine_bias_h = centroid_h[0];
+		affine_scale_h = (half)((centroid_h[(1 << TQ_BITS) - 1] - centroid_h[0]) / (float)((1 << TQ_BITS) - 1));
+	}
+
+	// [Load and rotate Q]
+	// Q layout: [seq, head, dim] chunk for current (kv_head, q_head_chunk).
+	// Apply TurboQuant query rotation in-kernel: Q_rot = Q * Q_T.
+	const uint qo_offset = (seq_idx * HEADS_NUM * q_len + head_num_idx) * HEAD_SIZE;
+	matrix<half, Q_head_chunk_size, HEAD_SIZE> Qmat = 0;
+	cm_svm_block_read<half, Q_head_chunk_size * HEAD_SIZE>((svmptr_t)(query + qo_offset), Qmat.format<half>());
+	{
+		matrix<half, Q_head_chunk_size, HEAD_SIZE> Qrot = 0;
+		#pragma unroll
+		for (int qi = 0; qi < Q_head_chunk_size; qi++) {
+			#pragma unroll
+			for (int j = 0; j < HEAD_SIZE; j++) {
+				float acc = 0.0f;
+				#pragma unroll
+				for (int i = 0; i < HEAD_SIZE; i++) {
+					acc += (float)Qmat[qi][i] * (float)tq_q_t[i * HEAD_SIZE + j];
+				}
+				Qrot[qi][j] = (half)acc;
+			}
+		}
+		Qmat = Qrot;
+	}
+
+	// [Block geometry]
+	// TurboQuant K uses packed 4-bit payload + fp16 token norm.
+	// V keeps by-token uint8 payload + fp16 scale/zp metadata.
+	constexpr uint per_v_block_element_num = KV_BLOCK_SIZE * KV_HEADS_NUM * (HEAD_SIZE + KV_SCALE_ZP_SIZE);
+	constexpr uint per_k_block_element_num = KV_BLOCK_SIZE * KV_HEADS_NUM * K_TOKEN_BYTES;
+
+	uint block_num = KV_PARTITION_SIZE / KV_BLOCK_SIZE;
+	uint leftover_size = 0;
+	if (kv_partition_idx == kv_partition_num - 1) {
+		leftover_size = (kv_len - KV_PARTITION_SIZE * kv_partition_idx) % KV_PARTITION_SIZE;
+	}
+	if (block_num > total_blocks_num - start_block_idx) {
+		block_num = total_blocks_num - start_block_idx;
+	}
+
+	// [Q * K^T accumulator]
+	// rS stores attention logits for current KV partition.
+	matrix<float, Q_head_chunk_size, REG_M * KV_PARTITION_STEP_NUM * REG_N> rS = 0;
+
+	for (uint block_idx = 0, ki = 0; block_idx < block_num; block_idx++) {
+		uint blk_indices = block_indices[start_block_idx + block_idx];
+		uint k_base_offset = blk_indices * per_k_block_element_num + kv_head_num_idx * (per_k_block_element_num / KV_HEADS_NUM);
+		const half* k_norm_base = reinterpret_cast<const half*>(key + k_base_offset + KV_BLOCK_SIZE * K_PACKED_BYTES);
+
+		lsc::block_2d_desc<uint, 1, REG_N, REG_K/8> b2dK(
+			reinterpret_cast<uint*>(key + k_base_offset),
+			KV_BLOCK_SIZE - 1,
+			K_PACKED_BYTES * sizeof(uint8_t) - 1,
+			K_PACKED_BYTES * sizeof(uint8_t) - 1,
+			0,
+			0);
+
+		uint kv_pos_end = KV_BLOCK_SIZE;
+		if (block_idx == block_num - 1 && leftover_size > 0) {
+			kv_pos_end = leftover_size % KV_BLOCK_SIZE;
+			if (kv_pos_end == 0) kv_pos_end = KV_BLOCK_SIZE;
+		}
+
+		// [Load K norm]
+		// Per-token fp16 norm for this whole K block.
+		vector<half, KV_BLOCK_SIZE> knorm_vec_blk;
+		cm_svm_block_read<half, KV_BLOCK_SIZE>((svmptr_t)k_norm_base, knorm_vec_blk);
+		if (kv_pos_end < KV_BLOCK_SIZE) {
+			for (int i = kv_pos_end; i < KV_BLOCK_SIZE; i++) {
+				knorm_vec_blk[i] = 0.0f;
+			}
+		}
+
+		for (int kv_pos = 0; kv_pos < kv_pos_end; kv_pos += KV_STEP, ki++) {
+			vector<half, REG_N> knorm_vec = knorm_vec_blk.select<REG_N, 1>(kv_pos);
+
+			#pragma unroll
+			for (int ri = 0; ri < HEAD_SIZE / REG_K; ri++) {
+				matrix<half, REG_K, REG_N> Kt = 0;
+				const int packed_base = ri * (REG_K / 8);
+
+				matrix<uint8_t, REG_K / 2, REG_N> Kpack_raw = 0;
+				b2dK.set_block_x(packed_base);
+				cm_load<lsc::Transpose>(Kpack_raw.format<uint>(), b2dK.set_block_y(kv_pos));
+
+				auto pack_src = Kpack_raw.format<ushort, REG_K / 4, REG_N>();
+
+				#pragma unroll
+				for (int p = 0; p < REG_K / 2; p += 2) {
+					vector<ushort, REG_N> packed_row0 = pack_src.select<2,1,8,2>(p, 0);
+					vector<ushort, REG_N> packed_row1 = pack_src.select<2,1,8,2>(p, 1);
+					for (int n = 0; n < REG_N; n++) {
+						uint8_t packed_idx0 = (uint8_t)packed_row0[n];
+						uint8_t packed_idx1 = (uint8_t)packed_row1[n];
+						half deq0_lo = (half)((half)(packed_idx0 & 0x0f) * affine_scale_h + affine_bias_h);
+						half deq0_hi = (half)((half)(packed_idx0 >> 4) * affine_scale_h + affine_bias_h);
+						half deq1_lo = (half)((half)(packed_idx1 & 0x0f) * affine_scale_h + affine_bias_h);
+						half deq1_hi = (half)((half)(packed_idx1 >> 4) * affine_scale_h + affine_bias_h);
+						Kt[2 * p][n] = (half)(deq0_lo * knorm_vec[n]);
+						Kt[2 * p + 1][n] = (half)(deq0_hi * knorm_vec[n]);
+						Kt[2 * (p + 1)][n] = (half)(deq1_lo * knorm_vec[n]);
+						Kt[2 * (p + 1) + 1][n] = (half)(deq1_hi * knorm_vec[n]);
+					}
+				}
+
+				matrix<half, Q_head_chunk_size, REG_K> Qmat_data = Qmat.select<Q_head_chunk_size,1,REG_K,1>(0, ri * REG_K);
+				matrix<float, Q_head_chunk_size, REG_N> rS_data = 0;
+				// [Q * K^T]
+				// DPAS accumulation over reconstructed K tiles.
+				rS_data = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, Q_head_chunk_size>(
+							rS_data.format<float>(),
+							Kt.format<int32_t>(),
+							Qmat_data.format<int32_t>());
+				rS.select<Q_head_chunk_size, 1, REG_N, 1>(0, ki * REG_N) += rS_data;
+			}
+		}
+	}
+
+	// [Softmax]
+	// Convert logits rS -> probabilities Pmat; track partition-local lse/sum.
+	vector<float, Q_head_chunk_size> cur_sum = 0.0f;
+	vector<float, Q_head_chunk_size> cur_lse = 0.0f;
+	matrix<half, Q_head_chunk_size, KV_PARTITION_STEP_NUM * REG_M * REG_N> Pmat = 0;
+
+	#pragma unroll
+	for (int qi = 0; qi < Q_head_chunk_size; qi++) {
+		auto rS_slice = rS[qi].format<float, KV_PARTITION_STEP_NUM, REG_N>();
+		rS_slice = cm_mul<float>(rS_slice, (float)SCALE_FACTOR);
+
+		if (leftover_size > 0) {
+			auto Svec = rS_slice.format<float>();
+			for (int i = leftover_size; i < KV_PARTITION_STEP_NUM * REG_N; i++) {
+				Svec[i] = -3e38f;
+			}
+		}
+
+		constexpr float log2e = 1.4426950408889634f;
+		constexpr float loge2 = 0.6931471805599453f;
+
+		auto rSv = rS_slice.format<float>();
+		float row_max = rSv[0];
+		#pragma unroll
+		for (int r = 1; r < rSv.n_elems(); r++) {
+			row_max = cm_max<float>(row_max, rSv[r]);
+		}
+
+		vector<float, KV_PARTITION_STEP_NUM * REG_N> rS_exp_temp = cm_exp((rSv - row_max) * log2e);
+		Pmat[qi].format<half, KV_PARTITION_STEP_NUM * REG_M, REG_N>() = rS_exp_temp;
+
+		cur_lse[qi] = cm_sum<float>(rS_exp_temp.format<float>());
+		cur_lse[qi] = cm_log<float>(cur_lse[qi]) * loge2 + row_max;
+		cur_sum[qi] = cm_sum<float>(Pmat[qi]);
+	}
+
+	// [P * V accumulator]
+	// Omat accumulates weighted value vectors for this partition.
+	matrix<float, Q_head_chunk_size, HEAD_SIZE/REG_N * REG_M * REG_N> Omat = 0;
+
+	for (uint block_idx = 0, ki = 0; block_idx < block_num; block_idx++) {
+		uint blk_indices = block_indices[start_block_idx + block_idx];
+		uint v_base_offset = blk_indices * per_v_block_element_num + kv_head_num_idx * (per_v_block_element_num / KV_HEADS_NUM);
+		uint v_scale_zp_offset = v_base_offset + KV_BLOCK_SIZE * HEAD_SIZE;
+
+		lsc::block_2d_desc<uint8_t, 1, REG_K, REG_N> b2dV(value + v_base_offset, KV_BLOCK_SIZE - 1, HEAD_SIZE * sizeof(uint8_t) - 1, kv_pitch - 1, 0, 0);
+
+		uint kv_pos_end = KV_BLOCK_SIZE;
+		if (block_idx == block_num - 1 && leftover_size > 0) {
+			kv_pos_end = leftover_size % KV_BLOCK_SIZE;
+			if (kv_pos_end == 0) kv_pos_end = KV_BLOCK_SIZE;
+		}
+
+		// [Load V scale/zp]
+		// Per-token dequant params for this V block.
+		vector<half, KV_BLOCK_SIZE> scale_vec;
+		vector<half, KV_BLOCK_SIZE> zp_vec;
+		cm_svm_block_read(reinterpret_cast<svmptr_t>(value + v_scale_zp_offset), scale_vec);
+		cm_svm_block_read(reinterpret_cast<svmptr_t>(value + v_scale_zp_offset + KV_BLOCK_SIZE * sizeof(half)), zp_vec);
+		if (kv_pos_end < KV_BLOCK_SIZE) {
+			for (int i = kv_pos_end; i < KV_BLOCK_SIZE; i++) {
+				scale_vec[i] = 0.0;
+				zp_vec[i] = 0.0;
+			}
+		}
+
+		for (int kv_pos = 0; kv_pos < kv_pos_end; kv_pos += REG_K, ki++) {
+			vector<half, REG_K> temp_scale = scale_vec.select<REG_K, 1>(kv_pos);
+			vector<half, REG_K> temp_zp = zp_vec.select<REG_K, 1>(kv_pos);
+			matrix<uint8_t, REG_K, REG_N> Vt_quant;
+
+			#pragma unroll
+			for (int k = 0, ri = 0; k < HEAD_SIZE; k += REG_N, ri++) {
+				// [Dequantize V tile]
+				// Load quantized V tile, apply per-token dequantization,
+				// and pack to VNNI layout for DPAS.
+				matrix<half, REG_K, REG_N> VmatNormal;
+				matrix<half, REG_K, REG_N> Vmat;
+
+				b2dV.set_block_x(k);
+				cm_load<lsc::Normal>(Vt_quant.format<uint8_t>(), b2dV.set_block_y(kv_pos));
+
+				VmatNormal = Vt_quant;
+				#pragma unroll
+				for (int r = 0; r < REG_K; r++) {
+					VmatNormal[r] = VmatNormal[r] - temp_zp[r];
+					VmatNormal[r] = cm_mul<half>(VmatNormal[r], temp_scale[r]);
+				}
+
+				if (kv_pos_end - kv_pos < KV_STEP) {
+					for (int r = kv_pos_end; r < KV_STEP; r++) {
+						VmatNormal[r] = 0;
+					}
+				}
+
+				auto Vref = Vmat.format<half, REG_K/2, 2 * REG_N>();
+				Vref.select<REG_K/2, 1, REG_N, 2>(0, 0) = VmatNormal.select<REG_K/2, 2, REG_N, 1>(0, 0);
+				Vref.select<REG_K/2, 1, REG_N, 2>(0, 1) = VmatNormal.select<REG_K/2, 2, REG_N, 1>(1, 0);
+
+				#if CLEAN_UNUSED_KVCACHE
+				if (kv_pos_end - kv_pos < KV_STEP) {
+					auto VmatRef = Vmat.format<half, REG_K/2, REG_N * 2>();
+					uint valid_rows = kv_pos_end - kv_pos;
+					uint valid_rows_vnni = (valid_rows + 1) / 2;
+					for (int r = valid_rows_vnni; r < REG_K/2; r++) {
+						VmatRef.row(r) = 0.0f;
+					}
+					if (valid_rows % 2 == 1) {
+						VmatRef.row(valid_rows_vnni - 1).select<REG_N, 2>(1) = 0.0f;
+					}
+				}
+				#endif
+
+				matrix<half, Q_head_chunk_size, REG_K> Pmat_data = Pmat.select<Q_head_chunk_size,1,REG_K,1>(0, ki * REG_K);
+				auto Omat_data = Omat.select<Q_head_chunk_size,1,REG_N,1>(0, ri * REG_N);
+				// [P * V]
+				// DPAS accumulation of weighted values.
+				Omat_data = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, Q_head_chunk_size>(
+						Omat_data.format<float>(),
+						Vmat.format<half, REG_K/2, REG_N * 2>().format<int32_t>(),
+						Pmat_data.format<int32_t>());
+			}
+		}
+	}
+
+	#pragma unroll
+	for (int qi = 0; qi < Q_head_chunk_size; qi++) {
+		// [Write output]
+		// Normalize by partition sum and write partial output/lse for reduce kernel.
+		matrix<float, REG_M, REG_N> cur_O_f32;
+		uint o_offset = seq_idx * kv_partition_num * HEADS_NUM * HEAD_SIZE + kv_partition_num * (head_num_idx + qi) * HEAD_SIZE + wg_thread_id * HEAD_SIZE;
+		auto Omat_slice = Omat[qi].format<float, HEAD_SIZE/REG_N * REG_M, REG_N>();
+		#pragma unroll
+		for (int k = 0, ri = 0; k < HEAD_SIZE; k += REG_N, ri++) {
+			auto cO = Omat_slice[ri].format<float, REG_M, REG_N>();
+			cur_O_f32 = cm_div_ieee(cO, cur_sum[qi]);
+			cm_svm_block_write<float, REG_N>((svmptr_t)(output + o_offset + k), cur_O_f32.format<float>());
+		}
+		uint lse_offset = seq_idx * HEADS_NUM * kv_partition_num + (head_num_idx + qi) * kv_partition_num + wg_thread_id;
+		lse[lse_offset] = cur_lse[qi];
+	}
+}
+
+

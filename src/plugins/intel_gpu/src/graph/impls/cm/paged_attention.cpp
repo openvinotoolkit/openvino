@@ -4,8 +4,11 @@
 
 #include "paged_attention.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include <memory>
 #include <utility>
 
@@ -30,14 +33,55 @@
 
 namespace ov::intel_gpu::cm {
 
+namespace {
+bool is_turboquant_requested(const kernel_impl_params& params) {
+    const auto mode = params.get_program().get_config().get_key_cache_quant_mode();
+    return mode == ov::internal::CacheQuantMode::TURBOQUANT;
+}
+
+size_t get_shape_elements_count(const layout& l) {
+    const auto shape = l.get_shape();
+    if (shape.empty()) {
+        return 0;
+    }
+
+    size_t count = 1;
+    for (const auto dim : shape) {
+        count *= dim;
+    }
+    return count;
+}
+
+void reserve_turboquant_index_gap(std::vector<BufferDescriptor>& internal_buffers) {
+    // Reserve 2..5 indices used by XAttention buffers so TurboQuant buffers keep fixed indices.
+    internal_buffers.emplace_back(16, ov::element::f32);      // 2: placeholder
+    internal_buffers.emplace_back(16, ov::element::f32);      // 3: placeholder
+    internal_buffers.emplace_back(16, ov::element::boolean);  // 4: placeholder
+    internal_buffers.emplace_back(16, ov::element::boolean);  // 5: placeholder
+#if FIND_DEBUG_ACC
+    internal_buffers.emplace_back(16, ov::element::f16);  // 6: placeholder for XATTN_FIND_DEBUG_ACC
+#endif
+}
+
+void append_turboquant_internal_buffers(std::vector<BufferDescriptor>& internal_buffers, const kernel_impl_params& params) {
+    const auto desc = params.typed_desc<paged_attention>();
+    const auto q_t_elements = desc->k_head_size * desc->k_head_size;
+    internal_buffers.emplace_back(q_t_elements, ov::element::f16);  // TQ_Q_TRANSFORM
+    internal_buffers.emplace_back(static_cast<size_t>(1u << 4), ov::element::f16);  // TQ_CENTROIDS
+
+    const auto boundaries_elements = std::max<size_t>(get_shape_elements_count(params.input_layouts[PagedAttentionInputIdx::ROTATION_DELTAS]), 1);
+    internal_buffers.emplace_back(boundaries_elements, ov::element::i32);  // TQ_BOUNDARIES
+}
+}  // namespace
+
 class PagedAttentionCmImpl : public PrimitiveImplCM {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::cm::PagedAttentionCmImpl)
 
-    Stage::Ptr kv_cache_update = make_stage<PagedAttentionGeneratorKVCacheUpdate>();
-    Stage::Ptr pa_single_token = make_stage<PagedAttentionGeneratorSingleToken>();
+    Stage::Ptr kv_cache_update;
+    Stage::Ptr pa_single_token;
     Stage::Ptr pa_single_token_finalization = make_stage<PagedAttentionGeneratorSingleTokenFinalization>();
-    Stage::Ptr pa_multi_token_1 = make_stage<PagedAttentionGeneratorMultiToken>(1);
+    Stage::Ptr pa_multi_token_1;
     Stage::Ptr pa_multi_token_128 = make_stage<PagedAttentionGeneratorMultiToken>(128);
     Stage::Ptr pa_multi_token_256 = make_stage<PagedAttentionGeneratorMultiToken>(256);
     Stage::Ptr xattn_estimate_gemmqk = make_stage<XAttentionEstimateGEMMQK>(128);
@@ -52,6 +96,11 @@ public:
     }
     explicit PagedAttentionCmImpl(const kernel_impl_params& params) : PagedAttentionCmImpl() {
         const auto desc = params.typed_desc<paged_attention>();
+        m_use_turboquant = is_turboquant_requested(params);
+
+        kv_cache_update = make_stage<PagedAttentionGeneratorKVCacheUpdate>(m_use_turboquant);
+        pa_single_token = make_stage<PagedAttentionGeneratorSingleToken>(m_use_turboquant);
+        pa_multi_token_1 = make_stage<PagedAttentionGeneratorMultiToken>(1, m_use_turboquant);
 
         GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::PagedAttentionCmImpl()" << std::endl;
         add_stage(kv_cache_update, params);
@@ -158,19 +207,68 @@ public:
         const auto& params = *instance.get_impl_params();
         const auto desc = params.typed_desc<paged_attention>();
 
+        if (m_use_turboquant) {
+            if (params.get_device_info().arch < gpu_arch::xe2) {
+                OPENVINO_THROW("TurboQuant is not supported on pre-Xe2 GPU architecture");
+            }
+            if (desc->has_xattention) {
+                OPENVINO_THROW("TurboQuant is not supported with XAttention");
+            }
+            const auto key_cache_layout = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE];
+            OPENVINO_ASSERT(data_type_traits::is_i8_u8(key_cache_layout.data_type),
+                            "TurboQuant requires i8/u8 key cache precision");
+            OPENVINO_ASSERT(!desc->is_key_by_channel,
+                            "TurboQuant requires key cache quantization mode BY_TOKEN/TURBOQUANT");
+        }
+
         update_stages_flags(instance);
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         OPENVINO_ASSERT(rt_params != nullptr);
 
         GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::execute():  stage = " << static_cast<int>(rt_params->stage) << std::endl;
         std::vector<event::ptr> res_event = events;
+        if (m_use_turboquant) {
+            auto& intermediates = instance.get_intermediates_memories();
+
+            auto copy_to_internal_buffer = [&](size_t input_idx, PagedAttentionInternBuffIdx internal_idx, const char* tensor_name) {
+                const auto src_it = params.memory_deps.find(input_idx);
+                OPENVINO_ASSERT(src_it != params.memory_deps.end() && src_it->second != nullptr,
+                                "TurboQuant input tensor is required: ",
+                                tensor_name,
+                                " at index ",
+                                input_idx);
+
+                OPENVINO_ASSERT(static_cast<size_t>(internal_idx) < intermediates.size(),
+                                "TurboQuant internal buffer index is out of range: ",
+                                static_cast<size_t>(internal_idx));
+                const auto& src_mem = src_it->second;
+                const auto& dst_mem = intermediates[internal_idx];
+                OPENVINO_ASSERT(dst_mem != nullptr, "TurboQuant internal buffer is null for ", tensor_name);
+
+                OPENVINO_ASSERT(dst_mem->size() == src_mem->size(),
+                                "TurboQuant internal buffer size mismatch for ",
+                                tensor_name,
+                                ": expected ",
+                                src_mem->size(),
+                                ", got ",
+                                dst_mem->size());
+
+                mem_lock<uint8_t, mem_lock_type::read> src_lock(src_mem, instance.get_network().get_stream());
+                mem_lock<uint8_t, mem_lock_type::write> dst_lock(dst_mem, instance.get_network().get_stream());
+                std::memcpy(dst_lock.data(), src_lock.data(), src_mem->size());
+            };
+
+            copy_to_internal_buffer(PagedAttentionInputIdx::ROTATION_TRIG_LUT, PagedAttentionInternBuffIdx::TQ_Q_TRANSFORM, "rotation_trig_lut");
+            copy_to_internal_buffer(PagedAttentionInputIdx::SINKS, PagedAttentionInternBuffIdx::TQ_CENTROIDS, "sinks");
+            copy_to_internal_buffer(PagedAttentionInputIdx::ROTATION_DELTAS, PagedAttentionInternBuffIdx::TQ_BOUNDARIES, "rotation_deltas");
+        }
+
         res_event = {execute_stage(res_event, instance, kv_cache_update)};
 
         if (rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) {
             const bool is_xattn_bypassed = bypass_xattn(params);
             if (is_xattn_bypassed || desc->has_xattention == false) {
                 GPU_DEBUG_TRACE_DETAIL << "Execute multi-token stage w/o XAttention estimation stages." << std::endl;
-
                 res_event = {execute_stage(res_event, instance, *pa_multi_token_1)};
             } else {
                 GPU_DEBUG_TRACE_DETAIL << "Execute multi-token stage w/ XAttention estimation stages." << std::endl;
@@ -235,6 +333,11 @@ public:
             internal_buffers.emplace_back(tmp_out_elements_count, ov::element::f32);  // 0: intermediate partition output
             internal_buffers.emplace_back(buf_elements_count, ov::element::f32);      // 1: softmax exp_sums
 
+            if (m_use_turboquant) {
+                reserve_turboquant_index_gap(internal_buffers);
+                append_turboquant_internal_buffers(internal_buffers, params);
+            }
+
             GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: tmp_out=" << tmp_out_elements_count * 4 << "  exp_sums=" << buf_elements_count * 4 << std::endl;
         } else {
             internal_buffers.emplace_back(16, ov::element::f32);  // 0: intermediate partition output
@@ -264,6 +367,12 @@ public:
                 GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: count_kq_max_wg=" << count_kq_max_wg * 4
                                        << "  count_kq_exp_partial_sum=" << count_kq_exp_partial_sum * 4 << "  count_elements_mask=" << count_elements_mask * 1
                                        << "  count_elements_mask_merged=" << count_elements_mask_merged * 1 << std::endl;
+            } else if (m_use_turboquant) {
+                reserve_turboquant_index_gap(internal_buffers);
+            }
+
+            if (m_use_turboquant) {
+                append_turboquant_internal_buffers(internal_buffers, params);
             }
         }
 
@@ -275,6 +384,8 @@ public:
     }
 
 private:
+    bool m_use_turboquant = false;
+
     // Get XAttention block size from input tensor.
     // If the input is not provided, throw exception.
     // If the input is not valid, return default block size based on GPU architecture.

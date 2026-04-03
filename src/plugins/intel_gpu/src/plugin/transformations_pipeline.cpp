@@ -655,31 +655,51 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // v: [num_blocks, num_kv_heads, block_size(256), head_size]
             ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
             const auto kv_cache_precision = config.get_kv_cache_precision();
+            const auto key_cache_quant_mode = config.get_key_cache_quant_mode();
+            const bool use_turboquant = key_cache_quant_mode == ov::internal::CacheQuantMode::TURBOQUANT;
             kv_cache_config.keyCachePrecision = kv_cache_precision;
             kv_cache_config.valueCachePrecision = kv_cache_precision;
             kv_cache_config.inferencePrecision = infer_precision;
-            if (use_xattention) {
+            if (use_turboquant && use_xattention) {
+                OPENVINO_THROW("[GPU] TurboQuant is not supported with XAttention");
+            }
+
+            if (use_turboquant) {
+                // TurboQuant uses by-token KV cache path with explicit fixed layout.
+                kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size;
+                kv_cache_config.keyCacheDimOrder = {0, 1, 2, 3};
+                kv_cache_config.keyCacheQuantBychannel = false;
+                kv_cache_config.keyCacheGroupSize = 1;
+
+                kv_cache_config.valueCacheBlockSize = cldnn::paged_attention::block_size;
+                kv_cache_config.valueCacheDimOrder = {0, 1, 2, 3};
+                kv_cache_config.valueCacheQuantBychannel = false;
+                kv_cache_config.valueCacheGroupSize = 0;
+            } else if (use_xattention) {
                 kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size_xattn;
                 kv_cache_config.keyCacheDimOrder = {0, 1, 2, 3};  //  default dim order of [num_blocks, num_kv_heads, block_size, head_size]
-            } else {
-                kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size;
-                kv_cache_config.keyCacheDimOrder = {0, 1, 3, 2};
-            }
-            kv_cache_config.keyCacheQuantBychannel = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL);
-            kv_cache_config.keyCacheGroupSize = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
-            if (use_xattention) {
+                kv_cache_config.keyCacheQuantBychannel = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
+                kv_cache_config.keyCacheGroupSize = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
+
                 if (kv_cache_config.keyCacheQuantBychannel &&
                     ((kv_cache_precision == ov::element::i8 || kv_cache_precision == ov::element::u8)) )
                     OPENVINO_THROW("[GPU] XAttention does not currently support per-channel quantized key cache.");
 
                 kv_cache_config.valueCacheBlockSize = cldnn::paged_attention::block_size_xattn;
                 kv_cache_config.valueCacheDimOrder = {0, 1, 2, 3};
+                kv_cache_config.valueCacheQuantBychannel = false;
+                kv_cache_config.valueCacheGroupSize = 0;
             } else {
+                kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size;
+                kv_cache_config.keyCacheDimOrder = {0, 1, 3, 2};
+                kv_cache_config.keyCacheQuantBychannel = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
+                kv_cache_config.keyCacheGroupSize = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
+
                 kv_cache_config.valueCacheBlockSize = cldnn::paged_attention::block_size;
                 kv_cache_config.valueCacheDimOrder = {0, 1, 2, 3};
+                kv_cache_config.valueCacheQuantBychannel = false;
+                kv_cache_config.valueCacheGroupSize = 0;
             }
-            kv_cache_config.valueCacheQuantBychannel = false;
-            kv_cache_config.valueCacheGroupSize = 0;
 
             manager.register_pass<ov::pass::ConvertPagedAttnInputs>(kv_cache_config,
                 [&infer_precision](const ov::element::Type& precision,

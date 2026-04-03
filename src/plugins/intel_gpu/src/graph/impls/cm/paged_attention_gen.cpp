@@ -166,7 +166,15 @@ JitConstants PagedAttentionGeneratorKVCacheUpdate::get_jit_constants(const kerne
         jit.make("PAGED_ATTENTION_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_LEGACY);
     }
 
-    if (get_kv_compressed(params)) {
+    if (_turboquant) {
+        jit.make("TQ_BITS", 4);
+        jit.make("HEAD_SIZE", desc->k_head_size);
+        // Keep value cache in per-token u8 + fp16 scale/zp layout.
+        jit.make("VALUE_CACHE_MODE", 0);
+        jit.make("KV_CACHE_COMPRESSION_PER_TOKEN", 1);
+        jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
+        jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size + 4);
+    } else if (get_kv_compressed(params)) {
         jit.make("KV_CACHE_COMPRESSION_PER_TOKEN", 1);
         jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size + 4);
         jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size + 4);
@@ -179,6 +187,13 @@ JitConstants PagedAttentionGeneratorKVCacheUpdate::get_jit_constants(const kerne
     return jit;
 }
 
+std::string PagedAttentionGeneratorKVCacheUpdate::get_entry_point(const RuntimeParams& params) const {
+    if (_turboquant) {
+        return "compressed_kv_cache_update_tq";
+    }
+    return PagedAttentionGeneratorBase::get_entry_point(params);
+}
+
 Arguments PagedAttentionGeneratorKVCacheUpdate::get_arguments_desc(const kernel_impl_params& params) const {
     Arguments args;
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY});                   // queries
@@ -189,6 +204,14 @@ Arguments PagedAttentionGeneratorKVCacheUpdate::get_arguments_desc(const kernel_
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});    // subsequence begins
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});             // queries
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::VALUE_CACHE});           // keys cache
+
+    if (_turboquant) {
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::TQ_Q_TRANSFORM});  // key_q_t
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::TQ_BOUNDARIES});   // key_boundaries
+        // VALUE_CACHE_MODE=0 path does not use these tensors, reuse key tables to keep ABI stable.
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::TQ_Q_TRANSFORM});  // value_q_t
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::TQ_BOUNDARIES});   // value_boundaries
+    }
 
     // scalar
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // key_pitch
@@ -284,6 +307,11 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len
 
+    if (_turboquant) {
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::TQ_Q_TRANSFORM});  // tq_q_t
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::TQ_CENTROIDS});    // tq_centroids
+    }
+
     if (_xattn_block_size > 1 && desc->has_xattention) {
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK});         // sparse_block_mask
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK_MERGED});  // sparse_block_mask_wg
@@ -292,6 +320,13 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
         args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // k_block_pad
     }
     return args;
+}
+
+std::string PagedAttentionGeneratorMultiToken::get_entry_point(const RuntimeParams& params) const {
+    if (_turboquant) {
+        return "cm_pa_multi_token_turboquant";
+    }
+    return PagedAttentionGeneratorBase::get_entry_point(params);
 }
 
 JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_impl_params& params) const {
@@ -323,6 +358,10 @@ JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_i
         jit.make("CMPA_KVCACHE_U8", 1);
     } else {
         jit.make("CMPA_KVCACHE_U8", 0);
+    }
+
+    if (_turboquant) {
+        jit.make("TQ_BITS", 4);
     }
 
     jit.make("CMPA_WG_SEQ_LEN", get_wg_seq_len(params));
@@ -403,7 +442,18 @@ JitConstants PagedAttentionGeneratorSingleToken::get_jit_constants(const kernel_
         jit.make("KV_CACHE_COMPRESSION_BY_TOKEN", 0);
     }
 
+    if (_turboquant) {
+        jit.make("TQ_BITS", 4);
+    }
+
     return jit;
+}
+
+std::string PagedAttentionGeneratorSingleToken::get_entry_point(const RuntimeParams& params) const {
+    if (_turboquant) {
+        return "cm_sdpa_2nd_turboquant";
+    }
+    return PagedAttentionGeneratorBase::get_entry_point(params);
 }
 
 Arguments PagedAttentionGeneratorSingleToken::get_arguments_desc(const kernel_impl_params& params) const {
@@ -424,6 +474,11 @@ Arguments PagedAttentionGeneratorSingleToken::get_arguments_desc(const kernel_im
     // outputs
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_PARTITIONOUT});  // partition output
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_EXPSUMS});       // lse output
+
+    if (_turboquant) {
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::TQ_Q_TRANSFORM});  // tq_q_t
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::TQ_CENTROIDS});    // tq_centroids
+    }
 
     // scalar
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len==1

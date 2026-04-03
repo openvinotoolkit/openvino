@@ -1,0 +1,450 @@
+#include <cm/cm.h>
+#include <cm/cmtl.h>
+
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+
+constexpr uint wg_size = WG_SIZE;
+
+// -----------------------------------------------------------------------------
+// Generic vector load/store helpers
+// -----------------------------------------------------------------------------
+template <int HS>
+CM_INLINE void load_vec_half(vector_ref<half, HS> kv_data, const half* kv_ptr [[type("svmptr_t")]], uint offset_bytes) {
+    if constexpr (HS == 16 || HS == 32 || HS == 64 || HS == 128) {
+        kv_data.format<int>() = cm_ptr_load<int, HS / 2>((int*)kv_ptr, offset_bytes);
+    } else if constexpr (HS == 96) {
+        kv_data.select<64, 1>(0).format<int>() = cm_ptr_load<int, 32>((int*)kv_ptr, offset_bytes);
+        kv_data.select<32, 1>(64).format<int>() = cm_ptr_load<int, 16>((int*)kv_ptr, offset_bytes + 32 * sizeof(int));
+    } else {
+        #pragma unroll
+        for (int i = 0; i < HS / 16; i++) {
+            kv_data.select<16, 1>(16 * i).format<int>() = cm_ptr_load<int, 8>((int*)kv_ptr, offset_bytes + i * 8 * sizeof(int));
+        }
+    }
+}
+
+template <typename T, int HS>
+CM_INLINE void store_vec(svmptr_t out_ptr, uint offset_bytes, vector_ref<T, HS> data) {
+    if constexpr (std::is_same<T, half>::value) {
+        if constexpr (HS == 16 || HS == 32 || HS == 64 || HS == 128) {
+            cm_ptr_store<int, HS / 2>((int*)out_ptr, offset_bytes, data.format<int>());
+        } else if constexpr (HS == 96) {
+            cm_ptr_store<int, 32>((int*)out_ptr, offset_bytes, data.select<64, 1>(0).format<int>());
+            cm_ptr_store<int, 16>((int*)out_ptr, offset_bytes + 32 * sizeof(int), data.select<32, 1>(64).format<int>());
+        } else {
+            #pragma unroll
+            for (int i = 0; i < HS / 16; i++) {
+                cm_ptr_store<int, 8>((int*)out_ptr, offset_bytes + i * 8 * sizeof(int), data.select<16, 1>(16 * i).format<int>());
+            }
+        }
+    } else {
+        if constexpr (HS == 32 || HS == 64 || HS == 128 || HS == 256) {
+            cm_ptr_store<int, HS / 4>((int*)out_ptr, offset_bytes, data.format<int>());
+        } else if constexpr (HS == 96) {
+            cm_ptr_store<int, 16>((int*)out_ptr, offset_bytes, data.select<64, 1>(0).format<int>());
+            cm_ptr_store<int, 8>((int*)out_ptr, offset_bytes + 16 * sizeof(int), data.select<32, 1>(64).format<int>());
+        } else {
+            #pragma unroll
+            for (int i = 0; i < HS / 16; i++) {
+                cm_ptr_store<int, 4>((int*)out_ptr, offset_bytes + i * 4 * sizeof(int), data.select<16, 1>(16 * i).format<int>());
+            }
+        }
+    }
+}
+
+template <int HS>
+CM_INLINE void tq_quantize_vector(
+    vector_ref<half, HS> x,
+    const half* q_t [[type("svmptr_t")]],
+    const half* boundaries [[type("svmptr_t")]],
+    vector_ref<uchar, HS> out_idx,
+    half& out_norm) {
+
+    float sq_sum = 0.0f;
+    #pragma unroll
+    for (int i = 0; i < HS; i++) {
+        float xi = (float)x[i];
+        sq_sum += xi * xi;
+    }
+    float norm = cm_sqrt(sq_sum);
+    if (norm < 1e-8f) norm = 1e-8f;
+    out_norm = (half)norm;
+
+    vector<float, HS> x_unit;
+    float inv_norm = 1.0f / norm;
+    #pragma unroll
+    for (int i = 0; i < HS; i++) {
+        x_unit[i] = (float)x[i] * inv_norm;
+    }
+
+    vector<float, HS> x_rot;
+    #pragma unroll
+    for (int j = 0; j < HS; j++) {
+        float acc = 0.0f;
+        #pragma unroll
+        for (int i = 0; i < HS; i++) {
+            acc += x_unit[i] * (float)q_t[i * HS + j];
+        }
+        x_rot[j] = acc;
+    }
+
+    constexpr int N_LEVELS = (1 << TQ_BITS);
+    constexpr int N_BOUNDS = N_LEVELS - 1;
+
+    #pragma unroll
+    for (int j = 0; j < HS; j++) {
+        float v = x_rot[j];
+        uchar idx = 0;
+        #pragma unroll
+        for (int b = 0; b < N_BOUNDS; b++) {
+            if (v > (float)boundaries[b]) idx++;
+        }
+        out_idx[j] = idx;
+    }
+}
+
+template <int HS>
+CM_INLINE void tq_dequantize_vector(
+    vector_ref<uchar, HS> idx,
+    half in_norm,
+    const half* q [[type("svmptr_t")]],
+    const half* centroids [[type("svmptr_t")]],
+    vector_ref<half, HS> out_x) {
+
+    vector<float, HS> x_rot;
+    #pragma unroll
+    for (int j = 0; j < HS; j++) {
+        x_rot[j] = (float)centroids[(int)idx[j]];
+    }
+
+    vector<float, HS> x_unit;
+    #pragma unroll
+    for (int i = 0; i < HS; i++) {
+        float acc = 0.0f;
+        #pragma unroll
+        for (int j = 0; j < HS; j++) {
+            acc += x_rot[j] * (float)q[j * HS + i];
+        }
+        x_unit[i] = acc;
+    }
+
+    float norm = (float)in_norm;
+    #pragma unroll
+    for (int i = 0; i < HS; i++) {
+        out_x[i] = (half)(x_unit[i] * norm);
+    }
+}
+
+template <int HS>
+CM_INLINE void load_vec_u8(vector_ref<uchar, HS> out, const uint8_t* in [[type("svmptr_t")]], uint offset_bytes);
+
+template <int HS>
+CM_INLINE void store_packed_indices(
+    vector_ref<uchar, HS> idx_vals,
+    uint8_t* out [[type("svmptr_t")]],
+    uint32_t out_byte_offset) {
+    constexpr int BITS = TQ_BITS;
+    constexpr int OUT_BYTES = (HS * BITS + 7) / 8;
+    constexpr uint MASK = (1u << BITS) - 1u;
+
+    vector<uchar, OUT_BYTES> packed;
+    packed = 0;
+
+    int bit_pos = 0;
+    #pragma unroll
+    for (int i = 0; i < HS; i++) {
+        uint v = ((uint)idx_vals[i]) & MASK;
+        int byte_pos = bit_pos >> 3;
+        int shift = bit_pos & 7;
+
+        packed[byte_pos] = packed[byte_pos] | (uchar)(v << shift);
+        if (shift + BITS > 8) {
+            packed[byte_pos + 1] = packed[byte_pos + 1] | (uchar)(v >> (8 - shift));
+        }
+        bit_pos += BITS;
+    }
+
+    #pragma unroll
+    for (int i = 0; i < OUT_BYTES; i++) {
+        out[out_byte_offset + i] = packed[i];
+    }
+}
+
+template <int HS>
+CM_INLINE void turboquant_quantize_impl(
+    const half* x [[type("svmptr_t")]],
+    const half* q_t [[type("svmptr_t")]],
+    const half* boundaries [[type("svmptr_t")]],
+    uint32_t n_tokens,
+    uint32_t x_pitch,
+    uint32_t x_offset,
+    uint32_t head_idx,
+    uint32_t token_idx,
+    uint8_t* idx_out [[type("svmptr_t")]],
+    half* norms_out [[type("svmptr_t")]],
+    uint32_t idx_out_offset,
+    uint32_t norm_out_offset,
+    uint32_t pack_indices) {
+    if (token_idx >= n_tokens) return;
+
+    uint x_off = token_idx * x_pitch + head_idx * HS + x_offset;
+    vector<half, HS> x_vec;
+    load_vec_half<HS>(x_vec, x, x_off * sizeof(half));
+    vector<uchar, HS> out_idx;
+    half out_norm;
+    tq_quantize_vector<HS>(x_vec, q_t, boundaries, out_idx, out_norm);
+
+    if (pack_indices) {
+        store_packed_indices<HS>(out_idx, idx_out, idx_out_offset);
+    } else {
+        store_vec<uchar, HS>(reinterpret_cast<svmptr_t>(idx_out), idx_out_offset * sizeof(uint8_t), out_idx);
+    }
+    norms_out[norm_out_offset] = out_norm;
+}
+
+CM_INLINE void turboquant_dequantize_impl(
+    const uint8_t* idx_in [[type("svmptr_t")]],
+    const half* norms_in [[type("svmptr_t")]],
+    const half* q [[type("svmptr_t")]],
+    const half* centroids [[type("svmptr_t")]],
+    half* x_out [[type("svmptr_t")]],
+    uint32_t x_pitch,
+    uint32_t x_offset,
+    uint32_t n_tokens,
+    uint32_t head_idx,
+    uint32_t token_idx) {
+    if (token_idx >= n_tokens) return;
+
+    uint in_off = (token_idx * KV_HEADS_NUM + head_idx) * HEAD_SIZE;
+    vector<uchar, HEAD_SIZE> idx;
+    load_vec_u8<HEAD_SIZE>(idx, idx_in, in_off * sizeof(uint8_t));
+
+    half norm = norms_in[token_idx * KV_HEADS_NUM + head_idx];
+    vector<half, HEAD_SIZE> out;
+    tq_dequantize_vector<HEAD_SIZE>(idx, norm, q, centroids, out);
+
+    uint out_off = token_idx * x_pitch + head_idx * HEAD_SIZE + x_offset;
+    store_vec<half, HEAD_SIZE>(reinterpret_cast<svmptr_t>(x_out), out_off * sizeof(half), out);
+}
+
+extern "C" _GENX_MAIN_ void turboquant_quantize(
+    const half* x [[type("svmptr_t")]],
+    const half* q_t [[type("svmptr_t")]],
+    const half* boundaries [[type("svmptr_t")]],
+    uint8_t* idx_out [[type("svmptr_t")]],
+    half* norms_out [[type("svmptr_t")]],
+    uint32_t x_pitch,
+    uint32_t x_offset,
+    uint32_t n_tokens) {
+    const uint32_t head_idx = cm_group_id(1);
+    const uint32_t token_idx = cm_global_id(2);
+    const uint32_t out_off = (token_idx * KV_HEADS_NUM + head_idx) * HEAD_SIZE;
+    const uint32_t norm_off = token_idx * KV_HEADS_NUM + head_idx;
+
+    turboquant_quantize_impl<HEAD_SIZE>(
+        x,
+        q_t,
+        boundaries,
+        n_tokens,
+        x_pitch,
+        x_offset,
+        head_idx,
+        token_idx,
+        idx_out,
+        norms_out,
+        out_off,
+        norm_off,
+        0);
+}
+
+// dedicated uchar load for dequant
+template <int HS>
+CM_INLINE void load_vec_u8(vector_ref<uchar, HS> out, const uint8_t* in [[type("svmptr_t")]], uint offset_bytes) {
+    if constexpr (HS == 32 || HS == 64 || HS == 128 || HS == 256) {
+        out.format<int>() = cm_ptr_load<int, HS / 4>((int*)in, offset_bytes);
+    } else if constexpr (HS == 96) {
+        out.select<64, 1>(0).format<int>() = cm_ptr_load<int, 16>((int*)in, offset_bytes);
+        out.select<32, 1>(64).format<int>() = cm_ptr_load<int, 8>((int*)in, offset_bytes + 16 * sizeof(int));
+    } else {
+        #pragma unroll
+        for (int i = 0; i < HS / 16; i++) {
+            out.select<16, 1>(16 * i).format<int>() = cm_ptr_load<int, 4>((int*)in, offset_bytes + i * 4 * sizeof(int));
+        }
+    }
+}
+
+extern "C" _GENX_MAIN_ void turboquant_dequantize(
+    const uint8_t* idx_in [[type("svmptr_t")]],
+    const half* norms_in [[type("svmptr_t")]],
+    const half* q [[type("svmptr_t")]],
+    const half* centroids [[type("svmptr_t")]],
+    half* x_out [[type("svmptr_t")]],
+    uint32_t x_pitch,
+    uint32_t x_offset,
+    uint32_t n_tokens) {
+
+    turboquant_dequantize_impl(
+        idx_in, norms_in, q, centroids, x_out,
+        x_pitch, x_offset, n_tokens,
+        cm_group_id(1), cm_global_id(2));
+}
+
+// One-layer compressed KV-cache update using TurboQuant (per token, per head).
+//
+// Input tensor shapes follow OpenVINO PagedAttention conventions:
+//   key/value (current tokens):
+//     key   : [batch_size_in_tokens, KV_HEADS_NUM * K_HEAD_SIZE]   (half)
+//     value : [batch_size_in_tokens, KV_HEADS_NUM * V_HEAD_SIZE]   (half)
+//
+//   sequence metadata:
+//     past_lens            : [batch_size_in_sequences]              (i32)
+//     subsequence_begins   : [batch_size_in_sequences + 1]          (i32)
+//     block_indices        : [used_blocks_num]                      (i32)
+//     block_indices_begins : [batch_size_in_sequences + 1]          (i32)
+//
+//   TurboQuant tables:
+//     key_q_t          : [K_HEAD_SIZE, K_HEAD_SIZE]                 (half)
+//     key_boundaries   : [(1 << TQ_BITS) - 1]                       (half)
+//     value_q_t        : [V_HEAD_SIZE, V_HEAD_SIZE]                 (half)
+//     value_boundaries : [(1 << TQ_BITS) - 1]                       (half)
+//
+// Packed cache storage (uint8 byte-addressed):
+//   key_cache   : [num_blocks, KV_HEADS_NUM, PAGED_ATTENTION_BLOCK_SIZE * (((K_HEAD_SIZE * TQ_BITS + 7)/8) + 2)] (u8)
+//   value_cache :
+//     - if VALUE_CACHE_MODE==1 (TurboQuant):
+//         [num_blocks, KV_HEADS_NUM, PAGED_ATTENTION_BLOCK_SIZE * (((V_HEAD_SIZE * TQ_BITS + 7)/8) + 2)] (u8)
+//     - if VALUE_CACHE_MODE==0 (per-token u8 + fp16 scale/zp):
+//         [num_blocks, KV_HEADS_NUM, PAGED_ATTENTION_BLOCK_SIZE * (V_HEAD_SIZE + 4)] (u8)
+//
+// Per (block, head) byte layout for key_cache (same pattern for value_cache):
+//   let K_PACKED_BYTES = (K_HEAD_SIZE * TQ_BITS + 7) / 8
+//   [0, K_PACKED_BYTES * BLOCK_SIZE)
+//       -> quantized/packed index bytes, token-major:
+//          token t at byte range [t*K_PACKED_BYTES, (t+1)*K_PACKED_BYTES)
+//   [K_PACKED_BYTES * BLOCK_SIZE, K_PACKED_BYTES * BLOCK_SIZE + 2*BLOCK_SIZE)
+//       -> norms (half), one per token
+//
+// This matches TurboQuantMSE compressed-size accounting:
+//   bits-per-index storage + 2-byte norm per vector.
+#ifndef VALUE_CACHE_MODE
+#define VALUE_CACHE_MODE 0
+#endif
+
+template <int HS>
+CM_INLINE void quantize_and_store_value_per_token(vector_ref<half, HS> data,
+                                                  uint8_t* out [[type("svmptr_t")]],
+                                                  uint out_offset,
+                                                  uint token_pos) {
+    uint scale_offset = out_offset + HS * PAGED_ATTENTION_BLOCK_SIZE + token_pos * sizeof(half);
+
+    half max_val = cm_reduced_max<half>(data);
+    half min_val = cm_reduced_min<half>(data);
+    half qrange = max_val - min_val;
+
+    float scale_val = qrange == (half)0.0 ? 1.0f : 255.0f / (float)qrange;
+    half zp_val = (half)((0.0f - (float)min_val) * scale_val);
+
+    vector<half, HS> quant_data_h = cm_mul<half>(data, (half)scale_val) + zp_val;
+    vector<uchar, HS> data_u8 = cm_rnde<uchar, HS>(quant_data_h);
+
+    store_vec<uchar, HS>(reinterpret_cast<svmptr_t>(out + out_offset + token_pos * HS), 0, data_u8);
+
+    half* out_scale_zp = reinterpret_cast<half*>(out + scale_offset);
+    out_scale_zp[0] = (half)(1.0f / scale_val);
+    out_scale_zp[PAGED_ATTENTION_BLOCK_SIZE] = zp_val;
+}
+
+extern "C" _GENX_MAIN_ void compressed_kv_cache_update_tq(
+    const half* key [[type("svmptr_t")]],                    // [batch_size_in_tokens, KV_HEADS_NUM * K_HEAD_SIZE]
+    const half* value [[type("svmptr_t")]],                  // [batch_size_in_tokens, KV_HEADS_NUM * V_HEAD_SIZE]
+    const int32_t* past_lens [[type("svmptr_t")]],           // [batch_size_in_sequences]
+    const int32_t* block_indices [[type("svmptr_t")]],       // [used_blocks_num]
+    const int32_t* block_indices_begins [[type("svmptr_t")]],// [batch_size_in_sequences + 1]
+    const int32_t* subsequence_begins [[type("svmptr_t")]],  // [batch_size_in_sequences + 1]
+    uint8_t* key_cache [[type("svmptr_t")]],                 // [num_blocks, KV_HEADS_NUM, BLOCK_SIZE * (((K_HEAD_SIZE * TQ_BITS + 7)/8) + 2)] packed u8
+    uint8_t* value_cache [[type("svmptr_t")]],               // [num_blocks, KV_HEADS_NUM, BLOCK_SIZE * (((V_HEAD_SIZE * TQ_BITS + 7)/8) + 2)] packed u8
+    const half* key_q_t [[type("svmptr_t")]],                // [K_HEAD_SIZE, K_HEAD_SIZE]
+    const half* key_boundaries [[type("svmptr_t")]],         // [(1 << TQ_BITS) - 1]
+    const half* value_q_t [[type("svmptr_t")]],              // [V_HEAD_SIZE, V_HEAD_SIZE]
+    const half* value_boundaries [[type("svmptr_t")]],       // [(1 << TQ_BITS) - 1]
+    uint32_t key_pitch,                                        // key row stride in half elements
+    uint32_t key_offset,                                       // key base offset in half elements
+    uint32_t value_pitch,                                      // value row stride in half elements
+    uint32_t value_offset,                                     // value base offset in half elements
+    uint32_t batch_size_in_sequences) {                        // scalar
+
+    static_assert(K_HEAD_SIZE % 16 == 0 && V_HEAD_SIZE % 16 == 0);
+    constexpr uint K_PACKED_BYTES = (K_HEAD_SIZE * TQ_BITS + 7) / 8;
+    constexpr uint V_PACKED_BYTES = (V_HEAD_SIZE * TQ_BITS + 7) / 8;
+    constexpr uint K_TOKEN_BYTES = K_PACKED_BYTES + 2;
+    constexpr uint V_TOKEN_BYTES = V_PACKED_BYTES + 2;
+
+    const auto head_idx = cm_group_id(1);
+    const uint token_idx = cm_global_id(2);
+
+    if (token_idx >= subsequence_begins[batch_size_in_sequences]) return;
+
+    uint subsequence_idx = 0;
+    for (uint i = 0; i < batch_size_in_sequences; i++) {
+        if (token_idx >= subsequence_begins[i] && token_idx < subsequence_begins[i + 1]) {
+            subsequence_idx = i;
+            break;
+        }
+    }
+
+    const uint subsequence_begin_idx = subsequence_begins[subsequence_idx];
+    const uint past_len = past_lens[subsequence_idx];
+    const uint current_block_idx = (past_len + token_idx - subsequence_begin_idx) / PAGED_ATTENTION_BLOCK_SIZE;
+    const uint token_start_pos = (past_len + token_idx - subsequence_begin_idx) % PAGED_ATTENTION_BLOCK_SIZE;
+    const uint block_offset = block_indices_begins[subsequence_idx] + current_block_idx;
+
+    {
+        uint block_k_base_offset = (block_indices[block_offset] * KV_HEADS_NUM + head_idx) * K_TOKEN_BYTES * PAGED_ATTENTION_BLOCK_SIZE;
+        half* key_norm_base = reinterpret_cast<half*>(key_cache + block_k_base_offset + K_PACKED_BYTES * PAGED_ATTENTION_BLOCK_SIZE);
+
+        turboquant_quantize_impl<K_HEAD_SIZE>(
+            key,
+            key_q_t,
+            key_boundaries,
+            subsequence_begins[batch_size_in_sequences],
+            key_pitch,
+            key_offset,
+            head_idx,
+            token_idx,
+            key_cache,
+            key_norm_base,
+            block_k_base_offset + token_start_pos * K_PACKED_BYTES,
+            token_start_pos,
+            1);
+    }
+
+    #if VALUE_CACHE_MODE
+        uint block_v_base_offset = (block_indices[block_offset] * KV_HEADS_NUM + head_idx) * V_TOKEN_BYTES * PAGED_ATTENTION_BLOCK_SIZE;
+        half* value_norm_base = reinterpret_cast<half*>(value_cache + block_v_base_offset + V_PACKED_BYTES * PAGED_ATTENTION_BLOCK_SIZE);
+
+        turboquant_quantize_impl<V_HEAD_SIZE>(
+            value,
+            value_q_t,
+            value_boundaries,
+            subsequence_begins[batch_size_in_sequences],
+            value_pitch,
+            value_offset,
+            head_idx,
+            token_idx,
+            value_cache,
+            value_norm_base,
+            block_v_base_offset + token_start_pos * V_PACKED_BYTES,
+            token_start_pos,
+            1);
+    #else
+        constexpr uint V_TOKEN_BYTES_PER_TOKEN_Q = V_HEAD_SIZE + 4;
+        uint block_v_base_offset = (block_indices[block_offset] * KV_HEADS_NUM + head_idx) * V_TOKEN_BYTES_PER_TOKEN_Q * PAGED_ATTENTION_BLOCK_SIZE;
+        uint value_in_offset = token_idx * value_pitch + head_idx * V_HEAD_SIZE + value_offset;
+
+        vector<half, V_HEAD_SIZE> value_data;
+        load_vec_half<V_HEAD_SIZE>(value_data, value, value_in_offset * sizeof(half));
+        quantize_and_store_value_per_token<V_HEAD_SIZE>(value_data, value_cache, block_v_base_offset, token_start_pos);
+    #endif
+}

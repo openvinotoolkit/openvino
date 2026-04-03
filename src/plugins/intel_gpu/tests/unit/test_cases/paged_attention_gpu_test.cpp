@@ -21,7 +21,9 @@
 #include "random_generator.hpp"
 #include "test_utils.h"
 
+#include <cstdlib>
 #include <optional>
+#include <string>
 
 using namespace cldnn;
 using namespace ov::intel_gpu;
@@ -2190,6 +2192,43 @@ TEST_P(xattention_invalid_test, throws_on_invalid_xattention_inputs) {
     }
 }
 
+class turboquant_test : public PagedAttentionTest<paged_attention_test_params> {};
+TEST_P(turboquant_test, basic) {
+    if (!check_cm_available())
+        GTEST_SKIP();
+    auto p = GetParam();
+
+    // TurboQuant currently supports only single-subsequence tests.
+    ASSERT_EQ(p.subsequences.size(), 1);
+    ASSERT_FALSE(p.has_xattention);
+
+    execute(p);
+}
+
+class turboquant_invalid_test : public PagedAttentionTest<paged_attention_test_params> {};
+TEST_P(turboquant_invalid_test, throws_on_xattention) {
+    if (!check_cm_available())
+        GTEST_SKIP();
+    auto p = GetParam();
+
+    // TurboQuant invalid path checks are scoped to single-subsequence as well.
+    ASSERT_EQ(p.subsequences.size(), 1);
+    ASSERT_TRUE(p.has_xattention);
+
+    try {
+        execute(p, false);
+        FAIL() << "Expected exception containing: TurboQuant is not supported with XAttention";
+    } catch (const ov::Exception& e) {
+        const std::string msg = e.what();
+        EXPECT_NE(msg.find("TurboQuant is not supported with XAttention"), std::string::npos)
+            << "Unexpected exception message: " << msg;
+    } catch (const std::exception& e) {
+        FAIL() << "Expected ov::Exception, got std::exception: " << e.what();
+    } catch (...) {
+        FAIL() << "Expected ov::Exception, got unknown exception type";
+    }
+}
+
 class adaptive_rkv_diversity_test : public PagedAttentionTest<paged_attention_test_params> {};
 TEST_P(adaptive_rkv_diversity_test, basic) {
     auto p = GetParam();
@@ -2402,6 +2441,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention, xattention_test, ::testing::Values
     paged_attention_test_params{ {{1, 32}},   2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd toke
     paged_attention_test_params{ {{1, 1023}},   2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
     paged_attention_test_params{ {{1, 1024}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
+}));
+
+INSTANTIATE_TEST_SUITE_P(smoke_cm_turboquant, turboquant_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    // decode path (generate)
+    paged_attention_test_params{ {{1, 64}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::TURBOQUANT, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u8 },
+    // prefill path
+    paged_attention_test_params{ {{64, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::TURBOQUANT, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u8 },
+    // decode path with int4 cache precision
+    paged_attention_test_params{ {{1, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::TURBOQUANT, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 },
+}));
+
+INSTANTIATE_TEST_SUITE_P(smoke_cm_turboquant_invalid_xattention, turboquant_invalid_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    paged_attention_test_params{ {{64, 0}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::TURBOQUANT, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128}, ov::element::u8 },
 }));
 
 INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention_block_size, xattention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
