@@ -206,7 +206,7 @@ void MoEExecutor::run(size_t real_idx, size_t idx) {
 
     LOG_DEBUG("MoE Config: num_experts=" << num_experts << ", num_active_experts=" << num_active_experts
                                          << ", input_token_count=" << input_token_count
-                                          << ", mode=" << get_mode_name(processing_mode));
+                                         << ", mode=" << get_mode_name(processing_mode));
 
     // Get I/O for this sublayer
     const auto& io = m_moe_io[idx];

@@ -26,30 +26,13 @@ namespace {
     OPENVINO_THROW("Failsafe ", stage, " fallback exhausted");
 }
 
-ov::SoPtr<ov::ITensor> allocate_tensor_like(const ov::SoPtr<ov::ITensor>& tensor) {
-    return ov::get_tensor_impl(ov::Tensor(tensor->get_element_type(), tensor->get_shape()));
-}
-
-// The wrapper keeps public output tensors stable across failover. For plain
-// host tensors the generic ITensor::copy_to path is not consistently available
-// in lightweight test doubles, so use memcpy for the common contiguous case and
-// fall back to plugin-provided copy_to for non-contiguous / remote tensors.
-void copy_tensor_data(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& dst) {
-    OPENVINO_ASSERT(src->get_byte_size() == dst->get_byte_size(), "Failsafe tensor copy size mismatch");
-    if (src->is_continuous() && dst->is_continuous()) {
-        std::memcpy(dst->data(), src->data(), src->get_byte_size());
-        return;
-    }
-    src->copy_to(dst._ptr);
-}
-
 }  // namespace
 
 ov::SoPtr<ov::ICompiledModel> ov::npuw::failsafe::CompiledModel::create(
     const std::shared_ptr<ov::Model>& model,
     const std::shared_ptr<const ov::IPlugin>& plugin,
-    const std::vector<std::string> &devices,
-    const Factory &factory) {
+    const std::vector<std::string>& devices,
+    const Factory& factory) {
     OPENVINO_ASSERT(!devices.empty(), "Failsafe compiled model requires at least one device");
     OPENVINO_ASSERT(static_cast<bool>(factory), "Failsafe compiled model requires a factory");
 
@@ -69,11 +52,11 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::failsafe::CompiledModel::create(
 
 ov::npuw::failsafe::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                  const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                 const std::vector<std::string> &devices,
-                                                 const Factory &factory)
-     : ov::ICompiledModel(model, plugin),
-       m_devices(devices),
-       m_factory(factory) {
+                                                 const std::vector<std::string>& devices,
+                                                 const Factory& factory)
+    : ov::ICompiledModel(model, plugin),
+      m_devices(devices),
+      m_factory(factory) {
     OPENVINO_ASSERT(!m_devices.empty(), "Failsafe compiled model requires at least one device");
     OPENVINO_ASSERT(static_cast<bool>(m_factory), "Failsafe compiled model requires a factory");
 }
@@ -221,7 +204,6 @@ bool ov::npuw::failsafe::InferRequest::is_output_port_locked(const ov::Output<co
     return port_key_locked(port).is_output;
 }
 
-
 void ov::npuw::failsafe::InferRequest::infer() {
     std::lock_guard<std::mutex> lock(m_mutex);
 
@@ -231,10 +213,10 @@ void ov::npuw::failsafe::InferRequest::infer() {
     bool need_rebind = false;
 
     ensure_inner_request_locked();
-    for (auto &&port : m_failsafe_compiled_model->inputs()) {
+    for (auto&& port : m_failsafe_compiled_model->inputs()) {
         input_tensors.push_back(Binding{port, m_request->get_tensor(port)});
     }
-    for (auto &&port : m_failsafe_compiled_model->outputs()) {
+    for (auto&& port : m_failsafe_compiled_model->outputs()) {
         output_tensors.push_back(Binding{port, m_request->get_tensor(port)});
     }
 
@@ -242,10 +224,10 @@ void ov::npuw::failsafe::InferRequest::infer() {
         ensure_inner_request_locked();
         try {
             if (need_rebind) {
-                for (auto &&binding : input_tensors) {
+                for (auto&& binding : input_tensors) {
                     m_request->set_tensor(binding.first, binding.second);
                 }
-                for (auto &&binding : output_tensors) {
+                for (auto&& binding : output_tensors) {
                     m_request->set_tensor(binding.first, binding.second);
                 }
             }
@@ -277,8 +259,7 @@ void ov::npuw::failsafe::InferRequest::set_tensor(const ov::Output<const ov::Nod
     m_request->set_tensor(port, tensor);
 }
 
-void ov::npuw::failsafe::InferRequest::check_tensors() const {
-}
+void ov::npuw::failsafe::InferRequest::check_tensors() const {}
 
 std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::failsafe::InferRequest::query_state() const {
     std::lock_guard<std::mutex> lock(m_mutex);
