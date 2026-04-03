@@ -1075,7 +1075,7 @@ struct MAX_TILES final : OptionBase<MAX_TILES, int64_t> {
     }
 
     static ov::PropertyMutability mutability() {
-        return ov::PropertyMutability::RW;
+        return ov::PropertyMutability::RO;
     }
 };
 
