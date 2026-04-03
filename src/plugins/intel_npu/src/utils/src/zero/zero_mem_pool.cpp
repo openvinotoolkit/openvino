@@ -11,73 +11,7 @@
 
 namespace intel_npu {
 
-namespace {
-
-// Golden-ratio-derived constant commonly used by hash-combine to improve bit mixing.
-constexpr size_t kHashCombineGoldenRatio = 0x9e3779b9;
-
-struct ZeroMemPoolKey final {
-    ze_context_handle_t context = nullptr;
-    ze_device_handle_t device = nullptr;
-
-    bool operator==(const ZeroMemPoolKey& other) const {
-        return context == other.context && device == other.device;
-    }
-};
-
-struct ZeroMemPoolKeyHash final {
-    size_t operator()(const ZeroMemPoolKey& key) const {
-        const auto context_hash = std::hash<void*>{}(reinterpret_cast<void*>(key.context));
-        const auto device_hash = std::hash<void*>{}(reinterpret_cast<void*>(key.device));
-        return context_hash ^ (device_hash + kHashCombineGoldenRatio + (context_hash << 6) + (context_hash >> 2));
-    }
-};
-
-struct ZeroMemPoolEntry final {
-    std::weak_ptr<ZeroInitStructsHolder> init_structs;
-    std::shared_ptr<ZeroMemPool> pool;
-};
-
-// Namespace-scope statics for pool registry. Cleanup is automatic when init_structs weak_ptr expires.
-std::mutex pool_instances_mutex;
-std::unordered_map<ZeroMemPoolKey, ZeroMemPoolEntry, ZeroMemPoolKeyHash> pool_instances;
-
-}  // namespace
-
 ZeroMemPool::ZeroMemPool(const std::shared_ptr<ZeroInitStructsHolder>& init_structs) : _init_structs(init_structs) {}
-
-std::shared_ptr<ZeroMemPool> ZeroMemPool::get_instance(const std::shared_ptr<ZeroInitStructsHolder>& init_structs) {
-    OPENVINO_ASSERT(init_structs != nullptr, "ZeroMemPool requires valid zero init structures");
-
-    const ZeroMemPoolKey key{init_structs->getContext(), init_structs->getDevice()};
-
-    std::lock_guard<std::mutex> lock(pool_instances_mutex);
-
-    // Fast path: if there is a non-expired entry for this key, return it without scanning the whole map.
-    auto it = pool_instances.find(key);
-    if (it != pool_instances.end()) {
-        if (!it->second.init_structs.expired()) {
-            return it->second.pool;
-        }
-        // The entry for this key is tied to expired init_structs; remove it and fall through to cleanup/creation.
-        pool_instances.erase(it);
-    }
-
-    // Slow path: cleanup expired pool instances across the registry before creating a new entry.
-    for (auto cleanup_it = pool_instances.begin(); cleanup_it != pool_instances.end();) {
-        if (cleanup_it->second.init_structs.expired()) {
-            cleanup_it = pool_instances.erase(cleanup_it);
-        } else {
-            ++cleanup_it;
-        }
-    }
-
-    auto [new_it, inserted] = pool_instances.emplace(
-        key,
-        ZeroMemPoolEntry{init_structs, std::shared_ptr<ZeroMemPool>(new ZeroMemPool(init_structs))});
-    (void)inserted;
-    return new_it->second.pool;
-}
 
 std::shared_ptr<ZeroInitStructsHolder> ZeroMemPool::lock_init_structs() const {
     auto init_structs = _init_structs.lock();

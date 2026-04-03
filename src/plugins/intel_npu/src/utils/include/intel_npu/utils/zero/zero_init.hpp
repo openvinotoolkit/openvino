@@ -15,6 +15,9 @@
 #include "intel_npu/utils/zero/zero_types.hpp"
 
 namespace intel_npu {
+
+class ZeroMemPool;
+
 /**
  * Holder for the level zero structures which must be initialized via call to the driver once zero backend is loaded,
  * and de-initialized after their last use is over.
@@ -74,6 +77,9 @@ public:
     inline uint32_t getCommandQueueGroupOrdinal() const {
         return _command_queue_group_ordinal;
     }
+    inline ZeroMemPool& getZeroMemPool() const {
+        return *_zero_mem_pool;
+    }
 
     void setContextOptions(const uint32_t options);
     void clearContextOptions(const uint32_t options);
@@ -119,6 +125,8 @@ private:
     uint32_t _context_options = 0;
 
     uint32_t _command_queue_group_ordinal = 0;
+
+    std::unique_ptr<ZeroMemPool> _zero_mem_pool = nullptr;
 
     std::mutex _mutex;
 };

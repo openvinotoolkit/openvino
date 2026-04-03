@@ -321,10 +321,10 @@ void ZeroRemoteTensor::copy_file_data_to_level_zero_memory(const size_t size_to_
 
     fin.seekg(offset, std::ios::beg);
 
-    _host_memory = ZeroMemPool::get_instance(_init_structs)
-                       ->allocate_zero_memory(size_to_read,
-                                              utils::STANDARD_PAGE_SIZE,
-                                              _tensor_type == TensorType::INPUT ? true : false);
+    _host_memory =
+        _init_structs->getZeroMemPool().allocate_zero_memory(size_to_read,
+                                                             utils::STANDARD_PAGE_SIZE,
+                                                             _tensor_type == TensorType::INPUT ? true : false);
     _data = _host_memory->data();
 
     std::streamoff bytes_to_read = static_cast<std::streamoff>(size_to_read);
@@ -339,16 +339,16 @@ void ZeroRemoteTensor::copy_file_data_to_level_zero_memory(const size_t size_to_
 void ZeroRemoteTensor::allocate(const size_t bytes) {
     switch (_mem_type) {
     case MemType::L0_INTERNAL_BUF: {
-        _host_memory = ZeroMemPool::get_instance(_init_structs)
-                           ->allocate_zero_memory(bytes,
-                                                  utils::STANDARD_PAGE_SIZE,
-                                                  _tensor_type == TensorType::INPUT ? true : false);
+        _host_memory =
+            _init_structs->getZeroMemPool().allocate_zero_memory(bytes,
+                                                                 utils::STANDARD_PAGE_SIZE,
+                                                                 _tensor_type == TensorType::INPUT ? true : false);
         _data = _host_memory->data();
         break;
     }
     case MemType::SHARED_BUF: {
         // set up the request to import the external memory handle
-        _host_memory = ZeroMemPool::get_instance(_init_structs)->import_shared_memory(_mem, bytes);
+        _host_memory = _init_structs->getZeroMemPool().import_shared_memory(_mem, bytes);
         _data = _host_memory->data();
         break;
     }
@@ -383,10 +383,10 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
 
         try {
             size_t aligned_size = utils::align_size_to_standard_page_size(bytes);
-            _host_memory = ZeroMemPool::get_instance(_init_structs)
-                               ->import_standard_allocation_memory(std::as_const(_mmap_tensor).data(),
-                                                                   aligned_size,
-                                                                   _tensor_type == TensorType::INPUT ? true : false);
+            _host_memory = _init_structs->getZeroMemPool().import_standard_allocation_memory(
+                std::as_const(_mmap_tensor).data(),
+                aligned_size,
+                _tensor_type == TensorType::INPUT ? true : false);
             _data = _host_memory->data();
         } catch (const ZeroMemException&) {
             _logger.info("Failed to import mmaped memory. File data will be copied to the level zero memory");
@@ -396,9 +396,10 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
         break;
     }
     case MemType::CPU_VA: {
-        _host_memory =
-            ZeroMemPool::get_instance(_init_structs)
-                ->import_standard_allocation_memory(_mem, bytes, _tensor_type == TensorType::INPUT ? true : false);
+        _host_memory = _init_structs->getZeroMemPool().import_standard_allocation_memory(
+            _mem,
+            bytes,
+            _tensor_type == TensorType::INPUT ? true : false);
         _data = _host_memory->data();
         break;
     }

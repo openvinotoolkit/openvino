@@ -11,6 +11,7 @@
 
 #include <regex>
 
+#include "intel_npu/utils/zero/zero_mem_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 
 namespace {
@@ -420,6 +421,7 @@ const std::shared_ptr<ZeroInitStructsHolder> ZeroInitStructsHolder::getInstance(
     auto instance = weak_instance.lock();
     if (!instance) {
         instance = std::make_shared<ZeroInitStructsHolder>();
+        instance->_zero_mem_pool = std::unique_ptr<ZeroMemPool>(new ZeroMemPool(instance));
         weak_instance = instance;
     }
     return instance;

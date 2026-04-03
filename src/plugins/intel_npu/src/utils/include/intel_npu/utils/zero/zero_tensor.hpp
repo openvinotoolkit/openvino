@@ -9,7 +9,6 @@
 
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_mem.hpp"
-#include "intel_npu/utils/zero/zero_mem_pool.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -87,7 +86,6 @@ private:
     size_t get_bytes_capacity() const;
 
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
-    std::shared_ptr<ZeroMemPool> _zero_mem_pool;
     Logger _logger;
 
     ov::SoPtr<ov::ITensor> _user_tensor;

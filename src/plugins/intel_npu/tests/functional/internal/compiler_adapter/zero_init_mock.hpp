@@ -12,6 +12,7 @@
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_mem_pool.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
 
 namespace intel_npu {
@@ -25,6 +26,7 @@ inline constexpr uint32_t TARGET_ZE_CONTEXT_NPU_EXT_VERSION = ZE_CONTEXT_NPU_EXT
 inline constexpr uint32_t TARGET_ZE_MUTABLE_COMMAND_LIST_EXT_VERSION = ZE_MUTABLE_COMMAND_LIST_EXP_VERSION_1_1;
 inline constexpr uint32_t TARGET_ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION = ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION_1_0;
 }  // namespace test_constants
+
 struct ZeroInitStructsMock {
     ZeroInitStructsMock(
         uint32_t zeDriverNpuExtVersion = intel_npu::test_constants::TARGET_ZE_DRIVER_NPU_EXT_VERSION,
@@ -69,6 +71,8 @@ struct ZeroInitStructsMock {
     uint32_t _context_options = 0;
 
     uint32_t _command_queue_group_ordinal = 0;
+
+    std::unique_ptr<::intel_npu::ZeroMemPool> _zero_mem_pool = nullptr;
 
     std::mutex _mutex;
 };

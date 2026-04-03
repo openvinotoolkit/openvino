@@ -23,16 +23,12 @@ namespace intel_npu {
  */
 class ZeroMemPool final {
 public:
+    friend class ZeroInitStructsHolder;
+
     ZeroMemPool(const ZeroMemPool& other) = delete;
     ZeroMemPool(ZeroMemPool&& other) = delete;
     void operator=(const ZeroMemPool&) = delete;
     void operator=(ZeroMemPool&&) = delete;
-
-    /**
-     * @brief Get static instance for the given level zero context/device pair.
-     * @details Lazily cleans up pool instances for contexts that have been destroyed.
-     */
-    static std::shared_ptr<ZeroMemPool> get_instance(const std::shared_ptr<ZeroInitStructsHolder>& init_structs);
 
     /**
      * @brief Returns a new memory region allocated in the level zero context and adds it to the pool.
