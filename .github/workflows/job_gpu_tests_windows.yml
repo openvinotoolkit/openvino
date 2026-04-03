@@ -1,0 +1,106 @@
+name: GPU Windows
+
+on:
+  workflow_call:
+    inputs:
+      test_type:
+        description: 'Type of tests to execute'
+        type: string
+        required: true
+      device:
+        description: 'Device name (igpu or dgpu)'
+        type: string
+        required: true
+      runner:
+        description: 'Runner labels by which the runner will be chosen. Example: [ "self-hosted", "igpu" ]'
+        type: string
+        required: true
+      runner-group:
+        description: 'Runner group from which the runner will be chosen'
+        type: string
+        required: true
+
+permissions: read-all
+
+jobs:
+  GPU:
+    timeout-minutes: 80
+    runs-on:
+      group: ${{ inputs.runner-group }}
+      labels: ${{ fromJSON(inputs.runner) }}
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      GTEST_PARALLEL_SCRIPT: ${{ github.workspace }}/gtest_parallel.py
+    steps:
+      - name: Download OpenVINO artifacts (package)
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO artifacts (tests)
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Extract OpenVINO packages
+        working-directory: ${{ env.INSTALL_DIR }}
+        run: |
+          tar -xzf openvino_package.tar.gz
+          tar -xzf openvino_tests.tar.gz
+
+      # - name: Setup Python ${{ env.PYTHON_VERSION }}
+      #   uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      #   with:
+      #     python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Get gtest-parallel script
+        run: Invoke-WebRequest -Uri "https://raw.githubusercontent.com/google/gtest-parallel/master/gtest_parallel.py" -OutFile "$env:GTEST_PARALLEL_SCRIPT"
+
+      #
+      # Tests
+      #
+
+      - name: OpenVINO GPU ${{ inputs.test_type }} Tests
+        id: run_tests
+        env:
+          TEST_TYPE: ${{ inputs.test_type }}
+          DEVICE: ${{ inputs.device }}
+        run: |
+          # Source OpenVINO environment variables from setupvars.bat
+          $setupvarsOutput = cmd /c "call `"$env:INSTALL_DIR\setupvars.bat`" && set" 2>&1
+          $setupvarsOutput | Where-Object { $_ -match '^([^=]+)=(.*)$' } | ForEach-Object {
+            [System.Environment]::SetEnvironmentVariable($Matches[1], $Matches[2], 'Process')
+          }
+
+          $TEST_RESULTS_DIR = "$($env:DEVICE)_$($env:TEST_TYPE)_tests"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "test_results_dir=$TEST_RESULTS_DIR"
+
+          if (Test-Path "$env:INSTALL_TEST_DIR\$TEST_RESULTS_DIR") {
+            Remove-Item -Recurse -Force "$env:INSTALL_TEST_DIR\$TEST_RESULTS_DIR"
+          }
+          New-Item -ItemType Directory -Force -Path "$env:INSTALL_TEST_DIR\$TEST_RESULTS_DIR" | Out-Null
+
+          if ($env:TEST_TYPE -eq 'unit') {
+            $test_filter = '-*scatter_nd_update_gpu.dynamic_padded_output*:*border_gpu.basic_zero_input*:*bicubic_zeros_no_align_data1x1*:*bicubic_border_align_batches*:*bilinear_zeros_no_align_data1x1*:*non_zero_gpu.empty_input*:*mark_shape_of_subgraphs.concat_with_empty_tensor_inputs*:*concat_cpu_impl.dynamic_4d_f*:*border_gpu.basic_zero_input_dynamic*:*network_test.model_with_empty_input_is_not_dynamic*:*bicubic_zeros_align_data1x1*'
+          } else {
+            $test_filter = '*smoke*'
+          }
+
+          $testBinary = "$env:INSTALL_TEST_DIR\ov_gpu_$($env:TEST_TYPE)_tests.exe"
+          $testResultsJson = "$env:INSTALL_TEST_DIR\$TEST_RESULTS_DIR\ov_gpu_$($env:TEST_TYPE)_tests.json"
+          python $env:GTEST_PARALLEL_SCRIPT $testBinary "--dump_json_test_results=$testResultsJson" `
+            -- --report_unique_name "--gtest_filter=$test_filter"
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2 We are not using newest version v6.0.0 due to very frequent issues with 'Error: Unable to make request: ECONNRESET'
+        if: always()
+        with:
+          name: test-results-${{ inputs.test_type }}-${{ inputs.device }}
+          path: ${{ env.INSTALL_TEST_DIR }}/${{ steps.run_tests.outputs.test_results_dir }}
+          if-no-files-found: 'error'
