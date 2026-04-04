@@ -1543,9 +1543,9 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     return make_model(final_norm, "last_hidden_state", model_name);
 }
 
-std::shared_ptr<ov::Model> ModelBuilder::build_whisper_encoder(const WhisperEncoderConfig& config_in) {
+std::shared_ptr<ov::Model> ModelBuilder::build_whisper_encoder(const WhisperConfig& config_in) {
     clear();
-    WhisperEncoderConfig config = config_in;
+    WhisperConfig config = config_in;
     if (!config.norm)
         config.norm = LayerNorm(config.hidden_size, config.precision);
     if (!config.ffn)
@@ -1796,9 +1796,9 @@ static ov::Output<ov::Node> make_whisper_positional_embedding(const ov::Output<o
     return hidden_states->output(0);
 }
 
-std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const WhisperDecoderConfig& config_in) {
+std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const WhisperConfig& config_in) {
     clear();
-    WhisperDecoderConfig config = config_in;
+    WhisperConfig config = config_in;
     if (!config.norm)
         config.norm = LayerNorm(config.hidden_size, config.precision);
     if (!config.ffn)
@@ -1810,7 +1810,9 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const WhisperDeco
 
     auto input_ids = parameter(ov::element::i64, ov::PartialShape{-1, -1}, "input_ids");
     auto encoder_hidden_states =
-        parameter(ov::element::f32, ov::PartialShape{-1, -1, static_cast<int64_t>(d)}, "encoder_hidden_states");
+        parameter(ov::element::f32,
+                  ov::PartialShape{-1, static_cast<int64_t>(config.get_encoder_seq_len()), static_cast<int64_t>(d)},
+                  "encoder_hidden_states");
     auto beam_idx = parameter(ov::element::i32, ov::PartialShape{-1}, "beam_idx");
 
     ov::Output<ov::Node> enc_hs = encoder_hidden_states->output(0);
