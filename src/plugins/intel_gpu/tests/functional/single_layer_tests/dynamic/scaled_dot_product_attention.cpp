@@ -686,6 +686,7 @@ const auto dynamic_shape_params_4D = testing::Combine(testing::Values(ov::elemen
 
 
 // test 10
+
 INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttnDynamic4D_GPU,
                          ScaledAttnLayerGPUTest,
                          dynamic_shape_params_4D,
