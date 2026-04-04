@@ -811,10 +811,6 @@ void Subgraph::optimizeIR() {
 
     const auto control_flow_config = std::make_shared<ov::snippets::lowered::pass::PassConfig>();
     const auto control_flow_passes = getControlFlowPasses();
-#if defined(OPENVINO_ARCH_ARM64)
-    // enable it after emitters for RegSpillBegin and RegSpillEnd are implemented on ARM in CVS-162498
-    control_flow_config->disable<ov::snippets::lowered::pass::InsertRegSpills>();
-#endif
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     // Note: temporary disabled. Re-enable after ticket 132833 is resolved
