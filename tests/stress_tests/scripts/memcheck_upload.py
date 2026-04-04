@@ -34,8 +34,7 @@ DB_COLLECTIONS = ["commit", "nightly", "weekly"]
 PRODUCT_NAME = 'dldt'  # product name from build manifest
 RE_GTEST_MODEL_XML = re.compile(r'<model[^>]*>')
 RE_GTEST_CUR_MEASURE = re.compile(r'\[\s*MEASURE\s*\]')
-RE_GTEST_REF_MEASURE = re.compile(
-    r'Reference values of virtual memory consumption')
+RE_GTEST_REF_MEASURE = re.compile(r'Reference values of virtual memory consumption')
 RE_GTEST_PASSED = re.compile(r'\[\s*PASSED\s*\]')
 RE_GTEST_FAILED = re.compile(r'\[\s*FAILED\s*\]')
 GTEST_INFO = '[ INFO ]'
