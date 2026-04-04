@@ -9,12 +9,12 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v17 {
 /// \brief Tensor RandomPoisson operation.
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API RandomPoisson : public Op {
 public:
-    OPENVINO_OP("RandomPoisson", "opset1");
+    OPENVINO_OP("RandomPoisson", "opset17");
 
     RandomPoisson() = default;
     /// \brief Constructs a RandomPoisson operation.
@@ -28,7 +28,7 @@ public:
                   uint64_t global_seed = 0,
                   uint64_t op_seed = 0,
                   ov::op::PhiloxAlignment alignment = ov::op::PhiloxAlignment::TENSORFLOW);
-    
+
     void validate_and_infer_types() override;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
@@ -70,6 +70,6 @@ protected:
     mutable std::pair<uint64_t, uint64_t> m_state;
     // friend struct random_poisson::Evaluate;
 };
-}  // namespace v0
+}  // namespace v17
 }  // namespace op
 }  // namespace ov
