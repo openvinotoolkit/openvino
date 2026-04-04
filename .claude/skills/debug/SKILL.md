@@ -1,6 +1,6 @@
 ---
 name: debug
-description: Troubleshooting accuracy, performance, or memory issues. Dump tensors, blobs. Serialize IRs, execution graphs. Enable verbose, logging. Profile execution. Compare layer outputs. Inspect, trace or dump transformations. Identify executed operations, nodes, primitives, kernels.
+description: Troubleshooting all sorts of failures, crashes, exceptions and errors using debug capabilities. Analyze accuracy, performance, or memory issues. Dump tensors and intermediate blobs. Serialize IRs, execution graphs. Enable verbose, logging. Profile execution. Compare layer outputs. Inspect, trace or dump transformations. Identify executed operations, nodes, primitives, kernels.
 ---
 
 # Debug Skill
