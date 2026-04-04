@@ -40,8 +40,8 @@ if __name__ == "__main__":
     print(f"load {args.trace}...")
     addr2check = {}
     offset2addr = {}
-    pattern = re.compile("(.*)\(\+(0x[0-9a-f]*)\).*")  # xxx.so(+0x1234) [] 
-    pattern2 = re.compile("(.*)\(\) \[(0x[0-9a-f]*)\].*") # xxx() [0x1234]
+    pattern = re.compile(r'(.*)\(\+(0x[0-9a-f]*)\).*')  # xxx.so(+0x1234) [] 
+    pattern2 = re.compile(r'(.*)\(\) \[(0x[0-9a-f]*)\].*') # xxx() [0x1234]
     with open(args.trace, "r") as f:
         for line in f.readlines():
             offset, traces = line.split(":")
@@ -74,7 +74,7 @@ if __name__ == "__main__":
         print(f"Unsupported platform for objdump: {platform.machine()}")
         sys.exit(1)
 
-    pattern = re.compile("^\s*([\da-f]*):.*")
+    pattern = re.compile(r'^\s*([\da-f]*):.*')
     print("parsing...")
 
     rm_prefixes = [
