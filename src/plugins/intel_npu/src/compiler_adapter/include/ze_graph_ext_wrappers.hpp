@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <ze_api.h>
 #include <ze_graph_ext.h>
 
 #include <memory>
@@ -13,7 +12,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include "intel_npu/network_metadata.hpp"
+#include "intel_npu/common/network_metadata.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "model_serializer.hpp"
@@ -87,6 +86,8 @@ public:
     void initializeGraph(const GraphDescriptor& graphDescriptor) const;
 
     bool isBlobDataImported(const GraphDescriptor& graphDescriptor) const;
+
+    void evict_memory(const GraphDescriptor& graphDescriptor) const;
 
 private:
     void getMetadata(ze_graph_handle_t graphHandle,
