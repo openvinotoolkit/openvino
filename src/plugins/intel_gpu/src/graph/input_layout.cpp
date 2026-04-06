@@ -36,7 +36,6 @@ event::ptr input_layout_inst::set_data(memory::ptr mem, bool need_to_check_memor
 
     // Allow to set dummy simple_attached_memory empty tensor as network input
     if (mem->is_allocated_by(engine) || mem->get_layout().count() == 0) {
-        // Direct assignment — no copy, no pre-allocation waste
         if (_outputs.empty()) {
             _outputs.resize(1);
         }
