@@ -703,11 +703,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             OPENVINO_ASSERT(it->second.as<ov::EncryptionCallbacks>().decrypt != nullptr,
                             "Null decryption function was given!");
             std::string blobStr;
+
             blobStr.resize(blobSize);  // +1x blob size
             if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
                 OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
             }
+            const auto expectedReadSize = static_cast<std::streamsize>(blobSize);
             stream.read(&blobStr.at(0), static_cast<std::streamsize>(blobSize));
+            if (stream.gcount() != expectedReadSize) {
+                OPENVINO_THROW("Failed to read the full encrypted cache blob from stream: expected ",
+                               blobSize,
+                               " bytes, got ",
+                               stream.gcount(),
+                               " bytes");
+            }
+
             auto decryptedBlobStr = it->second.as<ov::EncryptionCallbacks>().decrypt(blobStr);  // +2x blob size
             blobStr.clear();  // -1x blob size, move is not permitted above
 
