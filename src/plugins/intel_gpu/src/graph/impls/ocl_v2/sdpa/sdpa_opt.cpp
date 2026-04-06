@@ -133,9 +133,9 @@ public:
         GPU_DEBUG_TRACE_DETAIL << "create stages for dynamic = " << params.is_dynamic() << "\n";
         if (params.is_dynamic()) {
             GPU_DEBUG_TRACE_DETAIL << "add stages for dynamic ...\n";
-            if (is_turbo_quant_enabled())
+            if (is_turbo_quant_enabled() && is_turbo_quant_possible(params))
                 add_stage(kv_copy, params);
-        add_stage(regular_single_token, params);
+            add_stage(regular_single_token, params);
             add_stage(indirect_single_token, params);
             add_stage(regular_multi_tokens, params);
             add_stage(indirect_multi_tokens, params);
@@ -173,7 +173,7 @@ public:
                 }
             } else {
                 GPU_DEBUG_TRACE_DETAIL << "add stage single_tokens \n";
-                if (is_turbo_quant_enabled())
+                if (is_turbo_quant_enabled() && is_turbo_quant_possible(params))
                     add_stage(kv_copy, params);
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 const auto& gfx_ver = params.get_program().get_engine().get_device_info().gfx_ver;
@@ -221,7 +221,7 @@ public:
         GPU_DEBUG_TRACE_DETAIL << "execute single_tokens with indirect = " << is_indirect << "\n";
 
         event::ptr ev;
-        if (is_turbo_quant_enabled()) {
+        if (is_turbo_quant_enabled() && is_turbo_quant_possible(new_params)) {
             // Run KV copy stage to populate intermediate buffers, then use those for single_token
             // Initialize turbo rotation/QJL matrices in internal buffers on first execution
             if (!m_turbo_matrices_initialized) {

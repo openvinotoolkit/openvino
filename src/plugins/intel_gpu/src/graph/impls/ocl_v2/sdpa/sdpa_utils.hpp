@@ -161,4 +161,15 @@ inline bool unaligned_head_size(const RuntimeParams& params) {
     return (k_head_size % subgroup_size != 0) || (v_head_size % subgroup_size != 0);
 }
 
+inline bool is_turbo_quant_possible(const RuntimeParams& params) {
+    auto desc = params.typed_desc<cldnn::scaled_dot_product_attention>();
+    constexpr size_t required_head_size = 128;
+    const auto k_head_size = get_head_size(params.get_input_layout(1), desc->input_k_transpose_order);
+    const auto v_head_size = get_head_size(params.get_input_layout(2), desc->input_v_transpose_order);
+    bool possible = (k_head_size % required_head_size == 0) && (v_head_size % required_head_size == 0);
+    if (!possible)
+        GPU_DEBUG_COUT << "TurboQuant is not possible due to head size. k_head_size: " << k_head_size << ", v_head_size: " << v_head_size << "\n";
+    return possible;
+}
+
 }  // namespace ov::intel_gpu::ocl
