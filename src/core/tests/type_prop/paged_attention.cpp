@@ -45,6 +45,8 @@ TEST(type_prop, paged_attention_static_eviction_per_block) {
     const auto adaptive_rkv_diversity_block_set_indices_begins =
         std::make_shared<op::v0::Parameter>(element::i32, PartialShape{5});
 
+    const auto token_type_ids = std::make_shared<op::v0::Parameter>(ov::element::i32, ov::Shape{0});
+
     ov::OutputVector args = {query,
                              key,
                              value,
@@ -69,7 +71,8 @@ TEST(type_prop, paged_attention_static_eviction_per_block) {
                              adaptive_rkv_start_size,
                              adaptive_rkv_evictable_sizes,
                              adaptive_rkv_diversity_block_set_indices,
-                             adaptive_rkv_diversity_block_set_indices_begins};
+                             adaptive_rkv_diversity_block_set_indices_begins,
+                             token_type_ids};
 
     const auto op = std::make_shared<op::PagedAttentionExtension>(args);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
@@ -109,6 +112,8 @@ TEST(type_prop, paged_attention_static_eviction_per_token) {
     const auto adaptive_rkv_diversity_block_set_indices_begins =
         std::make_shared<op::v0::Parameter>(element::i32, PartialShape{5});
 
+    const auto token_type_ids = std::make_shared<op::v0::Parameter>(ov::element::i32, ov::Shape{0});
+
     ov::OutputVector args = {query,
                              key,
                              value,
@@ -133,7 +138,8 @@ TEST(type_prop, paged_attention_static_eviction_per_token) {
                              adaptive_rkv_start_size,
                              adaptive_rkv_evictable_sizes,
                              adaptive_rkv_diversity_block_set_indices,
-                             adaptive_rkv_diversity_block_set_indices_begins};
+                             adaptive_rkv_diversity_block_set_indices_begins,
+                             token_type_ids};
 
     const auto op = std::make_shared<op::PagedAttentionExtension>(args);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
@@ -174,6 +180,8 @@ TEST(type_prop, paged_attention_dynamic_ranks_and_types) {
     const auto adaptive_rkv_diversity_block_set_indices_begins =
         std::make_shared<op::v0::Parameter>(element::dynamic, dyn);
 
+    const auto token_type_ids = std::make_shared<op::v0::Parameter>(ov::element::i32, ov::Shape{0});
+
     ov::OutputVector args = {query,
                              key,
                              value,
@@ -198,7 +206,8 @@ TEST(type_prop, paged_attention_dynamic_ranks_and_types) {
                              adaptive_rkv_start_size,
                              adaptive_rkv_evictable_sizes,
                              adaptive_rkv_diversity_block_set_indices,
-                             adaptive_rkv_diversity_block_set_indices_begins};
+                             adaptive_rkv_diversity_block_set_indices_begins,
+                             token_type_ids};
 
     EXPECT_NO_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args));
 }
@@ -258,6 +267,99 @@ TEST(type_prop, paged_attention_invalid_rank_key_cache) {
                              dummy,
                              dummyScalar};
 
+    EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args), ov::NodeValidationFailure);
+}
+
+static ov::OutputVector make_args_with_token_type(const std::shared_ptr<ov::op::v0::Parameter>& token_type_ids) {
+    using namespace ov::op;
+    const auto query = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{3, 4});
+    const auto key = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{3, 4});
+    const auto value = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{3, 4});
+    const auto key_cache = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{6, 2, 5, 4});
+    const auto value_cache = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{6, 2, 5, 4});
+    const auto past_lens = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{5});
+    const auto subsequence_begins = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{5});
+    const auto block_indices = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{15});
+    const auto block_indices_begins = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{8});
+    const auto scale = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{});
+    const auto sliding_window = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{});
+    const auto alibi_slopes = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{9});
+    const auto max_context_len = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{});
+    const auto score_aggregation_window = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{5});
+    const auto rotated_block_indices = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{3});
+    const auto rotation_deltas = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{12, 1});
+    const auto rotation_trig_lut = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{256, 4});
+    const auto xattention_threshold = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{5});
+    const auto xattention_block_size = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{});
+    const auto xattention_stride = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{});
+    const auto sinks = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 1, 1});
+    const auto adaptive_rkv_start_size = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{});
+    const auto adaptive_rkv_evictable_sizes = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{5});
+    const auto adaptive_rkv_diversity_block_set_indices =
+        std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{10});
+    const auto adaptive_rkv_diversity_block_set_indices_begins =
+        std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{5});
+
+    return {query,
+            key,
+            value,
+            key_cache,
+            value_cache,
+            past_lens,
+            subsequence_begins,
+            block_indices,
+            block_indices_begins,
+            scale,
+            sliding_window,
+            alibi_slopes,
+            max_context_len,
+            score_aggregation_window,
+            rotated_block_indices,
+            rotation_deltas,
+            rotation_trig_lut,
+            xattention_threshold,
+            xattention_block_size,
+            xattention_stride,
+            sinks,
+            adaptive_rkv_start_size,
+            adaptive_rkv_evictable_sizes,
+            adaptive_rkv_diversity_block_set_indices,
+            adaptive_rkv_diversity_block_set_indices_begins,
+            token_type_ids};
+}
+
+TEST(type_prop, paged_attention_token_type_ids_1d) {
+    const auto token_type_ids = std::make_shared<op::v0::Parameter>(ov::element::i32, ov::PartialShape{3});
+    const auto args = make_args_with_token_type(token_type_ids);
+    const auto op = std::make_shared<op::PagedAttentionExtension>(args);
+    EXPECT_EQ(op->get_output_element_type(0), ov::element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (ov::PartialShape{3, 4}));
+}
+
+TEST(type_prop, paged_attention_token_type_ids_2d) {
+    const auto token_type_ids = std::make_shared<op::v0::Parameter>(ov::element::i32, ov::PartialShape{1, 3});
+    const auto args = make_args_with_token_type(token_type_ids);
+    const auto op = std::make_shared<op::PagedAttentionExtension>(args);
+    EXPECT_EQ(op->get_output_element_type(0), ov::element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (ov::PartialShape{3, 4}));
+}
+
+TEST(type_prop, paged_attention_token_type_ids_dynamic_shape) {
+    const auto token_type_ids =
+        std::make_shared<op::v0::Parameter>(ov::element::i32, ov::PartialShape{ov::Dimension::dynamic()});
+    const auto args = make_args_with_token_type(token_type_ids);
+    EXPECT_NO_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args));
+}
+
+TEST(type_prop, paged_attention_invalid_type_token_type_ids) {
+    const auto token_type_ids = std::make_shared<op::v0::Parameter>(ov::element::f32, ov::PartialShape{3});
+    const auto args = make_args_with_token_type(token_type_ids);
+    EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args), ov::NodeValidationFailure);
+}
+
+TEST(type_prop, paged_attention_invalid_rank_token_type_ids) {
+    const auto token_type_ids = std::make_shared<op::v0::Parameter>(ov::element::i32, ov::PartialShape{1, 1, 3});
+    const auto args = make_args_with_token_type(token_type_ids);
     EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args), ov::NodeValidationFailure);
 }
 

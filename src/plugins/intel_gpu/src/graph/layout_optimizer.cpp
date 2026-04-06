@@ -20,6 +20,7 @@
 #include "strided_slice_inst.h"
 #include <sstream>
 
+#include "gated_mlp_inst.h"
 #include "gemm_inst.h"
 #include "deconvolution_inst.h"
 #include "fully_connected_inst.h"
@@ -173,8 +174,16 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         }
     }
 
-    // Ref kernels are the main for depth_to_space and region_yolo and strided_slice. It can do anything.
-    if (next.is_type<depth_to_space>() || next.is_type<region_yolo>() ||
+    // depth_to_space is rank-preserving by op semantics.
+    // Allow fusing only when the reorder does not change input rank for depth_to_space.
+    if (next.is_type<depth_to_space>()) {
+        const auto prev_rank = prev.get_output_layout().get_rank();
+        const auto next_input_rank = next.get_input_layout(0).get_rank();
+        return prev_rank == next_input_rank;
+    }
+
+    // Ref kernels are the main for region_yolo and strided_slice. It can do anything.
+    if (next.is_type<region_yolo>() ||
         (next.is_type<strided_slice>() && next.get_preferred_impl_type() != cldnn::impl_types::cpu))
         return true;
 
@@ -399,8 +408,16 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         is_dynamic = true;
     }
 
-    // Ref kernels are the main for depth_to_space, region_yolo and detection_output. It can do anything. Should not see next.
-    if (prev.is_type<depth_to_space>() || prev.is_type<region_yolo>()
+    // depth_to_space is rank-preserving by op semantics.
+    // Allow fusing only when the reorder does not change output rank.
+    if (prev.is_type<depth_to_space>()) {
+        const auto prev_rank = prev.get_output_layout().get_rank();
+        const auto reordered_rank = node.get_output_layout().get_rank();
+        return prev_rank == reordered_rank;
+    }
+
+    // Ref kernels are the main for region_yolo and detection_output. It can do anything. Should not see next.
+    if (prev.is_type<region_yolo>()
         || (prev.is_type<detection_output>() && prev.get_preferred_impl_type() != cldnn::impl_types::cpu))
         return true;
 
@@ -504,6 +521,8 @@ bool should_use_winograd_2x3_s1(const convolution_node& node,
         || weights_layout.batch() % 64 != 0  // current algorithm is effective for ofm to be multiply of 64
         || any_not_one(prim->stride)               // stride has to be 1x1 by definition
         || any_not_one(prim->dilation)             // no support for dilation
+        || !all_zeroes(prim->padding_begin)        // no padding supported. padding could makes higher accuracy loss.
+        || !all_zeroes(prim->padding_end)          // no padding supported. padding could makes higher accuracy loss.
         || output_size_handling_enabled            // This condition is weird. Need to revise it and replace with something meaningful
         || (input_layout.count() > 3000000)        // limit max input size as winograd consumes more memory
         || (input_layout.count() < 50000)          // limit min input size as winograd is not effective for small input
@@ -1541,6 +1560,7 @@ void layout_optimizer::add_all_onednn_impls_optimization_attribute() {
     enable_onednn_for<convolution>();
     enable_onednn_for<deconvolution>();
     enable_onednn_for<fully_connected>();
+    enable_onednn_for<gated_mlp>();
     enable_onednn_for<gemm>();
     enable_onednn_for<lstm_seq>();
     enable_onednn_for<gru_seq>();
@@ -1551,8 +1571,9 @@ void layout_optimizer::add_all_onednn_impls_optimization_attribute() {
 
 bool layout_optimizer::has_all_enabled_onednn_impls_optimization_attribute() {
     return is_enabled_onednn_for<concatenation>() && is_enabled_onednn_for<convolution>() && is_enabled_onednn_for<deconvolution>() &&
-        is_enabled_onednn_for<fully_connected>() && is_enabled_onednn_for<gemm>() && is_enabled_onednn_for<lstm_seq>() && is_enabled_onednn_for<gru_seq>() &&
-        is_enabled_onednn_for<pooling>() && is_enabled_onednn_for<reduce>() && is_enabled_onednn_for<reorder>();
+           is_enabled_onednn_for<fully_connected>() && is_enabled_onednn_for<gated_mlp>() && is_enabled_onednn_for<gemm>() &&
+           is_enabled_onednn_for<gru_seq>() && is_enabled_onednn_for<lstm_seq>() && is_enabled_onednn_for<pooling>() &&
+           is_enabled_onednn_for<reduce>() && is_enabled_onednn_for<reorder>();
 }
 
 void layout_optimizer::set_value_onednn(primitive_type_id p_type, bool val) {

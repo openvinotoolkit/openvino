@@ -38,6 +38,16 @@ ov::pass::LogSoftmaxDecomposition::LogSoftmaxDecomposition() {
             return false;
         }
 
+        // Handle scalar (rank-0) input: log_softmax of a single value is always 0.
+        const auto& input_pshape = log_softmax_node->get_input_partial_shape(0);
+        if (input_pshape.rank().is_static() && input_pshape.rank().get_length() == 0) {
+            auto zero_const = v0::Constant::create(log_softmax_node->get_output_element_type(0), ov::Shape{}, {0});
+            zero_const->set_friendly_name(m.get_match_root()->get_friendly_name());
+            ov::copy_runtime_info(log_softmax_node, zero_const);
+            ov::replace_node(m.get_match_root(), zero_const);
+            return true;
+        }
+
         auto axis1 = v0::Constant::create(element::Type_t::i64, ov::Shape{1}, {log_softmax_node->get_axis()});
         auto axis2 = v0::Constant::create(element::Type_t::i64, ov::Shape{1}, {log_softmax_node->get_axis()});
         auto max = std::make_shared<v1::ReduceMax>(log_softmax_node->input_value(0), axis1, true);
