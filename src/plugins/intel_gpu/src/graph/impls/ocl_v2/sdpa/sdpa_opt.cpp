@@ -96,6 +96,7 @@ static TurboMatrices& get_turbo_matrices() {
 static bool is_turbo_quant_enabled() {
     static const bool enabled = []() {
         const char* env = std::getenv("OV_GPU_TURBO_QUANT");
+        GPU_DEBUG_COUT << "OV_GPU_TURBO_QUANT=" << (env ? env : "null") << "\n";
         return env && std::string(env) == "1";
     }();
     return enabled;

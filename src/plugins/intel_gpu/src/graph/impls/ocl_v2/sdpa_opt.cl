@@ -2258,6 +2258,7 @@ KERNEL(sdpa_opt)(
     for (uint j = 0; j < TURBO_D; j++) {
         rotated += turbo_rotation[rot_row_base + j] * slm_vec[j];
     }
+    barrier(CLK_LOCAL_MEM_FENCE);  // Ensure all threads finish reading slm_vec before overwriting
 
     // === Step 5: 3-bit quantization (nearest centroid) ===
     const uint idx3 = turbo_nearest_3bit(rotated);
@@ -2273,6 +2274,7 @@ KERNEL(sdpa_opt)(
         // rotation^T: column lid of rotation = row j, col lid
         mse_recon += turbo_rotation[j * TURBO_D + lid] * slm_vec[j];
     }
+    barrier(CLK_LOCAL_MEM_FENCE);  // Ensure all threads finish reading slm_vec before overwriting
 
     // === Step 7: Compute residual = normalized - mse_recon ===
     const float residual = normalized - mse_recon;
@@ -2297,6 +2299,7 @@ KERNEL(sdpa_opt)(
     for (uint j = 0; j < TURBO_D; j++) {
         projected += turbo_qjl[qjl_row_base + j] * slm_vec[j];
     }
+    barrier(CLK_LOCAL_MEM_FENCE);  // Ensure all threads finish reading slm_vec before overwriting
 
     // === Step 10: Extract sign ===
     const float sign_val = (projected >= 0.0f) ? 1.0f : -1.0f;
