@@ -12,11 +12,14 @@
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_mem_pool.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
 
 namespace intel_npu {
 
-class ZeroMemPool;
+namespace zero_mem {
+class ZeroMemPoolManager;
+}  // namespace zero_mem
 
 /**
  * Holder for the level zero structures which must be initialized via call to the driver once zero backend is loaded,
@@ -77,9 +80,6 @@ public:
     inline uint32_t getCommandQueueGroupOrdinal() const {
         return _command_queue_group_ordinal;
     }
-    inline ZeroMemPool& getZeroMemPool() const {
-        return *_zero_mem_pool;
-    }
 
     void setContextOptions(const uint32_t options);
     void clearContextOptions(const uint32_t options);
@@ -91,10 +91,16 @@ public:
     uint32_t getCompilerVersion();
 
 private:
+    friend class zero_mem::ZeroMemPoolManager;
+
     void initNpuDriver();
     void initCompilerPropertiesLocked();
     void getExtensionFunctionAddress(const std::string& name, const uint32_t version, void** function_address);
     void setContextProperties();
+
+    inline ZeroMemPool& getZeroMemPool() {
+        return _zero_mem_pool;
+    }
 
     // keep zero_api alive until context is destroyed
     std::shared_ptr<ZeroApi> _zero_api;
@@ -126,7 +132,7 @@ private:
 
     uint32_t _command_queue_group_ordinal = 0;
 
-    std::unique_ptr<ZeroMemPool> _zero_mem_pool = nullptr;
+    ZeroMemPool _zero_mem_pool;
 
     std::mutex _mutex;
 };

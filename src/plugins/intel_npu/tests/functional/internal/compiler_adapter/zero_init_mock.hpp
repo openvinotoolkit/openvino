@@ -28,6 +28,7 @@ inline constexpr uint32_t TARGET_ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION = ZE_EXTE
 }  // namespace test_constants
 
 struct ZeroInitStructsMock {
+public:
     ZeroInitStructsMock(
         uint32_t zeDriverNpuExtVersion = intel_npu::test_constants::TARGET_ZE_DRIVER_NPU_EXT_VERSION,
         uint32_t zeGraphNpuExtVersion = intel_npu::test_constants::TARGET_ZE_GRAPH_NPU_EXT_VERSION,
@@ -40,6 +41,11 @@ struct ZeroInitStructsMock {
 
     ~ZeroInitStructsMock();
 
+    inline ZeroMemPool& getZeroMemPool() {
+        return _zero_mem_pool;
+    }
+
+private:
     void initNpuDriver();
     void getExtensionFunctionAddress(const std::string& name, const uint32_t version, void** function_address);
 
@@ -72,7 +78,7 @@ struct ZeroInitStructsMock {
 
     uint32_t _command_queue_group_ordinal = 0;
 
-    std::unique_ptr<::intel_npu::ZeroMemPool> _zero_mem_pool = nullptr;
+    ZeroMemPool _zero_mem_pool;
 
     std::mutex _mutex;
 };
