@@ -104,26 +104,35 @@ TEST_P(OVCompiledGraphImportExportTestNPU, ImportingEncryptedBlobThrows) {
     ov::Core core;
     std::stringstream encrypted_blob_stream;
 
-    if (ov::intel_npu::Platform::standardize(ov::test::utils::getTestPlatform()) == ov::intel_npu::Platform::NPU3720) {
-        GTEST_SKIP() << "MTL will not reject bad formats of blobs leading do 0xC0000005 SEH exceptions";
-    }
-
     auto model = ov::test::utils::make_conv_pool_relu();
     configuration.insert(ov::cache_encryption_callbacks(ov::EncryptionCallbacks{ov::util::codec_xor, nullptr}));
     core.compile_model(model, target_device, configuration).export_model(encrypted_blob_stream);
-    configuration.erase(ov::cache_encryption_callbacks.name());
-    OV_EXPECT_THROW(core.import_model(encrypted_blob_stream, target_device, configuration),
-                    ov::Exception,
-                    ::testing::HasSubstr("ZE_RESULT_ERROR_INVALID_NATIVE_BINARY"));
-
     auto encrypted_blob_str = encrypted_blob_stream.str();
     ov::Tensor encrypted_blob_tensor(ov::element::u8, ov::Shape{encrypted_blob_str.size()}, encrypted_blob_str.c_str());
+    configuration.erase(ov::cache_encryption_callbacks.name());
+
+    OV_EXPECT_THROW(core.import_model(encrypted_blob_stream, target_device, configuration),
+                    ov::Exception,
+                    ::testing::HasSubstr("Cannot parse encrypted blob"));
+
     OV_EXPECT_THROW(core.import_model(encrypted_blob_tensor, target_device, configuration),
                     ov::Exception,
-                    ::testing::HasSubstr("ZE_RESULT_ERROR_INVALID_NATIVE_BINARY"));
+                    ::testing::HasSubstr("Cannot parse encrypted blob"));
+
+    // Parsing corrupted blob on MTL will throw Access Violation 0xC0000005 SEH exceptions
+    if (ov::intel_npu::Platform::standardize(ov::test::utils::getTestPlatform()) != ov::intel_npu::Platform::NPU3720) {
+        configuration.insert(ov::intel_npu::import_raw_blob(true));
+        OV_EXPECT_THROW(core.import_model(encrypted_blob_stream, target_device, configuration),
+                        ov::Exception,
+                        ::testing::HasSubstr("ZE_RESULT_ERROR_INVALID_NATIVE_BINARY"));
+
+        OV_EXPECT_THROW(core.import_model(encrypted_blob_tensor, target_device, configuration),
+                        ov::Exception,
+                        ::testing::HasSubstr("ZE_RESULT_ERROR_INVALID_NATIVE_BINARY"));
+    }
 }
 
-TEST_P(OVCompiledGraphImportExportTestNPU, SameUnEncryptedBlobAfterDecryption) {
+TEST_P(OVCompiledGraphImportExportTestNPU, SameUnencryptedBlobAfterDecryption) {
     ov::Core core;
     std::stringstream unencrypted_blob_stream, encrypted_blob_stream, decrypted_blob_stream;
 

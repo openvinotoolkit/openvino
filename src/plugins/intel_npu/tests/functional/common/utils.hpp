@@ -84,17 +84,14 @@ struct GenericTestCaseNameClass {
 };
 
 template <typename T>
-constexpr bool
-    GenericTestCaseNameClass::hasGetTestCaseName<T,
-                                                 std::void_t<decltype(std::declval<T>().getTestCaseName(
-                                                     std::declval<testing::TestParamInfo<typename T::ParamType>>()))>> =
-        true;
+constexpr bool GenericTestCaseNameClass::hasGetTestCaseName<
+    T,
+    std::void_t<decltype(T::getTestCaseName(std::declval<testing::TestParamInfo<typename T::ParamType>>()))>> = true;
 
 template <typename T>
 constexpr bool GenericTestCaseNameClass::has_get_test_case_name<
     T,
-    std::void_t<decltype(std::declval<T>().get_test_case_name(
-        std::declval<testing::TestParamInfo<typename T::ParamType>>()))>> = true;
+    std::void_t<decltype(T::get_test_case_name(std::declval<testing::TestParamInfo<typename T::ParamType>>()))>> = true;
 
 namespace ov::test::behavior {
 inline std::shared_ptr<ov::Model> getDefaultNGraphFunctionForTheDeviceNPU(

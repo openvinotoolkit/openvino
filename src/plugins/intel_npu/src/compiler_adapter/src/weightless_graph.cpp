@@ -277,7 +277,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
                 }
 
                 blobSize += paddingSize;
-                _wgLogger.info("Blob size with padding: %llu", blobSize);
+                _wgLogger.info("Blob size with padding: %" PRIu64, blobSize);
             }
         }
 
