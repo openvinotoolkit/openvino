@@ -27,7 +27,8 @@ layout activation_inst::calc_output_layout(activation_node const& node, kernel_i
         activation_func::relu,
         activation_func::floor,
         activation_func::clamp,
-        activation_func::abs };
+        activation_func::abs,
+        activation_func::sign };  // Add sign activation for integer types
 
     if (input_node_layout.data_type == data_types::i8 || input_node_layout.data_type == data_types::u8 ||
         input_node_layout.data_type == data_types::i32) {
