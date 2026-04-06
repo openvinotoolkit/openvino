@@ -44,6 +44,12 @@
 #include "openvino/op/round.hpp"
 
 #include "intel_gpu/primitives/activation.hpp"
+#include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+
+#include <algorithm> 
 
 namespace ov::intel_gpu {
 
@@ -92,6 +98,29 @@ static void CreatePReluOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::P
                                                      inputs[1].pid,
                                                      cldnn::activation_func::relu_negative_slope);
         p.add_primitive(*op, activationPrimitive);
+    } else if (out_shape.size() == 1) {
+        OPENVINO_ASSERT(out_shape.is_static(), "[GPU] Rank-1 PRelu expects static output shape in this path");
+        const auto C = out_shape.to_shape().at(0);
+        auto inputs = p.GetInputInfo(op);
+        const auto& x = inputs[0];
+        const auto& s = inputs[1];
+        const std::string baseName = layer_type_name_ID(op);
+        const std::string x2_id = baseName + "/r1_x2";
+        cldnn::tensor x2_tensor{1, static_cast<int32_t>(C), 1, 1};  // b,f,y,x
+        auto x2_prim = cldnn::reshape(x2_id, x, x2_tensor, cldnn::reshape::reshape_mode::base);
+        p.add_primitive(*op, x2_prim);
+        const std::string s2_id = baseName + "/r1_s2";
+        cldnn::tensor s2_tensor{1, static_cast<int32_t>(C), 1, 1};  // b,f,y,x
+        auto s2_prim = cldnn::reshape(s2_id, cldnn::input_info{s.pid}, s2_tensor, cldnn::reshape::reshape_mode::base);
+        p.add_primitive(*op, s2_prim);
+        const std::string act_id = baseName + "/r1_act";
+        auto act_prim = cldnn::activation(act_id, cldnn::input_info{x2_id}, s2_id, cldnn::activation_func::relu_negative_slope);
+        p.add_primitive(*op, act_prim);
+        cldnn::tensor out1_tensor{1, 1, 1, static_cast<int32_t>(C)};  // b,f,y,x
+        auto out_prim = cldnn::reshape(baseName, cldnn::input_info{act_id}, out1_tensor, cldnn::reshape::reshape_mode::base);
+        p.add_primitive(*op, out_prim);
+    } else {
+        OPENVINO_THROW("[GPU] Unsupported PRelu configuration for ", op->get_friendly_name(), ": out rank=", out_shape.size(), ", slope shape=", slope_shape);
     }
 }
 
@@ -278,7 +307,66 @@ static void CreateGeluOp(ProgramBuilder &p, const std::shared_ptr<ov::op::v0::Ge
 }
 
 static void CreateSignOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Sign>& op) {
-    CreateUnaryEltwiseOp(p, op, cldnn::activation_func::sign, {});
+    validate_inputs_count(op, {1});
+    const auto et = op->get_input_element_type(0);
+    // Floating point: keep existing activation lowering
+    if (et.is_real()) {
+        CreateUnaryEltwiseOp(p, op, cldnn::activation_func::sign, {});
+        return;
+    }
+
+    // Integer path: implement sign(x) = (x > 0) - (x < 0)
+    auto inputs = p.GetInputInfo(op);
+    const auto& x = inputs[0];
+
+    const std::string baseName = layer_type_name_ID(op);
+    const std::string zero_id = baseName + "/zero";
+    cldnn::data_types dt = cldnn::element_type_to_data_type(et);
+    cldnn::tensor zero_t{1, 1, 1, 1};
+    cldnn::layout zero_layout{dt, cldnn::format::bfyx, zero_t};
+    auto zero_mem = p.get_engine().allocate_memory(zero_layout);
+    auto& service_stream = p.get_engine().get_service_stream();
+    if (et == ov::element::i32) {
+        cldnn::mem_lock<int32_t, cldnn::mem_lock_type::write> lock{zero_mem, service_stream};
+        std::fill(lock.begin(), lock.end(), 0);
+    } else if (et == ov::element::i64) {
+        cldnn::mem_lock<int64_t, cldnn::mem_lock_type::write> lock{zero_mem, service_stream};
+        std::fill(lock.begin(), lock.end(), 0);
+    } else if (et == ov::element::i8) {
+        cldnn::mem_lock<int8_t, cldnn::mem_lock_type::write> lock{zero_mem, service_stream};
+        std::fill(lock.begin(), lock.end(), 0);
+    } else if (et == ov::element::u8) {
+        cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::write> lock{zero_mem, service_stream};
+        std::fill(lock.begin(), lock.end(), 0);
+    } else if (et == ov::element::i16) {
+        cldnn::mem_lock<int16_t, cldnn::mem_lock_type::write> lock{zero_mem, service_stream};
+        std::fill(lock.begin(), lock.end(), 0);
+    } else if (et == ov::element::u16) {
+        cldnn::mem_lock<uint16_t, cldnn::mem_lock_type::write> lock{zero_mem, service_stream};
+        std::fill(lock.begin(), lock.end(), 0);
+    } else if (et == ov::element::u32) {
+        cldnn::mem_lock<uint32_t, cldnn::mem_lock_type::write> lock{zero_mem, service_stream};
+        std::fill(lock.begin(), lock.end(), 0);
+    } else if (et == ov::element::u64) {
+        cldnn::mem_lock<uint64_t, cldnn::mem_lock_type::write> lock{zero_mem, service_stream};
+        std::fill(lock.begin(), lock.end(), 0);
+    } else {
+        OPENVINO_THROW("[GPU] Sign integer path: unsupported input type ", et, " for ", op->get_friendly_name());
+    }
+    auto zero_prim = cldnn::data(zero_id, zero_mem);
+    p.add_primitive(*op, zero_prim);
+
+    // x > 0  (eltwise compare)
+    const std::string gt_id = baseName + "/gt0";
+    auto gt_prim = cldnn::eltwise(gt_id, x, cldnn::input_info{zero_id}, cldnn::eltwise_mode::gt);
+    p.add_primitive(*op, gt_prim);
+
+    // x < 0  (eltwise compare)
+    const std::string lt_id = baseName + "/lt0";
+    auto lt_prim = cldnn::eltwise(lt_id, x, cldnn::input_info{zero_id}, cldnn::eltwise_mode::lt);
+    p.add_primitive(*op, lt_prim);
+    auto out_prim = cldnn::eltwise(baseName, cldnn::input_info{gt_id}, cldnn::input_info{lt_id}, cldnn::eltwise_mode::sub);
+    p.add_primitive(*op, out_prim);
 }
 
 static void CreateHSigmoidOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v5::HSigmoid>& op) {
