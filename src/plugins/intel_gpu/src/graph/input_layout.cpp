@@ -10,18 +10,6 @@
 #include <memory>
 #include <algorithm>
 
-namespace {
-bool has_optimized_users(const cldnn::input_layout_node& node) {
-    for (auto& user : node.get_users()) {
-        if (user->can_be_optimized()) {
-            return true;
-        }
-    }
-
-    return false;
-}
-}  // namespace
-
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(input_layout)
 
@@ -30,7 +18,7 @@ input_layout_node::typed_program_node(const std::shared_ptr<input_layout> dprim,
 }
 
 input_layout_inst::typed_primitive_inst(network& network, const input_layout_node& node)
-    : parent(network, node, /*allocate_mem*/ false) {  // !node.is_dynamic() && (!network.is_internal() || has_optimized_users(node))) {
+    : parent(network, node, /*allocate_mem*/ false) {
     _has_valid_input = false;                          // by default input for 'input_layout' is invalid as long as user doesn't call set_data
 }
 
