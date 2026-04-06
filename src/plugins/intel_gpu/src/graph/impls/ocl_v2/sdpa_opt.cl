@@ -2211,14 +2211,11 @@ KERNEL(sdpa_opt)(
     __global INPUT1_TYPE* key_output,
     __global INPUT2_TYPE* value_output,
     const __global float* turbo_rotation,
-    const __global float* turbo_qjl
+    const __global float* turbo_qjl,
+    const uint k_total_blocks
 ) {
     const uint block_id = get_group_id(0);
     const uint lid = get_local_id(0);  // 0..127
-
-    // Total number of 128-element blocks for key input
-    const uint k_total_elements = INPUT1_BATCH_NUM * INPUT1_FEATURE_NUM * INPUT1_SIZE_Y * INPUT1_SIZE_X;
-    const uint k_total_blocks = k_total_elements / TURBO_D;
 
     // Determine if this block processes key or value
     const bool is_value = (block_id >= k_total_blocks);
@@ -2315,7 +2312,15 @@ KERNEL(sdpa_opt)(
     qjl_recon *= qjl_scale;
 
     // === Step 12: Final output = (mse_recon + qjl_recon) * norm ===
-    const float result = (mse_recon + qjl_recon) * norm;
+    float result = (mse_recon + qjl_recon) * norm;
+
+    // Temporal fix to check dispatch size
+    // if (is_value) {
+    //     result = (float)value_input[base_offset + lid];
+    // } else {
+    //     result = (float)key_input[base_offset + lid];
+    // }
+    // // Temporal fix to check dispatch size
 
     if (is_value) {
         value_output[base_offset + lid] = (INPUT2_TYPE)result;

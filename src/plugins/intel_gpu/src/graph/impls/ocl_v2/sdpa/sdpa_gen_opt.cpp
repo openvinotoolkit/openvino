@@ -297,6 +297,8 @@ Arguments SDPAOptGeneratorKVCopy::get_arguments_desc(const kernel_impl_params& p
     // Turbo rotation matrix (128x128 floats), QJL matrix (128x128 floats)
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 5});
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 6});
+    // k_total_blocks scalar (runtime value to match dispatch K/V boundary)
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});
     return args;
 }
 
@@ -312,13 +314,28 @@ JitConstants SDPAOptGeneratorKVCopy::get_jit_constants(const kernel_impl_params&
 DispatchDataFunc SDPAOptGeneratorKVCopy::get_dispatch_data_func() const {
     return DispatchDataFunc{[](const RuntimeParams& impl_param, KernelData& kd, ImplRuntimeParams* rt_params) {
         auto& wgs = kd.params.workGroups;
+        auto& scalars = kd.params.scalars;
+        scalars.clear();
         auto params = SDPABase::requires_shape_canonicalization(impl_param) ? SDPABase::static_canonicalize_shapes(impl_param) : impl_param;
         constexpr size_t turbo_d = 128;
-        const size_t k_total_elements = params.get_input_layout(1).get_linear_size();
-        const size_t v_total_elements = params.get_input_layout(2).get_linear_size();
-        const size_t total_blocks = k_total_elements / turbo_d + v_total_elements / turbo_d;
+        const auto& k_layout = params.get_input_layout(1);
+        const auto& v_layout = params.get_input_layout(2);
+        const size_t k_total_elements = k_layout.get_linear_size();
+        const size_t v_total_elements = v_layout.get_linear_size();
+        const size_t k_total_blocks = k_total_elements / turbo_d;
+        GPU_DEBUG_TRACE_DETAIL << "[kv_copy dispatch] K count=" << k_layout.count()
+                               << " linear_size=" << k_total_elements
+                               << " k_total_blocks=" << k_total_blocks
+                               << " V count=" << v_layout.count()
+                               << " linear_size=" << v_total_elements << std::endl;
+        const size_t total_blocks = k_total_blocks + v_total_elements / turbo_d;
         wgs.global = {total_blocks * turbo_d, 1, 1};
         wgs.local = {turbo_d, 1, 1};
+
+        ScalarDescriptor k_blocks_scalar;
+        k_blocks_scalar.t = ScalarDescriptor::Types::UINT32;
+        k_blocks_scalar.v.u32 = static_cast<uint32_t>(k_total_blocks);
+        scalars.push_back(k_blocks_scalar);
     }};
 }
 
