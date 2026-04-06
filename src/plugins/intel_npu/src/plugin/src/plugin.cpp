@@ -734,6 +734,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             decryptedBlobStr.clear();  // -1x blob size, but still additional one in ov::Tensor above
             return parse(tensor, std::move(metadata), npuPluginProperties);
         }
+        if (metadata) {
+            OPENVINO_ASSERT(!metadata->is_encrypted_blob(), "Cannot parse encrypted blob!");
+        }
 
         tensor = ov::Tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
         if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
@@ -801,7 +804,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
         if (auto it = npuPluginProperties.find(ov::cache_encryption_callbacks.name());
             it != npuPluginProperties.end()) {
             OPENVINO_ASSERT(it->second.as<ov::EncryptionCallbacks>().decrypt != nullptr,
-                            "Null decrpytion function was given!");
+                            "Null decryption function was given!");
             std::string blobStr(compiledBlob.data<const char>(), blobSize);                     // +1x blob size
             auto decryptedBlobStr = it->second.as<ov::EncryptionCallbacks>().decrypt(blobStr);  // + 2x blob size
             blobStr.clear();  // -1x blob size, move is not permitted above
@@ -819,6 +822,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
             decryptedBlobStr.clear();  // -1x blob size, but still additional one in ov::Tensor above
             return parse(tensor, std::move(metadata), npuPluginProperties);
         }
+        if (metadata) {
+            OPENVINO_ASSERT(!metadata->is_encrypted_blob(), "Cannot parse encrypted blob!");
+        }
+
         const ov::Tensor roiTensor(compiledBlob,
                                    ov::Coordinate{0},
                                    ov::Coordinate{blobSize});  // ROI tensor to skip NPU plugin metadata

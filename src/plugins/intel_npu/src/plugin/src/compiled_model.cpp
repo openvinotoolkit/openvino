@@ -106,11 +106,12 @@ void CompiledModel::export_model(std::ostream& stream) const {
 
         Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning,
                                            CURRENT_OPENVINO_VERSION,
-                                           std::move(initBlobSizes),
+                                           initBlobSizes,
                                            _batchSize,
-                                           std::move(inputLayouts),
-                                           std::move(outputLayouts),
-                                           compilerVersion)
+                                           inputLayouts,
+                                           outputLayouts,
+                                           compilerVersion,
+                                           _encryptionCallback)
             .write(stream);
     }
 }
