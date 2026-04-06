@@ -17,7 +17,7 @@
 #    include "openvino/reference/utils/jit_generator.hpp"
 
 namespace {
-#if (OV_ENABLE_EXTERNAL_SANITIZER == 1)
+#    if (OV_ENABLE_EXTERNAL_SANITIZER == 1)
 // Custom allocator that rounds up the requested size to a full page boundary.
 // This ensures each CodeArray occupies complete pages so that setProtectModeRW()
 // called during destruction cannot strip the execute permission from pages that
@@ -39,7 +39,7 @@ Xbyak::Allocator& getPageAlignedAllocator() {
     static PageAlignedAllocator instance;
     return instance;
 }
-#endif
+#    endif
 }  // anonymous namespace
 
 namespace ov {
