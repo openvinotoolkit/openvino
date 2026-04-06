@@ -1979,6 +1979,22 @@ void ov::npuw::CompiledModel::compile_host_flash_attention_model(std::size_t id,
         return;
     }
 
+    // Set the flag for using tensor view based on device capabilities
+    if (ov::npuw::util::starts_with(device, "NPU")) {
+        const auto supported_properties = get_npuw_plugin()->get_core()->get_property(device, ov::supported_properties);
+        const auto support_strides_for =
+            std::find(supported_properties.begin(),
+                      supported_properties.end(),
+                      ov::intel_npu::enable_strides_for.name()) != supported_properties.end();
+        if (support_strides_for) {
+            hfa._can_use_tensor_view = true;
+            auto strided_inputs_name = std::string(hfa_tile_input_id_to_string(HFATileInputId::K_TILE)) + "," +
+                                       std::string(hfa_tile_input_id_to_string(HFATileInputId::V_TILE));
+            m_meta_devices[device][ov::intel_npu::enable_strides_for.name()] = strided_inputs_name;
+            LOG_INFO("Enabled using tensor view for device: " << device << " for inputs: " << strided_inputs_name);
+        }
+    }
+
     // Note: The final tile model has already been compiled via compile_submodel(m_compiled_submodels[id].model, ...)
     // because m_compiled_submodels[id].model points to _final_tile_model for HFA
     // So we only need to compile the regular tile model here
