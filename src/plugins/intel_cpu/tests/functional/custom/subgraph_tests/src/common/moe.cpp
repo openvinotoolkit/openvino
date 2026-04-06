@@ -282,7 +282,7 @@ TEST_P(MoESubgraphTest, CompareWithRefs) {
 
 TEST_P(MoECompressedWeightsSubgraphTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    #ifndef OPENVINO_ARCH_X86
+    #if !defined(OPENVINO_ARCH_X86) && !defined(OPENVINO_ARCH_X86_64)
         if (!ov::with_cpu_arm_dotprod() && !ov::with_cpu_arm_i8mm())
             GTEST_SKIP();
     #endif
