@@ -93,6 +93,14 @@ static TurboMatrices& get_turbo_matrices() {
 
 // ---- End TurboQuant matrix precomputation ----
 
+static bool is_turbo_quant_enabled() {
+    static const bool enabled = []() {
+        const char* env = std::getenv("OV_GPU_TURBO_QUANT");
+        return env && std::string(env) == "1";
+    }();
+    return enabled;
+}
+
 class SDPAOptImpl : public SDPAImplBase {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::SDPAOptImpl)
@@ -124,7 +132,8 @@ public:
         GPU_DEBUG_TRACE_DETAIL << "create stages for dynamic = " << params.is_dynamic() << "\n";
         if (params.is_dynamic()) {
             GPU_DEBUG_TRACE_DETAIL << "add stages for dynamic ...\n";
-            add_stage(kv_copy, params);
+            if (is_turbo_quant_enabled())
+                add_stage(kv_copy, params);
         add_stage(regular_single_token, params);
             add_stage(indirect_single_token, params);
             add_stage(regular_multi_tokens, params);
@@ -163,7 +172,8 @@ public:
                 }
             } else {
                 GPU_DEBUG_TRACE_DETAIL << "add stage single_tokens \n";
-                add_stage(kv_copy, params);
+                if (is_turbo_quant_enabled())
+                    add_stage(kv_copy, params);
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 const auto& gfx_ver = params.get_program().get_engine().get_device_info().gfx_ver;
                 bool is_ARL_H = (gfx_ver.major == 12 && gfx_ver.minor == 74);
@@ -209,30 +219,37 @@ public:
         const auto num_of_partitions = get_partitions_num(new_params, SDPAStage::SINGLE_TOKEN);
         GPU_DEBUG_TRACE_DETAIL << "execute single_tokens with indirect = " << is_indirect << "\n";
 
-        // Run KV copy stage to populate intermediate buffers, then use those for single_token
-        // Initialize turbo rotation/QJL matrices in internal buffers on first execution
-        if (!m_turbo_matrices_initialized) {
-            auto& stream = instance.get_network().get_stream();
-            auto& intermediates = instance.get_intermediates_memories();
-            const auto& turbo = get_turbo_matrices();
-            {
-                mem_lock<float, mem_lock_type::write> lock(intermediates[5], stream);
-                std::copy(turbo.rotation.begin(), turbo.rotation.end(), lock.data());
+        event::ptr ev;
+        if (is_turbo_quant_enabled()) {
+            // Run KV copy stage to populate intermediate buffers, then use those for single_token
+            // Initialize turbo rotation/QJL matrices in internal buffers on first execution
+            if (!m_turbo_matrices_initialized) {
+                auto& stream = instance.get_network().get_stream();
+                auto& intermediates = instance.get_intermediates_memories();
+                const auto& turbo = get_turbo_matrices();
+                {
+                    mem_lock<float, mem_lock_type::write> lock(intermediates[5], stream);
+                    std::copy(turbo.rotation.begin(), turbo.rotation.end(), lock.data());
+                }
+                {
+                    mem_lock<float, mem_lock_type::write> lock(intermediates[6], stream);
+                    std::copy(turbo.qjl.begin(), turbo.qjl.end(), lock.data());
+                }
+                m_turbo_matrices_initialized = true;
             }
-            {
-                mem_lock<float, mem_lock_type::write> lock(intermediates[6], stream);
-                std::copy(turbo.qjl.begin(), turbo.qjl.end(), lock.data());
-            }
-            m_turbo_matrices_initialized = true;
+            kv_copy->kd.need_args_update = true;
+            kv_copy->kd.need_dispatch_data_update = true;
+            auto ev_kv = execute_stage(events, instance, kv_copy);
+            m_use_intermediate_kv = true;
+            auto& st_stage = is_indirect ? indirect_single_token : regular_single_token;
+            st_stage->kd.need_args_update = true;
+            ev = execute_stage({ev_kv}, instance, st_stage);
+            m_use_intermediate_kv = false;
+        } else {
+            // Skip kv_copy, run single_token directly from original K/V inputs
+            auto& st_stage = is_indirect ? indirect_single_token : regular_single_token;
+            ev = execute_stage(events, instance, st_stage);
         }
-        kv_copy->kd.need_args_update = true;
-        kv_copy->kd.need_dispatch_data_update = true;
-        auto ev_kv = execute_stage(events, instance, kv_copy);
-        m_use_intermediate_kv = true;
-        auto& st_stage = is_indirect ? indirect_single_token : regular_single_token;
-        st_stage->kd.need_args_update = true;
-        auto ev = execute_stage({ev_kv}, instance, st_stage);
-        m_use_intermediate_kv = false;
 
         if (num_of_partitions > 1) {
             GPU_DEBUG_TRACE_DETAIL << "execute single_tokens_finalization (" << num_of_partitions << ") with indirect = " << is_indirect << "\n";
