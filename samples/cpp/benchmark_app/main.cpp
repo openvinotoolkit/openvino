@@ -1283,7 +1283,7 @@ int main(int argc, char* argv[]) {
         // wait the latest inference executions
         inferRequestsQueue.wait_all();
 
-        LatencyMetrics generalLatency(inferRequestsQueue.get_latencies(), "", FLAGS_latency_percentile);
+        LatencyMetrics generalLatency(inferRequestsQueue.get_latencies(), "", FLAGS_latency_percentile, FLAGS_high_precision_latency);
         std::vector<LatencyMetrics> groupLatencies = {};
         if (FLAGS_pcseq && app_inputs_info.size() > 1) {
             const auto& lat_groups = inferRequestsQueue.get_latency_groups();
@@ -1297,7 +1297,7 @@ int main(int argc, char* argv[]) {
                 data_shapes_string =
                     data_shapes_string == "" ? "" : data_shapes_string.substr(0, data_shapes_string.size() - 1);
 
-                groupLatencies.emplace_back(lats, data_shapes_string, FLAGS_latency_percentile);
+                groupLatencies.emplace_back(lats, data_shapes_string, FLAGS_latency_percentile, FLAGS_high_precision_latency);
             }
         }
 

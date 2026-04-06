@@ -438,6 +438,12 @@ static inline std::string double_to_string(const double number) {
     return ss.str();
 }
 
+static inline std::string double_to_string_high_precision(const double number) {
+    std::stringstream ss;
+    ss << std::fixed << std::setprecision(6) << number;
+    return ss.str();
+}
+
 template <typename T>
 using uniformDistribution = typename std::conditional<
     std::is_floating_point<T>::value,

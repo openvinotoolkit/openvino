@@ -21,8 +21,10 @@ public:
 
     LatencyMetrics(const std::vector<double>& latencies,
                    const std::string& data_shape = "",
-                   size_t percentile_boundary = 50)
+                   size_t percentile_boundary = 50,
+                   bool high_precision = false)
         : data_shape(data_shape),
+          high_precision(high_precision),
           percentile_boundary(percentile_boundary) {
         fill_data(latencies, percentile_boundary);
     }
@@ -35,6 +37,7 @@ public:
     double min = 0;
     double max = 0;
     std::string data_shape;
+    bool high_precision = false;
 
 private:
     void fill_data(std::vector<double> latencies, size_t percentile_boundary);
