@@ -112,21 +112,15 @@ TEST_P(OVCompiledGraphImportExportTestNPU, ImportingEncryptedBlobThrows) {
     configuration.insert(ov::cache_encryption_callbacks(ov::EncryptionCallbacks{ov::util::codec_xor, nullptr}));
     core.compile_model(model, target_device, configuration).export_model(encrypted_blob_stream);
     configuration.erase(ov::cache_encryption_callbacks.name());
-    OV_EXPECT_THROW(
-        core.import_model(encrypted_blob_stream, target_device, configuration),
-        ov::Exception,
-        ::testing::HasSubstr(
-            "L0 pfnCreate2 result: ZE_RESULT_ERROR_INVALID_NATIVE_BINARY, code 0x7800000f - native binary is "
-            "not supported by the device"));
+    OV_EXPECT_THROW(core.import_model(encrypted_blob_stream, target_device, configuration),
+                    ov::Exception,
+                    ::testing::HasSubstr("ZE_RESULT_ERROR_INVALID_NATIVE_BINARY"));
 
     auto encrypted_blob_str = encrypted_blob_stream.str();
     ov::Tensor encrypted_blob_tensor(ov::element::u8, ov::Shape{encrypted_blob_str.size()}, encrypted_blob_str.c_str());
-    OV_EXPECT_THROW(
-        core.import_model(encrypted_blob_tensor, target_device, configuration),
-        ov::Exception,
-        ::testing::HasSubstr(
-            "L0 pfnCreate2 result: ZE_RESULT_ERROR_INVALID_NATIVE_BINARY, code 0x7800000f - native binary is "
-            "not supported by the device"));
+    OV_EXPECT_THROW(core.import_model(encrypted_blob_tensor, target_device, configuration),
+                    ov::Exception,
+                    ::testing::HasSubstr("ZE_RESULT_ERROR_INVALID_NATIVE_BINARY"));
 }
 
 TEST_P(OVCompiledGraphImportExportTestNPU, SameUnEncryptedBlobAfterDecryption) {
@@ -169,11 +163,7 @@ TEST_P(OVCompiledGraphImportExportTestNPU, SameEncryptedBlobViaExportAndManualFu
     std::string manual_encrypted_blob_str = ov::util::codec_xor(unencrypted_blob_stream.str());
     std::string encrypted_blob_str = encrypted_blob_stream.str();
 
-    // Don't compare last 4096 bytes because padding that is unencrypted might be included in exported blob
-    ASSERT_EQ(std::strncmp(manual_encrypted_blob_str.c_str(),
-                           encrypted_blob_str.c_str(),
-                           manual_encrypted_blob_str.size() - 4096),
-              0);
+    ASSERT_EQ(manual_encrypted_blob_str, encrypted_blob_str);
 }
 
 }  // namespace behavior

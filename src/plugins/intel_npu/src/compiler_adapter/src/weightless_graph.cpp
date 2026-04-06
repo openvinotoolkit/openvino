@@ -4,6 +4,7 @@
 
 #include "weightless_graph.hpp"
 
+#include <cinttypes>
 #include <condition_variable>
 #include <iterator>
 #include <mutex>
@@ -260,9 +261,9 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
             totalResult += result;
 
             if (blobIndex == MAIN_SCHEDULE_INDEX) {
-                _wgLogger.info("Main blob size: %llu, hash: %x", blobSize, result);
+                _wgLogger.info("Main blob size: %" PRIu64 ", hash: %x", blobSize, result);
             } else {
-                _wgLogger.info("Init part %zu blob size %llu, hash: %x", blobIndex, blobSize, result);
+                _wgLogger.info("Init part %zu blob size %" PRIu64 ", hash: %x", blobIndex, blobSize, result);
             }
         }
 
