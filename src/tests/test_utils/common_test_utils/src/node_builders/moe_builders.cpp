@@ -531,7 +531,8 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     const std::optional<ov::test::utils::DecompressionType> decompression_subtract_type,
     const std::optional<bool> reshape_on_decompression,
     const std::optional<int> decompression_group_size,
-    MoERoutingType routing_type) {
+    MoERoutingType routing_type,
+    size_t num_shared_expert) {
     // Use parameters from shape_params - static shapes only
     const auto& input_shape = moe_params.data_shape;
     const size_t intermediate_size = moe_params.intermediate_size;
@@ -696,7 +697,63 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     auto final_reshape = std::make_shared<ov::op::v1::Reshape>(reduce_sum, final_reshape_const, true);
 
     ov::ParameterVector params = {input};
-    return std::make_shared<ov::Model>(ov::OutputVector{std::make_shared<ov::op::v0::Result>(final_reshape)},
+    ov::Output<ov::Node> model_output = final_reshape;
+
+    // Shared expert branch: a single SwiGLU MLP operating on all tokens.
+    // ConvertMOEToMOECompressed recognises the pattern Add(MOE_op, Reshape(shared_down_matmul)).
+    if (num_shared_expert > 0) {
+        OPENVINO_ASSERT(num_shared_expert == 1, "Only num_shared_expert=1 is supported in this builder");
+
+        auto sh_gate_weights = build_matmul_weights(ov::Shape{1, hidden_size, intermediate_size},
+                                                    weights_precision,
+                                                    data_precision,
+                                                    seed++,
+                                                    use_weight_decompression,
+                                                    decompression_precision,
+                                                    scale_precision,
+                                                    decompression_multiply_type,
+                                                    decompression_subtract_type,
+                                                    reshape_on_decompression,
+                                                    decompression_group_size);
+        auto sh_gate_matmul = std::make_shared<ov::op::v0::MatMul>(experts_reshape, sh_gate_weights, false, true);
+        auto sh_swish = std::make_shared<ov::op::v4::Swish>(sh_gate_matmul);
+
+        auto sh_up_weights = build_matmul_weights(ov::Shape{1, hidden_size, intermediate_size},
+                                                  weights_precision,
+                                                  data_precision,
+                                                  seed++,
+                                                  use_weight_decompression,
+                                                  decompression_precision,
+                                                  scale_precision,
+                                                  decompression_multiply_type,
+                                                  decompression_subtract_type,
+                                                  reshape_on_decompression,
+                                                  decompression_group_size);
+        auto sh_up_matmul = std::make_shared<ov::op::v0::MatMul>(experts_reshape, sh_up_weights, false, true);
+        auto sh_swiglu = std::make_shared<ov::op::v1::Multiply>(sh_swish, sh_up_matmul);
+
+        auto sh_down_weights = build_matmul_weights(ov::Shape{1, intermediate_size, hidden_size},
+                                                    weights_precision,
+                                                    data_precision,
+                                                    seed++,
+                                                    use_weight_decompression,
+                                                    decompression_precision,
+                                                    scale_precision,
+                                                    decompression_multiply_type,
+                                                    decompression_subtract_type,
+                                                    reshape_on_decompression,
+                                                    decompression_group_size);
+        auto sh_down_matmul = std::make_shared<ov::op::v0::MatMul>(sh_swiglu, sh_down_weights, false, true);
+
+        // Reshape [1, batch*seq, hidden] → [batch*seq, hidden] so the Add with MoE output is shape-compatible.
+        auto sh_reshape_const = ov::op::v0::Constant::create(ov::element::i64,
+                                                             ov::Shape{2},
+                                                             std::vector<int64_t>{-1, static_cast<int64_t>(hidden_size)});
+        auto sh_reshape = std::make_shared<ov::op::v1::Reshape>(sh_down_matmul, sh_reshape_const, false);
+        model_output = std::make_shared<ov::op::v1::Add>(final_reshape, sh_reshape);
+    }
+
+    return std::make_shared<ov::Model>(ov::OutputVector{std::make_shared<ov::op::v0::Result>(model_output)},
                                        params,
                                        "MoE3GeMMSubgraph");
 }

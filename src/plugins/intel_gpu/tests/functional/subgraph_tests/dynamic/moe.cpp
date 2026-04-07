@@ -16,6 +16,7 @@ struct MoeTestShapeParams {
     size_t topk;
     size_t number_of_experts;
     size_t intermediate_size;
+    size_t num_shared_expert = 0;
 };
 
 static const char* routing_type_str(MoERoutingType rt) {
@@ -49,6 +50,8 @@ public:
         result << "topk=" << moe_params.topk << "_";
         result << "experts=" << moe_params.number_of_experts << "_";
         result << "inter=" << moe_params.intermediate_size << "_";
+        if (moe_params.num_shared_expert > 0)
+            result << "shared=" << moe_params.num_shared_expert << "_";
         result << "routing=" << routing_type_str(routing_type) << "_";
         result << "WP=" << wp << "_";
         result << "DP=" << dp << "_";
@@ -79,7 +82,8 @@ protected:
                                                   ds,                // decompression_subtract_type
                                                   rd,                // reshape_on_decompression
                                                   gs,                // group_size
-                                                  routing_type);
+                                                  routing_type,
+                                                  moe_params.num_shared_expert);
     }
 
     void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
@@ -145,6 +149,32 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedFusion,
                          ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
                                             ::testing::ValuesIn(routing_types),
                                             ::testing::ValuesIn(weights_precisions),
+                                            ::testing::Values(ov::element::f16),  // decompression_precision
+                                            ::testing::Values(ov::element::f16),  // scale_precision
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(true),  // reshape_on_decompression
+                                            ::testing::Values(128)),
+                         MoE3GemmCompressedFusionTest::getTestCaseName);
+
+// Shared-expert variant: SIGMOID_BIAS_SCALED_NORM routing + 1 shared expert.
+// This exercises FuseVectorizedMOE3GEMM + ConvertMOEToMOECompressed (shared expert path)
+// + FuseMOE3GemmCompressed (24-input ROUTING_NORM_SCALE + SHARED_GATE_WEIGHT layout).
+const std::vector<MoeTestShapeParams> moe_params_shared_expert_smoke = {
+    {
+        {{-1, -1, 128}, {{1, 8, 128}, {1, 1, 128}, {1, 4, 128}}},  // hidden_size=128
+        2,     // topk
+        4,     // number_of_experts
+        256,   // intermediate_size
+        1,     // num_shared_expert
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedFusion_ScaledNorm_SharedExpert,
+                         MoE3GemmCompressedFusionTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_shared_expert_smoke),
+                                            ::testing::Values(MoERoutingType::SIGMOID_BIAS_SCALED_NORM),
+                                            ::testing::Values(ov::element::u4),
                                             ::testing::Values(ov::element::f16),  // decompression_precision
                                             ::testing::Values(ov::element::f16),  // scale_precision
                                             ::testing::Values(ov::test::utils::DecompressionType::full),
