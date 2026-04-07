@@ -82,8 +82,9 @@ void convert<bfloat16, float>(const bfloat16* arg, float* out, size_t count);
 template <>
 void convert<int32_t, float16>(const int32_t* arg, float16* out, size_t count);
 
-// Count how many f32 values is out of normal finite numbers range when converted to f16
-size_t count_out_of_f16_range(const float* arg, size_t count);
+constexpr double f16_compression_max_abs_error = 1.0;
+constexpr double f16_compression_max_rel_error = 1e-4;
+constexpr float f16_compression_keep_threshold = 0.75f;
 
 // Single-pass combined check for FP16 compression feasibility.
 // Counts out-of-range values and bails immediately if any in-range value has significant precision loss.

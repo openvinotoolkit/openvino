@@ -58,8 +58,8 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<v0::
             dst_data[i] = std::numeric_limits<ov::float16>::lowest();
             num_out_of_range++;
         } else {
-            constexpr double max_relative_error = 1e-4;
-            constexpr double max_abs_error = 1.0;
+            constexpr double max_relative_error = ov::reference::f16_compression_max_rel_error;
+            constexpr double max_abs_error = ov::reference::f16_compression_max_abs_error;
             const ov::float16 f16_val = static_cast<ov::float16>(src_data[i]);
             const double roundtripped = static_cast<double>(static_cast<src_type>(f16_val));
             const double abs_diff = std::abs(src_data[i] - roundtripped);
@@ -76,10 +76,9 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<v0::
     }
 
     // if more than 75% of a FP32 constant do not fit into FP16 keep in FP32
-    const float keep_threshold = 0.75f;
     const float out_of_range_proportion = static_cast<float>(num_out_of_range) / static_cast<float>(size);
 
-    if (out_of_range_proportion >= keep_threshold) {
+    if (out_of_range_proportion >= ov::reference::f16_compression_keep_threshold) {
         return nullptr;
     }
 
@@ -191,10 +190,9 @@ CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
                 return false;
 
             // if more than 75% of a FP32 constant do not fit into FP16 keep in FP32
-            const float keep_threshold = 0.75f;
             const float out_of_range_proportion =
                 static_cast<float>(check.out_of_range_count) / static_cast<float>(size);
-            if (out_of_range_proportion >= keep_threshold)
+            if (out_of_range_proportion >= ov::reference::f16_compression_keep_threshold)
                 return false;
 
             if (postponed) {

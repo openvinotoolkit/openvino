@@ -695,6 +695,28 @@ TEST_F(TransformationTestsF, CompressConstants_skip_non_scalar_with_high_abs_err
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
+// f64 constant with high absolute FP16 error should NOT be compressed (same logic as f32 path).
+TEST_F(TransformationTestsF, CompressConstants_skip_f64_non_scalar_with_high_abs_error) {
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f64, ov::Shape{1, 4});
+        auto freqs = v0::Constant::create(ov::element::f64, ov::Shape{4}, {1.0, 100.0, 500.0, 5002.0});
+        auto mul = std::make_shared<ov::opset8::Multiply>(input, freqs);
+        model = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
+
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
+        manager.register_pass<ov::pass::CompressFloatConstants>();
+    }
+
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f64, ov::Shape{1, 4});
+        // Stays FP64: 5002.0 rounds to 5000.0 in FP16, abs error = 2.0 > threshold 1.0
+        auto freqs = v0::Constant::create(ov::element::f64, ov::Shape{4}, {1.0, 100.0, 500.0, 5002.0});
+        auto mul = std::make_shared<ov::opset8::Multiply>(input, freqs);
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
 // Non-scalar constant with low absolute FP16 error (normal weights) should be compressed.
 TEST_F(TransformationTestsF, CompressConstants_compress_non_scalar_with_low_abs_error) {
     {

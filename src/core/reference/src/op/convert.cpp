@@ -544,8 +544,8 @@ private:
         static const float f16_min_pos = ov::float16::from_bits(0x0001);
         static const float f16_min_neg = -ov::float16::from_bits(0x0001);
         static const int32_t i32_one = 1;
-        static const float abs_err_val = 1.0f;
-        static const float rel_err_val = 1e-4f;
+        static const float abs_err_val = static_cast<float>(ov::reference::f16_compression_max_abs_error);
+        static const float rel_err_val = static_cast<float>(ov::reference::f16_compression_max_rel_error);
         static const uint32_t abs_mask_val = 0x7FFFFFFF;
 
         static const float max_pos_bounds[8] =
@@ -783,25 +783,6 @@ void convert_from_bf16_to_f16_with_clamp(const bfloat16* arg, float16* out, size
     // CVS-125496: duplicate and stub for ARM, provide optimized solution
 }
 
-size_t count_out_of_f16_range(const float* arg, size_t count) {
-#ifdef OV_CORE_USE_XBYAK_JIT
-    if (util::may_i_use_dynamic_code()) {
-        if (auto converter = jit_count_out_of_range::get<float, float16>()) {
-            size_t num_out_of_range = 0;
-            jit_count_out_of_range::args_t args = {arg, &num_out_of_range, count};
-            converter(&args);
-            return num_out_of_range;
-        }
-    }
-#endif  // OV_CORE_USE_XBYAK_JIT
-    const auto is_out_of_f16_range = [](const float v) {
-        return (std::abs(v) < float16::from_bits(0x0001) && v != 0.0f) || (v > std::numeric_limits<float16>::max()) ||
-               (v < std::numeric_limits<float16>::lowest());
-    };
-
-    return std::count_if(arg, arg + count, is_out_of_f16_range);
-}
-
 F16CompressionCheckResult check_f16_compression(const float* arg, size_t count) {
 #ifdef OV_CORE_USE_XBYAK_JIT
     if (util::may_i_use_dynamic_code()) {
@@ -814,9 +795,6 @@ F16CompressionCheckResult check_f16_compression(const float* arg, size_t count) 
         }
     }
 #endif  // OV_CORE_USE_XBYAK_JIT
-    constexpr double max_relative_error = 1e-4;
-    constexpr double max_abs_error = 1.0;
-
     size_t out_of_range = 0;
     for (size_t i = 0; i < count; ++i) {
         const float v = arg[i];
@@ -826,10 +804,10 @@ F16CompressionCheckResult check_f16_compression(const float* arg, size_t count) 
         } else {
             const double roundtripped = static_cast<double>(static_cast<float>(static_cast<float16>(v)));
             const double abs_diff = std::abs(v - roundtripped);
-            if (abs_diff > max_abs_error) {
+            if (abs_diff > f16_compression_max_abs_error) {
                 return {0, true};
             }
-            if (v != 0.0f && abs_diff / std::abs(v) > max_relative_error) {
+            if (v != 0.0f && abs_diff / std::abs(v) > f16_compression_max_rel_error) {
                 ++out_of_range;
             }
         }
