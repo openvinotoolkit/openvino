@@ -304,7 +304,8 @@ def test_compile_only_niter_0_dynamic_shape(sample_language, device, tmp_path):
     assert 'Skipping inference due to -niter 0' in output
 
 
-@pytest.mark.parametrize('device', get_devices())
+# Note: devices which do not support export_model() are excluded.
+@pytest.mark.parametrize('device', sorted({'CPU', 'GPU'} & set(get_devices())))
 def test_compile_only_niter_0_compiled_blob(device, tmp_path):
     """Test that -niter 0 works with a pre-compiled blob model (C++ only, blob path)."""
     param = opset.parameter([1, 3, 224, 224], ov.Type.f32, name='input')
