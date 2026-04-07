@@ -4,9 +4,17 @@
 
 #include "openvino/util/parallel_read_streambuf.hpp"
 
+#ifdef _WIN32
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include <windows.h>
+#endif
+
 #include <algorithm>
 #include <atomic>
 #include <cstring>
+#include <limits>
 #include <stdexcept>
 #include <thread>
 #include <vector>
@@ -40,8 +48,11 @@ std::streamsize ParallelReadStreamBuf::xsgetn(char_type* dst, std::streamsize n)
     // Drain any chars previously buffered by underflow()
     if (gptr() != nullptr && gptr() < egptr()) {
         const std::streamsize avail = static_cast<std::streamsize>(egptr() - gptr());
-        const std::streamsize from_buf = std::min(n, avail);
+        const std::streamsize from_buf = (std::min)(n, avail);
         std::memcpy(dst, gptr(), static_cast<size_t>(from_buf));
+        // Safe: from_buf <= UNDERFLOW_BUF (8192), always fits in int.
+        static_assert(UNDERFLOW_BUF <= static_cast<size_t>((std::numeric_limits<int>::max)()),
+                      "UNDERFLOW_BUF must fit in int for gbump()");
         gbump(static_cast<int>(from_buf));
         total += from_buf;
         dst += from_buf;
@@ -53,7 +64,7 @@ std::streamsize ParallelReadStreamBuf::xsgetn(char_type* dst, std::streamsize n)
     }
 
     const std::streamoff remaining = m_file_size - m_file_offset;
-    const std::streamsize to_read = static_cast<std::streamsize>(std::min(static_cast<std::streamoff>(n), remaining));
+    const std::streamsize to_read = static_cast<std::streamsize>((std::min)(static_cast<std::streamoff>(n), remaining));
 
     const size_t bytes = static_cast<size_t>(to_read);
     const size_t offset = static_cast<size_t>(m_file_offset);
@@ -79,7 +90,7 @@ ParallelReadStreamBuf::int_type ParallelReadStreamBuf::underflow() {
     // Read a batch of up to UNDERFLOW_BUF bytes so that character-by-character
     // consumers (std::getline, operator>>) don't issue one pread per char.
     const size_t to_read =
-        static_cast<size_t>(std::min(static_cast<std::streamoff>(UNDERFLOW_BUF), m_file_size - m_file_offset));
+        static_cast<size_t>((std::min)(static_cast<std::streamoff>(UNDERFLOW_BUF), m_file_size - m_file_offset));
     if (!single_read(m_underflow_buf.get(), to_read, static_cast<size_t>(m_file_offset))) {
         return traits_type::eof();
     }
@@ -135,8 +146,12 @@ ParallelReadStreamBuf::pos_type ParallelReadStreamBuf::seekpos(pos_type pos, std
 
 std::streamsize ParallelReadStreamBuf::showmanyc() {
     // Report both buffered characters (in the get area) and remaining
-    // bytes in the underlying file. Return -1 only when nothing more is
-    // available, to match std::streambuf expectations.
+    // bytes in the underlying file.
+    // Per [streambuf.virt.get]/6: return -1 when the next call to
+    // underflow() would return traits_type::eof() (i.e. stream truly
+    // exhausted).  Return 0 when availability is unknown.  Here both
+    // the file and the get-area are fully accounted for, so -1 at
+    // total==0 is correct — underflow() would indeed return EOF.
     std::streamsize buffered = 0;
     if (gptr() != nullptr && egptr() != nullptr && egptr() > gptr()) {
         buffered = static_cast<std::streamsize>(egptr() - gptr());
@@ -157,9 +172,9 @@ bool ParallelReadStreamBuf::single_read(char* dst, size_t size, size_t file_offs
 
 // Parallel positional read
 bool ParallelReadStreamBuf::parallel_read(char* dst, size_t size, size_t file_offset) {
-    const size_t hw_threads = std::max(size_t{1}, static_cast<size_t>(std::thread::hardware_concurrency()));
+    const size_t hw_threads = (std::max)(size_t{1}, static_cast<size_t>(std::thread::hardware_concurrency()));
     const size_t max_by_size = size / (1024 * 1024);  // 1 thread per MB
-    const size_t num_threads = std::max(size_t{1}, std::min(hw_threads, max_by_size));
+    const size_t num_threads = (std::max)(size_t{1}, (std::min)(hw_threads, max_by_size));
 
     if (num_threads == 1) {
         return single_read(dst, size, file_offset);
@@ -197,7 +212,7 @@ bool ParallelReadStreamBuf::parallel_read(char* dst, size_t size, size_t file_of
                 // Non-last threads: cap to min(chunk_size, size - cur_offset) so we
                 // never read past eof when alignment pushed the chunk boundary beyond it.
                 const size_t read_size =
-                    (ithr == num_threads - 1) ? (size - cur_offset) : std::min(chunk_size, size - cur_offset);
+                    (ithr == num_threads - 1) ? (size - cur_offset) : (std::min)(chunk_size, size - cur_offset);
                 char* const ptr = dst + cur_offset;
                 const size_t thread_file_offset = file_offset + cur_offset;
 

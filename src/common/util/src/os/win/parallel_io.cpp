@@ -9,7 +9,6 @@
 #    define NOMINMAX
 #endif
 #include <windows.h>
-#include <psapi.h>
 // clang-format on
 
 #include <cstdint>
@@ -68,14 +67,16 @@ bool positional_read(FileHandle handle, char* dst, size_t size, size_t file_offs
     size_t remaining = size;
     size_t cur_offset = file_offset;
     while (remaining > 0) {
-        const DWORD to_read = static_cast<DWORD>(std::min(remaining, static_cast<size_t>(UINT_MAX - 1024u)));
-        LARGE_INTEGER li;
-        li.QuadPart = static_cast<LONGLONG>(cur_offset);
-        if (!SetFilePointerEx(handle, li, nullptr, FILE_BEGIN)) {
-            return false;
-        }
+        const DWORD to_read = static_cast<DWORD>((std::min)(remaining, static_cast<size_t>(UINT_MAX - 1024u)));
+        // Use OVERLAPPED to specify the file offset directly, making the read
+        // positional and independent of the file pointer.  This is the Windows
+        // equivalent of Linux pread() and is safe for concurrent use on
+        // separate handles (no TOCTOU between SetFilePointerEx + ReadFile).
+        OVERLAPPED ov = {};
+        ov.Offset = static_cast<DWORD>(cur_offset & 0xFFFFFFFFULL);
+        ov.OffsetHigh = static_cast<DWORD>((cur_offset >> 32) & 0xFFFFFFFFULL);
         DWORD bytes_read = 0;
-        if (!ReadFile(handle, cur, to_read, &bytes_read, nullptr)) {
+        if (!ReadFile(handle, cur, to_read, &bytes_read, &ov)) {
             return false;
         }
         if (bytes_read == 0) {

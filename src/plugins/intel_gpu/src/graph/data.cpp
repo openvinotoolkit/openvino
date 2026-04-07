@@ -36,7 +36,7 @@ memory::ptr attach_or_copy_data(network& network, memory::ptr mem) {
         const size_t chunk_size = (data_size + num_chunks - 1) / num_chunks;
         ov::parallel_for(num_chunks, [src_ptr, dst_ptr, chunk_size, data_size, num_chunks](size_t i) {
             const size_t offset = i * chunk_size;
-            const size_t copy_size = (i + 1 == num_chunks) ? (data_size - offset) : chunk_size;
+            const size_t copy_size = (i + 1 == num_chunks) ? (data_size - offset) : std::min(chunk_size, data_size - offset);
             std::memcpy(dst_ptr + offset, src_ptr + offset, copy_size);
         });
     } else {

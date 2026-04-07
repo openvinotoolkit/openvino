@@ -7,8 +7,21 @@
 #include <gtest/gtest.h>
 
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <thread>
 #include <vector>
+
+#ifdef _WIN32
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include <windows.h>
+#else
+#    include <fcntl.h>
+#    include <sys/mman.h>
+#    include <unistd.h>
+#endif
 
 namespace {
 
@@ -347,3 +360,138 @@ TEST(ParallelMemStreamBufTest, ParallelDispatchSeekAndReread) {
     ASSERT_TRUE(stream.read((full.data()), static_cast<std::streamsize>(k_size)));
     EXPECT_EQ(full, src) << "Full read after seek produced incorrect data";
 }
+
+// 18. File-backed mmap detection: create a file, mmap it, pass the mmap
+//     pointer to ParallelMemStreamBuf, and verify correct data is returned.
+//     This exercises the get_mmap_file_info() detection + delegation to
+//     ParallelReadStreamBuf that is otherwise untested by in-memory tests.
+#ifndef _WIN32
+TEST(ParallelMemStreamBufTest, FileBackedMmapDetection) {
+    constexpr size_t k_size = 16 * 1024;  // 16 KB
+    std::vector<char> expected(k_size);
+    fill_pattern(expected);
+
+    auto tmp_path = std::filesystem::temp_directory_path() / "par_mem_mmap_test.bin";
+    {
+        std::ofstream ofs(tmp_path, std::ios::binary | std::ios::trunc);
+        ASSERT_TRUE(ofs.is_open()) << "Cannot create temp file: " << tmp_path;
+        ofs.write(expected.data(), static_cast<std::streamsize>(k_size));
+    }
+
+    int fd = ::open(tmp_path.c_str(), O_RDONLY);
+    ASSERT_NE(fd, -1) << "Cannot open temp file for mmap";
+    void* mapped = ::mmap(nullptr, k_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    ::close(fd);
+    ASSERT_NE(mapped, MAP_FAILED) << "mmap failed";
+
+    {
+        // threshold=1 so the constructor attempts mmap file detection on any size
+        ov::intel_gpu::ParallelMemStreamBuf buf(mapped, k_size, /*threshold=*/1);
+        std::istream stream(&buf);
+
+        std::vector<char> got(k_size);
+        ASSERT_TRUE(stream.read(got.data(), static_cast<std::streamsize>(k_size)));
+        EXPECT_EQ(got, expected);
+
+        // Verify seek + re-read works through the delegated ParallelReadStreamBuf
+        stream.clear();
+        stream.seekg(0, std::ios::beg);
+        ASSERT_TRUE(stream.good());
+
+        std::vector<char> got2(k_size);
+        ASSERT_TRUE(stream.read(got2.data(), static_cast<std::streamsize>(k_size)));
+        EXPECT_EQ(got2, expected);
+    }
+
+    ::munmap(mapped, k_size);
+    std::filesystem::remove(tmp_path);
+}
+
+// 19. File-backed mmap with non-zero offset: mmap a file at a page-aligned
+//     offset and verify the detection correctly computes the file offset.
+TEST(ParallelMemStreamBufTest, FileBackedMmapNonZeroOffset) {
+    const size_t page_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
+    const size_t k_prefix = page_size;  // one page of prefix
+    const size_t k_payload = 8 * 1024;
+    const size_t k_total = k_prefix + k_payload;
+
+    std::vector<char> file_content(k_total);
+    // Fill prefix with 0xFF, payload with deterministic pattern
+    std::memset(file_content.data(), 0xFF, k_prefix);
+    for (size_t i = 0; i < k_payload; ++i) {
+        file_content[k_prefix + i] = static_cast<char>((i) % 251u);
+    }
+
+    auto tmp_path = std::filesystem::temp_directory_path() / "par_mem_mmap_offset_test.bin";
+    {
+        std::ofstream ofs(tmp_path, std::ios::binary | std::ios::trunc);
+        ASSERT_TRUE(ofs.is_open());
+        ofs.write(file_content.data(), static_cast<std::streamsize>(k_total));
+    }
+
+    int fd = ::open(tmp_path.c_str(), O_RDONLY);
+    ASSERT_NE(fd, -1);
+    // mmap the entire file, then pass a pointer into the payload region
+    void* mapped = ::mmap(nullptr, k_total, PROT_READ, MAP_PRIVATE, fd, 0);
+    ::close(fd);
+    ASSERT_NE(mapped, MAP_FAILED);
+
+    const void* payload_ptr = static_cast<const char*>(mapped) + k_prefix;
+
+    {
+        ov::intel_gpu::ParallelMemStreamBuf buf(payload_ptr, k_payload, /*threshold=*/1);
+        std::istream stream(&buf);
+
+        std::vector<char> got(k_payload);
+        ASSERT_TRUE(stream.read(got.data(), static_cast<std::streamsize>(k_payload)));
+        // Verify we got the payload, not the prefix
+        std::vector<char> expected_payload(file_content.begin() + k_prefix, file_content.end());
+        EXPECT_EQ(got, expected_payload);
+    }
+
+    ::munmap(mapped, k_total);
+    std::filesystem::remove(tmp_path);
+}
+#else  // _WIN32
+TEST(ParallelMemStreamBufTest, FileBackedMmapDetection) {
+    constexpr size_t k_size = 16 * 1024;
+    std::vector<char> expected(k_size);
+    fill_pattern(expected);
+
+    auto tmp_path = std::filesystem::temp_directory_path() / L"par_mem_mmap_test.bin";
+    {
+        std::ofstream ofs(tmp_path, std::ios::binary | std::ios::trunc);
+        ASSERT_TRUE(ofs.is_open()) << "Cannot create temp file";
+        ofs.write(expected.data(), static_cast<std::streamsize>(k_size));
+    }
+
+    HANDLE hFile = CreateFileW(tmp_path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    ASSERT_NE(hFile, INVALID_HANDLE_VALUE) << "Cannot open temp file";
+    HANDLE hMapping = CreateFileMappingW(hFile, nullptr, PAGE_READONLY, 0, 0, nullptr);
+    ASSERT_NE(hMapping, nullptr) << "CreateFileMapping failed";
+    void* mapped = MapViewOfFile(hMapping, FILE_MAP_READ, 0, 0, 0);
+    ASSERT_NE(mapped, nullptr) << "MapViewOfFile failed";
+
+    {
+        ov::intel_gpu::ParallelMemStreamBuf buf(mapped, k_size, /*threshold=*/1);
+        std::istream stream(&buf);
+
+        std::vector<char> got(k_size);
+        ASSERT_TRUE(stream.read(got.data(), static_cast<std::streamsize>(k_size)));
+        EXPECT_EQ(got, expected);
+
+        stream.clear();
+        stream.seekg(0, std::ios::beg);
+        ASSERT_TRUE(stream.good());
+
+        std::vector<char> got2(k_size);
+        ASSERT_TRUE(stream.read(got2.data(), static_cast<std::streamsize>(k_size)));
+        EXPECT_EQ(got2, expected);
+    }
+
+    UnmapViewOfFile(mapped);
+    CloseHandle(hMapping);
+    CloseHandle(hFile);
+    std::filesystem::remove(tmp_path);
+}
+#endif

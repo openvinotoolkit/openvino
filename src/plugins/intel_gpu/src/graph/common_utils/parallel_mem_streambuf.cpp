@@ -24,7 +24,7 @@
 #include <psapi.h>
 // clang-format on
 #else
-#include <sys/mman.h>
+#    include <sys/mman.h>
 #endif
 
 #include "openvino/util/parallel_io.hpp"
@@ -45,8 +45,7 @@ static bool resolve_device_path(const wchar_t* dev_path, wchar_t* out, DWORD out
         if (!QueryDosDeviceW(drive, dev_name, MAX_PATH))
             continue;
         const size_t dev_name_len = wcslen(dev_name);
-        if (wcsncmp(dev_path, dev_name, dev_name_len) == 0 &&
-            (dev_path[dev_name_len] == L'\\' || dev_path[dev_name_len] == L'\0')) {
+        if (wcsncmp(dev_path, dev_name, dev_name_len) == 0 && (dev_path[dev_name_len] == L'\\' || dev_path[dev_name_len] == L'\0')) {
             swprintf_s(out, out_len, L"%s%s", drive, dev_path + dev_name_len);
             return true;
         }
@@ -80,7 +79,6 @@ static bool get_mmap_file_info(const void* addr, std::filesystem::path& out_path
     out_path = std::filesystem::path(win32_path);
     out_offset = reinterpret_cast<const char*>(addr) - reinterpret_cast<const char*>(mbi.AllocationBase);
     return true;
-}
 #else
     std::ifstream maps_file("/proc/self/maps");
     if (!maps_file.is_open())
@@ -105,9 +103,15 @@ static bool get_mmap_file_info(const void* addr, std::filesystem::path& out_path
         }
         if (addr_val < range_start || addr_val >= range_end)
             continue;
-        std::filesystem::path path;
-        if (!(iss >> path) || path.empty() || !path.is_absolute())
-            return false;  // anonymous or special region
+        // Skip whitespace after inode to reach the optional pathname field.
+        // Use getline instead of operator>> to handle paths that contain spaces.
+        std::string pathname;
+        std::getline(iss >> std::ws, pathname);
+        if (pathname.empty())
+            return false;  // anonymous mapping (no pathname)
+        std::filesystem::path path(pathname);
+        if (!path.is_absolute())
+            return false;  // special region like [heap], [stack], [vdso]
         out_path = path;
         std::streamoff map_offset = 0;
         try {
@@ -136,7 +140,8 @@ static void prefetch_memory(const void* addr, size_t size) {
     // madvise(2) requires addr to be page-aligned; round down and extend size.
     const uintptr_t base = reinterpret_cast<uintptr_t>(addr);
     const uintptr_t aligned_base = base & ~uintptr_t{4095};
-    madvise(reinterpret_cast<void*>(aligned_base), size + (base - aligned_base), MADV_WILLNEED);
+    // madvise is advisory — failure is non-fatal; the read path will still work.
+    (void)madvise(reinterpret_cast<void*>(aligned_base), size + (base - aligned_base), MADV_WILLNEED);
 #endif
 }
 
@@ -259,7 +264,7 @@ void ParallelMemStreamBuf::parallel_copy(char* dst, const char* src, size_t size
         try {
             workers.emplace_back([&, i]() {
                 const size_t offset = i * chunk_size;
-                const size_t copy_size = (i + 1 == num_chunks) ? (size - offset) : chunk_size;
+                const size_t copy_size = (i + 1 == num_chunks) ? (size - offset) : std::min(chunk_size, size - offset);
                 std::memcpy(dst + offset, src + offset, copy_size);
             });
         } catch (...) {
