@@ -33,7 +33,7 @@ inline std::shared_ptr<ov::Model> createMaxPoolModel() {
     const char* check_simple_model = std::getenv("CHECK_SIMPLE_MODEL");
     if (check_simple_model && std::string(check_simple_model) == "1") {
         auto input =
-            std::make_shared<ov::op::v0::Parameter>(element::f16, PartialShape{1, 16, 720, ov::Dimension(10, 1280)});
+            std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 16, 720, ov::Dimension(10, 1280)});
         input->set_friendly_name("input1");
 
         auto maxpool = std::make_shared<ov::op::v1::MaxPool>(input,
@@ -52,7 +52,7 @@ inline std::shared_ptr<ov::Model> createMaxPoolModel() {
     }
 
     auto input =
-        std::make_shared<ov::op::v0::Parameter>(element::f16, PartialShape{1, 16, 720, ov::Dimension(10, 1280)});
+        std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 16, 720, ov::Dimension(10, 1280)});
     input->set_friendly_name("input1");
 
     auto maxpool = std::make_shared<ov::op::v1::MaxPool>(input,
@@ -64,7 +64,7 @@ inline std::shared_ptr<ov::Model> createMaxPoolModel() {
                                                          op::PadType::EXPLICIT);
     maxpool->set_friendly_name("MaxPool_2");
 
-    auto scale = ov::opset6::Constant::create(element::f16, Shape{}, {2.0f});
+    auto scale = ov::opset6::Constant::create(element::f32, Shape{}, {2.0f});
     scale->set_friendly_name("scale_const");
 
     auto mul = std::make_shared<ov::op::v1::Multiply>(maxpool, scale);
