@@ -6,9 +6,7 @@
 
 #include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 
-namespace ov {
-namespace op {
-namespace v17 {
+namespace ov::op::v17 {
 /// \brief Elementwise inverse error function (erfinv) operation.
 ///
 /// \ingroup ov_ops_cpp_api
@@ -27,6 +25,4 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
-}  // namespace v17
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::op::v17

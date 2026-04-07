@@ -6,9 +6,7 @@
 
 #include "itt.hpp"
 
-namespace ov {
-namespace op {
-namespace v17 {
+namespace ov::op::v17 {
 
 ErfInv::ErfInv(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
@@ -16,7 +14,7 @@ ErfInv::ErfInv(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
 
 void ErfInv::validate_and_infer_types() {
     OV_OP_SCOPE(v17_ErfInv_validate_and_infer_types);
-    const element::Type& input_et = get_input_element_type(0);
+    const auto& input_et = get_input_element_type(0);
 
     NODE_VALIDATION_CHECK(this,
                           input_et.is_dynamic() || input_et.is_real(),
@@ -32,6 +30,4 @@ std::shared_ptr<Node> ErfInv::clone_with_new_inputs(const OutputVector& new_args
     return std::make_shared<ErfInv>(new_args.at(0));
 }
 
-}  // namespace v17
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::op::v17
