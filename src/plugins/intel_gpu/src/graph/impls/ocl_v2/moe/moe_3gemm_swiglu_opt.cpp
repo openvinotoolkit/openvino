@@ -973,8 +973,7 @@ public:
 
         auto& engine = params.prog->get_engine();
         const auto& info = engine.get_device_info();
-        // FIXME: CVS-182236 Prefill performance on discrete GPU is bad when using micro_gemm_prefill, need to investigate further, disable it for now.
-        if (info.arch < gpu_arch::xe2 || info.dev_type == cldnn::device_type::discrete_gpu) {
+        if (info.arch < gpu_arch::xe2) {
             use_micro_gemm_prefill = false;
             GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): use_micro_gemm_prefill=" << use_micro_gemm_prefill
                                    << ", arch=" << static_cast<int>(info.arch) << std::endl;
@@ -1257,16 +1256,17 @@ public:
         auto max_batch = has_shared_expert ? (max_topk + 1) * token_num : max_topk * token_num;
         layout layout_gateup_out(ov::Shape{max_batch, static_cast<size_t>(config.inter_size)}, data_type, cldnn::format::bfyx);
         layout layout_down_out(ov::Shape{max_batch, static_cast<size_t>(config.hidden_size)}, data_type, cldnn::format::bfyx);
-        internal_buffers.emplace_back(layout_gateup_out, true);  // 2: up output
-        internal_buffers.emplace_back(layout_down_out, true);    // 3: down output
+        internal_buffers.emplace_back(layout_gateup_out, false);  // 2: up output (GPU-only)
+        internal_buffers.emplace_back(layout_down_out, false);    // 3: down output (GPU-only)
         // onednn: scratch.x, scratch.routing_weights = gather(x, ...)
         //         scratch.up = up(scratch.x)
         //         scratch.gate = gate(scratch.x) * scratch.up
         //         scratch.y = down(scratch.gate) * routing_weights
-        internal_buffers.emplace_back(layout_down_out, true);  // 4: up/gate input, scratch.x has same layout with down output
+        internal_buffers.emplace_back(layout_down_out, false);  // 4: up/gate input, scratch.x has same layout with down output (GPU-only)
         layout routing_layout(ov::Shape{max_batch}, data_type, cldnn::format::bfyx);
-        internal_buffers.emplace_back(routing_layout, true);     // 5: routing_weights
-        internal_buffers.emplace_back(layout_gateup_out, true);  // 6: gate output, scratch.gate has same layout with up
+        internal_buffers.emplace_back(routing_layout, true);      // 5: routing_weights
+        internal_buffers.emplace_back(layout_gateup_out, false);  // 6: gate output, scratch.gate has same layout with up (GPU-only)
+
         // expert masks for gpu
         layout index_layout(ov::Shape{expert_num, token_num}, ov::element::i32, cldnn::format::bfyx);
         internal_buffers.emplace_back(index_layout, true);  // 7: expert_mask_batch

@@ -357,7 +357,8 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         auto moe_mask_gen_prim = cldnn::moe_mask_gen(moe_mask_gen_name,
                                                      input_infos[2],  // topk indices
                                                      static_cast<int32_t>(config.num_expert),
-                                                     static_cast<int32_t>(config.top_k));
+                                                     static_cast<int32_t>(config.top_k),
+                                                     true);
         p.add_primitive(*op, moe_mask_gen_prim);
         auto moe_mask_gen_reshape_prim =
             cldnn::moe_mask_gen_reshape(moe_mask_gen_reshape_name,
@@ -443,7 +444,8 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
                                          input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::EXPERTS_INFO_START_IDX),
                                          input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::TOKENS_LENS_PER_EXPERT),
                                          input_info(moe_mask_gen_reshape_name, moe_mask_gen_reshape::MoEMaskGenReshapeOutputIdx::EXPERTS_ID),
-                                         config);
+                                         config,
+                                         true);
         p.add_primitive(*op, moe_scatter_reduce_prim);
     }
 }
