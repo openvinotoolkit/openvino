@@ -80,8 +80,7 @@ float get_xattn_thresh(const kernel_impl_params& params, const size_t seq_idx) {
     const auto& input_mem = params.memory_deps;
     const auto it = input_mem.find(PagedAttentionInputIdx::XATTENTION_THRESHOLD);
     if (it == input_mem.end() || it->second == nullptr) {
-        OPENVINO_THROW("XAttention threshold input is required at index ",
-                       static_cast<size_t>(PagedAttentionInputIdx::XATTENTION_THRESHOLD));
+        OPENVINO_THROW("XAttention threshold input is required at index ", static_cast<size_t>(PagedAttentionInputIdx::XATTENTION_THRESHOLD));
     }
 
     const auto threshold_mem = it->second;
@@ -90,8 +89,7 @@ float get_xattn_thresh(const kernel_impl_params& params, const size_t seq_idx) {
     if (dt == data_types::f16) {
         mem_lock<float16, mem_lock_type::read> lock(threshold_mem, *params.strm);
         if (seq_idx >= lock.size()) {
-            OPENVINO_THROW("XAttention threshold input index out of range: seq_idx=",
-                           seq_idx, ", input_size=", lock.size());
+            OPENVINO_THROW("XAttention threshold input index out of range: seq_idx=", seq_idx, ", input_size=", lock.size());
         }
         return static_cast<float>(lock[seq_idx]);
     }
@@ -99,8 +97,7 @@ float get_xattn_thresh(const kernel_impl_params& params, const size_t seq_idx) {
     if (dt == data_types::f32) {
         mem_lock<float, mem_lock_type::read> lock(threshold_mem, *params.strm);
         if (seq_idx >= lock.size()) {
-            OPENVINO_THROW("XAttention threshold input index out of range: seq_idx=",
-                           seq_idx, ", input_size=", lock.size());
+            OPENVINO_THROW("XAttention threshold input index out of range: seq_idx=", seq_idx, ", input_size=", lock.size());
         }
         return lock[seq_idx];
     }
