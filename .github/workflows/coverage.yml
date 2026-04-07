@@ -71,6 +71,7 @@ jobs:
         -DENABLE_COVERAGE=ON
         -DENABLE_OV_ONNX_FRONTEND=ON
         -DENABLE_OV_PADDLE_FRONTEND=ON
+        -DENABLE_OV_PYTORCH_FRONTEND=ON
         -DENABLE_OV_TF_FRONTEND=ON
         -DENABLE_OV_TF_LITE_FRONTEND=ON
         -DENABLE_INTEL_GPU=OFF
@@ -292,9 +293,12 @@ jobs:
       - name: Install Python test dependencies
         run: |
           python3 -m pip install -r "${INSTALL_DIR}/tests/bindings/python/requirements_test.txt"
+          python3 -m pip install -r "${INSTALL_DIR}/tests/python/preprocess/torchvision/requirements.txt"
           python3 -m pip install -r "${INSTALL_DIR}/tests/layer_tests/requirements.txt"
           python3 -m pip install -r "${INSTALL_DIR}/tests/requirements_onnx"
           python3 -m pip install -r "${INSTALL_DIR}/tests/requirements_jax"
+          python3 -m pip install -r "${INSTALL_DIR}/tests/requirements_pytorch"
+          python3 -m pip install -r "${INSTALL_DIR}/tests/requirements_tensorflow"
 
       - name: Run CPU Python coverage tests
         run: python3 .github/scripts/coverage/coverage.py step run-python-tests

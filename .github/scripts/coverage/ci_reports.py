@@ -42,6 +42,7 @@ SUITE_DEFS = {
         "stats_file": "python-coverage-stats.env",
         "duration_file": "python-test-durations.csv",
         "coverage_file": "python-coverage.xml",
+        "extra_files": ["coverage.info"],
         "total_key": "PY_TESTS_TOTAL",
         "executed_key": None,
         "passed_key": "PY_TESTS_PASSED",
@@ -55,6 +56,7 @@ SUITE_DEFS = {
         "stats_file": "js-coverage-stats.env",
         "duration_file": "js-test-durations.csv",
         "coverage_file": "js-lcov.info",
+        "extra_files": ["coverage.info"],
         "total_key": "JS_TESTS_TOTAL",
         "executed_key": None,
         "passed_key": "JS_TESTS_PASSED",
@@ -138,7 +140,13 @@ def collect_suite_results(
     )
     (artifact_dir / str(suite_def["stats_file"])).write_text("\n".join(stats_lines) + "\n", encoding="utf-8")
 
-    for filename in [str(suite_def["duration_file"]), str(suite_def["stats_file"]), str(suite_def["coverage_file"])]:
+    files_to_copy = [
+        str(suite_def["duration_file"]),
+        str(suite_def["stats_file"]),
+        str(suite_def["coverage_file"]),
+        *[str(name) for name in suite_def.get("extra_files", [])],
+    ]
+    for filename in files_to_copy:
         source = workspace / filename
         if source.is_file():
             shutil.copy2(source, artifact_dir / filename)

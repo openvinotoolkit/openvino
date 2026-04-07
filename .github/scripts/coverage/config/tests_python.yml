@@ -19,29 +19,25 @@ tests:
   - name: py_frontend
     kind: pytest_if_dir
     target: "${TESTS_DIR}/layer_tests/py_frontend_tests"
-    env: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
-    args: "-sv -k 'not cuda'"
+    args: "-sv -v"
 
   - name: tensorflow_lite_layers
     kind: pytest_if_dir
     target: "${TESTS_DIR}/layer_tests/tensorflow_lite_tests"
     env: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
-    args: "-sv -k 'not cuda'"
+    args: "-sv -v"
 
   - name: tensorflow_layers
     kind: pytest_if_dir
-    profiles: [cpu, gpu, npu]
     target: "${TESTS_DIR}/layer_tests/tensorflow_tests"
-    env:
-      cpu: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
-      gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
-      npu: "TEST_DEVICE=NPU TEST_PRECISION=FP16"
-      default: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
-    args:
-      cpu: "-sv -k 'not gpu and not cuda and not npu'"
-      gpu: "-sv -k 'not cuda and not npu'"
-      npu: "-sv -k 'not cuda and not gpu'"
-      default: "-sv -k 'not gpu and not cuda and not npu'"
+    env: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
+    args: "-sv -m precommit -v"
+
+  - name: tensorflow2_keras_layers
+    kind: pytest_if_dir
+    target: "${TESTS_DIR}/layer_tests/tensorflow2_keras_tests"
+    env: "TEST_DEVICE=CPU"
+    args: "-sv -m precommit -v"
 
   - name: onnx_layers
     kind: pytest_if_dir
@@ -60,18 +56,21 @@ tests:
 
   - name: pytorch_layers
     kind: pytest_if_dir
-    profiles: [cpu, gpu, npu]
     target: "${TESTS_DIR}/layer_tests/pytorch_tests"
-    env:
-      cpu: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
-      gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
-      npu: "TEST_DEVICE=NPU TEST_PRECISION=FP16"
-      default: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
-    args:
-      cpu: "-sv -k 'not gpu and not cuda and not npu'"
-      gpu: "-sv -k 'not cuda and not npu'"
-      npu: "-sv -k 'not cuda and not gpu'"
-      default: "-sv -k 'not gpu and not cuda and not npu'"
+    env: "TEST_DEVICE=CPU TEST_PRECISION=FP32"
+    args: "-sv -m precommit -v"
+
+  - name: pytorch_layers_export
+    kind: pytest_if_dir
+    target: "${TESTS_DIR}/layer_tests/pytorch_tests"
+    env: "TEST_DEVICE=CPU TEST_PRECISION=FP32 PYTORCH_TRACING_MODE=EXPORT"
+    args: "-sv -m precommit_torch_export -v"
+
+  - name: pytorch_layers_fx_backend
+    kind: pytest_if_dir
+    target: "${TESTS_DIR}/layer_tests/pytorch_tests"
+    env: "TEST_DEVICE=CPU TEST_PRECISION=FP32 PYTORCH_TRACING_MODE=TORCHFX"
+    args: "-sv -m precommit_fx_backend -v"
 
   - name: jax_layers_precommit
     kind: pytest_if_dir
@@ -126,7 +125,7 @@ tests:
     kind: pytest_if_dir
     target: "${WORKSPACE_LAYER_TESTS_DIR}/ovc_python_api_tests"
     env: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
-    args: "-sv -m precommit_tf_fe -k 'test_tf and not cuda'"
+    args: "-sv -m precommit_tf_fe -k 'test_tf and not cuda' -v"
 
   - name: ovc_python_api_paddle_precommit
     kind: pytest
