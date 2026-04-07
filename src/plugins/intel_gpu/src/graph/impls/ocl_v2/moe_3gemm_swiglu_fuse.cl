@@ -77,6 +77,9 @@ KERNEL(sigmoid_bias_topk)(
     const __global MOE_DTYPE* input,    // routing logits [input_batch, num_experts]
     const __global MOE_DTYPE* bias,     // routing bias [1, num_experts] or [num_experts]
     const __global MOE_DTYPE* eps_ptr,  // routing epsilon scalar [1]
+#if HAS_ROUTING_NORM_SCALE
+    const __global MOE_DTYPE* norm_scale_ptr,  // post-normalization scale scalar [1]
+#endif
     __global uint* output_index,        // [input_batch, TOP_K]
     __global MOE_DTYPE* output          // [input_batch, TOP_K]
 ) {
@@ -152,6 +155,13 @@ KERNEL(sigmoid_bias_topk)(
             output[i] = (MOE_DTYPE)((float)local_output[i] / sum_weights);
             output_index[i] = local_index[i];
         }
+#if HAS_ROUTING_NORM_SCALE
+        // Apply post-normalization scaling
+        MOE_DTYPE scale_val = norm_scale_ptr[0];
+        for(uint i = 0; i < actual_topk; i++) {
+            output[i] = (MOE_DTYPE)((float)output[i] * (float)scale_val);
+        }
+#endif
         // Zero out remaining positions if TOP_K > actual_topk
         for(uint i = actual_topk; i < TOP_K; i++) {
             output[i] = (MOE_DTYPE)0.0f;

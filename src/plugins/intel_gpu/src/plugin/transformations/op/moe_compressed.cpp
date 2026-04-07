@@ -40,6 +40,7 @@ bool MOECompressed::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("group_size", m_config.group_size);
     visitor.on_attribute("out_type", m_config.out_type);
     visitor.on_attribute("routing_type", m_config.routing_type);
+    visitor.on_attribute("has_routing_norm_scale", m_config.has_routing_norm_scale);
     return true;
 }
 

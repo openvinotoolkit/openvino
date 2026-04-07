@@ -484,12 +484,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             });
 
             manager.register_pass<ov::pass::FuseVectorizedMOE3GEMM>();
-            pass_config->set_callback<ov::pass::FuseVectorizedMOE3GEMM>([&](const_node_ptr& root) -> bool {
-                // Currently moe gemm3 is only supported by systolic-array architectures
-                auto& engine = m_context->get_engine();
-                const auto& info = engine.get_device_info();
-                return (!info.supports_immad);
-            });
+            // pass_config->set_callback<ov::pass::FuseVectorizedMOE3GEMM>([&](const_node_ptr& root) -> bool {
+            //     // Currently moe gemm3 is only supported by systolic-array architectures
+            //     auto& engine = m_context->get_engine();
+            //     const auto& info = engine.get_device_info();
+            //     return (!info.supports_immad);
+            // });
 
             bool is_pa = false;
             for (const auto& op : func->get_ops()) {

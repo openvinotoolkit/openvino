@@ -12,8 +12,10 @@ MOE3GemmFusedCompressed::MOE3GemmFusedCompressed(const OutputVector& args, const
 }
 
 void MOE3GemmFusedCompressed::validate_and_infer_types() {
-    const size_t expected_inputs = m_config.num_shared_expert > 0 ? 23
-                                 : m_config.routing_type == MOECompressed::RoutingType::SIGMOID_BIAS ? 13
+    const size_t expected_inputs = m_config.num_shared_expert > 0
+                                     ? 24
+                                 : m_config.routing_type == MOECompressed::RoutingType::SIGMOID_BIAS
+                                     ? (m_config.has_routing_norm_scale ? 14 : 13)
                                  : 11;
     OPENVINO_ASSERT(get_input_size() == expected_inputs,
                     "MOECompressed: expected ",
@@ -28,6 +30,12 @@ void MOE3GemmFusedCompressed::validate_and_infer_types() {
         OPENVINO_ASSERT(ov::shape_size(get_input_partial_shape(12).to_shape()) == 1,
                         "MOE3GemmFusedCompressed: routing_eps (input 12) must be scalar, got shape ",
                         get_input_partial_shape(12));
+        if (m_config.has_routing_norm_scale) {
+            // Input 13 is routing_norm_scale — must be a scalar
+            OPENVINO_ASSERT(ov::shape_size(get_input_partial_shape(13).to_shape()) == 1,
+                            "MOE3GemmFusedCompressed: routing_norm_scale (input 13) must be scalar, got shape ",
+                            get_input_partial_shape(13));
+        }
     }
 
     MOECompressed::validate_and_infer_types();

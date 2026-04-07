@@ -388,6 +388,9 @@ protected:
         jit.make("VALUE_NUM", desc->_config.num_expert);
         jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
         jit.make("MOE_DTYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
+        if (desc->_config.has_routing_norm_scale) {
+            jit.make("HAS_ROUTING_NORM_SCALE", 1);
+        }
         return jit;
     }
 
@@ -725,8 +728,7 @@ protected:
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         add_common_consts(params, jit);
         jit.make("GATE_UP_ENABLE", 1);
-        if (!_disable_shared_experts && desc->_config.num_shared_expert > 0 &&
-            params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)) {
+        if (!_disable_shared_experts && desc->_config.num_shared_expert > 0) {
             jit.make("SHARED_EXPERT_ENABLE", 1);
         } else {
             jit.make("SHARED_EXPERT_ENABLE", 0);
@@ -759,8 +761,7 @@ protected:
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         add_common_consts(params, jit);
         jit.make("DOWN_ENABLE", 1);
-        if (!_disable_shared_experts && desc->_config.num_shared_expert > 0 &&
-            params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)) {
+        if (!_disable_shared_experts && desc->_config.num_shared_expert > 0) {
             jit.make("SHARED_EXPERT_ENABLE", 1);
         } else {
             jit.make("SHARED_EXPERT_ENABLE", 0);
@@ -793,8 +794,7 @@ protected:
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         add_common_consts(params, jit);
         jit.make("REDUCE_ENABLE", 1);
-        if (!_disable_shared_experts && desc->_config.num_shared_expert > 0 &&
-            params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)) {
+        if (!_disable_shared_experts && desc->_config.num_shared_expert > 0) {
             jit.make("SHARED_EXPERT_ENABLE", 1);
         } else {
             jit.make("SHARED_EXPERT_ENABLE", 0);
@@ -1200,7 +1200,7 @@ public:
         auto hidden_states_layout = params.input_layouts[0];
         auto token_num = get_seq_len(hidden_states_layout);
         auto data_type = hidden_states_layout.data_type;
-        bool has_shared_expert = params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT);
+        bool has_shared_expert = params.typed_desc<moe_3gemm_fused_compressed>()->_config.num_shared_expert > 0;
 
         std::vector<BufferDescriptor> internal_buffers;
         // softmax+topk
@@ -2011,7 +2011,8 @@ public:
             if (config.num_shared_expert > 1) {
                 OPENVINO_THROW("num_shared_expert=", config.num_shared_expert, " is not supported yet, only support 0 or 1");
             }
-            auto shared_expert_weight_layout = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT))->get_layout();
+            auto shared_expert_weight_layout = instance.input_memory_ptr(
+                static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT))->get_layout();
             auto hidden_size = static_cast<int>(cur_moe->_config.hidden_size);
             _shared_intermediate_size = static_cast<int>(shared_expert_weight_layout.count() / hidden_size);
             OPENVINO_ASSERT(_shared_intermediate_size == _intermediate_size, "Shared expert _intermediate_size should be same with moe experts");
@@ -2035,12 +2036,18 @@ public:
                                        {1, lws_size},
                                        instance.needs_completion_event());
         } else if (config.routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS) {
+            std::vector<memory::ptr> sigmoid_inputs{
+                instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_WEIGHTS)),
+                instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_BIAS)),
+                instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_EPS))};
+            if (config.has_routing_norm_scale) {
+                sigmoid_inputs.push_back(
+                    instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_NORM_SCALE)));
+            }
             topk_event = execute_stage(events,
                                        instance,
                                        *sigmoid_bias_topk,
-                                       {instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_WEIGHTS)),
-                                        instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_BIAS)),
-                                        instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_EPS))},
+                                       sigmoid_inputs,
                                        {scratch.topk_id, scratch.topk_weights},
                                        {token_num, lws_size},
                                        {1, lws_size},

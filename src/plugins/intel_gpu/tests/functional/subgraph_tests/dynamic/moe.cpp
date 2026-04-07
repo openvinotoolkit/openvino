@@ -20,8 +20,9 @@ struct MoeTestShapeParams {
 
 static const char* routing_type_str(MoERoutingType rt) {
     switch (rt) {
-    case MoERoutingType::SOFTMAX:      return "Softmax";
-    case MoERoutingType::SIGMOID_BIAS: return "SigmoidBias";
+    case MoERoutingType::SOFTMAX:                return "Softmax";
+    case MoERoutingType::SIGMOID_BIAS:           return "SigmoidBias";
+    case MoERoutingType::SIGMOID_BIAS_SCALED_NORM: return "SigmoidBiasScaledNorm";
     default: OPENVINO_THROW("Unsupported MoERoutingType");
     }
 }
@@ -110,7 +111,11 @@ TEST_P(MoE3GemmCompressedFusionTest, Inference) {
     run();
 }
 
-const std::vector<MoERoutingType> routing_types = {MoERoutingType::SOFTMAX, MoERoutingType::SIGMOID_BIAS};
+const std::vector<MoERoutingType> routing_types = {
+    MoERoutingType::SOFTMAX,
+    MoERoutingType::SIGMOID_BIAS,
+    MoERoutingType::SIGMOID_BIAS_SCALED_NORM,
+};
 
 const std::vector<MoeTestShapeParams> moe_params_smoke = {
     {
