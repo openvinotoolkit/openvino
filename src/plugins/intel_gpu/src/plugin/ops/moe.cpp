@@ -127,6 +127,8 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         //   shape [num_experts, hidden_size, group_num, 1]
 
         // Use moe_3gemm_fused_compressed to replace it.
+        OPENVINO_THROW("MOECompressed with GEMM3_SWIGLU expert type should have been fused to MOE3GemmFusedCompressed, but still exists in the graph. Please "
+                       "check if the FuseMOE3GemmCompressed transformation is applied correctly.");
     } else {
         // Create GEMM2_BIAS_SWIGLU_CLAMP specific primitives
         // input0 : input {#tokens, hidden_size}
