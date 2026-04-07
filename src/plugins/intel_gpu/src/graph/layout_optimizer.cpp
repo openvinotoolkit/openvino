@@ -678,6 +678,47 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(const layout& input_layout,
     return false;
 }
 
+// Check if any downstream user within max_depth is an MVN node that requires_alignment.
+// When true, the producer convolution should avoid selecting a blocked layout
+// because reorder_inputs would otherwise insert a costly reorder -> MVN -> reorder pair.
+static bool has_direct_mvn_consumer(const program_node& node, size_t cur_depth = 0, size_t max_depth = 3) {
+    if (cur_depth > max_depth)
+        return false;
+    for (const auto& user : node.get_users()) {
+        if (user->is_type<mvn>()) {
+            // MVN's optimized kernels (bfyx_opt) always prefer plain format.
+            // When a convolution directly feeds MVN, selecting a blocked format
+            // for the convolution output forces insert_reorders to add reorder
+            // pairs (blocked->plain before MVN, plain->blocked after MVN).
+            // Avoiding the blocked format upstream eliminates both reorders.
+            return true;
+        }
+        // Walk through lightweight intermediaries (activation, eltwise, reorder)
+        // but stop at convolution/deconvolution boundaries.
+        if (!user->is_type<convolution>() && !user->is_type<deconvolution>()) {
+            if (has_direct_mvn_consumer(*user, cur_depth + 1, max_depth))
+                return true;
+        }
+    }
+    return false;
+}
+
+// Check if the data input (dependency 0) of a node comes from MVN within max_depth.
+// When true, the consumer deconvolution should prefer plain format to avoid
+// inserting a costly reorder between MVN (plain output) and deconvolution (blocked input).
+static bool has_mvn_input(const program_node& node, size_t cur_depth = 0, size_t max_depth = 3) {
+    if (cur_depth >= max_depth || node.get_dependencies().empty())
+        return false;
+    auto& input = node.get_dependency(0);
+    if (input.is_type<mvn>())
+        return true;
+    // Walk through lightweight intermediaries (reorder, reshape, quantize, eltwise)
+    if (input.is_type<reorder>() || input.is_type<reshape>() || input.is_type<quantize>() || input.is_type<eltwise>()) {
+        return has_mvn_input(input, cur_depth + 1, max_depth);
+    }
+    return false;
+}
+
 static bool has_reorder_before_mvn(const program_node& node, size_t cur_depth, size_t max_depth, uint64_t reorder_size_threshold = 0) {
     // MVN with rank size 3 always requires Reorder and Reshape. Due to this pattern, too many Reorder may occur when used with Convolution,
     // which may cause performance degradation. It stands out in Stable-Diffusion Unet and Decoder.
@@ -1031,6 +1072,18 @@ void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& no
     auto output_channels = get_convolution_channel_count(node, output_layout, false);
 
     if (i8_u8_input) {
+        // When the convolution output feeds an MVN node that requires alignment,
+        // prefer plain format to avoid the costly blocked -> plain -> blocked reorder pair
+        // that reorder_inputs would otherwise insert around the MVN.
+        bool mvn_consumer = has_direct_mvn_consumer(node);
+        if (mvn_consumer) {
+            auto default_fmt = format::get_default_format(rank);
+            node.set_preferred_input_fmt(0, default_fmt);
+            node.set_preferred_output_fmt(0, default_fmt);
+            GPU_DEBUG_LOG << node.id() << ": override blocked to plain format (MVN consumer detected)" << std::endl;
+            return;
+        }
+
         // Set default input format for i8/u8 input
         node.set_preferred_input_fmt(0, get_fsv32_format(rank));
 
@@ -1105,6 +1158,12 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
     }
 
     if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
+        // When downstream MVN prefers plain format, avoid blocked convolution output
+        // to prevent insert_reorders from adding reorder pairs around MVN.
+        if (has_direct_mvn_consumer(node)) {
+            expected_format = format::get_default_format(input_layout.get_partial_shape().size());
+            return expected_format;
+        }
         if (input_layout.get_partial_shape().size() <= 4)
             expected_format = format::b_fs_yx_fsv16;
         else if (input_layout.get_partial_shape().size() == 5)
@@ -1202,10 +1261,13 @@ format layout_optimizer::get_expected_format(deconvolution_node const& node) {
     auto expected_format = output_layout.format;
 
     if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
-        if (input_layout.get_partial_shape().size() <= 4)
+        if (has_mvn_input(node)) {
+            expected_format = format::get_default_format(input_layout.get_partial_shape().size());
+        } else if (input_layout.get_partial_shape().size() <= 4) {
             expected_format = format::b_fs_yx_fsv16;
-        else if (input_layout.get_partial_shape().size() == 5)
+        } else if (input_layout.get_partial_shape().size() == 5) {
             expected_format = format::b_fs_zyx_fsv16;
+        }
         return expected_format;
     }
 
