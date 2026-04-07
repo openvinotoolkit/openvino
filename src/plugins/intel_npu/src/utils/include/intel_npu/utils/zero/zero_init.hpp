@@ -86,6 +86,7 @@ public:
 
 private:
     void initNpuDriver();
+    void initCompilerPropertiesLocked();
     void getExtensionFunctionAddress(const std::string& name, const uint32_t version, void** function_address);
     void setContextProperties();
 

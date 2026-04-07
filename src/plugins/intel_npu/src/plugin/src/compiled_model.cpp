@@ -191,6 +191,12 @@ const FilteredConfig& CompiledModel::get_config() const {
     return _propertiesManager->getConfig();
 }
 
+void CompiledModel::release_memory() {
+    if (_graph != nullptr) {
+        _graph->evict_memory();
+    }
+}
+
 void CompiledModel::configure_stream_executors() {
     std::shared_ptr<ov::threading::ITaskExecutor> task_executor;
     if (get_plugin()->get_property(ov::internal::exclusive_async_requests.name(), {}).as<bool>()) {

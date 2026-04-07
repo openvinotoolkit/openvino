@@ -1661,6 +1661,9 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
         // Extract K tile
         if (hfa_can_reuse_tensor_zero_copy(k_source, k_tile_buffer, K_SEQ_DIM, kv_offset, tile_length)) {
             request->set_tensor(model->inputs()[tile_in.k], k_source);
+        } else if (hfa_desc._can_use_tensor_view) {
+            request->set_tensor(model->inputs()[tile_in.k],
+                                ov::npuw::util::view(k_source, K_SEQ_DIM, kv_offset, tile_length));
         } else {
             hfa_extract_and_copy_tile(k_source, k_tile_buffer, K_SEQ_DIM, kv_offset, tile_length, "K");
         }
@@ -1668,10 +1671,13 @@ void ov::npuw::JustInferRequest::run_hfa_tiled_inference(std::size_t real_idx, s
         // Extract V tile
         if (hfa_can_reuse_tensor_zero_copy(v_source, v_tile_buffer, V_SEQ_DIM, kv_offset, tile_length)) {
             request->set_tensor(model->inputs()[tile_in.v], v_source);
+        } else if (hfa_desc._can_use_tensor_view) {
+            request->set_tensor(model->inputs()[tile_in.v],
+                                ov::npuw::util::view(v_source, V_SEQ_DIM, kv_offset, tile_length));
+
         } else {
             hfa_extract_and_copy_tile(v_source, v_tile_buffer, V_SEQ_DIM, kv_offset, tile_length, "V");
         }
-
         // Extract mask tile with caching (if enabled) to avoid redundant extraction
         if (attention_mask_tensor) {
             // Check if zero-copy is possible (rare case where full mask matches tile)
