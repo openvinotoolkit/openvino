@@ -81,7 +81,7 @@ public:
                                      " for mapping. Ensure that file exists and has appropriate permissions.");
         }
         set_from_fd(fd, offset, size);
-        m_id = util::u64_hash_combine({std::hash<std::filesystem::path::string_type>{}(path.native()), offset, size});
+        m_id = util::u64_hash_combine(std::filesystem::hash_value(path), {offset, size});
     }
 
     void set_from_fd(const int fd, const size_t offset, const size_t size) {
@@ -109,7 +109,7 @@ public:
             m_data = static_cast<char*>(m_mapped_view) + (offset - aligned_offset);
         }
         m_id =
-            util::u64_hash_combine({static_cast<uint64_t>(sb.st_ino), static_cast<uint64_t>(sb.st_dev), offset, size});
+            util::u64_hash_combine(static_cast<uint64_t>(sb.st_ino), {static_cast<uint64_t>(sb.st_dev), offset, size});
     }
 
     uint64_t get_id() const noexcept override {
