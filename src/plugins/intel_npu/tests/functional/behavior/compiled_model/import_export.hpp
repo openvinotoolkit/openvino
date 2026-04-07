@@ -142,11 +142,7 @@ TEST_P(OVCompiledGraphImportExportTestNPU, SameUnencryptedBlobAfterDecryption) {
         ov::cache_encryption_callbacks(ov::EncryptionCallbacks{ov::util::codec_xor, ov::util::codec_xor}));
     core.compile_model(model, target_device, configuration).export_model(encrypted_blob_stream);
     configuration.erase(ov::cache_encryption_callbacks.name());
-    configuration.insert(ov::cache_encryption_callbacks(ov::EncryptionCallbacks{
-        [](const std::string& str) {
-            return str;
-        },
-        ov::util::codec_xor}));  // need to change encryption to plain return function to avoid reencryption
+    configuration.insert(ov::cache_encryption_callbacks(ov::EncryptionCallbacks{nullptr, ov::util::codec_xor}));
     configuration.insert(ov::intel_npu::defer_weights_load(true));
 
     core.import_model(encrypted_blob_stream, target_device, configuration).export_model(decrypted_blob_stream);

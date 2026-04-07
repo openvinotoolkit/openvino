@@ -194,6 +194,21 @@ std::shared_ptr<const ov::Model> exclude_model_ptr_from_map(ov::AnyMap& properti
     return modelPtr;
 }
 
+std::optional<ov::EncryptionCallbacks> exclude_cache_encryption_callbacks_from_map(ov::AnyMap& properties) {
+    std::optional<ov::EncryptionCallbacks> encryptionCallbacksOpt = std::nullopt;
+    if (properties.count(ov::cache_encryption_callbacks.name())) {
+        try {
+            encryptionCallbacksOpt = properties.at(ov::cache_encryption_callbacks.name()).as<ov::EncryptionCallbacks>();
+        } catch (const ov::Exception&) {
+            OPENVINO_THROW("The value of the \"ov::cache_encryption_callbacks\" configuration option "
+                           "(\"CACHE_ENCRYPTION_CALLBACKS\") has the "
+                           "wrong data type. Expected: ov::EncryptionCallbacks.");
+        }
+        properties.erase(ov::cache_encryption_callbacks.name());
+    }
+    return encryptionCallbacksOpt;
+}
+
 void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredConfig& config) {
     // Initialize (note: it will reset registered options)
     options.reset();
@@ -341,25 +356,34 @@ Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
     /// Init and register properties
     OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
     _propertiesManager = std::make_unique<Properties>(PropertiesType::PLUGIN, config, metrics, _backend);
+    _encryptionCallbacksOpt = std::nullopt;
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {
     if (properties.empty()) {
         return;
     }
-    update_log_level(properties);
+
+    auto npuPluginProperties = properties;
+    update_log_level(npuPluginProperties);
 
     if (_backend != nullptr) {
-        _backend->updateInfo(properties);
+        _backend->updateInfo(npuPluginProperties);
     }
 
-    _propertiesManager->setProperty(properties);
+    auto encryptionCallbacksOpt = exclude_cache_encryption_callbacks_from_map(npuPluginProperties);
+    if (encryptionCallbacksOpt.has_value()) {
+        _encryptionCallbacksOpt = encryptionCallbacksOpt;
+    }
+
+    _propertiesManager->setProperty(npuPluginProperties);
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
     if (!arguments.empty()) {
         auto npuPluginArguments = arguments;
         exclude_model_ptr_from_map(npuPluginArguments);
+        exclude_cache_encryption_callbacks_from_map(npuPluginArguments);
 
         // Need to create a temporary copy of the properties manager. The set of arguments we get might change the list
         // of supported properties, but we cannot alter the global state
@@ -376,6 +400,7 @@ bool Plugin::is_property_supported(const std::string& name, const ov::AnyMap& ar
     if (!arguments.empty()) {
         auto npuPluginArguments = arguments;
         exclude_model_ptr_from_map(npuPluginArguments);
+        exclude_cache_encryption_callbacks_from_map(npuPluginArguments);
 
         // Need to create a temporary copy of the properties manager. The set of arguments we get might change the list
         // of supported properties, but we cannot alter the global state
@@ -415,10 +440,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
-    // ov::hint::model has no corresponding "Config" implementation thus we need to remove it from the
-    // list of properties
+    // ov::hint::model and ov::cache_encryption_callbacks have no corresponding "Config" implementation thus we need to
+    // remove them from the list of properties
     if (exclude_model_ptr_from_map(localProperties)) {
         _logger.warning("Model received in config will be ignored as it was already provided by parameter.");
+    }
+    auto encryptionCallbacksOpt = exclude_cache_encryption_callbacks_from_map(localProperties);
+    if (!encryptionCallbacksOpt.has_value()) {
+        encryptionCallbacksOpt = _encryptionCallbacksOpt;
     }
 
     if (_backend != nullptr) {
@@ -603,12 +632,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
-    std::optional<std::function<std::string(const std::string&)>> encryptionCallback = std::nullopt;
-    if (auto encryptionCallbackIt = localProperties.find(ov::cache_encryption_callbacks.name());
-        encryptionCallbackIt != localProperties.end()) {
-        OPENVINO_ASSERT(encryptionCallbackIt->second.as<ov::EncryptionCallbacks>().encrypt != nullptr,
-                        "Null encryption function was given!");
-        encryptionCallback = encryptionCallbackIt->second.as<ov::EncryptionCallbacks>().encrypt;
+    std::optional<decltype(std::declval<ov::EncryptionCallbacks>().encrypt)> encryptionCallback = std::nullopt;
+    if (encryptionCallbacksOpt.has_value()) {
+        OPENVINO_ASSERT(encryptionCallbacksOpt->encrypt != nullptr, "Null encryption function was given!");
+        encryptionCallback = encryptionCallbacksOpt->encrypt;
     }
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
@@ -646,12 +673,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remoteProperties) const {
     auto npuPluginProperties = remoteProperties;
     exclude_model_ptr_from_map(npuPluginProperties);
+    exclude_cache_encryption_callbacks_from_map(npuPluginProperties);
     return std::make_shared<RemoteContextImpl>(_backend, npuPluginProperties);
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remoteProperties) const {
     auto npuPluginProperties = remoteProperties;
     exclude_model_ptr_from_map(npuPluginProperties);
+    exclude_cache_encryption_callbacks_from_map(npuPluginProperties);
     return std::make_shared<RemoteContextImpl>(_backend);
 }
 
@@ -669,6 +698,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     auto compiledModel = import_model_npuw(stream, npuPluginProperties, shared_from_this());
     if (compiledModel) {
         return compiledModel;
+    }
+
+    auto encryptionCallbacksOpt =
+        npuPluginProperties.count(ov::cache_encryption_callbacks.name())
+            ? std::make_optional(
+                  npuPluginProperties.at(ov::cache_encryption_callbacks.name()).as<ov::EncryptionCallbacks>())
+            : std::nullopt;
+    if (!encryptionCallbacksOpt.has_value()) {
+        encryptionCallbacksOpt = _encryptionCallbacksOpt;
     }
 
     if (_backend != nullptr) {
@@ -698,13 +736,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
         ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
         ov::Tensor tensor;
-        if (auto it = npuPluginProperties.find(ov::cache_encryption_callbacks.name());
-            it != npuPluginProperties.end()) {
-            OPENVINO_ASSERT(it->second.as<ov::EncryptionCallbacks>().decrypt != nullptr,
-                            "Null decryption function was given!");
+        if (encryptionCallbacksOpt.has_value()) {
+            OPENVINO_ASSERT(encryptionCallbacksOpt->decrypt != nullptr, "Null decryption function was given!");
             std::string blobStr;
-
             blobStr.resize(blobSize);  // +1x blob size
+
             if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
                 OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
             }
@@ -718,7 +754,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
                                " bytes");
             }
 
-            auto decryptedBlobStr = it->second.as<ov::EncryptionCallbacks>().decrypt(blobStr);  // +2x blob size
+            auto decryptedBlobStr = encryptionCallbacksOpt->decrypt(blobStr);  // +2x blob size
             blobStr.clear();  // -1x blob size, move is not permitted above
 
             size_t alignedSize = utils::align_size_to_standard_page_size(decryptedBlobStr.size());
@@ -778,6 +814,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
         return compiledModel;
     }
 
+    auto encryptionCallbacksOpt =
+        npuPluginProperties.count(ov::cache_encryption_callbacks.name())
+            ? std::make_optional(
+                  npuPluginProperties.at(ov::cache_encryption_callbacks.name()).as<ov::EncryptionCallbacks>())
+            : std::nullopt;
+    if (!encryptionCallbacksOpt.has_value()) {
+        encryptionCallbacksOpt = _encryptionCallbacksOpt;
+    }
+
     if (_backend != nullptr) {
         _backend->updateInfo(npuPluginProperties);
     }
@@ -801,12 +846,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
             _logger.info("Blob compatibility check skipped.");
         }
 
-        if (auto it = npuPluginProperties.find(ov::cache_encryption_callbacks.name());
-            it != npuPluginProperties.end()) {
-            OPENVINO_ASSERT(it->second.as<ov::EncryptionCallbacks>().decrypt != nullptr,
-                            "Null decryption function was given!");
-            std::string blobStr(compiledBlob.data<const char>(), blobSize);                     // +1x blob size
-            auto decryptedBlobStr = it->second.as<ov::EncryptionCallbacks>().decrypt(blobStr);  // + 2x blob size
+        if (encryptionCallbacksOpt.has_value()) {
+            OPENVINO_ASSERT(encryptionCallbacksOpt->decrypt != nullptr, "Null decryption function was given!");
+            std::string blobStr(compiledBlob.data<const char>(), blobSize);    // +1x blob size
+            auto decryptedBlobStr = encryptionCallbacksOpt->decrypt(blobStr);  // + 2x blob size
             blobStr.clear();  // -1x blob size, move is not permitted above
 
             size_t alignedSize = utils::align_size_to_standard_page_size(decryptedBlobStr.size());
@@ -854,6 +897,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
     auto localProperties = properties;
     exclude_model_ptr_from_map(localProperties);
+    exclude_cache_encryption_callbacks_from_map(localProperties);
 
     if (_backend != nullptr) {
         _backend->updateInfo(localProperties);
@@ -897,9 +941,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     auto localProperties = properties;
 
-    // ov::hint::model has no corresponding "Config" implementation thus we need to remove it from the
-    // list of properties
+    // ov::hint::model and ov::cache_encryption_callbacks have no corresponding "Config" implementation thus we need to
+    // remove them from the list of properties
     auto originalModel = exclude_model_ptr_from_map(localProperties);
+    auto encryptionCallbacksOpt = exclude_cache_encryption_callbacks_from_map(localProperties);
 
     std::shared_ptr<IDevice> device =
         utils::getDeviceById(_backend, _propertiesManager->determineDeviceId(localProperties));
@@ -1026,10 +1071,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         }
     }
 
-    std::optional<std::function<std::string(const std::string&)>> encryptionCallback = std::nullopt;
-    if (auto encryptionCallbackIt = localProperties.find(ov::cache_encryption_callbacks.name());
-        encryptionCallbackIt != localProperties.end()) {
-        encryptionCallback = encryptionCallbackIt->second.as<ov::EncryptionCallbacks>().encrypt;
+    std::optional<decltype(std::declval<ov::EncryptionCallbacks>().encrypt)> encryptionCallback = std::nullopt;
+    if (encryptionCallbacksOpt.has_value()) {
+        encryptionCallback = encryptionCallbacksOpt->encrypt;
         if (!encryptionCallback.value()) {
             // User might give nullptr for encryption callback when importing
             encryptionCallback = std::nullopt;
