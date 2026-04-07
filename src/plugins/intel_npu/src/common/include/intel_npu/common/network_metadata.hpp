@@ -158,26 +158,4 @@ struct NetworkMetadata final {
     void bindRelatedDescriptors();
 };
 
-/**
- * @struct NetworkDescription
- * @brief The object returned by the compiler
- * to provide such information about a network as description of inputs and outputs,
- * name and compiled network in a format executable by device
- */
-struct NetworkDescription final {
-    NetworkDescription(ov::Tensor&& compiledNetWorkTensor, NetworkMetadata&& metadata)
-        : metadata(std::move(metadata)),
-          compiledNetworkTensor(std::move(compiledNetWorkTensor)) {}
-    // Force move semantics to prevent blob copies
-    NetworkDescription(const NetworkDescription&) = delete;
-    NetworkDescription(NetworkDescription&&) = default;
-    NetworkDescription& operator=(const NetworkDescription&) = delete;
-    NetworkDescription& operator=(NetworkDescription&&) = default;
-    ~NetworkDescription() = default;
-
-    NetworkMetadata metadata;
-
-    ov::Tensor compiledNetworkTensor;
-};
-
 }  // namespace intel_npu

@@ -442,13 +442,17 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, CacheRopeDisabledRoundsTripThroughCom
     EXPECT_EQ(recorder.count_contains("_kv"), 1u);
 }
 
-TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperOptionRejectsCurrentSyntheticDecoderModel) {
+TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperOptionCompilesSyntheticDecoderModel) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
-    EXPECT_ANY_THROW(compiled = create_compiled_model(build_whisper_decoder_model(),
-                                                      {{"NPUW_WHISPER", "YES"}, {"NPUW_WHISPER_EOS_TOKEN", "42"}},
-                                                      recorder));
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_whisper_decoder_model(),
+                                                     {{"NPUW_WHISPER", "YES"}, {"NPUW_WHISPER_EOS_TOKEN", "42"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+    EXPECT_GE(recorder.calls().size(), 2u);
+    EXPECT_NE(recorder.find_suffix("_prefill"), nullptr);
+    EXPECT_EQ(recorder.count_contains("_kv"), 1u);
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperPreparationAddsKvCacheInputsAndPresentOutputs) {
@@ -476,7 +480,9 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperPrefillPreparationAddsCrossAtt
     ov::pass::StatefulToStateless().run_on_model(model);
     model = model->clone();
 
-    EXPECT_TRUE(ov::npuw::util::PrepareWhisperPrefillModel(128, 256).run_on_model(model));
+    EXPECT_TRUE(ov::npuw::util::PrepareWhisperPrefillModel(
+                    128, static_cast<uint32_t>(ov::test::npuw::WhisperConfig{}.max_source_positions))
+                    .run_on_model(model));
     auto prepared = model;
 
     EXPECT_TRUE(has_input_name(prepared, "attention_mask"));
