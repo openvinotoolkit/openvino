@@ -196,19 +196,17 @@ struct SDPAPatternNodes {
     std::shared_ptr<ov::Node> matmul2_node = nullptr;
     std::shared_ptr<ov::Node> softmax_node = nullptr;
     std::shared_ptr<ov::Node> add_node = nullptr;
-    std::shared_ptr<ov::Node> past_key_param_node = nullptr;
-    std::shared_ptr<ov::Node> past_value_param_node = nullptr;
     std::shared_ptr<ov::Node> past_key_concat_node = nullptr;
     std::shared_ptr<ov::Node> past_value_concat_node = nullptr;
 
     bool is_valid() const {
-        return matmul1_node && matmul2_node && softmax_node && add_node && past_key_param_node &&
-               past_value_param_node && past_key_concat_node && past_value_concat_node;
+        return matmul1_node && matmul2_node && softmax_node && add_node && 
+               past_key_concat_node && past_value_concat_node;
     }
 
     // Log pattern information for debugging
-    void log_pattern() const {
-        LOG_DEBUG("SDPA Pattern nodes:");
+    void log_pattern(const std::string& prefix) const {
+        LOG_DEBUG("SDPA Pattern " << prefix << " nodes:");
         LOG_DEBUG("  MatMul1: " << (matmul1_node ? matmul1_node->get_friendly_name() : "null"));
         LOG_DEBUG("  Add: " << (add_node ? add_node->get_friendly_name() : "null"));
         LOG_DEBUG("  Softmax: " << (softmax_node ? softmax_node->get_friendly_name() : "null"));

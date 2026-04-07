@@ -972,20 +972,7 @@ namespace {
 std::vector<ov::npuw::util::SDPAPatternNodes> find_sdpa_pattern_nodes_internal(const std::shared_ptr<ov::Model>& model,
                                                                                bool findAll) {
     // Find decomposed SDPA pattern components
-    std::map<size_t, ov::npuw::util::SDPAPatternNodes> pattern_nodes;
-
-    // Find past key and value parameter nodes
-    for (auto input : model->inputs()) {
-        auto input_node = input.get_node();
-        auto input_name = input_node->get_friendly_name();
-        auto past_k = ov::npuw::util::isPastKeyValuesKey(input_name);
-        auto past_v = ov::npuw::util::isPastKeyValuesValue(input_name);
-        if (past_k) {
-            pattern_nodes[past_k.value()].past_key_param_node = input_node->shared_from_this();
-        } else if (past_v) {
-            pattern_nodes[past_v.value()].past_value_param_node = input_node->shared_from_this();
-        }
-    }
+    std::vector<ov::npuw::util::SDPAPatternNodes> pattern_nodes;
 
     // Helper lambda to trace from MatMul to find Concat node
     auto find_concat_from_matmul = [](const std::shared_ptr<ov::Node>& matmul_node,
@@ -1018,172 +1005,70 @@ std::vector<ov::npuw::util::SDPAPatternNodes> find_sdpa_pattern_nodes_internal(c
         return nullptr;
     };
 
-    auto try_extract_kv_index_from_name = [](const std::string& name) -> std::optional<size_t> {
-        if (auto key_idx = ov::npuw::util::isPastKeyValuesKey(name)) {
-            return static_cast<size_t>(key_idx.value());
-        }
-        if (auto value_idx = ov::npuw::util::isPastKeyValuesValue(name)) {
-            return static_cast<size_t>(value_idx.value());
-        }
-        return std::nullopt;
-    };
-
-    auto try_extract_kv_index_from_node = [&](const std::shared_ptr<ov::Node>& node) -> std::optional<size_t> {
-        if (!node) {
-            return std::nullopt;
-        }
-
-        if (auto idx = try_extract_kv_index_from_name(node->get_friendly_name())) {
-            return idx;
-        }
-
-        for (const auto& out : node->outputs()) {
-            for (const auto& tensor_name : out.get_names()) {
-                if (auto idx = try_extract_kv_index_from_name(tensor_name)) {
-                    return idx;
-                }
-            }
-        }
-
-        return std::nullopt;
-    };
-
-    auto infer_pattern_index = [&](const ov::npuw::util::SDPAPatternNodes& candidate) -> std::optional<size_t> {
-        auto try_from_concat = [&](const std::shared_ptr<ov::Node>& concat) -> std::optional<size_t> {
-            if (!concat || !ov::is_type<ov::op::v0::Concat>(concat)) {
-                return std::nullopt;
-            }
-
-            for (size_t input_idx = 0; input_idx < concat->get_input_size(); ++input_idx) {
-                auto input_node = concat->input(input_idx).get_source_output().get_node_shared_ptr();
-                if (auto idx = try_extract_kv_index_from_node(input_node)) {
-                    return idx;
-                }
-            }
-
-            return std::nullopt;
-        };
-
-        auto try_from_matmul_input = [&](const std::shared_ptr<ov::Node>& matmul,
-                                         size_t input_idx) -> std::optional<size_t> {
-            if (!matmul || input_idx >= matmul->get_input_size()) {
-                return std::nullopt;
-            }
-            auto input_node = matmul->input(input_idx).get_source_output().get_node_shared_ptr();
-            return try_extract_kv_index_from_node(input_node);
-        };
-
-        if (auto idx = try_from_concat(candidate.past_key_concat_node)) {
-            return idx;
-        }
-        if (auto idx = try_from_concat(candidate.past_value_concat_node)) {
-            return idx;
-        }
-        if (auto idx = try_extract_kv_index_from_node(candidate.past_key_param_node)) {
-            return idx;
-        }
-        if (auto idx = try_extract_kv_index_from_node(candidate.past_value_param_node)) {
-            return idx;
-        }
-        if (auto idx = try_from_matmul_input(candidate.matmul1_node, 1)) {
-            return idx;
-        }
-        if (auto idx = try_from_matmul_input(candidate.matmul2_node, 1)) {
-            return idx;
-        }
-
-        return std::nullopt;
-    };
-
+    LOG_DEBUG("Entering find_sdpa_pattern_nodes_internal");
+    LOG_BLOCK();
     // Search for the pattern: MatMul -> Add -> Softmax -> MatMul
     auto ops = model->get_ordered_ops();
     size_t softmax_order_idx = 0;
     for (auto&& node : ops) {
-        if (ov::is_type<ov::op::v8::Softmax>(node)) {
-            const size_t current_order_idx = softmax_order_idx++;
-            ov::npuw::util::SDPAPatternNodes candidate;
-            auto& current_node = candidate;
-            current_node.softmax_node = node;
+        if (!ov::is_type<ov::op::v8::Softmax>(node))
+            continue;
+        LOG_DEBUG("Examining node: " << node->get_friendly_name() << " (" << node->get_type_name() << ")");
 
-            // Check if softmax is fed by Add
-            auto softmax_input = node->input(0).get_source_output().get_node_shared_ptr();
-            if (ov::is_type<ov::op::v1::Add>(softmax_input)) {
-                current_node.add_node = softmax_input;
+        const size_t current_order_idx = softmax_order_idx++;
+        ov::npuw::util::SDPAPatternNodes candidate;
+        auto& current_node = candidate;
+        current_node.softmax_node = node;
 
-                // Check if add is fed by MatMul (first MatMul)
-                auto add_input0 = current_node.add_node->input(0).get_source_output().get_node_shared_ptr();
-                if (ov::is_type<ov::op::v0::MatMul>(add_input0)) {
-                    current_node.matmul1_node = add_input0;
+        // Check if softmax is fed by Add - TODO: how optional is add?
+        auto softmax_input = node->input(0).get_source_output().get_node_shared_ptr();
+        if (!ov::is_type<ov::op::v1::Add>(softmax_input)) {
+            LOG_DEBUG("Softmax input is not Add(" << softmax_input->get_friendly_name() << "), skipping pattern check");
+            continue;
+        }
+        current_node.add_node = softmax_input;
 
-                    // Find Concat node for past key (input 1 of MatMul1)
-                    current_node.past_key_concat_node = find_concat_from_matmul(current_node.matmul1_node, 1);
-                }
-            }
+        // Check if add is fed by MatMul (first MatMul)
+        auto add_input0 = current_node.add_node->input(0).get_source_output().get_node_shared_ptr();
+        if (!ov::is_type<ov::op::v0::MatMul>(add_input0)) {
+            LOG_DEBUG("Add input is not MatMul(" << add_input0->get_friendly_name() << "), skipping pattern check");
+            continue;
+        }
+        current_node.matmul1_node = add_input0;
 
-            // Check if softmax feeds into MatMul (second MatMul)
-            for (auto&& output : node->outputs()) {
-                for (auto&& target_input : output.get_target_inputs()) {
-                    auto target_node = target_input.get_node()->shared_from_this();
-                    if (ov::is_type<ov::op::v0::MatMul>(target_node)) {
-                        current_node.matmul2_node = target_node;
+        // Find Concat node for past key (input 1 of MatMul1)
+        current_node.past_key_concat_node = find_concat_from_matmul(current_node.matmul1_node, 1);
 
-                        // Find Concat node for past value (input 1 of MatMul2)
-                        current_node.past_value_concat_node = find_concat_from_matmul(current_node.matmul2_node, 1);
-                        break;
-                    }
-                }
-                if (current_node.matmul2_node)
+        // Check if softmax feeds into MatMul (second MatMul)
+        for (auto&& output : node->outputs()) {
+            for (auto&& target_input : output.get_target_inputs()) {
+                auto target_node = target_input.get_node()->shared_from_this();
+                if (ov::is_type<ov::op::v0::MatMul>(target_node)) {
+                    current_node.matmul2_node = target_node;
+
+                    // Find Concat node for past value (input 1 of MatMul2)
+                    current_node.past_value_concat_node = find_concat_from_matmul(current_node.matmul2_node, 1);
                     break;
-            }
-
-            if (current_node.is_valid()) {
-                current_node.log_pattern();
-            }
-
-            auto pattern_idx = infer_pattern_index(candidate);
-            if (!pattern_idx.has_value()) {
-                const bool has_kv_concat = static_cast<bool>(candidate.past_key_concat_node) ||
-                                           static_cast<bool>(candidate.past_value_concat_node);
-                if (!has_kv_concat) {
-                    // No concat path means this Softmax->MatMul chain is not tied to KV-cache SDPA layout.
-                    if (!findAll && pattern_nodes.empty()) {
-                        return {};
-                    }
-                    continue;
                 }
-
-                // Fallback to traversal order for graphs where concat inputs are wrapped
-                // (e.g., Gather/ReadValue chains) and index can't be extracted from names.
-                if (!findAll && pattern_nodes.empty()) {
-                    return {};
-                }
-                pattern_idx = current_order_idx;
             }
+            if (current_node.matmul2_node)
+                break;
+        }
+        if (!current_node.matmul2_node) {
+            LOG_DEBUG("Softmax does not feed into MatMul, skipping pattern check");
+            continue;
+        }
 
-            auto& target = pattern_nodes[pattern_idx.value()];
-            target.softmax_node = candidate.softmax_node;
-            target.add_node = candidate.add_node;
-            target.matmul1_node = candidate.matmul1_node;
-            target.matmul2_node = candidate.matmul2_node;
-            target.past_key_concat_node = candidate.past_key_concat_node;
-            target.past_value_concat_node = candidate.past_value_concat_node;
+        // pattern might be not full, say missed concats for example
+        current_node.log_pattern(std::to_string(pattern_nodes.size()));
+
+        pattern_nodes.push_back(candidate);
+        if (!findAll) {
+            break;
         }
     }
 
-    // resonstruct nodes vector using indexes
-    std::vector<ov::npuw::util::SDPAPatternNodes> result;
-    size_t past_kv_index = 0;
-    for (auto&& map_element : pattern_nodes) {
-        // In find-all mode, keep discovered patterns even if some indices are missing.
-        // In single-pattern mode, preserve strict contiguous index expectation.
-        if (!findAll && map_element.first != past_kv_index) {
-            return {};
-        }
-        ++past_kv_index;
-        result.emplace_back(std::move(map_element.second));
-    }
-
-    return result;
+    return pattern_nodes;
 }
 }  // namespace
 
