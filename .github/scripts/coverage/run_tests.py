@@ -290,12 +290,16 @@ def _finalize_suite(
         warn(failure_warning)
 
 
-def _pycov_config(*, branch_coverage: bool) -> str:
+def _pycov_config(*, branch_coverage: bool, source_dir: Path, workspace: Path) -> str:
     """Build the coverage.py config used by pytest-cov and coverage CLI."""
     branch_line = "branch = True\n" if branch_coverage else ""
+    try:
+        source_value = source_dir.relative_to(workspace).as_posix()
+    except ValueError:
+        source_value = source_dir.as_posix()
     return f"""[run]
 source =
-    openvino
+    {source_value}
 relative_files = True
 {branch_line}omit =
     */tests/*
@@ -310,7 +314,7 @@ relative_files = True
 
 [paths]
 openvino =
-    src/bindings/python/src/openvino
+    {source_value}
     */site-packages/openvino
     */dist-packages/openvino
 """
@@ -330,6 +334,21 @@ def _remove_gcda(root: Path) -> None:
             gcda.unlink()
         except OSError:
             pass
+
+
+def _python_pytest_command(target: str, args: str, *, py_source_dir: Path, py_cov_config: Path) -> list[str]:
+    """Build one pytest command with shared Python coverage arguments."""
+    cmd = ["python3", "-m", "pytest", "-ra", "--durations=50", target]
+    if args:
+        cmd.extend(shlex.split(args))
+    cmd.extend(
+        [
+            f"--cov={py_source_dir}",
+            f"--cov-config={py_cov_config}",
+            "--cov-append",
+        ]
+    )
+    return cmd
 
 
 def _build_cpp_command(exe: Path, *, mode: str, args: str) -> list[str]:
@@ -525,22 +544,44 @@ def run_python(ctx: CoverageContext) -> None:
         return
 
     tests_dir = ctx.paths.install_pkg_dir / "tests"
+    py_source_root = ctx.workspace / "src" / "bindings" / "python" / "src"
+    py_source_dir = py_source_root / "openvino"
     src_py_tests = ctx.workspace / "src" / "bindings" / "python" / "tests"
     onnx_py_tests = ctx.workspace / "src" / "frontends" / "onnx" / "tests" / "tests_python"
     layer_tests = ctx.workspace / "tests" / "layer_tests"
     py_cov_config = ctx.workspace / ".python_coverage_ci.rc"
 
+    pip_install_path = os.environ.get("PIP_INSTALL_PATH", "").strip()
+    wheel_lib_dir = Path(pip_install_path) / "openvino" / "libs" if pip_install_path else None
+    runtime_extra_paths = [tests_dir]
+    if wheel_lib_dir is not None:
+        runtime_extra_paths.append(wheel_lib_dir)
+
     os.environ["LD_LIBRARY_PATH"] = (
-        f"{_runtime_ld_library_path(ctx)}:{os.environ.get('LD_LIBRARY_PATH', '')}"
+        f"{_runtime_ld_library_path(ctx, extra_paths=tuple(runtime_extra_paths))}:{os.environ.get('LD_LIBRARY_PATH', '')}"
     ).rstrip(":")
-    os.environ["PYTHONPATH"] = f"{tests_dir / 'python'}:{os.environ.get('PYTHONPATH', '')}".rstrip(":")
+    python_path_entries = [
+        str(py_source_root),
+        str(tests_dir),
+        str(tests_dir / "python"),
+        os.environ.get("PYTHONPATH", ""),
+    ]
+    os.environ["PYTHONPATH"] = ":".join(entry for entry in python_path_entries if entry).rstrip(":")
+    os.environ["PYTHONSAFEPATH"] = "1"
     os.environ["TESTS_DIR"] = str(tests_dir)
     os.environ["SRC_PY_TESTS_DIR"] = str(src_py_tests)
     os.environ["ONNX_PY_TESTS_DIR"] = str(onnx_py_tests)
     os.environ["WORKSPACE_LAYER_TESTS_DIR"] = str(layer_tests)
     os.environ["PY_COV_CONFIG"] = str(py_cov_config)
 
-    py_cov_config.write_text(_pycov_config(branch_coverage=ctx.branch_coverage), encoding="utf-8")
+    py_cov_config.write_text(
+        _pycov_config(
+            branch_coverage=ctx.branch_coverage,
+            source_dir=py_source_dir,
+            workspace=ctx.workspace,
+        ),
+        encoding="utf-8",
+    )
     os.environ["COVERAGE_RCFILE"] = str(py_cov_config)
     run_cmd(["python3", "-m", "coverage", "erase"])
 
@@ -555,18 +596,14 @@ def run_python(ctx: CoverageContext) -> None:
         env = env_from_assignments(_expand(test.env))
 
         if test.kind == "pytest":
-            cmd = ["python3", "-m", "pytest", "-ra", "--durations=50", target]
-            if args:
-                cmd.extend(shlex.split(args))
+            cmd = _python_pytest_command(target, args, py_source_dir=py_source_dir, py_cov_config=py_cov_config)
             rc, duration_seconds = _timed_run(f"Python test: {test.name}", cmd, env=env)
         elif test.kind == "pytest_if_dir":
             if not Path(target).is_dir():
                 warn(f"Skipping Python test group '{test.name}' (missing: {target})")
                 results.append(_TestRunResult(test.name, "skipped", f"{test.name} (missing path)"))
                 continue
-            cmd = ["python3", "-m", "pytest", "-ra", "--durations=50", target]
-            if args:
-                cmd.extend(shlex.split(args))
+            cmd = _python_pytest_command(target, args, py_source_dir=py_source_dir, py_cov_config=py_cov_config)
             rc, duration_seconds = _timed_run(f"Python test: {test.name}", cmd, env=env)
         elif test.kind == "command":
             rc, duration_seconds = _timed_run(

@@ -4,29 +4,29 @@ tests:
   - name: pyopenvino
     kind: pytest
     target: "${TESTS_DIR}/pyopenvino"
-    args: "-sv -k 'not cuda' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append --ignore=${TESTS_DIR}/pyopenvino/tests/test_utils/test_utils.py"
+    args: "-sv -k 'not cuda' --ignore=${TESTS_DIR}/pyopenvino/tests/test_utils/test_utils.py"
 
   - name: onnx_python
     kind: pytest
     target: "${TESTS_DIR}/onnx"
-    args: "-sv -k 'not cuda' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append --ignore=${TESTS_DIR}/onnx/test_python/test_zoo_models.py"
+    args: "-sv -k 'not cuda' --ignore=${TESTS_DIR}/onnx/test_python/test_zoo_models.py"
 
   - name: ovc_unit
     kind: pytest
     target: "${TESTS_DIR}/ovc/unit_tests"
-    args: "-sv -k 'not cuda' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
+    args: "-sv -k 'not cuda'"
 
   - name: py_frontend
     kind: pytest_if_dir
     target: "${TESTS_DIR}/layer_tests/py_frontend_tests"
     env: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
-    args: "-sv -k 'not cuda' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
+    args: "-sv -k 'not cuda'"
 
   - name: tensorflow_lite_layers
     kind: pytest_if_dir
     target: "${TESTS_DIR}/layer_tests/tensorflow_lite_tests"
     env: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
-    args: "-sv -k 'not cuda' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
+    args: "-sv -k 'not cuda'"
 
   - name: tensorflow_layers
     kind: pytest_if_dir
@@ -38,10 +38,10 @@ tests:
       npu: "TEST_DEVICE=NPU TEST_PRECISION=FP16"
       default: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
     args:
-      cpu: "-sv -k 'not gpu and not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
-      gpu: "-sv -k 'not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
-      npu: "-sv -k 'not cuda and not gpu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
-      default: "-sv -k 'not gpu and not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
+      cpu: "-sv -k 'not gpu and not cuda and not npu'"
+      gpu: "-sv -k 'not cuda and not npu'"
+      npu: "-sv -k 'not cuda and not gpu'"
+      default: "-sv -k 'not gpu and not cuda and not npu'"
 
   - name: onnx_layers
     kind: pytest_if_dir
@@ -53,10 +53,10 @@ tests:
       npu: "TEST_DEVICE=NPU TEST_PRECISION=FP16"
       default: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
     args:
-      cpu: "-sv -k 'not gpu and not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
-      gpu: "-sv -k 'not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
-      npu: "-sv -k 'not cuda and not gpu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
-      default: "-sv -k 'not gpu and not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
+      cpu: "-sv -k 'not gpu and not cuda and not npu'"
+      gpu: "-sv -k 'not cuda and not npu'"
+      npu: "-sv -k 'not cuda and not gpu'"
+      default: "-sv -k 'not gpu and not cuda and not npu'"
 
   - name: pytorch_layers
     kind: pytest_if_dir
@@ -68,51 +68,51 @@ tests:
       npu: "TEST_DEVICE=NPU TEST_PRECISION=FP16"
       default: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
     args:
-      cpu: "-sv -k 'not gpu and not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
-      gpu: "-sv -k 'not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
-      npu: "-sv -k 'not cuda and not gpu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
-      default: "-sv -k 'not gpu and not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
+      cpu: "-sv -k 'not gpu and not cuda and not npu'"
+      gpu: "-sv -k 'not cuda and not npu'"
+      npu: "-sv -k 'not cuda and not gpu'"
+      default: "-sv -k 'not gpu and not cuda and not npu'"
 
   - name: jax_layers_precommit
     kind: pytest_if_dir
     target: "${TESTS_DIR}/layer_tests/jax_tests"
     env: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
-    args: "-sv -m precommit_jax_fe -k 'not cuda' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
+    args: "-sv -m precommit_jax_fe -k 'not cuda'"
 
   - name: src_py_runtime
     kind: pytest_if_dir
     target: "${SRC_PY_TESTS_DIR}/test_runtime"
-    args: "-sv -k 'not gpu and not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
+    args: "-sv -k 'not gpu and not cuda and not npu'"
 
   - name: src_py_graph
     kind: pytest_if_dir
     target: "${SRC_PY_TESTS_DIR}/test_graph"
-    args: "-sv -k 'not gpu and not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
+    args: "-sv -k 'not gpu and not cuda and not npu'"
 
   - name: src_py_transformations
     kind: pytest_if_dir
     target: "${SRC_PY_TESTS_DIR}/test_transformations"
-    args: "-sv -k 'not gpu and not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
+    args: "-sv -k 'not gpu and not cuda and not npu'"
 
   - name: src_onnx_frontend_python
     kind: pytest_if_dir
     target: "${ONNX_PY_TESTS_DIR}"
-    args: "-sv -k 'not gpu and not cuda and not npu and not zoo' --ignore=${ONNX_PY_TESTS_DIR}/test_zoo_models.py --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
+    args: "-sv -k 'not gpu and not cuda and not npu and not zoo' --ignore=${ONNX_PY_TESTS_DIR}/test_zoo_models.py"
 
   - name: src_py_runtime_strict
     kind: pytest_if_dir
     target: "${SRC_PY_TESTS_DIR}/test_runtime"
-    args: "-q --maxfail=1 -k 'not gpu and not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
+    args: "-q --maxfail=1 -k 'not gpu and not cuda and not npu'"
 
   - name: src_py_utils
     kind: pytest_if_dir
     target: "${SRC_PY_TESTS_DIR}/test_utils"
-    args: "-sv -k 'not gpu and not cuda and not npu' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
+    args: "-sv -k 'not gpu and not cuda and not npu'"
 
   - name: src_py_package_versions
     kind: pytest
     target: "${SRC_PY_TESTS_DIR}/test_package_versions.py"
-    args: "-sv -k 'not cuda' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
+    args: "-sv -k 'not cuda'"
 
   - name: src_py_runtime_remote_api_gpu
     kind: pytest
@@ -120,19 +120,19 @@ tests:
     profile_skip_reason: "GPU profile is OFF"
     target: "${SRC_PY_TESTS_DIR}/test_runtime/test_remote_api.py"
     env: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
-    args: "-sv -k 'not cuda' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
+    args: "-sv -k 'not cuda'"
 
   - name: tf_api_precommit_subset
     kind: pytest_if_dir
     target: "${WORKSPACE_LAYER_TESTS_DIR}/ovc_python_api_tests"
     env: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
-    args: "-sv -m precommit_tf_fe -k 'test_tf and not cuda' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
+    args: "-sv -m precommit_tf_fe -k 'test_tf and not cuda'"
 
   - name: ovc_python_api_paddle_precommit
     kind: pytest
     target: "${WORKSPACE_LAYER_TESTS_DIR}/ovc_python_api_tests/test_paddle.py"
     env: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
-    args: "-sv -m precommit -k 'not cuda' --cov=openvino --cov-config=${PY_COV_CONFIG} --cov-append"
+    args: "-sv -m precommit -k 'not cuda'"
 
   - name: ovc_cli_help
     kind: command
