@@ -229,6 +229,7 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
 
     cldnn::event::ptr execute_stage(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance, Stage& stage) const {
         cldnn::stream& stream = instance.get_network().get_stream();
+        GPU_DEBUG_TRACE_DETAIL << "[execute_stage] prologue: stage_ptr=" << &stage << ", kernel_ptr=" << stage.kernel.get() << std::endl;
         // If any user of the desc's users is CPU implementation or network's output, set desc as a output event (event
         // won't be nullptr)
         bool needs_completion_event = instance.needs_completion_event();
@@ -236,12 +237,22 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         auto& kd = stage.kd;
         auto& params = kd.params;
 
+        GPU_DEBUG_TRACE_DETAIL << "[execute_stage] enter: stage_ptr=" << &stage
+                               << ", kernel_ptr=" << stage.kernel.get()
+                               << ", need_dispatch_data_update=" << static_cast<int>(kd.need_dispatch_data_update)
+                               << ", need_args_update=" << static_cast<int>(kd.need_args_update)
+                               << ", has_dispatch_func=" << static_cast<int>(kd.update_dispatch_data_func.m_dispatch_data_func != nullptr)
+                               << std::endl;
+
         if (kd.need_dispatch_data_update) {
+            GPU_DEBUG_TRACE_DETAIL << "[execute_stage] before update_dispatch_data_func" << std::endl;
             kd.update_dispatch_data_func(*instance.get_impl_params(), kd, m_rt_params.get());
             kd.need_dispatch_data_update = false;
+            GPU_DEBUG_TRACE_DETAIL << "[execute_stage] after update_dispatch_data_func" << std::endl;
         }
 
         if (kd.need_args_update) {
+            GPU_DEBUG_TRACE_DETAIL << "[execute_stage] before get_arguments" << std::endl;
             auto args = get_arguments(instance);
             args.scalars = &params.scalars;
             args.local_memory_args = &params.local_memory_args;
@@ -317,7 +328,12 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         OPENVINO_ASSERT(kernels.size() == 1, "Only the kernels of the single primitive should be allowed.");
         auto& kernel_vec = kernels.begin()->second;
         for (auto& [kernel, sub_kernel_idx] : kernel_vec) {
-            _stages[sub_kernel_idx]->kernel = kernel;
+            OPENVINO_ASSERT(sub_kernel_idx < _order.size(),
+                            "Invalid sub-kernel index ",
+                            sub_kernel_idx,
+                            " for stage order size ",
+                            _order.size());
+            _stages[_order[sub_kernel_idx]]->kernel = kernel;
         }
     }
 

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+namespace KERNEL_NAME {
+
 // Dedicated TurboQuant prefill kernel entry.
 // This file is extracted from pa_multi_token.cm and intentionally keeps only:
 //   - CM_HAS_LSC_UNTYPED_2D == 1 path
@@ -9,6 +11,7 @@
 //   - SPARSE_BLOCK_SIZE == 1 path
 //
 // Kernel symbol is fixed to: cm_pa_multi_token_turboquant
+
 
 #ifndef CM_HAS_LSC_UNTYPED_2D
 #error "cm_pa_multi_token_turboquant requires CM_HAS_LSC_UNTYPED_2D"
@@ -29,8 +32,6 @@
 #ifndef CMPA_WG_SEQ_LEN
 #error "CMPA_WG_SEQ_LEN must be defined"
 #endif
-
-namespace cm_pa_multi_token_turboquant_ns {
 
 #include "cm_attention_common.hpp"
 
@@ -310,7 +311,7 @@ void pa_lsc_u8_tq(
 	}
 }
 
-extern "C" _GENX_MAIN_ void cm_pa_multi_token_turboquant(
+extern "C" _GENX_MAIN_ void KERNEL_NAME(
 	//query [q_len, num_heads, S]
 	half* query [[type("svmptr_t")]],
 	int8_t* k_cache [[type("svmptr_t")]],
@@ -395,4 +396,5 @@ extern "C" _GENX_MAIN_ void cm_pa_multi_token_turboquant(
 							past_q_lens,
 							block_indices);
 }
-} // namespace cm_pa_multi_token_turboquant_ns
+
+} // namespace KERNEL_NAME

@@ -81,7 +81,7 @@ inline SingleTokenQChunking get_single_token_q_chunking(const kernel_impl_params
 }
 
 inline std::string get_pa_build_options() {
-    return " -cmc -Qxcm_register_file_size=" + std::to_string(PA_CM_REGISTER_FILE_SIZE);
+    return " -cmc -mCM_printregusage -mdump_asm -g2 -Qxcm_register_file_size=" + std::to_string(PA_CM_REGISTER_FILE_SIZE);
 }
 
 #define FIND_DEBUG_ACC 0
@@ -160,10 +160,9 @@ public:
 class PagedAttentionGeneratorKVCacheUpdate : public PagedAttentionGeneratorBase {
 public:
     explicit PagedAttentionGeneratorKVCacheUpdate(bool turboquant = false)
-        : PagedAttentionGeneratorBase(turboquant ? "compressed_kv_cache_update_tq" : "pa_kv_cache_update_ref"),
+                : PagedAttentionGeneratorBase(turboquant ?  "compressed_kv_cache_update_tq" : "pa_kv_cache_update_ref"),
           _turboquant(turboquant) {}
 
-    [[nodiscard]] std::string get_entry_point(const RuntimeParams& params) const override;
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
@@ -193,7 +192,6 @@ public:
         return WG_SIZE * get_q_step(params);
     }
 
-    [[nodiscard]] std::string get_entry_point(const RuntimeParams& params) const override;
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
@@ -209,7 +207,6 @@ public:
         : PagedAttentionGeneratorBase(turboquant ? "pa_single_token_turboquant" : "pa_single_token"),
           _turboquant(turboquant) {}
 
-    [[nodiscard]] std::string get_entry_point(const RuntimeParams& params) const override;
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;

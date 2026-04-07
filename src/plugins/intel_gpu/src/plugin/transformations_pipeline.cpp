@@ -657,6 +657,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const auto kv_cache_precision = config.get_kv_cache_precision();
             const auto key_cache_quant_mode = config.get_key_cache_quant_mode();
             const bool use_turboquant = key_cache_quant_mode == ov::internal::CacheQuantMode::TURBOQUANT;
+            GPU_DEBUG_TRACE << "[PA/TQ] kv-cache config: key_cache_quant_mode=" << static_cast<int>(key_cache_quant_mode)
+                            << ", use_turboquant=" << static_cast<int>(use_turboquant)
+                            << ", use_xattention=" << static_cast<int>(use_xattention) << std::endl;
             kv_cache_config.keyCachePrecision = kv_cache_precision;
             kv_cache_config.valueCachePrecision = kv_cache_precision;
             kv_cache_config.inferencePrecision = infer_precision;
@@ -666,10 +669,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             if (use_turboquant) {
                 // TurboQuant uses by-token KV cache path with explicit fixed layout.
+                kv_cache_config.keyCachePrecision = (kv_cache_precision == ov::element::i8 || kv_cache_precision == ov::element::i4)
+                                                         ? ov::element::i4
+                                                         : ov::element::u4;
+                kv_cache_config.valueCachePrecision = (kv_cache_precision == ov::element::i8 || kv_cache_precision == ov::element::i4)
+                                                          ? ov::element::i8
+                                                          : ov::element::u8;
                 kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size;
                 kv_cache_config.keyCacheDimOrder = {0, 1, 2, 3};
                 kv_cache_config.keyCacheQuantBychannel = false;
-                kv_cache_config.keyCacheGroupSize = 1;
+                kv_cache_config.keyCacheGroupSize = 0;
 
                 kv_cache_config.valueCacheBlockSize = cldnn::paged_attention::block_size;
                 kv_cache_config.valueCacheDimOrder = {0, 1, 2, 3};
@@ -702,12 +711,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
 
             manager.register_pass<ov::pass::ConvertPagedAttnInputs>(kv_cache_config,
-                [&infer_precision](const ov::element::Type& precision,
+                [&infer_precision, use_turboquant](const ov::element::Type& precision,
                 const bool bychannel,
                 const size_t group_num,
                 int64_t& head_size,
                 int64_t& block_size) {
                     OPENVINO_ASSERT(precision != ov::element::dynamic, "[GPU] kv_cache precision should be specified.");
+                    const auto head_size_before = head_size;
+                    const auto block_size_before = block_size;
                     if (bychannel) {
                         // TODO: need to handle group size != block size case
                         if (precision == ov::element::i8 || precision == ov::element::u8) {
@@ -717,6 +728,19 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                             block_size += infer_precision.size() * 4;
                         }
                     } else {
+                        if (use_turboquant && (precision == ov::element::i4 || precision == ov::element::u4)) {
+                            constexpr int64_t turboquant_bits = 4;
+                            head_size = head_size * turboquant_bits / 8 + 2;
+                            GPU_DEBUG_TRACE << "[PA/TQ] ConvertPagedAttnInputs adjust (turboquant): "
+                                            << "precision=" << precision
+                                            << ", bychannel=" << static_cast<int>(bychannel)
+                                            << ", group_num=" << group_num
+                                            << ", head_size " << head_size_before << " -> " << head_size
+                                            << ", block_size " << block_size_before << " -> " << block_size
+                                            << std::endl;
+                            return;
+                        }
+
                         if (precision == ov::element::i8 || precision == ov::element::u8) {
                             head_size += infer_precision.size() * 2 * group_num;
                         } else if (precision == ov::element::i4 || precision == ov::element::u4) {
@@ -724,6 +748,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                             head_size += infer_precision.size() * 4 * group_num;
                         }
                     }
+                    GPU_DEBUG_TRACE << "[PA/TQ] ConvertPagedAttnInputs adjust: "
+                                    << "use_turboquant=" << static_cast<int>(use_turboquant)
+                                    << ", precision=" << precision
+                                    << ", bychannel=" << static_cast<int>(bychannel)
+                                    << ", group_num=" << group_num
+                                    << ", head_size " << head_size_before << " -> " << head_size
+                                    << ", block_size " << block_size_before << " -> " << block_size
+                                    << std::endl;
                 },
                 [&] (ov::element::Type& precision) {
                     // Use u8/i8 for cache even if the inference precision is i4/u4,
