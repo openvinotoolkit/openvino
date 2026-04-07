@@ -129,8 +129,6 @@ public:
     void set_kernels_reuse(bool reuse_kernels) { _reuse_kernels = reuse_kernels; }
     bool get_kernels_reuse() const { return _reuse_kernels; }
 
-    bool validate_simple_kernel_execution(kernel::ptr kernel, int a, int b, int c);
-
     // forces compilation of all pending kernels/programs
     void build_all();
     void reset();
