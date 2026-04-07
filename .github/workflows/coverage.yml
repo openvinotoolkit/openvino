@@ -54,6 +54,7 @@ jobs:
       os: 'ubuntu_22_04'
       build-js: true
       build-additional-python-packages: false
+      build-debian-packages: false
       upload-coverage-notes: true
       cmake-options: >-
         -G 'Ninja Multi-Config'
@@ -178,7 +179,7 @@ jobs:
       - name: Upload Codecov (C++ runtime, CPU)
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: coverage.info
+          files: ${{ env.OV_WORKSPACE }}/coverage.info
           disable_search: true
           plugins: noop
           flags: cpp-runtime-cpp-cpu
@@ -318,7 +319,7 @@ jobs:
       - name: Upload Codecov (Python API, CPU)
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: python-coverage.xml
+          files: ${{ env.OV_WORKSPACE }}/python-coverage.xml
           disable_search: true
           plugins: noop
           flags: python-api-frontend-layer-ovc-cpu
@@ -330,7 +331,7 @@ jobs:
       - name: Upload Codecov (C++ runtime, Python suite, CPU)
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: coverage.info
+          files: ${{ env.OV_WORKSPACE }}/coverage.info
           disable_search: true
           plugins: noop
           flags: cpp-runtime-python-cpu
@@ -474,7 +475,7 @@ jobs:
       - name: Upload Codecov (JS bindings, CPU)
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: js-lcov.info
+          files: ${{ env.OV_WORKSPACE }}/js-lcov.info
           disable_search: true
           plugins: noop
           flags: nodejs-bindings-unit-e2e-cpu
@@ -486,7 +487,7 @@ jobs:
       - name: Upload Codecov (C++ runtime, JS suite, CPU)
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: coverage.info
+          files: ${{ env.OV_WORKSPACE }}/coverage.info
           disable_search: true
           plugins: noop
           flags: cpp-runtime-js-cpu
