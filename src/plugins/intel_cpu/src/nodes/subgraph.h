@@ -28,6 +28,8 @@
 
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
+#elif defined(OPENVINO_ARCH_RISCV64)
+#    include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #else
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #endif
@@ -85,6 +87,8 @@ private:
     // Holds ISA version used is codeGeneration target
 #if defined(OPENVINO_ARCH_ARM64)
 #    define _ov_dnnl_cpu_isa dnnl::impl::cpu::aarch64::cpu_isa_t
+#elif defined(OPENVINO_ARCH_RISCV64)
+#    define _ov_dnnl_cpu_isa ov::intel_cpu::riscv64::cpu_isa_t
 #else
 #    define _ov_dnnl_cpu_isa dnnl::impl::cpu::x64::cpu_isa_t
 #endif

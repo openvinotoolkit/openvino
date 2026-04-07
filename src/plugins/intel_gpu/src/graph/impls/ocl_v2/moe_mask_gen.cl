@@ -40,11 +40,17 @@ KERNEL(moe_mask_gen)(
         num_actual_used_experts[0] = experts_id_iter + is_used;
     }
 
+    #if ONEDNN_GROUPED_GEMM_USED
+        experts_info_start_idx[expert_id] = tokens_per_expert_iter + num_tokens_per_curr_expert;
+    #endif
+
     if (num_tokens_per_curr_expert == 0) {
         return;
     }
 
-    experts_info_start_idx[experts_id_iter] = tokens_per_expert_iter;
+    #if !ONEDNN_GROUPED_GEMM_USED
+        experts_info_start_idx[experts_id_iter] = tokens_per_expert_iter;
+    #endif
     experts_id[experts_id_iter] = expert_id;
     tokens_lens_per_expert[experts_id_iter] = num_tokens_per_curr_expert;
 
