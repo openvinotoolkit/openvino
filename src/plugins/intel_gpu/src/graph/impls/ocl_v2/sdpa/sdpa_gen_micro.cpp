@@ -29,12 +29,8 @@ size_t get_subgroup_size(gpu_arch arch) {
     case gpu_arch::xe_hp:
     case gpu_arch::xe_hpg:
         return 8;
-    case gpu_arch::xe_hpc:
-    case gpu_arch::xe2:
-    case gpu_arch::xe3:
-        return 16;
     default:
-        return 0;
+        return 16;
     }
 }
 
@@ -1180,7 +1176,15 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         jit.make("REMAINDER_Q", !q_full);
     } else if (device_info.arch >= gpu_arch::xe_hpc) {
         auto vbytes = n_values.get_length() * ov::element::Type(V.data_type).size();
-        if (lda % 16 == 0 && vbytes % 4 == 0)
+        const auto sg_tile_m = static_cast<size_t>(gemm_vs.getSetting("sg_tile_m"));
+        const auto sg_size = get_subgroup_size(device_info.arch);
+        // tile_ops.cl defines DEF_BLOCK2D_LOAD_STORE for half up to vl=16 (BR=32, BC=8).
+        // tile element vector = sg_tile_m * max_BC / sg_size; must be <= 16 (max defined vl).
+        const bool block2d_compatible = (sg_tile_m * 8 / sg_size) <= 16;  // sg_tile_m <= 32
+        const bool use_block2d = lda % 16 == 0 && vbytes % 4 == 0 && block2d_compatible;
+        GPU_DEBUG_TRACE_DETAIL << "BLOCK_2D_A check: sg_tile_m=" << sg_tile_m << " sg_size=" << sg_size << " lda=" << lda << " vbytes=" << vbytes
+                               << " block2d_compatible=" << block2d_compatible << " => " << (use_block2d ? "enabled" : "disabled") << std::endl;
+        if (use_block2d)
             jit.make("BLOCK_2D_A", 1);
     }
 
@@ -1485,8 +1489,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
                                      is_paged_attention,
                                      is_prefill);
         break;
-    case gpu_arch::xe2:
-    case gpu_arch::xe3: {
+    default: {
         config = choose_config_xe2(static_cast<int32_t>(k_head_size),
                                    static_cast<int32_t>(nkeys_v),
                                    thin_q,
@@ -1496,8 +1499,6 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
                                    is_prefill);
         break;
     }
-    default:
-        break;
     }
 
     OPENVINO_ASSERT(config != nullptr);
@@ -1521,7 +1522,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     problem_kq.A.layout = (is_paged_attention && !is_prefill) ? micro::MatrixLayout::N : micro::MatrixLayout::T;
 
     /* Set up microkernel options */
-    micro::GEMMProtocol::Options opts_kq;
+    micro::GEMMOptions opts_kq;
     opts_kq.localB = true;
     opts_kq.slmPtr = true;
 
@@ -1655,7 +1656,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     }
 
     /* Set up microkernel options */
-    micro::GEMMProtocol::Options opts_vs;
+    micro::GEMMOptions opts_vs;
     opts_vs.localB = true;
     opts_vs.slmPtr = true;
 

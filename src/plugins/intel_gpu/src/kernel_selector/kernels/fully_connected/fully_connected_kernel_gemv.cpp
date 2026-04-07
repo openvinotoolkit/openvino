@@ -162,7 +162,7 @@ JitConstants FullyConnected_GEMV::GetJitConstants(const fully_connected_params& 
     } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
         jit.AddConstant(MakeJitConstant("FILTER_LAYOUT_OS_IS_YX_TYPE", 2));
     } else {
-        OPENVINO_ASSERT("GEMV doesn't support this weights layout: ", params.weights.GetLayout());
+        OPENVINO_THROW("GEMV doesn't support this weights layout: ", params.weights.GetLayout());
     }
 
     if (params.weights.GetDType() == WeightsType::UINT4) {
@@ -170,7 +170,7 @@ JitConstants FullyConnected_GEMV::GetJitConstants(const fully_connected_params& 
     } else if (params.weights.GetDType() == WeightsType::INT4) {
         jit.AddConstant(MakeJitConstant("WEI_UINT4", 0));
     } else {
-        OPENVINO_ASSERT("GEMV only support INT4 and UINT4, doesn't support ", static_cast<size_t>(params.weights.GetDType()));
+        OPENVINO_THROW("GEMV only support INT4 and UINT4, doesn't support ", static_cast<size_t>(params.weights.GetDType()));
     }
 
     jit.AddConstant(MakeJitConstant("SIMD", simd));

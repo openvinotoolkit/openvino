@@ -461,9 +461,18 @@ KERNEL(pa_sdpa_opt)(
         // Final max value after reduction across of all SG and WI
         unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
             #ifdef HAS_SINK_INPUT
-            const uint head_idx = get_global_id(1);
             const SOFTMAX_ACCUMULATOR_TYPE qk_max_tmp = sub_group_reduce_max(GET_VECTOR_ELEMENT(qk_max, q_idx));
-            GET_VECTOR_ELEMENT(qk_max, q_idx) = qk_max_tmp > sink_ptr[head_idx] ? qk_max_tmp : sink_ptr[head_idx];
+            // Include sink in softmax only for partition 0, because each partition independently
+            // computes its own local softmax (max + exp_sum). The finalization kernel later merges
+            // all partitions by rescaling each partition's exp_sum with exp(local_max - global_max).
+            // If sink were included in every partition, the finalization would count the sink
+            // contribution P times (once per partition) instead of once.
+            if (partition_idx == 0) {
+                const uint head_idx = get_global_id(1);
+                GET_VECTOR_ELEMENT(qk_max, q_idx) = qk_max_tmp > sink_ptr[head_idx] ? qk_max_tmp : sink_ptr[head_idx];
+            } else {
+                GET_VECTOR_ELEMENT(qk_max, q_idx) = qk_max_tmp;
+            }
             #else
             GET_VECTOR_ELEMENT(qk_max, q_idx) = sub_group_reduce_max(GET_VECTOR_ELEMENT(qk_max, q_idx));
             #endif
@@ -514,8 +523,10 @@ KERNEL(pa_sdpa_opt)(
         unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
             GET_VECTOR_ELEMENT(exp_sum, q_idx) = sub_group_reduce_add(GET_VECTOR_ELEMENT(exp_sum, q_idx));
             #ifdef HAS_SINK_INPUT
-            const uint head_idx = get_global_id(1);
-            GET_VECTOR_ELEMENT(exp_sum, q_idx) += (native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(sink_ptr[head_idx] - GET_VECTOR_ELEMENT(qk_max, q_idx))));
+            if (partition_idx == 0) {
+                const uint head_idx = get_global_id(1);
+                GET_VECTOR_ELEMENT(exp_sum, q_idx) += (native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(sink_ptr[head_idx]) - GET_VECTOR_ELEMENT(qk_max, q_idx)));
+            }
             #endif
         }
 

@@ -6,16 +6,11 @@
 
 #include <gtest/gtest.h>
 
-#ifdef _WIN32
-#    include <windows.h>
-#else
-#    include <unistd.h>
-#endif
-
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/util/mmap_object.hpp"
 
 namespace ov::test {
 
@@ -24,16 +19,6 @@ using runtime::SingleFileStorage;
 namespace {
 constexpr uint64_t version_size() {
     return 3 * sizeof(uint16_t);  // major, minor, patch
-}
-
-std::streamoff get_system_page_size() {
-#ifdef _WIN32
-    SYSTEM_INFO sysInfo;
-    GetSystemInfo(&sysInfo);
-    return static_cast<std::streamoff>(sysInfo.dwPageSize);
-#else
-    return static_cast<std::streamoff>(sysconf(_SC_PAGE_SIZE));
-#endif
 }
 }  // namespace
 
@@ -45,6 +30,7 @@ protected:
     void SetUp() override {
         m_file_path = ov::test::utils::generateTestFilePrefix() + ".bin";
         m_storage = std::make_unique<SingleFileStorage>(m_file_path);
+        m_storage->initialize();
         ASSERT_TRUE(std::filesystem::exists(m_file_path));
     }
 
@@ -116,6 +102,7 @@ TEST_F(SingleFileStorageTest, WriteReadCacheEntry) {
     blob_read_test(*m_storage);
     m_storage.reset();
     SingleFileStorage reopened_storage(m_file_path);
+    reopened_storage.initialize();
     blob_read_test(reopened_storage);
 }
 
@@ -135,8 +122,6 @@ TEST_F(SingleFileStorageTest, BlobAlignment) {
     const auto stream_end = stream.tellg();
     stream.seekg(version_size(), std::ios::beg);
 
-    const auto alignment = get_system_page_size();
-
     while (stream.good() && stream.tellg() < stream_end) {
         SingleFileStorage::Tag tag;
         runtime::TLVTraits::LengthType length;
@@ -155,7 +140,8 @@ TEST_F(SingleFileStorageTest, BlobAlignment) {
 
             stream.seekg(padding_size, std::ios::cur);
             const auto blob_data_pos = stream.tellg();
-            EXPECT_EQ(blob_data_pos % alignment, 0) << "Blob with id " << id << " is not properly aligned";
+            EXPECT_EQ(blob_data_pos % SingleFileStorage::blob_alignment, 0)
+                << "Blob with id " << id << " is not properly aligned";
 
             const auto expected_pos = blob_id_pos + static_cast<std::streamoff>(length);
             stream.seekg(test_blobs.at(id).size(), std::ios::cur);
@@ -184,6 +170,7 @@ TEST_F(SingleFileStorageTest, AppendOnlyCacheEntry) {
     m_storage.reset();
 
     SingleFileStorage reopened_storage(m_file_path);
+    reopened_storage.initialize();
     OV_EXPECT_THROW_HAS_SUBSTRING(reopened_storage.write_cache_entry(blob_id, [&](std::ostream&) {}),
                                   ov::AssertFailure,
                                   blob_id + " already exists in cache");
@@ -231,6 +218,7 @@ TEST_F(SingleFileStorageTest, ContextMetaWriteRead) {
     m_storage.reset();
 
     SingleFileStorage reopened_storage(m_file_path);
+    reopened_storage.initialize();
     meta_read_test(reopened_storage);
 }
 
@@ -250,7 +238,9 @@ TEST_F(SingleFileStorageTest, ContextMetaAppendDelta) {
     m_storage.reset();
     const auto file_size_after_first_write = test::utils::fileSize(m_file_path.string());
 
-    SingleFileStorage{m_file_path}.write_context(test_context);
+    SingleFileStorage storage{m_file_path};
+    storage.initialize();
+    storage.write_context(test_context);
     const auto file_size_after_second_write = test::utils::fileSize(m_file_path.string());
     EXPECT_EQ(file_size_after_second_write, file_size_after_first_write)
         << "Rewriting the same context should not increase file size";
@@ -270,8 +260,6 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceWrite) {
     const auto stream_end = stream.tellg();
     stream.seekg(version_size(), std::ios::beg);
 
-    const auto alignment = get_system_page_size();
-
     while (stream.good() && stream.tellg() < stream_end) {
         SingleFileStorage::Tag tag;
         runtime::TLVTraits::LengthType length;
@@ -289,7 +277,7 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceWrite) {
 
             stream.seekg(padding_size, std::ios::cur);
             const auto weight_pos = stream.tellg();
-            ASSERT_EQ(weight_pos % alignment, 0);
+            ASSERT_EQ(weight_pos % SingleFileStorage::blob_alignment, 0);
             const auto weight_size =
                 length - sizeof(device_id) - sizeof(source_id) - sizeof(padding_size) - padding_size;
             ASSERT_EQ(weight_size, buffer->size());
@@ -316,7 +304,9 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceAppendDelta) {
     m_storage.reset();
     const auto file_size_after_first_write = test::utils::fileSize(m_file_path.string());
 
-    SingleFileStorage{m_file_path}.write_context(test_context);
+    SingleFileStorage file_storage{m_file_path};
+    file_storage.initialize();
+    file_storage.write_context(test_context);
     const auto file_size_after_second_write = test::utils::fileSize(m_file_path.string());
     EXPECT_EQ(file_size_after_second_write, file_size_after_first_write)
         << "Rewriting the same context should not increase file size";
