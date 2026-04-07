@@ -28,7 +28,8 @@ using PagedAttnTokenTypeParams = std::tuple<ov::element::Type_t,
                                             size_t,      //< head_num
                                             int32_t,     //< sliding_window_size
                                             TestData,    //< pattern
-                                            std::string  //< Device name
+                                            std::string, //< Device name
+                                            bool         //< use_flash_attn_v2
                                             >;
 
 class PagedAttentionTokenTypeTest : public testing::WithParamInterface<PagedAttnTokenTypeParams>,
@@ -41,6 +42,7 @@ public:
 
 protected:
     void SetUp() override;
+    void TearDown() override;
     void RunAndValidate();
 };
 

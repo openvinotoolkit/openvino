@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/single_op/paged_attention_token_type.hpp"
 
+#include <cstdlib>
+
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -18,6 +20,24 @@ using namespace ov::op;
 namespace ov {
 namespace test {
 namespace helpers {
+namespace os {
+void set_env(const char* name, const char* value) {
+#ifdef _WIN32
+    _putenv_s(name, value);
+#else
+    ::setenv(name, value, 1);
+#endif
+}
+
+void unset_env(const char* name) {
+#ifdef _WIN32
+    _putenv_s(name, "");
+#else
+    ::unsetenv(name);
+#endif
+}
+}  // namespace os
+
 static std::vector<float> GetOutputAsFloatVec(const ov::Tensor& tensor) {
     std::vector<float> result(tensor.get_size());
     if (tensor.get_element_type() == ov::element::f32) {
@@ -137,7 +157,7 @@ static std::shared_ptr<ov::Model> PrepareModel(ov::element::Type data_type,
 }  // namespace helpers
 
 std::string PagedAttentionTokenTypeTest::getTestCaseName(const testing::TestParamInfo<PagedAttnTokenTypeParams>& obj) {
-    const auto& [inType, head_size, head_num, sliding_window_size, pattern, device] = obj.param;
+    const auto& [inType, head_size, head_num, sliding_window_size, pattern, device, use_flash_attn_v2] = obj.param;
     std::ostringstream result;
     result << "Prc=" << inType << "_";
     result << "HS=" << head_size << "_";
@@ -145,18 +165,25 @@ std::string PagedAttentionTokenTypeTest::getTestCaseName(const testing::TestPara
     result << "SW=" << sliding_window_size << "_";
     result << "SQ=" << pattern.tokenTypes.size() << "_";
     result << "Device=" << device << "_";
+    result << "FlashAttnV2=" << (use_flash_attn_v2 ? "ON" : "OFF") << "_";
     result << "Name=" << pattern.name;
 
     return result.str();
 }
 
 void PagedAttentionTokenTypeTest::SetUp() {
-    const auto& [inType, head_size, head_num, sliding_window_size, pattern, device] = GetParam();
+    const auto& [inType, head_size, head_num, sliding_window_size, pattern, device, use_flash_attn_v2] = GetParam();
     configuration[ov::hint::inference_precision.name()] = ov::element::f32;
     configuration[ov::hint::kv_cache_precision.name()] = ov::element::f32;
+    helpers::os::set_env("OV_GPU_COULD_USE_FLASHATTN_V2", use_flash_attn_v2 ? "1" : "0");
     targetDevice = device;
     function = helpers::PrepareModel(inType, head_size, head_num, sliding_window_size);
     compile_model();
+}
+
+void PagedAttentionTokenTypeTest::TearDown() {
+    helpers::os::unset_env("OV_GPU_COULD_USE_FLASHATTN_V2");
+    SubgraphBaseTest::TearDown();
 }
 
 void PagedAttentionTokenTypeTest::run() {
@@ -167,7 +194,7 @@ void PagedAttentionTokenTypeTest::run() {
     RunAndValidate();
 }
 void PagedAttentionTokenTypeTest::RunAndValidate() {
-    const auto& [inType, head_size, head_num, sliding_window_size, data, device] = this->GetParam();
+    const auto& [inType, head_size, head_num, sliding_window_size, data, device, use_flash_attn_v2] = this->GetParam();
 
     const size_t seq_len = data.tokenTypes.size();
     const size_t hidden_dim = head_size * head_num;
