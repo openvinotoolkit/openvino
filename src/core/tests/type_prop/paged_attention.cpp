@@ -311,6 +311,8 @@ static ov::OutputVector make_args_with_token_type(const std::shared_ptr<ov::op::
         std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{10});
     const auto adaptive_rkv_diversity_block_set_indices_begins =
         std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{5});
+    const auto qq_bias = std::make_shared<op::v0::Parameter>(ov::element::u8, ov::PartialShape{4});
+    const auto qq_bias_begins = std::make_shared<op::v0::Parameter>(ov::element::i32, ov::PartialShape{2});
 
     return {query,
             key,
@@ -337,7 +339,9 @@ static ov::OutputVector make_args_with_token_type(const std::shared_ptr<ov::op::
             adaptive_rkv_evictable_sizes,
             adaptive_rkv_diversity_block_set_indices,
             adaptive_rkv_diversity_block_set_indices_begins,
-            token_type_ids};
+            token_type_ids,
+            qq_bias,
+            qq_bias_begins};
 }
 
 TEST(type_prop, paged_attention_token_type_ids_1d) {
