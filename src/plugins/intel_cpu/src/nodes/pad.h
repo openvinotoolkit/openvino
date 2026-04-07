@@ -14,6 +14,7 @@
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "graph_context.h"
+#include "nodes/executors/pad.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
@@ -42,19 +43,7 @@ protected:
 private:
     using VectorIdxs = std::vector<int32_t>;
 
-    enum PadMode : uint8_t { CONSTANT = 0, EDGE = 1, REFLECT = 2, SYMMETRIC = 3 };
-
-    struct PadAttrs {
-        PadMode padMode = CONSTANT;
-        float padValue = 0.F;
-        VectorIdxs padsBegin;
-        VectorIdxs padsEnd;
-        int beginPadIdx = 0;
-        int endPadIdx = 0;
-        ov::element::Type prc;
-        bool constPadValue = false;
-        std::shared_ptr<CpuParallel> cpuParallel;
-    } attrs;
+    ov::intel_cpu::PadAttrs attrs;
 
     struct PadExecutor {
         PadExecutor(const PadAttrs& attrs,
@@ -125,6 +114,7 @@ private:
 
     using executorPtr = std::shared_ptr<PadExecutor>;
     executorPtr execPtr = nullptr;
+    ov::intel_cpu::PadExecutorPtr aclExecPtr = nullptr;
     std::vector<MemoryCPtr> srcMemory;
     std::vector<MemoryCPtr> dstMemory;
     bool shapeHasDataDependency = false;
