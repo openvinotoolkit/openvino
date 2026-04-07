@@ -254,9 +254,8 @@ void SingleFileStorage::write_blob_entry(std::fstream& stream, BlobIdType blob_i
 
 void SingleFileStorage::write_cache_entry(const std::string& blob_id, StreamWriter writer) {
     ScopedLocale plocal_C(LC_ALL, "C");
-    std::fstream stream(m_file_path, std::ios::binary | std::ios::in | std::ios::out);
+    std::fstream stream(m_file_path, std::ios::binary | std::ios::in | std::ios::out | std::ios::ate);
     OPENVINO_ASSERT(stream.good(), "Failed to open cache file ", m_file_path, " for writing blob id ", blob_id);
-    stream.seekp(0, std::ios::end);
     write_blob_entry(stream, convert_blob_id(blob_id), writer);
 }
 
@@ -337,7 +336,7 @@ void SingleFileStorage::write_context(const weight_sharing::Context& context) {
                 s.write(reinterpret_cast<const char*>(&device_id), sizeof(device_id));
                 s.write(reinterpret_cast<const char*>(&source_id), sizeof(source_id));
                 write_padding(s, blob_alignment);
-                s.write(reinterpret_cast<const char*>(weights->get_ptr()), weights->size());
+                s.write(weights->get_ptr<char>(), weights->size());
             });
             m_shared_context->m_cache_sources[source_id] = weight_buffer;
         }

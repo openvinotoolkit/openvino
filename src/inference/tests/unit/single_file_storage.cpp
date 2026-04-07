@@ -88,7 +88,6 @@ TEST_F(SingleFileStorageTest, WriteReadCacheEntry) {
             storage.read_cache_entry(blob_id, true, [&](const ICacheManager::CompiledBlobVariant& compiled_blob) {
                 ASSERT_TRUE(std::holds_alternative<const ov::Tensor>(compiled_blob));
                 ++read_count;
-                // CVS-181859 Check support for multimap memory mapping
                 auto& tensor = std::get<const ov::Tensor>(compiled_blob);
                 ASSERT_EQ(tensor.get_byte_size(), blob_data.size());
                 std::vector<uint8_t> read_data(blob_data.size());
@@ -310,5 +309,20 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceAppendDelta) {
     const auto file_size_after_second_write = test::utils::fileSize(m_file_path.string());
     EXPECT_EQ(file_size_after_second_write, file_size_after_first_write)
         << "Rewriting the same context should not increase file size";
+}
+
+TEST_F(SingleFileStorageTest, WriterMisposition) {
+    OV_EXPECT_THROW(m_storage->write_cache_entry("42",
+                                                 [&](std::ostream& s) {
+                                                     s.seekp(-1, std::ios::cur);
+                                                 }),
+                    AssertFailure,
+                    ::testing::HasSubstr("Invalid blob size"));
+    OV_EXPECT_THROW(m_storage->write_cache_entry("41",
+                                                 [&](std::ostream& s) {
+                                                     s.seekp(0, std::ios::beg);
+                                                 }),
+                    AssertFailure,
+                    ::testing::HasSubstr("Invalid blob size"));
 }
 }  // namespace ov::test
