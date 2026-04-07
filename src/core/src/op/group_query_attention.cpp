@@ -44,6 +44,9 @@ void GroupQueryAttention::validate_and_infer_types() {
     if (output_kv_len.is_dynamic() || sequence_len.is_dynamic()) {
         // For dynamic shapes, concatenate the past and current sequence lengths.
         output_kv_len += sequence_len;
+    } else {
+        // for static shape, output current sequence lengths
+        output_kv_len = sequence_len;
     }
 
     const auto& element_type = get_input_element_type(0);
