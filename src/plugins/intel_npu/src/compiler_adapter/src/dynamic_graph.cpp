@@ -14,6 +14,7 @@
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
 namespace intel_npu {
@@ -502,14 +503,10 @@ void DynamicGraph::set_workload_type(const ov::WorkloadType workloadType) {
 
     std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
     auto zeWorkloadType = zeroUtils::toZeQueueWorkloadType(workloadType);
-    if (_commandQueueDesc.workload == zeWorkloadType) {
+    if (_commandQueueDesc.workload() == zeWorkloadType) {
         return;
     }
-    _commandQueueDesc.workload = zeWorkloadType;
-
-    const ZeroCmdQueueKey key{_zeroInitStruct->getContext(), _zeroInitStruct->getDevice(), _commandQueueDesc};
-    const auto queueKeyHash = ZeroCmdQueueKeyHash{}(key);
-    _commandQueueDesc.key = static_cast<uint64_t>(queueKeyHash);
+    _commandQueueDesc.set_workload(zeWorkloadType);
 }
 
 void DynamicGraph::set_model_priority(const ov::hint::Priority modelPriority) {
@@ -519,14 +516,10 @@ void DynamicGraph::set_model_priority(const ov::hint::Priority modelPriority) {
 
     std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
     auto zeModelPriority = zeroUtils::toZeQueuePriority(modelPriority);
-    if (_commandQueueDesc.priority == zeModelPriority) {
+    if (_commandQueueDesc.priority() == zeModelPriority) {
         return;
     }
-    _commandQueueDesc.priority = zeModelPriority;
-
-    const ZeroCmdQueueKey key{_zeroInitStruct->getContext(), _zeroInitStruct->getDevice(), _commandQueueDesc};
-    const auto queueKeyHash = ZeroCmdQueueKeyHash{}(key);
-    _commandQueueDesc.key = static_cast<uint64_t>(queueKeyHash);
+    _commandQueueDesc.set_priority(zeModelPriority);
 }
 
 void DynamicGraph::set_argument_value(uint32_t argi, const void* argv) const {
@@ -593,10 +586,6 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
             commandQueueOptions,
             this,
             config.get<SHARED_COMMON_QUEUE>()};
-
-        const ZeroCmdQueueKey key{_zeroInitStruct->getContext(), _zeroInitStruct->getDevice(), _commandQueueDesc};
-        const auto queueKeyHash = ZeroCmdQueueKeyHash{}(key);
-        _commandQueueDesc.key = static_cast<uint64_t>(queueKeyHash);
     }
 
     _logger.debug("Graph initialize finish");
