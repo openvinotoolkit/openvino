@@ -11,6 +11,7 @@
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/profiling.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "model_serializer.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/file_util.hpp"
@@ -35,29 +36,6 @@ UsedVersion getUsedVclVersion(uint16_t pluginMajor, uint16_t pluginMinor, const 
         usedMinor = loadedVersion.minor;
     }
     return {usedMajor, usedMinor};
-}
-
-bool isUseBaseModelSerializer(UsedVersion useVersion, const intel_npu::FilteredConfig& config) {
-    // vcl serializer(No copy) is only support for vcl version >= 7.5
-    if (useVersion.Major < 7 || (useVersion.Major == 7 && useVersion.Minor < 5)) {
-        return true;
-    }
-
-    // user pass use_base_model_serializer config
-    if (config.isAvailable(ov::intel_npu::use_base_model_serializer.name()) &&
-        config.has(ov::intel_npu::use_base_model_serializer.name())) {
-        return config.get<intel_npu::USE_BASE_MODEL_SERIALIZER>();
-    }
-
-    // user pass model_serializer_version config
-    if (config.isAvailable(ov::intel_npu::model_serializer_version.name()) &&
-        config.has(ov::intel_npu::model_serializer_version.name())) {
-        return (config.get<intel_npu::MODEL_SERIALIZER_VERSION>() ==
-                ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY);
-    }
-
-    // No VCL serializer was chosen explicitly, will default to the "no weights copy" implementation
-    return false;
 }
 
 struct vcl_allocator : vcl_allocator2_t {
@@ -134,74 +112,6 @@ ov::Tensor make_tensor_from_aligned_addr(uint8_t* allocated, size_t size) {
 
 namespace intel_npu {
 
-// clang-format off
-#define vcl_symbols_list()                                  \
-    vcl_symbol_statement(vclGetVersion)                     \
-    vcl_symbol_statement(vclCompilerCreate)                 \
-    vcl_symbol_statement(vclCompilerDestroy)                \
-    vcl_symbol_statement(vclCompilerGetProperties)          \
-    vcl_symbol_statement(vclQueryNetworkCreate)             \
-    vcl_symbol_statement(vclQueryNetwork)                   \
-    vcl_symbol_statement(vclQueryNetworkDestroy)            \
-    vcl_symbol_statement(vclExecutableCreate)               \
-    vcl_symbol_statement(vclAllocatedExecutableCreate)      \
-    vcl_symbol_statement(vclExecutableDestroy)              \
-    vcl_symbol_statement(vclExecutableGetSerializableBlob)  \
-    vcl_symbol_statement(vclProfilingCreate)                \
-    vcl_symbol_statement(vclGetDecodedProfilingBuffer)      \
-    vcl_symbol_statement(vclProfilingDestroy)               \
-    vcl_symbol_statement(vclProfilingGetProperties)         \
-    vcl_symbol_statement(vclLogHandleGetString)             \
-    vcl_symbol_statement(vclAllocatedExecutableCreate2)     \
-    vcl_symbol_statement(vclGetCompilerSupportedOptions)    \
-    vcl_symbol_statement(vclGetCompilerIsOptionSupported)   \
-
-
-// symbols that may not be supported in older versions of vcl
-#define vcl_weak_symbols_list()                             \
-    vcl_symbol_statement(vclAllocatedExecutableCreateWSOneShot)
-// clang-format on
-
-class VCLApi {
-public:
-    VCLApi();
-    VCLApi(const VCLApi& other) = delete;
-    VCLApi(VCLApi&& other) = delete;
-    void operator=(const VCLApi&) = delete;
-    void operator=(VCLApi&&) = delete;
-
-    static const std::shared_ptr<VCLApi> getInstance();
-    std::shared_ptr<void> getLibrary() const {
-        return lib;
-    }
-
-#define vcl_symbol_statement(vcl_symbol) decltype(&::vcl_symbol) vcl_symbol;
-    vcl_symbols_list();
-    vcl_weak_symbols_list();
-#undef vcl_symbol_statement
-
-private:
-    std::shared_ptr<void> lib;
-    Logger _logger;
-};
-
-#define vcl_symbol_statement(vcl_symbol)                                                                            \
-    template <typename... Args>                                                                                     \
-    inline typename std::invoke_result<decltype(&::vcl_symbol), Args...>::type wrapped_##vcl_symbol(Args... args) { \
-        const auto& ptr = VCLApi::getInstance();                                                                    \
-        if (ptr->vcl_symbol == nullptr) {                                                                           \
-            OPENVINO_THROW("Unsupported vcl_symbol " #vcl_symbol);                                                  \
-        }                                                                                                           \
-        return ptr->vcl_symbol(std::forward<Args>(args)...);                                                        \
-    }
-vcl_symbols_list();
-vcl_weak_symbols_list();
-#undef vcl_symbol_statement
-#define vcl_symbol_statement(vcl_symbol) inline decltype(&::vcl_symbol) vcl_symbol = wrapped_##vcl_symbol;
-vcl_symbols_list();
-vcl_weak_symbols_list();
-#undef vcl_symbol_statement
-
 static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
     Logger _logger("VCLAPI", Logger::global().level());
     _logger.debug("getLatestVCLLog start");
@@ -251,48 +161,6 @@ static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
                            getLatestVCLLog(logHandle)); \
         }                                               \
     }
-
-VCLApi::VCLApi() : _logger("VCLApi", Logger::global().level()) {
-    const std::filesystem::path baseName = "openvino_intel_npu_compiler";
-    try {
-        auto libpath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName);
-        _logger.debug("Try to load openvino_intel_npu_compiler");
-        this->lib = ov::util::load_shared_object(libpath);
-    } catch (const std::runtime_error& error) {
-        _logger.debug("Failed to load openvino_intel_npu_compiler");
-        OPENVINO_THROW(error.what());
-    }
-
-    try {
-#define vcl_symbol_statement(vcl_symbol) \
-    this->vcl_symbol = reinterpret_cast<decltype(&::vcl_symbol)>(ov::util::get_symbol(lib, #vcl_symbol));
-        vcl_symbols_list();
-#undef vcl_symbol_statement
-    } catch (const std::runtime_error& error) {
-        _logger.debug("Failed to get formal symbols from openvino_intel_npu_compiler");
-        OPENVINO_THROW(error.what());
-    }
-
-#define vcl_symbol_statement(vcl_symbol)                                                                      \
-    try {                                                                                                     \
-        this->vcl_symbol = reinterpret_cast<decltype(&::vcl_symbol)>(ov::util::get_symbol(lib, #vcl_symbol)); \
-    } catch (const std::runtime_error&) {                                                                     \
-        _logger.debug("Failed to get %s from openvino_intel_npu_compiler", #vcl_symbol);                      \
-        this->vcl_symbol = nullptr;                                                                           \
-    }
-    vcl_weak_symbols_list();
-#undef vcl_symbol_statement
-
-#define vcl_symbol_statement(vcl_symbol) vcl_symbol = this->vcl_symbol;
-    vcl_symbols_list();
-    vcl_weak_symbols_list();
-#undef vcl_symbol_statement
-}
-
-const std::shared_ptr<VCLApi> VCLApi::getInstance() {
-    static std::shared_ptr<VCLApi> instance = std::make_shared<VCLApi>();
-    return instance;
-}
 
 const std::shared_ptr<VCLCompilerImpl> VCLCompilerImpl::getInstance() {
     static std::mutex mutex;
@@ -383,14 +251,13 @@ std::shared_ptr<void> VCLCompilerImpl::getLinkedLibrary() const {
     return VCLApi::getInstance()->getLibrary();
 }
 
-NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model,
-                                            const FilteredConfig& config) const {
+ov::Tensor VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model, const FilteredConfig& config) const {
     return compile(model, config, false);
 }
 
-NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model,
-                                            const FilteredConfig& config,
-                                            const bool storeWeightlessCacheAttributeFlag) const {
+ov::Tensor VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model,
+                                    const FilteredConfig& config,
+                                    const bool storeWeightlessCacheAttributeFlag) const {
     _logger.debug("compile start");
 
     /// Check the linked vcl version whether supported in plugin
@@ -405,16 +272,22 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
 
-    bool useBaseModelSerializer = true;
-    useBaseModelSerializer = isUseBaseModelSerializer(usedVersion, config);
-    _logger.debug("serialize IR method is %s",
-                  useBaseModelSerializer ? "base vcl serializer" : "vcl serializer (not copy weights)");
+    const auto isOptionValueSupportedByCompiler = [this](const std::string& optionName,
+                                                         const std::optional<std::string>& optionValue) {
+        return is_option_supported(optionName, optionValue);
+    };
     auto serializedIR = compiler_utils::serializeIR(model,
                                                     compilerVersion,
                                                     maxOpsetVersion,
-                                                    useBaseModelSerializer,
+                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    isOptionValueSupportedByCompiler,
                                                     false,
                                                     storeWeightlessCacheAttributeFlag);
+    FilteredConfig updatedConfig = config;
+    if (config.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+        updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
+                               MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
+    }
 
     std::string buildFlags;
     const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
@@ -424,7 +297,7 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     _logger.debug("create build flags");
     buildFlags += compiler_utils::serializeIOInfo(model, true);
     buildFlags += " ";
-    buildFlags += compiler_utils::serializeConfig(config, compilerVersion, isOptionSupportedByCompiler);
+    buildFlags += compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
 
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
 
@@ -459,12 +332,8 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
                       allocator.m_size,
                       static_cast<void*>(allocator.m_allocated));
 
-        // Use empty metadata as VCL does not support metadata extraction
-        NetworkMetadata metadata;
-
         _logger.debug("compile end, blob size:%d", allocator.m_size);
-        return NetworkDescription(make_tensor_from_aligned_addr(allocator.m_allocated, allocator.m_size),
-                                  std::move(metadata));
+        return make_tensor_from_aligned_addr(allocator.m_allocated, allocator.m_size);
     } else {
         OPENVINO_THROW("Not supported VCL version: %d.%d, please use VCL 6.1 or later",
                        _vclVersion.major,
@@ -472,10 +341,13 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     }
 }
 
-std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneShot(
-    const std::shared_ptr<ov::Model>& model,
-    const FilteredConfig& config) const {
+std::vector<ov::Tensor> VCLCompilerImpl::compileWsOneShot(const std::shared_ptr<ov::Model>& model,
+                                                          const FilteredConfig& config) const {
     _logger.debug("compileWsOneShot start");
+
+    /// Check the linked vcl version whether supported in plugin
+    UsedVersion usedVersion = getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion);
+    _logger.debug("the finally used compiler vcl version is %d.%d", usedVersion.Major, usedVersion.Minor);
 
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
@@ -485,12 +357,22 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
 
-    bool useBaseModelSerializer = true;
-    useBaseModelSerializer = isUseBaseModelSerializer({7, 5}, config);
-    _logger.debug("serialize IR method is %s",
-                  useBaseModelSerializer ? "base vcl serializer" : "vcl serializer (not copy weights)");
-    auto serializedIR =
-        compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer, false, true);
+    const auto isOptionValueSupportedByCompiler = [this](const std::string& optionName,
+                                                         const std::optional<std::string>& optionValue) {
+        return is_option_supported(optionName, optionValue);
+    };
+    auto serializedIR = compiler_utils::serializeIR(model,
+                                                    compilerVersion,
+                                                    maxOpsetVersion,
+                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    isOptionValueSupportedByCompiler,
+                                                    false,
+                                                    true);
+    FilteredConfig updatedConfig = config;
+    if (config.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+        updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
+                               MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
+    }
 
     std::string buildFlags;
     const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
@@ -500,7 +382,7 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
     _logger.debug("create build flags");
     buildFlags += compiler_utils::serializeIOInfo(model, true);
     buildFlags += " ";
-    buildFlags += compiler_utils::serializeConfig(config, compilerVersion, isOptionSupportedByCompiler);
+    buildFlags += compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
 
     vcl_executable_desc_t exeDesc = {serializedIR.buffer.get(),
@@ -520,30 +402,20 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
         OPENVINO_THROW("Failed to create VCL executable, blobCount is zero");
     }
 
-    std::vector<std::shared_ptr<NetworkDescription>> networkDescrs;
+    std::vector<ov::Tensor> initMainTensors;
     for (auto& blob : allocator.m_info) {
-        // Use empty metadata as VCL does not support metadata extraction
-        NetworkMetadata metadata;
-        networkDescrs.emplace_back(
-            std::make_shared<NetworkDescription>(make_tensor_from_aligned_addr(blob.first, blob.second),
-                                                 std::move(metadata)));
+        initMainTensors.emplace_back(make_tensor_from_aligned_addr(blob.first, blob.second));
     }
-    return networkDescrs;
+    return initMainTensors;
 }
 
-NetworkDescription VCLCompilerImpl::compileWsIterative(const std::shared_ptr<ov::Model>& model,
-                                                       const FilteredConfig& config,
-                                                       size_t callNumber) const {
+ov::Tensor VCLCompilerImpl::compileWsIterative(const std::shared_ptr<ov::Model>& model,
+                                               const FilteredConfig& config,
+                                               size_t callNumber) const {
     _logger.debug("compileWsIterative start");
     FilteredConfig updatedConfig = config;
     updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber)}});
     return compile(model, updatedConfig, true);
-}
-
-intel_npu::NetworkMetadata VCLCompilerImpl::parse(const std::vector<uint8_t>& network,
-                                                  const FilteredConfig& config) const {
-    // VCL returns empty metadata. In plugin adapter, use driver metadata instead.
-    OPENVINO_THROW_NOT_IMPLEMENTED("VCL does not support parse.");
 }
 
 std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(const std::vector<uint8_t>& profData,
@@ -609,17 +481,26 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     ze_graph_compiler_version_info_t compilerVersion;
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
-    bool useBaseModelSerializer = true;
-    useBaseModelSerializer = isUseBaseModelSerializer(usedVersion, config);
-    _logger.debug("serialize IR method is %s",
-                  useBaseModelSerializer ? "base vcl serializer" : "vcl serializer (not copy weights)");
-    auto serializedIR = compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer);
+    FilteredConfig updatedConfig = config;
+    const auto isOptionValueSupportedByCompiler = [this](const std::string& optionName,
+                                                         const std::optional<std::string>& optionValue) {
+        return is_option_supported(optionName, optionValue);
+    };
+    auto serializedIR = compiler_utils::serializeIR(model,
+                                                    compilerVersion,
+                                                    maxOpsetVersion,
+                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    isOptionValueSupportedByCompiler);
+    if (config.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+        updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
+                               MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
+    }
 
     std::string buildFlags;
     const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
         return is_option_supported(optionName);
     };
-    buildFlags += compiler_utils::serializeConfig(config, compilerVersion, isOptionSupportedByCompiler);
+    buildFlags += compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
     _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
 
     vcl_query_handle_t queryHandle;
@@ -679,7 +560,7 @@ bool VCLCompilerImpl::get_supported_options(std::vector<char>& options) const {
     return false;
 }
 
-bool VCLCompilerImpl::is_option_supported(const std::string& option, std::optional<std::string> optValue) const {
+bool VCLCompilerImpl::is_option_supported(std::string option, std::optional<std::string> optValue) const {
     try {
         const char* optname_ch = option.c_str();
         const char* optvalue_ch = optValue.has_value() ? optValue.value().c_str() : nullptr;
