@@ -20,11 +20,17 @@ The only filesystem change should be the test file edit. Do not create additiona
 ## Step 0: Gather Prerequisites
 
 Before touching any files or logs, confirm:
-- The **transformation class name** (e.g., `EliminateSplitConcat`).
+- The **transformation class name(s)** — one or more (e.g., `EliminateSplitConcat`, or a list of several).
 - The **run command** that exercises the failing model/path (benchmark_app invocation, a unit test binary, a Python script, etc.).
 - The **build directory** — default to `build/Release` if not specified by the user.
 
 Ask the user only if the transformation name or run command is missing. The build directory is never a blocker.
+
+**If the user provides multiple transformation names** (e.g., "these passes should fire but at least one didn't"), treat this as a **pipeline cascade** investigation:
+- Log all passes simultaneously: `OV_MATCHERS_TO_LOG=Pass1,Pass2,...` (comma-separated, one entry per pass).
+- After collecting logs, build a per-pass status table: `CALLBACK SUCCEDED` = ✅ fired; phrase never appears = ❌ did not fire.
+- Identify the **root cause pass** — the first one that does not fire for a structural graph reason (wrong node type, extra node, failing predicate) — vs. **downstream casualties** — passes that don't fire purely because the node type they expect was never produced (because the root cause pass did not transform the graph).
+- Investigate and reproduce only the root cause pass. Note the casualties in the report with their reason (node absent because upstream pass didn't fire).
 
 ---
 
@@ -272,6 +278,14 @@ See [references/example-diagnosis-report.md](references/example-diagnosis-report
 ```
 ## MatcherPass Diagnosis: <TransformationName>
 
+<!-- If multiple passes were investigated, add this table: -->
+## Summary of passes
+| Pass | Result |
+|---|---|
+| `PassA` | ✅ Fired (`CALLBACK SUCCEDED`) |
+| `PassB` | ❌ Did not fire — root cause |
+| `PassC` | ❌ Did not fire — downstream: PassB never produced its expected input |
+
 **Root cause:** <one-sentence summary>
 **Log evidence:** `<exact log phrase that identified the failure>`
 **Failing node:** <op type, location in graph>
@@ -280,7 +294,7 @@ See [references/example-diagnosis-report.md](references/example-diagnosis-report
 ## Reproducer Test
 File: <path to test file>
 Test name: `<TEST_F name>`
-Status before fix: FAIL (confirms reproduction)
+Status before fix: PASS (transformation did not fire — model unchanged, matches auto-cloned ref; confirms bug reproduced)
 ```
 
 ---
