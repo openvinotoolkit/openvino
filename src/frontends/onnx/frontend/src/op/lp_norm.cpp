@@ -30,8 +30,11 @@ ov::OutputVector lp_norm(const ov::frontend::onnx::Node& node) {
                      " Only normalization of 1st or 2nd order is supported.");
 
     const auto normalize_axis_const = v0::Constant::create(ov::element::i64, {}, {normalize_axis});
-    std::shared_ptr<ov::Node> norm =
-        ov::op::util::lp_norm(data, normalize_axis_const, static_cast<std::size_t>(p_norm), 1e-10f, true);
+    std::shared_ptr<ov::Node> norm = ov::op::util::lp_norm(data,
+                                                           normalize_axis_const,
+                                                           static_cast<std::size_t>(p_norm),
+                                                           std::numeric_limits<float>::epsilon(),
+                                                           true);
 
     return {std::make_shared<v1::Divide>(data, norm)};
 }
