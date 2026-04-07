@@ -7,7 +7,9 @@
 #include "primitive_onednn_base.h"
 
 #include <oneapi/dnnl/dnnl.hpp>
+#if defined(OV_GPU_WITH_OCL_RT)
 #include <oneapi/dnnl/dnnl_ocl.hpp>
+#endif
 
 #include <algorithm>
 #include <memory>
@@ -28,6 +30,9 @@ protected:
 
     std::unordered_map<int, dnnl::memory> get_arguments(moe_gemm_inst& instance) const override {
         std::unordered_map<int, dnnl::memory> args;
+#if !defined(OV_GPU_WITH_OCL_RT)
+        OPENVINO_THROW("[GPU] oneDNN MOE GEMM requires OpenCL runtime");
+#else
         auto& engine = instance.get_network().get_engine();
         auto& onednn_engine = engine.get_onednn_engine();
         auto moe_cfg = MoEGemmImplementationManager::get_moe_cfg(*instance.get_impl_params());
@@ -89,6 +94,8 @@ protected:
                 reinterpret_cast<uint8_t*>(bias.buffer_ptr()));
             args.insert({DNNL_ARG_BIAS, bias_mem});
         }
+
+#endif
 
         return args;
     }

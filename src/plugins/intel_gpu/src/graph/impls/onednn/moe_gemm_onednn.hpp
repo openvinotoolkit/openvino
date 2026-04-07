@@ -32,6 +32,9 @@ struct MoEGemmImplementationManager : public ImplementationManager {
 
     bool validate_impl(const program_node& node) const override {
         OPENVINO_ASSERT(node.is_type<moe_gemm>());
+#if !defined(OV_GPU_WITH_OCL_RT)
+        return false;
+#endif
         const auto& config = node.get_program().get_config();
         const auto& info = node.get_program().get_engine().get_device_info();
         if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn())
