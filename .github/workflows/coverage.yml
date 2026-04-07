@@ -2,7 +2,7 @@ name: Code coverage
 
 on:
   workflow_dispatch:
-  pull_request:
+  pull_request: # to be removed after coverage workflow stabilization
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -15,7 +15,7 @@ env:
   TEST_PROFILE: cpu
   PYTEST_XDIST_WORKERS: '4'
   JS_TEST_CONCURRENCY: '1'
-  ENABLE_BRANCH_COVERAGE: 'true'
+  ENABLE_BRANCH_COVERAGE: 'false'
   LCOV_CAPTURE_TIMEOUT_SECONDS: '3600'
   NODE_VERSION: '21'
   NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
@@ -140,12 +140,6 @@ jobs:
           if [[ -d "${notes_root}/coverage_build_notes" ]]; then
             notes_root="${notes_root}/coverage_build_notes"
           fi
-          for inventory in build-native-coverage-tool-versions.txt main-build-inventory.txt js-build-inventory.txt; do
-            if [[ -f "${notes_root}/${inventory}" ]]; then
-              echo "===== ${inventory} ====="
-              sed -n '1,120p' "${notes_root}/${inventory}"
-            fi
-          done
           rm -rf "${BUILD_DIR}" "${BUILD_JS_DIR}"
           mkdir -p "${BUILD_DIR}" "${BUILD_JS_DIR}"
           cp -a "${notes_root}/main-build/." "${BUILD_DIR}/"
@@ -161,56 +155,14 @@ jobs:
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
 
-      - name: Print native coverage tool versions
-        run: |
-          {
-            for tool in gcc g++ gcov lcov genhtml; do
-              echo "## ${tool}"
-              if command -v "${tool}" >/dev/null 2>&1; then
-                command -v "${tool}"
-                "${tool}" --version | head -n 3
-              else
-                echo "not installed"
-              fi
-              echo
-            done
-          } | tee "${OV_WORKSPACE}/native-coverage-tool-versions.txt"
-
       - name: Install coverage Python dependencies
         run: python3 -m pip install -r tools/coverage/requirements-ci.txt
-
-      - name: Verify Python coverage helper environment
-        run: python3 -c "import sys, yaml; print(sys.executable); print(yaml.__file__)"
 
       - name: Run CPU C++ coverage tests
         run: python3 tools/coverage/coverage.py step run-cpp-tests
 
-      - name: Detect CPU native coverage data
-        id: detect_gcda_cpu
-        run: |
-          if find "${BUILD_DIR}" "${BUILD_JS_DIR}" -type f -name '*.gcda' -print -quit | grep -q .; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Generate CPU native C/C++ coverage report
-        if: ${{ steps.detect_gcda_cpu.outputs.exists == 'true' }}
         run: python3 tools/coverage/coverage.py step collect-cpp-coverage
-
-      - name: Check CPU native coverage report
-        id: check_cpp_native_report
-        if: ${{ always() }}
-        run: |
-          if [[ -s "${OV_WORKSPACE}/coverage.info" ]]; then
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-            wc -c "${OV_WORKSPACE}/coverage.info"
-          else
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            if [[ -f "${OV_WORKSPACE}/coverage.info" ]]; then
-              wc -c "${OV_WORKSPACE}/coverage.info"
-            fi
-          fi
 
       - name: Collect C++ CPU results
         id: cpu_artifact
@@ -227,7 +179,6 @@ jobs:
           echo "dir=${dir}" >> "$GITHUB_OUTPUT"
 
       - name: Upload Codecov (C++ runtime, CPU)
-        if: ${{ steps.check_cpp_native_report.outputs.ready == 'true' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: openvino/coverage.info
@@ -241,7 +192,6 @@ jobs:
 
       - name: Upload C++ CPU artifact
         if: ${{ always() }}
-        continue-on-error: true
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: coverage-cpp-cpu
@@ -318,12 +268,6 @@ jobs:
           if [[ -d "${notes_root}/coverage_build_notes" ]]; then
             notes_root="${notes_root}/coverage_build_notes"
           fi
-          for inventory in build-native-coverage-tool-versions.txt main-build-inventory.txt js-build-inventory.txt; do
-            if [[ -f "${notes_root}/${inventory}" ]]; then
-              echo "===== ${inventory} ====="
-              sed -n '1,120p' "${notes_root}/${inventory}"
-            fi
-          done
           rm -rf "${BUILD_DIR}" "${BUILD_JS_DIR}"
           mkdir -p "${BUILD_DIR}" "${BUILD_JS_DIR}"
           cp -a "${notes_root}/main-build/." "${BUILD_DIR}/"
@@ -338,21 +282,6 @@ jobs:
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
-
-      - name: Print native coverage tool versions
-        run: |
-          {
-            for tool in gcc g++ gcov lcov genhtml; do
-              echo "## ${tool}"
-              if command -v "${tool}" >/dev/null 2>&1; then
-                command -v "${tool}"
-                "${tool}" --version | head -n 3
-              else
-                echo "not installed"
-              fi
-              echo
-            done
-          } | tee "${OV_WORKSPACE}/native-coverage-tool-versions.txt"
 
       - name: Install coverage Python dependencies
         run: python3 -m pip install -r tools/coverage/requirements-ci.txt
@@ -373,42 +302,8 @@ jobs:
       - name: Run CPU Python coverage tests
         run: python3 tools/coverage/coverage.py step run-python-tests
 
-      - name: Detect CPU native coverage data
-        id: detect_py_gcda_cpu
-        run: |
-          if find "${BUILD_DIR}" "${BUILD_JS_DIR}" -type f -name '*.gcda' -print -quit | grep -q .; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Generate CPU native C/C++ coverage report
-        if: ${{ steps.detect_py_gcda_cpu.outputs.exists == 'true' }}
         run: python3 tools/coverage/coverage.py step collect-cpp-coverage
-
-      - name: Check Python coverage reports
-        id: check_python_reports
-        if: ${{ always() }}
-        run: |
-          if [[ -s "${OV_WORKSPACE}/python-coverage.xml" ]]; then
-            echo "python_xml_ready=true" >> "$GITHUB_OUTPUT"
-            wc -c "${OV_WORKSPACE}/python-coverage.xml"
-          else
-            echo "python_xml_ready=false" >> "$GITHUB_OUTPUT"
-            if [[ -f "${OV_WORKSPACE}/python-coverage.xml" ]]; then
-              wc -c "${OV_WORKSPACE}/python-coverage.xml"
-            fi
-          fi
-
-          if [[ -s "${OV_WORKSPACE}/coverage.info" ]]; then
-            echo "native_ready=true" >> "$GITHUB_OUTPUT"
-            wc -c "${OV_WORKSPACE}/coverage.info"
-          else
-            echo "native_ready=false" >> "$GITHUB_OUTPUT"
-            if [[ -f "${OV_WORKSPACE}/coverage.info" ]]; then
-              wc -c "${OV_WORKSPACE}/coverage.info"
-            fi
-          fi
 
       - name: Collect Python CPU results
         id: cpu_artifact
@@ -425,7 +320,6 @@ jobs:
           echo "dir=${dir}" >> "$GITHUB_OUTPUT"
 
       - name: Upload Codecov (Python API, CPU)
-        if: ${{ steps.check_python_reports.outputs.python_xml_ready == 'true' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: openvino/python-coverage.xml
@@ -438,7 +332,6 @@ jobs:
           verbose: true
 
       - name: Upload Codecov (C++ runtime, Python suite, CPU)
-        if: ${{ steps.check_python_reports.outputs.native_ready == 'true' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: openvino/coverage.info
@@ -452,7 +345,6 @@ jobs:
 
       - name: Upload Python CPU artifact
         if: ${{ always() }}
-        continue-on-error: true
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: coverage-python-cpu
@@ -543,26 +435,8 @@ jobs:
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
 
-      - name: Print native coverage tool versions
-        run: |
-          {
-            for tool in gcc g++ gcov lcov genhtml; do
-              echo "## ${tool}"
-              if command -v "${tool}" >/dev/null 2>&1; then
-                command -v "${tool}"
-                "${tool}" --version | head -n 3
-              else
-                echo "not installed"
-              fi
-              echo
-            done
-          } | tee "${OV_WORKSPACE}/native-coverage-tool-versions.txt"
-
       - name: Install coverage Python dependencies
         run: python3 -m pip install -r tools/coverage/requirements-ci.txt
-
-      - name: Verify Python coverage helper environment
-        run: python3 -c "import sys, yaml; print(sys.executable); print(yaml.__file__)"
 
       - name: Restore coverage notes
         run: |
@@ -571,12 +445,6 @@ jobs:
           if [[ -d "${notes_root}/coverage_build_notes" ]]; then
             notes_root="${notes_root}/coverage_build_notes"
           fi
-          for inventory in build-native-coverage-tool-versions.txt main-build-inventory.txt js-build-inventory.txt; do
-            if [[ -f "${notes_root}/${inventory}" ]]; then
-              echo "===== ${inventory} ====="
-              sed -n '1,120p' "${notes_root}/${inventory}"
-            fi
-          done
           rm -rf "${BUILD_DIR}" "${BUILD_JS_DIR}"
           mkdir -p "${BUILD_DIR}" "${BUILD_JS_DIR}"
           cp -a "${notes_root}/main-build/." "${BUILD_DIR}/"
@@ -586,38 +454,13 @@ jobs:
           fi
 
       - name: Install electron deps and run Xvfb
-        if: runner.os == 'Linux'
         run: Xvfb "$DISPLAY" &
 
       - name: Run CPU JS coverage tests
         run: python3 tools/coverage/coverage.py step run-js-tests
 
-      - name: Detect CPU native coverage data
-        id: detect_js_gcda_cpu
-        run: |
-          if find "${BUILD_DIR}" "${BUILD_JS_DIR}" -type f -name '*.gcda' -print -quit | grep -q .; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Generate CPU native C/C++ coverage report
-        if: ${{ steps.detect_js_gcda_cpu.outputs.exists == 'true' }}
         run: python3 tools/coverage/coverage.py step collect-cpp-coverage
-
-      - name: Check JS native coverage report
-        id: check_js_native_report
-        if: ${{ always() }}
-        run: |
-          if [[ -s "${OV_WORKSPACE}/coverage.info" ]]; then
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-            wc -c "${OV_WORKSPACE}/coverage.info"
-          else
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            if [[ -f "${OV_WORKSPACE}/coverage.info" ]]; then
-              wc -c "${OV_WORKSPACE}/coverage.info"
-            fi
-          fi
 
       - name: Collect JS CPU results
         id: cpu_artifact
@@ -634,7 +477,6 @@ jobs:
           echo "dir=${dir}" >> "$GITHUB_OUTPUT"
 
       - name: Upload Codecov (JS bindings, CPU)
-        if: ${{ hashFiles('openvino/js-lcov.info') != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: openvino/js-lcov.info
@@ -647,7 +489,6 @@ jobs:
           verbose: true
 
       - name: Upload Codecov (C++ runtime, JS suite, CPU)
-        if: ${{ steps.check_js_native_report.outputs.ready == 'true' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: openvino/coverage.info
@@ -661,7 +502,6 @@ jobs:
 
       - name: Upload JS CPU artifact
         if: ${{ always() }}
-        continue-on-error: true
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: coverage-js-cpu

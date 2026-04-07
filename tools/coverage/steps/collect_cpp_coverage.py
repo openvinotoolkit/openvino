@@ -615,9 +615,7 @@ def _merge_tracefiles(tracefiles: list[Path], output: Path, *, branch_coverage: 
     single ``coverage.info`` file for downstream upload and HTML generation.
     """
     if not tracefiles:
-        warn("No native C/C++ coverage tracefiles were produced; creating empty coverage.info")
-        output.write_text("", encoding="utf-8")
-        return
+        raise RuntimeError("No native C/C++ coverage tracefiles were produced.")
 
     if len(tracefiles) == 1:
         output.write_bytes(tracefiles[0].read_bytes())
@@ -803,8 +801,7 @@ def run(ctx: CoverageContext) -> None:
     )
 
     if not merged_info.exists() or merged_info.stat().st_size == 0:
-        warn("coverage.info is empty; skipping lcov --remove and genhtml.")
-        return
+        raise RuntimeError("coverage.info is empty after normalization.")
     print(
         "[coverage] Normalized merged tracefile: "
         f"kept={normalization_stats['kept_records']}, "
