@@ -23,6 +23,16 @@ struct KVCacheCompressionParams {
     KVCacheCompressionConfig value;
 };
 
+// The compression passes will look for SDPA patterns,
+// insert ov::op::internal::DynamicQuantize nodes on the concat outputs, redirected to result 
+// and Dequantize nodes for past.key.values
+// Then decompose those DynamicQuantize nodes into 
+// subgraphs that expose quantization parameters as Results.  
+// The added extra results like scale/zeropoints coefficients will be named 
+// "DynamicQuantize/{kv_index}/present/{key|value}/scale"
+// "DynamicQuantize/{kv_index}/present/{key|value}/zp"
+// to be identifiable for later kv_cache_copy mechanics.  
+
 void run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov::Model>& model,
                                               const KVCacheCompressionParams& params);
 
