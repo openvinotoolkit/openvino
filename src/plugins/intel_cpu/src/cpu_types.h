@@ -139,7 +139,8 @@ enum class Type : uint8_t {
     SegmentMax,
     LoRA,
     GatherMatmul,
-    GatedDeltaNet
+    GatedDeltaNet,
+    PagedCausalConv1D
 };
 
 enum class Algorithm : uint8_t {
