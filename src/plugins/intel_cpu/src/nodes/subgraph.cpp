@@ -58,7 +58,6 @@
 #    include "executors/aarch64/subgraph.hpp"
 #    include "snippets/lowered/pass/init_loops.hpp"
 #    include "snippets/lowered/pass/insert_buffers.hpp"
-#    include "snippets/lowered/pass/insert_reg_spills.hpp"
 #    include "transformations/snippets/aarch64/pass/brgemm_to_gemm_cpu.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/adjust_gemm_copy_b_loop_ports.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/gemm_cpu_blocking.hpp"

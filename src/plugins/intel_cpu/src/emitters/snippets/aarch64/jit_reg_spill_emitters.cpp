@@ -106,7 +106,7 @@ private:
     }
 
     void store_vecs() const {
-        int32_t current_offset = static_cast<int32_t>(m_total_gpr_shift);
+        auto current_offset = static_cast<int32_t>(m_total_gpr_shift);
         size_t i = 0;
         for (; i + 1 < m_vec_regs_to_spill.size(); i += 2) {
             h->stp(Xbyak_aarch64::QReg(m_vec_regs_to_spill[i]),
@@ -120,7 +120,7 @@ private:
     }
 
     void restore_vecs() const {
-        int32_t current_offset = static_cast<int32_t>(m_total_gpr_shift);
+        auto current_offset = static_cast<int32_t>(m_total_gpr_shift);
         size_t i = 0;
         for (; i + 1 < m_vec_regs_to_spill.size(); i += 2) {
             h->ldp(Xbyak_aarch64::QReg(m_vec_regs_to_spill[i]),
