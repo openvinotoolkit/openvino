@@ -11,24 +11,16 @@
 #include <pthread.h>
 #include <thread>
 #include <vector>
+#ifdef __linux__
+#    include <sys/syscall.h>
+#    include <unistd.h>
+#endif
 
 static void pin_thread_to_core(size_t core_index) {
 #ifdef __linux__
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
     CPU_SET(static_cast<int>(core_index), &cpuset);
-    {
-        const unsigned hc = std::thread::hardware_concurrency();
-        if (hc == 0) {
-            std::cerr << "[DEBUG] pin_thread_to_core: pinning to core " << core_index << "\n";
-        } else if (core_index >= hc) {
-            std::cerr << "[DEBUG] pin_thread_to_core: requested core " << core_index
-                      << " >= hw_concurrency=" << hc << " (attempting anyway)\n";
-        } else {
-            std::cerr << "[DEBUG] pin_thread_to_core: pinning to core " << core_index
-                      << " of " << hc << "\n";
-        }
-    }
     auto native_handle = pthread_self();
     pthread_setaffinity_np(native_handle, sizeof(cpu_set_t), &cpuset);
 #endif
@@ -201,14 +193,6 @@ int main(int argc, char** argv) {
 
     for (int i = 0; i < num_threads; ++i) {
         threads.emplace_back([&, i]() {
-            #ifdef __linux__
-            #include <sys/syscall.h>
-            #include <unistd.h>
-            const pid_t tid = static_cast<pid_t>(::syscall(SYS_gettid));
-            std::cout << "[DEBUG] thread " << i << " tid=" << tid << "\n";
-            #else
-            std::cout << "[DEBUG] thread " << i << " id=" << std::this_thread::get_id() << "\n";
-            #endif
             pin_thread_to_core(static_cast<size_t>(16 + i));
             auto& req = requests[i];
             auto& local = thread_durations[static_cast<size_t>(i)];
