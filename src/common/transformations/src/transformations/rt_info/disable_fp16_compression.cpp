@@ -15,18 +15,6 @@ const std::string& get_postponed_fp16_compression_tag() {
 }
 }  // namespace
 
-void ov::disable_fp16_compression(const std::shared_ptr<Node>& node) {
-    disable_compression_to(node, element::f16);
-}
-
-void ov::enable_fp16_compression(const std::shared_ptr<Node>& node) {
-    enable_compression_to(node, element::f16);
-}
-
-bool ov::fp16_compression_is_disabled(const std::shared_ptr<const Node>& node) {
-    return is_compression_disabled_to(node, element::f16);
-}
-
 void ov::postpone_fp16_compression(ov::RTMap& rt_info) {
     rt_info[get_postponed_fp16_compression_tag()] = true;
 }
