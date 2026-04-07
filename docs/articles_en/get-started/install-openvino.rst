@@ -20,7 +20,7 @@ Install OpenVINO™ 2026.1
 
 .. raw:: html
 
-   <script type="module" crossorigin src="../_static/selector-tool/assets/index-Codcw3jz.js"></script>
+   <script type="module" crossorigin src="../_static/selector-tool/assets/index-khnahajn.js"></script>
    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
    <iframe id="selector" src="../_static/selector-tool/selector-eddbc8f.html" style="width: 100%; border: none" title="Download Intel® Distribution of OpenVINO™ Toolkit"></iframe>
 
