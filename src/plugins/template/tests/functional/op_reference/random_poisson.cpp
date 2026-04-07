@@ -32,7 +32,7 @@ struct RandomPoissonParams {
 
     reference_tests::Tensor input;
     uint64_t global_seed;
-    int64_t op_seed;
+    uint64_t op_seed;
     op::PhiloxAlignment alignment;
     reference_tests::Tensor expected;
     std::string test_case_name;
