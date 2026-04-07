@@ -122,11 +122,19 @@ ResampleKernelBase::DispatchData ResampleKernelRef::SetDefault(const resample_pa
                                                                      { Tensor::DataChannelName::Y, Tensor::DataChannelName::Z },
                                                                      { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
 
+    // [WA] In PTLH, IGC may allocate more GRF per thread than expected, reducing the per-kernel
+    // max work-group size below the device-reported maximum. Cap to 512 to avoid
+    // CL_INVALID_WORK_GROUP_SIZE (-54). Remove after driver fix.
+    auto engineInfo = arg.engineInfo;
+    engineInfo.maxWorkGroupSize = std::min(engineInfo.maxWorkGroupSize, static_cast<uint64_t>(512));
+
     if (use_packing(arg)) {
         auto pack = packing_factor(arg);
         dispatchData.gws = { arg.outputs[0].X().v, arg.outputs[0].Y().v * arg.outputs[0].Z().v,
                              CeilDiv(arg.outputs[0].Feature().v, pack) * arg.outputs[0].Batch().v };
-        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo, in_layout, out_layout, dims_by_gws);
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, engineInfo, in_layout, out_layout, dims_by_gws);
+    } else {
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, engineInfo, in_layout, out_layout, dims_by_gws);
     }
 
     return dispatchData;
