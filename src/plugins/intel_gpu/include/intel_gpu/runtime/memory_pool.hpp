@@ -77,7 +77,7 @@ class memory_restricter {
             for (const auto& key : set1) func(key);
             for (const auto& key : set2) func(key);
         }
-    }; // end of memory_restricter
+ }; // end of memory_restricter
 
 struct memory_user {
     size_t _unique_id;
