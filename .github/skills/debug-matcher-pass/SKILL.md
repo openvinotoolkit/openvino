@@ -11,7 +11,7 @@ An end-to-end workflow for diagnosing why an OpenVINO `MatcherPass`-based transf
 
 Produce two deliverables before finishing:
 1. **Diagnosis report** — post in the chat using the template at the end of this skill. Do not save it to a file.
-2. **Reproducer test** — edit the existing test source file to add the new `TEST_F` case, then compile and confirm it exposes the failure.
+2. **Reproducer test** — edit the existing test source file to add the new `TEST_F` case, then compile and confirm it reproduces the non-firing behavior.
 
 The only filesystem change should be the test file edit. Do not create additional output files.
 
@@ -28,7 +28,7 @@ Ask the user only if the transformation name or run command is missing. The buil
 
 **If the user provides multiple transformation names** (e.g., "these passes should fire but at least one didn't"), treat this as a **pipeline cascade** investigation:
 - Log all passes simultaneously: `OV_MATCHERS_TO_LOG=Pass1,Pass2,...` (comma-separated, one entry per pass).
-- After collecting logs, build a per-pass status table: `CALLBACK SUCCEDED` = ✅ fired; phrase never appears = ❌ did not fire.
+- After collecting logs, build a per-pass status table: `CALLBACK SUCCEDED` (spelling matches the literal matcher log output) = ✅ fired; phrase never appears = ❌ did not fire.
 - Identify the **root cause pass** — the first one that does not fire for a structural graph reason (wrong node type, extra node, failing predicate) — vs. **downstream casualties** — passes that don't fire purely because the node type they expect was never produced (because the root cause pass did not transform the graph).
 - Investigate and reproduce only the root cause pass. Note the casualties in the report with their reason (node absent because upstream pass didn't fire).
 
@@ -115,7 +115,7 @@ Work inward through the nested blocks to find the deepest `}` labeled with a fai
 | `LABEL DIDN'T MATCH` | A captured label's value does not satisfy its constraint (e.g., shape symbol equality, consumer requirements). |
 | `BLOCK "name" DIDN'T MATCH` | A grouped pattern block failed — look inside the block for the deeper cause. |
 | `ATTRIBUTES MISMATCH: VALUE OF \`attr\` IS ... EXPECTED ...` *(verbose only)* | A specific attribute value (axis, group, mode, etc.) does not match the expected value in the pattern. |
-| `ANY INPUT DID'T MATCH BECAUSE OF PREDICATE` | A label wrapping `any_input()` has an attached predicate that failed. |
+| `ANY INPUT DIDN'T MATCH BECAUSE OF PREDICATE` | A label wrapping `any_input()` has an attached predicate that failed. |
 
 ### 3d. Common root causes in OpenVINO transformations
 
@@ -282,7 +282,7 @@ See [references/example-diagnosis-report.md](references/example-diagnosis-report
 ## Summary of passes
 | Pass | Result |
 |---|---|
-| `PassA` | ✅ Fired (`CALLBACK SUCCEDED`) |
+| `PassA` | ✅ Fired (`CALLBACK SUCCEEDED`) |
 | `PassB` | ❌ Did not fire — root cause |
 | `PassC` | ❌ Did not fire — downstream: PassB never produced its expected input |
 
