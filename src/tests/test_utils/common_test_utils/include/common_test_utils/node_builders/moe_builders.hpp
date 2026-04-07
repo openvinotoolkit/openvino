@@ -26,9 +26,9 @@ struct MoePatternParams {
 };
 
 enum class MoERoutingType {
-    SOFTMAX,                ///< Softmax -> TopK -> normalize routing
-    SIGMOID_BIAS,           ///< Sigmoid -> Add(bias) -> TopK routing
-    SIGMOID_BIAS_SCALED_NORM, ///< Sigmoid -> Add(bias) -> TopK -> normalize -> Multiply(scale) routing
+    SOFTMAX,                   ///< Softmax -> TopK -> normalize routing
+    SIGMOID_BIAS,              ///< Sigmoid -> Add(bias) -> TopK routing
+    SIGMOID_BIAS_SCALED_NORM,  ///< Sigmoid -> Add(bias) -> TopK -> normalize -> Multiply(scale) routing
 };
 
 /// Softmax branch:

@@ -653,7 +653,8 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
         routing_outputs = build_sigmoid_bias_routing_subgraph(router_matmul, data_precision, number_of_experts, topk);
         break;
     case MoERoutingType::SIGMOID_BIAS_SCALED_NORM:
-        routing_outputs = build_sigmoid_bias_scaled_norm_routing_subgraph(router_matmul, data_precision, number_of_experts, topk);
+        routing_outputs =
+            build_sigmoid_bias_scaled_norm_routing_subgraph(router_matmul, data_precision, number_of_experts, topk);
         break;
     default:
         OPENVINO_THROW("Unsupported MoERoutingType");
@@ -746,9 +747,10 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
         auto sh_down_matmul = std::make_shared<ov::op::v0::MatMul>(sh_swiglu, sh_down_weights, false, true);
 
         // Reshape [1, batch*seq, hidden] → [batch*seq, hidden] so the Add with MoE output is shape-compatible.
-        auto sh_reshape_const = ov::op::v0::Constant::create(ov::element::i64,
-                                                             ov::Shape{2},
-                                                             std::vector<int64_t>{-1, static_cast<int64_t>(hidden_size)});
+        auto sh_reshape_const =
+            ov::op::v0::Constant::create(ov::element::i64,
+                                         ov::Shape{2},
+                                         std::vector<int64_t>{-1, static_cast<int64_t>(hidden_size)});
         auto sh_reshape = std::make_shared<ov::op::v1::Reshape>(sh_down_matmul, sh_reshape_const, false);
         model_output = std::make_shared<ov::op::v1::Add>(final_reshape, sh_reshape);
     }

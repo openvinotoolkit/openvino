@@ -2011,8 +2011,7 @@ public:
             if (config.num_shared_expert > 1) {
                 OPENVINO_THROW("num_shared_expert=", config.num_shared_expert, " is not supported yet, only support 0 or 1");
             }
-            auto shared_expert_weight_layout = instance.input_memory_ptr(
-                static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT))->get_layout();
+            auto shared_expert_weight_layout = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT))->get_layout();
             auto hidden_size = static_cast<int>(cur_moe->_config.hidden_size);
             _shared_intermediate_size = static_cast<int>(shared_expert_weight_layout.count() / hidden_size);
             OPENVINO_ASSERT(_shared_intermediate_size == _intermediate_size, "Shared expert _intermediate_size should be same with moe experts");
@@ -2036,13 +2035,11 @@ public:
                                        {1, lws_size},
                                        instance.needs_completion_event());
         } else if (config.routing_type == ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS) {
-            std::vector<memory::ptr> sigmoid_inputs{
-                instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_WEIGHTS)),
-                instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_BIAS)),
-                instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_EPS))};
+            std::vector<memory::ptr> sigmoid_inputs{instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_WEIGHTS)),
+                                                    instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_BIAS)),
+                                                    instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_EPS))};
             if (config.has_routing_norm_scale) {
-                sigmoid_inputs.push_back(
-                    instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_NORM_SCALE)));
+                sigmoid_inputs.push_back(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ROUTING_NORM_SCALE)));
             }
             topk_event = execute_stage(events,
                                        instance,
