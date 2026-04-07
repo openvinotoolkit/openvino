@@ -11,9 +11,6 @@
 
 #include "base_reference_test.hpp"
 
-using namespace reference_tests;
-using namespace ov;
-
 namespace {
 struct ErfInvParams {
     template <class IT>
@@ -24,8 +21,8 @@ struct ErfInvParams {
         : pshape(shape),
           inType(iType),
           outType(iType),
-          inputData(CreateTensor(iType, iValues)),
-          refData(CreateTensor(iType, oValues)) {}
+          inputData(reference_tests::CreateTensor(iType, iValues)),
+          refData(reference_tests::CreateTensor(iType, oValues)) {}
 
     ov::PartialShape pshape;
     ov::element::Type inType;
@@ -34,7 +31,8 @@ struct ErfInvParams {
     ov::Tensor refData;
 };
 
-class ReferenceErfInvLayerTest : public testing::TestWithParam<ErfInvParams>, public CommonReferenceTest {
+class ReferenceErfInvLayerTest : public testing::TestWithParam<ErfInvParams>,
+                                 public reference_tests::CommonReferenceTest {
 public:
     void SetUp() override {
         auto params = GetParam();
@@ -52,10 +50,11 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape, const element::Type& input_type) {
-        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
-        const auto erfinv = std::make_shared<op::v17::ErfInv>(in);
-        return std::make_shared<ov::Model>(OutputVector{erfinv}, ParameterVector{in});
+    static std::shared_ptr<ov::Model> CreateFunction(const ov::PartialShape& input_shape,
+                                                     const ov::element::Type& input_type) {
+        const auto in = std::make_shared<ov::op::v0::Parameter>(input_type, input_shape);
+        const auto erfinv = std::make_shared<ov::op::v17::ErfInv>(in);
+        return std::make_shared<ov::Model>(ov::OutputVector{erfinv}, ov::ParameterVector{in});
     }
 };
 
@@ -63,9 +62,9 @@ TEST_P(ReferenceErfInvLayerTest, CompareWithRefs) {
     Exec();
 }
 
-template <element::Type_t IN_ET>
+template <ov::element::Type_t IN_ET>
 std::vector<ErfInvParams> generateErfInvFloatParams() {
-    using T = typename element_type_traits<IN_ET>::value_type;
+    using T = typename ov::element_type_traits<IN_ET>::value_type;
 
     // Expected values computed from the Giles (2010) approximation at float32 precision.
     // The symmetric property erfinv(-x) = -erfinv(x) is verified across the full domain.
@@ -101,7 +100,7 @@ std::vector<ErfInvParams> generateErfInvFloatParams() {
 std::vector<ErfInvParams> generateErfInvF64Params() {
     std::vector<ErfInvParams> params{
         ErfInvParams(ov::PartialShape{7},
-                     element::f64,
+                     ov::element::f64,
                      std::vector<double>{0.0, 0.1, -0.1, 0.5, -0.5, 0.9, -0.9},
                      std::vector<double>{0.0,
                                          0.08885599049425768,
@@ -112,7 +111,7 @@ std::vector<ErfInvParams> generateErfInvF64Params() {
                                          -1.1630871536766741}),
         ErfInvParams(
             ov::PartialShape{2},
-            element::f64,
+            ov::element::f64,
             std::vector<double>{1.0, -1.0},
             std::vector<double>{std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity()}),
     };
@@ -120,9 +119,9 @@ std::vector<ErfInvParams> generateErfInvF64Params() {
 }
 
 std::vector<ErfInvParams> generateErfInvCombinedParams() {
-    const std::vector<std::vector<ErfInvParams>> typeParams{generateErfInvFloatParams<element::Type_t::f32>(),
-                                                            generateErfInvFloatParams<element::Type_t::f16>(),
-                                                            generateErfInvFloatParams<element::Type_t::bf16>(),
+    const std::vector<std::vector<ErfInvParams>> typeParams{generateErfInvFloatParams<ov::element::Type_t::f32>(),
+                                                            generateErfInvFloatParams<ov::element::Type_t::f16>(),
+                                                            generateErfInvFloatParams<ov::element::Type_t::bf16>(),
                                                             generateErfInvF64Params()};
     std::vector<ErfInvParams> combinedParams;
     for (const auto& p : typeParams) {
@@ -137,14 +136,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_ErfInv_With_Hardcoded_Refs,
                          ReferenceErfInvLayerTest::getTestCaseName);
 
 // Dedicated edge-case test: |x|>1 must produce NaN, x=±1 must produce ±inf.
-class ReferenceErfInvEdgeCaseTest : public CommonReferenceTest {
+class ReferenceErfInvEdgeCaseTest : public reference_tests::CommonReferenceTest {
 public:
     void SetUp() {
-        const auto in = std::make_shared<op::v0::Parameter>(element::f32, Shape{4});
-        function =
-            std::make_shared<ov::Model>(OutputVector{std::make_shared<op::v17::ErfInv>(in)}, ParameterVector{in});
+        const auto in = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4});
+        function = std::make_shared<ov::Model>(ov::OutputVector{std::make_shared<ov::op::v17::ErfInv>(in)},
+                                               ov::ParameterVector{in});
         // inputs: two out-of-domain values, then the two boundary values
-        inputData = {CreateTensor(element::f32, std::vector<float>{2.0f, -1.5f, 1.0f, -1.0f})};
+        inputData = {reference_tests::CreateTensor(ov::element::f32, std::vector<float>{2.0f, -1.5f, 1.0f, -1.0f})};
     }
 
     void Validate() override {
