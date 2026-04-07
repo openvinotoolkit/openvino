@@ -68,6 +68,7 @@
 
 #    include "emitters/snippets/riscv64/cpu_generator.hpp"
 #    include "executors/riscv64/subgraph.hpp"
+#    include "openvino/core/except.hpp"
 #else
 #    include "emitters/snippets/cpu_runtime_configurator.hpp"
 #    include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
@@ -218,7 +219,9 @@ static _ov_dnnl_cpu_isa getHostIsa() {
 #elif defined(OPENVINO_ARCH_ARM64)
     return dnnl::impl::cpu::aarch64::asimd;
 #elif defined(OPENVINO_ARCH_RISCV64)
-    return static_cast<_ov_dnnl_cpu_isa>(ov::intel_cpu::riscv64::gv);
+    OPENVINO_ASSERT(ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv),
+                    "RISC-V Subgraph code generation requires vector ISA support");
+    return ov::intel_cpu::riscv64::gv;
 #else
     OPENVINO_THROW("Subgraphs code-generator is not supported on this platform");
 #endif
@@ -319,7 +322,7 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
             }
             if (lt == Blocked && shape.getRank() != 1 &&
                 (shape.getMinDims()[1] != Shape::UNDEFINED_DIM && shape.getMinDims()[1] > 1)) {
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
                 size_t blockSize = 16;
 #else
                 size_t blockSize = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 16 : 8;
@@ -392,6 +395,10 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
 #if defined(OPENVINO_ARCH_ARM64)
         if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd)) {
             impl_type = impl_desc_type::jit_asimd;
+        }
+#elif defined(OPENVINO_ARCH_RISCV64)
+        if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
+            impl_type = impl_desc_type::jit_gv;
         }
 #else
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
