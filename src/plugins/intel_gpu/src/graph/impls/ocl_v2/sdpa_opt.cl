@@ -1635,29 +1635,18 @@ KERNEL(sdpa_opt)(
 
             SOFTMAX_ACCUMULATOR_TYPE exp_sum_new = SOFTMAX_ACCUMULATOR_VAL_ZERO;
 
-            for (int i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {
-                qk_acc[i] = native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(qk_acc[i]) - qk_max_new);
+            for (int i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {    
 #if IS_CAUSAL
-    // WARNING! Following condition is almost the same as in the version for IS_FLASHATTEN_V2
-    // above, the only difference is in the second part of the condition where ">" is replaced with ">=".
-    // Fixing it to be exactly the same as in IS_FLASHATTEN_V2 version causes smoke_paged_attention/paged_attention_test.basic/92
-    // to fail, so it is left as is for now, but it needs to be revisited and properly fixed later.
-    // This is a HACK, propably that was a bug and test smoke_paged_attention/paged_attention_test.basic/92 
-    // is not correct.
-    #if defined(IS_PAGED_ATTENTION) && SLIDING_WINDOW_SIZE != 0
-                const int default_this_work_item_min_seq_idx = default_this_work_item_max_seq_idx - SLIDING_WINDOW_SIZE;
-        #if HAS_TOKEN_TYPE_IDS
-                const int this_work_item_min_seq_idx = min(token_group_begin, default_this_work_item_min_seq_idx);
-        #else
-                const int this_work_item_min_seq_idx = default_this_work_item_min_seq_idx;
-        #endif
-    #endif
                 const int curr_seq_idx = seq_len + i;
                 if ((curr_seq_idx <= this_work_item_max_seq_idx)
                     && (curr_seq_idx >= this_work_item_min_seq_idx)) {
+                    qk_acc[i] = native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(qk_acc[i]) - qk_max_new);
                     exp_sum_new += qk_acc[i];
+                } else {
+                    qk_acc[i] = SOFTMAX_ACCUMULATOR_VAL_ZERO;
                 }
 # else
+                qk_acc[i] = native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(qk_acc[i]) - qk_max_new);
                 exp_sum_new += qk_acc[i];
 #endif
             }
