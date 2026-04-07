@@ -4,6 +4,7 @@
 
 #include "openvino/runtime/tlv_format.hpp"
 
+#include <limits>
 #include <type_traits>
 #include <utility>
 
@@ -47,6 +48,12 @@ static bool read_record(std::istream& stream, TLVTraits::TagType& tag, TLVTraits
     if (size == 0) {
         data.clear();
         return true;
+    }
+    constexpr auto size_limit =
+        std::min(static_cast<TLVTraits::LengthType>(std::numeric_limits<std::streamsize>::max()),
+                 static_cast<TLVTraits::LengthType>(std::numeric_limits<size_t>::max()));
+    if (size > size_limit) {
+        return false;
     }
     const auto current_pos = stream.tellg();
     const auto stream_end = stream.seekg(0, std::ios::end).tellg();

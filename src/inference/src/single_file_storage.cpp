@@ -249,7 +249,7 @@ void SingleFileStorage::write_blob_entry(std::fstream& stream, BlobIdType blob_i
     };
     write_tlv_record(stream, static_cast<TLVTraits::TagType>(Tag::BlobMap), blob_map_writer);
 
-    m_blob_index[blob_id] = {static_cast<size_t>(blob_pos), static_cast<size_t>(blob_size), std::move(model_name)};
+    m_blob_index[blob_id] = {static_cast<uint64_t>(blob_pos), static_cast<uint64_t>(blob_size), std::move(model_name)};
 }
 
 void SingleFileStorage::write_cache_entry(const std::string& blob_id, StreamWriter writer) {
