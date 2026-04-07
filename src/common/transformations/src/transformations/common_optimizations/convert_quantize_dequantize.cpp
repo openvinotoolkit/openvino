@@ -70,7 +70,8 @@ namespace ov::pass {
 //
 
 ConvertQuantizeDequantize::ConvertQuantizeDequantize(const ov::element::TypeVector& supported_low_precisions,
-                                                     const ov::element::TypeVector& supported_original_precisions) {
+                                                     const ov::element::TypeVector& supported_original_precisions,
+                                                     const bool ignore_consumers_count_check) {
     MATCHER_SCOPE(ConvertQuantizeDequantize);
     auto data_pattern = pattern::any_input(pattern::type_matches_any(supported_original_precisions));
     auto input_low_pattern = pattern::any_input();
@@ -79,16 +80,21 @@ ConvertQuantizeDequantize::ConvertQuantizeDequantize(const ov::element::TypeVect
     auto output_high_pattern = pattern::wrap_type<v0::Constant>();
     auto fq_pattern = pattern::wrap_type<v0::FakeQuantize>(
         {data_pattern, input_low_pattern, input_high_pattern, output_low_pattern, output_high_pattern});
-    auto convert1_pattern = pattern::wrap_type<v0::Convert>(
-        {fq_pattern},
-        pattern::type_matches_any(supported_low_precisions) && pattern::consumers_count(1));
-    auto convert2_pattern = pattern::wrap_type<v0::Convert>(
-        {convert1_pattern},
-        pattern::type_matches_any(supported_original_precisions) && pattern::consumers_count(1));
+    ov::pass::pattern::op::Predicate convert1_predicate =
+        ignore_consumers_count_check
+            ? pattern::type_matches_any(supported_low_precisions)
+            : pattern::type_matches_any(supported_low_precisions) && pattern::consumers_count(1);
+    auto convert1_pattern = pattern::wrap_type<v0::Convert>({fq_pattern}, convert1_predicate);
+    ov::pass::pattern::op::Predicate convert2_predicate =
+        ignore_consumers_count_check
+            ? pattern::type_matches_any(supported_original_precisions)
+            : pattern::type_matches_any(supported_original_precisions) && pattern::consumers_count(1);
+    auto convert2_pattern = pattern::wrap_type<v0::Convert>({convert1_pattern}, convert2_predicate);
 
     auto zero_point_pattern = pattern::any_input();
-    auto sub_pattern =
-        pattern::optional<v1::Subtract>({convert2_pattern, zero_point_pattern}, pattern::consumers_count(1));
+    ov::pass::pattern::op::Predicate sub_predicate =
+        ignore_consumers_count_check ? ov::pass::pattern::op::Predicate() : pattern::consumers_count(1);
+    auto sub_pattern = pattern::optional<v1::Subtract>({convert2_pattern, zero_point_pattern}, sub_predicate);
     auto scale_pattern = pattern::any_input();
     auto mul_pattern = pattern::wrap_type<v1::Multiply>({sub_pattern, scale_pattern});
 

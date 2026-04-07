@@ -9,7 +9,6 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "ov_lpt_models/qdq_stripping.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
-#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 
 using namespace testing;
 using namespace ov::builder::subgraph;
@@ -32,8 +31,7 @@ public:
         using namespace ov::element;
         TransformationTestsF::SetUp();
         const auto& [need_weights_adjustment, quantization_precision] = GetParam();
-        manager.register_pass<ov::pass::SharedOpOptimization>();
-        manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16}, TypeVector{f32});
+        manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16}, TypeVector{f32}, true);
         manager.register_pass<ov::pass::low_precision::FQStrippingTransformation>(std::set<size_t>{65536},
                                                                                   need_weights_adjustment);
     }

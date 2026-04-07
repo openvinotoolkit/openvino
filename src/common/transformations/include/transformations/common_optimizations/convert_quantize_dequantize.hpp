@@ -37,5 +37,6 @@ public:
                                                                                          ov::element::u8,
                                                                                          ov::element::i16,
                                                                                          ov::element::u16},
-                              const ov::element::TypeVector& supported_original_precisions = {ov::element::f32});
+                              const ov::element::TypeVector& supported_original_precisions = {ov::element::f32},
+                              const bool ignore_consumers_count_check = false);
 };
