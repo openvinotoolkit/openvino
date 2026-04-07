@@ -639,22 +639,40 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkMultiAppThreadSyncResultsMatchD
 }
 
 // ---------------------------------------------------------------------------
-// B11: Property interaction — num_streams=4 + multi_app_thread_sync=true
-//      must compile and infer without crash
+// B11: Property interaction — num_streams=4 + multi_app_thread_sync=true/false
+//      Both modes must infer without crash and produce identical outputs.
 // ---------------------------------------------------------------------------
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkMultiAppThreadSyncWithStreams) {
     ov::Core core;
-    ov::CompiledModel compiledModel;
-    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(
-        model, deviceName,
-        {{ov::intel_cpu::multi_app_thread_sync_execution.name(), true},
-         {ov::num_streams.name(), 4}}));
 
-    auto inferRequest = compiledModel.create_infer_request();
     ov::Tensor inputTensor(ov::element::f32, {1, 1, 32, 32});
     std::fill_n(inputTensor.data<float>(), inputTensor.get_size(), 0.5f);
-    inferRequest.set_input_tensor(inputTensor);
-    OV_ASSERT_NO_THROW(inferRequest.infer());
+
+    auto runInferWithStreams = [&](bool syncExec) -> ov::Tensor {
+        ov::CompiledModel cm = core.compile_model(
+            model, deviceName,
+            {{ov::intel_cpu::multi_app_thread_sync_execution.name(), syncExec},
+             {ov::num_streams.name(), 4}});
+        auto req = cm.create_infer_request();
+        req.set_input_tensor(inputTensor);
+        req.infer();
+        auto output = req.get_output_tensor(0);
+        EXPECT_GT(output.get_size(), 0u);
+        return output;
+    };
+
+    ov::Tensor outFalse = runInferWithStreams(false);
+    ov::Tensor outTrue  = runInferWithStreams(true);
+
+    ASSERT_EQ(outFalse.get_shape(), outTrue.get_shape());
+    ASSERT_EQ(outFalse.get_element_type(), outTrue.get_element_type());
+
+    const float* df = outFalse.data<float>();
+    const float* dt = outTrue.data<float>();
+    for (size_t i = 0; i < outFalse.get_size(); ++i) {
+        ASSERT_FLOAT_EQ(df[i], dt[i]) << "Output mismatch at element " << i
+                                      << " (false=" << df[i] << ", true=" << dt[i] << ")";
+    }
 }
 
 }  // namespace

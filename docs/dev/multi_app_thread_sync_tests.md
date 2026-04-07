@@ -81,7 +81,7 @@ Tests exercise `ov::intel_cpu::Config::readProperties()` and `Config::updateProp
 | B8 | `smoke_CpuExecNetworkMultiAppThreadSyncSetFalse` | Compile with explicit `false`; `get_property` reads back `false` |
 | B9 | `smoke_CpuExecNetworkMultiAppThreadSyncInferNoThrow` | Compile with `true`, create infer request, bind input tensor, call `infer()` — no throw, non-empty output |
 | B10 | `smoke_CpuExecNetworkMultiAppThreadSyncResultsMatchDefault` | Run same model with `true` and `false`; outputs are element-wise identical (only dispatch path differs) |
-| B11 | `smoke_CpuExecNetworkMultiAppThreadSyncWithStreams` | Set `num_streams=4` + `multi_app_thread_sync_execution=true`; compile + infer — no crash on property interaction |
+| B11 | `smoke_CpuExecNetworkMultiAppThreadSyncWithStreams` | Set `num_streams=4` + run inference with both `true` and `false`; assert no-throw, non-empty output, and element-wise equal outputs |
 
 ---
 
@@ -278,5 +278,5 @@ Both targets linked successfully with no errors.
 | Func — compiled model set false | `ov_cpu_func_tests` | B8 | ✅ PASSED |
 | Func — infer no-throw with true | `ov_cpu_func_tests` | B9 | ✅ PASSED |
 | Func — results match default | `ov_cpu_func_tests` | B10 | ✅ PASSED |
-| Func — property interaction streams | `ov_cpu_func_tests` | B11 | ✅ PASSED |
+| Func — property interaction streams | `ov_cpu_func_tests` | B11 | ✅ PASSED (both true/false infer, output tensors match) |
 | **Total** | | **17** | ✅ **17/17 PASSED** |
