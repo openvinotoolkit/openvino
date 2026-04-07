@@ -52,22 +52,17 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::create_infer_request");
 
     // sanity check
-    if (_device == nullptr) {
-        OPENVINO_THROW("No available devices. Failed to create infer request!");
-    }
+    OPENVINO_ASSERT(_device != nullptr, "No available devices. Failed to create infer request!");
 
     if (!_propertiesManager->getConfig().get<CREATE_EXECUTOR>() ||
         _propertiesManager->getConfig().get<DEFER_WEIGHTS_LOAD>()) {
-        if (_graph == nullptr) {
-            OPENVINO_THROW("Invalid graph handle! Failed to create infer request!");
-        }
+        OPENVINO_ASSERT(_graph != nullptr, "Invalid graph handle! Failed to create infer request!");
         _graph->initialize(_propertiesManager->getConfig());
     }
 
-    if (!_graph->init_completed()) {
-        OPENVINO_THROW(
-            "The driver is not applicable. The driver doesn't exist or is too old to run inference for this blob.");
-    }
+    OPENVINO_ASSERT(_graph != nullptr && _graph->init_completed(),
+                    "Graph is unavailable or failed to initialize. The driver may be missing or too old to run "
+                    "inference for this blob.");
 
     const std::shared_ptr<InferRequest>& syncInferRequest =
         _device->createInferRequest(shared_from_this(), _propertiesManager->getConfig());
@@ -168,6 +163,13 @@ void CompiledModel::set_property(const ov::AnyMap& properties) {
             _graph->set_workload_type(workloadType);
         }
     }
+
+    if (properties.count(std::string(MODEL_PRIORITY::key())) != 0) {
+        if (_graph != nullptr) {
+            const auto modelPriority = properties.at(ov::hint::model_priority.name()).as<ov::hint::Priority>();
+            _graph->set_model_priority(modelPriority);
+        }
+    }
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
@@ -187,6 +189,12 @@ const std::shared_ptr<IGraph>& CompiledModel::get_graph() const {
 
 const FilteredConfig& CompiledModel::get_config() const {
     return _propertiesManager->getConfig();
+}
+
+void CompiledModel::release_memory() {
+    if (_graph != nullptr) {
+        _graph->evict_memory();
+    }
 }
 
 void CompiledModel::configure_stream_executors() {

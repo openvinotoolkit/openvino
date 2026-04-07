@@ -59,6 +59,33 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     }
     return result;
 }
+
+bool can_use_weightless_flow(const ::intel_npu::Config& config) {
+    return config.get<::intel_npu::NPUW_FOLD>() || config.get<::intel_npu::NPUW_CWAI>();
+}
+
+bool should_use_weightless_flow(const ov::AnyMap& non_npuw_props,
+                                const ::intel_npu::Config& config,
+                                const std::unordered_map<const void*, std::size_t>& const_to_offset) {
+    if (!can_use_weightless_flow(config)) {
+        return false;
+    }
+
+    bool is_weightless = true;
+    if (auto it = non_npuw_props.find(ov::enable_weightless.name()); it != non_npuw_props.end()) {
+        is_weightless = it->second.as<bool>();
+    } else if (auto it = non_npuw_props.find(ov::cache_mode.name());
+               it != non_npuw_props.end() && it->second.as<ov::CacheMode>() == ov::CacheMode::OPTIMIZE_SPEED) {
+        is_weightless = false;
+    }
+
+    // Weightless serialization is only valid when WAI metadata was generated.
+    if (is_weightless && const_to_offset.empty()) {
+        is_weightless = false;
+    }
+
+    return is_weightless;
+}
 }  // anonymous namespace
 
 namespace ov {
@@ -1020,15 +1047,9 @@ void ov::npuw::CompiledModel::export_model(std::ostream& stream) const {
     }
 
     // Identify either full flow or weightless
-    bool is_weightless = true;
-    if (auto it = m_non_npuw_props.find(ov::enable_weightless.name()); it != m_non_npuw_props.end()) {
-        if (!it->second.as<bool>()) {
-            is_weightless = false;
-        }
-    } else if (auto it = m_non_npuw_props.find(ov::cache_mode.name());
-               it != m_non_npuw_props.end() && it->second.as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
+    bool is_weightless = should_use_weightless_flow(m_non_npuw_props, m_cfg, m_const_to_offset);
+    if (!is_weightless) {
         LOG_INFO("Serialization will be done via flow with weights.");
-        is_weightless = false;
     }
 
     // Write header regardless of encryption requirement - to identify NPUW serializated blobs
@@ -1228,15 +1249,7 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s1
         }
 
         // Write flow identifier
-        bool is_weightless = true;
-        if (auto it = m_non_npuw_props.find(ov::enable_weightless.name()); it != m_non_npuw_props.end()) {
-            if (!it->second.as<bool>()) {
-                is_weightless = false;
-            }
-        } else if (m_non_npuw_props.count(ov::cache_mode.name()) &&
-                   m_non_npuw_props.at(ov::cache_mode.name()).as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
-            is_weightless = false;
-        }
+        bool is_weightless = should_use_weightless_flow(m_non_npuw_props, m_cfg, m_const_to_offset);
         write(model_stream, is_weightless);
 
         // Write bf16 consts cache
@@ -1966,6 +1979,22 @@ void ov::npuw::CompiledModel::compile_host_flash_attention_model(std::size_t id,
         return;
     }
 
+    // Set the flag for using tensor view based on device capabilities
+    if (ov::npuw::util::starts_with(device, "NPU")) {
+        const auto supported_properties = get_npuw_plugin()->get_core()->get_property(device, ov::supported_properties);
+        const auto support_strides_for =
+            std::find(supported_properties.begin(),
+                      supported_properties.end(),
+                      ov::intel_npu::enable_strides_for.name()) != supported_properties.end();
+        if (support_strides_for) {
+            hfa._can_use_tensor_view = true;
+            auto strided_inputs_name = std::string(hfa_tile_input_id_to_string(HFATileInputId::K_TILE)) + "," +
+                                       std::string(hfa_tile_input_id_to_string(HFATileInputId::V_TILE));
+            m_meta_devices[device][ov::intel_npu::enable_strides_for.name()] = strided_inputs_name;
+            LOG_INFO("Enabled using tensor view for device: " << device << " for inputs: " << strided_inputs_name);
+        }
+    }
+
     // Note: The final tile model has already been compiled via compile_submodel(m_compiled_submodels[id].model, ...)
     // because m_compiled_submodels[id].model points to _final_tile_model for HFA
     // So we only need to compile the regular tile model here
@@ -2137,7 +2166,7 @@ void ov::npuw::CompiledModel::dump_subgraph_composition(const std::vector<ov::np
     LOG_BLOCK();
 
     const std::string dump_dir = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS_DIR>();
-    const std::string sg_file = "npuw_" + m_name + ".sg";
+    const std::string sg_file = "npuw_" + m_name + ".xml.sg";
     const std::string sg_path = ov::util::path_join({dump_dir, sg_file}).string();
 
     // Collect unique subgraphs via replaced_by()

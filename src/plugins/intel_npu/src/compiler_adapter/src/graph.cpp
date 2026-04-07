@@ -10,6 +10,8 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
 namespace intel_npu {
@@ -49,28 +51,35 @@ void Graph::update_network_name(std::string_view name) {
     _metadata.name = name;
 }
 
-const std::shared_ptr<CommandQueue>& Graph::get_command_queue() const {
-    return _commandQueue;
+CommandQueueDesc Graph::get_command_queue_desc() const {
+    std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
+    return _commandQueueDesc;
 }
 
-void Graph::set_workload_type(const ov::WorkloadType workloadType) const {
-    if (_commandQueue == nullptr) {
+void Graph::set_workload_type(const ov::WorkloadType workloadType) {
+    if (_zeroInitStruct == nullptr) {
         return;
     }
 
-    ze_command_queue_workload_type_t zeWorkloadType;
-    switch (workloadType) {
-    case ov::WorkloadType::DEFAULT:
-        zeWorkloadType = ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_DEFAULT;
-        break;
-    case ov::WorkloadType::EFFICIENT:
-        zeWorkloadType = ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_BACKGROUND;
-        break;
-    default:
-        OPENVINO_THROW("Unknown value for WorkloadType!");
+    std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
+    auto zeWorkloadType = zeroUtils::toZeQueueWorkloadType(workloadType);
+    if (_commandQueueDesc.workload() == zeWorkloadType) {
+        return;
+    }
+    _commandQueueDesc.set_workload(zeWorkloadType);
+}
+
+void Graph::set_model_priority(const ov::hint::Priority modelPriority) {
+    if (_zeroInitStruct == nullptr) {
+        return;
     }
 
-    _commandQueue->setWorkloadType(zeWorkloadType);
+    std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
+    auto zeModelPriority = zeroUtils::toZeQueuePriority(modelPriority);
+    if (_commandQueueDesc.priority() == zeModelPriority) {
+        return;
+    }
+    _commandQueueDesc.set_priority(zeModelPriority);
 }
 
 ze_graph_handle_t Graph::get_handle() const {
@@ -157,7 +166,7 @@ void Graph::set_argument_value_with_strides(uint32_t id, const void* data, const
     _zeGraphExt->setGraphArgumentValueWithStrides(_graphDesc, id, data, strides);
 }
 
-void Graph::initialize(const FilteredConfig& config) {
+void Graph::initialize_impl(const FilteredConfig& config) {
     _logger.debug("Graph initialize start");
 
     if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr || _zeroInitStruct == nullptr) {
@@ -166,26 +175,27 @@ void Graph::initialize(const FilteredConfig& config) {
     }
 
     uint32_t commandQueueOptions = 0;
-
     if (config.has<TURBO>() && config.get<TURBO>()) {
         if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
             _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in command queue options");
             commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
         }
     }
-
     if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1) &&
         config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC in command queue options");
         commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
     }
 
-    _commandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
-                                                   zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                   commandQueueOptions);
-
-    if (config.has<WORKLOAD_TYPE>()) {
-        set_workload_type(config.get<WORKLOAD_TYPE>());
+    {
+        std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
+        _commandQueueDesc = CommandQueueDesc{
+            zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
+            config.has<WORKLOAD_TYPE>() ? zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>()) : std::nullopt,
+            commandQueueOptions,
+            this,
+            config.get<SHARED_COMMON_QUEUE>(),
+        };
     }
 
     _zeGraphExt->initializeGraph(_graphDesc);
@@ -207,7 +217,7 @@ void Graph::initialize(const FilteredConfig& config) {
         _lastSubmittedEvent.resize(numberOfCommandLists);
     }
     // To ensure that the initialization of the graph does not exit prematurely due to nullptrs
-    _init_completed = true;
+    _init_completed.store(true, std::memory_order_release);
 }
 
 bool Graph::release_blob(const FilteredConfig& config) {
@@ -329,6 +339,12 @@ const std::optional<std::size_t> Graph::get_batch_size() const {
     return _batchSize;
 }
 
+void Graph::evict_memory() {
+    if (_zeGraphExt != nullptr) {
+        _zeGraphExt->evict_memory(_graphDesc);
+    }
+}
+
 Graph::~Graph() {
     // make sure all the context-dependent components are destroyed before the zero context is destroyed
     if (_zeGraphExt != nullptr) {
@@ -337,10 +353,6 @@ Graph::~Graph() {
 
     if (!_lastSubmittedEvent.empty()) {
         _lastSubmittedEvent.clear();
-    }
-
-    if (_commandQueue != nullptr) {
-        _commandQueue.reset();
     }
 }
 

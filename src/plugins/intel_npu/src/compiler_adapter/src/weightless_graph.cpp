@@ -12,6 +12,8 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
@@ -283,7 +285,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
     return std::make_pair(totalBlobSize, initSizes);
 }
 
-void WeightlessGraph::initialize(const FilteredConfig& config) {
+void WeightlessGraph::initialize_impl(const FilteredConfig& config) {
     if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr || _zeroInitStruct == nullptr) {
         // To ensure that does not throw an issue when subsequently calling `_zeroInitStruct->getDevice()`
         return;
@@ -313,23 +315,13 @@ void WeightlessGraph::initialize(const FilteredConfig& config) {
             commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
         }
     }
-
-    _initsCommandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
-                                                        zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                        commandQueueOptions);
-
-    if (config.has<WORKLOAD_TYPE>()) {
-        switch (config.get<WORKLOAD_TYPE>()) {
-        case ov::WorkloadType::DEFAULT:
-            _initsCommandQueue->setWorkloadType(ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_DEFAULT);
-            break;
-        case ov::WorkloadType::EFFICIENT:
-            _initsCommandQueue->setWorkloadType(ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_BACKGROUND);
-            break;
-        default:
-            OPENVINO_THROW("Unknown value for WorkloadType!");
-        }
-    }
+    CommandQueueDesc commandQueueDesc{
+        zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
+        config.has<WORKLOAD_TYPE>() ? zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>()) : std::nullopt,
+        commandQueueOptions,
+        this,
+        config.get<SHARED_COMMON_QUEUE>()};
+    _initsCommandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, commandQueueDesc);
 
 #if USE_SINGLE_THREADED_RUN_INIT
     run_init_single_threaded();
@@ -348,7 +340,7 @@ void WeightlessGraph::initialize(const FilteredConfig& config) {
     _initsCommandQueue.reset();
 
     // The main schedule is initialized after the weights initialization ones in order to save some memory
-    Graph::initialize(config);
+    Graph::initialize_impl(config);
 
     set_weights_inputs();
 }
