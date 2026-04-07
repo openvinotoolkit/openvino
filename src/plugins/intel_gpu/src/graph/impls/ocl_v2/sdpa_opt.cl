@@ -1045,9 +1045,11 @@ KERNEL(sdpa_opt)(
 #if IS_CAUSAL
     const int default_this_work_item_max_seq_idx = target_seq_idx + sglid;
     const int default_this_work_item_min_seq_idx = 0;
+    const int default_this_work_subgroup_max_seq_idx = target_seq_idx + seq_idx_end;   
 
     int this_work_item_max_seq_idx_temp = default_this_work_item_max_seq_idx;
     int this_work_item_min_seq_idx_temp = default_this_work_item_min_seq_idx;
+    int this_work_subgroup_max_seq_idx_temp = default_this_work_subgroup_max_seq_idx;
     #if IS_PAGED_ATTENTION
 
         #if HAS_TOKEN_TYPE_IDS
@@ -1073,7 +1075,7 @@ KERNEL(sdpa_opt)(
             }
             this_work_item_max_seq_idx_temp = token_group_end;
             this_work_item_min_seq_idx_temp = token_group_begin;
-            const int max_token_group_end_for_this_sg = sub_group_reduce_max(token_group_end) + 1;
+            this_work_subgroup_max_seq_idx_temp = sub_group_reduce_max(token_group_end) + 1;
         #endif
 
         #if SLIDING_WINDOW_SIZE != 0
@@ -1090,6 +1092,7 @@ KERNEL(sdpa_opt)(
 
     const int this_work_item_min_seq_idx = this_work_item_min_seq_idx_temp;
     const int this_work_item_max_seq_idx = this_work_item_max_seq_idx_temp;
+    const int this_work_subgroup_max_seq_idx = this_work_subgroup_max_seq_idx_temp;
 #endif //< IS_CAUSAL
 
     const uint num_read_blocks = K_HEAD_SIZE == V_HEAD_SIZE ? 1 :  CEIL_DIV(K_HEAD_SIZE, V_HEAD_SIZE);
@@ -1247,23 +1250,14 @@ KERNEL(sdpa_opt)(
     for (uint start_partition_idx = 0; start_partition_idx < SOURCE_SEQ_LEN; start_partition_idx += SEQ_LEN_PARTITION_SIZE) {
         const uint seq_len = start_partition_idx + sgid * SUBGROUP_SIZE;
 #if IS_CAUSAL
-#if IS_PAGED_ATTENTION && HAS_TOKEN_TYPE_IDS
-        const uint partition_seq_len = min((uint)SEQ_LEN_PARTITION_SIZE, (uint)max(0, (int)(max_token_group_end_for_this_sg) - (int)start_partition_idx));
-#else
-        const uint partition_seq_len = min((uint)SEQ_LEN_PARTITION_SIZE, (uint)max(0, (int)(target_seq_idx + seq_idx_end) - (int)start_partition_idx));
-#endif
+        const uint partition_seq_len = min((uint)SEQ_LEN_PARTITION_SIZE, (uint)max(0, (int)(this_work_subgroup_max_seq_idx) - (int)start_partition_idx));
 #else
         const uint partition_seq_len = min((uint)SOURCE_SEQ_LEN - start_partition_idx, (uint)SEQ_LEN_PARTITION_SIZE);
 #endif
 
         MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = INPUT0_VAL_ZERO;
 #if IS_CAUSAL
-#if IS_PAGED_ATTENTION && HAS_TOKEN_TYPE_IDS
-        const uint this_subgroup_max_seq_idx = max_token_group_end_for_this_sg;
-#else
-        const uint this_subgroup_max_seq_idx = target_seq_idx;
-#endif
-        if (seq_len <= this_subgroup_max_seq_idx) { // keep tril i.e. m >= n
+        if (seq_len <= this_work_subgroup_max_seq_idx) { // keep tril i.e. m >= n
 #endif
 #if IS_PAGED_ATTENTION
 #ifdef BROADCAST_GROUP_SIZE
