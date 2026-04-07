@@ -89,9 +89,9 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: ${{ github.workspace }}/openvino
+        working-directory: ${{ github.workspace }}
     env:
-      OV_WORKSPACE: ${{ github.workspace }}/openvino
+      OV_WORKSPACE: ${{ github.workspace }}
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       INSTALL_PKG_DIR: ${{ github.workspace }}/install
@@ -104,7 +104,6 @@ jobs:
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
-          path: openvino
           submodules: 'true'
 
       - name: Download OpenVINO package
@@ -146,7 +145,7 @@ jobs:
           fi
 
       - name: Setup Python 3.11
-        uses: ./openvino/.github/actions/setup_python
+        uses: ./.github/actions/setup_python
         with:
           version: '3.11'
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
@@ -179,7 +178,7 @@ jobs:
       - name: Upload Codecov (C++ runtime, CPU)
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: openvino/coverage.info
+          files: coverage.info
           disable_search: true
           plugins: noop
           flags: cpp-runtime-cpp-cpu
@@ -212,9 +211,9 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: ${{ github.workspace }}/openvino
+        working-directory: ${{ github.workspace }}
     env:
-      OV_WORKSPACE: ${{ github.workspace }}/openvino
+      OV_WORKSPACE: ${{ github.workspace }}
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       INSTALL_PKG_DIR: ${{ github.workspace }}/install
@@ -226,7 +225,6 @@ jobs:
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
-          path: openvino
           submodules: 'true'
 
       - name: Download OpenVINO package
@@ -274,7 +272,7 @@ jobs:
           fi
 
       - name: Setup Python 3.11
-        uses: ./openvino/.github/actions/setup_python
+        uses: ./.github/actions/setup_python
         with:
           version: '3.11'
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
@@ -285,7 +283,7 @@ jobs:
         run: python3 -m pip install -r .github/scripts/coverage/requirements-ci.txt
 
       - name: Install OpenVINO Python wheels
-        uses: ./openvino/.github/actions/install_ov_wheels
+        uses: ./.github/actions/install_ov_wheels
         with:
           wheels-dir-path: ${{ env.INSTALL_DIR }}
           wheels-to-install: 'openvino'
@@ -320,7 +318,7 @@ jobs:
       - name: Upload Codecov (Python API, CPU)
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: openvino/python-coverage.xml
+          files: python-coverage.xml
           disable_search: true
           plugins: noop
           flags: python-api-frontend-layer-ovc-cpu
@@ -332,7 +330,7 @@ jobs:
       - name: Upload Codecov (C++ runtime, Python suite, CPU)
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: openvino/coverage.info
+          files: coverage.info
           disable_search: true
           plugins: noop
           flags: cpp-runtime-python-cpu
@@ -365,12 +363,12 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: ${{ github.workspace }}/openvino
+        working-directory: ${{ github.workspace }}
     env:
-      OV_WORKSPACE: ${{ github.workspace }}/openvino
+      OV_WORKSPACE: ${{ github.workspace }}
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_PKG_DIR: ${{ github.workspace }}/install
-      OPENVINO_JS_DIR: ${{ github.workspace }}/openvino/src/bindings/js/node
+      OPENVINO_JS_DIR: ${{ github.workspace }}/src/bindings/js/node
       BUILD_DIR: ${{ github.workspace }}/openvino/openvino_build
       BUILD_JS_DIR: ${{ github.workspace }}/openvino/openvino_build_js
       COVERAGE_WRITE_STEP_SUMMARY: 'false'
@@ -380,7 +378,6 @@ jobs:
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
-          path: openvino
           submodules: 'true'
 
       - name: Download OpenVINO package
@@ -426,7 +423,7 @@ jobs:
         run: npm i --no-save c8
 
       - name: Setup Python 3.11
-        uses: ./openvino/.github/actions/setup_python
+        uses: ./.github/actions/setup_python
         with:
           version: '3.11'
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
@@ -477,7 +474,7 @@ jobs:
       - name: Upload Codecov (JS bindings, CPU)
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: openvino/js-lcov.info
+          files: js-lcov.info
           disable_search: true
           plugins: noop
           flags: nodejs-bindings-unit-e2e-cpu
@@ -489,7 +486,7 @@ jobs:
       - name: Upload Codecov (C++ runtime, JS suite, CPU)
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: openvino/coverage.info
+          files: coverage.info
           disable_search: true
           plugins: noop
           flags: cpp-runtime-js-cpu
