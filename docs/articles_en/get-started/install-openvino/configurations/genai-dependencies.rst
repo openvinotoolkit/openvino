@@ -4,8 +4,8 @@ OpenVINO™ GenAI Dependencies
 OpenVINO™ GenAI depends on both `OpenVINO <https://github.com/openvinotoolkit/openvino>`__ and
 `OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_tokenizers>`__. During OpenVINO™
 GenAI installation from PyPi, the same versions of OpenVINO and OpenVINO Tokenizers
-are used (e.g. ``openvino==2026.0.0`` and ``openvino-tokenizers==2026.0.0.0`` are installed for
-``openvino-genai==2026.0.0``).
+are used (e.g. ``openvino==2026.1.0`` and ``openvino-tokenizers==2026.1.0.0`` are installed for
+``openvino-genai==2026.1.0``).
 
 Trying to update any of the dependency packages might result in a version incompatibility
 due to different Application Binary Interfaces (ABIs), which will result in errors while running
