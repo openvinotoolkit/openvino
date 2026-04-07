@@ -16,6 +16,7 @@ from typing import Any
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+CONFIG_DIR = SCRIPT_DIR / "config"
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 # Stable import alias used by step modules.
@@ -235,10 +236,6 @@ class CoverageContext:
 
     workspace: Path
     build_type: str
-    parallel_jobs: int
-    cpp_test_concurrency: int
-    pytest_workers: int
-    js_test_concurrency: int
     branch_coverage: bool
     test_profile: str
     cc: str
@@ -259,23 +256,12 @@ class CoverageContext:
 
         build_type = os.environ.get("CMAKE_BUILD_TYPE", "Release")
 
-        def _int_env(name: str, fallback: int) -> int:
-            raw = os.environ.get(name)
-            if raw is None or raw.strip() == "":
-                return fallback
-            return int(raw)
-
         def _bool_env(name: str, fallback: bool) -> bool:
             raw = os.environ.get(name)
             if raw is None or raw.strip() == "":
                 return fallback
             return raw.strip().lower() in {"1", "true", "yes", "on"}
 
-        cpu_count = os.cpu_count() or 1
-        parallel_jobs = _int_env("PARALLEL_JOBS", cpu_count)
-        cpp_test_concurrency = max(1, _int_env("CPP_TEST_CONCURRENCY", 1))
-        pytest_workers = _int_env("PYTEST_XDIST_WORKERS", 1)
-        js_concurrency = _int_env("JS_TEST_CONCURRENCY", 1)
         branch_coverage = _bool_env("ENABLE_BRANCH_COVERAGE", False)
 
         test_profile = os.environ.get("TEST_PROFILE", "cpu").strip()
@@ -299,10 +285,6 @@ class CoverageContext:
 
         os.environ["OV_WORKSPACE"] = str(workspace)
         os.environ["CMAKE_BUILD_TYPE"] = build_type
-        os.environ["PARALLEL_JOBS"] = str(parallel_jobs)
-        os.environ["CPP_TEST_CONCURRENCY"] = str(cpp_test_concurrency)
-        os.environ["PYTEST_XDIST_WORKERS"] = str(pytest_workers)
-        os.environ["JS_TEST_CONCURRENCY"] = str(js_concurrency)
         os.environ["ENABLE_BRANCH_COVERAGE"] = "true" if branch_coverage else "false"
         os.environ["TEST_PROFILE"] = test_profile
         os.environ["RUN_GPU_TESTS"] = "true" if profile_flags.run_gpu_tests else "false"
@@ -311,10 +293,6 @@ class CoverageContext:
         return cls(
             workspace=workspace,
             build_type=build_type,
-            parallel_jobs=parallel_jobs,
-            cpp_test_concurrency=cpp_test_concurrency,
-            pytest_workers=pytest_workers,
-            js_test_concurrency=js_concurrency,
             branch_coverage=branch_coverage,
             test_profile=test_profile,
             cc=cc,
@@ -517,10 +495,10 @@ def validate_configs(config_dir: Path) -> list[ConfigValidationIssue]:
 
 
 STEP_MODULES: dict[str, str] = {
-    "run-cpp-tests": "steps.run_cpp_tests",
-    "run-python-tests": "steps.run_python_tests",
-    "run-js-tests": "steps.run_js_tests",
-    "collect-cpp-coverage": "steps.collect_cpp_coverage",
+    "run-cpp-tests": "run_tests:run_cpp",
+    "run-python-tests": "run_tests:run_python",
+    "run-js-tests": "run_tests:run_js",
+    "collect-cpp-coverage": "collect_cpp_coverage",
 }
 
 
@@ -538,22 +516,6 @@ def _apply_common_env(args: argparse.Namespace) -> None:
     if build_type:
         os.environ["CMAKE_BUILD_TYPE"] = build_type
 
-    parallel_jobs = getattr(args, "parallel_jobs", None)
-    if parallel_jobs is not None:
-        os.environ["PARALLEL_JOBS"] = str(parallel_jobs)
-
-    cpp_test_concurrency = getattr(args, "cpp_test_concurrency", None)
-    if cpp_test_concurrency is not None:
-        os.environ["CPP_TEST_CONCURRENCY"] = str(cpp_test_concurrency)
-
-    pytest_workers = getattr(args, "pytest_workers", None)
-    if pytest_workers is not None:
-        os.environ["PYTEST_XDIST_WORKERS"] = str(pytest_workers)
-
-    js_test_concurrency = getattr(args, "js_test_concurrency", None)
-    if js_test_concurrency is not None:
-        os.environ["JS_TEST_CONCURRENCY"] = str(js_test_concurrency)
-
 def _load_context(args: argparse.Namespace) -> CoverageContext:
     """Create a coverage context for the current command."""
     _apply_common_env(args)
@@ -562,13 +524,14 @@ def _load_context(args: argparse.Namespace) -> CoverageContext:
 
 def _resolve_step_handler(step_name: str) -> Callable[[CoverageContext], None]:
     """Import and return the handler for a named workflow step."""
-    module_name = STEP_MODULES.get(step_name)
-    if not module_name:
+    handler_spec = STEP_MODULES.get(step_name)
+    if not handler_spec:
         raise KeyError(f"Unknown step '{step_name}'")
+    module_name, _, handler_name = handler_spec.partition(":")
     module = importlib.import_module(module_name)
-    handler = getattr(module, "run", None)
+    handler = getattr(module, handler_name or "run", None)
     if not callable(handler):
-        raise RuntimeError(f"Step module '{module_name}' does not define callable run(ctx)")
+        raise RuntimeError(f"Step handler '{handler_spec}' is not callable")
     return handler  # type: ignore[return-value]
 
 
@@ -590,7 +553,7 @@ def _command_list_tests(args: argparse.Namespace) -> int:
     """Print resolved tests for a suite/profile pair."""
     _apply_common_env(args)
     workspace = Path(os.environ.get("OV_WORKSPACE") or os.environ.get("GITHUB_WORKSPACE") or Path.cwd()).resolve()
-    config_dir = workspace / "tools" / "coverage" / "config"
+    config_dir = CONFIG_DIR
 
     if args.suite == "cpp":
         tests = load_cpp_tests(config_dir / "tests_cpp.yml", args.profile)
@@ -650,7 +613,7 @@ def _command_validate_config(args: argparse.Namespace) -> int:
     """Validate the coverage YAML configuration files."""
     _apply_common_env(args)
     workspace = Path(os.environ.get("OV_WORKSPACE") or os.environ.get("GITHUB_WORKSPACE") or Path.cwd()).resolve()
-    issues = validate_configs(workspace / "tools" / "coverage" / "config")
+    issues = validate_configs(CONFIG_DIR)
 
     if issues:
         for issue in issues:
@@ -667,10 +630,6 @@ def _add_common_options(parser: argparse.ArgumentParser, *, include_profile: boo
         parser.add_argument("--profile", choices=sorted(SUPPORTED_PROFILES), default=os.environ.get("TEST_PROFILE", "cpu"))
     parser.add_argument("--workspace", default=os.environ.get("OV_WORKSPACE") or os.environ.get("GITHUB_WORKSPACE"))
     parser.add_argument("--build-type", default=os.environ.get("CMAKE_BUILD_TYPE", "Release"))
-    parser.add_argument("--parallel-jobs", type=int, default=None)
-    parser.add_argument("--cpp-test-concurrency", type=int, default=None)
-    parser.add_argument("--pytest-workers", type=int, default=None)
-    parser.add_argument("--js-test-concurrency", type=int, default=None)
 
 
 def build_parser() -> argparse.ArgumentParser:

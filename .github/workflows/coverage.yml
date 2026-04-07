@@ -13,8 +13,6 @@ permissions: read-all
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   TEST_PROFILE: cpu
-  PYTEST_XDIST_WORKERS: '4'
-  JS_TEST_CONCURRENCY: '1'
   ENABLE_BRANCH_COVERAGE: 'false'
   LCOV_CAPTURE_TIMEOUT_SECONDS: '3600'
   NODE_VERSION: '21'
@@ -156,20 +154,20 @@ jobs:
           self-hosted-runner: 'true'
 
       - name: Install coverage Python dependencies
-        run: python3 -m pip install -r tools/coverage/requirements-ci.txt
+        run: python3 -m pip install -r .github/scripts/coverage/requirements-ci.txt
 
       - name: Run CPU C++ coverage tests
-        run: python3 tools/coverage/coverage.py step run-cpp-tests
+        run: python3 .github/scripts/coverage/coverage.py step run-cpp-tests
 
       - name: Generate CPU native C/C++ coverage report
-        run: python3 tools/coverage/coverage.py step collect-cpp-coverage
+        run: python3 .github/scripts/coverage/coverage.py step collect-cpp-coverage
 
       - name: Collect C++ CPU results
         id: cpu_artifact
         if: ${{ always() }}
         run: |
           dir="${RUNNER_TEMP}/coverage-cpp-cpu"
-          python3 tools/coverage/ci_reports.py collect-suite-results \
+          python3 .github/scripts/coverage/ci_reports.py collect-suite-results \
             --workspace "${{ env.OV_WORKSPACE }}" \
             --suite cpp \
             --profile cpu \
@@ -284,7 +282,7 @@ jobs:
           self-hosted-runner: 'true'
 
       - name: Install coverage Python dependencies
-        run: python3 -m pip install -r tools/coverage/requirements-ci.txt
+        run: python3 -m pip install -r .github/scripts/coverage/requirements-ci.txt
 
       - name: Install OpenVINO Python wheels
         uses: ./openvino/.github/actions/install_ov_wheels
@@ -300,17 +298,17 @@ jobs:
           python3 -m pip install -r "${INSTALL_DIR}/tests/requirements_jax"
 
       - name: Run CPU Python coverage tests
-        run: python3 tools/coverage/coverage.py step run-python-tests
+        run: python3 .github/scripts/coverage/coverage.py step run-python-tests
 
       - name: Generate CPU native C/C++ coverage report
-        run: python3 tools/coverage/coverage.py step collect-cpp-coverage
+        run: python3 .github/scripts/coverage/coverage.py step collect-cpp-coverage
 
       - name: Collect Python CPU results
         id: cpu_artifact
         if: ${{ always() }}
         run: |
           dir="${RUNNER_TEMP}/coverage-python-cpu"
-          python3 tools/coverage/ci_reports.py collect-suite-results \
+          python3 .github/scripts/coverage/ci_reports.py collect-suite-results \
             --workspace "${{ env.OV_WORKSPACE }}" \
             --suite python \
             --profile cpu \
@@ -436,7 +434,7 @@ jobs:
           self-hosted-runner: 'true'
 
       - name: Install coverage Python dependencies
-        run: python3 -m pip install -r tools/coverage/requirements-ci.txt
+        run: python3 -m pip install -r .github/scripts/coverage/requirements-ci.txt
 
       - name: Restore coverage notes
         run: |
@@ -457,17 +455,17 @@ jobs:
         run: Xvfb "$DISPLAY" &
 
       - name: Run CPU JS coverage tests
-        run: python3 tools/coverage/coverage.py step run-js-tests
+        run: python3 .github/scripts/coverage/coverage.py step run-js-tests
 
       - name: Generate CPU native C/C++ coverage report
-        run: python3 tools/coverage/coverage.py step collect-cpp-coverage
+        run: python3 .github/scripts/coverage/coverage.py step collect-cpp-coverage
 
       - name: Collect JS CPU results
         id: cpu_artifact
         if: ${{ always() }}
         run: |
           dir="${RUNNER_TEMP}/coverage-js-cpu"
-          python3 tools/coverage/ci_reports.py collect-suite-results \
+          python3 .github/scripts/coverage/ci_reports.py collect-suite-results \
             --workspace "${{ env.OV_WORKSPACE }}" \
             --suite js \
             --profile cpu \
@@ -521,7 +519,7 @@ jobs:
         timeout-minutes: 15
         with:
           sparse-checkout: |
-            tools/coverage
+            .github/scripts/coverage
           submodules: 'false'
 
       - name: Download C++ artifacts
@@ -544,7 +542,7 @@ jobs:
 
       - name: Generate final summary
         run: |
-          python3 tools/coverage/ci_reports.py render-summary \
+          python3 .github/scripts/coverage/ci_reports.py render-summary \
             --workspace "${{ github.workspace }}" \
             --summary-file "${GITHUB_STEP_SUMMARY}" \
             --selection "cpu" \
@@ -552,7 +550,7 @@ jobs:
 
       - name: Merge duration reports
         run: |
-          python3 tools/coverage/ci_reports.py merge-durations \
+          python3 .github/scripts/coverage/ci_reports.py merge-durations \
             --workspace "${{ github.workspace }}" \
             --output "${{ github.workspace }}/coverage-test-durations-all.csv"
 

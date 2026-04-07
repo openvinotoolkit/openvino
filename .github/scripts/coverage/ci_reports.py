@@ -12,6 +12,7 @@ import sys
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+CONFIG_DIR = SCRIPT_DIR / "config"
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
@@ -90,13 +91,12 @@ def _to_int(values: dict[str, str], key: str | None) -> int:
 
 
 def _load_test_names(*, workspace: Path, suite: str, profile: str) -> list[str]:
-    config_root = workspace / "tools" / "coverage" / "config"
     if suite == "cpp":
-        return [test.name for test in load_cpp_tests(config_root / "tests_cpp.yml", profile)]
+        return [test.name for test in load_cpp_tests(CONFIG_DIR / "tests_cpp.yml", profile)]
     if suite == "python":
-        return [test.name for test in load_python_tests(config_root / "tests_python.yml", profile)]
+        return [test.name for test in load_python_tests(CONFIG_DIR / "tests_python.yml", profile)]
     if suite == "js":
-        return [test.name for test in load_js_tests(config_root / "tests_js.yml", profile)]
+        return [test.name for test in load_js_tests(CONFIG_DIR / "tests_js.yml", profile)]
     raise ValueError(f"Unsupported suite: {suite}")
 
 

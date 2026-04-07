@@ -594,25 +594,12 @@ def _run_lcov_capture(
     raise RuntimeError(f"{label}: failed to capture coverage after {max_attempts} attempts")
 
 
-def _collect_staged_gcov_runs(ctx: CoverageContext) -> list[Path]:
-    """List staged gcov run directories created by parallel C++ tests.
-
-    Parallel C++ test execution writes gcov data into isolated staging
-    directories to avoid file collisions, and those directories must later be
-    discovered and merged into the final coverage report.
-    """
-    runs_root = ctx.workspace / ".tmp" / "cpp-gcov" / "runs"
-    if not runs_root.exists():
-        return []
-    return sorted(path for path in runs_root.iterdir() if path.is_dir())
-
-
 def _merge_tracefiles(tracefiles: list[Path], output: Path, *, branch_coverage: bool) -> None:
     """Merge captured lcov tracefiles into the final coverage report.
 
-    Coverage may be captured from the main build, the JS build, and staged
-    parallel-test runs, so those partial reports need to be combined into a
-    single ``coverage.info`` file for downstream upload and HTML generation.
+    Coverage may be captured from the main build and the JS build, so those
+    partial reports need to be combined into a single ``coverage.info`` file
+    for downstream upload and HTML generation.
     """
     if not tracefiles:
         raise RuntimeError("No native C/C++ coverage tracefiles were produced.")
@@ -644,9 +631,6 @@ def run(ctx: CoverageContext) -> None:
     shutil.rmtree(trace_dir, ignore_errors=True)
     trace_dir.mkdir(parents=True, exist_ok=True)
     tracefiles: list[Path] = []
-    staged_runs = _collect_staged_gcov_runs(ctx)
-    has_staged_main_gcda = any(_has_gcda(run_dir / "build") for run_dir in staged_runs)
-    has_staged_js_gcda = any(_has_gcda(run_dir / "build_js") for run_dir in staged_runs)
 
     tool_report = _tool_version_report()
     (trace_dir / "tool-versions.txt").write_text(tool_report, encoding="utf-8")
@@ -734,8 +718,7 @@ def run(ctx: CoverageContext) -> None:
             branch_coverage=ctx.branch_coverage,
         )
     else:
-        if not has_staged_main_gcda:
-            warn(f"No .gcda files found in {ctx.paths.build_dir}, skipping main native C++ capture")
+        warn(f"No .gcda files found in {ctx.paths.build_dir}, skipping main native C++ capture")
 
         main_info = None
 
@@ -751,44 +734,12 @@ def run(ctx: CoverageContext) -> None:
         )
         tracefiles.append(js_info)
     else:
-        if not has_staged_js_gcda and ctx.paths.build_js_dir.exists():
+        if ctx.paths.build_js_dir.exists():
             warn(f"No .gcda files found in {ctx.paths.build_js_dir}, skipping JS-side native C++ capture")
         js_info = None
 
     if has_main_gcda and main_info is not None:
         tracefiles.append(main_info)
-
-    if staged_runs:
-        print(f"[coverage] Found {len(staged_runs)} staged C++ gcov run(s) under {ctx.workspace / '.tmp' / 'cpp-gcov' / 'runs'}")
-
-    for run_dir in staged_runs:
-        staged_main_dir = run_dir / "build"
-        if _has_gcda(staged_main_dir):
-            _prefilter_incompatible_gcda(staged_main_dir, label=f"staged main build ({run_dir.name})", gcno_root=ctx.paths.build_dir)
-            tracefile = trace_dir / f"{run_dir.name}-main.info"
-            _run_lcov_capture(
-                directory=staged_main_dir,
-                base_directory=src_dir,
-                output_file=tracefile,
-                label=f"C/C++ staged main capture ({run_dir.name})",
-                debug_dir=trace_dir,
-                branch_coverage=ctx.branch_coverage,
-            )
-            tracefiles.append(tracefile)
-
-        staged_js_dir = run_dir / "build_js"
-        if _has_gcda(staged_js_dir):
-            _prefilter_incompatible_gcda(staged_js_dir, label=f"staged js build ({run_dir.name})", gcno_root=ctx.paths.build_js_dir)
-            tracefile = trace_dir / f"{run_dir.name}-js.info"
-            _run_lcov_capture(
-                directory=staged_js_dir,
-                base_directory=src_dir,
-                output_file=tracefile,
-                label=f"C/C++ staged JS capture ({run_dir.name})",
-                debug_dir=trace_dir,
-                branch_coverage=ctx.branch_coverage,
-            )
-            tracefiles.append(tracefile)
 
     _merge_tracefiles(tracefiles, merged_info, branch_coverage=ctx.branch_coverage)
 

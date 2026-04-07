@@ -1,5 +1,4 @@
 coverage==7.13.5
 pytest==9.0.2
 pytest-cov==7.1.0
-pytest-xdist[psutil]==3.8.0
 PyYAML==6.0.3
