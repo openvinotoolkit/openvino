@@ -98,10 +98,11 @@ def main():
         def is_flag_set_in_command_line(flag):
             return any(x.strip('-') == flag for x, y in command_line_arguments)
 
-        # When -niter 0 is explicitly passed, compile the model and exit without running inference.
-        # Useful for validating compilation of models with dynamic shapes that would otherwise
-        # require -shape, -data_shape, or -i to be specified.
-        compile_only = is_flag_set_in_command_line('niter') and args.number_iterations == 0
+        # When number_iterations is explicitly set to 0 (via -niter 0 or --number_iterations 0),
+        # compile the model and exit without running inference. The default is None, so == 0
+        # is only true on an explicit user request. Useful for validating compilation of models
+        # with dynamic shapes that would otherwise require -shape, -data_shape, or -i.
+        compile_only = args.number_iterations == 0
 
         device_name = args.target_device
 

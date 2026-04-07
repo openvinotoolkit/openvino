@@ -326,6 +326,23 @@ def test_compile_only_niter_0_compiled_blob(device, tmp_path):
     assert 'Skipping inference due to -niter 0' in output
 
 
+@pytest.mark.parametrize('device', get_devices())
+def test_compile_only_via_long_form_number_iterations(device, cache, tmp_path):
+    """Test that --number_iterations 0 (long form) also triggers compile-only mode in Python.
+    Previously only the short -niter flag was detected; this covers the fix that uses
+    args.number_iterations == 0 instead of is_flag_set_in_command_line('niter')."""
+    output = get_cmd_output(
+        get_executable('Python'),
+        *prepend(cache, 'dog-224x224.bmp', 'bvlcalexnet-12.onnx', tmp_path),
+        '-d', device,
+        '--number_iterations', '0',
+    )
+    assert 'FPS' not in output
+    assert 'Model compiled successfully' in output
+    assert 'Skipping inference due to -niter 0' in output
+    assert '(skipped)' in output
+
+
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 def test_niter_0_in_help(sample_language):
     """Test that -niter help text documents the compile-only special case."""
