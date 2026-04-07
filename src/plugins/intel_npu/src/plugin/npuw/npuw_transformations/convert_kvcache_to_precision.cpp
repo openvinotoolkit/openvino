@@ -4,9 +4,8 @@
 
 #include "convert_kvcache_to_precision.hpp"
 
-#include <regex>
-
 #include "../logging.hpp"
+#include "../util.hpp"
 #include "kv_cache_compressed.hpp"
 #include "low_precision/concat.hpp"
 #include "low_precision/kv_cache_concat.hpp"
@@ -82,25 +81,20 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov
 
     ov::preprocess::PrePostProcessor ppp(model);
 
-    const std::regex past_key_re(R"(past_key_values\.\d+\.key)");
-    const std::regex past_value_re(R"(past_key_values\.\d+\.value)");
-    const std::regex present_key_re(R"(present\.\d+\.key)");
-    const std::regex present_value_re(R"(present\.\d+\.value)");
-
     for (const auto& tensor : model->inputs()) {
         const auto& name = tensor.get_any_name();
-        if (std::regex_match(name, past_key_re)) {
+        if (ov::npuw::util::isPastKeyValuesKey(name).has_value()) {
             ppp.input(name).tensor().set_element_type(key_storage_type);
-        } else if (std::regex_match(name, past_value_re)) {
+        } else if (ov::npuw::util::isPastKeyValuesValue(name).has_value()) {
             ppp.input(name).tensor().set_element_type(value_storage_type);
         }
     }
 
     for (const auto& tensor : model->outputs()) {
         const auto& name = tensor.get_any_name();
-        if (std::regex_match(name, present_key_re)) {
+        if (ov::npuw::util::isPresentKeyValuesKey(name).has_value()) {
             ppp.output(name).tensor().set_element_type(key_storage_type);
-        } else if (std::regex_match(name, present_value_re)) {
+        } else if (ov::npuw::util::isPresentKeyValuesValue(name).has_value()) {
             ppp.output(name).tensor().set_element_type(value_storage_type);
         }
     }
