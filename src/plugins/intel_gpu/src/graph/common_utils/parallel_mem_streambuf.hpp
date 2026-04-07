@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <memory>
 #include <streambuf>
 
@@ -11,13 +12,16 @@
 
 namespace ov::intel_gpu {
 
+// A temporary solution to improve SSD reading bandwidth and avoid the 2x-RAM cost of mmap+memcpy for mmap files.
+// Once L0 handle SSD reading bandwidth issue, this can be removed and the original mmap+memcpy path can be restored.
+//
 // A std::streambuf that reads from an in-memory buffer using parallel
 // memcpy for large reads.  When the source is a file-backed mmap, the
 // constructor detects this and delegates to ParallelReadStreamBuf so that
 // direct pread/ReadFile calls replace the 2x-RAM mmap+memcpy path.
 class ParallelMemStreamBuf : public std::streambuf {
 public:
-    explicit ParallelMemStreamBuf(const void* data, size_t size, size_t threshold = ov::util::DEFAULT_PARALLEL_IO_THRESHOLD);
+    explicit ParallelMemStreamBuf(const void* data, size_t size, size_t threshold = ov::util::default_parallel_io_threshold);
 
     ~ParallelMemStreamBuf() override = default;
 

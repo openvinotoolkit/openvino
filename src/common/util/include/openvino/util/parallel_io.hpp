@@ -12,20 +12,16 @@
 #include <cstddef>
 #include <filesystem>
 
+#include "openvino/util/mmap_object.hpp"
+
 namespace ov::util {
 
-#ifdef _WIN32
-/// Platform file handle: Windows HANDLE (void*).
-using FileHandle = void*;
-inline const FileHandle INVALID_FILE_HANDLE = reinterpret_cast<void*>(-1);  // NOLINT(performance-no-int-to-ptr)
-#else
-/// Platform file handle: Linux/Unix file descriptor (int).
-using FileHandle = int;
-inline constexpr FileHandle INVALID_FILE_HANDLE = -1;
+#ifndef _WIN32
+inline constexpr FileHandle INVALID_HANDLE_VALUE = -1;
 #endif
 
-inline constexpr size_t DEFAULT_PARALLEL_IO_THRESHOLD = 4UL * 1024 * 1024;  ///< 4 MB default threshold for parallel I/O
-inline constexpr size_t DEFAULT_PARALLEL_IO_MIN_CHUNK = 2UL * 1024 * 1024;  ///< 2 MB minimum chunk size per thread
+inline constexpr size_t default_parallel_io_threshold = 4UL * 1024 * 1024;  ///< 4 MB default threshold for parallel I/O
+inline constexpr size_t default_parallel_io_min_chunk = 2UL * 1024 * 1024;  ///< 2 MB minimum chunk size per thread
 
 /**
  * @brief Open a file for reading and retrieve its size.
@@ -86,29 +82,4 @@ FileHandle open_file_for_read(const std::filesystem::path& path);
  * @return true if all bytes were read successfully, false on I/O error.
  */
 bool positional_read(FileHandle handle, char* dst, size_t size, size_t file_offset);
-
-/**
- * @brief Detect whether a memory address is backed by a file-based mmap.
- *
- * On Linux, parses /proc/self/maps.
- * On Windows, uses VirtualQuery + GetMappedFileNameW + drive letter resolution.
- *
- * @param addr        The memory address to inspect.
- * @param out_path    [out] Path to the backing file (only set on success).
- * @param out_offset  [out] Absolute byte offset within the file corresponding to addr.
- * @return true if the address is file-backed, false otherwise.
- */
-bool get_mmap_file_info(const void* addr, std::filesystem::path& out_path, std::streamoff& out_offset);
-
-/**
- * @brief Issue an asynchronous prefetch hint for a memory region.
- *
- * On Linux, calls madvise(MADV_WILLNEED) (with page-aligned address).
- * On Windows, calls PrefetchVirtualMemory.
- *
- * @param addr  Start of the memory region.
- * @param size  Size of the region in bytes.
- */
-void prefetch_memory(const void* addr, size_t size);
-
 }  // namespace ov::util

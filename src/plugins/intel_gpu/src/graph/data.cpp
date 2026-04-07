@@ -28,11 +28,11 @@ memory::ptr attach_or_copy_data(network& network, memory::ptr mem) {
     mem_lock<char, mem_lock_type::read> src(mem, network.get_stream());
     mem_lock<char, mem_lock_type::write> dst(result, network.get_stream());
     const size_t data_size = src.size();
-    if (data_size >= ov::util::DEFAULT_PARALLEL_IO_THRESHOLD) {
+    if (data_size >= ov::util::default_parallel_io_threshold) {
         char* src_ptr = src.data();
         char* dst_ptr = dst.data();
         const size_t max_threads = static_cast<size_t>(parallel_get_max_threads());
-        const size_t num_chunks = std::max(size_t{1}, std::min(data_size / ov::util::DEFAULT_PARALLEL_IO_MIN_CHUNK, max_threads));
+        const size_t num_chunks = std::max(size_t{1}, std::min(data_size / ov::util::default_parallel_io_min_chunk, max_threads));
         const size_t chunk_size = (data_size + num_chunks - 1) / num_chunks;
         ov::parallel_for(num_chunks, [src_ptr, dst_ptr, chunk_size, data_size, num_chunks](size_t i) {
             const size_t offset = i * chunk_size;

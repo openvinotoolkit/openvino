@@ -9,8 +9,8 @@
 
 #pragma once
 
-#include <array>
 #include <filesystem>
+#include <memory>
 #include <streambuf>
 
 #include "openvino/util/parallel_io.hpp"
@@ -43,7 +43,7 @@ public:
      */
     explicit ParallelReadStreamBuf(const std::filesystem::path& path,
                                    std::streamoff header_offset = 0,
-                                   size_t threshold = DEFAULT_PARALLEL_IO_THRESHOLD);
+                                   size_t threshold = default_parallel_io_threshold);
 
     ~ParallelReadStreamBuf() override;
 
@@ -64,13 +64,13 @@ private:
     static constexpr size_t UNDERFLOW_BUF = 8192;  ///< batch size for char-by-char reads
 
     std::filesystem::path m_path;
-    FileHandle m_handle = INVALID_FILE_HANDLE;  ///< platform file handle
+    FileHandle m_handle;  ///< platform file handle
 
     std::streamoff m_file_offset = 0;    ///< absolute file offset of next byte to read
     std::streamoff m_header_offset = 0;  ///< absolute file offset of logical stream start
     std::streamoff m_file_size = 0;
-    size_t m_threshold = DEFAULT_PARALLEL_IO_THRESHOLD;
-    std::array<char_type, UNDERFLOW_BUF> m_underflow_buf{};  ///< buffer for underflow()
+    size_t m_threshold = default_parallel_io_threshold;
+    std::unique_ptr<char_type[]> m_underflow_buf;  ///< lazily allocated buffer for underflow()
 };
 
 }  // namespace ov::util

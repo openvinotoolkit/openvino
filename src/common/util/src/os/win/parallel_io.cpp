@@ -17,39 +17,13 @@
 
 #include "openvino/util/file_util.hpp"
 
-namespace {
-
-// Convert a kernel device path (\Device\HarddiskVolume3\foo\bar) to a
-// Win32 drive path (C:\foo\bar).
-static bool resolve_device_path(const wchar_t* dev_path, wchar_t* out, DWORD out_len) {
-    const size_t MAX_DRIVES_LEN = 512;
-    wchar_t drives[MAX_DRIVES_LEN] = {};
-    if (!GetLogicalDriveStringsW(MAX_DRIVES_LEN, drives))
-        return false;
-    for (const wchar_t* d = drives; *d; d += wcslen(d) + 1) {
-        wchar_t drive[3] = {d[0], d[1], L'\0'};
-        wchar_t dev_name[MAX_PATH] = {};
-        if (!QueryDosDeviceW(drive, dev_name, MAX_PATH))
-            continue;
-        const size_t dev_name_len = wcslen(dev_name);
-        if (wcsncmp(dev_path, dev_name, dev_name_len) == 0 &&
-            (dev_path[dev_name_len] == L'\\' || dev_path[dev_name_len] == L'\0')) {
-            swprintf_s(out, out_len, L"%s%s", drive, dev_path + dev_name_len);
-            return true;
-        }
-    }
-    return false;
-}
-
-}  // namespace
-
 namespace ov::util {
 
 void get_file_handle_and_size(const std::filesystem::path& path,
                               std::streamoff file_offset,
                               FileHandle& out_handle,
                               std::streamoff& out_size) {
-    out_handle = CreateFileW(path.native().c_str(),
+    out_handle = CreateFileW(path.c_str(),
                              GENERIC_READ,
                              FILE_SHARE_READ | FILE_SHARE_WRITE,
                              nullptr,
@@ -112,29 +86,6 @@ bool positional_read(FileHandle handle, char* dst, size_t size, size_t file_offs
         remaining -= bytes_read;
     }
     return true;
-}
-
-bool get_mmap_file_info(const void* addr, std::filesystem::path& out_path, std::streamoff& out_offset) {
-    MEMORY_BASIC_INFORMATION mbi{};
-    if (!VirtualQuery(addr, &mbi, sizeof(mbi)) || mbi.Type != MEM_MAPPED) {
-        return false;
-    }
-    wchar_t dev_path[MAX_PATH] = {};
-    if (GetMappedFileNameW(GetCurrentProcess(), const_cast<void*>(addr), dev_path, MAX_PATH) == 0) {
-        return false;
-    }
-    wchar_t win32_path[MAX_PATH] = {};
-    if (!resolve_device_path(dev_path, win32_path, MAX_PATH)) {
-        return false;
-    }
-    out_path = std::filesystem::path(win32_path);
-    out_offset = reinterpret_cast<const char*>(addr) - reinterpret_cast<const char*>(mbi.AllocationBase);
-    return true;
-}
-
-void prefetch_memory(const void* addr, size_t size) {
-    WIN32_MEMORY_RANGE_ENTRY prefetch_range{const_cast<void*>(addr), size};
-    PrefetchVirtualMemory(GetCurrentProcess(), 1, &prefetch_range, 0);
 }
 
 }  // namespace ov::util

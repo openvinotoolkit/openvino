@@ -24,9 +24,9 @@ namespace {
  * byte[i] = (i % 251) -- 251 is prime so the period never aligns with any
  * power-of-two chunk/page size.
  */
-void fill_pattern(std::vector<uint8_t>& buf, size_t start_index = 0) {
+void fill_pattern(std::vector<char>& buf, size_t start_index = 0) {
     for (size_t i = 0; i < buf.size(); ++i) {
-        buf[i] = static_cast<uint8_t>((start_index + i) % 251u);
+        buf[i] = static_cast<char>((start_index + i) % 251u);
     }
 }
 
@@ -38,26 +38,14 @@ void fill_pattern(std::vector<uint8_t>& buf, size_t start_index = 0) {
 // ASSERT_* macros expand to `return` (void), so they cannot be used directly
 // in a non-void function.  The canonical GTest pattern is to delegate to a
 // void helper, then check HasFatalFailure() before continuing.
-void write_temp_file_impl(const std::filesystem::path& path, const std::vector<uint8_t>& data, size_t prefix_size) {
+void write_temp_file_impl(const std::filesystem::path& path, const std::vector<char>& data, size_t prefix_size) {
     std::ofstream ofs(path, std::ios::binary | std::ios::trunc);
     ASSERT_TRUE(ofs.is_open()) << "Cannot create temp file: " << path;
     if (prefix_size > 0) {
-        std::vector<uint8_t> prefix(prefix_size, 0xFFu);
-        ofs.write(reinterpret_cast<const char*>(prefix.data()), static_cast<std::streamsize>(prefix_size));
+        std::vector<char> prefix(prefix_size, static_cast<char>(0xFFu));
+        ofs.write(prefix.data(), static_cast<std::streamsize>(prefix_size));
     }
-    ofs.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
-}
-
-std::filesystem::path write_temp_file(const std::vector<uint8_t>& data,
-                                      size_t prefix_size = 0,
-                                      std::filesystem::path path = {}) {
-    if (path.empty()) {
-        path = ov::test::utils::generateTestFilePrefix() + "_par_read.bin";
-    }
-    write_temp_file_impl(path, data, prefix_size);
-    if (::testing::Test::HasFatalFailure())
-        return {};
-    return path;
+    ofs.write(data.data(), static_cast<std::streamsize>(data.size()));
 }
 
 }  // namespace
@@ -66,6 +54,15 @@ std::filesystem::path write_temp_file(const std::vector<uint8_t>& data,
 class ParallelReadStreamBufTest : public ::testing::Test {
 protected:
     std::filesystem::path m_tmp_path;
+
+    void SetUp() override {
+        m_tmp_path = ov::test::utils::generateTestFilePrefix() + "_par_read.bin";
+    }
+
+    void setup_temp_file(const std::vector<char>& data, size_t prefix_size = 0) {
+        ASSERT_FALSE(m_tmp_path.empty());
+        write_temp_file_impl(m_tmp_path, data, prefix_size);
+    }
 
     void TearDown() override {
         if (!m_tmp_path.empty() && std::filesystem::exists(m_tmp_path)) {
@@ -79,15 +76,15 @@ protected:
 //     dispatch code path (chunk math, atomic success flag) is exercised.
 TEST_F(ParallelReadStreamBufTest, FullReadSmallThreshold) {
     constexpr size_t k_size = 16 * 1024;  // 16 KB
-    std::vector<uint8_t> expected(k_size);
+    std::vector<char> expected(k_size);
     fill_pattern(expected);
-    m_tmp_path = write_temp_file(expected);
+    setup_temp_file(expected);
 
     util::ParallelReadStreamBuf buf(m_tmp_path, /*header_offset=*/0, /*threshold=*/1);
     std::istream stream(&buf);
 
-    std::vector<uint8_t> got(k_size);
-    ASSERT_TRUE(stream.read(reinterpret_cast<char*>(got.data()), static_cast<std::streamsize>(k_size)));
+    std::vector<char> got(k_size);
+    ASSERT_TRUE(stream.read(got.data(), static_cast<std::streamsize>(k_size)));
     EXPECT_EQ(got, expected);
 }
 
@@ -97,17 +94,17 @@ TEST_F(ParallelReadStreamBufTest, NonZeroHeaderOffsetSmallData) {
     constexpr size_t k_prefix_size = 512;
     constexpr size_t k_payload_size = 4 * 1024;
 
-    std::vector<uint8_t> payload(k_payload_size);
+    std::vector<char> payload(k_payload_size);
     fill_pattern(payload);
-    m_tmp_path = write_temp_file(payload, k_prefix_size);
+    setup_temp_file(payload, k_prefix_size);
 
     util::ParallelReadStreamBuf buf(m_tmp_path,
                                     static_cast<std::streamoff>(k_prefix_size),
                                     /*threshold=*/1);
     std::istream stream(&buf);
 
-    std::vector<uint8_t> got(k_payload_size);
-    ASSERT_TRUE(stream.read(reinterpret_cast<char*>(got.data()), static_cast<std::streamsize>(k_payload_size)));
+    std::vector<char> got(k_payload_size);
+    ASSERT_TRUE(stream.read(got.data(), static_cast<std::streamsize>(k_payload_size)));
     EXPECT_EQ(got, payload);
 }
 
@@ -115,19 +112,19 @@ TEST_F(ParallelReadStreamBufTest, NonZeroHeaderOffsetSmallData) {
 //     where the previous one left off.
 TEST_F(ParallelReadStreamBufTest, ChunkedReads) {
     constexpr size_t k_size = 8 * 1024;
-    std::vector<uint8_t> expected(k_size);
+    std::vector<char> expected(k_size);
     fill_pattern(expected);
-    m_tmp_path = write_temp_file(expected);
+    setup_temp_file(expected);
 
     util::ParallelReadStreamBuf buf(m_tmp_path, 0, /*threshold=*/1);
     std::istream stream(&buf);
 
-    std::vector<uint8_t> got(k_size);
+    std::vector<char> got(k_size);
     constexpr size_t k_chunk = 1000;  // intentionally not a power-of-2
     size_t offset = 0;
     while (offset < k_size) {
         const size_t n = std::min(k_chunk, k_size - offset);
-        ASSERT_TRUE(stream.read(reinterpret_cast<char*>(got.data() + offset), static_cast<std::streamsize>(n)));
+        ASSERT_TRUE(stream.read(got.data() + offset, static_cast<std::streamsize>(n)));
         offset += n;
     }
     EXPECT_EQ(got, expected);
@@ -137,18 +134,18 @@ TEST_F(ParallelReadStreamBufTest, ChunkedReads) {
 //     8 KB underflow buffer and the get-area bookkeeping.
 TEST_F(ParallelReadStreamBufTest, CharByCharUnderflow) {
     constexpr size_t k_size = 300;  // small enough to fit in a single underflow fill
-    std::vector<uint8_t> expected(k_size);
+    std::vector<char> expected(k_size);
     fill_pattern(expected);
-    m_tmp_path = write_temp_file(expected);
+    setup_temp_file(expected);
 
     util::ParallelReadStreamBuf buf(m_tmp_path, 0, /*threshold=*/SIZE_MAX);  // force all reads via underflow
     std::istream stream(&buf);
 
-    std::vector<uint8_t> got;
+    std::vector<char> got;
     got.reserve(k_size);
     int ch;
     while ((ch = stream.get()) != std::char_traits<char>::eof()) {
-        got.push_back(static_cast<uint8_t>(ch));
+        got.push_back(static_cast<char>(ch));
     }
     ASSERT_EQ(got.size(), k_size);
     EXPECT_EQ(got, expected);
@@ -159,9 +156,9 @@ TEST_F(ParallelReadStreamBufTest, CharByCharUnderflow) {
 //     after the header_offset).
 TEST_F(ParallelReadStreamBufTest, SeekFromBeginning) {
     constexpr size_t k_size = 2 * 1024;
-    std::vector<uint8_t> expected(k_size);
+    std::vector<char> expected(k_size);
     fill_pattern(expected);
-    m_tmp_path = write_temp_file(expected);
+    setup_temp_file(expected);
 
     util::ParallelReadStreamBuf buf(m_tmp_path, 0, /*threshold=*/1);
     std::istream stream(&buf);
@@ -172,19 +169,19 @@ TEST_F(ParallelReadStreamBufTest, SeekFromBeginning) {
     stream.seekg(k_seek_pos, std::ios::beg);
     ASSERT_TRUE(stream.good());
 
-    std::vector<uint8_t> got(k_read_len);
-    ASSERT_TRUE(stream.read(reinterpret_cast<char*>(got.data()), static_cast<std::streamsize>(k_read_len)));
+    std::vector<char> got(k_read_len);
+    ASSERT_TRUE(stream.read(got.data(), static_cast<std::streamsize>(k_read_len)));
 
-    std::vector<uint8_t> slice(expected.begin() + k_seek_pos, expected.begin() + k_seek_pos + k_read_len);
+    std::vector<char> slice(expected.begin() + k_seek_pos, expected.begin() + k_seek_pos + k_read_len);
     EXPECT_EQ(got, slice);
 }
 
 // 6.  seekg(off, cur): seek relative to current position.
 TEST_F(ParallelReadStreamBufTest, SeekFromCurrent) {
     constexpr size_t k_size = 2 * 1024;
-    std::vector<uint8_t> expected(k_size);
+    std::vector<char> expected(k_size);
     fill_pattern(expected);
-    m_tmp_path = write_temp_file(expected);
+    setup_temp_file(expected);
 
     util::ParallelReadStreamBuf buf(m_tmp_path, 0, /*threshold=*/1);
     std::istream stream(&buf);
@@ -194,28 +191,28 @@ TEST_F(ParallelReadStreamBufTest, SeekFromCurrent) {
     constexpr std::streamoff k_skip = 200;
     constexpr size_t k_second_read = 50;
 
-    std::vector<uint8_t> first(k_first_read);
-    ASSERT_TRUE(stream.read(reinterpret_cast<char*>(first.data()), static_cast<std::streamsize>(k_first_read)));
-    EXPECT_EQ(first, std::vector<uint8_t>(expected.begin(), expected.begin() + k_first_read));
+    std::vector<char> first(k_first_read);
+    ASSERT_TRUE(stream.read(first.data(), static_cast<std::streamsize>(k_first_read)));
+    EXPECT_EQ(first, std::vector<char>(expected.begin(), expected.begin() + k_first_read));
 
     stream.seekg(k_skip, std::ios::cur);
     ASSERT_TRUE(stream.good());
 
-    std::vector<uint8_t> second(k_second_read);
-    ASSERT_TRUE(stream.read(reinterpret_cast<char*>(second.data()), static_cast<std::streamsize>(k_second_read)));
+    std::vector<char> second(k_second_read);
+    ASSERT_TRUE(stream.read(second.data(), static_cast<std::streamsize>(k_second_read)));
 
     const size_t expected_start = k_first_read + static_cast<size_t>(k_skip);
-    std::vector<uint8_t> expected_slice(expected.begin() + expected_start,
-                                        expected.begin() + expected_start + k_second_read);
+    std::vector<char> expected_slice(expected.begin() + expected_start,
+                                     expected.begin() + expected_start + k_second_read);
     EXPECT_EQ(second, expected_slice);
 }
 
 // 7.  seekg(off, end): seek backward from end-of-file.
 TEST_F(ParallelReadStreamBufTest, SeekFromEnd) {
     constexpr size_t k_size = 2 * 1024;
-    std::vector<uint8_t> expected(k_size);
+    std::vector<char> expected(k_size);
     fill_pattern(expected);
-    m_tmp_path = write_temp_file(expected);
+    setup_temp_file(expected);
 
     util::ParallelReadStreamBuf buf(m_tmp_path, 0, /*threshold=*/1);
     std::istream stream(&buf);
@@ -224,18 +221,18 @@ TEST_F(ParallelReadStreamBufTest, SeekFromEnd) {
     stream.seekg(-k_from_end, std::ios::end);
     ASSERT_TRUE(stream.good());
 
-    std::vector<uint8_t> got(static_cast<size_t>(k_from_end));
-    ASSERT_TRUE(stream.read(reinterpret_cast<char*>(got.data()), k_from_end));
+    std::vector<char> got(static_cast<size_t>(k_from_end));
+    ASSERT_TRUE(stream.read(got.data(), k_from_end));
 
-    std::vector<uint8_t> tail(expected.end() - k_from_end, expected.end());
+    std::vector<char> tail(expected.end() - k_from_end, expected.end());
     EXPECT_EQ(got, tail);
 }
 
 // 8.  seekg(0, end) then tellg() should equal the file (payload) size.
 TEST_F(ParallelReadStreamBufTest, TellgAtEnd) {
     constexpr size_t k_size = 1024;
-    std::vector<uint8_t> data(k_size, 0xAA);
-    m_tmp_path = write_temp_file(data);
+    std::vector<char> data(k_size, static_cast<char>(0xAA));
+    setup_temp_file(data);
 
     util::ParallelReadStreamBuf buf(m_tmp_path, 0, /*threshold=*/1);
     std::istream stream(&buf);
@@ -251,9 +248,9 @@ TEST_F(ParallelReadStreamBufTest, SeekRespectsHeaderOffset) {
     constexpr size_t k_prefix_size = 256;
     constexpr size_t k_payload_size = 1024;
 
-    std::vector<uint8_t> payload(k_payload_size);
+    std::vector<char> payload(k_payload_size);
     fill_pattern(payload);
-    m_tmp_path = write_temp_file(payload, k_prefix_size);
+    setup_temp_file(payload, k_prefix_size);
 
     util::ParallelReadStreamBuf buf(m_tmp_path,
                                     static_cast<std::streamoff>(k_prefix_size),
@@ -271,17 +268,17 @@ TEST_F(ParallelReadStreamBufTest, SeekRespectsHeaderOffset) {
     // Seek to byte 100 and read 8 bytes
     constexpr std::streamoff k_pos = 100;
     stream.seekg(k_pos, std::ios::beg);
-    std::vector<uint8_t> got(8);
-    ASSERT_TRUE(stream.read(reinterpret_cast<char*>(got.data()), 8));
-    std::vector<uint8_t> expected(payload.begin() + k_pos, payload.begin() + k_pos + 8);
+    std::vector<char> got(8);
+    ASSERT_TRUE(stream.read(got.data(), 8));
+    std::vector<char> expected(payload.begin() + k_pos, payload.begin() + k_pos + 8);
     EXPECT_EQ(got, expected);
 }
 
 // 10. Out-of-range seek returns pos_type(-1) and leaves stream in a fail state.
 TEST_F(ParallelReadStreamBufTest, OutOfRangeSeekFails) {
     constexpr size_t k_size = 64;
-    std::vector<uint8_t> data(k_size, 0x55);
-    m_tmp_path = write_temp_file(data);
+    std::vector<char> data(k_size, static_cast<char>(0x55));
+    setup_temp_file(data);
 
     util::ParallelReadStreamBuf buf(m_tmp_path, 0, /*threshold=*/1);
     std::istream stream(&buf);
@@ -295,20 +292,20 @@ TEST_F(ParallelReadStreamBufTest, OutOfRangeSeekFails) {
 //     must return false and gcount() must equal the bytes that were available.
 TEST_F(ParallelReadStreamBufTest, ReadAtEof) {
     constexpr size_t k_size = 100;
-    std::vector<uint8_t> expected(k_size);
+    std::vector<char> expected(k_size);
     fill_pattern(expected);
-    m_tmp_path = write_temp_file(expected);
+    setup_temp_file(expected);
 
     util::ParallelReadStreamBuf buf(m_tmp_path, 0, /*threshold=*/SIZE_MAX);  // use underflow path
     std::istream stream(&buf);
 
     // Read all but last 10 bytes
-    std::vector<uint8_t> buf1(k_size - 10);
-    ASSERT_TRUE(stream.read(reinterpret_cast<char*>(buf1.data()), static_cast<std::streamsize>(k_size - 10)));
+    std::vector<char> buf1(k_size - 10);
+    ASSERT_TRUE(stream.read(buf1.data(), static_cast<std::streamsize>(k_size - 10)));
 
     // Now try to read 20 bytes when only 10 remain
-    std::vector<uint8_t> buf2(20, 0);
-    const bool ok = static_cast<bool>(stream.read(reinterpret_cast<char*>(buf2.data()), 20));
+    std::vector<char> buf2(20, 0);
+    const bool ok = static_cast<bool>(stream.read(buf2.data(), 20));
     EXPECT_FALSE(ok);
     EXPECT_TRUE(stream.eof());
     ASSERT_EQ(stream.gcount(), 10);
@@ -333,16 +330,16 @@ TEST_F(ParallelReadStreamBufTest, ParallelDispatchFullReadCorrectness) {
     const size_t hw = std::min(k_max_hw_for_size, raw_hw);
     const size_t k_size = hw * 1024 * 1024 + 1;
 
-    std::vector<uint8_t> expected(k_size);
+    std::vector<char> expected(k_size);
     fill_pattern(expected);
-    m_tmp_path = write_temp_file(expected);
+    setup_temp_file(expected);
 
     util::ParallelReadStreamBuf buf(m_tmp_path, 0, /*threshold=*/1);
     std::istream stream(&buf);
 
     // a) First parallel read: the full buffer must be byte-exact.
-    std::vector<uint8_t> got(k_size);
-    ASSERT_TRUE(stream.read(reinterpret_cast<char*>(got.data()), static_cast<std::streamsize>(k_size)));
+    std::vector<char> got(k_size);
+    ASSERT_TRUE(stream.read(got.data(), static_cast<std::streamsize>(k_size)));
     EXPECT_EQ(got, expected) << "First parallel read produced incorrect data";
 
     // b) Seek back to start and do a second full parallel read immediately.
@@ -351,8 +348,8 @@ TEST_F(ParallelReadStreamBufTest, ParallelDispatchFullReadCorrectness) {
     stream.seekg(0, std::ios::beg);
     ASSERT_TRUE(stream.good());
 
-    std::vector<uint8_t> got2(k_size);
-    ASSERT_TRUE(stream.read(reinterpret_cast<char*>(got2.data()), static_cast<std::streamsize>(k_size)));
+    std::vector<char> got2(k_size);
+    ASSERT_TRUE(stream.read(got2.data(), static_cast<std::streamsize>(k_size)));
     EXPECT_EQ(got2, expected) << "Second consecutive parallel read produced incorrect data";
 }
 
@@ -366,9 +363,9 @@ TEST_F(ParallelReadStreamBufTest, ParallelDispatchNonZeroOffset_AndSeek) {
         std::min(k_max_hw_for_size, std::max(size_t{2}, static_cast<size_t>(std::thread::hardware_concurrency())));
     const size_t k_payload_size = hw * 1024 * 1024;
 
-    std::vector<uint8_t> payload(k_payload_size);
+    std::vector<char> payload(k_payload_size);
     fill_pattern(payload);
-    m_tmp_path = write_temp_file(payload, k_prefix_size);
+    setup_temp_file(payload, k_prefix_size);
 
     util::ParallelReadStreamBuf buf(m_tmp_path,
                                     static_cast<std::streamoff>(k_prefix_size),
@@ -377,8 +374,8 @@ TEST_F(ParallelReadStreamBufTest, ParallelDispatchNonZeroOffset_AndSeek) {
 
     // First pass: read the first half
     const size_t k_half = k_payload_size / 2;
-    std::vector<uint8_t> first_half(k_half);
-    ASSERT_TRUE(stream.read(reinterpret_cast<char*>(first_half.data()), static_cast<std::streamsize>(k_half)));
+    std::vector<char> first_half(k_half);
+    ASSERT_TRUE(stream.read(first_half.data(), static_cast<std::streamsize>(k_half)));
     EXPECT_TRUE(std::equal(first_half.begin(), first_half.end(), payload.begin()))
         << "First-half read produced incorrect data";
 
@@ -387,8 +384,8 @@ TEST_F(ParallelReadStreamBufTest, ParallelDispatchNonZeroOffset_AndSeek) {
     ASSERT_TRUE(stream.good());
 
     // Second pass: read the whole payload
-    std::vector<uint8_t> full_read(k_payload_size);
-    ASSERT_TRUE(stream.read(reinterpret_cast<char*>(full_read.data()), static_cast<std::streamsize>(k_payload_size)));
+    std::vector<char> full_read(k_payload_size);
+    ASSERT_TRUE(stream.read(full_read.data(), static_cast<std::streamsize>(k_payload_size)));
     EXPECT_EQ(full_read, payload) << "Full read after seek produced incorrect data";
 }
 
@@ -397,9 +394,9 @@ TEST_F(ParallelReadStreamBufTest, ParallelDispatchNonZeroOffset_AndSeek) {
 //     xsgetn to flush the underflow remainder.
 TEST_F(ParallelReadStreamBufTest, MixedUnderflowAndBulkRead) {
     constexpr size_t k_size = 10 * 1024;
-    std::vector<uint8_t> expected(k_size);
+    std::vector<char> expected(k_size);
     fill_pattern(expected);
-    m_tmp_path = write_temp_file(expected);
+    setup_temp_file(expected);
 
     // threshold > k_size so all reads go through underflow() first, but we mix
     // with a large stream.read() to exercise the drain-from-get-area code in xsgetn.
@@ -407,18 +404,18 @@ TEST_F(ParallelReadStreamBufTest, MixedUnderflowAndBulkRead) {
     std::istream stream(&buf);
 
     // Read 5 chars individually – this fills the 8 KB underflow buffer
-    std::vector<uint8_t> prefix;
+    std::vector<char> prefix;
     for (int i = 0; i < 5; ++i) {
         const int ch = stream.get();
         ASSERT_NE(ch, std::char_traits<char>::eof());
-        prefix.push_back(static_cast<uint8_t>(ch));
+        prefix.push_back(static_cast<char>(ch));
     }
-    EXPECT_EQ(prefix, std::vector<uint8_t>(expected.begin(), expected.begin() + 5));
+    EXPECT_EQ(prefix, std::vector<char>(expected.begin(), expected.begin() + 5));
 
     // Now do a bulk read for the rest of the file.
-    std::vector<uint8_t> rest(k_size - 5);
-    ASSERT_TRUE(stream.read(reinterpret_cast<char*>(rest.data()), static_cast<std::streamsize>(k_size - 5)));
-    EXPECT_EQ(rest, std::vector<uint8_t>(expected.begin() + 5, expected.end()))
+    std::vector<char> rest(k_size - 5);
+    ASSERT_TRUE(stream.read(rest.data(), static_cast<std::streamsize>(k_size - 5)));
+    EXPECT_EQ(rest, std::vector<char>(expected.begin() + 5, expected.end()))
         << "Bulk read after char-by-char prefix produced incorrect data";
 }
 
@@ -426,8 +423,8 @@ TEST_F(ParallelReadStreamBufTest, MixedUnderflowAndBulkRead) {
 //     correctly after both underflow-buffered reads and bulk reads.
 TEST_F(ParallelReadStreamBufTest, TellgIsConsistent) {
     constexpr size_t k_size = 512;
-    std::vector<uint8_t> data(k_size, 0xBB);
-    m_tmp_path = write_temp_file(data);
+    std::vector<char> data(k_size, static_cast<char>(0xBB));
+    setup_temp_file(data);
 
     util::ParallelReadStreamBuf buf(m_tmp_path, 0, /*threshold=*/SIZE_MAX);
     std::istream stream(&buf);
@@ -455,8 +452,8 @@ TEST_F(ParallelReadStreamBufTest, TellgIsConsistent) {
 //     bytes still in the underlying file.
 TEST_F(ParallelReadStreamBufTest, ShowmanycReflectsRemainingBytes) {
     constexpr size_t k_size = 256;
-    std::vector<uint8_t> data(k_size, 0x77u);
-    m_tmp_path = write_temp_file(data);
+    std::vector<char> data(k_size, static_cast<char>(0x77u));
+    setup_temp_file(data);
 
     util::ParallelReadStreamBuf buf(m_tmp_path, 0, /*threshold=*/SIZE_MAX);
     std::istream stream(&buf);
@@ -491,9 +488,9 @@ TEST_F(ParallelReadStreamBufTest, ShowmanycReflectsRemainingBytes) {
 //     bytes.  Also verifies that the underflow buffer is properly invalidated.
 TEST_F(ParallelReadStreamBufTest, BackwardSeekFromCurrent) {
     constexpr size_t k_size = 2 * 1024;
-    std::vector<uint8_t> expected(k_size);
+    std::vector<char> expected(k_size);
     fill_pattern(expected);
-    m_tmp_path = write_temp_file(expected);
+    setup_temp_file(expected);
 
     // Use SIZE_MAX threshold so reads go through underflow + xsgetn drain,
     // making the backward seek invalidate a non-empty underflow buffer.
@@ -502,8 +499,8 @@ TEST_F(ParallelReadStreamBufTest, BackwardSeekFromCurrent) {
 
     // Read 200 bytes
     constexpr size_t k_first_read = 200;
-    std::vector<uint8_t> first(k_first_read);
-    ASSERT_TRUE(stream.read(reinterpret_cast<char*>(first.data()), static_cast<std::streamsize>(k_first_read)));
+    std::vector<char> first(k_first_read);
+    ASSERT_TRUE(stream.read(first.data(), static_cast<std::streamsize>(k_first_read)));
     EXPECT_EQ(stream.tellg(), std::streampos(k_first_read));
 
     // Read 5 chars individually to populate the underflow buffer
@@ -519,9 +516,9 @@ TEST_F(ParallelReadStreamBufTest, BackwardSeekFromCurrent) {
 
     // Read 50 bytes; they must match expected[105..154]
     constexpr size_t k_reread = 50;
-    std::vector<uint8_t> got(k_reread);
-    ASSERT_TRUE(stream.read(reinterpret_cast<char*>(got.data()), static_cast<std::streamsize>(k_reread)));
-    std::vector<uint8_t> slice(expected.begin() + 105, expected.begin() + 105 + k_reread);
+    std::vector<char> got(k_reread);
+    ASSERT_TRUE(stream.read(got.data(), static_cast<std::streamsize>(k_reread)));
+    std::vector<char> slice(expected.begin() + 105, expected.begin() + 105 + k_reread);
     EXPECT_EQ(got, slice);
 }
 

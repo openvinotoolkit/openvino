@@ -23,12 +23,11 @@ ParallelReadStreamBuf::ParallelReadStreamBuf(const std::filesystem::path& path,
       m_file_offset(header_offset),
       m_header_offset(header_offset),
       m_threshold(threshold) {
-    ov::util::get_file_handle_and_size(path, m_file_offset, m_handle, m_file_size);
+    get_file_handle_and_size(path, m_file_offset, m_handle, m_file_size);
 }
 
 ParallelReadStreamBuf::~ParallelReadStreamBuf() {
-    ov::util::close_file_handle(m_handle);
-    m_handle = INVALID_FILE_HANDLE;
+    close_file_handle(m_handle);
 }
 
 // xsgetn: main hot path - called by sgetn() for all bulk reads
@@ -74,18 +73,21 @@ ParallelReadStreamBuf::int_type ParallelReadStreamBuf::underflow() {
     if (m_file_offset >= m_file_size) {
         return traits_type::eof();
     }
+    if (!m_underflow_buf) {
+        m_underflow_buf = std::make_unique<char_type[]>(UNDERFLOW_BUF);
+    }
     // Read a batch of up to UNDERFLOW_BUF bytes so that character-by-character
     // consumers (std::getline, operator>>) don't issue one pread per char.
     const size_t to_read =
         static_cast<size_t>(std::min(static_cast<std::streamoff>(UNDERFLOW_BUF), m_file_size - m_file_offset));
-    if (!single_read(m_underflow_buf.data(), to_read, static_cast<size_t>(m_file_offset))) {
+    if (!single_read(m_underflow_buf.get(), to_read, static_cast<size_t>(m_file_offset))) {
         return traits_type::eof();
     }
     // Advance m_file_offset past the bytes we just read into the get area.
     // m_file_offset now points to the byte after egptr(), consistent with
     // the seekoff(0, cur) formula: logical_pos = m_file_offset - (egptr - gptr).
     m_file_offset += static_cast<std::streamoff>(to_read);
-    setg(m_underflow_buf.data(), m_underflow_buf.data(), m_underflow_buf.data() + to_read);
+    setg(m_underflow_buf.get(), m_underflow_buf.get(), m_underflow_buf.get() + to_read);
     return traits_type::to_int_type(m_underflow_buf[0]);
 }
 
@@ -150,7 +152,7 @@ std::streamsize ParallelReadStreamBuf::showmanyc() {
 
 // Single-threaded positional read
 bool ParallelReadStreamBuf::single_read(char* dst, size_t size, size_t file_offset) {
-    return ov::util::positional_read(m_handle, dst, size, file_offset);
+    return positional_read(m_handle, dst, size, file_offset);
 }
 
 // Parallel positional read
@@ -199,16 +201,16 @@ bool ParallelReadStreamBuf::parallel_read(char* dst, size_t size, size_t file_of
                 char* const ptr = dst + cur_offset;
                 const size_t thread_file_offset = file_offset + cur_offset;
 
-                FileHandle t_handle = ov::util::open_file_for_read(m_path);
-                if (t_handle == INVALID_FILE_HANDLE) {
+                FileHandle t_handle = open_file_for_read(m_path);
+                if (t_handle == INVALID_HANDLE_VALUE) {
                     success = false;
                     return;
                 }
 
-                if (!ov::util::positional_read(t_handle, ptr, read_size, thread_file_offset)) {
+                if (!positional_read(t_handle, ptr, read_size, thread_file_offset)) {
                     success = false;
                 }
-                ov::util::close_file_handle(t_handle);
+                close_file_handle(t_handle);
             });  // workers.emplace_back
         } catch (...) {
             success = false;
