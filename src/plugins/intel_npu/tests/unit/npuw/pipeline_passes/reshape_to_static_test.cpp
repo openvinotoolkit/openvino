@@ -199,4 +199,74 @@ TEST_F(ReshapeToStaticPassTest, PerLayerInputsResolvedToStaticForPrefillAndGener
     EXPECT_EQ(*generate_per_layer_shape, (ov::Shape{1, 1, 42, 256}));
 }
 
+// Builds a stateless model with standard LLM inputs plus linear cache inputs
+// (cache_params.past.conv.N, cache_params.past.ssm.N) to test the matchLinCacheString
+// branch of ReshapeToStatic independently.
+std::shared_ptr<ov::Model> build_model_with_lincache_inputs() {
+    auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
+    input_ids->output(0).set_names({"input_ids"});
+
+    auto attention_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
+    attention_mask->output(0).set_names({"attention_mask"});
+
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
+    position_ids->output(0).set_names({"position_ids"});
+
+    // Standard KV cache input
+    auto kv_key = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 4, -1, 64});
+    kv_key->output(0).set_names({"past_key_values.0.key"});
+    auto kv_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 4, -1, 64});
+    kv_value->output(0).set_names({"past_key_values.0.value"});
+
+    // Linear cache: conv (e.g. Gated Short Convolution in LFM2/Qwen3.5)
+    auto conv = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 2048, 3});
+    conv->output(0).set_names({"cache_params.past.conv.0"});
+
+    // Linear cache: ssm (e.g. GatedDeltaNet in Qwen3.5)
+    auto ssm = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 16, 128, 128});
+    ssm->output(0).set_names({"cache_params.past.ssm.0"});
+
+    auto result = std::make_shared<ov::op::v0::Result>(input_ids);
+    return std::make_shared<ov::Model>(ov::ResultVector{result},
+                                       ov::ParameterVector{input_ids, attention_mask, position_ids,
+                                                           kv_key, kv_value, conv, ssm},
+                                       "lincache_reshape_model");
+}
+
+// --- Test 6 -------------------------------------------------------------------------
+// Linear cache inputs (cache_params.past.conv.N, cache_params.past.ssm.N) should only
+// have their batch dimension set to 1 — all other dimensions must be preserved as-is.
+// This contrasts with standard KV cache inputs where seq_len = kvcache_size - input_size.
+TEST_F(ReshapeToStaticPassTest, LinCacheInputsOnlyBatchIsReshaped) {
+    const ov::npuw::KVAxesPosition kv_axes_position{0u, 2u};
+
+    auto model = build_model_with_lincache_inputs();
+    ASSERT_TRUE(ov::npuw::ReshapeToStatic(/*input_size=*/1,
+                                          /*kvcache_size=*/192,
+                                          kv_axes_position,
+                                          /*lora_rank=*/0)
+                    .run_on_model(model));
+
+    EXPECT_TRUE(all_inputs_static(model))
+        << "At least one input still has a dynamic dimension after ReshapeToStatic";
+
+    // Conv linear cache: batch=1, other dims unchanged
+    const auto conv_shape = input_shape(model, "cache_params.past.conv.0");
+    ASSERT_TRUE(conv_shape.has_value()) << "cache_params.past.conv.0 not found";
+    EXPECT_EQ(*conv_shape, (ov::Shape{1, 2048, 3}));
+
+    // SSM linear cache: batch=1, other dims unchanged
+    const auto ssm_shape = input_shape(model, "cache_params.past.ssm.0");
+    ASSERT_TRUE(ssm_shape.has_value()) << "cache_params.past.ssm.0 not found";
+    EXPECT_EQ(*ssm_shape, (ov::Shape{1, 16, 128, 128}));
+
+    // Standard KV cache: batch=1, seq_len = kvcache_size(192) - input_size(1) = 191
+    const auto kv_key_shape = input_shape(model, "past_key_values.0.key");
+    ASSERT_TRUE(kv_key_shape.has_value()) << "past_key_values.0.key not found";
+    EXPECT_EQ(*kv_key_shape, (ov::Shape{1, 4, 191, 64}));
+
+    const auto kv_value_shape = input_shape(model, "past_key_values.0.value");
+    ASSERT_TRUE(kv_value_shape.has_value()) << "past_key_values.0.value not found";
+    EXPECT_EQ(*kv_value_shape, (ov::Shape{1, 4, 191, 64}));
+}
 }  // namespace
