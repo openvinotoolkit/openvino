@@ -254,6 +254,13 @@ dnnl::memory gpu_usm::get_onednn_memory(dnnl::memory::desc desc, int64_t offset)
         reinterpret_cast<uint8_t*>(_buffer.get()) + offset);
     return dnnl_mem;
 }
+
+dnnl::memory gpu_usm::get_onednn_grouped_memory(dnnl::memory::desc desc, const memory& offsets) const {
+    auto onednn_engine = _engine->get_onednn_engine();
+    dnnl::memory dnnl_mem = dnnl::ze_interop::make_memory(desc, onednn_engine,
+        {reinterpret_cast<uint8_t*>(_buffer.get()), reinterpret_cast<uint8_t*>(offsets.buffer_ptr())});
+    return dnnl_mem;
+}
 #endif
 
 shared_mem_params gpu_usm::get_internal_params() const {
