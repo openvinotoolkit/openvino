@@ -640,6 +640,26 @@ bool ZeGraphExtWrappers::isPluginModelHashSupported() const {
     return _graphExtVersion > ZE_MAKE_VERSION(1, 13);
 }
 
+bool ZeGraphExtWrappers::isCompatibilityDescriptorSupported() const {
+    // TODO check the version is correct prior to merging this
+    return _graphExtVersion > ZE_MAKE_VERSION(1, 16);
+}
+
+std::vector<uint8_t> ZeGraphExtWrappers::getCompatibilityDescriptor(const ze_graph_handle_t handle) const {
+    char key[256];  // TODO do we really need this?
+    ze_runtime_requirements_desc_t desc = {ZE_STRUCTURE_TYPE_RUNTIME_REQUIREMENTS_DESC,
+                                           nullptr,
+                                           nullptr,
+                                           &key[0],
+                                           handle,
+                                           handle_type};  // TODO what's this?
+
+    auto result = _zeroInitStruct->getGraphDdiTable().pfnDeviceRequirementsQuery(_zeroInitStruct->getContext(),
+                                                                                 _zeroInitStruct->getDevice(),
+                                                                                 &desc);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnDeviceRequirementsQuery", result, _zeroInitStruct->getGraphDdiTable());
+}
+
 void ZeGraphExtWrappers::evict_memory(const GraphDescriptor& graphDescriptor) const {
     if (_graphExtVersion < ZE_MAKE_VERSION(1, 16)) {
         _logger.info("Memory eviction is not supported by the current driver version.");

@@ -311,4 +311,12 @@ bool DriverCompilerAdapter::isCompilerOptionSupported(const FilteredConfig& conf
             (compilerVersion.minor >= minorCompilerOptSupportValue));
 }
 
+std::vector<uint8_t> DriverCompilerAdapter::get_compiled_model_compatibility_descriptor(
+    const std::shared_ptr<IGraph>& graph) const {
+    if (!_zeGraphExt->isCompatibilityDescriptorSupported()) {
+        OPENVINO_THROW("");
+    }
+    return _zeGraphExt->getCompatibilityDescriptor(graph->get_handle());
+}
+
 }  // namespace intel_npu

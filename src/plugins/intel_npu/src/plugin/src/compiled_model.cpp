@@ -18,6 +18,20 @@
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
+namespace {
+
+std::string encode_compatibility_string(const std::string& raw_string) {
+    // TODO look for better solutions
+    // TODO also the reverse
+    std::stringstream encoded_stringstream;
+    for (const auto unit : raw_string) {
+        encoded_stringstream << std::hex << int(unit) << std::endl;
+    }
+    return encoded_stringstream.str()
+}
+
+}  // namespace
+
 namespace intel_npu {
 
 using intel_npu::envVarStrToBool;
@@ -183,10 +197,26 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::model_name.name()) {
         OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
         return _graph->get_metadata().name;
-    } else {
-        // default behaviour
-        return _propertiesManager->getProperty(name);
+    } else if (name == ov::runtime_requirements.name()) {
+        std::vector<uint8_t> compilerDescriptor = _propertiesManager->getCompiledModelCompatibilityDescriptor(_graph);
+
+        std::stringstream requirementsString;
+        requirementsString.write(reinterpret_cast<const char*>(compilerDescriptor.data()),
+                                 static_cast<std::streamsize>(compilerDescriptor.size()));
+
+        // The layouts are not useful compatibility information
+        Metadata<CURRENT_METADATA_VERSION>(compilerDescriptor.size(),
+                                           CURRENT_OPENVINO_VERSION,
+                                           _graph->get_init_sizes(),
+                                           _batchSize,
+                                           std::nullopt,
+                                           std::nullopt)
+            .write(requirementsString);
+        return encode_compatibility_string(requirementsString.str());
     }
+
+    // default behaviour
+    return _propertiesManager->getProperty(name);
 }
 
 const std::shared_ptr<IGraph>& CompiledModel::get_graph() const {

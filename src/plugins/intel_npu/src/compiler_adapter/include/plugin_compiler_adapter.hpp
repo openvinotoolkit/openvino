@@ -33,6 +33,9 @@ public:
 
     uint32_t get_version() const override;
 
+    std::vector<uint8_t> get_compiled_model_compatibility_descriptor(
+        const std::shared_ptr<IGraph>& graph) const override;
+
 private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
