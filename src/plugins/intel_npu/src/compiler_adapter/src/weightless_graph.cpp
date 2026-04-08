@@ -576,6 +576,28 @@ void WeightlessGraph::set_weights_inputs() {
     }
 }
 
+std::vector<size_t> WeightlessGraph::get_init_sizes() const {
+    std::vector<size_t> initSizes;
+    uint64_t blobSize;
+    const uint8_t* blobRawPtr = nullptr;
+    std::vector<uint8_t> blob;
+
+    for (size_t initIndex = 0; initIndex < _initsGraphDesc.size(); ++initIndex) {
+        if (_initBlobs.has_value() && _initBlobs->at(initIndex)) {
+            OPENVINO_ASSERT(_zeGraphExt != nullptr, "Zero compiler adapter wasn't initialized");
+            // when compiling the model using Compiler in Driver, the blob is handled by the driver
+            _zeGraphExt->getGraphBinary(_graphDesc, blob, blobRawPtr, blobSize);
+        } else {
+            // in all other cases, the blob is handled by the plugin
+            blobSize = _initBlobs->at(initIndex)->get_byte_size();
+        }
+
+        initSizes.push_back(blobSize);
+    }
+
+    return initSizes;
+}
+
 void WeightlessGraph::release_init_blob(const size_t initIndex) {
     if ((_zeGraphExt != nullptr && _zeGraphExt->isBlobDataImported(_graphDesc)) || _blobIsPersistent ||
         _initBlobs == std::nullopt || _zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 8)) {

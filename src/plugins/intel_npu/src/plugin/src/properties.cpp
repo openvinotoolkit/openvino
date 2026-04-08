@@ -1165,4 +1165,42 @@ std::string Properties::determineDeviceId(const ov::AnyMap& properties) const {
     return _config.get<DEVICE_ID>();
 }
 
+std::vector<uint8_t> Properties::getCompiledModelCompatibilityDescriptor(const std::shared_ptr<IGraph>& graph) const {
+    // Copy-pasted code, TODO refactor
+    // TODO rename, this is just the compiler part of the descriptor
+    std::unique_ptr<ICompilerAdapter> compiler = nullptr;
+    auto compilerType = _config.get<COMPILER_TYPE>();
+    auto deviceId = _config.get<DEVICE_ID>();
+    auto device = utils::getDeviceById(_backend, deviceId);
+
+    auto compilationPlatform =
+        utils::getCompilationPlatform(_config.get<PLATFORM>(),
+                                      device == nullptr ? deviceId : device->getName(),
+                                      _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+
+    // Create a compiler to get the type and fetch version and supported options if needed
+    CompilerAdapterFactory factory;
+    try {
+        compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+    } catch (const std::exception& ex) {
+        // No compiler, no support
+        OPENVINO_THROW("");
+    }
+
+    OPENVINO_ASSERT(compiler != nullptr);
+
+    try {
+        return compiler->get_compiled_model_compatibility_descriptor(graph);
+    } catch (const std::exception& ex) {
+        // TODO we can't do this, can we? Maybe instead we shoud add an ID in IGraph, representing the type
+        if (std::dynamic_pointer_cast<PluginCompilerAdapter>(compiler) != nullptr) {
+            OPENVINO_THROW("");
+        }
+
+        // Fallback to CiP
+        compiler = factory.getCompiler(_backend, ov::intel_npu::CompilerType::PLUGIN, compilationPlatform);
+        return compiler->get_compiled_model_compatibility_descriptor(graph);
+    }
+}
+
 }  // namespace intel_npu
