@@ -579,4 +579,19 @@ bool VCLCompilerImpl::is_option_supported(std::string option, std::optional<std:
     return false;
 }
 
+std::vector<uint8_t> VCLCompilerImpl::get_compiled_model_compatibility_descriptor() {
+    // TODO use the new call
+    vcl_allocator allocator;
+    uint8_t* blob = nullptr;
+    size_t size = 0;
+
+    auto result = vclAllocatedExecutableCreate3(_compilerHandle,
+                                                exeDesc,
+                                                &allocator,
+                                                &blob,
+                                                &size,
+                                                &compatibilityDescriptor,
+                                                &descriptorSize);
+}
+
 }  // namespace intel_npu

@@ -88,6 +88,8 @@ public:
 
     std::shared_ptr<void> getLinkedLibrary() const;
 
+    std::vector<uint8_t> get_compiled_model_compatibility_descriptor();
+
 private:
     /**
      * @brief Compiles the given model according to the given configuration. During the model serialization step, the

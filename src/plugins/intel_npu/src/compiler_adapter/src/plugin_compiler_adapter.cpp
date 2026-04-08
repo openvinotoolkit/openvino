@@ -294,4 +294,10 @@ bool PluginCompilerAdapter::is_option_supported(std::string optname, std::option
     }
 }
 
+std::vector<uint8_t> PluginCompilerAdapter::get_compiled_model_compatibility_descriptor(
+    const std::shared_ptr<IGraph>& graph) const {
+    // TODO find a way to get the blob from the graph
+    return _compiler->get_compiled_model_compatibility_descriptor();
+}
+
 }  // namespace intel_npu

@@ -65,6 +65,8 @@ public:
     virtual void resize_last_submitted_event(size_t batch);
     virtual void set_batch_size(std::size_t batch);
 
+    virtual std::vector<uint64_t> get_init_sizes() const;
+
     virtual const std::optional<std::size_t> get_batch_size() const;
 
     virtual uint32_t get_unique_id();
