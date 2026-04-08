@@ -13,6 +13,7 @@
 #include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
@@ -216,7 +217,7 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> phi3_sli
     return {mask, offset};
 }
 
-static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gpt_oss_sliding_window_pattern() {
+static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gptoss_gemma3_sliding_window_pattern() {
     auto q_idx = any_input();
     auto kv_idx = any_input();
 
@@ -393,9 +394,9 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     std::shared_ptr<ov::Node> phi3_mask, phi3_offset;
     std::tie(phi3_mask, phi3_offset) = phi3_sliding_window_pattern();
 
-    // gpt-oss case
-    std::shared_ptr<ov::Node> gpt_oss_mask, gpt_oss_offset;
-    std::tie(gpt_oss_mask, gpt_oss_offset) = gpt_oss_sliding_window_pattern();
+    // gpt-oss and gemma3 cases
+    std::shared_ptr<ov::Node> gptoss_gemma3_mask, gptoss_gemma3_offset;
+    std::tie(gptoss_gemma3_mask, gptoss_gemma3_offset) = gptoss_gemma3_sliding_window_pattern();
 
     // Scale's shape limitations according to SDPA specification
     auto scale_predicate = [=](const Output<Node>& output) -> bool {
@@ -414,7 +415,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                                           general_alibi_mask,
                                                           jais_alibi_mask,
                                                           baichuan2_13b_alibi_mask,
-                                                          gpt_oss_mask,
+                                                          gptoss_gemma3_mask,
                                                           any_input()});
 
     auto sdpa_with_4_inputs = wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa});
@@ -424,6 +425,12 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa, scale_input, sinks});
 
     auto sdpa_variants = std::make_shared<Or>(OutputVector{sdpa_with_4_inputs, sdpa_with_5_inputs, sdpa_with_6_inputs});
+
+    // Set to true once a sliding_attention layer matching the gptoss_gemma3 pattern is found
+    // alongside a token_type_ids model input - the combination that uniquely identifies Gemma3
+    // since pattern for full attention mask in Gemma3 is different than sliding window
+    // it has to be persistent in the callback, so shared_ptr is used
+    auto has_token_type_ids = std::make_shared<bool>(false);
 
     ov::matcher_pass_callback callback = [=,
                                           &kv_parameters,
@@ -602,9 +609,12 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                 offset = std::make_shared<v0::Convert>(offset, element::i32);
             }
             sliding_window = std::make_shared<v1::Subtract>(v0::Constant::create(element::i32, Shape{}, {2}), offset);
-        } else if (pattern_map.count(gpt_oss_offset)) {
-            auto offset = pattern_map.at(gpt_oss_offset).get_node_shared_ptr();
-            if (pattern_map.at(gpt_oss_offset).get_partial_shape().rank() != 0) {
+        } else if (pattern_map.count(gptoss_gemma3_offset)) {
+            // gptoss_gemma3 pattern + token_type_ids input uniquely identifies Gemma3;
+            // gpt-oss shares this sliding window pattern but has no token_type_ids.
+            *has_token_type_ids = optional_model_wide_params.count("token_type_ids");
+            auto offset = pattern_map.at(gptoss_gemma3_offset).get_node_shared_ptr();
+            if (pattern_map.at(gptoss_gemma3_offset).get_partial_shape().rank() != 0) {
                 offset = std::make_shared<v15::Squeeze>(offset);
             }
             if (offset->get_element_type() != element::i32) {
@@ -736,6 +746,17 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             pa_arguments.insert(pa_arguments.begin() + 24, v0::Constant::create(element::i32, Shape{0}, {}));
         }
         OPENVINO_ASSERT(pa_arguments.size() == 25);
+
+        if (*has_token_type_ids) {
+            std::shared_ptr<ov::Node> token_type_ids = optional_model_wide_params.at("token_type_ids");
+            if (token_type_ids->get_element_type() != element::i32) {
+                token_type_ids = std::make_shared<v0::Convert>(token_type_ids, element::i32);
+            }
+            pa_arguments.insert(pa_arguments.begin() + 25, token_type_ids);
+        } else {
+            pa_arguments.insert(pa_arguments.begin() + 25, v0::Constant::create(element::i32, Shape{0}, {}));
+        }
+        OPENVINO_ASSERT(pa_arguments.size() == 26);
 
         auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
         paged_attention->get_rt_info()[NUM_K_HEADS] = num_k_heads;

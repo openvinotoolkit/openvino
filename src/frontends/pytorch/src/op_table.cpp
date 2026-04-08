@@ -235,6 +235,7 @@ OP_CONVERTER(translate_rms_norm);
 OP_CONVERTER(translate_rnn);
 OP_CONVERTER(translate_roi_align);
 OP_CONVERTER(translate_roll);
+OP_CONVERTER(translate_rot90);
 OP_CONVERTER(translate_round);
 OP_CONVERTER(translate_rsqrt);
 OP_CONVERTER(translate_rsub);
@@ -703,6 +704,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::rnn_relu", op::translate_rnn},
         {"aten::rnn_tanh", op::translate_rnn},
         {"aten::roll", op::translate_roll},
+        {"aten::rot90", op::translate_rot90},
         {"aten::round", op::translate_round},
         {"aten::rsqrt", op::optional_out<op::translate_rsqrt, 1>},
         {"aten::rsqrt_", op::inplace_op<op::translate_rsqrt>},
@@ -1044,7 +1046,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.one_hot.default", op::translate_one_hot},
         {"aten.outer.default", op::translate_outer},
         {"aten.permute.default", op::translate_permute},
-        {"aten.permute_copy.default", op::translate_1to1_match_2_inputs<opset10::Transpose>},
+        {"aten.permute_copy.default", op::translate_permute},
         {"aten.pow.Scalar", op::translate_pow},
         {"aten.pow.Tensor_Scalar", op::translate_pow},
         {"aten.pow.Tensor_Tensor", op::translate_pow},
@@ -1059,6 +1061,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.reflection_pad3d.default", op::translate_reflection_pad_nd},
         {"aten.relu.default", op::translate_1to1_match_1_inputs<opset10::Relu>},
         {"aten.relu_.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
+        {"aten.remainder.default", op::translate_remainder},
         {"aten.remainder.Scalar", op::translate_remainder},
         {"aten.remainder.Tensor", op::translate_remainder},
         {"aten.repeat.default", op::translate_repeat_fx},
@@ -1067,7 +1070,9 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.rms_norm.default", op::translate_rms_norm},
         {"aten.roll.default", op::translate_roll},
         {"aten.rad2deg.default", op::translate_rad2deg},
+        {"aten.rot90.default", op::translate_rot90},
         {"aten.round.default", op::translate_round},
+        {"aten.round.out", op::translate_round},
         {"aten.rsqrt.default", op::translate_rsqrt},
         {"aten.rsub.Scalar", op::translate_rsub_fx},
         {"aten.rsub.Tensor", op::translate_rsub_fx},
@@ -1120,8 +1125,11 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.unfold.default", op::translate_unfold},
         {"aten.unsqueeze.default", common_translators::translate_unsqueeze},
         {"aten.unsqueeze_copy.default", op::translate_1to1_match_2_inputs<opset10::Unsqueeze>},
+        {"aten.upsample_bicubic2d.default", op::translate_upsample_bicubic2d},
         {"aten.upsample_bicubic2d.vec", op::translate_upsample_bicubic2d},
+        {"aten.upsample_bilinear2d", op::translate_upsample_bilinear2d},
         {"aten.upsample_bilinear2d.vec", op::translate_upsample_bilinear2d},
+        {"aten.upsample_bilinear2d.default", op::translate_upsample_bilinear2d},
         {"aten.upsample_linear1d.vec", op::translate_upsample_linear1d},
         {"aten.upsample_nearest1d.default", op::translate_upsample_nearest1d},
         {"aten.upsample_nearest1d.vec", op::translate_upsample_nearest1d},
@@ -1137,6 +1145,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.view_copy.default", op::translate_reshape},
         {"aten.view_as_complex.default", op::translate_view_as_complex},
         {"aten.view_as_real.default", op::translate_view_as_real},
+        {"aten.where.default", op::translate_where},
         {"aten.where.self", op::translate_where},
         {"aten.zero.default", op::translate_zeros_like_fx},
         {"aten.zeros.default", op::translate_zeros_fx},
