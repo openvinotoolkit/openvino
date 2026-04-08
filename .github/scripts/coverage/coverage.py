@@ -7,6 +7,7 @@ import argparse
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 import importlib
+import logging
 import os
 from pathlib import Path
 import shlex
@@ -24,6 +25,23 @@ sys.modules.setdefault("coverage_workflow", sys.modules[__name__])
 
 
 SUPPORTED_PROFILES = {"cpu", "gpu", "npu"}
+
+
+def _build_logger() -> logging.Logger:
+    """Create the shared logger used by the coverage helpers."""
+    logger = logging.getLogger("coverage")
+    if logger.handlers:
+        return logger
+
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("[coverage][%(levelname)s] %(message)s"))
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+    return logger
+
+
+LOGGER = _build_logger()
 
 
 @dataclass(frozen=True)
@@ -150,18 +168,6 @@ class GithubIO:
                 f.write("\n")
 
 
-def log(message: str) -> None:
-    print(f"[coverage] {message}")
-
-
-def warn(message: str) -> None:
-    print(f"[coverage][warn] {message}")
-
-
-def error(message: str) -> None:
-    print(f"[coverage][error] {message}")
-
-
 def run_cmd(
     cmd: Sequence[str] | str,
     *,
@@ -172,7 +178,7 @@ def run_cmd(
 ) -> int:
     """Run a command and optionally fail when it returns non-zero."""
     display = cmd if isinstance(cmd, str) else " ".join(shlex.quote(part) for part in cmd)
-    log(f"$ {display}")
+    LOGGER.info("$ %s", display)
     completed = subprocess.run(cmd, cwd=cwd, env=env, shell=shell, text=True)
     if check and completed.returncode != 0:
         raise RuntimeError(f"Command failed with exit code {completed.returncode}: {display}")
@@ -182,7 +188,7 @@ def run_cmd(
 def run_cmd_capture(cmd: Sequence[str], *, cwd: Path | None = None, check: bool = True) -> str:
     """Run a command and return captured stdout."""
     display = " ".join(shlex.quote(part) for part in cmd)
-    log(f"$ {display}")
+    LOGGER.info("$ %s", display)
     completed = subprocess.run(cmd, cwd=cwd, text=True, capture_output=True)
     if check and completed.returncode != 0:
         stderr = completed.stderr.strip()
@@ -320,12 +326,12 @@ class CoverageContext:
 
     def log_profile(self) -> None:
         """Print the resolved profile and accelerator flags."""
-        print(f"[coverage] TEST_PROFILE={self.test_profile}")
-        print(f"[coverage] ENABLE_BRANCH_COVERAGE={'true' if self.branch_coverage else 'false'}")
-        print(f"[coverage] RUN_GPU_TESTS={'true' if self.run_gpu_tests else 'false'}")
-        print(f"[coverage] RUN_NPU_TESTS={'true' if self.run_npu_tests else 'false'}")
-        print(f"[coverage] GPU_FLAGS={' '.join(self.gpu_flags)}")
-        print(f"[coverage] NPU_FLAGS={' '.join(self.npu_flags)}")
+        LOGGER.info("TEST_PROFILE=%s", self.test_profile)
+        LOGGER.info("ENABLE_BRANCH_COVERAGE=%s", "true" if self.branch_coverage else "false")
+        LOGGER.info("RUN_GPU_TESTS=%s", "true" if self.run_gpu_tests else "false")
+        LOGGER.info("RUN_NPU_TESTS=%s", "true" if self.run_npu_tests else "false")
+        LOGGER.info("GPU_FLAGS=%s", " ".join(self.gpu_flags))
+        LOGGER.info("NPU_FLAGS=%s", " ".join(self.npu_flags))
 
 
 def _as_text(value: Any) -> str:
@@ -537,7 +543,7 @@ def _resolve_step_handler(step_name: str) -> Callable[[CoverageContext], None]:
 
 def _run_step(ctx: CoverageContext, step_name: str) -> None:
     """Execute one coverage workflow step."""
-    log(f"Starting step: {step_name}")
+    LOGGER.info("Starting step: %s", step_name)
     handler = _resolve_step_handler(step_name)
     handler(ctx)
 
@@ -663,7 +669,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return int(args.func(args))
     except Exception as exc:  # noqa: BLE001
-        error(str(exc))
+        LOGGER.error("%s", exc)
         return 1
 
 

@@ -10,7 +10,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from coverage_workflow import CoverageContext, run_cmd, warn
+from coverage_workflow import CoverageContext, LOGGER, run_cmd
 
 
 def _slugify(value: str) -> str:
@@ -101,7 +101,7 @@ def _prefilter_incompatible_gcda(root: Path, *, label: str, gcno_root: Path | No
                 pass
 
     if removed_missing_gcno or removed_header_mismatch or removed_unreadable:
-        warn(
+        LOGGER.warning(
             f"{label}: pre-filtered incompatible gcda files "
             f"(scanned={scanned}, missing_gcno={removed_missing_gcno}, "
             f"header_mismatch={removed_header_mismatch}, unreadable={removed_unreadable})"
@@ -236,7 +236,7 @@ def _prune_unwanted_gcda(root: Path, *, label: str, run_gpu_tests: bool, run_npu
 
     if removed:
         details = ", ".join(f"{name}={count}" for name, count in sorted(reasons.items()))
-        warn(f"{label}: pre-pruned {removed} unwanted gcda files before lcov capture ({details})")
+        LOGGER.warning("%s: pre-pruned %s unwanted gcda files before lcov capture (%s)", label, removed, details)
 
 
 def _resolve_trace_source_path(raw_path: str, *, workspace: Path) -> Path | None:
@@ -385,8 +385,7 @@ def _normalize_and_filter_tracefile(
 
     summary_path = debug_dir / f"{tracefile.stem}.normalized-summary.txt"
     summary_path.write_text("\n".join(summary_lines) + "\n", encoding="utf-8")
-    print(f"[coverage] ===== {summary_path.name} =====")
-    print("\n".join(summary_lines[:20]))
+    LOGGER.info("===== %s =====\n%s", summary_path.name, "\n".join(summary_lines[:20]))
     return stats
 
 
@@ -527,9 +526,13 @@ def _run_lcov_capture(
     for attempt in range(1, max_attempts + 1):
         display = " ".join(shlex.quote(part) for part in cmd)
         log_file = debug_dir / f"{_slugify(label)}.attempt{attempt}.log"
-        print(
-            f"[coverage] $ {display}  # {label} "
-            f"(attempt {attempt}/{max_attempts}, timeout={timeout_seconds}s)"
+        LOGGER.info(
+            "$ %s  # %s (attempt %s/%s, timeout=%ss)",
+            display,
+            label,
+            attempt,
+            max_attempts,
+            timeout_seconds,
         )
         try:
             completed = subprocess.run(cmd, text=True, capture_output=True, timeout=timeout_seconds)
@@ -542,7 +545,7 @@ def _run_lcov_capture(
             )
             combined_tail = (stdout_text.splitlines() + stderr_text.splitlines())[-40:]
             if combined_tail:
-                warn(
+                LOGGER.warning(
                     f"{label}: lcov capture timed out after {timeout_seconds}s; full log: {log_file}\n"
                     + "\n".join(combined_tail)
                 )
@@ -565,7 +568,14 @@ def _run_lcov_capture(
         if removed > 0:
             preview = ", ".join(str(p) for p in bad_files[:3])
             more = "" if len(bad_files) <= 3 else f", ... (+{len(bad_files) - 3} more)"
-            warn(f"{label}: removed {removed} problematic .gcda file(s): {preview}{more}; lcov log: {log_file}")
+            LOGGER.warning(
+                "%s: removed %s problematic .gcda file(s): %s%s; lcov log: %s",
+                label,
+                removed,
+                preview,
+                more,
+                log_file,
+            )
             continue
 
         finished_info = "Finished .info-file creation" in log_text
@@ -577,7 +587,7 @@ def _run_lcov_capture(
             size_bytes = -1
 
         if output_file.exists() and (size_bytes > 0 or finished_info):
-            warn(
+            LOGGER.warning(
                 f"{label}: lcov returned {completed.returncode}, but {output_file.name} was produced "
                 f"(size={size_bytes} bytes{excluded_suffix}); continuing. lcov log: {log_file}"
             )
@@ -585,7 +595,7 @@ def _run_lcov_capture(
 
         combined_tail = (stdout_text.splitlines() + stderr_text.splitlines())[-40:]
         if combined_tail:
-            warn(
+            LOGGER.warning(
                 f"{label}: lcov capture failed (attempt {attempt}); full log: {log_file}\n"
                 + "\n".join(combined_tail)
             )
@@ -634,8 +644,7 @@ def run(ctx: CoverageContext) -> None:
 
     tool_report = _tool_version_report()
     (trace_dir / "tool-versions.txt").write_text(tool_report, encoding="utf-8")
-    print("[coverage] Native coverage tool versions:")
-    print(tool_report.rstrip())
+    LOGGER.info("Native coverage tool versions:\n%s", tool_report.rstrip())
 
     (trace_dir / "main-build-before-prefilter.txt").write_text(
         _tree_inventory_report(
@@ -692,7 +701,7 @@ def run(ctx: CoverageContext) -> None:
         ),
         encoding="utf-8",
     )
-    print(f"[coverage] Wrote native coverage inventories under {trace_dir}")
+    LOGGER.info("Wrote native coverage inventories under %s", trace_dir)
     for inventory_name in (
         "main-build-before-prefilter.txt",
         "main-build-after-prefilter.txt",
@@ -701,8 +710,11 @@ def run(ctx: CoverageContext) -> None:
     ):
         inventory_path = trace_dir / inventory_name
         if inventory_path.is_file():
-            print(f"[coverage] ===== {inventory_name} =====")
-            print("\n".join(inventory_path.read_text(encoding="utf-8").splitlines()[:40]))
+            LOGGER.info(
+                "===== %s =====\n%s",
+                inventory_name,
+                "\n".join(inventory_path.read_text(encoding="utf-8").splitlines()[:40]),
+            )
 
     has_main_gcda = _has_gcda(ctx.paths.build_dir)
     has_js_gcda = _has_gcda(ctx.paths.build_js_dir)
@@ -718,7 +730,7 @@ def run(ctx: CoverageContext) -> None:
             branch_coverage=ctx.branch_coverage,
         )
     else:
-        warn(f"No .gcda files found in {ctx.paths.build_dir}, skipping main native C++ capture")
+        LOGGER.warning("No .gcda files found in %s, skipping main native C++ capture", ctx.paths.build_dir)
 
         main_info = None
 
@@ -735,7 +747,7 @@ def run(ctx: CoverageContext) -> None:
         tracefiles.append(js_info)
     else:
         if ctx.paths.build_js_dir.exists():
-            warn(f"No .gcda files found in {ctx.paths.build_js_dir}, skipping JS-side native C++ capture")
+            LOGGER.warning("No .gcda files found in %s, skipping JS-side native C++ capture", ctx.paths.build_js_dir)
         js_info = None
 
     if has_main_gcda and main_info is not None:
@@ -753,12 +765,12 @@ def run(ctx: CoverageContext) -> None:
 
     if not merged_info.exists() or merged_info.stat().st_size == 0:
         raise RuntimeError("coverage.info is empty after normalization.")
-    print(
-        "[coverage] Normalized merged tracefile: "
-        f"kept={normalization_stats['kept_records']}, "
-        f"dropped_unresolved={normalization_stats['dropped_unresolved']}, "
-        f"dropped_excluded={normalization_stats['dropped_excluded']}, "
-        f"rewritten={normalization_stats['rewritten_paths']}"
+    LOGGER.info(
+        "Normalized merged tracefile: kept=%s, dropped_unresolved=%s, dropped_excluded=%s, rewritten=%s",
+        normalization_stats["kept_records"],
+        normalization_stats["dropped_unresolved"],
+        normalization_stats["dropped_excluded"],
+        normalization_stats["rewritten_paths"],
     )
     run_cmd(["grep", "-m", "10", "^SF:", str(merged_info)], check=False)
 
@@ -776,4 +788,4 @@ def run(ctx: CoverageContext) -> None:
         check=False,
     )
     if genhtml_rc != 0:
-        warn("genhtml failed; coverage.info is still available for Codecov upload.")
+        LOGGER.warning("genhtml failed; coverage.info is still available for Codecov upload.")

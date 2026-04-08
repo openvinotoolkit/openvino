@@ -15,12 +15,12 @@ import xml.etree.ElementTree as ET
 from coverage_workflow import (
     CoverageContext,
     CppTestCase,
+    LOGGER,
     env_from_assignments,
     load_cpp_tests,
     load_js_tests,
     load_python_tests,
     run_cmd,
-    warn,
 )
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -135,7 +135,7 @@ def _filter_selected_tests(tests: list[object], selected_names: list[str], *, su
     known_names = {getattr(test, "name") for test in tests}
     missing_names = [name for name in selected_names if name not in known_names]
     if missing_names:
-        warn(f"Requested {suite_label} tests were not found in config: " + ", ".join(missing_names))
+        LOGGER.warning("Requested %s tests were not found in config: %s", suite_label, ", ".join(missing_names))
     return [test for test in tests if getattr(test, "name") in selected_set]
 
 
@@ -147,7 +147,7 @@ def _timed_run(
     env: dict[str, str] | None = None,
 ) -> tuple[int, float]:
     """Run one command and return its exit code and duration."""
-    print(f"========== Running {title} ==========")
+    LOGGER.info("========== Running %s ==========", title)
     started_at = time.monotonic()
     rc = run_cmd(cmd, cwd=cwd, env=env, check=False)
     return rc, time.monotonic() - started_at
@@ -286,9 +286,9 @@ def _finalize_suite(
     )
 
     if no_execution_warning and not executed:
-        warn(no_execution_warning)
+        LOGGER.warning("%s", no_execution_warning)
     if failure_warning and failed:
-        warn(failure_warning)
+        LOGGER.warning("%s", failure_warning)
 
 
 def _pycov_config(*, branch_coverage: bool, source_dir: Path, workspace: Path) -> str:
@@ -674,7 +674,7 @@ def run_python(ctx: CoverageContext) -> None:
             rc, duration_seconds = _timed_run(f"Python test: {test.name}", cmd, env=env)
         elif test.kind == "pytest_if_dir":
             if not Path(target).is_dir():
-                warn(f"Skipping Python test group '{test.name}' (missing: {target})")
+                LOGGER.warning("Skipping Python test group '%s' (missing: %s)", test.name, target)
                 results.append(_TestRunResult(test.name, "skipped", f"{test.name} (missing path)"))
                 continue
             cmd = _python_pytest_command(target, args, py_cov_source=py_cov_source, py_cov_config=py_cov_config)
@@ -686,7 +686,7 @@ def run_python(ctx: CoverageContext) -> None:
                 env=env,
             )
         else:
-            warn(f"Unknown Python test kind '{test.kind}' for '{test.name}', skipping")
+            LOGGER.warning("Unknown Python test kind '%s' for '%s', skipping", test.kind, test.name)
             results.append(_TestRunResult(test.name, "skipped", f"{test.name} (unknown kind: {test.kind})"))
             continue
 
@@ -698,7 +698,7 @@ def run_python(ctx: CoverageContext) -> None:
     xml_path = ctx.workspace / "python-coverage.xml"
     xml_rc = run_cmd(["python3", "-m", "coverage", "xml", "-o", str(xml_path)], check=False)
     if xml_rc != 0:
-        warn("Failed to export python-coverage.xml; continuing without Python XML coverage output.")
+        LOGGER.warning("Failed to export python-coverage.xml; continuing without Python XML coverage output.")
     else:
         installed_dirs = tuple(path for path in (installed_openvino_dir,) if path is not None)
         _rewrite_python_coverage_xml(
