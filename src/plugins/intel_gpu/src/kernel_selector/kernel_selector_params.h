@@ -328,7 +328,7 @@ public:
     void EnableSurfaceInputSupport() { key.restrict.val.dedicated.reorder.surface_input = 1; }
     void EnableSoftmaxDim(SoftmaxDim d);
     void EnableConcatAxis(ConcatAxis a);
-    void EnableReampleType(ResampleType a);
+    void EnableResampleType(ResampleType a);
     void EnableEltwiseStride();
     void EnableEltwiseBroadcast() { key.restrict.val.dedicated.eltwise.broadcast = 1; }
 

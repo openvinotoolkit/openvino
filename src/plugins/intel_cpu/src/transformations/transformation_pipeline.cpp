@@ -74,6 +74,7 @@
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/reshape_prelu.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
@@ -159,6 +160,7 @@
 #include "snippets/pass/mlp_seq_tokenization.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/tokenization_config.hpp"
+#include "snippets/utils/tokenization_utils.hpp"
 
 // Misc
 #include "nodes/fake_quantize.h"
@@ -200,7 +202,6 @@
 #    include "openvino/op/subtract.hpp"
 #    include "snippets/pass/common_optimizations.hpp"
 #    include "snippets/pass/split_dimension_m.hpp"
-#    include "snippets/utils/tokenization_utils.hpp"
 #    include "transformations/common_optimizations/rms_fusion.hpp"
 #    include "transformations/cpu_opset/common/op/sdpa.hpp"
 #    include "transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp"
@@ -236,7 +237,6 @@
 #    include "low_precision/reduce_min.hpp"
 #    include "low_precision/reduce_sum.hpp"
 #    include "openvino/opsets/opset1_decl.hpp"
-#    include "snippets/utils/tokenization_utils.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_conv_bias.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
@@ -508,10 +508,11 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             ov::pass::Manager qdq_stripping_manager("Plugin:CPU:QDQ_Stripping");
             using namespace ov::element;
             // QDQ stripping pipeline
+            // 0. Deduplicate identical DQ subgraphs sharing a common Convert node
+            qdq_stripping_manager.register_pass<ov::pass::SharedOpOptimization>();
             // 1. Fuse FQ->Convert->DQ to a single FQ
             qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16},
-                                                                                     TypeVector{f32},
-                                                                                     true);
+                                                                                     TypeVector{f32});
             // 2. Strip FQ layers with unsupported levels
             qdq_stripping_manager.register_pass<FQStrippingTransformation>(std::set<size_t>{levels::int16}, false);
             qdq_stripping_manager.run_passes(model);
@@ -1248,6 +1249,9 @@ void Transformations::MainSnippets() {
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
     common_optimizations_config.set_transpose_support_callback(
         ov::snippets::utils::make_transpose_support_callback(true));
+#elif defined(OPENVINO_ARCH_RISCV64)
+    common_optimizations_config.set_transpose_support_callback(
+        ov::snippets::utils::make_transpose_support_callback(false));
 #else
     common_optimizations_config.set_transpose_support_callback([](const std::shared_ptr<const ov::Node>&) -> bool {
         return false;
