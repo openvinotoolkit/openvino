@@ -2995,9 +2995,7 @@ TEST(TransformationTests, ConvertPrecision_ReleasesOldConstantsDuringLoop) {
 
     std::shared_ptr<Node> chain = param;
     for (size_t i = 0; i < kNumConsts; ++i) {
-        auto c = opset10::Constant::create(element::f32,
-                                           Shape{4},
-                                           {1.0f + static_cast<float>(i), 2.0f, 3.0f, 4.0f});
+        auto c = opset10::Constant::create(element::f32, Shape{4}, {1.0f + static_cast<float>(i), 2.0f, 3.0f, 4.0f});
         weak_consts.push_back(c);
         chain = std::make_shared<opset10::Add>(chain, c);
     }
@@ -3013,8 +3011,7 @@ TEST(TransformationTests, ConvertPrecision_ReleasesOldConstantsDuringLoop) {
 
     type_to_fuse_map handlers;
     handlers[opset10::Add::get_type_info_static()] =
-        [&weak_consts, &alive_when_add_visited](const std::shared_ptr<Node>&,
-                                                const precisions_map&) {
+        [&weak_consts, &alive_when_add_visited](const std::shared_ptr<Node>&, const precisions_map&) {
             size_t alive = 0;
             for (const auto& w : weak_consts) {
                 if (!w.expired()) {
@@ -3026,8 +3023,7 @@ TEST(TransformationTests, ConvertPrecision_ReleasesOldConstantsDuringLoop) {
         };
 
     pass::Manager manager;
-    manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
-                                                  handlers);
+    manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}}, handlers);
     manager.run_passes(model);
 
     ASSERT_EQ(alive_when_add_visited.size(), kNumConsts);
@@ -3035,10 +3031,9 @@ TEST(TransformationTests, ConvertPrecision_ReleasesOldConstantsDuringLoop) {
         const size_t expected_alive = kNumConsts - 1 - i;
         EXPECT_EQ(alive_when_add_visited[i], expected_alive)
             << "At Add #" << i << " the test expected exactly " << expected_alive
-            << " original f32 constant(s) still alive (the not-yet-visited ones), "
-            << "but observed " << alive_when_add_visited[i] << ". A larger value means "
-            << "ConvertPrecision is keeping already-replaced constants alive and "
-            << "doubling peak memory.";
+            << " original f32 constant(s) still alive (the not-yet-visited ones), " << "but observed "
+            << alive_when_add_visited[i] << ". A larger value means "
+            << "ConvertPrecision is keeping already-replaced constants alive and " << "doubling peak memory.";
     }
 
     // Sanity: after the pass no f32 outputs remain in the converted model.
