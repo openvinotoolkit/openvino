@@ -149,8 +149,8 @@ KERNEL (gather_nonzero_ref)(
             ADD_IDXS;
          }
     }
-    
-    sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+
+    barrier(CLK_LOCAL_MEM_FENCE);
     int global_output_offset = 0;
     if (use_local_mem && local_idx == 0) {
         // write back to global mem
