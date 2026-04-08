@@ -556,9 +556,10 @@ INSTANTIATE_TEST_SUITE_P(
 // This pattern appears when GroupNormalization is decomposed via InstanceNormalization
 // and reshaped directly to 4D with a trailing unit dimension before MVN.
 
-class GroupNormalizationFusion4DTestsF : public GroupNormalizationFusionTestBase,
-                                         public TransformationTestsF,
-                                         public testing::WithParamInterface<GroupNormalizationFusionTransformationTestValues> {
+class GroupNormalizationFusion4DTestsF
+    : public GroupNormalizationFusionTestBase,
+      public TransformationTestsF,
+      public testing::WithParamInterface<GroupNormalizationFusionTransformationTestValues> {
 public:
     static std::string getTestCaseName(
         const testing::TestParamInfo<GroupNormalizationFusionTransformationTestValues>& obj) {
@@ -776,17 +777,19 @@ std::vector<GroupNormalizationFusionTestBaseValues> valid_vals_4d = {
                     1e-6),
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    GroupNormalizationFusion4DPositiveTests_f32,
-    GroupNormalizationFusion4DTestsF,
-    ValuesIn(expand_vals(valid_vals_4d, GroupNormalizationFusionTransformationTestAdditionalValues(element::f32, true))),
-    GroupNormalizationFusion4DTestsF::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusion4DPositiveTests_f32,
+                         GroupNormalizationFusion4DTestsF,
+                         ValuesIn(expand_vals(valid_vals_4d,
+                                              GroupNormalizationFusionTransformationTestAdditionalValues(element::f32,
+                                                                                                         true))),
+                         GroupNormalizationFusion4DTestsF::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(
-    GroupNormalizationFusion4DPositiveTests_f16,
-    GroupNormalizationFusion4DTestsF,
-    ValuesIn(expand_vals(valid_vals_4d, GroupNormalizationFusionTransformationTestAdditionalValues(element::f16, true))),
-    GroupNormalizationFusion4DTestsF::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusion4DPositiveTests_f16,
+                         GroupNormalizationFusion4DTestsF,
+                         ValuesIn(expand_vals(valid_vals_4d,
+                                              GroupNormalizationFusionTransformationTestAdditionalValues(element::f16,
+                                                                                                         true))),
+                         GroupNormalizationFusion4DTestsF::getTestCaseName);
 
 // 4D InstanceNorm pattern with concrete shape values (vs special markers like {0, G, -1, 1})
 // Some frameworks resolve shapes during optimization and emit concrete dimension values.
@@ -933,8 +936,8 @@ protected:
         std::vector<long long> orig_shape_vals;
         for (auto dim : static_shape)
             orig_shape_vals.push_back(static_cast<long long>(dim));
-        auto original_shape_const = op::v0::Constant::create<long long>(
-            element::i64, Shape{static_shape.size()}, orig_shape_vals);
+        auto original_shape_const =
+            op::v0::Constant::create<long long>(element::i64, Shape{static_shape.size()}, orig_shape_vals);
         auto post_instance_norm_reshape =
             std::make_shared<op::v1::Reshape>(opt_instance_norm_beta_add, original_shape_const, false);
 
@@ -1012,12 +1015,12 @@ std::vector<GroupNormalizationFusionTestBaseValues> valid_vals_4d_concrete = {
     std::make_tuple(PartialShape{4, 512, 64, 64}, Shape{}, Shape{}, Shape{512, 1, 1}, Shape{1, 512, 1, 1}, 32, 1e-6),
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    GroupNormalizationFusion4DConcreteValuesPositiveTests_f32,
-    GroupNormalizationFusion4DConcreteValuesTestsF,
-    ValuesIn(expand_vals(valid_vals_4d_concrete,
-                         GroupNormalizationFusionTransformationTestAdditionalValues(element::f32, true))),
-    GroupNormalizationFusion4DConcreteValuesTestsF::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusion4DConcreteValuesPositiveTests_f32,
+                         GroupNormalizationFusion4DConcreteValuesTestsF,
+                         ValuesIn(expand_vals(valid_vals_4d_concrete,
+                                              GroupNormalizationFusionTransformationTestAdditionalValues(element::f32,
+                                                                                                         true))),
+                         GroupNormalizationFusion4DConcreteValuesTestsF::getTestCaseName);
 
 // Standalone negative tests for 4D-specific edge cases that require custom model construction.
 // When model_ref is not set, TransformationTestsF::TearDown clones the model, runs the pass,
@@ -1042,9 +1045,7 @@ static std::shared_ptr<Model> build_4d_pattern_model(const PartialShape& data_sh
     auto reshape_4d = std::make_shared<v1::Reshape>(input, pre_mvn_shape_4d, true);
 
     // MVN with custom axes
-    auto mvn_axes = op::v0::Constant::create<long long>(element::i64,
-                                                        Shape{mvn_axes_vals.size()},
-                                                        mvn_axes_vals);
+    auto mvn_axes = op::v0::Constant::create<long long>(element::i64, Shape{mvn_axes_vals.size()}, mvn_axes_vals);
     auto mvn = std::make_shared<op::v6::MVN>(reshape_4d, mvn_axes, true, epsilon, op::MVNEpsMode::INSIDE_SQRT);
 
     // Reshape back to original shape
@@ -1066,36 +1067,46 @@ static std::shared_ptr<Model> build_4d_pattern_model(const PartialShape& data_sh
 
 // 4D pattern with wrong MVN axes: {1, 2} instead of {2, 3}
 TEST_F(GroupNormalizationFusion4DNegativeEdgeCasesF, WrongMVNAxes) {
-    model = build_4d_pattern_model(PartialShape{1, 320, 64, 64}, /*num_groups=*/32,
-                                   /*mvn_axes_vals=*/{1, 2}, /*trailing_dim=*/1);
+    model = build_4d_pattern_model(PartialShape{1, 320, 64, 64},
+                                   /*num_groups=*/32,
+                                   /*mvn_axes_vals=*/{1, 2},
+                                   /*trailing_dim=*/1);
     manager.register_pass<pass::GroupNormalizationFusion>();
 }
 
 // 4D pattern with single MVN axis {2} — requires {2, 3} for 4D pattern
 TEST_F(GroupNormalizationFusion4DNegativeEdgeCasesF, SingleMVNAxisWith4DReshape) {
-    model = build_4d_pattern_model(PartialShape{1, 320, 64, 64}, /*num_groups=*/32,
-                                   /*mvn_axes_vals=*/{2}, /*trailing_dim=*/1);
+    model = build_4d_pattern_model(PartialShape{1, 320, 64, 64},
+                                   /*num_groups=*/32,
+                                   /*mvn_axes_vals=*/{2},
+                                   /*trailing_dim=*/1);
     manager.register_pass<pass::GroupNormalizationFusion>();
 }
 
 // 4D pattern with trailing dimension != 1 (e.g., 2)
 TEST_F(GroupNormalizationFusion4DNegativeEdgeCasesF, TrailingDimNotOne) {
-    model = build_4d_pattern_model(PartialShape{1, 320, 64, 64}, /*num_groups=*/32,
-                                   /*mvn_axes_vals=*/{2, 3}, /*trailing_dim=*/2);
+    model = build_4d_pattern_model(PartialShape{1, 320, 64, 64},
+                                   /*num_groups=*/32,
+                                   /*mvn_axes_vals=*/{2, 3},
+                                   /*trailing_dim=*/2);
     manager.register_pass<pass::GroupNormalizationFusion>();
 }
 
 // 4D pattern with MVN axes {0, 1} — normalizing over wrong dimensions
 TEST_F(GroupNormalizationFusion4DNegativeEdgeCasesF, MVNAxesOverBatchAndGroups) {
-    model = build_4d_pattern_model(PartialShape{1, 320, 64, 64}, /*num_groups=*/32,
-                                   /*mvn_axes_vals=*/{0, 1}, /*trailing_dim=*/1);
+    model = build_4d_pattern_model(PartialShape{1, 320, 64, 64},
+                                   /*num_groups=*/32,
+                                   /*mvn_axes_vals=*/{0, 1},
+                                   /*trailing_dim=*/1);
     manager.register_pass<pass::GroupNormalizationFusion>();
 }
 
 // 4D pattern with three MVN axes {1, 2, 3} — too many axes for 4D pattern
 TEST_F(GroupNormalizationFusion4DNegativeEdgeCasesF, ThreeMVNAxes) {
-    model = build_4d_pattern_model(PartialShape{1, 320, 64, 64}, /*num_groups=*/32,
-                                   /*mvn_axes_vals=*/{1, 2, 3}, /*trailing_dim=*/1);
+    model = build_4d_pattern_model(PartialShape{1, 320, 64, 64},
+                                   /*num_groups=*/32,
+                                   /*mvn_axes_vals=*/{1, 2, 3},
+                                   /*trailing_dim=*/1);
     manager.register_pass<pass::GroupNormalizationFusion>();
 }
 

@@ -168,7 +168,9 @@ GroupNormalizationFusion::GroupNormalizationFusion() {
             return true;
         };
 
-        if (!pre_mvn_shape_vals_correct(pre_mvn_shape_const->cast_vector<int64_t>(), input_ps, num_groups,
+        if (!pre_mvn_shape_vals_correct(pre_mvn_shape_const->cast_vector<int64_t>(),
+                                        input_ps,
+                                        num_groups,
                                         pre_mvn_reshape_out_ps))
             return false;
 
