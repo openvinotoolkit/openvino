@@ -16,6 +16,11 @@ const std::vector<ov::element::Type> netPrecisions = {
         ov::element::f16
 };
 
+const std::vector<ov::element::Type> integerSignNetPrecisions = {
+        ov::element::i32,
+        ov::element::u8
+};
+
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
         {ActivationTypes::Sigmoid,               {}},
         {ActivationTypes::Tanh,                  {}},
@@ -57,6 +62,10 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {ActivationTypes::SoftSign,              {}},
 };
 
+const std::map<ActivationTypes, std::vector<std::vector<float>>> integerSignActivationTypes = {
+        {ActivationTypes::Sign,                  {}},
+};
+
 const std::map<ActivationTypes, std::vector<std::vector<float>>> big_rank_activation_types = {
         {ActivationTypes::Relu,                  {}},
         {ActivationTypes::Exp,                   {}},
@@ -87,6 +96,7 @@ std::map<std::vector<ov::Shape>, std::vector<ov::Shape>> preluBasic = {
         {{{1, 10, 20}}, {{10}, {20}, {10, 20}}},
         {{{1, 128}}, {{1}, {128}}},
         {{{24}}, {{1}}},
+        {{{24}}, {{1}, {24}}},
 };
 
 auto static_shapes_param_transform = [](const std::vector<std::pair<std::vector<ov::Shape>, ov::Shape>>& original_shapes) {
@@ -101,6 +111,14 @@ const auto basicCases = []() {
     return ::testing::Combine(
         ::testing::ValuesIn(ov::test::utils::combineParams(activationTypes)),
         ::testing::ValuesIn(netPrecisions),
+        ::testing::ValuesIn(static_shapes_param_transform(ov::test::utils::combineParams(basic))),
+        ::testing::Values(ov::test::utils::DEVICE_GPU));
+};
+
+const auto integerSignCases = []() {
+    return ::testing::Combine(
+        ::testing::ValuesIn(ov::test::utils::combineParams(integerSignActivationTypes)),
+        ::testing::ValuesIn(integerSignNetPrecisions),
         ::testing::ValuesIn(static_shapes_param_transform(ov::test::utils::combineParams(basic))),
         ::testing::Values(ov::test::utils::DEVICE_GPU));
 };
@@ -122,6 +140,8 @@ const auto big_rank_cases = []() {
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases(), ActivationLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Integer_Sign, ActivationLayerTest, integerSignCases(), ActivationLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(Activation_BigRanks, ActivationLayerTest, big_rank_cases(), ActivationLayerTest::getTestCaseName);
 
