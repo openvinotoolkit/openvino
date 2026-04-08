@@ -202,6 +202,8 @@ void ScaledAttnLayerGPUTest::SetUp() {
 
     bool has_long_seq = it != inputShapes[1].second.end();
 
+    // [TODO] sdpa_micro has an accuracy issue to be fixed, use the has_non_pow2_head check as a workaround. (CVS-182520)
+    // Let's remove this has_non_pow2_head check after the fix.
     bool has_non_pow2_head = (inputShapes[1].first.rank().get_length() == 4
         && inputShapes[1].first[-1].is_static()
         && ((inputShapes[1].first[-1].get_length() & (inputShapes[1].first[-1].get_length() - 1)) != 0));
