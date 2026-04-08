@@ -9,6 +9,7 @@
 
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 
@@ -37,6 +38,7 @@ TEST(PagedCausalConv1DRealModel, SDPAToPAThenCommonOptimizations) {
 
     ov::pass::Manager precondition_pm;
     precondition_pm.register_pass<ov::pass::SDPAToPagedAttention>(false, false, false, false, false, false);
+    precondition_pm.register_pass<ov::pass::Serialize>("paged_causal_conv1d_real_model.xml", "paged_causal_conv1d_real_model.bin");
     precondition_pm.run_passes(model);
 
     const auto sdpa_after_precondition = count_ops_by_type(model, "ScaledDotProductAttention");
@@ -47,6 +49,7 @@ TEST(PagedCausalConv1DRealModel, SDPAToPAThenCommonOptimizations) {
 
     ov::pass::Manager common_pm;
     common_pm.register_pass<ov::pass::CommonOptimizations>();
+    common_pm.register_pass<ov::pass::Serialize>("paged_causal_conv1d_real_model_after_common_opt.xml", "paged_causal_conv1d_real_model_after_common_opt.bin");
     common_pm.run_passes(model);
 
     const auto pcc_count = count_ops_by_type(model, "PagedCausalConv1D");

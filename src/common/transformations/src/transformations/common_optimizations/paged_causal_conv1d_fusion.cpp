@@ -22,7 +22,6 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/swish.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -33,7 +32,6 @@ using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
-namespace v4 = ov::op::v4;
 namespace v8 = ov::op::v8;
 
 namespace {
@@ -76,15 +74,14 @@ namespace ov::pass {
 PagedCausalConv1DFusion::PagedCausalConv1DFusion() {
     MATCHER_SCOPE(PagedCausalConv1DFusion);
 
-    auto token_transpose = wrap_type<v1::Transpose, v1::Reshape>({any_input(), any_input()});
+    auto token_input = any_input();
     auto past_state = any_input();
-    auto state_concat = wrap_type<v0::Concat>({past_state, token_transpose}, is_concat_axis_minus_one);
+    auto state_concat = wrap_type<v0::Concat>({past_state, token_input}, is_concat_axis_minus_one);
 
     auto weight_const = wrap_type<v0::Constant>();
     auto group_conv = wrap_type<v1::GroupConvolution>({state_concat, weight_const});
 
     auto slice2 = wrap_type<v8::Slice>({group_conv, any_input(), any_input(), any_input(), any_input()});
-    auto swish = wrap_type<v4::Swish>({slice2});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
@@ -94,7 +91,7 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion() {
         const auto& pm = m.get_pattern_value_map();
 
         auto past_state_node = pm.at(past_state);
-        auto token_transpose_node = pm.at(token_transpose).get_node_shared_ptr();
+        auto token_input_node = pm.at(token_input).get_node_shared_ptr();
         auto state_concat_node = pm.at(state_concat).get_node_shared_ptr();
         auto group_conv_node = ov::as_type_ptr<v1::GroupConvolution>(pm.at(group_conv).get_node_shared_ptr());
         auto weight_node = ov::as_type_ptr<v0::Constant>(pm.at(weight_const).get_node_shared_ptr());
@@ -129,7 +126,7 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion() {
         const size_t hidden_size = weight_shape[0];
         const size_t kernel_size = weight_shape[3];
 
-        auto token_node = pm.at(token_transpose);
+        ov::Output<ov::Node> token_node = token_input_node;
         const auto& token_pshape = token_node.get_partial_shape();
         if (token_pshape.rank().is_dynamic() || token_pshape.rank().get_length() != 3) {
             return false;
@@ -229,7 +226,7 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(swish, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(slice2, matcher_name);
     this->register_matcher(m, callback);
 }
 
