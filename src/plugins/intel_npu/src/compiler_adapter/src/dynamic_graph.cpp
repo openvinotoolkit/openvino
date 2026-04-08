@@ -241,6 +241,8 @@ void DynamicGraphImpl::prepareMetadata(NetworkMetadata& metadata) {
 void DynamicGraphImpl::getBinding(DynamicGraph::GraphArguments& binding) {
     binding = _binding;
 }
+
+void DynamicGraphImpl::initializeDynamicGraphExecution(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata) {
     createExecutionEngine(blob);
     prepareMetadata(metadata);
 
