@@ -290,3 +290,7 @@ class Identity;
 class SegmentMax;
 class SparseFillEmptyRows;
 }  // namespace ov::op::v16
+
+namespace ov::op::v17 {
+class GroupedMatMul;
+}  // namespace ov::op::v17

@@ -83,6 +83,7 @@
 #include "openvino/op/grn.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/group_normalization.hpp"
+#include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/gru_cell.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/hard_sigmoid.hpp"
