@@ -9,6 +9,7 @@
 #include <regex>
 
 #include "../logging.hpp"
+#include "../npuw_transformations/add_position_ids_param.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset13.hpp"
@@ -188,49 +189,6 @@ public:
     }
 };
 
-class AddPositionIdsNode : public ov::pass::MultiMatcher {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::AddPositionIdsNode");
-    explicit AddPositionIdsNode(std::vector<NodePair>& node_pair, ov::ParameterVector& new_params) {
-        auto range = opp::wrap_type<ov::op::v4::Range>();
-        auto unsqueeze_axes = opp::wrap_type<ov::op::v0::Constant>();
-        auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({range, unsqueeze_axes});
-
-        auto unsqueeze1_axes = opp::wrap_type<ov::op::v0::Constant>();
-        auto unsqueeze1 = opp::wrap_type<ov::op::v0::Unsqueeze>({unsqueeze, unsqueeze1_axes});
-
-        auto convert = opp::optional<ov::op::v0::Convert>({unsqueeze1});
-        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), convert});
-        auto transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
-
-        auto concat = opp::wrap_type<ov::op::v0::Concat>({transpose, transpose});
-        auto cos = opp::wrap_type<ov::op::v0::Cos>(concat);
-        auto sin = opp::wrap_type<ov::op::v0::Sin>(concat);
-
-        ov::pass::MultiMatcher::Callback callback = [=, &node_pair, &new_params](const auto& m) {
-            auto& pattern_to_output = m.at(cos).front();
-            const bool no_convert = pattern_to_output.find(convert) == pattern_to_output.end();
-
-            auto unsqueeze1_node = pattern_to_output.at(unsqueeze1).get_node_shared_ptr();
-            auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
-            set_node_name(position_ids, "position_ids");
-
-            if (no_convert) {
-                auto unsqueeze1_type = unsqueeze1_node->get_output_element_type(0);
-                auto convert_i64 = std::make_shared<ov::op::v0::Convert>(position_ids, unsqueeze1_type);
-                node_pair.push_back(std::pair{unsqueeze1_node, convert_i64});
-            } else {
-                node_pair.push_back(std::pair{unsqueeze1_node, position_ids});
-            }
-
-            new_params.push_back(position_ids);
-            return true;
-        };
-
-        register_patterns({sin, cos}, std::move(callback));
-    }
-};
-
 class ReConstructEmbeddingModel : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("ReConstructEmbeddingModel");
@@ -345,7 +303,7 @@ public:
         OPENVINO_ASSERT(check_sdpa_nodes(model), "Failed to check SDPA nodes");
 
         ov::pass::Manager manager("construct-embedding");
-        manager.register_pass<AddPositionIdsNode>(m_node_pair_vector, m_new_parameters);
+        manager.register_pass<ov::npuw::AddPositionIdsParam>();
         manager.register_pass<AddKVCacheNodes>(m_node_pair_vector, m_new_parameters, m_new_results, m_seq_len_dim);
         OPENVINO_ASSERT(manager.run_passes(model), "Failed to add position_ids or kv cache nodes");
 
