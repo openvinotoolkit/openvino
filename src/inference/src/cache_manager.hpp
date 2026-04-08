@@ -57,10 +57,7 @@ private:
             stream.flush();
         }
         // Force directory metadata refresh
-        OPENVINO_ASSERT(std::filesystem::exists(blob_path),
-                        "Cache file ",
-                        blob_path.string(),
-                        " not visible after write");
+        OPENVINO_ASSERT(util::file_exists(blob_path), blob_path, " file not visible after write");
         std::filesystem::permissions(blob_path,
                                      std::filesystem::perms::owner_read | std::filesystem::perms::group_read);
     }
