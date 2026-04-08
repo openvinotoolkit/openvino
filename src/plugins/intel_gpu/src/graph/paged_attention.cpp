@@ -40,18 +40,25 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
     const auto key_cache_idx = cldnn::paged_attention::PagedAttentionInputIdx::KEY_CACHE;
     const auto& key_cache_ps = impl_param.get_input_layout(key_cache_idx).get_partial_shape();
     const auto& key_cache_quant_mode = impl_param.get_program().get_config().get_key_cache_quant_mode();
+    const auto key_cache_dt = impl_param.get_program().get_config().get_kv_cache_precision();
     bool key_cache_compressed = impl_param.get_input_layout(key_cache_idx).data_type == ov::element::i8 ||
-                                impl_param.get_input_layout(key_cache_idx).data_type == ov::element::u8;
+                                impl_param.get_input_layout(key_cache_idx).data_type == ov::element::u8 ||
+                                data_type_traits::is_i4_u4(key_cache_dt);
     auto expected_block_size = desc->has_xattention ? paged_attention::block_size_xattn : paged_attention::block_size;
     if (key_cache_compressed && key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
-        constexpr size_t kv_sub_block_size = 16;
-        OPENVINO_ASSERT(expected_block_size % kv_sub_block_size == 0,
-                        "[GPU] Invalid block size for BY_CHANNEL key cache quantization: ",
-                        expected_block_size,
-                        ". Expected multiple of ",
-                        kv_sub_block_size);
-        expected_block_size += expected_block_size / kv_sub_block_size * 4;
+        if (data_type_traits::is_i4_u4(key_cache_dt)) {
+            expected_block_size += 8;
+        } else {
+            constexpr size_t kv_sub_block_size = 16;
+            OPENVINO_ASSERT(expected_block_size % kv_sub_block_size == 0,
+                            "[GPU] Invalid block size for BY_CHANNEL key cache quantization: ",
+                            expected_block_size,
+                            ". Expected multiple of ",
+                            kv_sub_block_size);
+            expected_block_size += expected_block_size / kv_sub_block_size * 4;
+        }
     }
+
     OPENVINO_ASSERT((key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) == desc->is_key_by_channel,
                      "[GPU] Paged Attention key cache quantization mode mismatch: prim.is_key_by_channel : ",
                      desc->is_key_by_channel, " but exec_config : ", impl_param.get_program().get_config().get_key_cache_quant_mode());

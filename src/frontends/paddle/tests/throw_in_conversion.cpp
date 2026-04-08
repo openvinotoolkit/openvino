@@ -59,3 +59,28 @@ TEST(FrontEndConvertModelTest, set_value_invalid_attr_sizes) {
         FAIL() << "Unexpected exception type: " << typeid(ex).name() << ": " << ex.what();
     }
 }
+
+TEST(FrontEndConvertModelTest, lstm_weightlist_size_mismatch) {
+    FrontEndManager fem;
+    FrontEnd::Ptr frontEnd;
+    InputModel::Ptr inputModel;
+    OV_ASSERT_NO_THROW(frontEnd = fem.load_by_framework(PADDLE_FE));
+    ASSERT_NE(frontEnd, nullptr);
+    auto model_filename =
+        FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) +
+                                           std::string("rnn_lstm_weightlist_oob/rnn_lstm_weightlist_oob.pdmodel"));
+    OV_ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
+    ASSERT_NE(inputModel, nullptr);
+    try {
+        std::shared_ptr<ov::Model> model = frontEnd->convert(inputModel);
+        FAIL() << "Expected conversion failure for LSTM WeightList size mismatch";
+    } catch (const OpValidationFailure&) {
+        SUCCEED();
+    } catch (const OpConversionFailure&) {
+        SUCCEED();
+    } catch (const GeneralFailure&) {
+        SUCCEED();
+    } catch (const std::exception& ex) {
+        FAIL() << "Unexpected exception type: " << typeid(ex).name() << ": " << ex.what();
+    }
+}

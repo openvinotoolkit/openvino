@@ -62,6 +62,7 @@
 #include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
+#include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/lora_subgraph_fusion.hpp"
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
@@ -158,6 +159,7 @@
 #include "snippets/pass/mlp_seq_tokenization.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/tokenization_config.hpp"
+#include "snippets/utils/tokenization_utils.hpp"
 
 // Misc
 #include "nodes/fake_quantize.h"
@@ -199,7 +201,6 @@
 #    include "openvino/op/subtract.hpp"
 #    include "snippets/pass/common_optimizations.hpp"
 #    include "snippets/pass/split_dimension_m.hpp"
-#    include "snippets/utils/tokenization_utils.hpp"
 #    include "transformations/common_optimizations/rms_fusion.hpp"
 #    include "transformations/cpu_opset/common/op/sdpa.hpp"
 #    include "transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp"
@@ -219,7 +220,6 @@
 #endif
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-#    include "low_precision/avg_pool.hpp"
 #    include "low_precision/convolution.hpp"
 #    include "low_precision/convolution_backprop_data.hpp"
 #    include "low_precision/fake_quantize.hpp"
@@ -228,7 +228,6 @@
 #    include "low_precision/group_convolution.hpp"
 #    include "low_precision/interpolate.hpp"
 #    include "low_precision/mat_mul.hpp"
-#    include "low_precision/max_pool.hpp"
 #    include "low_precision/mvn.hpp"
 #    include "low_precision/normalize_l2.hpp"
 #    include "low_precision/recurrent_cell.hpp"
@@ -237,7 +236,6 @@
 #    include "low_precision/reduce_min.hpp"
 #    include "low_precision/reduce_sum.hpp"
 #    include "openvino/opsets/opset1_decl.hpp"
-#    include "snippets/utils/tokenization_utils.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_conv_bias.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
@@ -269,6 +267,7 @@
 #endif
 
 #if defined(OPENVINO_ARCH_RISCV64)
+#    include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #    include "openvino/op/power.hpp"
 #    include "openvino/op/select.hpp"
 #    include "openvino/op/swish.hpp"
@@ -582,6 +581,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         ov::pass::KeepConstAndDecompression);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::GatedDeltaNetFusion);
     ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
     cacheConfig.keyCachePrecision = config.keyCachePrecision;
     cacheConfig.valueCachePrecision = config.valueCachePrecision;
@@ -990,13 +990,11 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         FuseMultiplyToFakeQuantizeTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
-    CPU_DISABLE_PASS_ARM(lptManager, AvgPoolTransformation);
     // ConvolutionTransformation is disabled temporary until ACL issues are fixed: #1252, #1253
     CPU_DISABLE_PASS_ARM(lptManager, ConvolutionTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, ConvolutionBackpropDataTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, InterpolateTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, GroupConvolutionTransformation);
-    CPU_DISABLE_PASS_ARM(lptManager, MaxPoolTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, MVNTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, NormalizeL2Transformation);
     CPU_DISABLE_PASS_ARM(lptManager, RecurrentCellTransformation);
@@ -1205,7 +1203,7 @@ void Transformations::MainSnippets() {
 #elif defined(OPENVINO_ARCH_ARM64)
         return dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd);
 #elif defined(OPENVINO_ARCH_RISCV64)
-        return true;  // RISC-V with Vector Extension supports snippets
+        return ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv);
 #endif
         return false;
     };
@@ -1249,6 +1247,9 @@ void Transformations::MainSnippets() {
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
     common_optimizations_config.set_transpose_support_callback(
         ov::snippets::utils::make_transpose_support_callback(true));
+#elif defined(OPENVINO_ARCH_RISCV64)
+    common_optimizations_config.set_transpose_support_callback(
+        ov::snippets::utils::make_transpose_support_callback(false));
 #else
     common_optimizations_config.set_transpose_support_callback([](const std::shared_ptr<const ov::Node>&) -> bool {
         return false;
@@ -1435,12 +1436,29 @@ void Transformations::MainSnippets() {
         auto is_supported_tensor = [&n, ignoreCallback](descriptor::Tensor& t, bool is_input) -> bool {
             // TODO [105804] int32 isn't supported in general because i32 emitters are required for bit-exact i32
             // calculations in some cases So i32 is supported exclusively for transposes and broadcast
-            static const std::set<ov::element::Type> supported_element_types =
+            static const auto supported_element_types = [] {
 #if defined(OPENVINO_ARCH_ARM64)
-                {ov::element::f32, ov::element::f16, ov::element::i8, ov::element::u8};
+                return std::set<ov::element::Type>{ov::element::f32,
+                                                   ov::element::f16,
+                                                   ov::element::i8,
+                                                   ov::element::u8};
+#elif defined(OPENVINO_ARCH_RISCV64)
+                auto types =
+                    std::set<ov::element::Type>{ov::element::f32, ov::element::bf16, ov::element::i8, ov::element::u8};
+                if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::cpu_isa_t::gv_zvfh)) {
+                    types.insert(ov::element::f16);
+                }
+                return types;
 #else
-                {ov::element::f32, ov::element::bf16, ov::element::f16, ov::element::i8, ov::element::u8};
+                return std::set<ov::element::Type>{
+                    ov::element::f32,
+                    ov::element::bf16,
+                    ov::element::f16,
+                    ov::element::i8,
+                    ov::element::u8,
+                };
 #endif
+            }();
 
             if (!ignoreCallback) {
                 // Check for supported ranks
@@ -1602,12 +1620,12 @@ void Transformations::PostSnippets() {
             return node::FakeQuantize::isSupportedOperation(node, errMsg);
         },
         ov::pass::FakeQuantizeDecomposition);
-    // FQ node is not decomposed on ARM only if it is fused into Convolution node
+    // FQ node is not decomposed on ARM only if it is fused into nodes that support quantized output
     // Otherwise FQ node is decomposed because there is no native support of FQ on ARM
     CPU_SET_CALLBACK_ARM(
         postSnippetsManager,
         [](const_node_ptr& node) -> bool {
-            return match_acl_int8_conv_fq_chain(node);
+            return match_acl_int8_pooling_fq_chain(node) || match_acl_int8_conv_fq_chain(node);
         },
         ov::pass::FakeQuantizeDecomposition);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeConvertDecomposition);

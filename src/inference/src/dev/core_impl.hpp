@@ -12,6 +12,7 @@
 #include "openvino/core/so_extension.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/icache_manager.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 
@@ -150,9 +151,11 @@ private:
                               bool mmap_enabled = false,
                               const std::filesystem::path model_path = {})
             : m_cache_manager(cache_manager),
+              m_shared_ctx(dynamic_cast<ov::IContextStore*>(cache_manager.get())),
               m_model_path(model_path),
               m_mmap_enabled{mmap_enabled} {}
         std::shared_ptr<ov::ICacheManager> m_cache_manager{};
+        ov::IContextStore* m_shared_ctx{};
         std::string m_blob_id{};
         std::filesystem::path m_model_path{};
         std::shared_ptr<const ov::Model> model{};
@@ -213,7 +216,6 @@ private:
 
     bool device_supports_model_caching(const ov::Plugin& plugin, const ov::AnyMap& orig_config = {}) const;
 
-    bool device_supports_property(const ov::Plugin& plugin, const ov::PropertyName& key) const;
     bool device_supports_internal_property(const ov::Plugin& plugin, const ov::PropertyName& key) const;
 
     ov::AnyMap create_compile_config(const ov::Plugin& plugin, const ov::AnyMap& orig_config) const;
@@ -231,7 +233,6 @@ private:
 
 public:
     CoreImpl();
-
     ~CoreImpl() override = default;
 
     /**
@@ -273,7 +274,7 @@ public:
      * @param device_name A name of device
      * @param properties Plugin configuration
      */
-    void register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& properties);
+    void register_plugin(const std::filesystem::path& plugin, const std::string& device_name, const ov::AnyMap& properties);
 
     /**
      * @brief Provides a list of plugin names in registry; physically such plugins may not be created
