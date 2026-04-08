@@ -1967,7 +1967,7 @@ public:
 
     // Build (and cache) three grouped dnnl::matmul primitives for gate/up/down.
     // Cache key is total_tokens only — the per-request max_tokens_per_expert
-    // dispatch hint is passed as a runtime argument (DNNL_ARG_HINT_MAX_GROUP_M)
+    // dispatch hint is passed as a runtime argument (DNNL_ARG_HINT_MAX_GROUP_SIZE)
     // at execute() time, so no recompilation is needed when it changes.
     grouped_onednn_kernel& get_grouped_kernel(int total_tokens, typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
         auto key = total_tokens;
@@ -2305,7 +2305,7 @@ public:
         auto* offsets_ptr = intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS]->buffer_ptr();
 
         // Runtime dispatch hint: actual max tokens assigned to any single expert.
-        // Passed as DNNL_ARG_HINT_MAX_GROUP_M to each grouped matmul execute(),
+        // Passed as DNNL_ARG_HINT_MAX_GROUP_SIZE to each grouped matmul execute(),
         // allowing the kernel to reduce per-expert workgroup dispatch without
         // recompiling the primitive.
         auto hint_md = dnnl::memory::desc::host_scalar(dnnl::memory::data_type::s32);
@@ -2336,7 +2336,7 @@ public:
                                                        {DNNL_ARG_WEIGHTS, w_mem},
                                                        {DNNL_ARG_DST, dst_mem},
                                                        {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
-                                                       {DNNL_ARG_HINT_MAX_GROUP_M, hint_mem}};
+                                                       {DNNL_ARG_HINT_MAX_GROUP_SIZE, hint_mem}};
             if (gk.has_zp) {
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS,
                              dnnl::ocl_interop::make_memory(gk.gate_zp_md,
@@ -2364,7 +2364,7 @@ public:
                                                        {DNNL_ARG_WEIGHTS, w_mem},
                                                        {DNNL_ARG_DST, dst_mem},
                                                        {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
-                                                       {DNNL_ARG_HINT_MAX_GROUP_M, hint_mem}};
+                                                       {DNNL_ARG_HINT_MAX_GROUP_SIZE, hint_mem}};
             if (gk.has_zp) {
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS,
                              dnnl::ocl_interop::make_memory(gk.up_zp_md,
@@ -2407,7 +2407,7 @@ public:
                                                        {DNNL_ARG_WEIGHTS, w_mem},
                                                        {DNNL_ARG_DST, dst_mem},
                                                        {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
-                                                       {DNNL_ARG_HINT_MAX_GROUP_M, hint_mem}};
+                                                       {DNNL_ARG_HINT_MAX_GROUP_SIZE, hint_mem}};
             if (gk.has_zp) {
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS,
                              dnnl::ocl_interop::make_memory(gk.down_zp_md,
