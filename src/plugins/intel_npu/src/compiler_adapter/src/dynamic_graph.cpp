@@ -4,6 +4,7 @@
 
 #include "dynamic_graph.hpp"
 
+#include <iostream>
 #include <iterator>
 
 #include "compiler_impl.hpp"

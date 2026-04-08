@@ -23,60 +23,58 @@ namespace intel_npu {
  * on DynamicGraph internals.
  */
 struct MemRefTypeImpl {
-    npu_vm_runtime_mem_ref_handle_t _memRef;
+    npu_mlir_runtime_mem_ref_handle_t _memRef = nullptr;
 
-    MemRefTypeImpl() : _memRef(nullptr) {}
+    MemRefTypeImpl() = default;
+    MemRefTypeImpl(const MemRefTypeImpl&) = delete;
+    MemRefTypeImpl& operator=(const MemRefTypeImpl&) = delete;
 
     ~MemRefTypeImpl() {
         destroyMemRef();
     }
 
-    void UpdateMemRefHandleStatus(MemRefType& memref) {
-        // Update current MemRef handle to use latest metadata
+    void UpdateMemRefHandleStatus(IDynamicGraph::MemRefType& memref) {
         if (_memRef == nullptr) {
             createMemRef(memref._dimsCount);
         }
-        auto result = npuVMRuntimeSetMemRef(_memRef,
-                                            memref._basePtr,
-                                            memref._data,
-                                            memref._offset,
-                                            memref._sizes.data(),
-                                            memref._strides.data(),
-                                            memref._dimsCount);
-        if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
-            throw std::runtime_error("Failed to update MemRef handle");
+        auto result = npuMLIRRuntimeSetMemRef(_memRef,
+                                              memref._basePtr,
+                                              memref._data,
+                                              memref._offset,
+                                              memref._sizes.data(),
+                                              memref._strides.data(),
+                                              memref._dimsCount);
+        if (result != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to update MemRef handle");
         }
     }
 
-    void alignWithHandle(MemRefType& memref) {
+    void alignWithHandle(IDynamicGraph::MemRefType& memref) const {
         if (_memRef == nullptr) {
             return;
         }
-
-        if (npuVMRuntimeParseMemRef(_memRef,
-                                    &memref._basePtr,
-                                    &memref._data,
-                                    &memref._offset,
-                                    memref._sizes.data(),
-                                    memref._strides.data(),
-                                    &memref._dimsCount) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
-            throw std::runtime_error("Failed to parse MemRef handle");
+        if (npuMLIRRuntimeParseMemRef(_memRef,
+                                      &memref._basePtr,
+                                      &memref._data,
+                                      &memref._offset,
+                                      memref._sizes.data(),
+                                      memref._strides.data(),
+                                      &memref._dimsCount) != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to parse MemRef handle");
         }
     }
 
 private:
     void createMemRef(int64_t dimsCount) {
-        if (_memRef == nullptr) {
-            auto result = npuVMRuntimeCreateMemRef(dimsCount, &_memRef);
-            if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
-                OPENVINO_THROW("Failed to create MemRef handle");
-            }
+        auto result = npuMLIRRuntimeCreateMemRef(dimsCount, &_memRef);
+        if (result != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to create MemRef handle");
         }
     }
 
     void destroyMemRef() {
         if (_memRef != nullptr) {
-            npuVMRuntimeDestroyMemRef(_memRef);
+            npuMLIRRuntimeDestroyMemRef(_memRef);
             _memRef = nullptr;
         }
     }
@@ -89,10 +87,10 @@ private:
  * Caches the flattened MemRef handle vectors so they are not reallocated on every
  * inference.
  */
-struct GraphArgumentsImpl : public GraphArguments {
-    std::vector<npu_vm_runtime_mem_ref_handle_t> _inputMemRefs;
-    std::vector<npu_vm_runtime_mem_ref_handle_t> _outputMemRefs;
-    npu_vm_runtime_execute_params_t _executeParams = {};
+struct GraphArgumentsImpl {
+    std::vector<npu_mlir_runtime_mem_ref_handle_t> _inputMemRefs;
+    std::vector<npu_mlir_runtime_mem_ref_handle_t> _outputMemRefs;
+    npu_mlir_runtime_execute_params_t _executeParams = {};
 };
 
 /**
