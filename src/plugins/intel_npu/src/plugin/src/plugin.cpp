@@ -636,7 +636,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::optional<decltype(std::declval<ov::EncryptionCallbacks>().encrypt)> encryptionCallback = std::nullopt;
     if (encryptionCallbacksOpt.has_value()) {
-        OPENVINO_ASSERT(encryptionCallbacksOpt->encrypt != nullptr, "Null encryption function was given!");
+        if (!encryptionCallbacksOpt->encrypt) {
+            OPENVINO_THROW("Encryption callbacks were provided for compiled model creation, but the encrypt "
+                           "callback is null. Provide EncryptionCallbacks::encrypt to enable encrypted blob "
+                           "export, or do not pass encryption callbacks for unencrypted compilation.");
+        }
         encryptionCallback = encryptionCallbacksOpt->encrypt;
     }
 
@@ -735,6 +739,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         std::unique_ptr<MetadataBase> metadata = nullptr;
         size_t blobSize = MetadataBase::getFileSize(stream);
 
+        const bool isNotNullDecryption = (encryptionCallbacksOpt.has_value() && encryptionCallbacksOpt->decrypt);
         if (!importRawBlob && !skipCompatibility) {
             // Read only metadata from the stream and check if blob is compatible. Load blob into memory only in case it
             // passes compatibility checks.
@@ -742,35 +747,39 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             blobSize = metadata->get_blob_size();
         } else {
             _logger.info("Blob compatibility check skipped.");
+            if (isNotNullDecryption) {
+                _logger.warning("Recieved decryption callback, but metadata parsing is skipped and cannot determine if "
+                                "blob was encrypted or not.");
+            }
         }
         OPENVINO_ASSERT(blobSize > 0, "Parsed blob size is empty from the given stream!");
 
         ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
         ov::Tensor tensor;
-        if (encryptionCallbacksOpt.has_value()) {
-            OPENVINO_ASSERT(encryptionCallbacksOpt->decrypt != nullptr, "Null decryption function was given!");
-            if (metadata) {
-                OPENVINO_ASSERT(metadata->is_encrypted_blob(), "Cannot decrypt blob that was not encrypted!");
-            }
 
-            std::string blobStr;
-            blobStr.resize(blobSize);  // +1x blob size
-
+        const bool isEncryptedBlobOrNullMetadata =
+            (metadata == nullptr || (metadata != nullptr && metadata->is_encrypted_blob()));
+        if (isNotNullDecryption && isEncryptedBlobOrNullMetadata) {
             if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
                 OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
             }
-            const auto expectedReadSize = static_cast<std::streamsize>(blobSize);
-            stream.read(&blobStr.at(0), static_cast<std::streamsize>(blobSize));
-            if (stream.gcount() != expectedReadSize) {
-                OPENVINO_THROW("Failed to read the full encrypted cache blob from stream: expected ",
-                               blobSize,
-                               " bytes, got ",
-                               stream.gcount(),
-                               " bytes");
-            }
 
-            auto decryptedBlobStr = encryptionCallbacksOpt->decrypt(blobStr);  // +2x blob size
-            blobStr.clear();  // -1x blob size, move is not permitted above
+            std::string decryptedBlobStr;
+            {
+                std::string blobStr;
+                blobStr.resize(blobSize);  // +1x blob size
+                const auto expectedReadSize = static_cast<std::streamsize>(blobSize);
+                stream.read(&blobStr.at(0), static_cast<std::streamsize>(blobSize));
+                if (stream.gcount() != expectedReadSize) {
+                    OPENVINO_THROW("Failed to read the full encrypted cache blob from stream: expected ",
+                                   blobSize,
+                                   " bytes, got ",
+                                   stream.gcount(),
+                                   " bytes");
+                }
+
+                decryptedBlobStr = encryptionCallbacksOpt->decrypt(blobStr);  // +2x blob size
+            }  // -1x blob size, move is not permitted above
 
             size_t alignedSize = utils::align_size_to_standard_page_size(decryptedBlobStr.size());
             size_t paddingSize = alignedSize - decryptedBlobStr.size();
@@ -861,23 +870,27 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
         std::unique_ptr<MetadataBase> metadata = nullptr;
         size_t blobSize = compiledBlob.get_byte_size();
 
+        const bool isNotNullDecryption = (encryptionCallbacksOpt.has_value() && encryptionCallbacksOpt->decrypt);
         if (!importRawBlob && !skipCompatibility) {
             metadata = read_metadata_from(compiledBlob);
             blobSize = metadata->get_blob_size();
         } else {
             _logger.info("Blob compatibility check skipped.");
+            if (isNotNullDecryption) {
+                _logger.warning("Recieved decryption callback, but metadata parsing is skipped and cannot determine if "
+                                "blob was encrypted or not.");
+            }
         }
         OPENVINO_ASSERT(blobSize > 0, "Parsed blob size is empty from the given buffer!");
 
-        if (encryptionCallbacksOpt.has_value()) {
-            OPENVINO_ASSERT(encryptionCallbacksOpt->decrypt != nullptr, "Null decryption function was given!");
-            if (metadata) {
-                OPENVINO_ASSERT(metadata->is_encrypted_blob(), "Cannot decrypt blob that was not encrypted!");
-            }
-
-            std::string blobStr(compiledBlob.data<const char>(), blobSize);    // +1x blob size
-            auto decryptedBlobStr = encryptionCallbacksOpt->decrypt(blobStr);  // + 2x blob size
-            blobStr.clear();  // -1x blob size, move is not permitted above
+        const bool isEncryptedBlobOrNullMetadata =
+            (metadata == nullptr || (metadata != nullptr && metadata->is_encrypted_blob()));
+        if (isNotNullDecryption && isEncryptedBlobOrNullMetadata) {
+            std::string decryptedBlobStr;
+            {
+                std::string blobStr(compiledBlob.data<const char>(), blobSize);  // +1x blob size
+                decryptedBlobStr = encryptionCallbacksOpt->decrypt(blobStr);     // + 2x blob size
+            }  // -1x blobSize when deallocating blobStr
 
             size_t alignedSize = utils::align_size_to_standard_page_size(decryptedBlobStr.size());
             size_t paddingSize = alignedSize - decryptedBlobStr.size();
@@ -972,6 +985,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     // remove them from the list of properties
     auto originalModel = exclude_model_ptr_from_map(localProperties);
     auto encryptionCallbacksOpt = exclude_cache_encryption_callbacks_from_map(localProperties);
+    if (!encryptionCallbacksOpt.has_value()) {
+        std::lock_guard<std::mutex> encryptionCallbacksLock(_encryptionCallbacksMutex);
+        encryptionCallbacksOpt = _encryptionCallbacksOpt;
+    }
 
     std::shared_ptr<IDevice> device =
         utils::getDeviceById(_backend, _propertiesManager->determineDeviceId(localProperties));
@@ -1026,9 +1043,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
             const ov::Tensor tensorInit(tensorBig,
                                         ov::Coordinate{cursorPosition},
                                         ov::Coordinate{cursorPosition + initSize});
-            if (encryptionCallbacksOpt.has_value()) {
-                OPENVINO_ASSERT(encryptionCallbacksOpt->decrypt, "Null decryption function was given!");
-
+            const bool isNotNullDecryption = (encryptionCallbacksOpt.has_value() && encryptionCallbacksOpt->decrypt);
+            const bool isEncryptedBlobOrNullMetadata =
+                (metadata == nullptr || (metadata != nullptr && metadata->is_encrypted_blob()));
+            if (isNotNullDecryption && isEncryptedBlobOrNullMetadata) {
                 std::string encryptedInitBlob(tensorInit.data<const char>(), tensorInit.get_byte_size());
                 auto decryptedInitBlob = encryptionCallbacksOpt->decrypt(encryptedInitBlob);
                 encryptedInitBlob.clear();
