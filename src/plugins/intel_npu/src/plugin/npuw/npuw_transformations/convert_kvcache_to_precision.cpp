@@ -76,7 +76,8 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov
     const bool use_integer_kv_storage = (lptype == ov::element::i8 || lptype == ov::element::u8);
     if (use_integer_kv_storage) {
         key_storage_type = lptype;
-        value_storage_type = ov::element::i4;
+        //TODO: int4 precision for value-cachelead to compilation failure for now
+        value_storage_type = ov::element::i8;
     }
 
     ov::preprocess::PrePostProcessor ppp(model);
