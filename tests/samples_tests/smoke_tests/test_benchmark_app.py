@@ -390,6 +390,44 @@ def test_compile_only_via_long_form_number_iterations(device, cache, tmp_path):
 
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+@pytest.mark.parametrize('device', get_devices())
+def test_compile_only_sync_nireq_skips_validation(sample_language, device, cache, tmp_path):
+    """Both C++ and Python: -api sync -nireq 2 -niter 0 must not raise the nireq > niter
+    validation error.
+    """
+    # compile-only: nireq > niter is allowed, inference is entirely skipped
+    output = get_cmd_output(
+        get_executable(sample_language),
+        *prepend(cache, 'dog-224x224.bmp', 'bvlcalexnet-12.onnx', tmp_path),
+        '-d', device,
+        '-api', 'sync',
+        '-nireq', '2',
+        '-niter', '0',
+    )
+    assert 'FPS' not in output
+    assert 'Model compiled successfully' in output
+    assert 'Skipping inference due to -niter 0' in output
+
+    # sanity-check: the nireq > niter guard must still fire for normal runs
+    try:
+        get_cmd_output(
+            get_executable(sample_language),
+            *prepend(cache, 'dog-224x224.bmp', 'bvlcalexnet-12.onnx', tmp_path),
+            '-d', device,
+            '-api', 'sync',
+            '-nireq', '2',
+            '-niter', '1',
+        )
+        pytest.fail('Expected an error for nireq > niter in sync mode, but no error was raised')
+    except Exception as e:
+        error_text = str(getattr(e, 'output', str(e)))
+        # C++ message: "Number of iterations should be greater than number of infer requests when using sync API."
+        # Python message: "Number of infer requests should be less than or equal to number of iterations in sync mode."
+        assert ('Number of iterations should be greater than number of infer requests' in error_text or
+                'Number of infer requests should be less than or equal to number of iterations' in error_text)
+
+
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 def test_niter_0_in_help(sample_language):
     """Test that -niter help text documents the compile-only special case."""
     output = get_cmd_output(get_executable(sample_language), '-h')

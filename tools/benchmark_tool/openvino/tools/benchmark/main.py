@@ -76,7 +76,8 @@ def parse_and_check_command_line():
         args.api_type = "sync" if args.perf_hint == "latency" else "async"
 
     if args.api_type == "sync":
-        if args.time == 0 and (args.number_infer_requests > args.number_iterations):
+        if args.time is None and args.number_iterations is not None and args.number_iterations != 0 \
+                and args.number_infer_requests > args.number_iterations:
             raise Exception("Number of infer requests should be less than or equal to number of iterations in sync mode.")
 
     return args, is_network_compiled
