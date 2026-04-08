@@ -33,9 +33,9 @@ KERNEL (count_nonzero_ref)(
         workitem_nonzero_count += count;
     }
 
-    work_group_barrier(CLK_LOCAL_MEM_FENCE);
+    barrier(CLK_LOCAL_MEM_FENCE);
     uint workitem_offset = work_group_scan_inclusive_add(workitem_nonzero_count);
 
-    work_group_barrier(CLK_GLOBAL_MEM_FENCE);
+    barrier(CLK_GLOBAL_MEM_FENCE);
     output[local_idx == num_work_items - 1 ? 0 : local_idx + 1] = workitem_offset;
 }
