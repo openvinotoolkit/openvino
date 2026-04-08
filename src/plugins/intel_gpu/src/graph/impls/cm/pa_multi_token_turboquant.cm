@@ -330,6 +330,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 	constexpr int head_size = CMFLA_HEAD_SIZE;
 	constexpr int num_kv_heads = CMFLA_NUM_KV_HEADS;
 	constexpr int pa_block_sz = CMPA_BLOCK_SZ;
+	constexpr uint k_packed_bytes = (head_size * TQ_BITS + 7) / 8;
+	constexpr uint k_token_bytes = k_packed_bytes + 2;
+	constexpr uint v_token_bytes = head_size + 4;
 	//# query [q_len, num_heads, S]
 	//# k_cache [kv_len, num_heads, S]
 	//# v_cache [kv_len, num_heads, S]
@@ -377,7 +380,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 	//Q/O[B, L, H, S]
 	uint q_offset = (q_start_sg*num_heads + h)*head_size;
 
-	uint kv_offset = hkv*(head_size+4)*pa_block_sz;
+	uint k_kv_offset = hkv * k_token_bytes * pa_block_sz;
+	uint v_kv_offset = hkv * v_token_bytes * pa_block_sz;
 	pa_lsc_u8_tq<is_causal, num_heads, num_kv_heads, head_size, 0>(
 							slm_K,
 							slm_V,
@@ -390,8 +394,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 							reinterpret_cast<svmptr_t>(query + q_offset),
 							tq_q_t,
 							tq_centroids,
-							reinterpret_cast<svmptr_t>(k_cache + kv_offset),
-							reinterpret_cast<svmptr_t>(v_cache + kv_offset),
+							reinterpret_cast<svmptr_t>(k_cache + k_kv_offset),
+							reinterpret_cast<svmptr_t>(v_cache + v_kv_offset),
 							reinterpret_cast<svmptr_t>(output + q_offset),
 							past_q_lens,
 							block_indices);
