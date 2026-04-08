@@ -18,7 +18,8 @@ input_layout_node::typed_program_node(const std::shared_ptr<input_layout> dprim,
 }
 
 input_layout_inst::typed_primitive_inst(network& network, const input_layout_node& node)
-    : parent(network, node, /*allocate_mem*/ false) {
+    // allocate memory for scalars as they assume the memory is available and not lazily allocated...
+    : parent(network, node, /*allocate_mem*/ !node.is_dynamic() && node.get_output_layout().count() <= 1) {
     _has_valid_input = false;                          // by default input for 'input_layout' is invalid as long as user doesn't call set_data
 }
 
