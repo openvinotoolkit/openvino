@@ -65,20 +65,12 @@ KERNEL(paged_gated_delta_net_ref)
     const int h = get_global_id(1);
     const int v_block = get_group_id(2);
     const int lid = get_sub_group_local_id();
-
-    if (seq >= num_sequences || h >= V_HEAD_NUM)
-        return;
-
     const int start_iv = v_block * V_BLOCK_SIZE;
-    if (start_iv >= V_HEAD_DIM)
-        return;
 
     const int token_begin = subsequence_begins[seq];
     const int token_end = subsequence_begins[seq + 1];
     const int block_begin = block_indices_begins[seq];
     const int block_end = block_indices_begins[seq + 1];
-    const int seq_blocks = max(block_end - block_begin, 0);
-    const int past_len = past_lens[seq];
     const int interval = cache_interval[seq];
 
     const int group_size = V_HEAD_NUM / K_HEAD_NUM;
@@ -96,42 +88,31 @@ KERNEL(paged_gated_delta_net_ref)
 
     for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
         int curr_iv = start_iv + v_idx;
-#if KV_OPT_VEC_PATH
-        for (int kc = 0; kc < K_VEC_COUNT; kc++) {
-            state[v_idx][kc] = K_VEC_ZERO;
-        }
-#else
-        for (int ks = 0; ks < K_SLICE_SIZE; ks++) {
-            state[v_idx][ks] = 0.0f;
-        }
-#endif
-
+#if !KV_OPT_VEC_PATH
         if (curr_iv >= V_HEAD_DIM)
             continue;
-
-        if (interval > 0 && seq_blocks > 0 && past_len > 0) {
-            const int read_slot = 0;
-            if (read_slot < seq_blocks) {
-                int block_id = block_indices[block_begin + read_slot];
-                int base = (block_id * V_HEAD_NUM + h) * (K_HEAD_DIM * V_HEAD_DIM) + curr_iv;
-#if KV_OPT_VEC_PATH
-                for (int kc = 0; kc < K_VEC_COUNT; kc++) {
-                    float tmp[K_VEC_SIZE];
-                    for (int ke = 0; ke < K_VEC_SIZE; ke++) {
-                        const int k_idx = lid * K_LANE_ELEMS + kc * K_VEC_SIZE + ke;
-                        tmp[ke] = convert_float(recurrent_state_table[base + k_idx * V_HEAD_DIM]);
-                    }
-                    state[v_idx][kc] = K_VEC_FROM_TMP(tmp);
-                }
-#else
-                for (int ks = 0; ks < K_SLICE_SIZE; ks++) {
-                    const int k_idx = lid + ks * SUBGROUP_SIZE;
-                    if (k_idx < K_HEAD_DIM) {
-                        state[v_idx][ks] = convert_float(recurrent_state_table[base + k_idx * V_HEAD_DIM]);
-                    }
-                }
 #endif
+
+        {
+            int block_id = block_indices[block_begin];
+            int base = (block_id * V_HEAD_NUM + h) * (K_HEAD_DIM * V_HEAD_DIM) + curr_iv;
+#if KV_OPT_VEC_PATH
+            for (int kc = 0; kc < K_VEC_COUNT; kc++) {
+                float tmp[K_VEC_SIZE];
+                for (int ke = 0; ke < K_VEC_SIZE; ke++) {
+                    const int k_idx = lid * K_LANE_ELEMS + kc * K_VEC_SIZE + ke;
+                    tmp[ke] = convert_float(recurrent_state_table[base + k_idx * V_HEAD_DIM]);
+                }
+                state[v_idx][kc] = K_VEC_FROM_TMP(tmp);
             }
+#else
+            for (int ks = 0; ks < K_SLICE_SIZE; ks++) {
+                const int k_idx = lid + ks * SUBGROUP_SIZE;
+                if (k_idx < K_HEAD_DIM) {
+                    state[v_idx][ks] = convert_float(recurrent_state_table[base + k_idx * V_HEAD_DIM]);
+                }
+            }
+#endif
         }
     }
 
@@ -194,8 +175,10 @@ KERNEL(paged_gated_delta_net_ref)
 
         for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
             int curr_iv = start_iv + v_idx;
+#if !KV_OPT_VEC_PATH
             if (curr_iv >= V_HEAD_DIM)
                 continue;
+#endif
 
             const int v_idx_offset = token * v_token_stride + (h + value_head_offset) * v_head_stride + curr_iv;
             const float b_v = convert_float(value[v_idx_offset]);
@@ -238,38 +221,38 @@ KERNEL(paged_gated_delta_net_ref)
             }
         }
 
-        if (interval > 0 && seq_blocks > 0) {
+        if (interval > 0) {
             const int local_token_idx = token - token_begin;
             const int processed_tokens = local_token_idx + 1;
             const bool should_store = ((processed_tokens % interval) == 0) || (token == token_end - 1);
             if (should_store) {
                 const int slot = (processed_tokens + interval - 1) / interval;
-                if (slot < seq_blocks) {
-                    const int block_id = block_indices[block_begin + slot];
-                    for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
-                        int curr_iv = start_iv + v_idx;
-                        if (curr_iv >= V_HEAD_DIM)
-                            continue;
-
-                        int base = (block_id * V_HEAD_NUM + h) * (K_HEAD_DIM * V_HEAD_DIM) + curr_iv;
-#if KV_OPT_VEC_PATH
-                        for (int kc = 0; kc < K_VEC_COUNT; kc++) {
-                            float tmp[K_VEC_SIZE];
-                            K_VEC_TO_TMP(state[v_idx][kc], tmp);
-                            for (int ke = 0; ke < K_VEC_SIZE; ke++) {
-                                const int k_idx = lid * K_LANE_ELEMS + kc * K_VEC_SIZE + ke;
-                                recurrent_state_table[base + k_idx * V_HEAD_DIM] = (INPUT3_TYPE)(tmp[ke]);
-                            }
-                        }
-#else
-                        for (int ks = 0; ks < K_SLICE_SIZE; ks++) {
-                            const int k_idx = lid + ks * SUBGROUP_SIZE;
-                            if (k_idx < K_HEAD_DIM) {
-                                recurrent_state_table[base + k_idx * V_HEAD_DIM] = (INPUT3_TYPE)(state[v_idx][ks]);
-                            }
-                        }
+                const int block_id = block_indices[block_begin + slot];
+                for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
+                    int curr_iv = start_iv + v_idx;
+#if !KV_OPT_VEC_PATH
+                    if (curr_iv >= V_HEAD_DIM)
+                        continue;
 #endif
+
+                    int base = (block_id * V_HEAD_NUM + h) * (K_HEAD_DIM * V_HEAD_DIM) + curr_iv;
+#if KV_OPT_VEC_PATH
+                    for (int kc = 0; kc < K_VEC_COUNT; kc++) {
+                        float tmp[K_VEC_SIZE];
+                        K_VEC_TO_TMP(state[v_idx][kc], tmp);
+                        for (int ke = 0; ke < K_VEC_SIZE; ke++) {
+                            const int k_idx = lid * K_LANE_ELEMS + kc * K_VEC_SIZE + ke;
+                            recurrent_state_table[base + k_idx * V_HEAD_DIM] = (INPUT3_TYPE)(tmp[ke]);
+                        }
                     }
+#else
+                    for (int ks = 0; ks < K_SLICE_SIZE; ks++) {
+                        const int k_idx = lid + ks * SUBGROUP_SIZE;
+                        if (k_idx < K_HEAD_DIM) {
+                            recurrent_state_table[base + k_idx * V_HEAD_DIM] = (INPUT3_TYPE)(state[v_idx][ks]);
+                        }
+                    }
+#endif
                 }
             }
         }

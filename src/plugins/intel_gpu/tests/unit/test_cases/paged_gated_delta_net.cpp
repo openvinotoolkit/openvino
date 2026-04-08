@@ -87,14 +87,11 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
                 const int32_t hk = h / group_size;
                 std::vector<float> state(static_cast<size_t>(head_size) * head_size, 0.0f);
 
-                if (interval > 0 && seq_blocks > 0 && past_len > 0) {
-                    const int32_t read_slot = 0;
-                    const int32_t block_id = block_indices[block_begin + read_slot];
+                const int32_t block_id = block_indices[block_begin];
 
-                    for (int32_t k_idx = 0; k_idx < head_size; k_idx++) {
-                        for (int32_t v_idx = 0; v_idx < head_size; v_idx++) {
-                            state[k_idx * head_size + v_idx] = static_cast<float>(recurrent_state_table[state_off(block_id, h, k_idx, v_idx)]);
-                        }
+                for (int32_t k_idx = 0; k_idx < head_size; k_idx++) {
+                    for (int32_t v_idx = 0; v_idx < head_size; v_idx++) {
+                        state[k_idx * head_size + v_idx] = static_cast<float>(recurrent_state_table[state_off(block_id, h, k_idx, v_idx)]);
                     }
                 }
 
@@ -131,7 +128,7 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
                         output[(token * v_heads + h) * head_size + v_idx] = static_cast<T>(out_v);
                     }
 
-                    if (interval > 0 && seq_blocks > 0) {
+                    if (interval > 0) {
                         const int32_t local_token_idx = token - token_begin;
                         const int32_t processed_tokens = local_token_idx + 1;
                         const bool should_store = ((processed_tokens % interval) == 0) || (token == token_end - 1);
