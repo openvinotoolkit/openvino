@@ -200,8 +200,8 @@
 #    include "openvino/op/multiply.hpp"
 #    include "openvino/op/softmax.hpp"
 #    include "openvino/op/subtract.hpp"
+#    include "snippets/lowered/pass/mha_parallel_wa_optimizer.hpp"
 #    include "snippets/pass/common_optimizations.hpp"
-#    include "snippets/pass/split_dimension_m.hpp"
 #    include "transformations/common_optimizations/rms_fusion.hpp"
 #    include "transformations/cpu_opset/common/op/sdpa.hpp"
 #    include "transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp"
@@ -1241,11 +1241,7 @@ void Transformations::MainSnippets() {
     if (concurrency == 0) {
         concurrency = parallel_get_max_threads();
     }
-    // The optimization "SplitDimensionM" depends on target machine (thread count).
-    // To avoid uncontrolled behavior in tests, we disabled the optimization when there is
-    // Config::SnippetsMode::IgnoreCallback
-    bool split_m_dimension = !ignoreCallback;
-    CommonOptimizations::Config common_optimizations_config(concurrency, split_m_dimension);
+    CommonOptimizations::Config common_optimizations_config(concurrency);
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
     common_optimizations_config.set_transpose_support_callback(
         ov::snippets::utils::make_transpose_support_callback(true));
@@ -1383,7 +1379,7 @@ void Transformations::MainSnippets() {
     };
     auto is_unsupported_parallel_work_amount = [&](const std::shared_ptr<const ov::Node>& n,
                                                    const ov::PartialShape& shape) {
-        // SplitDimensionM transformation doesn't support dynamic shapes, so M dim is split in runtime configurator
+        // Dynamic shapes are handled at runtime by MHAParallelWAOptimizer
         if (shape.is_dynamic()) {
             return false;
         }
@@ -1395,7 +1391,9 @@ void Transformations::MainSnippets() {
         // Ticket 160154: enable tokenization for MHA with insufficient parallel work amount
         const auto is_unsupported_parallel_work_amount =
             static_cast<size_t>(parallel_work_amount.get_length()) < common_optimizations_config.get_concurrency() &&
-            !SplitDimensionM::can_be_optimized(n, common_optimizations_config.get_concurrency());
+            !snippets::lowered::pass::MHAParallelWAOptimizer::can_be_optimized(
+                n,
+                common_optimizations_config.get_concurrency());
         return is_unsupported_parallel_work_amount;
     };
 #endif  // OPENVINO_ARCH_X86_64
