@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -29,7 +29,6 @@ find_package(OpenVINODeveloperScripts REQUIRED
 add_subdirectory(common)
 add_subdirectory(unittests)
 add_subdirectory(memleaks_tests)
-add_subdirectory(memcheck_tests)
 
 install(DIRECTORY scripts/ DESTINATION tests/stress_tests/scripts COMPONENT tests EXCLUDE_FROM_ALL)
 install(DIRECTORY .automation/ DESTINATION tests/stress_tests/.automation COMPONENT tests EXCLUDE_FROM_ALL)

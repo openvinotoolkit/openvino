@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,10 +40,7 @@ class ConvU8I8FP32 : public testing::WithParamInterface<ConvU8I8FP32Params>,
                      public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConvU8I8FP32Params>& obj) {
-        CPUSpecificParams cpuParams;
-        fusingSpecificParams fusingParams;
-        std::tie(cpuParams, fusingParams) = obj.param;
-
+        const auto& [cpuParams, fusingParams] = obj.param;
         std::ostringstream result;
         result << "CPU_";
         result << CPUTestsBase::getTestCaseName(cpuParams);
@@ -89,7 +86,7 @@ public:
 
         auto result = std::make_shared<ov::op::v0::Result>(conv);
 
-        function = makeNgraphFunction(netPrecision, params, conv, "Convolution");
+        function = create_ov_model(netPrecision, params, conv, "Convolution");
     }
 };
 

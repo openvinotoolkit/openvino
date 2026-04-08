@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -37,7 +37,7 @@ if(ENABLE_LTO)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endif()
 
-if(ENABLE_PROFILING_ITT)
+if(NOT ENABLE_PROFILING_ITT STREQUAL "OFF")
     find_package(ittapi QUIET)
     if(ittapi_FOUND)
         if(TARGET ittapi::ittapi)
@@ -51,6 +51,10 @@ if(ENABLE_PROFILING_ITT)
         endif()
     else()
         add_subdirectory(thirdparty/ittapi)
+        ov_developer_package_export_targets(
+            TARGET ittapi::ittnotify
+            INSTALL_INCLUDE_DIRECTORIES
+                $<TARGET_PROPERTY:ittapi::ittnotify,INTERFACE_INCLUDE_DIRECTORIES>/)
     endif()
     add_subdirectory(thirdparty/itt_collector)
 endif()
@@ -68,7 +72,7 @@ endif()
 # LevelZero
 #
 
-if(ENABLE_INTEL_NPU)
+if(ENABLE_OV_ZERO_LOADER)
     if(ENABLE_SYSTEM_LEVEL_ZERO)
         pkg_search_module(level_zero QUIET
                           IMPORTED_TARGET
@@ -83,7 +87,20 @@ if(ENABLE_INTEL_NPU)
     if(NOT level_zero_FOUND)
         add_subdirectory(thirdparty/level_zero EXCLUDE_FROM_ALL)
         add_library(LevelZero::LevelZero ALIAS ze_loader)
+        ov_developer_package_export_targets(
+            TARGET ze_loader
+            INSTALL_INCLUDE_DIRECTORIES
+                $<TARGET_PROPERTY:ze_loader,INTERFACE_INCLUDE_DIRECTORIES>/ze_api.h
+                $<TARGET_PROPERTY:ze_loader,INTERFACE_INCLUDE_DIRECTORIES>/loader)
+        ov_install_static_lib(ze_loader ${OV_CPACK_COMP_CORE})
     endif()
+    add_library(level_zero_headers INTERFACE)
+    add_library(LevelZero::Headers ALIAS level_zero_headers)
+    if (TARGET prepare_ze_headers)
+        add_dependencies(level_zero_headers prepare_ze_headers)
+    endif()
+    get_target_property(ZE_INCLUDE_DIRS LevelZero::LevelZero INTERFACE_INCLUDE_DIRECTORIES)
+    target_include_directories(level_zero_headers INTERFACE ${ZE_INCLUDE_DIRS})
 endif()
 
 #
@@ -291,7 +308,10 @@ if(NOT TARGET openvino::pugixml)
         ov_build_pugixml_static()
         set_property(TARGET pugixml-static PROPERTY EXPORT_NAME pugixml)
         add_library(openvino::pugixml ALIAS pugixml-static)
-        ov_developer_package_export_targets(TARGET openvino::pugixml)
+        ov_developer_package_export_targets(TARGET openvino::pugixml
+            INSTALL_INCLUDE_DIRECTORIES
+                $<TARGET_PROPERTY:openvino::pugixml,INTERFACE_INCLUDE_DIRECTORIES>/pugixml.hpp
+                $<TARGET_PROPERTY:openvino::pugixml,INTERFACE_INCLUDE_DIRECTORIES>/pugiconfig.hpp)
         ov_install_static_lib(pugixml-static ${OV_CPACK_COMP_CORE})
     endfunction()
 
@@ -304,7 +324,10 @@ endif()
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS OR ENABLE_INTEL_NPU_INTERNAL)
     add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
-    ov_developer_package_export_targets(TARGET gflags)
+    ov_developer_package_export_targets(
+        TARGET gflags
+        INSTALL_INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}/thirdparty/gflags/gflags/include/gflags"
+        INSTALL_DESTIONATION "developer_package/include/gflags")
 endif()
 
 #
@@ -418,7 +441,7 @@ endif()
 # FlatBuffers
 #
 
-if(ENABLE_OV_TF_LITE_FRONTEND)
+if(ENABLE_OV_TF_LITE_FRONTEND OR ENABLE_INTEL_NPU)
     if(ENABLE_SYSTEM_FLATBUFFERS)
         ov_cross_compile_define_debian_arch()
 
@@ -441,10 +464,19 @@ if(ENABLE_OV_TF_LITE_FRONTEND)
         set(flatbuffers_COMPILER flatbuffers::flatc)
     else()
         add_subdirectory(thirdparty/flatbuffers EXCLUDE_FROM_ALL)
-
-        # used by NPU repo
-        set(flatc_COMMAND flatc)
-        set(flatc_TARGET flatc)
+        if(ENABLE_INTEL_NPU)
+            # NPU plugin requires flatbuffers to be built always
+            add_custom_target(npu_compiler_flatbuffers ALL DEPENDS flatbuffers ${flatbuffers_DEPENDENCY})
+            set(flatbuffers_root "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/flatbuffers/flatbuffers")
+            ov_developer_package_export_targets(TARGET flatbuffers
+                    INSTALL_INCLUDE_DIRECTORIES "${flatbuffers_root}/include/")
+            ov_developer_package_export_targets(TARGET ProjectConfig)
+            install(FILES ${flatbuffers_COMPILER} DESTINATION "developer_package/bin" COMPONENT developer_package EXCLUDE_FROM_ALL)
+            if (CMAKE_CROSSCOMPILING)
+                # NPU compiler requires flatbuffers and flatc defined as target
+                add_executable(flatc ALIAS flatbuffers::flatc)
+            endif()
+        endif()
     endif()
 
     # set additional variables, used in other places of our cmake scripts

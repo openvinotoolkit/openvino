@@ -7,6 +7,11 @@ on:
         type: string
         required: false
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
   merge_group:
   push:
     branches:
@@ -28,13 +33,14 @@ env:
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false || github.run_attempt > 1
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
       changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
@@ -74,7 +80,7 @@ jobs:
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
@@ -100,7 +106,8 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64_cc }}
       volumes:
         - /mount:/mount
-      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
+        - /home/runner/secrets/:/secrets:ro
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
@@ -122,15 +129,23 @@ jobs:
       SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_itt_clang_Release_faster_build
 
     steps:
+      - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        shell: bash
+        run: |
+          SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+          echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
+          echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
+          echo "✓ Connection string loaded and masked"
+
       - name: Clone OpenVINO
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
 
       - name: Clone test models
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           repository: 'openvinotoolkit/testdata'
@@ -170,21 +185,21 @@ jobs:
             -DCMAKE_CXX_STANDARD=20 \
             -DBUILD_SHARED_LIBS=OFF \
             -DENABLE_TESTS=ON \
-            -DENABLE_CPPLINT=OFF \
             -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_PROFILING_ITT=ON \
+            -DENABLE_PROFILING_ITT=FULL \
             -DSELECTIVE_BUILD=COLLECT \
-            -DENABLE_FASTER_BUILD=ON \
             -DENABLE_UNITY_BUILD=ON \
             -DENABLE_DEBUG_CAPS=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
+            -DCMAKE_JOB_POOLS:STRING=link_jobs=8 \
+            -DCMAKE_JOB_POOL_LINK:STRING=link_jobs \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
       - name: Cmake build - CC COLLECT
         run: |
-          cmake --build ${BUILD_DIR} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }}
+          cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
           cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
 
       - name: Show sccache stats
@@ -223,7 +238,7 @@ jobs:
             tar -cvf - install_dependencies/install_openvino_dependencies.sh | pigz > ${BUILD_DIR}/openvino_package.tar.gz
           popd
 
-          cp -v ${OPENVINO_REPO}/temp/tbb/lib/lib* ${INSTALL_TEST_DIR}/tests
+          cp -v ${OPENVINO_REPO}/temp/Linux_x86_64/tbb/lib/lib* ${INSTALL_TEST_DIR}/tests
           pushd ${INSTALL_TEST_DIR}
             tar -cvf - \
               tests/ov_cpu_func_tests \
@@ -238,7 +253,7 @@ jobs:
       # Upload build artifacts and logs
       #
       - name: Upload build logs
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: always()
         with:
           name: build_logs
@@ -247,7 +262,7 @@ jobs:
 
       - name: Upload OpenVINO package
         if: ${{ always() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -255,7 +270,7 @@ jobs:
 
       - name: Upload selective build statistics package
         if: ${{ always() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: openvino_selective_build_stat
           path: ${{ env.BUILD_DIR }}/openvino_selective_build_stat.tar.gz
@@ -263,7 +278,7 @@ jobs:
 
       - name: Upload OpenVINO tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
@@ -276,12 +291,13 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-linux-8-cores-16gb
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64_cc }}
       volumes:
         - /mount:/mount
-      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
+        - /home/runner/secrets/:/secrets:ro
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
@@ -296,15 +312,23 @@ jobs:
       SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_cc_Release
 
     steps:
+      - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        shell: bash
+        run: |
+          SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+          echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
+          echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
+          echo "✓ Connection string loaded and masked"
+
       - name: Clone OpenVINO
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
 
       - name: Clone test models
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           repository: 'openvinotoolkit/testdata'
@@ -313,7 +337,7 @@ jobs:
           ref: ${{ env.TARGET_BRANCH }}
 
       - name: Download selective build statistics package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           name: openvino_selective_build_stat
           path: ${{ env.SELECTIVE_BUILD_STAT_DIR }}
@@ -330,7 +354,6 @@ jobs:
         run: |
           cmake \
             -DBUILD_SHARED_LIBS=OFF \
-            -DENABLE_CPPLINT=OFF \
             -DSELECTIVE_BUILD=ON \
             -DENABLE_TEMPLATE=OFF \
             -DENABLE_INTEL_GPU=OFF \

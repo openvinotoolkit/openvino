@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -146,7 +146,7 @@ OPENVINO_API bool is_axis_valid(const int64_t axis, const int64_t rank);
 OPENVINO_API void validate_axis(const int64_t axis, const Rank& rank, const Node& node);
 
 /// \brief Normalize axis against the rank.
-/// \note  No input validation.
+/// \note  No input validation. For rank-0 (scalar), any valid axis maps to 0.
 ///
 /// \param axis  Axis value to be normalized.
 /// \param rank  Rank value used for axis normalization.

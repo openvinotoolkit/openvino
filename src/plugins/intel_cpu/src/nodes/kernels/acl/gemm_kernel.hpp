@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -22,8 +22,8 @@ public:
                                     arm_compute::Strides aStrides,
                                     arm_compute::Strides bStrides,
                                     void* c = nullptr,
-                                    float alpha = 1.0f,
-                                    float beta = 0.0f,
+                                    float alpha = 1.0F,
+                                    float beta = 0.0F,
                                     arm_compute::Strides* outStrides = nullptr,
                                     void* out = nullptr);
 

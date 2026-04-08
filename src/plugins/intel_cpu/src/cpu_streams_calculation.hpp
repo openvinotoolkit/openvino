@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 
 #include "config.h"
 #include "openvino/core/model.hpp"
+#include "openvino/runtime/performance_heuristics.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace ov::intel_cpu {
@@ -36,10 +37,12 @@ namespace ov::intel_cpu {
  * function.
  *               - input "0" indicates that the function generates the optimal number of threads per stream based on
  * processors type information.
+ * @param[in]  enable_tensor_parallel is test flag used with hint_llm_distribution_policy to test data accurcy of
+ * TENSOR_PARALLEL
  * @param[in]  input_perf_hint is performance hint set by user via ov::hint::performance_mode or the default value.
  * @param[in]  hint_llm_distribution_policy is the distribution policy for Large language models
  * @param[in]  proc_type_table is currently available candidate processors.
- *               - candidate processors have benn updated based on user input hints like ov::hint::scheduling_core_type
+ *               - candidate processors have been updated based on user input hints like ov::hint::scheduling_core_type
  * in previous function.
  * @return     streams information table which will be used by StreamsExecutor.
  */
@@ -49,6 +52,7 @@ std::vector<std::vector<int>> get_streams_info_table(
     int input_threads,
     int input_infer_requests,
     int model_prefer_threads,
+    bool enable_tensor_parallel,
     const std::string& input_perf_hint,
     const std::set<ov::hint::ModelDistributionPolicy>& hint_model_distribution_policy,
     const std::vector<std::vector<int>>& proc_type_table);
@@ -70,15 +74,19 @@ std::vector<std::vector<int>> get_streams_rank_table(const std::vector<std::vect
  *               - input "0" mean function generate the optimal number of streams
  *               - LATENCY hint equals 1 stream.
  * @param[in]  proc_type_table candidate processors available at this time
- *               - candidate processors have benn updated based on properties like "Ecore only" in previous function
+ *               - candidate processors have been updated based on properties like "Ecore only" in previous function
  * @param[in]  model model
  * @param[in]  config intel cpu configuration
+ * @param[in]  num_sockets number of sockets for test case
+ * @param[in]  isaSpecificThreshold ISA parameter for test case
  * @return     model_prefer_threads "0" means generating the optimal threads per stream based on platform
  */
 int get_model_prefer_threads(int num_streams,
                              const std::vector<std::vector<int>>& proc_type_table,
                              const std::shared_ptr<ov::Model>& model,
-                             Config& config);
+                             Config& config,
+                             int num_sockets = -1,
+                             float isaSpecificThreshold = -1.0F);
 
 /**
  * @brief      Generate streams information according to processors type table
@@ -89,7 +97,7 @@ int get_model_prefer_threads(int num_streams,
  * @param[in]  config intel cpu configuration
  * @param[in]  proc_type_table candidate processors available at current platform
  * @param[in]  preferred_nthreads_per_stream is initial preferred number of threads per stream
- * @return     candidate processors have benn updated based on user input hints like ov::hint::scheduling_core_type and
+ * @return     candidate processors have been updated based on user input hints like ov::hint::scheduling_core_type and
  * ov::hint::enable_hyper_threading
  */
 std::vector<std::vector<int>> generate_stream_info(int streams,
@@ -115,4 +123,43 @@ void get_num_streams(int streams, const std::shared_ptr<ov::Model>& model, Confi
  */
 void sort_table_by_numa_node_id(int current_numa_node, std::vector<std::vector<int>>& proc_type_table);
 
+// Internal configure_* helpers are declared below and are publicly callable.
+#if defined(OPENVINO_ARCH_ARM) && defined(__linux__)
+void configure_arm_linux_threads(Config& config,
+                                 const std::vector<std::vector<int>>& proc_type_table,
+                                 const ov::MemBandwidthPressure& tolerance,
+                                 bool int8_intensive,
+                                 bool is_LLM);
+#endif
+
+#if (defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__)
+void configure_apple_threads(Config& config,
+                             const std::vector<std::vector<int>>& proc_type_table,
+                             const ov::MemBandwidthPressure& tolerance,
+                             float memThresholdAssumeLimitedForISA,
+                             bool int8_intensive,
+                             bool is_LLM);
+#endif
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_RISCV64)
+// Make internal hybrid configuration helper publicly callable
+void configure_x86_hybrid_threads(Config& config,
+                                  const std::vector<std::vector<int>>& proc_type_table,
+                                  const ov::MemBandwidthPressure& tolerance,
+                                  bool int8_intensive,
+                                  bool is_LLM);
+
+void configure_x86_hybrid_lp_threads(Config& config,
+                                     const std::vector<std::vector<int>>& proc_type_table,
+                                     const ov::MemBandwidthPressure& tolerance);
+
+// Make x86 non-hybrid helper publicly callable
+void configure_x86_non_hybrid_threads(Config& config, const std::vector<std::vector<int>>& proc_type_table);
+
+// Make x86 throughput helper publicly callable
+void configure_x86_throughput_threads(Config& config,
+                                      const std::vector<std::vector<int>>& proc_type_table,
+                                      const ov::MemBandwidthPressure& tolerance,
+                                      float memThresholdAssumeLimitedForISA);
+#endif
 }  // namespace ov::intel_cpu

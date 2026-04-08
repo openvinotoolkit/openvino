@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,11 @@
 #include <algorithm>
 #include <memory>
 
+#include "openvino/core/memory_util.hpp"
+
 namespace ov {
+IBufferDescriptor::~IBufferDescriptor() = default;
+
 AlignedBuffer::AlignedBuffer() : m_allocated_buffer(nullptr), m_aligned_buffer(nullptr), m_byte_size(0) {}
 
 AlignedBuffer::AlignedBuffer(size_t byte_size, size_t alignment) : m_byte_size(byte_size) {
@@ -15,11 +19,7 @@ AlignedBuffer::AlignedBuffer(size_t byte_size, size_t alignment) : m_byte_size(b
     size_t allocation_size = m_byte_size + alignment;
     m_allocated_buffer = new char[allocation_size];
     m_aligned_buffer = m_allocated_buffer;
-    size_t mod = (alignment != 0) ? reinterpret_cast<size_t>(m_aligned_buffer) % alignment : 0;
-
-    if (mod != 0) {
-        m_aligned_buffer += (alignment - mod);
-    }
+    m_aligned_buffer += util::align_padding_size(alignment, reinterpret_cast<size_t>(m_allocated_buffer));
 }
 
 AlignedBuffer::AlignedBuffer(AlignedBuffer&& other)
@@ -56,4 +56,8 @@ AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>::AttributeAdapter(std::shar
     : DirectValueAccessor<std::shared_ptr<ov::AlignedBuffer>>(value) {}
 
 AttributeAdapter<std::shared_ptr<AlignedBuffer>>::~AttributeAdapter() = default;
+
+std::shared_ptr<IBufferDescriptor> AlignedBuffer::get_descriptor() const {
+    return nullptr;
+}
 }  // namespace ov

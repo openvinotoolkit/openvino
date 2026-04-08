@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,8 +23,8 @@ namespace ov::snippets::pass {
  */
 class Manager : public ov::pass::Manager {
 public:
-    Manager(std::shared_ptr<ov::pass::PassConfig> pass_config = std::make_shared<ov::pass::PassConfig>(),
-            std::string name = "UnnamedSnippetsManager");
+    explicit Manager(std::shared_ptr<ov::pass::PassConfig> pass_config = std::make_shared<ov::pass::PassConfig>(),
+                     std::string name = "UnnamedSnippetsManager");
     ~Manager() override = default;
     using PassBase = ov::pass::PassBase;
     using Validate = ov::pass::Validate;

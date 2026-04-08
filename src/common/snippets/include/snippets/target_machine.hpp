@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,7 +46,7 @@ class RuntimeConfigurator;
  */
 class TargetMachine {
 public:
-    TargetMachine(const std::shared_ptr<RuntimeConfigurator>& c) : configurator(c) {}
+    explicit TargetMachine(const std::shared_ptr<RuntimeConfigurator>& c) : configurator(c) {}
 
     virtual ~TargetMachine() = default;
 

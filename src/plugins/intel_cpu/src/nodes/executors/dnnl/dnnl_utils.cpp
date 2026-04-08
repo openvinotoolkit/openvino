@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,7 @@
 #include "nodes/reorder.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "thread_pool_imp.hpp"
 #include "weights_cache.hpp"
 
 namespace ov::intel_cpu::utils {
@@ -41,6 +42,7 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
                                 context->getRuntimeCache(),
                                 context->getWeightsCache(),
                                 privateWeightCache,
+                                context->getThreadPool(),
                                 needShiftSignedToUnsigned);
 }
 
@@ -51,6 +53,7 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
                                const MultiCachePtr& rtCache,
                                const WeightsSharing::Ptr& globalWeightCache,
                                const std::shared_ptr<std::unordered_map<std::string, MemoryPtr>>& privateWeightCache,
+                               const std::shared_ptr<ThreadPool>& threadPool,
                                bool needShiftSignedToUnsigned) {
     const auto format = dstWeightDesc->serializeFormat();
     if (privateWeightCache) {
@@ -71,7 +74,7 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
             // prevent reorderData from doing conversion
             Memory srcMemory{eng, srcWeightDesc->cloneWithNewPrecision(dst_wdt), weightsMem->getData()};
             MemoryPtr _ptr = std::make_shared<Memory>(eng, dstWeightDesc);
-            node::Reorder::reorderData(srcMemory, *_ptr, rtCache);
+            node::Reorder::reorderData(srcMemory, *_ptr, rtCache, threadPool);
 
             // do shift
             auto count = _ptr->getSize() / _ptr->getDesc().getPrecision().size();
@@ -88,22 +91,23 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
                     data[i] = (high << 4) | (low & 0xF);
                 }
             } else {
-                OPENVINO_ASSERT(false, "Unsupported data type for shiftting sign to unsign");
+                OPENVINO_THROW("Unsupported data type for shiftting sign to unsign");
             }
             return _ptr;
         }
 
         Memory srcMemory{eng, srcWeightDesc, weightsMem->getData()};
         MemoryPtr _ptr = std::make_shared<Memory>(eng, dstWeightDesc);
-        node::Reorder::reorderData(srcMemory, *_ptr, rtCache);
+        node::Reorder::reorderData(srcMemory, *_ptr, rtCache, threadPool);
 
         return _ptr;
     };
 
     MemoryPtr ptr;
     if (globalWeightCache && dnnl::memory::format_kind::blocked == dstWeightDesc->getDnnlDesc().get_format_kind()) {
-        ptr = *globalWeightCache->findOrCreate(DnnlExtensionUtils::computeWeightsStringHash(weightsMem, dstWeightDesc),
-                                               create);
+        ptr = MemoryPtr(
+            *globalWeightCache->findOrCreate(DnnlExtensionUtils::computeWeightsStringHash(weightsMem, dstWeightDesc),
+                                             create));
     } else {
         ptr = create();
     }

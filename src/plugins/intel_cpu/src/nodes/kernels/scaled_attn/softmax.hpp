@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -20,6 +20,6 @@ void attn_softmax(void* a,
                   size_t total_size,
                   ov::element::Type precision,
                   ov::element::Type attn_mask_prec,
-                  ov::element::Type dst_precision);
-
+                  ov::element::Type dst_precision,
+                  const float* sink);
 }  // namespace ov::Extensions::Cpu::XARCH

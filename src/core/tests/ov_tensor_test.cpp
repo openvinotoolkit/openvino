@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 #include "openvino/runtime/allocator.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -435,6 +436,13 @@ TEST_F(OVTensorTest, canSetShape) {
         ASSERT_EQ(origShape, t.get_shape());
         ASSERT_EQ(orig_data, t.data());
     }
+
+    // set shape bigger than maximum allocation size
+    {
+        constexpr auto max_dim = std::numeric_limits<size_t>::max();
+        OV_EXPECT_THROW(t.set_shape(Shape({max_dim, 2})), ov::Exception, _);
+        OV_EXPECT_THROW(t.set_shape(Shape({3, max_dim / 8})), ov::Exception, _);
+    }
 }
 
 TEST_F(OVTensorTest, canSetShapeStringTensor) {
@@ -464,6 +472,12 @@ TEST_F(OVTensorTest, canSetShapeStringTensor) {
         OV_ASSERT_NO_THROW(t.set_shape(origShape));
         ASSERT_EQ(origShape, t.get_shape());
         ASSERT_EQ(orig_data, t.data());
+    }
+
+    // set shape bigger than maximum allocation size
+    {
+        constexpr auto max_dim = std::numeric_limits<size_t>::max();
+        OV_EXPECT_THROW(t.set_shape(Shape({3, max_dim / 80})), ov::Exception, _);
     }
 }
 
@@ -931,6 +945,32 @@ TEST_F(OVTensorTest, createReadOnlyViewFromNullptr) {
     OV_EXPECT_THROW(Tensor(ov::element::i32, ov::Shape{10}, static_cast<const void*>(nullptr)), ov::Exception, _);
 }
 
+TEST_F(OVTensorTest, createAllocationOverflow) {
+    OV_EXPECT_THROW(Tensor(element::i32, Shape{std::numeric_limits<size_t>::max()}),
+                    Exception,
+                    HasSubstr("Cannot allocate memory"));
+    OV_EXPECT_THROW(Tensor(element::i32, Shape{std::numeric_limits<size_t>::max(), 2}),
+                    Exception,
+                    HasSubstr("Cannot allocate memory"));
+}
+
+TEST_F(OVTensorTest, getTensorDataOffsetFromRoiTensor) {
+    const ov::Tensor tensor(ov::element::f32, ov::Shape{3, 5, 32, 128});
+    ov::Tensor roi_tensor;
+    OV_ASSERT_NO_THROW(roi_tensor = ov::Tensor(tensor, {1, 2, 5, 64}, {2, 3, 10, 128}));
+    size_t tensor_data_offset = ov::get_tensor_data_offset(*ov::get_tensor_impl(roi_tensor)._ptr);
+    EXPECT_EQ(static_cast<const uint8_t*>(roi_tensor.data()),
+              static_cast<const uint8_t*>(tensor.data()) + tensor_data_offset);
+}
+
+TEST_F(OVTensorTest, getTensorDataOffsetFromGeneralTensor) {
+    const ov::Tensor tensor(ov::element::f32, ov::Shape{3, 5, 32, 128});
+    size_t tensor_data_offset = ov::get_tensor_data_offset(*ov::get_tensor_impl(tensor)._ptr);
+    EXPECT_EQ(static_cast<const uint8_t*>(tensor.data()),
+              static_cast<const uint8_t*>(tensor.data()) + tensor_data_offset);
+    EXPECT_EQ(0, tensor_data_offset);  // special case for general tensor it returns 0
+}
+
 struct TestParams {
     ov::Shape src_shape;
     ov::Strides src_strides;
@@ -1085,9 +1125,7 @@ void compare_tensors(const ov::Tensor& src, const ov::Tensor& dst) {
 }  // namespace
 
 TEST_P(OVTensorTestCopy, copy_to) {
-    ov::element::Type type;
-    TestParams p;
-    std::tie(type, p) = GetParam();
+    const auto& [type, p] = GetParam();
     // Source tensors
     ov::Tensor full_src_tensor;
     ov::Tensor src_tensor;

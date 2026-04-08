@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,8 +61,8 @@ private:
 
     bool isInputOrderConst = false;
 
-    static constexpr size_t INPUT_DATA_IDX = 0lu;
-    static constexpr size_t INPUT_ORDER_IDX = 1lu;
+    static constexpr size_t INPUT_DATA_IDX = 0LU;
+    static constexpr size_t INPUT_ORDER_IDX = 1LU;
 
     bool performAsReorder = false;
     bool isOptimized = false;

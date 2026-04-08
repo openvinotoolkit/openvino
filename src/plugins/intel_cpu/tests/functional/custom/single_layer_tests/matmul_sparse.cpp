@@ -1,4 +1,4 @@
-// Copyright (C) 2022-2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,15 +35,8 @@ class MatMulSparseCPUTest : public testing::WithParamInterface<MatMulSparseParam
                             virtual public SubgraphBaseTest, public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MatMulSparseParamSet>& obj) {
-        ShapeRelatedParams shapeRelatedParams;
-        ElementType inType, weiType, outType;
-        fusingSpecificParams fusingParams;
-        CPUSpecificParams cpuParams;
-        ov::AnyMap additionalConfig;
-        float weiSparseRate;
-        std::tie(shapeRelatedParams, inType, weiType, outType, fusingParams, cpuParams, additionalConfig,
-            weiSparseRate) = obj.param;
-
+        const auto& [shapeRelatedParams, inType, weiType, outType, fusingParams, cpuParams, additionalConfig,
+                     weiSparseRate] = obj.param;
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : shapeRelatedParams.inputShapes) {
@@ -136,16 +129,8 @@ protected:
 
     void SetUp() override {
         abs_threshold = 0.5f;
-
-        ShapeRelatedParams shapeRelatedParams;
-        ElementType inType, weiType, outType;
-        fusingSpecificParams fusingParams;
-        CPUSpecificParams cpuParams;
-        ov::AnyMap additionalConfig;
-        float weiSparseRate;
-
-        std::tie(shapeRelatedParams, inType, weiType, outType, fusingParams, cpuParams, additionalConfig,
-            weiSparseRate) = this->GetParam();
+        const auto& [shapeRelatedParams, inType, weiType, outType, fusingParams, cpuParams, additionalConfig,
+                     weiSparseRate] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
@@ -187,7 +172,7 @@ protected:
         auto weiData = generateSparseVector(ov::shape_size(inShapeB.get_shape()), weiSparseRate);
         auto matMul = makeMatMulRelaxed(params[0], inShapeB, weiType, transpA, transpB, weiData);
 
-        function = makeNgraphFunction(element::f32, params, matMul, cpuNodeType);
+        function = create_ov_model(element::f32, params, matMul, cpuNodeType);
 
         checkFusingPosition = false;
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2022-2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,10 +7,7 @@
 using namespace transpose_sinking::testing;
 
 std::string TSTestFixture::get_test_name(const ::testing::TestParamInfo<TestParams>& obj) {
-    size_t num_main_ops_idx;
-    size_t main_op_idx;
-    TestCase test_case;
-    std::tie(num_main_ops_idx, main_op_idx, test_case) = obj.param;
+    const auto& [num_main_ops_idx, main_op_idx, test_case] = obj.param;
 
     std::ostringstream test_name;
     test_name << "Factory=" << test_case.model.main_op[main_op_idx]->getTypeName() << "/";

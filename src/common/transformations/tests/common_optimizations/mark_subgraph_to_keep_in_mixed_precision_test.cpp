@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,10 +12,12 @@
 #include "openvino/op/exp.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/greater.hpp"
+#include "openvino/op/less.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
+#include "openvino/op/random_uniform.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_sum.hpp"
@@ -26,6 +28,7 @@
 #include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/opsets/opset2_decl.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/convert_precision.hpp"
 #include "transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 
@@ -34,6 +37,7 @@ using namespace ov;
 using namespace std;
 using namespace ov::opset10;
 
+namespace v0 = ov::op::v0;
 TEST(TransformationTests, keep_precission_sensitive_fp32_1) {
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
@@ -1157,6 +1161,9 @@ TEST(TransformationTests, MarkFloatingPointRange) {
         auto multiply = make_shared<Multiply>(convert, multiply_const);
 
         // marking nodes to be kept in fp32 for mixed precision
+        disable_fp16_compression(begin);
+        disable_fp16_compression(end);
+        disable_fp16_compression(step);
         disable_fp16_compression(range_1);
         disable_fp16_compression(range_2);
         disable_fp16_compression(convert_1);
@@ -1358,4 +1365,23 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_disable_for_quant
     ASSERT_TRUE(result.valid) << result.message;
     result = fc(model, model_ref);
     ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST_F(TransformationTestsF, MarkRandomUniformAsPrecisionSensitive) {
+    auto param = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{2});
+    auto random_uniform = std::make_shared<ov::op::v8::RandomUniform>(param,
+                                                                      v0::Constant::create(element::f32, {}, {0}),
+                                                                      v0::Constant::create(element::f32, {}, {1}),
+                                                                      element::f32);
+    auto less = std::make_shared<ov::op::v1::Less>(random_uniform, v0::Constant::create(element::f32, {1, 1}, {0.5}));
+    auto res = std::make_shared<v0::Result>(less);
+
+    model = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{param});
+
+    precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
+
+    type_to_fuse_map empty_fuse_map;
+
+    model_ref = model->clone();
+    manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map, empty_fuse_map, true, false, true);
 }

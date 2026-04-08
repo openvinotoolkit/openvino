@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,9 +32,8 @@ public:
     /**
      * @brief Updates the configuration with new options if the key is enabled state
      * @param options A map of key-value pairs representing the new configuration options.
-     * @param mode Specifies the mode in which the options should be updated (default is `OptionMode::Both`).
      */
-    void update(const ConfigMap& options, OptionMode mode = OptionMode::Both) override;
+    void update(const ConfigMap& options) override;
 
     /**
      * @brief Checks if a specific option exists in the configuration's descriptorDesc.
@@ -75,6 +74,11 @@ public:
      * @brief Enables all available configuration options.
      */
     void enableAll();
+
+    /**
+     * @brief Enables only runtime configuration options.
+     */
+    void enableRuntimeOptions();
 
     /**
      * @brief Iterates over all enabled options and applies a callback function to each enabled key.

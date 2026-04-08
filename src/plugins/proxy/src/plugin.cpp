@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/util/common_util.hpp"
 #include "plugin.hpp"
@@ -393,7 +394,7 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::
     return std::make_shared<ov::proxy::CompiledModel>(device_model, plugin, remote_context);
 }
 
-std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::string& model_path,
+std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::filesystem::path& model_path,
                                                                      const ov::AnyMap& properties) const {
     auto dev_name = get_fallback_device(get_device_from_config(properties));
     auto device_config = construct_device_config(dev_name, m_configs, properties);
@@ -491,6 +492,21 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(std::istream
     return std::make_shared<ov::proxy::CompiledModel>(get_core()->import_model(model, ctx, device_config),
                                                       shared_from_this(),
                                                       context);
+}
+
+std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(const ov::Tensor& model,
+                                                                    const ov::AnyMap& properties) const {
+    ov::SharedStreamBuffer buffer{model.data(), model.get_byte_size()};
+    std::istream stream{&buffer};
+    return import_model(stream, properties);
+}
+
+std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(const ov::Tensor& model,
+                                                                    const ov::SoPtr<ov::IRemoteContext>& context,
+                                                                    const ov::AnyMap& properties) const {
+    ov::SharedStreamBuffer buffer{model.data(), model.get_byte_size()};
+    std::istream stream{&buffer};
+    return import_model(stream, context, properties);
 }
 
 std::string ov::proxy::Plugin::get_primary_device(size_t idx) const {

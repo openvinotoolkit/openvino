@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,8 @@
 #include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/permute.hpp>
 
+#include "openvino/reference/convolution.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -25,6 +27,9 @@
 #include <tuple>
 
 #include "convolution_inst.h"
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include "graph/impls/onednn/utils.hpp"
+#endif
 
 using namespace cldnn;
 using namespace ::tests;
@@ -4402,6 +4407,73 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_symmetric) {
         }
 }
 
+TEST(convolution_int8_fw_gpu, quantized_convolution_u8u8f32_symmetric) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::u8, format::bfyx, { 1, 1, 5, 4 } });
+    auto weights = engine.allocate_memory({ data_types::u8, format::bfyx, { 2, 1, 3, 3 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
+
+    set_values<uint8_t>(input, { 1, 2, 3, 4, 5,
+                                 2, 2, 3, 4, 6,
+                                 3, 3, 3, 5, 1,
+                                 1, 1, 1, 1, 1 });
+    set_values<uint8_t>(weights, { 1, 2, 1,
+                                   2, 1, 2,
+                                   9, 7, 1,
+
+                                   9, 0, 4,
+                                   1, 3, 2,
+                                   0, 2, 5 });
+    set_values(biases, { -1.0f, -8.0f });
+
+    VVVF<float> output_vec = {
+        {
+            { 70.0f, 100.0f, 25.0f },
+            { 16.0f, 18.0f, 2.0f }
+        },
+        {
+            { 48.0f, 81.0f, 43.0f },
+            { 37.0f, 29.0f, 2.0f }
+        } };
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        data("weights", weights),
+        data("biases", biases),
+        convolution("conv", input_info("input"), "weights", "biases", 1, { 2, 2 }, { 1, 1 }, { 0, 0 }, { 1, 2 }, false),
+        reorder("out", input_info("conv"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.begin()->first, "out");
+
+    auto output_memory = outputs.at("out").get_memory();
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+    auto output_layout = output_memory->get_layout();
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(y_size, 2);
+    ASSERT_EQ(x_size, 3);
+    ASSERT_EQ(f_size, 2);
+    ASSERT_EQ(b_size, 1);
+    for (int f = 0; f < f_size; f++)
+        for (int y = 0; y < y_size; ++y) {
+            for (int x = 0; x < x_size; ++x) {
+                ASSERT_NEAR(output_vec[f][y][x], ((float)output_ptr[f * y_size * x_size + y * x_size + x]), 1e-5f) <<
+                " x="<<x << " y=" << y << " f=" << f;
+            }
+        }
+}
+
 TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_weight_and_activations) {
     auto& engine = get_test_engine();
 
@@ -7531,8 +7603,8 @@ TEST(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16_in_feature_pa
     ov::CoordinateDiff pad = { 0, 0 };
     ov::Strides dilation = { 1, 1 };
     auto output_size = tensor{ 1, num_groups, 1, 2 };
-    auto input_lower_sizes = { 0, 16, 0, 0 };
-    auto input_upper_sizes = { 0, 64, 0, 0 };
+    std::vector<ov::Dimension::value_type> input_lower_sizes = { 0, 16, 0, 0 };
+    std::vector<ov::Dimension::value_type> input_upper_sizes = { 0, 64, 0, 0 };
 
     auto& engine = get_test_engine();
 
@@ -8511,8 +8583,11 @@ public:
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", { input_format(), "" } } }));
-
+        if (_forced_impl_map.empty()) {
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", { input_format(), "" } } }));
+        } else {
+            config.set_property(ov::intel_gpu::force_implementations(_forced_impl_map));
+        }
         auto prog = program::build_program(engine, topo, config);
 
         cldnn::network net(prog, 0);
@@ -8534,6 +8609,7 @@ public:
         auto result = net.execute();
         auto out_mem = result.at(output_primitive_id()).get_memory();
         auto out_lay = out_mem->get_layout();
+        bool is_output_fp = (out_lay.data_type == data_types::f32 || out_lay.data_type == data_types::f16);
         cldnn::mem_lock<OutputT> out_ptr(out_mem, get_test_stream());
 
         std::stringstream description;
@@ -8560,10 +8636,15 @@ public:
                     for (size_t xi = 0; xi < expected[0][0][0].size(); ++xi) {
                         tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
                         size_t offset = out_lay.get_linear_offset(coords);
-
-                        ASSERT_EQ(out_ptr[offset], expected[bi][fi][yi][xi])
-                            << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
-                            << description.str();
+                        if (is_output_fp) {
+                            ASSERT_NEAR(out_ptr[offset], expected[bi][fi][yi][xi], 1e-5f)
+                                << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
+                                << description.str();
+                        } else {
+                            ASSERT_EQ(out_ptr[offset], expected[bi][fi][yi][xi])
+                                << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
+                                << description.str();
+                        }
                     }
     }
 
@@ -8623,6 +8704,10 @@ public:
         _grouped_weights_shape = grouped_weights_shape;
     }
 
+    void set_forced_impl(const ov::intel_gpu::ImplForcingMap& forced_impl_map) {
+        _forced_impl_map = forced_impl_map;
+    }
+
 protected:
     VVVVF<InputT> _input;
     VVVVF<WeightsT> _weights;
@@ -8638,6 +8723,7 @@ protected:
     bool _padded_input;
     bool _bigger_pad;
     bool _grouped_weights_shape;
+    ov::intel_gpu::ImplForcingMap _forced_impl_map;
 
     size_t batch_num() const { return _input.size(); }
     size_t input_features() const { return _input[0].size(); }
@@ -8718,6 +8804,18 @@ struct convolution_random_test_all_params {
     bool grouped_weights_shape;
 };
 
+template <typename T>
+void get_rng_params(int& min, int& max, int& k, bool is_conv_input = false) {
+    if constexpr (std::is_same<T, int8_t>::value) {
+        min = -128; max = 127;
+        k = is_conv_input ? 8 : 4;
+    } else if constexpr (std::is_same<T, uint8_t>::value) {
+        min = 0; max = 255; k = 1;
+        k = is_conv_input ? 8 : 1;
+    } else {
+        min = -256; max = 256; k = 8;
+    }
+}
 template <typename InputT, typename WeightsT, typename OutputT>
 class convolution_random_test_base : public convolution_test_base<InputT, WeightsT, OutputT> {
 public:
@@ -8759,20 +8857,25 @@ public:
         rg.set_seed(GET_SUITE_NAME);
         auto wei_in_f = params.input_features / params.groups;
 
+        int input_min, input_max, input_k;
+        get_rng_params<InputT>(input_min, input_max, input_k, true);
         auto input_data = rg.template generate_random_4d<InputT>(
-            params.batch, params.input_features, params.input_xy[1], params.input_xy[0], -256, 256);
+            params.batch, params.input_features, params.input_xy[1], params.input_xy[0], input_min, input_max, input_k);
+
+        int weights_min, weights_max, weights_k;
+        get_rng_params<WeightsT>(weights_min, weights_max, weights_k);
         if (params.grouped_weights_shape) {
             auto weights_data = rg.template generate_random_5d<WeightsT>(
-                params.groups, (params.output_features / params.groups), wei_in_f, params.filter_xy[1], params.filter_xy[0], -256, 256);
+                params.groups, (params.output_features / params.groups), wei_in_f, params.filter_xy[1], params.filter_xy[0], weights_min, weights_max, weights_k);
             this->set_grouped_weights(std::move(weights_data));
         } else {
             auto weights_data = rg.template generate_random_4d<WeightsT>(
-                params.output_features, wei_in_f, params.filter_xy[1], params.filter_xy[0], -256, 256);
+                params.output_features, wei_in_f, params.filter_xy[1], params.filter_xy[0], weights_min, weights_max, weights_k);
             this->set_weights(std::move(weights_data));
         }
         auto bias_data = params.with_bias ? rg.template generate_random_1d<OutputT>(params.output_features, -256, 256) : VF<OutputT>();
-        auto weights_zp_data = params.asymmetric_weights ? rg.template generate_random_1d<WeightsT>(params.output_features, -256, 256) : VF<WeightsT>();
-        auto input_zp_data = params.asymmetric_data ? rg.template generate_random_1d<InputT>(params.input_features, -256, 256) : VF<InputT>();
+        auto weights_zp_data = params.asymmetric_weights ? rg.template generate_random_1d<WeightsT>(params.output_features, weights_min, weights_max, weights_k) : VF<WeightsT>();
+        auto input_zp_data = params.asymmetric_data ? rg.template generate_random_1d<InputT>(params.input_features, input_min, input_max, input_k) : VF<InputT>();
 
         this->set_input(params.input_format, std::move(input_data));
         this->set_bias(std::move(bias_data));
@@ -8984,6 +9087,7 @@ public:
         auto result = net.execute();
         auto out_mem = result.at(this->output_primitive_id()).get_memory();
         auto out_lay = out_mem->get_layout();
+        bool is_output_fp = (out_lay.data_type == data_types::f32 || out_lay.data_type == data_types::f16);
         cldnn::mem_lock<OutputT> out_ptr(out_mem, get_test_stream());
 
         std::stringstream description;
@@ -9010,10 +9114,15 @@ public:
                     for (size_t xi = 0; xi < expected[0][0][0].size(); ++xi) {
                         tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
                         size_t offset = out_lay.get_linear_offset(coords);
-
-                        ASSERT_EQ(out_ptr[offset], expected[bi][fi][yi][xi])
-                            << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
-                            << description.str();
+                        if (is_output_fp) {
+                            ASSERT_NEAR(out_ptr[offset], expected[bi][fi][yi][xi], 1e-5f)
+                                << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
+                                << description.str();
+                        } else {
+                            ASSERT_EQ(out_ptr[offset], expected[bi][fi][yi][xi])
+                                << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
+                                << description.str();
+                        }
                     }
     }
 };
@@ -9071,9 +9180,12 @@ protected:
 };
 
 class convolution_random_smoke_test : public testing::TestWithParam<convolution_random_test_all_params> {};
+class convolution_random_fsv32_test : public testing::TestWithParam<convolution_random_test_all_params> {};
 
 using convolution_random_test_s8s8f32 = convolution_random_test_base<int8_t, int8_t, float>;
 using convolution_random_test_u8s8f32 = convolution_random_test_base<uint8_t, int8_t, float>;
+using convolution_random_test_u8u8f32 = convolution_random_test_base<uint8_t, uint8_t, float>;
+
 
 using convolution_random_test_fsv4_input_s8s8f32 = convolution_random_test_fsv4_input<int8_t, int8_t, float>;
 using convolution_random_test_fsv4_input_u8s8f32 = convolution_random_test_fsv4_input<uint8_t, int8_t, float>;
@@ -9182,6 +9294,47 @@ struct params_generator : std::vector<convolution_random_test_all_params> {
         return *this;
     }
 
+    params_generator& mmad_test_params(format::type input_format,
+                                        bool asymm_weights = false,
+                                        bool asymm_data = false,
+                                        bool padded_input = false,
+                                        bool bigger_pad = false) {
+        std::vector<size_t> batches = { 1 };
+        for (auto b : batches) {
+            push_back(convolution_random_test_all_params{
+                b, 3, 32, { 224, 224 }, { 3, 3 }, { 2, 2 }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            push_back(convolution_random_test_all_params{
+                b, 32, 64, { 112, 112 }, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+        }
+        return *this;
+    }
+
+    params_generator& forced_mmad_b_fs_yx_fsv32_test_params(format::type input_format,
+                                        bool asymm_weights = false,
+                                        bool asymm_data = false,
+                                        bool padded_input = false,
+                                        bool bigger_pad = false) {
+        std::vector<size_t> batches = { 1, 2 };
+        for (auto b : batches) {
+            // 3x3
+            push_back(convolution_random_test_all_params{
+                b, 32, 48, { 14, 14 }, { 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            push_back(convolution_random_test_all_params{
+                b, 32, 48, { 14, 14 }, { 3, 3 }, { 2, 2 }, { 1, 1 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            // 1x1
+            push_back(convolution_random_test_all_params{
+                b, 32, 48, { 28, 28 }, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            push_back(convolution_random_test_all_params{
+                b, 32, 48, { 28, 28 }, { 1, 1 }, { 2, 2 }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            // 5x5
+            push_back(convolution_random_test_all_params{
+                b, 32, 48, { 28, 28 }, { 5, 5 }, { 1, 1 }, { 2, 2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            push_back(convolution_random_test_all_params{
+                b, 32, 48, { 28, 28 }, { 5, 5 }, { 2, 2 }, { 2, 2 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+        }
+        return *this;
+    }
+
     params_generator& all_test_params(format::type input_format,
                                       bool asymm_weights = false,
                                       bool asymm_data = false,
@@ -9200,6 +9353,14 @@ struct params_generator : std::vector<convolution_random_test_all_params> {
 TEST_P(convolution_random_smoke_test, u8s8f32) {
     convolution_random_test_u8s8f32 test;
     ASSERT_NO_FATAL_FAILURE(test.run_random(GetParam()));
+}
+
+TEST_P(convolution_random_smoke_test, u8u8f32_forced_ref) {
+    convolution_random_test_u8u8f32 test;
+    const auto p = GetParam();
+    ov::intel_gpu::ImplForcingMap force_map{ { "conv", { p.input_format, "convolution_gpu_ref" } } };
+    test.set_forced_impl(force_map);
+    ASSERT_NO_FATAL_FAILURE(test.run_random(p));
 }
 
 TEST_P(convolution_random_smoke_test, u8s8f32_scale) {
@@ -9237,6 +9398,28 @@ INSTANTIATE_TEST_SUITE_P(
         .smoke_test_params(format::b_fs_yx_fsv16, false, false, true, true)
         .bs_test_params(format::bs_fs_yx_bsv16_fsv16)
         .bs_test_params(format::b_fs_yx_fsv16, false, true, false, false, true)
+    ),
+    to_string_convolution_all_params
+);
+
+TEST_P(convolution_random_fsv32_test, u8u8f32_forced_mmad_b_fs_yx_fsv32) {
+    convolution_random_test_u8u8f32 test;
+    const auto p = GetParam();
+    ov::intel_gpu::ImplForcingMap force_map{ { "conv", { p.input_format, "convolution_gpu_mmad_b_fs_yx_fsv32" } } };
+    test.set_forced_impl(force_map);
+    ASSERT_NO_FATAL_FAILURE(test.run_random(p));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    basic,
+    convolution_random_fsv32_test,
+    testing::ValuesIn(
+        params_generator()
+        .forced_mmad_b_fs_yx_fsv32_test_params(format::b_fs_yx_fsv32)
+        .forced_mmad_b_fs_yx_fsv32_test_params(format::b_fs_yx_fsv32, true, true)
+        .forced_mmad_b_fs_yx_fsv32_test_params(format::b_fs_yx_fsv32, false, true)
+        .forced_mmad_b_fs_yx_fsv32_test_params(format::b_fs_yx_fsv32, true, false)
+        .forced_mmad_b_fs_yx_fsv32_test_params(format::b_fs_yx_fsv32, false, false, true)
     ),
     to_string_convolution_all_params
 );
@@ -9282,6 +9465,32 @@ INSTANTIATE_TEST_SUITE_P(
             1, 89, 3, { 1, 1 }, { 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, true, 1, format::b_fs_yx_fsv4, false, false, false, false })
         .add(convolution_random_test_all_params{
             1, 16, 32, { 3, 3 }, { 17, 17 }, { 1, 1 }, { 8, 8 }, { 1, 1 }, true, 1, format::b_fs_yx_fsv16, false, false, true, false })
+    ),
+    to_string_convolution_all_params
+);
+
+class convolution_random_mmad_test : public testing::TestWithParam<convolution_random_test_all_params> {};
+using convolution_random_test_mmad_u8u8f32 = convolution_random_test_base<uint8_t, uint8_t, float>;
+using convolution_random_test_mmad_s8u8f32 = convolution_random_test_base<int8_t, uint8_t, float>;
+
+TEST_P(convolution_random_mmad_test, s8u8f32) {
+    convolution_random_test_mmad_s8u8f32 test;
+    ASSERT_NO_FATAL_FAILURE(test.run_random(GetParam()));
+}
+
+TEST_P(convolution_random_mmad_test, u8u8f32) {
+    convolution_random_test_mmad_u8u8f32 test;
+    ASSERT_NO_FATAL_FAILURE(test.run_random(GetParam()));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    basic,
+    convolution_random_mmad_test,
+    testing::ValuesIn(
+        params_generator()
+        .mmad_test_params(format::b_fs_yx_fsv4)
+        .mmad_test_params(format::b_fs_yx_fsv32, true, false)
+        .mmad_test_params(format::b_fs_yx_fsv32, false, false, true)
     ),
     to_string_convolution_all_params
 );
@@ -9419,9 +9628,9 @@ public:
         auto output_features = weights_size.batch[0];
 
         return cldnn::tensor(input_size.batch[0],
-                             static_cast<cldnn::tensor::value_type>(output_features),
-                             static_cast<cldnn::tensor::value_type>(output_size_x),
-                             static_cast<cldnn::tensor::value_type>(output_size_y));
+                             static_cast<ov::Dimension::value_type>(output_features),
+                             static_cast<ov::Dimension::value_type>(output_size_x),
+                             static_cast<ov::Dimension::value_type>(output_size_y));
     }
 
     void prepare_input_for_test(std::vector<cldnn::memory::ptr>& inputs) override {
@@ -9603,7 +9812,9 @@ using TestParamType_convolution_gpu_onednn = ::testing::tuple<  int,    // 0 - I
         int,            // 10 - Batch
         format,         // 11 - Input data format
         std::string,    // 12 - Implementation name
-        bool>;          // 13 - With bias
+        bool,           // 13 - With bias
+        format,         // 14 - Expected convolution format
+        bool>;          // 15 - Is dynamic
 
 struct convolution_gpu_onednn : public ::testing::TestWithParam<TestParamType_convolution_gpu_onednn> {
     static std::string PrintToStringParamName(
@@ -9621,7 +9832,9 @@ struct convolution_gpu_onednn : public ::testing::TestWithParam<TestParamType_co
                           std::to_string(testing::get<9>(param_info.param)) + "_batch" +
                           std::to_string(testing::get<10>(param_info.param)) + "_format" +
                           std::to_string(testing::get<11>(param_info.param)) + "_with_bias_" +
-                          std::to_string(testing::get<13>(param_info.param));
+                          std::to_string(testing::get<13>(param_info.param)) + "_conv_format_" +
+                          std::to_string(testing::get<14>(param_info.param)) + "_is_dynamic_" +
+                          std::to_string(testing::get<15>(param_info.param));
 
         if (testing::get<12>(param_info.param) != "") {
             res += "_kernel_" + testing::get<12>(param_info.param);
@@ -9636,11 +9849,11 @@ INSTANTIATE_TEST_SUITE_P(conv_onednn_cases,
                         ::testing::Values(
                             // Input X size, Input Y size, Input Z size, Input features, Output features,
                             // Kernel size X, Kernel size Y, Kernel size Z, Groups number, Stride, Batch,
-                            // Input data format, Implementation name, WithBias
-                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", true),
-                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", false)
-                            // TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", true),
-                            // TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", false)
+                            // Input data format, Implementation name, WithBias, Expected Conv format, Is-dynamic
+                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", true, format::bs_fs_yx_bsv32_fsv16, false),
+                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", true, format::byxf, true),
+                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", false, format::bs_fs_yx_bsv32_fsv16, false),
+                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", false, format::byxf, true)
                         ),
                         convolution_gpu_onednn::PrintToStringParamName);
 
@@ -9670,11 +9883,25 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     auto input_data_format = testing::get<11>(GetParam());
     auto impl_name = testing::get<12>(GetParam());
     auto with_bias = testing::get<13>(GetParam());
+    auto expected_conv_format = testing::get<14>(GetParam());
+    auto is_dynamic = testing::get<15>(GetParam());
 
-    auto input_size = tensor(batch_num, input_f, input_x, input_y);
+    ov::PartialShape target_pshape = {batch_num, input_f, input_x, input_y};
+    ov::PartialShape input_pshape;
+
+    if (is_dynamic) {
+        for (size_t i = 0; i < target_pshape.size(); ++i) {
+            input_pshape.emplace_back(ov::Dimension());
+        }
+        input_pshape[1] = target_pshape[1];
+    } else {
+        input_pshape = target_pshape;
+    }
+    layout in_layout{input_pshape, data_types::f16, format::bfyx};
+
     auto input_data = rg.generate_random_4d<ov::float16>(batch_num, input_f, input_y, input_x, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
-    auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
+    auto input_mem = engine.allocate_memory({ target_pshape, data_types::f16, format::bfyx });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(output_f, input_f, filter_y, filter_x, 1);
@@ -9706,10 +9933,10 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
             }
         }
 
-        topology.add(input_layout("input", input_mem->get_layout()),
+        topology.add(input_layout("input", in_layout),
                      data("weights_fsv", weights_mem),
                      data("bias", biases_mem),
-                     reorder("input_fsv", input_info("input"), { data_types::f16, input_data_format, input_size }));
+                     reorder("input_fsv", input_info("input"), input_data_format, data_types::f16));
 
         auto conv_fsv = convolution("conv_fsv",
                                     input_info("input_fsv"),
@@ -9737,9 +9964,9 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
             }
         }
 
-        topology.add(input_layout("input", input_mem->get_layout()),
+        topology.add(input_layout("input", in_layout),
                      data("weights_fsv", weights_mem),
-                     reorder("input_fsv", input_info("input"), { data_types::f16, input_data_format, input_size }));
+                     reorder("input_fsv", input_info("input"), input_data_format, data_types::f16));
 
         auto conv_fsv = convolution("conv_fsv",
                                     input_info("input_fsv"),
@@ -9758,6 +9985,8 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"conv_fsv","reorder_bfyx"}));
+    if (is_dynamic)
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
 
     network.set_input_data("input", input_mem);
@@ -9768,8 +9997,10 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     for (auto& p : network.get_primitives_info())
         std::cerr << p.original_id << " " << p.kernel_id << std::endl;
 
-    auto out_ptr = get_output_values_to_float<ov::float16>(network, outputs.find("conv_fsv")->second);
-    auto out_lay = network.get_primitive("conv_fsv")->get_node_output_layout();
+    auto out_ptr = get_output_values_to_float<float>(network, outputs.find("reorder_bfyx")->second);
+    auto output_memory = outputs.at("reorder_bfyx").get_memory();
+    auto out_lay = output_memory->get_layout();
+
     ASSERT_EQ(out_lay.batch(), expected_result.size());
     ASSERT_EQ(out_lay.feature(), expected_result[0].size());
     ASSERT_EQ(out_lay.spatial(1), expected_result[0][0].size());
@@ -9792,6 +10023,9 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
                     }
                     ASSERT_TRUE(equal);
                 }
+
+    out_lay = network.get_primitive("conv_fsv")->get_node_output_layout();
+    ASSERT_EQ(out_lay.get_format(), expected_conv_format);
 }
 
 TEST(convolution_gpu_onednn, padding_for_cldnn_kernel_after_onednn) {
@@ -9968,11 +10202,149 @@ TEST(convolution_gpu_onednn, spatial_1d) {
     }
 }
 
-TEST(convolution_gpu_onednn, quantized_onednn_convolution_u8s8f32_asymmetric_activations_per_tensor) {
+TEST(convolution_gpu_onednn, spatial_1d_dynamic) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
 
+    tests::random_generator rg(GET_SUITE_NAME);
+    ov::PartialShape target_pshape = {1, 16, 6};
+    ov::PartialShape input_pshape = {ov::Dimension(), 16, 6};
+    ov::PartialShape weights_pshape = {16, 16, 3};
+    layout in_layout{ input_pshape, data_types::f16, format::bfyx };
+    layout in_ref_layout{ target_pshape, data_types::f16, format::bfyx };
+    layout weights_layout{ weights_pshape, data_types::f16, format::bfyx };
+    auto input_data = rg.generate_random_1d<ov::float16>(ov::shape_size(target_pshape.get_shape()), -1, 1);
+    auto input_mem = engine.allocate_memory({target_pshape, data_types::f16, format::bfyx});
+    set_values(input_mem, input_data);
+
+    auto weights_data = rg.generate_random_1d<ov::float16>(weights_layout.count(), -1, 1);
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    set_values(weights_mem, weights_data);
+
+    auto input = input_layout("input", in_layout);
+    auto input_ref = input_layout("input", in_ref_layout);
+    auto weights = data("weights", weights_mem);
+    auto conv = convolution("conv",
+                            input_info("input"),
+                            "weights",
+                            no_bias,
+                            1,
+                            ov::Strides{1},
+                            ov::Strides{1},
+                            ov::CoordinateDiff{0},
+                            ov::CoordinateDiff{0},
+                            false);
+    auto output_reorder = reorder("reorder", input_info("conv"), format::bfyx, data_types::f32 );
+
+    topology t(input, weights, conv, output_reorder);
+    topology t_ref(input_ref, weights, conv, output_reorder);
+
+    ExecutionConfig config_test_dynamic = get_test_default_config(engine);
+    config_test_dynamic.set_property(ov::intel_gpu::optimize_data(true));
+    config_test_dynamic.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    ExecutionConfig config_ref = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl_ref = { format::bfyx, "", impl_types::ocl };
+    config_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{ "conv", conv_impl_ref } }));
+    config_ref.set_property(ov::intel_gpu::optimize_data(true));
+    config_ref.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network_ref(engine, t_ref, config_ref);
+    network_ref.set_input_data("input", input_mem);
+    auto outputs_ref = network_ref.execute();
+    ASSERT_EQ(outputs_ref.size(), size_t(1));
+    ASSERT_EQ(outputs_ref.begin()->first, "reorder");
+    auto output_memory_ref = outputs_ref.at("reorder").get_memory();
+    auto output_layout_ref = output_memory_ref->get_layout();
+    cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
+
+    network network_test_dynamic(engine, t, config_test_dynamic);
+    network_test_dynamic.set_input_data("input", input_mem);
+    auto outputs_test_dynamic = network_test_dynamic.execute();
+    ASSERT_EQ(outputs_test_dynamic.size(), size_t(1));
+    ASSERT_EQ(outputs_test_dynamic.begin()->first, "reorder");
+    auto output_memory_test_dynamic = outputs_test_dynamic.at("reorder").get_memory();
+    auto output_layout_test_dynamic = output_memory_test_dynamic->get_layout();
+    cldnn::mem_lock<float> output_ptr_test_dynamic(output_memory_test_dynamic, get_test_stream());
+
+    ov::PartialShape expected_shape = {1, 16, 4};
+    ASSERT_EQ(output_layout_test_dynamic.get_partial_shape(), expected_shape);
+    ASSERT_EQ(output_layout_ref.get_partial_shape(), expected_shape);
+
+    for (size_t i = 0; i < output_memory_ref->count(); i++) {
+        ASSERT_EQ(output_ptr_ref.data()[i] , output_ptr_test_dynamic.data()[i]);
+    }
+}
+
+TEST(convolution_gpu_onednn, spatial_1d_quantize_post_ops_blocked_format) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    auto in_layout = layout{{ov::Dimension(), 29, 50}, data_types::f32, format::bfyx};
+
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    layout input_mem_layout{ {1, 29, 50}, data_types::f32, format::bfyx };
+    auto input_mem_data = rg.generate_random_1d<float>(input_mem_layout.count(), -1, 1);
+    auto input_mem = engine.allocate_memory(input_mem_layout);
+    set_values(input_mem, input_mem_data);
+
+    layout weights_layout{ {64, 29, 3}, data_types::i8, format::bfyx };
+    auto weights_data = rg.generate_random_1d<int8_t>(weights_layout.count(), -125, 125);
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    set_values(weights_mem, weights_data);
+
+    auto input_low   = engine.allocate_memory({ {1, 64, 1}, data_types::f32, format::bfyx });
+    auto input_high  = engine.allocate_memory({ {1, 64, 1}, data_types::f32, format::bfyx });
+    auto output_low  = engine.allocate_memory({ {1, 1, 1}, data_types::f32, format::bfyx });
+    auto output_high = engine.allocate_memory({ {1, 1, 1}, data_types::f32, format::bfyx });
+    set_values(input_low,  { 0.0f });
+    set_values(input_high, { 40.0f });
+    set_values(output_low,  { 0.0f });
+    set_values(output_high, { 255.0f });
+
+    topology t(input_layout("input", in_layout),
+        data("weights", weights_mem),
+        reorder("reorder_fsv32", input_info("input"), format::b_fs_yx_fsv32, data_types::u8),
+        convolution("conv", input_info("reorder_fsv32"), "weights", "", "", "", "",
+                            0, ov::Strides{1}, ov::Strides{1}, ov::CoordinateDiff{0}, ov::CoordinateDiff{0}, false, data_types::f32),
+        data("in_lo", input_low),
+        data("in_hi", input_high),
+        data("out_lo", output_low),
+        data("out_hi", output_high),
+        quantize("quantize", input_info("conv"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::u8),
+        reorder("reorder", input_info("quantize"), format::bfyx, data_types::f32 ));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl_test_blocked = { format::b_fs_yx_fsv32, "", impl_types::onednn };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl_test_blocked } }));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network_test_blocked(engine, t, config);
+    network_test_blocked.set_input_data("input", input_mem);
+    network_test_blocked.execute();
+}
+
+struct convolution_gpu_onednn_both_shapes : public ::testing::TestWithParam<bool> {
+};
+
+INSTANTIATE_TEST_SUITE_P(quantized_onednn_convolution_u8s8f32_asymmetric_activations_per_tensor,
+                        convolution_gpu_onednn_both_shapes,
+                        ::testing::Values(true, false)
+);
+
+TEST_P(convolution_gpu_onednn_both_shapes, quantized_onednn_convolution_u8s8f32_asymmetric_activations_per_tensor) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    bool is_dyn_shape = GetParam();
+    ov::PartialShape dyn_input_pshape = {ov::Dimension(), 1, ov::Dimension(), ov::Dimension()};
+    auto in_layout = layout{dyn_input_pshape, data_types::u8, format::bfyx};
     auto input = engine.allocate_memory({ data_types::u8, format::bfyx, { 1, 1, 5, 4 } });
     auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, { 2, 1, 3, 3 } });
     auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
@@ -10003,17 +10375,22 @@ TEST(convolution_gpu_onednn, quantized_onednn_convolution_u8s8f32_asymmetric_act
         } };
 
     topology topology(
-        input_layout("input", input->get_layout()),
         data("weights", weights),
         data("biases", biases),
         data("a_zp", a_zp),
         convolution("conv", input_info("input"), "weights", "biases", "", "a_zp", "", 1,
                     { 2, 2 }, { 1, 1 }, { 0, 0 }, { 1, 2 }, false, data_types::f32),
         reorder("out", input_info("conv"), format::bfyx, data_types::f32));
+    if (is_dyn_shape)
+        topology.add(input_layout("input", in_layout));
+    else
+        topology.add(input_layout("input", input->get_layout()));
 
     ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc conv_impl = { format::byxf, "", impl_types::onednn };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl }}));
+    if (is_dyn_shape)
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network network(engine, topology, config);
@@ -10044,11 +10421,19 @@ TEST(convolution_gpu_onednn, quantized_onednn_convolution_u8s8f32_asymmetric_act
         }
 }
 
-TEST(convolution_gpu_onednn, quantized_onednn_convolution_u8s8f32_asymmetric_activations_per_channel) {
+INSTANTIATE_TEST_SUITE_P(quantized_onednn_convolution_u8s8f32_asymmetric_activations_per_channel,
+                        convolution_gpu_onednn_both_shapes,
+                        ::testing::Values(true, false)
+);
+
+TEST_P(convolution_gpu_onednn_both_shapes, quantized_onednn_convolution_u8s8f32_asymmetric_activations_per_channel) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
 
+    bool is_dyn_shape = GetParam();
+    ov::PartialShape dyn_input_pshape = {ov::Dimension(), 2, ov::Dimension(), ov::Dimension()};
+    auto in_layout = layout{dyn_input_pshape, data_types::u8, format::bfyx};
     auto input = engine.allocate_memory({ data_types::u8, format::bfyx, { 1, 2, 5, 4 } });
     auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, { 3, 2, 3, 3 } });
     auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 3, 1, 1 } });
@@ -10105,18 +10490,23 @@ TEST(convolution_gpu_onednn, quantized_onednn_convolution_u8s8f32_asymmetric_act
         } };
 
     topology topology(
-        input_layout("input", input->get_layout()),
         data("weights", weights),
         data("biases", biases),
         data("a_zp", a_zp),
         convolution("conv", input_info("input"), "weights", "biases", "", "a_zp", "", 1,
                     { 2, 2 }, { 1, 1 }, { 0, 0 }, { 1, 2 }, false, data_types::f32),
         reorder("out", input_info("conv"), format::bfyx, data_types::f32));
+    if (is_dyn_shape)
+        topology.add(input_layout("input", in_layout));
+    else
+        topology.add(input_layout("input", input->get_layout()));
 
     ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc conv_impl = { format::byxf, "", impl_types::onednn };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl }}));
     config.set_property(ov::intel_gpu::optimize_data(true));
+    if (is_dyn_shape)
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -10146,11 +10536,19 @@ TEST(convolution_gpu_onednn, quantized_onednn_convolution_u8s8f32_asymmetric_act
         }
 }
 
-TEST(convolution_gpu_onednn, quantized_onednn_convolution_u8s8f32_weights_zp) {
+INSTANTIATE_TEST_SUITE_P(quantized_onednn_convolution_u8s8f32_weights_zp,
+                        convolution_gpu_onednn_both_shapes,
+                        ::testing::Values(true, false)
+);
+
+TEST_P(convolution_gpu_onednn_both_shapes, quantized_onednn_convolution_u8s8f32_weights_zp) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
 
+    bool is_dyn_shape = GetParam();
+    ov::PartialShape dyn_input_pshape = {ov::Dimension(), 2, ov::Dimension(), ov::Dimension()};
+    auto in_layout = layout{dyn_input_pshape, data_types::u8, format::bfyx};
     auto input = engine.allocate_memory({ data_types::u8, format::bfyx, { 1, 2, 5, 4 } });
     auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, { 3, 2, 3, 3 } });
     auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 3, 1, 1 } });
@@ -10209,7 +10607,6 @@ TEST(convolution_gpu_onednn, quantized_onednn_convolution_u8s8f32_weights_zp) {
         } };
 
     topology topology(
-        input_layout("input", input->get_layout()),
         data("weights", weights),
         data("biases", biases),
         data("a_zp", a_zp),
@@ -10217,11 +10614,17 @@ TEST(convolution_gpu_onednn, quantized_onednn_convolution_u8s8f32_weights_zp) {
         convolution("conv", input_info("input"), "weights", "biases", "w_zp", "a_zp", "", 1,
                     { 2, 2 }, { 1, 1 }, { 0, 0 }, { 1, 2 }, false, data_types::f32),
         reorder("out", input_info("conv"), format::bfyx, data_types::f32));
+    if (is_dyn_shape)
+        topology.add(input_layout("input", in_layout));
+    else
+        topology.add(input_layout("input", input->get_layout()));
 
     ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc conv_impl = { format::byxf, "", impl_types::onednn };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl }}));
     config.set_property(ov::intel_gpu::optimize_data(true));
+    if (is_dyn_shape)
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -10247,6 +10650,214 @@ TEST(convolution_gpu_onednn, quantized_onednn_convolution_u8s8f32_weights_zp) {
             for (int x = 0; x < x_size; ++x) {
                 ASSERT_NEAR(output_vec[f][y][x], ((float)output_ptr[f * y_size * x_size + y * x_size + x]), 1e-5f) <<
                 " x="<< x << " y=" << y << " f=" << f;
+            }
+        }
+}
+
+struct convolution_gpu_onednn_both_shapes_3d : public ::testing::TestWithParam<bool> {
+};
+
+INSTANTIATE_TEST_SUITE_P(quantized_onednn_convolution_u8s8f32_weights_zp_3d,
+                        convolution_gpu_onednn_both_shapes_3d,
+                        ::testing::Values(true, false)
+);
+
+TEST_P(convolution_gpu_onednn_both_shapes_3d, quantized_onednn_convolution_u8s8f32_weights_zp_3d) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    bool is_dyn_shape = GetParam();
+    ov::PartialShape dyn_input_pshape = {ov::Dimension(), 2, ov::Dimension(), ov::Dimension(), ov::Dimension()};
+    auto in_layout = layout{dyn_input_pshape, data_types::u8, format::bfzyx};
+    auto input = engine.allocate_memory({ data_types::u8, format::bfzyx, { 1, 2, 3, 5, 4 } });
+    auto weights = engine.allocate_memory({ data_types::i8, format::bfzyx, { 3, 2, 2, 3, 3 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfzyx, { 1, 3, 1, 1, 1 } });
+    auto a_zp = engine.allocate_memory({ data_types::u8, format::bfzyx, { 1, 3, 1, 1, 1 } });
+    auto w_zp = engine.allocate_memory({ data_types::u8, format::bfzyx, { 1, 1, 1, 1, 1 } });
+
+    set_values<uint8_t>(input, {
+        // First channel, first depth slice
+        1, 2, 3, 4, 5,
+        2, 2, 3, 4, 6,
+        3, 3, 3, 5, 1,
+        1, 1, 1, 1, 1,
+        // First channel, second depth slice
+        2, 3, 4, 5, 6,
+        3, 3, 4, 5, 7,
+        4, 4, 4, 6, 2,
+        2, 2, 2, 2, 2,
+        // First channel, third depth slice
+        1, 2, 3, 4, 5,
+        2, 2, 3, 4, 6,
+        3, 3, 3, 5, 1,
+        1, 1, 1, 1, 1,
+
+        // Second channel, first depth slice
+        1, 2, 3, 4, 5,
+        2, 2, 3, 4, 6,
+        3, 3, 3, 5, 1,
+        1, 1, 1, 1, 1,
+        // Second channel, second depth slice
+        2, 3, 4, 5, 6,
+        3, 3, 4, 5, 7,
+        4, 4, 4, 6, 2,
+        2, 2, 2, 2, 2,
+        // Second channel, third depth slice
+        1, 2, 3, 4, 5,
+        2, 2, 3, 4, 6,
+        3, 3, 3, 5, 1,
+        1, 1, 1, 1, 1 });
+
+    set_values<int8_t>(weights, {
+        // First output channel, first input channel, first depth slice
+         1,  2, -1,
+        -2,  1,  2,
+         9,  7, -1,
+        // First output channel, first input channel, second depth slice
+         2,  1,  0,
+        -1,  2,  1,
+         8,  6,  0,
+
+        // First output channel, second input channel, first depth slice
+         9,  0, -4,
+        -1,  3,  2,
+         0,  2,  5,
+        // First output channel, second input channel, second depth slice
+         8, -1, -3,
+         0,  4,  3,
+         1,  1,  4,
+
+        // Second output channel, first input channel, first depth slice
+         1,  2, -1,
+        -2,  1,  2,
+         9,  7, -1,
+        // Second output channel, first input channel, second depth slice
+         2,  1,  0,
+        -1,  2,  1,
+         8,  6,  0,
+
+        // Second output channel, second input channel, first depth slice
+         9,  0, -4,
+        -1,  3,  2,
+         0,  2,  5,
+        // Second output channel, second input channel, second depth slice
+         8, -1, -3,
+         0,  4,  3,
+         1,  1,  4,
+
+        // Third output channel, first input channel, first depth slice
+         1,  2, -1,
+        -2,  1,  2,
+         9,  7, -1,
+        // Third output channel, first input channel, second depth slice
+         2,  1,  0,
+        -1,  2,  1,
+         8,  6,  0,
+
+        // Third output channel, second input channel, first depth slice
+         9,  0, -4,
+        -1,  3,  2,
+         0,  2,  5,
+        // Third output channel, second input channel, second depth slice
+         8, -1, -3,
+         0,  4,  3,
+         1,  1,  4 });
+
+    set_values<uint8_t>(a_zp, { 2, 5, 5 });
+    set_values<uint8_t>(w_zp, { 2 });
+    set_values(biases, { 1.0f, -8.0f, -8.0f });
+
+    // Expected output shape: { 1, 3, 2, 3, 2 } - (batch=1, output_channels=3, depth=2, height=3, width=2)
+    VVVVF<float> output_vec = {
+        { // Output channel 0
+            { // Depth 0
+                { -75.0f, -64.0f },  // Height 0, Width [0,1]
+                { -32.0f,   4.0f },  // Height 1, Width [0,1]
+                { -45.0f, -14.0f }   // Height 2, Width [0,1]
+            },
+            { // Depth 1
+                {  65.0f,  45.0f },  // Height 0, Width [0,1]
+                {  10.0f, -37.0f },  // Height 1, Width [0,1]
+                { -66.0f, -36.0f }   // Height 2, Width [0,1]
+            }
+        },
+        { // Output channel 1
+            { // Depth 0
+                { -84.0f, -73.0f },  // Height 0, Width [0,1]
+                { -41.0f,  -5.0f },  // Height 1, Width [0,1]
+                { -54.0f, -23.0f }   // Height 2, Width [0,1]
+            },
+            { // Depth 1
+                {  56.0f,  36.0f },  // Height 0, Width [0,1]
+                {   1.0f, -46.0f },  // Height 1, Width [0,1]
+                { -75.0f, -45.0f }   // Height 2, Width [0,1]
+            }
+        },
+        { // Output channel 2
+            { // Depth 0
+                { -84.0f, -73.0f },  // Height 0, Width [0,1]
+                { -41.0f,  -5.0f },  // Height 1, Width [0,1]
+                { -54.0f, -23.0f }   // Height 2, Width [0,1]
+            },
+            { // Depth 1
+                {  56.0f,  36.0f },  // Height 0, Width [0,1]
+                {   1.0f, -46.0f },  // Height 1, Width [0,1]
+                { -75.0f, -45.0f }   // Height 2, Width [0,1]
+            }
+        }
+    };
+
+    topology topology(
+        data("weights", weights),
+        data("biases", biases),
+        data("a_zp", a_zp),
+        data("w_zp", w_zp),
+        convolution("conv", input_info("input"), "weights", "biases", "w_zp", "a_zp", "", 1,
+                    { 1, 1, 1 }, { 1, 1, 1 }, { 0, 0, 0 }, { 0, 0, 0 }, false, data_types::f32),
+        reorder("out", input_info("conv"), format::bfzyx, data_types::f32));
+    if (is_dyn_shape)
+        topology.add(input_layout("input", in_layout));
+    else
+        topology.add(input_layout("input", input->get_layout()));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    // ov::intel_gpu::ImplementationDesc conv_impl = { format::any, "", impl_types::onednn };
+    // config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl }}));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    if (is_dyn_shape)
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.begin()->first, "out");
+
+    auto output_memory = outputs.at("out").get_memory();
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+    auto output_layout = output_memory->get_layout();
+    int z_size = output_layout.spatial(2);
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
+    ASSERT_EQ(output_layout.format, format::bfzyx);
+    ASSERT_EQ(z_size, 2);
+    ASSERT_EQ(y_size, 3);
+    ASSERT_EQ(x_size, 2);
+    ASSERT_EQ(f_size, 3);
+    ASSERT_EQ(b_size, 1);
+
+    for (int f = 0; f < f_size; f++)
+        for (int z = 0; z < z_size; ++z) {
+            for (int y = 0; y < y_size; ++y) {
+                for (int x = 0; x < x_size; ++x) {
+                    float actual_value = output_ptr[f * z_size * y_size * x_size + z * y_size * x_size + y * x_size + x];
+                    ASSERT_NEAR(output_vec[f][z][y][x], actual_value, 1e-5f) <<
+                    " x="<< x << " y=" << y << " z=" << z << " f=" << f;
+                }
             }
         }
 }
@@ -10356,6 +10967,105 @@ TEST(convolution_gpu_onednn, support_activation_zero_points_for_i32) {
                 " x="<< x << " y=" << y << " f=" << f;
             }
         }
+}
+
+TEST(convolution_gpu_onednn, eltw_and_bin_double_shift_in_blob_cache) {
+    auto& engine = get_test_engine();
+    auto stream_ptr = get_test_stream_ptr();
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    const float shift_init = 128.0f;
+    const float in_lo_v  = 0.0f;
+    const float in_hi_v  = 255.0f;
+    const float out_lo_v = -128.0f;
+    const float out_hi_v = 127.0f;
+    const int   levels   = 256;
+
+    auto run = [&](bool is_caching_test) -> float {
+        layout in_layout  { {1, 64, 56, 56}, data_types::u8,  format::bfyx };
+        layout w_layout   { {256, 64, 1, 1},  data_types::i8,  format::bfyx };
+        layout ch_layout  { {1, 256, 1, 1}, data_types::f32, format::bfyx };
+        layout sc_layout  { {1, 1, 1, 1}, data_types::f32, format::bfyx };
+
+        auto input_mem   = engine.allocate_memory(in_layout);
+        auto weights_mem = engine.allocate_memory(w_layout);
+        auto shift_mem   = engine.allocate_memory(ch_layout);
+        auto bin_in_mem  = engine.allocate_memory(ch_layout);
+
+        tests::random_generator rg(GET_SUITE_NAME);
+
+        auto input_value = rg.generate_random_4d<uint8_t>(1, 64, 56, 56, 0, 0);
+        auto weights_value = rg.generate_random_4d<int8_t>(256, 64, 1, 1, 1, 1);
+        auto shift_value = rg.generate_random_4d<float>(1, 256, 1, 1, shift_init, shift_init);
+        auto bin_in_value = rg.generate_random_4d<float>(1, 256, 1, 1, 0, 0);
+
+        set_values(input_mem, flatten_4d(format::bfyx, input_value));
+        set_values(weights_mem, flatten_4d(format::bfyx, weights_value));
+        set_values(shift_mem, flatten_4d(format::bfyx, shift_value));
+        set_values(bin_in_mem, flatten_4d(format::bfyx, bin_in_value));
+
+        auto in_lo_mem  = engine.allocate_memory(sc_layout);
+        auto in_hi_mem  = engine.allocate_memory(sc_layout);
+        auto out_lo_mem = engine.allocate_memory(ch_layout);
+        auto out_hi_mem = engine.allocate_memory(ch_layout);
+
+        set_values(in_lo_mem,  std::vector<float>{in_lo_v});
+        set_values(in_hi_mem,  std::vector<float>{in_hi_v});
+        set_values(out_lo_mem, std::vector<float>(256, out_lo_v));
+        set_values(out_hi_mem, std::vector<float>(256, out_hi_v));
+
+        topology topo;
+        topo.add(input_layout("input", in_layout));
+        topo.add(input_layout("binary_add_input", ch_layout));
+        topo.add(reorder("reorder_in", input_info("input"), format::b_fs_yx_fsv32, data_types::u8));
+        topo.add(data("weights", weights_mem));
+        topo.add(convolution("conv",
+                             input_info("reorder_in"),
+                             "weights",
+                             "" /*bias*/,
+                             1 /*groups*/,
+                             ov::Strides{1, 1},
+                             ov::Strides{1, 1},
+                             ov::CoordinateDiff{0, 0},
+                             ov::CoordinateDiff{0, 0},
+                             false /*transposed*/));
+        topo.add(eltwise("add_bin",
+                         { input_info("conv"), input_info("binary_add_input") },
+                         eltwise_mode::sum));
+        topo.add(data("fq_in_shift", shift_mem));
+        topo.add(eltwise("add_shift",
+                         { input_info("add_bin"), input_info("fq_in_shift") },
+                         eltwise_mode::sum));
+        topo.add(data("in_lo",  in_lo_mem));
+        topo.add(data("in_hi",  in_hi_mem));
+        topo.add(data("out_lo", out_lo_mem));
+        topo.add(data("out_hi", out_hi_mem));
+        topo.add(quantize("q",
+                          input_info("add_shift"),
+                          input_info("in_lo"),
+                          input_info("in_hi"),
+                          input_info("out_lo"),
+                          input_info("out_hi"),
+                          levels,
+                          data_types::i8));
+        topo.add(reorder("output", input_info("q"), format::bfyx, data_types::f32));
+
+        auto net = get_network(engine, topo, config, stream_ptr, is_caching_test);
+        net->set_input_data("input", input_mem);
+        net->set_input_data("binary_add_input", bin_in_mem);
+
+        auto outputs = net->execute();
+        auto out_vals = get_output_values_to_float(*net, outputs.at("output"), 1);
+
+        return out_vals[0];
+    };
+
+    auto result_no_cache = run(false);
+    auto result_cache = run(true);
+
+    EXPECT_NEAR(result_no_cache, result_cache, 1e-3f);
 }
 
 TEST(convolution_gpu_onednn, has_proper_synchronization) {
@@ -10471,6 +11181,45 @@ TEST(convolution_gpu_onednn, grouped_runtime_weights) {
     ASSERT_EQ(output_layout.get_shape(), ov::Shape({1, 256, 25, 25}));
 }
 
+TEST(convolution_gpu_onednn, grouped_conv_fsv4) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    int64_t input_b = 1, input_f = 4, input_y = 3, input_x = 3;
+    auto input_size = ov::PartialShape{ input_b, input_f, input_y, input_x };
+    auto input_data = rg.generate_random_4d<ov::float16>(input_b, input_f, input_y, input_x, -1, 1);
+    auto input_data_byxf = flatten_4d(format::bfyx, input_data);
+    auto input_mem = engine.allocate_memory({ input_size, data_types::f16, format::bfyx });
+    set_values(input_mem, input_data_byxf);
+
+    int64_t weights_b = 2, weights_f = 2048, weights_y = 2, weights_x = 1;
+    auto weights_size = ov::PartialShape{ weights_b, weights_f, weights_y, weights_x };
+    auto weights_data = rg.generate_random_4d<ov::float16>(weights_b, weights_f, weights_y, weights_x, -1, 1);
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+    auto weights_mem = engine.allocate_memory({ weights_size, data_types::f16, format::bfyx });
+    set_values(weights_mem, weights_data_bfyx);
+
+    topology topology(
+        input_layout("input", input_mem->get_layout()),
+        reorder("input_fsv", input_info("input"), { input_size, data_types::f16, format::b_fs_yx_fsv4 }),
+        input_layout("weights", weights_mem->get_layout()),
+        reshape("reshaped_weights", input_info("weights"), true, { 2, 2048, 2, 1, 1 }, { 2, 2048, 2, 1, 1 }),
+        convolution("conv", input_info("input_fsv"), "reshaped_weights", no_bias, 2, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 0, 0 }, true),
+        reorder("reorder", input_info("conv"), { data_types::f32, format::bfyx, { 1, 4096, 3, 3 } }));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+    network.set_input_data("weights", weights_mem);
+    network.execute();
+}
+
 TEST(convolution_gpu_onednn, dyn_conv4d_reshape6d_pattern) {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
@@ -10535,7 +11284,7 @@ TEST(convolution_gpu_onednn, dyn_conv4d_reshape6d_pattern) {
     conv_fsv.output_paddings = {padding({ 0, 0, 0, 0 }, 0.f)};
     topology.add(conv_fsv);
 
-    
+
     auto const_shape = engine.allocate_memory({ov::PartialShape{6}, data_types::i32, format::bfwzyx});
     set_values<int32_t>(const_shape, {1, 32, 1, 1, 6, 6});
     topology.add(data("const", const_shape));
@@ -10586,6 +11335,55 @@ TEST(convolution_gpu_onednn, dyn_conv4d_reshape6d_pattern) {
                     ASSERT_TRUE(equal);
                 }
 }
+
+TEST(convolution_gpu_onednn, alloc_intermediate_when_concat_optimized) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    auto input_pshape = ov::PartialShape{ov::Dimension::dynamic(), 32,
+                                         ov::Dimension::dynamic(), ov::Dimension::dynamic()};
+    auto in_layout = layout{input_pshape, data_types::f16, format::bfyx};
+    auto weights_layout = layout{{32, 32, 3, 3}, data_types::f16, format::bfyx};
+
+    auto input_mem1 = engine.allocate_memory({ov::PartialShape{1, 32, 320, 320}, data_types::f16, format::bfyx});
+    auto input_mem2 = engine.allocate_memory({ov::PartialShape{1, 32, 320, 320}, data_types::f16, format::bfyx});
+    set_values<ov::float16>(input_mem1, std::vector<ov::float16>(input_mem1->get_layout().count(), ov::float16(0.5f)));
+    set_values<ov::float16>(input_mem2, std::vector<ov::float16>(input_mem2->get_layout().count(), ov::float16(0.25f)));
+
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    set_values<ov::float16>(weights_mem, std::vector<ov::float16>(weights_layout.count(), ov::float16(0.1f)));
+
+    topology topology(
+        input_layout("input1", in_layout),
+        input_layout("input2", in_layout),
+        data("weights1", weights_mem),
+        data("weights2", weights_mem),
+        convolution("conv1", input_info("input1"), "weights1", "", 1,
+                    {1, 1}, {1, 1}, {1, 1}, {1, 1}, false),
+        convolution("conv2", input_info("input2"), "weights2", "", 1,
+                    {1, 1}, {1, 1}, {1, 1}, {1, 1}, false),
+        concatenation("concat", { input_info("conv1"), input_info("conv2") }, 1),
+        reorder("reorder", input_info("concat"), format::bfyx, data_types::f16)
+    );
+
+    ExecutionConfig onednn_config = get_test_default_config(engine);
+    onednn_config.set_property(ov::intel_gpu::optimize_data(true));
+    onednn_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplementationDesc onednn_impl_desc = {format::bfyx, "", impl_types::onednn};
+    onednn_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"conv1", onednn_impl_desc},
+        {"conv2", onednn_impl_desc},
+        {"concat", onednn_impl_desc},
+    }));
+
+    network network(engine, topology, onednn_config);
+    network.set_input_data("input1", input_mem1);
+    network.set_input_data("input2", input_mem2);
+
+    auto outputs = network.execute();
+}
+
 #endif   // ENABLE_ONEDNN_FOR_GPU
 
 template <typename T>
@@ -10705,6 +11503,104 @@ TEST(export_import_convolution_f32_gpu, convolution_gpu_bfyx_f16_depthwise_x_blo
     test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_block_size_1<ov::float16>(true);
 }
 
+TEST(convolution_f32_fw_gpu, convolution_gpu_f32_convolution_gpu_bfyx_f16_depthwise) {
+    auto& engine = get_test_engine();
+
+    if (engine.get_device_info().supports_immad) {
+        return;
+    }
+
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    // Tail case for X-blocked path (8 + tail)
+    constexpr int b = 1;
+    constexpr int f = 16;
+    constexpr int y = 1;
+    constexpr int x = 9;
+    constexpr int filter_size = 3;
+
+    auto input_data = rg.generate_random_4d<float>(b, f, y, x, -1, 1);
+    auto weights_data = rg.generate_random_4d<float>(f, 1, filter_size, filter_size, -1, 1);
+
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{b, f, x, y}});
+    auto weights = engine.allocate_memory({
+        data_types::f32,
+        format::goiyx,
+        tensor{group(f), batch(1), feature(1), spatial(filter_size, filter_size)}
+    });
+
+    set_values(input, flatten_4d<float>(format::bfyx, input_data));
+    set_values(weights, flatten_4d<float>(format::bfyx, weights_data));
+
+    auto run_depthwise = [&]() -> std::vector<float> {
+        topology topology(
+            input_layout("input", input->get_layout()),
+            reorder("input_fsv16", input_info("input"), {data_types::f32, format::b_fs_yx_fsv16, tensor{b, f, x, y}}),
+            data("weights", weights),
+            convolution("conv",
+                        input_info("input_fsv16"),
+                        "weights",
+                        no_bias,
+                        f,        // groups
+                        {1, 1},   // stride
+                        {1, 1},   // dilation
+                        {1, 1},   // pad begin
+                        {1, 1},   // pad end
+                        true),    // grouped
+            reorder("out", input_info("conv"), {data_types::f32, format::bfyx, tensor{b, f, x, y}})
+        );
+
+        ExecutionConfig cfg = get_test_default_config(engine);
+        cfg.set_property(ov::intel_gpu::optimize_data(true));
+        cfg.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{
+                {"conv", {format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_depthwise", impl_types::ocl}}
+            }));
+
+        network net(engine, topology, cfg);
+        net.set_input_data("input", input);
+
+        auto outputs = net.execute();
+        auto out_mem = outputs.at("out").get_memory();
+        cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+
+        std::vector<float> out(out_mem->count());
+        for (size_t i = 0; i < out.size(); ++i) {
+            out[i] = out_ptr[i];
+        }
+        return out;
+    };
+
+    auto run_ref = [&]() -> std::vector<float> {
+        VVVVF<float> ref(b, VVVF<float>(f));
+        for (int bi = 0; bi < b; ++bi) {
+            for (int ofi = 0; ofi < f; ++ofi) {
+                ref[bi][ofi] = reference_convolve<float, float, float>(
+                    input_data[bi],        // [ifm][y][x]
+                    weights_data[ofi],     // [1][ky][kx] for depthwise
+                    1, 1,                  // stride y, x
+                    0.0f,                  // bias
+                    1, 1,                  // dilation y, x
+                    1, 1,                  // input padding y, x
+                    0, 0,                  // output padding y, x
+                    ofi, ofi + 1,          // f_begin, f_end
+                    true,                  // depthwise
+                    false                  // grouped
+                );
+            }
+        }
+        return flatten_4d<float>(format::bfyx, ref);
+    };
+
+    std::vector<float> out_depthwise, out_ref;
+    ASSERT_NO_THROW(out_depthwise = run_depthwise());
+    ASSERT_NO_THROW(out_ref = run_ref());
+
+    ASSERT_EQ(out_depthwise.size(), out_ref.size());
+    for (size_t i = 0; i < out_depthwise.size(); ++i) {
+        ASSERT_EQ(out_depthwise[i], out_ref[i]);
+    }
+}
 
 TEST(convolution_f32_fw_gpu, basic_convolution_no_bias_swap_xy) {
     //  Filter : 2x2x1x3
@@ -11297,6 +12193,45 @@ INSTANTIATE_TEST_SUITE_P(smoke, conv_dyn_test,
     { ov::Shape{1, 64, 16, 16}, ov::Shape{64, 1, 1, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, 64 },
 }));
 
+TEST(convolution_gpu_imad_cache, convolution_gpu_b_fs_yx_fsv16_imad_1x1_cache) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_imad)
+        GTEST_SKIP() << "IMAD (dp4a) instructions are not supported on this device; the IMAD 1x1 kernel cannot be selected.";
+
+    const ov::Shape static_input_shape = {1, 64, 7, 7};
+    const ov::Shape weights_shape = {64, 64, 1, 1};
+
+    // The IMAD 1x1 kernel does not accept an undefined batch, so keep the input fully static
+    // to mirror the successful resnet50_int8 runtime selection on the same device.
+    ov::PartialShape dyn_input_shape = static_input_shape;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto input_vals = rg.generate_random_1d<uint8_t>(ov::shape_size(static_input_shape), 0, 5);
+    auto weights_vals = rg.generate_random_1d<int8_t>(ov::shape_size(weights_shape), -3, 3);
+
+    auto input_mem = engine.allocate_memory({static_input_shape, data_types::u8, format::b_fs_yx_fsv16});
+    auto weights_mem = engine.allocate_memory({weights_shape, data_types::i8, format::bfyx});
+    set_values(input_mem, input_vals);
+    set_values(weights_mem, weights_vals);
+
+    topology topology(
+        input_layout("input", {dyn_input_shape, data_types::u8, format::b_fs_yx_fsv16}),
+        data("weights", weights_mem),
+        convolution("conv", input_info("input"), "weights", no_bias, 1,
+                    ov::Strides{1, 1}, ov::Strides{1, 1},
+                    ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl = {format::b_fs_yx_fsv16, "convolution_gpu_b_fs_yx_fsv16_imad_1x1", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", conv_impl}}));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), true);
+    network->set_input_data("input", input_mem);
+
+    ASSERT_NO_THROW(network->execute());
+}
 
 struct conv_dyn_3d_test_params {
     ov::Shape in_shape;
@@ -11310,6 +12245,7 @@ struct conv_dyn_3d_test_params {
 };
 
 class conv_dyn_3d_test : public testing::TestWithParam<conv_dyn_3d_test_params> {};
+class conv_3d_test_mmad : public testing::TestWithParam<conv_dyn_3d_test_params> {};
 
 TEST_P(conv_dyn_3d_test, convolution_gpu_b_fs_zyx_fsv16_imad_quantized) {
     auto& engine = get_test_engine();
@@ -11434,3 +12370,420 @@ INSTANTIATE_TEST_SUITE_P(smoke, conv_dyn_3d_test,
     { ov::Shape{1, 16, 5, 5, 5}, ov::Shape{2, 16, 3, 3, 3}, ov::Strides{1, 1, 1}, ov::Strides{1, 1, 1}, ov::CoordinateDiff{1, 1, 1}, ov::CoordinateDiff{1, 1, 1}, 1, false },
     { ov::Shape{1, 16, 5, 5, 5}, ov::Shape{16, 1, 1, 3, 3, 3}, ov::Strides{1, 1, 1}, ov::Strides{1, 1, 1}, ov::CoordinateDiff{0, 0, 0}, ov::CoordinateDiff{0, 0, 0}, 16, false }
 }));
+
+INSTANTIATE_TEST_SUITE_P(smoke, conv_3d_test_mmad,
+    testing::ValuesIn(std::vector<conv_dyn_3d_test_params>{
+    { ov::Shape{32, 32, 5, 5, 5}, ov::Shape{32, 32, 3, 3, 3}, ov::Strides{1, 1, 1}, ov::Strides{1, 1, 1}, ov::CoordinateDiff{0, 0, 0}, ov::CoordinateDiff{0, 0, 0}, 1, false},
+}));
+
+TEST(group_convolution_f16_fw_gpu, basic_1d_group_convolution) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP();
+
+    // Input: [batch=1, channels=768, spatial=292]
+    auto input = engine.allocate_memory({{ 1, 256, 12 }, data_types::f16, format::bfyx });
+    // Weights shape for group convolution: [groups, output_channels_per_group, input_channels_per_group, kernel_size]
+    auto weights = engine.allocate_memory({ {16, 16, 16, 7}, data_types::f16, format::bfyx });
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    // Generate random input data
+    auto input_data = rg.generate_random_1d<ov::float16>(input->count(), -1, 1);
+    set_values(input, input_data);
+
+    // Generate random weights data - using smaller range for stability
+    auto weights_data = rg.generate_random_1d<ov::float16>(weights->count(), -1, 1);
+    set_values(weights, weights_data);
+
+    // Create topology with group convolution + bias add subgraph
+    topology topology(input_layout("input", input->get_layout()));
+    topology.add(
+        data("weights", weights),
+        // Group convolution: 16 groups, kernel=7, stride=1, padding=3
+        convolution("group_conv", input_info("input"), "weights", "",
+            16,      // groups
+            { 1 },   // stride
+            { 1 },   // dilation
+            { 3 },   // pad_begin
+            { 3 },   // pad_end
+            true),
+        activation("relu", input_info("group_conv"), activation_func::relu),
+        reorder("output", input_info("relu"), {{ 1, 256, 12 }, data_types::f32, format::bfyx })
+    );
+
+    ov::intel_gpu::ImplementationDesc conv_impl_ref = { format::any, "", impl_types::ocl };
+    ExecutionConfig cfg_ref = get_test_default_config(engine,
+                                   {ov::intel_gpu::queue_type(QueueTypes::in_order),
+                                    ov::intel_gpu::allow_new_shape_infer(true),
+                                    ov::intel_gpu::optimize_data(true),
+                                    ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "group_conv", conv_impl_ref } })
+                                });
+
+    network net_ref(engine, topology, cfg_ref);
+    net_ref.set_input_data("input", input);
+    auto out_ref = net_ref.execute();
+    auto mem_ref = out_ref.at("output").get_memory();
+
+    ov::intel_gpu::ImplementationDesc conv_impl_opt = { format::any, "", impl_types::onednn };
+    ExecutionConfig cfg_opt = get_test_default_config(engine,
+                                   {ov::intel_gpu::queue_type(QueueTypes::in_order),
+                                    ov::intel_gpu::allow_new_shape_infer(true),
+                                    ov::intel_gpu::optimize_data(true),
+                                    ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "group_conv", conv_impl_opt } })
+                                });
+
+    network net_opt(engine, topology, cfg_opt);
+    net_opt.set_input_data("input", input);
+    auto out_opt = net_opt.execute();
+    auto mem_opt = out_opt.at("output").get_memory();
+
+    cldnn::mem_lock<float> output_ptr_ref(mem_ref, get_test_stream());
+    cldnn::mem_lock<float> output_ptr_opt(mem_opt, get_test_stream());
+
+    ASSERT_EQ(mem_opt->get_layout(), mem_ref->get_layout());
+    for (size_t i = 0; i < output_ptr_opt.size(); i++) {
+        ASSERT_FLOAT_EQ(output_ptr_opt[i], output_ptr_ref[i]);
+    }
+}
+
+TEST(group_convolution_f16_fw_gpu, with_weights_as_input) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP();
+
+    // Input: 1x64x31x31 to get 23x23 output with 9x9 kernel and no padding
+    auto input = engine.allocate_memory({{ 1, 64, 31, 31 }, data_types::f16, format::bfyx });
+
+    // Weights input: [64, 1, 9, 9] - 64 groups, 1 output per group, 1 input per group, 9x9 kernel
+    auto input_weights = engine.allocate_memory({ {64, 1, 9, 9}, data_types::f32, format::bfyx });
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    // Generate random input data
+    auto input_data = rg.generate_random_1d<ov::float16>(input->count(), -1, 1);
+    set_values(input, input_data);
+
+    // Generate random weights data for input_weights - using smaller range for stability
+    auto weights_data = rg.generate_random_1d<float>(input_weights->count(), -1, 1);
+    set_values(input_weights, weights_data);
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        input_layout("input_weights", input_weights->get_layout())
+    );
+    topology.add(
+        reorder("Convert", input_info("input_weights"), format::bfyx, data_types::f16),
+        reorder("Reshape_reorder", input_info("Convert"), format::bfzyx, data_types::f16),
+        reshape("Reshape", input_info("Reshape_reorder"), { 64, 1, 9, 9, 1 }),
+        // Group convolution: 64 groups, kernel=9x9, stride=1, no padding (to match 31x31 -> 23x23)
+        convolution("Conv", input_info("input"), "Reshape", "",
+            64,       // groups
+            { 1, 1 }, // stride
+            { 1, 1 }, // dilation
+            { 0, 0 }, // pad_begin (no padding to get 23x23 from 31x31)
+            { 0, 0 }, // pad_end
+            true),    // grouped
+        reorder("output", input_info("Conv"), {{ 1, 64, 23, 23 }, data_types::f32, format::bfyx })
+    );
+
+    ov::intel_gpu::ImplementationDesc conv_impl_ref = { format::any, "", impl_types::ocl };
+    ExecutionConfig cfg_ref = get_test_default_config(engine,
+                                   {ov::intel_gpu::queue_type(QueueTypes::in_order),
+                                    ov::intel_gpu::optimize_data(true),
+                                    ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "Conv", conv_impl_ref } })
+                                });
+
+    network net_ref(engine, topology, cfg_ref);
+    net_ref.set_input_data("input", input);
+    net_ref.set_input_data("input_weights", input_weights);
+    auto out_ref = net_ref.execute();
+    auto mem_ref = out_ref.at("output").get_memory();
+
+    ov::intel_gpu::ImplementationDesc conv_impl_opt = { format::any, "", impl_types::onednn };
+    ExecutionConfig cfg_opt = get_test_default_config(engine,
+                                   {ov::intel_gpu::queue_type(QueueTypes::in_order),
+                                    ov::intel_gpu::optimize_data(true),
+                                    ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "Conv", conv_impl_opt } })
+                                });
+
+    network net_opt(engine, topology, cfg_opt);
+    net_opt.set_input_data("input", input);
+    net_opt.set_input_data("input_weights", input_weights);
+    auto out_opt = net_opt.execute();
+    auto mem_opt = out_opt.at("output").get_memory();
+
+    cldnn::mem_lock<float> output_ptr_ref(mem_ref, get_test_stream());
+    cldnn::mem_lock<float> output_ptr_opt(mem_opt, get_test_stream());
+
+    ASSERT_EQ(mem_opt->get_layout(), mem_ref->get_layout());
+    for (size_t i = 0; i < output_ptr_opt.size(); i++) {
+        ASSERT_FLOAT_EQ(output_ptr_opt[i], output_ptr_ref[i]);
+    }
+}
+
+TEST(convolution_f16_fw_gpu, basic_bfzyx_b_fs_zyx_fsv16) {
+    auto& engine = get_test_engine();
+    if (engine.get_device_info().supports_immad) {
+        // This test is only for non-XMX platforms
+        GTEST_SKIP();
+    }
+
+    const ov::Shape input_shape = {32, 3, 2, 14, 14};
+    const ov::Shape weight_shape = {32, 3, 2, 14, 14};
+    const ov::Shape output_shape = {32, 32, 1, 1, 1};
+    auto in_layout = layout{input_shape, data_types::f32, format::bfzyx};
+    auto weight_layout = layout{weight_shape, data_types::f32, format::bfzyx};
+
+    auto input_mem = engine.allocate_memory(in_layout);
+    auto weight_mem = engine.allocate_memory(weight_layout);
+
+    tests::random_generator rg{"convolution_f16_fw_gpu_basic_bfzyx_b_fs_zyx_fsv16"};
+
+    std::vector<float> input_vals = rg.generate_random_1d<float>(ov::shape_size(input_shape), -1, 1);
+    std::vector<float> weight_vals = rg.generate_random_1d<float>(ov::shape_size(weight_shape), -1, 1);
+
+    set_values(input_mem, input_vals);
+    set_values(weight_mem, weight_vals);
+
+    topology topology(
+        input_layout("input", in_layout),
+        data("weights", weight_mem),
+        reorder("input_f16", input_info("input"), format::bfzyx, data_types::f16),
+        reorder("weights_f16", input_info("weights"), format::bfzyx, data_types::f16),
+        convolution("conv", { input_info("input_f16") }, "weights_f16", no_bias, 1, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, false),
+        reorder("output", input_info("conv"), format::bfzyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    ov::intel_gpu::ImplementationDesc conv_impl = {format::b_fs_zyx_fsv16, "", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", conv_impl} }));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+    auto output = outputs.at("output").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_mem_lock(output, get_test_stream());
+
+    std::vector<float> reference_output(output_mem_lock.size());
+    ov::reference::convolution(input_vals.data(), weight_vals.data(), reference_output.data(),
+                               input_shape, weight_shape, output_shape,
+                               {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0});
+
+    for (std::size_t i = 0; i < reference_output.size(); i++) {
+        ASSERT_NEAR(reference_output[i], output_mem_lock[i], 1.0);
+    }
+}
+
+TEST(conv_dyn_test, changed_batch_convolution_test_reorder_cache_mismatch) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    auto in_shape = ov::Shape{25,3,32,32};
+    auto new_shape = ov::Shape{10,3,32,32};
+    auto weight_shape = ov::Shape{576,3,14,14};
+
+    auto calculate_ref = [&](memory::ptr input, memory::ptr weights, ExecutionConfig config) {
+        auto in_layout = input->get_layout();
+
+        topology topology_ref(
+            input_layout("input", in_layout),
+            reorder("input_reorder", input_info("input"), format::bfyx, data_types::f16),
+            data("weights", weights),
+            convolution("conv", input_info("input_reorder"), "weights", no_bias, 1, ov::Strides{1, 1}, ov::Strides{1, 1},
+                        ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, false),
+            reorder("out", input_info("conv"), format::bfyx, data_types::f32)
+        );
+
+        network network_ref(engine, topology_ref, config);
+        network_ref.set_input_data("input", input);
+
+        auto outputs_ref = network_ref.execute();
+
+        return outputs_ref.at("out").get_memory();
+    };
+
+    ov::PartialShape dyn_input_pshape = ov::PartialShape(in_shape);
+    dyn_input_pshape[0] = ov::Dimension();
+
+    auto in_layout = layout{dyn_input_pshape, data_types::f32, format::bfyx};
+    auto input = engine.allocate_memory({ in_shape, data_types::f32, format::bfyx });
+    auto weights = engine.allocate_memory({ weight_shape, data_types::f16, format::bfyx});
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    VF<float> input_rnd = rg.generate_random_1d<float>(ov::shape_size(in_shape), -10, 10);
+    VF<ov::float16> weights_rnd = rg.generate_random_1d<ov::float16>(ov::shape_size(weight_shape), -10, 10);
+
+    set_values(input, input_rnd);
+    set_values(weights, weights_rnd);
+
+    topology topology(
+        input_layout("input", in_layout),
+        reorder("input_reorder", input_info("input"), format::bfyx, data_types::f16),
+        data("weights", weights),
+        convolution("conv", input_info("input_reorder"), "weights", no_bias, 1, ov::Strides{1, 1}, ov::Strides{1, 1},
+                    ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, false),
+        reorder("out", input_info("conv"), format::bfyx, data_types::f32)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::bfyx, "", impl_types::onednn };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl } }));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::enable_profiling(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    auto output_memory = outputs.at("out").get_memory();
+    auto output_memory_ref = calculate_ref(input, weights, config);
+
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_ref(output_memory_ref, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
+    ASSERT_EQ(outputs.at("out").get_layout(), output_memory_ref->get_layout());
+    for (size_t i = 0; i < output_ptr.size(); i++) {
+        ASSERT_EQ(output_ptr[i], output_ptr_ref[i]);
+    }
+
+    {
+        // Change original shape to 'new_shape' for the second run
+        auto input = engine.allocate_memory({ new_shape, data_types::f32, format::bfyx });
+
+        VF<float> input_rnd = rg.generate_random_1d<float>(ov::shape_size(in_shape), -10, 10);
+        set_values(input, input_rnd);
+
+        network.set_input_data("input", input);
+        auto outputs = network.execute();
+
+        auto output_memory = outputs.at("out").get_memory();
+        auto output_memory_ref = calculate_ref(input, weights, config);
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr_ref(output_memory_ref, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
+
+        ASSERT_EQ(outputs.at("out").get_layout(), output_memory_ref->get_layout());
+        for (size_t i = 0; i < output_ptr.size(); i++) {
+            ASSERT_EQ(output_ptr[i], output_ptr_ref[i]);
+        }
+    }
+}
+
+TEST_P(conv_3d_test_mmad, convolution_gpu_b_fs_zyx_mmad) {
+    auto& engine = get_test_engine();
+    auto p = GetParam();
+
+    auto calculate_ref = [&](memory::ptr input, memory::ptr weights,
+                             memory::ptr a_zp, memory::ptr compensation, ExecutionConfig config) {
+        auto in_layout = input->get_layout();
+
+        topology topology_ref(
+            input_layout("input", in_layout),
+            data("weights", weights),
+            data("a_zp", a_zp),
+            data("compensation", compensation),
+            convolution("conv", input_info("input"), "weights", no_bias, "", "a_zp", "compensation",
+                        p.groups, p.stride, p.dilation, p.pad_begin, p.pad_end, false, data_types::f32));
+
+        network network_ref(engine, topology_ref, config);
+        network_ref.set_input_data("input", input);
+
+        auto outputs_ref = network_ref.execute();
+
+        return outputs_ref.at("conv").get_memory();
+    };
+
+
+
+    auto in_layout = layout{p.in_shape, data_types::u8, format::b_fs_zyx_fsv32};
+    auto input = engine.allocate_memory({ p.in_shape, data_types::u8, format::b_fs_zyx_fsv32 });
+    auto weights = engine.allocate_memory({p.wei_shape, data_types::i8, format::bfzyx});
+
+    auto a_zp_shape = ov::Shape(p.in_shape.size(), 1);
+    a_zp_shape[1] = p.in_shape[1];
+    auto a_zp = engine.allocate_memory({ a_zp_shape, data_types::u8, format::bfyx });
+
+    auto compensation = engine.allocate_memory({ a_zp_shape, data_types::f32, format::bfyx });
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    VF<uint8_t> input_rnd = rg.generate_random_1d<uint8_t>(ov::shape_size(p.in_shape), 0, 10);
+    VF<int8_t> weights_rnd = rg.generate_random_1d<int8_t>(ov::shape_size(p.wei_shape), -5, 5);
+    VF<uint8_t> a_zp_rnd = rg.generate_random_1d<uint8_t>(ov::shape_size(a_zp_shape), 1, 5);
+    VF<float> compensation_rnd = rg.generate_random_1d<float>(ov::shape_size(a_zp_shape), -5, 5);
+
+    set_values(input, input_rnd);
+    set_values(weights, weights_rnd);
+    set_values(a_zp, a_zp_rnd);
+    set_values(compensation, compensation_rnd);
+
+    topology topology(
+        input_layout("input", in_layout),
+        data("weights", weights),
+        data("a_zp", a_zp),
+        data("compensation", compensation),
+        convolution("conv", input_info("input"), "weights", no_bias, "", "a_zp", "compensation",
+                    p.groups, p.stride, p.dilation, p.pad_begin, p.pad_end, false, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_zyx_fsv32, "convolution_gpu_mmad_b_fs_yx_fsv32", impl_types::ocl };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl } }));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::enable_profiling(true));
+
+    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), p.is_caching_test);
+    network->set_input_data("input", input);
+
+    auto inst = network->get_primitive("conv");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+
+    auto outputs = network->execute();
+
+    auto output_memory = outputs.at("conv").get_memory();
+
+    auto output_memory_ref = calculate_ref(input, weights, a_zp, compensation, config);
+
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
+
+    ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
+    for (size_t i = 0; i < output_ptr.size(); i++) {
+        ASSERT_EQ(output_ptr[i], output_ptr_ref[i]);
+    }
+}
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+TEST(convolution_gpu, onednn_custom_format_3d_weights) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    ov::PartialShape weights_shape{192, 1, 1};
+
+    format_traits custom_traits;
+    custom_traits.str = "custom";
+    custom_traits.order = "oiy";
+    custom_traits.internal_order = "oixyz";
+    custom_traits.batch_num = 0;
+    custom_traits.feature_num = 1;
+    custom_traits.spatial_num = 1;
+    custom_traits.group_num = 0;
+    custom_traits._order = {0, 1, 2};
+    custom_traits.block_sizes = {};
+    custom_traits.logic_block_sizes = {};
+
+    cldnn::format custom_fmt(format::custom);
+    custom_fmt.custom_traits = custom_traits;
+    layout custom_layout(weights_shape, data_types::f16, custom_fmt);
+
+    ASSERT_NO_THROW({
+        auto md = onednn::layout_to_memory_desc(custom_layout, dnnl::memory::format_tag::undef);
+        ASSERT_EQ(md.get_ndims(), 3);
+        ASSERT_EQ(md.get_dims()[0], 192);
+        ASSERT_EQ(md.get_dims()[1], 1);
+        ASSERT_EQ(md.get_dims()[2], 1);
+    });
+}
+#endif  // ENABLE_ONEDNN_FOR_GPU

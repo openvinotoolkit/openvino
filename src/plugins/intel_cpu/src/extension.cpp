@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,10 +20,14 @@
 #include "openvino/op/depth_to_space.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/interpolate.hpp"
+#include "openvino/op/is_finite.hpp"
+#include "openvino/op/is_inf.hpp"
+#include "openvino/op/is_nan.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/less_eq.hpp"
 #include "openvino/op/logical_and.hpp"
@@ -35,9 +39,14 @@
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
+#include "openvino/op/nms_rotated.hpp"
+#include "openvino/op/non_max_suppression.hpp"
 #include "openvino/op/normalize_l2.hpp"
 #include "openvino/op/not_equal.hpp"
+#include "openvino/op/paged_attention.hpp"
 #include "openvino/op/prelu.hpp"
+#include "openvino/op/prior_box.hpp"
+#include "openvino/op/prior_box_clustered.hpp"
 #include "openvino/op/reduce_logical_and.hpp"
 #include "openvino/op/reduce_logical_or.hpp"
 #include "openvino/op/reduce_max.hpp"
@@ -52,6 +61,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/xor.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
 #include "ov_ops/fully_connected.hpp"
@@ -83,6 +93,7 @@
 #include "snippets/op/rank_normalization.hpp"
 #include "snippets/op/reduce.hpp"
 #include "snippets/op/reshape.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/op/scalar.hpp"
 #include "snippets/op/store.hpp"
 #include "snippets/op/subgraph.hpp"
@@ -186,6 +197,8 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     std::make_shared<ov::OpExtension<ov::op::internal::FullyConnectedCompressed>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::FullyConnectedQuantizedLegacy>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::FullyConnectedQuantized>>(),
+    std::make_shared<ov::OpExtension<ov::op::PagedAttentionExtension>>(),
+    std::make_shared<ov::OpExtension<ov::op::internal::GatedDeltaNet>>(),
     // clang-format off
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::InteractionNode>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::LLMMLPNode>>())
@@ -203,6 +216,7 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     std::make_shared<TypeRelaxedExtension<ov::op::v1::Add>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v1::AvgPool>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v14::AvgPool>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v16::AvgPool>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v0::Clamp>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v0::Concat>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v1::Convolution>>(),
@@ -244,6 +258,16 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     std::make_shared<TypeRelaxedExtension<ov::op::v0::Unsqueeze>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v0::MVN>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v6::MVN>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v0::PriorBox>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v0::PriorBoxClustered>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v0::Xor>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v10::IsFinite>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v10::IsInf>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v10::IsNaN>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v13::NMSRotated>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v5::NonMaxSuppression>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v8::PriorBox>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v9::NonMaxSuppression>>(),
     std::make_shared<ov::OpExtension<ov::snippets::op::Brgemm>>(),
     std::make_shared<ov::OpExtension<ov::snippets::op::BroadcastLoad>>(),
     std::make_shared<ov::OpExtension<ov::snippets::op::BroadcastMove>>(),
@@ -269,6 +293,7 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     std::make_shared<ov::OpExtension<ov::snippets::op::ReduceMax>>(),
     std::make_shared<ov::OpExtension<ov::snippets::op::ReduceSum>>(),
     std::make_shared<ov::OpExtension<ov::snippets::op::Reshape>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::Result>>(),
     // clang-format off
     OP_EXTENSION_SNIPPETS_DEBUG_CAPS(std::make_shared<ov::OpExtension<ov::snippets::op::PerfCountBegin>>())
     OP_EXTENSION_SNIPPETS_DEBUG_CAPS(std::make_shared<ov::OpExtension<ov::snippets::op::PerfCountEnd>>())

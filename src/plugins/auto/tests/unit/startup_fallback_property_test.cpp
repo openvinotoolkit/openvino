@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "include/auto_unit_test.hpp"
@@ -30,9 +30,7 @@ MATCHER_P(MapContains, subMap, "Check if all the elements of the subMap are cont
 class AutoStartupFallback : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
     static std::string getTestCaseNameCacheTest(testing::TestParamInfo<ConfigParams> obj) {
-        bool startup_fallback;
-        ov::AnyMap config;
-        std::tie(startup_fallback, config) = obj.param;
+        const auto& [startup_fallback, config] = obj.param;
         std::ostringstream result;
         result << "_expected_disabling_cache_" << startup_fallback;
         result << "_compiled_config_";
@@ -64,9 +62,8 @@ public:
 
 TEST_P(AutoStartupFallback, propertytest) {
     // get Parameter
-    bool startup_fallback;
-    ov::AnyMap config;
-    std::tie(startup_fallback, config) = this->GetParam();
+
+    const auto& [startup_fallback, config] = this->GetParam();
 
     EXPECT_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
@@ -93,9 +90,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_StartupFallback, AutoStartupFallback, ::test
 using AutoLoadExeNetworkCacheDirSettingTest = AutoStartupFallback;
 TEST_P(AutoLoadExeNetworkCacheDirSettingTest, canDisableCacheDirSettingForCPUPlugin) {
     // get Parameter
-    bool is_disable_cache_dir;
-    ov::AnyMap config;
-    std::tie(is_disable_cache_dir, config) = this->GetParam();
+
+    const auto& [is_disable_cache_dir, config] = this->GetParam();
     EXPECT_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_GPU)),

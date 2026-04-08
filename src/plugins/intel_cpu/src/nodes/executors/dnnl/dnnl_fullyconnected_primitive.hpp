@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,7 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/type/element_type.hpp"
+#include "thread_pool_imp.hpp"
 
 namespace ov::intel_cpu {
 
@@ -37,23 +38,26 @@ class DnnlFCPrimitive {
     };
 
 public:
-    DnnlFCPrimitive(const Key& key, const dnnl::engine& engine, const std::vector<impl_desc_type>& implPriorities);
+    DnnlFCPrimitive(const Key& key,
+                    const dnnl::engine& engine,
+                    const std::shared_ptr<ThreadPool>& threadPool,
+                    const std::vector<impl_desc_type>& implPriorities);
 
     void execute(const dnnl_primitive_args& primArgs) const;
 
-    [[nodiscard]] const DnnlMemoryDescPtr srcDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr srcDesc() const {
         return m_srcDesc;
     }
 
-    [[nodiscard]] const DnnlMemoryDescPtr dstDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr dstDesc() const {
         return m_dstDesc;
     }
 
-    [[nodiscard]] const DnnlMemoryDescPtr weightsDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr weightsDesc() const {
         return m_weiDesc;
     }
 
-    [[nodiscard]] const DnnlMemoryDescPtr scratchPadDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr scratchPadDesc() const {
         return m_scratchPadDesc;
     }
 
@@ -72,7 +76,7 @@ public:
 
     static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
                                                             const DnnlMemoryDescPtr& dstDesc,
-                                                            bool weightsNonTransposed);
+                                                            const FCAttrs& attrs);
 
     static std::shared_ptr<DnnlFCPrimitive> create(const MemoryArgs& memory,
                                                    const FCAttrs& attrs,

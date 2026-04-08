@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ namespace ov::intel_cpu {
 class SnippetsMarkSkipped : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("SnippetsMarkSkipped");
-    SnippetsMarkSkipped(bool enableBF16 = false) : ModelPass(), enableBF16(enableBF16) {}
+    explicit SnippetsMarkSkipped(bool enableBF16 = false) : ModelPass(), enableBF16(enableBF16) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:

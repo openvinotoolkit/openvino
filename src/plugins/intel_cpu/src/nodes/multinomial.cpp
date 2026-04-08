@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/multinomial.hpp"
@@ -69,16 +68,16 @@ bool Multinomial::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
 
 void Multinomial::getSupportedDescriptors() {
     if (getParentEdges().size() != 2) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges.");
+        CPU_NODE_THROW("has incorrect number of input edges.");
     }
     if (getChildEdges().size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges.");
+        CPU_NODE_THROW("has incorrect number of output edges.");
     }
 }
 
 void Multinomial::initSupportedPrimitiveDescriptors() {
     m_probs_precision = getOriginalInputPrecisionAtPort(PROBS_PORT);
-    if (!one_of(m_probs_precision, ov::element::f32, ov::element::f16, ov::element::bf16)) {
+    if (none_of(m_probs_precision, ov::element::f32, ov::element::f16, ov::element::bf16)) {
         m_probs_precision = ov::element::f32;
     }
 
@@ -89,7 +88,9 @@ void Multinomial::initSupportedPrimitiveDescriptors() {
 }
 
 bool Multinomial::needShapeInfer() const {
-    return !(m_const_inputs[NUM_SAMPLES_PORT] && m_const_batch);
+    const bool has_const_samples = m_const_inputs[NUM_SAMPLES_PORT];
+    const bool both_const = has_const_samples && m_const_batch;
+    return !both_const;
 }
 
 bool Multinomial::needPrepareParams() const {
@@ -109,15 +110,13 @@ void Multinomial::prepareParams() {
     const auto& num_samples_shape = getParentEdgeAt(NUM_SAMPLES_PORT)->getMemory().getStaticDims();
 
     if (probs_shape.size() != 2) {
-        THROW_CPU_NODE_ERR("has incompatible 'probs' shape ",
-                           PartialShape(probs_shape),
-                           ". Only 2D tensors are allowed.");
+        CPU_NODE_THROW("has incompatible 'probs' shape ", PartialShape(probs_shape), ". Only 2D tensors are allowed.");
     }
 
     if (num_samples_shape.size() != 1) {
-        THROW_CPU_NODE_ERR("has incompatible 'num_samples' shape ",
-                           PartialShape(num_samples_shape),
-                           ". Only scalar and 1D single element tensors are allowed.");
+        CPU_NODE_THROW("has incompatible 'num_samples' shape ",
+                       PartialShape(num_samples_shape),
+                       ". Only scalar and 1D single element tensors are allowed.");
     }
 
     if (m_num_samples_precision == ov::element::i32) {
@@ -162,7 +161,7 @@ void Multinomial::execute([[maybe_unused]] const dnnl::stream& strm) {
         break;
     }
     default:
-        THROW_CPU_NODE_ERR("Multinomial CPU implementation does not support probs element type: ", m_probs_precision);
+        CPU_NODE_THROW("Multinomial CPU implementation does not support probs element type: ", m_probs_precision);
     }
 }
 
@@ -176,7 +175,7 @@ void Multinomial::execute_probs_type() {
     case ov::element::i32:
         return execute_convert_type<P, int32_t>();
     default:
-        THROW_CPU_NODE_ERR("Multinomial CPU implementation does not support output convert type: ", m_output_precision);
+        CPU_NODE_THROW("Multinomial CPU implementation does not support output convert type: ", m_output_precision);
     }
 }
 
@@ -184,6 +183,7 @@ template <typename P, typename O>
 void Multinomial::execute_convert_type() {
     const auto* probs = getSrcDataAtPortAs<const P>(PROBS_PORT);
     auto* output = getDstDataAtPortAs<O>(OUTPUT_PORT);
+    const auto& cpu_parallel = context->getCpuParallel();
 
     std::vector<P> m_cdf(m_input_elements_count);
     std::vector<P> m_max_per_batch(m_batches_count);
@@ -191,7 +191,7 @@ void Multinomial::execute_convert_type() {
 
     // exp & cumsum
     if (m_log_probs) {
-        parallel_for(m_batches_count, [&](size_t idx) {
+        cpu_parallel->parallel_for(m_batches_count, [&](size_t idx) {
             const auto start_idx = idx * m_probs_count;
             m_cdf[start_idx] = std::exp(probs[start_idx]);
             for (size_t prev = start_idx, curr = prev + 1; curr < (start_idx + m_probs_count); ++prev, ++curr) {
@@ -199,7 +199,7 @@ void Multinomial::execute_convert_type() {
             }
         });
     } else {
-        parallel_for(m_batches_count, [&](size_t idx_batch) {
+        cpu_parallel->parallel_for(m_batches_count, [&](size_t idx_batch) {
             const auto start_idx = idx_batch * m_probs_count;
             const auto* probs_start_idx = probs + start_idx;
             std::partial_sum(probs_start_idx, probs_start_idx + m_probs_count, m_cdf.begin() + start_idx);
@@ -208,7 +208,7 @@ void Multinomial::execute_convert_type() {
 
     // TODO RandomUniform - should use RandomUniform kernel to match other frameworks' seed results
     std::mt19937 gen;
-    if (m_global_seed == 0 && m_op_seed == 0) {
+    if (all_of(0U, m_global_seed, m_op_seed)) {
         gen.seed(std::time(nullptr));
     } else {
         std::seed_seq seed{m_global_seed, m_op_seed};
@@ -222,17 +222,17 @@ void Multinomial::execute_convert_type() {
 
     // max & divide
     const auto min_value_of_max = std::numeric_limits<P>::min();
-    parallel_for(m_batches_count, [&](size_t idx) {
+    cpu_parallel->parallel_for(m_batches_count, [&](size_t idx) {
         m_max_per_batch[idx] = std::max(m_cdf[(idx + 1) * m_probs_count - 1], min_value_of_max);
     });
 
-    parallel_for(m_input_elements_count, [&](size_t idx) {
+    cpu_parallel->parallel_for(m_input_elements_count, [&](size_t idx) {
         size_t idx_max_elem = idx / m_probs_count;
         m_cdf[idx] = m_cdf[idx] / m_max_per_batch[idx_max_elem];
     });
 
     if (m_with_replacement) {
-        parallel_for(m_batches_samples_probs_count, [&](size_t idx) {
+        cpu_parallel->parallel_for(m_batches_samples_probs_count, [&](size_t idx) {
             size_t idx_batch = idx / m_samples_probs_count;
             size_t idx_num_samples_probs = idx % m_samples_probs_count;
             size_t idx_prob = idx_num_samples_probs % m_probs_count;
@@ -246,7 +246,7 @@ void Multinomial::execute_convert_type() {
             }
         });
     } else {  // without replacement - adjust cdf after each sample drawn from batch, sequentially
-        parallel_for(m_batches_count, [&](size_t idx_batch) {
+        cpu_parallel->parallel_for(m_batches_count, [&](size_t idx_batch) {
             for (size_t idx_sample = 0LU; idx_sample < m_samples_count; ++idx_sample) {
                 size_t idx_input = idx_batch * m_probs_count;
                 size_t idx_output = idx_batch * m_samples_count + idx_sample;

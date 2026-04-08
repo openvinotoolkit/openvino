@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,12 +24,7 @@ static inline std::string SpaceToDepthModeToString(const SpaceToDepth::SpaceToDe
 }
 
 std::string SpaceToDepthLayerTest::getTestCaseName(const testing::TestParamInfo<spaceToDepthParamsTuple> &obj) {
-    std::vector<InputShape> input_shapes;
-    SpaceToDepth::SpaceToDepthMode mode;
-    std::size_t block_size;
-    ov::element::Type model_type;
-    std::string target_device;
-    std::tie(input_shapes, model_type, mode, block_size, target_device) = obj.param;
+    const auto& [input_shapes, model_type, mode, block_size, target_device] = obj.param;
     std::ostringstream result;
     result << "IS=(";
     for (size_t i = 0lu; i < input_shapes.size(); i++) {
@@ -52,11 +47,8 @@ std::string SpaceToDepthLayerTest::getTestCaseName(const testing::TestParamInfo<
 }
 
 void SpaceToDepthLayerTest::SetUp() {
-    std::vector<InputShape> input_shapes;
-    SpaceToDepth::SpaceToDepthMode mode;
-    std::size_t block_size;
-    ov::element::Type model_type;
-    std::tie(input_shapes, model_type, mode, block_size, targetDevice) = this->GetParam();
+    const auto& [input_shapes, model_type, mode, block_size, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes(input_shapes);
 

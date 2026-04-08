@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,11 +21,7 @@ class ReorgYoloLayerCPUTest : public testing::WithParamInterface<ReorgYoloCPUPar
                               virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReorgYoloCPUParamsTuple>& obj) {
-        InputShape inputShape;
-        size_t stride;
-        ElementType netPrecision;
-        TargetDevice targetDev;
-        std::tie(inputShape, stride, netPrecision, targetDev) = obj.param;
+        const auto& [inputShape, stride, netPrecision, targetDev] = obj.param;
         std::ostringstream result;
         result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         for (const auto& item : inputShape.second) {
@@ -39,11 +35,8 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape inputShape;
-        size_t stride;
-        ElementType netPrecision;
-        std::tie(inputShape, stride, netPrecision, targetDevice) = this->GetParam();
-
+        const auto& [inputShape, stride, netPrecision, _targetDevice] = this->GetParam();
+        targetDevice = _targetDevice;
         init_input_shapes({inputShape});
 
         auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputDynamicShapes[0]);

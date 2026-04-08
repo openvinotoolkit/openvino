@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -21,9 +21,10 @@ class TestIsFinite(PytorchLayerTest):
             def forward(self, input_tensor):
                 return torch.isfinite(torch.pow(input_tensor.to(torch.float32), 1000))
 
-        return aten_isfinite(), None, "aten::isfinite"
+        return aten_isfinite(), "aten::isfinite"
 
     @pytest.mark.precommit_fx_backend
+    @pytest.mark.precommit_torch_export
     def test_isfinite(self, ie_device, precision, ir_version, input_tensor):
         self.input_tensor = input_tensor
         self._test(*self.create_model(), ie_device, precision, ir_version)

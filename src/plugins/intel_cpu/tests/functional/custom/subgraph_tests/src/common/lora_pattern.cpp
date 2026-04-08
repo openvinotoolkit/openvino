@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,11 +9,8 @@
 #include "utils/cpu_test_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
 
 namespace ov {
@@ -50,14 +47,11 @@ using LoraPatternParams = std::tuple<ov::element::Type,  // states precision
 
 class LoraPatternBaseCPUTest : public SubgraphBaseTest, public testing::WithParamInterface<LoraPatternParams> {
 public:
-static std::string getTestCaseName(testing::TestParamInfo<LoraPatternParams> obj) {
-        ov::element::Type states_precision;
-        StatesPolicy states_policy;
-        std::tie(states_precision, states_policy) = obj.param;
-
-        std::ostringstream result;
-        result << "states_precision=" << states_precision << "_states_policy=" << states_policy;
-        return result.str();
+static std::string getTestCaseName(const testing::TestParamInfo<LoraPatternParams>& obj) {
+    const auto& [states_precision, states_policy] = obj.param;
+    std::ostringstream result;
+    result << "states_precision=" << states_precision << "_states_policy=" << states_policy;
+    return result.str();
     }
 
     void SetUp() override {
@@ -88,19 +82,6 @@ protected:
         for (size_t i = 0; i < shapes.size(); ++i)
             create_state(shapes[i], names[i]);
         return std::make_pair(state_outs, assigns);
-    }
-
-    Output<Node> apply_scale_to_state_alpha(const Output<Node>& state_a,
-                                            const Output<Node>& state_alpha) {
-        auto shape_of_state_a = std::make_shared<ov::op::v3::ShapeOf>(state_a);
-
-        auto indices_node = ov::op::v0::Constant::create(ov::element::i32, ov::Shape(), {0});
-        auto axis_node = ov::op::v0::Constant::create(ov::element::i32, ov::Shape(), {0});
-        auto gather = std::make_shared<ov::op::v8::Gather>(shape_of_state_a, indices_node, axis_node);
-
-        auto convert = std::make_shared<ov::op::v0::Convert>(gather, netType);
-        auto divide = std::make_shared<ov::op::v1::Divide>(state_alpha, convert);
-        return divide;
     }
 
     void run_test() {
@@ -145,9 +126,10 @@ protected:
         ASSERT_TRUE(inferRequestRef);
 
         generate_inputs(targetStaticShapes.front());
-        for (const auto& input : inputs) {
-            inferRequest.set_tensor(input.first, input.second);
-            inferRequestRef.set_tensor(input.first, input.second);
+        for (const auto& [port, tensor] : inputs) {
+            // Use read-only tensors as inputs, created from `const void*`
+            inferRequest.set_tensor(port, {tensor.get_element_type(), tensor.get_shape(), tensor.data()});
+            inferRequestRef.set_tensor(port, {tensor.get_element_type(), tensor.get_shape(), tensor.data()});
         }
 
         constexpr size_t lora_order = 25lu;
@@ -232,11 +214,9 @@ protected:
         // LoRA parameters from states
         auto states = create_states({{N, -1}, {1, -1}, {-1, K}}, {t4_name, t5_name, t6_name});
 
-        auto scaled_state_alpha = apply_scale_to_state_alpha(states.first[2], states.first[1]);
-
         // Apply LoRA parameters to the current activations
         auto t5810 = std::make_shared<ov::op::v0::MatMul>(param_y, states.first[2], false, true);
-        auto t5811 = std::make_shared<ov::op::v1::Multiply>(t5810, scaled_state_alpha);
+        auto t5811 = std::make_shared<ov::op::v1::Multiply>(t5810, states.first[1]);
         auto t5812 = std::make_shared<ov::op::v0::MatMul>(t5811, states.first[0], false, true);
 
         // Mix LoRA part into normally computed activations after the "main" MatMul
@@ -275,15 +255,13 @@ public:
         // LoRA parameters from states
         auto states = create_states({{num_channels, -1}, {1, -1}, {-1, num_channels}}, {t4_name, t5_name, t6_name});
 
-        auto scaled_state_alpha = apply_scale_to_state_alpha(states.first[2], states.first[1]);
-
         // LoRA pattern with additional Transposes to move channel dimensions into positions where MatMul can be applied
         auto t4940 =
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<size_t>{2, 3, 0, 1});
 
         auto t4941 = std::make_shared<ov::op::v1::Transpose>(param_y, t4940);
         auto t4942 = std::make_shared<ov::op::v0::MatMul>(t4941, states.first[2], false, true);
-        auto t4943 = std::make_shared<ov::op::v1::Multiply>(t4942, scaled_state_alpha);
+        auto t4943 = std::make_shared<ov::op::v1::Multiply>(t4942, states.first[1]);
         auto t4944 = std::make_shared<ov::op::v0::MatMul>(t4943, states.first[0], false, true);
 
         auto t4945 =
@@ -306,6 +284,7 @@ protected:
 };
 
 TEST_P(LoraPatternMatmulCPUTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     targetStaticShapes = {{{{1, 20, K}}, {{N, K}}}};
     run_test();
     CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "LoRA", 1);
@@ -313,6 +292,7 @@ TEST_P(LoraPatternMatmulCPUTest, CompareWithRefs) {
 }
 
 TEST_P(LoraPatternConvolutionCPUTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     targetStaticShapes = {{{1, num_channels, 10, 15}}};
     run_test();
     CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "LoRA", 1);

@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "shared_test_classes/single_op/multinomial.hpp"
@@ -20,16 +20,8 @@ private:
 void MultinomialLayerTestGPU::SetUp() {
     MultinomialTestParams test_params;
 
-    std::string test_type;
-    ov::Tensor probs;
-    ov::Tensor num_samples;
-    ov::test::ElementType convert_type;
-    bool with_replacement;
-    bool log_probs;
-    std::pair<uint64_t, uint64_t> global_op_seed;
-
-    std::tie(test_type, probs, num_samples, convert_type, with_replacement, log_probs, global_op_seed, targetDevice) =
-        GetParam();
+    const auto& [test_type, probs, num_samples, convert_type, with_replacement, log_probs, global_op_seed, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
 
     m_probs = probs;
     m_num_samples = num_samples;

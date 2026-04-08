@@ -1,17 +1,13 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "internal/overload/compiled_model/property.hpp"
+#include "property.hpp"
 
 #include <openvino/runtime/intel_npu/properties.hpp>
 #include <vector>
 
-#include "behavior/compiled_model/properties.hpp"
 #include "common/npu_test_env_cfg.hpp"
-#include "common/utils.hpp"
-#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
-#include "intel_npu/config/options.hpp"
 
 using namespace ov::test::behavior;
 
@@ -21,7 +17,6 @@ std::vector<std::pair<std::string, ov::Any>> exe_network_supported_properties = 
     {ov::hint::num_requests.name(), ov::Any(8)},
     {ov::hint::enable_cpu_pinning.name(), ov::Any(true)},
     {ov::hint::performance_mode.name(), ov::Any(ov::hint::PerformanceMode::THROUGHPUT)},
-    {ov::hint::model_priority.name(), ov::Any(ov::hint::Priority::MEDIUM)},
     {ov::optimal_number_of_infer_requests.name(), ov::Any(2)},
 };
 
@@ -29,7 +24,11 @@ std::vector<std::pair<std::string, ov::Any>> exe_network_immutable_properties = 
     {std::make_pair(ov::optimal_number_of_infer_requests.name(), ov::Any(2))},
     {std::make_pair(ov::hint::enable_cpu_pinning.name(), ov::Any(false))},
     {std::make_pair(ov::supported_properties.name(), ov::Any("deadbeef"))},
-    {std::make_pair(ov::model_name.name(), ov::Any("deadbeef"))}};
+    {std::make_pair(ov::model_name.name(), ov::Any("deadbeef"))},
+    {ov::hint::model.name(), ov::Any(std::shared_ptr<const ov::Model>(nullptr))},
+    {ov::hint::model.name(),
+     ov::Any(std::shared_ptr<ov::Model>(nullptr))}  // intentionally copied above to test constness
+};
 
 std::vector<std::pair<std::string, ov::Any>> plugin_public_mutable_properties = {
     {ov::hint::num_requests.name(), ov::Any(5)},
@@ -50,8 +49,7 @@ std::vector<std::pair<std::string, ov::Any>> compat_plugin_internal_mutable_prop
 };
 
 std::vector<std::pair<std::string, ov::Any>> plugin_internal_mutable_properties = {
-    {ov::intel_npu::max_tiles.name(), ov::Any(8)},
-    {ov::intel_npu::stepping.name(), ov::Any(4)},
+    {ov::intel_npu::stepping.name(), ov::Any(4)}
 };
 
 std::vector<std::pair<std::string, ov::Any>> plugin_public_immutable_properties = {
@@ -66,6 +64,7 @@ std::vector<std::pair<std::string, ov::Any>> plugin_public_immutable_properties 
     {ov::optimal_number_of_infer_requests.name(), ov::Any(4)},
     {ov::intel_npu::device_alloc_mem_size.name(), ov::Any(2)},
     {ov::intel_npu::device_total_mem_size.name(), ov::Any(2)},
+    {ov::intel_npu::max_tiles.name(), ov::Any(9999)}
 };
 
 std::vector<std::pair<std::string, ov::Any>> invalid_device_ids = {
@@ -136,5 +135,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_ClassExecutableNetworkInvalidDevice
                          ::testing::Combine(::testing::Values(ov::test::utils::getDeviceName()),
                                             ::testing::ValuesIn(invalid_device_ids)),
                          ClassExecutableNetworkInvalidDeviceIDTestSuite::getTestCaseName);
+
+std::vector<std::pair<std::string, ov::Any>> valid_device_ids = {
+    {ov::device::id.name(), "NPU"},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CheckCompilerType,
+                         CheckCompilerTypeProperty,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(valid_device_ids)),
+                         CheckCompilerTypeProperty::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CheckCompilerType,
+                         CheckCompilerPropertyWhenImporting,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(valid_device_ids)),
+                         CheckCompilerTypeProperty::getTestCaseName);
 
 }  // namespace

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ using FuseTransposeAndReorderParams = std::tuple<ov::Shape,         // Input sha
 class FuseTransposeAndReorderTest : public testing::WithParamInterface<FuseTransposeAndReorderParams>, public CPUTestsBase,
         virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FuseTransposeAndReorderParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<FuseTransposeAndReorderParams>& obj);
 
 protected:
     void SetUp() override;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ class FuseMulAddAndEwSimpleTest : public testing::WithParamInterface<FuseMulAddA
                                   public CPUTestUtils::CPUTestsBase,
                                   virtual public SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FuseMulAddAndEwSimpleParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<FuseMulAddAndEwSimpleParams>& obj);
 
 protected:
     void SetUp() override;

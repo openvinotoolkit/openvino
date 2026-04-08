@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,8 +34,8 @@ public:
     [[nodiscard]] bool isSupported([[maybe_unused]] const TransposeParams& transposeParams,
                                    const std::vector<MemoryDescPtr>& srcDescs,
                                    const std::vector<MemoryDescPtr>& dstDescs) const override {
-        if (!(srcDescs[0]->hasLayoutType(LayoutType::ncsp) && dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
-            !(srcDescs[0]->hasLayoutType(LayoutType::nspc) && dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
+        if ((srcDescs[0]->hasLayoutType(LayoutType::ncsp) || dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
+            (srcDescs[0]->hasLayoutType(LayoutType::nspc) || dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
             DEBUG_LOG("NEPermute does not support layout:",
                       " src: ",
                       srcDescs[0]->serializeFormat(),

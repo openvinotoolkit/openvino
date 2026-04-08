@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,14 +35,7 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<MatMulLayerTestParamsSet>& obj) {
         MatMulLayerTestParamsSet basicParamsSet = obj.param;
 
-        ov::element::Type model_type;
-        ov::element::Type inType, outType;
-        ShapeRelatedParams shape_related_params;
-        ov::test::utils::InputLayerType secondary_input_type;
-        std::string targetDevice;
-        std::map<std::string, std::string> additional_config;
-        std::tie(shape_related_params, model_type, inType, outType, secondary_input_type, targetDevice, additional_config) =
-                basicParamsSet;
+        const auto& [shape_related_params, model_type, inType, outType, secondary_input_type, targetDevice, additional_config] = basicParamsSet;
 
         std::ostringstream result;
         result << "IS=";
@@ -86,12 +79,14 @@ protected:
     void SetUp() override {
         MatMulLayerTestParamsSet basicParamsSet = this->GetParam();
 
-        ShapeRelatedParams shape_related_params;
-        ov::element::Type model_type;
-        ov::test::utils::InputLayerType secondary_input_type;
-        std::map<std::string, std::string> additional_config;
+        const auto& [shape_related_params, model_type, _inType, _outType, secondary_input_type, _targetDevice, additional_config] = basicParamsSet;
+        inType = _inType;
+        outType = _outType;
+        targetDevice = _targetDevice;
 
-        std::tie(shape_related_params, model_type, inType, outType, secondary_input_type, targetDevice, additional_config) = basicParamsSet;
+        if (model_type == ov::element::f16) {
+            rel_threshold = 0.005;
+        }
 
         init_input_shapes(shape_related_params.inputShapes);
 
@@ -187,7 +182,7 @@ const std::vector<ShapeRelatedParams> IS2D_smoke = {
     },
     {
         {
-            {{{0, 100}, {0, 12}}, {{20, 1}, {14, 1}, {20, 1}, {14, 1}}},
+            {{{0, 100}, 1}, {{20, 1}, {14, 1}, {20, 1}, {14, 1}}},
             {{1, 120}, {{1, 120}, {1, 120}, {1, 120}, {1, 120}}}
         },
         {true, true}
@@ -231,7 +226,7 @@ const std::vector<ShapeRelatedParams> IS2D_nightly = {
 };
 
 const auto testParams2D_smoke = ::testing::Combine(::testing::ValuesIn(IS2D_smoke),
-                                                   ::testing::Values(ov::element::f32),
+                                                   ::testing::Values(ov::element::f16),
                                                    ::testing::Values(ov::element::dynamic),
                                                    ::testing::Values(ov::element::dynamic),
                                                    ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),

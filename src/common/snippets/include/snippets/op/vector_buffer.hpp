@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ class VectorBuffer : public ov::op::Op {
 public:
     OPENVINO_OP("VectorBuffer", "SnippetsOpset");
 
-    VectorBuffer(ov::element::Type element_type = ov::element::f32);
+    explicit VectorBuffer(ov::element::Type element_type = ov::element::f32);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;

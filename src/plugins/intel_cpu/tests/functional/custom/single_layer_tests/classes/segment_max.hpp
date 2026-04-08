@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ using SegmentMaxLayerCPUTestParamsSet = std::tuple<
 class SegmentMaxLayerCPUTest : public testing::WithParamInterface<SegmentMaxLayerCPUTestParamsSet>,
                              public SubgraphBaseTest, public CPUTestUtils::CPUTestsBase {
 public:
-   static std::string getTestCaseName(testing::TestParamInfo<SegmentMaxLayerCPUTestParamsSet> obj);
+   static std::string getTestCaseName(const testing::TestParamInfo<SegmentMaxLayerCPUTestParamsSet>& obj);
 protected:
    void SetUp() override;
    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;

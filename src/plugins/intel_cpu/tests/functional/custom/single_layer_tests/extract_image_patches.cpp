@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,15 +20,8 @@ class ExtractImagePatchesLayerCPUTest : public testing::WithParamInterface<extra
                                         virtual public SubgraphBaseTest,
                                         public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<extractImagePatchesParams> obj) {
-        InputShape inputShapes;
-        ElementType inputPrecision;
-        ov::Shape kernelSize;
-        ov::Strides strides;
-        ov::Shape rates;
-        ov::op::PadType padType;
-        std::tie(inputShapes, inputPrecision, kernelSize, strides, rates, padType) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<extractImagePatchesParams>& obj) {
+        const auto& [inputShapes, inputPrecision, kernelSize, strides, rates, padType] = obj.param;
         std::ostringstream result;
         result << "netPRC=" << inputPrecision << "_"
                << "IS=" << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
@@ -46,14 +39,7 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        InputShape inputShapes;
-        ElementType inputPrecision;
-        ov::Shape kernelSize;
-        ov::Strides strides;
-        ov::Shape rates;
-        ov::op::PadType padType;
-        std::tie(inputShapes, inputPrecision, kernelSize, strides, rates, padType) = this->GetParam();
-
+        const auto& [inputShapes, inputPrecision, kernelSize, strides, rates, padType] = this->GetParam();
         selectedType = makeSelectedTypeStr("ref_any", inputPrecision);
         if (inputPrecision == ElementType::bf16) {
             rel_threshold = 1e-2;
@@ -67,7 +53,7 @@ protected:
         }
         auto extImgPatches =
             std::make_shared<ov::op::v3::ExtractImagePatches>(params[0], kernelSize, strides, rates, padType);
-        function = makeNgraphFunction(inputPrecision, params, extImgPatches, "ExtractImagePatches");
+        function = create_ov_model(inputPrecision, params, extImgPatches, "ExtractImagePatches");
     }
 };
 

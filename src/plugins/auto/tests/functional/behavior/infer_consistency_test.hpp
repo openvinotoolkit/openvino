@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <memory>
@@ -27,10 +27,7 @@ class Consistency_Test : public AutoFuncTests, public testing::WithParamInterfac
 
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<consistency_test_param>& obj) {
-        ov::AnyMap property;
-        bool use_get_tensor;
-        std::string target_device;
-        std::tie(target_device, use_get_tensor, property) = obj.param;
+        const auto& [target_device, use_get_tensor, property] = obj.param;
         std::ostringstream result;
         result << "target_device=" << target_device << "_";
         result << std::string(use_get_tensor ? "_get_blob" : "_set_blob") << "_";

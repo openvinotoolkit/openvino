@@ -1,18 +1,22 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include "serialization.hpp"
 
 #include <gtest/gtest.h>
 
 #include <iostream>
 
+#include "compiled_model.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
+#include "model_builder.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/openvino.hpp"
-#include "serialization.hpp"
-#include "compiled_model.hpp"
 #include "spatial.hpp"
-#include "model_generator/model_generator.hpp"
+
+using ov::test::npuw::ModelBuilder;
 
 // FIXME: parametrize all the tests below
 
@@ -78,7 +82,7 @@ TEST(SerializationTest, BasicTypes_streampos) {
 TEST(SerializationTest, OVTypes_Tensor) {
     using namespace ov::npuw::s11n;
 
-    std::vector<uint8_t> data {0, 1, 2, 3};
+    std::vector<uint8_t> data{0, 1, 2, 3};
     ov::Tensor var(ov::element::u8, ov::Shape({2, 2}), data.data());
     ov::Tensor res;
 
@@ -259,7 +263,7 @@ TEST(SerializationTest, BasicTypes_optional) {
 TEST(SerializationTest, OVTypes_Tensor_with_weights) {
     using namespace ov::npuw::s11n;
 
-    std::vector<uint8_t> data {0, 1, 2, 3};
+    std::vector<uint8_t> data{0, 1, 2, 3};
     ov::Tensor var(ov::element::u8, ov::Shape({2, 2}), data.data());
     std::vector<ov::Tensor> res;
 
@@ -268,10 +272,10 @@ TEST(SerializationTest, OVTypes_Tensor_with_weights) {
     std::unordered_map<const void*, std::size_t> const_offset;
     const_offset[nullptr] = 0;
     WeightsContext ctx(false, const_offset);
- 
+
     WeightsContext::ConstsCache consts_cache;
     consts_cache[{0, 0}] = nullptr;
-    WeightsContext des_ctx(nullptr, consts_cache, {});
+    WeightsContext des_ctx(nullptr, "", consts_cache, {});
 
     write_weightless(ss, {var}, ctx);
     read_weightless(ss, res, des_ctx);

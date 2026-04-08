@@ -1,20 +1,32 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "jit_horizon_emitters.hpp"
 
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cpu/aarch64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <set>
+#include <vector>
+
 #include "emitters/utils.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu::aarch64 {
 
 /// horizon_max ///
-jit_horizon_max_emitter::jit_horizon_max_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+jit_horizon_max_emitter::jit_horizon_max_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
                                                  dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                                  const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {}
 
-jit_horizon_max_emitter::jit_horizon_max_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+jit_horizon_max_emitter::jit_horizon_max_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
                                                  dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                                  const ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
@@ -44,12 +56,12 @@ std::set<std::vector<element::Type>> jit_horizon_max_emitter::get_supported_prec
 }
 
 /// horizon_sum ///
-jit_horizon_sum_emitter::jit_horizon_sum_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+jit_horizon_sum_emitter::jit_horizon_sum_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
                                                  dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                                  const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {}
 
-jit_horizon_sum_emitter::jit_horizon_sum_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+jit_horizon_sum_emitter::jit_horizon_sum_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
                                                  dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                                  const ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}

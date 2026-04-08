@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,8 @@ namespace intel_npu {
 class RemoteContextImpl : public ov::IRemoteContext {
 public:
     RemoteContextImpl(const ov::SoPtr<IEngineBackend>& engineBackend, const ov::AnyMap& remote_properties = {});
+
+    ~RemoteContextImpl() override = default;
 
     /**
      * @brief Returns name of a device on which underlying object is allocated.
@@ -65,6 +67,7 @@ private:
     std::optional<ov::intel_npu::MemType> _mem_type_object = std::nullopt;
     std::optional<ov::intel_npu::TensorType> _tensor_type_object = std::nullopt;
     std::optional<void*> _mem_handle_object = std::nullopt;
+    std::optional<ov::intel_npu::FileDescriptor> _file_descriptor_object = std::nullopt;
 };
 
 }  // namespace intel_npu

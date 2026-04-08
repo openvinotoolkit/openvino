@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,11 +18,8 @@ public:
     std::vector<DeviceInformation> metaDevices;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
-        std::string netPrecision;
-        bool enableDevicePriority;
-        std::vector<PriorityParams> PriorityConfigs;
-        std::tie(netPrecision, enableDevicePriority, PriorityConfigs) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams>& obj) {
+        const auto& [netPrecision, enableDevicePriority, PriorityConfigs] = obj.param;
         std::ostringstream result;
         if (enableDevicePriority) {
             result << "_enableDevicePriority_true";

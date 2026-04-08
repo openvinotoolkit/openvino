@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +47,7 @@ void check_all_variables_registered(const std::vector<shared_ptr<ov::Node>>& ord
 
 void check_all_parameters_registered(const std::vector<shared_ptr<ov::Node>>& ordered_ops,
                                      const ov::ParameterVector& parameters) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::check_all_parameters_registered");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::ov_core, "Model::check_all_parameters_registered");
 
     std::stringstream unregistered_parameters;
     for (auto& node : ordered_ops) {
@@ -61,7 +61,7 @@ void check_all_parameters_registered(const std::vector<shared_ptr<ov::Node>>& or
 }
 
 ov::op::util::VariableVector auto_detect_variables(const std::vector<std::shared_ptr<ov::Node>>& ordered_ops) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::auto_detect_variables");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::ov_core, "Model::auto_detect_variables");
     unordered_set<ov::op::util::Variable::Ptr> variables;
     for (const auto& op : ordered_ops) {
         if (const auto& variable_op = dynamic_pointer_cast<ov::op::util::VariableExtension>(op)) {
@@ -72,7 +72,7 @@ ov::op::util::VariableVector auto_detect_variables(const std::vector<std::shared
 }
 
 ov::ParameterVector auto_detect_parameters(const std::vector<std::shared_ptr<ov::Node>>& ordered_ops) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::auto_detect_parameters");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::ov_core, "Model::auto_detect_parameters");
     ov::ParameterVector parameter_vector;
     for (const auto& op : ordered_ops) {
         if (const auto& param = ov::as_type_ptr<ov::op::v0::Parameter>(op)) {
@@ -132,9 +132,6 @@ ov::Model::Model(const ResultVector& results, const ov::ParameterVector& paramet
 
 ov::Model::Model(const OutputVector& results, const ov::ParameterVector& parameters, const std::string& name)
     : Model(as_result_vector(results), parameters, name) {}
-
-ov::Model::Model(const NodeVector& results, const ov::ParameterVector& parameters, const std::string& name)
-    : Model(as_output_vector(results), parameters, name) {}
 
 ov::Model::Model(const std::shared_ptr<Node>& result, const ov::ParameterVector& parameters, const std::string& name)
     : Model(verify_node(result)->outputs(), parameters, name) {}
@@ -206,7 +203,7 @@ ov::Model::Model(const OutputVector& results, const string& name) : Model(result
 ov::Model::~Model() = default;
 
 void ov::Model::prerequirements(bool detect_variables, bool detect_parameters) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::prerequirements");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::ov_core, "Model::prerequirements");
 
     for (const auto& param : m_parameters) {
         OPENVINO_ASSERT(param != nullptr, "Model is incorrect! Some Parameter operation equals to nullptr.");
@@ -239,7 +236,7 @@ void ov::Model::prerequirements(bool detect_variables, bool detect_parameters) {
 }
 
 void ov::Model::validate_nodes_and_infer_types() const {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::validate_nodes_and_infer_types");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::ov_core, "Model::validate_nodes_and_infer_types");
 
     std::stringstream unregistered_parameters;
     std::stringstream unregistered_variables;
@@ -284,7 +281,7 @@ void ov::Model::validate_nodes_and_infer_types() const {
 }
 
 std::vector<shared_ptr<ov::Node>> ov::Model::get_ordered_ops() const {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::get_ordered_ops");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::ov_core, "Model::get_ordered_ops");
     lock_guard<mutex> lock(m_model_mutex);
 
     NodeVector nodes;

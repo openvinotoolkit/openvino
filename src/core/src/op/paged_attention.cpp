@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -79,8 +79,8 @@ void PagedAttentionExtension::validate_and_infer_types() {
     OV_OP_SCOPE(PagedAttentionExtension_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_size() == 14 || get_input_size() == 17,
-                          "PagedAttensionExtension expects 14 or 17 inputs, but it has ",
+                          get_input_size() == 26,
+                          "PagedAttensionExtension expects 26 inputs, but it has ",
                           get_input_size());
 
     // format: Node*, input_idx, name, {rank_list}, {type_list}
@@ -98,11 +98,18 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 11, "alibi_slopes", {1}, get_real_types());
     input_check(this, 12, "max_context_len", {0}, {element::i32});
     input_check(this, 13, "score_aggregation_window", {0, 1}, {element::i32});
-    if (get_input_size() == 17) {
-        input_check(this, 14, "rotated_block_indices", {1}, {element::i32});
-        input_check(this, 15, "rotation_deltas", {2}, {element::i32});
-        input_check(this, 16, "rotation_trig_lut", {2}, {element::f16, element::f32});
-    }
+    input_check(this, 14, "rotated_block_indices", {1}, {element::i32});
+    input_check(this, 15, "rotation_deltas", {1, 2}, {element::i32});
+    input_check(this, 16, "rotation_trig_lut", {1, 2}, {element::f16, element::f32});
+    input_check(this, 17, "xattention_threshold", {1}, {element::f16, element::f32});
+    input_check(this, 18, "xattention_block_size", {0}, {element::i32});
+    input_check(this, 19, "xattention_stride", {0}, {element::i32});
+    input_check(this, 20, "sinks", {1, 4}, {});
+    input_check(this, 21, "adaptive_rkv_start_size", {0}, {element::i32});
+    input_check(this, 22, "adaptive_rkv_evictable_sizes", {1}, {element::i32});
+    input_check(this, 23, "adaptive_rkv_diversity_block_set_indices", {1}, {element::i32});
+    input_check(this, 24, "adaptive_rkv_diversity_block_set_indices_begins", {1}, {element::i32});
+    input_check(this, 25, "token_type_ids", {1, 2}, {element::i32});
 
     // value head_size may be not same with key
     auto out_ps = get_input_partial_shape(0);
@@ -136,6 +143,11 @@ void PagedAttentionExtension::validate_and_infer_types() {
         set_output_type(1, get_input_element_type(0), {Dimension::dynamic()});
     } else {
         set_output_type(1, m_output_type[1], {Dimension::dynamic()});
+    }
+    if (m_output_type[2].is_dynamic()) {
+        set_output_type(2, get_input_element_type(0), {Dimension::dynamic()});
+    } else {
+        set_output_type(2, m_output_type[2], {Dimension::dynamic()});
     }
 }
 

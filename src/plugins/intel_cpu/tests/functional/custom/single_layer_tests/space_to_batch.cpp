@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,10 +29,10 @@ class SpaceToBatchCPULayerTest : public testing::WithParamInterface<SpaceToBatch
                                  public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<SpaceToBatchLayerTestCPUParams>& obj) {
-        std::vector<InputShape> inputShapes;
-        ov::element::Type netPrecision;
-        CPUSpecificParams cpuParams;
-        std::tie(inputShapes, blockShape, padsBegin, padsEnd, netPrecision, cpuParams) = obj.param;
+        const auto& [inputShapes, _blockShape, _padsBegin, _padsEnd, netPrecision, cpuParams] = obj.param;
+        blockShape = _blockShape;
+        padsBegin = _padsBegin;
+        padsEnd = _padsEnd;
         std::ostringstream result;
         if (inputShapes.front().first.size() != 0) {
             result << "IS=(";
@@ -94,10 +94,10 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        std::vector<InputShape> inputShapes;
-        ov::element::Type netPrecision;
-        CPUSpecificParams cpuParams;
-        std::tie(inputShapes, blockShape, padsBegin, padsEnd, netPrecision, cpuParams) = this->GetParam();
+        const auto& [inputShapes, _blockShape, _padsBegin, _padsEnd, netPrecision, cpuParams] = this->GetParam();
+        blockShape = _blockShape;
+        padsBegin = _padsBegin;
+        padsEnd = _padsEnd;
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         const std::vector<InputShape> inputShapesVec{inputShapes};
@@ -123,7 +123,7 @@ protected:
         params.push_back(padsEndParam);
 
         auto s2b = std::make_shared<ov::op::v1::SpaceToBatch>(params[0], in2, in3, in4);
-        function = makeNgraphFunction(inType, params, s2b, "SpaceToBatchCPU");
+        function = create_ov_model(inType, params, s2b, "SpaceToBatchCPU");
     }
 };
 

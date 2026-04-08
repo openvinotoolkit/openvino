@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,15 +54,8 @@ class ShapeOpsCPUTest : public testing::WithParamInterface<shapeOpsParams>,
                         virtual public SubgraphBaseTest,
                         public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<shapeOpsParams> obj) {
-        inputDescription inpDesc;
-        ov::test::utils::InputLayerType secondType;
-        shapeNodeType nodeType;
-        ov::element::Type prc;
-        bool specialZero;
-        element::Type_t tmpSecondInPrc;
-        std::tie(inpDesc, secondType, nodeType, prc, tmpSecondInPrc, specialZero) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<shapeOpsParams>& obj) {
+        const auto& [inpDesc, secondType, nodeType, prc, tmpSecondInPrc, specialZero] = obj.param;
         std::ostringstream result;
         result << nodeType << "_";
         result << "IS=";
@@ -138,14 +131,8 @@ protected:
     void SetUp() override {
         idx = 0;
         targetDevice = ov::test::utils::DEVICE_CPU;
-
-        inputDescription inpDesc;
-        ov::test::utils::InputLayerType secondType;
-        shapeNodeType nodeType;
-        ov::element::Type prc;
-        bool specialZero;
-        std::tie(inpDesc, secondType, nodeType, prc, secondInPrc, specialZero) = this->GetParam();
-
+        const auto& [inpDesc, secondType, nodeType, prc, _secondInPrc, specialZero] = this->GetParam();
+        secondInPrc = _secondInPrc;
         if (nodeType == shapeNodeType::ReshapeWithNonZero) {
             isWithNonZero = true;
             // the input of nonZero is FP32, but the output of nonZero is i32,
@@ -197,7 +184,7 @@ protected:
         }
         }
 
-        function = makeNgraphFunction(prc, inputs, shapeOps, "ShapeOpsCPUTest");
+        function = create_ov_model(prc, inputs, shapeOps, "ShapeOpsCPUTest");
     }
 
 private:

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,6 +56,17 @@ BorderKernelBase::DispatchData BorderKernelBase::SetDefault(const border_params&
         dispatchData.gws = { output.X().v * output.Z().v, output.Y().v * output.W().v, output.Batch().v * output.Feature().v };
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
     }
+
+    using DispatchDataPair = std::pair<std::array<size_t, 3>, std::array<size_t, 3>>;
+    static const std::array<DispatchDataPair, 4> lws_mapping_table = {{
+            DispatchDataPair{{264, 264,  32}, {1, 1, 32}},
+            DispatchDataPair{{264, 264,  64}, {1, 1, 64}},
+            DispatchDataPair{{132, 132, 128}, {1, 1, 64}},
+            DispatchDataPair{{  3, 336, 336}, {3, 8, 8}}
+        }};
+    std::array<size_t, 3> gws = {dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]};
+    auto it = std::find_if(lws_mapping_table.begin(), lws_mapping_table.end(), [&gws](const DispatchDataPair& ddp) { return ddp.first == gws; });
+    if (it != lws_mapping_table.end()) { dispatchData.lws = {it->second[0], it->second[1], it->second[2]}; }
 
     return dispatchData;
 }

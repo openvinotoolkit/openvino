@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -119,15 +119,13 @@ void SubgraphBaseTest::serialize() {
 
     auto result = core->read_model(out_xml_path, out_bin_path);
 
-    bool success;
-    std::string message;
-    std::tie(success, message) = compare_functions(result,
-                                                   function,
-                                                   false,
-                                                   false,
-                                                   false,
-                                                   true,   // precision
-                                                   true);  // attributes
+    const auto& [success, message] = compare_functions(result,
+                                                       function,
+                                                       false,
+                                                       false,
+                                                       false,
+                                                       true,   // precision
+                                                       true);  // attributes
 
     EXPECT_TRUE(success) << message;
 
@@ -252,14 +250,14 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
     ASSERT_EQ(expected.size(), actual.size());
     ASSERT_EQ(expected.size(), function->get_results().size());
     init_thresholds();
-    auto compareMap = utils::getCompareMap();
+    const auto& compare_map = utils::getCompareMap();
     const auto& results = function->get_results();
     for (size_t j = 0; j < results.size(); j++) {
         const auto result = results[j];
         for (size_t i = 0; i < result->get_input_size(); ++i) {
             std::shared_ptr<ov::Node> inputNode = result->get_input_node_shared_ptr(i);
-            auto it = compareMap.find(inputNode->get_type_info());
-            ASSERT_NE(it, compareMap.end());
+            auto it = compare_map.find(inputNode->get_type_info());
+            ASSERT_NE(it, compare_map.end());
             it->second(inputNode, i, inference_precision,
                        expected[j], actual[j],
                        abs_threshold, rel_threshold, topk_threshold, mvn_threshold);
@@ -519,8 +517,8 @@ void SubgraphBaseTest::validate() {
 }
 
 void SubgraphBaseTest::init_thresholds() {
-    double max_abs_threshold = 0.f, max_rel_threshold = 0.f;
-    std::tie(max_abs_threshold, max_rel_threshold) = ov::test::utils::calculate_thresholds_by_model(function, functionRefs, inference_precision);
+    const auto& [max_abs_threshold, max_rel_threshold] =
+        ov::test::utils::calculate_thresholds_by_model(function, functionRefs, inference_precision);
     if (abs_threshold == disable_threshold) {
         abs_threshold = max_abs_threshold;
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #include "openvino/opsets/opset10_decl.hpp"
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/op/buffer.hpp"
+#include "snippets/op/result.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/tpp/common/op/brgemm.hpp"
@@ -31,7 +32,7 @@ using PortDescriptor = ov::snippets::modifier::MemoryAccess::PortDescriptor;
 namespace {
 enum class BACKEND_TYPE{CPU, TPP};
 SpecificIterationHandlers get_k_loop_handlers(size_t work_amount, size_t block_size, BACKEND_TYPE backend = BACKEND_TYPE::CPU) {
-    auto handlers = BrgemmBlockingBase::get_default_blocking_loop_handlers(work_amount, block_size);
+    SpecificIterationHandlers handlers;
     switch (backend) {
 #ifdef SNIPPETS_LIBXSMM_TPP
         case BACKEND_TYPE::TPP:
@@ -62,6 +63,7 @@ void create_brgemm_loop_infos(const LinearIRPtr& linear_ir,
                 std::vector<LoopPort>{LoopPort::create<PortType::Incremented>(brgemm_expr->get_input_port(0), 0),
                                       LoopPort::create<PortType::Incremented>(brgemm_expr->get_input_port(1), 1)},
                 std::vector<LoopPort>{LoopPort::create<PortType::NotProcessed>(brgemm_expr->get_output_port(0))},
+                false,
                 get_k_loop_handlers(k, k_block, backend));
         linear_ir->get_loop_manager()->add_loop_info(loop_info);
     }
@@ -69,9 +71,9 @@ void create_brgemm_loop_infos(const LinearIRPtr& linear_ir,
         linear_ir->get_loop_manager()->add_loop_info(
             std::make_shared<ov::snippets::lowered::UnifiedLoopInfo>(n, n_blk,
                 std::vector<LoopPort>{LoopPort::create<PortType::NotProcessed>(brgemm_expr->get_input_port(0)),
-                                      LoopPort::create<PortType::Incremented>(brgemm_expr->get_input_port(1))},
-                std::vector<LoopPort>{LoopPort::create<PortType::Incremented>(brgemm_expr->get_output_port(0))},
-                BrgemmBlockingBase::get_default_blocking_loop_handlers(n, n_block)));
+                                      LoopPort::create<PortType::Incremented>(brgemm_expr->get_input_port(1), 0)},
+                std::vector<LoopPort>{LoopPort::create<PortType::Incremented>(brgemm_expr->get_output_port(0), 0)},
+                false));
     }
     if (m_block) {
         std::vector<LoopPort> entries{LoopPort::create<PortType::Incremented>(brgemm_expr->get_input_port(0), 1)};
@@ -81,7 +83,7 @@ void create_brgemm_loop_infos(const LinearIRPtr& linear_ir,
             std::make_shared<ov::snippets::lowered::UnifiedLoopInfo>(m, m_blk,
                 entries,
                 std::vector<LoopPort>{LoopPort::create<PortType::Incremented>(brgemm_expr->get_output_port(0), 1)},
-                BrgemmBlockingBase::get_default_blocking_loop_handlers(m, m_block)));
+                false));
     }
 }
 
@@ -132,7 +134,7 @@ TEST_F(BrgemmCPUBlockingTest, Floating) {
                                                       layout_b,
                                                       layout_c);
         init_expr_descriptors(*brgemm.first, {}, {layout_a, layout_b, layout_c});
-        auto result = linear_ir->push_node<ov::opset10::Result>(brgemm.second);
+        auto result = linear_ir->push_node<ov::snippets::op::Result>(brgemm.second);
     }
     {
         auto data_a = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_a);
@@ -148,7 +150,7 @@ TEST_F(BrgemmCPUBlockingTest, Floating) {
         init_expr_descriptors(brgemm_expr, {{m_blk, k_blk}, {k_blk, n_blk}, {m_blk, n_blk}}, {layout_a, layout_b, layout_c});
         create_brgemm_loop_infos(linear_ir_ref, brgemm_expr, 384, m_blk, 1024, k_blk, 384, n_blk);
         brgemm_expr->set_loop_ids({2, 1, 0});
-        auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);
+        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(brgemm.second);
     }
 }
 
@@ -173,7 +175,7 @@ TEST_F(BrgemmCPUBlockingTest, Floating_AVX2) {
                                                       layout_b,
                                                       layout_c);
         init_expr_descriptors(*brgemm.first, {}, {layout_a, layout_b, layout_c});
-        auto result = linear_ir->push_node<ov::opset10::Result>(brgemm.second);
+        auto result = linear_ir->push_node<ov::snippets::op::Result>(brgemm.second);
     }
     {
         auto data_a = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_a);
@@ -189,7 +191,7 @@ TEST_F(BrgemmCPUBlockingTest, Floating_AVX2) {
         init_expr_descriptors(brgemm_expr, {{m_blk, k_blk}, {k_blk, n_blk}, {m_blk, n_blk}}, {layout_a, layout_b, layout_c});
         create_brgemm_loop_infos(linear_ir_ref, brgemm_expr, 384, m_blk, 1024, k_blk, 384, n_blk);
         brgemm_expr->set_loop_ids({2, 1, 0});
-        auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);
+        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(brgemm.second);
     }
 }
 
@@ -208,7 +210,7 @@ TEST_F(BrgemmCPUBlockingTest, Floating_LargeK) {
         auto data_b = linear_ir->push_node<ov::opset10::Parameter>(precision, input_shape_b);
         auto brgemm = linear_ir->push_node<BrgemmCPU>(OutputVector{data_a.second, data_b.second}, brgemm_config);
         init_expr_descriptors(*brgemm.first, {});
-        auto result = linear_ir->push_node<ov::opset10::Result>(brgemm.second);
+        auto result = linear_ir->push_node<ov::snippets::op::Result>(brgemm.second);
     }
     {
         auto data_a = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_a);
@@ -218,7 +220,7 @@ TEST_F(BrgemmCPUBlockingTest, Floating_LargeK) {
         init_expr_descriptors(brgemm_expr, {{m_blk, k_blk}, {k_blk, n_blk}, {m_blk, n_blk}});
         create_brgemm_loop_infos(linear_ir_ref, brgemm_expr, m, m_blk, k, k_blk, n, n_blk);
         brgemm_expr->set_loop_ids({2, 1, 0});
-        auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);
+        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(brgemm.second);
     }
 }
 
@@ -238,7 +240,7 @@ TEST_F(BrgemmCPUBlockingTest, Float_FC) {
 
         auto brgemm = linear_ir->push_node<BrgemmCPU>(OutputVector{data_a.second, data_b.second}, brgemm_config);
         init_expr_descriptors(*brgemm.first);
-        auto result = linear_ir->push_node<ov::opset10::Result>(brgemm.second);
+        auto result = linear_ir->push_node<ov::snippets::op::Result>(brgemm.second);
     }
     // FP32 FC requires N blocking for correst iteraions by weights.
     // K blocking is disabled until heuristic is updated (ticket: 156014)
@@ -251,7 +253,7 @@ TEST_F(BrgemmCPUBlockingTest, Float_FC) {
         init_expr_descriptors(brgemm_expr, {{m_blk, k_blk}, {k_blk, n_blk}, {m_blk, n_blk}});
         create_brgemm_loop_infos(linear_ir_ref, brgemm_expr, m, m_blk, k, k_blk, n, n_blk);
         brgemm_expr->set_loop_ids({2, 1, 0});
-        auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);
+        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(brgemm.second);
     }
 }
 
@@ -269,7 +271,7 @@ TEST_F(BrgemmCPUBlockingTest, BlockingIsNotNeeded) {
         auto data_b = linear_ir->push_node<ov::opset10::Parameter>(precision, input_shape_b);
         auto brgemm = linear_ir->push_node<BrgemmCPU>(OutputVector{data_a.second, data_b.second}, brgemm_config);
         init_expr_descriptors(*brgemm.first);
-        auto result = linear_ir->push_node<ov::opset10::Result>(brgemm.second);
+        auto result = linear_ir->push_node<ov::snippets::op::Result>(brgemm.second);
     }
     {
         auto data_a = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_a);
@@ -277,7 +279,7 @@ TEST_F(BrgemmCPUBlockingTest, BlockingIsNotNeeded) {
         auto brgemm = linear_ir_ref->push_node<BrgemmCPU>(OutputVector{data_a.second, data_b.second}, brgemm_config);
         const auto full_subtensor = VectorDims(2, ov::snippets::utils::get_full_dim_value());
         init_expr_descriptors(*brgemm.first, std::vector<VectorDims>(3, full_subtensor));
-        auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);
+        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(brgemm.second);
     }
 }
 
@@ -299,7 +301,7 @@ TEST_F(BrgemmCPUBlockingTest, WithTransposeB) {
 
         auto brgemm = linear_ir->push_node<BrgemmCPU>(OutputVector{data_a.second, copy_b.second}, brgemm_config);
         init_expr_descriptors(*brgemm.first);
-        auto result = linear_ir->push_node<ov::opset10::Result>(brgemm.second);
+        auto result = linear_ir->push_node<ov::snippets::op::Result>(brgemm.second);
     }
     {
         auto data_a = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_a);
@@ -313,7 +315,7 @@ TEST_F(BrgemmCPUBlockingTest, WithTransposeB) {
         init_expr_descriptors(brgemm_expr, {{m_blk, k_blk}, {k_blk, n_blk}, {m_blk, n_blk}});
         create_brgemm_loop_infos(linear_ir_ref, brgemm_expr, m, m_blk, k, k_blk, n, n_blk);
         brgemm_expr->set_loop_ids({2, 1, 0});
-        auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);
+        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(brgemm.second);
     }
 }
 
@@ -335,7 +337,7 @@ TEST_F(BrgemmCPUBlockingTest, WithDataRepacking) {
 
         auto brgemm = linear_ir->push_node<BrgemmCPU>(OutputVector{data_a.second, copy_b.second}, brgemm_config);
         init_expr_descriptors(*brgemm.first);
-        auto result = linear_ir->push_node<ov::opset10::Result>(brgemm.second);
+        auto result = linear_ir->push_node<ov::snippets::op::Result>(brgemm.second);
     }
     // K,N blocking is disabled until heuristic is updated (ticket: 156014)
     {
@@ -350,7 +352,7 @@ TEST_F(BrgemmCPUBlockingTest, WithDataRepacking) {
         init_expr_descriptors(brgemm_expr, {{m_blk, full_dim}, {full_dim, full_dim}, {m_blk, full_dim}});
         create_brgemm_loop_infos(linear_ir_ref, brgemm_expr, m, m_blk, k, 0, n, 0);
         brgemm_expr->set_loop_ids({0});
-        auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);
+        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(brgemm.second);
     }
 }
 
@@ -370,7 +372,7 @@ TEST_F(BrgemmCPUBlockingTest, Quantized_FC) {
 
         auto brgemm = linear_ir->push_node<BrgemmCPU>(OutputVector{data_a.second, data_b.second}, brgemm_config);
         init_expr_descriptors(*brgemm.first);
-        auto result = linear_ir->push_node<ov::opset10::Result>(brgemm.second);
+        auto result = linear_ir->push_node<ov::snippets::op::Result>(brgemm.second);
     }
     // K,N blocking is disabled until heuristic is updated (ticket: 156014)
     {
@@ -382,7 +384,7 @@ TEST_F(BrgemmCPUBlockingTest, Quantized_FC) {
         init_expr_descriptors(brgemm_expr, {{m_blk, full_dim}, {full_dim, full_dim}, {m_blk, full_dim}});
         create_brgemm_loop_infos(linear_ir_ref, brgemm_expr, m, m_blk, k, 0, n, 0);
         brgemm_expr->set_loop_ids({0});
-        auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);
+        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(brgemm.second);
     }
 }
 
@@ -403,7 +405,7 @@ TEST_F(BrgemmCPUBlockingTest, WithCompensations) {
         const auto& copy_b_n = copy_b.second;
         auto brgemm = linear_ir->push_node<BrgemmCPU>(OutputVector{data_a.second, copy_b_n->output(0), copy_b_n->output(1)}, brgemm_config);
         init_expr_descriptors(*brgemm.first);
-        auto result = linear_ir->push_node<ov::opset10::Result>(brgemm.second);
+        auto result = linear_ir->push_node<ov::snippets::op::Result>(brgemm.second);
     }
     // K,N blocking is disabled until heuristic is updated (ticket: 156014)
     {
@@ -419,7 +421,7 @@ TEST_F(BrgemmCPUBlockingTest, WithCompensations) {
         init_expr_descriptors(brgemm_expr, {{m_blk, full_dim}, {full_dim, full_dim}, {1, full_dim},  {m_blk, full_dim}});
         create_brgemm_loop_infos(linear_ir_ref, brgemm_expr, m, m_blk, k, 0, n, 0);
         brgemm_expr->set_loop_ids({0});
-        auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);
+        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(brgemm.second);
     }
 }
 
@@ -440,7 +442,7 @@ TEST_F(BrgemmCPUBlockingTest, AMX) {
         init_expr_descriptors(*copy_b.first);
         auto brgemm = linear_ir->push_node<BrgemmCPU>(OutputVector{data_a.second, copy_b.second, scratch.second}, brgemm_config);
         init_expr_descriptors(*brgemm.first);
-        auto result = linear_ir->push_node<ov::opset10::Result>(brgemm.second);
+        auto result = linear_ir->push_node<ov::snippets::op::Result>(brgemm.second);
     }
     // K,N blocking is disabled until heuristic is updated (ticket: 156014)
     {
@@ -458,12 +460,11 @@ TEST_F(BrgemmCPUBlockingTest, AMX) {
         std::vector<LoopPort> entries {LoopPort::create<PortType::Incremented>(brgemm_expr->get_input_port(0), 1),
                                        LoopPort::create<PortType::NotProcessed>(brgemm_expr->get_input_port(1))};
         std::vector<LoopPort> exits {LoopPort::create<PortType::Incremented>(brgemm_expr->get_output_port(0), 1)};
-        auto handlers = BrgemmBlockingBase::get_default_blocking_loop_handlers(m, m_blk);
-        linear_ir_ref->get_loop_manager()->
-            add_loop_info(std::make_shared<ov::snippets::lowered::UnifiedLoopInfo>(m, m_blk, entries, exits, handlers));
+        linear_ir_ref->get_loop_manager()->add_loop_info(
+            std::make_shared<ov::snippets::lowered::UnifiedLoopInfo>(m, m_blk, entries, exits, false));
         brgemm_expr->set_loop_ids({0});
         scratch.first->get()->set_loop_ids({0});
-        auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);
+        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(brgemm.second);
     }
 }
 
@@ -482,7 +483,7 @@ TEST_F(BrgemmCPUBlockingTest, AMX_FC) {
         auto scratch = linear_ir->push_node<snippets::op::Buffer>(ov::Shape{BrgemmCPU::SCRATCH_BYTE_SIZE});
         auto brgemm = linear_ir->push_node<BrgemmCPU>(OutputVector{data_a.second, data_b.second, scratch.second}, brgemm_config);
         init_expr_descriptors(*brgemm.first);
-        auto result = linear_ir->push_node<ov::opset10::Result>(brgemm.second);
+        auto result = linear_ir->push_node<ov::snippets::op::Result>(brgemm.second);
     }
     // K,N blocking is disabled until heuristic is updated (ticket: 156014)
     {
@@ -498,12 +499,11 @@ TEST_F(BrgemmCPUBlockingTest, AMX_FC) {
         std::vector<LoopPort> entries {LoopPort::create<PortType::Incremented>(brgemm_expr->get_input_port(0), 1),
                                        LoopPort::create<PortType::NotProcessed>(brgemm_expr->get_input_port(1))};
         std::vector<LoopPort> exits {LoopPort::create<PortType::Incremented>(brgemm_expr->get_output_port(0), 1)};
-        auto handlers = BrgemmBlockingBase::get_default_blocking_loop_handlers(m, m_blk);
-        linear_ir_ref->get_loop_manager()->
-            add_loop_info(std::make_shared<ov::snippets::lowered::UnifiedLoopInfo>(m, m_blk, entries, exits, handlers));
+        linear_ir_ref->get_loop_manager()->add_loop_info(
+            std::make_shared<ov::snippets::lowered::UnifiedLoopInfo>(m, m_blk, entries, exits, false));
         brgemm_expr->set_loop_ids({0});
         scratch.first->get()->set_loop_ids({0});
-        auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);
+        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(brgemm.second);
     }
 }
 
@@ -531,7 +531,7 @@ TEST_F(BrgemmTPPBlockingTest, TPPFloating) {
         auto brgemm = linear_ir->push_node<tpp::op::BrgemmTPP>(data_a.second, data_b.second, 0, 0, 0,
                                                                layout_a, layout_b, layout_c);
         init_expr_descriptors(*brgemm.first, {}, {layout_a, layout_b, layout_c});
-        auto result = linear_ir->push_node<ov::opset10::Result>(brgemm.second);
+        auto result = linear_ir->push_node<ov::snippets::op::Result>(brgemm.second);
     }
     {
         auto data_a = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_a);
@@ -542,7 +542,7 @@ TEST_F(BrgemmTPPBlockingTest, TPPFloating) {
         init_expr_descriptors(brgemm_expr, {{m_blk, k_blk}, {k_blk, n_blk}, {m_blk, n_blk}}, {layout_a, layout_b, layout_c});
         create_brgemm_loop_infos(linear_ir_ref, brgemm_expr, 384, m_blk, 1024, k_blk, 384, n_blk, BACKEND_TYPE::TPP);
         brgemm_expr->set_loop_ids({2, 1, 0});
-        auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);
+        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(brgemm.second);
     }
 }
 #endif // SNIPPETS_LIBXSMM_TPP

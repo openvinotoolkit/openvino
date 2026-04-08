@@ -1,10 +1,11 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "custom/single_layer_tests/classes/convolution.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
+#include "utils/fusing_test_utils.hpp"
 
 using namespace CPUTestUtils;
 
@@ -162,7 +163,7 @@ std::vector<InputShape> inputShapes_Reorder_2D = {
         }
 };
 
-const std::vector<fusingSpecificParams> fusingParamsSet_reorder{
+const std::vector<ExtraOperationsParams> fusingParamsSet_reorder{
         emptyFusingSpec,
         fusingReluScaleShift,
         fusingAddPerChannel

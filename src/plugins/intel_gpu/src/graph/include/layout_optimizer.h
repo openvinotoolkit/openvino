@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,31 @@
 namespace cldnn {
 
 class primitive_inst;
+struct reorder_cache_key {
+    primitive_id data_source;
+    layout expected_layout;
+
+    friend bool operator==(reorder_cache_key const& lhs, reorder_cache_key const& rhs) {
+        bool ret = lhs.data_source == rhs.data_source && lhs.expected_layout == rhs.expected_layout;
+
+        if (ret && lhs.expected_layout.format == cldnn::format::custom) {
+            ret &= (lhs.expected_layout.format.traits().block_sizes ==
+                    rhs.expected_layout.format.traits().block_sizes);
+        }
+        return ret;
+    }
+
+    friend bool operator!=(reorder_cache_key const& lhs, reorder_cache_key const& rhs) { return !(lhs == rhs); }
+
+    friend bool operator<(reorder_cache_key const& lhs, reorder_cache_key const& rhs) {
+        if (lhs.data_source != rhs.data_source)
+            return (lhs.data_source < rhs.data_source);
+        else if (lhs.expected_layout != rhs.expected_layout)
+            return (lhs.expected_layout < rhs.expected_layout);
+        else
+            return lhs.expected_layout.format.traits().block_sizes < rhs.expected_layout.format.traits().block_sizes;
+    }
+};
 
 // this class is used for both static and dynamic reordering of data withing network.
 // static reordering is done for cldnn::data (i.e. immutable) primitives via internal network
@@ -54,42 +79,16 @@ public:
                                                                     std::shared_ptr<WeightsReorderParams> reorder_params);
 
 private:
-    struct cache_key {
-        primitive_id data_source;
-        layout expected_layout;
-        bool needs_split_reorder;
-
-        friend bool operator==(cache_key const& lhs, cache_key const& rhs) {
-            bool ret = lhs.data_source == rhs.data_source && lhs.expected_layout == rhs.expected_layout &&
-                    lhs.needs_split_reorder == rhs.needs_split_reorder;
-
-            if (ret && lhs.expected_layout.format == cldnn::format::custom) {
-                ret &= (lhs.expected_layout.format.traits().block_sizes ==
-                        rhs.expected_layout.format.traits().block_sizes);
-            }
-            return ret;
-        }
-
-        friend bool operator!=(cache_key const& lhs, cache_key const& rhs) { return !(lhs == rhs); }
-
-        friend bool operator<(cache_key const& lhs, cache_key const& rhs) {
-            if (lhs.data_source != rhs.data_source)
-                return (lhs.data_source < rhs.data_source);
-            else if (lhs.expected_layout != rhs.expected_layout)
-                return (lhs.expected_layout < rhs.expected_layout);
-            else if (lhs.expected_layout.format == cldnn::format::custom)
-                return lhs.expected_layout.format.traits().block_sizes < rhs.expected_layout.format.traits().block_sizes;
-            return lhs.needs_split_reorder < rhs.needs_split_reorder;
-        }
-    };
-
-    std::map<cache_key, std::shared_ptr<reorder>> _cached_reorders;
+    std::map<reorder_cache_key, std::shared_ptr<reorder>> _cached_reorders;
 };
+
+int64_t get_convolution_channel_count(const convolution_node& conv_node, const layout& layout, bool is_input);
 
 class layout_optimizer {
 public:
     enum class optimization_attributes_type {
         group_convolution,
+        byxf_onednn_convolution,
         bfyx_only_layer,
         fs_b_yx_fsv32_network,
         b_fs_zyx_fsv32_network,
@@ -100,6 +99,7 @@ public:
 
     struct optimization_attributes {
         int32_t group_convolution = 0;
+        int32_t byxf_onednn_convolution = 0;
         int32_t bfyx_only_layer = 0;
         int32_t fs_b_yx_fsv32_network = 0;
         int32_t b_fs_zyx_fsv32_network = 0;
@@ -107,6 +107,47 @@ public:
         int32_t b_fs_zyx_fsv16_network = 0;
         int32_t bs_fs_yx_bsv16_fsv16_network = 0;
         std::map<primitive_type_id, bool> onednn_impls = {};
+
+        void save(BinaryOutputBuffer& ob) const {
+            ob << group_convolution;
+            ob << byxf_onednn_convolution;
+            ob << bfyx_only_layer;
+            ob << fs_b_yx_fsv32_network;
+            ob << b_fs_zyx_fsv32_network;
+            ob << b_fs_yx_fsv16_network;
+            ob << b_fs_zyx_fsv16_network;
+            ob << bs_fs_yx_bsv16_fsv16_network;
+
+            ob << onednn_impls.size();
+            for (const auto& onednn_impl : onednn_impls) {
+                ob << prim_map_storage::instance().get_type_string(onednn_impl.first);
+                ob << onednn_impl.second;
+            }
+        }
+
+        void load(BinaryInputBuffer& ib) {
+            ib >> group_convolution;
+            ib >> byxf_onednn_convolution;
+            ib >> bfyx_only_layer;
+            ib >> fs_b_yx_fsv32_network;
+            ib >> b_fs_zyx_fsv32_network;
+            ib >> b_fs_yx_fsv16_network;
+            ib >> b_fs_zyx_fsv16_network;
+            ib >> bs_fs_yx_bsv16_fsv16_network;
+
+            size_t onednn_impls_size = 0;
+            ib >> onednn_impls_size;
+
+            onednn_impls.clear();
+            for (size_t i = 0; i < onednn_impls_size; ++i) {
+                primitive_id p_id{};
+                bool enabled = false;
+                ib >> p_id;
+                ib >> enabled;
+                auto ptype_id = prim_map_storage::instance().get_type_id(p_id);
+                onednn_impls[ptype_id] = enabled;
+            }
+        }
     };
 
 private:
@@ -122,6 +163,8 @@ private:
     format get_expected_format(convolution_node const& node);
     format get_expected_format(deconvolution_node const& node);
     format get_expected_format(quantize_node const& node);
+
+    void set_onednn_dyn_conv_preferred_format(convolution_node& node);
 
     bool is_depthwise(const convolution_node& node) const;
     format imad_case(convolution_node const& node) const;
@@ -226,5 +269,13 @@ public:
     size_t get_total_conv_count();
 
     bool should_select_b_fs_yx_fsv16_layout(convolution_node const& node, layout const& output_or_weights_layout);
+
+    void save(BinaryOutputBuffer& ob) const {
+        _optimization_attributes.save(ob);
+    }
+
+    void load(BinaryInputBuffer& ib) {
+        _optimization_attributes.load(ib);
+    }
 };
 }  // namespace cldnn

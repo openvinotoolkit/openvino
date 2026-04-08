@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ public:
         const ov::PartialShape& inputShape,
         const ov::element::Type precisionBeforeDequantization,
         const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
-        const Shape& tagetShape,
+        const Shape& targetShape,
         const Shape& axesMapping,
         const ov::builder::subgraph::DequantizationOperations& dequantizationAfter);
 };

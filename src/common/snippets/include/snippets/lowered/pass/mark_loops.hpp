@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ namespace ov::snippets::lowered::pass {
 class MarkLoops : public RangedPass {
 public:
     OPENVINO_RTTI("MarkLoops", "", RangedPass);
-    MarkLoops(size_t vector_size);
+    explicit MarkLoops(size_t vector_size);
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
 private:

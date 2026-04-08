@@ -1,11 +1,13 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #pragma once
 
 #include <napi.h>
 
 #include <thread>
+#include <variant>
 
 #include "openvino/runtime/core.hpp"
 
@@ -71,22 +73,14 @@ public:
     Napi::Value query_model(const Napi::CallbackInfo& info);
 
     void add_extension(const Napi::CallbackInfo& info);
+
 protected:
     Napi::Value compile_model_sync(const Napi::CallbackInfo& info,
                                    const Napi::Object& model,
                                    const Napi::String& device);
 
     Napi::Value compile_model_sync(const Napi::CallbackInfo& info,
-                                   const Napi::String& model_path,
-                                   const Napi::String& device);
-
-    Napi::Value compile_model_sync(const Napi::CallbackInfo& info,
                                    const Napi::Object& model,
-                                   const Napi::String& device,
-                                   const std::map<std::string, ov::Any>& config);
-
-    Napi::Value compile_model_sync(const Napi::CallbackInfo& info,
-                                   const Napi::String& model_path,
                                    const Napi::String& device,
                                    const std::map<std::string, ov::Any>& config);
 
@@ -107,30 +101,28 @@ private:
     std::mutex _mutex;
 };
 
-struct TsfnContextModel {
-    TsfnContextModel(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)){};
-    std::thread nativeThread;
+struct TsfnCompileModelContext {
+    TsfnCompileModelContext(Napi::Env env, ov::Core& core,
+                            std::variant<std::shared_ptr<ov::Model>, std::filesystem::path> model,
+                            const std::string& device,
+                            ov::AnyMap config)
+        : deferred(Napi::Promise::Deferred::New(env)),
+          _core{core},
+          _model(std::move(model)),
+          _device(device),
+          _config(std::move(config)) {};
+
+    std::thread native_thread;
 
     Napi::Promise::Deferred deferred;
     Napi::ThreadSafeFunction tsfn;
-
-    std::shared_ptr<ov::Model> _model;
+    
+    ov::Core& _core;
+    std::variant<std::shared_ptr<ov::Model>, std::filesystem::path> _model;
     std::string _device;
+    ov::AnyMap _config;
+
     ov::CompiledModel _compiled_model;
-    std::map<std::string, ov::Any> _config = {};
-};
-
-struct TsfnContextPath {
-    TsfnContextPath(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)){};
-    std::thread nativeThread;
-
-    Napi::Promise::Deferred deferred;
-    Napi::ThreadSafeFunction tsfn;
-
-    std::string _model;
-    std::string _device;
-    ov::CompiledModel _compiled_model;
-    std::map<std::string, ov::Any> _config = {};
 };
 
 struct ImportModelContext {
@@ -147,7 +139,5 @@ struct ImportModelContext {
     ov::CompiledModel _compiled_model;
 };
 
-void FinalizerCallbackModel(Napi::Env env, void* finalizeData, TsfnContextModel* context);
-void FinalizerCallbackPath(Napi::Env env, void* finalizeData, TsfnContextPath* context);
-void compileModelThreadModel(TsfnContextModel* context);
-void compileModelThreadPath(TsfnContextPath* context);
+void tsfn_finalizer_callback(Napi::Env env, void* finalize_data, TsfnCompileModelContext* context);
+void compile_model_thread(TsfnCompileModelContext* context);

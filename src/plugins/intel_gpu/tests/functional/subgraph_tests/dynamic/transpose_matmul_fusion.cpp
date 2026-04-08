@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,11 +13,8 @@ using TransposeOrderParams = std::tuple<std::vector<int64_t>,  // allowed transp
                                         ov::element::Type>;    // input precision
 class TransposeMatmulFuseTest : public ::testing::Test, public testing::WithParamInterface<TransposeOrderParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<TransposeOrderParams> obj) {
-        std::vector<int64_t> target_order;
-        ov::element::Type input_precision;
-
-        std::tie(target_order, input_precision) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<TransposeOrderParams>& obj) {
+        const auto& [target_order, input_precision] = obj.param;
 
         std::ostringstream result;
         result << "transpose_order=[";
@@ -29,7 +26,7 @@ public:
     }
 
 protected:
-    std::shared_ptr<ov::Model> init_subgraph(ov::element::Type& input_precision, const std::vector<int64_t>& target_transpose_order) {
+    std::shared_ptr<ov::Model> init_subgraph(const ov::element::Type& input_precision, const std::vector<int64_t>& target_transpose_order) {
         ov::PartialShape input_a_shape = ov::PartialShape{-1, -1, -1, -1};
         ov::PartialShape input_b_shape = ov::PartialShape{-1, -1};
 
@@ -41,7 +38,7 @@ protected:
 
         auto matmul = std::make_shared<ov::op::v0::MatMul>(transpose_a, input_b, false, false);
 
-        auto model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input_a, input_b});
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input_a, input_b});
         return model;
     }
 
@@ -51,9 +48,7 @@ private:
 };
 
 TEST_P(TransposeMatmulFuseTest, smoke_allowed_transpose_order) {
-    std::vector<int64_t> target_order;
-    ov::element::Type input_precision;
-    std::tie(target_order, input_precision) = GetParam();
+    const auto& [target_order, input_precision] = GetParam();
     auto function = init_subgraph(input_precision, target_order);
 
     std::string targetDevice = ov::test::utils::DEVICE_GPU;
@@ -96,12 +91,8 @@ using TransposesOrderParams = std::tuple<std::vector<int64_t>,  // transpose_a o
                                         ov::element::Type>;    // input precision
 class TransposeMatmulTransposeFuse3DTest : public ::testing::Test, public testing::WithParamInterface<TransposesOrderParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<TransposesOrderParams> obj) {
-        std::vector<int64_t> target_order_a;
-        std::vector<int64_t> target_order_c;
-        ov::element::Type input_precision;
-
-        std::tie(target_order_a, target_order_c, input_precision) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<TransposesOrderParams>& obj) {
+        const auto& [target_order_a, target_order_c, input_precision] = obj.param;
 
         std::ostringstream result;
         result << "transpose_a_order=[";
@@ -117,7 +108,7 @@ public:
     }
 
 protected:
-    std::shared_ptr<ov::Model> init_subgraph(ov::element::Type& input_precision,
+    std::shared_ptr<ov::Model> init_subgraph(const ov::element::Type& input_precision,
                                              const std::vector<int64_t>& target_transpose_order_a,
                                              const std::vector<int64_t>& target_transpose_order_c) {
         ov::PartialShape input_a_shape = ov::PartialShape{-1, -1, -1};
@@ -134,7 +125,7 @@ protected:
         auto transpose_order_c = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{target_transpose_order_c.size()}, target_transpose_order_c);
         auto transpose_c = std::make_shared<ov::op::v1::Transpose>(matmul, transpose_order_c);
 
-        auto model = std::make_shared<ov::Model>(ov::NodeVector{transpose_c}, ov::ParameterVector{input_a, input_b});
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{transpose_c}, ov::ParameterVector{input_a, input_b});
         return model;
     }
 
@@ -144,10 +135,7 @@ private:
 };
 
 TEST_P(TransposeMatmulTransposeFuse3DTest, smoke_allowed_transposes_order) {
-    std::vector<int64_t> target_order_a;
-    std::vector<int64_t> target_order_c;
-    ov::element::Type input_precision;
-    std::tie(target_order_a, target_order_c, input_precision) = GetParam();
+    const auto& [target_order_a, target_order_c, input_precision] = GetParam();
     auto function = init_subgraph(input_precision, target_order_a, target_order_c);
 
     std::string targetDevice = ov::test::utils::DEVICE_GPU;

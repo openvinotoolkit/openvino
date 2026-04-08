@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,11 +19,11 @@ void PassConfig::enable(const DiscreteTypeInfo& type_info) {
 }
 
 bool PassConfig::is_disabled(const DiscreteTypeInfo& type_info) const {
-    return m_disabled.count(type_info) != 0u;
+    return m_disabled.count(type_info) != 0U;
 }
 
 bool PassConfig::is_enabled(const DiscreteTypeInfo& type_info) const {
-    return m_enabled.count(type_info) != 0u;
+    return m_enabled.count(type_info) != 0U;
 }
 
 bool operator==(const PassConfig& lhs, const PassConfig& rhs) {

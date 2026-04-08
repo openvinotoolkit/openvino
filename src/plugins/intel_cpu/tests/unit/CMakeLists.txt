@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -31,17 +31,15 @@ if(NOT X86_64)
       ${CMAKE_CURRENT_SOURCE_DIR}/transformations/x64
       ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations/x64
       ${CMAKE_CURRENT_SOURCE_DIR}/nodes/eltwise_node_test.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/brgemm_executor_test.cpp)
+      ${CMAKE_CURRENT_SOURCE_DIR}/brgemm_executor_test.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/xattention_test.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/softmax_kernel_test.cpp)
 endif()
 
 if (NOT ENABLE_MLAS_FOR_CPU)
     list(APPEND EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST ${CMAKE_CURRENT_SOURCE_DIR}/gemm_api_test.cpp)
 else()
     set(MLAS_LIBRARY "mlas")
-endif()
-
-if (ENABLE_SHL_FOR_CPU)
-    set(SHL_LIBRARY "shl")
 endif()
 
 if (ENABLE_KLEIDIAI_FOR_CPU)
@@ -58,6 +56,7 @@ ov_add_test_target(
                 $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/thirdparty/onednn
                 $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/thirdparty/onednn/src
                 $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
+                $<TARGET_PROPERTY:openvino::reference,SOURCE_DIR>/include
             PRIVATE
                 $<TARGET_PROPERTY:openvino::snippets,SOURCE_DIR>/include
         EXCLUDED_SOURCE_PATHS
@@ -74,12 +73,11 @@ ov_add_test_target(
             openvino::shape_inference
             openvino_runtime_s
             unit_test_utils
+            openvino_xml_util
             ov_snippets_models
             snippets_test_utils
             ${MLAS_LIBRARY}
-            ${SHL_LIBRARY}
             ${KLEIDIAI_LIBRARY}
-        ADD_CPPLINT
         LABELS
             OV UNIT CPU
 )
@@ -94,9 +92,6 @@ endif()
 
 # LTO
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
-
-target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 
 if (WIN32)
     # Prevents defining min/max as macros
@@ -123,7 +118,15 @@ if(ENABLE_UNITY_BUILD)
     group_source_file(unit_src_custom_shape_infer ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer)
 endif()
 
+# explicitly set include directories for gtest before the dnnl include directories as dnnl third_party dir also contains
+# gtest. This is necessary to ensure a proper order of include directories in the compilation command line
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/src/common
-    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/src/cpu
-    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/include)
+    $<TARGET_PROPERTY:gtest,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:gtest_main,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:gmock,INTERFACE_INCLUDE_DIRECTORIES>)
+
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
+    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>)
+
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
+    $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)

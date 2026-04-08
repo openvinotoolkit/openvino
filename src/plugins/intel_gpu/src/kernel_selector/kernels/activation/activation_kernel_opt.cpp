@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -96,6 +96,10 @@ bool ActivationKernelOpt::Validate(const Params& p) const {
             if (act.function == ActivationFunction::ABS)
                 DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
+    }
+
+    if (params.activations[0].function == ActivationFunction::SOFTPLUS && input_dt == Datatype::F16) {
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;

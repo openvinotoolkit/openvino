@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,12 +8,7 @@
 namespace ov {
 namespace test {
 std::string ClampLayerTest::getTestCaseName(const testing::TestParamInfo<clampParamsTuple>& obj) {
-    std::vector<InputShape> shapes;
-    std::pair<float, float> interval;
-    ov::element::Type model_type;
-    std::string target_device;
-
-    std::tie(shapes, interval, model_type, target_device) = obj.param;
+    const auto& [shapes, interval, model_type, target_device] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -36,10 +31,8 @@ std::string ClampLayerTest::getTestCaseName(const testing::TestParamInfo<clampPa
 }
 
 void ClampLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    std::pair<float, float> interval;
-    ov::element::Type model_type;
-    std::tie(shapes, interval, model_type, targetDevice) = this->GetParam();
+    const auto& [shapes, interval, model_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     auto input = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());

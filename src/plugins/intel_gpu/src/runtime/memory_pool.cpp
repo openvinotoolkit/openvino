@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -150,6 +150,20 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
 #endif
 }
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+static int get_feature_block_size(const cldnn::format& fmt) {
+    const auto& order = cldnn::format::internal_order(fmt);
+    int f_bs = 1;
+    for (const auto& [dim, bs] : cldnn::format::block_sizes(fmt)) {
+        if (dim < order.size() && order[dim] == 'f') {
+            f_bs = static_cast<int>(bs);
+            break;
+        }
+    }
+    return f_bs;
+}
+#endif // ENABLE_ONEDNN_FOR_GPU
+
 memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
                                                   const primitive_id& prim_id,
                                                   size_t unique_id,
@@ -159,19 +173,28 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
                                                   bool reset,
                                                   bool is_dynamic) {
     const auto layout_bytes_count = layout.bytes_count();
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    const int f_block_size = get_feature_block_size(layout.format);
+#endif // ENABLE_ONEDNN_FOR_GPU
     auto it = _non_padded_pool.lower_bound(layout_bytes_count);
     while (it != _non_padded_pool.end()) {
-        if ((!is_dynamic || (layout_bytes_count > it->second._memory->get_layout().bytes_count() * 0.5)) &&
+        const auto& mem_layout = it->second._memory->get_layout();
+        if ((!is_dynamic || (layout_bytes_count > mem_layout.bytes_count() * _mem_pool_util_threshold)) &&
             (it->second._network_id == network_id &&
             it->second._type == type &&
-            it->second._memory->get_layout().format != format::fs_b_yx_fsv32 &&
+            mem_layout.format != format::fs_b_yx_fsv32 &&
             layout.format != format::fs_b_yx_fsv32 &&
             ((layout.format != format::b_fs_yx_fsv32 && layout.format != format::b_fs_zyx_fsv32) ||
              (layout.feature() % 32 == 0)) &&
+#ifdef ENABLE_ONEDNN_FOR_GPU
+            (!format::is_blocked(layout.format) || layout.feature() % f_block_size == 0 ||
+             (mem_layout.format == layout.format &&
+              mem_layout.feature() % f_block_size == layout.feature() % f_block_size)) &&
+#endif // ENABLE_ONEDNN_FOR_GPU
             !has_conflict(it->second._users, restrictions))) {
             it->second._users.insert(memory_user(MEM_USER(unique_id, network_id, prim_id, layout_bytes_count)));
             auto ret_mem = _engine->reinterpret_buffer(*it->second._memory, layout);
-            GPU_DEBUG_CODE(ret_mem->from_memory_pool = true);
+            ret_mem->from_memory_pool = true;
             return ret_mem;
         } else {
             ++it;
@@ -202,22 +225,30 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
                                               uint32_t network_id,
                                               const memory_restricter<uint32_t>& restrictions,
                                               allocation_type type) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    const int f_block_size = get_feature_block_size(layout.format);
+#endif // ENABLE_ONEDNN_FOR_GPU
     auto first_level_cache = _padded_pool.find(layout);
     if (first_level_cache != _padded_pool.end()) {
         for (auto& rec_list : first_level_cache->second) {
+            const auto& mem_layout = rec_list._memory->get_layout();
             if (rec_list._network_id == network_id &&
                 rec_list._type == type &&
                 ((layout.format != format::b_fs_yx_fsv32 && layout.format != format::b_fs_zyx_fsv32) ||
                  (layout.feature() % 32 == 0)) &&
+#ifdef ENABLE_ONEDNN_FOR_GPU
+                (!format::is_blocked(layout.format) || layout.feature() % f_block_size == 0 ||
+                 mem_layout.feature() % f_block_size == layout.feature() % f_block_size) &&
+#endif // ENABLE_ONEDNN_FOR_GPU
                 // TODO: check if this condition always correct
-                layout.feature() <= rec_list._memory->get_layout().feature() &&
-                layout.batch() <= rec_list._memory->get_layout().batch() &&
-                rec_list._memory->get_layout().format != format::fs_b_yx_fsv32 &&
+                layout.feature() <= mem_layout.feature() &&
+                layout.batch() <= mem_layout.batch() &&
+                mem_layout.format != format::fs_b_yx_fsv32 &&
                 layout.format != format::fs_b_yx_fsv32 &&
                 !has_conflict(rec_list._users, restrictions)) {
                 auto ret_mem = _engine->reinterpret_buffer(*(rec_list._memory), layout);
                 rec_list._users.insert({MEM_USER(unique_id, network_id, prim_id, ret_mem->size())});
-                GPU_DEBUG_CODE(ret_mem->from_memory_pool = true);
+                ret_mem->from_memory_pool = true;
                 return ret_mem;
             }
         }
@@ -270,30 +301,9 @@ memory::ptr memory_pool::get_memory(const layout& layout,
     GPU_DEBUG_IF(_config.get_disable_memory_reuse()) {
         do_reuse = false;
     }
-    if (do_reuse) {
-        // reusable within the same network
-        if (!layout.format.is_image() && !layout.data_padding) {
-            // non-padded buffers
-            return get_from_non_padded_pool(layout, prim_id, unique_id, network_id, restrictions, type, reset, is_dynamic);
-        } else if (!layout.format.is_image()) {
-            // padded buffers
-            return get_from_padded_pool(layout, prim_id, unique_id, network_id, restrictions, type);
-        } else {
-            // images (reuse not yet implemented)
-            auto mem = alloc_memory(layout, type, reset);
-#ifdef GPU_DEBUG_CONFIG
-            GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
-                auto allocated_mem_size = mem->size();
-                _no_reusable_mems.push_back(
-                                        memory_record({{MEM_USER(unique_id, network_id, prim_id, allocated_mem_size)}}, mem, network_id, type));
-                total_mem_size_no_reusable += allocated_mem_size;
-                if (type == allocation_type::usm_host)
-                    mem_size_no_reusable_host += allocated_mem_size;
-            }
-#endif
-            return mem;
-        }
-    } else {
+
+    if (!do_reuse || layout.format.is_image()) {
+        // images (reuse not yet implemented)
         auto mem = alloc_memory(layout, type, reset);
 #ifdef GPU_DEBUG_CONFIG
         GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
@@ -306,6 +316,12 @@ memory::ptr memory_pool::get_memory(const layout& layout,
         }
 #endif
         return mem;
+    } else if (!layout.data_padding || is_dynamic) {
+        // non-padded buffers. For dynamic shape, use non-padded pool even if it has padding because we will reset the buffer if it is reused
+        return get_from_non_padded_pool(layout, prim_id, unique_id, network_id, restrictions, type, reset, is_dynamic);
+    } else {
+        // padded buffers
+        return get_from_padded_pool(layout, prim_id, unique_id, network_id, restrictions, type);
     }
 }
 
@@ -387,25 +403,16 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
         }
     }
 #endif
-
-    // free up _no_reusable_pool for this network
-    {
-        auto itr = _no_reusable_pool.begin();
-
-        while (itr != _no_reusable_pool.end()) {
-            auto& record = itr->second;
-
-            if (record._network_id == network_id) {
-                itr = _no_reusable_pool.erase(itr);
-            } else {
-                itr++;
-            }
-        }
-    }
 }
 
 memory_pool::memory_pool(engine& engine, const ExecutionConfig& config) : _engine(&engine), _config(config) {
-    (void)(_config); // Silence unused warning
+    _mem_pool_util_threshold = _config.get_mem_pool_util_threshold();
+    if (_mem_pool_util_threshold < 0.f || _mem_pool_util_threshold > 1.f) {
+        _mem_pool_util_threshold = std::clamp(_mem_pool_util_threshold, 0.f, 1.f);
+        GPU_DEBUG_INFO << "[WARNING] mem_pool_util_threshold should be in range [0.f, 1.f]. Reset to "
+            << _mem_pool_util_threshold << std::endl;
+    }
+    GPU_DEBUG_TRACE_DETAIL << "mem_pool_util_threshold set to " << _mem_pool_util_threshold << std::endl;
 }
 
 #ifdef GPU_DEBUG_CONFIG

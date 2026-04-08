@@ -1,10 +1,17 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "gemm_cpu_blocking.hpp"
 
+#include <cassert>
+#include <cstddef>
+#include <tuple>
+
+#include "openvino/core/type.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/utils/utils.hpp"
+#include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
 
 namespace ov::intel_cpu::pass {
 

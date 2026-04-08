@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/exp.hpp"
+#include "openvino/op/identity.hpp"
 #include "openvino/op/log.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/range.hpp"
@@ -137,7 +138,7 @@ std::shared_ptr<ov::Node> make_ov_reduction_op(const Node& node,
     if (reduction_axes != nullptr) {
         return std::make_shared<OpType>(ov_input, reduction_axes, static_cast<bool>(keepdims));
     } else {
-        return ai_onnx::opset_1::identity(node).at(0).get_node_shared_ptr();
+        return std::make_shared<v16::Identity>(ov_input);
     }
 }
 
@@ -202,7 +203,7 @@ static bool register_multiple_translators(void) {
     ONNX_OP_M("ReduceL2", OPSET_RANGE(1, 12), ai_onnx::opset_1::reduce_l2);
     ONNX_OP_M("ReduceMax", OPSET_RANGE(1, 12), ai_onnx::opset_1::reduce_max);
     ONNX_OP_M("ReduceMean", OPSET_RANGE(1, 12), ai_onnx::opset_1::reduce_mean);
-    ONNX_OP_M("ReduceMin", {1, 12}, ai_onnx::opset_1::reduce_min);
+    ONNX_OP_M("ReduceMin", OPSET_RANGE(1, 12), ai_onnx::opset_1::reduce_min);
     ONNX_OP_M("ReduceProd", OPSET_RANGE(1, 12), ai_onnx::opset_1::reduce_prod);
     ONNX_OP_M("ReduceSum", OPSET_RANGE(1, 12), ai_onnx::opset_1::reduce_sum);
     ONNX_OP_M("ReduceSumSquare", OPSET_RANGE(1, 12), ai_onnx::opset_1::reduce_sum_square);
@@ -264,7 +265,7 @@ static bool register_multiple_translators(void) {
     ONNX_OP_M("ReduceLogSumExp", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_log_sum_exp);
     ONNX_OP_M("ReduceMax", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_max);
     ONNX_OP_M("ReduceMean", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_mean);
-    ONNX_OP_M("ReduceMin", {13, 17}, ai_onnx::opset_13::reduce_min);
+    ONNX_OP_M("ReduceMin", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_min);
     ONNX_OP_M("ReduceProd", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_prod);
     ONNX_OP_M("ReduceSum", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_sum);
     ONNX_OP_M("ReduceSumSquare", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_sum_square);
@@ -323,7 +324,7 @@ static bool register_multiple_translators(void) {
     ONNX_OP_M("ReduceLogSumExp", OPSET_SINCE(18), ai_onnx::opset_18::reduce_log_sum_exp);
     ONNX_OP_M("ReduceMax", OPSET_RANGE(18, 19), ai_onnx::opset_18::reduce_max);
     ONNX_OP_M("ReduceMean", OPSET_SINCE(18), ai_onnx::opset_18::reduce_mean);
-    ONNX_OP_M("ReduceMin", {18, 19}, ai_onnx::opset_18::reduce_min);
+    ONNX_OP_M("ReduceMin", OPSET_RANGE(18, 19), ai_onnx::opset_18::reduce_min);
     ONNX_OP_M("ReduceProd", OPSET_SINCE(18), ai_onnx::opset_18::reduce_prod);
     ONNX_OP_M("ReduceSumSquare", OPSET_SINCE(18), ai_onnx::opset_18::reduce_sum_square);
     return true;

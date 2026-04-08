@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 #include <limits>
 #include <memory>
 #include <numeric>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <type_traits>
@@ -32,6 +33,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/util/common_util.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
@@ -47,6 +49,11 @@ constexpr T get_dynamic_value() {
 template <typename T, typename = std::enable_if_t<(std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>), bool>>
 constexpr bool is_dynamic_value(T value) {
     return value == get_dynamic_value<T>();
+}
+
+template <typename T, typename = std::enable_if_t<(std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>), bool>>
+constexpr bool has_dynamic_values(std::vector<T> values) {
+    return std::any_of(values.cbegin(), values.cend(), ov::snippets::utils::is_dynamic_value<T>);
 }
 
 // This value means full dimension
@@ -80,24 +87,26 @@ inline auto normalize_rank(int32_t allocation_rank, const size_t shape_rank) -> 
     return allocation_rank < 0 ? allocation_rank + static_cast<int32_t>(shape_rank) + 1 : allocation_rank;
 }
 
-template <typename T, typename P>
-constexpr bool one_of(T val, P item) {
-    return val == item;
+// Returns the normalized Softmax axis when the node is a Softmax with a static rank.
+// Returns nullopt if the node is null, has a dynamic rank, or is not a supported Softmax version.
+std::optional<int64_t> get_softmax_axis(const std::shared_ptr<const ov::Node>& node);
+
+template <typename T, typename... Args>
+constexpr bool any_of(T val, Args... items) {
+    static_assert(sizeof...(Args) > 0, "'any_of' requires at least one item to compare against.");
+    return ((val == items) || ...);
 }
 
-template <typename T, typename P, typename... Args>
-constexpr bool one_of(T val, P item, Args... item_others) {
-    return val == item || one_of(val, item_others...);
+template <typename T, typename... Args>
+constexpr bool none_of(T val, Args... items) {
+    static_assert(sizeof...(Args) > 0, "'none_of' requires at least one item to compare against.");
+    return !any_of(val, items...);
 }
 
-template <typename T, typename P>
-constexpr bool everyone_is(T val, P item) {
-    return val == item;
-}
-
-template <typename T, typename P, typename... Args>
-constexpr bool everyone_is(T val, P item, Args... item_others) {
-    return val == item && everyone_is(val, item_others...);
+template <typename T, typename... Args>
+constexpr bool all_of(T val, Args... items) {
+    static_assert(sizeof...(Args) > 0, "'all_of' requires at least one item to compare against.");
+    return ((val == items) && ...);
 }
 
 constexpr bool implication(bool cause, bool cond) {
@@ -134,9 +143,7 @@ static inline bool is_planar_layout(const std::vector<size_t>& order) {
 }
 
 inline bool is_dynamic_vdims(const VectorDims& shape) {
-    return std::any_of(shape.cbegin(), shape.cend(), [](size_t v) {
-        return is_dynamic_value(v);
-    });
+    return has_dynamic_values(shape);
 }
 
 inline bool is_dynamic_vdims(const VectorDimsPtr& shape) {
@@ -166,16 +173,11 @@ inline std::string value2str(const T& value) {
 
 template <typename T, typename = std::enable_if_t<(std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>), bool>>
 std::string vector2str(const std::vector<T>& values) {
-    std::ostringstream str;
-    bool first = true;
-    for (auto& v : values) {
-        if (!first) {
-            str << ",";
-        }
-        str << value2str(v);
-        first = false;
-    }
-    return str.str();
+    std::vector<std::string> string_values(values.size());
+    std::transform(values.cbegin(), values.cend(), string_values.begin(), [](const auto& v) {
+        return value2str(v);
+    });
+    return ov::util::join(string_values, ",");
 }
 
 bool broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2);
@@ -391,5 +393,13 @@ void visit_path(const lowered::ExpressionPtr& expr,
  * @return A string representation of the tensor.
  */
 std::string tensor2str(const VectorDims& tensor, const std::string& delimiter = ", ");
+
+/**
+ * @brief check if the expression should be connected from all expanded loop iterations for passes such as register
+ * assignment.
+ * @param expr The expression to be checked.
+ * @return Returns true if full connectors are needed, false otherwise.
+ */
+bool need_full_connectors(const lowered::ExpressionPtr& expr);
 
 }  // namespace ov::snippets::utils

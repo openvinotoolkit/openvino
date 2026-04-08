@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -98,7 +98,10 @@ struct StringTensorPack::StringTensorPackExecute {
 };
 
 bool StringTensorPack::isExecutable() const {
-    return !(isInputTensorAtPortEmpty(0) || isInputTensorAtPortEmpty(1));
+    const bool port0_empty = isInputTensorAtPortEmpty(0);
+    const bool port1_empty = isInputTensorAtPortEmpty(1);
+    const bool any_empty = port0_empty || port1_empty;
+    return !any_empty;
 }
 
 void StringTensorPack::execute([[maybe_unused]] const dnnl::stream& strm) {

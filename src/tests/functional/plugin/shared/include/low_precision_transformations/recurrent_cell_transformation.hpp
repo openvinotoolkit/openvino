@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,7 +49,7 @@ class RecurrentCellTransformation :
     public testing::WithParamInterface<RecurrentCellTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<RecurrentCellTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<RecurrentCellTransformationParams>& obj);
 
 protected:
     void SetUp() override;

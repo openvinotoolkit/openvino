@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -23,13 +23,13 @@ union CacheDecrypt {
 
     CacheDecrypt() {}
 
-    CacheDecrypt(CacheDecryptStr fn) : m_decrypt_str(std::move(fn)) {}
+    explicit CacheDecrypt(CacheDecryptStr fn) : m_decrypt_str(std::move(fn)) {}
 
-    CacheDecrypt(CacheDecryptChar fn) : m_decrypt_char(std::move(fn)) {}
+    explicit CacheDecrypt(CacheDecryptChar fn) : m_decrypt_char(std::move(fn)) {}
 
     ~CacheDecrypt() {}
 
-    operator bool() const {
+    explicit operator bool() const {
         return m_decrypt_char || m_decrypt_str;
     }
 };

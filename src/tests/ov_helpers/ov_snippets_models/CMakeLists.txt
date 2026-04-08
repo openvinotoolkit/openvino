@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -22,7 +22,6 @@ ov_add_target(
                 common_test_utils
                 openvino::snippets
                 ov_lpt_models
-        ADD_CPPLINT
 )
 
 ov_build_target_faster(${TARGET_NAME}

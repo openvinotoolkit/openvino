@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -118,11 +118,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizePrecisionSelectionTransformationParams> obj) {
-        ov::element::Type precision;
-        ov::Shape shape;
-        bool updatePrecision;
-        FakeQuantizePrecisionSelectionTransformationTestValues testValues;
-        std::tie(precision, shape, updatePrecision, testValues) = obj.param;
+        const auto& [precision, shape, updatePrecision, testValues] = obj.param;
 
         TestTransformationParams params;
         params.setUpdatePrecisions(updatePrecision);

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,8 @@ namespace {
 std::vector<ChannelName> get_data_channels_order(size_t rank) {
     using channel = ChannelName;
     switch (rank) {
+    case 0:
+        return {};
     case 1:
         return {channel::BATCH};
     case 2:
@@ -32,7 +34,7 @@ std::vector<ChannelName> get_data_channels_order(size_t rank) {
     case 8:
         return {channel::BATCH, channel::FEATURE, channel::V, channel::U, channel::W, channel::Z, channel::Y, channel::X};
     default:
-        OPENVINO_ASSERT("[GPU] Unexpected rank ", rank, " in get_data_channels_order() func");
+        OPENVINO_THROW("[GPU] Unexpected rank ", rank, " in get_data_channels_order() func");
     }
 
     return {};
@@ -86,11 +88,15 @@ int get_channel_index(ChannelName channel_name, size_t rank, bool is_weights_fmt
     return static_cast<int>(std::distance(order.begin(), it));
 }
 
-size_t extract_channel(ChannelName channel, const cldnn::layout& l) {
+ov::Dimension extract_dim(ChannelName channel, const cldnn::layout& l) {
     using cldnn::format;
     const auto& pshape = l.get_partial_shape();
     auto idx = get_channel_index(channel, pshape.size(), format::is_weights_format(l.format), format::is_grouped(l.format));
-    return (idx < 0 || idx >= static_cast<int>(pshape.size())) ? 1 : static_cast<size_t>(pshape[idx].get_length());
+    return (idx < 0 || idx >= static_cast<int>(pshape.size())) ? ov::Dimension(1) : pshape[idx];
+}
+
+size_t extract_channel(ChannelName channel, const cldnn::layout& l) {
+    return extract_dim(channel, l).get_length();
 }
 
 }  // namespace ov::intel_gpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "cpu_memory.h"
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "gather_tree.h"
 #include "graph_context.h"
@@ -24,7 +25,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -53,25 +53,15 @@ GatherTree::GatherTree(const std::shared_ptr<ov::Node>& op, const GraphContext::
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (inputShapes.size() != 4) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges.");
-    }
-    if (outputShapes.size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges.");
-    }
+    CPU_NODE_ASSERT(inputShapes.size() == 4, "has incorrect number of input edges.");
+    CPU_NODE_ASSERT(outputShapes.size() == 1, "has incorrect number of output edges.");
 
-    if (getInputShapeAtPort(GATHER_TREE_STEP_IDX).getRank() != 3) {
-        THROW_CPU_NODE_ERR("step_idx vector should be 3 dimension");
-    }
-    if (getInputShapeAtPort(GATHER_TREE_PARENT_IDX).getRank() != 3) {
-        THROW_CPU_NODE_ERR("parent_idx vector should be 3 dimension");
-    }
-    if (getInputShapeAtPort(GATHER_TREE_MAX_SEQ_LEN).getRank() != 1) {
-        THROW_CPU_NODE_ERR("max_seq_len vector should be 1 dimension");
-    }
-    if (!is_scalar(op->get_input_partial_shape(GATHER_TREE_END_TOKEN))) {
-        THROW_CPU_NODE_ERR("end_token should be scalar");
-    }
+    CPU_NODE_ASSERT(getInputShapeAtPort(GATHER_TREE_STEP_IDX).getRank() == 3, "step_idx vector should be 3 dimension");
+    CPU_NODE_ASSERT(getInputShapeAtPort(GATHER_TREE_PARENT_IDX).getRank() == 3,
+                    "parent_idx vector should be 3 dimension");
+    CPU_NODE_ASSERT(getInputShapeAtPort(GATHER_TREE_MAX_SEQ_LEN).getRank() == 1,
+                    "max_seq_len vector should be 1 dimension");
+    CPU_NODE_ASSERT(is_scalar(op->get_input_partial_shape(GATHER_TREE_END_TOKEN)), "end_token should be scalar");
 }
 
 void GatherTree::initSupportedPrimitiveDescriptors() {
@@ -80,7 +70,7 @@ void GatherTree::initSupportedPrimitiveDescriptors() {
     }
 
     precision = getOriginalInputPrecisionAtPort(GATHER_TREE_STEP_IDX);
-    if (!one_of(precision, ov::element::f32, ov::element::i32)) {
+    if (none_of(precision, ov::element::f32, ov::element::i32)) {
         precision = ov::element::f32;
     }
 
@@ -88,7 +78,7 @@ void GatherTree::initSupportedPrimitiveDescriptors() {
         getOriginalInputPrecisionAtPort(GATHER_TREE_MAX_SEQ_LEN) != precision ||
         getOriginalInputPrecisionAtPort(GATHER_TREE_END_TOKEN) != precision ||
         getOriginalOutputPrecisionAtPort(0) != precision) {
-        THROW_CPU_NODE_ERR("has incorrect input/output data precision. Must be the same.");
+        CPU_NODE_THROW("has incorrect input/output data precision. Must be the same.");
     }
 
     addSupportedPrimDesc({{LayoutType::ncsp, precision},
@@ -100,22 +90,22 @@ void GatherTree::initSupportedPrimitiveDescriptors() {
 }
 
 void GatherTree::execute([[maybe_unused]] const dnnl::stream& strm) {
-    if (!execPtr) {
-        THROW_CPU_NODE_ERR("has not compiled executor.");
-    }
+    CPU_NODE_ASSERT(execPtr, "has not compiled executor.");
 
     if (precision == ov::element::f32) {
         execPtr->exec<float>(getSrcMemoryAtPort(GATHER_TREE_STEP_IDX),
                              getSrcMemoryAtPort(GATHER_TREE_PARENT_IDX),
                              getSrcMemoryAtPort(GATHER_TREE_MAX_SEQ_LEN),
                              getSrcMemoryAtPort(GATHER_TREE_END_TOKEN),
-                             getDstMemoryAtPort(0));
+                             getDstMemoryAtPort(0),
+                             context->getCpuParallel());
     } else {
         execPtr->exec<int32_t>(getSrcMemoryAtPort(GATHER_TREE_STEP_IDX),
                                getSrcMemoryAtPort(GATHER_TREE_PARENT_IDX),
                                getSrcMemoryAtPort(GATHER_TREE_MAX_SEQ_LEN),
                                getSrcMemoryAtPort(GATHER_TREE_END_TOKEN),
-                               getDstMemoryAtPort(0));
+                               getDstMemoryAtPort(0),
+                               context->getCpuParallel());
     }
 }
 
@@ -125,21 +115,11 @@ void GatherTree::prepareParams() {
     const auto& maxSeqLenMemPtr = getSrcMemoryAtPort(GATHER_TREE_MAX_SEQ_LEN);
     const auto& dstMemPtr = getDstMemoryAtPort(0);
 
-    if (!stepIdxMemPtr || !stepIdxMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined input memory of 'step_ids'.");
-    }
-    if (!parentIdxMemPtr || !parentIdxMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined input memory of 'parent_ids'.");
-    }
-    if (!maxSeqLenMemPtr || !maxSeqLenMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined input memory of 'max_seq_len'.");
-    }
-    if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined output memory.");
-    }
-    if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor.");
-    }
+    CPU_NODE_ASSERT(stepIdxMemPtr && stepIdxMemPtr->isDefined(), "has undefined input memory of 'step_ids'.");
+    CPU_NODE_ASSERT(parentIdxMemPtr && parentIdxMemPtr->isDefined(), "has undefined input memory of 'parent_ids'.");
+    CPU_NODE_ASSERT(maxSeqLenMemPtr && maxSeqLenMemPtr->isDefined(), "has undefined input memory of 'max_seq_len'.");
+    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined output memory.");
+    CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor(), "has unidentified preferable primitive descriptor.");
 
     const VectorDims& stepIdxDims = stepIdxMemPtr->getStaticDims();
     const VectorDims& parentIdxDims = parentIdxMemPtr->getStaticDims();
@@ -175,7 +155,8 @@ void GatherTree::GatherTreeExecutor::exec(const MemoryPtr& stepIdxMemPtr,
                                           const MemoryPtr& parentIdxMemPtr,
                                           const MemoryPtr& maxSeqLenMemPtr,
                                           const MemoryPtr& endTokenMemPtr,
-                                          const MemoryPtr& dstMemPtr) {
+                                          const MemoryPtr& dstMemPtr,
+                                          const CpuParallelPtr& cpuParallel) {
     const auto* stepIdx = stepIdxMemPtr->getDataAs<DATA_T>();
     const auto* parentIdx = parentIdxMemPtr->getDataAs<DATA_T>();
     const auto* maxSeqLen = maxSeqLenMemPtr->getDataAs<DATA_T>();
@@ -183,7 +164,7 @@ void GatherTree::GatherTreeExecutor::exec(const MemoryPtr& stepIdxMemPtr,
     auto* finalIdx = dstMemPtr->getDataAs<DATA_T>();
 
     bool incorrectResult = false;
-    parallel_for2d(batchSize, beamWidth, [&](size_t batch, size_t beam) {
+    cpuParallel->parallel_for2d(batchSize, beamWidth, [&](size_t batch, size_t beam) {
         int32_t maxSequenceInBeam = std::min<int32_t>(maxTime, static_cast<int32_t>(maxSeqLen[batch]));
         if (maxSequenceInBeam > 0) {
             int32_t time = (maxTime - 1);

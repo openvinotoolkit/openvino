@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -111,6 +111,7 @@ struct JitConstants : public std::vector<JitConstant> {
     JitConstants() = default;
 };
 
+ov::Dimension extract_dim(ChannelName channel, const cldnn::layout& l);
 size_t extract_channel(ChannelName channel, const cldnn::layout& l);
 int get_channel_index(ChannelName channel_name, size_t rank, bool is_weights_fmt = false, bool is_grouped = false);
 std::vector<ChannelName> get_default_channels_order(size_t rank, bool is_weights_fmt = false, bool is_grouped = false);

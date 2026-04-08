@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,8 @@ COMMON_OP_CONVERTER(translate_angle);
 COMMON_OP_CONVERTER(translate_erfc);
 
 COMMON_OP_CONVERTER(translate_equal);
+
+COMMON_OP_CONVERTER(translate_unsqueeze);
 
 OutputVector translate_atan2_util(const NodeContext& context, const Output<Node>& lhs, const Output<Node>& rhs);
 OutputVector translate_erfc_util(const NodeContext& context, const Output<Node>& data);

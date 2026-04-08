@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ public:
 
     SubModel() = default;
 
-    SubModel(const std::shared_ptr<ov::Model>& body);
+    explicit SubModel(const std::shared_ptr<ov::Model>& body);
 
     SubModel(const OutputVector& args, const std::shared_ptr<ov::Model>& body);
 

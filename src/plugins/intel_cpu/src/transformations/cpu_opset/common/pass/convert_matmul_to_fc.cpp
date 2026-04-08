@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,6 +26,10 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include "openvino/op/multiply.hpp"
+#    include "openvino/op/subtract.hpp"
+#endif
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -38,12 +42,13 @@
 #include "transformations/rt_info/disable_constant_folding.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/utils/utils.hpp"
+#include "utils/general_utils.h"
 
 ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
     MATCHER_SCOPE(ConvertMatMulToFC);
     auto activations_m = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
     auto weights_path = [](const ov::Output<ov::Node>& output) {
-        return ov::op::util::is_on_constant_path(output);
+        return ov::op::util::is_on_path<ov::op::v0::Constant>(output);
     };
     auto weights_m = ov::pass::pattern::any_input(weights_path);
     auto matmul_m = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({activations_m, weights_m},
@@ -67,6 +72,41 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             }
         }
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+        auto is_3d_decompression_path = [](const std::shared_ptr<Node>& root) {
+            std::shared_ptr<Node> multiply_node = ov::as_type_ptr<ov::op::v1::Multiply>(root);
+            if (!multiply_node) {
+                return false;
+            }
+            // subtract
+            std::shared_ptr<Node> subtract_node =
+                ov::as_type_ptr<ov::op::v1::Subtract>(multiply_node->get_input_node_shared_ptr(0));
+            if (!subtract_node) {
+                return false;
+            }
+            // convert
+            std::shared_ptr<Node> convert_node =
+                ov::as_type_ptr<ov::op::v0::Convert>(subtract_node->get_input_node_shared_ptr(0));
+            if (!convert_node) {
+                return false;
+            }
+            // const
+            std::shared_ptr<Node> const_node =
+                ov::as_type_ptr<ov::op::v0::Constant>(convert_node->get_input_node_shared_ptr(0));
+            if (!const_node) {
+                return false;
+            }
+            auto const_shape = const_node->get_shape();
+            auto const_dtype = const_node->get_element_type();
+            return (any_of(const_dtype, ov::element::u4, ov::element::i4, ov::element::u8, ov::element::i8) &&
+                    (const_shape.size() == 3 && const_shape[0] > 1));
+        };
+
+        if (is_3d_decompression_path(fc_input_b.get_node_shared_ptr())) {
+            return false;
+        }
+#endif
+
         auto shape_a = fc_input_a.get_partial_shape();
         auto shape_b = fc_input_b.get_partial_shape();
         OPENVINO_ASSERT(shape_b.is_static());
@@ -75,17 +115,37 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         auto rank_b = shape_b.rank().get_length();
 
         // Transformation to FC is not supported for 1D inputs
-        if (rank_a == 1 || rank_b == 1) {
+        if (any_of(1, rank_a, rank_b)) {
             return false;
         }
 
         // Check that if second inputs is Constant path and it's shape without ones dimensions has length <= 2
         // we replace MatMul with FullyConnected operation.
+        // weight shape:
+        // 4-d cases:
+        //   [1,2,3,4] --> node::matmul
+        //   [5,2,3,4] --> node::matmul
+        //   [2,1,3,4] --> node::matmul
+        //   [1,1,3,4] --> node::fc --> dnnl::inner-product
+        // 3-d case:
+        //   [1,2,3] --> node::fc --> dnnl::inner-product
+        //   [2,3,4] --> node::fc --> dnnl::matmul
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+        if (std::count_if(shape_b.begin(),
+                          shape_b.end(),
+                          [](const ov::Dimension& x) {
+                              return x != 1;
+                          }) > 2 &&
+            shape_b.size() > 3) {
+            return false;
+        }
+#else
         if (std::count_if(shape_b.begin(), shape_b.end(), [](const ov::Dimension& x) {
                 return x != 1;
             }) > 2) {
             return false;
         }
+#endif
         /*
          *  get_aligned_shapes function align two input shapes to have the same size and
          *  the same batch dimensions (last two dimensions are not comparable).
@@ -112,7 +172,21 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
                 std::swap(*(shape_b_aligned.end() - 1), *(shape_b_aligned.end() - 2));
             }
 
-            // check on per-batch MatMul which can't be converted to FC
+            // check on Ndim >= 4 MatMul which first two dim must be 1. Otherwise fallback to matmul node.
+            // wei shape:
+            //   [1,2,1,4] --> node::matmul
+            //   [2,1,1,4] --> node::matmul
+            //   [1,1,2,4] --> node::fc
+            //   [2,3,4] --> node::fc --> dnnl::matmul
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+            if (max_size > 3) {
+                for (size_t i = 0; i < max_size - 2; ++i) {
+                    if (shape_b_aligned[i] != 1) {
+                        return std::make_tuple(false, std::move(shape_a_aligned), std::move(shape_b_aligned));
+                    }
+                }
+            }
+#else
             for (size_t i = 0; i < max_size - 2; ++i) {
                 if (shape_b_aligned[i] == 1) {
                     shape_b_aligned[i] = shape_a_aligned[i];
@@ -120,8 +194,20 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
                     return std::make_tuple(false, std::move(shape_a_aligned), std::move(shape_b_aligned));
                 }
             }
+#endif
             return std::make_tuple(true, std::move(shape_a_aligned), std::move(shape_b_aligned));
         };
+
+        auto [success, shape_a_aligned, shape_b_aligned] = get_aligned_shapes();
+        if (!success) {
+            return false;  // convert to fc failed and then fallback to matmul node
+        }
+
+        auto aligned_a_rank = shape_a_aligned.rank();
+        auto aligned_b_rank = shape_b_aligned.rank();
+        OPENVINO_ASSERT(aligned_a_rank.is_static() && aligned_b_rank.is_static() && aligned_a_rank.get_length() >= 2 &&
+                            aligned_b_rank.get_length() >= 2,
+                        "MatMul " + matmul->get_friendly_name() + " shapes are inconsistent.");
 
         /*
          *  create_transpose function return Transpose operation to replace transpose_a or transpose_b
@@ -150,21 +236,6 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             return transpose;
         };
 
-        bool success = true;
-        ov::PartialShape shape_a_aligned;
-        ov::PartialShape shape_b_aligned;
-        std::tie(success, shape_a_aligned, shape_b_aligned) = get_aligned_shapes();
-        if (!success) {
-            return false;
-        }
-
-        auto aligned_a_rank = shape_a_aligned.rank();
-        auto aligned_b_rank = shape_b_aligned.rank();
-        if (aligned_a_rank.is_dynamic() || aligned_b_rank.is_dynamic() || aligned_a_rank.get_length() < 2 ||
-            aligned_b_rank.get_length() < 2) {
-            OPENVINO_THROW("MatMul " + matmul->get_friendly_name() + " shapes are inconsistent.");
-        }
-
         // Weights normalization
         if (!matmul->get_transpose_b()) {
             fc_input_b = create_transpose(fc_input_b, matmul->get_friendly_name() + "/transpose_b");
@@ -175,7 +246,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             fc_input_a = create_transpose(fc_input_a, matmul->get_friendly_name() + "/transpose_a");
         }
 
-        auto bias = std::make_shared<ov::op::v0::Constant>(element::dynamic, Shape{0});
+        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0});
         new_ops.push_back(bias);
 
         auto fc = std::make_shared<ov::op::internal::FullyConnected>(fc_input_a,

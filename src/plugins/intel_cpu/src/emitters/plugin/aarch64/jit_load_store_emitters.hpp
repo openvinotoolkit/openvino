@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,11 +16,11 @@
 namespace ov::intel_cpu::aarch64 {
 
 // Arithmetic modes for data type conversion in store_emitter
-enum class arithmetic_mode { saturation, truncation };
+enum class arithmetic_mode : uint8_t { saturation, truncation };
 
 class jit_load_emitter : public jit_emitter {
 public:
-    jit_load_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+    jit_load_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                      ov::element::Type src_prc,
                      ov::element::Type dst_prc,
@@ -53,7 +53,7 @@ private:
 
 class jit_store_emitter : public jit_emitter {
 public:
-    jit_store_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+    jit_store_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
                       dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                       ov::element::Type src_prc,
                       ov::element::Type dst_prc,

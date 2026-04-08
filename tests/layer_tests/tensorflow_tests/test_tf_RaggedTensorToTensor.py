@@ -1,4 +1,4 @@
-# Copyright (C) 2022-2024 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -42,7 +42,7 @@ class TestRaggedTensorToTensor(CommonTFLayerTest):
         return tf_net, None
 
     @pytest.mark.parametrize('shape_type', [np.int32, np.int64])
-    @pytest.mark.parametrize('shape_value', [[4, 8], [-1, 64], [5, -1], [-1, -1]])
+    @pytest.mark.parametrize('shape_value', [[4, 8], [-1, 64], [5, -1], [-1, -1], -1])
     @pytest.mark.parametrize('values_shape', [[40], [100]])
     @pytest.mark.parametrize('values_type', [np.float32, np.int32, np.int64])
     @pytest.mark.parametrize('default_value', [-1, 0])

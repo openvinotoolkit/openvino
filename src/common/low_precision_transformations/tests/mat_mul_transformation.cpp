@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -111,10 +111,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MatMulTransformationParams> obj) {
-        ov::element::Type precision;
-        std::pair<ov::PartialShape, ov::PartialShape> shapes;
-        MatMullTransformationTestValues testValues;
-        std::tie(precision, shapes, testValues) = obj.param;
+        const auto& [precision, shapes, testValues] = obj.param;
 
         std::stringstream ss;
         ss << precision << "_" << shapes.first << "_" << shapes.second << "_" << testValues;

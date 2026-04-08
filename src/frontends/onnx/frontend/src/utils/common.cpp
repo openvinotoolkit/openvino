@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <onnx/onnx_pb.h>  // onnx types
 
+#include "core/null_node.hpp"
 #include "core/tensor.hpp"
 #include "onnx_framework_node.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -88,6 +89,26 @@ void default_op_checks(const Node& node, size_t min_inputs_size) {
                                   inputs.size());
 }
 
+void default_op_checks(const Node& node, size_t min_inputs_size, size_t max_inputs_size) {
+    const auto& inputs = node.get_ov_inputs();
+    FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= min_inputs_size && inputs.size() <= max_inputs_size,
+                                  node.op_type(),
+                                  " expected  ",
+                                  std::to_string(min_inputs_size),
+                                  " to ",
+                                  std::to_string(max_inputs_size),
+                                  " inputs, got: ",
+                                  inputs.size());
+}
+
+bool is_input_valid(const Node& node, size_t index) {
+    const auto& inputs = node.get_ov_inputs();
+    if (index >= inputs.size())
+        return false;
+    const auto node_ptr = inputs[index].get_node_shared_ptr();
+    return node_ptr != nullptr && !ov::as_type_ptr<NullNode>(node_ptr);
+}
+
 std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const ov::Output<ov::Node>& value,
                                                               int64_t start_value,
                                                               int64_t step) {
@@ -150,7 +171,8 @@ ov::OutputVector handle_opset6_binary_op(const ov::frontend::onnx::Node& node) {
                 auto new_shape = std::make_shared<v0::Concat>(ov::OutputVector{rhs_shape, ones}, 0);
                 rhs_node = std::make_shared<v1::Reshape>(rhs_node, new_shape, false);
             }
-        } else {
+        } else if (!std::is_base_of<op::util::BinaryElementwiseArithmetic, T>::value) {
+            // Broadcasting is done automatically in BinaryElementwiseArithmetic ops
             rhs_node = std::make_shared<v3::Broadcast>(rhs_node, std::make_shared<v0::ShapeOf>(lhs_node));
         }
     }
@@ -186,115 +208,6 @@ void mark_as_optimized_out(ov::Output<ov::Node>& node_output) {
 bool is_optimized_out(const ov::Output<ov::Node>& node_output) {
     const auto& rt_info = node_output.get_rt_info();
     return rt_info.find(OPTIMIZED_OUT_NODE) != rt_info.end();
-}
-
-bool collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_converted,
-                                    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry,
-                                    std::ostream* output_stream,
-                                    std::shared_ptr<std::set<std::string>> unsupported_operations,
-                                    std::shared_ptr<std::set<std::string>> failures) {
-    if (partially_converted == nullptr) {
-        return false;
-    }
-
-    const std::string sep = ", ";
-    bool first_call = !unsupported_operations || !failures;
-    if (!unsupported_operations) {
-        unsupported_operations = std::make_shared<std::set<std::string>>();
-    }
-    if (!failures) {
-        failures = std::make_shared<std::set<std::string>>();
-    }
-
-    auto print_unsupported = [&](const std::shared_ptr<ov::op::util::FrameworkNode> fw_node) {
-        if (output_stream) {
-            if (unsupported_operations->size() == 0) {
-                *output_stream << "OpenVINO does not support the following ONNX operations: ";
-            } else {
-                *output_stream << sep;
-            }
-            *output_stream << (fw_node->get_attrs().get_opset_name().empty()
-                                   ? ""
-                                   : fw_node->get_attrs().get_opset_name() + ".")
-                           << fw_node->get_attrs().get_type_name();
-        }
-    };
-
-    for (const auto& node : partially_converted->get_ordered_ops()) {
-        if (const auto& fw_node = ov::as_type_ptr<ov::frontend::onnx::ONNXFrameworkNode>(node)) {
-            const auto& attrs = fw_node->get_attrs();
-            auto node_name = attrs.get_opset_name() + "." + attrs.get_type_name();
-            if (unsupported_operations->count(node_name) > 0) {
-                continue;
-            }
-
-            print_unsupported(fw_node);
-            unsupported_operations->insert(node_name);
-        } else if (const auto& fw_node = ov::as_type_ptr<ov::frontend::onnx::NotSupportedONNXNode>(node)) {
-            const auto& attrs = fw_node->get_attrs();
-
-            if (fw_node->additional_error_message().empty()) {
-                auto node_name = attrs.get_opset_name() + "." + attrs.get_type_name();
-                if (unsupported_operations->count(node_name) > 0) {
-                    continue;
-                }
-                print_unsupported(fw_node);
-                unsupported_operations->insert(node_name);
-            } else {
-                const auto node_fail = fw_node->additional_error_message();
-                if (failures->count(node_fail) > 0) {
-                    continue;
-                }
-                failures->insert(node_fail);
-            }
-
-        } else if (const auto& if_node = ov::as_type_ptr<ov::op::v8::If>(node)) {
-            collect_translation_exceptions(if_node->get_then_body(),
-                                           telemetry,
-                                           output_stream,
-                                           unsupported_operations,
-                                           failures);
-            collect_translation_exceptions(if_node->get_else_body(),
-                                           telemetry,
-                                           output_stream,
-                                           unsupported_operations,
-                                           failures);
-        } else if (const auto& loop_node = ov::as_type_ptr<ov::op::v5::Loop>(node)) {
-            collect_translation_exceptions(loop_node->get_function(),
-                                           telemetry,
-                                           output_stream,
-                                           unsupported_operations,
-                                           failures);
-        }
-    }
-
-    if (!first_call) {
-        return unsupported_operations->size() != 0 || failures->size() != 0;
-    }
-
-    if (telemetry) {
-        for (const auto& op : *unsupported_operations) {
-            telemetry->send_event("error_cause", "onnx_" + op);
-        }
-        for (const auto& str : *failures) {
-            telemetry->send_event("error_info", ov::util::filter_lines_by_prefix(str, "[ONNX Frontend] "));
-        }
-    }
-
-    if (output_stream && failures->size() > 0) {
-        if (unsupported_operations->size() > 0) {
-            *output_stream << std::endl;
-        }
-        *output_stream << "Errors during ONNX translation:";
-        for (const auto& failure_message : *failures) {
-            auto pos = failure_message.find_last_not_of('\n');
-            *output_stream << std::endl
-                           << (pos > 0 && pos < failure_message.length() ? failure_message.substr(0, pos + 1)
-                                                                         : failure_message);
-        }
-    }
-
-    return unsupported_operations->size() != 0 || failures->size() != 0;
 }
 
 int64_t normalize_axis(const std::string& description, const int64_t axis, const Rank& rank) {

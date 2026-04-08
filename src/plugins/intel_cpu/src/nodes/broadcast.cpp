@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ bool Broadcast::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
             errorMessage = "Only Broadcast v1 are supported.";
             return false;
         }
-        if (!one_of(ov::as_type_ptr<const ov::op::v1::Broadcast>(op)->get_broadcast_spec().m_type,
+        if (none_of(ov::as_type_ptr<const ov::op::v1::Broadcast>(op)->get_broadcast_spec().m_type,
                     ov::op::AutoBroadcastType::NUMPY,
                     ov::op::AutoBroadcastType::EXPLICIT)) {
             errorMessage = "Only NUMPY and EXPLICIT broadcast types are supported.";
@@ -68,23 +68,21 @@ Broadcast::Broadcast(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (op->get_input_size() != 2 && op->get_input_size() != 3) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
-    }
-    if (op->get_output_size() == 0) {
-        THROW_CPU_NODE_ERR("has no output edges.");
-    }
+    CPU_NODE_ASSERT(any_of(op->get_input_size(), 2U, 3U),
+                    "has incorrect number of input edges: ",
+                    getParentEdges().size());
+    CPU_NODE_ASSERT(op->get_output_size() != 0U, "has no output edges.");
 
     auto broadcastOp = ov::as_type_ptr<const ov::op::v1::Broadcast>(op);
     if (broadcastOp->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NUMPY) {
         broadcastType = NUMPY;
     } else if (broadcastOp->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::EXPLICIT) {
-        if (op->get_input_size() <= AXES_MAPPING_IDX) {
-            THROW_CPU_NODE_ERR("and EXPLICIT mode must have tree input edges: ", getParentEdges().size());
-        }
+        CPU_NODE_ASSERT(op->get_input_size() > AXES_MAPPING_IDX,
+                        "and EXPLICIT mode must have tree input edges: ",
+                        getParentEdges().size());
         broadcastType = EXPLICIT;
     } else {
-        THROW_CPU_NODE_ERR("has unexpected broadcast type: ", broadcastOp->get_broadcast_spec().m_type);
+        CPU_NODE_THROW("has unexpected broadcast type: ", broadcastOp->get_broadcast_spec().m_type);
     }
 
     if (ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX))) {
@@ -214,7 +212,7 @@ void Broadcast::executeDynamicImpl(const dnnl::stream& strm) {
 
 void Broadcast::execute(const dnnl::stream& strm) {
     if (optimizedCase) {
-        optimizedExecute(getSrcMemoryAtPort(INPUT_DATA_IDX), getDstMemoryAtPort(0));
+        optimizedExecute(getSrcMemoryAtPort(INPUT_DATA_IDX), getDstMemoryAtPort(0), context->getCpuParallel());
     } else {
         plainExecute(strm);
     }

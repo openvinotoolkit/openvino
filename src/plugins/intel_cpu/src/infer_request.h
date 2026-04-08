@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ class AsyncInferRequest;
 
 class SyncInferRequest : public ov::ISyncInferRequest {
 public:
-    SyncInferRequest(CompiledModelHolder compiled_model);
+    explicit SyncInferRequest(CompiledModelHolder compiled_model);
 
     void infer() override;
 

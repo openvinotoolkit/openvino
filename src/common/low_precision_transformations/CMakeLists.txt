@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -27,8 +27,6 @@ ov_build_target_faster(${TARGET_NAME}_obj UNITY PCH)
 target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt openvino::core::dev)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>)
-
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
 ov_mark_target_as_cc(${TARGET_NAME}_obj)
 

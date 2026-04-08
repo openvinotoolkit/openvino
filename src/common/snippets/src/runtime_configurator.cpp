@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,10 +36,6 @@
 
 namespace ov::snippets {
 
-using namespace ov::snippets::pass;
-using namespace ov::snippets::lowered;
-using namespace ov::snippets::lowered::pass;
-
 #ifdef SNIPPETS_DEBUG_CAPS
 std::string RuntimeConfig::to_string() const {
     std::stringstream out;
@@ -52,9 +48,9 @@ std::string RuntimeConfig::to_string() const {
         out << "\t[" << i << "]" << ov::Shape(io_data_offsets[i]) << "\n";
     }
     out << "buffer_scratchpad_size: " << buffer_scratchpad_size << "\n";
-    out << "buffer_cluster_offsets: " << "\n";
+    out << "buffer_cluster_offsets:\n";
     for (size_t i = 0; i < buffer_cluster_offsets.size(); ++i) {
-        out << "buffer_cluster_offsets: " << "\n";
+        out << "\t[" << i << "] " << buffer_cluster_offsets[i] << "\n";
     }
     return out.str();
 }
@@ -90,7 +86,10 @@ void RuntimeConfigurator::initialization(const lowered::LinearIRCPtr& linear_ir)
     m_config->io_data_offsets.resize(m_io_num);
     m_config->tile_rank = linear_ir->get_config().m_loop_depth;
 
-    RuntimeOptimizer::register_if_applicable<MHAParallelWAOptimizer>(m_intermediate_optimizers, linear_ir, this);
+    lowered::pass::RuntimeOptimizer::register_if_applicable<lowered::pass::MHAParallelWAOptimizer>(
+        m_intermediate_optimizers,
+        linear_ir,
+        this);
 }
 
 void RuntimeConfigurator::update(const lowered::LinearIRCPtr& linear_ir) {
@@ -128,7 +127,7 @@ void RuntimeConfigurator::init_data_info(const lowered::LinearIRCPtr& linear_ir)
     m_io_descs.reserve(m_io_num);
     m_io_data_sizes.reserve(m_io_num);
 
-    auto update_io_parameters = [&](const PortDescriptorPtr& desc, const ov::element::Type& etype) {
+    auto update_io_parameters = [&](const lowered::PortDescriptorPtr& desc, const ov::element::Type& etype) {
         OPENVINO_ASSERT(desc, "IO Descriptor is missed!");
         OPENVINO_ASSERT(desc->get_shape().size() == desc->get_layout().size() || desc->get_layout().empty(),
                         "Incompatible ranks of shape and layout!");
@@ -138,9 +137,9 @@ void RuntimeConfigurator::init_data_info(const lowered::LinearIRCPtr& linear_ir)
 
     for (const auto& param : parameters) {
         // input->shape changing ops->load
-        PortDescriptorPtr desc = nullptr;
+        lowered::PortDescriptorPtr desc = nullptr;
         const auto& shape_infer_seq = utils::get_first_child_shape_infer_expr_seq(param);
-        ExpressionPtr mem_desc_expr = param;
+        lowered::ExpressionPtr mem_desc_expr = param;
         if (!shape_infer_seq.empty()) {
             // [160048] Reorder, as any another ShapeInferOp, should just propagate input shape to output using target
             // order
@@ -148,7 +147,7 @@ void RuntimeConfigurator::init_data_info(const lowered::LinearIRCPtr& linear_ir)
             //          to support correct input data offsets calculations and MHAParallelWAOptimizer pass work.
             //          Please, remove this code part when the mentioned ticket is completed.
             const auto& reorder_it =
-                std::find_if(shape_infer_seq.cbegin(), shape_infer_seq.cend(), [](const ExpressionPtr& expr) {
+                std::find_if(shape_infer_seq.cbegin(), shape_infer_seq.cend(), [](const lowered::ExpressionPtr& expr) {
                     return ov::is_type<op::Reorder>(expr->get_node());
                 });
             if (reorder_it != shape_infer_seq.cend()) {
@@ -261,10 +260,11 @@ void RuntimeConfigurator::update_expanded_loop_info(const lowered::ExpandedLoopI
 
 void RuntimeConfigurator::update_loop_info(const lowered::LinearIRCPtr& linear_ir) {
     LoopInfoRuntimeParamsMap initialized_info;
+    const auto& loop_manager = linear_ir->get_loop_manager();
     auto updater = [&](const lowered::LoopInfoPtr& loop_info) {
         if (const auto unified_loop_info = ov::as_type_ptr<lowered::UnifiedLoopInfo>(loop_info)) {
             if (initialized_info.count(unified_loop_info) == 0) {
-                utils::update_runtime_parameters(unified_loop_info);
+                utils::update_runtime_parameters(loop_manager, unified_loop_info);
                 initialized_info[unified_loop_info] = get_loop_runtime_params(unified_loop_info);
             }
         } else if (const auto expanded_loop_info = ov::as_type_ptr<lowered::ExpandedLoopInfo>(loop_info)) {
@@ -347,7 +347,7 @@ void RuntimeConfigurator::update_data_offsets() const {
             continue;
         }
         if (utils::is_dynamic_vdims(shape)) {
-            return;
+            continue;
         }
 
         const auto idx_stride = m_config->tensor_rank - shape.size();

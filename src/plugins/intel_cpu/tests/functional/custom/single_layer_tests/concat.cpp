@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,13 +21,8 @@ class ConcatLayerCPUTest : public testing::WithParamInterface<concatCPUTestParam
                            virtual public SubgraphBaseTest,
                            public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<concatCPUTestParams> obj) {
-        int axis;
-        std::vector<InputShape> inputShapes;
-        ElementType netPrecision;
-        CPUSpecificParams cpuParams;
-        std::tie(axis, inputShapes, netPrecision, cpuParams) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<concatCPUTestParams>& obj) {
+        const auto& [axis, inputShapes, netPrecision, cpuParams] = obj.param;
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : inputShapes) {
@@ -66,13 +61,7 @@ protected:
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-
-        int axis;
-        std::vector<InputShape> inputShape;
-        ElementType netPrecision;
-        CPUSpecificParams cpuParams;
-        std::tie(axis, inputShape, netPrecision, cpuParams) = this->GetParam();
-
+        const auto& [axis, inputShape, netPrecision, cpuParams] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         selectedType += std::string("_") + ov::element::Type(netPrecision).get_type_name();
 
@@ -87,7 +76,7 @@ protected:
         }
         auto concat = std::make_shared<ov::op::v0::Concat>(paramsOuts, axis);
 
-        function = makeNgraphFunction(netPrecision, params, concat, "ConcatCPU");
+        function = create_ov_model(netPrecision, params, concat, "ConcatCPU");
     }
 };
 

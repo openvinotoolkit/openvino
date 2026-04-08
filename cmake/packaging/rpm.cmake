@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -91,6 +91,10 @@ macro(ov_cpack_settings)
         2025.0.0 2025.0.1
         2025.1.0
         2025.2.0
+        2025.3.0
+        2025.4.0
+        2026.0.0
+        2026.1.0
         )
 
     ov_check_conflicts_versions(conflicting_versions)
@@ -406,7 +410,7 @@ macro(ov_cpack_settings)
     # Install latest symlink packages
     #
 
-    # NOTE: we expicitly don't add runtime latest packages
+    # NOTE: we explicitly don't add runtime latest packages
     # since a user needs to depend on specific VERSIONED runtime package
     # with fixed SONAMEs, while latest package can be updated multiple times
     # ov_rpm_add_latest_component(libraries)

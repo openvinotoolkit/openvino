@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,9 +15,7 @@
 namespace LayerTestsDefinitions {
 
 std::string SubtractMultiplyToMultiplyAddTransformation::getTestCaseName(const testing::TestParamInfo<SubtractMultiplyToMultiplyAddTransformationParams>& obj) {
-    std::string targetDevice;
-    SubtractMultiplyToMultiplyAddTransformationTestValues testValues;
-    std::tie(targetDevice, testValues) = obj.param;
+    const auto& [targetDevice, testValues] = obj.param;
 
     std::ostringstream result;
     result <<
@@ -29,8 +27,8 @@ std::string SubtractMultiplyToMultiplyAddTransformation::getTestCaseName(const t
 }
 
 void SubtractMultiplyToMultiplyAddTransformation::SetUp() {
-    SubtractMultiplyToMultiplyAddTransformationTestValues testValues;
-    std::tie(targetDevice, testValues) = this->GetParam();
+    const auto& [_targetDevice, testValues] = this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes(testValues.inputShape);
 

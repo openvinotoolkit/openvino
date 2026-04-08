@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -96,7 +96,7 @@ bool MarkInvariantShapePath::run(lowered::LinearIR& /*linear_ir*/,
     size_t color_path = 0;
 
     auto merge_paths = [&color_path](size_t lhs, size_t rhs) {
-        if (lhs == rhs || rhs == NOT_AFFECTING_PATH) {
+        if (utils::any_of(rhs, lhs, NOT_AFFECTING_PATH)) {
             return lhs;
         }
         if (lhs == NOT_AFFECTING_PATH) {

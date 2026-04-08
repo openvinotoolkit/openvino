@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,15 +21,9 @@ class ShuffleChannelsLayerCPUTest : public testing::WithParamInterface<ShuffleCh
                                     virtual public SubgraphBaseTest,
                                     public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ShuffleChannelsLayerCPUTestParamsSet> obj) {
-        InputShape shapes;
-        ElementType inType;
-        ov::test::shuffleChannelsSpecificParams shuffleChannelsParams;
-        CPUSpecificParams cpuParams;
-        std::tie(shapes, inType, shuffleChannelsParams, cpuParams) = obj.param;
-        int axis, group;
-        std::tie(axis, group) = shuffleChannelsParams;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<ShuffleChannelsLayerCPUTestParamsSet>& obj) {
+        const auto& [shapes, inType, shuffleChannelsParams, cpuParams] = obj.param;
+        const auto& [axis, group] = shuffleChannelsParams;
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
@@ -46,14 +40,8 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape shapes;
-        ElementType inType;
-        ov::test::shuffleChannelsSpecificParams shuffleChannelsParams;
-        int axis, group;
-        CPUSpecificParams cpuParams;
-        std::tie(shapes, inType, shuffleChannelsParams, cpuParams) = this->GetParam();
-        std::tie(axis, group) = shuffleChannelsParams;
-
+        const auto& [shapes, inType, shuffleChannelsParams, cpuParams] = this->GetParam();
+        const auto& [axis, group] = shuffleChannelsParams;
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         if (selectedType.empty()) {
             selectedType = getPrimitiveType();
@@ -67,7 +55,7 @@ protected:
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
         }
         auto shuffleChannels = std::make_shared<ov::op::v0::ShuffleChannels>(params[0], axis, group);
-        function = makeNgraphFunction(inType, params, shuffleChannels, "ShuffleChannels");
+        function = create_ov_model(inType, params, shuffleChannels, "ShuffleChannels");
     }
 };
 

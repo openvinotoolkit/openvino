@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,10 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
 
-ov::pass::EnableShapeOfConstantFolding::EnableShapeOfConstantFolding(bool check_shape) {
-    auto shape_of = pattern::wrap_type<op::util::ShapeOfBase>([=](const Output<Node>& output) {
+namespace ov::pass {
+
+EnableShapeOfConstantFolding::EnableShapeOfConstantFolding(bool check_shape) {
+    auto shape_of = pattern::wrap_type<ov::op::util::ShapeOfBase>([=](const Output<Node>& output) {
         const auto& shape = output.get_partial_shape();
         if (!check_shape)
             return true;
@@ -24,3 +26,5 @@ ov::pass::EnableShapeOfConstantFolding::EnableShapeOfConstantFolding(bool check_
     auto m = std::make_shared<pattern::Matcher>(shape_of, "EnableShapeOfConstantFolding");
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

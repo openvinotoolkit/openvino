@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <iterator>
@@ -43,9 +43,9 @@ padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_s
     auto pad_upper = layout::format_sizes(in_pad._upper_size, default_format);
     auto pad_mask = layout::format_sizes(in_pad._dynamic_dims_mask, default_format);
 
-    std::vector<int32_t> update_pad_lower;
-    std::vector<int32_t> update_pad_upper;
-    std::vector<int32_t> update_pad_mask;
+    std::vector<ov::Dimension::value_type> update_pad_lower;
+    std::vector<ov::Dimension::value_type> update_pad_upper;
+    std::vector<ov::Dimension::value_type> update_pad_mask;
 
     if (mode == reshape::reshape_mode::unsqueeze) {
         update_pad_lower = pad_lower;
@@ -113,12 +113,9 @@ layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_pa
     auto input_layout = impl_param.get_non_padded_input_layout();
     auto desc = impl_param.typed_desc<reshape>();
     if (desc->output_shape.count() == 0) {
-        if (desc->output_partial_shape.size() != 0) {
-            format out_fmt = format::adjust_to_rank(input_layout.format, desc->output_partial_shape.rank().get_length());
-            return layout{desc->output_partial_shape, input_layout.data_type, out_fmt};
-        } else {
-            OPENVINO_ASSERT("[GPU] Output shape is not provided");
-        }
+        OPENVINO_ASSERT(desc->output_partial_shape.size() != 0, "[GPU] Output shape is not provided");
+        format out_fmt = format::adjust_to_rank(input_layout.format, desc->output_partial_shape.rank().get_length());
+        return layout{desc->output_partial_shape, input_layout.data_type, out_fmt};
     }
 
     auto sizes = desc->output_shape.sizes();
@@ -153,7 +150,8 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
     auto input_layout = impl_param.get_input_layout(0);
 
     auto& memory_deps = impl_param.memory_deps;
-    // On program build stage for the cases with pattern being stored in a runtime tensor
+
+    // For the cases with pattern being stored in a runtime tensor on program build stage
     // we return output_partial_shape taken from the original model intead of something like PartialShape::dynamic(rank)
     // as ngraph may refine output shape using interval arithmetic
     if ((memory_deps.empty() && prim->output_pattern.empty()) || input_layout.is_dynamic()) {

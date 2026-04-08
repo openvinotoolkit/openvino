@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/activation.hpp"
 #include "openvino/opsets/opset1.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/op/subgraph.hpp"
 
 namespace ov {
@@ -72,23 +73,22 @@ std::shared_ptr<ov::Model> GatedMLPFunction::initReference() const {
     auto fc_up_weights = makeWeights(m_weights_shapes[1], 7);
     auto fc_down_weights = makeWeights(m_weights_shapes[2], 11);
 
-    NodeVector subgraph_inputs = {data, fc_gate_weights, data, fc_up_weights, fc_down_weights};
+    OutputVector subgraph_inputs = {data, fc_gate_weights, fc_up_weights, fc_down_weights};
 
-    auto param0 = std::make_shared<ov::op::v0::Parameter>(data->get_element_type(), data->get_output_partial_shape(0));
     auto param1 = std::make_shared<ov::op::v0::Parameter>(data->get_element_type(), data->get_output_partial_shape(0));
     auto param2 = std::make_shared<ov::op::v0::Parameter>(fc_gate_weights->get_element_type(), fc_gate_weights->get_output_partial_shape(0));
     auto param3 = std::make_shared<ov::op::v0::Parameter>(fc_up_weights->get_element_type(), fc_up_weights->get_output_partial_shape(0));
     auto param4 = std::make_shared<ov::op::v0::Parameter>(fc_down_weights->get_element_type(), fc_down_weights->get_output_partial_shape(0));
 
-    auto fc_gate = makeFC(param0, param2);
+    auto fc_gate = makeFC(param1, param2);
     auto fc_up = makeFC(param1, param3);
     auto act = ov::test::utils::make_activation(fc_gate, precision, m_act_type, ov::Shape{}, std::vector<float>{0.5});
     auto mul = std::make_shared<ov::op::v1::Multiply>(act, fc_up);
     auto fc_down = makeFC(mul, param4);
-
+    auto snippets_result = std::make_shared<ov::snippets::op::Result>(fc_down);
     auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
         subgraph_inputs,
-        std::make_shared<ov::Model>(OutputVector{fc_down}, ParameterVector{param0, param2, param1, param3, param4}));
+        std::make_shared<ov::Model>(OutputVector{snippets_result}, ParameterVector{param1, param2, param3, param4}));
 
     return std::make_shared<Model>(OutputVector{subgraph}, ParameterVector{data});
 }

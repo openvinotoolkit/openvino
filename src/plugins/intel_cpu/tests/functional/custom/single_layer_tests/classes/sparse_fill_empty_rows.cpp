@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,22 +13,10 @@ using namespace CPUTestUtils;
 
 namespace ov::test::SparseFillEmptyRows {
 
-std::string SparseFillEmptyRowsLayerCPUTest::getTestCaseName(testing::TestParamInfo<SparseFillEmptyRowsLayerCPUTestParamsSet> obj) {
-    SparseFillEmptyRowsLayerTestParams basicParamsSet;
-    CPUSpecificParams cpuParams;
-    SparseFillEmptyRowsSpecificParams sparseFillEmptyRowsPar;
-    std::tie(basicParamsSet, cpuParams) = obj.param;
-    std::string td;
-    ElementType valuesPrecision;
-    ElementType indicesPrecision;
-    ov::test::utils::InputLayerType secondaryInputType;
-    std::tie(sparseFillEmptyRowsPar, valuesPrecision, indicesPrecision, secondaryInputType, td) = basicParamsSet;
-
-    InputShape valuesShape;
-    InputShape indicesShape;
-    std::vector<int64_t> denseShapeValues;
-    int64_t defaultValue;
-    std::tie(valuesShape, indicesShape, denseShapeValues, defaultValue) = sparseFillEmptyRowsPar;
+std::string SparseFillEmptyRowsLayerCPUTest::getTestCaseName(const testing::TestParamInfo<SparseFillEmptyRowsLayerCPUTestParamsSet>& obj) {
+    const auto& [basicParamsSet, cpuParams] = obj.param;
+    const auto& [sparseFillEmptyRowsPar, valuesPrecision, indicesPrecision, secondaryInputType, td] = basicParamsSet;
+    const auto& [valuesShape, indicesShape, denseShapeValues, defaultValue] = sparseFillEmptyRowsPar;
     std::ostringstream result;
 
     result << "valuesShape=" << ov::test::utils::partialShape2str({valuesShape.first}) << "_";
@@ -120,23 +108,12 @@ void SparseFillEmptyRowsLayerCPUTest::generate_inputs(const std::vector<ov::Shap
 }
 
 void SparseFillEmptyRowsLayerCPUTest::SetUp() {
-    SparseFillEmptyRowsLayerTestParams basicParamsSet;
-    CPUSpecificParams cpuParams;
-    std::tie(basicParamsSet, cpuParams) = this->GetParam();
+    const auto& [basicParamsSet, cpuParams] = this->GetParam();
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-
-    SparseFillEmptyRowsSpecificParams sparseFillEmptyRowsParams;
-    ElementType valuesPrecision;
-    ElementType indicesPrecision;
-    ov::test::utils::InputLayerType secondaryInputType;
-    std::tie(sparseFillEmptyRowsParams, valuesPrecision, indicesPrecision, secondaryInputType, targetDevice) = basicParamsSet;
-
-    InputShape valuesShape;
-    InputShape indicesShape;
-    std::vector<int64_t> denseShapeValues;
-    int64_t defaultValue;
-    std::tie(valuesShape, indicesShape, denseShapeValues, defaultValue) = sparseFillEmptyRowsParams;
-
+    const auto& [sparseFillEmptyRowsParams, valuesPrecision, indicesPrecision, secondaryInputType, _targetDevice] =
+        basicParamsSet;
+    targetDevice = _targetDevice;
+    const auto& [valuesShape, indicesShape, denseShapeValues, defaultValue] = sparseFillEmptyRowsParams;
     std::vector<ov::test::InputShape> input_shapes = {
         valuesShape,
         {ov::PartialShape{static_cast<ov::Dimension::value_type>(denseShapeValues.size())},
@@ -167,7 +144,7 @@ void SparseFillEmptyRowsLayerCPUTest::SetUp() {
         sparseFillEmptyRows = std::make_shared<ov::op::v16::SparseFillEmptyRows>(
             valuesParameter, denseShapeParameter, indicesParameter, defaultValueParameter);
     }
-    function = makeNgraphFunction(valuesPrecision, params, sparseFillEmptyRows, "SparseFillEmptyRows");
+    function = create_ov_model(valuesPrecision, params, sparseFillEmptyRows, "SparseFillEmptyRows");
 }
 
 TEST_P(SparseFillEmptyRowsLayerCPUTest, CompareWithRefs) {

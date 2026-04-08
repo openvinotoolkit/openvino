@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,9 +28,14 @@ Result FCShapeInfer::infer(const std::vector<std::reference_wrapper<const Vector
     // NCHW         CoCHW     NCo
     // TNC          CoC       TNCo
     // NC           CoC       NCo
+    // SMK          WKN       DMN
     VectorDims outputShape(out_rank, 1);
     // set Co
-    outputShape.back() = std::accumulate(weightShape.begin(), weightShape.end() - 1, 1, std::multiplies<>());
+    if (activationShape.size() == 3 && weightShape.size() == 3) {
+        outputShape.back() = weightShape[1];
+    } else {
+        outputShape.back() = std::accumulate(weightShape.begin(), weightShape.end() - 1, 1, std::multiplies<>());
+    }
     // set batch dims
     size_t batchRank = activationRank - channelRank;
     size_t startIdx = out_rank - batchRank - 1;

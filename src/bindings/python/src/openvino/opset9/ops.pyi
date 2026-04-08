@@ -14,7 +14,7 @@ import typing
 """
 Factory functions for all openvino ops.
 """
-__all__ = ['Node', 'NodeInput', 'as_node', 'as_nodes', 'eye', 'generate_proposals', 'grid_sample', 'irdft', 'make_constant_node', 'multiclass_nms', 'nameable_op', 'non_max_suppression', 'np', 'partial', 'rdft', 'roi_align', 'softsign']
+__all__: list[str] = ['Node', 'NodeInput', 'as_node', 'as_nodes', 'eye', 'generate_proposals', 'grid_sample', 'irdft', 'make_constant_node', 'multiclass_nms', 'nameable_op', 'non_max_suppression', 'np', 'partial', 'rdft', 'roi_align', 'softsign']
 def eye(*args, **kwargs) -> openvino._pyopenvino.Node:
     """
     Return a node which performs eye operation.
@@ -40,9 +40,12 @@ def generate_proposals(*args, **kwargs) -> openvino._pyopenvino.Node:
         :param nms_threshold: Specifies threshold to be used in the NMS stage.
         :param pre_nms_count: Specifies number of top-n proposals before NMS.
         :param post_nms_count: Specifies number of top-n proposals after NMS.
-        :param normalized: Specifies whether proposal bboxes are normalized or not. Optional attribute, default value is `True`.
-        :param nms_eta: Specifies eta parameter for adaptive NMS., must be in range `[0.0, 1.0]`. Optional attribute, default value is `1.0`.
-        :param roi_num_type: Specifies the element type of the third output `rpnroisnum`. Optional attribute, range of values: `i64` (default) or `i32`.
+        :param normalized: Specifies whether proposal bboxes are normalized or not.
+                           Optional attribute, default value is `True`.
+        :param nms_eta: Specifies eta parameter for adaptive NMS., must be in range `[0.0, 1.0]`.
+                        Optional attribute, default value is `1.0`.
+        :param roi_num_type: Specifies the element type of the third output `rpnroisnum`.
+                             Optional attribute, range of values: `i64` (default) or `i32`.
         :param name: The optional name for the output node.
         :return: New node performing GenerateProposals operation.
         
@@ -157,11 +160,11 @@ def roi_align(data: typing.Union[openvino._pyopenvino.Node, int, float, numpy.nd
         :param sampling_ratio: Number of bins over height and width to use to calculate
                                each output feature map element.
         :param spatial_scale: Multiplicative spatial scale factor to translate ROI coordinates.
-        :param mode: Method to perform pooling to produce output feature map elements. Avaiable modes are:
+        :param mode: Method to perform pooling to produce output feature map elements. Available modes are:
                              - 'max' - maximum pooling
                              - 'avg' - average pooling
         :param aligned_mode: Specifies how to transform the coordinate in original tensor to the resized tensor.
-                             Mode 'asymmetric' is the default value. Optional. Avaiable aligned modes are:
+                             Mode 'asymmetric' is the default value. Optional. Available aligned modes are:
                              - 'asymmetric'
                              - 'half_pixel_for_nn'
                              - 'half_pixel'

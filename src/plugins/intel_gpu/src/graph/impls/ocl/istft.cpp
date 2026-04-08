@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,7 +81,7 @@ struct ISTFT_impl : typed_primitive_impl_ocl<ISTFT> {
         // This is needed to clear the output memory before executing the kernel for static shapes model.
         // Ref kernel assumes that output memory is already cleared.
         stream.enqueue_barrier();
-        auto output_evt = instance.output_memory(0).fill(stream, false);
+        auto output_evt = instance.output_memory(0).fill(stream, {}, false);
         std::vector<event::ptr> ext_events(events);
         ext_events.push_back(output_evt);
         return parent::execute_impl(ext_events, instance);

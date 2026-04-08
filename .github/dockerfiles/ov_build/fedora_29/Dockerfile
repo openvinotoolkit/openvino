@@ -7,6 +7,11 @@ USER root
 RUN echo "timeout=60" >> /etc/dnf/dnf.conf && \
     echo "retries=10" >> /etc/dnf/dnf.conf
 
+# Hackity hack: Fedora 29 is out of support for so long now
+# that we need to steal `ca-certificates` from Rocky Linux 8 repos
+# to trust "storage.openvinotoolkit.org" again
+RUN rpm -ihv --force https://download.rockylinux.org/pub/rocky/8/BaseOS/x86_64/os/Packages/c/ca-certificates-2025.2.80_v9.0.304-80.2.el8_10.noarch.rpm
+
 RUN dnf update -y && dnf install -y \
     git \
     curl \
@@ -33,14 +38,6 @@ RUN chmod +x /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
 # Build Pythons
-# Python 3.9
-RUN cd /usr/src && \
-    wget https://www.python.org/ftp/python/3.9.21/Python-3.9.21.tar.xz && \
-    tar xvf Python-3.9.21.tar.xz
-RUN cd /usr/src/Python-3.9.21 && \
-    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
-    make altinstall
-
 # Python 3.10
 RUN cd /usr/src && \
     wget https://www.python.org/ftp/python/3.10.16/Python-3.10.16.tar.xz && \
@@ -73,6 +70,22 @@ RUN cd /usr/src/Python-3.13.2 && \
     ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
     make altinstall
 
+# Python 3.14
+RUN cd /usr/src && \
+    wget https://www.python.org/ftp/python/3.14.0/Python-3.14.0.tgz && \
+    tar xzf Python-3.14.0.tgz
+RUN cd /usr/src/Python-3.14.0 && \
+    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
+    make altinstall
+
+# Python 3.14 free-threading
+RUN cp -r /usr/src/Python-3.14.0 /usr/src/Python-3.14t
+RUN cd /usr/src/Python-3.14t && \
+    ./configure --disable-gil --enable-loadable-sqlite-extensions --prefix=/usr/python3.14t && \
+    make altinstall
+
+RUN ln -s /usr/python3.14t/bin/python3.14t /usr/bin/python3.14t
+
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
 ENV SCCACHE_HOME="/opt/sccache" \
@@ -85,19 +98,20 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 
 ENV PATH="$SCCACHE_HOME:$PATH"
 
-# Use Python 3.9 as default
-RUN python3.9 -m venv venv
+# Use Python 3.10 as default
+RUN python3.10 -m venv venv
 ENV PATH="/venv/bin:$PATH"
-RUN alternatives --install /usr/bin/python python /usr/bin/python3.9 10
+RUN alternatives --install /usr/bin/python python /usr/bin/python3.10 10
 
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3.9 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.10 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.12 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.13 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.14 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.14t get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,13 +8,9 @@
 namespace ov {
 namespace test {
 std::string ShuffleChannelsLayerTest::getTestCaseName(const testing::TestParamInfo<shuffleChannelsLayerTestParamsSet>& obj) {
-    shuffleChannelsSpecificParams test_params;
-    ov::element::Type model_type;
-    std::vector<InputShape> input_shapes;
-    std::string target_device;
-    std::tie(test_params, model_type, input_shapes, target_device) = obj.param;
-    int axis, group;
-    std::tie(axis, group) = test_params;
+    const auto& [test_params, model_type, input_shapes, target_device] = obj.param;
+
+    const auto& [axis, group] = test_params;
 
     std::ostringstream result;
     result << "IS=(";
@@ -38,13 +34,11 @@ std::string ShuffleChannelsLayerTest::getTestCaseName(const testing::TestParamIn
 }
 
 void ShuffleChannelsLayerTest::SetUp() {
-    shuffleChannelsSpecificParams test_params;
-    ov::element::Type model_type;
-    std::vector<InputShape> input_shapes;
     std::string target_device;
-    std::tie(test_params, model_type, input_shapes, targetDevice) = this->GetParam();
-    int axis, group;
-    std::tie(axis, group) = test_params;
+    const auto& [test_params, model_type, input_shapes, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
+
+    const auto& [axis, group] = test_params;
 
     init_input_shapes(input_shapes);
 

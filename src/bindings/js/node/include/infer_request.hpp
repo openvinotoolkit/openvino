@@ -1,5 +1,6 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #pragma once
 #include <napi.h>
@@ -9,7 +10,7 @@
 #include "openvino/runtime/infer_request.hpp"
 
 struct TsfnContext {
-    TsfnContext(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)), _ir(nullptr){};
+    TsfnContext(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)), _ir(nullptr) {};
 
     std::thread native_thread;
 

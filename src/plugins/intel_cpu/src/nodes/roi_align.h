@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -79,7 +79,7 @@ private:
     int pooledH = 7;
     int pooledW = 7;
     int samplingRatio = 2;
-    float spatialScale = 1.0f;
+    float spatialScale = 1.0F;
     ROIAlignedMode alignedMode;
     template <typename inputType, typename outputType>
     void executeSpecified();

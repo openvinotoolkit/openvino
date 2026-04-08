@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -65,7 +65,6 @@ macro(ov_gpu_add_backend_target)
         NAME ${ARG_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         TYPE OBJECT
-        ADD_CPPLINT
         INCLUDES
             PRIVATE
                 ${TARGET_INCLUDES}
@@ -85,6 +84,10 @@ macro(ov_gpu_add_backend_target)
         target_include_directories(${ARG_NAME} SYSTEM BEFORE PRIVATE $<TARGET_PROPERTY:onednn_gpu_tgt,INTERFACE_INCLUDE_DIRECTORIES>)
         add_dependencies(openvino_intel_gpu_${IMPL_TYPE}_obj onednn_gpu_tgt)
     endif()
+    # Onednn headers use OCL/L0 headers
+    ov_gpu_set_runtime_interface_for(openvino_intel_gpu_${IMPL_TYPE}_obj)
+    # Onednn needs OCL headers even when running L0
+    target_link_libraries(openvino_intel_gpu_${IMPL_TYPE}_obj PRIVATE OpenCL::OpenCL)
 endmacro()
 
 set(CODEGEN_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/common_utils/kernels_db_gen.py")
@@ -129,7 +132,6 @@ ov_add_target(
             openvino::reference # for loop primitive subroutines
     DEPENDENCIES
         run_codegen_test
-    ADD_CPPLINT
 )
 
 ov_build_target_faster(${TARGET_NAME} PCH)
@@ -137,6 +139,9 @@ ov_build_target_faster(${TARGET_NAME} PCH)
 target_compile_options(${TARGET_NAME} PRIVATE ${COMMON_COMPILE_OPTIONS})
 
 ov_set_threading_interface_for(${TARGET_NAME})
+ov_gpu_set_runtime_interface_for(${TARGET_NAME})
+# Onednn needs OCL headers even when running L0
+target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::OpenCL)
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 

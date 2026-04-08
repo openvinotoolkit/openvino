@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace ov::intel_cpu {
 
 class ArbitraryOrderDescCreator : public BlockedDescCreator {
 public:
-    ArbitraryOrderDescCreator(VectorDims order);
+    explicit ArbitraryOrderDescCreator(VectorDims order);
 
     [[nodiscard]] CpuBlockedMemoryDesc createDesc(const ov::element::Type& precision,
                                                   const Shape& srcShape) const override;

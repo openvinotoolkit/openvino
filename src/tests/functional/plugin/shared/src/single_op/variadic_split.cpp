@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,12 +8,7 @@
 namespace ov {
 namespace test {
 std::string VariadicSplitLayerTest::getTestCaseName(const testing::TestParamInfo<VariadicSplitParams>& obj) {
-    int64_t axis;
-    std::vector<size_t> num_splits;
-    ov::element::Type model_type;
-    std::vector<InputShape> input_shapes;
-    ov::test::TargetDevice target_device;
-    std::tie(num_splits, axis, model_type, input_shapes, target_device) = obj.param;
+    const auto& [num_splits, axis, model_type, input_shapes, target_device] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -37,11 +32,8 @@ std::string VariadicSplitLayerTest::getTestCaseName(const testing::TestParamInfo
 }
 
 void VariadicSplitLayerTest::SetUp() {
-    int64_t axis;
-    std::vector<size_t> num_splits;
-    std::vector<InputShape> input_shapes;
-    ov::element::Type model_type;
-    std::tie(num_splits, axis, model_type, input_shapes, targetDevice) = this->GetParam();
+    const auto& [num_splits, axis, model_type, input_shapes, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes(input_shapes);
 

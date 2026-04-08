@@ -1,11 +1,12 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/subgraph/gather_weights_decompression.hpp"
 
 #include "ov_ops/gather_compressed.hpp"
-#include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
+#include "shared_test_classes/subgraph/weights_decompression_params.hpp"
+#include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "openvino/op/convert.hpp"
 
 namespace ov {
@@ -44,24 +45,14 @@ void GatherWeightsDecompressionBase::check_results(const ov::element::Type& weig
 
 std::string GatherWeightsDecompression::get_test_case_name(
     testing::TestParamInfo<GatherWeightsDecompressionParams> obj) {
-    std::string target_device;
-    GatherDecompressionShapeParams shape_params;
-    ov::element::Type data_precision;
-    ov::element::Type output_precision;
-    bool decompression_sub;
-    bool reshape_on_decompression;
-    bool per_tensor_zp;
-    bool per_tensor_scale;
-
-    std::tie(target_device,
-             shape_params,
-             data_precision,
-             output_precision,
-             decompression_sub,
-             reshape_on_decompression,
-             per_tensor_zp,
-             per_tensor_scale) = obj.param;
-
+    const auto& [target_device,
+                 shape_params,
+                 data_precision,
+                 output_precision,
+                 decompression_sub,
+                 reshape_on_decompression,
+                 per_tensor_zp,
+                 per_tensor_scale] = obj.param;
     std::ostringstream result;
     result << "target_device=" << target_device << "_";
     result << shape_params << "_";
@@ -88,14 +79,14 @@ std::shared_ptr<ov::Model> GatherWeightsDecompression::init_subgraph(const ov::S
                                                                      const bool per_tensor_scale) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::i32, indices_shape)};
     auto axis_const = ov::op::v0::Constant::create(ov::element::i32, {1}, {axis});
-    const auto data_subgraph = initGatherDecompressionSubgraph(data_shape,
-                                                               group_size,
-                                                               data_precision,
-                                                               output_precision,
-                                                               add_subtract,
-                                                               reshape_on_decompression,
-                                                               per_tensor_zp,
-                                                               per_tensor_scale);
+    const auto data_subgraph = ov::test::utils::initGatherDecompressionSubgraph(data_shape,
+                                                                                group_size,
+                                                                                data_precision,
+                                                                                output_precision,
+                                                                                add_subtract,
+                                                                                reshape_on_decompression,
+                                                                                per_tensor_zp,
+                                                                                per_tensor_scale);
 
     auto gather = std::make_shared<ov::op::v8::Gather>(data_subgraph, params[0], axis_const, batch_dims);
     gather->set_friendly_name("gather_node");
@@ -109,22 +100,15 @@ void GatherWeightsDecompression::check_results() {
 }
 
 void GatherWeightsDecompression::SetUp() {
-    GatherDecompressionShapeParams shape_params;
-    ov::element::Type data_precision;
-    ov::element::Type output_precision;
-    bool decompression_sub;
-    bool reshape_on_decompression;
-    bool per_tensor_zp;
-    bool per_tensor_scale;
-
-    std::tie(targetDevice,
-             shape_params,
-             data_precision,
-             output_precision,
-             decompression_sub,
-             reshape_on_decompression,
-             per_tensor_zp,
-             per_tensor_scale) = GetParam();
+    const auto& [_targetDevice,
+                 shape_params,
+                 data_precision,
+                 output_precision,
+                 decompression_sub,
+                 reshape_on_decompression,
+                 per_tensor_zp,
+                 per_tensor_scale] = GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes({shape_params.indices_shape, {{}, {{shape_params.data_shape}}}});
 
@@ -153,13 +137,7 @@ void GatherWeightsDecompression::SetUp() {
 // fp16/bf16 constant + convert(16bit to f32) + gather case
 std::string GatherWeightsDecompressionWithoutScale::get_test_case_name(
     testing::TestParamInfo<GatherWeightsDecompressionWithoutScaleParams> obj) {
-    std::string target_device;
-    GatherDecompressionShapeParams shape_params;
-    ov::element::Type data_precision;
-    ov::element::Type output_precision;
-
-    std::tie(target_device, shape_params, data_precision, output_precision) = obj.param;
-
+    const auto& [target_device, shape_params, data_precision, output_precision] = obj.param;
     std::ostringstream result;
     result << "target_device=" << target_device << "_";
     result << shape_params << "_";
@@ -192,11 +170,8 @@ std::shared_ptr<ov::Model> GatherWeightsDecompressionWithoutScale::init_subgraph
 }
 
 void GatherWeightsDecompressionWithoutScale::SetUp() {
-    GatherDecompressionShapeParams shape_params;
-    ov::element::Type data_precision;
-    ov::element::Type output_precision;
-
-    std::tie(targetDevice, shape_params, data_precision, output_precision) = GetParam();
+    const auto& [_targetDevice, shape_params, data_precision, output_precision] = GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes({shape_params.indices_shape, {{}, {{shape_params.data_shape}}}});
 

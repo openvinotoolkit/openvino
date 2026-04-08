@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <string>
 #include <vector>
 
-#include "common/functions.h"
+#include "common/functions.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "intel_npu/config/options.hpp"

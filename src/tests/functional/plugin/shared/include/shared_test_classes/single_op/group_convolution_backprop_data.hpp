@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ using  groupConvBackpropLayerTestParamsSet = std::tuple<
 class GroupConvBackpropLayerTest : public testing::WithParamInterface<groupConvBackpropLayerTestParamsSet>,
                                        virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<groupConvBackpropLayerTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<groupConvBackpropLayerTestParamsSet>& obj);
 
 protected:
     void SetUp() override;

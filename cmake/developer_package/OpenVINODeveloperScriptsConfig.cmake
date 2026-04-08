@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -121,6 +121,9 @@ if(CMAKE_GENERATOR STREQUAL "Ninja Multi-Config")
     # 'Ninja Multi-Config' specific, see:
     # https://cmake.org/cmake/help/latest/variable/CMAKE_DEFAULT_BUILD_TYPE.html
     set(CMAKE_DEFAULT_BUILD_TYPE "Release" CACHE STRING "CMake default build type")
+    if (WIN32)
+        set(CMAKE_NINJA_FORCE_RESPONSE_FILE TRUE CACHE INTERNAL "Force Ninja to use response files.")
+    endif()
 elseif(NOT OV_GENERATOR_MULTI_CONFIG)
     if(NOT CMAKE_BUILD_TYPE)
         # default value
@@ -183,6 +186,10 @@ ov_set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER
 ov_set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+set(OV_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
+set(OV_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY})
+set(OV_PDB_OUTPUT_DIRECTORY ${CMAKE_PDB_OUTPUT_DIRECTORY})
+set(OV_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
 
 include(packaging/packaging)
 
@@ -306,10 +313,8 @@ include(python_requirements)
 
 # Code style utils
 
-include(cpplint/cpplint)
 include(clang_format/clang_format)
 include(clang_tidy/clang_tidy)
 include(ncc_naming_style/ncc_naming_style)
-
 # Restore state
 set(CMAKE_MODULE_PATH ${OLD_CMAKE_MODULE_PATH})

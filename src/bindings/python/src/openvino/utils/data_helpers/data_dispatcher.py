@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from functools import singledispatch
-from typing import Any, Dict, Union, Optional
+from typing import Any, Union, Optional
 
 import numpy as np
 
@@ -148,10 +148,19 @@ def to_c_style(value: Any, is_shared: bool = False) -> Any:
     if not isinstance(value, np.ndarray):
         if hasattr(value, "__array__"):
             if np.lib.NumpyVersion(np.__version__) >= "2.0.0":
-                # https://numpy.org/devdocs/numpy_2_0_migration_guide.html#adapting-to-changes-in-the-copy-keyword
-                return to_c_style(np.asarray(value), is_shared) if is_shared else np.asarray(value, copy=True)  # type: ignore
+                # https://numpy.org/devdocs/numpy_2_0_migration_guide.html
+                # #adapting-to-changes-in-the-copy-keyword
+                return (
+                    to_c_style(np.asarray(value), is_shared)
+                    if is_shared
+                    else np.asarray(value, copy=True)  # type: ignore
+                )
             else:
-                return to_c_style(np.array(value, copy=False), is_shared) if is_shared else np.array(value, copy=True)
+                return (
+                    to_c_style(np.array(value, copy=False), is_shared)
+                    if is_shared
+                    else np.array(value, copy=True)
+                )
         return value
     return value if value.flags["C_CONTIGUOUS"] else np.ascontiguousarray(value)
 
@@ -167,10 +176,19 @@ def normalize_arrays(
     # Check the special case of the array-interface
     if hasattr(inputs, "__array__"):
         if np.lib.NumpyVersion(np.__version__) >= "2.0.0":
-            # https://numpy.org/devdocs/numpy_2_0_migration_guide.html#adapting-to-changes-in-the-copy-keyword
-            return to_c_style(np.asarray(inputs), is_shared) if is_shared else np.asarray(inputs, copy=True)  # type: ignore
+            # https://numpy.org/devdocs/numpy_2_0_migration_guide.html
+            # #adapting-to-changes-in-the-copy-keyword
+            return (
+                to_c_style(np.asarray(inputs), is_shared)
+                if is_shared
+                else np.asarray(inputs, copy=True)  # type: ignore
+            )
         else:
-            return to_c_style(np.array(inputs, copy=False), is_shared) if is_shared else np.array(inputs, copy=True)
+            return (
+                to_c_style(np.array(inputs, copy=False), is_shared)
+                if is_shared
+                else np.array(inputs, copy=True)
+            )
     # Error should be raised if type does not match any dispatchers
     raise TypeError(f"Incompatible inputs of type: {type(inputs)}")
 
@@ -249,7 +267,9 @@ def _(
 ) -> dict:
     # If list is passed to single input model and consists only of simple types
     # i.e. str/bytes/float/int, wrap around it and pass into the dispatcher.
-    request._inputs_data = normalize_arrays([inputs] if request._is_single_input() and is_list_simple_type(inputs) else inputs, is_shared=True)
+    request._inputs_data = normalize_arrays(
+        [inputs] if request._is_single_input() and is_list_simple_type(inputs) else inputs, is_shared=True
+    )
     return {k: value_to_tensor(v, request=request, is_shared=True, key=k) for k, v in request._inputs_data.items()}
 
 
@@ -359,7 +379,7 @@ def update_inputs(inputs: dict, request: _InferRequestWrapper) -> dict:
     # Create new temporary dictionary.
     # new_inputs will be used to transfer data to inference calls,
     # ensuring that original inputs are not overwritten with Tensors.
-    new_inputs: Dict[ValidKeys, Tensor] = {}
+    new_inputs: dict[ValidKeys, Tensor] = {}
     for key, value in inputs.items():
         if not isinstance(key, (str, int, ConstOutput)):
             raise TypeError(f"Incompatible key type for input: {key}")
@@ -409,7 +429,12 @@ def _(
 ) -> dict:
     # If list is passed to single input model and consists only of simple types
     # i.e. str/bytes/float/int, wrap around it and pass into the dispatcher.
-    return update_inputs(normalize_arrays([inputs] if request._is_single_input() and is_list_simple_type(inputs) else inputs, is_shared=False), request)
+    return update_inputs(
+        normalize_arrays(
+            [inputs] if request._is_single_input() and is_list_simple_type(inputs) else inputs, is_shared=False
+        ),
+        request,
+    )
 
 
 @create_copied.register(np.ndarray)

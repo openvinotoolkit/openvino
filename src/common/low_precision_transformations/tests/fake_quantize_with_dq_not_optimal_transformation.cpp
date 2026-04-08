@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -112,11 +112,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizeWithNotOptimalTransformationParams> obj) {
-        ov::element::Type precision;
-        ov::Shape shape;
-        bool updatePrecision;
-        FakeQuantizeWithNotOptimalTransformationTestValues fakeQuantizeOnData;
-        std::tie(precision, shape, updatePrecision, fakeQuantizeOnData) = obj.param;
+        const auto& [precision, shape, updatePrecision, fakeQuantizeOnData] = obj.param;
 
         std::ostringstream result;
         result << LayerTransformation::getTestCaseNameByParams(precision, shape, fakeQuantizeOnData.params) <<

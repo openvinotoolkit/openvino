@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,7 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/type/element_type.hpp"
+#include "thread_pool_imp.hpp"
 
 namespace ov::intel_cpu {
 
@@ -29,29 +30,37 @@ class DnnlMatMulPrimitive {
         DnnlMemoryDescCPtr bias;
         DnnlMemoryDescCPtr dst;
         dnnl::primitive_attr attr;
+        impl_desc_type implType;
+        bool transposeA = false;
+        bool transposeB = false;
+        bool fcSemantic = false;
 
         [[nodiscard]] size_t hash() const;
         bool operator==(const Key& rhs) const;
     };
 
 public:
-    DnnlMatMulPrimitive(const Key& key, const dnnl::engine& engine, const std::vector<impl_desc_type>& implPriorities);
+    DnnlMatMulPrimitive(const Key& key,
+                        const dnnl::engine& engine,
+                        const std::shared_ptr<ThreadPool>& threadPool,
+                        const std::vector<impl_desc_type>& implPriorities,
+                        impl_desc_type defaultImplType);
 
     void execute(const dnnl_primitive_args& primArgs) const;
 
-    [[nodiscard]] const DnnlMemoryDescPtr srcDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr srcDesc() const {
         return m_srcDesc;
     }
 
-    [[nodiscard]] const DnnlMemoryDescPtr dstDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr dstDesc() const {
         return m_dstDesc;
     }
 
-    [[nodiscard]] const DnnlMemoryDescPtr weightsDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr weightsDesc() const {
         return m_weiDesc;
     }
 
-    [[nodiscard]] const DnnlMemoryDescPtr scratchPadDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr scratchPadDesc() const {
         return m_scratchPadDesc;
     }
 
@@ -61,14 +70,19 @@ public:
 
     static bool useWeightsDecompressionImpl(ov::element::Type inputType, ov::element::Type weightsType);
 
-    static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const FCAttrs& attrs,
+    static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const MatMulAttrs& attrs,
+                                                            const MemoryArgs& memory,
+                                                            const ExecutorContext::CPtr& context,
+                                                            bool cacheWeights);
+
+    static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const FCAttrs& fcAttrs,
                                                             const MemoryArgs& memory,
                                                             const ExecutorContext::CPtr& context,
                                                             bool cacheWeights);
 
     static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
                                                             const DnnlMemoryDescPtr& dstDesc,
-                                                            bool weightsNonTransposed);
+                                                            const MatMulAttrs& attrs);
 
     static std::shared_ptr<DnnlMatMulPrimitive> create(const MemoryArgs& memory,
                                                        const MatMulAttrs& attrs,

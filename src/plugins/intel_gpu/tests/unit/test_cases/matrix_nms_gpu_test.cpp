@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,10 +54,7 @@ template <class T>
 struct matrix_nms_gpu_test : public testing::TestWithParam<matrix_nms_test_params> {
 public:
     void test() {
-        format::type blocked_format;
-        matrix_nms_test_inputs test_inputs;
-        bool is_caching_test;
-        std::tie(test_inputs, blocked_format, is_caching_test) = testing::TestWithParam<matrix_nms_test_params>::GetParam();
+        const auto& [test_inputs, blocked_format, is_caching_test] = testing::TestWithParam<matrix_nms_test_params>::GetParam();
 
         const auto data_type = ov::element::from<T>();
         const auto plain_format = format::bfyx;
@@ -629,6 +626,54 @@ matrix_nms_test_inputs get_matrix_nms_no_output_inputs() {
             "matrix_nms_no_output"};
 }
 
+matrix_nms_test_inputs get_matrix_nms_large_value_of_max_boxes_per_class() {
+    const int num_boxes = 22743;
+    const int num_classes = 2;
+
+    // [batch, boxes, 1, 4]
+    std::vector<float> boxes = {
+        0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
+    boxes.resize(num_boxes * 4, PAD);
+
+    // [batch, classes, 1, boxes]
+    std::vector<float> scores = {
+        0.9,  0.75, 0.6, 0.95, 0.5, 0.3};
+    scores.resize(num_boxes * num_classes, PAD);
+    scores[num_boxes * (num_classes - 1)] = 0.95;
+    scores[num_boxes * (num_classes - 1) + 1] = 0.75;
+    scores[num_boxes * (num_classes - 1) + 2] = 0.6;
+    scores[num_boxes * (num_classes - 1) + 3] = 0.80;
+    scores[num_boxes * (num_classes - 1) + 4] = 0.5;
+    scores[num_boxes * (num_classes - 1) + 5] = 0.3;
+
+    std::vector<float> expected_output = {
+	1.00, 0.95, 0.00, 0.00, 1.00, 1.00,  1.00, 0.8, 0.00, 10.00, 1.00, 11.00,
+        1.00, 0.13636364, 0.0, 0.1, 1.0, 1.1};
+
+    return {
+            1,      // num_butches
+            num_boxes,		// num_boxes
+            num_classes,	// num_classes
+            3,      // num_selected_boxes
+            false,  // sort_result_across_bch
+            0.01f,  // score_threshold
+            -1,     // nms_top_k
+            3,      // keep_top_k
+            0,      // background_class
+            2.0f,   // gaussian_sigma
+            0.01f,  // post_threshold
+            true,   // normalized
+            boxes,
+            scores,
+            expected_output,		// expected_output
+            std::vector<int>{0, 3, 1},	// expected_selected_boxes
+            std::vector<int>{3},	// expected_valid_output
+            ov::op::v8::MatrixNms::SortResultType::SCORE,  // sort_result_type
+            ov::op::v8::MatrixNms::DecayFunction::LINEAR,  // decay_function
+            "large_value_of_max_boxes_per_class"};
+}
+
 const std::vector<format::type> layout_formats = {format::bfyx,
                                                   format::b_fs_yx_fsv16,
                                                   format::b_fs_yx_fsv32,
@@ -666,6 +711,7 @@ INSTANTIATE_MATRIX_NMS_TEST_SUITE(float, get_matrix_nms_identical_boxes_inputs)
 INSTANTIATE_MATRIX_NMS_TEST_SUITE(float, get_matrix_nms_top_k_inputs)
 INSTANTIATE_MATRIX_NMS_TEST_SUITE(float, get_matrix_nms_single_box_inputs)
 INSTANTIATE_MATRIX_NMS_TEST_SUITE(float, get_matrix_nms_no_output_inputs)
+INSTANTIATE_MATRIX_NMS_TEST_SUITE(float, get_matrix_nms_large_value_of_max_boxes_per_class)
 
 using ov::float16;
 INSTANTIATE_MATRIX_NMS_TEST_SUITE(float16, get_matrix_nms_smoke_inputs)
@@ -681,6 +727,7 @@ INSTANTIATE_MATRIX_NMS_TEST_SUITE(float16, get_matrix_nms_identical_boxes_inputs
 INSTANTIATE_MATRIX_NMS_TEST_SUITE(float16, get_matrix_nms_top_k_inputs)
 INSTANTIATE_MATRIX_NMS_TEST_SUITE(float16, get_matrix_nms_single_box_inputs)
 INSTANTIATE_MATRIX_NMS_TEST_SUITE(float16, get_matrix_nms_no_output_inputs)
+INSTANTIATE_MATRIX_NMS_TEST_SUITE(float16, get_matrix_nms_large_value_of_max_boxes_per_class)
 
 #ifndef RUN_ALL_MODEL_CACHING_TESTS
 INSTANTIATE_TEST_SUITE_P(matrix_nms_test_float16get_matrix_nms_smoke_inputs_cached,

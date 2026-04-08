@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,10 +8,7 @@
 namespace ov {
 namespace test {
 std::string SliceScatterLayerTest::getTestCaseName(const testing::TestParamInfo<SliceScatterParams> &obj) {
-    SliceScatterSpecificParams params;
-    ov::element::Type model_type;
-    std::string target_device;
-    std::tie(params, model_type, target_device) = obj.param;
+    const auto& [params, model_type, target_device] = obj.param;
     std::ostringstream result;
     result << "IS=(";
     for (size_t i = 0lu; i < params.shapes.size(); i++) {
@@ -36,9 +33,8 @@ std::string SliceScatterLayerTest::getTestCaseName(const testing::TestParamInfo<
 }
 
 void SliceScatterLayerTest::SetUp() {
-    SliceScatterSpecificParams test_params;
-    ov::element::Type model_type;
-    std::tie(test_params, model_type, targetDevice) = this->GetParam();
+    const auto& [test_params, model_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes(test_params.shapes);
 

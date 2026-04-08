@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ bool GridSampleKernelOpt_BilinearZeros::Validate(const Params& params) const {
 
     auto PaddedSpatial = [](const MultiDataTensor& tensors) -> bool {
         bool is_padded = false;
-        for (auto tensor : tensors) {
+        for (auto& tensor : tensors) {
             is_padded |= tensor.X().pad.Total() != 0;
             is_padded |= tensor.Y().pad.Total() != 0;
         }

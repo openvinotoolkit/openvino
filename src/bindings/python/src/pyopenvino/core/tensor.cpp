@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -118,8 +118,8 @@ void regclass_Tensor(py::module m) {
                 Creates a Tensor from a given Python list.
                 Warning: It is always a copy of list's data!
 
-                :param array: List to create the tensor from.
-                :type array: List[int, float, str]
+                :param array: list to create the tensor from.
+                :type array: list[int, float, str]
             )");
 
     cls.def(py::init<const ov::element::Type, const ov::Shape>(), py::arg("type"), py::arg("shape"));
@@ -218,7 +218,7 @@ void regclass_Tensor(py::module m) {
     cls.def(py::init([](py::object& image) {
                 if (!py::isinstance(image, py::module::import("PIL.Image").attr("Image"))) {
                     throw py::type_error(
-                        "Input argument must be a PIL.Image.Image/numpy.array/List[int, float, str] object");
+                        "Input argument must be a PIL.Image.Image/numpy.array/list[int, float, str] object");
                 }
                 auto numpy = py::module::import("numpy");
                 py::array np_array = numpy.attr("array")(image);
@@ -315,7 +315,7 @@ void regclass_Tensor(py::module m) {
 
             Returns numpy array with corresponding shape and dtype.
 
-            For tensors with OpenVINO specific element type, such as u1, u4 or i4
+            For tensors with OpenVINO specific element type, such as u1, u2, u3, u4, u6 or i4
             it returns linear array, with uint8 / int8 numpy dtype.
 
             For tensors with string element type, returns a numpy array of bytes

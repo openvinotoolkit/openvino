@@ -1,11 +1,8 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 include(CMakeParseArguments)
-
-# disable precompiled headers until it is fixed
-set(ENABLE_FASTER_BUILD OFF)
 
 function(ov_build_target_faster TARGET_NAME)
     # ENABLE_FASTER_BUILD option enables usage of precompiled headers

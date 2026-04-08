@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,11 +17,11 @@ void codec_xor(char* dst_str, const char* src_str, size_t len) {
 
     if (dst_str == src_str) {
         parallel_for(len, [&](size_t key_idx) {
-            dst_str[key_idx] ^= codec_key[key_idx % key_size];
+            dst_str[key_idx] = static_cast<char>(dst_str[key_idx] ^ codec_key[key_idx % key_size]);
         });
     } else {
         parallel_for(len, [&](size_t key_idx) {
-            dst_str[key_idx] = src_str[key_idx] ^ codec_key[key_idx % key_size];
+            dst_str[key_idx] = static_cast<char>(src_str[key_idx] ^ codec_key[key_idx % key_size]);
         });
     }
 }

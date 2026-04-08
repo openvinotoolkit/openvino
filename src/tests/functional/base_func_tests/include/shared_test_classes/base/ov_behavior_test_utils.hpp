@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -132,9 +132,8 @@ class OVInferRequestTests : public testing::WithParamInterface<InferRequestParam
                             public OVInferRequestTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
-        std::string targetDevice;
-        ov::AnyMap configuration;
-        std::tie(targetDevice, configuration) = obj.param;
+        const auto& [_targetDevice, configuration] = obj.param;
+        auto targetDevice = _targetDevice;
         std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
         std::ostringstream result;
         result << "targetDevice=" << targetDevice << "_";
@@ -150,7 +149,7 @@ public:
 
     void SetUp() override {
         std::tie(target_device, configuration) = this->GetParam();
-        // Skip test according to plugin specific disabledTestPatterns() (if any)
+        // Skip test according to plugin specific disabled_test_patterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         APIBaseTest::SetUp();
         function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();

@@ -1,9 +1,11 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include "node/include/helper.hpp"
 
 #include "node/include/compiled_model.hpp"
+#include "node/include/node_wrap.hpp"
 #include "node/include/tensor.hpp"
 #include "node/include/type_validation.hpp"
 
@@ -151,6 +153,13 @@ ov::preprocess::ResizeAlgorithm js_to_cpp<ov::preprocess::ResizeAlgorithm>(const
 }
 
 template <>
+std::filesystem::path js_to_cpp<std::filesystem::path>(const Napi::CallbackInfo& info, const size_t idx) {
+    const auto& path = info[idx];
+    OPENVINO_ASSERT(path.IsString(), "Passed argument must be of type String.");
+    return std::filesystem::path(path.ToString().Utf8Value());
+}
+
+template <>
 ov::Any js_to_cpp<ov::Any>(const Napi::Env& env, const Napi::Value& value) {
     if (value.IsString()) {
         return ov::Any(value.ToString().Utf8Value());
@@ -282,13 +291,20 @@ Napi::Array cpp_to_js<ov::Dimension, Napi::Array>(const Napi::CallbackInfo& info
 
 Napi::Object cpp_to_js(const Napi::Env& env, std::shared_ptr<ov::Model> model) {
     const auto& prototype = env.GetInstanceData<AddonData>()->model;
-    if (!prototype) {
-        OPENVINO_THROW("Invalid pointer to Model prototype.");
-    }
+    OPENVINO_ASSERT(prototype, "Invalid pointer to Model prototype.");
     const auto& model_js = prototype.New({});
     const auto mw = Napi::ObjectWrap<ModelWrap>::Unwrap(model_js);
     mw->set_model(model);
     return model_js;
+}
+
+Napi::Object cpp_to_js(const Napi::Env& env, std::shared_ptr<ov::Node> node) {
+    const auto& prototype = env.GetInstanceData<AddonData>()->node;
+    OPENVINO_ASSERT(prototype, "Invalid pointer to Node prototype.");
+    const auto& node_js = prototype.New({});
+    const auto nw = Napi::ObjectWrap<NodeWrap>::Unwrap(node_js);
+    nw->set_node(node);
+    return node_js;
 }
 
 template <>
@@ -298,9 +314,7 @@ Napi::Boolean cpp_to_js<bool, Napi::Boolean>(const Napi::CallbackInfo& info, con
 
 Napi::Object cpp_to_js(const Napi::Env& env, const ov::CompiledModel& compiled_model) {
     const auto& prototype = env.GetInstanceData<AddonData>()->compiled_model;
-    if (!prototype) {
-        OPENVINO_THROW("Invalid pointer to CompiledModel prototype.");
-    }
+    OPENVINO_ASSERT(prototype, "Invalid pointer to CompiledModel prototype.");
     auto obj = prototype.New({});
     const auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
     cm->set_compiled_model(compiled_model);
@@ -590,4 +604,20 @@ std::string buffer_to_string(const Napi::Value& value) {
     Napi::Buffer<uint8_t> model_data = value.As<Napi::Buffer<uint8_t>>();
 
     return std::string(reinterpret_cast<char*>(model_data.Data()), model_data.Length());
+}
+
+uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
+    try {
+        const auto supported_properties = actual.get_property(ov::supported_properties);
+        const auto has_optimal_num_of_requests =
+            std::find(supported_properties.begin(), supported_properties.end(), ov::optimal_number_of_infer_requests) !=
+            supported_properties.end();
+        OPENVINO_ASSERT(has_optimal_num_of_requests,
+                        "Can't load network: ",
+                        ov::optimal_number_of_infer_requests.name(),
+                        " is not supported! Please specify number of infer requests directly!");
+        return actual.get_property(ov::optimal_number_of_infer_requests);
+    } catch (const std::exception& ex) {
+        OPENVINO_THROW("Can't load network: ", ex.what(), ". Please specify number of infer requests directly!");
+    }
 }

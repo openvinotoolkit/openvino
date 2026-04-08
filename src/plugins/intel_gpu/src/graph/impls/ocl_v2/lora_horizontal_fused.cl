@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -212,7 +212,7 @@ KERNEL(second_token_b)(OPTIONAL_SHAPE_INFO_ARG
 #else
         ACCUMULATOR_TYPE input = AS_ACCUMULATOR_TYPE(intel_sub_group_block_read_us((const __local ushort*)(reduce_ptr + kk)));
 #endif
-        input *= scale / TO_ACCUMULATOR_TYPE(LORA_RANK);
+        input *= scale;
 
         __attribute__((opencl_unroll_hint))
         for (int j = 0; j < SUBGROUP_SIZE; j++) {

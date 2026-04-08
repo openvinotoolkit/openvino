@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -16,10 +16,6 @@ target_include_directories(${TARGET_NAME}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 
-if(ENABLE_MLIR_COMPILER)
-    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_MLIR_COMPILER)
-endif()
-
 target_link_libraries(${TARGET_NAME}
     PUBLIC
         openvino::npu_logger_utils
@@ -36,4 +32,4 @@ ov_install_static_lib(${TARGET_NAME} ${NPU_PLUGIN_COMPONENT})
 
 ov_developer_package_export_targets(TARGET openvino::npu_al
                                     INSTALL_INCLUDE_DIRECTORIES
-                                        ${CMAKE_CURRENT_SOURCE_DIR}/include)
+                                        ${CMAKE_CURRENT_SOURCE_DIR}/include/)

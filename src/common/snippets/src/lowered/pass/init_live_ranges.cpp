@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,7 @@
 #include "snippets/lowered/port_connector.hpp"
 #include "snippets/op/perf_count.hpp"
 #include "snippets/op/subgraph.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::lowered::pass {
 namespace {
@@ -80,12 +81,22 @@ bool InitLiveRanges::run(LinearIR& linear_ir) {
             std::stack<PortConnectorPtr> to_visit;
             to_visit.push(expr->get_output_port_connector(i));
             while (!to_visit.empty()) {
-                const auto& current = to_visit.top();
+                const auto current = to_visit.top();
                 current->get_source().get_descriptor_ptr()->set_reg(reg);
                 to_visit.pop();
                 for (const auto& consumer : current->get_consumers()) {
-                    consumer.get_descriptor_ptr()->set_reg(reg);
                     const auto& consumer_expr = consumer.get_expr();
+                    // set same reg for all input connectors of buffer/result/reshape/horizon expressions
+                    if (utils::need_full_connectors(consumer_expr)) {
+                        for (const auto& in_connector : consumer_expr->get_input_port_connectors()) {
+                            in_connector->get_source().get_descriptor_ptr()->set_reg(reg);
+                            for (const auto& consumer : in_connector->get_consumers()) {
+                                consumer.get_descriptor_ptr()->set_reg(reg);
+                            }
+                        }
+                    } else {
+                        consumer.get_descriptor_ptr()->set_reg(reg);
+                    }
                     stop = std::max(stop, consumer_expr->get_exec_num());
                     // Note: pass_through expression don't affect registers' life times,
                     // so we should examine their consumers to understand when the register will actually be used

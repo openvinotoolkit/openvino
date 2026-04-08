@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,12 +32,7 @@ class ConvertFqRnnToQuantizedRnn : public testing::WithParamInterface<ConvertFqR
                                    virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConvertFqRnnToQuantizedRnnTestParams>& obj) {
-        std::vector<InputShape> inputShapes;
-        std::string rnnType;
-        bool quantizedHiddenState = false;
-
-        std::tie(rnnType, inputShapes, quantizedHiddenState) = obj.param;
-
+        const auto& [rnnType, inputShapes, quantizedHiddenState] = obj.param;
         auto batchSize  = inputShapes[0];
         auto inputSize  = inputShapes[1];
         auto hiddenSize = inputShapes[2];
@@ -96,13 +91,8 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
         selectedType = "ref_any_I8";
-
-        std::vector<InputShape> inputShapes;
-        std::string rnnType;
-        bool quantizedHiddenState = false;
-
-        std::tie(rnnType, inputShapes, quantizedHiddenState) = this->GetParam();
-
+        const auto& [rnnType, origInputShapes, quantizedHiddenState] = this->GetParam();
+        auto inputShapes = origInputShapes;
         if (rnnType != "LSTMSequence") // remove cell input for non-cell rnn types
             inputShapes.erase(inputShapes.begin() + cellIdx);
 
@@ -187,7 +177,7 @@ protected:
         if (maxSeqLen > 1)
             abs_threshold = 0.05; // RNN int8 computation is expected to affect the accuracy, especially when sequence_length > 1
 
-        function = makeNgraphFunction(ngPrec, inputParams, rnnCellOp, "ConvertFqRnnToQuantizedRnn");
+        function = create_ov_model(ngPrec, inputParams, rnnCellOp, "ConvertFqRnnToQuantizedRnn");
     }
 private:
     static const size_t cellIdx = 2;

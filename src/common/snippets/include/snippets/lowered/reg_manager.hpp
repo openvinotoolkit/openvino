@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ using LiveInterval = std::pair<decltype(Expression().get_exec_num()), decltype(E
 class RegManager {
 public:
     RegManager() = delete;
-    RegManager(const std::shared_ptr<const Generator>& generator) : m_generator(generator) {}
+    explicit RegManager(const std::shared_ptr<const Generator>& generator) : m_generator(generator) {}
     [[nodiscard]] RegType get_reg_type(const ov::Output<Node>& out) const {
         return m_generator->get_op_out_reg_type(out);
     }

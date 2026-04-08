@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <cstdlib>
 #include <functional>
 #include <map>
 #include <memory>
@@ -29,6 +30,8 @@
 #include "openvino/op/group_normalization.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/softmax.hpp"
@@ -77,6 +80,7 @@
 #include "snippets/lowered/pass/validate_unified_loops.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/reshape.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/op/shape_infer_op.hpp"
 #include "snippets/pass/align_element_types.hpp"
 #include "snippets/pass/broadcast_to_movebroadcast.hpp"
@@ -97,10 +101,9 @@
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/shape_types.hpp"
 #include "snippets/utils/debug_caps_config.hpp"
+#include "snippets/utils/linear_ir_pass_dumper.hpp"
 #include "snippets/utils/utils.hpp"
-
-using namespace std;
-using namespace ov::op::util;
+#include "transformations/common_optimizations/nop_elimination.hpp"
 
 namespace ov::snippets::op {
 
@@ -122,6 +125,8 @@ auto Subgraph::is_domain_sensitive_op(const std::shared_ptr<ov::Node>& op) -> bo
                               ov::op::v1::Broadcast,
                               ov::op::v3::Broadcast,
                               ov::op::v12::GroupNormalization,
+                              ov::op::v1::ReduceSum,
+                              ov::op::v1::ReduceMax,
                               op::Reshape>(op);
 }
 
@@ -138,7 +143,7 @@ void Subgraph::init_config() {
         update(config.m_is_quantized, ov::is_type<ov::op::v0::FakeQuantize>(op));
         update(config.m_has_domain_sensitive_ops, is_domain_sensitive_op(op));
         update(config.m_has_broadcast_sensitive_ops,
-               ov::is_type_any_of<ov::op::v12::GroupNormalization, op::Reshape>(op));
+               ov::is_type_any_of<ov::op::v12::GroupNormalization, ov::snippets::op::Reshape>(op));
     }
 }
 
@@ -219,12 +224,9 @@ Subgraph::Subgraph(const OutputVector& args, const std::shared_ptr<ov::Model>& b
     m_shape_infer = std::make_shared<OVShapeInfer>(body);
 }
 
-Subgraph::Subgraph(const NodeVector& args, const std::shared_ptr<ov::Model>& body)
-    : Subgraph(as_output_vector(args), body) {}
-
 std::shared_ptr<Node> Subgraph::clone_with_new_inputs(const OutputVector& inputs) const {
     INTERNAL_OP_SCOPE(Subgraph);
-    return make_shared<Subgraph>(inputs, body().clone());
+    return std::make_shared<Subgraph>(inputs, body().clone());
 }
 
 void Subgraph::validate_and_infer_types() {
@@ -268,19 +270,21 @@ auto Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> s
 
     ov::OutputVector subgraph_inputs;
 
-    for (const auto& input : node->input_values()) {
-        if (ov::is_type<ov::opset1::Constant>(input.get_node_shared_ptr()) &&
+    for (size_t i = 0; i < node->get_input_size(); ++i) {
+        const auto& input = node->input(i);
+        const auto& source_output = input.get_source_output();
+        if (ov::is_type<ov::opset1::Constant>(source_output.get_node_shared_ptr()) &&
             (ov::shape_size(input.get_shape()) == 1 || ov::is_type<ov::op::v0::FakeQuantize>(node) ||
-             constant_input_should_be_inside_body(node))) {
-            body_inputs.push_back(input);
+             constant_input_should_be_inside_body(input))) {
+            body_inputs.push_back(source_output);
         } else {
             auto parameter =
                 std::make_shared<ov::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
             body_parameters.push_back(parameter);
-            body_parameters.back()->set_friendly_name(input.get_node()->get_friendly_name());
+            body_parameters.back()->set_friendly_name(source_output.get_node()->get_friendly_name());
             body_inputs.push_back(parameter->output(0));
 
-            subgraph_inputs.push_back(input);
+            subgraph_inputs.push_back(source_output);
         }
     }
 
@@ -296,13 +300,13 @@ auto Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> s
 
     ov::ResultVector body_results;
     for (const auto& output : node->outputs()) {
-        body_results.push_back(std::make_shared<ov::opset1::Result>(body_node->output(output.get_index())));
+        body_results.push_back(std::make_shared<snippets::op::Result>(body_node->output(output.get_index())));
     }
 
     auto body = create_body(node->get_friendly_name(), body_results, body_parameters);
     auto subgraph = build_subgraph(node, subgraph_inputs, body);
 
-    size_t hidden_data_count = 0lu;
+    size_t hidden_data_count = 0LU;
     if (auto fq_node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node)) {
         hidden_data_count += utils::get_non_scalar_constant_count_for_fq(fq_node);
     }
@@ -327,9 +331,10 @@ void Subgraph::fill_empty_output_names(const Output<Node>& target_output_node,
     }
 }
 
-auto Subgraph::constant_input_should_be_inside_body(const std::shared_ptr<ov::Node>& node) -> bool {
+auto Subgraph::constant_input_should_be_inside_body(const Input<ov::Node>& node_input) -> bool {
     return ov::is_type_any_of<ov::op::v1::Transpose, ov::op::v1::Broadcast, ov::op::v3::Broadcast, ov::op::v1::Reshape>(
-        node);
+               node_input.get_node()) &&
+           node_input.get_index() == 1;
 }
 
 bool Subgraph::check_broadcast(const std::shared_ptr<const ov::Node>& node) {
@@ -416,6 +421,7 @@ std::shared_ptr<lowered::LinearIR> Subgraph::convert_body_to_linear_ir(
 #endif  // SNIPPETS_DEBUG_CAPS
 
     m_linear_ir = std::make_shared<lowered::LinearIR>(body_ptr(), shape_infer_factory, lowering_config);
+    m_linear_ir->set_friendly_name(get_friendly_name());
     m_shape_infer = m_linear_ir->get_shape_infer_instance();
     return m_linear_ir;
 }
@@ -430,7 +436,7 @@ std::shared_ptr<Subgraph> Subgraph::clone() const {
     auto result = std::make_shared<snippets::op::Subgraph>(subgraph_node_inputs, new_body);
     // Note: ov::copy_runtime_info accepts only shared_ptr<ov::Node> as "from" but never modifies it,
     // so we have to cast away constness to copy runtime info
-    ov::copy_runtime_info(const_pointer_cast<Node>(shared_from_this()), result);
+    ov::copy_runtime_info(std::const_pointer_cast<Node>(shared_from_this()), result);
     result->set_friendly_name(get_friendly_name());
     if (m_linear_ir) {
         result->m_linear_ir = lowered::LinearIRBuilder().clone(m_linear_ir);
@@ -483,6 +489,7 @@ void Subgraph::data_flow_transformations(
     manager.register_pass<snippets::pass::PropagatePrecision>(m_generator->get_target_machine());
     manager.register_pass<ov::pass::ConstantFolding>();
     manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
+    manager.register_pass<ov::pass::EliminateConvert>();
 
     manager.register_positioned_passes(backend_passes);
     manager.run_passes(body_ptr());
@@ -507,7 +514,8 @@ void Subgraph::control_flow_transformations(
 
     OV_ITT_TASK_NEXT(CONTROL_FLOW, "::control_flow_transformations")
 
-    // Domain optimization must be the first pass, because all other transformations may depend on PortDescriptor shapes
+    // Domain optimization must be the first pass,
+    // because all other transformations may depend on PortDescriptor shapes
     size_t loop_depth = m_linear_ir->get_config().m_loop_depth;
     if (!lowered_pass_config->is_disabled<lowered::pass::OptimizeDomain>()) {
         lowered::pass::OptimizeDomain(loop_depth).run(*m_linear_ir);
@@ -565,17 +573,16 @@ void Subgraph::control_flow_transformations(
 
     lowered::pass::PassPipeline gen_pipeline(lowered_pass_config);
     // Note: the order of all passes in this pipeline must not be changed since they have hard dependencies
-    //    1. InsertSpecificIterations must be called after AssignRegisters since tail loop expressions must have the
-    //    same
-    //       assigned registers as the corresponding ops in the main body.
+    //    1. AssignRegisters must be called after InsertSpecificIterations since specific loops maybe have
+    //       different expressions and connections each other. AssignRegisters should be performed on the expanded
+    //       loops.
     //    2. CleanupLoopOffsets must be called after InsertSpecificIterations to avoid violating the proportionality of
     //    the pointer increments
     //       (this might happen if tail loop and main loop have different increments)
     //    3. OptimizeLoopSingleEvaluation must be called after CleanupLoopOffsets
     //       since CleanupLoopOffsets can't handle loops with evaluate_once = true
-
-    gen_pipeline.register_pass<lowered::pass::InitRegisters>(get_generator(), lowered_pass_config);
     gen_pipeline.register_pass<lowered::pass::InsertSpecificIterations>();
+    gen_pipeline.register_pass<lowered::pass::InitRegisters>(get_generator(), lowered_pass_config);
     gen_pipeline.register_pass<lowered::pass::NormalizeLoopIDs>();
     gen_pipeline.register_pass<lowered::pass::ValidateExpandedLoops>();
     gen_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
@@ -622,8 +629,19 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
         shape_dependent_pipeline.run(*linear_ir);
     }
 
+#ifdef SNIPPETS_DEBUG_CAPS
+    const auto& debug_conf = *linear_ir->get_config().debug_config;
+    const auto& dump_names = debug_conf.dumpLIR.passes;
+    const bool dump_final =
+        (std::find(dump_names.begin(), dump_names.end(), std::string("final")) != dump_names.end()) ||
+        (std::find(dump_names.begin(), dump_names.end(), std::string("all")) != dump_names.end());
+    if (dump_final) {
+        LIRPassDump final_dump(*linear_ir, std::string("Final"), LIRPassDump::DumpMode::SingleDump);
+    }
+#endif
+
     auto lowering_result = m_generator->generate(linear_ir, compile_params);
-    return {std::move(lowering_result)};
+    return Schedule{std::move(lowering_result)};
 }
 
 const std::shared_ptr<RuntimeConfigurator>& Subgraph::get_runtime_configurator() const {

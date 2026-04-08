@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ namespace test {
 
 class NonInputInPlaceTest : public testing::WithParamInterface<ElementType>, virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ElementType> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ElementType>& obj) {
         std::ostringstream result;
         result << "NonInputInPlaceTest_inPrc=outPrc=" << obj.param;
         return result.str();

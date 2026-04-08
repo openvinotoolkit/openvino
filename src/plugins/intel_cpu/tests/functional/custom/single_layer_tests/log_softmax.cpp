@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,12 +20,8 @@ class LogSoftmaxLayerCPUTest
           public SubgraphBaseTest,
           public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<logSoftmaxLayerTestParams> obj) {
-        std::vector<InputShape> inputShapes;
-        ov::element::Type netPrecision;
-        int64_t axis;
-        std::tie(inputShapes, netPrecision, axis) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<logSoftmaxLayerTestParams>& obj) {
+        const auto& [inputShapes, netPrecision, axis] = obj.param;
         std::ostringstream result;
         if (inputShapes.front().first.size() != 0) {
             result << "IS=(";
@@ -49,12 +45,7 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-
-        std::vector<InputShape> inputShapes;
-        ov::element::Type netPrecision;
-        int64_t axis;
-        std::tie(inputShapes, netPrecision, axis) = this->GetParam();
-
+        const auto& [inputShapes, netPrecision, axis] = this->GetParam();
         auto ngPrc = netPrecision;
         inType = outType = ngPrc;
 

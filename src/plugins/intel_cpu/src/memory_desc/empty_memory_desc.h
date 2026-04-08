@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ public:
     }
 
     bool isCompatible(const MemoryDesc& rhs) const override {
-        return everyone_is(this->getType(), rhs.getType(), Empty);
+        return all_of(this->getType(), rhs.getType(), Empty);
     };
 
     ov::element::Type getPrecision() const override {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,10 +50,9 @@ public:
             }
         }
 
-        if (unique_mem_format.size() > 1) {
-            OPENVINO_THROW(std::string(MemoryFormat::get_type_info_static().name) +
-                           " no rule defined for multiple values.");
-        }
+        OPENVINO_ASSERT(
+            unique_mem_format.size() <= 1,
+            std::string(MemoryFormat::get_type_info_static().name) + " no rule defined for multiple values.");
 
         std::string final_mem_format;
         if (unique_mem_format.size() == 1) {

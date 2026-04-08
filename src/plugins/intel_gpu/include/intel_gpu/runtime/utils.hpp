@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "openvino/core/except.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace cldnn {
 
@@ -227,6 +228,26 @@ inline std::string to_string(const T& v) {
     s << v;
     return s.str();
 }
+
+// Overload << operator for vectors
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const std::vector<T>& vec) {
+    os << "[" << ov::util::join(vec) << "]";
+    return os;
+}
+
+// vector type static casting function
+template <typename To, typename From, typename Alloc = std::allocator<From>,
+          typename = std::enable_if_t<std::is_convertible<From, To>::value>>
+inline std::vector<To> convert_vector(const std::vector<From, Alloc>& v) {
+    std::vector<To> out;
+    out.reserve(v.size());
+    std::transform(v.begin(), v.end(), std::back_inserter(out),
+                [](From x){ return static_cast<To>(x); });
+
+    return out;
+}
+
 
 // The following code is derived from Boost C++ library
 // Copyright 2005-2014 Daniel James.

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,7 @@ private:
              const float** resultBuf) const;
     void naiveDFT(float* data, size_t dataLength, bool inverse) const;
 
-    static std::vector<float> generateTwiddlesDFT(size_t n_complex, bool inverse);
+    std::vector<float> generateTwiddlesDFT(size_t n_complex, bool inverse);
     void updateTwiddlesFFT(size_t n_complex, bool inverse);
 
     std::unique_ptr<jit_uni_dft_kernel> dftKernel = nullptr;
@@ -64,7 +64,7 @@ private:
     const size_t DATA_INDEX = 0;
     const size_t AXES_INDEX = 1;
     const size_t SIGNAL_SIZE_INDEX = 2;
-    static constexpr float PI = 3.141592653589793238462643f;
+    static constexpr float PI = 3.141592653589793238462643F;
 
     bool inverse;
     bool lastInverse;

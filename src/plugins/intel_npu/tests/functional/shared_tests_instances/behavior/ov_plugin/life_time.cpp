@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ using namespace ov::test::behavior;
 
 namespace {
 
-static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
+static std::string getTestCaseName(const testing::TestParamInfo<std::string>& obj) {
     std::string target_device = obj.param;
     std::replace(target_device.begin(), target_device.end(), ':', '.');
     return "target_device=" + target_device +

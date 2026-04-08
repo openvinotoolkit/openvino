@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/util/common_util.hpp"
 #include "pyopenvino/core/remote_tensor.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 #define C_CONTIGUOUS py::detail::npy_api::constants::NPY_ARRAY_C_CONTIGUOUS_
 
@@ -26,7 +27,9 @@ const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype() {
         {ov::element::u8, py::dtype("uint8")},     {ov::element::u16, py::dtype("uint16")},
         {ov::element::u32, py::dtype("uint32")},   {ov::element::u64, py::dtype("uint64")},
         {ov::element::boolean, py::dtype("bool")}, {ov::element::u1, py::dtype("uint8")},
-        {ov::element::u4, py::dtype("uint8")},     {ov::element::nf4, py::dtype("uint8")},
+        {ov::element::u2, py::dtype("uint8")},     {ov::element::u3, py::dtype("uint8")},
+        {ov::element::u4, py::dtype("uint8")},     {ov::element::u6, py::dtype("uint8")},
+        {ov::element::nf4, py::dtype("uint8")},    {ov::element::nf4, py::dtype("uint8")},
         {ov::element::i4, py::dtype("int8")},      {ov::element::f8e4m3, py::dtype("uint8")},
         {ov::element::f8e5m2, py::dtype("uint8")}, {ov::element::string, py::dtype("bytes_")},
         {ov::element::f4e2m1, py::dtype("uint8")}, {ov::element::f8e8m0, py::dtype("uint8")},
@@ -271,6 +274,12 @@ py::array as_contiguous(py::array& array, ov::element::Type type) {
         return array.cast<py::array_t<bool, py::array::c_style | py::array::forcecast>>();
     case ov::element::u1:
         return array.cast<py::array_t<uint8_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::u2:
+        return array.cast<py::array_t<uint8_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::u3:
+        return array.cast<py::array_t<uint8_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::u6:
+        return array.cast<py::array_t<uint8_t, py::array::c_style | py::array::forcecast>>();
     // need to create a view on array to cast it correctly
     case ov::element::f16:
     case ov::element::bf16:
@@ -398,7 +407,10 @@ std::vector<size_t> _get_strides(const ov::op::v0::Constant& self) {
     switch (self.get_element_type()) {
     case i4:
     case u1:
+    case u2:
+    case u3:
     case u4:
+    case u6:
     case nf4:
     case f4e2m1:
         return _get_byte_strides(self.get_shape(), 8);
@@ -517,7 +529,7 @@ ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const o
     auto element_type = (type == ov::element::dynamic) ? Common::type_helpers::get_ov_type(array) : type;
 
     if (array_helpers::is_contiguous(array)) {
-        return ov::Tensor(element_type, shape, const_cast<void*>(array.data(0)), {});
+        return ov::Tensor(element_type, shape, const_cast<void*>(array.data()), {});
     }
     OPENVINO_THROW("SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
 }
@@ -572,14 +584,14 @@ ov::PartialShape partial_shape_from_list(const py::list& shape) {
                                      std::to_string(bounded_dim.size()) + " elements were given.");
             }
             if (!(py::isinstance<py::int_>(bounded_dim[0]) && py::isinstance<py::int_>(bounded_dim[1]))) {
-                throw py::type_error("Incorrect pair of types (" + std::string(py::str(bounded_dim[0].get_type())) +
-                                     ", " + std::string(py::str(bounded_dim[1].get_type())) +
+                throw py::type_error("Incorrect pair of types (" + std::string(py::str(py::type::of(bounded_dim[0]))) +
+                                     ", " + std::string(py::str(py::type::of(bounded_dim[1]))) +
                                      ") for dynamic dimension, ints are expected.");
             }
             pshape.insert(pshape.end(),
                           ov::Dimension(bounded_dim[0].cast<value_type>(), bounded_dim[1].cast<value_type>()));
         } else {
-            throw py::type_error("Incorrect type " + std::string(py::str(dim.get_type())) +
+            throw py::type_error("Incorrect type " + std::string(py::str(py::type::of(dim))) +
                                  " for dimension. Expected types are: "
                                  "int, str, openvino.Dimension, list/tuple with lower and upper values for "
                                  "dynamic dimension.");
@@ -595,7 +607,7 @@ const ov::Tensor& cast_to_tensor(const py::handle& tensor) {
         return tensor.cast<const RemoteTensorWrapper&>().tensor;
     }
 
-    throw py::type_error("Unable to cast " + std::string(py::str(tensor.get_type())) + " object to ov::Tensor");
+    throw py::type_error("Unable to cast " + std::string(py::str(py::type::of(tensor))) + " object to ov::Tensor");
 }
 
 void set_request_tensors(ov::InferRequest& request, const py::dict& inputs) {
@@ -636,7 +648,7 @@ uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
 py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs, bool decode_strings) {
     py::dict res;
     for (const auto& out : request.m_outputs) {
-        auto t = request.m_request->get_tensor(out);
+        auto t = request.m_request.get_tensor(out);
         if (t.get_element_type() == ov::element::string) {
             if (share_outputs) {
                 PyErr_WarnEx(PyExc_RuntimeWarning, "Result of a string type will be copied to OVDict!", 1);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,9 +37,9 @@ private:
     static std::map<const ov::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ov::Node>&, Math& node)>>&
     getInitializers();
 
-    float alpha = 0.0f;
-    float beta = 0.0f;
-    float gamma = 0.0f;
+    float alpha = 0.0F;
+    float beta = 0.0F;
+    float gamma = 0.0F;
 };
 
 }  // namespace ov::intel_cpu::node

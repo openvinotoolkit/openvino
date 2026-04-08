@@ -1,0 +1,70 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "indices"
+    input: "depth"
+    input: "values"
+    output: "y"
+    op_type: "OneHot"
+  }
+  name: "test_onehot_negative_indices"
+  initializer {
+    dims: 1
+    data_type: 7
+    int64_data: 12
+    name: "depth"
+  }
+  initializer {
+    dims: 2
+    data_type: 7
+    int64_data: 2
+    int64_data: 5
+    name: "values"
+  }
+  input {
+    name: "indices"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "depth"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "y"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 12
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 11
+}

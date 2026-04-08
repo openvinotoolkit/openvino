@@ -1,7 +1,8 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/plugin/remote_context.hpp"
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -206,7 +207,7 @@ TEST(stateful_model, check_dynamic_pad_for_kv_cache) {
                              ov::Shape{},                             // output shape
                              0,                                       // batch_dim
                              true),                                   // support_neg_ind
-                      kv_cache("concat", {input_info("gather"), input_info("present")}, info, 0, 0, false),
+                      kv_cache("concat", {input_info("gather"), input_info("present")}, info, 0, 0, false, false, false),
                       reorder("reorder", input_info("concat"), format::bfyx, data_types::f32)); /*output padding*/
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -245,6 +246,61 @@ TEST(stateful_model, check_dynamic_pad_for_kv_cache) {
         for (size_t i = 0; i < dynamic_pad_dims.size(); i++)
             dynamic_pad_mask.push_back(dynamic_pad_dims[i]);
         ASSERT_EQ(tensor(dynamic_pad_mask, 0), pad);
+    }
+}
+
+TEST(stateful_model, kv_cache_release) {
+    auto context = std::make_shared<ov::intel_gpu::RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{get_test_engine().get_device()});
+    auto& engine = context->get_engine();
+
+    auto input_lay = layout{ov::PartialShape{1, 32, 1, 128}, data_types::f32, format::bfyx};
+    const auto past_data = engine.allocate_memory(input_lay);
+    const auto present_data = engine.allocate_memory(input_lay);
+    set_random_values<float>(past_data);
+    set_random_values<float>(present_data);
+
+    ov::op::util::VariableInfo info{ov::PartialShape{-1, 32, -1, 128}, data_types::f32, "v0"};
+    auto input_kv_lay = layout{info.data_shape, info.data_type, format::bfyx};
+    topology topology(input_layout("past", input_lay),
+                      input_layout("present", input_lay),
+                      read_value("kv_cache", {input_info("past")}, info.variable_id, {input_kv_lay}),
+                      kv_cache("concat", {input_info("kv_cache"), input_info("present")}, info, 0, 0, false, false, false),
+                      reorder("reorder", input_info("concat"), format::bfyx, data_types::f32)); /*output padding*/
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+
+    auto read_value_inst = network->get_primitive("kv_cache");
+    auto kv_cache_inst = network->get_primitive("concat");
+    
+    ov::intel_gpu::VariableStateInfo var_info{info.variable_id, input_lay};
+    var_info.m_release_variable_inst.emplace_back(std::dynamic_pointer_cast<memory_state::releasable_variable>(read_value_inst));
+    var_info.m_release_variable_inst.emplace_back(std::dynamic_pointer_cast<memory_state::releasable_variable>(kv_cache_inst));
+    auto variable = std::make_shared<ov::intel_gpu::VariableState>(var_info, context, network->get_shape_predictor());
+    network->set_variable("v0", variable);
+    network->set_input_data("past", past_data);
+    network->set_input_data("present", present_data);
+
+    const auto outputs = network->execute();
+
+    const auto rv_output_count = read_value_inst->outputs_memory_count();
+    const auto kv_output_count = read_value_inst->outputs_memory_count();
+    for (size_t i = 0; i < rv_output_count; ++i) {
+        ASSERT_TRUE(read_value_inst->output_memory_ptr(i));
+    }
+    for (size_t i = 0; i < kv_output_count; ++i) {
+        ASSERT_TRUE(kv_cache_inst->output_memory_ptr(i));
+    }
+
+    variable->reset();
+    for (size_t i = 0; i < rv_output_count; ++i) {
+        ASSERT_FALSE(read_value_inst->output_memory_ptr(i));
+    }
+    for (size_t i = 0; i < kv_output_count; ++i) {
+        ASSERT_FALSE(kv_cache_inst->output_memory_ptr(i));
     }
 }
 

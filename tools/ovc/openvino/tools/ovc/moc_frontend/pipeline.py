@@ -1,10 +1,9 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
 import logging as log
 import sys
-from typing import List
 
 import numpy as np
 import os
@@ -37,7 +36,7 @@ def get_enabled_and_disabled_transforms():
     return enabled_transforms, disabled_transforms
 
 
-def raise_exception_for_input_output_cut(model_inputs_or_outputs: List[Place], new_nodes: List[dict], is_input: bool):
+def raise_exception_for_input_output_cut(model_inputs_or_outputs: list[Place], new_nodes: list[dict], is_input: bool):
     for new_node in new_nodes:
         node = new_node['node']
 
@@ -81,11 +80,11 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         # a model is not processed further in json analysis mode
         sys.exit(0)
 
-    def check_places_are_same(places_original: List[Place], places_new: List[Place]):
+    def check_places_are_same(places_original: list[Place], places_new: list[Place]):
         """
         Check if set of new places is same as original or not.
-        :param places_original: List[Place] Original model places
-        :param places_new: List[Place] New list of places
+        :param places_original: list[Place] Original model places
+        :param places_new: list[Place] New list of places
         :return: True if new list of places is same as original
         """
         return len(places_original) == len(places_new) and len(
@@ -150,7 +149,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         input_model, argv.placeholder_shapes, argv.placeholder_data_types,
         argv.output, {}, moc_front_end.get_name())
 
-    def add_names_to_tensors(model: InputModel, places: List[Place]):
+    def add_names_to_tensors(model: InputModel, places: list[Place]):
         """
         Adds additional names to some model input tensors. This helper should be used
         when a model modification is going to happen.
@@ -262,7 +261,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                                 "because the frontend does not support automatic type detection.".format(name))
                 # in case of cutting graph (or using custom inputs) and unspecified or dynamic type,
                 # the default type is fp32
-                if ov_type == Type.undefined or ov_type == Type.dynamic:
+                if ov_type == Type.dynamic:
                     ov_type = Type.f32
                 dtype = get_numpy_ctype(ov_type)
 

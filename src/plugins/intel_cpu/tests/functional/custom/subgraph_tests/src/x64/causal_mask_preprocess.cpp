@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,7 @@
 #include "openvino/op/scatter_nd_update.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/select.hpp"
+#include "openvino/op/strided_slice.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/unsqueeze.hpp"

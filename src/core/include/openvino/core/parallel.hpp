@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,12 +17,14 @@
 #include <cstddef>
 #include <type_traits>
 
-#define OV_THREAD_TBB      0
-#define OV_THREAD_OMP      1
-#define OV_THREAD_SEQ      2
-#define OV_THREAD_TBB_AUTO 3
+#define OV_THREAD_TBB          0
+#define OV_THREAD_OMP          1
+#define OV_THREAD_SEQ          2
+#define OV_THREAD_TBB_AUTO     3
+#define OV_THREAD_TBB_ADAPTIVE 4
 
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE)
+#    define OV_THREAD_USE_TBB 1
 #    ifndef NOMINMAX
 #        define NOMINMAX
 #    endif
@@ -63,7 +65,10 @@ inline void parallel_set_num_threads(int) {
 inline int parallel_get_env_threads() {
     return 0;
 }
-#    if OV_THREAD == OV_THREAD_TBB
+inline void parallel_set_max_nested_levels(int levels) {
+    return;
+}
+#    if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_ADAPTIVE)
 #        define PARTITIONING , tbb::static_partitioner()
 
 // The TBB version less than 2018u1 has no static_partitioner argument for
@@ -78,10 +83,15 @@ inline int parallel_get_env_threads() {
 #        define PARTITIONING
 #    endif
 #elif OV_THREAD == OV_THREAD_OMP
+#    define OV_THREAD_USE_TBB 0
 #    include <omp.h>
+#    if !defined(_OPENMP)
+#        error Undefined OpenMP version.
+#    endif
 
 #    include <algorithm>
 #    include <cstdlib>
+#    include <limits>
 #    include <string>
 
 /* MSVC still supports omp 2.0 only */
@@ -111,24 +121,51 @@ inline int parallel_get_env_threads() {
     }
     return env_cores;
 }
-inline int get_max_nested_levels() {
-#    if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
-    return omp_get_nested();
+
+inline int parallel_get_nested() {
+#    if _OPENMP < 201811
+    return omp_get_nested();  // This routine has been deprecated in OMP_5.0
 #    else
     return omp_get_max_active_levels();
-#    endif  // defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+#    endif
 }
+
+inline void parallel_set_nested(int enable) {
+#    if _OPENMP < 201811
+    omp_set_nested(enable);  // This routine has been deprecated in OMP_5.0
+#    else
+    if (enable == 0 || omp_get_max_active_levels() == 0) {
+        omp_set_max_active_levels(enable);
+    }
+#    endif
+}
+
+inline int parallel_get_max_nested_levels() {
+#    if _OPENMP >= 200805
+    return omp_get_max_active_levels();
+#    else
+    return omp_get_nested() ? std::numeric_limits<int32_t>::max() : 0;
+#    endif
+}
+
 // Controls the number of nested parallel blocks.
 // This flag has higher priority than pragma num_threads.
-inline void set_max_nested_levels(int levels) {
-#    if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
-    return omp_set_nested(levels);
+inline void parallel_set_max_nested_levels(int levels) {
+#    if _OPENMP >= 200805
+    omp_set_max_active_levels(levels);
+#    endif
+}
+
+inline int parallel_get_nested_level() {
+#    if _OPENMP >= 200805
+    return omp_get_level();
 #    else
-    return omp_set_max_active_levels(levels);
-#    endif  // defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+    return 0;
+#    endif
 }
 
 #elif OV_THREAD == OV_THREAD_SEQ
+#    define OV_THREAD_USE_TBB 0
 #    include <algorithm>
 inline int parallel_get_env_threads() {
     return 1;
@@ -147,11 +184,58 @@ inline void parallel_set_num_threads(int) {
 }
 #endif
 
+class ParallelNestingContext {
+public:
+    ParallelNestingContext() {
+#if OV_THREAD == OV_THREAD_OMP
+#    if _OPENMP >= 200805
+        m_origin_levels = parallel_get_max_nested_levels();
+        if (m_origin_levels < MAX_LEVEL) {
+            parallel_set_max_nested_levels(MAX_LEVEL);
+        }
+#    endif
+
+#    if _OPENMP < 201811
+        m_origin_nested = parallel_get_nested();
+        if (m_origin_nested == 0) {
+            parallel_set_nested(1);
+        }
+#    endif
+#endif
+    }
+
+    ~ParallelNestingContext() {
+#if OV_THREAD == OV_THREAD_OMP
+#    if _OPENMP >= 200805
+        if (m_origin_levels != parallel_get_max_nested_levels()) {
+            parallel_set_max_nested_levels(m_origin_levels);
+        }
+#    endif
+
+#    if _OPENMP < 201811
+        if (m_origin_nested == 0) {
+            parallel_set_nested(m_origin_nested);
+        }
+#    endif
+#endif
+    }
+
+    ParallelNestingContext(const ParallelNestingContext&) = delete;
+    ParallelNestingContext& operator=(const ParallelNestingContext&) = delete;
+
+private:
+#if OV_THREAD == OV_THREAD_OMP
+    static constexpr int MAX_LEVEL = std::numeric_limits<int>::max();
+    int m_origin_levels{MAX_LEVEL};
+    int m_origin_nested{MAX_LEVEL};
+#endif
+};
+
 namespace ov {
 
 template <typename F>
 void parallel_nt(int nthr, const F& func) {
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if OV_THREAD_USE_TBB
     if (nthr == 0)
         nthr = parallel_get_max_threads();
     if (nthr == 1) {
@@ -163,6 +247,8 @@ void parallel_nt(int nthr, const F& func) {
         func(ithr, nthr);
     });
 #elif OV_THREAD == OV_THREAD_OMP
+    if (nthr == 0)
+        nthr = parallel_get_max_threads();
     if (nthr == 1) {
         func(0, 1);
         return;
@@ -197,7 +283,7 @@ void parallel_nt_static(int nthr, const F& func) {
 
     if (nthr == 0)
         nthr = parallel_get_max_threads();
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if OV_THREAD_USE_TBB
     tbb::parallel_for(
         0,
         nthr,
@@ -223,7 +309,7 @@ void parallel_nt_static(int nthr, const F& func) {
 
 template <typename I, typename F>
 void parallel_sort(I begin, I end, const F& comparator) {
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if OV_THREAD_USE_TBB
     tbb::parallel_sort(begin, end, comparator);
 #elif OV_THREAD == OV_THREAD_OMP
     // TODO: propose OpenMP version
@@ -235,7 +321,7 @@ void parallel_sort(I begin, I end, const F& comparator) {
 
 template <typename T0, typename R, typename F>
 R parallel_sum(const T0& D0, const R& input, const F& func) {
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if OV_THREAD_USE_TBB
     return _TBB_REDUCE_FUNC(
         tbb::blocked_range<T0>(0, D0),
         input,
@@ -269,7 +355,7 @@ R parallel_sum(const T0& D0, const R& input, const F& func) {
 
 template <typename T0, typename T1, typename R, typename F>
 R parallel_sum2d(const T0& D0, const T1& D1, const R& input, const F& func) {
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if OV_THREAD_USE_TBB
     return _TBB_REDUCE_FUNC(
         tbb::blocked_range2d<T0, T1>(0, D0, 0, D1),
         input,
@@ -309,7 +395,7 @@ R parallel_sum2d(const T0& D0, const T1& D1, const R& input, const F& func) {
 }
 template <typename T0, typename T1, typename T2, typename R, typename F>
 R parallel_sum3d(const T0& D0, const T1& D1, const T2& D2, const R& input, const F& func) {
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if OV_THREAD_USE_TBB
     return _TBB_REDUCE_FUNC(
         tbb::blocked_range3d<T0, T1, T2>(0, D0, 0, D1, 0, D2),
         input,
@@ -439,7 +525,10 @@ void for_1d(const int& ithr, const int& nthr, const T0& D0, const F& func) {
 
 template <typename T0, typename F>
 void parallel_for(const T0& D0, const F& func) {
-#if OV_THREAD == OV_THREAD_TBB
+    if (D0 == T0(0)) {
+        return;
+    }
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_ADAPTIVE)
     auto work_amount = static_cast<size_t>(D0);
     int nthr = parallel_get_max_threads();
     if (static_cast<size_t>(nthr) > work_amount)
@@ -461,10 +550,23 @@ void parallel_for(const T0& D0, const F& func) {
         for_1d(ithr, nthr, D0, func);
     });
 #elif OV_THREAD == OV_THREAD_OMP
-// Please note that this function does not guarantee execution on the same number of threads from call to call.
-// Use the parallel_nt* functions if the procedure depends on a certain number of threads.
+    // Please note that this function does not guarantee execution on the same number of threads from call to call.
+    // Use the parallel_nt* functions if the procedure depends on a certain number of threads.
+    auto work_amount = static_cast<size_t>(D0);
+    auto nthr = omp_get_max_threads();
+    if (parallel_get_nested_level() > 0) {
+        nthr /= omp_get_num_threads();
+    }
+    if (static_cast<size_t>(nthr) > work_amount) {
+        nthr = static_cast<int>(work_amount);
+    }
+
+    if (nthr == 1) {
+        for_1d(0, 1, D0, func);
+    } else {
 #    pragma omp parallel
-    { for_1d(parallel_get_thread_num(), parallel_get_num_threads(), D0, func); }
+        { for_1d(parallel_get_thread_num(), parallel_get_num_threads(), D0, func); }
+    }
 #elif OV_THREAD == OV_THREAD_SEQ
     for_1d(0, 1, D0, func);
 #endif
@@ -489,7 +591,10 @@ void for_2d(const int& ithr, const int& nthr, const T0& D0, const T1& D1, const 
 
 template <typename T0, typename T1, typename F>
 void parallel_for2d(const T0& D0, const T1& D1, const F& func) {
-#if OV_THREAD == OV_THREAD_TBB
+    if (D0 == T0(0) || D1 == T1(0)) {
+        return;
+    }
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_ADAPTIVE)
     auto work_amount = static_cast<size_t>(D0 * D1);
     int nthr = parallel_get_max_threads();
     if (static_cast<size_t>(nthr) > work_amount)
@@ -511,10 +616,23 @@ void parallel_for2d(const T0& D0, const T1& D1, const F& func) {
         for_2d(ithr, nthr, D0, D1, func);
     });
 #elif OV_THREAD == OV_THREAD_OMP
-// Please note that this function does not guarantee execution on the same number of threads from call to call.
-// Use the parallel_nt* functions if the procedure depends on a certain number of threads.
+    // Please note that this function does not guarantee execution on the same number of threads from call to call.
+    // Use the parallel_nt* functions if the procedure depends on a certain number of threads.
+    auto work_amount = static_cast<int>(D0 * D1);
+    auto nthr = omp_get_max_threads();
+    if (parallel_get_nested_level() > 0) {
+        nthr /= omp_get_num_threads();
+    }
+    if (nthr > work_amount) {
+        nthr = work_amount;
+    }
+
+    if (nthr == 1) {
+        for_2d(0, 1, D0, D1, func);
+    } else {
 #    pragma omp parallel
-    { for_2d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, func); }
+        { for_2d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, func); }
+    }
 #elif OV_THREAD == OV_THREAD_SEQ
     for_2d(0, 1, D0, D1, func);
 #endif
@@ -522,7 +640,7 @@ void parallel_for2d(const T0& D0, const T1& D1, const F& func) {
 
 template <typename T0, typename T1, typename F>
 void parallel_for2d_dynamic(const T0& D0, const T1& D1, const F& func) {
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if OV_THREAD_USE_TBB
     tbb::parallel_for(tbb::blocked_range2d<T0, T1>(0, D0, 0, D1), [=](const tbb::blocked_range2d<T0, T1>& r) {
         for (T0 d0 = r.rows().begin(); d0 < r.rows().end(); d0++) {
             for (T1 d1 = r.cols().begin(); d1 < r.cols().end(); d1++) {
@@ -557,7 +675,10 @@ void for_3d(const int& ithr, const int& nthr, const T0& D0, const T1& D1, const 
 
 template <typename T0, typename T1, typename T2, typename F>
 void parallel_for3d(const T0& D0, const T1& D1, const T2& D2, const F& func) {
-#if OV_THREAD == OV_THREAD_TBB
+    if (D0 == T0(0) || D1 == T1(0) || D2 == T2(0)) {
+        return;
+    }
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_ADAPTIVE)
     auto work_amount = static_cast<size_t>(D0 * D1 * D2);
     int nthr = parallel_get_max_threads();
     if (static_cast<size_t>(nthr) > work_amount)
@@ -579,10 +700,23 @@ void parallel_for3d(const T0& D0, const T1& D1, const T2& D2, const F& func) {
         for_3d(ithr, nthr, D0, D1, D2, func);
     });
 #elif OV_THREAD == OV_THREAD_OMP
-// Please note that this function does not guarantee execution on the same number of threads from call to call.
-// Use the parallel_nt* functions if the procedure depends on a certain number of threads.
+    // Please note that this function does not guarantee execution on the same number of threads from call to call.
+    // Use the parallel_nt* functions if the procedure depends on a certain number of threads.
+    auto work_amount = static_cast<int>(D0 * D1 * D2);
+    auto nthr = parallel_get_max_threads();
+    if (parallel_get_nested_level() > 0) {
+        nthr /= omp_get_num_threads();
+    }
+    if (nthr > work_amount) {
+        nthr = work_amount;
+    }
+
+    if (nthr == 1) {
+        for_3d(0, 1, D0, D1, D2, func);
+    } else {
 #    pragma omp parallel
-    { for_3d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, func); }
+        { for_3d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, func); }
+    }
 #elif OV_THREAD == OV_THREAD_SEQ
     for_3d(0, 1, D0, D1, D2, func);
 #endif
@@ -590,7 +724,7 @@ void parallel_for3d(const T0& D0, const T1& D1, const T2& D2, const F& func) {
 
 template <typename T0, typename T1, typename T2, typename F>
 void parallel_for3d_dynamic(const T0& D0, const T1& D1, const T2& D2, const F& func) {
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if OV_THREAD_USE_TBB
     tbb::parallel_for(tbb::blocked_range3d<T0, T1, T2>(0, D0, 0, D1, 0, D2),
                       [=](const tbb::blocked_range3d<T0, T1, T2>& r) {
                           for (T0 d0 = r.pages().begin(); d0 < r.pages().end(); d0++) {
@@ -629,7 +763,10 @@ void for_4d(const int& ithr, const int& nthr, const T0& D0, const T1& D1, const 
 
 template <typename T0, typename T1, typename T2, typename T3, typename F>
 void parallel_for4d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, const F& func) {
-#if OV_THREAD == OV_THREAD_TBB
+    if (D0 == T0(0) || D1 == T1(0) || D2 == T2(0) || D3 == T3(0)) {
+        return;
+    }
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_ADAPTIVE)
     auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3);
     int nthr = parallel_get_max_threads();
     if (static_cast<size_t>(nthr) > work_amount)
@@ -651,10 +788,23 @@ void parallel_for4d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, cons
         for_4d(ithr, nthr, D0, D1, D2, D3, func);
     });
 #elif OV_THREAD == OV_THREAD_OMP
-// Please note that this function does not guarantee execution on the same number of threads from call to call.
-// Use the parallel_nt* functions if the procedure depends on a certain number of threads.
+    // Please note that this function does not guarantee execution on the same number of threads from call to call.
+    // Use the parallel_nt* functions if the procedure depends on a certain number of threads.
+    auto work_amount = static_cast<int>(D0 * D1 * D2 * D3);
+    auto nthr = parallel_get_max_threads();
+    if (parallel_get_nested_level() > 0) {
+        nthr /= omp_get_num_threads();
+    }
+    if (nthr > work_amount) {
+        nthr = work_amount;
+    }
+
+    if (nthr == 1) {
+        for_4d(0, 1, D0, D1, D2, D3, func);
+    } else {
 #    pragma omp parallel
-    { for_4d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, D3, func); }
+        { for_4d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, D3, func); }
+    }
 #elif OV_THREAD == OV_THREAD_SEQ
     for_4d(0, 1, D0, D1, D2, D3, func);
 #endif
@@ -689,7 +839,10 @@ void for_5d(const int& ithr,
 
 template <typename T0, typename T1, typename T2, typename T3, typename T4, typename F>
 void parallel_for5d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, const T4& D4, const F& func) {
-#if OV_THREAD == OV_THREAD_TBB
+    if (D0 == T0(0) || D1 == T1(0) || D2 == T2(0) || D3 == T3(0) || D4 == T4(0)) {
+        return;
+    }
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_ADAPTIVE)
     auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3 * D4);
     int nthr = parallel_get_max_threads();
     if (static_cast<size_t>(nthr) > work_amount)
@@ -711,10 +864,23 @@ void parallel_for5d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, cons
         for_5d(ithr, nthr, D0, D1, D2, D3, D4, func);
     });
 #elif OV_THREAD == OV_THREAD_OMP
-// Please note that this function does not guarantee execution on the same number of threads from call to call.
-// Use the parallel_nt* functions if the procedure depends on a certain number of threads.
+    // Please note that this function does not guarantee execution on the same number of threads from call to call.
+    // Use the parallel_nt* functions if the procedure depends on a certain number of threads.
+    auto work_amount = static_cast<int>(D0 * D1 * D2 * D3 * D4);
+    auto nthr = parallel_get_max_threads();
+    if (parallel_get_nested_level() > 0) {
+        nthr /= omp_get_num_threads();
+    }
+    if (nthr > work_amount) {
+        nthr = work_amount;
+    }
+
+    if (nthr == 1) {
+        for_5d(0, 1, D0, D1, D2, D3, D4, func);
+    } else {
 #    pragma omp parallel
-    { for_5d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, D3, D4, func); }
+        { for_5d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, D3, D4, func); }
+    }
 #elif OV_THREAD == OV_THREAD_SEQ
     for_5d(0, 1, D0, D1, D2, D3, D4, func);
 #endif
@@ -751,7 +917,10 @@ void for_6d(const int& ithr,
 
 template <typename T0, typename T1, typename T2, typename T3, typename T4, typename T5, typename F>
 void parallel_for6d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, const T4& D4, const T5& D5, const F& func) {
-#if OV_THREAD == OV_THREAD_TBB
+    if (D0 == T0(0) || D1 == T1(0) || D2 == T2(0) || D3 == T3(0) || D4 == T4(0) || D5 == T5(0)) {
+        return;
+    }
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_ADAPTIVE)
     auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3 * D4 * D5);
     int nthr = parallel_get_max_threads();
     if (static_cast<size_t>(nthr) > work_amount)
@@ -773,10 +942,23 @@ void parallel_for6d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, cons
         for_6d(ithr, nthr, D0, D1, D2, D3, D4, D5, func);
     });
 #elif OV_THREAD == OV_THREAD_OMP
-// Please note that this function does not guarantee execution on the same number of threads from call to call.
-// Use the parallel_nt* functions if the procedure depends on a certain number of threads.
+    // Please note that this function does not guarantee execution on the same number of threads from call to call.
+    // Use the parallel_nt* functions if the procedure depends on a certain number of threads.
+    auto work_amount = static_cast<int>(D0 * D1 * D2 * D3 * D4 * D5);
+    auto nthr = parallel_get_max_threads();
+    if (parallel_get_nested_level() > 0) {
+        nthr /= omp_get_num_threads();
+    }
+    if (nthr > work_amount) {
+        nthr = work_amount;
+    }
+
+    if (nthr == 1) {
+        for_6d(0, 1, D0, D1, D2, D3, D4, D5, func);
+    } else {
 #    pragma omp parallel
-    { for_6d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, D3, D4, D5, func); }
+        { for_6d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, D3, D4, D5, func); }
+    }
 #elif OV_THREAD == OV_THREAD_SEQ
     for_6d(0, 1, D0, D1, D2, D3, D4, D5, func);
 #endif

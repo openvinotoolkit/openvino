@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -108,7 +108,7 @@ private:
 // the CompiledModel internal structures
 class CompiledModelHolder {
 public:
-    CompiledModelHolder(std::shared_ptr<const CompiledModel> compiled_model)
+    explicit CompiledModelHolder(std::shared_ptr<const CompiledModel> compiled_model)
         : m_compiled_model(std::move(compiled_model)) {
         OPENVINO_ASSERT(!m_compiled_model->m_graphs.empty(),
                         "No graph was found in the compiled model: ",

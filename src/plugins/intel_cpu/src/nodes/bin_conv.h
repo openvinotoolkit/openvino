@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -113,7 +113,7 @@ private:
     bool withBinarization = false;
 
     size_t group = 1;
-    float pad_value = 0.f;
+    float pad_value = 0.F;
 
     std::vector<ptrdiff_t> stride;
     std::vector<ptrdiff_t> dilation;

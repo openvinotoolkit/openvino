@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,8 @@ TEST_P(ParameterResultSubgraphTest, Inference) {
 }
 
 TEST_P(ParameterResultSubgraphTest, CheckSharedTensor) {
-    ov::test::InputShape input_shape;
-    std::tie(input_shape, targetDevice) = this->GetParam();
+    const auto& [input_shape, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     ov::Shape shape = input_shape.second[0];
     auto input = ov::Tensor(ov::element::f32, shape);

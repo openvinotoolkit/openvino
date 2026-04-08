@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ ACLDeconvTensorInfo getACLDeconvTensorInfo(const DeconvAttrs& deconvAttrs,
 
 class AclDeconvExecutor : public DeconvExecutor {
 public:
-    explicit AclDeconvExecutor(const ExecutorContext::CPtr context);
+    explicit AclDeconvExecutor(ExecutorContext::CPtr context);
     bool init(const DeconvAttrs& deconvAttrs,
               const std::vector<MemoryDescPtr>& srcDescs,
               const std::vector<MemoryDescPtr>& dstDescs,

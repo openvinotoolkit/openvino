@@ -1,12 +1,14 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/frontend/complex_type_mark.hpp"
+#include "openvino/frontend/concat_from_sequence.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/convert_promote_types.hpp"
+#include "openvino/op/loop.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
@@ -29,35 +31,36 @@ OutputVector translate_cat_common(const NodeContext& context,
                                   int64_t axis,
                                   bool is_fx) {
     if (list_elems.empty()) {
-        // couldn't get list elements
-        auto fw_node = std::make_shared<PtFrameworkNode>(context.get_decoder(), OutputVector{context.get_input(0)}, 1);
-        auto attrs = fw_node->get_attrs();
-        // If this fails it means axis is dynamic and <aten/quantized>::cat will be converted to fw node in regular
-        // pipeline
-        attrs["axis"] = std::to_string(axis);
-        fw_node->set_attrs(attrs);
-        return {context.mark_node(fw_node)};
+        // couldn't get list elements - create ConcatFromSequence for SequenceConcatReplacer to handle
+        auto concat_from_seq = std::make_shared<ov::frontend::ConcatFromSequence>(context.get_input(0), axis, false);
+        return {context.mark_node(concat_from_seq)};
     }
     auto first_node = list_elems.front().get_node_shared_ptr();
-    PYTORCH_OP_CONVERSION_CHECK(
-        list_elems.size() > 1 || !ov::as_type_ptr<v0::Parameter>(first_node),
-        "<aten/quantized>::cat is located inside body while inputs are located outside of the body. "
-        "This case is not supported.");
-    if (list_elems.size() == 1 &&
-        !ov::as_type_ptr<op::util::FrameworkNode>(context.get_input(0).get_node_shared_ptr()) && !is_fx) {
+
+    if (list_elems.size() == 1 && !is_fx) {
         // Case when list was merged into tensor. // This case doesn't work with torchfx
         auto tensor = list_elems[0];
-        auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(tensor, element::i32));
-        auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
-        auto neg_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
-        auto axis_const = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {axis}));
-        auto one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
-        auto int_max =
-            context.mark_node(v0::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>().max()}));
-        auto shape_sliced = context.mark_node(std::make_shared<v8::Slice>(shape, one, int_max, one));
-        auto new_shape =
-            context.mark_node(std::make_shared<v12::ScatterElementsUpdate>(shape_sliced, axis_const, neg_1, zero));
-        return {context.mark_node(std::make_shared<v1::Reshape>(tensor, new_shape, false))};
+
+        auto complex = as_type_ptr<ComplexTypeMark>(tensor.get_node_shared_ptr());
+        bool is_complex = complex != nullptr;
+
+        if (is_complex) {
+            return {tensor};
+        } else if (!ov::as_type_ptr<op::util::FrameworkNode>(context.get_input(0).get_node_shared_ptr())) {
+            auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(tensor, element::i32));
+            auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+            auto neg_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
+            auto axis_const = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {axis}));
+            auto one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
+            auto int_max =
+                context.mark_node(v0::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>().max()}));
+            auto shape_sliced = context.mark_node(std::make_shared<v8::Slice>(shape, one, int_max, one));
+            auto new_shape =
+                context.mark_node(std::make_shared<v12::ScatterElementsUpdate>(shape_sliced, axis_const, neg_1, zero));
+
+            auto result = context.mark_node(std::make_shared<v1::Reshape>(tensor, new_shape, false));
+            return {result};
+        }
     }
 
     // Resolve complex types
@@ -66,6 +69,7 @@ OutputVector translate_cat_common(const NodeContext& context,
         std::any_of(std::next(list_elems.begin()), list_elems.end(), [](const ov::Output<ov::Node>& input) {
             return ov::as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr()) != nullptr;
         });
+
     if (is_complex) {
         // axis that couts from end, needs to be increased by 1 dimension
         if (axis < 0)
@@ -115,8 +119,18 @@ OutputVector translate_cat_common(const NodeContext& context,
 OutputVector translate_cat(const NodeContext& context) {
     // This translator is only needed to get axis as constant from external scope
     num_inputs_check(context, 2, 3);
-    const auto&& list_elems = get_list_as_outputs(context.get_input(0));
+    auto input = context.get_input(0);
     auto axis = context.const_input<int64_t>(1);
+    // If input comes from a Loop, create ConcatFromSequence - SequenceConcatReplacer will handle it
+    if (ov::as_type_ptr<v5::Loop>(input.get_node_shared_ptr())) {
+        auto concat_from_seq =
+            context.mark_node(std::make_shared<ov::frontend::ConcatFromSequence>(input, axis, false));
+        if (!context.input_is_none(2)) {
+            context.mutate_input(2, concat_from_seq);
+        }
+        return {concat_from_seq};
+    }
+    const auto&& list_elems = get_list_as_outputs(input);
     auto out = translate_cat_common(context, list_elems, axis, false);
     if (!context.input_is_none(2)) {
         context.mutate_input(2, out[0]);
@@ -126,18 +140,28 @@ OutputVector translate_cat(const NodeContext& context) {
 
 OutputVector translate_cat_fx(const NodeContext& context) {
     num_inputs_check(context, 1, 2);
-    const auto&& list_elems = get_list_as_outputs(context.get_input(0));
+    auto input = context.get_input(0);
     int64_t axis = 0;
     if (!context.input_is_none(1)) {
         axis = context.const_input<int64_t>(1);
     }
+    if (ov::as_type_ptr<v5::Loop>(input.get_node_shared_ptr())) {
+        return {context.mark_node(std::make_shared<ov::frontend::ConcatFromSequence>(input, axis, false))};
+    }
+    const auto&& list_elems = get_list_as_outputs(input);
     return translate_cat_common(context, list_elems, axis, true);
 };
 
 OutputVector translate_quantized_cat(const NodeContext& context) {
     num_inputs_check(context, 4, 4);
-    const auto&& list_elems = get_list_as_outputs(context.get_input(0));
+    auto input = context.get_input(0);
     auto axis = context.const_input<int64_t>(1);
+    if (ov::as_type_ptr<v5::Loop>(input.get_node_shared_ptr())) {
+        auto concat_from_seq =
+            context.mark_node(std::make_shared<ov::frontend::ConcatFromSequence>(input, axis, false));
+        return {quantize(context, concat_from_seq, context.get_input(2), context.get_input(3), input)};
+    }
+    const auto&& list_elems = get_list_as_outputs(input);
     PYTORCH_OP_CONVERSION_CHECK(!list_elems.empty(), "Couldn't find quantized input for quantized::cat operation.");
     return {quantize(context,
                      translate_cat_common(context, list_elems, axis, false)[0],
@@ -145,6 +169,36 @@ OutputVector translate_quantized_cat(const NodeContext& context) {
                      context.get_input(3),
                      list_elems.front())};
 };
+
+OutputVector translate_stack(const NodeContext& context) {
+    num_inputs_check(context, 2, 3);
+    auto input = context.get_input(0);
+    auto axis = context.const_input<int64_t>(1);
+    // Loop case: create ConcatFromSequence with new_axis=true (stack semantics)
+    if (ov::as_type_ptr<v5::Loop>(input.get_node_shared_ptr())) {
+        auto concat_from_seq = context.mark_node(std::make_shared<ov::frontend::ConcatFromSequence>(input, axis, true));
+        if (!context.input_is_none(2)) {
+            context.mutate_input(2, concat_from_seq);
+        }
+        return {concat_from_seq};
+    }
+    const auto&& list_elems = get_list_as_outputs(input);
+    OutputVector stack_inputs(list_elems.begin(), list_elems.end());
+    // GPTQ u4 decompression pattern
+    if (const auto& u4_const = u4_compression_stack(stack_inputs, axis))
+        return {u4_const};
+    // Direct case: unsqueeze each element then concatenate
+    auto dim = context.mark_node(v0::Constant::create(element::i32, Shape{}, {axis}));
+    std::deque<Output<Node>> unsqueezed;
+    for (const auto& elem : list_elems) {
+        unsqueezed.push_back(context.mark_node(std::make_shared<v0::Unsqueeze>(elem, dim)));
+    }
+    auto out = translate_cat_common(context, unsqueezed, axis, false);
+    if (!context.input_is_none(2)) {
+        context.mutate_input(2, out[0]);
+    }
+    return out;
+}
 
 OutputVector translate_stack_fx(const NodeContext& context) {
     num_inputs_check(context, 1, context.get_input_size());
@@ -156,9 +210,14 @@ OutputVector translate_stack_fx(const NodeContext& context) {
         axis = context.const_input<int64_t>(num_elements - 1);
     }
 
+    auto input = context.get_input(0);
+    if (ov::as_type_ptr<v5::Loop>(input.get_node_shared_ptr())) {
+        return {context.mark_node(std::make_shared<ov::frontend::ConcatFromSequence>(input, axis, true))};
+    }
+
     auto dim = context.mark_node(v0::Constant::create(element::i32, Shape{}, {axis}));
 
-    list_elems = get_list_as_outputs(context.get_input(0));
+    list_elems = get_list_as_outputs(input);
 
     OutputVector stack_inputs(list_elems.begin(), list_elems.end());
 
@@ -177,8 +236,17 @@ OutputVector translate_stack_fx(const NodeContext& context) {
 
 OutputVector translate_hstack(const NodeContext& context) {
     num_inputs_check(context, 1, 2);
-    const auto&& list_elems = get_list_as_outputs(context.get_input(0));
+    auto input = context.get_input(0);
     int64_t axis = 1;
+    if (ov::as_type_ptr<v5::Loop>(input.get_node_shared_ptr())) {
+        auto concat_from_seq =
+            context.mark_node(std::make_shared<ov::frontend::ConcatFromSequence>(input, axis, false));
+        if (!context.input_is_none(1)) {
+            context.mutate_input(1, concat_from_seq);
+        }
+        return {concat_from_seq};
+    }
+    const auto&& list_elems = get_list_as_outputs(input);
     auto out = translate_cat_common(context, list_elems, axis, false);
     if (!context.input_is_none(1)) {
         context.mutate_input(1, out[0]);
@@ -188,8 +256,17 @@ OutputVector translate_hstack(const NodeContext& context) {
 
 OutputVector translate_vstack(const NodeContext& context) {
     num_inputs_check(context, 1, 2);
-    const auto&& list_elems = get_list_as_outputs(context.get_input(0));
+    auto input = context.get_input(0);
     int64_t axis = 0;
+    if (ov::as_type_ptr<v5::Loop>(input.get_node_shared_ptr())) {
+        auto concat_from_seq =
+            context.mark_node(std::make_shared<ov::frontend::ConcatFromSequence>(input, axis, false));
+        if (!context.input_is_none(1)) {
+            context.mutate_input(1, concat_from_seq);
+        }
+        return {concat_from_seq};
+    }
+    const auto&& list_elems = get_list_as_outputs(input);
     auto out = translate_cat_common(context, list_elems, axis, false);
     if (!context.input_is_none(1)) {
         context.mutate_input(1, out[0]);

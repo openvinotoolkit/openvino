@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,10 @@
 #include "nodes/executors/executor.hpp"
 #include "openvino/core/except.hpp"
 #include "utils/arch_macros.h"
+
+#if defined(OV_CPU_WITH_ACL)
+#    include "nodes/executors/acl/acl_convert.hpp"
+#endif
 
 namespace ov::intel_cpu {
 

@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "rms_kernel.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <cassert>
 #include <cpu/x64/cpu_isa_traits.hpp>

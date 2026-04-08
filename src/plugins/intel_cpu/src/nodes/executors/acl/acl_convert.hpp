@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ public:
 
 protected:
     ConvertParams aclConvertParams;
-    bool isCopyOp;
+    bool isCopyOp = false;
     arm_compute::Tensor srcTensor, dstTensor;
     std::unique_ptr<arm_compute::NECopy> acl_copy;
     std::unique_ptr<arm_compute::NECast> acl_cast;

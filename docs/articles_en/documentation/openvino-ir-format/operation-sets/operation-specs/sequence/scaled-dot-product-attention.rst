@@ -20,7 +20,7 @@ omitting training-related parameter.
 .. code-block:: py
 	:force:
 
-	def ScaledDotProductAttention(query, key, value, attn_mask=None, scale=None, *, causal):
+	def ScaledDotProductAttention(query, key, value, attn_mask=None, scale=None, sink=None, *, causal):
 	    L, S = Gather(ShapeOf(query), -2), Gather(ShapeOf(key), -2)
 	    if scale is None:
 	        scale = 1.0 / Sqrt(ConvertLike(Gather(ShapeOf(query), -1), query))
@@ -33,9 +33,13 @@ omitting training-related parameter.
 	        else:
 	            attn_bias += attn_mask
 	    attn_weight = MatMul(query, Transpose(key, [-2, -1])) * scale
-	    attn_weight += attn_bias
-	    attn_weight = Softmax(attn_weight, axis=-1)
-	    return MatMul(attn_weight, value)
+		attn_weight += attn_bias
+		if sink is not None:
+			attn_weight = numpy.concatenate([attn_weight, sink], axis=-1)
+		attn_weight = Softmax(attn_weight, axis=-1)
+		if sink is not None:
+			attn_weight = attn_weight[..., :-1]
+		return MatMul(attn_weight, value)
 
 
 **Attributes**
@@ -64,6 +68,11 @@ omitting training-related parameter.
 
 * **5**: ``scale`` a scalar or single element 1D tensor of type *T*, an alternative scale factor instead of 1/sqrt(query.shape[-1]) used by default in the pseudo-code above. **Optional.**
 
+* **6**: ``sink`` a tensor of type *T* and shape ``[N, ..., 1]`` numpy-broadcastable to the batch dimensions and with the same rank as ``query``. The last dimension is expected to be equal 1 for concatenation. **Optional.**
+
+.. note::
+
+    The sink input is available since 2025.4 OpenVINO release.
 
 **Outputs**
 
@@ -264,6 +273,63 @@ Other batch dimensions ``...`` are optional.
 				<port id="4" precision="FP32">
 					<dim>2</dim>  <!-- N -->
 					<dim>16</dim> <!-- L -->
+					<dim>80</dim> <!-- Ev -->
+				</port>
+			</output>
+		</layer>
+
+
+*Example 6: With sink input*
+
+.. code-block:: xml
+   :force:
+
+    <layer id="286" name="aten::scaled_dot_product_attention_0" type="ScaledDotProductAttention" version="opset13">
+			<data causal="false" />
+			<input>
+				<!-- Multiple batch dimensions: N1 = 1, N2 = 2, N3 = 3-->
+				<port id="0" precision="FP32"> <!-- query -->
+					<dim>1</dim> <!-- N1 -->
+					<dim>2</dim> <!-- N2 -->
+					<dim>3</dim> <!-- N3 -->
+					<dim>-1</dim> <!-- L -->
+					<dim>80</dim> <!-- E -->
+				</port>
+				<port id="1" precision="FP32"> <!-- key -->
+					<dim>1</dim> <!-- N1 -->
+					<dim>2</dim> <!-- N2 -->
+					<dim>3</dim> <!-- N3 -->
+					<dim>-1</dim> <!-- S -->
+					<dim>80</dim> <!-- E -->
+				</port>
+				<port id="2" precision="FP32"> <!-- value -->
+					<dim>1</dim> <!-- N1 -->
+					<dim>2</dim> <!-- N2 -->
+					<dim>3</dim> <!-- N3 -->
+					<dim>-1</dim> <!-- S -->
+					<dim>80</dim> <!-- Ev -->
+				</port>
+				<port id="3" precision="FP32"> <!-- attention_mask -->
+					<dim>1</dim> <!-- N1 -->
+					<dim>2</dim> <!-- N2 -->
+					<dim>3</dim> <!-- N3 -->
+					<dim>-1</dim> <!-- L -->
+					<dim>-1</dim> <!-- S -->
+				</port>
+				<port id="4" precision="FP32"> <!-- sink -->
+					<dim>1</dim> <!-- N1 -->
+					<dim>2</dim> <!-- N2 -->
+					<dim>3</dim> <!-- N3 -->
+					<dim>1</dim> <!-- 1 -->
+					<dim>1</dim> <!-- 1 for concatenation --> 
+				</port>
+			</input>
+			<output>
+				<port id="5" precision="FP32">
+					<dim>1</dim> <!-- N1 -->
+					<dim>2</dim> <!-- N2 -->
+					<dim>3</dim> <!-- N3 -->
+					<dim>-1</dim> <!-- L -->
 					<dim>80</dim> <!-- Ev -->
 				</port>
 			</output>

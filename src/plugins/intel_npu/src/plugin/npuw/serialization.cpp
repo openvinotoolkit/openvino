@@ -1,19 +1,23 @@
-// Copyright (C) 2024-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "serialization.hpp"
 
+#include "attention.hpp"
+#include "host_flash_attention.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "lazy_tensor.hpp"
 #include "logging.hpp"
+#include "moe_transformations/moe_transformation.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "pyramid_attention.hpp"
 #include "spatial.hpp"
 #include "util.hpp"
 
@@ -24,12 +28,16 @@ ov::npuw::s11n::WeightsContext::WeightsContext(bool _is_weightless,
       const_to_offset(_const_to_offset) {}
 
 // NOTE: This construtor can and should only be used when importing blobs
-ov::npuw::s11n::WeightsContext::WeightsContext(const ov::npuw::s11n::Weights& _weights,
+ov::npuw::s11n::WeightsContext::WeightsContext(const ov::npuw::s11n::WeightsPtr& _weights,
+                                               const std::string& _weights_path,
                                                const s11n::WeightsContext::ConstsCache& _consts_cache,
-                                               const BF16Cache& _bf16_consts)
+                                               const BF16Cache& _bf16_consts,
+                                               const ov::FileHandleProvider& _handle_provider)
     : weights(_weights),
+      weights_path(_weights_path),
       consts_cache(_consts_cache),
-      bf16_consts(_bf16_consts) {
+      bf16_consts(_bf16_consts),
+      handle_provider(_handle_provider) {
     is_weightless = _weights || !_consts_cache.empty();
 }
 
@@ -83,6 +91,125 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::compiled::Spati
     write(stream, var.out_dim);
     write(stream, var.nway_iters);
     write(stream, var.tail_size);
+}
+
+void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::compiled::Attention& var) {
+    using ov::npuw::s11n::write;
+
+    write(stream, var.query_size);
+    write(stream, var.context_size);
+
+    // NB: This should've been done through a generic vector<T> write!
+    write(stream, var.params.size());
+    for (const auto& p : var.params) {
+        write(stream, p.idx);
+        write(stream, p.dim);
+    }
+
+    write(stream, var.mask_idx);
+    write(stream, var.attend_all);
+}
+
+void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::compiled::PyramidAttention& var) {
+    using ov::npuw::s11n::write;
+
+    write(stream, var.query_size);
+    write(stream, var.full_context_size);
+    write(stream, var._context_lengths);
+
+    // Serialize attention infos
+    write(stream, var._attention_infos.size());
+    for (const auto& info : var._attention_infos) {
+        write(stream, info.params.size());
+        for (const auto& p : info.params) {
+            write(stream, p.idx);
+            write(stream, p.dim);
+        }
+        write(stream, info.mask_idx);
+        write(stream, info.query_size);
+        write(stream, info.context_length);
+    }
+}
+
+void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::compiled::HostFlashAttention& var) {
+    using ov::npuw::s11n::write;
+
+    // Serialize basic info from _sdpa_attention_info
+    write(stream, var._sdpa_attention_info._query_size);
+    write(stream, var._sdpa_attention_info._context_size);
+    write(stream, var._sdpa_attention_info._k_seq_dim);
+    write(stream, var._sdpa_attention_info._v_seq_dim);
+
+    // Serialize SDPA indices from _sdpa_attention_info
+    write(stream, var._sdpa_attention_info._sdpa_indices.query);
+    write(stream, var._sdpa_attention_info._sdpa_indices.past_key);
+    write(stream, var._sdpa_attention_info._sdpa_indices.past_value);
+    write(stream, var._sdpa_attention_info._sdpa_indices.present_key);
+    write(stream, var._sdpa_attention_info._sdpa_indices.present_value);
+    write(stream, var._sdpa_attention_info._sdpa_indices.attention_mask);
+
+    // Serialize tile input indices from _sdpa_attention_info
+    write(stream, var._sdpa_attention_info._tile_input_indices.q);
+    write(stream, var._sdpa_attention_info._tile_input_indices.k);
+    write(stream, var._sdpa_attention_info._tile_input_indices.v);
+    write(stream, var._sdpa_attention_info._tile_input_indices.mask);
+    write(stream, var._sdpa_attention_info._tile_input_indices.acc);
+    write(stream, var._sdpa_attention_info._tile_input_indices.max);
+    write(stream, var._sdpa_attention_info._tile_input_indices.d);
+
+    // Serialize tile output indices from _sdpa_attention_info
+    write(stream, var._sdpa_attention_info._tile_output_indices.acc);
+    write(stream, var._sdpa_attention_info._tile_output_indices.max);
+    write(stream, var._sdpa_attention_info._tile_output_indices.d);
+
+    // Serialize tile_size
+    write(stream, var._tile_size);
+
+    // Serialize can_use_tensor_view
+    write(stream, var._can_use_tensor_view);
+
+    // Note: _tile_model_to_compile and _compiled_tile_model are not serialized here
+    // They are handled separately in CompiledModelDesc::serialize()
+}
+
+void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::compiled::MoEExperts& var) {
+    using ov::npuw::s11n::write;
+
+    // Serialize basic MoE metadata
+    write(stream, var.num_experts);
+    write(stream, var.expert_hidden_dim);
+    write(stream, var.num_active_experts);
+    write(stream, var.input_token_count);
+
+    // Serialize router scores index
+    write(stream, var._router_scores_idx.has_value());
+    if (var._router_scores_idx.has_value()) {
+        write(stream, var._router_scores_idx.value());
+    }
+
+    // Serialize expert input parameter index
+    write(stream, var._expert_input_param_idx.has_value());
+    if (var._expert_input_param_idx.has_value()) {
+        write(stream, var._expert_input_param_idx.value());
+    }
+
+    // Serialize parameter mapping
+    write(stream, var._param_mapping);
+
+    // Note: _compiled_models and _models_to_compile are not serialized here
+    // They are handled separately in CompiledModelDesc::serialize()
+}
+
+void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::compiled::MoEDownstream& var) {
+    using ov::npuw::s11n::write;
+
+    // Serialize MoE downstream metadata
+    write(stream, var.total_experts_num);
+    write(stream, var.active_experts_num);
+    write(stream, var.expert_output_param_idx);
+
+    // Note: _compiled_model and _model_to_compile are not serialized here
+    // They are handled separately in CompiledModelDesc::serialize()
 }
 
 void ov::npuw::s11n::write(std::ostream& stream, const ov::Tensor& var) {
@@ -188,6 +315,138 @@ void ov::npuw::s11n::read(std::istream& stream, ov::npuw::compiled::Spatial& var
     read(stream, var.tail_size);
 }
 
+void ov::npuw::s11n::read(std::istream& stream, ov::npuw::compiled::Attention& var) {
+    using ov::npuw::s11n::read;
+
+    read(stream, var.query_size);
+    read(stream, var.context_size);
+
+    std::size_t params_size = 0;
+    read(stream, params_size);
+    for (std::size_t i = 0; i < params_size; ++i) {
+        ov::npuw::compiled::Attention::Param p;
+        read(stream, p.idx);
+        read(stream, p.dim);
+        var.params.push_back(p);
+    }
+
+    read(stream, var.mask_idx);
+    read(stream, var.attend_all);
+}
+
+void ov::npuw::s11n::read(std::istream& stream, ov::npuw::compiled::PyramidAttention& var) {
+    using ov::npuw::s11n::read;
+
+    read(stream, var.query_size);
+    read(stream, var.full_context_size);
+    read(stream, var._context_lengths);
+
+    // Deserialize attention infos
+    std::size_t attention_infos_size = 0;
+    read(stream, attention_infos_size);
+    var._attention_infos.resize(attention_infos_size);
+
+    for (auto& info : var._attention_infos) {
+        std::size_t params_size = 0;
+        read(stream, params_size);
+        info.params.resize(params_size);
+        for (auto& p : info.params) {
+            read(stream, p.idx);
+            read(stream, p.dim);
+        }
+        read(stream, info.mask_idx);
+        read(stream, info.query_size);
+        read(stream, info.context_length);
+    }
+}
+
+void ov::npuw::s11n::read(std::istream& stream, ov::npuw::compiled::HostFlashAttention& var) {
+    using ov::npuw::s11n::read;
+
+    // Deserialize basic info into _sdpa_attention_info
+    read(stream, var._sdpa_attention_info._query_size);
+    read(stream, var._sdpa_attention_info._context_size);
+    read(stream, var._sdpa_attention_info._k_seq_dim);
+    read(stream, var._sdpa_attention_info._v_seq_dim);
+
+    // Deserialize SDPA indices into _sdpa_attention_info
+    read(stream, var._sdpa_attention_info._sdpa_indices.query);
+    read(stream, var._sdpa_attention_info._sdpa_indices.past_key);
+    read(stream, var._sdpa_attention_info._sdpa_indices.past_value);
+    read(stream, var._sdpa_attention_info._sdpa_indices.present_key);
+    read(stream, var._sdpa_attention_info._sdpa_indices.present_value);
+    read(stream, var._sdpa_attention_info._sdpa_indices.attention_mask);
+
+    // Deserialize tile input indices into _sdpa_attention_info
+    read(stream, var._sdpa_attention_info._tile_input_indices.q);
+    read(stream, var._sdpa_attention_info._tile_input_indices.k);
+    read(stream, var._sdpa_attention_info._tile_input_indices.v);
+    read(stream, var._sdpa_attention_info._tile_input_indices.mask);
+    read(stream, var._sdpa_attention_info._tile_input_indices.acc);
+    read(stream, var._sdpa_attention_info._tile_input_indices.max);
+    read(stream, var._sdpa_attention_info._tile_input_indices.d);
+
+    // Deserialize tile output indices into _sdpa_attention_info
+    read(stream, var._sdpa_attention_info._tile_output_indices.acc);
+    read(stream, var._sdpa_attention_info._tile_output_indices.max);
+    read(stream, var._sdpa_attention_info._tile_output_indices.d);
+
+    // Deserialize tile_size
+    read(stream, var._tile_size);
+
+    // Deserialize can_use_tensor_view
+    read(stream, var._can_use_tensor_view);
+
+    // Note: _tile_model_to_compile and _compiled_tile_model are not deserialized here
+    // They are handled separately in CompiledModelDesc::deserialize()
+}
+
+void ov::npuw::s11n::read(std::istream& stream, ov::npuw::compiled::MoEExperts& var) {
+    using ov::npuw::s11n::read;
+
+    // Deserialize basic MoE metadata
+    read(stream, var.num_experts);
+    read(stream, var.expert_hidden_dim);
+    read(stream, var.num_active_experts);
+    read(stream, var.input_token_count);
+
+    // Deserialize router scores index
+    bool has_router_scores_idx = false;
+    read(stream, has_router_scores_idx);
+    if (has_router_scores_idx) {
+        size_t value = 0;
+        read(stream, value);
+        var._router_scores_idx = value;
+    }
+
+    // Deserialize expert input parameter index
+    bool has_expert_input_param_idx = false;
+    read(stream, has_expert_input_param_idx);
+    if (has_expert_input_param_idx) {
+        size_t value = 0;
+        read(stream, value);
+        var._expert_input_param_idx = value;
+    }
+
+    // Deserialize parameter mapping
+    read(stream, var._param_mapping);
+
+    // Note: _compiled_models and _models_to_compile are not deserialized here
+    // They are handled separately in CompiledModelDesc::deserialize()
+}
+
+void ov::npuw::s11n::read(std::istream& stream, ov::npuw::compiled::MoEDownstream& var) {
+    using ov::npuw::s11n::read;
+
+    // Deserialize MoE downstream metadata
+    read(stream, var.total_experts_num);
+    read(stream, var.active_experts_num);
+    read(stream, var.expert_output_param_idx);
+
+    // Note: _compiled_model and _model_to_compile are not deserialized here
+    // They are handled separately in CompiledModelDesc::deserialize()
+}
+
 void ov::npuw::s11n::read(std::istream& stream, ov::Tensor& var) {
     bool is_initialized = false;
     read(stream, is_initialized);
@@ -226,7 +485,9 @@ void ov::npuw::s11n::read(std::istream& stream, std::shared_ptr<ov::op::v0::Para
     read(stream, names);
     // NOTE: the code below is taken from NPU plugin's create_dummy_model()
     var = std::make_shared<op::v0::Parameter>(ov::element::Type(elem_type_str), ov::PartialShape(part_shape_str));
-    var->set_friendly_name(*names.begin());  // FIXME: any_name ?
+    if (!names.empty()) {
+        var->set_friendly_name(*names.begin());  // FIXME: any_name ?
+    }
     var->output(0).get_tensor().set_names(names);
 }
 
@@ -247,7 +508,9 @@ void ov::npuw::s11n::read(std::istream& stream, std::shared_ptr<ov::Node>& var) 
                                                  names);
     var = std::make_shared<ov::op::v0::Result>(res);
     var->output(0).set_tensor_ptr(tensor_dummy);
-    var->set_friendly_name(*names.begin());  // any_name ?
+    if (!names.empty()) {
+        var->set_friendly_name(*names.begin());  // any_name ?
+    }
 }
 
 void ov::npuw::s11n::read_any(std::istream& stream, ov::Any& var) {

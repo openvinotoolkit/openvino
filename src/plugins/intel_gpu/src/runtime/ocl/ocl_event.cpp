@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,21 @@ instrumentation::profiling_interval get_profiling_interval(instrumentation::prof
 }
 
 }  // namespace
+
+namespace cldnn::ocl::utils {
+std::vector<cl::Event> get_cl_events(const std::vector<event::ptr>& events) {
+    std::vector<cl::Event> cl_events;
+    for (const auto& ev : events) {
+        if (auto ocl_base_ev = dynamic_cast<ocl_base_event*>(ev.get())) {
+            if (ocl_base_ev->get().get() != nullptr) {
+                cl_events.push_back(ocl_base_ev->get());
+            }
+        }
+    }
+
+    return cl_events;
+}
+}  // namespace cldnn::ocl::utils
 
 void CL_CALLBACK ocl_event::ocl_event_completion_callback(cl_event, cl_int, void* me) {
     reinterpret_cast<ocl_event*>(me)->_set = true;
@@ -85,16 +100,6 @@ static const std::vector<profiling_period_ocl_start_stop> profiling_periods{
 };
 
 bool ocl_event::get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) {
-    if (duration_nsec.has_value()) {
-        auto stage = instrumentation::profiling_stage::executing;
-        auto duration = std::chrono::nanoseconds(duration_nsec.value());
-        auto period = std::make_shared<instrumentation::profiling_period_basic>(duration);
-
-        info.push_back({ stage, period });
-
-        return true;
-    }
-
     if (!is_event_profiled(_event))
         return true;
 

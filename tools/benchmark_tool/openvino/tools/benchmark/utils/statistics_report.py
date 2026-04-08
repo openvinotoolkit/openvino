@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -8,7 +8,7 @@ import csv
 import numpy as np
 from enum import Enum
 from datetime import timedelta
-from typing import Dict, List, Tuple, Any
+from typing import Any
 from .logging import logger
 
 ## statistics reports types
@@ -145,8 +145,8 @@ class CsvStatisticsReport(StatisticsReport):
             writer = csv.writer(f)
             writer.writerow(['layerName', 'execStatus', 'layerType', 'execType', 'realTime (ms)', 'cpuTime (ms)' , 'proportion (%)\n'])
             for tmp_prof in prof_sorted_info:
-                writer.writerow([tmp_prof[0], str(tmp_prof[1]), 
-                                    tmp_prof[2], tmp_prof[6], 
+                writer.writerow([tmp_prof[0], str(tmp_prof[1]),
+                                    tmp_prof[2], tmp_prof[6],
                                     f"{tmp_prof[3] / 1000:.3f}", # Divide by 1000
                                     f"{tmp_prof[4] / 1000:.3f}",
                                     str("%.2f"%(tmp_prof[5]*100))+"%"])
@@ -155,7 +155,7 @@ class CsvStatisticsReport(StatisticsReport):
             f.write('\n')
             writer.writerow(["Total time: %.2f milliseconds"%(total / 1000)])
             writer.writerow(["Total CPU time: %.2f milliseconds"%(total_cpu / 1000)])
-            f.write('\n\n')            
+            f.write('\n\n')
         logger.info(f'Sorted performance counters report is stored to {filename}')
 
 @StatisticsReport.register
@@ -164,7 +164,7 @@ class JsonStatisticsReport(StatisticsReport):
         StatisticsReport.__init__(self, config)
 
     def dump(self):
-        def list_to_dict(parameters: List[Tuple[str, str]]) -> Dict[str, str]:
+        def list_to_dict(parameters: list[tuple[str, str]]) -> dict[str, str]:
             return {key: value for key, value in parameters}
 
         filename = os.path.join(self.config.report_folder, 'benchmark_report.json')
@@ -185,9 +185,9 @@ class JsonStatisticsReport(StatisticsReport):
             json.dump(json_statistics, file)
             logger.info(f"Statistics report is stored to {file.name}")
 
-    def dump_performance_counters(self, prof_info_list: List[List[Any]]): #ProfilingInfo
+    def dump_performance_counters(self, prof_info_list: list[list[Any]]): #ProfilingInfo
         def profiling_info_to_dict_list(prof_info_list):
-            
+
             profiling_info_json_list = [0]*len(prof_info_list)
             for i, profiling_info in enumerate(prof_info_list):
 
@@ -259,7 +259,7 @@ class JsonStatisticsReport(StatisticsReport):
             logger.info(f'Performance counters report is stored to {filename}')
 
     def dump_performance_counters_sorted(self, prof_sorted_info) -> None:
-        def profiling_info_to_dict_list(prof_info_matrix: np.ndarray) -> List[Dict[str, str]]:
+        def profiling_info_to_dict_list(prof_info_matrix: np.ndarray) -> list[dict[str, str]]:
             total, total_cpu = 0, 0
 
             nodes_info_list = [0]*len(prof_info_matrix)

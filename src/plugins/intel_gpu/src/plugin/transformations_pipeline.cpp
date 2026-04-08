@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,9 +13,11 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include <type_traits>
 
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
+#include "intel_gpu/primitives/paged_attention.hpp"
 #include "low_precision/add.hpp"
 #include "low_precision/concat.hpp"
 #include "low_precision/convolution.hpp"
@@ -23,6 +25,7 @@
 #include "low_precision/fold_convert.hpp"
 #include "low_precision/fuse_convert.hpp"
 #include "low_precision/group_convolution.hpp"
+#include "low_precision/qdq_stripping.hpp"
 #include "low_precision/low_precision.hpp"
 #include "low_precision/mat_mul.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
@@ -38,6 +41,8 @@
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/gather.hpp"
@@ -57,6 +62,7 @@
 #include "openvino/op/rnn_sequence.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/paged_attention.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/opsets/opset1_decl.hpp"
@@ -65,20 +71,25 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/visualize_tree.hpp"
+#include "openvino/pass/sdpa_to_vlsdpa.hpp"
 #include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
 #include "plugin/transformations/binary_conv_to_conv.hpp"
 #include "plugin/transformations/clamp_fp16_output.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
+#include "plugin/transformations/convert_moe_to_compressed.hpp"
 #include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
 #include "plugin/transformations/decompose_reduce_scalar_output.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
 #include "plugin/transformations/fc_convert_fusion.hpp"
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
 #include "plugin/transformations/fc_per_layer_scaling.hpp"
+#include "plugin/transformations/fuse_gated_mlp.hpp"
+#include "plugin/transformations/fuse_moe_3gemm_compressed.hpp"
 #include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
+#include "plugin/transformations/keep_moe_3gemm_const_precision.hpp"
 #include "plugin/transformations/kv_cache_compression.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
@@ -90,6 +101,10 @@
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
+#include "plugin/transformations/disable_fp16_comp_rms.hpp"
+#include "plugin/transformations/swiglu_fusion_with_clamp.hpp"
+#include "plugin/transformations/disable_fp16_comp_sin_gen.hpp"
+#include "plugin/transformations/increase_rms_input_precision.hpp"
 #include "transformations/common_optimizations/activations_scaling.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
@@ -97,6 +112,7 @@
 #include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
+#include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
 #include "transformations/common_optimizations/glu_fusion.hpp"
 #include "transformations/common_optimizations/group_normalization_fusion.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
@@ -104,6 +120,7 @@
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
+#include "transformations/common_optimizations/matmul_experts_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/sdpa_scale_fusion.hpp"
@@ -122,6 +139,7 @@
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/init_node_info.hpp"
+#include "transformations/normalize_l2_decomposition.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
@@ -155,6 +173,7 @@
 #include "transformations/op_conversions/convert_subtract.hpp"
 #include "transformations/op_conversions/convert_ti_to_sequences.hpp"
 #include "transformations/op_conversions/convert_topk11_downgrade.hpp"
+#include "transformations/op_conversions/convert_weight_compressed_conv1x1_to_matmul.hpp"
 #include "transformations/op_conversions/eye_decomposition.hpp"
 #include "transformations/op_conversions/gelu7_downgrade.hpp"
 #include "transformations/op_conversions/group_normalization_decomposition.hpp"
@@ -184,16 +203,19 @@
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/moe.hpp"
 #include "openvino/op/reverse_sequence.hpp"
 #include "openvino/op/roll.hpp"
 #include "openvino/op/shuffle_channels.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/util/log.hpp"
 
+#include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 namespace {
 template<typename T>
 static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> node) {
     if (auto op = std::dynamic_pointer_cast<const T>(node)) {
-        if (op->input(0).get_partial_shape()[0].is_static()) {
+        if (op->input(0).get_partial_shape().is_static()) {
             bool fp16_batch_not_1 = op->get_element_type() == ov::element::f16 && op->input(0).get_partial_shape()[0] != 1;
             return !fp16_batch_not_1;
         }
@@ -201,14 +223,20 @@ static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> n
     return false;
 }
 
+template <typename T>
+static typename std::enable_if<std::is_integral<T>::value, T>::type align_to(T size, size_t align) {
+    return static_cast<T>((size % align == 0) ? size : size - size % align + align);
+}
+
 static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node, bool supports_immad) {
-    std::vector<ov::DiscreteTypeInfo> target_consumers = { ov::opset1::MatMul::get_type_info_static(),
-                                                           ov::op::v8::Gather::get_type_info_static(),
-                                                           ov::op::v1::Convolution::get_type_info_static(),
-                                                           ov::opset1::Convolution::get_type_info_static(),
-                                                           ov::op::v1::ConvolutionBackpropData::get_type_info_static(),
-                                                           ov::opset1::ConvolutionBackpropData::get_type_info_static(),
-                                                           ov::opset1::GroupConvolution::get_type_info_static() };
+    std::vector<ov::DiscreteTypeInfo> target_consumers = {ov::opset1::MatMul::get_type_info_static(),
+                                                          ov::op::internal::MOE::get_type_info_static(),
+                                                          ov::op::v8::Gather::get_type_info_static(),
+                                                          ov::op::v1::Convolution::get_type_info_static(),
+                                                          ov::opset1::Convolution::get_type_info_static(),
+                                                          ov::op::v1::ConvolutionBackpropData::get_type_info_static(),
+                                                          ov::opset1::ConvolutionBackpropData::get_type_info_static(),
+                                                          ov::opset1::GroupConvolution::get_type_info_static()};
 
     std::vector<ov::DiscreteTypeInfo> convolutions = { ov::op::v1::Convolution::get_type_info_static(),
                                                        ov::opset1::Convolution::get_type_info_static(),
@@ -227,9 +255,6 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
     for (const auto& consumer : consumers) {
         const auto& type_info = consumer.get_node()->get_type_info();
         if (cldnn::one_of(type_info, target_consumers)) {
-            if (cldnn::one_of(type_info, convolutions) && consumer.get_node()->input_value(0).get_partial_shape().is_dynamic()) {
-                return false;
-            }
             return true;
         }
     }
@@ -242,9 +267,6 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
         for (const auto& child_consumer : child_consumers) {
             const auto& type_info = child_consumer.get_node()->get_type_info();
             if (cldnn::one_of(type_info, target_consumers)) {
-                if (cldnn::one_of(type_info, convolutions) && child_consumer.get_node()->input_value(0).get_partial_shape().is_dynamic()) {
-                    return false;
-                }
                 return true;
             }
         }
@@ -259,9 +281,6 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
             for (const auto& child_consumer : child_consumers) {
                 const auto& type_info = child_consumer.get_node()->get_type_info();
                 if (cldnn::one_of(type_info, target_consumers)) {
-                    if (cldnn::one_of(type_info, convolutions) && child_consumer.get_node()->input_value(0).get_partial_shape().is_dynamic()) {
-                        return false;
-                    }
                     return true;
                 }
                 if (are_multiply_from_decompression(child_consumer)) {
@@ -279,9 +298,6 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
             for (const auto& child_consumer : child_consumers) {
                 const auto& type_info = child_consumer.get_node()->get_type_info();
                 if (cldnn::one_of(type_info, target_consumers)) {
-                    if (cldnn::one_of(type_info, convolutions) && child_consumer.get_node()->input_value(0).get_partial_shape().is_dynamic()) {
-                        return false;
-                    }
                     return true;
                 } else if (are_converts_from_decompression(child_consumers)) {
                     return true;
@@ -292,6 +308,31 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
     return are_converts_from_decompression(consumers);
 }
 }  // namespace
+
+static bool should_decompose_sdpa_for_memory_size(size_t max_size,
+                                                    std::shared_ptr<const ov::op::v13::ScaledDotProductAttention> sdpa) {
+    const auto& q = sdpa->get_input_partial_shape(0);
+    const auto& k = sdpa->get_input_partial_shape(1);
+    const auto& v = sdpa->get_input_partial_shape(2);
+    const auto& sdpa_out = sdpa->get_output_partial_shape(0);
+    const auto dt_size = sdpa->get_element_type().size();
+
+    // Expected sdpa_opt usage : 3D SDPA
+    if (q.size() == 3 && k.size() == 3 && v.size() == 3 && sdpa_out.size() == 3) {
+        if (q.is_dynamic() || k.is_dynamic() || sdpa_out.is_dynamic())
+            return false;
+
+        // Calculate mem size of gemm for Q*K
+        // Gemm layer decomposed from sdpa could exceed max size of memory allocation.
+        size_t sdpa_intermediate_buffer_size = q.get_shape().at(0) * q.get_shape().at(1) * k.get_shape().at(1) * dt_size;
+        if (sdpa_intermediate_buffer_size > max_size * 0.5)
+            return false;
+
+        return true;
+    }
+
+    return false;
+}
 
 namespace cldnn {
 extern bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config);
@@ -350,12 +391,79 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
     const ov::element::TypeVector supported_woq_types = {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4};
     bool enableInt8;
-    ov::element::Type infer_precision = ov::element::dynamic;
     bool unroll_loop = config.get_enable_loop_unrolling();
+    const bool disable_gated_mlp_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_gated_mlp_fusion(), true);
+    auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
+
+    // call conversion of float types with keep_precision_sensitive_in_fp32 = true
+    auto fp_precision_supported = [&](ov::element::Type e) -> bool {
+        switch (e) {
+            case ov::element::f16: return device_info.supports_fp16;
+            case ov::element::f32: return true; // assume that all GPUs support f32 data type
+            case ov::element::f64: return device_info.supports_fp64;
+            case ov::element::bf16: return false;
+            default: return false;
+        }
+        return false;
+    };
+    const auto fallback_precision = ov::element::f32;
+    auto infer_precision = config.get_inference_precision();
+    if (infer_precision != ov::element::dynamic && !fp_precision_supported(infer_precision)) {
+        infer_precision = fallback_precision;
+    }
+    {
+        using namespace ov::pass::low_precision;
+        const auto enableQDQStripping = LowPrecision::isFunctionQuantized(func, std::set<levels>{levels::int16});
+        if (enableQDQStripping) {
+            ov::pass::Manager qdq_stripping_manager("Plugin:GPU:QDQ_Stripping");
+            using namespace ov::element;
+            // QDQ stripping pipeline
+            // 0. Deduplicate identical DQ subgraphs sharing a common Convert node
+            qdq_stripping_manager.register_pass<ov::pass::SharedOpOptimization>();
+            // 1. Fuse FQ->Convert->DQ to a single FQ
+            qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16}, TypeVector{f32});
+            // 2. Strip FQ layers with unsupported levels
+            const bool need_weights_adjustment = infer_precision == ov::element::f16;
+            qdq_stripping_manager.register_pass<FQStrippingTransformation>(std::set<size_t>{levels::int16}, need_weights_adjustment);
+            qdq_stripping_manager.run_passes(func);
+            is_model_quantized = LowPrecision::isFunctionQuantized(func);
+        }
+    }
+    enableInt8 = config.get_enable_lp_transformations() && is_model_quantized;
+
     {
         ov::pass::Manager manager("Plugin:GPU");
         auto pass_config = manager.get_pass_config();
         manager.set_per_pass_validation(false);
+
+        // Transformation of SDPA to VLSDPA for QWen2.x-VL,
+        // Note: this should be applied before TransposeFusion.
+        manager.register_pass<ov::pass::SDPAToVLSDPA>();
+        // Disable SDPAToVLSDPA if XMX architectures is unavaiable or IGC incompatiable.
+        pass_config->set_callback<ov::pass::SDPAToVLSDPA>(
+                [&](const_node_ptr &) -> bool {
+                    auto& engine = m_context->get_engine();
+                    const auto& info = engine.get_device_info();
+                    if (!info.supports_immad) { // CM optimized for systolic-array architectures
+                        return true;
+                    }
+
+#ifdef GPU_DEBUG_CONFIG
+                    if (!config.get_use_cm()) {
+                        OPENVINO_WARN("XAttention optimization is disabled because CM is not enabled. "
+                                    "To enable, set environment variable OV_GPU_USE_CM=ON.");
+                        return true;
+                    }
+#endif
+
+                    if (!check_cm_jit_support(engine, config)) {
+                        OPENVINO_WARN("SDPAToVLSDPA optimization for QWenVL model unavailable: IGC version incompatible with CM kernel. "
+                                    "Update IGC and ensure clangFEWrapper for CM is available (check CM_FE_DIR or LD_LIBRARY_PATH on Linux).");
+                        return true;
+                    }
+
+                    return false;
+                });
 
         // Temporary solution, global rt info cleanup is needed
         for (auto& node : func->get_ops()) {
@@ -363,13 +471,39 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             ov::disable_keep_const_precision(node);
         }
 
-        auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
-        enableInt8 = config.get_enable_lp_transformations() && is_model_quantized;
-
+        manager.register_pass<ov::pass::TransposeMatMul>();
         manager.register_pass<ov::pass::MarkDequantization>(
             std::vector<ov::element::Type>{ ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4 },
             !device_info.supports_immad);
+        const bool disable_moe_opt = GPU_DEBUG_VALUE_OR(config.get_disable_moe_opt(), false);
+        if (!disable_moe_opt) {
+            manager.register_pass<ov::pass::FuseVectorizedMOE2GEMM>();
+            pass_config->set_callback<ov::pass::FuseVectorizedMOE2GEMM>([&](const_node_ptr& root) -> bool {
+                // Currently moe op is only supported by >= xe2
+                auto& engine = m_context->get_engine();
+                const auto& info = engine.get_device_info();
+                return (info.arch != cldnn::gpu_arch::xe2) && (info.arch != cldnn::gpu_arch::xe3);
+            });
 
+            manager.register_pass<ov::pass::FuseVectorizedMOE3GEMM>();
+            pass_config->set_callback<ov::pass::FuseVectorizedMOE3GEMM>([&](const_node_ptr& root) -> bool {
+                // Currently moe gemm3 is only supported by systolic-array architectures
+                auto& engine = m_context->get_engine();
+                const auto& info = engine.get_device_info();
+                return (!info.supports_immad);
+            });
+
+            bool is_pa = false;
+            for (const auto& op : func->get_ops()) {
+                if (auto paged_attn_op = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op)) {
+                    is_pa = true;
+                    break;
+                }
+            }
+            manager.register_pass<ov::intel_gpu::ConvertMOEToMOECompressed>(is_pa);
+            manager.register_pass<ov::intel_gpu::FuseMOE3GemmCompressed>();
+        }
+        manager.register_pass<ov::pass::GatedDeltaNetFusion>();
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<EinsumDecomposition>();
 
@@ -377,19 +511,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 {ov::element::f64, ov::element::f32}
         };
 
-        // call conversion of float types with keep_precision_sensitive_in_fp32 = true
-        auto fp_precision_supported = [&](ov::element::Type e) -> bool {
-            switch (e) {
-                case ov::element::f16: return device_info.supports_fp16;
-                case ov::element::f32: return true; // assume that all GPUs support f32 data type
-                case ov::element::f64: return device_info.supports_fp64;
-                case ov::element::bf16: return false;
-                default: return false;
-            }
-            return false;
-        };
-
-        const auto fallback_precision = ov::element::f32;
         std::vector<ov::element::Type> fp_element_types = {
                 ov::element::f32,
                 ov::element::f16,
@@ -397,11 +518,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         };
 
         // Add conversion from FP data types to infer precision if it's specified
-        infer_precision = config.get_inference_precision();
         if (infer_precision != ov::element::dynamic) {
-            if (!fp_precision_supported(infer_precision))
-                infer_precision = fallback_precision;
-
             for (auto& et : fp_element_types) {
                 if (et != infer_precision) {
                     fp_convert_precision_map.insert({et, infer_precision});
@@ -420,7 +537,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         type_to_fuse_map empty_fuse_map = {};
-        manager.register_pass<ov::pass::Validate>();
 
         // fuse softmax, MVN patterns, so that they will not be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::SoftmaxFusion>();
@@ -440,7 +556,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 if (is_type<ov::op::v0::Convert>(next_node)) {
                     next_node = next_node->get_output_target_inputs(0).begin()->get_node();
                 }
-                return !is_type<ov::op::v0::MatMul>(next_node);
+                return !is_type<ov::op::v0::MatMul>(next_node) && !is_type<ov::op::internal::MOE>(next_node);
             });
 
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
@@ -460,8 +576,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const int32_t vec_size = 8;
             return static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
         });
-        manager.register_pass<ov::pass::RMSFusion>(false);
-
+        manager.register_pass<ov::pass::RMSFusion>(false, true, true);
+        manager.register_pass<DisableFP16CompForGemma3RMSPattern>();
+        manager.register_pass<DisableFP16ComForGPTOSSROPEPattern>();
+        manager.register_pass<DisableFP16ComSinGenPatternForHiFiGAN>();
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
         const bool store_original_precision_as_rt_attribute = true;
@@ -478,36 +596,140 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::CommonOptimizations>();
 
+        // In the case of "zp/scale -> reshape -> transpose -> MOE",
+        // "zp/scale -> reshape -> transpose" is constant-folded in the above "CommonOptimizations".
+        // After constant-folding, the precision of new constant should not be converted.
+        manager.register_pass<ov::intel_gpu::KeepMOE3GemmConstPrecision>();
         // In the case of "input -> reshape -> convert -> multiply",
         // the "input -> reshape" subgraph is constant-folded in the above "CommonOptimizations"
         // To handle this case, "KeepConstPrecision" is executed again.
         manager.register_pass<ov::pass::KeepConstPrecision>(supported_woq_types, !device_info.supports_immad);
 
-        ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
-        kv_cache_config.keyCachePrecision = config.get_kv_cache_precision();
-        kv_cache_config.valueCachePrecision = config.get_kv_cache_precision();
-        kv_cache_config.inferencePrecision = infer_precision;
-        kv_cache_config.keyCacheBlockSize = 16;
-        kv_cache_config.valueCacheBlockSize = 16;
-        kv_cache_config.keyCacheDimOrder = {0, 1, 3, 2};
-        kv_cache_config.valueCacheDimOrder = {0, 1, 2, 3};
-        manager.register_pass<ov::pass::ConvertPagedAttnInputs>(kv_cache_config,
-            [&infer_precision](const ov::element::Type& precision,
-               const bool bychannel,
-               const size_t group_num,
-               int64_t& head_size,
-               int64_t& block_size) {
-                OPENVINO_ASSERT(!bychannel, "[GPU] Unsupported KV-cache quantization mode");
-                if (precision == ov::element::i8 || precision == ov::element::u8) {
-                    head_size += infer_precision.size() * 2 * group_num;
+        {
+            // Disable XAttention if GPU Xe2/Xe3 architectures is unavaiable or IGC incompatiable.
+            auto check_xattn_gpu_compatibility  = [&](void) -> bool {
+                        auto& engine = m_context->get_engine();
+                        const auto& info = engine.get_device_info();
+                         if (!info.supports_immad) {  // CM optimized for systolic-array architectures
+                            return false;
+                        }
+
+#ifdef GPU_DEBUG_CONFIG
+                        if (!config.get_use_cm()) {
+                            OPENVINO_WARN("XAttention optimization is disabled because CM is not enabled. "
+                                        "To enable, set environment variable OV_GPU_USE_CM=ON.");
+                            return false;
+                        }
+#endif
+
+                        if (!check_cm_jit_support(engine, config)) {
+                            OPENVINO_WARN("XAttention optimization unavailable: IGC version incompatible with CM kernel. "
+                                        "Update IGC and ensure clangFEWrapper for CM is available (check CM_FE_DIR or LD_LIBRARY_PATH on Linux).");
+                            return false;
+                        }
+
+                        return true;
+                    };
+
+
+            // Check if XAttention is enabled by the user via GENAI.
+            // This is determined by inspecting the model parameters for XAttention configurations,
+            // which are introduced during the SDPAToPagedAttention pass.
+            bool use_xattention = false;
+            const auto& parameters = func->get_parameters();
+            for (const auto& param : parameters) {
+                if (param->get_friendly_name() == "xattention_block_size") {
+                    use_xattention = true;
+                    break;
                 }
-            });
+            }
+
+            if (use_xattention) {
+                // Throw exception if xattn is not supported by either GPU archieture or compiler.
+                if (!check_xattn_gpu_compatibility())
+                    OPENVINO_THROW("[GPU] XAttention is not supported by your current GPU architecture or IGC version. "
+                                "Please either disable XAttention by following the GenAI guide, or switch to a GPU with Xe2/Xe3 "
+                                "architecture and ensure the latest IGC is installed.");
+            }
+
+            // KVCache layout with default attention -
+            // k: [num_blocks, num_kv_heads, head_size, block_size(16)]
+            // v: [num_blocks, num_kv_heads, block_size(16), head_size]
+            // KVCache layout with XAttention -
+            // k: [num_blocks, num_kv_heads, block_size(256), head_size]
+            // v: [num_blocks, num_kv_heads, block_size(256), head_size]
+            ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
+            const auto kv_cache_precision = config.get_kv_cache_precision();
+            kv_cache_config.keyCachePrecision = kv_cache_precision;
+            kv_cache_config.valueCachePrecision = kv_cache_precision;
+            kv_cache_config.inferencePrecision = infer_precision;
+            if (use_xattention) {
+                kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size_xattn;
+                kv_cache_config.keyCacheDimOrder = {0, 1, 2, 3};  //  default dim order of [num_blocks, num_kv_heads, block_size, head_size]
+            } else {
+                kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size;
+                kv_cache_config.keyCacheDimOrder = {0, 1, 3, 2};
+            }
+            kv_cache_config.keyCacheQuantBychannel = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL);
+            kv_cache_config.keyCacheGroupSize = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
+            if (use_xattention) {
+                if (kv_cache_config.keyCacheQuantBychannel &&
+                    ((kv_cache_precision == ov::element::i8 || kv_cache_precision == ov::element::u8)) )
+                    OPENVINO_THROW("[GPU] XAttention does not currently support per-channel quantized key cache.");
+
+                kv_cache_config.valueCacheBlockSize = cldnn::paged_attention::block_size_xattn;
+                kv_cache_config.valueCacheDimOrder = {0, 1, 2, 3};
+            } else {
+                kv_cache_config.valueCacheBlockSize = cldnn::paged_attention::block_size;
+                kv_cache_config.valueCacheDimOrder = {0, 1, 2, 3};
+            }
+            kv_cache_config.valueCacheQuantBychannel = false;
+            kv_cache_config.valueCacheGroupSize = 0;
+
+            manager.register_pass<ov::pass::ConvertPagedAttnInputs>(kv_cache_config,
+                [&infer_precision](const ov::element::Type& precision,
+                const bool bychannel,
+                const size_t group_num,
+                int64_t& head_size,
+                int64_t& block_size) {
+                    OPENVINO_ASSERT(precision != ov::element::dynamic, "[GPU] kv_cache precision should be specified.");
+                    if (bychannel) {
+                        // TODO: need to handle group size != block size case
+                        if (precision == ov::element::i8 || precision == ov::element::u8) {
+                            block_size += infer_precision.size() * 2;
+                        } else if (precision == ov::element::i4 || precision == ov::element::u4) {
+                            head_size = align_to(head_size / 2, 16);
+                            block_size += infer_precision.size() * 4;
+                        }
+                    } else {
+                        if (precision == ov::element::i8 || precision == ov::element::u8) {
+                            head_size += infer_precision.size() * 2 * group_num;
+                        } else if (precision == ov::element::i4 || precision == ov::element::u4) {
+                            head_size = align_to(head_size / 2, 16);
+                            head_size += infer_precision.size() * 4 * group_num;
+                        }
+                    }
+                },
+                [&] (ov::element::Type& precision) {
+                    // Use u8/i8 for cache even if the inference precision is i4/u4,
+                    // to avoid issue that u4-type cache is called by ov::RemoteTensor in genai.
+                    if (precision == ov::element::i4 || precision == ov::element::u4) {
+                        precision = (config.get_kv_cache_precision() == ov::element::i4) ? ov::element::i8 : ov::element::u8;
+                    }
+                });
+        }
 
         pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node> node){
             if (!config.get_enable_sdpa_optimization())
                 return false;
 
             auto sdpa = ov::as_type_ptr<const ov::op::v13::ScaledDotProductAttention>(node);
+            // TODO: sdpa_opt is not supporting sink_input for 1st token case yet
+            constexpr size_t sink_idx = cldnn::scaled_dot_product_attention::ScaledDotProductAttentionInputIdx::SINK;
+            if (sdpa->get_input_size() > sink_idx && !device_info.supports_immad) {
+                return false;
+            }
+
             const auto& query_ps = sdpa->get_input_partial_shape(0);
             const auto& key_ps = sdpa->get_input_partial_shape(1);
             const auto& value_ps = sdpa->get_input_partial_shape(2);
@@ -516,6 +738,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // - The data type of SDPA should be fp16
             if (sdpa->get_output_element_type(0) != ov::element::f16)
                 return false;
+
+            // - The attn mask type of SDPA should be fp16
+            if (!sdpa->get_causal() && sdpa->get_input_size() >= 4 && sdpa->get_input_element_type(3) == ov::element::boolean) {
+                return false;
+            }
 
             // - The number of dimensions for each input is expected to be 4 or 3
             if (!(query_ps.size() == 3 || query_ps.size() == 4) ||
@@ -528,15 +755,26 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
             }
 
-            const auto head_size = query_ps[query_ps.size() - 1].get_length();
+            // sdpa_opt will be selected for 3d-tensor sdpa.
+            // sdpa_opt has performance issue on GPUs with XMX. If memory size allows, it is preferrable to decompose sdpa.
+            // If intermediate buffer is expected to be very large, we need to use sdpa_opt to be functional.
+            const auto max_size = m_context->get_engine().get_max_memory_size();
+            if (device_info.supports_immad && should_decompose_sdpa_for_memory_size(max_size, sdpa)) {
+                GPU_DEBUG_TRACE << " Expect sdpa_usage with systolic-arry architectures. mem size is decomposable. Q*K size : query " << query_ps
+                                << " key " << key_ps << " dt " << sdpa->get_element_type().size() << std::endl;
+                 return false;
+             }
+
+            const auto head_size = static_cast<uint64_t>(query_ps[query_ps.size() - 1].get_length());
             if (device_info.supports_immad && cldnn::query_microkernels_supported(m_context->get_engine(), config) && head_size <= 256)
                 return true;
 
-            // - Head size should be 128 for any model type; or should be in the range of 64 to 256 for stateful LLMs because of performance reasons.
+            // - Head size should be 128 for any model type; or should be in the range of 64 to 512 for stateful LLMs because of performance
+            // reasons and implementation limitations (see sdpa micro and sdpa opt kernels).
             //   This limitations is recommended to prevent performance drop in models with small head size, such as SD,
             //   until the SDPA operation is optimized for these cases
-            bool valid_head_size = (head_size >= 64 && head_size <= 256);
-            if (!valid_head_size) {
+            bool valid_head_size = (head_size >= 64 && head_size <= std::min(device_info.max_work_group_size, static_cast<uint64_t>(512)));
+            if (!valid_head_size || head_size % 2 != 0) { // head_size should be an even number (until the SDPA opt kernel is fixed for odd head size)
                 return false;
             }
 
@@ -630,7 +868,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::ConvertGather0D>();
         manager.register_pass<ov::pass::ConvertPriorBox8To0, false>();
         manager.register_pass<ov::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
-        manager.register_pass<ov::pass::TransposeMatMul>();
         manager.register_pass<ov::pass::ConvertPad12ToPad1, false>();
         manager.register_pass<DecomposeReduceForScalarOutput>();
 
@@ -645,7 +882,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             {ov::element::u4, ov::element::u8},
         };
 
-        manager.register_pass<ov::pass::Validate>();
         const bool keep_precision_sensitive_in_fp32_2 = true;
 
         // To convert to f16 input to boolean which is converted to u8, add abs + ceiling + clamp before convert.
@@ -717,31 +953,37 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         };
 
         // Sequences supported by the plugin shouldn't be converted to TensorIterator.
-        // sequence_length input is not supported in all Sequences, so if is_seq_len_provided() == true, we
+        // Real sequence_lengths is not supported in all onednn Sequences, so if is_seq_len_provided() == true, we
         // should always convert to TensorIterator.
-        // RNN/GRU Sequences are not supported in GPU plugin
+        // (WA) We can ignore real sequence_lengths input for batch_size == 1 case when seq_length in first input is dynamic.
+        // This WA applies to GRUSequence only.
+        // RNN Sequence is not supported in GPU plugin and is always converted to TensorIterator
         // LSTM Sequence supported with clip == 0, and activations have default values (sigmoid, tanh, tanh)
+        // GRU Sequence supported with clip == 0, and activations have default values (sigmoid, tanh)
         auto isSequencePrimitiveSupported = [](const_node_ptr &node) -> bool {
             const auto& data = node->input(0);
             const auto& data_pshape = data.get_partial_shape();
             auto max_seq_len = data_pshape[1];
-            if (data_pshape.rank().is_static() && data_pshape.rank().get_length() > 1 && !data_pshape[1].is_static())
-                return false;
+
             if (ov::as_type_ptr<const ov::op::v5::RNNSequence>(node)) {
                 return false;
             } else if (const auto &gru_seq = ov::as_type_ptr<const ov::op::v5::GRUSequence>(node)) {
+                bool is_batch_one_with_dynamic_seq_len = data_pshape[0] == 1 && !data_pshape[1].is_static();
                 return gru_seq->get_clip() == 0.0f &&
                     gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
                     max_seq_len != 1 &&
-                    !ov::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(0),
-                                                       gru_seq->get_input_node_shared_ptr(2)) &&
+                    (!ov::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(0),
+                                                        gru_seq->get_input_node_shared_ptr(2)) ||
+                    is_batch_one_with_dynamic_seq_len) &&
                     gru_seq->get_linear_before_reset();
             } else if (const auto &lstm_seq = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(node)) {
-                return lstm_seq->get_clip() == 0.0f &&
-                       lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
-                       max_seq_len != 1 &&
-                       !ov::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(0),
-                                                          lstm_seq->get_input_node_shared_ptr(3));
+                if (!data_pshape[1].is_static())
+                    return false;
+                return (lstm_seq->get_clip() == 0.0f &&
+                    lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
+                    max_seq_len != 1 &&
+                    !ov::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(0),
+                                                        lstm_seq->get_input_node_shared_ptr(3)));
             }
             return false;
         };
@@ -807,8 +1049,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
             });
 
-        pass_config->enable<ov::pass::NormalizeL2Decomposition>();
-        pass_config->set_callback<ov::pass::NormalizeL2Decomposition>(
+        // ReduceSum would causes fp16 out of range.
+        // To avoid the out of range, use fp32 nodes for NormalizeL2Decomposition.
+        bool use_fp32_internal_nodes = (infer_precision == ov::element::f16);
+        manager.register_pass<ov::intel_gpu::NormalizeL2Decomposition>(use_fp32_internal_nodes);
+        pass_config->set_callback<ov::intel_gpu::NormalizeL2Decomposition>(
             [](const_node_ptr &node) -> bool {
             // Condition to filter out axes such as [0, 1, 2] which is not supported currently.
             const auto norm = ov::as_type_ptr<const ov::op::v0::NormalizeL2>(node);
@@ -1059,6 +1304,20 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     }
 
     {
+        // Re-apply i64->i32 conversion after loop unrolling.
+        // UnrollTensorIterator replaces the current_iteration Parameter with a
+        // Constant(i64) regardless of the original parameter type. GPU kernels
+        // do not support i64 operands (e.g. ScatterUpdate indices),
+        // so convert these newly introduced i64 nodes to i32.
+        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply::post_unroll_convert_precision");
+        ov::pass::Manager manager("GPU:PostUnrollConvertPrecision");
+        precisions_map post_unroll_int_map{{ov::element::i64, ov::element::i32}};
+        type_to_fuse_map post_unroll_type_to_fuse = {};
+        manager.register_pass<ov::pass::ConvertPrecision>(post_unroll_int_map, post_unroll_type_to_fuse, false, false);
+        manager.run_passes(func);
+    }
+
+    {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply::activations_scaling");
         ov::pass::Manager manager("GPU:ActivationsScaling");
         manager.set_per_pass_validation(false);
@@ -1076,11 +1335,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             ov::op::v3::Broadcast::get_type_info_static(),
         };
         manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovScalar>(allowed_data_movement_ops);
-        // FIXME (151111): this Validate is added as a workaround for resolving element
-        // types after MoveEltwiseUpThroughDataMovScalar. It has to be removed
-        // after 141764 is fixed as there's a clear issue with Validate passes
-        // not working properly.
-        manager.register_pass<ov::pass::Validate>();
 
         manager.register_pass<ov::pass::RoPEFusion>(true);
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
@@ -1088,6 +1342,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::RoPEShareCosSin>();
 
         manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
+        if (device_info.supports_immad && config.get_use_onednn() && !disable_gated_mlp_fusion) {
+            manager.register_pass<ov::intel_gpu::FuseGatedMLP>();
+        }
+        manager.register_pass<ov::intel_gpu::SwiGluFusionWithClamp>();
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
         manager.register_pass<ov::pass::Validate>();
 
@@ -1151,8 +1409,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         ov::pass::Manager manager("GPU:PostLPT");
         manager.set_per_pass_validation(false);
 
+        manager.register_pass<ov::pass::ConvertWeightCompressedConv1x1ToMatmul>();
+        manager.register_pass<ov::intel_gpu::IncreaseRMSInputPrecision>();
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
-        manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
+        manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>(device_info.supports_immad);
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
 
@@ -1160,7 +1420,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         const bool disable_fc_swiglu_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_fc_swiglu_fusion(), false);
 
         // mlp fusion is only supported for cldnn on high performant GPUis
-        bool fuse_mlp_swiglu = !device_info.supports_immad &&
+        bool fuse_mlp_swiglu = !config.get_use_onednn() &&
+                               !device_info.supports_immad &&
                                device_info.execution_units_count >= 128 &&
                                !disable_fc_swiglu_fusion;
         if (!disable_horizontal_fc_fusion) {
@@ -1171,7 +1432,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
 
             // Temporary disabling for BMG due to regression
-            if (device_info.arch != cldnn::gpu_arch::xe2 && !config.get_enable_lora_operation()) {
+            if (device_info.arch != cldnn::gpu_arch::xe2 && (!config.get_enable_lora_operation() || device_info.supports_immad)) {
                 manager.register_pass<ov::intel_gpu::LoRAHorizontalFusion>();
             }
         }
@@ -1205,9 +1466,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::GLUFusion>();
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
 
+
         auto kv_cache_compression_dt = config.get_kv_cache_precision();
         manager.register_pass<ov::intel_gpu::KVCacheCompression>(kv_cache_compression_dt, device_info.supports_immad);
-
         manager.register_pass<ov::intel_gpu::ConvertConvolutionToInternal>();
 
         // This pass should be done after asymmetric quantization matching as it can move zp subtraction upper in the graph
@@ -1222,16 +1483,53 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::intel_gpu::SinkReshape>();
 
-        if (device_info.supports_immad) {
-            bool asymmetric_dyn_quant = config.get_asym_dynamic_quantization();
+        if (device_info.supports_immad && config.get_use_onednn()) {
+            const bool asymmetric_dyn_quant = config.get_asym_dynamic_quantization();
             auto dynamic_quantization_group_size = config.get_dynamic_quantization_group_size();
             auto dynamic_quantization_group_size_max = config.get_dynamic_quantization_group_size_max();
+            const bool precomputed_reduction = config.get_dynamic_quantization_precomputed_reduction();
+
+            const bool group_dyn_quan_allowed = m_context->get_engine().get_device_info().supports_non_uniform_work_group;
+            // WA: when platform does not support non-uniform-work-group, it may fail to run dynamic quantization for gs128.
+            // This is unlikely to happen. But this WA is added just in case.
+            const bool use_gs128_for_int8_per_token = m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe2
+                && group_dyn_quan_allowed;
+
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
+                const int64_t dyn_quan_bisect = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantization_bisect(), 0);    // 0 will be ignored from GPU_DEBUG_IF
+                const int64_t dyn_quan_single = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantization_single(), 0);    // 0 will be ignored from GPU_DEBUG_IF
+                GPU_DEBUG_IF(dyn_quan_bisect != std::numeric_limits<int64_t>::max() ||
+                                dyn_quan_single >= 0) {
+                    static int64_t fc_count = 0;
+
+                    if (++fc_count > dyn_quan_bisect)
+                        return true;
+
+                    if (dyn_quan_single >= 0) {
+                        if (fc_count != dyn_quan_single)
+                            return true;
+                        else
+                            GPU_DEBUG_COUT << "Try to apply dyn_quan only to " << root->get_friendly_name() << std::endl;
+                    }
+                }
+
                 for (size_t i = 0 ; i < root->get_input_node_shared_ptr(0)->get_output_size(); ++i) {
                     if (root->get_input_node_shared_ptr(0)->get_output_element_type(i) == ov::element::Type_t::f32) {
                         GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: input type is not supported" << std::endl;
                         return true;
                     }
+                }
+                uint64_t adj_group_size = dynamic_quantization_group_size;
+                const bool is_wei_i8u8 = cldnn::one_of(root->get_input_element_type(1), {ov::element::i8, ov::element::u8});
+                if (ov::intel_gpu::DynamicQuantizeFullyConnected::ShouldUseGs128(is_wei_i8u8, use_gs128_for_int8_per_token, adj_group_size)) {
+                    adj_group_size = 128;
+                }
+
+                const auto& input_shape = root->get_input_partial_shape(0);
+                const size_t input_rank = input_shape.size();
+                if (input_rank > 3) {
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: input rank is not supported" << std::endl;
+                    return true;
                 }
 
                 auto weight_shape = root->get_input_partial_shape(1);
@@ -1245,20 +1543,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 }
 
                 // AZP does not support grouped size dyn-quan
-                GPU_DEBUG_IF(asymmetric_dyn_quant && (dynamic_quantization_group_size != UINT64_MAX)) {
+                GPU_DEBUG_IF(asymmetric_dyn_quant && (adj_group_size != UINT64_MAX)) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: asym quantization does not support grouped quantization" <<
                                                                    " ('DynamicQuantizeAsym' is enabled with grouped size dyn-quan)" << std::endl;
                     return true;
                 }
 
                 bool has_wzp = root->get_input_size() > 4;
-                if ((root->get_input_element_type(1) == ov::element::i8 || root->get_input_element_type(1) == ov::element::u8)
-                    && has_wzp
-                    && dynamic_quantization_group_size != UINT64_MAX) {
-                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
-                                                                    " asym 8bit weight does not support grouped quantization" << std::endl;
-                    return true;
-                }
 
                 if (has_wzp && !cldnn::one_of(root->get_input_element_type(4), {ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4})) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
@@ -1266,13 +1557,26 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     return true;
                 }
 
+                const bool is_grouped = adj_group_size != UINT64_MAX;
+                // It should be either per-token or hardware should support grouped dyn_quan(through non-uniform-work-group)
+                if (is_grouped && !group_dyn_quan_allowed) {
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
+                                                                    " group_dyn_quan_allowed " << group_dyn_quan_allowed << std::endl;
+                    return true;
+                }
+
                 return false;
             });
-            if (dynamic_quantization_group_size_max < dynamic_quantization_group_size) {
+
+            const bool model_allows_group_size = dynamic_quantization_group_size_max >= dynamic_quantization_group_size;
+            if (!model_allows_group_size) {
                 GPU_DEBUG_INFO << "dyn_quan is turned off because group_size is larger than max size "
                                << dynamic_quantization_group_size << "/" << dynamic_quantization_group_size_max << std::endl;
             } else {
-                manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size, asymmetric_dyn_quant);
+                manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size,
+                                                                                    asymmetric_dyn_quant,
+                                                                                    precomputed_reduction,
+                                                                                    use_gs128_for_int8_per_token);
             }
         }
 
@@ -1287,6 +1591,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         GPU_DEBUG_IF(config.get_verbose() >= 1) {
             manager.register_pass<ov::intel_gpu::PrintModelStatistics>();
         }
+        manager.register_pass<ov::pass::Validate>();
         manager.run_passes(func);
     }
 }

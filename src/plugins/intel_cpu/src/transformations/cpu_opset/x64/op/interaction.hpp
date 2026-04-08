@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,9 +21,9 @@ public:
 
     InteractionNode() = default;
 
-    InteractionNode(const OutputVector& args);
+    explicit InteractionNode(const OutputVector& args);
 
-    InteractionNode(const NodeVector& args);
+    explicit InteractionNode(const NodeVector& args);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 

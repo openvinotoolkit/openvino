@@ -1,10 +1,10 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "rdft_kernel.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>

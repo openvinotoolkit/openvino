@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ std::shared_ptr<Node> VectorBuffer::clone_with_new_inputs(const OutputVector& ne
 
 void VectorBuffer::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(VectorBuffer_validate_and_infer_types);
-    set_output_type(0, m_element_type, Shape{1lu});
+    set_output_type(0, m_element_type, Shape{1LU});
 }
 
 bool VectorBuffer::visit_attributes(AttributeVisitor& visitor) {

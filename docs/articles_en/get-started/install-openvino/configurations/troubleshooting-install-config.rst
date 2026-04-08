@@ -23,14 +23,18 @@ Troubleshooting Guide for OpenVINO™ Installation & Configuration
 
    .. code-block:: sh
 
-      pip install openvino-dev -i https://mirrors.aliyun.com/pypi/simple/
+      pip install openvino -i https://mirrors.aliyun.com/pypi/simple/
 
    Use the ``--trusted-host`` parameter if the URL above is ``http`` instead of ``https``.
    You can also run the following command to install specific framework. For example:
 
    .. code-block:: sh
 
-      pip install openvino-dev[tensorflow2] -i https://mirrors.aliyun.com/pypi/simple/
+      pip install "openvino[tensorflow2]" -i https://mirrors.aliyun.com/pypi/simple/
+
+   .. note::
+
+      The ``openvino-dev`` metapackage has been discontinued. Use the ``openvino`` package and enable optional framework integrations with extras such as ``openvino[tensorflow2]`` or ``openvino[onnx]``.
 
 .. dropdown:: ImportError: cannot import name 'Core' from 'openvino'
 
@@ -52,14 +56,14 @@ Troubleshooting Guide for OpenVINO™ Installation & Configuration
 
    .. code-block:: sh
 
-      from openvino.runtime import get_version
+      from openvino import get_version
       get_version()
 
 
 .. dropdown:: Check the versions of Python and PIP
 
    To check your Python version, run ``python -VV`` or ``python --version``. The supported
-   Python versions are 64-bit, between 3.9 and 3.12. If your Python version does not meet the
+   Python versions are 64-bit, between 3.10 and 3.14. If your Python version does not meet the
    requirements, you need to upgrade:
 
    * For Windows, **do not install Python from the Windows Store** as it can cause issues.

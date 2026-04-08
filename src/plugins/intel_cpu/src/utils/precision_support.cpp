@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,4 +58,7 @@ bool hasIntDotProductSupport() {
     return with_cpu_arm_dotprod();
 }
 
+bool hasInt8MMSupport() {
+    return with_cpu_arm_i8mm();
+}
 }  // namespace ov::intel_cpu

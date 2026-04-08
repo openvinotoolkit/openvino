@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,10 +12,17 @@
 #include <iostream>
 #include <sstream>
 
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 
 namespace ov {
+namespace util {
+int64_t get_system_page_size() {
+    static auto page_size = static_cast<int64_t>(sysconf(_SC_PAGE_SIZE));
+    return page_size;
+}
+}  // namespace util
 
 class HandleHolder {
     int m_handle = -1;
@@ -55,40 +62,63 @@ public:
     }
 };
 
-class MapHolder : public MappedMemory {
-    void* m_data = MAP_FAILED;
+class MapHolder final : public MappedMemory {
+    void* m_mapped_view = MAP_FAILED;
+    size_t m_mapped_view_size = 0;
+    void* m_data = nullptr;
     size_t m_size = 0;
+    uint64_t m_id = std::numeric_limits<uint64_t>::max();
     HandleHolder m_handle;
 
 public:
     MapHolder() = default;
 
-    void set(const std::string& path) {
-        int prot = PROT_READ;
+    void set(const std::filesystem::path& path, const size_t offset, const size_t size) {
         int mode = O_RDONLY;
+        int fd = open(path.c_str(), mode);
+        if (fd == -1) {
+            throw std::runtime_error("Can not open file " + util::path_to_string(path) +
+                                     " for mapping. Ensure that file exists and has appropriate permissions.");
+        }
+        set_from_fd(fd, offset, size);
+        m_id = util::u64_hash_combine(std::filesystem::hash_value(path), {offset, size});
+    }
+
+    void set_from_fd(const int fd, const size_t offset, const size_t size) {
+        m_handle = HandleHolder(fd);
+
         struct stat sb = {};
-        m_handle = HandleHolder(open(path.c_str(), mode));
-        if (m_handle.get() == -1) {
-            throw std::runtime_error("Can not open file " + path +
-                                     " for mapping. Ensure that file exists and has appropriate permissions");
+        if (fstat(fd, &sb) == -1) {
+            throw std::runtime_error("Can not get file size for fd=" + std::to_string(fd));
         }
-        if (fstat(m_handle.get(), &sb) == -1) {
-            throw std::runtime_error("Can not get file size for " + path);
+        const auto file_size = static_cast<size_t>(sb.st_size);
+        m_size = (size == auto_size) ? file_size - offset : size;
+        if (offset + m_size > file_size || offset + m_size < offset) {
+            throw std::runtime_error("Requested mapping range exceeds file size for fd=" + std::to_string(fd));
         }
-        m_size = sb.st_size;
+
         if (m_size > 0) {
-            m_data = mmap(nullptr, m_size, prot, MAP_PRIVATE, m_handle.get(), 0);
-            if (m_data == MAP_FAILED) {
-                throw std::runtime_error("Can not create file mapping for " + path + ", err=" + std::strerror(errno));
+            const auto page_size = util::get_system_page_size();
+            const auto aligned_offset = (offset / page_size) * page_size;
+            m_mapped_view_size = offset + m_size - aligned_offset;
+            m_mapped_view = mmap(nullptr, m_mapped_view_size, PROT_READ, MAP_SHARED, fd, aligned_offset);
+            if (m_mapped_view == MAP_FAILED) {
+                throw std::runtime_error("Can not create file mapping for " + std::to_string(fd) +
+                                         ", err=" + std::strerror(errno));
             }
-        } else {
-            m_data = MAP_FAILED;
+            m_data = static_cast<char*>(m_mapped_view) + (offset - aligned_offset);
         }
+        m_id =
+            util::u64_hash_combine(static_cast<uint64_t>(sb.st_ino), {static_cast<uint64_t>(sb.st_dev), offset, size});
+    }
+
+    uint64_t get_id() const noexcept override {
+        return m_id;
     }
 
     ~MapHolder() {
-        if (m_data != MAP_FAILED) {
-            munmap(m_data, m_size);
+        if (m_mapped_view != MAP_FAILED) {
+            munmap(m_mapped_view, m_mapped_view_size);
         }
     }
 
@@ -101,10 +131,18 @@ public:
     }
 };
 
-std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path) {
+std::shared_ptr<MappedMemory> load_mmap_object(const std::filesystem::path& path, size_t offset, size_t size) {
     auto holder = std::make_shared<MapHolder>();
-    holder->set(path);
+    holder->set(path, offset, size);
     return holder;
 }
 
+std::shared_ptr<ov::MappedMemory> load_mmap_object(FileHandle handle, size_t offset, size_t size) {
+    if (handle == -1) {
+        throw std::runtime_error("Invalid file descriptor provided for mapping.");
+    }
+    auto holder = std::make_shared<MapHolder>();
+    holder->set_from_fd(handle, offset, size);
+    return holder;
+}
 }  // namespace ov

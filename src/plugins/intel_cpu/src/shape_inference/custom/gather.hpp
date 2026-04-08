@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ private:
 
 class GatherShapeInferFactory : public ShapeInferFactory {
 public:
-    GatherShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
+    explicit GatherShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
     [[nodiscard]] ShapeInferPtr makeShapeInfer() const override;
 
 private:

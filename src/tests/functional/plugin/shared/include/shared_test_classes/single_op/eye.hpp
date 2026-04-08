@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -17,7 +17,7 @@ using EyeLayerTestParams = std::tuple<
 class EyeLayerTest : public testing::WithParamInterface<EyeLayerTestParams>,
                      virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<EyeLayerTestParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<EyeLayerTestParams>& obj);
     void SetUp() override;
 };
 }  // namespace test

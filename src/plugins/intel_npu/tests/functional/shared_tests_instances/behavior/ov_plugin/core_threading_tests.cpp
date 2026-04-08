@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,12 +24,10 @@ const Params params_cached[] = {std::tuple<Device, Config>{ov::test::utils::DEVI
 
 }  // namespace
 
-INSTANTIATE_TEST_SUITE_P(
-    compatibility_smoke_BehaviorTests_CoreThreadingTest_NPU,
-    CoreThreadingTest,
-    testing::ValuesIn(params),
-    ov::test::utils::appendDriverVersionTestName<CoreThreadingTest>);  // need to get also driver version to skip
-                                                                       // failing tests with PV driver
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_CoreThreadingTest_NPU,
+                         CoreThreadingTest,
+                         testing::ValuesIn(params),
+                         ov::test::utils::appendPlatformTypeTestName<CoreThreadingTest>);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CoreThreadingTest_NPU,
                          CoreThreadingTestsWithIter,

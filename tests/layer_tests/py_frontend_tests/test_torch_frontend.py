@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import glob
@@ -7,6 +7,7 @@ import itertools
 import math
 import os
 import re
+import sys
 import logging
 import platform
 from pathlib import Path
@@ -18,8 +19,13 @@ import pytest
 from openvino.frontend import FrontEndManager, ConversionExtension, NodeContext
 from openvino import PartialShape, Type
 import openvino.opset10 as ops
+import openvino.properties.hint as hints
 
 logging.basicConfig(level=logging.DEBUG)
+
+orig_compile = torch.compile
+torch.compile = lambda func: func
+default_cfg = {hints.inference_precision: Type.f32}
 
 
 class aten_relu(torch.nn.Module):
@@ -471,7 +477,7 @@ def verify_model(model, example_input, expected_ops):
     # Convert and compile the model
     converted_model = ov.convert_model(model, example_input=(example_input,))
     assert converted_model, "Model conversion failed."
-    compiled_model = ov.compile_model(converted_model, "CPU")
+    compiled_model = ov.compile_model(converted_model, "CPU", default_cfg)
     assert compiled_model, "Model compilation failed."
 
     # Verify model operations
@@ -883,28 +889,34 @@ def test_patched_16bit_model_converts():
     model_fp16 = copy.deepcopy(model_ref).half()
 
     patch_model.__make_16bit_traceable(model_fp16)
-    # verify torch.nn.Linear signature after patching
-    signature = inspect.signature(model_ref.branch1[0].forward).parameters
-    assert ["input"] == list(signature)
-    # the approach with patching only works for node with no grad
-    with torch.no_grad():
-        converted_model = convert_model(model_fp16, example_input=example)
-    assert converted_model
-    cm_fp16 = compile_model(converted_model, "CPU")
-    res_fp16 = cm_fp16([x.numpy() for x in example])
-    np.testing.assert_allclose(res_fp16[0], res_ref[0].numpy(), atol=1e-2)
-    np.testing.assert_allclose(res_fp16[1], res_ref[1].numpy(), atol=1e-2)
+    try:
+        # verify torch.nn.Linear signature after patching
+        signature = inspect.signature(model_ref.branch1[0].forward).parameters
+        assert ["input"] == list(signature)
+        # the approach with patching only works for node with no grad
+        with torch.no_grad():
+            converted_model = convert_model(model_fp16, example_input=example)
+        assert converted_model
+        cm_fp16 = compile_model(converted_model, "CPU", default_cfg)
+        res_fp16 = cm_fp16([x.numpy() for x in example])
+        np.testing.assert_allclose(res_fp16[0], res_ref[0].numpy(), atol=1e-2)
+        np.testing.assert_allclose(res_fp16[1], res_ref[1].numpy(), atol=1e-2)
+    finally:
+        patch_model._unpatch_torch_functions()
 
     model_bf16 = copy.deepcopy(model_ref).bfloat16()
     patch_model.__make_16bit_traceable(model_bf16)
-    # the approach with patching only works for node with no grad
-    with torch.no_grad():
-        converted_model = convert_model(model_bf16, example_input=example)
-    assert converted_model
-    cm_bf16 = compile_model(converted_model, "CPU")
-    res_bf16 = cm_bf16([x.numpy() for x in example])
-    np.testing.assert_allclose(res_bf16[0], res_ref[0].numpy(), atol=1e-2)
-    np.testing.assert_allclose(res_bf16[1], res_ref[1].numpy(), atol=1e-2)
+    try:
+        # the approach with patching only works for node with no grad
+        with torch.no_grad():
+            converted_model = convert_model(model_bf16, example_input=example)
+        assert converted_model
+        cm_bf16 = compile_model(converted_model, "CPU", default_cfg)
+        res_bf16 = cm_bf16([x.numpy() for x in example])
+        np.testing.assert_allclose(res_bf16[0], res_ref[0].numpy(), atol=1e-2)
+        np.testing.assert_allclose(res_bf16[1], res_ref[1].numpy(), atol=1e-2)
+    finally:
+        patch_model._unpatch_torch_functions()
 
 
 def test_patched_16bit_model_with_convert():
@@ -926,21 +938,24 @@ def test_patched_16bit_model_with_convert():
     example = (torch.randint(0, 10, [16, 32]),)
     model = ModelWithLinear()
     patch_model.__make_16bit_traceable(model)
-    with torch.no_grad():
-        converted_model = convert_model(model, example_input=example)
-    assert converted_model
-    mm_num = 0
-    for node in converted_model.get_ordered_ops():
-        if node.get_type_name() == "MatMul":
-            mm_num += 1
-            # verify all matmuls are executed in fp32
-            assert node.get_input_element_type(0) == Type.f32
-            assert node.get_input_element_type(1) == Type.f32
-            assert node.get_output_element_type(0) == Type.f32
-    assert mm_num == 2
+    try:
+        with torch.no_grad():
+            converted_model = convert_model(model, example_input=example)
+        assert converted_model
+        mm_num = 0
+        for node in converted_model.get_ordered_ops():
+            if node.get_type_name() == "MatMul":
+                mm_num += 1
+                # verify all matmuls are executed in fp32
+                assert node.get_input_element_type(0) == Type.f32
+                assert node.get_input_element_type(1) == Type.f32
+                assert node.get_output_element_type(0) == Type.f32
+        assert mm_num == 2
+    finally:
+        patch_model._unpatch_torch_functions()
 
 
-def test_patched_8bit_model_converts():
+def test_patched_8bit_model_converts_e4m3fn():
     from openvino.frontend.pytorch import patch_model
     from openvino import convert_model, compile_model
     from transformers.pytorch_utils import Conv1D
@@ -972,28 +987,152 @@ def test_patched_8bit_model_converts():
         res_ref = model_ref(*example)
     model_f8_e4m3 = model_ref.to(torch.float8_e4m3fn)
     patch_model.__make_16bit_traceable(model_f8_e4m3)
-    # the approach with patching only works for node with no grad
-    with torch.no_grad():
-        converted_model = convert_model(model_f8_e4m3, example_input=example)
-    assert converted_model
-    cm_f8_e4m3 = compile_model(converted_model, "CPU")
-    res_f8_e4m3 = cm_f8_e4m3([x.numpy() for x in example])
-    np.testing.assert_allclose(res_f8_e4m3[0], res_ref[0].numpy(), atol=1e-2)
-    np.testing.assert_allclose(res_f8_e4m3[1], res_ref[1].numpy(), atol=1e-2)
+    try:
+        # the approach with patching only works for node with no grad
+        with torch.no_grad():
+            converted_model = convert_model(model_f8_e4m3, example_input=example)
+        assert converted_model
+        cm_f8_e4m3 = compile_model(converted_model, "CPU", default_cfg)
+        res_f8_e4m3 = cm_f8_e4m3([x.numpy() for x in example])
+        np.testing.assert_allclose(res_f8_e4m3[0], res_ref[0].numpy(), atol=1e-2)
+        np.testing.assert_allclose(res_f8_e4m3[1], res_ref[1].numpy(), atol=1e-2)
+    finally:
+        patch_model._unpatch_torch_functions()
+
+
+@pytest.mark.skipif(
+    platform.system() == "Darwin" and platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'],
+    reason="PyTorch float8_e5m2 cleanup deadlock on macOS ARM64. Ticket: 172658"
+)
+def test_patched_8bit_model_converts_e5m2():
+    from openvino.frontend.pytorch import patch_model
+    from openvino import convert_model, compile_model
+    from transformers.pytorch_utils import Conv1D
+
+    class ModelWithLinear(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+
+            self.branch1 = torch.nn.Sequential(
+                torch.nn.Embedding(10, 64),
+                torch.nn.Linear(64, 32),
+                torch.nn.ReLU()
+            )
+            self.branch2 = torch.nn.Sequential(
+                Conv1D(256, 128),
+                torch.nn.Linear(256, 64), torch.nn.ReLU()
+            )
+            self.buffer = torch.ones(32)
+
+        def forward(self, x1, x2):
+            out1 = self.branch1(x1)
+            out2 = self.branch2(x2)
+            return (out1 + self.buffer, out2)
+
+    example = (torch.randint(0, 10, [32, 64]), torch.randn(32, 128))
 
     model_ref = ModelWithLinear().to(torch.float8_e5m2).float()
     with torch.no_grad():
         res_ref = model_ref(*example)
     model_f8_e5m2 = model_ref.to(torch.float8_e5m2)
     patch_model.__make_16bit_traceable(model_f8_e5m2)
-    # the approach with patching only works for node with no grad
+    try:
+        # the approach with patching only works for node with no grad
+        with torch.no_grad():
+            converted_model = convert_model(model_f8_e5m2, example_input=example)
+        assert converted_model
+        cm_f8_e5m2 = compile_model(converted_model, "CPU", default_cfg)
+        res_f8_e5m2 = cm_f8_e5m2([x.numpy() for x in example])
+        np.testing.assert_allclose(res_f8_e5m2[0], res_ref[0].numpy(), atol=1e-2)
+        np.testing.assert_allclose(res_f8_e5m2[1], res_ref[1].numpy(), atol=1e-2)
+    finally:
+        patch_model._unpatch_torch_functions()
+
+
+def test_patched_16bit_model_with_bmm():
+    from openvino.frontend.pytorch import patch_model
+    from openvino import convert_model, compile_model
+    import copy
+
+    rng = torch.Generator().manual_seed(42)
+
+    class MoEStyleModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.expert_weights = torch.nn.Parameter(
+                torch.randint(-4, 5, (4, 32, 64), generator=rng).float() * 0.25)
+            self.linear = torch.nn.Linear(64, 32, bias=False)
+            self.linear.weight.data = torch.randint(-4, 5, (32, 64), generator=rng).float() * 0.25
+
+        def forward(self, x):
+            batch, seq, _ = x.shape
+            x_expanded = x.reshape(1, batch * seq, -1).expand(4, -1, -1)
+            expert_out = torch.bmm(x_expanded, self.expert_weights)
+            out = expert_out.mean(dim=0).reshape(batch, seq, -1)
+            return self.linear(out)
+
+    example = (torch.randint(-4, 5, (2, 8, 32), generator=rng).float() * 0.25,)
+    model_ref = MoEStyleModel()
     with torch.no_grad():
-        converted_model = convert_model(model_f8_e5m2, example_input=example)
+        res_ref = model_ref(*example)
+
+    try:
+        model_bf16 = copy.deepcopy(model_ref).bfloat16()
+        patch_model.__make_16bit_traceable(model_bf16)
+        with torch.no_grad():
+            converted_model = convert_model(model_bf16, example_input=example)
+        assert converted_model
+        cm_bf16 = compile_model(converted_model, "CPU")
+        res_bf16 = cm_bf16([x.numpy() for x in example])
+        np.testing.assert_allclose(res_bf16[0], res_ref.numpy(), atol=1e-2)
+
+        model_fp16 = copy.deepcopy(model_ref).half()
+        patch_model.__make_16bit_traceable(model_fp16)
+        with torch.no_grad():
+            converted_model = convert_model(model_fp16, example_input=example)
+        assert converted_model
+        cm_fp16 = compile_model(converted_model, "CPU")
+        res_fp16 = cm_fp16([x.numpy() for x in example])
+        np.testing.assert_allclose(res_fp16[0], res_ref.numpy(), atol=1e-2)
+    finally:
+        patch_model._unpatch_torch_functions()
+
+
+@pytest.mark.skipif(sys.platform.lower().startswith("win"), reason="CVS-174725")
+def test_patched_bitnet_model_converts():
+    from openvino import convert_model, compile_model
+    from transformers.integrations.bitnet import AutoBitLinear, pack_weights
+    from transformers import PretrainedConfig, BitNetQuantConfig
+
+    rng = torch.Generator().manual_seed(42)
+
+    class TestModel(torch.nn.Module):
+        def __init__(self, size):
+            super().__init__()
+            self.config = PretrainedConfig(quantization_config=BitNetQuantConfig(linear_class="autobitlinear"))
+            self.linear = AutoBitLinear(size[0], size[1], bias=True, use_rms_norm=True)
+            w = torch.randint(-1, 2, (size[1], size[0]), dtype=torch.float32, generator=rng)
+            self.linear.weight = torch.nn.Parameter(w)
+            self.linear.original_weight = pack_weights(self.linear.weight.data.clone())
+
+        def forward(self, x):
+            return self.linear(x)
+
+    size = (32, 64)
+    x = torch.randn(1, size[0], generator=rng)
+    model = TestModel(size)
+    with torch.no_grad():
+        res_ref = model(x)
+
+    with torch.no_grad():
+        converted_model = convert_model(model, example_input=(torch.randn(1, size[0], generator=rng),))
     assert converted_model
-    cm_f8_e5m2 = compile_model(converted_model, "CPU")
-    res_f8_e5m2 = cm_f8_e5m2([x.numpy() for x in example])
-    np.testing.assert_allclose(res_f8_e5m2[0], res_ref[0].numpy(), atol=1e-2)
-    np.testing.assert_allclose(res_f8_e5m2[1], res_ref[1].numpy(), atol=1e-2)
+    cm = compile_model(converted_model, "CPU", default_cfg)
+    res = cm([x.numpy()])
+    rtol, atol = 1e-4, 1e-4
+    if platform.machine() in ('arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'):
+        rtol, atol = 0.5, 0.1
+    np.testing.assert_allclose(res[0], res_ref.numpy(), rtol=rtol, atol=atol)
 
 
 class InlinedInputsModel(torch.nn.Module):
@@ -1007,5 +1146,648 @@ class InlinedInputsModel(torch.nn.Module):
 def test_inlined_inputs():
     model = InlinedInputsModel()
     model.eval()
-    model = torch.compile(model, backend="openvino", options={"testing": 1})
+    model = orig_compile(model, backend="openvino", options={"testing": 1})
     model()
+
+
+# --- dynamo (torch.export) tests ---
+
+def _torch_version_at_least(version_str):
+    from packaging.version import parse
+    return parse(torch.__version__.split('+')[0].split('dev')[0]) >= parse(version_str)
+
+
+@pytest.mark.skipif(not _torch_version_at_least("2.6"),
+                    reason="Dim.AUTO requires PyTorch >= 2.6")
+class TestBuildDynamicShapes:
+    """Unit tests for _build_dynamic_shapes covering many input combinations."""
+
+    @staticmethod
+    def _make_spec(shape):
+        """Create an _InputCutInfo with the given PartialShape."""
+        from openvino.tools.ovc.cli_parser import _InputCutInfo
+        return _InputCutInfo(name=None, shape=PartialShape(shape))
+
+    # ── input_specs=None → always None ──────────────────────────────
+
+    def test_no_specs_returns_none_single_input(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        example_input = (torch.randn(2, 3),)
+        result = _build_dynamic_shapes(example_input)
+        assert result is None
+
+    def test_no_specs_returns_none_multi_input(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        example_input = (torch.randn(4,), torch.randn(4,))
+        result = _build_dynamic_shapes(example_input)
+        assert result is None
+
+    def test_no_specs_returns_none_dict_input(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        example_input = {"x": torch.randn(2, 3), "y": torch.randn(2, 3)}
+        result = _build_dynamic_shapes(example_input)
+        assert result is None
+
+    def test_no_specs_returns_none_single_tensor(self):
+        """Bare tensor (not wrapped in tuple) with no specs."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        example_input = torch.randn(2, 3, 4)
+        result = _build_dynamic_shapes(example_input)
+        assert result is None
+
+    # ── All dims dynamic (-1) ───────────────────────────────────────
+
+    def test_all_dims_dynamic_1d(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(5),)
+        inp = [self._make_spec([-1])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert isinstance(result, tuple)
+        assert result[0] == {0: Dim.AUTO}
+
+    def test_all_dims_dynamic_2d(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(2, 3),)
+        inp = [self._make_spec([-1, -1])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO, 1: Dim.AUTO}
+
+    def test_all_dims_dynamic_4d(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(1, 3, 224, 224),)
+        inp = [self._make_spec([-1, -1, -1, -1])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO, 1: Dim.AUTO, 2: Dim.AUTO, 3: Dim.AUTO}
+
+    # ── Only batch dynamic ──────────────────────────────────────────
+
+    def test_batch_only_dynamic_4d(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(2, 3, 32, 32),)
+        inp = [self._make_spec([-1, 3, 32, 32])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO}
+
+    def test_batch_only_dynamic_3d(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(4, 10, 512),)
+        inp = [self._make_spec([-1, 10, 512])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO}
+
+    # ── Mixed dynamic / static dims ─────────────────────────────────
+
+    def test_batch_and_seqlen_dynamic(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(1, 128, 768),)
+        inp = [self._make_spec([-1, -1, 768])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO, 1: Dim.AUTO}
+
+    def test_only_spatial_dynamic(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(1, 3, 64, 64),)
+        inp = [self._make_spec([1, 3, -1, -1])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {2: Dim.AUTO, 3: Dim.AUTO}
+
+    def test_only_middle_dim_dynamic(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(4, 10, 16),)
+        inp = [self._make_spec([4, -1, 16])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {1: Dim.AUTO}
+
+    # ── All static dims → None per input ────────────────────────────
+
+    def test_all_static_returns_none_for_input(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        example_input = (torch.randn(2, 3, 4),)
+        inp = [self._make_spec([2, 3, 4])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result is not None  # tuple is returned (not None), but element is None
+        assert result[0] is None
+
+    # ── Multiple inputs ─────────────────────────────────────────────
+
+    def test_two_inputs_both_dynamic(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(2, 8), torch.randn(2, 8))
+        inp = [self._make_spec([-1, 8]), self._make_spec([-1, 8])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO}
+        assert result[1] == {0: Dim.AUTO}
+
+    def test_two_inputs_one_dynamic_one_static(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(2, 3, 32, 32), torch.randn(2, 10))
+        inp = [self._make_spec([-1, 3, 32, 32]), self._make_spec([2, 10])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO}
+        assert result[1] is None
+
+    def test_three_inputs_mixed(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(1, 128, 64), torch.randn(1, 128, 64), torch.randn(1, 128, 64))
+        inp = [self._make_spec([-1, -1, 64])] * 3
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        for i in range(3):
+            assert result[i] == {0: Dim.AUTO, 1: Dim.AUTO}
+
+    # ── Dict inputs ─────────────────────────────────────────────────
+
+    def test_dict_input_single_dynamic(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = {"x": torch.randn(4, 16), "y": torch.randn(4, 16)}
+        inp = [self._make_spec([-1, 16]), self._make_spec([-1, 16])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result["x"] == {0: Dim.AUTO}
+        assert result["y"] == {0: Dim.AUTO}
+
+    def test_dict_input_mixed_shapes(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = {"image": torch.randn(1, 3, 64, 64), "mask": torch.randn(1, 1, 64, 64)}
+        inp = [self._make_spec([-1, 3, -1, -1]), self._make_spec([-1, 1, -1, -1])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result["image"] == {0: Dim.AUTO, 2: Dim.AUTO, 3: Dim.AUTO}
+        assert result["mask"] == {0: Dim.AUTO, 2: Dim.AUTO, 3: Dim.AUTO}
+
+    def test_dict_input_all_static(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        example_input = {"a": torch.randn(2, 3), "b": torch.randn(2, 3)}
+        inp = [self._make_spec([2, 3]), self._make_spec([2, 3])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result["a"] is None
+        assert result["b"] is None
+
+    # ── List inputs (auto-converted to tuple) ───────────────────────
+
+    def test_list_input(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = [torch.randn(3, 5)]
+        inp = [self._make_spec([-1, 5])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO}
+
+    # ── Bare single tensor input ────────────────────────────────────
+
+    def test_bare_tensor_input(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = torch.randn(2, 10)
+        inp = [self._make_spec([-1, 10])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO}
+
+    # ── Scalar tensor → None ────────────────────────────────────────
+
+    def test_scalar_tensor_returns_none(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        example_input = (torch.tensor(3.14),)
+        inp = [self._make_spec([])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] is None
+
+    # ── Spec with None shape ────────────────────────────────────────
+
+    def test_spec_with_none_shape(self):
+        """Spec that has shape=None should not produce dynamic dims."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from openvino.tools.ovc.cli_parser import _InputCutInfo
+        example_input = (torch.randn(2, 3),)
+        inp = [_InputCutInfo(name=None, shape=None)]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] is None
+
+    # ── More specs than inputs (extra specs ignored) ────────────────
+
+    def test_extra_specs_ignored(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(2, 4),)
+        inp = [self._make_spec([-1, 4]), self._make_spec([-1, 8])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO}
+
+    # ── Fewer specs than inputs (missing specs → None) ──────────────
+
+    def test_fewer_specs_than_inputs(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(2, 4), torch.randn(2, 4))
+        inp = [self._make_spec([-1, 4])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO}
+        assert result[1] is None  # no spec → static
+
+    # ── High-dimensional tensors ────────────────────────────────────
+
+    def test_5d_tensor(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(2, 3, 16, 224, 224),)
+        inp = [self._make_spec([-1, 3, -1, 224, 224])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO, 2: Dim.AUTO}
+
+    def test_6d_tensor_all_dynamic(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(1, 2, 3, 4, 5, 6),)
+        inp = [self._make_spec([-1, -1, -1, -1, -1, -1])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO, 1: Dim.AUTO, 2: Dim.AUTO,
+                              3: Dim.AUTO, 4: Dim.AUTO, 5: Dim.AUTO}
+
+    # ── Multiple inputs with different ranks ────────────────────────
+
+    def test_inputs_different_ranks(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(8), torch.randn(4, 8), torch.randn(2, 4, 8))
+        inp = [self._make_spec([-1]), self._make_spec([-1, -1]), self._make_spec([-1, -1, -1])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO}
+        assert result[1] == {0: Dim.AUTO, 1: Dim.AUTO}
+        assert result[2] == {0: Dim.AUTO, 1: Dim.AUTO, 2: Dim.AUTO}
+
+    # ── Spec shape shorter than tensor rank (extra dims stay static)
+
+    def test_spec_shorter_than_tensor(self):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(2, 3, 32, 32),)
+        inp = [self._make_spec([-1, 3])]  # only covers first 2 of 4 dims
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        # Only dim 0 is -1 in spec, dim 1 is 3 (static), dims 2,3 not in spec → static
+        assert result[0] == {0: Dim.AUTO}
+
+    # ── Dimension constraints (min/max bounds) ──────────────────────
+
+    def test_constrained_batch_dim(self):
+        """Dimension(1, 10) → Dim with min=1, max=10."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from openvino import Dimension
+        from torch.export import Dim
+        example_input = (torch.randn(2, 3, 32, 32),)
+        inp = [self._make_spec([Dimension(1, 10), 3, 32, 32])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        d = result[0][0]
+        assert d is not Dim.AUTO
+        assert d.min == 1
+        assert d.max == 10
+
+    def test_constrained_lower_bound_only(self):
+        """Dimension(1, -1) → Dim with min=1, unbounded max."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from openvino import Dimension
+        from torch.export import Dim
+        example_input = (torch.randn(4, 16),)
+        inp = [self._make_spec([Dimension(1, -1), 16])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        d = result[0][0]
+        assert d is not Dim.AUTO
+        assert d.min == 1
+
+    def test_constrained_upper_bound_only(self):
+        """Dimension(0, 100) → Dim with max=100."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from openvino import Dimension
+        from torch.export import Dim
+        example_input = (torch.randn(4, 16),)
+        inp = [self._make_spec([Dimension(0, 100), 16])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        d = result[0][0]
+        assert d is not Dim.AUTO
+        assert d.max == 100
+
+    def test_constrained_mixed_with_fully_dynamic(self):
+        """Mix constrained dims, fully dynamic dims, and static dims."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from openvino import Dimension
+        from torch.export import Dim
+        example_input = (torch.randn(1, 3, 64, 64),)
+        inp = [self._make_spec([Dimension(1, 8), 3, -1, -1])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        # dim 0: constrained
+        assert result[0][0] is not Dim.AUTO
+        assert result[0][0].min == 1
+        assert result[0][0].max == 8
+        # dims 2,3: fully dynamic
+        assert result[0][2] is Dim.AUTO
+        assert result[0][3] is Dim.AUTO
+        # dim 1 (static 3) not present
+        assert 1 not in result[0]
+
+    def test_constrained_all_dims(self):
+        """All dims have constraints."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from openvino import Dimension
+        example_input = (torch.randn(2, 8),)
+        inp = [self._make_spec([Dimension(1, 4), Dimension(4, 16)])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0][0].min == 1
+        assert result[0][0].max == 4
+        assert result[0][1].min == 4
+        assert result[0][1].max == 16
+
+    def test_constrained_multiple_inputs(self):
+        """Two inputs, each with different constraints."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from openvino import Dimension
+        from torch.export import Dim
+        example_input = (torch.randn(2, 8), torch.randn(2, 16))
+        inp = [self._make_spec([Dimension(1, 4), 8]),
+               self._make_spec([-1, Dimension(8, 32)])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        # Input 0: dim 0 constrained
+        assert result[0][0].min == 1
+        assert result[0][0].max == 4
+        # Input 1: dim 0 fully dynamic, dim 1 constrained
+        assert result[1][0] is Dim.AUTO
+        assert result[1][1].min == 8
+        assert result[1][1].max == 32
+
+    def test_constrained_dict_input(self):
+        """Dict input with constrained dimensions."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from openvino import Dimension
+        from torch.export import Dim
+        example_input = {"x": torch.randn(2, 3), "y": torch.randn(2, 3)}
+        inp = [self._make_spec([Dimension(1, 8), 3]),
+               self._make_spec([-1, 3])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        # "x": dim 0 constrained
+        assert result["x"][0].min == 1
+        assert result["x"][0].max == 8
+        # "y": dim 0 fully dynamic
+        assert result["y"][0] is Dim.AUTO
+
+    def test_constrained_all_static_still_none(self):
+        """Static Dimension values should be treated same as plain ints."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from openvino import Dimension
+        example_input = (torch.randn(2, 3),)
+        inp = [self._make_spec([Dimension(2), Dimension(3)])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] is None
+
+    # ── Parametrized: many rank / dynamic-dim combos ────────────────
+
+    @pytest.mark.parametrize("ndim,dyn_dims", [
+        (1, [0]),
+        (2, [0]),
+        (2, [1]),
+        (2, [0, 1]),
+        (3, [0]),
+        (3, [2]),
+        (3, [0, 2]),
+        (4, [0]),
+        (4, [0, 2, 3]),
+        (4, [0, 1, 2, 3]),
+        (5, [0, 2]),
+    ])
+    def test_parametrized_dynamic_dims(self, ndim, dyn_dims):
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        tensor_shape = [(d + 2) for d in range(ndim)]
+        example_input = (torch.randn(*tensor_shape),)
+        inp = [self._make_spec([(-1 if d in dyn_dims else (d + 2)) for d in range(ndim)])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        if dyn_dims:
+            assert result[0] == {d: Dim.AUTO for d in dyn_dims}
+        else:
+            assert result[0] is None
+
+    # ── Nested tuple inputs (e.g. past_key_values) ─────────────────
+
+    def test_nested_tuple_single_layer(self):
+        """past_key_values with one layer: ((key, value),)."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        x = torch.randn(2, 4)
+        past_kv = ((torch.randn(2, 4, 3, 8), torch.randn(2, 4, 3, 8)),)
+        example_input = (x, past_kv)
+        # 3 flat specs: x, key, value
+        inp = [self._make_spec([-1, 4]),
+               self._make_spec([-1, 4, 3, 8]),
+               self._make_spec([-1, 4, 3, 8])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        # Result must mirror nested structure: (dims_x, ((dims_k, dims_v),))
+        assert result[0] == {0: Dim.AUTO}
+        assert result[1][0][0] == {0: Dim.AUTO}
+        assert result[1][0][1] == {0: Dim.AUTO}
+
+    def test_nested_tuple_two_layers(self):
+        """past_key_values with two layers: ((k0, v0), (k1, v1))."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        x = torch.randn(1, 16)
+        past_kv = (
+            (torch.randn(1, 8, 5, 64), torch.randn(1, 8, 5, 64)),
+            (torch.randn(1, 8, 5, 64), torch.randn(1, 8, 5, 64)),
+        )
+        example_input = (x, past_kv)
+        # 5 flat specs
+        inp = [self._make_spec([-1, 16]),
+               self._make_spec([-1, 8, -1, 64]),
+               self._make_spec([-1, 8, -1, 64]),
+               self._make_spec([-1, 8, -1, 64]),
+               self._make_spec([-1, 8, -1, 64])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO}
+        for layer in range(2):
+            for kv in range(2):
+                d = result[1][layer][kv]
+                assert 0 in d and 2 in d
+                assert d[0] is Dim.AUTO
+                assert d[2] is Dim.AUTO
+
+    def test_nested_tuple_static_specs(self):
+        """Nested inputs with all-static specs → None per leaf."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        x = torch.randn(2, 4)
+        past_kv = ((torch.randn(2, 4, 3, 8),),)
+        example_input = (x, past_kv)
+        inp = [self._make_spec([2, 4]),
+               self._make_spec([2, 4, 3, 8])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] is None
+        assert result[1][0][0] is None
+
+    def test_nested_list_input(self):
+        """List containing tensors (auto-converted by pytree)."""
+        from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import _build_dynamic_shapes
+        from torch.export import Dim
+        example_input = (torch.randn(2, 4), [torch.randn(2, 8), torch.randn(2, 8)])
+        inp = [self._make_spec([-1, 4]),
+               self._make_spec([-1, 8]),
+               self._make_spec([-1, 8])]
+        result = _build_dynamic_shapes(example_input, input_specs=inp)
+        assert result[0] == {0: Dim.AUTO}
+        assert result[1][0] == {0: Dim.AUTO}
+        assert result[1][1] == {0: Dim.AUTO}
+
+
+class TestConvertModelDynamo:
+    """Tests for convert_model with dynamo=True (torch.export path)."""
+
+    def test_basic(self):
+        from openvino import convert_model, compile_model
+
+        class SimpleModel(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.linear = torch.nn.Linear(16, 32)
+
+            def forward(self, x):
+                return torch.nn.functional.relu(self.linear(x))
+
+        model = SimpleModel()
+        example = (torch.randn(2, 16),)
+
+        with torch.no_grad():
+            ref = model(*example)
+
+        ov_model = convert_model(model, example_input=example, dynamo=True)
+        assert ov_model is not None
+
+        cm = compile_model(ov_model, "CPU", default_cfg)
+        res = cm([e.numpy() for e in example])
+        np.testing.assert_allclose(res[0], ref.numpy(), atol=1e-4, rtol=1e-4)
+
+    def test_multi_input(self):
+        from openvino import convert_model, compile_model
+
+        class MultiInputModel(torch.nn.Module):
+            def forward(self, x, y):
+                return x + y, x * y
+
+        model = MultiInputModel()
+        example = (torch.randn(2, 8), torch.randn(2, 8))
+
+        with torch.no_grad():
+            ref = model(*example)
+
+        ov_model = convert_model(model, example_input=example, dynamo=True)
+        assert ov_model is not None
+
+        cm = compile_model(ov_model, "CPU", default_cfg)
+        res = cm([e.numpy() for e in example])
+        np.testing.assert_allclose(res[0], ref[0].numpy(), atol=1e-5, rtol=1e-5)
+        np.testing.assert_allclose(res[1], ref[1].numpy(), atol=1e-5, rtol=1e-5)
+
+    def test_dynamic_shapes(self):
+        from openvino import convert_model, compile_model
+
+        class DynModel(torch.nn.Module):
+            def forward(self, x):
+                return x * 2.0
+
+        model = DynModel()
+        example = (torch.randn(2, 4),)
+
+        # No 'input' provided → fully static export
+        ov_model = convert_model(model, example_input=example, dynamo=True)
+        assert ov_model is not None
+
+        input_shape = ov_model.input(0).get_partial_shape()
+        assert input_shape.is_static, (
+            f"Expected static shape without 'input', got {input_shape}")
+
+        # With 'input' specifying dynamic dims → dynamic export
+        ov_model_dyn = convert_model(
+            model, example_input=example, dynamo=True,
+            input=(PartialShape([-1, -1]),))
+        assert ov_model_dyn is not None
+
+        input_shape_dyn = ov_model_dyn.input(0).get_partial_shape()
+        assert input_shape_dyn.is_dynamic, (
+            f"Expected dynamic shape with 'input', got {input_shape_dyn}")
+
+        # Inference with different shapes should work
+        cm = compile_model(ov_model_dyn, "CPU", default_cfg)
+        for shape in [(1, 4), (3, 4), (5, 8)]:
+            inp = np.random.randn(*shape).astype(np.float32)
+            res = cm([inp])
+            np.testing.assert_allclose(res[0], inp * 2.0, atol=1e-5, rtol=1e-5)
+
+    def test_no_example_input_raises(self):
+        from openvino import convert_model
+
+        class Dummy(torch.nn.Module):
+            def forward(self, x):
+                return x
+
+        with pytest.raises(Exception, match="example_input is required when dynamo=True"):
+            convert_model(Dummy(), dynamo=True)
+
+    def test_dict_example_input(self):
+        from openvino import convert_model, compile_model
+
+        class DictModel(torch.nn.Module):
+            def forward(self, a, b):
+                return a - b
+
+        model = DictModel()
+        example = {"a": torch.randn(3, 5), "b": torch.randn(3, 5)}
+
+        with torch.no_grad():
+            ref = model(**example)
+
+        ov_model = convert_model(model, example_input=example, dynamo=True)
+        assert ov_model is not None
+
+        cm = compile_model(ov_model, "CPU", default_cfg)
+        res = cm([v.numpy() for v in example.values()])
+        np.testing.assert_allclose(res[0], ref.numpy(), atol=1e-5, rtol=1e-5)
+
+    def test_input_shapes_constrain_dynamism(self):
+        """When 'input' specifies shapes, only -1 dims become dynamic."""
+        from openvino import convert_model, compile_model
+
+        class ConvModel(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.conv = torch.nn.Conv2d(3, 8, 3, padding=1)
+
+            def forward(self, x):
+                return self.conv(x)
+
+        model = ConvModel()
+        example = (torch.randn(1, 3, 32, 32),)
+
+        # Only batch dim is dynamic (-1), spatial dims are fixed
+        ov_model = convert_model(
+            model, example_input=example, dynamo=True,
+            input=(PartialShape([-1, 3, 32, 32]),))
+        assert ov_model is not None
+
+        ps = ov_model.input(0).get_partial_shape()
+        # Batch dim should be dynamic
+        assert ps[0].is_dynamic, f"Expected dynamic batch dim, got {ps}"
+        # Channel and spatial dims should be static
+        assert ps[1].get_length() == 3
+        assert ps[2].get_length() == 32
+        assert ps[3].get_length() == 32
+
+        # Inference with different batch sizes should work
+        cm = compile_model(ov_model, "CPU", default_cfg)
+        for batch in [1, 2, 4]:
+            inp = np.random.randn(batch, 3, 32, 32).astype(np.float32)
+            res = cm([inp])
+            assert res[0].shape[0] == batch

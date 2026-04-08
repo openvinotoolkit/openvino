@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,8 +21,8 @@ namespace snippets {
 void TokenizeGatedMLPSnippetsTests::run() {
     ASSERT_TRUE(model);
     manager.register_pass<ov::snippets::pass::EnumerateNodes>();
-    manager.register_pass<ov::snippets::pass::TokenizeGatedMLPSnippets>(config);
-    manager.register_pass<ov::snippets::pass::CommonOptimizations>(config);
+    manager.register_pass<ov::snippets::pass::TokenizeGatedMLPSnippets>(base_config);
+    manager.register_pass<ov::snippets::pass::CommonOptimizations>(common_config);
     disable_rt_info_check();
 
     // To avoid Transpose extraction from MatMuls

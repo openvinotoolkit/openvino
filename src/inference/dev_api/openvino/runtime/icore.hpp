@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +47,7 @@ public:
                                                   bool frontend_mode = false) const = 0;
 
     /**
-     * @brief Reads IR xml and bin from buffer
+     * @brief Reads IR xml and bin from buffer. This method is not exposed to public API.
      * @param model shared pointer to aligned buffer with IR
      * @param weights shared pointer to aligned buffer with weights
      * @return shared pointer to ov::Model
@@ -63,9 +63,9 @@ public:
      * @param properties Optional map of pairs: (property name, property value) relevant only for this read operation.
      * @return shared pointer to ov::Model
      */
-    virtual std::shared_ptr<ov::Model> read_model(const std::string& model_path,
-                                                  const std::string& bin_path,
-                                                  const AnyMap& properties) const = 0;
+    virtual std::shared_ptr<ov::Model> read_model(const std::filesystem::path& model_path,
+                                                  const std::filesystem::path& bin_path,
+                                                  const ov::AnyMap& properties) const = 0;
 
     virtual ov::AnyMap create_compile_config(const std::string& device_name, const ov::AnyMap& origConfig) const = 0;
 
@@ -113,7 +113,7 @@ public:
      * operation
      * @return A pointer to compiled model
      */
-    virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& model_path,
+    virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::filesystem::path& model_path,
                                                         const std::string& device_name,
                                                         const ov::AnyMap& config) const = 0;
 
@@ -156,6 +156,29 @@ public:
      * @return A pointer to compiled model
      */
     virtual ov::SoPtr<ov::ICompiledModel> import_model(std::istream& modelStream,
+                                                       const ov::SoPtr<ov::IRemoteContext>& context,
+                                                       const ov::AnyMap& config = {}) const = 0;
+    /**
+     * @brief Creates a compiled model from a previously exported model
+     * @param compiled_blob model blob
+     * @param device_name Name of device load executable model on
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation*
+     * @return A pointer to compiled model
+     */
+    virtual ov::SoPtr<ov::ICompiledModel> import_model(const ov::Tensor& compiled_blob,
+                                                       const std::string& device_name,
+                                                       const ov::AnyMap& config = {}) const = 0;
+
+    /**
+     * @brief Creates a compiled model from a previously exported model
+     * @param compiled_blob model blob
+     * @param context Remote context
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation*
+     * @return A pointer to compiled model
+     */
+    virtual ov::SoPtr<ov::ICompiledModel> import_model(const ov::Tensor& compiled_blob,
                                                        const ov::SoPtr<ov::IRemoteContext>& context,
                                                        const ov::AnyMap& config = {}) const = 0;
 

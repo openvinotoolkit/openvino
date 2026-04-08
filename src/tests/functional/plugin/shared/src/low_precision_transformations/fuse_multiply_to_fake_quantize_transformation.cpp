@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,9 +15,7 @@
 namespace LayerTestsDefinitions {
 
 std::string FuseMultiplyToFakeQuantizeTransformation::getTestCaseName(const testing::TestParamInfo<FuseMultiplyToFakeQuantizeTransformationParams>& obj) {
-    std::string targetDevice;
-    FuseMultiplyToFakeQuantizeTransformationTestValues testValues;
-    std::tie(targetDevice, testValues) = obj.param;
+    const auto& [targetDevice, testValues] = obj.param;
 
     std::ostringstream result;
     result << targetDevice << "_" <<
@@ -27,8 +25,8 @@ std::string FuseMultiplyToFakeQuantizeTransformation::getTestCaseName(const test
 }
 
 void FuseMultiplyToFakeQuantizeTransformation::SetUp() {
-    FuseMultiplyToFakeQuantizeTransformationTestValues testValues;
-    std::tie(targetDevice, testValues) = this->GetParam();
+    const auto& [_targetDevice, testValues] = this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes(testValues.inputShape);
 

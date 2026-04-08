@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import torch
@@ -658,11 +658,11 @@ def test_pytorch_decoder_can_convert_float_scalar_tensor():
 def test_pytorch_decoder_can_convert_tensor_list():
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino import PartialShape, Type
-    from typing import List, Optional
+    from typing import Optional
 
     class SomeTensor(torch.nn.Module):
         def forward(self):
-            l = torch.jit.annotate(List[Optional[torch.Tensor]], [
+            l = torch.jit.annotate(list[Optional[torch.Tensor]], [
                                    torch.ones((1, 3, 3), dtype=torch.float),])
             return l
 
@@ -695,11 +695,11 @@ def test_pytorch_decoder_can_convert_tensor_list():
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_tensor_list_empty():
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
-    from typing import List, Optional
+    from typing import Optional
 
     class SomeTensor(torch.nn.Module):
         def forward(self):
-            l = torch.jit.annotate(List[Optional[torch.Tensor]], [])
+            l = torch.jit.annotate(list[Optional[torch.Tensor]], [])
             return l
 
     model = get_scripted_model(SomeTensor())

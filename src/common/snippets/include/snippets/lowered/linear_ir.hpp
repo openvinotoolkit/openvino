@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <list>
 #include <memory>
 #include <set>
+#include <string>
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
@@ -74,7 +75,7 @@ public:
     using exprReverseIt = container::reverse_iterator;
     using constExprReverseIt = container::const_reverse_iterator;
 
-    LinearIR(Config config = {}, const std::shared_ptr<IShapeInferSnippetsFactory>& factory = {});
+    explicit LinearIR(Config config = {}, const std::shared_ptr<IShapeInferSnippetsFactory>& factory = {});
     LinearIR(const std::shared_ptr<ov::Model>& m,
              const std::shared_ptr<IShapeInferSnippetsFactory>& factory,
              Config config = {});
@@ -102,7 +103,12 @@ public:
     size_t get_static_buffer_scratchpad_size() const {
         return m_static_buffer_scratchpad_size;
     }
-
+    const std::string& get_friendly_name() const {
+        return m_friendly_name;
+    }
+    void set_friendly_name(std::string name) {
+        m_friendly_name = std::move(name);
+    }
     void set_loop_depth(size_t loop_depth) {
         m_config.m_loop_depth = loop_depth;
     }
@@ -201,6 +207,8 @@ public:
     bool is_dynamic() const;
 
     void enumerate_expressions() const;
+
+    void sort_results();
 
     /* ------ Helpers for work with LinearIR ----- */
     /**
@@ -372,7 +380,7 @@ private:
     // Creates inputs for expression using parent output port connectors
     std::vector<PortConnectorPtr> get_expression_inputs_by_node(const std::shared_ptr<Node>& n) const;
 
-    void register_expression(const ExpressionPtr& expr, bool io_allowed, double exec_num);
+    void register_expression(const ExpressionPtr& expr, bool parameter_allowed, double exec_num);
     void unregister_expression(const ExpressionPtr& expr);
 
     // return execution number for new expression which will be inserted before `insert_pos`
@@ -394,6 +402,8 @@ private:
 
     // Size of static Buffer Scratchpad (Buffers with defined allocation size)
     size_t m_static_buffer_scratchpad_size = 0;
+    // Human-readable identifier; typically set from Subgraph node friendly name
+    std::string m_friendly_name;
 };
 using LinearIRPtr = std::shared_ptr<LinearIR>;
 using LinearIRCPtr = std::shared_ptr<const LinearIR>;

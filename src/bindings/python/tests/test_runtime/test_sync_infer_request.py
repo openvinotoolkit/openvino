@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from contextlib import nullcontext as does_not_raise
@@ -226,6 +226,10 @@ def test_batched_tensors(device):
         for idx in range(0, batch):
             assert np.array_equal(actual[idx], _tmp)
 
+    with does_not_raise():
+        req.set_tensors("tensor_input0", tensors)
+        req.set_tensors(req.model_inputs[0], tensors)
+
 
 def test_inputs_outputs_property_and_method(device):
     num_inputs = 10
@@ -308,7 +312,9 @@ def test_infer_mixed_keys(device, share_inputs):
 ])
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_infer_mixed_values(device, ov_type, numpy_dtype, share_inputs):
-    request, tensor1, array1 = generate_concat_compiled_model_with_data(device=device, ov_type=ov_type, numpy_dtype=numpy_dtype)
+    request, tensor1, array1 = generate_concat_compiled_model_with_data(
+        device=device, ov_type=ov_type, numpy_dtype=numpy_dtype
+    )
 
     request.infer([tensor1, array1], share_inputs=share_inputs)
 
@@ -816,3 +822,20 @@ def test_output_result_to_input():
     with does_not_raise():
         result_2 = compiled_2(result_1, share_inputs=False)
     assert np.array_equal(result_2[0], [[8]])
+
+
+def test_infer_request_tensors_prop(device):
+    compiled_model = generate_add_compiled_model(device, input_shape=[2, 2])
+    request = compiled_model.create_infer_request()
+    inputs = request.input_tensors
+    outputs = request.output_tensors
+
+    assert len(inputs) == 2
+    for input_tensor in inputs:
+        assert input_tensor.get_shape() == Shape([2, 2])
+        assert input_tensor.get_element_type() == Type.f32
+    assert inputs[0].shape == Shape([2, 2])
+    assert isinstance(inputs, list)
+    assert isinstance(outputs, list)
+    assert str(inputs) == "[<Tensor: shape[2,2] type: f32>, <Tensor: shape[2,2] type: f32>]"
+    assert str(outputs) == "[<Tensor: shape[2,2] type: f32>]"  # Check representation

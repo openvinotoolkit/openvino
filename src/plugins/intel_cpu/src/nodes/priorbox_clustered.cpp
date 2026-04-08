@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,11 +20,11 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/prior_box_clustered.hpp"
 #include "shape_inference/custom/priorbox_clustered.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 bool PriorBoxClustered::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
@@ -106,6 +106,7 @@ void PriorBoxClustered::createPrimitive() {
 }
 
 void PriorBoxClustered::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto& cpu_parallel = context->getCpuParallel();
     const int* in_data = getSrcDataAtPortAs<int>(0);
     const int layer_height = in_data[0];
     const int layer_width = in_data[1];
@@ -116,27 +117,27 @@ void PriorBoxClustered::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     float step_w = step_widths == 0 ? step : step_widths;
     float step_h = step_heights == 0 ? step : step_heights;
-    if (step_w == 0 && step_h == 0) {
-        step_w = static_cast<float>(img_width) / layer_width;
-        step_h = static_cast<float>(img_height) / layer_height;
+    if (all_of(0, step_w, step_h)) {
+        step_w = static_cast<float>(img_width) / static_cast<float>(layer_width);
+        step_h = static_cast<float>(img_height) / static_cast<float>(layer_height);
     }
 
     auto* dst_data = getDstDataAtPortAs<float>(0);
     const auto& out_shape = getChildEdgeAt(0)->getMemory().getShape().getStaticDims();
 
     size_t var_size = variances.size();
-    parallel_for2d(layer_height, layer_width, [&](int64_t h, int64_t w) {
-        float center_x = (w + offset) * step_w;
-        float center_y = (h + offset) * step_h;
+    cpu_parallel->parallel_for2d(layer_height, layer_width, [&](int64_t h, int64_t w) {
+        float center_x = (static_cast<float>(w) + offset) * step_w;
+        float center_y = (static_cast<float>(h) + offset) * step_h;
 
         for (int s = 0; s < number_of_priors; ++s) {
             float box_width = widths[s];
             float box_height = heights[s];
 
-            float xmin = (center_x - box_width / 2.0F) / img_width;
-            float ymin = (center_y - box_height / 2.0F) / img_height;
-            float xmax = (center_x + box_width / 2.0F) / img_width;
-            float ymax = (center_y + box_height / 2.0F) / img_height;
+            float xmin = (center_x - box_width / 2.0F) / static_cast<float>(img_width);
+            float ymin = (center_y - box_height / 2.0F) / static_cast<float>(img_height);
+            float xmax = (center_x + box_width / 2.0F) / static_cast<float>(img_width);
+            float ymax = (center_y + box_height / 2.0F) / static_cast<float>(img_height);
 
             if (clip) {
                 xmin = (std::min)((std::max)(xmin, 0.0F), 1.0F);

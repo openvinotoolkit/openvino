@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,10 @@ TEST_P(PoolingLayerTest, Inference) {
 }
 
 TEST_P(MaxPoolingV8LayerTest, Inference) {
+    run();
+}
+
+TEST_P(AvgPoolingV16LayerTest, Inference) {
     run();
 }
 }  // namespace test

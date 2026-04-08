@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -215,8 +215,11 @@ private:
     void add_gru_weights_reorder(primitive_id input_id, std::shared_ptr<WeightsReorderParams> reorder_params, program& p, cldnn::program_node&, \
         cldnn::program_node&, size_t);
     void add_lstm_bias_reorder(primitive_id input_id, std::shared_ptr<WeightsReorderParams> reorder_params, program& p, cldnn::program_node&, \
-                               cldnn::program_node&);
+                               cldnn::program_node&, size_t);
     reorder_factory& _rf;
+
+    std::map<reorder_cache_key, program_node*> _cached_lstm_weights_reorder;
+    std::map<reorder_cache_key, program_node*> _cached_lstm_bias_reorder;
 };
 
 class propagate_constants : public base_pass {

@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ class InitBuffersDefault : public RangedPass {
 public:
     OPENVINO_RTTI("InitBuffersDefault", "", RangedPass);
 
-    InitBuffersDefault(size_t& buffer_scratchpad_size) : m_buffer_scratchpad_size(buffer_scratchpad_size) {
+    explicit InitBuffersDefault(size_t& buffer_scratchpad_size) : m_buffer_scratchpad_size(buffer_scratchpad_size) {
         m_buffer_scratchpad_size = 0;
     }
     /**

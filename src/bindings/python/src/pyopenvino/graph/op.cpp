@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,11 @@
 
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
+
+PYBIND11_MAKE_OPAQUE(ov::TensorVector);
 
 void PyOp::validate_and_infer_types() {
     PYBIND11_OVERRIDE(void, ov::op::Op, validate_and_infer_types);
@@ -39,7 +42,7 @@ std::shared_ptr<ov::Node> PyOp::clone_with_new_inputs(const ov::OutputVector& ne
         return result.cast<std::shared_ptr<ov::Node>>();
     }
     // Default implementation for clone_with_new_inputs
-    auto py_handle_type = py_handle.get_type();
+    auto py_handle_type = py::type::handle_of(py_handle);
     auto new_py_object = py_handle_type(new_args);
     return new_py_object.cast<std::shared_ptr<ov::Node>>();
 }
@@ -49,7 +52,13 @@ const ov::op::Op::type_info_t& PyOp::get_type_info() const {
 }
 
 bool PyOp::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
-    PYBIND11_OVERRIDE(bool, ov::op::Op, evaluate, output_values, input_values);
+    py::gil_scoped_acquire gil;  // Acquire the GIL while in this scope.
+    py::function overrided_py_method = pybind11::get_override(this, "evaluate");
+
+    if (overrided_py_method) {
+        return static_cast<py::bool_>(overrided_py_method(&output_values, &input_values));  // Call the Python function.
+    }
+    return true;
 }
 
 bool PyOp::has_evaluate() const {

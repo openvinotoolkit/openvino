@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,11 +50,11 @@ private:
     bool m_has_signal_length_input = false;
 
     // Input indices
-    static constexpr size_t DATA_IDX = 0lu;
-    static constexpr size_t WINDOW_IDX = 1lu;
-    static constexpr size_t FRAME_SIZE_IDX = 2lu;
-    static constexpr size_t FRAME_STEP_IDX = 3lu;
-    static constexpr size_t SIGNAL_LENGTH_IDX = 4lu;
+    static constexpr size_t DATA_IDX = 0LU;
+    static constexpr size_t WINDOW_IDX = 1LU;
+    static constexpr size_t FRAME_SIZE_IDX = 2LU;
+    static constexpr size_t FRAME_STEP_IDX = 3LU;
+    static constexpr size_t SIGNAL_LENGTH_IDX = 4LU;
 };
 
 }  // namespace ov::intel_cpu::node

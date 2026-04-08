@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ public:
 
 private:
     arm_compute::FullyConnectedLayerInfo fullyConnectedLayerInfo;
-    arm_compute::WeightFormat expectedWeightFormat;
+    arm_compute::WeightFormat expectedWeightFormat = arm_compute::WeightFormat::UNSPECIFIED;
     MemoryCPtr packedWeights;
     ACLFCAttrs aclfcAttrs;
     arm_compute::TensorInfo weiTensorInfo;

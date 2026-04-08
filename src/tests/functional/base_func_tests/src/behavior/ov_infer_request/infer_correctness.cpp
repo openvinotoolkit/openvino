@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -89,10 +89,7 @@ void OVInferConsistencyTest::TearDown() {
 }
 std::string OVInferConsistencyTest::getTestCaseName(const
     testing::TestParamInfo<ParamType>& obj) {
-    unsigned int inferReqNumPerModel; //inferRequst nums per model
-    unsigned int inferNumPerInfer; //infer nums wil do per  inferRequest
-    std::vector<std::pair<std::string, ov::AnyMap>> deviceConfigs; // devicesConfigs
-    std::tie(inferReqNumPerModel, inferNumPerInfer, deviceConfigs) = obj.param;
+    const auto& [inferReqNumPerModel, inferNumPerInfer, deviceConfigs] = obj.param;
     std::ostringstream result;
     for (auto&& item : deviceConfigs) {
         result << "device_" << item.first << "_";

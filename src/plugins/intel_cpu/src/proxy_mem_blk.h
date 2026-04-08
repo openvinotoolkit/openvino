@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +47,7 @@ private:
 
     // WA: resize stage might not work because there is no shape change,
     // but the underlying actual memory block changes.
-    size_t m_size = 0ul;
+    size_t m_size = 0UL;
 };
 
 using ProxyMemoryBlockPtr = std::shared_ptr<ProxyMemoryBlock>;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,14 +59,13 @@ Result MMShapeInfer::infer(const std::vector<std::reference_wrapper<const Vector
                 m_shapeY[i] = shapeA[i];
                 continue;
             }
-            if (shapeA[i] != 1) {
-                OPENVINO_THROW("Incompatible MatMul batch dimension. Cant merge the first input dimension=",
-                               shapeA[i],
-                               " with second input dimension=",
-                               shapeB[i],
-                               " at index=",
-                               i);
-            }
+            OPENVINO_ASSERT(shapeA[i] == 1,
+                            "Incompatible MatMul batch dimension. Cant merge the first input dimension=",
+                            shapeA[i],
+                            " with second input dimension=",
+                            shapeB[i],
+                            " at index=",
+                            i);
         }
         m_shapeY[i] = shapeB[i];
     }

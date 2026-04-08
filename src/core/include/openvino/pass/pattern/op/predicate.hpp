@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -99,7 +99,7 @@ public:
             m_name = std::move(name);
     }
 
-    bool operator()(PatternSymbolMap& m, const Output<Node>& output) const;
+    bool operator()(Matcher* m, const Output<Node>& output) const;
     bool operator()(const std::shared_ptr<Node>& node) const;
     bool operator()(const Output<Node>& output) const;
 

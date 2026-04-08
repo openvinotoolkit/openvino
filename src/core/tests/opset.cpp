@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include "openvino/opsets/opset14.hpp"
 #include "openvino/opsets/opset15.hpp"
 #include "openvino/opsets/opset16.hpp"
+#include "openvino/opsets/opset17.hpp"
 #include "openvino/opsets/opset2.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset4.hpp"
@@ -77,7 +78,8 @@ INSTANTIATE_TEST_SUITE_P(opset,
                                          OpsetTestParams{ov::get_opset13, 186},
                                          OpsetTestParams{ov::get_opset14, 188},
                                          OpsetTestParams{ov::get_opset15, 199},
-                                         OpsetTestParams{ov::get_opset16, 7}),
+                                         OpsetTestParams{ov::get_opset16, 203},
+                                         OpsetTestParams{ov::get_opset17, 3}),
                          OpsetTestNameGenerator{});
 
 class MyOpOld : public ov::op::Op {

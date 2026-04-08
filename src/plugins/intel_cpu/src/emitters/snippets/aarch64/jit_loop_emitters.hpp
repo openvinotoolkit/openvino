@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ namespace ov::intel_cpu::aarch64 {
 
 class jit_loop_begin_emitter : public jit_emitter {
 public:
-    jit_loop_begin_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_loop_begin_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                            dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                            const ov::snippets::lowered::ExpressionPtr& expr);
 
@@ -59,7 +59,7 @@ protected:
 
 class jit_loop_end_emitter : public jit_emitter {
 public:
-    jit_loop_end_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_loop_end_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                          dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                          const ov::snippets::lowered::ExpressionPtr& expr);
 
@@ -84,10 +84,10 @@ protected:
     size_t num_outputs = 0;
     size_t work_amount = 0;
     size_t wa_increment = 0;
-    std::vector<bool> is_incremented = {};
-    std::vector<int64_t> ptr_increments = {};
-    std::vector<int64_t> finalization_offsets = {};
-    std::vector<int64_t> data_sizes = {};
+    std::vector<bool> is_incremented;
+    std::vector<int64_t> ptr_increments;
+    std::vector<int64_t> finalization_offsets;
+    std::vector<int64_t> data_sizes;
     bool evaluate_once = false;
     size_t loop_id = 0;
 };

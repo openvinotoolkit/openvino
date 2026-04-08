@@ -12,7 +12,7 @@ import typing
 """
 Factory functions for all ngraph ops.
 """
-__all__ = ['Node', 'NodeInput', 'as_node', 'as_nodes', 'group_normalization', 'nameable_op', 'pad', 'partial', 'scatter_elements_update']
+__all__: list[str] = ['Node', 'NodeInput', 'as_node', 'as_nodes', 'group_normalization', 'nameable_op', 'pad', 'partial', 'scatter_elements_update']
 def group_normalization(*args, **kwargs) -> openvino._pyopenvino.Node:
     """
     Return a node which produces a GroupNormalization operation.

@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ own::ade::Nodes own::ade::Node::srcNodes() {
                       return locked_graph->meta(a).get<detail::CreateIdx>().m_idx <
                              locked_graph->meta(b).get<detail::CreateIdx>().m_idx;
                   });
-        cached_src_nodes = src_nodes;
+        cached_src_nodes = std::move(src_nodes);
         src_nodes_cache_dirty = false;
     }
     return cached_src_nodes;

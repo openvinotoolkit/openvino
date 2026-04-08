@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-corer: Apache-2.0
 //
 
@@ -38,9 +38,7 @@ TEST_P(ExportOptimalNumStreams, OptimalNumStreams) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     auto original_model = MakeMatMulModel();
     ov::Core core;
-    std::string device_name;
-    std::vector<ov::AnyMap> properties;
-    std::tie(device_name, properties) = GetParam();
+    const auto& [device_name, properties] = GetParam();
     auto original_properties_input = properties[0];
     auto new_properties_input = properties[1];
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -101,7 +101,7 @@ if(SAMPLES_ENABLE_OPENCL)
 
         target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::OpenCL)
     else()
-        message(WARNING "OpenCL CPP header is not found, ${TARGET_NAME} will be built without OpenCL support and you will not be able to use the '-use_device_mem' option. Please, install '<apt | yum> install opencl-headers' to enable the option")
+        message(WARNING "OpenCL CPP header is not found, ${TARGET_NAME} will be built without OpenCL support and you will not be able to use the '-use_device_mem' option. Please, install 'apt-get install ocl-icd-opencl-dev' or 'yum install ocl-icd-devel' to enable the option")
     endif()
 endif()
 

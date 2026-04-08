@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/single_op/conversion.hpp"
+
+#include "common_test_utils/data_utils.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 
@@ -15,12 +17,7 @@ std::map<ov::test::utils::ConversionTypes, std::string> conversionNames = {
 }
 
 std::string ConversionLayerTest::getTestCaseName(const testing::TestParamInfo<ConversionParamsTuple>& obj) {
-    ov::test::utils::ConversionTypes conversion_type;
-    ov::element::Type input_type, convert_type;
-    std::string device_name;
-    std::vector<InputShape> shapes;
-    std::tie(conversion_type, shapes, input_type, convert_type, device_name) =
-        obj.param;
+    const auto& [conversion_type, shapes, input_type, convert_type, device_name] = obj.param;
     std::ostringstream result;
     result << "conversionOpType=" << conversionNames[conversion_type] << "_";
     result << "IS=(";
@@ -42,10 +39,8 @@ std::string ConversionLayerTest::getTestCaseName(const testing::TestParamInfo<Co
 }
 
 void ConversionLayerTest::SetUp() {
-    ov::test::utils::ConversionTypes conversion_type;
-    ov::element::Type input_type, convert_type;
-    std::vector<InputShape> shapes;
-    std::tie(conversion_type, shapes, input_type, convert_type, targetDevice) = GetParam();
+    const auto& [conversion_type, shapes, input_type, convert_type, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     ov::ParameterVector params;
@@ -64,5 +59,21 @@ void ConversionLayerTest::SetUp() {
     auto result = std::make_shared<ov::op::v0::Result>(conversion);
     function = std::make_shared<ov::Model>(result, params, "Conversion");
 }
+
+void ConversionSpecifyInputLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    const auto& [conversion_type, shapes, input_type, convert_type, _targetDevice] = GetParam();
+    if (input_type != ov::element::i32 || convert_type != ov::element::u8) {
+        SubgraphBaseTest::generate_inputs(targetInputStaticShapes);
+        return;
+    }
+
+    inputs.clear();
+    const auto& funcInputs = function->inputs();
+    const auto& funcInput = funcInputs[0];
+    ov::Tensor tensor(funcInput.get_element_type(), targetInputStaticShapes[0]);
+    ov::test::utils::fill_data_random(tensor.data<int32_t>(), tensor.get_size(), 1024, -512);
+    inputs.insert({funcInput.get_node_shared_ptr(), tensor});
+}
+
 }  // namespace test
 }  // namespace ov

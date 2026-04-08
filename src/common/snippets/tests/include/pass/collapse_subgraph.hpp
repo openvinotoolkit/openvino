@@ -1,10 +1,13 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <common_test_utils/ov_test_utils.hpp>
+
+#include "snippets/pass/tokenization_config.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace test {
@@ -13,6 +16,9 @@ namespace snippets {
 class CollapseSubgraphTests : public TransformationTestsF {
 public:
     virtual void run();
+
+protected:
+    ov::snippets::pass::TokenizationConfig config = get_default_tokenization_config();
 };
 
 }  // namespace snippets

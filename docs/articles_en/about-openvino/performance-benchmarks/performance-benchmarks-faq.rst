@@ -55,15 +55,19 @@ Performance Information F.A.Q.
         - DeepSeek, HF
         - Auto regressive language
         - 128K
-      * - `GLM4-9B-chat <https://huggingface.co/THUDM/glm-4-9b-chat/tree/main>`__
-        - THUDM
-        - Transformer
-        - 128K
-      * - `Gemma-2-9B-it <https://huggingface.co/google/gemma-2-9b-it>`__
+      * - `Gemma-3-4B-it <https://huggingface.co/google/gemma-3-4b-it>`__
         - Hugginface
         - Text-To-Text Decoder-only
-        - 8K
+        - 128K
+      * - `GPT-OSS-20B <https://huggingface.co/openai/gpt-oss-20b>`__
+        - Hugginface
+        - Reasoning, agentic and developer use cases.
+        - 128K
       * - `Llama-2-7b-chat <https://www.llama.com/>`__
+        - Meta AI
+        - Auto regressive language
+        - 4K
+      * - `Llama-3-8b <https://www.llama.com/>`__
         - Meta AI
         - Auto regressive language
         - 4K
@@ -71,27 +75,23 @@ Performance Information F.A.Q.
         - Meta AI
         - Auto regressive language
         - 128K
-      * - `Mistral-7b-Instruct-V0.3 <https://huggingface.co/mistralai/Mistral-7B-v0.3>`__
+      * - `MiniCPM-v-2_6 <https://huggingface.co/openbmb/MiniCPM-V-2_6>`__
+        - OpenBMB
+        - Multimodal, image-text to text
+        - 32K
+      * - `Mistral-7B-Instruct-V0.3 <https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3>`__
         - Mistral AI
         - Auto regressive language
         - 32K
-      * - `Phi3-4k-mini-Instruct <https://huggingface.co/microsoft/Phi-3-mini-4k-instruct>`__
-        - Huggingface
-        - Auto regressive language
-        - 4096
       * - `Phi4-mini-Instruct <https://huggingface.co/microsoft/Phi-4-mini-instruct>`__
-        - Huggingface
+        - Hugginface
         - Auto regressive language
         - 4096
-      * - `Qwen-2-VL-7B-instruct <https://huggingface.co/Qwen/Qwen2-VL-7B-instruct>`__
+      * - `Qwen-2.5-VL-7B-instruct <https://huggingface.co/Qwen/Qwen2.5-VL-7B-instruct>`__
         - Huggingface
-        - Auto regressive language
+        - Auto regressive language, Agentic
         - 128K
-      * - `Qwen-2.5-VL-3B-Instruct <https://huggingface.co/Qwen/Qwen2.5-VL-3B-Instruct>`__
-        - Huggingface
-        - Auto regressive language
-        - 32K
-      * - `Qwen-2.5-1.5B-Instruct <https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct>`__
+      * - `Qwen-3-8B <https://huggingface.co/Qwen/Qwen3-8B>`__
         - Huggingface
         - Auto regressive language
         - 32K

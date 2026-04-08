@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,10 +50,8 @@ public:
 
     std::vector<ov::ProfilingInfo> m_profiling_info;
 
-    static std::string getTestCaseName(testing::TestParamInfo<AutoBatchRequestTestParams> obj) {
-        uint32_t batch_size;
-        ov::element::Type_t element_type;
-        std::tie(batch_size, element_type) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<AutoBatchRequestTestParams>& obj) {
+        const auto& [batch_size, element_type] = obj.param;
 
         std::string res;
         res = "batch_size_" + std::to_string(batch_size);

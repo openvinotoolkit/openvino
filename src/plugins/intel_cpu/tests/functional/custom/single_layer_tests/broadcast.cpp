@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,20 +27,10 @@ class BroadcastLayerCPUTest : public testing::WithParamInterface<BroadcastLayerC
                               virtual public ov::test::SubgraphBaseTest,
                               public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<BroadcastLayerCPUTestParamsSet> obj) {
-        BroadcastLayerTestParamsSet basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
-
-        std::vector<ov::test::InputShape> inputShapes;
-        std::vector<int64_t> targetShapes, axesMapping;
-        ov::op::BroadcastType mode;
-        ov::element::Type_t netPrecision;
-        std::vector<bool> isConstInputs;
-        std::string deviceName;
-        std::tie(inputShapes, targetShapes, axesMapping, mode, netPrecision, isConstInputs, deviceName) =
+    static std::string getTestCaseName(const testing::TestParamInfo<BroadcastLayerCPUTestParamsSet>& obj) {
+        const auto& [basicParamsSet, cpuParams] = obj.param;
+        const auto& [inputShapes, targetShapes, axesMapping, mode, netPrecision, isConstInputs, deviceName] =
             basicParamsSet;
-
         std::ostringstream result;
         result << "IS=(";
         for (const auto& shape : inputShapes) {
@@ -67,16 +57,12 @@ public:
 
 protected:
     void SetUp() override {
-        BroadcastLayerTestParamsSet basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
-
-        std::vector<ov::test::InputShape> inputShapes;
-        ov::op::BroadcastType mode;
-        ov::element::Type_t netPrecision;
-        std::vector<bool> isConstInput;
-        std::tie(inputShapes, targetShape, axesMapping, mode, netPrecision, isConstInput, targetDevice) =
+        const auto& [basicParamsSet, cpuParams] = this->GetParam();
+        const auto& [inputShapes, _targetShape, _axesMapping, mode, netPrecision, isConstInput, _targetDevice] =
             basicParamsSet;
+        targetShape = _targetShape;
+        axesMapping = _axesMapping;
+        targetDevice = _targetDevice;
         bool isTargetShapeConst = isConstInput[0], isAxesMapConst = isConstInput[1];
         const auto targetShapeRank = targetShape.size();
         const auto axesMappingRank = axesMapping.size();
@@ -148,7 +134,7 @@ protected:
             }
         }
 
-        function = makeNgraphFunction(netPrecision, functionParams, broadcastOp, "Broadcast");
+        function = create_ov_model(netPrecision, functionParams, broadcastOp, "Broadcast");
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {

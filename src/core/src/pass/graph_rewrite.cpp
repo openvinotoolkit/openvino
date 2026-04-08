@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,7 +52,7 @@
  * If MatcherPass register more than one node make sure that this nodes are registered in
  * topological order. */
 
-#ifdef ENABLE_PROFILING_ITT
+#ifdef ENABLE_PROFILING_ITT_FULL
 
 namespace ov {
 namespace pass {
@@ -65,7 +65,7 @@ PerfCounters& perf_counters_graph_rewrite() {
 }  // namespace pass
 }  // namespace ov
 
-#endif  // ENABLE_PROFILING_ITT
+#endif  // ENABLE_PROFILING_ITT_FULL
 std::shared_ptr<ov::pass::MatcherPass> ov::pass::GraphRewrite::add_matcher(
     const std::shared_ptr<ov::pass::MatcherPass>& pass) {
     auto pass_config = get_pass_config();
@@ -96,7 +96,7 @@ bool ov::pass::GraphRewrite::run_on_model(const std::shared_ptr<ov::Model>& f) {
 
 bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
                                                   std::deque<std::weak_ptr<Node>> nodes_to_run) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "pass::GraphRewrite::apply_matcher_passes");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::ov_core, "pass::GraphRewrite::apply_matcher_passes");
 
     bool rewritten = false;
     const auto& pass_config = get_pass_config();
@@ -310,7 +310,7 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
 }
 
 bool ov::pass::MatcherPass::apply(std::shared_ptr<ov::Node> node) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::core, pass::perf_counters_graph_rewrite()[get_type_info()]);
+    OV_ITT_SCOPED_TASK(ov::itt::domains::ov_core, pass::perf_counters_graph_rewrite()[get_type_info()]);
     clear_new_nodes();
     if (m_handler)
         return m_handler(node);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,10 @@
 
 #include <map>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "gtest/gtest.h"
 #include "openvino/core/except.hpp"
+#include "openvino/util/common_util.hpp"
 
 using namespace ov;
 
@@ -27,63 +29,85 @@ TEST(element_type, from) {
     EXPECT_EQ(element::from<std::string>(), element::string);
 }
 
+constexpr auto element_type_cases = util::make_array(std::pair{"boolean", element::boolean},
+                                                     std::pair{"BOOL", element::boolean},
+                                                     std::pair{"bf16", element::bf16},
+                                                     std::pair{"BF16", element::bf16},
+                                                     std::pair{"f16", element::f16},
+                                                     std::pair{"FP16", element::f16},
+                                                     std::pair{"f32", element::f32},
+                                                     std::pair{"FP32", element::f32},
+                                                     std::pair{"f64", element::f64},
+                                                     std::pair{"FP64", element::f64},
+                                                     std::pair{"i4", element::i4},
+                                                     std::pair{"I4", element::i4},
+                                                     std::pair{"i8", element::i8},
+                                                     std::pair{"I8", element::i8},
+                                                     std::pair{"i16", element::i16},
+                                                     std::pair{"I16", element::i16},
+                                                     std::pair{"i32", element::i32},
+                                                     std::pair{"I32", element::i32},
+                                                     std::pair{"i64", element::i64},
+                                                     std::pair{"I64", element::i64},
+                                                     std::pair{"bin", element::u1},
+                                                     std::pair{"BIN", element::u1},
+                                                     std::pair{"u1", element::u1},
+                                                     std::pair{"U1", element::u1},
+                                                     std::pair{"u4", element::u4},
+                                                     std::pair{"U4", element::u4},
+                                                     std::pair{"u8", element::u8},
+                                                     std::pair{"U8", element::u8},
+                                                     std::pair{"u16", element::u16},
+                                                     std::pair{"U16", element::u16},
+                                                     std::pair{"u32", element::u32},
+                                                     std::pair{"U32", element::u32},
+                                                     std::pair{"u64", element::u64},
+                                                     std::pair{"U64", element::u64},
+                                                     std::pair{"nf4", element::nf4},
+                                                     std::pair{"NF4", element::nf4},
+                                                     std::pair{"f8e4m3", element::f8e4m3},
+                                                     std::pair{"F8E4M3", element::f8e4m3},
+                                                     std::pair{"f8e5m2", element::f8e5m2},
+                                                     std::pair{"F8E5M2", element::f8e5m2},
+                                                     std::pair{"string", element::string},
+                                                     std::pair{"STRING", element::string},
+                                                     std::pair{"f4e2m1", element::f4e2m1},
+                                                     std::pair{"F4E2M1", element::f4e2m1},
+                                                     std::pair{"f8e8m0", element::f8e8m0},
+                                                     std::pair{"F8E8M0", element::f8e8m0},
+                                                     std::pair{"dynamic", element::dynamic});
+
+constexpr auto element_type_cases_invalid =
+    util::make_array("some_string", "", "???", "12345", "not_a_type", "throw_exception");
+
 TEST(element_type, from_string) {
-    EXPECT_EQ(element::Type("boolean"), element::boolean);
-    EXPECT_EQ(element::Type("BOOL"), element::boolean);
+    for (const auto& [str, expected] : element_type_cases) {
+        EXPECT_EQ(element::Type(str), expected);
+    }
+}
 
-    EXPECT_EQ(element::Type("bf16"), element::bf16);
-    EXPECT_EQ(element::Type("BF16"), element::bf16);
-    EXPECT_EQ(element::Type("f16"), element::f16);
-    EXPECT_EQ(element::Type("FP16"), element::f16);
-    EXPECT_EQ(element::Type("f32"), element::f32);
-    EXPECT_EQ(element::Type("FP32"), element::f32);
-    EXPECT_EQ(element::Type("f64"), element::f64);
-    EXPECT_EQ(element::Type("FP64"), element::f64);
+TEST(element_type, from_string_invalid) {
+    for (const auto& str : element_type_cases_invalid) {
+        OV_EXPECT_THROW(std::ignore = element::Type(str), ov::Exception, testing::_);
+    }
+}
 
-    EXPECT_EQ(element::Type("i4"), element::i4);
-    EXPECT_EQ(element::Type("I4"), element::i4);
-    EXPECT_EQ(element::Type("i8"), element::i8);
-    EXPECT_EQ(element::Type("I8"), element::i8);
-    EXPECT_EQ(element::Type("i16"), element::i16);
-    EXPECT_EQ(element::Type("I16"), element::i16);
-    EXPECT_EQ(element::Type("i32"), element::i32);
-    EXPECT_EQ(element::Type("I32"), element::i32);
-    EXPECT_EQ(element::Type("i64"), element::i64);
-    EXPECT_EQ(element::Type("I64"), element::i64);
+TEST(element_type, from_istringstream) {
+    for (const auto& [str, expected] : element_type_cases) {
+        std::istringstream ss(str);
+        element::Type t;
+        ss >> t;
+        EXPECT_FALSE(ss.fail());
+        EXPECT_EQ(t, expected);
+    }
+}
 
-    EXPECT_EQ(element::Type("bin"), element::u1);
-    EXPECT_EQ(element::Type("BIN"), element::u1);
-    EXPECT_EQ(element::Type("u1"), element::u1);
-    EXPECT_EQ(element::Type("U1"), element::u1);
-    EXPECT_EQ(element::Type("u4"), element::u4);
-    EXPECT_EQ(element::Type("U4"), element::u4);
-    EXPECT_EQ(element::Type("u8"), element::u8);
-    EXPECT_EQ(element::Type("U8"), element::u8);
-    EXPECT_EQ(element::Type("u16"), element::u16);
-    EXPECT_EQ(element::Type("U16"), element::u16);
-    EXPECT_EQ(element::Type("u32"), element::u32);
-    EXPECT_EQ(element::Type("U32"), element::u32);
-    EXPECT_EQ(element::Type("u64"), element::u64);
-    EXPECT_EQ(element::Type("U64"), element::u64);
-    EXPECT_EQ(element::Type("nf4"), element::nf4);
-    EXPECT_EQ(element::Type("NF4"), element::nf4);
-    EXPECT_EQ(element::Type("f8e4m3"), element::f8e4m3);
-    EXPECT_EQ(element::Type("F8E4M3"), element::f8e4m3);
-    EXPECT_EQ(element::Type("f8e5m2"), element::f8e5m2);
-    EXPECT_EQ(element::Type("F8E5M2"), element::f8e5m2);
-    EXPECT_EQ(element::Type("string"), element::string);
-    EXPECT_EQ(element::Type("STRING"), element::string);
-    EXPECT_EQ(element::Type("f4e2m1"), element::f4e2m1);
-    EXPECT_EQ(element::Type("F4E2M1"), element::f4e2m1);
-    EXPECT_EQ(element::Type("f8e8m0"), element::f8e8m0);
-    EXPECT_EQ(element::Type("F8E8M0"), element::f8e8m0);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    EXPECT_EQ(element::Type("undefined"), element::undefined);
-    EXPECT_EQ(element::Type("UNSPECIFIED"), element::undefined);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    EXPECT_EQ(element::Type("dynamic"), element::dynamic);
-
-    EXPECT_THROW(element::Type("some_string"), ov::Exception);
+TEST(element_type, from_istringstream_invalid) {
+    for (const auto& str : element_type_cases_invalid) {
+        std::istringstream ss(str);
+        element::Type t;
+        EXPECT_THROW(ss >> t, ov::Exception);
+    }
 }
 
 TEST(element_type, mapable) {

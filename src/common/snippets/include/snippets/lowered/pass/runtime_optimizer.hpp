@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ class RuntimeOptimizer : public ConstPass {
 public:
     OPENVINO_RTTI("RuntimeOptimizer", "0", ConstPass)
     RuntimeOptimizer() = default;
-    RuntimeOptimizer(const RuntimeConfigurator* configurator) : m_configurator(configurator) {
+    explicit RuntimeOptimizer(const RuntimeConfigurator* configurator) : m_configurator(configurator) {
         OPENVINO_ASSERT(configurator, "RuntimeConfigurator musn't be nullptr");
     }
     /**

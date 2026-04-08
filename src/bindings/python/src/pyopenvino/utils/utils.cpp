@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,8 @@
 #include "openvino/core/meta_data.hpp"
 #include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 
 using Version = ov::pass::Serialize::Version;
@@ -249,6 +251,8 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::hint::ExecutionMode>());
     } else if (any.is<ov::log::Level>()) {
         return py::cast(any.as<ov::log::Level>());
+    } else if (any.is<ov::intel_cpu::TbbPartitioner>()) {
+        return py::cast(any.as<ov::intel_cpu::TbbPartitioner>());
     } else if (any.is<ov::device::Type>()) {
         return py::cast(any.as<ov::device::Type>());
     } else if (any.is<ov::streams::Num>()) {
@@ -267,6 +271,8 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(luid_stream.str());
     } else if (any.is<ov::device::PCIInfo>()) {
         return py::cast(any.as<ov::device::PCIInfo>());
+    } else if (any.is<ov::intel_npu::CompilerType>()) {
+        return py::cast(any.as<ov::intel_npu::CompilerType>());
         // Custom FrontEnd Types
     } else if (any.is<ov::frontend::type::List>()) {
         return py::cast(any.as<ov::frontend::type::List>());
@@ -472,8 +478,9 @@ std::tuple<Args...> tuple_from_py_tuple(const py::tuple& py_tuple) {
 ov::Any py_object_to_any(const py::object& py_obj) {
     // Python types
     py::object float_32_type = py::module_::import("numpy").attr("float32");
-    if (py::isinstance<py::str>(py_obj)) {
-        return py_obj.cast<std::string>();
+    py::object Path = py::module_::import("pathlib").attr("Path");
+    if (py::isinstance<py::str>(py_obj) || py::isinstance(py_obj, Path)) {
+        return py::str(py_obj).cast<std::string>();
     } else if (py::isinstance<py::bool_>(py_obj)) {
         return py_obj.cast<bool>();
     } else if (py::isinstance<py::bytes>(py_obj)) {
@@ -569,12 +576,16 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::hint::ExecutionMode>(py_obj);
     } else if (py::isinstance<ov::log::Level>(py_obj)) {
         return py::cast<ov::log::Level>(py_obj);
+    } else if (py::isinstance<ov::intel_cpu::TbbPartitioner>(py_obj)) {
+        return py::cast<ov::intel_cpu::TbbPartitioner>(py_obj);
     } else if (py::isinstance<ov::device::Type>(py_obj)) {
         return py::cast<ov::device::Type>(py_obj);
     } else if (py::isinstance<ov::streams::Num>(py_obj)) {
         return py::cast<ov::streams::Num>(py_obj);
     } else if (py::isinstance<ov::WorkloadType>(py_obj)) {
         return py::cast<ov::WorkloadType>(py_obj);
+    } else if (py::isinstance<ov::intel_npu::CompilerType>(py_obj)) {
+        return py::cast<ov::intel_npu::CompilerType>(py_obj);
     } else if (py::isinstance<ov::Tensor>(py_obj)) {
         return py::cast<ov::Tensor>(py_obj);
     } else if (py::isinstance<ov::Output<ov::Node>>(py_obj)) {
@@ -609,10 +620,18 @@ ov::Any py_object_to_any(const py::object& py_obj) {
 }
 std::shared_ptr<py::function> wrap_pyfunction(py::function f_callback) {
     auto callback_sp = std::shared_ptr<py::function>(new py::function(std::move(f_callback)), [](py::function* c) {
+        // For free-threaded Python, gil_scoped_acquire still ensures thread is attached
         py::gil_scoped_acquire acquire;
         delete c;
     });
     return callback_sp;
+}
+
+std::shared_ptr<py::object> wrap_pyobject_to_sp(py::object obj) {
+    return std::shared_ptr<py::object>(new py::object(std::move(obj)), [](py::object* o) {
+        py::gil_scoped_acquire acquire;
+        delete o;
+    });
 }
 
 std::filesystem::path to_fs_path(const py::object& path) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace ov::intel_cpu::node {
 
 class SDPAShapeInferFactory : public ShapeInferFactory {
 public:
-    SDPAShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
+    explicit SDPAShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
     [[nodiscard]] ShapeInferPtr makeShapeInfer() const override;
 
 private:

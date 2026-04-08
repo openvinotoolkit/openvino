@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,18 +41,18 @@ Result EltwiseShapeInfer::infer(const std::vector<std::reference_wrapper<const V
         }
 
         const auto& input_shape = input_shapes[i].get();
-        if (input_shape.size() > output_shape.size()) {
-            OPENVINO_THROW("Eltwise shape infer input and output shapes rank mismatch");
-        }
+        OPENVINO_ASSERT(input_shape.size() <= output_shape.size(),
+                        "Eltwise shape infer input and output shapes rank mismatch");
         size_t offset = output_shape.size() - input_shape.size();
         for (size_t j = 0; j < input_shape.size(); ++j) {
             if (input_shape[j] != output_shape[offset + j]) {
                 if (output_shape[offset + j] == 1) {
                     output_shape[offset + j] = input_shape[j];
                 } else {
-                    if (input_shape[j] != 1) {
-                        OPENVINO_THROW("Eltwise shape infer input shapes dim index: ", j, " mismatch");
-                    }
+                    OPENVINO_ASSERT(input_shape[j] == 1,
+                                    "Eltwise shape infer input shapes dim index: ",
+                                    j,
+                                    " mismatch");
                 }
             }
         }

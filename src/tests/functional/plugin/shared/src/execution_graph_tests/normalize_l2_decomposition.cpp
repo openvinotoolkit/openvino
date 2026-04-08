@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,8 @@
 namespace ExecutionGraphTests {
 
 std::string ExecGrapDecomposeNormalizeL2::getTestCaseName(
-    testing::TestParamInfo<std::string> obj) {
-  std::string targetDevice = obj.param;
+    const testing::TestParamInfo<std::string>& obj) {
+  const std::string& targetDevice = obj.param;
   return "Dev=" + targetDevice;
 }
 

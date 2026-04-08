@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,6 +38,7 @@ public:
                                                   test_data.input_threads,
                                                   test_data.input_infer_requests,
                                                   test_data.model_prefer_threads,
+                                                  true,
                                                   test_data.input_perf_hint,
                                                   test_data.hint_llm_distribution_policy,
                                                   test_data.proc_type_table);
@@ -2509,6 +2510,43 @@ StreamsCalculationTestCase _1sockets_mock_latency_9 = {
      {0, EFFICIENT_CORE_PROC, 8, 0, 0},
      {0, LP_EFFICIENT_CORE_PROC, 4, 0, 0}},
 };
+StreamsCalculationTestCase _1sockets_mock_latency_10 = {
+    1,
+    false,
+    0,
+    0,
+    2,
+    "LATENCY",
+    {},
+    {{6, 2, 0, 4, 0, 0, 0}},
+    {{1, MAIN_CORE_PROC, 2, 0, 0}},
+};
+StreamsCalculationTestCase _1sockets_mock_latency_11 = {
+    1,
+    false,
+    0,
+    0,
+    6,
+    "LATENCY",
+    {},
+    {{6, 2, 0, 4, 0, 0, 0}},
+    {{1, ALL_PROC, 6, 0, 0},
+     {0, MAIN_CORE_PROC, 2, 0, 0},
+     {0, LP_EFFICIENT_CORE_PROC, 4, 0, 0}},
+};
+StreamsCalculationTestCase _1sockets_mock_latency_12 = {
+    1,
+    false,
+    4,
+    0,
+    6,
+    "LATENCY",
+    {},
+    {{6, 2, 0, 4, 0, 0, 0}},
+    {{1, ALL_PROC, 4, 0, 0},
+     {0, MAIN_CORE_PROC, 2, 0, 0},
+     {0, LP_EFFICIENT_CORE_PROC, 2, 0, 0}},
+};
 StreamsCalculationTestCase _2sockets_mock_latency_35 = {
     1,
     false,
@@ -2790,6 +2828,32 @@ StreamsCalculationTestCase _2sockets_mock_latency_51 = {
     {{16, 16, 0, 0, 0, -1, -1}, {8, 8, 0, 0, 0, 0, 0}, {8, 8, 0, 0, 0, 1, 1}},
     {{1, ALL_PROC, 16, -1, -1}, {0, MAIN_CORE_PROC, 8, 0, 0}, {0, MAIN_CORE_PROC, 8, 1, 1}},
 };
+StreamsCalculationTestCase _1sockets_mock_TP_1 = {
+    1,
+    false,
+    0,
+    0,
+    0,
+    "LATENCY",
+    {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL},
+    {{8, 8, 0, 0, 0, 0, 0}},
+    {{1, MAIN_CORE_PROC, 16, 0, 0},
+     {-1, MAIN_CORE_PROC, 8, 0, 0},
+     {-1, MAIN_CORE_PROC, 8, 0, 0}},
+};
+StreamsCalculationTestCase _1sockets_mock_TP_2 = {
+    1,
+    false,
+    1,
+    0,
+    0,
+    "LATENCY",
+    {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL},
+    {{8, 8, 0, 0, 0, 0, 0}},
+    {{1, MAIN_CORE_PROC, 2, 0, 0},
+     {-1, MAIN_CORE_PROC, 1, 0, 0},
+     {-1, MAIN_CORE_PROC, 1, 0, 0}},
+};
 
 TEST_P(StreamsCalculationTests, StreamsCalculation) {}
 
@@ -2998,6 +3062,11 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _1sockets_mock_latency_6,
                                          _1sockets_mock_latency_7,
                                          _1sockets_mock_latency_8,
-                                         _1sockets_mock_latency_9));
+                                         _1sockets_mock_latency_9,
+                                         _1sockets_mock_latency_10,
+                                         _1sockets_mock_latency_11,
+                                         _1sockets_mock_latency_12,
+                                         _1sockets_mock_TP_1,
+                                         _1sockets_mock_TP_2));
 
 }  // namespace

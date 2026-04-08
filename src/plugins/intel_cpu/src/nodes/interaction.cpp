@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,19 +29,20 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "transformations/cpu_opset/x64/op/interaction.hpp"
 #include "utils/debug_capabilities.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include <cpu/x64/xbyak/xbyak.h>
+#    include <xbyak/xbyak.h>
 
 #    include <common/utils.hpp>
 
 #    include "cpu/x64/jit_generator.hpp"
 #    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#    include "openvino/core/type.hpp"
+#    include "transformations/cpu_opset/x64/op/interaction.hpp"
+#    include "utils/cpu_utils.hpp"
 #endif
 
 using namespace dnnl::impl::cpu::x64;
@@ -52,23 +53,23 @@ namespace ov::intel_cpu::node {
 #if defined(OPENVINO_ARCH_X86_64)
 
 template <cpu_isa_t isa>
-struct jit_move_scale_kernel : public jit_uni_move_scale_kernel, public jit_generator {
+struct jit_move_scale_kernel : public jit_uni_move_scale_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_move_scale_kernel)
 
     explicit jit_move_scale_kernel(const jit_move_scale_compile_params& jcp)
         : jit_uni_move_scale_kernel(jcp),
-          jit_generator(jit_name()) {
+          jit_generator_t(jit_name()) {
         runtime_prc = jcp_.src_prc == ov::element::bf16 ? ov::element::bf16 : ov::element::f32;
         if (jcp_.dst_prc == ov::element::i8 || jcp_.dst_prc == ov::element::u8) {
             runtime_prc = ov::element::f32;
         }
-        vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / runtime_prc.size();
+        vec_size = dnnl::impl::cpu::x64::cpu_isa_traits_t<isa>::vlen / runtime_prc.size();
     }
     ~jit_move_scale_kernel() override = default;
 
     void create_ker() override {
-        jit_generator::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        jit_generator_t::create_kernel();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
 private:
@@ -208,12 +209,16 @@ Interaction::Interaction(const std::shared_ptr<ov::Node>& op, const GraphContext
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
+#if defined(OPENVINO_ARCH_X86_64)
     const auto interaction = ov::as_type_ptr<const InteractionNode>(op);
     const std::vector<float>& scales = interaction->get_output_scales();
     if (!scales.empty()) {
         fqScales = scales;
         outputDataType = interaction->get_output_element_type(0);
     }
+#else
+    OPENVINO_THROW_NOT_IMPLEMENTED("Interaction operation is supported only on X86_64");
+#endif
 }
 
 void Interaction::initSupportedPrimitiveDescriptors() {
@@ -367,7 +372,7 @@ void Interaction::prepareParams() {
         moveFeatureKernel->create_ker();
         moveInteractKernel->create_ker();
     } else {
-        THROW_CPU_NODE_ERR("cannot create jit eltwise kernel");
+        CPU_NODE_THROW("cannot create jit eltwise kernel");
     }
 #ifdef CPU_DEBUG_CAPS
     if (prim) {
@@ -389,13 +394,19 @@ bool Interaction::isExecutable() const {
     return true;
 }
 
-bool Interaction::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool Interaction::isSupportedOperation([[maybe_unused]] const std::shared_ptr<const ov::Node>& op,
+                                       std::string& errorMessage) noexcept {
     try {
+#if defined(OPENVINO_ARCH_X86_64)
         const auto interaction = ov::as_type_ptr<const InteractionNode>(op);
         if (!interaction) {
             errorMessage = "Only Interaction operation is supported";
             return false;
         }
+#else
+        errorMessage = "Interaction operation is supported only on X86_64";
+        return false;
+#endif
     } catch (...) {
         return false;
     }

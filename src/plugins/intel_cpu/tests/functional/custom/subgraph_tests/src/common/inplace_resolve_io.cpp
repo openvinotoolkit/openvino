@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,8 +26,8 @@ class InplaceResolveIOTestBase : public testing::WithParamInterface<VectorShapes
                                  virtual public ov::test::SubgraphBaseTest,
                                  public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<VectorShapes> obj) {
-        VectorShapes& inputShapes = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<VectorShapes>& obj) {
+        const VectorShapes& inputShapes = obj.param;
 
         std::ostringstream result;
         result << "IS=";
@@ -56,7 +56,7 @@ class RNNConcatSubgraphTest : public InplaceResolveIOTestBase {
 
                       H_t      X  seq_lens
                      /   \     |     /
-                    /     \    |    / 
+                    /     \    |    /
                  Softmax0  RNNSequence
                     \       /(Ho)   \(Y)
                      \     /         \
@@ -220,7 +220,7 @@ class SoftmaxAddReshapeTwoOutputsSubgraphTest : public InplaceResolveIOTestBase 
                     |         |      \
                     |         |       \
                  Result0   Reshape1  Result2
-                              |         
+                              |
                               |
                             Result1
 

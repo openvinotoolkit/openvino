@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,7 +57,7 @@ public:
 
         SharedMemory(std::unique_lock<std::mutex>&& lock, MemoryInfo::Ptr memory, MemoryPtr newPtr = nullptr);
 
-        operator MemoryPtr() const;
+        explicit operator MemoryPtr() const;
         [[nodiscard]] bool isValid() const;
         void valid(bool b);
 

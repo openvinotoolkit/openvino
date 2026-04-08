@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,8 @@
 
 namespace LayerTestsDefinitions {
 
-std::string RecurrentCellTransformation::getTestCaseName(testing::TestParamInfo<RecurrentCellTransformationParams> obj) {
-    auto [netPrecision, activationsShape, weightsShape, device, addPrecisionTransparentOperations, param] = obj.param;
+std::string RecurrentCellTransformation::getTestCaseName(const testing::TestParamInfo<RecurrentCellTransformationParams>& obj) {
+    const auto& [netPrecision, activationsShape, weightsShape, device, addPrecisionTransparentOperations, param] = obj.param;
 
     std::ostringstream result;
     result << get_test_case_name_by_params(netPrecision, activationsShape[0], device) <<
@@ -28,7 +28,7 @@ std::string RecurrentCellTransformation::getTestCaseName(testing::TestParamInfo<
 }
 
 void RecurrentCellTransformation::SetUp() {
-    auto [precision, activations_shapes, weights_shapes, device, addPrecisionTransparentOperations, param] = this->GetParam();
+    const auto& [precision, activations_shapes, weights_shapes, device, addPrecisionTransparentOperations, param] = this->GetParam();
     targetDevice = device;
 
     init_input_shapes(activations_shapes);

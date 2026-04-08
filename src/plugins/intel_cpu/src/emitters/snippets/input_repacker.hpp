@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ struct InputRepacker {
                   VectorDims in_offsets,
                   VectorDims out_offsets);
 
-    template <class T = InputRepackerKernel, std::enable_if_t<std::is_base_of_v<InputRepackerKernel, T>, bool> = true>
+    template <class T = InputRepackerKernel, typename = std::enable_if_t<std::is_base_of_v<InputRepackerKernel, T>>>
     [[nodiscard]] std::shared_ptr<const T> kernel() const {
         const auto ker = std::dynamic_pointer_cast<const T>(m_kernel);
         OPENVINO_ASSERT(ker, "Kernel is empty!");
@@ -38,6 +38,8 @@ struct InputRepacker {
     [[nodiscard]] const CpuBlockedMemoryDescPtr& desc() const;
     [[nodiscard]] const VectorDims& in_offsets() const;
     [[nodiscard]] const VectorDims& out_offsets() const;
+    // Returns true if the input has been already pre-packed (e.g. at compile time by RepackMatMulWeights).
+    [[nodiscard]] bool already_repacked() const;
 
 private:
     std::shared_ptr<const InputRepackerKernel> m_kernel{nullptr};

@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2023-2024 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -20,8 +20,7 @@ endif()
 # Define the target
 #
 
-ov_add_target(ADD_CPPLINT
-              TYPE EXECUTABLE
+ov_add_target(TYPE EXECUTABLE
               NAME ${TARGET_NAME}
               ROOT ${CMAKE_CURRENT_SOURCE_DIR}
               LINK_LIBRARIES
@@ -32,8 +31,8 @@ ov_add_target(ADD_CPPLINT
                       npu_tools_utils)
 
 set_target_properties(${TARGET_NAME} PROPERTIES
-                          FOLDER ${CMAKE_CURRENT_SOURCE_DIR}
-                          CXX_STANDARD 17)
+                      FOLDER intel_npu_tools
+                      CXX_STANDARD 17)
 
 # TODO: fix warnings and remove this exception
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)

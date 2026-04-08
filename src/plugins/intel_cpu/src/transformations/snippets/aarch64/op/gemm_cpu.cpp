@@ -1,9 +1,18 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "gemm_cpu.hpp"
 
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/utils/utils.hpp"
@@ -18,8 +27,7 @@ GemmCPU::GemmCPU(const Output<Node>& A,
                  const PortDescriptor& desc_c,
                  const std::vector<size_t>& layout_a,
                  const std::vector<size_t>& layout_b,
-                 const std::vector<size_t>& layout_c)
-    : Brgemm() {
+                 const std::vector<size_t>& layout_c) {
     set_arguments({A, B});
     set_output_size(1);
     m_input_ports = {{0, desc_a}, {1, desc_b}};
@@ -53,8 +61,15 @@ void GemmCPU::validate_and_infer_types() {
 
 void GemmCPU::validate_element_type(const ov::element::Type& type_0, const ov::element::Type& type_1) {
     OPENVINO_ASSERT(
-        everyone_is(type_0, type_1, element::f32),
+        any_of(type_0, element::f32, element::f16) && any_of(type_1, element::f32, element::f16) && type_0 == type_1,
         "GemmCPU doesn't support element type in0:" + type_0.get_type_name() + " in1:" + type_1.get_type_name());
+}
+
+ov::element::Type GemmCPU::get_output_type() const {
+    const auto in_type0 = get_input_element_type(0);
+    const auto in_type1 = get_input_element_type(1);
+    validate_element_type(in_type0, in_type1);
+    return in_type0;
 }
 
 std::shared_ptr<Node> GemmCPU::clone_with_new_inputs(const OutputVector& new_args) const {

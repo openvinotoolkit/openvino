@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,5 +94,5 @@ std::shared_ptr<Node> wrap_type(std::initializer_list<std::pair<const std::strin
     return wrap_type<Args...>(PatternOps{}, Attributes(attrs));
 }
 
-std::shared_ptr<Node> wrap_const();
+OPENVINO_API std::shared_ptr<Node> wrap_const();
 }  // namespace ov::pass::pattern

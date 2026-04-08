@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 
 namespace cldnn {
 
+using ScaledDotProductAttentionInputIdx = cldnn::scaled_dot_product_attention::ScaledDotProductAttentionInputIdx;
 template <>
 struct typed_program_node<scaled_dot_product_attention> : public typed_program_node_base<scaled_dot_product_attention> {
     using parent = typed_program_node_base<scaled_dot_product_attention>;

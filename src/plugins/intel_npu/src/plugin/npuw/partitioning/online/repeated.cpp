@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporationov::npuw::
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 
 using ov::npuw::online::Interconnect;
 using ov::npuw::online::MetaInterconnect;
+using ov::npuw::online::MetaInterconnectIO;
 using ov::npuw::online::Repeated;
 
 bool Repeated::Archetype::operator==(const Repeated::Archetype& other) const {
@@ -23,6 +24,12 @@ bool Repeated::Archetype::operator==(const Repeated::Archetype& other) const {
     }
 
     return true;
+}
+
+std::string Repeated::id() const {
+    std::ostringstream oss;
+    oss << std::uppercase << "REP" << std::hex << std::setw(4) << std::setfill('0') << m_id;
+    return oss.str();
 }
 
 void Repeated::exclude() {
@@ -56,4 +63,12 @@ bool MetaInterconnect::operator<(const MetaInterconnect& other) const {
                            other.output_port,
                            other.output_meta,
                            other.output_reptrack);
+}
+
+bool MetaInterconnectIO::operator==(const MetaInterconnectIO& other) const {
+    return other.output_imeta == output_imeta && other.output_ometa == output_ometa;
+}
+
+bool MetaInterconnectIO::operator<(const MetaInterconnectIO& other) const {
+    return std::make_tuple(output_imeta, output_ometa) < std::make_tuple(other.output_imeta, other.output_ometa);
 }

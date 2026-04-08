@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,10 +37,10 @@ public:
     struct SpaceToDepthAttrs {
         LayoutType layoutType = LayoutType::nspc;
         Mode mode = BLOCKS_FIRST;
-        size_t blockSize = 0lu;
-        size_t blockStep = 1lu;
-        size_t dataSize = 1lu;
-        size_t nSpatialDims = 0lu;
+        size_t blockSize = 0LU;
+        size_t blockStep = 1LU;
+        size_t dataSize = 1LU;
+        size_t nSpatialDims = 0LU;
         VectorDims srcBlockedDims;
         VectorDims destBlockedDims;
         [[nodiscard]] size_t hash() const;
@@ -54,8 +54,8 @@ private:
     SpaceToDepthAttrs attrs;
 
     struct SpaceToDepthExecutor final {
-        SpaceToDepthExecutor(const SpaceToDepthAttrs& attrs);
-        void exec(const uint8_t* srcData, uint8_t* dstData, int MB);
+        explicit SpaceToDepthExecutor(const SpaceToDepthAttrs& attrs);
+        void exec(const uint8_t* srcData, uint8_t* dstData, int MB, const CpuParallelPtr& cpuParallel);
         ~SpaceToDepthExecutor() = default;
 
     private:

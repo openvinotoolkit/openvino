@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "ocl_kernel.hpp"
 #include "ocl_common.hpp"
+#include "ocl_memory.hpp"
 
 #include <cassert>
 #include <string>
@@ -45,6 +46,15 @@ inline cl::NDRange toNDRange(const std::vector<size_t>& v) {
         default:
             return cl::NullRange;
     }
+}
+
+
+cl_int set_kernel_arg(ocl_kernel_type& kernel, uint32_t idx, uint32_t size) {
+    if (size == 0)
+        return CL_INVALID_ARG_VALUE;
+
+    GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set arg " << idx << " local memory size : " << size << std::endl;
+    return kernel.setArg(idx, size, NULL);
 }
 
 cl_int set_kernel_arg(ocl_kernel_type& kernel, uint32_t idx, cldnn::memory::cptr mem) {
@@ -174,6 +184,12 @@ void set_arguments_impl(ocl_kernel_type& kernel,
             case args_t::SHAPE_INFO:
                 status = set_kernel_arg(kernel, i, data.shape_info);
                 break;
+            case args_t::LOCAL_MEMORY_SIZE:
+                OPENVINO_ASSERT(args[i].index < data.local_memory_args->size() && data.local_memory_args->at(args[i].index),
+                                "The allocated local memory is necessary to set kernel arguments.");
+                status = set_kernel_arg(kernel, i,  data.local_memory_args->at(args[i].index));
+                break;
+                break;
             default:
                 break;
         }
@@ -224,7 +240,11 @@ dnnl::stream& ocl_stream::get_onednn_stream() {
     OPENVINO_ASSERT(m_queue_type == QueueTypes::in_order, "[GPU] Can't create onednn stream handle as onednn doesn't support out-of-order queue");
     OPENVINO_ASSERT(_engine.get_device_info().vendor_id == INTEL_VENDOR_ID, "[GPU] Can't create onednn stream handle as for non-Intel devices");
     if (!_onednn_stream) {
+#ifdef OV_GPU_WITH_ZE_RT
+        OPENVINO_THROW("[GPU] Using OCL OneDNN API with L0 runtime");
+#else
         _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ocl_interop::make_stream(_engine.get_onednn_engine(), _command_queue.get()));
+#endif
     }
 
     return *_onednn_stream;
@@ -271,12 +291,7 @@ event::ptr ocl_stream::enqueue_kernel(kernel& kernel,
     std::vector<cl::Event> dep_events;
     std::vector<cl::Event>* dep_events_ptr = nullptr;
     if (m_sync_method == SyncMethods::events) {
-        for (auto& dep : deps) {
-            if (auto ocl_base_ev = std::dynamic_pointer_cast<ocl_base_event>(dep)) {
-                if (ocl_base_ev->get().get() != nullptr)
-                    dep_events.push_back(ocl_base_ev->get());
-            }
-        }
+        dep_events = utils::get_cl_events(deps);
         dep_events_ptr = &dep_events;
     } else if (m_sync_method == SyncMethods::barriers) {
         sync_events(deps, is_output);
@@ -318,13 +333,7 @@ event::ptr ocl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool 
 
     if (m_sync_method == SyncMethods::events) {
         cl::Event ret_ev;
-        std::vector<cl::Event> dep_events;
-        for (auto& dep : deps) {
-            if (auto ocl_base_ev = dynamic_cast<ocl_base_event*>(dep.get()))
-                if (ocl_base_ev->get().get() != nullptr)
-                    dep_events.push_back(ocl_base_ev->get());
-        }
-
+        std::vector<cl::Event> dep_events = utils::get_cl_events(deps);
         try {
             if (dep_events.empty()) {
                 return create_user_event(true);
@@ -356,6 +365,10 @@ event::ptr ocl_stream::create_user_event(bool set) {
 event::ptr ocl_stream::create_base_event() {
     cl::Event ret_ev;
     return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
+}
+
+std::unique_ptr<surfaces_lock> ocl_stream::create_surfaces_lock(const std::vector<memory::ptr> &mem) const {
+    return std::unique_ptr<ocl::ocl_surfaces_lock>(new ocl::ocl_surfaces_lock(mem, *this));
 }
 
 void ocl_stream::flush() const {

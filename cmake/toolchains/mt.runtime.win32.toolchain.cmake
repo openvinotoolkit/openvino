@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -44,8 +44,6 @@ if(use_static_runtime)
             endif()
         endforeach()
     endforeach()
-    set(OV_C_CXX_FLAGS "${OV_C_CXX_FLAGS} /sdl /guard:cf")
-    set(OV_LINKER_FLAGS "${OV_LINKER_FLAGS} /guard:cf")
 endif()
 
 macro(ov_set_msvc_runtime var value)

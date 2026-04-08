@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,7 @@ public:
 
 class CPURuntimeConfigurator : public ov::snippets::RuntimeConfigurator {
 public:
-    CPURuntimeConfigurator(ov::intel_cpu::MultiCacheWeakPtr cache);
+    explicit CPURuntimeConfigurator(ov::intel_cpu::MultiCacheWeakPtr cache);
 
     /**
      * @brief Calculate Loop parameters of Loop emitters and update these values in CPURuntimeConfig

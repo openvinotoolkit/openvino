@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,14 @@ public:
     ScaledDotProductAttention() = default;
 
     ScaledDotProductAttention(const OutputVector& inputs, bool causal);
+
+    ScaledDotProductAttention(const Output<Node>& query,
+                              const Output<Node>& key,
+                              const Output<Node>& value,
+                              const Output<Node>& attn_mask,
+                              const Output<Node>& scale,
+                              const Output<Node>& sink,
+                              bool causal);
 
     ScaledDotProductAttention(const Output<Node>& query,
                               const Output<Node>& key,

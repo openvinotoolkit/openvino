@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 #include <unordered_set>
 #include <utility>
 
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -78,7 +79,7 @@ public:
  */
 class MemoryBlockWithReuse : public IMemoryBlock {
 public:
-    MemoryBlockWithReuse(int numa_node = -1) : m_data(nullptr, release), numa_node(numa_node) {}
+    explicit MemoryBlockWithReuse(int numa_node = -1) : m_data(nullptr, release), numa_node(numa_node) {}
     [[nodiscard]] void* getRawPtr() const noexcept override;
     void setExtBuff(void* ptr, size_t size) override;
     bool resize(size_t size) override;
@@ -88,7 +89,7 @@ public:
 
 private:
     bool m_useExternalStorage = false;
-    size_t m_memUpperBound = 0ul;
+    size_t m_memUpperBound = 0UL;
     std::unique_ptr<void, void (*)(void*)> m_data;
     int numa_node;
 
@@ -217,8 +218,8 @@ public:
     }
 
     template <typename T,
-              std::enable_if_t<!std::is_pointer_v<T> && !std::is_reference_v<T>, int> = 0,
-              std::enable_if_t<std::is_base_of_v<MemoryDesc, T>, int> = 0>
+              typename = std::enable_if_t<!std::is_pointer_v<T> && !std::is_reference_v<T> &&
+                                          std::is_base_of_v<MemoryDesc, T>>>
     [[nodiscard]] std::shared_ptr<T> getDescWithType() const;
 };
 
@@ -378,7 +379,7 @@ public:
 
     private:
         bool m_use_external_storage = false;
-        size_t m_str_upper_bound = 0lu;
+        size_t m_str_upper_bound = 0LU;
         std::unique_ptr<OvString, void (*)(OvString*)> m_data;
 
         static void release(OvString* ptr) {}
@@ -459,6 +460,7 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
                          int dim,
                          int w_rank,
                          int w_size,
+                         const CpuParallelPtr& cpu_parallel,
                          bool need_fill = true);
 
 }  // namespace ov::intel_cpu

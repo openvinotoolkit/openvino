@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,11 +17,11 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/grn.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -46,19 +46,13 @@ GRN::GRN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     }
 
     const auto grn = ov::as_type_ptr<const ov::op::v0::GRN>(op);
-    if (grn == nullptr) {
-        THROW_CPU_NODE_ERR("is not an instance of GRN from v0.");
-    }
+    CPU_NODE_ASSERT(grn, "is not an instance of GRN from v0.");
 
-    if (inputShapes.size() != 1 || outputShapes.size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
-    }
+    CPU_NODE_ASSERT(all_of(1U, inputShapes.size(), outputShapes.size()), "has incorrect number of input/output edges!");
 
     const auto dataRank = getInputShapeAtPort(0).getRank();
 
-    if (dataRank != getOutputShapeAtPort(0).getRank()) {
-        THROW_CPU_NODE_ERR("has input/output rank mismatch");
-    }
+    CPU_NODE_ASSERT(dataRank == getOutputShapeAtPort(0).getRank(), "has input/output rank mismatch");
 
     bias = grn->get_bias();
 }
@@ -77,23 +71,15 @@ void GRN::prepareParams() {
     const auto& dataMemPtr = getSrcMemoryAtPort(0);
     const auto& dstMemPtr = getDstMemoryAtPort(0);
 
-    if (!dataMemPtr || !dataMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined input memory");
-    }
-    if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined output memory");
-    }
-    if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor");
-    }
+    CPU_NODE_ASSERT(dataMemPtr && dataMemPtr->isDefined(), "has undefined input memory");
+    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined output memory");
+    CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor(), "has unidentified preferable primitive descriptor");
 
     const VectorDims& dataDims = dataMemPtr->getStaticDims();
     const VectorDims& dstDims = dstMemPtr->getStaticDims();
 
     for (size_t i = 0; i < dataDims.size(); ++i) {
-        if (dataDims[i] != dstDims[i]) {
-            THROW_CPU_NODE_ERR("hsd input/output tensors dimensions mismatch");
-        }
+        CPU_NODE_ASSERT(dataDims[i] == dstDims[i], "hsd input/output tensors dimensions mismatch");
     }
 
     if (!dataDims.empty()) {
@@ -115,10 +101,11 @@ void GRN::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 void GRN::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto& cpu_parallel = context->getCpuParallel();
     const auto* src_data = getSrcDataAtPortAs<const float>(0);
     auto* dst_data = getDstDataAtPortAs<float>(0);
 
-    parallel_for3d(N, H, W, [&](int b, int h, int w) {
+    cpu_parallel->parallel_for3d(N, H, W, [&](int b, int h, int w) {
         double variance = 0;
         for (int c = 0; c < C; c++) {
             variance += std::pow(src_data[b * C * H * W + c * H * W + h * W + w], 2);

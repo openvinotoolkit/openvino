@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@ VariableState::VariableState(const VariableStateInfo& info, RemoteContextImpl::P
     , m_layout(info.m_layout)
     , m_user_specified_type(info.m_user_specified_type)
     , m_shape_predictor(shape_predictor)
+    , m_prim_inst(info.m_release_variable_inst)
     , m_transpose_required(info.transpose_required)
     , m_initial_layout(info.m_layout) {
     update_device_buffer();
@@ -28,6 +29,11 @@ VariableState::VariableState(const VariableStateInfo& info, RemoteContextImpl::P
 void VariableState::reset() {
     m_is_set = false;
     set_layout(m_initial_layout);
+    for (auto& user : m_prim_inst) {
+        if (const auto prim = user.lock(); prim) {
+            prim->release_variable();
+        }
+    }
 }
 
 cldnn::memory::ptr VariableState::get_memory() const {
@@ -62,8 +68,8 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
     for (size_t i = 0; i < src_rank; i++) {
         dynamic_pad_dims[i] = m_layout.data_padding._dynamic_dims_mask[i];
     }
-    m_layout.data_padding = cldnn::padding(std::vector<int32_t>(src_rank, 0),
-                                           std::vector<int32_t>(src_rank, 0),
+    m_layout.data_padding = cldnn::padding(std::vector<ov::Dimension::value_type>(src_rank, 0),
+                                           std::vector<ov::Dimension::value_type>(src_rank, 0),
                                            dynamic_pad_dims);
     auto src_stride = state->get_strides();
     for (size_t i = 0; i < src_rank; ++i) {
@@ -79,8 +85,8 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
 
     // check whether the src tensor is padded
     std::vector<size_t> src_stride_no_pad(src_rank, 1);
-    std::vector<int32_t> upper_pad(src_rank, 0);
-    std::vector<int32_t> lower_pad(src_rank, 0);
+    std::vector<ov::Dimension::value_type> upper_pad(src_rank, 0);
+    std::vector<ov::Dimension::value_type> lower_pad(src_rank, 0);
     for (int32_t i = static_cast<int32_t>(src_stride.size()) - 1; i >= 0; --i) {
         if (i <= static_cast<int32_t>(src_stride.size()) - 2)
             src_stride_no_pad[i] = src_stride_no_pad[i + 1] * src_shape[i + 1];
@@ -88,8 +94,8 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
             OPENVINO_ASSERT(src_stride[i] > src_stride_no_pad[i]);
             size_t padded_size = src_stride[i] / src_stride[i + 1];
             size_t non_padded_size = src_stride_no_pad[i] / src_stride_no_pad[i + 1];
-            int32_t pad_dim = i + 1;
-            upper_pad[pad_dim] = static_cast<int32_t>(padded_size) - static_cast<int32_t>(non_padded_size);
+            ov::Dimension::value_type pad_dim = i + 1;
+            upper_pad[pad_dim] = static_cast<ov::Dimension::value_type>(padded_size) - static_cast<ov::Dimension::value_type>(non_padded_size);
         }
     }
     cldnn::padding src_padd = cldnn::padding(lower_pad, upper_pad, 0.f);

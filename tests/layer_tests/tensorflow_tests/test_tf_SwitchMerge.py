@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -100,7 +100,5 @@ class TestSwitchMergeWithVariablePredicate(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_switch_merge_with_variable_predicate(self, x_shape, cond_shape, cond_value,
                                                   ie_device, precision, ir_version, temp_dir):
-        if ie_device == 'GPU':
-            pytest.skip("156244: accuracy error on GPU")
         self._test(*self.switch_merge_with_variable_predicate_net(x_shape, cond_shape, cond_value),
                    ie_device, precision, ir_version, temp_dir=temp_dir)

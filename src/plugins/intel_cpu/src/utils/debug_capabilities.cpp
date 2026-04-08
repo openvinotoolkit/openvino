@@ -1,5 +1,4 @@
-
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <oneapi/dnnl/dnnl_common_types.h>
@@ -22,6 +21,7 @@
 
 #include "cpu_types.h"
 #include "memory_control.hpp"
+#include "nodes/executors/eltwise_config.hpp"
 #include "nodes/node_config.h"
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/attribute_visitor.hpp"
@@ -30,6 +30,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
+#include "utils/general_utils.h"
 #ifdef CPU_DEBUG_CAPS
 
 #    include <iomanip>
@@ -106,7 +107,7 @@ DebugLogEnabled::DebugLogEnabled(const char* file, const char* func, int line, c
     const char* p1 = p0;
     while (*p0 != 0) {
         p1 = p0;
-        while (*p1 != ';' && *p1 != 0) {
+        while (none_of(*p1, ';', 0)) {
             ++p1;
         }
         std::string pattern(p0, p1 - p0);
@@ -218,7 +219,7 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
             std::stringstream ss;
             ss << ptr->getData();
             ret = ss.str();
-        } catch (const std::exception& e) {
+        } catch (const std::exception&) {
             ret = "?";
         }
         return ret;
@@ -372,10 +373,10 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
            << ", Gamma=" << eltwise_node->getGamma() << ", BroadcastingPolicy=";
 
         switch (eltwise_node->getBroadcastingPolicy()) {
-        case intel_cpu::node::Eltwise::BroadcastingPolicy::PerChannel:
+        case intel_cpu::EltwiseBroadcastingPolicy::PerChannel:
             os << "PerChannel";
             break;
-        case intel_cpu::node::Eltwise::BroadcastingPolicy::PerTensor:
+        case intel_cpu::EltwiseBroadcastingPolicy::PerTensor:
             os << "PerTensor";
             break;
         default:
@@ -388,7 +389,6 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
 
     // last line(s): fused layers
     os << " " << node.getOriginalLayers();
-    os << " " << node.getParallelDomain();
 
     if (node.PerfCounter().count()) {
         os << " latency:" << node.PerfCounter().avg() << "(us) x" << node.PerfCounter().count();
@@ -434,7 +434,7 @@ class OstreamAttributeVisitor : public ov::AttributeVisitor {
     std::ostream& os;
 
 public:
-    OstreamAttributeVisitor(std::ostream& os) : os(os) {}
+    explicit OstreamAttributeVisitor(std::ostream& os) : os(os) {}
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
         if (auto* a = ov::as_type<ov::AttributeAdapter<std::set<std::string>>>(&adapter)) {
@@ -500,7 +500,7 @@ public:
     template <class Container>
     std::string join(const Container& strs) {
         std::stringstream ss;
-        ss << "[" << ov::intel_cpu::join(strs, ',') << "]";
+        ss << "[" << ov::util::join(strs, ",") << "]";
         return ss.str();
     }
 };
@@ -561,9 +561,10 @@ std::ostream& operator<<(std::ostream& os, const PrintableModel& model) {
                 auto sz = shape_size(constop->get_shape());
                 if (sz < 9) {
                     sep = "";
-                    for (const auto& v : constop->get_value_strings()) {
-                        os << sep << v;
-                        sep = ",";
+                    if (constop->get_element_type().is_dynamic()) {
+                        os << "...";
+                    } else {
+                        os << ov::util::join(constop->get_value_strings(), ",");
                     }
                 } else {
                     os << "...";
@@ -720,17 +721,6 @@ std::ostream& operator<<(std::ostream& os, const MemoryStatisticsRecord& record)
     os << "Optimal total size: " << record.optimal_total_size << " bytes\n";
     os << "Max region size: " << record.max_region_size << " bytes\n";
     return os;
-}
-
-void print_dnnl_memory(const dnnl::memory& memory, const size_t size, const int id, const char* message) {
-    const size_t s = memory.get_desc().get_size() / sizeof(float);
-    std::cout << message << " " << id << " size: " << s << ", values: ";
-    auto* m = reinterpret_cast<float*>(memory.get_data_handle());
-    for (size_t i = 0; i < std::min(s, size); i++) {
-        std::cout << *m << " ";
-        m++;
-    }
-    std::cout << "\n";
 }
 
 }  // namespace ov::intel_cpu

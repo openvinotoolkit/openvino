@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,11 +8,7 @@
 namespace ov {
 namespace test {
 std::string SpaceToBatchLayerTest::getTestCaseName(const testing::TestParamInfo<spaceToBatchParamsTuple> &obj) {
-    std::vector<InputShape> input_shapes;
-    std::vector<int64_t> block_shapes, pads_begin, pads_end;
-    ov::element::Type model_type;
-    std::string target_device;
-    std::tie(block_shapes, pads_begin, pads_end, input_shapes, model_type, target_device) = obj.param;
+    const auto& [block_shapes, pads_begin, pads_end, input_shapes, model_type, target_device] = obj.param;
     std::ostringstream result;
     result << "IS=(";
     for (size_t i = 0lu; i < input_shapes.size(); i++) {
@@ -36,10 +32,8 @@ std::string SpaceToBatchLayerTest::getTestCaseName(const testing::TestParamInfo<
 }
 
 void SpaceToBatchLayerTest::SetUp() {
-    std::vector<InputShape> input_shapes;
-    std::vector<int64_t> block_shapes, pads_begin, pads_end;
-    ov::element::Type model_type;
-    std::tie(block_shapes, pads_begin, pads_end, input_shapes, model_type, targetDevice) = this->GetParam();
+    const auto& [block_shapes, pads_begin, pads_end, input_shapes, model_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes(input_shapes);
 

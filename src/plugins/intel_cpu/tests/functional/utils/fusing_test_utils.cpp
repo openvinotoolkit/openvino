@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,12 +8,9 @@
 
 namespace CPUTestUtils {
 
-std::string CpuTestWithFusing::getTestCaseName(fusingSpecificParams params) {
+std::string CpuTestWithFusing::getTestCaseName(const fusingSpecificParams& params) {
+    const auto& [postOpMgrPtr, fusedOps] = params;
     std::ostringstream result;
-    std::vector<std::string> fusedOps;
-    std::shared_ptr<postOpMgr> postOpMgrPtr;
-    std::tie(postOpMgrPtr, fusedOps) = params;
-
     if (postOpMgrPtr) {
         auto postOpsNames = postOpMgrPtr->getFusedOpsNames();
         if (!postOpsNames.empty()) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,17 +25,10 @@ typedef std::tuple<
 class NonZeroLayerCPUTest : public testing::WithParamInterface<NonZeroLayerCPUTestParamsSet>,
                           virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<NonZeroLayerCPUTestParamsSet> obj) {
-        NonZeroLayerTestParams basicParamsSet;
-        std::pair<size_t, size_t> genData;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, genData, cpuParams) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<NonZeroLayerCPUTestParamsSet>& obj) {
+        const auto& [basicParamsSet, genData, cpuParams] = obj.param;
         std::string td;
-        ElementType netType = ElementType::dynamic;
-        InputShape inputShape;
-
-        std::tie(inputShape, netType) = basicParamsSet;
-
+        const auto& [inputShape, netType] = basicParamsSet;
         std::ostringstream result;
         result << "IS=";
         result  << ov::test::utils::partialShape2str({inputShape.first}) << "_";
@@ -70,15 +63,9 @@ protected:
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        NonZeroLayerTestParams basicParamsSet;
-        std::pair<size_t, size_t> genData;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, genData, cpuParams) = this->GetParam();
+        const auto& [basicParamsSet, genData, cpuParams] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        ElementType netType = ElementType::dynamic;
-        InputShape inputShape;
-        std::tie(inputShape, netType) = basicParamsSet;
-
+        const auto& [inputShape, netType] = basicParamsSet;
         std::tie(startFrom, range) = genData;
 
         init_input_shapes({inputShape});
@@ -92,7 +79,7 @@ protected:
         // real runtime precision is still U8
         selectedType = makeSelectedTypeStr("ref", netType == ElementType::u8 ? ElementType::i8 : netType);
         inputParams[0]->set_friendly_name("input");
-        function = makeNgraphFunction(netType, inputParams, nonZero, "NonZero");
+        function = create_ov_model(netType, inputParams, nonZero, "NonZero");
     }
 };
 

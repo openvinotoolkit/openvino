@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
+#include "common_test_utils/subgraph_builders/llm_builders.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/parameter.hpp"
@@ -70,30 +71,30 @@ public:
         const bool with_scale = p.with_scale;
         const bool compressed = p.compressed;
 
-        auto model = tests::make_llm_kv_cache_sdpa_pattern(ov::Dimension::dynamic(),
-                                                           n_heads,
-                                                           k_features,
-                                                           v_features,
-                                                           element_type,
-                                                           qkv_order,
-                                                           causal,
-                                                           with_mask,
-                                                           with_scale,
-                                                           stateful,
-                                                           p.with_rearrange,
-                                                           p.num_groups);
-        auto ref_model = tests::make_llm_kv_cache_sdpa_pattern(ov::Dimension::dynamic(),
-                                                               n_heads,
-                                                               k_features,
-                                                               v_features,
-                                                               element_type,
-                                                               qkv_order,
-                                                               causal,
-                                                               with_mask,
-                                                               with_scale,
-                                                               !stateful,
-                                                               p.with_rearrange,
-                                                               p.num_groups);
+        auto model = ov::test::utils::make_llm_kv_cache_sdpa_pattern(ov::Dimension::dynamic(),
+                                                                     n_heads,
+                                                                     k_features,
+                                                                     v_features,
+                                                                     element_type,
+                                                                     qkv_order,
+                                                                     causal,
+                                                                     with_mask,
+                                                                     with_scale,
+                                                                     stateful,
+                                                                     p.with_rearrange,
+                                                                     p.num_groups);
+        auto ref_model = ov::test::utils::make_llm_kv_cache_sdpa_pattern(ov::Dimension::dynamic(),
+                                                                         n_heads,
+                                                                         k_features,
+                                                                         v_features,
+                                                                         element_type,
+                                                                         qkv_order,
+                                                                         causal,
+                                                                         with_mask,
+                                                                         with_scale,
+                                                                         !stateful,
+                                                                         p.with_rearrange,
+                                                                         p.num_groups);
 
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
@@ -159,7 +160,7 @@ public:
         auto compare_tensors = [&model, &inference_precision](const std::vector<ov::Tensor> expected,
                                                               const std::vector<ov::Tensor>& actual) {
             ASSERT_EQ(expected.size(), actual.size());
-            auto compareMap = ov::test::utils::getCompareMap();
+            const auto& compareMap = ov::test::utils::getCompareMap();
             for (size_t i = 0; i < expected.size(); i++) {
                 auto it = compareMap.find(ov::op::v13::ScaledDotProductAttention::get_type_info_static());
                 ASSERT_NE(it, compareMap.end());
@@ -379,6 +380,9 @@ std::vector<Params> get_test_params() {
     p.push_back({with_rearrange, with_mask, !with_scale, !causal, compressed, 1, ov::element::Type_t::f16, 10, 4, 64, 64, 1, {1, 2, 0, 3}});
     p.push_back({with_rearrange, with_mask, !with_scale, !causal, compressed, 1, ov::element::Type_t::f16, 10, 4, 128, 96, 1, {1, 2, 0, 3}});
 
+    // Compressed beam search (batch > 1 exercises indirect sdpa_opt path on IMMAD)
+    p.push_back({with_rearrange, with_mask, !with_scale, !causal, compressed, 2, ov::element::Type_t::f16, 10, 4, 64, 64, 1, {0, 2, 1, 3}});
+
     /* -- causal mask -- */
 
     p.push_back({with_rearrange, !with_mask, !with_scale, causal, !compressed, 1, ov::element::Type_t::f16, 10, 1, 64, 64, 1, {0, 1, 2, 3}});
@@ -401,6 +405,9 @@ std::vector<Params> get_test_params() {
     p.push_back({with_rearrange, with_mask, !with_scale, causal, compressed, 1, ov::element::Type_t::f16, 10, 4, 128, 96, 1, {1, 2, 0, 3}});
     p.push_back({with_rearrange, with_mask, !with_scale, causal, compressed, 1, ov::element::Type_t::f16, 10, 4, 128, 64, 1, {0, 1, 2, 3}});
     p.push_back({with_rearrange, with_mask, !with_scale, causal, compressed, 1, ov::element::Type_t::f16, 10, 4, 64, 64, 1, {1, 2, 0, 3}});
+
+    // Compressed beam search (batch > 1 exercises indirect sdpa_opt path on IMMAD)
+    p.push_back({with_rearrange, with_mask, !with_scale, causal, compressed, 2, ov::element::Type_t::f16, 10, 4, 64, 64, 1, {0, 2, 1, 3}});
 
     return p;
 }

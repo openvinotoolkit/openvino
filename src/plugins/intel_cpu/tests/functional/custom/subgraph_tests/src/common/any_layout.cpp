@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace test {
 
 class AnyLayoutOnInputsAndOutputs : public ::testing::TestWithParam<ov::Shape> {
 public:
-    static std::string getTestCaseName(::testing::TestParamInfo<ov::Shape> obj) {
+    static std::string getTestCaseName(const ::testing::TestParamInfo<ov::Shape>& obj) {
         std::ostringstream result;
         result << "shape=" << obj.param;
         return result.str();

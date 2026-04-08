@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # mypy: ignore-errors
@@ -15,7 +15,12 @@ from torch.fx import GraphModule
 from openvino.frontend import FrontEndManager
 from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 from openvino import Core, Type, PartialShape, serialize
-from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_config, _is_cache_dir_in_config
+from openvino.frontend.pytorch.torchdynamo.backend_utils import (
+    _get_cache_dir,
+    _get_device,
+    _get_config,
+    _is_cache_dir_in_config,
+)
 
 logger = logging.getLogger(__name__)
 

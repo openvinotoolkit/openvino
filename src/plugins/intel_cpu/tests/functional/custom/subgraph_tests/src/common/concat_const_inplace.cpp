@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ namespace test {
 class ConcatConstantInPlaceTest : public testing::WithParamInterface<ov::element::Type>,
                                   virtual public SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::element::Type> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::element::Type>& obj) {
         std::ostringstream result;
         result << "ConcatConstantInPlaceTest" << obj.param.get_type_name();
         return result.str();

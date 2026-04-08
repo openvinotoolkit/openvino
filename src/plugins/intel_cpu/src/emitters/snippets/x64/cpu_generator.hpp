@@ -12,6 +12,7 @@
 
 #include "cache/multi_cache.h"
 #include "cpu/x64/jit_generator.hpp"
+#include "emitters/snippets/common/compiled_snippet_cpu.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "snippets/emitter.hpp"
@@ -24,15 +25,7 @@
 
 namespace ov::intel_cpu {
 
-class CompiledSnippetCPU : public snippets::CompiledSnippet {
-    const std::unique_ptr<const dnnl::impl::cpu::x64::jit_generator> h_compiled;
-
-public:
-    [[nodiscard]] const uint8_t* get_code() const override;
-    [[nodiscard]] size_t get_code_size() const override;
-    [[nodiscard]] bool empty() const override;
-    explicit CompiledSnippetCPU(std::unique_ptr<dnnl::impl::cpu::x64::jit_generator> h);
-};
+using CompiledSnippetCPU = ov::intel_cpu::CompiledSnippetCPUCommon<dnnl::impl::cpu::x64::jit_generator_t>;
 
 class CPUTargetMachine : public snippets::TargetMachine {
 public:
@@ -52,7 +45,7 @@ public:
 #endif
 
 private:
-    std::unique_ptr<dnnl::impl::cpu::x64::jit_generator> h;
+    std::unique_ptr<dnnl::impl::cpu::x64::jit_generator_t> h;
     dnnl::impl::cpu::x64::cpu_isa_t isa;
     ov::intel_cpu::MultiCacheWeakPtr compiled_kernel_cache;
 };
@@ -60,7 +53,7 @@ private:
 class CPUGenerator : public snippets::Generator {
 public:
     CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t isa, ov::intel_cpu::MultiCacheWeakPtr cache);
-    CPUGenerator(const std::shared_ptr<CPUTargetMachine>& target);
+    explicit CPUGenerator(const std::shared_ptr<CPUTargetMachine>& target);
     std::shared_ptr<Generator> clone() const override;
 
 protected:

@@ -1,19 +1,22 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "emitters/plugin/aarch64/jit_emitter.hpp"
+#include "cache/multi_cache.h"
+#include "emitters/snippets/aarch64/jit_binary_call_emitter.hpp"
 #include "emitters/snippets/aarch64/kernel_executors/gemm_copy_b.hpp"
+#include "snippets/emitter.hpp"
 
 namespace ov::intel_cpu::aarch64 {
-class jit_gemm_copy_b_emitter : public jit_emitter {
+class jit_gemm_copy_b_emitter : public jit_binary_call_emitter {
 public:
-    jit_gemm_copy_b_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_gemm_copy_b_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                             dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                             const ov::snippets::lowered::ExpressionPtr& expr,
-                            const snippets::KernelExecutorTablePtr& kernel_table);
+                            const snippets::KernelExecutorTablePtr& kernel_table,
+                            const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache);
 
     size_t get_inputs_count() const override {
         return 1;
@@ -25,11 +28,17 @@ public:
 protected:
     void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
+    template <typename ExecutorT>
+    void emit_call(const std::vector<size_t>& mem_ptrs_idxs) const;
 
-    const uintptr_t get_execute_function_ptr() const;
-    const uintptr_t get_compiled_kernel_ptr() const;
+    std::shared_ptr<GemmCopyBKaiKernelExecutorBase> m_kernel_executor = nullptr;
+    std::vector<size_t> m_memory_offsets;
+    std::vector<size_t> m_buffer_ids;
+    bool m_is_f16 = false;
 
-    std::shared_ptr<GemmCopyBKaiKernelExecutor> m_kernel_executor = nullptr;
+#ifdef SNIPPETS_DEBUG_CAPS
+    friend std::string init_info_jit_gemm_copy_b_emitter(const jit_gemm_copy_b_emitter* emitter);
+#endif
 };
 
 }  // namespace ov::intel_cpu::aarch64

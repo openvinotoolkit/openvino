@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 #include <cstddef>
 #include <exception>
 #include <memory>
-#include <sstream>
 #include <string>
 #include <unordered_set>
 #include <utility>
@@ -18,6 +17,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/util/common_util.hpp"
 #include "snippets/emitter.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_connector.hpp"
@@ -47,25 +47,29 @@ Expression::Expression(const std::shared_ptr<Node>& n,
 }
 
 const PortConnectorPtr& Expression::get_input_port_connector(size_t i) const {
-    assert(i < m_input_port_connectors.size() &&
-           "Failed to get input port connector: target input port must be less than input count!");
+    OPENVINO_ASSERT(i < m_input_port_connectors.size() &&
+                    "Failed to get input port connector: target input port must be less than input count!");
     return m_input_port_connectors[i];
 }
 const PortConnectorPtr& Expression::get_output_port_connector(size_t i) const {
-    assert(i < m_output_port_connectors.size() &&
-           "Failed to get output port connector: target output port must be less than output count!");
+    OPENVINO_ASSERT(i < m_output_port_connectors.size() &&
+                    "Failed to get output port connector: target output port must be less than output count!");
     return m_output_port_connectors[i];
 }
 
 const PortDescriptorPtr& Expression::get_input_port_descriptor(size_t i) const {
-    assert(i < m_input_port_descriptors.size() &&
-           "Failed to get input port descriptor: target input port must be less than input count!");
+    OPENVINO_ASSERT(i < m_input_port_descriptors.size() &&
+                    "Failed to get input port descriptor: target input port must be less than input count!");
     return m_input_port_descriptors[i];
 }
 const PortDescriptorPtr& Expression::get_output_port_descriptor(size_t i) const {
-    assert(i < m_output_port_descriptors.size() &&
-           "Failed to get output port descriptor: target output port must be less than output count!");
+    OPENVINO_ASSERT(i < m_output_port_descriptors.size() &&
+                    "Failed to get output port descriptor: target output port must be less than output count!");
     return m_output_port_descriptors[i];
+}
+
+ExpressionPtr Expression::get_input_expr_ptr(size_t i) const {
+    return get_input_port_connector(i)->get_source().get_expr();
 }
 
 std::shared_ptr<Node> Expression::get_node() const {
@@ -201,10 +205,12 @@ ExpressionPtr Expression::clone() const {
 }
 
 bool Expression::visit_attributes(AttributeVisitor& visitor) {
-    std::ostringstream in_regs, out_regs;
+    std::vector<Reg> in_regs, out_regs;
     std::vector<std::pair<std::string, ov::PartialShape>> shapes;
     std::vector<std::pair<std::string, std::string>> subtensors;
     std::vector<std::pair<std::string, std::vector<size_t>>> layouts;
+    in_regs.reserve(get_input_count());
+    out_regs.reserve(get_output_count());
     for (size_t i = 0; i < get_input_count(); i++) {
         const auto& desc = m_input_port_descriptors[i];
         const auto& shape = desc->get_shape();
@@ -221,8 +227,7 @@ bool Expression::visit_attributes(AttributeVisitor& visitor) {
         if (!layout.empty() && !utils::is_planar_layout(layout)) {
             layouts.emplace_back("in_layout_" + std::to_string(i), layout);
         }
-
-        in_regs << desc->get_reg() << " ";
+        in_regs.push_back(desc->get_reg());
     }
     for (size_t i = 0; i < get_output_count(); i++) {
         const auto& desc = m_output_port_descriptors[i];
@@ -240,17 +245,20 @@ bool Expression::visit_attributes(AttributeVisitor& visitor) {
         if (!layout.empty() && !utils::is_planar_layout(layout)) {
             layouts.emplace_back("out_layout_" + std::to_string(i), layout);
         }
-
-        out_regs << desc->get_reg() << " ";
+        out_regs.push_back(desc->get_reg());
     }
 
-    if (!in_regs.str().empty()) {
-        std::vector<std::string> tmp{in_regs.str()};
+    if (!in_regs.empty()) {
+        auto tmp = ov::util::join(in_regs, " ");
         visitor.on_attribute("in_regs", tmp);
     }
-    if (!out_regs.str().empty()) {
-        std::vector<std::string> tmp{out_regs.str()};
+    if (!out_regs.empty()) {
+        auto tmp = ov::util::join(out_regs, " ");
         visitor.on_attribute("out_regs", tmp);
+    }
+    if (!m_live_regs.empty()) {
+        auto tmp = ov::util::join(m_live_regs, " ");
+        visitor.on_attribute("live_regs", tmp);
     }
     for (auto& s : shapes) {
         visitor.on_attribute(s.first, s.second);

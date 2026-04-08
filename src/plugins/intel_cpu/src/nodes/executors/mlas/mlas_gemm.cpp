@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,7 +64,7 @@ static MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory,
         const std::string string_hash = format + "_" + std::to_string(weightsMemory->getSize()) + "_" +
                                         std::to_string(reinterpret_cast<uint64_t>(weightsMemory->getData()));
         DEBUG_LOG("MlasGemmExecutor: findOrCreate, string_hash: ", string_hash);
-        return *weightCache->findOrCreate(string_hash, create);
+        return MemoryPtr(*weightCache->findOrCreate(string_hash, create));
     }
 
     DEBUG_LOG("MlasGemmExecutor: Weights cache is not available");
@@ -103,8 +103,7 @@ bool MlasGemmExecutor::supports(const FCConfig& config) {
 }
 
 MlasGemmExecutor::MlasGemmExecutor(const FCAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context)
-    : m_attrs(attrs),
-      m_memoryArgs(memory),
+    : m_memoryArgs(memory),
       packedWeights(prepareWeightMemory(memory.at(ARG_WEI), context, !attrs.weightsNonTransposed)),
 
       N(batchDim(memory.at(ARG_WEI)->getStaticDims())),
@@ -151,7 +150,7 @@ void MlasGemmExecutor::moveMemToNumaNode(int numaNodeID) {
     }
     curNumaNode = numaNodeID;
     mbind_move(packedWeights, numaNodeID);
-    if (m_attrs.withBias) {
+    if (!m_memoryArgs.at(ARG_BIAS)->getDesc().empty()) {
         mbind_move(m_memoryArgs.at(ARG_BIAS), numaNodeID);
     }
 }

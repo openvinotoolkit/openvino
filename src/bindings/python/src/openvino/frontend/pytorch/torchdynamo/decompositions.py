@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # mypy: ignore-errors
@@ -29,12 +29,24 @@ def convolution_backward(
 
     # Compute the gradient of the input tensor
     grad_input = torch.nn.functional.conv_transpose2d(
-        grad_output, weight, stride=stride, padding=padding, dilation=dilation, groups=groups, output_padding=output_padding
+        grad_output,
+        weight,
+        stride=stride,
+        padding=padding,
+        dilation=dilation,
+        groups=groups,
+        output_padding=output_padding,
     )
 
     # Compute the gradient of the weight tensor
     grad_weight = torch.nn.functional.conv_transpose2d(
-        inp, weight.transpose(0, 1), stride=stride, padding=padding, dilation=dilation, groups=groups, output_padding=output_padding
+        inp,
+        weight.transpose(0, 1),
+        stride=stride,
+        padding=padding,
+        dilation=dilation,
+        groups=groups,
+        output_padding=output_padding,
     )
 
     # Compute the gradient of the bias tensor
@@ -121,7 +133,7 @@ def get_inf_decomposition_list():
 
 
 def get_export_decomposition_list():
-    # List of decompositions from torch._decomp.core_aten_decompositions
+    # list of decompositions from torch._decomp.core_aten_decompositions
     # removed _backward ops and ops supported without decomposition
     decomp = [
         torch.ops.aten.addcdiv,
@@ -299,11 +311,69 @@ def get_export_decomposition_list():
 
 
 def ops_to_not_decompose():
-    # List of operations that shouldn't be decomposed
+    # list of operations that shouldn't be decomposed because
+    # OpenVINO frontend handles them directly and more efficiently
     return [
-        torch.ops.aten.col2im.default,
+        # Activation functions - each maps to a single dedicated OV op
+        torch.ops.aten.celu.default,
+        torch.ops.aten.elu_.default,
+        torch.ops.aten.glu.default,
+        torch.ops.aten.hardsigmoid.default,
+        torch.ops.aten.hardswish.default,
+        torch.ops.aten.hardswish_.default,
+        torch.ops.aten.hardtanh_.default,
+        torch.ops.aten.leaky_relu_.default,
+        torch.ops.aten.log_sigmoid_forward.default,
+        torch.ops.aten.mish.default,
+        torch.ops.aten.silu.default,
+        torch.ops.aten.silu_.default,
+        # Normalization
         torch.ops.aten.linear.default,
         torch.ops.aten.rms_norm.default,
+        # Math and reduction ops with dedicated translators
+        torch.ops.aten.all.default,
+        torch.ops.aten.argsort.default,
+        torch.ops.aten.argsort.stable,
+        torch.ops.aten.baddbmm.default,
+        torch.ops.aten.dot.default,
+        torch.ops.aten.logaddexp.default,
+        torch.ops.aten.logsumexp.default,
+        torch.ops.aten.outer.default,
+        torch.ops.aten.rad2deg.default,
+        torch.ops.aten.std.correction,
+        # Spatial and structural ops
+        torch.ops.aten.channel_shuffle.default,
+        torch.ops.aten.col2im.default,
+        torch.ops.aten.pixel_shuffle.default,
+        torch.ops.aten.pixel_unshuffle.default,
+        torch.ops.aten.reflection_pad1d.default,
+        torch.ops.aten.reflection_pad2d.default,
+        torch.ops.aten.reflection_pad3d.default,
+        torch.ops.aten.roll.default,
+        # Index and scatter ops
+        torch.ops.aten.index_add.default,
+        torch.ops.aten.index_add_.default,
+        torch.ops.aten.index_copy.default,
+        torch.ops.aten.index_fill.int_Scalar,
+        torch.ops.aten.index_fill_.int_Scalar,
+        torch.ops.aten.masked_fill.Scalar,
+        torch.ops.aten.masked_fill.Tensor,
+        torch.ops.aten.masked_fill_.Scalar,
+        torch.ops.aten.masked_fill_.Tensor,
+        torch.ops.aten.select_scatter.default,
+        # Tensor creation and manipulation
+        torch.ops.aten.hstack.default,
+        torch.ops.aten.linalg_cross.default,
+        torch.ops.aten.linspace.default,
+        torch.ops.aten.one_hot.default,
+        torch.ops.aten.repeat_interleave.self_int,
+        torch.ops.aten.repeat_interleave.self_Tensor,
+        # Note: aten.take_along_dim.default is not listed here because
+        # the translator doesn't handle the 2-input case (dim=None)
+        torch.ops.aten.tril.default,
+        torch.ops.aten.triu.default,
+        torch.ops.aten.vstack.default,
+        # Upsampling / interpolation
         torch.ops.aten.upsample_nearest1d.default,
         torch.ops.aten.upsample_nearest1d.vec,
         torch.ops.aten.upsample_nearest2d.default,
@@ -314,5 +384,6 @@ def ops_to_not_decompose():
         torch.ops.aten.upsample_bilinear2d.vec,
         torch.ops.aten.upsample_trilinear3d.vec,
         torch.ops.aten.upsample_bicubic2d.vec,
+        # Attention
         torch.ops.aten.scaled_dot_product_attention.default,
     ]

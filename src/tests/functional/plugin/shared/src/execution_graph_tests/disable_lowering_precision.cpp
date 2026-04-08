@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,13 +22,10 @@
 
 namespace ExecutionGraphTests {
 
-std::string ExecGraphDisableLoweringPrecision::getTestCaseName(testing::TestParamInfo<ExecGraphDisableLoweringPrecisionSpecificParams> obj) {
+std::string ExecGraphDisableLoweringPrecision::getTestCaseName(const testing::TestParamInfo<ExecGraphDisableLoweringPrecisionSpecificParams>& obj) {
     std::ostringstream result;
-    bool disableLoweringPrecision;
-    std::string targetDevice;
-    ov::element::Type loweringPrecision;
 
-    std::tie(disableLoweringPrecision, targetDevice, loweringPrecision) = obj.param;
+    const auto& [disableLoweringPrecision, targetDevice, loweringPrecision] = obj.param;
     result << "matmul_disable_lowingprecision=" << disableLoweringPrecision << "_";
     result << "device=" << targetDevice << "_";
     result << "loweringPrecision=" << loweringPrecision.to_string();

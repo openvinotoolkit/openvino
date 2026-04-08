@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -265,7 +265,8 @@ void AutoSchedule::init() {
             }
         };
         m_executor->run(std::move(recycleTask));
-    } else if (m_context->m_device_priorities.size() != 1 && m_context->m_runtime_fallback) {
+    } else if (m_context->m_device_priorities.size() != 1 && m_context->m_str_devices_initial.size() != 1 &&
+               m_context->m_runtime_fallback) {
         // The performance will has some drop then m_passthrough_compiled_model when enable ENABLE_RUNTIME_FALLBACK
         for (auto&& device : m_context->m_device_priorities) {
             // initialize containers before run async task
@@ -275,7 +276,9 @@ void AutoSchedule::init() {
         }
         m_compile_context[ACTUALDEVICE].m_task();
     } else {
-        // only one device need to compile model, do not need to compile it async
+        // Only one device, or multiple devices of the same type (e.g., all GPU devices, including iGPU and dGPU), can
+        // use passthrough model; no need to compile asynchronously
+        LOG_INFO_TAG("Only one device or multiple devices of the same type will use passthrough compiled model");
         m_compile_context[ACTUALDEVICE].m_task();
         m_passthrough_compiled_model = m_compile_context[ACTUALDEVICE].m_compiled_model;
         if (!m_context->m_bind_buffer) {
@@ -321,8 +324,9 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     try {
         auto compile_start_time = std::chrono::high_resolution_clock::now();
         if (!(m_context->m_model_path.empty())) {
-            context.m_compiled_model =
-                m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
+            context.m_compiled_model = m_context->m_ov_core->compile_model(m_context->m_model_path,
+                                                                           device,
+                                                                           device_config);
         } else {
             context.m_compiled_model = m_context->m_ov_core->compile_model(model, device, device_config);
         }

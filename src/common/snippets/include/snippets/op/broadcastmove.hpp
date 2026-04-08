@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ class BroadcastMove : public ov::op::Op {
 public:
     OPENVINO_OP("BroadcastMove", "SnippetsOpset");
 
-    BroadcastMove(const Output<Node>& x, ov::Dimension bcast_dimension);
+    explicit BroadcastMove(const Output<Node>& x, ov::Dimension bcast_dimension);
     BroadcastMove() = default;
 
     bool visit_attributes(AttributeVisitor& visitor) override;

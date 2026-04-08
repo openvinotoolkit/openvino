@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,14 +20,8 @@ class SpaceToDepthLayerCPUTest : public testing::WithParamInterface<SpaceToDepth
                                  virtual public ov::test::SubgraphBaseTest,
                                  public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<SpaceToDepthLayerCPUTestParamSet> obj) {
-        InputShape shapes;
-        ElementType inType;
-        ov::op::v0::SpaceToDepth::SpaceToDepthMode mode;
-        std::size_t blockSize;
-        CPUSpecificParams cpuParams;
-        std::tie(shapes, inType, mode, blockSize, cpuParams) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<SpaceToDepthLayerCPUTestParamSet>& obj) {
+        const auto& [shapes, inType, mode, blockSize, cpuParams] = obj.param;
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
@@ -53,13 +47,7 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape shapes;
-        ElementType inType;
-        ov::op::v0::SpaceToDepth::SpaceToDepthMode mode;
-        std::size_t blockSize;
-        CPUSpecificParams cpuParams;
-        std::tie(shapes, inType, mode, blockSize, cpuParams) = this->GetParam();
-
+        const auto& [shapes, inType, mode, blockSize, cpuParams] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         if (selectedType.empty()) {
             selectedType = getPrimitiveType();
@@ -73,7 +61,7 @@ protected:
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
         }
         auto d2s = std::make_shared<ov::op::v0::SpaceToDepth>(params[0], mode, blockSize);
-        function = makeNgraphFunction(inType, params, d2s, "SpaceToDepthCPU");
+        function = create_ov_model(inType, params, d2s, "SpaceToDepthCPU");
     }
 };
 

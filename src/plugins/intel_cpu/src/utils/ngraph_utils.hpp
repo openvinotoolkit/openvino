@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,11 +38,9 @@ inline std::string getImplPriorityValue(const std::shared_ptr<ov::Node>& node) {
 }
 
 template <typename T>
-inline const std::shared_ptr<T> getNgraphOpAs(const std::shared_ptr<ov::Node>& op) {
+inline std::shared_ptr<T> getNgraphOpAs(const std::shared_ptr<ov::Node>& op) {
     auto typedOp = ov::as_type_ptr<T>(op);
-    if (!typedOp) {
-        OPENVINO_THROW("Can't get ngraph node ", op->get_type_name(), " with name ", op->get_friendly_name());
-    }
+    OPENVINO_ASSERT(typedOp, "Can't get ngraph node ", op->get_type_name(), " with name ", op->get_friendly_name());
     return typedOp;
 }
 

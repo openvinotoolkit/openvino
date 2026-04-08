@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -491,7 +491,7 @@ class TestConvertModelParamsParsing(unittest.TestCase):
     def test_mo_convert_params_parsing(self):
         ref_params = {
             'Optional parameters:': {'input_model', 'input', 'output', 'example_input',
-                                               'extension', 'verbose', 'share_weights'},
+                                     'extension', 'verbose', 'share_weights', 'dynamo'},
         }
 
         params = get_mo_convert_params()

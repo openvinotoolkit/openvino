@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -102,3 +102,8 @@ ov_dev_package_no_errors()
 
 # Don't threat deprecated API warnings as errors in 3rd party apps
 ov_deprecated_no_errors()
+
+unset(CMAKE_LIBRARY_OUTPUT_DIRECTORY)
+unset(CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
+unset(CMAKE_PDB_OUTPUT_DIRECTORY)
+unset(CMAKE_RUNTIME_OUTPUT_DIRECTORY)

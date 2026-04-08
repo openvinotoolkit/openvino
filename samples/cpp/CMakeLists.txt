@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -18,7 +18,7 @@ endif()
 
 project(Samples
         DESCRIPTION "OpenVINO Samples"
-        HOMEPAGE_URL "https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples.html"
+        HOMEPAGE_URL "https://docs.openvino.ai/2026/get-started/learn-openvino/openvino-samples.html"
         LANGUAGES C CXX)
 
 get_property(OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
@@ -59,7 +59,11 @@ endif()
 
 if(OpenVINO_SOURCE_DIR)
     # in case if samples are built from OV repo
-    set(OV_MAIN_SAMPLES_DIR "${OpenVINO_SOURCE_DIR}")
+    if (DEFINED OUTPUT_ROOT)
+        set(OV_MAIN_SAMPLES_DIR "${OUTPUT_ROOT}")
+    else()
+        set(OV_MAIN_SAMPLES_DIR "${OpenVINO_SOURCE_DIR}")
+    endif()
     set(OpenVINO_DIR "${CMAKE_BINARY_DIR}")
 else()
     # in case if samples are built out of OV repo
@@ -111,6 +115,10 @@ endif()
 if(TARGET gflags)
     set(GFLAGS_TARGET gflags)
 elseif(gflags_required)
+    # CMake 4.0 and higher will drop support for CMake versions <= 3.5.
+    # By explicitly setting CMAKE_POLICY_VERSION_MINIMUM, we ensure compatibility with dependencies like gflags,
+    # which require at least CMake 3.0.2, and avoid policy warnings or errors in future CMake versions.
+    set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
     set(GFLAGS_TARGET gflags_nothreads_static)
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
         add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)

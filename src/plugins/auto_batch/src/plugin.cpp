@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -345,6 +345,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model, co
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
+                                                         const ov::AnyMap& properties) const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model, const ov::AnyMap& properties) const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& properties) const {
     OPENVINO_NOT_IMPLEMENTED;

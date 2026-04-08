@@ -1,9 +1,9 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import openvino as ov
-import openvino.runtime.opset12 as ops
+import openvino.opset12 as ops
 
 INPUT_SIZE = 1_000_000  # Use bigger values if necessary, i.e.: 300_000_000
 

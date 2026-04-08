@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
@@ -42,13 +41,14 @@
 #include "utils/ngraph_utils.hpp"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include <cpu/x64/xbyak/xbyak.h>
+#    include <xbyak/xbyak.h>
 
 #    include <common/utils.hpp>
 
 #    include "cpu/x64/jit_generator.hpp"
 #    include "emitters/plugin/x64/jit_emitter.hpp"
 #    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#    include "utils/cpu_utils.hpp"
 #endif
 
 using namespace dnnl;
@@ -98,16 +98,16 @@ static inline bool isFloatCompatible(memory::data_type type) {
 }
 
 template <cpu_isa_t isa>
-struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generator {
+struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_topk_kernel_f32)
 
     explicit jit_uni_topk_kernel_f32(jit_topk_config_params jcp)
         : jit_uni_topk_kernel(jcp),
-          jit_generator(jit_name()) {}
+          jit_generator_t(jit_name()) {}
 
     void create_ker() override {
-        jit_generator::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        jit_generator_t::create_kernel();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
@@ -164,7 +164,7 @@ struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generato
 private:
     using Vmm =
         typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
-    size_t vlen = cpu_isa_traits<isa>::vlen;
+    size_t vlen = cpu_isa_traits_t<isa>::vlen;
     dnnl::memory::data_type data_type = {};
     ov::element::Type precision_in_reg;
 
@@ -1880,7 +1880,7 @@ private:
 
 bool TopK::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v1::TopK::get_type_info_static(),
                     ov::op::v3::TopK::get_type_info_static(),
                     ov::op::v11::TopK::get_type_info_static())) {
@@ -1901,7 +1901,7 @@ bool TopK::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
             errorMessage = "Unsupported mode.";
             return false;
         }
-        if (!one_of(topKOp->get_sort_type(),
+        if (none_of(topKOp->get_sort_type(),
                     ov::op::TopKSortType::NONE,
                     ov::op::TopKSortType::SORT_VALUES,
                     ov::op::TopKSortType::SORT_INDICES)) {
@@ -1927,9 +1927,7 @@ TopK::TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
 
         if (!isDynamicNgraphNode(op)) {
             auto topKConst = ov::as_type_ptr<const ov::op::v0::Constant>(topKOp->get_input_node_shared_ptr(TOPK_K));
-            if (!topKConst) {
-                THROW_CPU_NODE_ERR("gets non-constant second tensor in static shape mode!");
-            }
+            CPU_NODE_ASSERT(topKConst, "gets non-constant second tensor in static shape mode!");
         }
 
         axis = topKOp->get_axis();
@@ -1949,28 +1947,22 @@ TopK::TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
         vec_idx_seq.clear();
         vec_idx_block.clear();
 
-        if (inputShapes.size() != 2 || outputShapes.size() < 2) {
-            THROW_CPU_NODE_ERR("gets incorrect number of input/output edges!");
-        }
+        CPU_NODE_ASSERT(inputShapes.size() == 2 && outputShapes.size() >= 2,
+                        "gets incorrect number of input/output edges!");
 
-        if (getInputShapeAtPort(TOPK_DATA).getRank() != getOutputShapeAtPort(TOPK_DATA).getRank()) {
-            THROW_CPU_NODE_ERR("gets incorrect number of input/output dimensions!");
-        }
+        CPU_NODE_ASSERT(getInputShapeAtPort(TOPK_DATA).getRank() == getOutputShapeAtPort(TOPK_DATA).getRank(),
+                        "gets incorrect number of input/output dimensions!");
 
-        if (getInputShapeAtPort(TOPK_K).getRank() != 1) {
-            THROW_CPU_NODE_ERR("gets incorrect index vector dimension! Index vector should be 1 dimension.");
-        }
+        CPU_NODE_ASSERT(getInputShapeAtPort(TOPK_K).getRank() == 1,
+                        "gets incorrect index vector dimension! Index vector should be 1 dimension.");
 
-        if (out_dims != out_idx_dims) {
-            THROW_CPU_NODE_ERR("gets incorrect output tensor dimension sizes!");
-        }
+        CPU_NODE_ASSERT(out_dims == out_idx_dims, "gets incorrect output tensor dimension sizes!");
 
         if (axis < 0) {
             axis += in_dims_size;
         }
-        if (axis < 0 || axis >= static_cast<int>(in_dims_size)) {
-            THROW_CPU_NODE_ERR("gets incorrect input parameters dimensions and axis number!");
-        }
+        CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(in_dims_size),
+                        "gets incorrect input parameters dimensions and axis number!");
     } else {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
@@ -2077,24 +2069,16 @@ void TopK::preset_params() {
 void TopK::prepareParams() {
     auto dstMemPtr = getDstMemoryAtPort(TOPK_DATA);
     auto srcMemPtr = getSrcMemoryAtPort(TOPK_DATA);
-    if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined destination memory.");
-    }
-    if (!srcMemPtr || !srcMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined input memory.");
-    }
-    if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("has nullable preferable primitive descriptor");
-    }
+    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined destination memory.");
+    CPU_NODE_ASSERT(srcMemPtr && srcMemPtr->isDefined(), "has undefined input memory.");
+    CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor() != nullptr, "has nullable preferable primitive descriptor");
 
     src_dims = srcMemPtr->getDesc().getShape().getDims();
     dst_dims = dstMemPtr->getDesc().getShape().getDims();
 
     if (isDynamicNode()) {
         const int src_k = getSrcDataAtPortAs<int>(TOPK_K)[0];
-        if (static_cast<size_t>(src_k) > src_dims[axis]) {
-            THROW_CPU_NODE_ERR("gets top_k out of range!");
-        }
+        CPU_NODE_ASSERT(static_cast<size_t>(src_k) <= src_dims[axis], "gets top_k out of range!");
         if (top_k != src_k) {
             top_k = src_k;
         }
@@ -2257,12 +2241,13 @@ void TopK::execute([[maybe_unused]] const dnnl::stream& strm) {
             auto* out_idx_ptr = reinterpret_cast<int32_t*>(dst_idx);
             topk_ref(in_ptr, out_ptr, out_idx_ptr);
         } else {
-            THROW_CPU_NODE_ERR("only support plain layout on machine w/o sse42.");
+            CPU_NODE_THROW("only support plain layout on machine w/o sse42.");
         }
     }
 }
 
 void TopK::topk_process(const uint8_t* in_ptr, uint8_t* out_ptr, uint8_t* out_idx_ptr) {
+    const auto& cpu_parallel = context->getCpuParallel();
     uint8_t* process_ptr = vec_process_ptr.data();
     uint8_t* process_idx_ptr = vec_process_idx_ptr.data();
 
@@ -2271,7 +2256,7 @@ void TopK::topk_process(const uint8_t* in_ptr, uint8_t* out_ptr, uint8_t* out_id
         size_t IA = div_up(src_dims[1], blk_size);
         size_t OA = div_up(dst_dims[1], blk_size);
         if (algorithm == TopKAlgorithm::topk_bubble_sort) {
-            parallel_for2d(O, I, [&](size_t o, size_t i) {
+            cpu_parallel->parallel_for2d(O, I, [&](size_t o, size_t i) {
                 const uint8_t* in_ptr_a = in_ptr + (o * IA * I + i) * blk_size * data_size;
                 uint8_t* out_ptr_a = out_ptr + (o * OA * I + i) * blk_size * data_size;
                 uint8_t* out_idx_ptr_a = out_idx_ptr + (o * OA * I + i) * blk_size * sizeof(int32_t);
@@ -2279,7 +2264,7 @@ void TopK::topk_process(const uint8_t* in_ptr, uint8_t* out_ptr, uint8_t* out_id
                 topk_kernel_process(in_ptr_a, out_ptr_a, out_idx_ptr_a, nullptr, nullptr, work_amount);
             });
         } else if (algorithm == TopKAlgorithm::topk_bitonic_sort) {
-            parallel_for(O, [&](size_t o) {
+            cpu_parallel->parallel_for(O, [&](size_t o) {
                 const uint8_t* in_ptr_a = in_ptr + o * IA * I * blk_size * data_size;
                 uint8_t* process_ptr_a = process_ptr + o * IA * I * blk_size * data_size;
                 uint8_t* process_idx_ptr_a = process_idx_ptr + o * IA * I * blk_size * sizeof(int32_t);
@@ -2290,7 +2275,7 @@ void TopK::topk_process(const uint8_t* in_ptr, uint8_t* out_ptr, uint8_t* out_id
             });
         }
     } else {  // [planar layout] [blocked layout with topk on non-C]
-        parallel_for2d(O, I / blk_size, [&](size_t o, size_t k) {
+        cpu_parallel->parallel_for2d(O, I / blk_size, [&](size_t o, size_t k) {
             const uint8_t* in_ptr_a = in_ptr + (o * A * I + k * blk_size) * data_size;
             uint8_t* process_ptr_a = process_ptr + (o * A * I + k * blk_size) * data_size;
             uint8_t* process_idx_ptr_a = process_idx_ptr + (o * A * I + k * blk_size) * sizeof(int32_t);
@@ -2303,7 +2288,7 @@ void TopK::topk_process(const uint8_t* in_ptr, uint8_t* out_ptr, uint8_t* out_id
         size_t tail_start = I / blk_size * blk_size;
         size_t work_amount = I - tail_start;
         if (work_amount) {
-            parallel_for(O, [&](size_t o) {
+            cpu_parallel->parallel_for(O, [&](size_t o) {
                 const uint8_t* in_ptr_a = in_ptr + (o * A * I + tail_start) * data_size;
                 uint8_t* process_ptr_a = process_ptr + (o * A * I + tail_start) * data_size;
                 uint8_t* process_idx_ptr_a = process_idx_ptr + (o * A * I + tail_start) * sizeof(int32_t);
@@ -2501,9 +2486,10 @@ void TopK::topk_ref_process(const float* src_data,
                             int32_t* dst_idx,
                             const VectorDims& in_dims,
                             std::function<bool(float, float)> compare) const {
+    const auto& cpu_parallel = context->getCpuParallel();
     int after_num = count(in_dims, axis + 1, in_dims.size());
 
-    parallel_for2d(before_num, after_num, [&](int i0, int i1) {
+    cpu_parallel->parallel_for2d(before_num, after_num, [&](int i0, int i1) {
         std::vector<float> max_values(top_k + 1);
         std::vector<int> max_indexes(top_k + 1);
         int s_index = i0 * dim * after_num + i1;

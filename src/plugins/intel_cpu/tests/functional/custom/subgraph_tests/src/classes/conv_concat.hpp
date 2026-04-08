@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ class ConvConcatSubgraphTest : public testing::WithParamInterface<convConcatCPUP
                                public CPUTestsBase,
                                virtual public SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<convConcatCPUParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<convConcatCPUParams>& obj);
 
 protected:
     void SetUp() override;

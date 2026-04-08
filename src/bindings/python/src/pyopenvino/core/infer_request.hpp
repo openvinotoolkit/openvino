@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include <openvino/runtime/infer_request.hpp>
 
 #include "openvino/core/except.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -32,10 +33,10 @@ public:
                         const std::vector<ov::Output<const ov::Node>>& outputs,
                         bool set_default_callback = true,
                         py::object userdata = py::none())
-        : m_request{InferRequestWrapper::wrap_infer_request_to_sp(std::move(request))},
+        : m_request{std::move(request)},
           m_inputs{inputs},
           m_outputs{outputs},
-          m_userdata{userdata} {
+          m_userdata{Common::utils::wrap_pyobject_to_sp(std::move(userdata))} {
         m_start_time = std::make_shared<Time::time_point>(Time::time_point{});
         m_end_time = std::make_shared<Time::time_point>(Time::time_point{});
 
@@ -44,7 +45,7 @@ public:
             // Bump reference counter
             auto end_time = m_end_time;
             // Set standard callback which saves "end-time" for inference call
-            m_request->set_callback([end_time](std::exception_ptr exception_ptr) {
+            m_request.set_callback([end_time](std::exception_ptr exception_ptr) {
                 *end_time = Time::now();
                 try {
                     if (exception_ptr) {
@@ -59,11 +60,11 @@ public:
 
     // ~InferRequestWrapper() = default;
 
-    std::vector<ov::Tensor> get_input_tensors() {
+    ov::TensorVector get_input_tensors() {
         return get_tensors_from(m_inputs);
     }
 
-    std::vector<ov::Tensor> get_output_tensors() {
+    ov::TensorVector get_output_tensors() {
         return get_tensors_from(m_outputs);
     }
 
@@ -73,35 +74,28 @@ public:
     }
 
     // Original ov::InferRequest class that is held by this wrapper
-    std::shared_ptr<ov::InferRequest> m_request;
+    ov::InferRequest m_request;
     // Inputs and Outputs inherrited from ov::CompiledModel
     std::vector<ov::Output<const ov::Node>> m_inputs;
     std::vector<ov::Output<const ov::Node>> m_outputs;
     // A flag which is set when a user defines a custom callback on InferRequest
     bool m_user_callback_defined = false;
     // Data that is passed by user from Python->C++
-    py::object m_userdata;
+    std::shared_ptr<py::object> m_userdata;
     // Times of inference's start and finish
     std::shared_ptr<Time::time_point> m_start_time;  // proposal: change to unique_ptr
     std::shared_ptr<Time::time_point> m_end_time;
 
 private:
-    inline std::vector<ov::Tensor> get_tensors_from(const std::vector<ov::Output<const ov::Node>>& v) {
-        std::vector<ov::Tensor> tensors;
+    inline ov::TensorVector get_tensors_from(const std::vector<ov::Output<const ov::Node>>& v) {
+        ov::TensorVector tensors;
         tensors.reserve(v.size());
 
         for (auto&& node : v) {
-            tensors.push_back(m_request->get_tensor(node));
+            tensors.push_back(m_request.get_tensor(node));
         }
 
         return tensors;
-    }
-
-    static std::shared_ptr<ov::InferRequest> wrap_infer_request_to_sp(ov::InferRequest request) {
-        return std::shared_ptr<ov::InferRequest>(new ov::InferRequest(std::move(request)), [](ov::InferRequest* request) {
-                py::gil_scoped_release release;
-                delete request;
-        });
     }
 };
 

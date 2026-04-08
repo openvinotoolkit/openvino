@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -89,6 +89,13 @@ OPENVINO_RUNTIME_API bool with_cpu_neon_fp16();
  * @return     `True` is ARM Dot Product instructions are available, `false` otherwise
  */
 OPENVINO_RUNTIME_API bool with_cpu_arm_dotprod();
+
+/**
+ * @brief      Checks whether CPU supports ARM Int8 MM capability
+ * @ingroup    ov_dev_api_system_conf
+ * @return     `True` is ARM Int8 MM instructions are available, `false` otherwise
+ */
+OPENVINO_RUNTIME_API bool with_cpu_arm_i8mm();
 
 /**
  * @brief      Checks whether CPU supports ARM SVE capability

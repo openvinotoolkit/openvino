@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -8,7 +8,7 @@ import onnx.mapping
 import pytest
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 
-from openvino.runtime.exceptions import OVTypeError
+from openvino.exceptions import OVTypeError
 from tests.runtime import get_runtime
 from tests.tests_python.utils import get_node_model, import_onnx_model, run_model, run_node
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ public:
         bool last_used = false;
     };
 
-    SubMemoryManager(int num_sub_streams) {
+    explicit SubMemoryManager(int num_sub_streams) {
         assert(num_sub_streams);
         _num_sub_streams = num_sub_streams;
         MemoryInfo memory_info;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -866,17 +866,17 @@ TEST(constant, uint1_write_then_cast_custom_type) {
 TEST(constant, uint2_string) {
     const auto shape = Shape{4};
 
-    op::v0::Constant c(element::u2, shape, vector<string>{"3", "0", "1", "2"});
+    op::v0::Constant c(element::u2, shape, vector<string>{"2", "1", "0", "3"});
     auto v = c.cast_vector<uint8_t>();
 
     ASSERT_EQ(v.size(), shape_size(shape));
-    EXPECT_THAT(v, ElementsAre(3, 0, 1, 2));
+    EXPECT_THAT(v, ElementsAre(2, 1, 0, 3));
 
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(p[0], 0b11000110);
 
-    EXPECT_EQ(c.convert_value_to_string(1), "0");
-    EXPECT_THAT(c.get_value_strings(), ElementsAre("3", "0", "1", "2"));
+    EXPECT_EQ(c.convert_value_to_string(1), "1");
+    EXPECT_THAT(c.get_value_strings(), ElementsAre("2", "1", "0", "3"));
     EXPECT_THROW(c.get_strides(), Exception);
 }
 
@@ -891,7 +891,7 @@ TEST(constant, uint2_string_broadcast) {
 
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(p[0], 0b01010101);
-    EXPECT_EQ(p[1] & 0b11000000, 0b01000000);
+    EXPECT_EQ(p[1], 0b00000001);
 }
 
 TEST(constant, uint2_vector_less_than_single_byte) {
@@ -905,7 +905,7 @@ TEST(constant, uint2_vector_less_than_single_byte) {
     EXPECT_THAT(v, ElementsAre(2, 3, 1));
 
     const auto p = c.get_data_ptr<uint8_t>();
-    EXPECT_EQ(p[0] & 0b11111100, 0b10110100);
+    EXPECT_EQ(p[0], 0b00011110);
 }
 
 TEST(constant, uint2_vector_bigger_than_single_byte) {
@@ -919,20 +919,27 @@ TEST(constant, uint2_vector_bigger_than_single_byte) {
     EXPECT_THAT(v, ElementsAre(2, 3, 1, 0, 1, 2, 0));
 
     const auto p = c.get_data_ptr<uint8_t>();
-    EXPECT_EQ(p[0], 0b10110100);
-    EXPECT_EQ(p[1] & 0b11111100, 0b01100000);
+    EXPECT_EQ(p[0], 0b00011110);
+    EXPECT_EQ(p[1], 0b00001001);
 }
 
 TEST(constant, uint2_vector_broadcast) {
-    const auto shape = Shape{3};
-    op::v0::Constant c(element::u2, shape, vector<int8_t>{2});
+    const auto shape = Shape{5};
+    // Use dynamic allocation to check not used bits have deterministic value
+    auto constant = std::make_shared<ov::op::v0::Constant>(element::u2, shape, vector<int8_t>{2});
+    const auto& c = *constant;
 
     auto v = c.cast_vector<uint8_t>();
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_THAT(v, Each(2));
 
     const auto p = c.get_data_ptr<uint8_t>();
-    EXPECT_EQ(p[0] & 0b11111100, 0b10101000);
+    EXPECT_EQ(p[0], 0b10101010);
+    EXPECT_EQ(p[1], 0b00000010);
+
+    const auto gv = c.get_vector<uint8_t>();
+    EXPECT_EQ(gv[0], 0b10101010);
+    EXPECT_EQ(gv[1], 0b00000010);
 }
 
 TEST(constant, uint2_write_then_cast_custom_type) {
@@ -2656,6 +2663,7 @@ TEST(constant, hold_shared_memory_different_precision) {
     EXPECT_EQ(c.get_data_ptr(), storage.data());
     EXPECT_EQ(c.get_vector<uint8_t>(), std::vector<uint8_t>({1, 0, 0, 0, 2, 0}));
     EXPECT_EQ(c.cast_vector<uint8_t>(), std::vector<uint8_t>({1, 0, 0, 0, 2, 0}));
+    EXPECT_EQ(c.get_byte_size(), 6);
 }
 
 TEST(constant, own_shared_memory) {
@@ -2827,6 +2835,48 @@ TEST(constant, get_values_as) {
     EXPECT_EQ(c.get_axis_vector_val(), AxisVector({2, 0, 1, 0, 1, 5}));
     EXPECT_EQ(c.get_axis_set_val(), AxisSet({0, 1, 2, 5}));
 }
+
+TEST(constant, dynamic_type_no_data_creation) {
+    EXPECT_NO_THROW({ ov::op::v0::Constant c(element::dynamic, Shape{2}); });
+}
+
+TEST(constant, dynamic_type_no_data_access_throws) {
+    ov::op::v0::Constant c(element::dynamic, Shape{2});
+
+    EXPECT_THROW(c.get_data_ptr<int64_t>(), ov::Exception);
+}
+
+TEST(constant, dynamic_type_with_data_throws_on_creation) {
+    EXPECT_THROW({ ov::op::v0::Constant c(element::dynamic, Shape{2}, std::vector<int64_t>{1, 2}); }, ov::Exception);
+}
+
+TEST(constant, dynamic_type_string_data_throws_on_creation) {
+    EXPECT_THROW(
+        { ov::op::v0::Constant c(element::dynamic, Shape{2}, std::vector<std::string>{"1", "2"}); },
+        ov::Exception);
+}
+
+TEST(constant, dynamic_type_get_vector_throws) {
+    ov::op::v0::Constant c(element::dynamic, Shape{2});
+    EXPECT_THROW(c.get_vector<int64_t>(), ov::Exception);
+}
+
+TEST(constant, dynamic_type_cast_vector_throws) {
+    ov::op::v0::Constant c(element::dynamic, Shape{2});
+    EXPECT_THROW(c.cast_vector<int64_t>(), ov::Exception);
+}
+
+TEST(constant, create_with_incorrect_buffer_size_or_shape_and_precision) {
+    auto buffer = std::make_shared<ov::AlignedBuffer>(100);
+    EXPECT_THROW(std::ignore = ov::op::v0::Constant(element::u8, Shape{10}, buffer), ov::Exception);
+}
+
+TEST(constant, create_with_zero_dim_shape) {
+    auto c = ov::op::v0::Constant(element::u8, Shape{10, 0});
+
+    EXPECT_EQ(c.get_byte_size(), 0);
+}
+
 }  // namespace test
 }  // namespace ov
 

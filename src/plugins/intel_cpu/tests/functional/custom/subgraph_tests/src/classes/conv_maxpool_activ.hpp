@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ class ConvPoolActivTest : public testing::WithParamInterface<fusingSpecificParam
                           public CpuTestWithFusing,
                           virtual public SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<fusingSpecificParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<fusingSpecificParams>& obj);
 
 protected:
     void SetUp() override;

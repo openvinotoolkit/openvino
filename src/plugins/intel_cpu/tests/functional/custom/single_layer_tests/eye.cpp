@@ -1,4 +1,4 @@
-/// Copyright (C) 2022 Intel Corporation
+/// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,14 +29,11 @@ class EyeLayerCPUTest : public testing::WithParamInterface<EyeLayerCPUTestParams
                         virtual public SubgraphBaseTest,
                         public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<EyeLayerCPUTestParamsSet> obj) {
-        EyeLayerTestParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
-        std::string td;
-        ElementType netPr;
-        std::vector<int> eyePar;
-        std::tie(inputShape, outBatchShape, eyePar, netPr, td) = basicParamsSet;
+    static std::string getTestCaseName(const testing::TestParamInfo<EyeLayerCPUTestParamsSet>& obj) {
+        const auto& [basicParamsSet, cpuParams] = obj.param;
+        const auto& [_inputShape, _outBatchShape, eyePar, netPr, td] = basicParamsSet;
+        inputShape = _inputShape;
+        outBatchShape = _outBatchShape;
         std::ostringstream result;
         result << "EyeTest_";
         result << "IS=(";
@@ -61,14 +58,12 @@ public:
 
 protected:
     void SetUp() override {
-        EyeLayerTestParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
+        const auto& [basicParamsSet, cpuParams] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-
-        ElementType netPrecision;
-        std::vector<int> eyePar;
-        std::tie(inputShape, outBatchShape, eyePar, netPrecision, targetDevice) = basicParamsSet;
+        const auto& [_inputShape, _outBatchShape, eyePar, netPrecision, _targetDevice] = basicParamsSet;
+        inputShape = _inputShape;
+        outBatchShape = _outBatchShape;
+        targetDevice = _targetDevice;
         rowNum = eyePar[0];
         colNum = eyePar[1];
         shift = eyePar[2];
@@ -96,11 +91,11 @@ protected:
             auto eyelikeBatchShape =
                 std::make_shared<ov::op::v9::Eye>(rowsPar, colsPar, diagPar, batchShapePar, ov::element::i32);
             eyelikeBatchShape->get_rt_info() = getCPUInfo();
-            return makeNgraphFunction(ov::element::i32, inputParams, eyelikeBatchShape, "Eye");
+            return create_ov_model(ov::element::i32, inputParams, eyelikeBatchShape, "Eye");
         } else {
             auto eyelikePure = std::make_shared<ov::op::v9::Eye>(rowsPar, colsPar, diagPar, ov::element::i32);
             eyelikePure->get_rt_info() = getCPUInfo();
-            return makeNgraphFunction(ov::element::i32, inputParams, eyelikePure, "Eye");
+            return create_ov_model(ov::element::i32, inputParams, eyelikePure, "Eye");
         }
     }
 

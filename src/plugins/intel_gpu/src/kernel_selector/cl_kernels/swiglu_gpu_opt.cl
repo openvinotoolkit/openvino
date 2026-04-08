@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,25 +49,37 @@ KERNEL(swiglu_gpu_opt)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output)
 {
+#if GLU_STRIDE == 2 // alternating
     const unsigned int x = (uint)get_global_linear_id();
-    const unsigned int y = x + ((x / SPLIT_LENGTH) * SPLIT_LENGTH);
-
-#if SPLIT_TO_GLU_IDX == 0
-    ACCUMULATOR_TYPE gate = input[y];
-    ACCUMULATOR_TYPE value = input[y + SPLIT_LENGTH];
-#else
-    ACCUMULATOR_TYPE gate = input[y + SPLIT_LENGTH];
-    ACCUMULATOR_TYPE value = input[y];
+    const unsigned int y = GLU_STRIDE * x;
+#else // split
+    const unsigned int x = (uint)get_global_linear_id();
+    const unsigned int y = x + ((x / GLU_STRIDE) * GLU_STRIDE);
 #endif
 
+#if GATE_IDX == 0
+    ACCUMULATOR_TYPE gate = input[y];
+    #if GLU_STRIDE == 2
+        ACCUMULATOR_TYPE value = input[y + 1];
+    #else
+        ACCUMULATOR_TYPE value = input[y + GLU_STRIDE];
+    #endif
+#else
+    ACCUMULATOR_TYPE gate = input[y + GLU_STRIDE];
+    ACCUMULATOR_TYPE value = input[y];
+#endif
     #if GLU_TYPE == 0   // Swish
-        gate /= ACCUMULATOR_VAL_ONE + native_exp(-(ACCUMULATOR_VAL_ONE * gate));
+    #if defined(CLAMP_MAX) && defined(CLAMP_MIN)
+    gate = ACCUMULATOR_MIN_FUNC(TO_OUTPUT_TYPE(CLAMP_MAX), gate);
+    value = ACCUMULATOR_MIN_FUNC(ACCUMULATOR_MAX_FUNC(TO_OUTPUT_TYPE(CLAMP_MIN), value), TO_OUTPUT_TYPE(CLAMP_MAX));
+    #endif
+    gate /= (ACCUMULATOR_VAL_ONE + native_exp(-SWISH_BETA * gate));
     #elif GLU_TYPE == 1 // Gelu
         gate = (GEGLU_HALF * gate * (ACCUMULATOR_VAL_ONE + (FUNC_CALL(fast_erf)(gate * GEGLU_MULT))));
     #elif GLU_TYPE == 2 // Gelu_Tanh
         gate = (GEGLU_HALF * gate * (ACCUMULATOR_VAL_ONE + (tanh(GEGLU_SQUARE_2_OVER_PI * gate * (ACCUMULATOR_VAL_ONE + GEGLU_MULT * gate * gate)))));
     #endif
+    value = (value + UP_ADD_VAL) * gate;
 
-    value *= gate;
     output[x] = TO_OUTPUT_TYPE(value);
 }

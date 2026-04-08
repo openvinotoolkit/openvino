@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,15 +21,12 @@ using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu {
 void JitTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
-    if (!pKernel) {
-        OPENVINO_THROW("Could not execute. Kernel for Transpose node was not compiled.");
-    }
-
+    OPENVINO_ASSERT(pKernel, "Could not execute. Kernel for Transpose node was not compiled.");
     const auto* srcData = src[0]->getDataAs<const uint8_t>();
     auto* dstData = dst[0]->getDataAs<uint8_t>();
     const int MB = src[0]->getStaticDims()[0];
 
-    pKernel->execute(srcData, dstData, MB);
+    pKernel->execute(srcData, dstData, MB, context->getCpuParallel());
 }
 
 bool JitTransposeExecutor::init(const TransposeParams& transposeParams,
@@ -44,11 +41,10 @@ bool JitTransposeExecutorBuilder::isSupported([[maybe_unused]] const TransposePa
                                               [[maybe_unused]] const std::vector<MemoryDescPtr>& srcDescs,
                                               [[maybe_unused]] const std::vector<MemoryDescPtr>& dstDescs) const {
 #if defined(OPENVINO_ARCH_X86_64)
-    if (mayiuse(x64::sse41)) {
-        return true;
-    }
-#endif  // OPENVINO_ARCH_X86_64
+    return mayiuse(x64::sse41);
+#else
     return false;
+#endif  // OPENVINO_ARCH_X86_64
 }
 
 }  // namespace ov::intel_cpu

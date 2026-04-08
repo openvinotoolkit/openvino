@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -136,6 +136,9 @@ struct kernel_impl_params final {
         return output_layouts[idx];
     }
 
+    size_t get_input_layout_size() const {
+        return input_layouts.size();
+    }
 
     bool has_fused_primitives() const { return !fused_desc.empty(); }
 

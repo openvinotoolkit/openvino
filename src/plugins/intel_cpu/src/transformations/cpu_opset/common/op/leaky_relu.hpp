@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,7 +38,7 @@ public:
     }
 
 private:
-    float m_negative_slope = 0.f;
+    float m_negative_slope = 0.F;
     ov::element::Type m_output_type;
 };
 

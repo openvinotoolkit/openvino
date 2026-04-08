@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,14 @@ CommonDispatchData ReduceKernelRef::SetDefault(const reduce_params& params) cons
     dispatchData.gws = { params.outputs[0].X().v * params.outputs[0].Y().v,
                          params.outputs[0].Z().v * params.outputs[0].W().v * params.outputs[0].U().v * params.outputs[0].V().v,
                          params.outputs[0].Batch().v * params.outputs[0].Feature().v };
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+
+    // [WA] PTL (Panther Lake, xe3p) IGC may allocate more than 128 GRF per thread,
+    // which reduces the per-kernel max work-group size below the device max reported at query time.
+    // Enqueuing with the original max WGS then triggers CL_INVALID_WORK_GROUP_SIZE (-54).
+    // Limit to 512 on PTL to stay within the reduced per-kernel limit.
+    auto engineInfo = params.engineInfo;
+    engineInfo.maxWorkGroupSize = std::min(engineInfo.maxWorkGroupSize, static_cast<uint64_t>(512));
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }

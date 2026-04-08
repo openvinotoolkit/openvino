@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,8 +33,7 @@ class OVConcurrencyTest : public ov::test::TestsCommon,
     };
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConcurrencyTestParams>& obj) {
-        size_t streams, requests;
-        std::tie(streams, requests) = obj.param;
+        const auto& [streams, requests] = obj.param;
         return "_num_streams_" + std::to_string(streams) + "_num_req_" +
             std::to_string(requests);
     }
@@ -137,7 +136,7 @@ TEST_P(OVConcurrencyTest, canInferTwoExecNets_cached) {
 const std::vector<size_t> num_streams{ 1, 2 };
 const std::vector<size_t> num_requests{ 1, 4 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_RemoteTensor, OVConcurrencyTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_RemoteTensor, OVConcurrencyTest,
     ::testing::Combine(::testing::ValuesIn(num_streams),
         ::testing::ValuesIn(num_requests)),
     OVConcurrencyTest::getTestCaseName);

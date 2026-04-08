@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,10 @@
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
+
+namespace ov::weight_sharing {
+struct Context;
+}
 
 namespace ov {
 
@@ -90,5 +94,95 @@ static constexpr Property<float, PropertyMutability::RW> query_model_ratio{"QUER
  */
 static constexpr Property<bool, PropertyMutability::RW> enable_lp_transformations{"LP_TRANSFORMS_MODE"};
 
+/**
+ * @brief Read-only property to get plugin specific needed alignment for cache header
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<uint32_t, PropertyMutability::RO> cache_header_alignment{"CACHE_HEADER_ALIGNMENT"};
+
+/**
+ * @brief Enum to define possible cache quant schema hints.
+ */
+enum class CacheQuantMode { AUTO = 0, BY_CHANNEL = 1, BY_TOKEN = 2 };
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const CacheQuantMode& mode) {
+    switch (mode) {
+    case CacheQuantMode::AUTO:
+        return os << "AUTO";
+    case CacheQuantMode::BY_CHANNEL:
+        return os << "BY_CHANNEL";
+    case CacheQuantMode::BY_TOKEN:
+        return os << "BY_TOKEN";
+    default:
+        OPENVINO_THROW("Unsupported cache quant mode");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, CacheQuantMode& mode) {
+    std::string str;
+    is >> str;
+    if (str == "AUTO") {
+        mode = CacheQuantMode::AUTO;
+    } else if (str == "BY_CHANNEL") {
+        mode = CacheQuantMode::BY_CHANNEL;
+    } else if (str == "BY_TOKEN") {
+        mode = CacheQuantMode::BY_TOKEN;
+    } else {
+        OPENVINO_THROW("Unsupported cache quant mode: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Define quantization mode for key cache. Group size decision policy may be different per plugin.
+ * @param AUTO - Default mode decided by plugin.
+ * @param BY_CHANNEL - Quantize key cache by channel dimension.
+ * @param BY_TOKEN - Quantize key cache by token dimension.
+
+    By channel: Quantize along with tokens in each channel
+    ┌──┬──┬─────────────────────────┐
+    │  │  │                         │ token[0]
+    │  │  │                         │ token[1]
+    │  │  │  ...                    │ token[2]
+    │  │  │                         │ ..
+    │  │  │                         │ token[seq_len - 1]
+    └──┴──┴─────────────────────────┘
+    c[0] c[1] ...    c[head_size - 1]
+
+    By token: Quantize along with channel dim per each token
+    ┌───────────────────────────────┐
+    ├───────────────────────────────┤ token[0]
+    ├───────────────────────────────┤ token[1]
+    │                               │ ...
+    │                               │
+    │                               │
+    │                               │ token[seq_len - 1]
+    └───────────────────────────────┘
+    c[0] c[1] ...    c[head_size - 1]
+ */
+
+static constexpr Property<CacheQuantMode, PropertyMutability::RW> key_cache_quant_mode{"KEY_CACHE_QUANT_MODE"};
+
+/**
+ * @brief Define quantization mode for value cache. Group size decision policy may be different per plugin.
+ * @param AUTO - Default mode decided by plugin
+ * @param BY_CHANNEL - Quantize value cache by channel dimension.
+ * @param BY_TOKEN - Quantize key cache by token dimension.
+ */
+
+static constexpr Property<CacheQuantMode, PropertyMutability::RW> value_cache_quant_mode{"VALUE_CACHE_QUANT_MODE"};
+
+using WeightSharingCtxPtr = std::shared_ptr<const weight_sharing::Context>;
+
+/**
+ * @brief Property to pass weight sharing context.
+ *
+ * The property is used to pass weight sharing context to plugins on model compile/import.
+ * The property can be retrieved from a compiled model to get the weight sharing context
+ * for further sharing of weights between models.
+ */
+inline constexpr Property<WeightSharingCtxPtr, PropertyMutability::RW> model_sharing_context{"MODEL_SHARING_CONTEXT"};
 }  // namespace internal
 }  // namespace ov

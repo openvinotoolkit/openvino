@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,8 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+
+#include "openvino/core/shape_util.hpp"
 
 using namespace std;
 using namespace ov;
@@ -58,4 +60,12 @@ TEST(shape, at_throw_exception) {
     EXPECT_THROW(shape.at(1000), ov::Exception);
     EXPECT_THROW(shape.at(-8), ov::Exception);
     EXPECT_THROW(shape.at(-80000), ov::Exception);
+}
+
+TEST(shape, shape_size_overflow) {
+    constexpr auto max = std::numeric_limits<size_t>::max();
+
+    EXPECT_EQ(ov::util::shape_size_safe({1, 2, 3, 4, 5, 6, 7}).value(), (2 * 3 * 4 * 5 * 6 * 7));
+    EXPECT_EQ(ov::util::shape_size_safe({3, max / 4, 2}), std::nullopt);
+    EXPECT_EQ(ov::util::shape_size_safe({3, max / 4}).value(), (3 * (max / 4)));
 }

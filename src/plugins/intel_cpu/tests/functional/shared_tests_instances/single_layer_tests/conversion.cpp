@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 
 namespace {
 using ov::test::ConversionLayerTest;
+using ov::test::ConversionSpecifyInputLayerTest;
 
 const std::vector<ov::test::utils::ConversionTypes> conversionOpTypes = {
     ov::test::utils::ConversionTypes::CONVERT,
@@ -78,5 +79,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConversionFromF8LayerTest,
                                             ::testing::ValuesIn(floatTypes),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ConversionLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConversionI32ToU8LayerTest,
+                         ConversionSpecifyInputLayerTest,
+                         ::testing::Combine(::testing::Values(conversionOpTypes[0]),
+                                            ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(shapes)),
+                                            ::testing::Values(ov::element::i32),
+                                            ::testing::Values(ov::element::u8),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ConversionSpecifyInputLayerTest::getTestCaseName);
 
 }  // namespace

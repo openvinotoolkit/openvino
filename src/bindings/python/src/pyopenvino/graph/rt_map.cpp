@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,6 +69,10 @@ void regclass_graph_PyRTMap(py::module m) {
                  return it;
              })
         .def("__next__", &PyRTMapIterator::next);
+
+    py_map.def(py::init([]() {
+        return PyRTMap();
+    }));
 
     py_map.def("__setitem__", [](PyRTMap& m, const std::string& k, const std::string v) {
         m[k] = v;

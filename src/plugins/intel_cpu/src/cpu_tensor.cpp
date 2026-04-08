@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,12 +24,12 @@
 namespace ov::intel_cpu {
 namespace {
 constexpr bool is_pointer_representable(const ov::element::Type& tensor_type, const ov::element::Type& type) {
-    return type == ov::element::dynamic || tensor_type == type;
+    return any_of(type, ov::element::dynamic, tensor_type);
 }
 }  // namespace
 
 Tensor::Tensor(MemoryPtr memptr) : m_memptr{std::move(memptr)} {
-    OPENVINO_ASSERT(m_memptr != nullptr);
+    OPENVINO_ASSERT(m_memptr);
 
     // only support plain data format ncsp.
     auto memdesc = m_memptr->getDescPtr();
@@ -117,6 +117,19 @@ const void* Tensor::data() const {
 }
 
 const void* Tensor::data(const element::Type& element_type) const {
+    OPENVINO_ASSERT(is_pointer_representable(get_element_type(), element_type),
+                    "Tensor data with element type ",
+                    get_element_type(),
+                    ", is not representable as pointer to ",
+                    element_type);
+    return m_memptr->getData();
+}
+
+void* Tensor::data_rw() {
+    return m_memptr->getData();
+}
+
+void* Tensor::data_rw(const element::Type& element_type) {
     OPENVINO_ASSERT(is_pointer_representable(get_element_type(), element_type),
                     "Tensor data with element type ",
                     get_element_type(),

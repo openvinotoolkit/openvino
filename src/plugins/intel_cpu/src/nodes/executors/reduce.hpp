@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ struct ReduceAttrs {
 
 class ReduceExecutor {
 public:
-    ReduceExecutor(ExecutorContext::CPtr context);
+    explicit ReduceExecutor(ExecutorContext::CPtr context);
     virtual bool init(const ReduceAttrs& reduceAttrs,
                       const std::vector<MemoryDescPtr>& srcDescs,
                       const std::vector<MemoryDescPtr>& dstDescs,

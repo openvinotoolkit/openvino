@@ -1,4 +1,4 @@
-// Copyright (C) 2024-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include "openvino/runtime/file_handle.hpp"
+
 namespace ov {
 namespace npuw {
 namespace s11n {
@@ -34,7 +36,7 @@ const constexpr ov::npuw::s11n::IndicatorType NPUW_COMPILED_MODEL_INDICATOR =
 const constexpr ov::npuw::s11n::IndicatorType NPUW_LLM_COMPILED_MODEL_INDICATOR =
     {char{0x4c}, char{0x4c}, char{0x4d}, char{0x43}, char{0x4d}, char{0x4f}};
 
-const constexpr char* NPUW_SERIALIZATION_VERSION = "0.3";
+const constexpr char* NPUW_SERIALIZATION_VERSION = "0.21";
 
 // Forward declaration
 namespace intel_npu {
@@ -47,10 +49,14 @@ namespace ov {
 class Any;
 class Node;
 class Tensor;
+class IPlugin;
+class ICompiledModel;
 template <class>
 class Output;
 template <class>
 class SharedBuffer;
+template <class>
+struct SoPtr;
 class MappedMemory;
 class Model;
 enum class CacheMode;
@@ -73,6 +79,11 @@ namespace npuw {
 // Forward declaration
 namespace compiled {
 struct Spatial;
+struct Attention;
+struct PyramidAttention;
+struct HostFlashAttention;
+struct MoEExperts;
+struct MoEDownstream;
 }  // namespace compiled
 namespace weights {
 class LazyTensor;
@@ -89,7 +100,8 @@ public:
 };
 
 using BF16Cache = std::unordered_set<std::pair<std::size_t, std::size_t>, ov::npuw::s11n::PairHash>;
-using Weights = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>;
+using Weights = ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>;
+using WeightsPtr = std::shared_ptr<Weights>;
 
 struct CompiledContext {
     CompiledContext(bool _encrypted,
@@ -115,19 +127,51 @@ struct WeightsContext {
     };
     using ConstsCache = std::unordered_map<std::pair<std::size_t, std::size_t>, std::shared_ptr<ov::Node>, CtxHash>;
 
+    WeightsContext() = default;
+
     // NOTE: This construtor should only be used when exporting blobs
-    explicit WeightsContext(bool _is_weightless, const std::unordered_map<const void*, std::size_t>& _const_to_offset);
+    WeightsContext(bool _is_weightless, const std::unordered_map<const void*, std::size_t>& _const_to_offset);
 
     // NOTE: This construtor can and should only be used when importing weightless blobs
-    explicit WeightsContext(const ov::npuw::s11n::Weights& _weights,
-                            const ConstsCache& _consts_cache,
-                            const BF16Cache& _bf16_consts);
+    WeightsContext(const ov::npuw::s11n::WeightsPtr& _weights,
+                   const std::string& _weights_path,
+                   const ConstsCache& _consts_cache,
+                   const BF16Cache& _bf16_consts,
+                   const ov::FileHandleProvider& _handle_provider = nullptr);
+
+    WeightsContext& operator=(const WeightsContext& other) = default;
+
+    void reset() {
+        weights = nullptr;
+        consts_cache.clear();
+    }
 
     bool is_weightless = true;
     std::unordered_map<const void*, std::size_t> const_to_offset;
-    ov::npuw::s11n::Weights weights = nullptr;
+    ov::npuw::s11n::WeightsPtr weights = nullptr;
+    std::string weights_path;
     ConstsCache consts_cache;
     BF16Cache bf16_consts;
+    ov::FileHandleProvider handle_provider = nullptr;
+};
+
+// Context for deserializing submodels with dynamic attention mechanisms
+// (Pyramid Attention, Host Flash Attention, etc.)
+// Provides plugin, device, and compiled model reference for proper deserialization
+struct SubmodelDeserializeCtx {
+    SubmodelDeserializeCtx(const std::shared_ptr<const ov::IPlugin>& _plugin,
+                           const std::string& _device,
+                           const ov::SoPtr<ov::ICompiledModel>& _compiled_model,
+                           const std::map<std::string, Any>& _import_config = {})
+        : plugin(_plugin),
+          device(_device),
+          compiled_model(_compiled_model),
+          import_config(_import_config) {}
+
+    std::shared_ptr<const ov::IPlugin> plugin;
+    std::string device;
+    const ov::SoPtr<ov::ICompiledModel>& compiled_model;
+    std::map<std::string, Any> import_config;
 };
 
 BF16Cache get_bf16_consts(const std::shared_ptr<ov::Model>& model);
@@ -138,6 +182,11 @@ void write(std::ostream& stream, const std::string& var);
 void write(std::ostream& stream, const bool& var);
 void write(std::ostream& stream, const float& var);
 void write(std::ostream& stream, const ov::npuw::compiled::Spatial& var);
+void write(std::ostream& stream, const ov::npuw::compiled::Attention& var);
+void write(std::ostream& stream, const ov::npuw::compiled::PyramidAttention& var);
+void write(std::ostream& stream, const ov::npuw::compiled::HostFlashAttention& var);
+void write(std::ostream& stream, const ov::npuw::compiled::MoEExperts& var);
+void write(std::ostream& stream, const ov::npuw::compiled::MoEDownstream& var);
 void write(std::ostream& stream, const ov::Tensor& var);
 void write(std::ostream& stream, const ::intel_npu::Config& var);
 void write(std::ostream& stream, const ov::Output<const ov::Node>& var);
@@ -153,6 +202,11 @@ void read(std::istream& stream, std::string& var);
 void read(std::istream& stream, bool& var);
 void read(std::istream& stream, float& var);
 void read(std::istream& stream, ov::npuw::compiled::Spatial& var);
+void read(std::istream& stream, ov::npuw::compiled::Attention& var);
+void read(std::istream& stream, ov::npuw::compiled::PyramidAttention& var);
+void read(std::istream& stream, ov::npuw::compiled::HostFlashAttention& var);
+void read(std::istream& stream, ov::npuw::compiled::MoEExperts& var);
+void read(std::istream& stream, ov::npuw::compiled::MoEDownstream& var);
 void read(std::istream& stream, ov::Tensor& var);
 void read(std::istream& stream, ::intel_npu::Config& var);
 void read(std::istream& stream, std::shared_ptr<ov::op::v0::Parameter>& var);

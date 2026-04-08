@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,26 +6,20 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
-#include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
+#include "shared_test_classes/subgraph/weights_decompression_params.hpp"
+#include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 
 namespace ov {
 namespace test {
-std::string SharedMatmulAndGatherWeightsDecompression::getTestCaseName(testing::TestParamInfo<SharedMatmulAndGatherWeightsDecompressionParams> obj) {
-    std::string target_device;
-    GatherDecompressionShapeParams shape_params;
-    ov::test::ElementType weights_precision;
-    ov::test::ElementType decompression_precision;
-    bool decompression_subtract;
-    bool use_decompression_impl;
-
-    std::tie(target_device,
-             shape_params,
-             weights_precision,
-             decompression_precision,
-             decompression_subtract,
-             use_decompression_impl) = obj.param;
+std::string SharedMatmulAndGatherWeightsDecompression::getTestCaseName(const testing::TestParamInfo<SharedMatmulAndGatherWeightsDecompressionParams>& obj) {
+    const auto& [target_device,
+                 shape_params,
+                 weights_precision,
+                 decompression_precision,
+                 decompression_subtract,
+                 use_decompression_impl] = obj.param;
 
     std::ostringstream result;
     result << "device=" << target_device << "_";
@@ -47,14 +41,14 @@ std::shared_ptr<ov::Model> SharedMatmulAndGatherWeightsDecompression::initSubgra
                                                                                    const bool add_subtract) {
     const auto indices_data = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, indices_shape);
     const auto axis_const = ov::op::v0::Constant::create(ov::element::i32, {1}, {axis});
-    const auto decompression_subgraph = initGatherDecompressionSubgraph(data_shape,
-                                                                        group_size,
-                                                                        data_precision,
-                                                                        output_precision,
-                                                                        add_subtract,
-                                                                        false,
-                                                                        false,
-                                                                        false);
+    const auto decompression_subgraph = ov::test::utils::initGatherDecompressionSubgraph(data_shape,
+                                                                                         group_size,
+                                                                                         data_precision,
+                                                                                         output_precision,
+                                                                                         add_subtract,
+                                                                                         false,
+                                                                                         false,
+                                                                                         false);
     const auto gather = std::make_shared<ov::op::v8::Gather>(decompression_subgraph, indices_data, axis_const, batch_dims);
 
     const auto fc_data = std::make_shared<ov::op::v0::Parameter>(output_precision, indices_shape);
@@ -71,18 +65,13 @@ std::shared_ptr<ov::Model> SharedMatmulAndGatherWeightsDecompression::initSubgra
 }
 
 void SharedMatmulAndGatherWeightsDecompression::SetUp() {
-    GatherDecompressionShapeParams shape_params;
-    ov::test::ElementType weights_precision;
-    ov::test::ElementType decompression_precision;
-    bool decompression_subtract;
-    bool use_decompression_impl;
-
-    std::tie(targetDevice,
-             shape_params,
-             weights_precision,
-             decompression_precision,
-             decompression_subtract,
-             use_decompression_impl) = GetParam();
+    const auto& [_targetDevice,
+                 shape_params,
+                 weights_precision,
+                 decompression_precision,
+                 decompression_subtract,
+                 use_decompression_impl] = GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes({shape_params.indices_shape, shape_params.indices_shape});
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -138,8 +138,46 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     auto sliding_window_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
     auto alibi_layout = layout{ov::PartialShape{0}, data_types::f16, format::bfyx};
     auto max_context_len_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
+
     auto score_aggregation_window_layout = layout{ov::PartialShape{0}, data_types::i32, format::bfyx};
     auto score_aggregation_window_mem = engine.allocate_memory(score_aggregation_window_layout);
+
+    auto rotated_block_indices_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
+    auto rotated_block_indices_mem = engine.allocate_memory(rotated_block_indices_layout);
+
+    auto rotation_deltas_layout = layout{ov::PartialShape{1, 1}, data_types::i32, format::bfyx};
+    auto rotation_deltas_mem = engine.allocate_memory(rotation_deltas_layout);
+
+    auto rotation_trig_lut_layout = layout{ov::PartialShape{1, 1}, data_types::f32, format::bfyx};
+    auto rotation_trig_lut_mem = engine.allocate_memory(rotation_trig_lut_layout);
+
+    auto xattention_threshold_layout = layout{ov::PartialShape{1}, data_types::f32, format::bfyx};
+    auto xattention_threshold_mem = engine.allocate_memory(xattention_threshold_layout);
+
+    auto xattention_block_size_layout = layout{ov::PartialShape{}, data_types::i32, format::bfyx};
+    auto xattention_block_size_mem = engine.allocate_memory(xattention_block_size_layout);
+
+    auto xattention_stride_layout = layout{ov::PartialShape{}, data_types::i32, format::bfyx};;
+    auto xattention_stride_mem = engine.allocate_memory(xattention_stride_layout);
+
+    auto sinks_layout = layout{ov::PartialShape{0, 0, 0, 0}, data_types::f32, format::bfyx};;
+    auto sinks_mem = engine.allocate_memory(sinks_layout);
+
+    auto adaptive_rkv_start_size_layout = layout{ov::PartialShape{}, data_types::i32, format::bfyx};
+    auto adaptive_rkv_start_size_mem = engine.allocate_memory(adaptive_rkv_start_size_layout);
+
+    auto adaptive_rkv_evictable_sizes_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
+    auto adaptive_rkv_evictable_sizes_mem = engine.allocate_memory(adaptive_rkv_evictable_sizes_layout);
+
+    auto adaptive_rkv_diversity_block_set_indices_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
+    auto adaptive_rkv_diversity_block_set_indices_mem = engine.allocate_memory(adaptive_rkv_diversity_block_set_indices_layout);
+
+    auto adaptive_rkv_diversity_block_set_indices_begins_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
+    auto adaptive_rkv_diversity_block_set_indices_begins_mem = engine.allocate_memory(adaptive_rkv_diversity_block_set_indices_begins_layout);
+
+    auto token_type_ids_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
+    auto token_type_ids_mem = engine.allocate_memory(token_type_ids_layout);
+    set_values(token_type_ids_mem, {0});
 
     std::vector<input_info> pa_inputs = {input_info("query"),
                                          input_info("key"),
@@ -154,7 +192,20 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
                                          input_info("sliding_window"),
                                          input_info("alibi"),
                                          input_info("max_context_len"),
-                                         input_info("score_aggregation_window")};
+                                         input_info("score_aggregation_window"),
+                                         input_info("rotated_block_indices"),
+                                         input_info("rotation_deltas"),
+                                         input_info("rotation_trig_lut"),
+                                         input_info("xattention_threshold"),
+                                         input_info("xattention_block_size"),
+                                         input_info("xattention_stride"),
+                                         input_info("sinks"),
+                                         input_info("adaptive_rkv_start_size"),
+                                         input_info("adaptive_rkv_evictable_sizes"),
+                                         input_info("adaptive_rkv_diversity_block_set_indices"),
+                                         input_info("adaptive_rkv_diversity_block_set_indices_begins"),
+                                         input_info("token_type_ids"),
+    };
 
     auto pa_prim = paged_attention("paged_attention", pa_inputs);
     pa_prim.k_head_size = 64;
@@ -165,6 +216,7 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     pa_prim.has_alibi = false;
     pa_prim.num_outputs = 1;
     pa_prim.has_rotated_blocks = false;
+    pa_prim.is_key_by_channel = true;
 
     topology topology;
     topology.add(input_layout("input_data", input_data_layout));
@@ -182,6 +234,18 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     topology.add(input_layout("alibi", alibi_layout));
     topology.add(input_layout("max_context_len", max_context_len_layout));
     topology.add(input_layout("score_aggregation_window", score_aggregation_window_layout));
+    topology.add(input_layout("rotated_block_indices", rotated_block_indices_layout));
+    topology.add(input_layout("rotation_deltas", rotation_deltas_layout));
+    topology.add(input_layout("rotation_trig_lut", rotation_trig_lut_layout));
+    topology.add(input_layout("xattention_threshold", xattention_threshold_layout));
+    topology.add(input_layout("xattention_block_size", xattention_block_size_layout));
+    topology.add(input_layout("xattention_stride", xattention_stride_layout));
+    topology.add(input_layout("sinks", sinks_layout));
+    topology.add(input_layout("adaptive_rkv_start_size", adaptive_rkv_start_size_layout));
+    topology.add(input_layout("adaptive_rkv_evictable_sizes", adaptive_rkv_evictable_sizes_layout));
+    topology.add(input_layout("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_layout));
+    topology.add(input_layout("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_layout));
+    topology.add(input_layout("token_type_ids", token_type_ids_layout));
     topology.add(data("const_one", const_one_mem));
     topology.add(shape_of("shape_of", input_info("input_data"), data_types::i32));
     topology.add(gather("gather", input_info("shape_of"), input_info("const_one"), 0, 1, ov::Shape{}));
@@ -207,6 +271,18 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     network.set_input_data("sliding_window", sliding_window_mem);
     network.set_input_data("alibi", alibi_mem);
     network.set_input_data("score_aggregation_window", score_aggregation_window_mem);
+    network.set_input_data("rotated_block_indices", rotated_block_indices_mem);
+    network.set_input_data("rotation_deltas", rotation_deltas_mem);
+    network.set_input_data("rotation_trig_lut", rotation_trig_lut_mem);
+    network.set_input_data("xattention_threshold", xattention_threshold_mem);
+    network.set_input_data("xattention_block_size", xattention_block_size_mem);
+    network.set_input_data("xattention_stride", xattention_stride_mem);
+    network.set_input_data("sinks", sinks_mem);
+    network.set_input_data("adaptive_rkv_start_size", adaptive_rkv_start_size_mem);
+    network.set_input_data("adaptive_rkv_evictable_sizes", adaptive_rkv_evictable_sizes_mem);
+    network.set_input_data("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_mem);
+    network.set_input_data("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_mem);
+    network.set_input_data("token_type_ids", token_type_ids_mem);
 
     // Set original max_context_len value
     auto max_context_len_mem_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
@@ -239,6 +315,18 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     network.set_input_data("sliding_window", sliding_window_mem);
     network.set_input_data("alibi", alibi_mem);
     network.set_input_data("score_aggregation_window", score_aggregation_window_mem);
+    network.set_input_data("rotated_block_indices", rotated_block_indices_mem);
+    network.set_input_data("rotation_deltas", rotation_deltas_mem);
+    network.set_input_data("rotation_trig_lut", rotation_trig_lut_mem);
+    network.set_input_data("xattention_threshold", xattention_threshold_mem);
+    network.set_input_data("xattention_block_size", xattention_block_size_mem);
+    network.set_input_data("xattention_stride", xattention_stride_mem);
+    network.set_input_data("sinks", sinks_mem);
+    network.set_input_data("adaptive_rkv_start_size", adaptive_rkv_start_size_mem);
+    network.set_input_data("adaptive_rkv_evictable_sizes", adaptive_rkv_evictable_sizes_mem);
+    network.set_input_data("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_mem);
+    network.set_input_data("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_mem);
+    network.set_input_data("token_type_ids", token_type_ids_mem);
 
     // Update max_context_len value, which should be taken into account in shape recalculation for broadcast
     set_values(max_context_len_mem, {8});

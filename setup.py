@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os.path
 import sys
 import errno
 import subprocess  # nosec
-import typing
 import platform
 import re
 import shutil
@@ -26,7 +25,9 @@ from setuptools.errors import SetupError
 WHEEL_PACKAGE_DIR = "openvino"
 WHEEL_LIBS_INSTALL_DIR = f"{WHEEL_PACKAGE_DIR}/libs"
 WHEEL_LIBS_PACKAGE = "openvino.libs"
-PYTHON_VERSION = f"python{sys.version_info.major}.{sys.version_info.minor}"
+
+suffix = 't' if hasattr(sys, '_is_gil_enabled') and not sys._is_gil_enabled() else ''
+PYTHON_VERSION = f"python{sys.version_info.major}.{sys.version_info.minor}{suffix}"
 
 LIBS_DIR = "bin" if platform.system() == "Windows" else "lib"
 
@@ -294,7 +295,7 @@ class CustomBuild(build):
             binary_dir = comp_data.get("binary_dir", OPENVINO_BINARY_DIR)
             install_dir = comp_data.get("install_dir")
             prefix = comp_data.get("prefix")
-            
+
             # perform installation steps if we are not given a full path
             if not os.path.isabs(install_dir):
                 # install_dir is just a sub-dir after install prefix, let's make a full path
@@ -588,12 +589,12 @@ class CopyExt(build_ext):
 
 
 class CustomInstall(install):
-    """Custom install command."""      
+    """Custom install command."""
     def run(self):
         """Enable build_clib during the installation."""
         self.run_command("build")
         super().run()
-        
+
 
 class CustomBdistWheel(bdist_wheel):
     """Custom bdist_wheel command."""
@@ -604,16 +605,16 @@ class CustomBdistWheel(bdist_wheel):
     def finalize_options(self):
         """Set final values for all the options that this command supports."""
         super().finalize_options()
-        
+
         platform_tag = os.getenv("PLATFORM_TAG")
         if platform_tag:
             self.plat_name = platform_tag
             self.plat_name_supplied = True
-            
+
         build_number = os.getenv("WHEEL_BUILD")
         if build_number:
             self.build_number = build_number
-    
+
     def run(self):
         super().run()
 
@@ -791,7 +792,7 @@ PACKAGE_DIR = get_package_dir(PY_INSTALL_CFG)
 os.makedirs(PACKAGE_DIR, exist_ok=True)
 
 packages = find_namespace_packages(PACKAGE_DIR)
-package_data: typing.Dict[str, list] = {}
+package_data: dict[str, list] = {}
 ext_modules = find_prebuilt_extensions(get_install_dirs_list(PY_INSTALL_CFG))
 entry_points = find_entry_points(PY_INSTALL_CFG)
 
@@ -803,7 +804,7 @@ if os.getenv("CI_BUILD_DEV_TAG"):
     long_description_md = WORKING_DIR / "build" / "pypi-openvino-rt.md"
     long_description_md.parent.mkdir(exist_ok=True)
     concat_files(md_files, long_description_md)
-    docs_url = "https://docs.openvino.ai/2025/index.html"
+    docs_url = "https://docs.openvino.ai/2026/index.html"
     OPENVINO_VERSION = WHEEL_VERSION[0:8]
 
 setup(

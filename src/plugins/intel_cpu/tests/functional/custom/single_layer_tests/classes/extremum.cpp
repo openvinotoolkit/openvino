@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,12 +17,8 @@ using namespace CPUTestUtils;
 using namespace ov::test::utils;
 
 std::string ExtremumLayerCPUTest::getTestCaseName(const testing::TestParamInfo<ExtremumLayerCPUTestParamSet> &obj) {
-    std::vector<ov::test::InputShape> inputShapes;
-    utils::MinMaxOpType extremumType;
-    ov::element::Type netPrecision, inPrecision, outPrecision;
-    CPUTestUtils::CPUSpecificParams cpuParams;
-    bool enforceSnippets;
-    std::tie(inputShapes, extremumType, netPrecision, inPrecision, outPrecision, cpuParams, enforceSnippets) = obj.param;
+    const auto& [inputShapes, extremumType, netPrecision, inPrecision, outPrecision, cpuParams, enforceSnippets] =
+        obj.param;
     std::ostringstream result;
     result << extremumNames[extremumType] << "_";
     if (inputShapes.front().first.size() != 0) {
@@ -50,13 +46,8 @@ std::string ExtremumLayerCPUTest::getTestCaseName(const testing::TestParamInfo<E
 
 void ExtremumLayerCPUTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
-
-    std::vector<ov::test::InputShape> inputShapes;
-    utils::MinMaxOpType extremumType;
-    ov::element::Type netPrecision, inPrecision, outPrecision;
-    CPUTestUtils::CPUSpecificParams cpuParams;
-    bool enforceSnippets;
-    std::tie(inputShapes, extremumType, netPrecision, inPrecision, outPrecision, cpuParams, enforceSnippets) = this->GetParam();
+    const auto& [inputShapes, extremumType, netPrecision, inPrecision, outPrecision, cpuParams, enforceSnippets] =
+        this->GetParam();
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
     inType  = inPrecision;
@@ -91,9 +82,6 @@ std::string ExtremumLayerCPUTest::getPrimitiveType() {
     if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
         return "jit";
     }
-#if defined(OV_CPU_WITH_SHL)
-    return "shl";
-#endif
 #endif
     return CPUTestsBase::getPrimitiveType();
 }

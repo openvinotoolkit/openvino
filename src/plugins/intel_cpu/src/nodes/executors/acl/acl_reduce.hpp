@@ -1,20 +1,19 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-// TODO: remove relative path
-#include "../reduce.hpp"
 #include "acl_utils.hpp"
 #include "arm_compute/runtime/NEON/NEFunctions.h"
+#include "nodes/executors/reduce.hpp"
 #include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {
 
 class AclReduceExecutor : public ReduceExecutor {
 public:
-    AclReduceExecutor(const ExecutorContext::CPtr context);
+    AclReduceExecutor(ExecutorContext::CPtr context);
 
     bool init(const ReduceAttrs& reduceAttrs,
               const std::vector<MemoryDescPtr>& srcDescs,

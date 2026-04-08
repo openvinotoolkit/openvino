@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 #include <unordered_set>
@@ -39,9 +40,6 @@ namespace low_precision {
 */
 class LP_TRANSFORMATIONS_API NetworkHelper {
 public:
-    // Return true if `type` can be castable to at least one of `type`
-    static bool is_castable_to_one_of(NodeTypeInfo type, const std::unordered_set<NodeTypeInfo>& types);
-
     static std::vector<Input<Node>> consumer_inputs(std::shared_ptr<Node> node);
 
     // Collect and return a vector with all nodes that consumes any of the `node` output
@@ -64,17 +62,9 @@ public:
 
     static size_t getOutputChannelsCount(std::shared_ptr<const Node> layer, bool isOnWeights = false);
 
-    static std::vector<std::shared_ptr<Node>> getParentsRecursivelyExceptTypes(
-        std::shared_ptr<Node> layer,
-        const std::unordered_set<NodeTypeInfo>& exceptionLayerTypes = {},
-        const int portIndex = -1);
-
     static size_t getInputChannelsCount(std::shared_ptr<Node> layer);
 
     static size_t getGroupsCount(std::shared_ptr<Node> layer);
-
-    // Remove node by connecting its 0th input with 0th output
-    static void removeLayer(std::shared_ptr<Node> node);
 
     static std::shared_ptr<Node> swapMultiplyAndAdd(std::shared_ptr<ov::opset1::Add> addAfterMultiply, const int multiplyBranch);
 
@@ -149,6 +139,8 @@ public:
         const bool inPlace = false);
 
     static FakeQuantizeDequantization getDequantizationBelow(const std::shared_ptr<Node>& node, const bool convertIsMandatory = false);
+
+    static std::optional<size_t> getDQConstBranchIndex(const std::shared_ptr<ov::Node>& eltwise);
 
     static FakeQuantizeDequantization normalizeDequantization(FakeQuantizeDequantization dequantization);
 
@@ -260,11 +252,6 @@ private:
             const std::shared_ptr<ov::opset1::FakeQuantize>& fq,
             const bool roundValues,
             const bool roundValuesWasSet);
-
-    // 1  - on weights
-    // 0  - weightable layer was not found
-    // -1 - on activations
-    static int onWeightsInDepth(std::shared_ptr<Node> layer);
 };
 
 template <typename OperationType>
@@ -295,17 +282,6 @@ std::shared_ptr<Node> NetworkHelper::setOutDataPrecision(std::shared_ptr<Operati
         replace_node(layer, replacement);
         return replacement;
     }
-}
-
-template <typename T>
-std::shared_ptr<Node> make_op_pattern(const ov::NodeVector& args) {
-    return std::make_shared<ov::pass::pattern::op::Any>(
-        element::dynamic,
-        PartialShape{},
-        [](std::shared_ptr<Node> n) {
-            return !!ov::as_type_ptr<T>(n);
-        },
-        args);
 }
 
 template <typename T, typename... Args>

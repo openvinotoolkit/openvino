@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -19,7 +19,7 @@ namespace ov::intel_cpu {
 
 class jit_perf_count_rdtsc_start_emitter : public jit_emitter {
 public:
-    jit_perf_count_rdtsc_start_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_perf_count_rdtsc_start_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                                        dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                        const std::shared_ptr<ov::Node>& n);
     size_t get_inputs_num() const override;
@@ -32,7 +32,7 @@ private:
 
 class jit_perf_count_rdtsc_end_emitter : public jit_emitter {
 public:
-    jit_perf_count_rdtsc_end_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_perf_count_rdtsc_end_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                                      dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                      const std::shared_ptr<ov::Node>& n);
     size_t get_inputs_num() const override;

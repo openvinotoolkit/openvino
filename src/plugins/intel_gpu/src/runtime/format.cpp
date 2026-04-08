@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -107,6 +107,8 @@ static const std::map<format::type, format_traits> format_traits_map {
         FMT_TRAITS(os_is_zyx_isa8_osv16_isv4,                    1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{1, 8}, {0, 16}, {1, 4}},         {{1, 8}, {0, 16}, {1, 4}}),  // NOLINT
         FMT_TRAITS(os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,   1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 32}, {1, 32}},                {{0, 32}, {1, 32}}),  // NOLINT
         FMT_TRAITS(os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4,  1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{0, 32}, {1, 32}},                {{0, 32}, {1, 32}}),  // NOLINT
+        FMT_TRAITS(os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2,   1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 32}, {1, 32}},                {{0, 32}, {1, 32}}),  // NOLINT
+        FMT_TRAITS(os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2,   1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{0, 32}, {1, 32}},                {{0, 32}, {1, 32}}),  // NOLINT
         FMT_TRAITS(os_is_yx_osv16_isv4,                          1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 16}, {1, 4}},                 {{0, 16}, {1, 4}}),  // NOLINT
         FMT_TRAITS(os_is_yx_osv8_isv4,                           1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 8}, {1, 4}},                  {{0, 8}, {1, 4}}),  // NOLINT
         FMT_TRAITS(os_is_zyx_osv16_isv16,                        1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{0, 16}, {1, 16}},                {{0, 16}, {1, 16}}),  // NOLINT
@@ -203,10 +205,11 @@ format format::get_default_format(size_t rank, bool is_weights, bool is_grouped)
                 default_fmt = cldnn::format::goizyx;
             }
         } else {
-            if (rank == 4) {
-                default_fmt = cldnn::format::oiyx;
-            } else if (rank == 5) {
+            if (rank == 5) {
                 default_fmt = cldnn::format::oizyx;
+            } else {
+                // Default format for non-grouped weights: oiyx for rank!=5 (including 3D and 4D)
+                default_fmt = cldnn::format::oiyx;
             }
         }
     } else {
@@ -221,6 +224,10 @@ format format::get_default_format(size_t rank, bool is_weights, bool is_grouped)
         }
     }
     return default_fmt;
+}
+
+format format::get_default_format() const {
+    return get_default_format(dimension(value));
 }
 
 bool format::is_default_format(const format& fmt) {

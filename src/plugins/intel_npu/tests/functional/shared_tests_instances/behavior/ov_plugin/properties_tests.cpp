@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,6 +39,9 @@ ov::log::Level getTestsLogLevelFromEnvironmentOr(ov::log::Level instead) {
 const std::vector<ov::AnyMap> compat_CorrectPluginMutableProperties = {
     // OV
     {{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT}},
+    {{ov::intel_npu::platform.name(),
+      removeDeviceNameOnlyID(
+          ov::test::utils::getTestsDeviceNameFromEnvironmentOr(std::string(ov::intel_npu::Platform::AUTO_DETECT)))}},
     {{ov::hint::num_requests.name(), 2u}},
     {{ov::log::level.name(), ov::log::Level::ERR}},
     {{ov::device::id.name(), removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3720"))}},
@@ -91,6 +94,8 @@ const std::vector<ov::AnyMap> CorrectCompiledModelProperties = {
     {{ov::hint::execution_mode.name(), ov::hint::ExecutionMode::PERFORMANCE}},
     {{ov::hint::num_requests.name(), 4u}},
     {{ov::hint::enable_cpu_pinning.name(), true}},
+    {{ov::hint::model.name(), std::shared_ptr<const ov::Model>(nullptr)}},
+    {{ov::hint::model.name(), std::shared_ptr<ov::Model>(nullptr)}}  // intentionally copied above to test constness
 };
 
 const std::vector<ov::AnyMap> IncorrectImmutableProperties = {
@@ -199,7 +204,7 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     smoke_BehaviorTests_OVCheckSetSupportedRWMandatoryMetricsPropsTests,
     OVCheckSetSupportedRWMetricsPropsTests,
-    ::testing::Combine(::testing::Values("MULTI", "AUTO"),
+    ::testing::Combine(::testing::Values("MULTI:NPU", "AUTO:NPU"),
                        ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWOptionalPropertiesValues(
                            {ov::log::level.name()}))),
     ov::test::utils::appendPlatformTypeTestName<OVCheckSetSupportedRWMetricsPropsTests>);
@@ -217,20 +222,21 @@ INSTANTIATE_TEST_SUITE_P(
     OVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
     ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                        ::testing::ValuesIn(CorrectCompiledModelProperties)),
-    (ov::test::utils::appendPlatformTypeTestName<OVCheckChangePropComplieModleGetPropTests_DEVICE_ID>));
+    (ov::test::utils::appendPlatformTypeTestName<OVCheckChangePropComplieModleGetPropTests_DEVICE_ID, true>));
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_BehaviorTests_OVCheckChangePropComplieModleGetPropTests_InferencePrecision,
     OVCheckChangePropComplieModleGetPropTests_InferencePrecision,
     ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                        ::testing::ValuesIn(CorrectCompiledModelProperties)),
-    (ov::test::utils::appendPlatformTypeTestName<OVCheckChangePropComplieModleGetPropTests_InferencePrecision>));
+    (ov::test::utils::appendPlatformTypeTestName<OVCheckChangePropComplieModleGetPropTests_InferencePrecision, true>));
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_OVCheckMetricsPropsTests_ModelDependceProps,
-                         OVCheckMetricsPropsTests_ModelDependceProps,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(CorrectCompiledModelProperties)),
-                         (ov::test::utils::appendPlatformTypeTestName<OVCheckMetricsPropsTests_ModelDependceProps>));
+INSTANTIATE_TEST_SUITE_P(
+    smoke_BehaviorTests_OVCheckMetricsPropsTests_ModelDependceProps,
+    OVCheckMetricsPropsTests_ModelDependceProps,
+    ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                       ::testing::ValuesIn(CorrectCompiledModelProperties)),
+    (ov::test::utils::appendPlatformTypeTestName<OVCheckMetricsPropsTests_ModelDependceProps, true>));
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_OVClassSetDefaultDeviceIDPropTest,
                          OVClassSetDefaultDeviceIDPropTest,

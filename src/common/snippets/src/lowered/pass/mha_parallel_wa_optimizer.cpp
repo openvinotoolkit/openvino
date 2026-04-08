@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,6 @@
 #include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::lowered::pass {
-using namespace ov::snippets::pass;
 
 const size_t MHAParallelWAOptimizer::m_dim_M_idx = 1;
 
@@ -57,15 +56,18 @@ MHAParallelWAOptimizer::MHAParallelWAOptimizer(const lowered::LinearIRCPtr& line
                                                             : utils::get_output_dim_idx(layout, m_dim_M_idx);
         m_dim_M_idces[i] = dim_idx;
         const auto m_idx = i < configurator->get_in_num() ? dim_idx : layout.size() - 2;
-        m_optimized_layouts[i] = SplitDimensionM::get_updated_order(layout, m_idx);
+        m_optimized_layouts[i] = ov::snippets::pass::SplitDimensionM::get_updated_order(layout, m_idx);
     }
 }
 
-bool MHAParallelWAOptimizer::run(const lowered::LinearIR& /*linear_ir*/) {
+bool MHAParallelWAOptimizer::run(const lowered::LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::MHAParallelWAOptimizer")
     const auto& config = m_configurator->get_config();
     size_t new_batch_dim = 0, new_kernel_dim = 0;
-    if (!SplitDimensionM::split(config->master_shape, m_concurrency, new_batch_dim, new_kernel_dim)) {
+    if (!ov::snippets::pass::SplitDimensionM::split(config->master_shape,
+                                                    m_concurrency,
+                                                    new_batch_dim,
+                                                    new_kernel_dim)) {
         return false;
     }
     auto& master_shape = config->master_shape;
@@ -74,13 +76,14 @@ bool MHAParallelWAOptimizer::run(const lowered::LinearIR& /*linear_ir*/) {
     m_configurator->update_tensor_rank(master_shape);
 
     RuntimeConfigurator::LoopInfoRuntimeParamsMap initialized_info;
+    const auto& loop_manager = linear_ir.get_loop_manager();
     auto updater = [&](const lowered::LoopInfoPtr& loop_info) {
         if (const auto unified_loop_info = ov::as_type_ptr<lowered::UnifiedLoopInfo>(loop_info)) {
             if (initialized_info.count(unified_loop_info) == 0) {
                 if (!ov::is_type<lowered::InnerSplittedUnifiedLoopInfo>(unified_loop_info)) {
                     unified_loop_info->set_work_amount(new_kernel_dim);
                 }
-                snippets::utils::update_data_pointer_shifts(unified_loop_info);
+                snippets::utils::update_data_pointer_shifts(loop_manager, unified_loop_info);
                 initialized_info[unified_loop_info] = RuntimeConfigurator::get_loop_runtime_params(unified_loop_info);
             }
         } else if (const auto expanded_loop_info = ov::as_type_ptr<lowered::ExpandedLoopInfo>(loop_info)) {
@@ -97,8 +100,11 @@ bool MHAParallelWAOptimizer::run(const lowered::LinearIR& /*linear_ir*/) {
     for (size_t i = 0; i < m_configurator->get_io_num(); ++i) {
         config->io_shapes[i] =
             m_unsqueezed_params.count(i)
-                ? SplitDimensionM::unsqueeze_m_dim(config->io_shapes[i], m_dim_M_idces[i])
-                : SplitDimensionM::reshape_m_dim(config->io_shapes[i], m_dim_M_idces[i], new_batch_dim, new_kernel_dim);
+                ? ov::snippets::pass::SplitDimensionM::unsqueeze_m_dim(config->io_shapes[i], m_dim_M_idces[i])
+                : ov::snippets::pass::SplitDimensionM::reshape_m_dim(config->io_shapes[i],
+                                                                     m_dim_M_idces[i],
+                                                                     new_batch_dim,
+                                                                     new_kernel_dim);
     }
     config->io_layouts = m_optimized_layouts;
     return true;
@@ -121,6 +127,13 @@ std::unordered_set<lowered::ExpressionPtr> MHAParallelWAOptimizer::find_applicab
         const auto& loop_idces = expr->get_loop_ids();
         if (loop_idces.empty()) {
             return false;
+        }
+        for (const auto& loop_id : loop_idces) {
+            // Note: parallel loops mean that parallelization logic is realized in the kernel.
+            // In such cases, external parallelization optimizations are not applicable.
+            if (loop_manager->get_loop_info(loop_id)->is_parallel()) {
+                return false;
+            }
         }
         const auto& outermost_loop = loop_manager->get_loop_info(loop_idces[0]);
         if (check_dynamic_wa && !snippets::utils::is_dynamic_value(outermost_loop->get_work_amount())) {
@@ -154,7 +167,7 @@ std::unordered_set<size_t> MHAParallelWAOptimizer::find_unsqueezed_params(
 
     std::unordered_set<lowered::ExpressionPtr> visited;
     for (const auto& brgemm : brgemms) {
-        const auto& brgemm_b_input = brgemm->get_input_port_connector(1)->get_source().get_expr();
+        const auto& brgemm_b_input = brgemm->get_input_expr_ptr(1);
         utils::visit_path(brgemm_b_input, visited, add_param, true);
     }
     return unsqueezed_params;
@@ -183,7 +196,7 @@ std::vector<lowered::ExpandedLoopInfoPtr> MHAParallelWAOptimizer::find_loops_to_
     size_t i = 0;
     std::unordered_set<lowered::ExpressionPtr> visited;
     for (const auto& param : linear_ir->get_parameters()) {
-        if (unsqueezed_params.count(i++) != 0u) {
+        if (unsqueezed_params.count(i++) != 0U) {
             continue;
         }
         utils::visit_path(param, visited, add_loop_idx_to_split, false);

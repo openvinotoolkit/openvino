@@ -3,7 +3,7 @@ Most Efficient Large Language Models for AI PC
 
 This page is regularly updated to help you identify the best-performing LLMs on the
 Intel® Core™ Ultra processor family and AI PCs.
-The current data is as of OpenVINO 2025.1, 13 April 2025.
+The current data is as of OpenVINO 2026.0, 26 February 2026.
 
 The tables below list the key performance indicators for inference on built-in GPUs.
 
@@ -11,11 +11,22 @@ The tables below list the key performance indicators for inference on built-in G
 
 .. tab-set::
 
-   .. tab-item:: 7-255H
+   .. tab-item:: 5-338H
 
       .. data-table::
          :class: modeldata stripe
          :name: supportedModelsTable_V1
+         :header-rows: 1
+         :file:  ../../_static/benchmarks_files/llm_models_5-338H.csv
+         :data-column-hidden: [3,4,6]
+         :data-order: [[ 0, "asc" ]]
+         :data-page-length: 10
+
+   .. tab-item:: 7-255H
+
+      .. data-table::
+         :class: modeldata stripe
+         :name: supportedModelsTable_V2
          :header-rows: 1
          :file:  ../../_static/benchmarks_files/llm_models_7-255H.csv
          :data-column-hidden: [3,4,6]
@@ -26,19 +37,19 @@ The tables below list the key performance indicators for inference on built-in G
 
       .. data-table::
          :class: modeldata stripe
-         :name: supportedModelsTable_V2
+         :name: supportedModelsTable_V3
          :header-rows: 1
          :file:  ../../_static/benchmarks_files/llm_models_7-258V.csv
          :data-column-hidden: [3,4,6]
          :data-order: [[ 0, "asc" ]]
 
-   .. tab-item:: 7-155H
+   .. tab-item:: 7-165H
 
       .. data-table::
          :class: modeldata stripe
-         :name: supportedModelsTable_V3
+         :name: supportedModelsTable_V4
          :header-rows: 1
-         :file:  ../../_static/benchmarks_files/llm_models_7-155H.csv
+         :file:  ../../_static/benchmarks_files/llm_models_7-165H.csv
          :data-column-hidden: [3,4,6]
          :data-order: [[ 0, "asc" ]]
 
@@ -57,12 +68,19 @@ The tables below list the key performance indicators for inference on built-in G
    
    .. grid-item::
 
-      .. button-link:: https://docs.openvino.ai/2025/_static/download/benchmarking_genai_platform_list.pdf
+      .. button-link:: https://docs.openvino.ai/2026/_static/download/benchmark_genai_platform_list.pdf
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Get system descriptions [PDF]
+
+      .. button-link:: ../../_static/benchmarks_files/llm_models_5-338H.csv 
+         :color: primary
+         :outline:
+         :expand:
+
+         :material-regular:`download;1.5em` Get the 5-338H table [PDF]
 
       .. button-link:: ../../_static/benchmarks_files/llm_models_7-258V.csv 
          :color: primary
@@ -78,10 +96,10 @@ The tables below list the key performance indicators for inference on built-in G
 
          :material-regular:`download;1.5em` Get the 7-255H table [CSV]
 
-      .. button-link:: ../../_static/benchmarks_files/llm_models_7-155H.csv 
+      .. button-link:: ../../_static/benchmarks_files/llm_models_7-165H.csv 
          :color: primary
          :outline:
          :expand:
 
-         :material-regular:`download;1.5em` Get the 7-155H table [CSV]
+         :material-regular:`download;1.5em` Get the 7-165H table [CSV]
 

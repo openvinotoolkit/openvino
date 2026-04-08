@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,7 @@ class MoveFakeQuantizeTransformation :
     public testing::WithParamInterface<MoveFakeQuantizeTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MoveFakeQuantizeTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<MoveFakeQuantizeTransformationParams>& obj);
 
 protected:
     void SetUp() override;

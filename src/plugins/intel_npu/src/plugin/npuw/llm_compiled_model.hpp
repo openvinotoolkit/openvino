@@ -1,4 +1,4 @@
-// Copyright (C) 2024-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,27 +7,54 @@
 #include <memory>
 
 #include "compiled_model.hpp"
+#include "npuw_transformations/kv_axes_position.hpp"
 
 namespace ov {
 namespace npuw {
 
 class LLMInferRequest;
+class WhisperInferRequest;
+struct PrefixCacheRestorationContext;
 class LLMCompiledModel : public ov::npuw::ICompiledModel {
     using GetPropertiesMap =
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
 
 public:
+    static constexpr const char* output_embeds = "npuw_output_embed";
+
+    static constexpr uint32_t whisper_batch_dim = 0u;
+    static constexpr uint32_t whisper_seq_len_dim = 2u;
+    static constexpr uint32_t whisper_max_prompt_size = 4u;
+    static constexpr uint32_t whisper_kvcache_size = 448u;
+
     struct KVCacheDesc {
         uint32_t max_prompt_size = 0u;
         uint32_t total_size = 0u;
         uint32_t num_stored_tokens = 0u;
         uint32_t dim = 0u;
-        bool v_tensors_transposed = false;
+        uint32_t max_generation_token_len = 0u;
+        bool v_tensors_transposed_pre = false;  // prefill
+        bool v_tensors_transposed_gen = false;  // generate
     };
+
+    // Factory type for creating sub-compiled-models (prefill / generate / lm_head).
+    // The default builds an ov::npuw::CompiledModel via ICompiledModel::create().
+    // Tests may inject a custom factory to inspect the transformed IR or stub the
+    // compilation stage entirely.
+    using CompiledModelFactory =
+        std::function<std::shared_ptr<ov::npuw::ICompiledModel_v0>(const std::shared_ptr<ov::Model>&,
+                                                                   const std::shared_ptr<const ov::IPlugin>&,
+                                                                   const ov::AnyMap&)>;
+
+    static std::shared_ptr<ov::npuw::ICompiledModel_v0> make_compiled_model(
+        const std::shared_ptr<ov::Model>& model,
+        const std::shared_ptr<const ov::IPlugin>& plugin,
+        const ov::AnyMap& properties);
 
     LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
                      const std::shared_ptr<const ov::IPlugin>& plugin,
-                     const ov::AnyMap& properties);
+                     const ov::AnyMap& properties,
+                     CompiledModelFactory factory = make_compiled_model);
     LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
                      const std::shared_ptr<const ov::IPlugin>& plugin,
                      const bool serialized);
@@ -44,9 +71,14 @@ public:
     ov::Any get_property(const std::string& name) const override;
 
 private:
+    friend class LLMInferBaseRequest;
     friend class LLMInferRequest;
+    friend class WhisperInferRequest;
+    friend class EmbeddingInferRequest;
 
     std::shared_ptr<ov::ISyncInferRequest> create_llm_infer_request();
+    std::shared_ptr<ov::ISyncInferRequest> create_whisper_infer_request();
+    std::shared_ptr<ov::ISyncInferRequest> create_embedding_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     void implement_properties();
 
@@ -66,8 +98,47 @@ private:
     ov::npuw::s11n::BF16Cache m_bf16_consts;
 
     KVCacheDesc m_kvcache_desc;
-    std::shared_ptr<ov::npuw::CompiledModel> m_kvcache_compiled;
-    std::shared_ptr<ov::npuw::CompiledModel> m_prefill_compiled;
+    uint64_t m_prefill_chunk_size = 0;
+    bool m_use_chunk_prefill = false;
+    std::shared_ptr<ov::npuw::ICompiledModel_v0> m_kvcache_compiled;
+    std::shared_ptr<ov::npuw::ICompiledModel_v0> m_prefill_compiled;
+    // This model is optional, so can be null.
+    std::shared_ptr<ov::npuw::ICompiledModel_v0> m_lm_head_compiled;
+
+    CompiledModelFactory m_compiled_model_factory;
+
+    // Multiple generate models with different static KV cache shapes (1K, 2K, 4K, 8K stepping)
+    std::vector<std::shared_ptr<ov::npuw::ICompiledModel_v0>> m_generate_compiled_variants;
+    std::vector<uint32_t> m_kvcache_sizes;  // Corresponding KV cache sizes for each variant
+
+    // Support LoRA
+    uint32_t m_max_lora_rank = 32;
+
+    // Support prefix caching
+    bool m_enable_prefix_caching = false;
+    uint64_t m_prefix_caching_block_size = 0;
+    uint64_t m_prefix_caching_max_num_blocks = 0;
+
+    // Friend declarations for PrefixCachingHelper to access protected members
+    friend class PrefixCachingHelper;
+
+    bool m_is_whisper = false;
+    uint64_t m_eos_token_id = 0;
+
+    bool m_is_embedding = false;
+
+    // Create generate model variants with different sizes
+    std::vector<std::shared_ptr<ov::Model>> create_generate_model_variants(
+        const std::shared_ptr<ov::Model>& generate_model,
+        const KVAxesPosition& axes,
+        const uint32_t whisper_lhs_seq_size);
+
+    // Compile multiple generate model variants
+    void compile_generate_model_variants(const std::vector<std::shared_ptr<ov::Model>>& generate_model_variants,
+                                         const std::shared_ptr<const ov::IPlugin>& plugin,
+                                         const ov::AnyMap& generate_config);
+
+    bool m_is_eagle = false;
 };
 
 }  // namespace npuw

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,10 +18,8 @@ using namespace ov::mock_auto_plugin;
 
 class AutoSetLogLevel : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
-        std::string log_level;
-        ov::AnyMap config;
-        std::tie(log_level, config) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams>& obj) {
+        const auto& [log_level, config] = obj.param;
         std::ostringstream result;
         result << log_level;
         return result.str();
@@ -52,9 +50,8 @@ public:
 
 TEST_P(AutoSetLogLevel, setLogLevelFromConfig) {
     custom_unsetenv("OPENVINO_LOG_LEVEL");
-    std::string log_level;
-    ov::AnyMap config;
-    std::tie(log_level, config) = this->GetParam();
+
+    const auto& [log_level, config] = this->GetParam();
     plugin->set_device_name("AUTO");
     plugin->compile_model(model, config);
     int a = 0;

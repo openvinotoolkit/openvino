@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -139,6 +139,10 @@ extern template bool evaluate_node<ov::op::v1::AvgPool>(std::shared_ptr<ov::Node
                                                         const ov::TensorVector& inputs);
 
 extern template bool evaluate_node<ov::op::v14::AvgPool>(std::shared_ptr<ov::Node> node,
+                                                         ov::TensorVector& outputs,
+                                                         const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v16::AvgPool>(std::shared_ptr<ov::Node> node,
                                                          ov::TensorVector& outputs,
                                                          const ov::TensorVector& inputs);
 
@@ -571,3 +575,7 @@ extern template bool evaluate_node<ov::op::v16::SparseFillEmptyRows>(std::shared
 extern template bool evaluate_node<ov::op::v13::ScaledDotProductAttention>(std::shared_ptr<ov::Node> node,
                                                                            ov::TensorVector& outputs,
                                                                            const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v1::Subtract>(std::shared_ptr<ov::Node> node,
+                                                         ov::TensorVector& outputs,
+                                                         const ov::TensorVector& inputs);

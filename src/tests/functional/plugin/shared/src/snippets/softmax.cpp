@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-std::string SoftmaxBase::getTestCaseName(testing::TestParamInfo<ov::test::snippets::SoftmaxParams> obj) {
+std::string SoftmaxBase::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::SoftmaxParams>& obj) {
     const auto& [inputShapes, axis, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;

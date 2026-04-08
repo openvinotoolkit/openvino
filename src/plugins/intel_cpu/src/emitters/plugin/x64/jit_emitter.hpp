@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
@@ -23,6 +23,7 @@
 #include "snippets/emitter.hpp"
 
 #ifdef SNIPPETS_DEBUG_CAPS
+#    include "emitters/snippets/common/jit_debug_emitter_base.hpp"
 #    include "emitters/snippets/x64/verbose.hpp"
 #endif
 
@@ -43,7 +44,7 @@ struct emitter_params {
 
 class jit_emitter : public ov::snippets::Emitter {
 public:
-    jit_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                 dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                 ov::element::Type exec_prc = ov::element::f32,
                 emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec)
@@ -84,7 +85,7 @@ protected:
     size_t get_max_vecs_count() const;
     size_t get_vec_length() const;
 
-    dnnl::impl::cpu::x64::jit_generator* h;
+    dnnl::impl::cpu::x64::jit_generator_t* h;
     dnnl::impl::cpu::x64::cpu_isa_t host_isa_;
     ov::element::Type exec_prc_;
     Xbyak::Opmask k_mask;
@@ -120,12 +121,12 @@ protected:
     mutable std::shared_ptr<Xbyak::Label> l_table;
 
     enum : uint8_t {
-        _cmp_eq_oq = dnnl::impl::cpu::x64::jit_generator::_cmp_eq_oq,
-        _cmp_neq_uq = dnnl::impl::cpu::x64::jit_generator::_cmp_neq_uq,
-        _cmp_lt_os = dnnl::impl::cpu::x64::jit_generator::_cmp_lt_os,
-        _cmp_le_os = dnnl::impl::cpu::x64::jit_generator::_cmp_le_os,
-        _cmp_ge_os = dnnl::impl::cpu::x64::jit_generator::_cmp_nlt_us,
-        _cmp_gt_os = dnnl::impl::cpu::x64::jit_generator::_cmp_nle_us,
+        _cmp_eq_oq = dnnl::impl::cpu::x64::jit_generator_t::_cmp_eq_oq,
+        _cmp_neq_uq = dnnl::impl::cpu::x64::jit_generator_t::_cmp_neq_uq,
+        _cmp_lt_os = dnnl::impl::cpu::x64::jit_generator_t::_cmp_lt_os,
+        _cmp_le_os = dnnl::impl::cpu::x64::jit_generator_t::_cmp_le_os,
+        _cmp_ge_os = dnnl::impl::cpu::x64::jit_generator_t::_cmp_nlt_us,
+        _cmp_gt_os = dnnl::impl::cpu::x64::jit_generator_t::_cmp_nle_us,
     };
 
     virtual void emit_impl(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const = 0;
@@ -173,6 +174,10 @@ protected:
 
 #ifdef SNIPPETS_DEBUG_CAPS
     mutable jit_emitter_info_t info_;
+    template <typename>
+    friend class jit_debug_emitter_base_common;
+    template <typename>
+    friend class jit_debug_emitter_base;
     friend class jit_debug_emitter;
 #endif
 

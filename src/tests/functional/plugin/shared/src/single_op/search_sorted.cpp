@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,17 +17,9 @@ std::string SearchSortedLayerTest::getTestCaseName(const testing::TestParamInfo<
     SearchSortedLayerTestParams basicParamsSet;
     basicParamsSet = obj.param;
 
-    SearchSortedSpecificParams searchSortedParams;
+    const auto& [searchSortedParams, inputPrecision, targetDevice] = basicParamsSet;
 
-    ElementType inputPrecision;
-    std::string targetDevice;
-    std::tie(searchSortedParams, inputPrecision, targetDevice) = basicParamsSet;
-
-    InputShape sortedInputShape;
-    InputShape valuesInputShape;
-    bool right_mode;
-
-    std::tie(sortedInputShape, valuesInputShape, right_mode) = searchSortedParams;
+    const auto& [sortedInputShape, valuesInputShape, right_mode] = searchSortedParams;
 
     std::ostringstream result;
     result << inputPrecision << "_IS=";
@@ -67,15 +59,10 @@ void SearchSortedLayerTest::SetUp() {
     SearchSortedLayerTestParams basicParamsSet;
     basicParamsSet = this->GetParam();
 
-    SearchSortedSpecificParams searchSortedParams;
+    const auto& [searchSortedParams, inputPrecision, _targetDevice] = basicParamsSet;
+    targetDevice = _targetDevice;
 
-    ElementType inputPrecision;
-    std::tie(searchSortedParams, inputPrecision, targetDevice) = basicParamsSet;
-
-    InputShape sortedInputShape;
-    InputShape valuesInputShape;
-    bool right_mode;
-    std::tie(sortedInputShape, valuesInputShape, right_mode) = searchSortedParams;
+    const auto& [sortedInputShape, valuesInputShape, right_mode] = searchSortedParams;
 
     init_input_shapes({sortedInputShape, valuesInputShape});
     auto sortedParam = std::make_shared<ov::op::v0::Parameter>(inputPrecision, inputDynamicShapes[0]);

@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,11 +11,12 @@
 #include "utils.hpp"
 #include "utils/error.hpp"
 
-UniformGenerator::UniformGenerator(double low, double high): m_low(low), m_high(high) {
+UniformGenerator::UniformGenerator(double low, double high, int seed): m_low(low), m_high(high), m_seed(seed) {
     ASSERT(low <= high);
 }
 
 void UniformGenerator::generate(cv::Mat& mat) {
+    cv::setRNGSeed(m_seed);
     cv::randu(mat, m_low, m_high);
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,9 +8,7 @@ namespace ov {
 namespace test {
 
 std::string ParameterResultSubgraphTest::getTestCaseName(const testing::TestParamInfo<parameterResultParams>& obj) {
-    ov::test::InputShape inShape;
-    std::string targetDevice;
-    std::tie(inShape, targetDevice) = obj.param;
+    const auto& [inShape, targetDevice] = obj.param;
     std::ostringstream result;
     result << "IS=";
     result << ov::test::utils::partialShape2str({inShape.first}) << "_";
@@ -31,8 +29,8 @@ std::shared_ptr<ov::Model> ParameterResultSubgraphTest::createModel(const ov::Pa
 }
 
 void ParameterResultSubgraphTest::SetUp() {
-    ov::test::InputShape inShape;
-    std::tie(inShape, targetDevice) = this->GetParam();
+    const auto& [inShape, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes({inShape});
 

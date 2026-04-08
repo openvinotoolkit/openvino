@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,6 +45,7 @@ KernelData KernelGenerator::get_kernel_data(const RuntimeParams& params) const {
     kd.code->str = build_code(m_kernel_name, jit, kd.code->entry_point);
 
     kd.params.arguments = get_arguments_desc(params);
+    kd.params.layerID = params.desc->id;
     kd.update_dispatch_data_func = get_dispatch_data_func();
     kd.need_args_update = true;
     kd.need_dispatch_data_update = true;

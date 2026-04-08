@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,10 +18,10 @@ namespace ov::intel_cpu {
  */
 class PartitionedMemoryBlock : public IMemoryBlockObserver {
 public:
-    PartitionedMemoryBlock(MemoryBlockPtr pBlock,
-                           size_t total_chunks = 1,
-                           ptrdiff_t offset_chunks = 0,
-                           size_t size_chunks = 1)
+    explicit PartitionedMemoryBlock(MemoryBlockPtr pBlock,
+                                    size_t total_chunks = 1,
+                                    ptrdiff_t offset_chunks = 0,
+                                    size_t size_chunks = 1)
         : m_pBlock(std::move(pBlock)),
           m_total_chunks(total_chunks),
           m_offset_chunks(offset_chunks),

@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ using GatedMLPParams = std::tuple<
 class GatedMLP : public testing::WithParamInterface<GatedMLPParams>,
                  virtual public SnippetsTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::GatedMLPParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::GatedMLPParams>& obj);
 protected:
     void SetUp() override;
 };

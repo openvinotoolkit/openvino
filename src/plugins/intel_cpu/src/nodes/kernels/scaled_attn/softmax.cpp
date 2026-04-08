@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <cfloat>
@@ -28,7 +28,8 @@ void attn_softmax(void* a,
                   size_t total_size,
                   [[maybe_unused]] ov::element::Type precision,
                   ov::element::Type attn_mask_prec,
-                  ov::element::Type dst_precision) {
+                  ov::element::Type dst_precision,
+                  const float* sink) {
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
     if (precision == ov::element::f16) {
         auto _a = reinterpret_cast<ov::float16*>(a);
@@ -43,7 +44,8 @@ void attn_softmax(void* a,
                                          len,
                                          total_size,
                                          attn_mask_prec,
-                                         dst_precision);
+                                         dst_precision,
+                                         sink);
         return;
     }
 #endif
@@ -59,7 +61,8 @@ void attn_softmax(void* a,
                                len,
                                total_size,
                                attn_mask_prec,
-                               dst_precision);
+                               dst_precision,
+                               sink);
 }
 
 }  // namespace ov::Extensions::Cpu::XARCH

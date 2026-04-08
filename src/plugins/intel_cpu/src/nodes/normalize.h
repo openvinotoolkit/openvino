@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,7 +59,7 @@ struct jit_uni_normalize_modulo_kernel {
         ker_(args);
     }
 
-    jit_uni_normalize_modulo_kernel(jit_normalize_config_params jcp) : jcp_(jcp) {}
+    explicit jit_uni_normalize_modulo_kernel(jit_normalize_config_params jcp) : jcp_(jcp) {}
     virtual ~jit_uni_normalize_modulo_kernel() = default;
 
     virtual void create_ker() = 0;
@@ -114,12 +114,12 @@ public:
         NormEpsMode epsMode = NormEpsMode::ADD;
         bool across_spatial = true;
         bool cornerCase = false;
-        float eps = 1e-10f;
+        float eps = 1e-10F;
 
         ov::element::Type input_prec = ov::element::dynamic;
         ov::element::Type output_prec = ov::element::dynamic;
-        size_t src_data_size = 0lu;
-        size_t dst_data_size = 0lu;
+        size_t src_data_size = 0LU;
+        size_t dst_data_size = 0LU;
     };
 
 private:
@@ -128,7 +128,10 @@ private:
     class NormalizeL2Executor {
     public:
         NormalizeL2Executor() = default;
-        virtual void exec(const uint8_t* src_ptr, uint8_t* dst_ptr, const void** post_ops_data) = 0;
+        virtual void exec(const uint8_t* src_ptr,
+                          uint8_t* dst_ptr,
+                          const CpuParallelPtr& cpu_parallel,
+                          const void** post_ops_data) = 0;
         virtual ~NormalizeL2Executor() = default;
 
         static std::shared_ptr<NormalizeL2Executor> getNormalizeL2Executor(const NormalizeL2Attrs& attrs,

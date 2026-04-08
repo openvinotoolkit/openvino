@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,7 @@ public:
 
     void set_input_layout(layout const& lo) { input_layout = lo; }
 
-    bool is_type_conversion_only() const {
+    bool only_precision_changed() const {
         auto in_layout = get_input_layout();
         auto out_layout = get_output_layout();
         bool only_precision_changed = in_layout.data_type != out_layout.data_type &&
@@ -52,7 +52,11 @@ public:
             only_precision_changed &= in_layout.get_partial_shape() == out_layout.get_partial_shape();
         }
 
-        return only_precision_changed && is_simple_reorder() && typed_desc()->truncate;
+        return only_precision_changed;
+    }
+
+    bool is_type_conversion_only() const {
+        return only_precision_changed() && is_simple_reorder() && typed_desc()->truncate;
     }
 
     bool is_simple_reorder() const {

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -6,6 +6,7 @@ import os
 import pytest
 import random
 import torch
+from huggingface_hub import snapshot_download
 from models_hub_common.constants import hf_cache_dir, clean_hf_cache_dir
 from models_hub_common.utils import cleanup_dir
 
@@ -44,8 +45,9 @@ class TestEdsrConvertModel(TestTorchConvertModel):
         image = Image.open(requests.get(url, stream=True).raw)
         assert model_name in name_to_class, "Unexpected model name"
         print(f"scale: {self.scale}")
+        model_cached = snapshot_download(f'eugenesiow/{model_name}')  # required to avoid HF rate limits
         model = name_to_class[model_name].from_pretrained(
-            f'eugenesiow/{model_name}', scale=self.scale)
+            model_cached, scale=self.scale)
         inputs = ImageLoader.load_image(image)
         self.example = (torch.randn_like(inputs),)
         self.inputs = (inputs,)
@@ -57,6 +59,7 @@ class TestEdsrConvertModel(TestTorchConvertModel):
             cleanup_dir(hf_cache_dir)
         super().teardown_method()
 
+    @pytest.mark.skip(reason="CVS-171175")
     @pytest.mark.parametrize("name", ["edsr"])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, ie_device):

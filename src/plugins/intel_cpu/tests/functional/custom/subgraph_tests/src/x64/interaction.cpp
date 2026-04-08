@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -128,9 +128,7 @@ class IntertactionCPUTest : public testing::WithParamInterface<InteractionLayerC
                             public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<InteractionLayerCPUTestParams>& obj) {
-        ElementType inType;
-        InputShape inputShape;
-        std::tie(inType, inputShape) = obj.param;
+        const auto& [inType, inputShape] = obj.param;
         std::ostringstream result;
         result << "IS=" << inputShape << "_";
         result << "Prc=" << inType;
@@ -156,9 +154,7 @@ public:
 
 protected:
     void SetUp() override {
-        ElementType inType;
-        InputShape inputShape;
-        std::tie(inType, inputShape) = this->GetParam();
+        const auto& [inType, inputShape] = this->GetParam();
         bool with_bf16 = ov::with_cpu_x86_bfloat16() || with_cpu_x86_avx2_vnni_2();
         if (with_bf16 && (inType == ov::element::bf16 || inType == ov::element::i32)) {
             selectedType = makeSelectedTypeStr("ref_any", ov::element::bf16);

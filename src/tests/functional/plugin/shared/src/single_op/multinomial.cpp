@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,17 +11,14 @@ using namespace ov::test;
 namespace ov {
 namespace test {
 std::string MultinomialLayerTest::getTestCaseName(const testing::TestParamInfo<MultinomialTestParams>& obj) {
-    std::string test_type;
-    ov::Tensor probs;
-    ov::Tensor num_samples;
-    ov::test::ElementType convert_type;
-    bool with_replacement;
-    bool log_probs;
-    std::pair<uint64_t, uint64_t> global_op_seed;
-    std::string device_name;
-
-    std::tie(test_type, probs, num_samples, convert_type, with_replacement, log_probs, global_op_seed, device_name) =
-        obj.param;
+    const auto& [test_type,
+                 probs,
+                 num_samples,
+                 convert_type,
+                 with_replacement,
+                 log_probs,
+                 global_op_seed,
+                 device_name] = obj.param;
 
     uint64_t global_seed = global_op_seed.first;
     uint64_t op_seed = global_op_seed.second;
@@ -31,9 +28,9 @@ std::string MultinomialLayerTest::getTestCaseName(const testing::TestParamInfo<M
     result << test_type << separator;
     result << "probs_shape=" << probs.get_shape().to_string() << separator;
     if (num_samples.get_element_type() == ov::test::ElementType::i32) {
-        result << "num_samples=" << static_cast<int*>(num_samples.data())[0] << separator;
+        result << "num_samples=" << static_cast<const int*>(num_samples.data())[0] << separator;
     } else {  // i64
-        result << "num_samples=" << static_cast<long*>(num_samples.data())[0] << separator;
+        result << "num_samples=" << static_cast<const long*>(num_samples.data())[0] << separator;
     }
     result << "inType=" << probs.get_element_type() << separator;
     result << "convert_type=" << convert_type << separator;
@@ -49,16 +46,15 @@ std::string MultinomialLayerTest::getTestCaseName(const testing::TestParamInfo<M
 void MultinomialLayerTest::SetUp() {
     MultinomialTestParams test_params;
 
-    std::string test_type;
-    ov::Tensor probs;
-    ov::Tensor num_samples;
-    ov::test::ElementType convert_type;
-    bool with_replacement;
-    bool log_probs;
-    std::pair<uint64_t, uint64_t> global_op_seed;
-
-    std::tie(test_type, probs, num_samples, convert_type, with_replacement, log_probs, global_op_seed, targetDevice) =
-        GetParam();
+    const auto& [test_type,
+                 probs,
+                 num_samples,
+                 convert_type,
+                 with_replacement,
+                 log_probs,
+                 global_op_seed,
+                 _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
 
     m_probs = probs;
     m_num_samples = num_samples;

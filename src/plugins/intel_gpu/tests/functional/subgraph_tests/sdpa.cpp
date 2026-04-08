@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -246,6 +246,16 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                                                            ov::PartialShape{1, 10, 1024, 64},
                                                            ov::Shape{10, 1024, 64},
                                                            ov::PartialShape{10, 1024, 1024},
+                                                           1.0f,
+                                                           0.025f,
+                                                           0.025f),
+                                           std::make_tuple(ov::PartialShape{1, 10, 77, 64},
+                                                           ov::Shape{10, 77, 64},
+                                                           ov::PartialShape{1, 10, 77, 64},
+                                                           ov::Shape{10, 77, 64},
+                                                           ov::PartialShape{1, 10, 77, 64},
+                                                           ov::Shape{10, 77, 64},
+                                                           ov::PartialShape{77, 77},
                                                            1.0f,
                                                            0.025f,
                                                            0.025f),

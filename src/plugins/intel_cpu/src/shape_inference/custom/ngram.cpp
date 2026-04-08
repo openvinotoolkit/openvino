@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,9 +30,7 @@ Result NgramShapeInfer::infer(const std::vector<std::reference_wrapper<const Vec
 
 ShapeInferPtr NgramShapeInferFactory::makeShapeInfer() const {
     auto ngram = ov::as_type_ptr<NgramNode>(m_op);
-    if (!ngram) {
-        OPENVINO_THROW("Wrong operation type");
-    }
+    OPENVINO_ASSERT(ngram, "Wrong operation type");
     return std::make_shared<NgramShapeInfer>(ngram->get_k());
 }
 }  // namespace ov::intel_cpu::node

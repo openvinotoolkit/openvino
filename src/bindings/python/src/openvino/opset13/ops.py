@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for ops added to openvino opset13."""
@@ -41,7 +41,8 @@ def bitwise_and(
 
     :param left_node: Tensor of integer or boolean datatype providing data.
     :param right_node: Tensor of integer or boolean datatype providing data.
-    :param auto_broadcast: The type of broadcasting specifies rules used for auto-broadcasting of input tensors. Defaults to “NUMPY”.
+    :param auto_broadcast: The type of broadcasting specifies rules used for
+                           auto-broadcasting of input tensors. Defaults to "NUMPY".
     :param name: The optional new name for output node.
     :return: The node performing bitwise AND operation on input nodes corresponding elements.
     """
@@ -84,7 +85,8 @@ def bitwise_or(
 
     :param left_node: Tensor of integer or boolean datatype providing data.
     :param right_node: Tensor of integer or boolean datatype providing data.
-    :param auto_broadcast: The type of broadcasting specifies rules used for auto-broadcasting of input tensors. Defaults to “NUMPY”.
+    :param auto_broadcast: The type of broadcasting specifies rules used for
+                           auto-broadcasting of input tensors. Defaults to "NUMPY".
     :param name: The optional new name for output node.
     :return: The node performing bitwise OR operation on input nodes corresponding elements.
     """
@@ -108,7 +110,8 @@ def bitwise_xor(
 
     :param left_node: Tensor of integer or boolean datatype providing data.
     :param right_node: Tensor of integer or boolean datatype providing data.
-    :param auto_broadcast: The type of broadcasting specifies rules used for auto-broadcasting of input tensors. Defaults to “NUMPY”.
+    :param auto_broadcast: The type of broadcasting specifies rules used for
+                           auto-broadcasting of input tensors. Defaults to "NUMPY".
     :param name: The optional new name for output node.
     :return: The node performing bitwise XOR operation on input nodes corresponding elements.
     """
@@ -209,20 +212,26 @@ def nms_rotated(
 ) -> Node:
     """Return a node which performs NMSRotated.
 
-    :param boxes: Tensor with box coordinates of floating point type and shape [num_batches, num_boxes, 5],
-                  where the last dimension is defined as [x_ctr, y_ctr, width, height, angle_radians].
-    :param scores: Tensor with box scores of floating point type and shape [num_batches, num_classes, num_boxes].
-    :param max_output_boxes_per_class: Tensor (scalar or 1D) of integer type, specifying maximum number of boxes
-                                        to be selected per class.
-    :param iou_threshold: Tensor (scalar or 1D) of floating point type, specifying intersection over union threshold
-    :param score_threshold: Tensor (scalar or 1D) of floating point type, specifying minimum score to consider box for the processing.
-    :param sort_result_descending: Flag that specifies whenever it is necessary to sort selected
-                                   boxes across batches or not.
+    :param boxes: Tensor with box coordinates of floating point type and shape
+                  [num_batches, num_boxes, 5], where the last dimension is defined as
+                  [x_ctr, y_ctr, width, height, angle_radians].
+    :param scores: Tensor with box scores of floating point type and shape
+                   [num_batches, num_classes, num_boxes].
+    :param max_output_boxes_per_class: Tensor (scalar or 1D) of integer type, specifying
+                                        maximum number of boxes to be selected per class.
+    :param iou_threshold: Tensor (scalar or 1D) of floating point type, specifying
+                          intersection over union threshold
+    :param score_threshold: Tensor (scalar or 1D) of floating point type, specifying
+                            minimum score to consider box for the processing.
+    :param sort_result_descending: Flag that specifies whenever it is necessary to sort
+                                   selected boxes across batches or not.
     :param output_type: Output element type.
     :param clockwise: Flag that specifies direction of the box rotation.
     :return: The new node which performs NMSRotated
     """
-    inputs = as_nodes(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, name=name)
+    inputs = as_nodes(
+        boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, name=name
+    )
 
     attributes = {
         "sort_result_descending": sort_result_descending,
@@ -261,7 +270,9 @@ def scaled_dot_product_attention(
     if attention_mask is not None:
         inputs.append(as_node(attention_mask, name=name))
     elif scale is not None:
-        inputs.append(as_node(convert_like(constant(np.array(0, np.int32)), inputs[0]), name=name))
+        inputs.append(
+            as_node(convert_like(constant(np.array(0, np.int32)), inputs[0]), name=name)
+        )
     if scale is not None:
         inputs.append(as_node(scale, name=name))
 
@@ -271,7 +282,12 @@ def scaled_dot_product_attention(
     return _get_node_factory_opset13().create("ScaledDotProductAttention", inputs, attributes)
 
 
-@overloading(Union[NumericData, np.number, bool, np.bool_, list], Union[NumericType, Type], Optional[str], bool)  # type: ignore
+@overloading(
+    Union[NumericData, np.number, bool, np.bool_, list],
+    Union[NumericType, Type],
+    Optional[str],
+    bool,
+)  # type: ignore
 @nameable_op
 def constant(
     value: Union[NumericData, np.number, bool, np.bool_, list],
@@ -296,14 +312,17 @@ def constant(
                           Requires data to be C_CONTIGUOUS if `True`.
                           Disabled by default if:
                           - value is a scalar.
-                          - dtype is one of: Type.u1, Type.i4, Type.u4, Type.nf4, Type.bf16.
+                          - dtype is one of: Type.u1, Type.u2, Type.u3, Type.i4, Type.u4, Type.u6, Type.nf4, Type.bf16.
                           - dtype force conversion of data.
     :return: The Constant node initialized with provided data.
     """
 
     def display_shared_memory_warning(warning_message: str) -> None:
         if shared_memory:
-            log.warning(f"{warning_message}. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.")
+            log.warning(
+                f"{warning_message}. Memory sharing is disabled by default. "
+                "Set shared_memory=False to hide this warning."
+            )
 
     if isinstance(value, np.ndarray):
         _value, _shared_memory = value, shared_memory
@@ -313,7 +332,7 @@ def constant(
     # Handle type casting, when dtype is not None:
     if dtype:
         # Expect packed data, use different constructor to handle it correctly:
-        if dtype in [Type.u1, Type.i4, Type.u4, Type.nf4, Type.f4e2m1]:
+        if dtype in [Type.u1, Type.u2, Type.u3, Type.i4, Type.u4, Type.u6, Type.nf4, Type.f4e2m1]:
             display_shared_memory_warning(f"Constant initialized with packed type of {dtype}")
             return Constant(dtype, Shape(_value.shape), _value.flatten().tolist())
         elif dtype in [Type.bf16, Type.f8e8m0, Type.f8e4m3, Type.f8e5m2]:

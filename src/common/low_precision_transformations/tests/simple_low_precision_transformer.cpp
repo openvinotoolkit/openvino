@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,6 @@
 #include "low_precision/markup_quantization_granularity.hpp"
 
 // cleanup transformations
-#include "low_precision/convert.hpp"
 #include "low_precision/eliminate_fake_quantize.hpp"
 #include "low_precision/fold_convert.hpp"
 #include "low_precision/fold_fake_quantize.hpp"

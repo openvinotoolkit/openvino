@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Callable, Any, Union
+from typing import Any, Union
+from collections.abc import Callable
 import logging
 
 from openvino import Model

@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ class ShapeInferOp : public ov::op::Op {
 public:
     OPENVINO_OP("ShapeInferOp", "SnippetsOpset");
     ShapeInferOp() = default;
-    ShapeInferOp(const OutputVector& args) : ov::op::Op(args) {}
+    explicit ShapeInferOp(const OutputVector& args) : ov::op::Op(args) {}
 };
 
 }  // namespace ov::snippets::op

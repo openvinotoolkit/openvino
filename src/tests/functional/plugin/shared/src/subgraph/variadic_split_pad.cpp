@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,14 +11,7 @@ namespace ov {
 namespace test {
 
 std::string VariadicSplitPad::getTestCaseName(const testing::TestParamInfo<SplitPadTuple>& obj) {
-    ov::Shape input_shape;
-    int64_t axis;
-    std::vector<size_t> numSplits, connectIndexes;
-    std::vector<int64_t> padsBegin, padsEnd;
-    ov::op::PadMode padMode;
-    ov::element::Type element_type;
-    std::string targetName;
-    std::tie(input_shape, axis, numSplits, connectIndexes, padsBegin, padsEnd, padMode, element_type, targetName) =
+    const auto& [input_shape, axis, numSplits, connectIndexes, padsBegin, padsEnd, padMode, element_type, targetName] =
         obj.param;
     std::ostringstream results;
 
@@ -35,14 +28,9 @@ std::string VariadicSplitPad::getTestCaseName(const testing::TestParamInfo<Split
 }
 
 void VariadicSplitPad::SetUp() {
-    ov::Shape input_shape;
-    int64_t axis;
-    std::vector<size_t> numSplits, connectIndexes;
-    std::vector<int64_t> padBegin, padEnd;
-    ov::op::PadMode padMode;
-    ov::element::Type element_type;
-    std::tie(input_shape, axis, numSplits, connectIndexes, padBegin, padEnd, padMode, element_type, targetDevice) =
+    const auto& [input_shape, axis, numSplits, connectIndexes, padBegin, padEnd, padMode, element_type, _targetDevice] =
         this->GetParam();
+    targetDevice = _targetDevice;
     ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(input_shape))};
 
     auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, axis);

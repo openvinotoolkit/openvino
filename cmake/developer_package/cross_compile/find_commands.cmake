@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -46,7 +46,7 @@ if(CMAKE_CROSSCOMPILING AND NOT (OV_ARCH STREQUAL OV_HOST_ARCH AND
         # ov_set_if_not_defined(CMAKE_FIND_ROOT_PATH "/usr")
     endif()
 
-    # controling CMAKE_FIND_ROOT_PATH usage
+    # controlling CMAKE_FIND_ROOT_PATH usage
     ov_set_if_not_defined(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
     ov_set_if_not_defined(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
     ov_set_if_not_defined(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)

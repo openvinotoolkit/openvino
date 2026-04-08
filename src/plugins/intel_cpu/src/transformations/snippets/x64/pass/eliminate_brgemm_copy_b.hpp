@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,8 @@ namespace ov::intel_cpu::pass {
 class EliminateBrgemmCopyB : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("EliminateBrgemmCopyB");
-    EliminateBrgemmCopyB(ov::intel_cpu::InputRepackerMap& input_repackers) : m_input_repackers(input_repackers) {}
+    explicit EliminateBrgemmCopyB(ov::intel_cpu::InputRepackerMap& input_repackers)
+        : m_input_repackers(input_repackers) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 

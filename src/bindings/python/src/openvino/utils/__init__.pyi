@@ -17,4 +17,4 @@ from openvino.utils.postponed_constant import make_postponed_constant
 """
 Generic utilities. Factor related functions out to separate files.
 """
-__all__ = ['classproperty', 'data_helpers', 'decorators', 'deprecated', 'deprecatedclassproperty', 'get_cmake_path', 'input_validation', 'make_postponed_constant', 'node_factory', 'numpy_to_c', 'postponed_constant', 'replace_node', 'replace_output_update_name', 'types']
+__all__: list[str] = ['classproperty', 'data_helpers', 'decorators', 'deprecated', 'deprecatedclassproperty', 'get_cmake_path', 'input_validation', 'make_postponed_constant', 'node_factory', 'numpy_to_c', 'postponed_constant', 'replace_node', 'replace_output_update_name', 'types']

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -298,11 +298,16 @@ cldnn::ExecutionConfig get_test_default_config(const cldnn::engine& engine,
         config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
     }
 
+    if (engine.get_enable_large_allocations()) {
+        config.set_property(ov::intel_gpu::hint::enable_large_allocations(true));
+    }
+
     return config;
 }
 
 std::shared_ptr<cldnn::engine> create_test_engine() {
-    auto ret = cldnn::engine::create(engine_types::ocl, runtime_types::ocl);
+    auto ret = cldnn::engine::create(
+            cldnn::device_query::get_default_engine_type(), cldnn::device_query::get_default_runtime_type());
 #ifdef ENABLE_ONEDNN_FOR_GPU
     if (ret->get_device_info().supports_immad)
         ret->create_onednn_engine({});
@@ -322,8 +327,11 @@ std::shared_ptr<cldnn::engine> create_test_engine(cldnn::engine_types engine_typ
     auto iter = devices.find(std::to_string(device_query::device_id));
     auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
 
-    if (!allow_usm_mem)
-        device->set_mem_caps(cldnn::memory_capabilities({}));
+    if (!allow_usm_mem) {
+        auto new_caps = device->get_mem_caps();
+        new_caps.remove_usm_caps();
+        device->set_mem_caps(new_caps);
+    }
 
     auto ret = engine::create(engine_type, runtime_type, device);
 #ifdef ENABLE_ONEDNN_FOR_GPU

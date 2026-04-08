@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ namespace ov::snippets::pass {
 class PropagatePrecision : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("snippets::pass::PropagatePrecision");
-    PropagatePrecision(const std::shared_ptr<const TargetMachine>& target_machine);
+    explicit PropagatePrecision(const std::shared_ptr<const TargetMachine>& target_machine);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
     static std::vector<element::Type> get_precisions(const std::vector<element::Type>& input_precisions,

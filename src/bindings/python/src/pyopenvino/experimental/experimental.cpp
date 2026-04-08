@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,8 @@ void regmodule_experimental(py::module m) {
               py::arg("output"),
               py::arg("partial_shape"),
               R"(
-                    Evaluates lower and upper value estimations for the output tensor. 
-                    The estimation will be represented as a partial shape object, 
+                    Evaluates lower and upper value estimations for the output tensor.
+                    The estimation will be represented as a partial shape object,
                     using Dimension(min, max) for each element.
 
                     :param output: Node output pointing to the tensor for estimation.
@@ -39,7 +39,7 @@ void regmodule_experimental(py::module m) {
                     :param output: Node output pointing to the tensor for estimation.
                     :type output: openvino.Output
                     :return: Tensors representing the lower and upper bound value estimations.
-                    :rtype: Tuple[openvino.Tensor, openvino.Tensor]
+                    :rtype: tuple[openvino.Tensor, openvino.Tensor]
                 )");
     m_dev.def("set_element_type",
               &ov::descriptor::set_element_type,
@@ -49,7 +49,7 @@ void regmodule_experimental(py::module m) {
                     Sets element type for a tensor descriptor in the OV model graph.
 
                     :param tensor: The tensor descriptor whose element type is to be set.
-                    :type tensor: openvino.Tensor 
+                    :type tensor: openvino.Tensor
                     :param element_type: A new element type of the tensor descriptor.
                     :type element_type: openvino.Type
                 )");
@@ -62,7 +62,7 @@ void regmodule_experimental(py::module m) {
                     Changes element type and partial shape of a tensor descriptor in the OV model graph.
 
                     :param tensor: The tensor descriptor whose element type is to be set.
-                    :type tensor: openvino.Tensor 
+                    :type tensor: openvino.Tensor
                     :param element_type: A new element type of the tensor descriptor.
                     :type element_type: openvino.Type
                     :param partial_shape: A new partial shape of the tensor desriptor.

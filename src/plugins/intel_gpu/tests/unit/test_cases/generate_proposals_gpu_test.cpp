@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -280,10 +280,7 @@ struct generate_proposals_test
         : public ::testing::TestWithParam<GenerateProposalsParamsWithLayout<T> > {
 public:
     void test() {
-        GenerateProposalsParams<T> param;
-        format::type data_layout;
-        bool is_caching_test;
-        std::tie(param, data_layout, is_caching_test) = this->GetParam();
+        const auto& [param, data_layout, is_caching_test] = this->GetParam();
         const bool need_reorder = data_layout != format::bfyx;
 
         const auto data_type = ov::element::from<T>();

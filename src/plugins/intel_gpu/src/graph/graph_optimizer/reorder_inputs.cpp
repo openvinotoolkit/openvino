@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,10 @@
 #include "intel_gpu/runtime/utils.hpp"
 #include "program_helpers.h"
 #include "to_string_utils.h"
+#include "eltwise_inst.h"
 #include "pooling_inst.h"
 #include "fully_connected_inst.h"
+#include "mvn_inst.h"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "gemm_inst.h"
@@ -411,6 +413,19 @@ static bool is_weights_dependency(program_node* predecessor, program_node* succe
     return is_weights_dep;
 }
 
+static bool need_align_shape_for_numpy_broadcast(program_node* predecessor, program_node* successor, format output_format) {
+    if (successor->is_type<eltwise>()) {
+        auto& elt_suc = successor->as<eltwise>();
+        if (elt_suc.need_align_for_numpy_broadcast(predecessor->get_output_layout())) {
+            GPU_DEBUG_TRACE_DETAIL << " Skip add reorder in reorder_in_dir for numpy broadcast " << successor->id()
+                                    << output_format.to_string() << std::endl;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 // If there is layout mismatch between two layers, add reorder
 template <direction_e dir>
 void insert_reorders_in_dir(program& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf, layout_optimizer& lo, program_node* node) {
@@ -435,6 +450,9 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         in_layout.format = get_target_output_format(lo, fmt_map, predecessor, successor);
         out_layout.format = get_target_input_format(lo, fmt_map, successor, predecessor);
         if (in_layout.format == out_layout.format)
+            continue;
+
+        if (need_align_shape_for_numpy_broadcast(predecessor, successor, out_layout.format))
             continue;
 
         GPU_DEBUG_LOG << dir_msg(dir) << "  " << node->id() << " --> " << get_node(next)->id() << " ## "
@@ -494,6 +512,8 @@ void insert_reorders(program& p, const std::map<program_node*, format::type>& fm
 }  // namespace
 
 void reorder_inputs::run(program& p, reorder_factory& rf) {
+    p.mark_if_gemm_data_flow();
+
     auto& lo = p.get_layout_optimizer();
 
     auto fmt_map = get_preferred_formats(p, lo);
@@ -740,6 +760,42 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
         }
     };
 
+    // MVN requires input data to be aligned for blocked format opt kernels.
+    // Otherwise need to use bfyx opt kernel for such cases to avoid incorrect results.
+    const auto reorder_input_mvn = [&p, &rf](typed_program_node<mvn>& mvn_node) {
+        auto& input = mvn_node.input();
+        auto input_layout = input.get_output_layout();
+        auto input_pshape = input_layout.get_partial_shape();
+        auto prim = mvn_node.get_primitive();
+
+        if (!cldnn::format::is_default_format(input_layout.format) && prim->requires_alignment(input_pshape)) {
+            auto block_sizes = format::block_sizes(input_layout.format);
+            auto axes = prim->reduction_axes;
+            if (input_layout.is_dynamic() || block_sizes.size() > 1
+                || (block_sizes.size() == 1 &&
+                    input_pshape[block_sizes[0].first].get_length() % block_sizes[0].second != 0 &&
+                    std::count(axes.begin(), axes.end(), block_sizes[0].first) == 0)) {
+                auto output_layout = mvn_node.get_output_layout();
+                auto rank = input_pshape.size();
+                auto new_layout = input_layout;
+                new_layout.format = format::get_default_format(rank);
+                auto new_input = rf.get_reorder(input.id(), input_layout, new_layout);
+                if (new_input.first) {
+                    p.add_intermediate(new_input.first, mvn_node, 0, !new_input.second);
+                    mvn_node.recalc_output_layout(false);
+                }
+                auto mvn_output_layout = mvn_node.get_output_layout();
+                if (!mvn_output_layout.identical(output_layout)) {
+                    auto reorder_back = rf.get_reorder(mvn_node.id(), mvn_output_layout, output_layout);
+                    if (reorder_back.first) {
+                        const auto& users = mvn_node.get_users();
+                        auto first_user = users.front();
+                        p.add_intermediate(reorder_back.first, *first_user, 0, !reorder_back.second, true);
+                    }
+                }
+            }
+        }
+    };
 #ifdef ENABLE_ONEDNN_FOR_GPU
     const auto reorder_input_gemm = [&p, &rf](typed_program_node<gemm>& gemm_node) {
         if (gemm_node.get_preferred_impl_type() != impl_types::onednn || gemm_node.is_dynamic()
@@ -775,13 +831,14 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
 #endif // ENABLE_ONEDNN_FOR_GPU
 
     for (auto& prim : p.get_processing_order()) {
-        program_helpers::do_for_types<detection_output, deconvolution, convolution, fully_connected, pooling>(
+        program_helpers::do_for_types<detection_output, deconvolution, convolution, fully_connected, pooling, mvn>(
             *prim,
             reorder_input_detection_output,
             reorder_input_and_weights_deconvolution,
             reorder_convolution,
             reorder_input_fully_connected,
-            reorder_input_pooling);
+            reorder_input_pooling,
+            reorder_input_mvn);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
         program_helpers::do_for_types<gemm>(
@@ -845,13 +902,8 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
                     if (gemm_layout.is_dynamic() || data_layout.is_dynamic())
                         continue;
 
-                    auto gemm_dims = onednn::convert_gemm_tensor(gemm_layout.get_tensor(),
-                                                                 cldnn::format::dimension(gemm_layout.format),
-                                                                 false);
-
-                    auto data_dims = onednn::convert_gemm_tensor(data_layout.get_tensor(),
-                                                                 cldnn::format::dimension(data_layout.format),
-                                                                 false);
+                    auto gemm_dims = onednn::convert_tensor(gemm_layout.get_tensor(), cldnn::format::dimension(gemm_layout.format));
+                    auto data_dims = onednn::convert_tensor(data_layout.get_tensor(), cldnn::format::dimension(data_layout.format));
 
                     if (gemm_dims[0] == data_dims[0])
                         continue;

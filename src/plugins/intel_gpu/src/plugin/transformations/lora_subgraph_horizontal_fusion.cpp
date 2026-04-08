@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ LoRASubgraphHorizontalFusion::LoRASubgraphHorizontalFusion() {
 
     auto axis_const = wrap_type<ov::op::v0::Constant>();
     auto split_const = wrap_type<ov::op::v0::Constant>();
-    auto split = wrap_type<ov::op::v1::VariadicSplit>({main_flow, axis_const, split_const}, ov::pass::pattern::op::as_value_predicate(is_target_pattern));
+    auto split = wrap_type<ov::op::v1::VariadicSplit>({main_flow, axis_const, split_const}, is_target_pattern);
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -45,9 +45,9 @@ LoRASubgraphHorizontalFusion::LoRASubgraphHorizontalFusion() {
 
         ov::OutputVector states;
         for (const auto& lora : lora_nodes) {
-            states.emplace_back(lora->get_input_node_shared_ptr(2));
-            states.emplace_back(lora->get_input_node_shared_ptr(3));
-            states.emplace_back(lora->get_input_node_shared_ptr(4));
+            states.emplace_back(lora->input_value(2));
+            states.emplace_back(lora->input_value(3));
+            states.emplace_back(lora->input_value(4));
         }
 
         bool transposed_states = true;

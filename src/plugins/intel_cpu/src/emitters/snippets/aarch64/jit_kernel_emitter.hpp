@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ namespace ov::intel_cpu::aarch64 {
 
 class jit_kernel_emitter : public jit_emitter {
 public:
-    jit_kernel_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_kernel_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                        dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                        const ov::snippets::lowered::ExpressionPtr& expr);
 
@@ -59,6 +59,13 @@ protected:
 
     virtual void init_data_pointers(const std::vector<Xbyak_aarch64::XReg>& arg_regs,
                                     const std::vector<Xbyak_aarch64::XReg>& data_ptr_regs) const = 0;
+
+    // Helper method to load source/destination pointers using optimized pair loads where possible
+    void load_data_pointers(const Xbyak_aarch64::XReg& reg_runtime_params,
+                            const std::vector<Xbyak_aarch64::XReg>& data_ptr_regs,
+                            size_t start_idx,
+                            size_t end_idx,
+                            int32_t base_offset) const;
 
     void emit_code_impl(const std::vector<size_t>& in_idxs,
                         const std::vector<size_t>& out_idxs,
@@ -85,7 +92,7 @@ protected:
 
 class jit_kernel_static_emitter : public jit_kernel_emitter {
 public:
-    jit_kernel_static_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_kernel_static_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                               dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                               const ov::snippets::lowered::ExpressionPtr& expr);
     size_t get_inputs_count() const override {
@@ -106,7 +113,7 @@ private:
 
 class jit_kernel_dynamic_emitter : public jit_kernel_emitter {
 public:
-    jit_kernel_dynamic_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_kernel_dynamic_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                                dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                                const ov::snippets::lowered::ExpressionPtr& expr);
     size_t get_inputs_count() const override {

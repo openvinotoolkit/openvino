@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -132,8 +132,10 @@ std::string toCLType(WeightsType wType) {
 
 std::string toCLType(Datatype dType) {
     switch (dType) {
+        case Datatype::INT4:
         case Datatype::INT8:
             return GetTypeName<int8_t>();
+        case Datatype::UINT4:
         case Datatype::UINT8:
             return GetTypeName<uint8_t>();
         case Datatype::INT16:
@@ -257,7 +259,6 @@ public:
     JitDefinitions GetDefinitions(const Tensor::TensorBaseT<DType, Layout>& t) const {
         JitDefinitions definitions{
             {_name + "_VIEW_OFFSET", toCodeString(t.GetViewOffset())},
-            {_name + "_LENGTH", toCodeString(t.LogicalSize())},
             {_name + "_DIMS", toCodeString(t.GetDims().size())},
             {_name + "_SIMPLE", toCodeString(t.SimpleLayout())},
             {_name + "_GROUPED", toCodeString(t.GroupedLayout())},
@@ -361,6 +362,9 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
         {_name + "_PAD_AFTER_BATCH_NUM", dims_padded.b_pad().second},
     };
     if (_tensor.is_dynamic()) {
+        const std::string total_data_size = toVectorMulString({dims.x(), dims.y(), dims.z(), dims.w(), dims.f(), dims.b()});
+        definitions.push_back({_name + "_LENGTH", toCodeString(total_data_size)});
+
         if (_tensor.GetLayout() == DataLayout::bf || _tensor.GetLayout() == DataLayout::bfyx ||
             _tensor.GetLayout() == DataLayout::bfzyx || _tensor.GetLayout() == DataLayout::bfwzyx ||
             _tensor.GetLayout() == DataLayout::bfuwzyx || _tensor.GetLayout() == DataLayout::bfvuwzyx ||
@@ -392,6 +396,8 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
             OPENVINO_ASSERT(false, "[GPU] Jitter couldn't generate dynamic pitches for given layout");
         }
     } else {
+        definitions.push_back({_name + "_LENGTH", toCodeString(_tensor.LogicalSize())});
+
         // static dim
         definitions.push_back({_name + "_X_PITCH", toCodeString(_tensor.X().pitch)});
         definitions.push_back({_name + "_Y_PITCH", toCodeString(_tensor.Y().pitch)});
@@ -936,6 +942,7 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
         {_name + "_IFM_PITCH", toCodeString(_tensor.IFM().pitch)},
         {_name + "_OFM_PITCH", toCodeString(_tensor.OFM().pitch)},
         {_name + "_GROUPS_PITCH", toCodeString(_tensor.G().pitch)},
+        {_name + "_LENGTH", toCodeString(_tensor.LogicalSize())},
     };
 
     definitions.insert(definitions.end(), baseDefinitions.begin(), baseDefinitions.end());
@@ -1290,9 +1297,10 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             break;
         }
         case ActivationFunction::SOFTPLUS: {
-            jitConstants.AddConstant(MakeJitConstant(
-                    macro_def,
-                    log(exp(input) + one).str()));
+            const JitTerm input_f = out_dt == Datatype::F16 ? JitTerm{"convert_float(input)"} : input;
+            const JitTerm output =
+                out_dt == Datatype::F16 ? JitTerm{"convert_half(" + (log(exp(input_f) + one)).str() + ")"} : JitTerm{(log(exp(input_f) + one)).str()};
+            jitConstants.AddConstant(MakeJitConstant(macro_def, output.str()));
             break;
         }
         case ActivationFunction::SOFTSIGN: {
@@ -1508,11 +1516,15 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             break;
         case Datatype::INT4:
             type = "char";
+            to_type = "convert_char(v)";
+            to_type_sat = "convert_char_sat(v)";
             type_size = "0.5f";
             is_fp = false;
             break;
         case Datatype::UINT4:
             type = "uchar";
+            to_type = "convert_uchar(v)";
+            to_type_sat = "convert_uchar_sat(v)";
             type_size = "0.5f";
             is_fp = false;
             break;

@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Callable, Union, Optional
+from typing import Any, Union, Optional
+from collections.abc import Callable
 import torch
 import numpy as np
 import openvino as ov
@@ -81,7 +82,7 @@ def make_custom_op_class(func: Callable,
     global global_counter_id
 
     class InlinedCustomOp(ov.Op):  # type: ignore
-        class_type_info = ov.runtime.DiscreteTypeInfo(
+        class_type_info = ov.DiscreteTypeInfo(
             "InlinedCustomOp", "extension")
 
         def __init__(self, *args: Any) -> None:

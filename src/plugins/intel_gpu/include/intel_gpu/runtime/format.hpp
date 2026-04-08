@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@
 #include <string>
 #include <utility>
 #include <stdexcept>
-
+#include "openvino/core/except.hpp"
 
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
@@ -65,6 +65,17 @@ struct format_traits {
 
     /// @brief Checks if order has @p c dimension.
     bool has_dimension(char c) const { return order.find_first_of(c) != std::string::npos; }
+
+    friend bool operator==(const format_traits& lft, const format_traits& rft) {
+        return lft._order == rft._order &&
+            lft.block_sizes == rft.block_sizes &&
+            lft.logic_block_sizes == rft.logic_block_sizes &&
+            lft.desc_size == rft.desc_size &&
+            lft.batch_num == rft.batch_num &&
+            lft.feature_num == rft.feature_num &&
+            lft.spatial_num == rft.spatial_num &&
+            lft.group_num == rft.group_num;
+    }
 };
 
 /// @brief Represents memory formats (orders).
@@ -189,6 +200,8 @@ struct format {
         os_is_zyx_isa8_osv16_isv4,                    ///< format for weights for fully connected MMAD
         os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,   ///< format for weights for MMAD fsv32 convolution
         os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4,  ///< format for weights for MMAD fsv32 convolution
+        os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2,   ///< format for weights for MMAD fsv32 convolution
+        os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2,   ///< format for weights for MMAD fsv32 convolution
         os_is_zyx_osa4_isa8_osv8_isv4,                ///< format for weights for MMAD fsv32 convolution
         os_is_yx_osa4_isa8_osv8_isv4,                 ///< format for weights for MMAD fsv32 convolution
         os_is_yx_osv16_isv4,                          ///< format for weights for IMAD convolutions
@@ -302,6 +315,25 @@ struct format {
                 fmt == bfvuwzyx);
     }
 
+    static std::vector<int64_t> get_internal_dims(const format& fmt) {
+        const auto& o_order = fmt.order();
+        const auto& i_order = fmt.internal_order();
+
+        std::vector<int64_t> i_dims;
+
+        for (size_t i = 0; i < o_order.size(); i++) {
+            auto c = o_order[i];
+            auto pos = i_order.find(c);
+
+            if (pos == std::string::npos)
+                OPENVINO_THROW("Unknown coord type: " + std::to_string(c));
+
+            i_dims.push_back(pos);
+        }
+
+        return i_dims;
+    }
+
     static format get_default_format(size_t rank, bool is_weights = false, bool is_grouped = false);
     static bool is_default_format(const format& fmt);
 
@@ -382,6 +414,7 @@ struct format {
     constexpr operator type() const { return value; }
 
     std::string to_string() const;
+    format get_default_format() const;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const format& fmt) {

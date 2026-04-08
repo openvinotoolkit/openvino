@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -843,16 +843,6 @@ ov::Tensor generate(const std::shared_ptr<ov::op::v10::IsFinite>& node,
     return tensor;
 }
 
-ov::Tensor generate(const std::shared_ptr<ov::op::v10::IsNaN>& node,
-                    size_t port,
-                    const ov::element::Type& elemType,
-                    const ov::Shape& targetShape,
-                    std::shared_ptr<InputGenerateData> inGenRangeData = nullptr) {
-    ov::Tensor tensor{elemType, targetShape};
-    comparison::fill_tensor(tensor);
-    return tensor;
-}
-
 namespace is_inf {
 template <typename T>
 void fill_tensor(ov::Tensor& tensor) {
@@ -876,6 +866,20 @@ void fill_tensor(ov::Tensor& tensor) {
     }
 }
 } // namespace is_inf
+
+ov::Tensor generate(const std::shared_ptr<ov::op::v10::IsNaN>& node,
+                    size_t port,
+                    const ov::element::Type& elemType,
+                    const ov::Shape& targetShape,
+                    std::shared_ptr<InputGenerateData> inGenRangeData = nullptr) {
+    ov::Tensor tensor{elemType, targetShape};
+    if (elemType == ov::element::f16) {
+        is_inf::fill_tensor<ov::float16>(tensor);
+    } else {
+        is_inf::fill_tensor<float>(tensor);
+    }
+    return tensor;
+}
 
 ov::Tensor generate(const std::shared_ptr<ov::op::v10::IsInf>& node,
                     size_t port,
@@ -1034,8 +1038,8 @@ ov::Tensor generateInput(const std::shared_ptr<ov::Node>& node,
 }
 } // namespace
 
-InputsMap getInputMap() {
-    static InputsMap inputsMap{
+const InputsMap& getInputMap() {
+    const static InputsMap inputsMap{
 #define _OPENVINO_OP_REG(NAME, NAMESPACE) {NAMESPACE::NAME::get_type_info_static(), generateInput<NAMESPACE::NAME>},
 
 #include "openvino/opsets/opset1_tbl.hpp"
@@ -1058,6 +1062,7 @@ InputsMap getInputMap() {
 #include "ov_ops/opset_private_tbl.hpp"
 #undef _OPENVINO_OP_REG
     };
+
     return inputsMap;
 }
 

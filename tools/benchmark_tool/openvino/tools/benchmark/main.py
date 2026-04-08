@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -23,14 +23,14 @@ from openvino.tools.benchmark.utils.utils import next_step, get_number_iteration
 from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, JsonStatisticsReport, CsvStatisticsReport, \
     averageCntReport, detailedCntReport
 
-def get_peak_memory_usage():    
+def get_peak_memory_usage():
     if platform.system() == "Linux":
         with open("/proc/self/status", "r") as f:
             for line in f:
                 if line.startswith("VmPeak:"):
                     return int(line.split()[1])  # The value in KB
         raise RuntimeError("VmPeak attribute not found. Unable to determine peak memory usage.")
-    
+
     # No Windows support due to the lack of the ‘psutil’ module in the CI infrastructure
     # No Macos support due to no /proc/self/status file
     return None
@@ -153,9 +153,11 @@ def main():
                     else:
                         raise RuntimeError("Incorrect performance hint. Please set -hint option to"
                             "`throughput`(tput), `latency', 'cumulative_throughput'(ctput) value or 'none'.")
+                elif device in config and properties.hint.performance_mode() in config[device]:
+                    return
                 else:
                     perf_hint = properties.hint.PerformanceMode.LATENCY if benchmark.api_type == "sync" else properties.hint.PerformanceMode.THROUGHPUT
-                    logger.warning(f"Performance hint was not explicitly specified in command line. " +
+                    logger.warning(f"Performance hint was not explicitly specified in command line or config file. " +
                     f"Device({device}) performance hint will be set to {perf_hint}.")
                 config[device][properties.hint.performance_mode()] = perf_hint
             else:
@@ -447,7 +449,7 @@ def main():
             start_time = datetime.utcnow()
 
             compiled_model = benchmark.core.compile_model(model, benchmark.device, device_config)
-            
+
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
             end_mem_usage = get_peak_memory_usage()
             logger.info(f"Compile model took {duration_ms} ms")
@@ -603,13 +605,17 @@ def main():
             logger.info("Benchmarking in inference only mode (inputs filling are not included in measurement loop).")
         else:
             logger.info("Benchmarking in full mode (inputs filling are included in measurement loop).")
-        duration_ms = f"{benchmark.first_infer(requests):.2f}"
-        logger.info(f"First inference took {duration_ms} ms")
-        if statistics:
-            statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
-                                    [
-                                        ('first inference time (ms)', duration_ms)
-                                    ])
+        if not args.no_warmup:
+            duration_ms = f"{benchmark.first_infer(requests):.2f}"
+            logger.info(f"First inference took {duration_ms} ms")
+            if statistics:
+                statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
+                                        [
+                                            ('first inference time (ms)', duration_ms)
+                                        ])
+        else:
+            logger.info("Skipping warmup inference due to -no_warmup flag")
+
 
         pcseq = args.pcseq
         if static_mode or len(benchmark.latency_groups) == 1:

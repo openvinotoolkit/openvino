@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -179,7 +179,7 @@ ov::pass::Serialize::Version convert_to_version(const std::string& version);
 
 template <typename T>
 std::string get_class_name(const T& obj) {
-    return py::str(py::cast(obj).get_type().attr("__name__"));
+    return py::str(py::type::handle_of(py::cast(obj)).attr("__name__"));
 }
 
 template <typename T>

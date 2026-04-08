@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,9 +15,9 @@
 
 using namespace ov::frontend;
 
-static std::string mock_fe_path() {
-    static auto lib_name = std::string(FRONTEND_LIB_PREFIX) + "mock1" + std::string(FRONTEND_LIB_SUFFIX);
-    return ov::util::path_join({ov::test::utils::getExecutableDirectory(), lib_name}).string();
+static std::filesystem::path mock_fe_path() {
+    return ov::test::utils::to_fs_path(ov::test::utils::getExecutableDirectory()) /
+           std::filesystem::path(FRONTEND_LIB_PREFIX).concat("mock1").concat(FRONTEND_LIB_SUFFIX);
 }
 
 TEST(FrontEndManagerTest, testAvailableFrontEnds) {
@@ -42,7 +42,7 @@ TEST(FrontEndManagerTest, testAvailableFrontEnds) {
 
 TEST(FrontEndManagerTest, testFailRegisterFEByWrongPath) {
     FrontEndManager fem;
-    ASSERT_THROW(fem.register_front_end("mock1", mock_fe_path() + "_wrong"), ov::frontend::GeneralFailure);
+    ASSERT_THROW(fem.register_front_end("mock1", mock_fe_path().concat("_wrong")), ov::frontend::GeneralFailure);
 }
 
 TEST(FrontEndManagerTest, testMockPluginFrontEnd) {

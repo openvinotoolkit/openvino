@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -8,20 +8,19 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestConv2D(PytorchLayerTest):
     def _prepare_input(self, ndim=4):
-        import numpy as np
         input_shape = (1, 3, 10, 10, 10)
-        return (np.random.randn(*input_shape[:ndim]).astype(np.float32),)
+        return (self.random.randn(*input_shape[:ndim]),)
 
     def create_model(self, weights_shape, strides, pads, dilations, groups, bias):
         import torch
 
         class aten_convolution_mode(torch.nn.Module):
-            def __init__(self):
-                super(aten_convolution_mode, self).__init__()
-                self.weight = torch.randn(weights_shape)
+            def __init__(self, rng):
+                super().__init__()
+                self.weight = rng.torch_randn(*weights_shape)
                 self.bias = None
                 if bias:
-                    self.bias = torch.randn(weights_shape[0])
+                    self.bias = rng.torch_randn(weights_shape[0])
                 self.strides = strides
                 self.pads = pads
                 self.dilations = dilations
@@ -31,9 +30,8 @@ class TestConv2D(PytorchLayerTest):
                 return torch._convolution_mode(x, self.weight, self.bias, self.strides, self.pads, self.dilations,
                                                self.groups)
 
-        ref_net = None
 
-        return aten_convolution_mode(), ref_net, "aten::_convolution_mode"
+        return aten_convolution_mode(self.random), "aten::_convolution_mode"
 
     @pytest.mark.parametrize("params",
                              [
@@ -64,6 +62,7 @@ class TestConv2D(PytorchLayerTest):
     def test_convolution_mode_1d(self, params, bias, ie_device, precision, ir_version):
         self._test(*self.create_model(**params, bias=bias),
                    ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1,
+                   trace_model=True,
                    kwargs_to_prepare_input={'ndim': 3})
 
     @pytest.mark.parametrize("params",
@@ -106,7 +105,8 @@ class TestConv2D(PytorchLayerTest):
     @pytest.mark.precommit
     def test_convolution_mode_2d(self, params, bias, ie_device, precision, ir_version):
         self._test(*self.create_model(**params, bias=bias),
-                   ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1)
+                   ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1,
+                   trace_model=True)
 
     @pytest.mark.parametrize("params",
                              [
@@ -135,4 +135,5 @@ class TestConv2D(PytorchLayerTest):
     def test_convolution_mode_3d(self, params, bias, ie_device, precision, ir_version):
         self._test(*self.create_model(**params, bias=bias),
                    ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1,
+                   trace_model=True,
                    kwargs_to_prepare_input={'ndim': 5})

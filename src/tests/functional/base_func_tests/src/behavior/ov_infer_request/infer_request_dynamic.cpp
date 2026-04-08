@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,11 +13,8 @@ namespace test {
 namespace behavior {
 
 std::string OVInferRequestDynamicTests::getTestCaseName(testing::TestParamInfo<OVInferRequestDynamicParams> obj) {
-    std::shared_ptr<Model> func;
-    std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>> inOutShapes;
-    std::string target_device;
-    ov::AnyMap configuration;
-    std::tie(func, inOutShapes, target_device, configuration) = obj.param;
+    const auto& [func, inOutShapes, _target_device, configuration] = obj.param;
+    auto target_device = _target_device;
     std::replace(target_device.begin(), target_device.end(), ':', '.');
     std::ostringstream result;
     result << "function=" << func->get_friendly_name() << "_";

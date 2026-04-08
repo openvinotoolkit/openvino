@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,8 +47,8 @@ private:
     dnnl::algorithm alg;
     size_t size = 1;
     int k = 1;
-    float alpha = 1.0f;
-    float beta = 1.0f;
+    float alpha = 1.0F;
+    float beta = 1.0F;
 };
 
 }  // namespace ov::intel_cpu::node

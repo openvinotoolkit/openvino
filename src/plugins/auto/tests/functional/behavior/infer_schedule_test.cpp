@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,9 +18,7 @@ public:
         std::tie(property, niters) = this->GetParam();
     }
     static std::string getTestCaseName(const testing::TestParamInfo<schedule_policy_param>& obj) {
-        ov::AnyMap property;
-        int niters;
-        std::tie(property, niters) = obj.param;
+        const auto& [property, niters] = obj.param;
         std::ostringstream result;
         result << "numberOfInfer=" << niters << "_";
         if (!property.empty()) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,7 +54,6 @@ using Scalars = cldnn::scalars_desc;
 using ArgumentDescriptor = cldnn::argument_desc;
 using Arguments = cldnn::arguments_desc;
 using KernelParams = cldnn::kernel_arguments_desc;
-
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // KernelCode

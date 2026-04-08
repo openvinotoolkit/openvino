@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "common/cpu_memcpy.h"
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -22,7 +23,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/experimental_detectron_roi_feature.hpp"
@@ -63,10 +63,12 @@ void pre_calc_for_bilinear_interpolate(const int height,
         for (int pw = 0; pw < pooled_width; pw++) {
             for (int iy = 0; iy < iy_upper; iy++) {
                 const T yy = roi_start_h + ph * bin_size_h +
-                             static_cast<T>(iy + .5f) * bin_size_h / static_cast<T>(roi_bin_grid_h);  // e.g., 0.5, 1.5
+                             static_cast<T>(static_cast<T>(iy) + static_cast<T>(.5f)) * bin_size_h /
+                                 static_cast<T>(roi_bin_grid_h);  // e.g., 0.5, 1.5
                 for (int ix = 0; ix < ix_upper; ix++) {
                     const T xx = roi_start_w + pw * bin_size_w +
-                                 static_cast<T>(ix + .5f) * bin_size_w / static_cast<T>(roi_bin_grid_w);
+                                 static_cast<T>(static_cast<T>(ix) + static_cast<T>(.5f)) * bin_size_w /
+                                     static_cast<T>(roi_bin_grid_w);
 
                     T x = xx;
                     T y = yy;
@@ -93,14 +95,14 @@ void pre_calc_for_bilinear_interpolate(const int height,
 
                     if (y_low >= height - 1) {
                         y_high = y_low = height - 1;
-                        y = (T)y_low;
+                        y = static_cast<T>(y_low);
                     } else {
                         y_high = y_low + 1;
                     }
 
                     if (x_low >= width - 1) {
                         x_high = x_low = width - 1;
-                        x = (T)x_low;
+                        x = static_cast<T>(x_low);
                     } else {
                         x_high = x_low + 1;
                     }
@@ -144,12 +146,13 @@ void ROIAlignForward_cpu_kernel(const int nthreads,
                                 const int sampling_ratio,
                                 const T* bottom_rois,
                                 const bool aligned,
-                                T* top_data) {
+                                T* top_data,
+                                const std::shared_ptr<CpuParallel>& cpu_parallel) {
     int roi_cols = 4;
 
     int n_rois = nthreads / channels / pooled_width / pooled_height;
     // (n, c, ph, pw) is an element in the pooled output
-    parallel_for(n_rois, [&](size_t n) {
+    cpu_parallel->parallel_for(n_rois, [&](size_t n) {
         int index_n = n * channels * pooled_width * pooled_height;
 
         // roi could have 4 or 5 columns
@@ -160,7 +163,7 @@ void ROIAlignForward_cpu_kernel(const int nthreads,
             offset_bottom_rois++;
         }
 
-        T offset = aligned ? (T)0.5 : (T)0.0;
+        T offset = aligned ? static_cast<T>(0.5) : static_cast<T>(0.0);
         // Do not using rounding; this implementation detail is critical
         T roi_start_w = offset_bottom_rois[0] * spatial_scale - offset;
         T roi_start_h = offset_bottom_rois[1] * spatial_scale - offset;
@@ -168,8 +171,8 @@ void ROIAlignForward_cpu_kernel(const int nthreads,
         T roi_end_h = offset_bottom_rois[3] * spatial_scale - offset;
 
         // Force malformed ROIs to be 1x1
-        T roi_width = (std::max)(roi_end_w - roi_start_w, (T)1.);
-        T roi_height = (std::max)(roi_end_h - roi_start_h, (T)1.);
+        T roi_width = (std::max)(roi_end_w - roi_start_w, static_cast<T>(1.));
+        T roi_height = (std::max)(roi_end_h - roi_start_h, static_cast<T>(1.));
         T bin_size_h = roi_height / static_cast<T>(pooled_height);
         T bin_size_w = roi_width / static_cast<T>(pooled_width);
 
@@ -302,9 +305,9 @@ ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatureExtract
 
     const auto roiFeatureExtractor = ov::as_type_ptr<const ov::op::v6::ExperimentalDetectronROIFeatureExtractor>(op);
     const auto& attr = roiFeatureExtractor->get_attrs();
-    output_dim_ = attr.output_size;
+    output_dim_ = static_cast<int>(attr.output_size);
     pyramid_scales_ = attr.pyramid_scales;
-    sampling_ratio_ = attr.sampling_ratio;
+    sampling_ratio_ = static_cast<int>(attr.sampling_ratio);
     aligned_ = attr.aligned;
     pooled_height_ = output_dim_;
     pooled_width_ = output_dim_;
@@ -327,6 +330,7 @@ void ExperimentalDetectronROIFeatureExtractor::initSupportedPrimitiveDescriptors
 }
 
 void ExperimentalDetectronROIFeatureExtractor::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto& cpu_parallel = context->getCpuParallel();
     const int levels_num = inputShapes.size() - INPUT_FEATURES_START;
     const int num_rois = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
     const int channels_num = getParentEdgeAt(INPUT_FEATURES_START)->getMemory().getStaticDims()[1];
@@ -368,7 +372,8 @@ void ExperimentalDetectronROIFeatureExtractor::execute([[maybe_unused]] const dn
                                               sampling_ratio_,
                                               &reordered_rois[4 * level_rois_offset],
                                               aligned_,
-                                              &output_rois_features_temp[feaxels_per_roi * level_rois_offset]);
+                                              &output_rois_features_temp[feaxels_per_roi * level_rois_offset],
+                                              cpu_parallel);
         }
     }
 

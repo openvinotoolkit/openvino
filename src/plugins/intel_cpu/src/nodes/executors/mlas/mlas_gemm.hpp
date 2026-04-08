@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -32,7 +32,6 @@ public:
     void moveMemToNumaNode(int numaNodeID) override;
 
 private:
-    const FCAttrs& m_attrs;
     const MemoryArgs& m_memoryArgs;
     const MemoryCPtr packedWeights;
     int64_t M = 0, N, K;

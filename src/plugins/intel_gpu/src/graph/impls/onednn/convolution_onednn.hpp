@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,6 +47,7 @@ struct ConvolutionImplementationManager : public ImplementationManager {
             format::bfzyx,
             format::byxf,
             format::bzyxf,
+            format::b_fs_yx_fsv4,
             format::b_fs_yx_fsv8,
             format::b_fs_zyx_fsv8,
             format::b_fs_yx_fsv16,
@@ -86,11 +87,10 @@ struct ConvolutionImplementationManager : public ImplementationManager {
             return false;
 
         bool f16_conv = everyone_is(data_types::f16, in_dt, wei_dt) && one_of(out_dt, {data_types::f16, data_types::f32, data_types::u8, data_types::i8});
-        bool u8s8_conv = one_of(in_dt, {data_types::i8, data_types::u8}) &&
-                         wei_dt == data_types::i8 &&
+        bool int8_conv = one_of(in_dt, {data_types::i8, data_types::u8}) && one_of(wei_dt, {data_types::i8, data_types::u8}) &&
                          one_of(out_dt, {data_types::i32, data_types::f16, data_types::f32, data_types::u8, data_types::i8});
 
-        if (!f16_conv && !u8s8_conv)
+        if (!f16_conv && !int8_conv)
             return false;
 
         if (!is_supported_post_ops(conv_node))

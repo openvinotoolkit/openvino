@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ protected:
 
 private:
     arm_compute::GEMMInfo gemmInfo;
-    arm_compute::WeightFormat expectedWeightFormat;
+    arm_compute::WeightFormat expectedWeightFormat = arm_compute::WeightFormat::UNSPECIFIED;
     arm_compute::TensorInfo weiTensorInfo;
 
     MemoryCPtr packedWeights;

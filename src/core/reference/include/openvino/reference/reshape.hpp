@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,15 +12,26 @@ namespace reference {
 
 /**
  * @brief Basic reshape operation, without axes reorder.
+ *        This only for byte like types(elem size is N*8)
  *
  * @param in         Pointer to input data.
  * @param out        Pointer to output data.
  * @param in_shape   Input data shape.
- * @param out_shape  Output data shape.
- * @param elem_size  Single data element size im bytes.
+ * @param elem_size  Single data element size in bytes.
  */
 inline void reshape(const char* in, char* out, const Shape& in_shape, size_t elem_size) {
     std::memcpy(out, in, shape_size(in_shape) * elem_size);
+}
+
+/**
+ * @brief Basic reshape operation copy with real size, without axes reorder.
+ *
+ * @param in         Pointer to input data.
+ * @param out        Pointer to output data.
+ * @param copy_size  Number of bytes to copy.
+ */
+inline void reshape(const char* in, char* out, size_t copy_size) {
+    std::memcpy(out, in, copy_size);
 }
 
 /**

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -33,7 +33,6 @@ set_source_files_properties(
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
-# Create shared library
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
 add_library(openvino::util ALIAS ${TARGET_NAME})

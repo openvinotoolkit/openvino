@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <map>
@@ -24,7 +24,7 @@ namespace ov::snippets::lowered::pass {
 class InsertPerfCount : public RangedPass {
 public:
     OPENVINO_RTTI("InsertPerfCount", "", RangedPass);
-    InsertPerfCount(std::map<std::string, std::string> boundary_op_names);
+    explicit InsertPerfCount(std::map<std::string, std::string> boundary_op_names);
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
 private:

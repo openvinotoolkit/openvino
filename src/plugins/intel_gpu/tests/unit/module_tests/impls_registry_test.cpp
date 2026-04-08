@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,6 @@
 #include "intel_gpu/primitives/grn.hpp"
 #include "intel_gpu/primitives/group_normalization.hpp"
 #include "intel_gpu/primitives/kv_cache.hpp"
-#include "intel_gpu/primitives/loop.hpp"
 #include "intel_gpu/primitives/matrix_nms.hpp"
 #include "intel_gpu/primitives/multiclass_nms.hpp"
 #include "intel_gpu/primitives/multinomial.hpp"
@@ -145,7 +144,6 @@ TEST(registry_test, no_null_impls) {
                 cldnn::assign,
                 cldnn::read_value,
                 cldnn::condition,
-                cldnn::loop,
                 cldnn::input_layout,
                 cldnn::non_max_suppression_gather,
                 cldnn::proposal,

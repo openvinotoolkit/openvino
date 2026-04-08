@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,12 +44,12 @@ private:
     bool isShareLoc = false;
     int locNumForClasses = 0;
     bool withAddBoxPred = false;
-    float objScore = 0.0f;
+    float objScore = 0.0F;
 
-    float confidenceThreshold = 0.0f;
-    float sparsityThreshold = 0.03f;
+    float confidenceThreshold = 0.0F;
+    float sparsityThreshold = 0.03F;
     int topK = 0;
-    float NMSThreshold = 0.0f;
+    float NMSThreshold = 0.0F;
     bool clipBeforeNMS = false;
     bool clipAfterNMS = false;
     int backgroundClassId = 0;

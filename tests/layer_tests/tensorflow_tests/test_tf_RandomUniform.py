@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -42,7 +42,5 @@ class TestRandomUniform(CommonTFLayerTest):
                             ie_device, precision, ir_version, temp_dir):
         if dtype == np.float16 or dtype == np.float64:
             pytest.skip('156027: Incorrect specification of RandomUniform for float16 and float64 output type')
-        if ie_device == 'GPU':
-            pytest.skip('156056: Accuracy error on GPU')
         self._test(*self.create_tf_random_uniform_net(shape_value, shape_type, dtype, seed, seed2),
                    ie_device, precision, ir_version, temp_dir=temp_dir)

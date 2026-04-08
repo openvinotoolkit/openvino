@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ typedef std::tuple<proposalSpecificParams, std::vector<float>, std::string> prop
 class ProposalBehTest : public testing::WithParamInterface<proposalBehTestParamsSet>,
                         virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<proposalBehTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<proposalBehTestParamsSet>& obj);
 
 protected:
     void SetUp() override;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,14 +10,19 @@
 #include <string>
 
 #include "common/primitive_hashing_utils.hpp"
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "nodes/executors/common/ref_transpose.hpp"
 #include "nodes/executors/transpose.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/core/parallel.hpp"
+
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "utils/cpu_utils.hpp"
+#    include "utils/general_utils.h"
+#endif
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include <cpu/x64/xbyak/xbyak.h>
+#    include <xbyak/xbyak.h>
 
 #    include <cpu/x64/cpu_isa_traits.hpp>
 #    include <memory>
@@ -39,16 +44,16 @@ namespace ov::intel_cpu {
 #if defined(OPENVINO_ARCH_X86_64)
 
 template <cpu_isa_t isa>
-struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_generator {
+struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_permute_kernel_f32)
 
     explicit jit_uni_permute_kernel_f32(jit_permute_config_params jcp_)
         : jit_uni_permute_kernel(jcp_),
-          jit_generator(jit_name()) {}
+          jit_generator_t(jit_name()) {}
 
     void create_ker() override {
-        jit_generator::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        jit_generator_t::create_kernel();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
@@ -110,7 +115,7 @@ struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_ge
         Xbyak::Label exit_label;
 
         if (n + 1 == static_cast<int>(jcp.ndims)) {
-            if (jcp.src_strides[n] == 1 && jcp.dst_strides[n] == 1) {
+            if (all_of(1U, jcp.src_strides[n], jcp.dst_strides[n])) {
                 uint32_t step = vlen / jcp.data_size;
 
                 L(main_loop_label);
@@ -163,7 +168,7 @@ struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_ge
 private:
     using Vmm =
         typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
-    uint32_t vlen = cpu_isa_traits<isa>::vlen;
+    uint32_t vlen = cpu_isa_traits_t<isa>::vlen;
 
     Xbyak::Reg64 reg_src = r8;
     Xbyak::Reg64 reg_dst = r9;
@@ -196,26 +201,32 @@ PermuteKernel::PermuteKernel(const PermuteParams& params) : params(params) {
     }
 }
 
-void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data, const int mb) {
+void PermuteKernel::execute(const uint8_t* src_data,
+                            uint8_t* dst_data,
+                            const int mb,
+                            const CpuParallelPtr& cpu_parallel) {
     if (permute_kernel) {
-        optimizedExecute(src_data, dst_data, mb);
+        optimizedExecute(src_data, dst_data, mb, cpu_parallel);
         return;
     }
 
     RefTransposeExecutor::referenceExecute(src_data, dst_data, jcp, mb);
 }
 
-void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data) {
+void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data, const CpuParallelPtr& cpu_parallel) {
     VectorDims dst_dims = jcp.dst_block_dims;
     if (permute_kernel) {
-        optimizedExecute(src_data, dst_data, dst_dims[0]);
+        optimizedExecute(src_data, dst_data, dst_dims[0], cpu_parallel);
         return;
     }
 
     RefTransposeExecutor::referenceExecute(src_data, dst_data, jcp, dst_dims[0]);
 }
 
-void PermuteKernel::optimizedExecute(const uint8_t* src_data, const uint8_t* dst_data, const int mb) {
+void PermuteKernel::optimizedExecute(const uint8_t* src_data,
+                                     const uint8_t* dst_data,
+                                     const int mb,
+                                     const CpuParallelPtr& cpu_parallel) {
     VectorDims dst_dims = jcp.dst_block_dims;
     const VectorDims dst_strides = jcp.dst_strides;
     const VectorDims src_strides = jcp.src_strides;
@@ -226,17 +237,26 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, const uint8_t* dst
 
     switch (jcp.n) {
     case 0:
-    // This is a degenerate case that is only possible if the tensor has 0 or 1st rank
-    // Such a situation is possible in the following graph:
-    //  Parameter
-    //     |
-    //  Transpose
-    //     |
-    //  Result
-    // The elimination of the Transpose node will not be performed
-    // So copy from input buffer to output buffer without any permutation
+        // This is a degenerate case that is only possible if the tensor has 0 or 1st rank
+        // Such a situation is possible in the following graph:
+        //  Parameter
+        //     |
+        //  Transpose
+        //     |
+        //  Result
+        // The elimination of the Transpose node will not be performed
+        // So copy from input buffer to output buffer without any permutation
+        {
+            auto arg = jit_args_permute();
+
+            arg.src = src_data;
+            arg.dst = dst_data;
+
+            (*permute_kernel)(&arg);
+        }
+        break;
     case 1:
-        parallel_for(dst_dims[0], [&](int i0) {
+        cpu_parallel->parallel_for(dst_dims[0], [&](int i0) {
             auto arg = jit_args_permute();
 
             size_t dst_off = i0 * dst_strides[0];
@@ -248,7 +268,7 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, const uint8_t* dst
         });
         break;
     case 2:
-        parallel_for2d(dst_dims[0], dst_dims[1], [&](int i0, int i1) {
+        cpu_parallel->parallel_for2d(dst_dims[0], dst_dims[1], [&](int i0, int i1) {
             auto arg = jit_args_permute();
 
             size_t dst_off = i0 * dst_strides[0] + i1 * dst_strides[1];
@@ -260,7 +280,7 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, const uint8_t* dst
         });
         break;
     case 3:
-        parallel_for3d(dst_dims[0], dst_dims[1], dst_dims[2], [&](int i0, int i1, int i2) {
+        cpu_parallel->parallel_for3d(dst_dims[0], dst_dims[1], dst_dims[2], [&](int i0, int i1, int i2) {
             auto arg = jit_args_permute();
 
             size_t dst_off = i0 * dst_strides[0] + i1 * dst_strides[1] + i2 * dst_strides[2];

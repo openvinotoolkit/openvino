@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -111,9 +111,17 @@ const float sum_scale = 1;
 #if WITH_BIAS
     float8 blockC00 = bias[oc * OC_BLOCK + local_id + g * OC];
     float8 blockC01 = bias[oc * OC_BLOCK + local_id + g * OC];
+#if VER_32MB_LARGE_1D
+    float8 blockC02 = blockC00;
+    float8 blockC03 = blockC00;
+#endif
 #else
     float8 blockC00 = 0.0f;
     float8 blockC01 = 0.0f;
+#if VER_32MB_LARGE_1D
+    float8 blockC02 = 0.0f;
+    float8 blockC03 = 0.0f;
+#endif
 #endif
 
 #if ((HAS_PAD_D && KD == 1) || (HAS_PAD_H && KH == 1) || (HAS_PAD_W && KW == 1))
@@ -203,6 +211,20 @@ const float sum_scale = 1;
                         MULTIPLY_BLOCKS_8x8(
                                 blockC01, blockA, blockB00, blockB01);
 
+#if VER_32MB_LARGE_1D
+                        blockA = as_float8(_sub_group_block_read8(
+                                (const __global uint *)(src1 + MB_BLOCK * IC_FULL * IDHW_SIZE)));
+
+                        MULTIPLY_BLOCKS_8x8(
+                                blockC02, blockA, blockB00, blockB01);
+
+                        blockA = as_float8(_sub_group_block_read8(
+                                (const __global uint *)(src1 + MB_BLOCK * IC_FULL * IDHW_SIZE + 8 * IC_BLOCK)));
+
+                        MULTIPLY_BLOCKS_8x8(
+                                blockC03, blockA, blockB00, blockB01);
+#endif
+
 #undef TRANSPOSE_BLOCK_8
 #undef MULTIPLY_BLOCKS_8x8
                         src1 += IC_BLOCK * IDHW_SIZE * MB_BLOCK;
@@ -268,6 +290,62 @@ const float sum_scale = 1;
              (__global unsigned int *)(&dst_write0[8 * OC_BLOCK]),
              as_uint8(blockC01));
     }
+
+#if VER_32MB_LARGE_1D
+#if WITH_SUM == 1
+    float8 blockS02 = as_float8(
+            _sub_group_block_read8((const __global uint *)(dst_write0
+                    + MB_BLOCK * OC_FULL * G * ODHW_SIZE)));
+    float8 blockS03 = as_float8(
+            _sub_group_block_read8((const __global uint *)(dst_write0
+                    + MB_BLOCK * OC_FULL * G * ODHW_SIZE + 8 * OC_BLOCK)));
+
+#if SUM_SCALE == 1
+    blockC02 += blockS02;
+    blockC03 += blockS03;
+#else
+    blockC02 = fma(blockS02, (float8)sum_scale, blockC02);
+    blockC03 = fma(blockS03, (float8)sum_scale, blockC03);
+#endif
+#endif // with_sum
+#if WITH_ELTWISE == 1
+    DO_ELTWISE(blockC02, 8, eltwise_alpha, eltwise_beta);
+    DO_ELTWISE(blockC03, 8, eltwise_alpha, eltwise_beta);
+#endif
+
+#if OUTPUT_LEFTOVERS
+    if ((oc+1)*OC_BLOCK >= OC_NOTALLIGNED) {
+        for (int i = 0; i < 8; i++) {
+
+#if HAS_FUSED_OPS
+            { FUSED_OPS_SCALAR2; blockC02[i] = FUSED_OPS_RESULT_SCALAR2; }
+            { FUSED_OPS_SCALAR3; blockC03[i] = FUSED_OPS_RESULT_SCALAR3; }
+#endif
+            if (oc * OC_BLOCK + local_id < OC_NOTALLIGNED) {
+                dst_write0[MB_BLOCK * OC_FULL * ODHW_SIZE
+                        + i * OC_BLOCK + local_id] = blockC02[i];
+                dst_write0[MB_BLOCK * OC_FULL * ODHW_SIZE + 8 * OC_BLOCK
+                        + i * OC_BLOCK + local_id] = blockC03[i];
+            }
+        }
+    } else
+
+#endif // OUTPUT_LEFTOVERS
+    {
+
+#if HAS_FUSED_OPS
+    { FUSED_OPS_VEC2; blockC02 = FUSED_OPS_RESULT_VEC2; }
+    { FUSED_OPS_VEC3; blockC03 = FUSED_OPS_RESULT_VEC3; }
+#endif
+     _sub_group_block_write8(
+                (__global uint *)&dst_write0[MB_BLOCK * OC_FULL * ODHW_SIZE],
+                as_uint8(blockC02));
+        _sub_group_block_write8(
+                (__global uint *)&dst_write0[MB_BLOCK * OC_FULL * ODHW_SIZE
+                        + 8 * OC_BLOCK],
+                as_uint8(blockC03));
+    }
+#endif
 #endif // ver_16mb16c
 
 #ifdef VER_8OW16C

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -221,7 +221,7 @@ KERNEL(pooling_gpu)(
                 result = FUNC_CALL(apply_pooling)(result, TO_ACCUMULATOR_TYPE(input[input_idx]));
     #else
                 #ifdef SELECTED_INDICES_TYPE
-                    const current_input_value = input[input_idx];
+                    const ACCUMULATOR_TYPE current_input_value = TO_ACCUMULATOR_TYPE(input[input_idx]);
                     if (current_input_value > result)
                     {
                         result = current_input_value;

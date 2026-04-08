@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 namespace ov::intel_cpu {
 
 struct DnnlShapeAgnosticData {
-    DnnlShapeAgnosticData(DnnlPrimitiveAttrs primAttrs, impl_desc_type implType = impl_desc_type::undef)
+    explicit DnnlShapeAgnosticData(DnnlPrimitiveAttrs primAttrs, impl_desc_type implType = impl_desc_type::undef)
         : m_primAttrs(std::move(primAttrs)),
           m_implType(implType) {}
 

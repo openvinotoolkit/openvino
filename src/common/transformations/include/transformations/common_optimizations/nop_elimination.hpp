@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@ namespace pass {
 class TRANSFORMATIONS_API EliminateConcat;
 class TRANSFORMATIONS_API EliminateConcatStridedSlice;
 class TRANSFORMATIONS_API EliminateConvert;
+class TRANSFORMATIONS_API EliminateIdentityConvert;
 class TRANSFORMATIONS_API EliminateConvertNonZero;
 class TRANSFORMATIONS_API EliminateEltwise;
 class TRANSFORMATIONS_API EliminateScatterUpdate;
@@ -28,6 +29,7 @@ class TRANSFORMATIONS_API EliminateSliceBeforeGatherElements;
 class TRANSFORMATIONS_API EliminateStridedSlice;
 class TRANSFORMATIONS_API EliminateSlice;
 class TRANSFORMATIONS_API EliminateStridedSliceByShape;
+class TRANSFORMATIONS_API EliminateIdentity;
 class TRANSFORMATIONS_API NopElimination;
 class TRANSFORMATIONS_API PrepareShapeOpsForEliminationAroundBE;
 
@@ -62,6 +64,17 @@ class ov::pass::EliminateConvert : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("EliminateConvert");
     EliminateConvert();
+};
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief EliminateIdentityConvert eliminates convert that before and after Identity
+ * have the same input and output types
+ */
+class ov::pass::EliminateIdentityConvert : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("EliminateIdentityConvert");
+    EliminateIdentityConvert();
 };
 
 /**
@@ -265,4 +278,14 @@ class ov::pass::PrepareShapeOpsForEliminationAroundBE : public ov::pass::Matcher
 public:
     OPENVINO_MATCHER_PASS_RTTI("PrepareShapeOpsForEliminationAroundBE");
     PrepareShapeOpsForEliminationAroundBE();
+};
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief EliminateIdentity eliminates identity that does nothing
+ */
+class ov::pass::EliminateIdentity : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("EliminateIdentity");
+    EliminateIdentity();
 };

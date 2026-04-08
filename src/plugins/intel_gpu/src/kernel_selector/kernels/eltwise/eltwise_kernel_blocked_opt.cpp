@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -303,6 +303,7 @@ JitConstants EltwiseKernel_blocked_opt::GetJitConstants(const eltwise_params& pa
     jit.AddConstant(MakeJitConstant("OUTPUT_SIZE_XY", params.outputs[0].X().v * params.outputs[0].Y().v));
     // To calculate batch, define outer block size of feature axis (divided by the inner feature-block size)
     jit.AddConstant(MakeJitConstant("OUT_F_BLOCK", CeilDiv(params.outputs[0].Feature().v, inner_feature_blk_size)));
+    jit.AddConstant(MakeJitConstant("OUT_F_BLOCK_VEC_SIZE", CeilDiv(params.outputs[0].Feature().v, vec_size)));
 
     bool use_vload = false;
     jit.Merge(MakeInputDeclsJitConstants(params, use_vload));

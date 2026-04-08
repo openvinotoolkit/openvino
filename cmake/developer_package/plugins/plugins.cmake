@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -40,7 +40,7 @@ endif()
 function(ov_add_plugin)
     set(options SKIP_INSTALL PSEUDO_DEVICE ADD_CLANG_FORMAT ADD_CLANG_TIDY AS_EXTENSION SKIP_REGISTRATION)
     set(oneValueArgs NAME DEVICE_NAME VERSION_DEFINES_FOR PSEUDO_PLUGIN_FOR)
-    set(multiValueArgs DEFAULT_CONFIG SOURCES OBJECT_LIBRARIES CPPLINT_FILTERS)
+    set(multiValueArgs DEFAULT_CONFIG SOURCES OBJECT_LIBRARIES)
     cmake_parse_arguments(OV_PLUGIN "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     if(NOT OV_PLUGIN_NAME)
@@ -57,7 +57,6 @@ function(ov_add_plugin)
         set(input_files ${OV_PLUGIN_SOURCES})
         foreach(obj_lib IN LISTS OV_PLUGIN_OBJECT_LIBRARIES)
             list(APPEND input_files $<TARGET_OBJECTS:${obj_lib}>)
-            add_cpplint_target(${obj_lib}_cpplint FOR_TARGETS ${obj_lib})
         endforeach()
 
         if(BUILD_SHARED_LIBS)
@@ -73,7 +72,9 @@ function(ov_add_plugin)
         endif()
 
         target_compile_definitions(${OV_PLUGIN_NAME} PRIVATE IMPLEMENT_OPENVINO_RUNTIME_PLUGIN)
-        if(NOT BUILD_SHARED_LIBS)
+        if(BUILD_SHARED_LIBS)
+            target_link_libraries(${OV_PLUGIN_NAME} PRIVATE openvino::shutdown)
+        else()
             # to distinguish functions creating plugin objects
             target_compile_definitions(${OV_PLUGIN_NAME} PRIVATE
                 OV_CREATE_PLUGIN=create_plugin_engine_${OV_PLUGIN_DEVICE_NAME})
@@ -97,37 +98,12 @@ function(ov_add_plugin)
             endif()
         endif()
 
-        set(custom_filter "")
-        foreach(filter IN LISTS OV_PLUGIN_CPPLINT_FILTERS)
-            string(CONCAT custom_filter "${custom_filter}" "," "${filter}")
-        endforeach()
-
         if (OV_PLUGIN_ADD_CLANG_TIDY)
-            if (ENABLE_CLANG_TIDY)
-                set(clang_tidy_options "--extra-arg=-Wno-unused-command-line-argument")
-                if(DEFINED CMAKE_CXX_COMPILER_TARGET)
-                    list(APPEND clang_tidy_options "--extra-arg=--target=${CMAKE_CXX_COMPILER_TARGET}")
-                endif()
-                if(DEFINED OV_CLANG_TIDY_TOOLCHAIN_FLAGS)
-                    list(APPEND clang_tidy_options ${OV_CLANG_TIDY_TOOLCHAIN_FLAGS})
-                endif()
-                if(ENABLE_CLANG_TIDY_FIX)
-                    list(APPEND clang_tidy_options "--fix-errors")
-                endif()
-                if(RISCV64)
-                    list(APPEND clang_tidy_options "--extra-arg-before=-march=rv64gcv1p0_zfh")
-                    list(APPEND clang_tidy_options "--extra-arg-before=-mabi=lp64d")
-                    list(APPEND clang_tidy_options "--extra-arg-before=-D__fp16=_Float16")
-                endif()
-                set_target_properties(${OV_PLUGIN_NAME} PROPERTIES
-                    CXX_CLANG_TIDY "${CLANG_TIDY};${clang_tidy_options}")
-            endif()
+            ov_apply_clang_tidy(TARGET ${OV_PLUGIN_NAME})
         endif()
 
         if (OV_PLUGIN_ADD_CLANG_FORMAT)
             ov_add_clang_format_target(${OV_PLUGIN_NAME}_clang FOR_SOURCES ${OV_PLUGIN_SOURCES})
-        else()
-            add_cpplint_target(${OV_PLUGIN_NAME}_cpplint FOR_TARGETS ${OV_PLUGIN_NAME} CUSTOM_FILTERS ${custom_filter})
         endif()
 
         # plugins does not have to be CXX ABI free, because nobody links with plugins,

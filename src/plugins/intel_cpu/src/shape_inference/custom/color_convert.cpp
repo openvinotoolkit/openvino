@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,16 +20,14 @@
 namespace ov::intel_cpu::node {
 
 /**
- * Implements Color Convert shape inference algorithm. Depending on wether it has only single plain H dimension is
+ * Implements Color Convert shape inference algorithm. Depending on whether it has only single plain H dimension is
  * passed through or recalculated as 2/3 of the initial size.
  *
  */
 Result ColorConvertShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                                      [[maybe_unused]] const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     const auto& dims = input_shapes.front().get();
-    if (dims.size() != 4) {
-        OPENVINO_THROW("NV12Converter node has incorrect input dimensions");
-    }
+    OPENVINO_ASSERT(dims.size() == 4, "NV12Converter node has incorrect input dimensions");
     return {m_singlePlain ? std::vector<VectorDims>{{dims[ColorConvert::Converter::N_DIM],
                                                      dims[ColorConvert::Converter::H_DIM] * 2 / 3,
                                                      dims[ColorConvert::Converter::W_DIM],

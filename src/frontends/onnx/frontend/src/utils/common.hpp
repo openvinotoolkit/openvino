@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,17 @@ const ov::element::Type& get_ov_element_type(std::int64_t onnx_type);
 /// \param[in]  node    Node to check
 /// \param[in]  min_inputs_size  Minimal amount of inputs expected
 void default_op_checks(const Node& node, size_t min_inputs_size);
+
+/// \brief Function does a default checks for a node. Raise an exception if checks are failed
+/// \param[in]  node    Node to check
+/// \param[in]  min_inputs_size  Minimal amount of inputs expected
+/// \param[in]  max_inputs_size  Maximum amount of inputs expected
+void default_op_checks(const Node& node, size_t min_inputs_size, size_t max_inputs_size);
+
+/// \brief Function does a returns if input exists and is not null
+/// \param[in]  node   Node to check
+/// \param[in]  index  Input index to check
+bool is_input_valid(const Node& node, size_t index);
 
 /// \brief      Return a monotonic sequence.
 ///
@@ -158,21 +169,6 @@ void mark_as_optimized_out(ov::Output<ov::Node>& node_output);
 
 /// \brief Checks if a given output was marked as optimized out byt the function above.
 bool is_optimized_out(const ov::Output<ov::Node>& node_output);
-
-/// \brief Collect unsupported operators after convert_partially and all exceptions from translation process.
-/// \param partially_converted ov::Model which has been partially converted
-/// \param telemetry Pointer on a TelemetryExtension if telemetry is enabled
-/// \param output_stream Pointer on a stream for printint error messages
-/// \param unsupported_operations Set for collecting list of unsupported operations, should be nullptr for
-///                               first call (will be created internally)
-/// \param failures Set for collecting list of failed conversions, should be nullptr for
-///                 first call (will be created internally)
-/// \return Returns true in case any issues has been found
-bool collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_converted,
-                                    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = nullptr,
-                                    std::ostream* output_stream = nullptr,
-                                    std::shared_ptr<std::set<std::string>> unsupported_operations = nullptr,
-                                    std::shared_ptr<std::set<std::string>> failures = nullptr);
 
 // \brief OpenVINO supports only uint64 seeds with a meaningful 0 value (seed will be auto-generated).
 // Because we use a seed as a just meaningful identifier we may

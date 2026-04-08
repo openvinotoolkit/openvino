@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,6 +41,8 @@ private:
     static DnnlMemoryDescPtr get_src_desc(const VectorDims& shape,
                                           const VectorDims& layout,
                                           const brgemm_utils::BrgemmConfig& brgemm_config);
+    static CpuBlockedMemoryDescPtr get_dst_cpu_desc(const Shape& shape,
+                                                    const brgemm_utils::BrgemmConfig& brgemm_config);
     static DnnlMemoryDescPtr get_dst_desc(const Shape& shape, const brgemm_utils::BrgemmConfig& brgemm_config);
 
     const GraphContext::CPtr m_context;

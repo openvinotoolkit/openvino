@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -194,5 +194,21 @@ private:
 };
 
 using convolution_inst = typed_primitive_inst<convolution>;
+
+// Helper function to extend 4D weights layout to 5D for grouped 1D convolutions
+// Used when conv input shape is canonicalized to 4D by allow_new_shape_infer=false
+inline layout extend_weights_layout_to_5d(const layout& weights_layout) {
+    OPENVINO_ASSERT(!weights_layout.is_dynamic());
+    auto current_shape = weights_layout.get_shape();
+    std::vector<size_t> new_shape(current_shape.begin(), current_shape.end());
+    new_shape.push_back(1);  // Extend with dimension of size 1
+
+    ov::PartialShape new_pshape(new_shape);
+    auto new_format = weights_layout.format == format::oiyx
+                     ? format::get_default_format(5, true, true)
+                     : weights_layout.format;
+
+    return layout(new_pshape, weights_layout.data_type, new_format);
+}
 
 }  // namespace cldnn

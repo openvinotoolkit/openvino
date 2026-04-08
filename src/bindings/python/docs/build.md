@@ -1,24 +1,31 @@
 # Building the OpenVINO™ Python API
 
-**Refer to ["How to build OpenVINO" in OpenVINO™ developer documentation](../../../../docs/dev/build.md) for general building instructions.**
-For each platform, you can build and install the API as a part of OpenVINO™ Toolkit or as a Python wheel.
+**Refer to ["How to build OpenVINO"](../../../../docs/dev/build.md) in OpenVINO™ developer documentation for general building instructions.**
+For every supported platform, the API can be built and installed either as part of the OpenVINO™ Toolkit or as a standalone Python wheel. When generating wheels during a source build, include ``-DENABLE_PYTHON=ON`` and ``-DENABLE_WHEEL=ON`` flags. Wheels are generated under the ``<build>/wheels/`` directory.
 
 ## Using Python Wheels for OpenVINO™
 Wheels are portable Python packages that are ready to install upon download. They are the commonly used binary distributions in Python as they avoid the compiling of extension modules and associated dependency issues on the user end. As a result, wheels installation is faster and smoother, simplifying the process for both developers and users. The ```.whl``` format is the default preference for ```pip``` when you run a ```pip install``` command.
 
 OpenVINO wheels for various platforms are available on [PyPI](https://pypi.org/project/openvino/#files), enabling you to install OpenVINO™ in your Python distribution or a dedicated virtual environment.
 
-OpenVINO builds two different wheels with separate ```setup.py``` files for [```openvino```](../wheel/setup.py) and [```openvino-dev```](../../../../tools/openvino_dev/setup.py). To build the wheels while building the project from source, your ```cmake``` command should include ```-DENABLE_PYTHON=ON``` and ```-DENABLE_WHEEL=ON```. Once built, the wheels can be found under ```openvino_install_dir/tools```.
-
 While wheels make installation easier, using wheels for development offers less customization than building from source and exporting ```PYTHONPATH``` and other environment variables to OpenVINO directories. Wheels are usually provided for specific packaged versions and might not contain the most recent changes that are available if you choose to clone the repository and build it yourself.
 
 To learn more about wheels and their use cases, check out the article [What Are Python Wheels and Why Should You Care?](https://realpython.com/python-wheels/).
+
+## Experimental free threaded Python build
+To build the OpenVINO™ Python API with experimental free threaded Python support, add the following flag to your `cmake` command:
+
+```shell
+-DENABLE_GIL_PYTHON_API=OFF
+```
+
+This disables the Global Interpreter Lock (GIL) in the Python API, enabling free threading. Note that this feature is experimental and may not be fully supported in all environments.
 
 ## Virtual environments
 
 OpenVINO can be built based on specific virtual environments such as [venv](https://docs.python.org/3/tutorial/venv.html), [virtualenv](https://virtualenv.pypa.io/en/latest/) or [pyenv](https://github.com/pyenv/pyenv). It is highly recommended to use virtual environments during development. They improve development process and allow better management of Python versions and packages.
 
-*Note: Supported Python versions can be found in ["System Requirements"](https://docs.openvino.ai/2025/about-openvino/release-notes-openvino/system-requirements.html).*
+*Note: Supported Python versions can be found in ["System Requirements"](https://docs.openvino.ai/2026/about-openvino/release-notes-openvino/system-requirements.html).*
 
 ### Example: using pyenv with OpenVINO™ on Linux based system
 
@@ -70,9 +77,10 @@ For details please refer to [Python requirements and version constraints managem
 
 ## Run tests to verify OpenVINO™ Python API
 
-Follow instructions in [How to test OpenVINO™ Python API?](./test_examples.md#Running_OpenVINO™_Python_API_tests) to verify the build.
+Follow instructions in [How to test OpenVINO™ Python API?](./test_examples.md#run-openvino-python-api-tests) to verify the build.
 
 ## See also
+ * [Debugging OpenVINO™ Python API with C++ breakpoints](./debugging_python_api.md)
  * [OpenVINO™ README](../../../../README.md)
  * [OpenVINO™ bindings README](../../README.md)
  * [Developer documentation](../../../../docs/dev/index.md)

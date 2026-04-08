@@ -1,27 +1,13 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(DEFINED BUILD_SHARED_LIBS AND NOT BUILD_SHARED_LIBS)
-    # 3.17: 'target_link_libraries' does not work correctly when called from
-    # different directory where 'add_library' is called: CMake generates
-    # incorrect OpenVINOConfig.cmake in this case
-    # 3.18: add_library cannot create ALIAS for non-GLOBAL targets
-    cmake_minimum_required(VERSION 3.18)
+if(CPACK_GENERATOR STREQUAL "DEB")
+    # we have to use CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS variable
+    cmake_minimum_required(VERSION 3.20)
 else()
-    if(CPACK_GENERATOR STREQUAL "DEB")
-        # we have to use CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS variable
-        cmake_minimum_required(VERSION 3.20)
-    else()
-        if(WIN32)
-            # 3.16: FindPython3.cmake can find Python via -DPython3_EXECUTABLE
-            # 3.18: FindPython3.cmake can find Python automatically from virtualenv
-            cmake_minimum_required(VERSION 3.16)
-        else()
-            # 3.13: default choice
-            cmake_minimum_required(VERSION 3.13)
-        endif()
-    endif()
+    # 3.18: default choice as minimum version for onnx 1.18
+    cmake_minimum_required(VERSION 3.18)
 endif()
 
 if(POLICY CMP0091)
@@ -52,7 +38,7 @@ set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 
 project(OpenVINO
         DESCRIPTION "OpenVINO toolkit"
-        HOMEPAGE_URL "https://docs.openvino.ai/2025/index.html"
+        HOMEPAGE_URL "https://docs.openvino.ai/2026/index.html"
         LANGUAGES C CXX)
 
 find_package(OpenVINODeveloperScripts REQUIRED
@@ -158,6 +144,42 @@ endfunction()
 #
 # Build
 #
+
+# Configure job pools (only for Ninja generators)
+if(CMAKE_GENERATOR STREQUAL "Ninja" OR CMAKE_GENERATOR STREQUAL "Ninja Multi-Config")
+    # Because we use Ninja generator, we can set the number of parallel
+    # jobs separately for different tasks, like compiling and linking.
+    # Especially useful on Windows, we avoid to be out of memory during linking stage that way.
+    # Number of jobs will never exceed the amount passed in `--parallel` to `cmake --build` command,
+    # even if larger `JOB_POOL` specified.
+    # See also: https://cmake.org/cmake/help/latest/prop_gbl/JOB_POOLS.html
+
+    # Set default job pools.
+    # `four_jobs` is used in a few places across all CMake files to limit
+    # the number of concurrent jobs (e.g. to convert *.prototxt files
+    # in cmake/test_model_zoo.cmake:54).
+    set_property(GLOBAL PROPERTY JOB_POOLS "${CMAKE_JOB_POOLS};four_jobs=4")
+
+    if(CMAKE_JOB_POOLS)
+        message(STATUS "")
+        message(STATUS "Job pools configuration for Ninja generator:")
+        get_property(current_job_pools GLOBAL PROPERTY JOB_POOLS)
+        message(STATUS "CMAKE_JOB_POOLS is set to: ${CMAKE_JOB_POOLS}")
+        message(STATUS "JOB_POOLS global property is set to: ${current_job_pools}")
+
+        if(CMAKE_JOB_POOL_COMPILE)
+            message(STATUS "CMAKE_JOB_POOL_COMPILE is set to: ${CMAKE_JOB_POOL_COMPILE}")
+        endif()
+
+        if(CMAKE_JOB_POOL_LINK)
+            message(STATUS "CMAKE_JOB_POOL_LINK is set to: ${CMAKE_JOB_POOL_LINK}")
+        endif()
+
+        if(CMAKE_JOB_POOL_PRECOMPILE_HEADER)
+            message(STATUS "CMAKE_JOB_POOL_PRECOMPILE_HEADER is set to: ${CMAKE_JOB_POOL_PRECOMPILE_HEADER}")
+        endif()
+    endif()
+endif()
 
 if(ENABLE_TESTS)
     # add target with processed tests model zoo

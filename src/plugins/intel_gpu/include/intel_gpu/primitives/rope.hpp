@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,6 +47,7 @@ struct rope : public primitive_base<rope> {
         seed = hash_combine(seed, config.is_interleaved);
         seed = hash_combine(seed, config.is_qwen);
         seed = hash_combine(seed, config.use_rope_cache);
+        seed = hash_combine(seed, config.is_ltx_video);
         seed = hash_combine(seed, config.rotary_ndims);
         seed = hash_combine(seed, config.slice_start);
         seed = hash_combine(seed, config.slice_stop);
@@ -70,6 +71,7 @@ struct rope : public primitive_base<rope> {
                config.is_interleaved == rhs_casted.config.is_interleaved &&
                config.is_qwen == rhs_casted.config.is_qwen &&
                config.use_rope_cache == rhs_casted.config.use_rope_cache &&
+               config.is_ltx_video == rhs_casted.config.is_ltx_video &&
                config.rotary_ndims == rhs_casted.config.rotary_ndims &&
                config.slice_start == rhs_casted.config.slice_start &&
                config.slice_stop == rhs_casted.config.slice_stop &&
@@ -84,10 +86,12 @@ struct rope : public primitive_base<rope> {
         ob << config.input_trans0213;
         ob << config.is_chatglm;
         ob << config.support_2d_rope;
+        ob << config.support_3d_rope;
         ob << config.output_trans0213;
         ob << config.is_interleaved;
         ob << config.is_qwen;
         ob << config.use_rope_cache;
+        ob << config.is_ltx_video;
         ob << config.rotary_ndims;
         ob << config.slice_start;
         ob << config.slice_stop;
@@ -102,10 +106,12 @@ struct rope : public primitive_base<rope> {
         ib >> config.input_trans0213;
         ib >> config.is_chatglm;
         ib >> config.support_2d_rope;
+        ib >> config.support_3d_rope;
         ib >> config.output_trans0213;
         ib >> config.is_interleaved;
         ib >> config.is_qwen;
         ib >> config.use_rope_cache;
+        ib >> config.is_ltx_video;
         ib >> config.rotary_ndims;
         ib >> config.slice_start;
         ib >> config.slice_stop;

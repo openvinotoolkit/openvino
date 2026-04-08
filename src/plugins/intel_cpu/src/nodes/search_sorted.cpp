@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,7 +61,7 @@ void SearchSorted::initSupportedPrimitiveDescriptors() {
     ov::element::Type inputPrec = getOriginalInputPrecisionAtPort(0);
     ov::element::Type outputPrec = getOriginalOutputPrecisionAtPort(0);
 
-    if (!one_of(inputPrec,
+    if (none_of(inputPrec,
                 ov::element::f32,
                 ov::element::i32,
                 ov::element::bf16,
@@ -71,7 +71,7 @@ void SearchSorted::initSupportedPrimitiveDescriptors() {
         inputPrec = ov::element::f32;
     }
 
-    if (!one_of(outputPrec, ov::element::i32, ov::element::i64)) {
+    if (none_of(outputPrec, ov::element::i32, ov::element::i64)) {
         outputPrec = ov::element::i32;
     }
 

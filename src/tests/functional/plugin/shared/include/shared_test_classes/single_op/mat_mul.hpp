@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/test_enums.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
 
 namespace ov {
 namespace test {

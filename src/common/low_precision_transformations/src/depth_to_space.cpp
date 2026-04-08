@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ DepthToSpaceTransformation::DepthToSpaceTransformation(const Params& params) : T
 }
 
 bool DepthToSpaceTransformation::canBeTransformed(const std::shared_ptr<ov::Node>& layer) const {
-    if (!LayerTransformation::canBeTransformed(layer)) {
+    if (!TransparentBaseTransformation::canBeTransformed(layer)) {
         return false;
     }
 

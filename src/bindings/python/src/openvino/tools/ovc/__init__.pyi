@@ -21,6 +21,6 @@ from openvino.tools.ovc.telemetry_utils import is_optimum
 from openvino.tools.ovc.telemetry_utils import is_torch_compile
 import openvino_telemetry.main
 import sys as sys
-__all__ = ['cli_parser', 'convert', 'convert_impl', 'convert_model', 'error', 'get_ov_update_message', 'get_rt_version', 'help', 'importlib_metadata', 'init_ovc_telemetry', 'is_keras3', 'is_optimum', 'is_torch_compile', 'logger', 'moc_frontend', 'optimum_version', 'sys', 'telemetry', 'telemetry_params', 'telemetry_utils', 'utils', 'version']
+__all__: list[str] = ['cli_parser', 'convert', 'convert_impl', 'convert_model', 'error', 'get_ov_update_message', 'get_rt_version', 'help', 'importlib_metadata', 'init_ovc_telemetry', 'is_keras3', 'is_optimum', 'is_torch_compile', 'logger', 'moc_frontend', 'optimum_version', 'sys', 'telemetry', 'telemetry_params', 'telemetry_utils', 'utils', 'version']
 optimum_version = None
 telemetry: openvino_telemetry.main.Telemetry  # value = <openvino_telemetry.main.Telemetry object>

@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,8 +32,6 @@ namespace ov::snippets::lowered::pass {
 class BrgemmBlockingBase {
 public:
     virtual ~BrgemmBlockingBase() = default;
-    static snippets::lowered::SpecificIterationHandlers get_default_blocking_loop_handlers(size_t work_amount,
-                                                                                           size_t block_size);
 
 protected:
     /**

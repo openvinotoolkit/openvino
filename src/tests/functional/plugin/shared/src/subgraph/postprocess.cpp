@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,10 +15,7 @@ namespace ov {
 namespace test {
 
 std::string PostProcessTest::getTestCaseName(const testing::TestParamInfo<postprocessParamsTuple>& obj) {
-    std::string targetName;
-    postprocess_func func;
-
-    std::tie(func, targetName) = obj.param;
+    const auto& [func, targetName] = obj.param;
     std::ostringstream result;
     result << "Func=" << func.m_name << "_";
     result << "Device=" << targetName << "";

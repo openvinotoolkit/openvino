@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import csv
 import datetime
@@ -207,7 +207,7 @@ class TaskManager:
     def init_worker(self):
         if len(self._command_list) <= self._idx:
             logger.warning(
-                "Skip worker initialiazation. Command list lenght <= worker index"
+                "Skip worker initialiazation. Command list length <= worker index"
             )
             return
         if self._device_cnt == 0:
@@ -263,8 +263,13 @@ class TaskManager:
                         self.kill_process_tree(self._process_list[pid].pid)
                         self._process_list[pid].kill()
                         self._process_list[pid].wait(timeout=1)
-                    self._process_list[pid].wait(timeout=0)
+                    returncode = self._process_list[pid].wait(timeout=0)
                     args = self._process_list[pid].args
+                    if returncode != 0:
+                        logger.warning(
+                            f"Process PID {pid} called with arguments {args} " +
+                            f"was finished with non-zero return code {returncode}"
+                        )
                     if constants.IS_WIN:
                         args = args.split()
                     device = get_device_by_args(args)
@@ -313,7 +318,7 @@ class TaskManager:
                     # logger.info(f"Process {pid} takes {float((datetime.datetime.now() - self._timers[pid]).total_seconds())}")
                     self._process_list.pop(pid)
                     logger.info(
-                        f"Compeleting processes: Active process counter: {len(self._process_list)}..."
+                        f"Completing processes: Active process counter: {len(self._process_list)}..."
                     )
                     break
                 except TimeoutExpired:
@@ -432,7 +437,7 @@ class TestParallelRunner:
             try:
                 os.remove(test_list_file_name)
             except Exception as err:
-                logger.warning(f"Imposible to remove {test_list_file_name}. Error: {err}")
+                logger.warning(f"Impossible to remove {test_list_file_name}. Error: {err}")
         command_to_get_test_list = self._command + f' --gtest_list_tests > {test_list_file_name}'
         logger.info(f"Get test list using command: {command_to_get_test_list}")
         run_res = run(command_to_get_test_list, check=True, shell=True)
@@ -723,7 +728,7 @@ class TestParallelRunner:
 
     def postprocess_logs(self):
         test_results = {}
-        logger.info("Log analize is started")
+        logger.info("Log analysis is started")
         saved_tests = []
         interapted_tests = set()
         INTERAPTED_DIR = "interapted"

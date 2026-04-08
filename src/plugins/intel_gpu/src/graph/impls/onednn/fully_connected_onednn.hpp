@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,8 +67,9 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
             if (fc_prim->decompression_zero_point.is_valid()) {
                 auto decompression_zp_idx = fc_prim->bias.is_valid() ? 4 : 3;
                 auto decompression_zp_dt = fc_node.get_input_layout(decompression_zp_idx).data_type;
-                if ((wei_dt != ov::element::Type_t::u4 && wei_dt != ov::element::Type_t::u8) ||
-                    (decompression_zp_dt != ov::element::Type_t::u8 && decompression_zp_dt != ov::element::Type_t::i8)) {
+                if ((wei_dt != ov::element::Type_t::i4 && wei_dt != ov::element::Type_t::u4 && wei_dt != ov::element::Type_t::u8) ||
+                    (decompression_zp_dt != ov::element::Type_t::i4 && decompression_zp_dt != ov::element::Type_t::u8 &&
+                     decompression_zp_dt != ov::element::Type_t::i8)) {
                     LOG_AND_RETURN_FALSE(node);
                 }
             }

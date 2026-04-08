@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from utils.conformance_utils import get_logger
@@ -7,7 +7,7 @@ from utils.constants import FULL_DEVICE_PROPERTY, SUPPORTED_PROPERTIES, DEVICE_A
 logger = get_logger("get_available_device")
 
 try:
-    from openvino.runtime import Core
+    from openvino import Core
 except:
     from utils.file_utils import get_ov_path, find_latest_dir
     import os
@@ -23,7 +23,7 @@ except:
 
         env = set_env_variable(env, "PYTHONPATH", py_ov)
         env = set_env_variable(env, LD_LIB_PATH_NAME, ov_bin_path)
-        logger.warning("Set the following env varibles to rename conformance ir based on hash: ")
+        logger.warning("Set the following env variables to rename conformance ir based on hash: ")
         logger.warning(f'PYTHONPATH={env["PYTHONPATH"]}')
         logger.warning(f'{LD_LIB_PATH_NAME}={env[LD_LIB_PATH_NAME]}')
         exit(0)

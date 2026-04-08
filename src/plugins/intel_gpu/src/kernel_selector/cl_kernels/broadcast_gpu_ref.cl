@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -258,7 +258,11 @@ inline uint FUNC(get_idx_pos)(OPTIONAL_SHAPE_INFO_ARG uint out_b, uint out_f, ui
 KERNEL(broadcast_gpu_ref)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
-    __global OUTPUT_TYPE* output)
+    __global OUTPUT_TYPE* output
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
+#endif
+)
 {
 #if SAME_RANK_PLAIN_FORMAT == 1
     const bool use_opt_code = INPUT0_SIZE_X == OUTPUT_SIZE_X && INPUT0_SIZE_Y != OUTPUT_SIZE_Y
@@ -319,11 +323,20 @@ KERNEL(broadcast_gpu_ref)(
         if (remained_y < y_stride)
             y_nums += remained_y;
 
+        #if HAS_FUSED_OPS
+            INPUT0_TYPE res = 0;
+        #endif
         if (OUTPUT_SIZE_X < VEC_SIZE) {
             uint output_idx = out_pos;
-            unroll_for(uint j = 0; j < y_nums; j++) {
-                unroll_for(uint i = 0; i < x_stride; i++) {
-                    output[output_idx + i] = TO_OUTPUT_TYPE(input[idx_pos + i]);
+            unroll_for(uint i = 0; i < y_nums; i++) {
+                unroll_for(uint offset = 0; offset < x_stride; offset++) {
+                    #if HAS_FUSED_OPS
+                        res = input[idx_pos + offset];
+                        FUSED_OPS
+                        output[output_idx + offset] = FUSED_OPS_RESULT;
+                    #else
+                        output[output_idx + offset] = TO_OUTPUT_TYPE(input[idx_pos + offset]);
+                    #endif
                 }
                 output_idx += OUTPUT_SIZE_X;
             }
@@ -332,19 +345,35 @@ KERNEL(broadcast_gpu_ref)(
             INPUT0_VTYPE input_vec = VLOAD(0, &input[idx_pos]);
             unroll_for(uint i = 0; i < y_nums; i++) {
                 OUTPUT_VTYPE out_v;
-                for (int j = 0; j < VEC_SIZE; ++j)
-                    out_v[j] = TO_OUTPUT_TYPE(input_vec[j]);
+                for (int offset = 0; offset < VEC_SIZE; ++offset) {
+                    #if HAS_FUSED_OPS
+                        res = input_vec[offset];
+                        FUSED_OPS
+                        out_v[offset] = FUSED_OPS_RESULT;
+                    #else
+                        out_v[offset] = TO_OUTPUT_TYPE(input_vec[offset]);
+                    #endif
+                }
                 VSTORE(out_v, 0, &output[output_idx]);
                 output_idx += OUTPUT_SIZE_X;
             }
 
             if (gdim0 < x_leftovers) {
                 INPUT0_TYPE input_val = input[idx_pos + x_stride];
+                #if HAS_FUSED_OPS
+                    res = input_val;
+                #endif
 
-                output_idx = out_pos;
+                uint offset = x_stride;
                 unroll_for(uint i = 0; i < y_nums; i++) {
-                    output[output_idx + x_stride] = TO_OUTPUT_TYPE(input_val);
-                    output_idx += OUTPUT_SIZE_X;
+                    #if HAS_FUSED_OPS
+                        FUSED_OPS
+                        output[out_pos + offset] = FUSED_OPS_RESULT;
+                        offset += OUTPUT_SIZE_X;
+                    #else
+                        output[out_pos + offset] = TO_OUTPUT_TYPE(input_val);
+                        offset += OUTPUT_SIZE_X;
+                    #endif
                 }
             }
         }
@@ -379,7 +408,15 @@ KERNEL(broadcast_gpu_ref)(
         const uint out_pos = OUTPUT_GET_INDEX(out_b, out_f, out_y, out_x);
         const uint idx_pos = FUNC_CALL(get_idx_pos)(OPTIONAL_SHAPE_INFO_TENSOR out_b, out_f, out_y, out_x);
 #endif
-        output[out_pos] = TO_OUTPUT_TYPE(input[idx_pos]);
+        #if HAS_FUSED_OPS
+            const uint offset = 0;
+            const uint i = 0;
+            INPUT0_TYPE res = input[idx_pos];
+            FUSED_OPS
+            output[out_pos] = FUSED_OPS_RESULT;
+        #else
+            output[out_pos] = TO_OUTPUT_TYPE(input[idx_pos]);
+        #endif
     }
 }
 

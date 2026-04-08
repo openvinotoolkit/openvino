@@ -106,7 +106,7 @@ exportModel('conditional_block_2inputs_dyn_2outputs', test_model_dyn_2outputs, [
 
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""
-"""question: how to make test case for only one 
+"""question: how to make test case for only one
 conditional_block ??   """
 """"""""""""""""""""""""""""""""""""""""""""""""""""""
 @paddle.jit.to_static
@@ -121,11 +121,11 @@ def test_model_dyn_conditionalblock_only(a):
 a = paddle.to_tensor([[1.0, 2.0, 3.0],
                       [4.0, 5.0, 6.0]])
 # 95436: sporadic failure
-exportModel('conditional_block_dyn_conditionalblock_only', test_model_dyn_conditionalblock_only, [a], target_dir=sys.argv[1])
+exportModel('conditional_block_dyn_conditionalblock_only', test_model_dyn_conditionalblock_only, [a], dyn_shapes = [[None, 3]], target_dir=sys.argv[1])
 
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""
-"""return type: tensor, tuple(tensor), list(tensor) 
+"""return type: tensor, tuple(tensor), list(tensor)
 question: how to work with LoDTensorArray ??   """
 """"""""""""""""""""""""""""""""""""""""""""""""""""""
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,12 +54,13 @@ std::string getTestsPlatformFromEnvironmentOr(const std::string& instead);
 std::string getDeviceNameTestCase(const std::string& str);
 std::string getDeviceName();
 std::string getDeviceNameID(const std::string& str);
+std::string getTestPlatform();
 
 }  // namespace ov::test::utils
 
 namespace InferRequestParamsAnyMapTestName {
 
-std::string getTestCaseName(testing::TestParamInfo<ov::test::behavior::InferRequestParams> obj);
+std::string getTestCaseName(const testing::TestParamInfo<ov::test::behavior::InferRequestParams>& obj);
 
 }  // namespace InferRequestParamsAnyMapTestName
 
@@ -69,6 +70,6 @@ typedef std::tuple<std::string,                        // Device name
                    std::map<std::string, std::string>  // Config
                    >
     InferRequestParams;
-std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj);
+std::string getTestCaseName(const testing::TestParamInfo<InferRequestParams>& obj);
 
 }  // namespace InferRequestParamsMapTestName

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,11 +23,11 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "shape_inference/custom/ngram.hpp"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -72,7 +72,7 @@ void Ngram::initSupportedPrimitiveDescriptors() {
     }
 
     idcesPrecision = getOriginalInputPrecisionAtPort(1);
-    if (idcesPrecision != ov::element::i32 && idcesPrecision != ov::element::i64) {
+    if (none_of(idcesPrecision, ov::element::i32, ov::element::i64)) {
         idcesPrecision = ov::element::i32;
     }
 
@@ -117,6 +117,7 @@ std::vector<size_t> Ngram::computeBatchLenghts() {
 void Ngram::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto* srcData = getSrcDataAtPortAs<const float>(0);
     auto* dstData = getDstDataAtPortAs<float>(0);
+    const auto& cpu_parallel = context->getCpuParallel();
 
     std::vector<size_t> batchLenghts;
     if (idcesPrecision == ov::element::i32) {
@@ -124,7 +125,7 @@ void Ngram::execute([[maybe_unused]] const dnnl::stream& strm) {
     } else if (idcesPrecision == ov::element::i64) {
         batchLenghts = computeBatchLenghts<std::int64_t>();
     } else {
-        THROW_CPU_NODE_ERR("Unsupported indices precision: ", idcesPrecision);
+        CPU_NODE_THROW("Unsupported indices precision: ", idcesPrecision);
     }
 
     /* The following procedure applied to each batch:
@@ -132,7 +133,7 @@ void Ngram::execute([[maybe_unused]] const dnnl::stream& strm) {
        2. Apply sliding window of windowSize with a step windowStride and form k new embedding vectors for the embedding
     */
     memset(dstData, 0, numOutElems * sizeof(float));
-    parallel_for(batchLenghts.size() - 1, [&](const size_t batchIdx) {
+    cpu_parallel->parallel_for(batchLenghts.size() - 1, [&](const size_t batchIdx) {
         size_t srcWindowBias = 0;
         size_t dstWindowBias = 0;
 

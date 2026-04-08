@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ public:
     OPENVINO_MODEL_PASS_RTTI("snippets::pass::AnalyzeBroadcastableInputs");
     // [Index of Parameter -> Index of broadcastable dimension from end]
     using BroadcastableInputsMap = std::map<size_t, size_t>;
-    AnalyzeBroadcastableInputs(BroadcastableInputsMap& map);
+    explicit AnalyzeBroadcastableInputs(BroadcastableInputsMap& map);
 
     bool run_on_model(const std::shared_ptr<ov::Model>& body) override;
 

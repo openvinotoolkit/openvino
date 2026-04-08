@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,13 +8,7 @@
 namespace ov {
 namespace test {
 std::string ROIPoolingLayerTest::getTestCaseName(const testing::TestParamInfo<roiPoolingParamsTuple>& obj) {
-    std::vector<InputShape> input_shapes;
-    ov::Shape pool_shape;
-    float spatial_scale;
-    ov::test::utils::ROIPoolingTypes pool_method;
-    ov::element::Type model_type;
-    std::string target_device;
-    std::tie(input_shapes, pool_shape, spatial_scale, pool_method, model_type, target_device) = obj.param;
+    const auto& [input_shapes, pool_shape, spatial_scale, pool_method, model_type, target_device] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -46,13 +40,9 @@ std::string ROIPoolingLayerTest::getTestCaseName(const testing::TestParamInfo<ro
 }
 
 void ROIPoolingLayerTest::SetUp() {
-    std::vector<InputShape> input_shapes;
-    ov::Shape pool_shape;
-    float spatial_scale;
-    ov::test::utils::ROIPoolingTypes pool_method;
-    ov::element::Type model_type;
     std::string target_device;
-    std::tie(input_shapes, pool_shape, spatial_scale, pool_method, model_type, targetDevice) = this->GetParam();
+    const auto& [input_shapes, pool_shape, spatial_scale, pool_method, model_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     abs_threshold = 0.08f;
 

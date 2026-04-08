@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,7 @@ public:
      * @brief Create schedule out of specific parameters
      * @param lr lowering result produced during code generation
      */
-    Schedule(LoweringResult&& lr) : lowering_result(lr) {}
+    explicit Schedule(LoweringResult&& lr) : lowering_result(lr) {}
     /**
      * @brief Returns callable instanse of code pointer
      */
@@ -73,7 +73,7 @@ public:
     /**
      * @brief Default constructor
      */
-    Generator(const std::shared_ptr<TargetMachine>& t) : target(t) {}
+    explicit Generator(const std::shared_ptr<TargetMachine>& t) : target(t) {}
     /**
      * @brief Default destructor
      */

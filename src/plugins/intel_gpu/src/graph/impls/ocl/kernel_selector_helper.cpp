@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,6 +50,7 @@
 #include <string>
 #include <type_traits>
 #include <vector>
+#include <chrono>
 
 namespace {
 using namespace cldnn;
@@ -70,10 +71,8 @@ kernel_selector::dev_type get_device_type(cldnn::device_type type) {
 namespace cldnn {
 
 bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
-    // Skip check for Windows as CM frontend is a component of Intel GPU driver
-#ifdef WIN32
-    return true;
-#else
+    // Even though CM frontend is a component of Intel GPU driver on Windows, the version
+    // may still be incompatible to existing CM kernels.
     auto device = e.get_device().get();
 
     static std::mutex m;
@@ -87,9 +86,11 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
     std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
     // This program checks if cm sources can be jitted by current IGC version
     const char* kernel_code = R""""(
-        #include <cm/cm.h>
-        #include <cm/cmtl.h>
-
+        static_assert(__cplusplus >= 201703L);
+        static_assert(CM_HAS_DPAS);
+        CM_INLINE uint64_t dummy() {
+            return ((uint64_t)0L);
+        }
         extern "C" _GENX_MAIN_ void cm_check(half *x [[type("svmptr_t")]]) {
             unsigned int id = cm_linear_global_id();
         }
@@ -99,6 +100,20 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
     kernel_string->options = " -cmc ";
     kernel_string->entry_point = "cm_check";
     kernel_string->batch_compilation = true;
+    kernel_string->language = kernel_language::CM;
+
+    if (device->get_info().arch >= gpu_arch::xe2) {
+        const char* check_lsc_code = R""""(
+            static_assert(CM_HAS_LSC_UNTYPED_2D);
+            lsc::block_2d_desc<uint,1,1,1> b((uint64_t)0UL, 8, 8, 8, 0, 0);
+            )"""";
+        kernel_string->str.append(check_lsc_code);
+    }
+
+    // Add timestamp to avoid IGC uses a cached cm_check kernel.
+    auto timestamp = std::chrono::high_resolution_clock::now()
+                .time_since_epoch().count();
+    kernel_string->options += " -DSEED=" + to_string(timestamp);
 
     try {
         cldnn::kernel_impl_params dummy_params;
@@ -109,9 +124,7 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
     } catch (std::exception&) {
         cache[device] = false;
     }
-
     return cache.at(device);
-#endif
 }
 
 bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
@@ -525,6 +538,10 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4;
         case format::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4:
             return kernel_selector::weights_layout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4;
+        case format::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2:
+            return kernel_selector::weights_layout::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2;
+        case format::os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2:
+            return kernel_selector::weights_layout::os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2;
         case format::os_is_yx_osv16_isv4:
             return kernel_selector::weights_layout::os_is_yx_osv16_isv4;
         case format::os_is_yx_osv32_isv4_swizzled_by_2:
@@ -715,6 +732,10 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::os_is_zyx_isa8_osv16_isv4;
         case kernel_selector::weights_layout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4:
             return cldnn::format::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4;
+        case kernel_selector::weights_layout::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2:
+            return cldnn::format::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2;
+        case kernel_selector::weights_layout::os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2:
+            return cldnn::format::os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2;
         case kernel_selector::weights_layout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4:
             return cldnn::format::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4;
         case kernel_selector::weights_layout::os_is_yx_osv32_isv4_swizzled_by_2:
@@ -1018,9 +1039,19 @@ std::shared_ptr<kernel_selector::fuse_params> convert_fuse_params(std::shared_pt
     if (p->type() == swiglu::type_id()) {
         auto casted = std::dynamic_pointer_cast<SwigluFuseParams>(p);
         auto axis = casted->_desc->axis;
-        auto split_length = casted->_desc->split_lengths;
-        auto split_to_glu_idx = casted->_desc->split_to_glu_idx;
-        return std::make_shared<kernel_selector::swiglu_fuse_params>(axis, split_length, split_to_glu_idx);
+        auto glu_stride = casted->_desc->glu_stride;
+        auto gate_idx = casted->_desc->gate_idx;
+        auto clamp_min = casted->_desc->clamp_min;
+        auto clamp_max = casted->_desc->clamp_max;
+        auto swish_beta = casted->_desc->swish_beta;
+        auto up_add_val = casted->_desc->up_add_val;
+        return std::make_shared<kernel_selector::swiglu_fuse_params>(axis,
+                                                                     glu_stride,
+                                                                     gate_idx,
+                                                                     clamp_min,
+                                                                     clamp_max,
+                                                                     swish_beta,
+                                                                     up_add_val);
     } else if (p->type() == activation::type_id()) {
         auto casted = std::dynamic_pointer_cast<ActivationFuseParams>(p);
         auto desc = casted->_desc;
@@ -1147,10 +1178,12 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.supports_intel_required_subgroup_size = device_info.supports_intel_required_subgroup_size;
     params.engineInfo.supports_image = device_info.supports_image;
     params.engineInfo.supports_work_group_collective_functions = device_info.supports_work_group_collective_functions;
+    params.engineInfo.supports_non_uniform_work_group = device_info.supports_non_uniform_work_group;
 
     params.engineInfo.supports_imad = device_info.supports_imad;
     params.engineInfo.supports_immad = device_info.supports_immad;
     params.engineInfo.enable_sub_groups_emulation = true;
+    params.engineInfo.enable_large_allocations = config.get_enable_large_allocations();
     params.engineInfo.bOptHintsSupport = false;
 
     params.engineInfo.supports_microkernels = query_microkernels_supported(engine, config);

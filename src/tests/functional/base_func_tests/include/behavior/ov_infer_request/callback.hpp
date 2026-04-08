@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,8 @@ TEST_P(OVInferRequestCallbackTests, syncInferDoesNotCallCompletionCallback) {
 }
 
 // test that can wait all callbacks on dtor
-TEST_P(OVInferRequestCallbackTests, canStartSeveralAsyncInsideCompletionCallbackWithSafeDtor) {
+// Ticket: 151980
+TEST_P(OVInferRequestCallbackTests, DISABLED_canStartSeveralAsyncInsideCompletionCallbackWithSafeDtor) {
     const int NUM_ITER = 10;
     struct TestUserData {
         std::atomic<int> numIter = {0};

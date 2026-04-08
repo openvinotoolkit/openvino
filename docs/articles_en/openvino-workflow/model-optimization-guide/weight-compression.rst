@@ -132,19 +132,20 @@ By default, weights are compressed asymmetrically to "INT8_ASYM" mode.
         results = pipe(phrase)
         print(results)
 
+The NNCF ``nncf.compress_weights()`` API can also be used directly with models from various frameworks, including OpenVINO, TorchFX, PyTorch, and ONNX.
+The API can be applied in the same way across all frameworks; only the type of the input model differs. Here is an example of code to perform asymmetrical
+8-bit data-free weight quantization of a model:
 
-Here is an example of code using NNCF to perform asymmetrical 8-bit weight quantization of
-a model in the OpenVINO IR format:
+.. code-block:: python
 
-.. tab-set::
+  from nncf import compress_weights
 
-   .. tab-item:: OpenVINO
-      :sync: openvino
+  ...
 
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/weight_compression_openvino.py
-         :language: python
-         :fragment: [compression_8bit]
-
+  # The `model` type depends on the framework:
+  # openvino.Model for OpenVINO, onnx.ModelProto for ONNX,
+  # torch.fx.GraphModule for TorchFX, and torch.nn.Module for PyTorch.
+  compressed_model = compress_weights(model)
 
 **4-bit weight quantization** is actually a mixed-precision compression,
 primarily INT4 and a backup asymmetric INT8 precisions. It produces a smaller model,
@@ -300,8 +301,11 @@ for details of the usage.
        scale_estimation=True
    )  # The model is openvino.Model.
 
-For data-aware weight compression refer to the following
-`example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama>`__.
+Data-aware weight compression is supported for multiple backends, including OpenVINO, ONNX, TorchFX, and PyTorch. See the following examples:
+
+- `OpenVINO example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama>`__
+- `ONNX example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/onnx/tiny_llama_scale_estimation>`__
+- `TorchFX example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/torch_fx/tiny_llama>`__
 
 .. note::
 

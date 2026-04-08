@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -56,11 +56,17 @@ def test_deprecation_decorator():
 
     with pytest.warns(DeprecationWarning, match="deprecated_function1 is deprecated"):
         deprecated_function1("param1")
-    with pytest.warns(DeprecationWarning, match="deprecated_function2 is deprecated and will be removed in version 2025.4"):
+    with pytest.warns(
+        DeprecationWarning,
+        match="deprecated_function2 is deprecated and will be removed in version 2025.4"
+    ):
         deprecated_function2(param1=1)
     with pytest.warns(DeprecationWarning, match="deprecated_function3 is deprecated. Use another function instead"):
         deprecated_function3()
-    with pytest.warns(DeprecationWarning, match="deprecated_function4 is deprecated and will be removed in version 2025.4. Use another function instead"):
+    with pytest.warns(
+        DeprecationWarning,
+        match="deprecated_function4 is deprecated and will be removed in version 2025.4. Use another function instead"
+    ):
         deprecated_function4()
 
 
@@ -102,10 +108,10 @@ class Maker:
     def __init__(self):
         self.calls_count = 0
 
-    def __call__(self, tensor: ov.Tensor) -> None:
+    def __call__(self) -> ov.Tensor:
         self.calls_count += 1
         tensor_data = np.array([2, 2, 2, 2], dtype=np.float32).reshape(1, 1, 2, 2)
-        ov.Tensor(tensor_data).copy_to(tensor)
+        return ov.Tensor(tensor_data)
 
     def called_times(self):
         return self.calls_count

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/pytorch/visibility.hpp"
+#include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -34,16 +35,6 @@ namespace pytorch {
 namespace pass {
 
 using namespace ov::op;
-
-namespace {
-Output<Node> generate_zeros_with_convertlike(ov::pass::NodeRegistry& rg,
-                                             const Output<Node> sizes,
-                                             const Output<Node> tensor_of_type) {
-    auto const_0 = v0::Constant::create(element::i32, Shape{}, {0});
-    auto zeros = rg.make<v3::Broadcast>(const_0, sizes);
-    return rg.make<v1::ConvertLike>(zeros, tensor_of_type);
-}
-}  // namespace
 
 AtenIndexPutReplacer::AtenIndexPutReplacer() {
     auto index_op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>(
@@ -76,9 +67,11 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
 
         int64_t indices_list_len;
         OutputVector indices_inputs;
-        if (auto listconstruct = cast_fw_node(indices.get_node_shared_ptr(), "prim::ListConstruct")) {
-            rt_copy_from.push_back(listconstruct);
-            indices_inputs = listconstruct->input_values();
+
+        // Check for SequenceMark
+        if (auto seq_mark = ov::as_type_ptr<SequenceMark>(indices.get_node_shared_ptr())) {
+            rt_copy_from.push_back(seq_mark);
+            indices_inputs = seq_mark->input_values();
             indices_list_len = static_cast<int64_t>(indices_inputs.size());
         } else {
             auto indices_partial_shape = indices.get_partial_shape();
@@ -251,9 +244,7 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
 
         std::shared_ptr<ov::Node> result;
         if (accumulate) {
-            auto zeros = generate_zeros_with_convertlike(rg, input_shape, input);
-            auto scatter = rg.make<v3::ScatterNDUpdate>(zeros, index, values);
-            result = rg.make<v1::Add>(input, scatter);
+            result = rg.make<v15::ScatterNDUpdate>(input, index, values, v15::ScatterNDUpdate::Reduction::SUM);
         } else {
             result = rg.make<v3::ScatterNDUpdate>(input, index, values);
         }

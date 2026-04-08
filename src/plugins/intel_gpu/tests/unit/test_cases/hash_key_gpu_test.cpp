@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,9 +52,9 @@ public:
 
         const int32_t b = 1, in_f = 128, out_f = 65;
 
-        auto input_prim = engine.allocate_memory({ { b, in_f }, data_types::f32, format::bfyx });
-        auto weights_prim = engine.allocate_memory({ { out_f, in_f }, data_types::f32, format::bfyx });
-        auto bias_prim = engine.allocate_memory({ { out_f }, data_types::f32, format::bfyx });
+        auto input_prim = engine.allocate_memory({ { b, in_f }, data_types::f16, format::bfyx });
+        auto weights_prim = engine.allocate_memory({ { out_f, in_f }, data_types::f16, format::bfyx });
+        auto bias_prim = engine.allocate_memory({ { out_f }, data_types::f16, format::bfyx });
 
         const auto key_prim_id = "fc";
         topology topology(
@@ -71,11 +71,11 @@ public:
         const auto primitive_hash = primitve->hash();
         const auto params_hash = primitve->type->get_fake_aligned_params(*prim_inst->get_impl_params()).hash();
         if (!engine.get_device_info().supports_immad) {
-            ASSERT_EQ(primitive_hash, 9450288823768808646UL);
-            ASSERT_EQ(params_hash, 4379838024983679385UL);
+            ASSERT_EQ(primitive_hash, 7598234300934878892UL);
+            ASSERT_EQ(params_hash, 14588531505879944960UL);
         } else {
-            ASSERT_EQ(primitive_hash, 9450288823768808646UL);
-            ASSERT_EQ(params_hash, 4312197244449972103UL);
+            ASSERT_EQ(primitive_hash, 7598234300934878892UL);
+            ASSERT_EQ(params_hash, 2121456519277740670UL);
         }
     }
 
@@ -226,8 +226,8 @@ public:
         const auto primitive_hash = primitve->hash();
         const auto params_hash = prim_inst->get_impl_params()->hash();
 
-        ASSERT_EQ(primitive_hash, 13549661971645339528UL);
-        ASSERT_EQ(params_hash, 2317969473793675238UL);
+        ASSERT_EQ(primitive_hash, 10199782087454290518UL);
+        ASSERT_EQ(params_hash, 655948409235783525UL);
     }
 
     void test_quantize_basic(bool is_caching_test) {

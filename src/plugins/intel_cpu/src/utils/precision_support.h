@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,5 +11,6 @@ namespace ov::intel_cpu {
 bool hasHardwareSupport(const ov::element::Type& precision);
 ov::element::Type defaultFloatPrecision();
 bool hasIntDotProductSupport();
+bool hasInt8MMSupport();
 
 }  // namespace ov::intel_cpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ using convertLayerTestParamsSet = std::tuple<InputShape,         // input shapes
 class ConvertCPULayerTest : public testing::WithParamInterface<convertLayerTestParamsSet>,
                             virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<convertLayerTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<convertLayerTestParamsSet>& obj);
     static bool isInOutPrecisionSupported(ov::element::Type inPrc, ov::element::Type outPrc);
 protected:
     void SetUp() override;

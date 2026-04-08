@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,8 +43,8 @@ private:
 
     const int OUTPUT_ROIS{0};
 
-    int grid_w_;
-    int grid_h_;
+    int64_t grid_w_;
+    int64_t grid_h_;
     float stride_w_;
     float stride_h_;
 };

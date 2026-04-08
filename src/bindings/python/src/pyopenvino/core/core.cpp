@@ -1,12 +1,14 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "pyopenvino/core/core.hpp"
 
 #include <pybind11/stl.h>
+#include <pybind11/stl/filesystem.h>
 #include <pybind11/typing.h>
 
+#include <filesystem>
 #include <fstream>
 #include <openvino/core/any.hpp>
 #include <openvino/runtime/core.hpp>
@@ -14,6 +16,7 @@
 #include <random>
 
 #include "common.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "pyopenvino/core/remote_context.hpp"
 #include "pyopenvino/graph/op_extension.hpp"
 #include "pyopenvino/utils/utils.hpp"
@@ -22,12 +25,14 @@ namespace py = pybind11;
 
 void regclass_Core(py::module m) {
     py::class_<ov::Core, std::shared_ptr<ov::Core>> cls(m, "Core");
-    cls.doc() =
-        "openvino.Core class represents OpenVINO runtime Core entity. User applications can create several "
-        "Core class instances, but in this case, the underlying plugins are created multiple times and not shared "
-        "between several Core instances. The recommended way is to have a single Core instance per application.";
+    cls.doc() = "openvino.Core class represents OpenVINO runtime Core entity. User applications can create several "
+                "Core class instances. In that case the device plugins will still share underlying "
+                "resources (such as OCL context) in per-device singleton.";
 
-    cls.def(py::init<const std::string&>(), py::arg("xml_config_file") = "");
+    cls.def(py::init([](const py::object& xml_config_file) {
+                return std::make_shared<ov::Core>(Common::utils::to_fs_path(xml_config_file));
+            }),
+            py::arg("xml_config_file") = "");
 
     cls.def(
         "set_property",
@@ -38,8 +43,8 @@ void regclass_Core(py::module m) {
         R"(
             Sets properties.
 
-            :param properties: Dict of pairs: (property name, property value).
-            :type properties: typing.Dict[str, typing.Any]
+            :param properties: dict of pairs: (property name, property value).
+            :type properties: dict[str, typing.Any]
         )");
 
     // Overload for single tuple
@@ -53,8 +58,8 @@ void regclass_Core(py::module m) {
         R"(
             Sets properties for the device.
 
-            :param property: Tuple of (property name, matching property value).
-            :type property: typing.Tuple[str, typing.Any]
+            :param property: tuple of (property name, matching property value).
+            :type property: tuple[str, typing.Any]
         )");
 
     cls.def(
@@ -69,8 +74,8 @@ void regclass_Core(py::module m) {
 
             :param device_name: Name of the device.
             :type device_name: str
-            :param properties: Dict of pairs: (property name, property value).
-            :type properties: typing.Dict[str, typing.Any]
+            :param properties: dict of pairs: (property name, property value).
+            :type properties: dict[str, typing.Any]
         )");
 
     // Overload for single tuple
@@ -87,8 +92,8 @@ void regclass_Core(py::module m) {
 
             :param device_name: Name of the device.
             :type device_name: str
-            :param property: Tuple of (property name, matching property value).
-            :type property: typing.Tuple[str, typing.Any]
+            :param property: tuple of (property name, matching property value).
+            :type property: tuple[str, typing.Any]
         )");
 
     cls.def(
@@ -174,7 +179,7 @@ void regclass_Core(py::module m) {
             :param device_name: Name of the device which will load the model.
             :type device_name: str
             :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
-            :type properties: typing.Dict[str, typing.Any]
+            :type properties: dict[str, typing.Any]
             :return: A compiled model.
             :rtype: openvino.CompiledModel
         )");
@@ -200,7 +205,7 @@ void regclass_Core(py::module m) {
             :param model: Model acquired from read_model function.
             :type model: openvino.Model
             :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
-            :type properties: typing.Dict[str, typing.Any]
+            :type properties: dict[str, typing.Any]
             :return: A compiled model.
             :rtype: openvino.CompiledModel
         )");
@@ -212,7 +217,7 @@ void regclass_Core(py::module m) {
            const std::string& device_name,
            const std::map<std::string, py::object>& properties) {
             auto _properties = Common::utils::properties_to_any_map(properties);
-            std::string path = Common::utils::convert_path_to_string(model_path);
+            const auto path = Common::utils::to_fs_path(model_path);
             py::gil_scoped_release release;
             return self.compile_model(path, device_name, _properties);
         },
@@ -227,11 +232,11 @@ void regclass_Core(py::module m) {
             GIL is released while running this function.
 
             :param model_path: A path to a model in IR / ONNX / PDPD / TF and TFLite format.
-            :type model_path: typing.Union[str, pathlib.Path]
+            :type model_path: Union[str, bytes, pathlib.Path]
             :param device_name: Name of the device to load the model to.
             :type device_name: str
             :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
-            :type properties: typing.Dict[str, typing.Any]
+            :type properties: dict[str, typing.Any]
             :return: A compiled model.
             :rtype: openvino.CompiledModel
         )");
@@ -288,7 +293,7 @@ void regclass_Core(py::module m) {
         "compile_model",
         [](ov::Core& self, const py::object& model_path, const std::map<std::string, py::object>& properties) {
             auto _properties = Common::utils::properties_to_any_map(properties);
-            std::string path = Common::utils::convert_path_to_string(model_path);
+            const auto path = Common::utils::to_fs_path(model_path);
             py::gil_scoped_release release;
             return self.compile_model(path, _properties);
         },
@@ -302,9 +307,9 @@ void regclass_Core(py::module m) {
             GIL is released while running this function.
 
             :param model_path: A path to a model in IR / ONNX / PDPD / TF and TFLite format.
-            :type model_path: typing.Union[str, pathlib.Path]
+            :type model_path: Union[str, bytes, pathlib.Path]
             :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
-            :type properties: typing.Dict[str, typing.Any]
+            :type properties: dict[str, typing.Any]
             :return: A compiled model.
             :rtype: openvino.CompiledModel
         )");
@@ -332,7 +337,7 @@ void regclass_Core(py::module m) {
             :param context: RemoteContext instance.
             :type context: openvino.RemoteContext
             :param properties: dict of pairs: (property name, property value) relevant only for this load operation.
-            :type properties: typing.Dict[str, typing.Any]
+            :type properties: dict[str, typing.Any]
             :return: A compiled model.
             :rtype: openvino.CompiledModel
         )");
@@ -352,7 +357,7 @@ void regclass_Core(py::module m) {
             :param device_name: Name of a device to create a new shared context on.
             :type device_name: str
             :param properties: dict of device-specific shared context remote properties.
-            :type properties: typing.Dict[str, typing.Any]
+            :type properties: dict[str, typing.Any]
             :return: Remote context instance.
             :rtype: openvino.RemoteContext
         )");
@@ -381,7 +386,7 @@ void regclass_Core(py::module m) {
                 :param device_name: Device name to identify a plugin.
                 :type device_name: str
                 :return: Plugin version information.
-                :rtype: typing.Dict[str, openvino.Version]
+                :rtype: dict[str, openvino.Version]
             )");
 
     cls.def(
@@ -411,40 +416,6 @@ void regclass_Core(py::module m) {
             :type model: bytes
             :param weights: Bytes with tensor's data.
             :type weights: bytes
-            :return: A model.
-            :rtype: openvino.Model
-        )");
-
-    cls.def(
-        "read_model",
-        [](ov::Core& self,
-           const std::string& model_path,
-           const std::string& weight_path,
-           const std::map<std::string, py::object>& config) {
-            const auto any_map = Common::utils::properties_to_any_map(config);
-            py::gil_scoped_release release;
-            return self.read_model(model_path, weight_path, any_map);
-        },
-        py::arg("model"),
-        py::arg("weights") = "",
-        py::arg("config") = py::dict(),
-        R"(
-            Reads models from IR / ONNX / PDPD / TF and TFLite formats.
-
-            GIL is released while running this function.
-
-            :param model: A path to a model in IR / ONNX / PDPD / TF and TFLite format.
-            :type model: str
-            :param weights: A path to a data file For IR format (*.bin): if path is empty,
-                            it tries to read a bin file with the same name as xml and if the bin
-                            file with the same name was not found, loads IR without weights.
-                            For ONNX format (*.onnx): weights parameter is not used.
-                            For PDPD format (*.pdmodel) weights parameter is not used.
-                            For TF format (*.pb) weights parameter is not used.
-                            For TFLite format (*.tflite) weights parameter is not used.
-            :type weights: str
-            :param config: Optional map of pairs: (property name, property value) relevant only for this read operation.
-            :type config: typing.Dict[str, typing.Any], optional
             :return: A model.
             :rtype: openvino.Model
         )");
@@ -495,17 +466,17 @@ void regclass_Core(py::module m) {
                 return self.read_model(std::string(static_cast<char*>(buffer_info.ptr), buffer_info.size), tensor);
             } else if (py::isinstance(model_path, py::module_::import("pathlib").attr("Path")) ||
                        py::isinstance<py::str>(model_path)) {
-                const std::string model_path_cpp{py::str(model_path)};
-                std::string weights_path_cpp;
+                const auto model_path_cpp = Common::utils::to_fs_path(model_path);
+                std::filesystem::path weights_path_cpp;
                 if (!py::isinstance<py::none>(weights_path)) {
-                    weights_path_cpp = py::str(weights_path);
+                    weights_path_cpp = Common::utils::to_fs_path(weights_path);
                 }
                 const auto any_map = Common::utils::properties_to_any_map(config);
                 py::gil_scoped_release release;
                 return self.read_model(model_path_cpp, weights_path_cpp, any_map);
             }
 
-            throw py::type_error("Provided python object type " + (std::string)(py::str(model_path.get_type())) +
+            throw py::type_error("Provided python object type " + (std::string)(py::str(py::type::of(model_path))) +
                                  " isn't supported as 'model' argument.");
         },
         py::arg("model"),
@@ -516,8 +487,8 @@ void regclass_Core(py::module m) {
 
             GIL is released while running this function.
 
-            :param model: A path to a model in IR / ONNX / PDPD / TF and TFLite format or a model itself wrapped in io.ByesIO format.
-            :type model: typing.Union[pathlib.Path, io.BytesIO]
+            :param model: A path to a model in IR / ONNX / PDPD / TF and TFLite format or a model itself wrapped in io.BytesIO format.
+            :type model: Union[str, pathlib.Path, io.BytesIO]
             :param weights: A path to a data file For IR format (*.bin): if path is empty,
                             it tries to read a bin file with the same name as xml and if the bin
                             file with the same name was not found, loads IR without weights.
@@ -525,11 +496,40 @@ void regclass_Core(py::module m) {
                             For PDPD format (*.pdmodel) weights parameter is not used.
                             For TF format (*.pb): weights parameter is not used.
                             For TFLite format (*.tflite) weights parameter is not used.
-            :type weights: typing.Union[pathlib.Path, io.BytesIO]
+            :type weights: Union[str, pathlib.Path, io.BytesIO]
             :param config: Optional map of pairs: (property name, property value) relevant only for this read operation.
-            :type config: typing.Dict[str, typing.Any], optional
+            :type config: dict[str, typing.Any], optional
             :return: A model.
             :rtype: openvino.Model
+        )");
+
+    cls.def(
+        "import_model",
+        [](ov::Core& self,
+           const ov::Tensor& exported_blob,
+           const std::string& device_name,
+           const std::map<std::string, py::object>& properties) {
+            const auto _properties = Common::utils::properties_to_any_map(properties);
+            py::gil_scoped_release release;
+            return self.import_model(exported_blob, device_name, _properties);
+        },
+        py::arg("tensor"),
+        py::arg("device_name"),
+        py::arg("properties"),
+        R"(
+            Imports a compiled model from a previously exported one.
+
+            GIL is released while running this function.
+
+            :param compiled_blob: ov::Tensor input blob containing a model previously exported using the ov::CompiledModel::export_model method.
+            :type compiled_blob: openvino.Tensor
+            :param device_name: Name of device to which compiled model is imported.
+                                Note: if device_name is not used to compile the original model, an exception is thrown.
+            :type device_name: str
+            :param properties: Optional map of pairs: (property name, property value) relevant only for this load operation.
+            :type properties: dict[str, typing.Any], optional
+            :return: A compiled model.
+            :rtype: openvino.CompiledModel
         )");
 
     cls.def(
@@ -554,8 +554,8 @@ void regclass_Core(py::module m) {
                 info = py::buffer(model_stream).request();
             }
 
-            Common::utils::MemoryBuffer mb(reinterpret_cast<char*>(info.ptr), info.size);
-            std::istream stream(&mb);
+            ov::SharedStreamBuffer mb{info.ptr, static_cast<size_t>(info.size)};
+            std::istream stream{&mb};
 
             py::gil_scoped_release release;
             return self.import_model(stream, device_name, _properties);
@@ -578,7 +578,7 @@ void regclass_Core(py::module m) {
                                 Note: if device_name is not used to compile the original model, an exception is thrown.
             :type device_name: str
             :param properties: Optional map of pairs: (property name, property value) relevant only for this load operation.
-            :type properties: typing.Dict[str, typing.Any], optional
+            :type properties: dict[str, typing.Any], optional
             :return: A compiled model.
             :rtype: openvino.CompiledModel
 
@@ -598,58 +598,42 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "register_plugin",
-        [](ov::Core& self, const std::string& plugin_name, const std::string& device_name) {
-            self.register_plugin(plugin_name, device_name);
-        },
-        py::arg("plugin_name"),
-        py::arg("device_name"),
-        R"(
-                Register a new device and plugin which enable this device inside OpenVINO Runtime.
-
-                :param plugin_name: A path (absolute or relative) or name of a plugin. Depending on platform,
-                                    `plugin_name` is wrapped with shared library suffix and prefix to identify
-                                    library full name E.g. on Linux platform plugin name specified as `plugin_name`
-                                    will be wrapped as `libplugin_name.so`.
-                :type plugin_name: str
-                :param device_name: A device name to register plugin for.
-                :type device_name: str
-            )");
-
-    cls.def(
-        "register_plugin",
         [](ov::Core& self,
-           const std::string& plugin_name,
+           const py::object& plugin,
            const std::string& device_name,
            const std::map<std::string, py::object>& config) {
-            auto properties = Common::utils::properties_to_any_map(config);
-            self.register_plugin(plugin_name, device_name, properties);
+            const auto properties = Common::utils::properties_to_any_map(config);
+            self.register_plugin(Common::utils::to_fs_path(plugin), device_name, properties);
         },
-        py::arg("plugin_name"),
+        py::arg("plugin"),
         py::arg("device_name"),
-        py::arg("config"),
+        py::arg("config") = py::dict(),
         R"(
                 Register a new device and plugin which enable this device inside OpenVINO Runtime.
 
-                :param plugin_name: A path (absolute or relative) or name of a plugin. Depending on platform,
+                :param plugin: A path (absolute or relative) or name of a plugin. Depending on platform,
                                     `plugin_name` is wrapped with shared library suffix and prefix to identify
                                     library full name E.g. on Linux platform plugin name specified as `plugin_name`
                                     will be wrapped as `libplugin_name.so`.
-                :type plugin_name: str
+                :type plugin: Union[str, bytes, pathlib.Path]
                 :param device_name: A device name to register plugin for.
                 :type device_name: str
                 :param config: Plugin default configuration
-                :type config: typing.Dict[str, typing.Any], optional
+                :type config: dict[str, typing.Any], optional
             )");
 
-    cls.def("register_plugins",
-            &ov::Core::register_plugins,
-            py::arg("xml_config_file"),
-            R"(
+    cls.def(
+        "register_plugins",
+        [](ov::Core& self, const py::object& xml_config_file) {
+            self.register_plugins(Common::utils::to_fs_path(xml_config_file));
+        },
+        py::arg("xml_config_file"),
+        R"(
                 Registers a device plugin to OpenVINO Runtime Core instance using XML configuration
                 file with plugins description.
 
                 :param xml_config_file: A path to .xml file with plugins to register.
-                :type xml_config_file: str
+                :type xml_config_file: Union[str, bytes, pathlib.Path]
             )");
 
     cls.def("unload_plugin",
@@ -687,13 +671,13 @@ void regclass_Core(py::module m) {
             :param device_name: A name of a device to query.
             :type device_name: str
             :param properties: Optional dict of pairs: (property name, property value)
-            :type properties: typing.Dict[str, typing.Any]
+            :type properties: dict[str, typing.Any]
             :return: Pairs a operation name -> a device name supporting this operation.
-            :rtype: typing.Dict[str, str]
+            :rtype: dict[str, str]
         )");
 
     cls.def("add_extension",
-            static_cast<void (ov::Core::*)(const std::string&)>(&ov::Core::add_extension),
+            static_cast<void (ov::Core::*)(const std::filesystem::path&)>(&ov::Core::add_extension),
             py::arg("library_path"),
             R"(
                 Registers an extension to a Core object.
@@ -719,8 +703,8 @@ void regclass_Core(py::module m) {
         R"(
             Registers extensions to a Core object.
 
-            :param extensions: List of Extension objects.
-            :type extensions: typing.List[openvino.Extension]
+            :param extensions: list of Extension objects.
+            :type extensions: list[openvino.Extension]
         )");
 
     cls.def(
@@ -733,7 +717,7 @@ void regclass_Core(py::module m) {
             Registers custom Op to a Core object.
 
             :param custom_op: type of custom Op
-            :type custom_op: typing.Type[openvino.Op]
+            :type custom_op: type[openvino.Op]
         )");
 
     cls.def("get_available_devices",
@@ -748,12 +732,14 @@ void regclass_Core(py::module m) {
                     If there more than one device of specific type, they are enumerated with .# suffix.
                     Such enumerated device can later be used as a device name in all Core methods like:
                     compile_model, query_model, set_property and so on.
-                :rtype: typing.List[str]
+                :rtype: list[str]
             )");
 
     cls.def_property_readonly("available_devices",
-                              &ov::Core::get_available_devices,
-                              py::call_guard<py::gil_scoped_release>(),
+                              py::cpp_function([](const ov::Core& self) {
+                                  py::gil_scoped_release release;
+                                  return self.get_available_devices();
+                              }),
                               R"(
                                     Returns devices available for inference Core objects goes over all registered plugins.
 
@@ -763,7 +749,7 @@ void regclass_Core(py::module m) {
                                         If there more than one device of specific type, they are enumerated with .# suffix.
                                         Such enumerated device can later be used as a device name in all Core methods like:
                                         compile_model, query_model, set_property and so on.
-                                    :rtype: typing.List[str]
+                                    :rtype: list[str]
                                 )");
 
     cls.def("__repr__", [](const ov::Core& self) {

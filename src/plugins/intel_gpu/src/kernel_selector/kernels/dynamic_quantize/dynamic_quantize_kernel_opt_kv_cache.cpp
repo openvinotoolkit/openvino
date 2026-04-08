@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -261,6 +261,9 @@ bool DynamicQuantizeKernelKVCache::Validate(const Params& params) const {
     const auto& group_sizes = dq_params.group_sizes;
     const auto& input_dims = get_normalized_dims(dq_params.inputs[0]);
     const size_t non_compressed_dims_number = std::count(group_sizes.begin(), group_sizes.end(), 1);
+
+    if (dq_params.generate_precomputed_reduction)
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (non_compressed_dims_number == group_sizes.size())
         DO_NOT_USE_THIS_KERNEL(params.layerID);

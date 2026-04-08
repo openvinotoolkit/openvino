@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,14 +51,9 @@ typedef std::tuple<
 class ShapeOfAnyLayoutCPUTest : public testing::WithParamInterface<ShapeOfAnyLayoutCPUTestParamsSet>,
                             virtual public ov::test::SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ShapeOfAnyLayoutCPUTestParamsSet> obj) {
-        ShapeOfAnyLayoutParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
-        ElementType netPr;
-        InputShape inputShape;
-
-        std::tie(inputShape, netPr) = basicParamsSet;
+    static std::string getTestCaseName(const testing::TestParamInfo<ShapeOfAnyLayoutCPUTestParamsSet>& obj) {
+        const auto& [basicParamsSet, cpuParams] = obj.param;
+        const auto& [inputShape, netPr] = basicParamsSet;
         std::ostringstream result;
         result << "ShapeOfTest_";
         result << std::to_string(obj.index) << "_";
@@ -76,16 +71,11 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-
-        ShapeOfAnyLayoutParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
-        std::vector<cpu_memory_format_t> eltwiseInFmts, eltwiseOutFmts;
-        std::tie(eltwiseInFmts, eltwiseOutFmts, priority, selectedType) = cpuParams;
-
-        auto netPrecision = ElementType::dynamic;
-        InputShape inputShape;
-        std::tie(inputShape, netPrecision) = basicParamsSet;
+        const auto& [basicParamsSet, cpuParams] = this->GetParam();
+        const auto& [eltwiseInFmts, eltwiseOutFmts, _priority, _selectedType] = cpuParams;
+        priority = _priority;
+        selectedType = _selectedType;
+        const auto& [inputShape, netPrecision] = basicParamsSet;
         init_input_shapes({inputShape});
 
         inType = ov::element::Type(netPrecision);
@@ -102,7 +92,7 @@ protected:
 
         auto shapeOf = std::make_shared<ov::op::v3::ShapeOf>(eltwise, ov::element::i32);
 
-        function = makeNgraphFunction(netPrecision, params, shapeOf, "ShapeOf");
+        function = create_ov_model(netPrecision, params, shapeOf, "ShapeOf");
     }
 };
 

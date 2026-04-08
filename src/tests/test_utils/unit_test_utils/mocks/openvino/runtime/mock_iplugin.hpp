@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <gmock/gmock.h>
 
+#include <filesystem>
 #include <map>
 #include <string>
 
@@ -25,7 +26,10 @@ public:
                 compile_model,
                 (const std::shared_ptr<const ov::Model>&, const ov::AnyMap&),
                 (const));
-    MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>, compile_model, (const std::string&, const ov::AnyMap&), (const));
+    MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>,
+                compile_model,
+                (const std::filesystem::path&, const ov::AnyMap&),
+                (const));
     MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>,
                 compile_model,
                 (const std::shared_ptr<const ov::Model>&, const ov::AnyMap&, const ov::SoPtr<ov::IRemoteContext>&),
@@ -39,6 +43,11 @@ public:
     MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>,
                 import_model,
                 (std::istream&, const ov::SoPtr<ov::IRemoteContext>&, const ov::AnyMap&),
+                (const));
+    MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>, import_model, (const ov::Tensor&, const ov::AnyMap&), (const));
+    MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>,
+                import_model,
+                (const ov::Tensor&, const ov::SoPtr<ov::IRemoteContext>&, const ov::AnyMap&),
                 (const));
     MOCK_METHOD(ov::SupportedOpsMap,
                 query_model,
