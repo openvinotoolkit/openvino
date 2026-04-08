@@ -19,6 +19,7 @@
 #include "openvino/op/constant.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/broadcastmove.hpp"
+#include "utils.hpp"
 #include "utils/general_utils.h"
 #include "xbyak_riscv/xbyak_riscv.hpp"
 #include "xbyak_riscv/xbyak_riscv_csr.hpp"
@@ -60,19 +61,21 @@ void jit_broadcast_move_emitter::emit_isa(const std::vector<size_t>& in, const s
     // end up in a situation where source and destination registers are the same
     const bool in_place = src_vreg.getIdx() == dst_vreg.getIdx();
 
+    auto sew = Xbyak_riscv::SEW::e32;
     switch (byte_size) {
     case 1:
-        h->vsetivli(Xbyak_riscv::zero, 4, Xbyak_riscv::SEW::e8, Xbyak_riscv::LMUL::m1);
+        sew = Xbyak_riscv::SEW::e8;
         break;
     case 2:
-        h->vsetivli(Xbyak_riscv::zero, 4, Xbyak_riscv::SEW::e16, Xbyak_riscv::LMUL::m1);
+        sew = Xbyak_riscv::SEW::e16;
         break;
     case 4:
-        h->vsetivli(Xbyak_riscv::zero, 4, Xbyak_riscv::SEW::e32, Xbyak_riscv::LMUL::m1);
+        sew = Xbyak_riscv::SEW::e32;
         break;
     default:
         OV_CPU_JIT_EMITTER_THROW("Unsupported data size ", byte_size);
     }
+    set_vector_length(h, ov::intel_cpu::riscv64::utils::get_snippet_lanes(), sew, aux_gpr_idxs);
 
     if (in_place) {
         OV_CPU_JIT_EMITTER_ASSERT(!aux_vec_idxs.empty(), "BroadcastMove requires an auxiliary vector register");
