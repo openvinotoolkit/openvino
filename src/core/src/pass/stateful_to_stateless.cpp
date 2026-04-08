@@ -34,9 +34,10 @@ struct Variable {
         // Pattern 1: optimum-intel convention (e.g., past_key_values.0.keypresent.0.key)
         const std::regex naming_convention =
             std::regex(R"((past_key_values\.(\d+)\.(key|value))(present\.(\d+)\.(key|value)))");
-        // Pattern 2: LFM2 convention (e.g., cache_params.past.key.0cache_params.present.key.0)
-        const std::regex lfm2_naming_convention =
-            std::regex(R"(cache_params\.past\.(key|value|conv)\.(\d+)cache_params\.present\.(key|value|conv)\.(\d+))");
+        // Pattern 2: Convention for models with Linear Attention (e.g.,
+        // cache_params.past.key.0cache_params.present.key.0)
+        const std::regex lin_cache_naming_convention = std::regex(
+            R"((cache_params)\.past\.(key|value|conv|ssm)\.(\d+)cache_params\.present\.(key|value|conv|ssm)\.(\d+))");
     };
 
     Variable(const Context& context, const std::string& variable_name) : variable_name(variable_name) {
@@ -52,21 +53,35 @@ struct Variable {
             } else {
                 index = -1;
             }
-        } else if (std::regex_match(variable_name, match, context.lfm2_naming_convention)) {
-            // LFM2 pattern: cache_params.past.key.0cache_params.present.key.0
-            std::string past_type = match[1].str();
-            std::string past_idx = match[2].str();
-            std::string present_type = match[3].str();
-            std::string present_idx = match[4].str();
+        } else if (std::regex_match(variable_name, match, context.lin_cache_naming_convention)) {
+            // Linear Attention pattern: cache_params.past.key.0cache_params.present.key.0
+            //                           cache_params.past.value.0cache_params.present.value.0
+            //                           cache_params.past.ssm.0cache_params.present.ssm.0 OR/AND
+            //                           cache_params.past.conv.0cache_params.present.conv.0
+            std::string prefix = match[1].str();
+            std::string past_type = match[2].str();
+            std::string past_idx = match[3].str();
+            std::string present_type = match[4].str();
+            std::string present_idx = match[5].str();
 
-            input_name = "past_key_values." + past_idx + "." + past_type;
-            output_name = "present." + present_idx + "." + present_type;
+            auto create_name = [](const std::string& type,
+                                  const std::string& idx,
+                                  const std::string& original_prefix,
+                                  const std::string& replace_for_prefix) {
+                if (type == "conv" || type == "ssm") {
+                    return original_prefix + "." + type + "." + idx;
+                }
+                return replace_for_prefix + "." + idx + "." + type;
+            };
 
-            if (past_idx == present_idx && past_type == present_type &&
-                past_idx.length() <= std::numeric_limits<int>::digits10) {
-                // For "conv" type, place them after key/value pairs
-                int type_offset = (past_type == "key") ? 0 : (past_type == "value") ? 1 : 2;
-                index = std::stoi(past_idx) * 3 + type_offset;  // key=0, value=1, conv=2 within each layer
+            input_name = create_name(past_type, past_idx, prefix, "past_key_values");
+            output_name = create_name(present_type, present_idx, prefix, "present");
+
+            if (past_idx == present_idx && past_idx.length() <= std::numeric_limits<int>::digits10 &&
+                past_type == present_type && (past_type == "key" || past_type == "value")) {
+                // NB: We enumerate only key and value caches to restore KVCache order.
+                //     Conv and SSM caches will be placed after them in their natural order in the model.
+                index = std::stoi(past_idx) * 2 + int(past_type == "value");  // order key before value
             } else {
                 index = -1;
             }
@@ -137,14 +152,16 @@ bool ov::pass::StatefulToStateless::run_on_model(const std::shared_ptr<ov::Model
             "Stateful models without `beam_idx` input are not supported in StatefulToStateless transformation");
     }
 
-    // Process ReadValues that are NOT connected via beam_idx: Conv caches in LFM2
+    // Process ReadValues that are NOT connected via beam_idx: Conv and SSM caches in models with Linear Attention.
     for (const auto& op : model->get_ops()) {
         if (auto read_value = ov::as_type_ptr<op::util::ReadValueBase>(op)) {
             auto variable_name = read_value->get_variable_id();
             std::smatch match;
-            if (std::regex_match(variable_name, match, context.lfm2_naming_convention) &&
+            if (std::regex_match(variable_name, match, context.lin_cache_naming_convention) &&
                 (processed_variable_ids.find(variable_name) == processed_variable_ids.end())) {
                 variables.push_back(Variable(context, variable_name));
+                // For models with Linear Attention, ReadValue for Conv and SSM caches connects directly to the useful
+                // Ops after.
                 future_params[variable_name] = read_value;
                 processed_variable_ids.insert(variable_name);
             }
