@@ -373,6 +373,7 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 
     auto encryptionCallbacksOpt = exclude_cache_encryption_callbacks_from_map(npuPluginProperties);
     if (encryptionCallbacksOpt.has_value()) {
+        std::lock_guard<std::mutex> encryptionCallbacksLock(_encryptionCallbacksMutex);
         _encryptionCallbacksOpt = encryptionCallbacksOpt;
     }
 
@@ -447,6 +448,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
     auto encryptionCallbacksOpt = exclude_cache_encryption_callbacks_from_map(localProperties);
     if (!encryptionCallbacksOpt.has_value()) {
+        std::lock_guard<std::mutex> encryptionCallbacksLock(_encryptionCallbacksMutex);
         encryptionCallbacksOpt = _encryptionCallbacksOpt;
     }
 
@@ -713,6 +715,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
                        "wrong data type. Expected: ov::EncryptionCallbacks.");
     }
     if (!encryptionCallbacksOpt.has_value()) {
+        std::lock_guard<std::mutex> encryptionCallbacksLock(_encryptionCallbacksMutex);
         encryptionCallbacksOpt = _encryptionCallbacksOpt;
     }
 
@@ -834,6 +837,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
                        "wrong data type. Expected: ov::EncryptionCallbacks.");
     }
     if (!encryptionCallbacksOpt.has_value()) {
+        std::lock_guard<std::mutex> encryptionCallbacksLock(_encryptionCallbacksMutex);
         encryptionCallbacksOpt = _encryptionCallbacksOpt;
     }
 
