@@ -10,6 +10,7 @@ from pathlib import Path
 import shlex
 import shutil
 import time
+import xml.etree.ElementTree as ET
 
 from coverage_workflow import (
     CoverageContext,
@@ -299,7 +300,7 @@ def _pycov_config(*, branch_coverage: bool, source_dir: Path, workspace: Path) -
         source_value = source_dir.as_posix()
     return f"""[run]
 source =
-    {source_value}
+    openvino
 relative_files = True
 {branch_line}omit =
     */tests/*
@@ -336,19 +337,91 @@ def _remove_gcda(root: Path) -> None:
             pass
 
 
-def _python_pytest_command(target: str, args: str, *, py_source_dir: Path, py_cov_config: Path) -> list[str]:
+def _python_pytest_command(target: str, args: str, *, py_cov_source: str, py_cov_config: Path) -> list[str]:
     """Build one pytest command with shared Python coverage arguments."""
     cmd = ["python3", "-m", "pytest", "-ra", "--durations=50", target]
     if args:
         cmd.extend(shlex.split(args))
     cmd.extend(
         [
-            f"--cov={py_source_dir}",
+            f"--cov={py_cov_source}",
             f"--cov-config={py_cov_config}",
             "--cov-append",
         ]
     )
     return cmd
+
+
+def _normalize_python_xml_filename(raw_path: str, *, repo_source_dir: Path, installed_dirs: tuple[Path, ...]) -> str:
+    """Map coverage.py XML filenames back to repo-relative Python source paths."""
+    raw = raw_path.strip()
+    if not raw:
+        return raw
+
+    path = Path(raw)
+    if not path.is_absolute():
+        stripped = raw.removeprefix("./")
+        if stripped.startswith("openvino/"):
+            stripped = stripped[len("openvino/") :]
+        return Path(stripped).as_posix()
+
+    try:
+        resolved = path.resolve(strict=False)
+    except OSError:
+        resolved = path
+
+    for root in (repo_source_dir, *installed_dirs):
+        try:
+            return resolved.relative_to(root).as_posix()
+        except ValueError:
+            continue
+
+    parts = resolved.parts
+    for marker in ("site-packages", "dist-packages"):
+        if marker not in parts:
+            continue
+        idx = parts.index(marker)
+        tail = parts[idx + 1 :]
+        if tail and tail[0] == "openvino":
+            return Path(*tail[1:]).as_posix()
+
+    if "openvino" in parts:
+        openvino_indexes = [idx for idx, part in enumerate(parts) if part == "openvino"]
+        for idx in reversed(openvino_indexes):
+            tail = parts[idx + 1 :]
+            if tail:
+                return Path(*tail).as_posix()
+
+    return raw
+
+
+def _rewrite_python_coverage_xml(*, xml_path: Path, workspace: Path, repo_source_dir: Path, installed_dirs: tuple[Path, ...]) -> None:
+    """Rewrite Python XML coverage paths to the repo source layout expected by Codecov."""
+    if not xml_path.is_file():
+        return
+
+    tree = ET.parse(xml_path)
+    root = tree.getroot()
+
+    try:
+        source_value = repo_source_dir.relative_to(workspace).as_posix()
+    except ValueError:
+        source_value = repo_source_dir.as_posix()
+
+    sources = root.find("sources")
+    if sources is not None:
+        for source in sources.findall("source"):
+            source.text = source_value
+
+    for cls in root.findall(".//class"):
+        filename = cls.attrib.get("filename", "")
+        cls.attrib["filename"] = _normalize_python_xml_filename(
+            filename,
+            repo_source_dir=repo_source_dir,
+            installed_dirs=installed_dirs,
+        )
+
+    tree.write(xml_path, encoding="utf-8", xml_declaration=True)
 
 
 def _build_cpp_command(exe: Path, *, mode: str, args: str) -> list[str]:
@@ -550,8 +623,10 @@ def run_python(ctx: CoverageContext) -> None:
     onnx_py_tests = ctx.workspace / "src" / "frontends" / "onnx" / "tests" / "tests_python"
     layer_tests = ctx.workspace / "tests" / "layer_tests"
     py_cov_config = ctx.workspace / ".python_coverage_ci.rc"
+    py_cov_source = "openvino"
 
     pip_install_path = os.environ.get("PIP_INSTALL_PATH", "").strip()
+    installed_openvino_dir = Path(pip_install_path) / "openvino" if pip_install_path else None
     wheel_lib_dir = Path(pip_install_path) / "openvino" / "libs" if pip_install_path else None
     runtime_extra_paths = [tests_dir]
     if wheel_lib_dir is not None:
@@ -561,7 +636,6 @@ def run_python(ctx: CoverageContext) -> None:
         f"{_runtime_ld_library_path(ctx, extra_paths=tuple(runtime_extra_paths))}:{os.environ.get('LD_LIBRARY_PATH', '')}"
     ).rstrip(":")
     python_path_entries = [
-        str(py_source_root),
         str(tests_dir),
         str(tests_dir / "python"),
         os.environ.get("PYTHONPATH", ""),
@@ -596,14 +670,14 @@ def run_python(ctx: CoverageContext) -> None:
         env = env_from_assignments(_expand(test.env))
 
         if test.kind == "pytest":
-            cmd = _python_pytest_command(target, args, py_source_dir=py_source_dir, py_cov_config=py_cov_config)
+            cmd = _python_pytest_command(target, args, py_cov_source=py_cov_source, py_cov_config=py_cov_config)
             rc, duration_seconds = _timed_run(f"Python test: {test.name}", cmd, env=env)
         elif test.kind == "pytest_if_dir":
             if not Path(target).is_dir():
                 warn(f"Skipping Python test group '{test.name}' (missing: {target})")
                 results.append(_TestRunResult(test.name, "skipped", f"{test.name} (missing path)"))
                 continue
-            cmd = _python_pytest_command(target, args, py_source_dir=py_source_dir, py_cov_config=py_cov_config)
+            cmd = _python_pytest_command(target, args, py_cov_source=py_cov_source, py_cov_config=py_cov_config)
             rc, duration_seconds = _timed_run(f"Python test: {test.name}", cmd, env=env)
         elif test.kind == "command":
             rc, duration_seconds = _timed_run(
@@ -621,9 +695,18 @@ def run_python(ctx: CoverageContext) -> None:
         else:
             results.append(_TestRunResult(test.name, "passed", duration_seconds=duration_seconds))
 
-    xml_rc = run_cmd(["python3", "-m", "coverage", "xml", "-o", str(ctx.workspace / "python-coverage.xml")], check=False)
+    xml_path = ctx.workspace / "python-coverage.xml"
+    xml_rc = run_cmd(["python3", "-m", "coverage", "xml", "-o", str(xml_path)], check=False)
     if xml_rc != 0:
         warn("Failed to export python-coverage.xml; continuing without Python XML coverage output.")
+    else:
+        installed_dirs = tuple(path for path in (installed_openvino_dir,) if path is not None)
+        _rewrite_python_coverage_xml(
+            xml_path=xml_path,
+            workspace=ctx.workspace,
+            repo_source_dir=py_source_dir,
+            installed_dirs=installed_dirs,
+        )
 
     _finalize_suite(
         ctx,
