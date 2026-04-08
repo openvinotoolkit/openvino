@@ -3,6 +3,7 @@
 //
 
 #include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include "openvino/op/tanh.hpp"
@@ -48,6 +49,7 @@
 #include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
 
 #include <algorithm> 
 
@@ -116,8 +118,7 @@ static void CreatePReluOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::P
         const std::string act_id = baseName + "/r1_act";
         auto act_prim = cldnn::activation(act_id, cldnn::input_info{x2_id}, s2_id, cldnn::activation_func::relu_negative_slope);
         p.add_primitive(*op, act_prim);
-        cldnn::tensor out1_tensor{1, 1, 1, static_cast<int32_t>(C)};  // b,f,y,x
-        auto out_prim = cldnn::reshape(baseName, cldnn::input_info{act_id}, out1_tensor, cldnn::reshape::reshape_mode::base);
+        auto out_prim = cldnn::reshape(baseName, cldnn::input_info{act_id}, tensor_from_dims(out_shape.to_shape()), cldnn::reshape::reshape_mode::base);
         p.add_primitive(*op, out_prim);
     } else {
         OPENVINO_THROW("[GPU] Unsupported PRelu configuration for ", op->get_friendly_name(), ": out rank=", out_shape.size(), ", slope shape=", slope_shape);
@@ -321,6 +322,7 @@ static void CreateSignOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Si
 
     const std::string baseName = layer_type_name_ID(op);
     const std::string zero_id = baseName + "/zero";
+    const auto out_dt = cldnn::element_type_to_data_type(op->get_output_element_type(0));
     cldnn::data_types dt = cldnn::element_type_to_data_type(et);
     cldnn::tensor zero_t{1, 1, 1, 1};
     cldnn::layout zero_layout{dt, cldnn::format::bfyx, zero_t};
@@ -356,16 +358,23 @@ static void CreateSignOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Si
     auto zero_prim = cldnn::data(zero_id, zero_mem);
     p.add_primitive(*op, zero_prim);
 
-    // x > 0  (eltwise compare)
     const std::string gt_id = baseName + "/gt0";
     auto gt_prim = cldnn::eltwise(gt_id, x, cldnn::input_info{zero_id}, cldnn::eltwise_mode::gt);
     p.add_primitive(*op, gt_prim);
 
-    // x < 0  (eltwise compare)
+    const std::string gt_cast_id = baseName + "/gt0_cast";
+    auto gt_cast_prim = cldnn::reorder(gt_cast_id, cldnn::input_info{gt_id}, cldnn::format::any, out_dt);
+    p.add_primitive(*op, gt_cast_prim);
+
     const std::string lt_id = baseName + "/lt0";
     auto lt_prim = cldnn::eltwise(lt_id, x, cldnn::input_info{zero_id}, cldnn::eltwise_mode::lt);
     p.add_primitive(*op, lt_prim);
-    auto out_prim = cldnn::eltwise(baseName, cldnn::input_info{gt_id}, cldnn::input_info{lt_id}, cldnn::eltwise_mode::sub);
+
+    const std::string lt_cast_id = baseName + "/lt0_cast";
+    auto lt_cast_prim = cldnn::reorder(lt_cast_id, cldnn::input_info{lt_id}, cldnn::format::any, out_dt);
+    p.add_primitive(*op, lt_cast_prim);
+
+    auto out_prim = cldnn::eltwise(baseName, cldnn::input_info{gt_cast_id}, cldnn::input_info{lt_cast_id}, cldnn::eltwise_mode::sub);
     p.add_primitive(*op, out_prim);
 }
 
