@@ -682,7 +682,7 @@ void convert_from_bf16_to_f16_with_clamp(const bfloat16* arg, float16* out, size
     // CVS-125496: duplicate and stub for ARM, provide optimized solution
 }
 
-F16CompressionCheckResult check_f16_compression(const float* arg, size_t count) {
+CompressionCheckResult check_f16_compression(const float* arg, size_t count) {
 #ifdef OV_CORE_USE_XBYAK_JIT
     if (util::may_i_use_dynamic_code()) {
         if (auto fn = jit_check_f16_compression::get()) {

@@ -89,11 +89,11 @@ constexpr float f16_compression_keep_threshold = 0.75f;
 // Single-pass combined check for FP16 compression feasibility.
 // Counts out-of-range values and bails immediately if any in-range value has significant precision loss.
 // JIT/AVX2+F16C accelerated on x86.
-struct F16CompressionCheckResult {
+struct CompressionCheckResult {
     size_t out_of_range_count;
     bool has_lossy;
 };
-F16CompressionCheckResult check_f16_compression(const float* arg, size_t count);
+CompressionCheckResult check_f16_compression(const float* arg, size_t count);
 
 // Convert values from f32 to f16 with clamping to f16 min/max when value is out of normal finite numbers range
 void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t count);
