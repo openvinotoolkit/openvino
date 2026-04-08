@@ -67,7 +67,7 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
         output.resize(static_cast<size_t>(tokens) * v_heads * head_size);
 
         const auto state_off = [=](int32_t block, int32_t h, int32_t k_idx, int32_t v_idx) {
-            return ((block * v_heads + h) * head_size + k_idx) * head_size + v_idx;
+            return ((block * v_heads + h) * head_size + v_idx) * head_size + k_idx;
         };
 
         const float attn_scale = 1.0f / std::sqrt(static_cast<float>(head_size));
