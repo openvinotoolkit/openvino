@@ -132,6 +132,10 @@ private:
 
     uint32_t _command_queue_group_ordinal = 0;
 
+    // Per-context global registry for ZeroMem tracking.
+    // The pool object lives in the context holder, while all create/import/look-up operations
+    // are performed through zero_mem helper APIs (and their manager), which also synchronize
+    // updates and cleanup.
     ZeroMemPool _zero_mem_pool;
 
     std::mutex _mutex;

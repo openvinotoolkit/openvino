@@ -19,6 +19,8 @@ class ZeroMem;
  * @brief Per-context registry of tracked Level Zero memory objects.
  * @details Stores weak references to imported and allocated ZeroMem instances together with the synchronization
  * primitives used to serialize pool updates and coordinate pool entry removal with re-import attempts.
+ * The pool is owned by ZeroInitStructsHolder to make it global for a given Level Zero context, while memory
+ * allocation/import/look-up is intentionally mediated by zero_mem helper APIs.
  */
 struct ZeroMemPool {
     // Tracks Level Zero allocations and imported memory by allocation ID without extending their lifetime.
