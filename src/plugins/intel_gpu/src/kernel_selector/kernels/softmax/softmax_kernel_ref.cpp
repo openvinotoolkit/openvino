@@ -35,7 +35,12 @@ SoftmaxKernelRef::Parent::DispatchData SoftmaxKernelRef::SetDefault(const softma
 
     assert(dispatchData.gws.size() == 3);
 
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    // [WA] In PTLH, IGC may allocate more GRF per thread than expected, reducing the per-kernel
+    // max work-group size below the device-reported maximum. Cap to 512 to avoid
+    // CL_INVALID_WORK_GROUP_SIZE (-54). Remove after driver fix.
+    auto engineInfo = params.engineInfo;
+    engineInfo.maxWorkGroupSize = std::min(engineInfo.maxWorkGroupSize, static_cast<uint64_t>(512));
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, engineInfo);
 
     return dispatchData;
 }

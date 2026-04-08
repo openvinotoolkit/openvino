@@ -45,6 +45,11 @@ SoftmaxKernel_bf::Parent::DispatchData SoftmaxKernel_bf::SetDefault(const softma
     auto local_mem_per_wi = 2 * BytesPerElement(params.inputs[0].GetDType());
     // Combining device execution and local memory restrictions to compute maximum possible LWS.
     auto max_lws = std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);
+    // [WA] In PTLH, IGC may allocate more GRF per thread than expected, reducing the per-kernel
+    // max work-group size below the device-reported maximum. Cap to 512 to avoid
+    // CL_INVALID_WORK_GROUP_SIZE (-54). Remove after driver fix.
+    max_lws = std::min(max_lws, static_cast<uint64_t>(512));
+
     if (!params.has_dynamic_tensors()) {
         // start with 1 thread per data set
         dispatchData.gws[0] = 1;
