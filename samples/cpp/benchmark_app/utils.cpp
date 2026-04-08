@@ -722,7 +722,17 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
             // Update shape with batch if needed (only in static shape case)
             // Update blob shape only not affecting network shape to trigger dynamic batch size case
             if (batch_size != 0) {
-                if (ov::layout::has_batch(info.layout)) {
+                if (info.dataShape.empty()) {
+                    // dataShape can be empty only when compile_only=true and the input is dynamic with no
+                    // -data_shape/-i provided.
+                    OPENVINO_ASSERT(compile_only,
+                                    "dataShape is empty for input '",
+                                    item.get_any_name(),
+                                    "' in non-compile_only mode.");
+                    slog::warn << "-b option is ignored in compile_only mode (no concrete data shape available for '"
+                               << item.get_any_name() << "')." << slog::endl;
+                    is_there_at_least_one_batch_dim = true;
+                } else if (ov::layout::has_batch(info.layout)) {
                     std::size_t batch_index = ov::layout::batch_idx(info.layout);
                     if (info.dataShape.at(batch_index) != batch_size) {
                         if (info.partialShape.is_static()) {

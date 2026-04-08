@@ -304,6 +304,51 @@ def test_compile_only_niter_0_dynamic_shape(sample_language, device, tmp_path):
     assert 'Skipping inference due to -niter 0' in output
 
 
+@pytest.mark.parametrize('device', get_devices())
+def test_compile_only_niter_0_dynamic_shape_with_batch(device, tmp_path):
+    """Test that -b combined with -niter 0 and a dynamic-shape model is handled correctly.
+
+    C++: dataShape is empty for dynamic inputs in compile_only mode (no -data_shape/-i provided).
+         The batch update block must not access dataShape.at(batch_index) — it should warn and
+         skip instead.
+    Python: batch update uses partial_shape (always populated from the model), so -b is applied
+            correctly without any special handling or warning.
+    """
+    param = opset.parameter([-1, 3, -1, -1], ov.Type.f32, name='input')
+    param.set_layout(ov.Layout('NCHW'))
+    result = opset.result(opset.relu(param), name='output')
+    model = ov.Model([result], [param], 'dynamic_model_with_batch')
+
+    model_path = tmp_path / 'dynamic_model.xml'
+    ov.save_model(model, model_path)
+
+    # C++: -b is ignored (cannot update empty dataShape), a warning is emitted
+    cpp_output = get_cmd_output(
+        get_executable('C++'),
+        '-m', model_path,
+        '-d', device,
+        '-niter', '0',
+        '-b', '4',
+    )
+    assert 'FPS' not in cpp_output
+    assert 'Model compiled successfully' in cpp_output
+    assert 'Skipping inference due to -niter 0' in cpp_output
+    assert '-b option is ignored in compile_only mode' in cpp_output
+
+    # Python: -b is applied to partial_shape before compilation — compiles successfully, no warning
+    py_output = get_cmd_output(
+        get_executable('Python'),
+        '-m', model_path,
+        '-d', device,
+        '-niter', '0',
+        '-b', '4',
+    )
+    assert 'FPS' not in py_output
+    assert 'Model compiled successfully' in py_output
+    assert 'Skipping inference due to -niter 0' in py_output
+    assert '-b option is ignored in compile_only mode' not in py_output
+
+
 # Note: devices which do not support export_model() are excluded.
 @pytest.mark.parametrize('device', sorted({'CPU', 'GPU'} & set(get_devices())))
 def test_compile_only_niter_0_compiled_blob(device, tmp_path):
