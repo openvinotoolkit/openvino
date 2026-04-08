@@ -749,6 +749,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         ov::Tensor tensor;
         if (encryptionCallbacksOpt.has_value()) {
             OPENVINO_ASSERT(encryptionCallbacksOpt->decrypt != nullptr, "Null decryption function was given!");
+            if (metadata) {
+                OPENVINO_ASSERT(metadata->is_encrypted_blob(), "Cannot decrypt blob that was not encrypted!");
+            }
+
             std::string blobStr;
             blobStr.resize(blobSize);  // +1x blob size
 
@@ -863,10 +867,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
         } else {
             _logger.info("Blob compatibility check skipped.");
         }
-        OPENVINO_ASSERT(blobSize > 0, "Parsed blob size is empty from the given stream!");
+        OPENVINO_ASSERT(blobSize > 0, "Parsed blob size is empty from the given buffer!");
 
         if (encryptionCallbacksOpt.has_value()) {
             OPENVINO_ASSERT(encryptionCallbacksOpt->decrypt != nullptr, "Null decryption function was given!");
+            if (metadata) {
+                OPENVINO_ASSERT(metadata->is_encrypted_blob(), "Cannot decrypt blob that was not encrypted!");
+            }
+
             std::string blobStr(compiledBlob.data<const char>(), blobSize);    // +1x blob size
             auto decryptedBlobStr = encryptionCallbacksOpt->decrypt(blobStr);  // + 2x blob size
             blobStr.clear();  // -1x blob size, move is not permitted above

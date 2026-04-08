@@ -119,6 +119,8 @@ TEST_P(OVCompiledGraphImportExportTestNPU, ImportingEncryptedBlobThrows) {
                     ov::Exception,
                     ::testing::HasSubstr("Cannot parse encrypted blob"));
 
+    encrypted_blob_stream.seekg(0, std::ios::beg);
+
     // Parsing corrupted blob on MTL will throw Access Violation 0xC0000005 SEH exceptions
     if (ov::intel_npu::Platform::standardize(ov::test::utils::getTestPlatform()) != ov::intel_npu::Platform::NPU3720) {
         configuration.insert(ov::intel_npu::import_raw_blob(true));
