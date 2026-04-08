@@ -4,8 +4,12 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cctype>
+#include <cstdlib>
 #include <iostream>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "../utils/kernel_generator.hpp"
@@ -49,6 +53,25 @@ struct PagedAttentionOpt : public ImplementationManager {
         };
 
         auto desc = node.as<paged_attention>().get_primitive();
+
+        std::string force_pa_impl;
+        if (const char* force_env = std::getenv("OV_GPU_FORCE_PA_IMPL")) {
+            force_pa_impl = force_env;
+            std::transform(force_pa_impl.begin(), force_pa_impl.end(), force_pa_impl.begin(), [](unsigned char c) {
+                return static_cast<char>(std::tolower(c));
+            });
+        }
+
+        if (force_pa_impl == "cm") {
+            GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false due to OV_GPU_FORCE_PA_IMPL=cm. " << std::endl;
+            return false;
+        }
+
+        if (force_pa_impl == "ocl") {
+            GPU_DEBUG_TRACE_DETAIL << "validate_impl() - true due to OV_GPU_FORCE_PA_IMPL=ocl. " << std::endl;
+            return true;
+        }
+
         const auto key_cache_quant_mode = node.get_program().get_config().get_key_cache_quant_mode();
         if (key_cache_quant_mode == ov::internal::CacheQuantMode::TURBOQUANT) {
             GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because TurboQuant requires CM paged attention path. " << std::endl;

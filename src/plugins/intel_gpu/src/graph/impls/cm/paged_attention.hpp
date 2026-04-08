@@ -4,7 +4,11 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cctype>
+#include <cstdlib>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "intel_gpu/runtime/layout.hpp"
@@ -34,6 +38,24 @@ struct PagedAttentionImplementationManager : public ImplementationManager {
         auto& engine = node.get_program().get_engine();
         const auto& config = node.get_program().get_config();
         const bool use_turboquant = config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::TURBOQUANT;
+
+        std::string forced_pa_impl;
+        if (const char* force_env = std::getenv("OV_GPU_FORCE_PA_IMPL")) {
+            forced_pa_impl = force_env;
+            std::transform(forced_pa_impl.begin(), forced_pa_impl.end(), forced_pa_impl.begin(), [](unsigned char c) {
+                return static_cast<char>(std::tolower(c));
+            });
+        }
+
+        if (forced_pa_impl == "ocl") {
+            GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false due to OV_GPU_FORCE_PA_IMPL=ocl. " << std::endl;
+            return false;
+        }
+
+        if (forced_pa_impl == "cm") {
+            GPU_DEBUG_TRACE_DETAIL << "validate_impl() - true due to OV_GPU_FORCE_PA_IMPL=cm. " << std::endl;
+            return true;
+        }
 
         // Enable CM PA for either XAttention path or TurboQuant path.
         if (!desc->has_xattention && !use_turboquant) {
