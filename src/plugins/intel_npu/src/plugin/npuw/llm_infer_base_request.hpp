@@ -23,6 +23,7 @@ public:
         static constexpr const char* logits = "logits";
         static constexpr const char* token_type_ids = "token_type_ids";
         static constexpr const char* longrope_input = "npuw_longrope_input";
+        static constexpr const char* per_layer_inputs = "per_layer_inputs";
     };
 
     struct layer_ids {
