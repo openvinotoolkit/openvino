@@ -700,11 +700,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         return compiledModel;
     }
 
-    auto encryptionCallbacksOpt =
-        npuPluginProperties.count(ov::cache_encryption_callbacks.name())
-            ? std::make_optional(
-                  npuPluginProperties.at(ov::cache_encryption_callbacks.name()).as<ov::EncryptionCallbacks>())
-            : std::nullopt;
+    std::optional<ov::EncryptionCallbacks> encryptionCallbacksOpt = std::nullopt;
+    try {
+        encryptionCallbacksOpt =
+            npuPluginProperties.count(ov::cache_encryption_callbacks.name())
+                ? std::make_optional(
+                      npuPluginProperties.at(ov::cache_encryption_callbacks.name()).as<ov::EncryptionCallbacks>())
+                : std::nullopt;
+    } catch (const ov::Exception&) {
+        OPENVINO_THROW("The value of the \"ov::cache_encryption_callbacks\" configuration option "
+                       "(\"CACHE_ENCRYPTION_CALLBACKS\") has the "
+                       "wrong data type. Expected: ov::EncryptionCallbacks.");
+    }
     if (!encryptionCallbacksOpt.has_value()) {
         encryptionCallbacksOpt = _encryptionCallbacksOpt;
     }
@@ -733,6 +740,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         } else {
             _logger.info("Blob compatibility check skipped.");
         }
+        OPENVINO_ASSERT(blobSize > 0, "Parsed blob size is empty from the given stream!");
 
         ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
         ov::Tensor tensor;
@@ -759,10 +767,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
             size_t alignedSize = utils::align_size_to_standard_page_size(decryptedBlobStr.size());
             size_t paddingSize = alignedSize - decryptedBlobStr.size();
-            ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
-            ov::Tensor tensor(ov::element::u8, ov::Shape{alignedSize}, customAllocator);
+            tensor = ov::Tensor(ov::element::u8, ov::Shape{alignedSize}, customAllocator);
             std::memcpy(tensor.data<char>(), decryptedBlobStr.c_str(), decryptedBlobStr.size());
-            if (paddingSize) {
+            if (paddingSize > 0) {
                 _logger.warning("Decrypted blob size was not page aligned, additional %zu bytes padding will be added",
                                 paddingSize);
                 std::memset(tensor.data<char>() + decryptedBlobStr.size(), 0, paddingSize);
@@ -814,11 +821,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
         return compiledModel;
     }
 
-    auto encryptionCallbacksOpt =
-        npuPluginProperties.count(ov::cache_encryption_callbacks.name())
-            ? std::make_optional(
-                  npuPluginProperties.at(ov::cache_encryption_callbacks.name()).as<ov::EncryptionCallbacks>())
-            : std::nullopt;
+    std::optional<ov::EncryptionCallbacks> encryptionCallbacksOpt = std::nullopt;
+    try {
+        encryptionCallbacksOpt =
+            npuPluginProperties.count(ov::cache_encryption_callbacks.name())
+                ? std::make_optional(
+                      npuPluginProperties.at(ov::cache_encryption_callbacks.name()).as<ov::EncryptionCallbacks>())
+                : std::nullopt;
+    } catch (const ov::Exception&) {
+        OPENVINO_THROW("The value of the \"ov::cache_encryption_callbacks\" configuration option "
+                       "(\"CACHE_ENCRYPTION_CALLBACKS\") has the "
+                       "wrong data type. Expected: ov::EncryptionCallbacks.");
+    }
     if (!encryptionCallbacksOpt.has_value()) {
         encryptionCallbacksOpt = _encryptionCallbacksOpt;
     }
@@ -845,6 +859,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
         } else {
             _logger.info("Blob compatibility check skipped.");
         }
+        OPENVINO_ASSERT(blobSize > 0, "Parsed blob size is empty from the given stream!");
 
         if (encryptionCallbacksOpt.has_value()) {
             OPENVINO_ASSERT(encryptionCallbacksOpt->decrypt != nullptr, "Null decryption function was given!");
@@ -857,7 +872,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
             ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
             ov::Tensor tensor(ov::element::u8, ov::Shape{alignedSize}, customAllocator);
             std::memcpy(tensor.data<char>(), decryptedBlobStr.c_str(), decryptedBlobStr.size());
-            if (paddingSize) {
+            if (paddingSize > 0) {
                 _logger.warning("Decrypted blob size was not page aligned, additional %zu bytes padding will be added",
                                 paddingSize);
                 std::memset(tensor.data<char>() + decryptedBlobStr.size(), 0, paddingSize);
@@ -999,7 +1014,29 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
             const ov::Tensor tensorInit(tensorBig,
                                         ov::Coordinate{cursorPosition},
                                         ov::Coordinate{cursorPosition + initSize});
-            tensorsInits.push_back(tensorInit);
+            if (encryptionCallbacksOpt.has_value()) {
+                OPENVINO_ASSERT(encryptionCallbacksOpt->decrypt, "Null decryption function was given!");
+
+                std::string encryptedInitBlob(tensorInit.data<const char>(), tensorInit.get_byte_size());
+                auto decryptedInitBlob = encryptionCallbacksOpt->decrypt(encryptedInitBlob);
+                encryptedInitBlob.clear();
+
+                size_t alignedSize = utils::align_size_to_standard_page_size(decryptedInitBlob.size());
+                size_t paddingSize = alignedSize - decryptedInitBlob.size();
+                ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
+                ov::Tensor decryptedInitTensor(ov::element::u8, ov::Shape{alignedSize}, customAllocator);
+                std::memcpy(decryptedInitTensor.data<char>(), decryptedInitBlob.c_str(), decryptedInitBlob.size());
+
+                if (paddingSize > 0) {
+                    _logger.warning(
+                        "Decrypted blob size was not page aligned, additional %zu bytes padding will be added",
+                        paddingSize);
+                    std::memset(decryptedInitTensor.data<char>() + decryptedInitBlob.size(), 0, paddingSize);
+                }
+                tensorsInits.push_back(decryptedInitTensor);
+            } else {
+                tensorsInits.push_back(tensorInit);
+            }
             cursorPosition += initSize;
         }
 
