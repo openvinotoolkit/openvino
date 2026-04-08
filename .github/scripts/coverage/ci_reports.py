@@ -157,6 +157,12 @@ def collect_suite_results(
         shutil.rmtree(destination, ignore_errors=True)
         shutil.copytree(debug_dir, destination)
 
+    python_debug_dir = workspace / ".tmp" / "python-coverage"
+    if suite == "python" and python_debug_dir.is_dir():
+        destination = artifact_dir / "python-coverage-debug"
+        shutil.rmtree(destination, ignore_errors=True)
+        shutil.copytree(python_debug_dir, destination)
+
 
 def _collect_artifacts(*, workspace: Path, suite_key: str) -> list[dict[str, object]]:
     suite_def = SUITE_DEFS[suite_key]

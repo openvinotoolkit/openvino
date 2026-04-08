@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import shlex
 import shutil
+import subprocess
 import time
 import xml.etree.ElementTree as ET
 
@@ -291,17 +292,33 @@ def _finalize_suite(
         LOGGER.warning("%s", failure_warning)
 
 
-def _pycov_config(*, branch_coverage: bool, source_dir: Path, workspace: Path) -> str:
+def _pycov_config(
+    *,
+    branch_coverage: bool,
+    runtime_source_dir: Path,
+    repo_source_dir: Path,
+    workspace: Path,
+    installed_dirs: tuple[Path, ...] = (),
+) -> str:
     """Build the coverage.py config used by pytest-cov and coverage CLI."""
     branch_line = "branch = True\n" if branch_coverage else ""
     try:
-        source_value = source_dir.relative_to(workspace).as_posix()
+        source_value = runtime_source_dir.relative_to(workspace).as_posix()
     except ValueError:
-        source_value = source_dir.as_posix()
+        source_value = runtime_source_dir.as_posix()
+
+    path_entries: list[str] = []
+    for path in (repo_source_dir, runtime_source_dir, *installed_dirs):
+        try:
+            value = path.relative_to(workspace).as_posix()
+        except ValueError:
+            value = path.as_posix()
+        if value not in path_entries:
+            path_entries.append(value)
+    path_entries_text = "\n    ".join(path_entries)
     return f"""[run]
 source =
-    openvino
-relative_files = True
+    {source_value}
 {branch_line}omit =
     */tests/*
     */thirdparty/*
@@ -315,9 +332,7 @@ relative_files = True
 
 [paths]
 openvino =
-    {source_value}
-    */site-packages/openvino
-    */dist-packages/openvino
+    {path_entries_text}
 """
 
 
@@ -350,6 +365,68 @@ def _python_pytest_command(target: str, args: str, *, py_cov_source: str, py_cov
         ]
     )
     return cmd
+
+
+def _detect_installed_python_package_dir(package: str) -> Path | None:
+    """Resolve the installed package directory used by the active Python interpreter."""
+    cmd = [
+        "python3",
+        "-c",
+        (
+            "import importlib, pathlib; "
+            f"module = importlib.import_module({package!r}); "
+            "print(pathlib.Path(module.__file__).resolve().parent)"
+        ),
+    ]
+    display = " ".join(shlex.quote(part) for part in cmd)
+    LOGGER.info("$ %s", display)
+    completed = subprocess.run(cmd, text=True, capture_output=True)
+    if completed.returncode != 0:
+        details = completed.stderr.strip() or completed.stdout.strip() or f"exit {completed.returncode}"
+        LOGGER.warning("Could not resolve installed Python package dir for %s: %s", package, details)
+        return None
+
+    resolved_text = completed.stdout.strip().splitlines()
+    if not resolved_text:
+        LOGGER.warning("Could not resolve installed Python package dir for %s: empty output", package)
+        return None
+
+    package_dir = Path(resolved_text[-1].strip())
+    if not package_dir.is_dir():
+        LOGGER.warning("Resolved Python package dir for %s is not a directory: %s", package, package_dir)
+        return None
+    return package_dir
+
+
+def _coverage_data_files(workspace: Path) -> list[Path]:
+    """Return coverage data files produced by pytest-cov / coverage.py."""
+    return sorted(
+        path
+        for path in workspace.iterdir()
+        if path.is_file() and (path.name == ".coverage" or path.name.startswith(".coverage."))
+    )
+
+
+def _run_logged_command(
+    cmd: list[str],
+    *,
+    log_path: Path,
+    cwd: Path | None = None,
+    env: dict[str, str] | None = None,
+) -> int:
+    """Run one command, store stdout/stderr in a log file, and return its exit code."""
+    display = " ".join(shlex.quote(part) for part in cmd)
+    LOGGER.info("$ %s", display)
+    completed = subprocess.run(cmd, cwd=cwd, env=env, text=True, capture_output=True)
+
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    sections = [f"$ {display}", f"exit_code={completed.returncode}"]
+    if completed.stdout:
+        sections.extend(["", "stdout:", completed.stdout.rstrip()])
+    if completed.stderr:
+        sections.extend(["", "stderr:", completed.stderr.rstrip()])
+    log_path.write_text("\n".join(sections).rstrip() + "\n", encoding="utf-8")
+    return completed.returncode
 
 
 def _normalize_python_xml_filename(raw_path: str, *, repo_source_dir: Path, installed_dirs: tuple[Path, ...]) -> str:
@@ -623,10 +700,17 @@ def run_python(ctx: CoverageContext) -> None:
     onnx_py_tests = ctx.workspace / "src" / "frontends" / "onnx" / "tests" / "tests_python"
     layer_tests = ctx.workspace / "tests" / "layer_tests"
     py_cov_config = ctx.workspace / ".python_coverage_ci.rc"
-    py_cov_source = "openvino"
+    python_coverage_debug_dir = ctx.workspace / ".tmp" / "python-coverage"
 
     pip_install_path = os.environ.get("PIP_INSTALL_PATH", "").strip()
-    installed_openvino_dir = Path(pip_install_path) / "openvino" if pip_install_path else None
+    installed_openvino_dir = _detect_installed_python_package_dir("openvino")
+    if installed_openvino_dir is None and pip_install_path:
+        fallback_dir = Path(pip_install_path) / "openvino"
+        if fallback_dir.is_dir():
+            installed_openvino_dir = fallback_dir
+
+    py_cov_source_dir = installed_openvino_dir if installed_openvino_dir is not None else py_source_dir
+    py_cov_source = str(py_cov_source_dir)
     wheel_lib_dir = Path(pip_install_path) / "openvino" / "libs" if pip_install_path else None
     runtime_extra_paths = [tests_dir]
     if wheel_lib_dir is not None:
@@ -651,8 +735,10 @@ def run_python(ctx: CoverageContext) -> None:
     py_cov_config.write_text(
         _pycov_config(
             branch_coverage=ctx.branch_coverage,
-            source_dir=py_source_dir,
+            runtime_source_dir=py_cov_source_dir,
+            repo_source_dir=py_source_dir,
             workspace=ctx.workspace,
+            installed_dirs=tuple(path for path in (installed_openvino_dir,) if path is not None),
         ),
         encoding="utf-8",
     )
@@ -695,18 +781,49 @@ def run_python(ctx: CoverageContext) -> None:
         else:
             results.append(_TestRunResult(test.name, "passed", duration_seconds=duration_seconds))
 
-    xml_path = ctx.workspace / "python-coverage.xml"
-    xml_rc = run_cmd(["python3", "-m", "coverage", "xml", "-o", str(xml_path)], check=False)
-    if xml_rc != 0:
-        LOGGER.warning("Failed to export python-coverage.xml; continuing without Python XML coverage output.")
-    else:
-        installed_dirs = tuple(path for path in (installed_openvino_dir,) if path is not None)
-        _rewrite_python_coverage_xml(
-            xml_path=xml_path,
-            workspace=ctx.workspace,
-            repo_source_dir=py_source_dir,
-            installed_dirs=installed_dirs,
+    coverage_data_files = _coverage_data_files(ctx.workspace)
+    if not coverage_data_files:
+        raise RuntimeError("Python coverage data files were not produced; cannot export python-coverage.xml")
+
+    primary_coverage_file = ctx.workspace / ".coverage"
+    if len(coverage_data_files) > 1 or not primary_coverage_file.is_file():
+        combine_log = python_coverage_debug_dir / "coverage-combine.log"
+        combine_rc = _run_logged_command(
+            ["python3", "-m", "coverage", "combine", "--keep"],
+            log_path=combine_log,
+            cwd=ctx.workspace,
         )
+        if combine_rc != 0:
+            raise RuntimeError(
+                f"Failed to combine Python coverage data. See {combine_log}"
+            )
+
+    xml_path = ctx.workspace / "python-coverage.xml"
+    xml_log = python_coverage_debug_dir / "coverage-xml.log"
+    xml_rc = _run_logged_command(
+        ["python3", "-m", "coverage", "xml", "-i", "-o", str(xml_path)],
+        log_path=xml_log,
+        cwd=ctx.workspace,
+    )
+    if xml_rc != 0 or not xml_path.is_file() or xml_path.stat().st_size == 0:
+        debug_log = python_coverage_debug_dir / "coverage-debug-data.log"
+        _run_logged_command(
+            ["python3", "-m", "coverage", "debug", "data"],
+            log_path=debug_log,
+            cwd=ctx.workspace,
+        )
+        raise RuntimeError(
+            "Failed to export python-coverage.xml; "
+            f"see {xml_log} and {debug_log}"
+        )
+
+    installed_dirs = tuple(path for path in (installed_openvino_dir,) if path is not None)
+    _rewrite_python_coverage_xml(
+        xml_path=xml_path,
+        workspace=ctx.workspace,
+        repo_source_dir=py_source_dir,
+        installed_dirs=installed_dirs,
+    )
 
     _finalize_suite(
         ctx,
