@@ -35,6 +35,7 @@ public:
     virtual ~AlignedBuffer();
 
     AlignedBuffer(AlignedBuffer&& other);
+    AlignedBuffer(void* pData, size_t byte_size);
     AlignedBuffer& operator=(AlignedBuffer&& other);
 
     size_t size() const {

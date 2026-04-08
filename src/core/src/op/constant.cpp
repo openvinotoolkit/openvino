@@ -297,6 +297,33 @@ Constant::Constant(const element::Type& type, const Shape& shape, const void* da
     }
 }
 
+Constant::Constant(const element::Type& type, const Shape& shape, const void* data, const size_t alignment)
+    : m_element_type(type),
+      m_shape(shape),
+      m_byte_strides{calc_byte_strides(m_shape, m_element_type)} {
+
+    if (m_element_type == ov::element::string) {
+        allocate_buffer(false);
+        const auto num_elements = shape_size(m_shape);
+        const auto src_strings = static_cast<const std::string*>(data);
+        const auto dst_strings = static_cast<std::string*>(get_data_ptr_nc());
+        std::uninitialized_copy_n(src_strings, num_elements, dst_strings);
+    } else {
+        const size_t num_elements = shape_size(m_shape);
+        const size_t byte_size = ov::util::get_memory_size(m_element_type, num_elements);
+
+        if (((uint64_t)data) & (alignment - 1)) {
+            allocate_buffer(false);
+            std::memcpy(get_data_ptr_nc(), data, byte_size);
+        } else {
+            // Existing buffer meets alignment requirements. Reuse it instead of allocating.
+            m_data = std::make_shared<AlignedBuffer>(const_cast<char*>(reinterpret_cast<const char*>(data)), byte_size);
+        }
+    }
+
+    constructor_validate_and_infer_types();
+}
+
 Constant::Constant(const element::Type& type, const Shape& shape, const std::shared_ptr<ov::AlignedBuffer>& data)
     : m_element_type(type),
       m_shape(shape),

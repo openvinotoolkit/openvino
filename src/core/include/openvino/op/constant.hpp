@@ -102,6 +102,15 @@ public:
     /// \param data A void* to constant data.
     Constant(const element::Type& type, const Shape& shape, const void* data);
 
+    /// \brief Constructs a tensor constant with the supplied data
+    ///
+    /// \param type The element type of the tensor constant.
+    /// \param shape The shape of the tensor constant.
+    /// \param data A void* to constant data.
+    /// \param alignment alignment in bytes. Constant node may reuse existing data, instead of allocation, if data meets alignment requirement.
+    Constant(const element::Type& type, const Shape& shape, const void* data, const size_t alignment);
+
+
     /// \brief Construct a tensor constant from shared memory.
     ///
     /// The Constant can take ownership of shared memory if provided shared object is not null and manges memory
