@@ -27,11 +27,11 @@ target_link_libraries(${TARGET_NAME}
         openvino::util
         openvino::core::dev
         openvino::runtime::dev
-        npu_vm_runtime_api
+        openvino::npu_vm_runtime_api
         openvino_npu_al  # TODO: remove once "intel_npu/npu_mlir_runtime.hpp" dependency is dropped
         openvino_npu_zero_utils
-        openvino_npu_compiler_adapter
         openvino_npu_common
+        openvino_npu_compiler_adapter #可能多余？？？
 )
 
 #
