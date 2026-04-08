@@ -167,7 +167,7 @@ void ZeroInitStructsHolder::initNpuDriver() {
 }
 
 ZeroInitStructsHolder::ZeroInitStructsHolder()
-    : _zero_api(ZeroApi::getInstance()),
+    : _zero_api(ZeroApi::get_instance()),
       _log("NPUZeroInitStructsHolder", Logger::global().level()) {
     _log.debug("ZeroInitStructsHolder - initialize NPU Driver");
     initNpuDriver();
@@ -427,21 +427,27 @@ const std::shared_ptr<ZeroInitStructsHolder> ZeroInitStructsHolder::getInstance(
 
 ze_device_graph_properties_t ZeroInitStructsHolder::getCompilerProperties() {
     std::lock_guard<std::mutex> lock(_mutex);
-    if (!_compiler_properties.has_value()) {
-        // Obtain compiler-in-driver properties
-        _compiler_properties.emplace(ze_device_graph_properties_t{});
-        _compiler_properties->stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
-        auto result =
-            _graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(_device_handle, &_compiler_properties.value());
-        THROW_ON_FAIL_FOR_LEVELZERO("pfnDeviceGetGraphProperties", result);
+    initCompilerPropertiesLocked();
+    return _compiler_properties.value();
+}
+
+void ZeroInitStructsHolder::initCompilerPropertiesLocked() {
+    if (_compiler_properties.has_value()) {
+        return;
     }
-    return _compiler_properties.value_or(ze_device_graph_properties_t{});
+
+    // Keep optional disengaged unless driver query succeeds.
+    ze_device_graph_properties_t compiler_properties = {};
+    compiler_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
+    auto result = _graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(_device_handle, &compiler_properties);
+    THROW_ON_FAIL_FOR_LEVELZERO("pfnDeviceGetGraphProperties", result);
+
+    _compiler_properties = compiler_properties;
 }
 
 uint32_t ZeroInitStructsHolder::getCompilerVersion() {
-    if (!_compiler_properties.has_value()) {
-        (void)getCompilerProperties();
-    }
+    std::lock_guard<std::mutex> lock(_mutex);
+    initCompilerPropertiesLocked();
     return ZE_MAKE_VERSION(_compiler_properties->compilerVersion.major, _compiler_properties->compilerVersion.minor);
 }
 

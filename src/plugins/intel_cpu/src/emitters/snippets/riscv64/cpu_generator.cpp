@@ -94,6 +94,7 @@
 #include "snippets/op/vector_buffer.hpp"
 #include "snippets/target_machine.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
+#include "utils.hpp"
 #include "utils/general_utils.h"
 #include "xbyak_riscv/xbyak_riscv.hpp"
 
@@ -382,8 +383,7 @@ snippets::CompiledSnippetPtr CPUTargetMachine::get_snippet() {
 size_t CPUTargetMachine::get_lanes() const {
     switch (isa) {
     case ov::intel_cpu::riscv64::gv:
-        // RISC-V Vector Extension lanes depend on VLEN, assume 128-bit VLEN with 32-bit elements
-        return 4;  // 128-bit / 32-bit = 4 lanes for float32
+        return ov::intel_cpu::riscv64::utils::get_snippet_lanes();
     default:
         OPENVINO_THROW("unknown isa ", isa);
     }
