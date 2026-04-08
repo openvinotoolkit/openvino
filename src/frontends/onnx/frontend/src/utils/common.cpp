@@ -199,6 +199,13 @@ bool is_failsafe_node(const std::shared_ptr<ov::Node>& node) {
     return rt_info.find(FAILSAFE_NODE) != rt_info.end();
 }
 
+bool is_constant_empty_node(const std::shared_ptr<ov::Node>& node) {
+    if (auto constant_node = ov::as_type_ptr<v0::Constant>(node)) {
+        return shape_size(constant_node->get_shape()) == 0;
+    }
+    return false;
+}
+
 const std::string OPTIMIZED_OUT_NODE = "OPTIMIZED_OUT_NODE";
 
 void mark_as_optimized_out(ov::Output<ov::Node>& node_output) {

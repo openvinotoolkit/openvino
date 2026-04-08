@@ -18,7 +18,7 @@ ov::OutputVector expand(const ov::frontend::onnx::Node& node) {
     const ov::Output<ov::Node> data{node.get_ov_inputs().at(0)};
     const ov::Output<ov::Node> shape{node.get_ov_inputs().at(1)};
 
-    if (common::is_failsafe_node(shape.get_node_shared_ptr())) {
+    if (common::is_failsafe_node(shape.get_node_shared_ptr()) || common::is_constant_empty_node(shape.get_node_shared_ptr())) {
         // in case the "shape" input is connected to a failsafe node created in place of an invalid initializer
         // the target shape should be ignored and this Expand operation should not modify its input tensor
         // the Broadcast created below should be eliminated later on by an appropriate optimization pass
