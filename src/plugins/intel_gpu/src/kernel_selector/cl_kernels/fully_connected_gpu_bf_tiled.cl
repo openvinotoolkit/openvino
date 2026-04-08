@@ -941,6 +941,17 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
     ACCUMULATOR_VEC_TYPE    acc[TILE_B] = { };
 
+    #if DQ_DECOMPRESSION_SCALE_POST_OP
+    // Float accumulator for DQ dequantization path to avoid fp16 overflow
+    // during partial sum accumulation (convert_half(int_acc) * scale * ds can exceed 65504)
+    float dq_acc[TILE_B][TILE_OFM];
+    unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+        unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
+            dq_acc[bi][fi] = 0.0f;
+        }
+    }
+    #endif
+
     // Dynamic Quantize
     MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE)      tiled_input_0[HALF_TILE_B] = { };   // Load 4 linear inputs for packing
     PACKED_DQ_TYPE                                  packed_in_0[HALF_TILE_B] = { };     // Packing char4 inputs to 1 integer
@@ -1251,9 +1262,9 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
                         #if COMPRESSED_WEIGHTS_INT8
                             ACCUM_DQ_TYPE modified_calc_buff = ((int *)(&acc_tmp[fi]))[bi] - ((float)(wei_zp[fi]) * activation_sum[bi]);
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(convert_float(modified_calc_buff) * (float)ds * (float)de_quantize_scale[bi]);
+                            dq_acc[bi][fi] += convert_float(modified_calc_buff) * convert_float(ds) * convert_float(de_quantize_scale[bi]);
                         #else
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[fi]))[bi]) * de_quantize_scale[bi] * ds;
+                            dq_acc[bi][fi] += convert_float(((int *)(&acc_tmp[fi]))[bi]) * convert_float(de_quantize_scale[bi]) * convert_float(ds);
                         #endif
                         acc_tmp[fi][bi] = 0;
                     }
@@ -1282,9 +1293,9 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
                         #if COMPRESSED_WEIGHTS_INT8
                             ACCUM_DQ_TYPE modified_calc_buff = ((float)((int *)(&acc_tmp[fi]))[bi]) - ((float)(wei_zp[fi]) * activation_sum[bi]);
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(convert_float(modified_calc_buff) * (float)ds * (float)de_quantize_scale[bi]);
+                            dq_acc[bi][fi] += convert_float(modified_calc_buff) * convert_float(ds) * convert_float(de_quantize_scale[bi]);
                         #else
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[fi]))[bi]) * de_quantize_scale[bi] * ds;
+                            dq_acc[bi][fi] += convert_float(((int *)(&acc_tmp[fi]))[bi]) * convert_float(de_quantize_scale[bi]) * convert_float(ds);
                         #endif
                         acc_tmp[fi][bi] = 0;
                     }
@@ -1299,12 +1310,21 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                 ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
                 #if COMPRESSED_WEIGHTS_INT8
                     float modified_calc_buff = ((float)((int *)(&acc_tmp[fi]))[bi]) - ((float)(wei_zp[fi]) * activation_sum[bi]);
-                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] = (convert_half)(modified_calc_buff) * ds * de_quantize_scale[bi];
+                    dq_acc[bi][fi] = modified_calc_buff * convert_float(ds) * convert_float(de_quantize_scale[bi]);
                 #else
-                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] = convert_half(((int *)(&acc_tmp[fi]))[bi]) * de_quantize_scale[bi] * ds;
+                    dq_acc[bi][fi] = convert_float(((int *)(&acc_tmp[fi]))[bi]) * convert_float(de_quantize_scale[bi]) * convert_float(ds);
                 #endif
             }
         }
+    #endif
+
+    #if DQ_DECOMPRESSION_SCALE_POST_OP
+    // Convert float DQ accumulator back to half accumulator
+    unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+        unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
+            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] = convert_half(dq_acc[bi][fi]);
+        }
+    }
     #endif
 
     // =====================================================================================================================================
@@ -1332,6 +1352,11 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
         #endif
 #if OUTER_OFM > 1
         acc[bi] = 0;
+        #if DQ_DECOMPRESSION_SCALE_POST_OP
+        unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
+            dq_acc[bi][fi] = 0.0f;
+        }
+        #endif
 #endif
     }
 
