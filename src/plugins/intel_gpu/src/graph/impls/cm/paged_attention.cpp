@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -62,6 +63,19 @@ bool has_turboquant_kcache_layout(const kernel_impl_params& params) {
     return shape[3] == expected_last_dim;
 }
 
+bool use_tq_prefill_debug_fallback_path() {
+    const char* env = std::getenv("OV_GPU_TQ_PREFILL_EXTRA_PATH");
+    if (env == nullptr || env[0] == '\0')
+        return false;
+
+    std::string v(env);
+    std::transform(v.begin(), v.end(), v.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+
+    return v == "1" || v == "on" || v == "true" || v == "yes";
+}
+
 void reserve_turboquant_index_gap(std::vector<BufferDescriptor>& internal_buffers) {
     // Reserve 2..5 indices used by XAttention buffers so TurboQuant buffers keep fixed indices.
     internal_buffers.emplace_back(16, ov::element::f32);      // 2: placeholder
@@ -88,9 +102,11 @@ public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::cm::PagedAttentionCmImpl)
 
     Stage::Ptr kv_cache_update;
+    Stage::Ptr kv_cache_update_no_tq_tmp;
     Stage::Ptr pa_single_token;
     Stage::Ptr pa_single_token_finalization = make_stage<PagedAttentionGeneratorSingleTokenFinalization>();
     Stage::Ptr pa_multi_token_1;
+    Stage::Ptr pa_multi_token_1_no_tq_tmp;
     Stage::Ptr pa_multi_token_128 = make_stage<PagedAttentionGeneratorMultiToken>(128);
     Stage::Ptr pa_multi_token_256 = make_stage<PagedAttentionGeneratorMultiToken>(256);
     Stage::Ptr xattn_estimate_gemmqk = make_stage<XAttentionEstimateGEMMQK>(128);
@@ -120,14 +136,21 @@ public:
         }
 
         kv_cache_update = make_stage<PagedAttentionGeneratorKVCacheUpdate>(m_use_turboquant);
+        kv_cache_update_no_tq_tmp = make_stage<PagedAttentionGeneratorKVCacheUpdate>(false, true);
         pa_single_token = make_stage<PagedAttentionGeneratorSingleToken>(m_use_turboquant);
         pa_multi_token_1 = make_stage<PagedAttentionGeneratorMultiToken>(1, m_use_turboquant);
+        pa_multi_token_1_no_tq_tmp = make_stage<PagedAttentionGeneratorMultiToken>(1, false, true);
 
         GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::PagedAttentionCmImpl()" << std::endl;
         add_stage(kv_cache_update, params);
         add_stage(pa_single_token, params);
         add_stage(pa_single_token_finalization, params);
         add_stage(pa_multi_token_1, params);
+        if (m_use_turboquant && use_tq_prefill_debug_fallback_path()) {
+            add_stage(kv_cache_update_no_tq_tmp, params);
+            add_stage(pa_multi_token_1_no_tq_tmp, params);
+            GPU_DEBUG_TRACE_DETAIL << "[CM PA][TQ] OV_GPU_TQ_PREFILL_EXTRA_PATH enabled: fallback non-TQ prefill stages are added." << std::endl;
+        }
         if (desc->has_xattention) {
             add_stage(pa_multi_token_128, params);
             if (params.get_device_info().arch >= gpu_arch::xe2) {
@@ -359,9 +382,22 @@ public:
         if (rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) {
             if (m_use_turboquant || desc->has_xattention == false || bypass_xattn(params)) {
                 GPU_DEBUG_TRACE_DETAIL << "Execute multi-token stage w/o XAttention estimation stages." << std::endl;
-                GPU_DEBUG_TRACE_DETAIL << "[CM PA] execute_stage begin: pa_multi_token_1" << std::endl;
-                res_event = {execute_stage(res_event, instance, *pa_multi_token_1)};
-                GPU_DEBUG_TRACE_DETAIL << "[CM PA] execute_stage end: pa_multi_token_1" << std::endl;
+                const bool use_extra_path = m_use_turboquant && use_tq_prefill_debug_fallback_path();
+                if (use_extra_path) {
+                    GPU_DEBUG_TRACE_DETAIL << "[CM PA][TQ] OV_GPU_TQ_PREFILL_EXTRA_PATH enabled: bypass pa_multi_token_turboquant, use temporary KV fallback path." << std::endl;
+                    GPU_DEBUG_TRACE_DETAIL << "[CM PA] execute_stage begin: kv_cache_update_no_tq_tmp" << std::endl;
+                    res_event = {execute_stage(res_event, instance, *kv_cache_update_no_tq_tmp)};
+                    GPU_DEBUG_TRACE_DETAIL << "[CM PA] execute_stage end: kv_cache_update_no_tq_tmp" << std::endl;
+                    stream.finish();
+
+                    GPU_DEBUG_TRACE_DETAIL << "[CM PA] execute_stage begin: pa_multi_token_1_no_tq_tmp" << std::endl;
+                    res_event = {execute_stage(res_event, instance, *pa_multi_token_1_no_tq_tmp)};
+                    GPU_DEBUG_TRACE_DETAIL << "[CM PA] execute_stage end: pa_multi_token_1_no_tq_tmp" << std::endl;
+                } else {
+                    GPU_DEBUG_TRACE_DETAIL << "[CM PA] execute_stage begin: pa_multi_token_1" << std::endl;
+                    res_event = {execute_stage(res_event, instance, *pa_multi_token_1)};
+                    GPU_DEBUG_TRACE_DETAIL << "[CM PA] execute_stage end: pa_multi_token_1" << std::endl;
+                }
                 stream.finish();
             } else {
                 GPU_DEBUG_TRACE_DETAIL << "Execute multi-token stage w/ XAttention estimation stages." << std::endl;
@@ -485,6 +521,24 @@ public:
             if (m_use_turboquant) {
                 append_turboquant_internal_buffers(internal_buffers, params);
             }
+
+            if (m_use_turboquant && use_tq_prefill_debug_fallback_path()) {
+                OPENVINO_ASSERT(rt_params->max_context_len > 0, "Unexpected max_context_len for temporary KV buffers");
+                const size_t block_size = PA_KV_CACHE_BLOCK_SIZE_LEGACY;
+                const size_t num_blocks = ceil_div(rt_params->max_context_len, block_size);
+
+                const size_t tmp_key_head_size = desc->k_head_size + 4;
+                const size_t tmp_value_head_size = desc->v_head_size + 4;
+                const size_t tmp_key_count = num_blocks * desc->kv_heads_num * block_size * tmp_key_head_size;
+                const size_t tmp_value_count = num_blocks * desc->kv_heads_num * block_size * tmp_value_head_size;
+
+                internal_buffers.emplace_back(tmp_key_count, ov::element::u8);    // TEMP_KEY_CACHE
+                internal_buffers.emplace_back(tmp_value_count, ov::element::u8);  // TEMP_VALUE_CACHE
+
+                GPU_DEBUG_TRACE_DETAIL << "[CM PA][TQ] temporary KV buffers: key_count=" << tmp_key_count
+                                       << " value_count=" << tmp_value_count
+                                       << " num_blocks=" << num_blocks << std::endl;
+            }
         }
 
         return internal_buffers;
@@ -503,8 +557,10 @@ public:
         copy->_is_dynamic = _is_dynamic;
 
         copy->kv_cache_update = copy->make_stage<PagedAttentionGeneratorKVCacheUpdate>(copy->m_use_turboquant);
+        copy->kv_cache_update_no_tq_tmp = copy->make_stage<PagedAttentionGeneratorKVCacheUpdate>(false, true);
         copy->pa_single_token = copy->make_stage<PagedAttentionGeneratorSingleToken>(copy->m_use_turboquant);
         copy->pa_multi_token_1 = copy->make_stage<PagedAttentionGeneratorMultiToken>(1, copy->m_use_turboquant);
+        copy->pa_multi_token_1_no_tq_tmp = copy->make_stage<PagedAttentionGeneratorMultiToken>(1, false, true);
 
         OPENVINO_ASSERT(copy->_stages.size() == _stages.size(),
                         "PagedAttentionCmImpl clone stage count mismatch: expected ",

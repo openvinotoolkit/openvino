@@ -130,10 +130,14 @@ enum PagedAttentionInternBuffIdx {
     TQ_Q_TRANSFORM = 7,        // 7: TurboQuant query rotation transform (q_t)
     TQ_CENTROIDS = 8,          // 8: TurboQuant centroids LUT
     TQ_BOUNDARIES = 9,         // 9: TurboQuant boundaries
+    TEMP_KEY_CACHE = 10,       // 10: temporary key cache for debug fallback path
+    TEMP_VALUE_CACHE = 11,     // 11: temporary value cache for debug fallback path
 #else
     TQ_Q_TRANSFORM = 6,  // 6: TurboQuant query rotation transform (q_t)
     TQ_CENTROIDS = 7,    // 7: TurboQuant centroids LUT
     TQ_BOUNDARIES = 8,   // 8: TurboQuant boundaries
+    TEMP_KEY_CACHE = 9,     // 9: temporary key cache for debug fallback path
+    TEMP_VALUE_CACHE = 10,  // 10: temporary value cache for debug fallback path
 #endif
 };
 
@@ -159,9 +163,10 @@ public:
 
 class PagedAttentionGeneratorKVCacheUpdate : public PagedAttentionGeneratorBase {
 public:
-    explicit PagedAttentionGeneratorKVCacheUpdate(bool turboquant = false)
+    explicit PagedAttentionGeneratorKVCacheUpdate(bool turboquant = false, bool use_internal_kv_cache = false)
                 : PagedAttentionGeneratorBase(turboquant ?  "compressed_kv_cache_update_tq" : "pa_kv_cache_update_ref"),
-          _turboquant(turboquant) {}
+          _turboquant(turboquant),
+          _use_internal_kv_cache(use_internal_kv_cache) {}
 
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
@@ -169,15 +174,17 @@ public:
 
 private:
     bool _turboquant = false;
+    bool _use_internal_kv_cache = false;
 };
 
 class PagedAttentionGeneratorMultiToken : public PagedAttentionGeneratorBase {
 public:
-    explicit PagedAttentionGeneratorMultiToken(size_t xattn_block_size = 1, bool turboquant = false)
+    explicit PagedAttentionGeneratorMultiToken(size_t xattn_block_size = 1, bool turboquant = false, bool use_internal_kv_cache = false)
         : PagedAttentionGeneratorBase(turboquant ? "pa_multi_token_turboquant" : "pa_multi_token",
                                      turboquant ? "" : "_cm_bs" + std::to_string(xattn_block_size)),
           _xattn_block_size(xattn_block_size),
-          _turboquant(turboquant) {}
+          _turboquant(turboquant),
+          _use_internal_kv_cache(use_internal_kv_cache) {}
 
     static size_t get_q_step(const kernel_impl_params& params) {
         const auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
@@ -199,6 +206,7 @@ public:
 private:
     size_t _xattn_block_size;
     bool _turboquant = false;
+    bool _use_internal_kv_cache = false;
 };
 
 class PagedAttentionGeneratorSingleToken : public PagedAttentionGeneratorBase {
