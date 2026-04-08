@@ -479,7 +479,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*proposal_params/.*)"),
             // Quantized models unsupported
             std::regex(R"(.*Quantized.*)"),
-            std::regex(R"(smoke_Snippets(?!_(Eltwise|ThreeInputsEltwise|PrecisionPropagation_Convertion|Convert.*)(/|_)).*)"),
+            std::regex(R"(smoke_Snippets(?!_(Eltwise|ThreeInputsEltwise|PrecisionPropagation_Convertion|Convert.*|Transpose[^/_]*|Reduce|Softmax(?=/)|AddSoftmax)(/|_)).*)"),
+            std::regex(R"(.*smoke_Snippets_TransposeMatMulBias/ExplicitTransposeMatMulBias.*)"),
             std::regex(R"(.*_enforceSnippets=1.*)"),
 #endif
 #if !defined(OPENVINO_ARCH_X86_64)
@@ -651,6 +652,11 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // In other cases there might be accuracy problems.
             patterns.emplace_back(std::regex(R"(.*smoke_EltwiseChain/EltwiseChainTest.CompareWithRefs.*InPRC3=i32_Op0=Div_Op1.*)"));
             patterns.emplace_back(std::regex(R"(.*smoke_CompareWithRefs_static.*eltwise_op_type=Div.*model_type=i32.*)"));
+        }
+        if (!ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv_zvfh)) {
+            // Snippets Convert on RISC-V requires Zvfh instructions.
+            patterns.emplace_back(std::regex(R"(.*smoke_Snippets_Convert.*_IT=\([^)]*f16[^)]*\).*)"));
+            patterns.emplace_back(std::regex(R"(.*smoke_Snippets_Convert.*_OT=\([^)]*f16[^)]*\).*)"));
         }
 #endif
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
