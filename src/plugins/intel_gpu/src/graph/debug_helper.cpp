@@ -801,7 +801,10 @@ void NetworkMarkerHelper::enqueue_start_marker(network& net) {
     auto name = "network_marker_start_p" + std::to_string(net.get_program()->get_id()) + "_n" + std::to_string(net.get_id());
     auto kptr = get_or_compile_marker(net, name);
 
+    auto iter = static_cast<size_t>(net.get_current_iteration_num()) + 1;
     kernel_arguments_desc args_desc;
+    args_desc.workGroups.global = {iter, 1, 1};
+    args_desc.workGroups.local = {iter, 1, 1};
     kernel_arguments_data args_data;
     net.get_stream().enqueue_kernel(*kptr, args_desc, args_data, {});
 }
@@ -810,7 +813,10 @@ void NetworkMarkerHelper::enqueue_finish_marker(network& net) {
     auto name = "network_marker_finish_p" + std::to_string(net.get_program()->get_id()) + "_n" + std::to_string(net.get_id());
     auto kptr = get_or_compile_marker(net, name);
 
+    auto iter = static_cast<size_t>(net.get_current_iteration_num()) + 1;
     kernel_arguments_desc args_desc;
+    args_desc.workGroups.global = {iter, 1, 1};
+    args_desc.workGroups.local = {iter, 1, 1};
     kernel_arguments_data args_data;
     net.get_stream().enqueue_kernel(*kptr, args_desc, args_data, {});
 }
