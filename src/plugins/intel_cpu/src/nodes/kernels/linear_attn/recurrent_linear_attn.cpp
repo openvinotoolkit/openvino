@@ -193,19 +193,11 @@ void recurrent_linear_attn_paged(const ov::intel_cpu::PlainTensor& query,
         const int32_t block_begin = block_indices_begins.at<int32_t>({seq});
         const int32_t block_end = block_indices_begins.at<int32_t>({seq + 1});
         const int32_t seq_blocks = std::max(block_end - block_begin, 0);
-        const int32_t seq_past_len = past_lens.at<int32_t>({seq});
         const int32_t seq_interval = cache_interval.at<int32_t>({seq});
 
+        const int32_t block_id = block_indices.at<int32_t>({static_cast<size_t>(block_begin)});
         for (size_t j = 0; j < k_head_dims; j++) {
-            init_state[j] = 0.0f;
-        }
-
-        if (seq_interval > 0 && seq_blocks > 0 && seq_past_len > 0) {
-            const int32_t read_slot = 0;
-            const int32_t block_id = block_indices.at<int32_t>({static_cast<size_t>(block_begin + read_slot)});
-            for (size_t j = 0; j < k_head_dims; j++) {
-                init_state[j] = recurrent_state_table.at<float>({static_cast<size_t>(block_id), i_h, j, i_v});
-            }
+            init_state[j] = recurrent_state_table.at<float>({static_cast<size_t>(block_id), i_h, j, i_v});
         }
 
         const size_t hk = i_h / group_size;
@@ -244,7 +236,7 @@ void recurrent_linear_attn_paged(const ov::intel_cpu::PlainTensor& query,
                 const int32_t processed_tokens = local_token_idx + 1;
                 const bool should_store = ((processed_tokens % seq_interval) == 0) || (token == token_end - 1);
                 if (should_store) {
-                    const int32_t slot = (processed_tokens + seq_interval - 1) / seq_interval;
+                    const int slot = (processed_tokens + seq_interval - 1) / seq_interval;
                     if (slot < seq_blocks) {
                         const int32_t block_id = block_indices.at<int32_t>({static_cast<size_t>(block_begin + slot)});
                         for (size_t j = 0; j < k_head_dims; j++) {
