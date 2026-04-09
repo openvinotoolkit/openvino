@@ -161,12 +161,10 @@ JitConstants PagedAttentionGeneratorKVCacheUpdate::get_jit_constants(const kerne
     jit.make("KV_HEADS_NUM", desc->kv_heads_num);
     jit.make("K_HEAD_SIZE", desc->k_head_size);
     jit.make("V_HEAD_SIZE", desc->v_head_size);
-    const size_t block_size = desc->has_xattention ? PA_KV_CACHE_BLOCK_SIZE_XATTN : PA_KV_CACHE_BLOCK_SIZE;
-    jit.make("BLOCK_SIZE", block_size);
     if (desc->has_xattention) {
-        jit.make("PAGED_ATTENTION_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
+        jit.make("BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
     } else {
-        jit.make("PAGED_ATTENTION_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_LEGACY);
+        jit.make("BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_LEGACY);
     }
 
     if (get_kv_compressed(params)) {
@@ -176,7 +174,7 @@ JitConstants PagedAttentionGeneratorKVCacheUpdate::get_jit_constants(const kerne
             jit.make("SUB_BLOCK_SIZE", KV_SUB_BLOCK_SIZE);
             jit.make("ADJUSTED_BLOCK_SIZE", desc->has_xattention ?
                                                PA_KV_CACHE_BLOCK_SIZE_XATTN + PA_KV_CACHE_BLOCK_SIZE_XATTN / KV_SUB_BLOCK_SIZE * 4 :
-                                               PA_KV_CACHE_BLOCK_SIZE + PA_KV_CACHE_BLOCK_SIZE / KV_SUB_BLOCK_SIZE * 4);
+                                               PA_KV_CACHE_BLOCK_SIZE_LEGACY + PA_KV_CACHE_BLOCK_SIZE_LEGACY / KV_SUB_BLOCK_SIZE * 4);
             jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
         } else {
             jit.make("KV_CACHE_COMPRESSION", 1);
