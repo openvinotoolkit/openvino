@@ -132,6 +132,48 @@ updates:
       - "rkazants"
     versioning-strategy: increase-if-necessary
 
+  # JavaScript API (Node.js bindings)
+  - package-ecosystem: npm
+    directory: "/src/bindings/js/node/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Poland"
+    open-pull-requests-limit: 10
+    assignees:
+      - "mlukasze"
+      - "Retribution98"
+      - "almilosz"
+    versioning-strategy: increase-if-necessary
+    groups:
+      dev-updates:
+        dependency-type: development
+        applies-to: security-updates
+      production-dependencies:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+
+  # JavaScript samples (Node.js)
+  - package-ecosystem: npm
+    directory: "/samples/js/node/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Poland"
+    open-pull-requests-limit: 10
+    assignees:
+      - "mlukasze"
+      - "Retribution98"
+      - "almilosz"
+    versioning-strategy: increase-if-necessary
+    groups:
+      dev-updates:
+        dependency-type: development
+        applies-to: security-updates
+      production-dependencies:
+        dependency-type: production
   #
   # Github actions - CI
   #
