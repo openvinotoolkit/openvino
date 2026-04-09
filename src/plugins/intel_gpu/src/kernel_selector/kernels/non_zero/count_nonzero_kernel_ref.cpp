@@ -41,10 +41,6 @@ CountNonzeroKernelRef::DispatchData CountNonzeroKernelRef::SetDefault(const coun
     dispatchData.dataSize = input.LogicalSize();
     size_t max_dim_size = (dispatchData.dataSize > params.engineInfo.maxWorkGroupSize) ?
                                     params.engineInfo.maxWorkGroupSize : dispatchData.dataSize;
-    // FixMe: This limit is created by the presence of a defined API between count_nonzero
-    // and gather_nonzero. Ideally, both need to be refactored into a single multikernel
-    // implementation
-    max_dim_size = std::min(max_dim_size, (size_t)1024);
     dispatchData.lws = dispatchData.gws = { max_dim_size, 1, 1};
 
     return dispatchData;

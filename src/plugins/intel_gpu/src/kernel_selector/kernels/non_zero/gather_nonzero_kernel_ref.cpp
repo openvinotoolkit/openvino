@@ -42,7 +42,8 @@ JitConstants GatherNonzeroKernelRef::GetJitConstants(const gather_nonzero_params
     const auto& input = params.inputs[0];
     jit.AddConstant(MakeJitConstant("OV_INPUT_RANK", params.ov_input_rank));
 
-    auto max_local_mem_size = params.engineInfo.maxLocalMemSize / (params.outputs[0].ElementSize());
+    // Reserve 4KiB SLM for work_group_scan_exclusive_add
+    auto max_local_mem_size = (params.engineInfo.maxLocalMemSize - 4096) / params.outputs[0].ElementSize();
     jit.AddConstant(MakeJitConstant("MAX_LOCAL_MEM_SIZE", max_local_mem_size));
 
     if (input.is_dynamic()) {
@@ -63,11 +64,7 @@ CommonDispatchData GatherNonzeroKernelRef::SetDefault(const gather_nonzero_param
     const auto& input = params.inputs[0];
 
     // Set 1 work group to avoid synchornization issue for summation of nonzero counting.
-    size_t max_dim_size = (input.LogicalSize() > params.engineInfo.maxWorkGroupSize) ? params.engineInfo.maxWorkGroupSize : input.LogicalSize();
-    // FixMe: This limit is created by the presence of a defined API between count_nonzero
-    // and gather_nonzero. Ideally, both need to be refactored into a single multikernel
-    // implementation
-    max_dim_size = std::min(max_dim_size, (size_t)1024);
+    size_t max_dim_size = std::min(input.LogicalSize(), params.engineInfo.maxWorkGroupSize);
     dispatchData.lws = dispatchData.gws = {max_dim_size, 1, 1};
 
     return dispatchData;

@@ -34,8 +34,9 @@ KERNEL (count_nonzero_ref)(
     }
 
     sub_group_barrier(CLK_LOCAL_MEM_FENCE);
-    uint workitem_offset = work_group_scan_inclusive_add(workitem_nonzero_count);
+    uint subgroup_nonzero_count = sub_group_reduce_add(workitem_nonzero_count);
 
     barrier(CLK_GLOBAL_MEM_FENCE);
-    output[local_idx == num_work_items - 1 ? 0 : local_idx + 1] = workitem_offset;
+    if (get_sub_group_local_id() == 0)
+        atomic_add(&(output[0]), subgroup_nonzero_count);
 }
