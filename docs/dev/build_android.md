@@ -54,6 +54,9 @@ _For Windows and Mac operating systems, the downloading and unpacking steps are 
 
 ### Build and install OneTBB™ (Not for RISC-V 64 architecture)
 To improve the parallelism performance of the OpenVINO™ library using OneTBB, it is required to separately build OneTBB for a specific version of the Android NDK:
+Android OpenVINO build with `THREADING=TBB` requires this separate OneTBB build.
+OpenVINO CMake configure must be called with `-DTBB_DIR=$OPV_HOME_DIR/one-tbb-install/lib/cmake/TBB`.
+If `TBB_DIR` is not provided, Android configure fails by design.
   ```sh
   # Clone OneTBB™ repository 
   git clone --recursive https://github.com/oneapi-src/oneTBB $OPV_HOME_DIR/one-tbb
