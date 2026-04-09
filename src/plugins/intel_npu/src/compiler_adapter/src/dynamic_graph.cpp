@@ -14,6 +14,7 @@
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
 namespace intel_npu {
@@ -48,7 +49,7 @@ public:
 
     void destroy() {
         if (_engine != nullptr) {
-            npuMLIRRuntimeDestroy(_engine);
+            npuVMRuntimeDestroy(_engine);
             _engine = nullptr;
         }
     }
@@ -57,17 +58,17 @@ public:
                             std::vector<DynamicGraph::MemRefType>& outputDescriptors) override;
 
 public:
-    npu_mlir_runtime_handle_t _engine = nullptr;
-    npu_mlir_runtime_properties_t _engineProperties;
+    npu_vm_runtime_handle_t _engine = nullptr;
+    npu_vm_runtime_properties_t _engineProperties;
     DynamicGraph::GraphArguments _binding;
-    bool _initializedMLIR = false;
+    bool _initialized = false;
     Logger _logger;
 };
 
 void DynamicGraphImpl::initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata) {
-    if (!_initializedMLIR) {
+    if (!_initialized) {
         initializeDynamicGraphExecution(blob, metadata);
-        _initializedMLIR = true;
+        _initialized = true;
     }
 
     _binding._inputs.resize(metadata.inputs.size());
@@ -112,12 +113,12 @@ void DynamicGraphImpl::initialize(std::optional<ov::Tensor>& blob, NetworkMetada
 }
 
 void DynamicGraphImpl::createExecutionEngine(std::optional<ov::Tensor>& blob) {
-    _npu_mlir_runtime_blob_desc_t blobDesc;
+    npu_vm_runtime_blob_desc_t blobDesc;
     blobDesc.pInput = reinterpret_cast<const uint8_t*>(blob.value().data());
     blobDesc.inputSize = blob.value().get_byte_size();
 
-    if (npuMLIRRuntimeCreate(&blobDesc, &_engine, &_engineProperties) != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
-        OPENVINO_THROW("Failed to create MLIR runtime engine");
+    if (npuVMRuntimeCreate(&blobDesc, &_engine, &_engineProperties) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+        OPENVINO_THROW("Failed to create VM runtime engine");
     }
 }
 
@@ -220,8 +221,8 @@ void DynamicGraphImpl::prepareMetadata(NetworkMetadata& metadata) {
         ze_graph_argument_metadata_t meta;
         std::vector<int64_t> upperBound;
         upperBound.reserve(ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE);
-        if (npuMLIRRuntimeGetMetadata(_engine, i, &arg, &meta, upperBound.data()) != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
-            OPENVINO_THROW("Failed to get MLIR runtime metadata");
+        if (npuVMRuntimeGetMetadata(_engine, i, &arg, &meta, upperBound.data()) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to get VM runtime metadata");
         }
         IODescriptor ioDesc = getIODescriptor(arg, meta);
         // TODO: Once runtime returns right value, can remove change on index and layout
@@ -309,7 +310,7 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
         args._impl ? std::static_pointer_cast<DynamicGraph::GraphArgumentsImpl>(args._impl)
                    : std::make_shared<DynamicGraph::GraphArgumentsImpl>();
 
-    npu_mlir_runtime_execute_params_t* params = &argsImpl->_executeParams;
+    npu_vm_runtime_execute_params_t* params = &argsImpl->_executeParams;
 
     for (auto& in : args._inputs) {
         std::shared_ptr<DynamicGraph::MemRefTypeImpl> inImpl =
@@ -349,8 +350,8 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
     params->inferenceFence = fence;
     params->event = event;
 
-    if (npuMLIRRuntimeExecute(_engine, params) != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
-        OPENVINO_THROW("Failed to execute MLIR runtime engine");
+    if (npuVMRuntimeExecute(_engine, params) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+        OPENVINO_THROW("Failed to execute VM runtime engine");
     }
 
     if (args._impl == nullptr) {
@@ -360,7 +361,7 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
 
 void DynamicGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescriptors,
                                           std::vector<MemRefType>& outputDescriptors) {
-    std::vector<npu_mlir_runtime_mem_ref_handle_t> inputs;
+    std::vector<npu_vm_runtime_mem_ref_handle_t> inputs;
     for (auto& in : inputDescriptors) {
         std::shared_ptr<DynamicGraph::MemRefTypeImpl> inImpl =
             std::static_pointer_cast<DynamicGraph::MemRefTypeImpl>(in._impl);
@@ -371,7 +372,7 @@ void DynamicGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescript
         inImpl->UpdateMemRefHandleStatus(in);
         inputs.push_back(inImpl->_memRef);
     }
-    std::vector<npu_mlir_runtime_mem_ref_handle_t> outputs;
+    std::vector<npu_vm_runtime_mem_ref_handle_t> outputs;
     for (auto& out : outputDescriptors) {
         std::shared_ptr<DynamicGraph::MemRefTypeImpl> outImpl =
             std::static_pointer_cast<DynamicGraph::MemRefTypeImpl>(out._impl);
@@ -383,14 +384,14 @@ void DynamicGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescript
         outputs.push_back(outImpl->_memRef);
     }
 
-    npu_mlir_runtime_predict_output_shape_params_t params;
+    npu_vm_runtime_predict_output_shape_params_t params;
     params.pInputs = inputs.data();
     params.numOfInputs = static_cast<uint32_t>(inputs.size());
     params.pOutputs = outputs.data();
     params.numOfOutputs = static_cast<uint32_t>(outputs.size());
 
-    if (npuMLIRRuntimePredictOutputShape(_engine, &params) != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
-        OPENVINO_THROW("Failed to execute MLIR runtime engine");
+    if (npuVMRuntimePredictOutputShape(_engine, &params) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+        OPENVINO_THROW("Failed to execute VM runtime engine");
     } else {
         for (auto& out : outputDescriptors) {
             std::shared_ptr<DynamicGraph::MemRefTypeImpl> outImpl =
@@ -419,7 +420,7 @@ DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroIni
 
     _impl = std::make_unique<DynamicGraphImpl>();
     // TODO: metadata needs to be parsed even when CREATE_EXECUTOR is 0 or DEFER_WEIGHTS_LOAD is YES, keep here to
-    // support pure compilation without mlir runtime initialize MLIR execution engine, metadata, input&output
+    // support pure compilation without vm runtime initialize VM execution engine, metadata, input&output
     // descriptors
     _impl->initialize(_blob, _metadata);
 
@@ -502,14 +503,23 @@ void DynamicGraph::set_workload_type(const ov::WorkloadType workloadType) {
 
     std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
     auto zeWorkloadType = zeroUtils::toZeQueueWorkloadType(workloadType);
-    if (_commandQueueDesc.workload == zeWorkloadType) {
+    if (_commandQueueDesc.workload() == zeWorkloadType) {
         return;
     }
-    _commandQueueDesc.workload = zeWorkloadType;
+    _commandQueueDesc.set_workload(zeWorkloadType);
+}
 
-    const ZeroCmdQueueKey key{_zeroInitStruct->getContext(), _zeroInitStruct->getDevice(), _commandQueueDesc};
-    const auto queueKeyHash = ZeroCmdQueueKeyHash{}(key);
-    _commandQueueDesc.key = static_cast<uint64_t>(queueKeyHash);
+void DynamicGraph::set_model_priority(const ov::hint::Priority modelPriority) {
+    if (_zeroInitStruct == nullptr) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
+    auto zeModelPriority = zeroUtils::toZeQueuePriority(modelPriority);
+    if (_commandQueueDesc.priority() == zeModelPriority) {
+        return;
+    }
+    _commandQueueDesc.set_priority(zeModelPriority);
 }
 
 void DynamicGraph::set_argument_value(uint32_t argi, const void* argv) const {
@@ -542,7 +552,7 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
 
     if (!_impl) {
         _impl = std::make_unique<DynamicGraphImpl>();
-        // initialize MLIR execution engine, metadata, input&output descriptors
+        // initialize VM execution engine, metadata, input&output descriptors
         _impl->initialize(_blob, _metadata);
         _num_of_subgraphs = _impl->getNumSubgraphs();
     }
@@ -576,10 +586,6 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
             commandQueueOptions,
             this,
             config.get<SHARED_COMMON_QUEUE>()};
-
-        const ZeroCmdQueueKey key{_zeroInitStruct->getContext(), _zeroInitStruct->getDevice(), _commandQueueDesc};
-        const auto queueKeyHash = ZeroCmdQueueKeyHash{}(key);
-        _commandQueueDesc.key = static_cast<uint64_t>(queueKeyHash);
     }
 
     _logger.debug("Graph initialize finish");
