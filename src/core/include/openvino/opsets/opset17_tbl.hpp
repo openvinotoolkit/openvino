@@ -14,3 +14,4 @@ _OPENVINO_OP_REG(Convert, ov::op::v0)
 _OPENVINO_OP_REG(ShapeOf, ov::op::v3)
 
 // New operations added in opset17
+_OPENVINO_OP_REG(GroupedMatMul, ov::op::v17)
