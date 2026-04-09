@@ -195,6 +195,14 @@ jobs:
       BUILD_JS_DIR: ${{ github.workspace }}/openvino/openvino_build_js
       COVERAGE_WRITE_STEP_SUMMARY: 'false'
     steps:
+      - name: Prepare iGPU test container
+        if: ${{ matrix.lane == 'gpu' }}
+        run: |
+          apt-get update && apt-get install -y pigz wget software-properties-common ca-certificates gpg-agent tzdata clinfo git
+        env:
+          DEBIAN_FRONTEND: noninteractive
+          TZ: "Europe/London"
+
       - name: Checkout sources
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
@@ -218,14 +226,6 @@ jobs:
         with:
           name: coverage_build_notes
           path: ${{ github.workspace }}/coverage_notes
-
-      - name: Prepare iGPU test container
-        if: ${{ matrix.lane == 'gpu' }}
-        run: |
-          apt-get update && apt-get install -y pigz wget software-properties-common ca-certificates gpg-agent tzdata clinfo
-        env:
-          DEBIAN_FRONTEND: noninteractive
-          TZ: "Europe/London"
 
       - name: Extract OpenVINO packages
         run: |
