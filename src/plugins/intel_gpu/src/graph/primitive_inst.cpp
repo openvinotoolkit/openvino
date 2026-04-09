@@ -55,6 +55,7 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/runtime/tensor_accessor.hpp"
+#include "debug_helper.hpp"
 
 #include "json_object.h"
 #include <string>
@@ -2285,6 +2286,7 @@ void primitive_inst::execute() {
         return;
     }
 
+    GPU_DEBUG_CODE(PRIMITIVE_INST_DEBUG(*this));
     set_out_event(_impl->execute(_impl_params->dep_events, *this));
 
     GPU_DEBUG_IF(!get_config().get_dump_profiling_data_path().empty()) {

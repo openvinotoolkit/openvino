@@ -52,13 +52,30 @@ private:
     const size_t m_iter;
 };
 
+class PrimitiveInstDebugHelper {
+public:
+    explicit PrimitiveInstDebugHelper(primitive_inst& inst);
+    ~PrimitiveInstDebugHelper();
+
+private:
+    void start_bench_timing();
+    void stop_bench_timing();
+    void dump_bench_kernel_verbose() const;
+
+    primitive_inst& m_inst;
+    std::chrono::high_resolution_clock::time_point m_bench_start_time{};
+    double m_bench_time_us = 0.0;
+};
+
 #define NETWORK_DEBUG(net) NetworkDebugHelper __network_debug_helper(net)
 #define NODE_DEBUG(inst) NodeDebugHelper __node_debug_helper(inst)
+#define PRIMITIVE_INST_DEBUG(inst) PrimitiveInstDebugHelper __primitive_inst_debug_helper(inst)
 
 #else
 
 #define NETWORK_DEBUG(...)
 #define NODE_DEBUG(...)
+#define PRIMITIVE_INST_DEBUG(...)
 
 #endif  // GPU_DEBUG_CONFIG
 

@@ -139,6 +139,7 @@ static constexpr Property<bool, PropertyMutability::RW> use_cm{"GPU_USE_CM"};
 static constexpr Property<bool, ov::PropertyMutability::RW> help{"HELP"};
 static constexpr Property<size_t, ov::PropertyMutability::RW> verbose{"VERBOSE"};
 static constexpr Property<bool, ov::PropertyMutability::RW> verbose_color{"VERBOSE_COLOR"};
+static constexpr Property<size_t, ov::PropertyMutability::RW> bench_verbose{"GPU_BENCH_VERBOSE"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> debug_config{"GPU_DEBUG_CONFIG"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> log_to_file{"GPU_LOG_TO_FILE"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_usm{"GPU_DISABLE_USM"};

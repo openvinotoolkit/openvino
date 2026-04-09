@@ -1,0 +1,8 @@
+# FC benchmark batch file - LLM common shapes (Llama-7B like)
+# Full-command format for --batch execution.
+# Each line is a self-contained problem definition.
+--fc --dt=f16 --shapes=1x4096:4096x4096
+--fc --dt=f16 --shapes=1x4096:11008x4096
+--fc --dt=f16 --shapes=1x11008:4096x11008
+--fc --dt=f16 --shapes=1x4096:32000x4096
+--fc --dt=f16 --shapes=4x4096:4096x4096
