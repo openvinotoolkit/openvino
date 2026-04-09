@@ -178,6 +178,10 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     auto token_type_ids_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
     auto token_type_ids_mem = engine.allocate_memory(token_type_ids_layout);
     set_values(token_type_ids_mem, {0});
+    auto qq_bias_layout = layout{ov::PartialShape{16}, data_types::u8, format::bfyx};
+    auto qq_bias_mem = engine.allocate_memory(qq_bias_layout);
+    auto qq_bias_begins_layout = layout{ov::PartialShape{2}, data_types::i32, format::bfyx};
+    auto qq_bias_begins_mem = engine.allocate_memory(qq_bias_begins_layout);
 
     std::vector<input_info> pa_inputs = {input_info("query"),
                                          input_info("key"),
@@ -205,6 +209,8 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
                                          input_info("adaptive_rkv_diversity_block_set_indices"),
                                          input_info("adaptive_rkv_diversity_block_set_indices_begins"),
                                          input_info("token_type_ids"),
+                                         input_info("qq_bias"),
+                                         input_info("qq_bias_begins")
     };
 
     auto pa_prim = paged_attention("paged_attention", pa_inputs);
@@ -246,6 +252,8 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     topology.add(input_layout("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_layout));
     topology.add(input_layout("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_layout));
     topology.add(input_layout("token_type_ids", token_type_ids_layout));
+    topology.add(input_layout("qq_bias", qq_bias_layout));
+    topology.add(input_layout("qq_bias_begins", qq_bias_begins_layout));
     topology.add(data("const_one", const_one_mem));
     topology.add(shape_of("shape_of", input_info("input_data"), data_types::i32));
     topology.add(gather("gather", input_info("shape_of"), input_info("const_one"), 0, 1, ov::Shape{}));
@@ -283,6 +291,8 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     network.set_input_data("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_mem);
     network.set_input_data("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_mem);
     network.set_input_data("token_type_ids", token_type_ids_mem);
+    network.set_input_data("qq_bias", qq_bias_mem);
+    network.set_input_data("qq_bias_begins", qq_bias_begins_mem);
 
     // Set original max_context_len value
     auto max_context_len_mem_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
@@ -327,6 +337,8 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     network.set_input_data("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_mem);
     network.set_input_data("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_mem);
     network.set_input_data("token_type_ids", token_type_ids_mem);
+    network.set_input_data("qq_bias", qq_bias_mem);
+    network.set_input_data("qq_bias_begins", qq_bias_begins_mem);
 
     // Update max_context_len value, which should be taken into account in shape recalculation for broadcast
     set_values(max_context_len_mem, {8});
