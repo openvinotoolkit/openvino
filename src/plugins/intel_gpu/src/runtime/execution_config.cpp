@@ -12,6 +12,7 @@
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/istft.hpp"
@@ -152,7 +153,9 @@ void ExecutionConfig::finalize(cldnn::engine& engine) {
 }
 
 void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTMap& rt_info, bool is_llm, bool is_paged_attention_model, bool has_lora) {
-    const auto& info = dynamic_cast<const RemoteContextImpl*>(context)->get_engine().get_device_info();
+    const auto* remote_context = dynamic_cast<const RemoteContextImpl*>(context);
+    OPENVINO_ASSERT(remote_context != nullptr, "Expected GPU RemoteContextImpl in ExecutionConfig::apply_rt_info");
+    const auto& info = remote_context->get_engine().get_device_info();
     if (is_paged_attention_model || !info.supports_immad) {
         apply_rt_info_property(ov::hint::kv_cache_precision, rt_info);
     }

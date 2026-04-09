@@ -1376,7 +1376,7 @@ void ModelBuilder::clear() {
     m_name_idx = 0;
 }
 
-ov::Output<ov::Node> ModelBuilder::setup_position_ids(ModelConfig& config, const ov::Output<ov::Node>& seq_source) {
+ov::Output<ov::Node> ModelBuilder::setup_position_ids(LLMConfig& config, const ov::Output<ov::Node>& seq_source) {
     OPENVINO_ASSERT(!(config.internal_position_ids && config.position_ids.get_node()),
                     "internal_position_ids and position_ids are mutually exclusive");
     ov::Output<ov::Node> position_ids_output;
@@ -1418,36 +1418,14 @@ std::shared_ptr<ov::Model> ModelBuilder::make_model(const ov::Output<ov::Node>& 
     return std::make_shared<ov::Model>(ov::OutputVector{res->output(0)}, m_sinks, model_name);
 }
 
-std::shared_ptr<ov::Model> ModelBuilder::build_model(const ModelConfig& config_in) {
-    OPENVINO_ASSERT(
-        static_cast<int>(config_in.use_conv_features) + static_cast<int>(config_in.use_cross_attention) + static_cast<int>(config_in.use_token_type_embedding) <= 1,
-        "At most one structural dispatch flag may be set");
-
-    // Fill in norm/ffn defaults from actual config sizes when the caller left them empty.
-    ModelConfig config = config_in;
-    if (!config.norm) {
-        config.norm = LayerNorm(config.hidden_size, config.precision);
-    }
-    if (!config.ffn) {
-        config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, config.precision, config.weight);
-    }
-
-    if (config.use_conv_features) {
-        return build_whisper_encoder(config);
-    }
-    if (config.use_cross_attention) {
-        return build_whisper_decoder(config);
-    }
-    if (config.use_token_type_embedding) {
-        return build_embedding_encoder(config);
-    }
-    return build_llm(config);
-}
-
-std::shared_ptr<ov::Model> ModelBuilder::build_llm(const ModelConfig& config_in) {
+std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     clear();
 
-    ModelConfig config = config_in;
+    LLMConfig config = config_in;
+    if (!config.norm)
+        config.norm = LayerNorm(config.hidden_size, config.precision);
+    if (!config.ffn)
+        config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, config.precision, config.weight);
     const auto prec = config.precision;
 
     auto attention_mask = parameter(ov::element::i64, ov::PartialShape{-1, -1}, "attention_mask");
@@ -1565,8 +1543,13 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const ModelConfig& config_in)
     return make_model(final_norm, "last_hidden_state", model_name);
 }
 
-std::shared_ptr<ov::Model> ModelBuilder::build_whisper_encoder(const ModelConfig& config) {
+std::shared_ptr<ov::Model> ModelBuilder::build_whisper_encoder(const WhisperConfig& config_in) {
     clear();
+    WhisperConfig config = config_in;
+    if (!config.norm)
+        config.norm = LayerNorm(config.hidden_size, config.precision);
+    if (!config.ffn)
+        config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, config.precision, config.weight);
     const auto prec = config.precision;
     const auto d = config.hidden_size;
 
@@ -1813,8 +1796,13 @@ static ov::Output<ov::Node> make_whisper_positional_embedding(const ov::Output<o
     return hidden_states->output(0);
 }
 
-std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const ModelConfig& config) {
+std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const WhisperConfig& config_in) {
     clear();
+    WhisperConfig config = config_in;
+    if (!config.norm)
+        config.norm = LayerNorm(config.hidden_size, config.precision);
+    if (!config.ffn)
+        config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, config.precision, config.weight);
     const auto prec = config.precision;
     const auto d = config.hidden_size;
     const auto heads = config.num_heads;
@@ -1822,7 +1810,9 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const ModelConfig
 
     auto input_ids = parameter(ov::element::i64, ov::PartialShape{-1, -1}, "input_ids");
     auto encoder_hidden_states =
-        parameter(ov::element::f32, ov::PartialShape{-1, -1, static_cast<int64_t>(d)}, "encoder_hidden_states");
+        parameter(ov::element::f32,
+                  ov::PartialShape{-1, static_cast<int64_t>(config.get_encoder_seq_len()), static_cast<int64_t>(d)},
+                  "encoder_hidden_states");
     auto beam_idx = parameter(ov::element::i32, ov::PartialShape{-1}, "beam_idx");
 
     ov::Output<ov::Node> enc_hs = encoder_hidden_states->output(0);
@@ -1948,8 +1938,13 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const ModelConfig
     return make_model(logits_out, "logits", "synthetic_whisper_decoder");
 }
 
-std::shared_ptr<ov::Model> ModelBuilder::build_embedding_encoder(const ModelConfig& config) {
+std::shared_ptr<ov::Model> ModelBuilder::build_embedding_encoder(const BertConfig& config_in) {
     clear();
+    BertConfig config = config_in;
+    if (!config.norm)
+        config.norm = LayerNorm(config.hidden_size, config.precision);
+    if (!config.ffn)
+        config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, config.precision, config.weight);
 
     const auto prec = config.precision;
     const auto hs = config.hidden_size;

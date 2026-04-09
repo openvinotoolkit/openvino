@@ -141,6 +141,7 @@ REGISTER_IMPLS(fully_connected);
 REGISTER_IMPLS(gated_mlp);
 REGISTER_IMPLS(gather);
 REGISTER_IMPLS(gather_nd);
+REGISTER_IMPLS(gated_delta_net);
 REGISTER_IMPLS(gemm);
 REGISTER_IMPLS(group_normalization);
 REGISTER_IMPLS(loop);
