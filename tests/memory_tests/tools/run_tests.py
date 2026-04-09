@@ -78,7 +78,7 @@ def get_cpu_family():
     elif arch in ("x86_64", "amd64"):
         if system == "Windows":
             cpuinfo = subprocess.check_output(
-                ["wmic", "cpu", "get", "description"]).decode().strip()
+                ["powershell", "(Get-WmiObject -Class Win32_Processor).Caption"]).decode().strip()
             infomatch = re.match(r".* Family (\d+) Model (\d+) .*",
                 cpuinfo.splitlines()[-1])
             if not infomatch:
@@ -114,6 +114,9 @@ def get_cpu_family():
         return INTEL_FAMILIES.get((family, model), "Unknown x86_64")
     else:
         return "Unknown"
+
+
+CPU_FAMILY = get_cpu_family()
 
 
 def value_diff(value, reference):
@@ -265,7 +268,7 @@ class TestSession:
                 "framework": framework,
                 "precision": precision,
                 "metrics": sample.as_dict(),
-                "familyCpu": get_cpu_family(),
+                "familyCpu": CPU_FAMILY,
                 "model_size": weights_size
             })
             test_report.append(sample_report)
