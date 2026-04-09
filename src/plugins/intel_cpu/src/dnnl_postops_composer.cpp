@@ -817,16 +817,23 @@ static dnnl::memory::dims getGroupDims(const VectorDims& weiDims, const VectorDi
         return {};
     }
 
+    const auto dim_size = scaleDims.size();
     dnnl::memory::dims groupDims(scaleDims.size(), 0);
     for (size_t i = 0; i < scaleDims.size(); ++i) {
         groupDims[i] = weiDims[i] / scaleDims[i];
     }
 
+    const int64_t k_group_size = groupDims[dim_size - 1];
+    const int64_t n_group_size = groupDims[dim_size - 2];
+    OPENVINO_ASSERT(n_group_size == 1, "n_group_size is always 1. But got ", n_group_size);
+
     if (groupDims.size() == 3) {
-        std::rotate(groupDims.begin(), groupDims.end() - 1, groupDims.end());
+        const int64_t b_group_size = groupDims[dim_size - 3];
+        OPENVINO_ASSERT(b_group_size == 1, "b_group_size is always 1. But got ", b_group_size);
+        return {k_group_size, 1, 1};
     }
 
-    return groupDims;
+    return {k_group_size, 1};
 }
 
 static int getMask(const dnnl::memory::dims& groupDims) {
