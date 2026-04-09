@@ -4,6 +4,7 @@
 
 #include "extract_image_patches.h"
 
+#include <algorithm>
 #include <cmath>
 #include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
