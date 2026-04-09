@@ -1,13 +1,13 @@
-﻿﻿// Copyright (C) 2022 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gather_nonzero_kernel_ref.h"
+#include "gather_nonzero_kernel_group.h"
 #include "kernel_selector_utils.h"
 #include <string>
 
 namespace kernel_selector {
-ParamsKey GatherNonzeroKernelRef::GetSupportedKey() const {
+ParamsKey GatherNonzeroKernelGroup::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
@@ -37,12 +37,13 @@ ParamsKey GatherNonzeroKernelRef::GetSupportedKey() const {
     return k;
 }
 
-JitConstants GatherNonzeroKernelRef::GetJitConstants(const gather_nonzero_params& params) const {
+JitConstants GatherNonzeroKernelGroup::GetJitConstants(const gather_nonzero_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
     const auto& input = params.inputs[0];
     jit.AddConstant(MakeJitConstant("OV_INPUT_RANK", params.ov_input_rank));
 
-    auto max_local_mem_size = params.engineInfo.maxLocalMemSize / (params.outputs[0].ElementSize());
+    // Reserve 4KiB SLM for work_group_scan_exclusive_add
+    auto max_local_mem_size = (params.engineInfo.maxLocalMemSize - 4096) / params.outputs[0].ElementSize();
     jit.AddConstant(MakeJitConstant("MAX_LOCAL_MEM_SIZE", max_local_mem_size));
 
     if (input.is_dynamic()) {
@@ -58,16 +59,18 @@ JitConstants GatherNonzeroKernelRef::GetJitConstants(const gather_nonzero_params
     return jit;
 }
 
-CommonDispatchData GatherNonzeroKernelRef::SetDefault(const gather_nonzero_params& params) const {
+CommonDispatchData GatherNonzeroKernelGroup::SetDefault(const gather_nonzero_params& params) const {
     CommonDispatchData dispatchData;
+    const auto& input = params.inputs[0];
 
-    dispatchData.gws = {1, 1, 1};
-    dispatchData.lws = {1, 1, 1};
+    // Set 1 work group to avoid synchornization issue for summation of nonzero counting.
+    size_t max_dim_size = std::min(input.LogicalSize(), params.engineInfo.maxWorkGroupSize);
+    dispatchData.lws = dispatchData.gws = {max_dim_size, 1, 1};
 
     return dispatchData;
 }
 
-void GatherNonzeroKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
+void GatherNonzeroKernelGroup::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const gather_nonzero_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -78,7 +81,7 @@ void GatherNonzeroKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData GatherNonzeroKernelRef::GetKernelsData(const Params& params) const {
+KernelsData GatherNonzeroKernelGroup::GetKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::GATHER_NONZERO);
 
     KernelData kd = KernelData::Default<gather_nonzero_params>(params);
@@ -110,13 +113,13 @@ KernelsData GatherNonzeroKernelRef::GetKernelsData(const Params& params) const {
     return {kd};
 }
 
-KernelsPriority GatherNonzeroKernelRef::GetKernelsPriority(const Params& /*params*/) const {
-    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+KernelsPriority GatherNonzeroKernelGroup::GetKernelsPriority(const Params& /*params*/) const {
+    return FORCE_PRIORITY_9;
 }
 
-bool GatherNonzeroKernelRef::Validate(const Params& p) const {
+bool GatherNonzeroKernelGroup::Validate(const Params& p) const {
     if (!KernelBaseOpenCL::Validate(p))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     const auto& rp = static_cast<const gather_nonzero_params&>(p);
 
