@@ -4,15 +4,16 @@
 
 #pragma once
 
-#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
 namespace pass {
 
-class TRANSFORMATIONS_API PagedCausalConv1DFusion : public ov::pass::MatcherPass {
+class TRANSFORMATIONS_API PagedCausalConv1DFusion : public ov::pass::ModelPass {
 public:
     PagedCausalConv1DFusion();
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
 }  // namespace pass
