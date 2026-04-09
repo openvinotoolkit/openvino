@@ -20,7 +20,6 @@ add_library(openvino::npu_vm_utils ALIAS ${TARGET_NAME})
 target_include_directories(${TARGET_NAME}
     PUBLIC
         $<BUILD_INTERFACE:${NPU_UTILS_SOURCE_DIR}/include>
-    PRIVATE
         $<TARGET_PROPERTY:openvino::util,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
