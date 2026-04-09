@@ -15,6 +15,7 @@ namespace ov::intel_gpu::ocl {
 
 namespace {
 constexpr size_t subgroup_size = 16;
+constexpr size_t u4_elems_per_byte = 2;
 class PaKVReorderGenerator : public KernelGenerator {
 public:
     PaKVReorderGenerator() : KernelGenerator("pa_kv_cache_reorder_ref") {}
@@ -57,9 +58,16 @@ protected:
 
         const auto key_cache_dt = desc->cache_dt;
         const bool is_kv_compressed = desc->is_kv_compressed;
+        const bool is_int4_compressed = data_type_traits::is_i4_u4(key_cache_dt);
         jit.make("IS_KV_COMPRESSED", is_kv_compressed ? 1 : 0);
+        jit.make("IS_INT4_COMPRESSED", is_int4_compressed ? 1 : 0);
+        jit.make("U4_ELEMS_PER_BYTE", u4_elems_per_byte);
         const size_t scales_zp_size = desc->scales_zp_size;
         const bool is_key_by_channel = desc->is_key_by_channel;
+
+        const auto align_to = [](size_t value, size_t alignment) {
+            return ((value + alignment - 1) / alignment) * alignment;
+        };
 
         if (is_kv_compressed) {
             if (is_key_by_channel) {
@@ -74,8 +82,21 @@ protected:
                 jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", cldnn::paged_attention::block_size);
             }
             OPENVINO_ASSERT(adjusted_v_head_size >= scales_zp_size, "[GPU] Invalid pa_kv_reorder value cache shape for compressed mode");
-            jit.make("V_HEAD_SIZE", adjusted_v_head_size - scales_zp_size);
+            const size_t k_head_size = is_key_by_channel ? adjusted_k_head_size : (adjusted_k_head_size - scales_zp_size);
+            const size_t v_head_size = adjusted_v_head_size - scales_zp_size;
+            jit.make("V_HEAD_SIZE", v_head_size);
             jit.make("ADJUSTED_V_HEAD_SIZE", adjusted_v_head_size);
+
+            if (is_int4_compressed) {
+                const size_t packed_k_head_size = align_to(k_head_size / u4_elems_per_byte, subgroup_size);
+                const size_t packed_v_head_size = align_to(v_head_size / u4_elems_per_byte, subgroup_size);
+                const size_t packed_adjusted_k_head_size = is_key_by_channel ? packed_k_head_size : packed_k_head_size + scales_zp_size;
+                const size_t packed_adjusted_v_head_size = packed_v_head_size + scales_zp_size;
+                jit.make("PACKED_K_HEAD_SIZE", packed_k_head_size);
+                jit.make("PACKED_V_HEAD_SIZE", packed_v_head_size);
+                jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", packed_adjusted_k_head_size);
+                jit.make("PACKED_ADJUSTED_V_HEAD_SIZE", packed_adjusted_v_head_size);
+            }
         } else {
             jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", cldnn::paged_attention::block_size);
             jit.make("K_HEAD_SIZE", adjusted_k_head_size);

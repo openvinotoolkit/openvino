@@ -51,10 +51,10 @@ static void CreatePA_KV_ReorderOp(ProgramBuilder& p, const std::shared_ptr<ov::o
     prim.adjusted_v_head_size = static_cast<size_t>(rt_info.at(v_head_size_id).as<int64_t>());
 
     prim.cache_dt = cldnn::element_type_to_data_type(op->get_input_element_type(cldnn::pa_kv_reorder::PaKVReorderInputIdx::KEY_CACHE));
-    prim.is_kv_compressed = prim.cache_dt == cldnn::data_types::i8 || prim.cache_dt == cldnn::data_types::u8;
+    prim.scales_zp_size = static_cast<size_t>(rt_info.at(rt_scales_zp_size).as<int64_t>());
+    prim.is_kv_compressed = prim.scales_zp_size > 0;
 
     if (prim.is_kv_compressed) {
-        prim.scales_zp_size = static_cast<size_t>(rt_info.at(rt_scales_zp_size).as<int64_t>());
         if (rt_info.at(rt_is_key_by_channel).as<bool>()) {
             prim.is_key_by_channel = true;
             prim.adjusted_paged_attention_block_size = prim.adjusted_paged_attention_block_size + prim.scales_zp_size;

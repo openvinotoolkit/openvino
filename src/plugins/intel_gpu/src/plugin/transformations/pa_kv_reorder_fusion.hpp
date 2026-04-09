@@ -67,11 +67,7 @@ public:
           m_value_cache_dim_order(std::move(value_cache_dim_order)),
           m_key_cache_precision(key_cache_precision),
           m_value_cache_precision(value_cache_precision),
-          m_inference_precision(inference_precision) {
-        if (m_key_cache_precision == ov::element::i4 || m_key_cache_precision == ov::element::u4) {
-            OPENVINO_THROW("[GPU] i4/u4 precision is currently not supported for kv cache reorder.");
-        }
-    }
+          m_inference_precision(inference_precision) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:

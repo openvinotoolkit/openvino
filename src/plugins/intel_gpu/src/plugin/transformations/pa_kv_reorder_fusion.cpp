@@ -131,7 +131,7 @@ ov::element::Type format_cache_precision(const ov::element::Type& cache_precisio
 }
 
 bool is_compressed_cache_type(const ov::element::Type& type) {
-    return type == ov::element::i8 || type == ov::element::u8;
+    return type == ov::element::i8 || type == ov::element::u8 || type == ov::element::i4 || type == ov::element::u4;
 }
 
 size_t infer_scales_zp_size(const ov::element::Type& cache_type, const ov::element::Type& infer_precision) {
@@ -140,6 +140,9 @@ size_t infer_scales_zp_size(const ov::element::Type& cache_type, const ov::eleme
     }
 
     OPENVINO_ASSERT(cache_type.size() > 0 && infer_precision.size() > 0, "[GPU] Invalid element size for pa_kv_reorder metadata inference");
+    if (cache_type == ov::element::i4 || cache_type == ov::element::u4) {
+        return 4 * infer_precision.size();
+    }
     return (2 * infer_precision.size()) / cache_type.size();
 }
 
