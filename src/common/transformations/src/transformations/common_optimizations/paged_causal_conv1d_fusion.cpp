@@ -23,6 +23,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_causal_conv1d.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/assign.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/slice.hpp"
@@ -403,6 +404,99 @@ bool PagedCausalConv1DFusion::run_on_model(const std::shared_ptr<ov::Model>& mod
     }
 
     return rewritten;
+}
+
+PagedCausalConv1DPostCleanup::PagedCausalConv1DPostCleanup() {
+    set_property(ov::pass::PassProperty::REQUIRE_STATIC_SHAPE, false);
+}
+
+bool PagedCausalConv1DPostCleanup::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_FUNCTION_SCOPE(PagedCausalConv1DPostCleanup);
+
+    std::set<size_t> fused_layer_indices;
+    for (const auto& node : model->get_ordered_ops()) {
+        const auto paged_conv = ov::as_type_ptr<ov::op::internal::PagedCausalConv1D>(node);
+        if (!paged_conv) {
+            continue;
+        }
+
+        const auto conv_state_input = paged_conv->input_value(1);
+        for (const auto& name : conv_state_input.get_names()) {
+            if (const auto layer_index = parse_layer_index_from_name(name, CONV_STATE_TABLE_PREFIX)) {
+                fused_layer_indices.insert(*layer_index);
+            }
+        }
+    }
+
+    if (fused_layer_indices.empty()) {
+        return false;
+    }
+
+    const auto is_fused_conv_variable = [&fused_layer_indices](const std::string& variable_id) {
+        for (const auto layer_index : fused_layer_indices) {
+            const std::string layer_marker = std::string("cache_params.past.conv.") + std::to_string(layer_index);
+            if (variable_id.find(layer_marker) != std::string::npos) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    bool changed = false;
+
+    ov::SinkVector sinks_to_remove;
+    for (const auto& sink : model->get_sinks()) {
+        const auto assign_v6 = ov::as_type_ptr<ov::op::v6::Assign>(sink);
+        const auto assign_v3 = ov::as_type_ptr<ov::op::v3::Assign>(sink);
+        if ((assign_v6 && is_fused_conv_variable(assign_v6->get_variable_id())) ||
+            (assign_v3 && is_fused_conv_variable(assign_v3->get_variable_id()))) {
+            sinks_to_remove.push_back(sink);
+        }
+    }
+    for (const auto& sink : sinks_to_remove) {
+        model->remove_sink(sink);
+        changed = true;
+    }
+
+    ov::ResultVector results_to_remove;
+    for (const auto& result : model->get_results()) {
+        bool remove_result = false;
+        for (const auto& name : result->input_value(0).get_names()) {
+            for (const auto layer_index : fused_layer_indices) {
+                const std::string present_name = std::string("cache_params.present.conv.") + std::to_string(layer_index);
+                if (name == present_name) {
+                    remove_result = true;
+                    break;
+                }
+            }
+            if (remove_result) {
+                break;
+            }
+        }
+        if (remove_result) {
+            results_to_remove.push_back(result);
+        }
+    }
+    for (const auto& result : results_to_remove) {
+        model->remove_result(result);
+        changed = true;
+    }
+
+    ov::ParameterVector params_to_remove;
+    for (const auto& parameter : model->get_parameters()) {
+        if (!parameter->output(0).get_target_inputs().empty()) {
+            continue;
+        }
+        params_to_remove.push_back(parameter);
+    }
+    for (const auto& parameter : params_to_remove) {
+        if (model->get_parameter_index(parameter) >= 0) {
+            model->remove_parameter(parameter);
+            changed = true;
+        }
+    }
+
+    return changed;
 }
 
 }  // namespace ov::pass
