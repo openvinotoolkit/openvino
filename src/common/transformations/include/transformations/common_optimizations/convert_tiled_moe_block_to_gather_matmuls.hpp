@@ -8,8 +8,7 @@
 #include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
-namespace ov {
-namespace pass {
+namespace ov::pass {
 
 // BGM-producing passes (IR → GatherMatmul)
 class TRANSFORMATIONS_API ConvertTiledMoeBlockTo2GatherMatmuls;
@@ -17,8 +16,7 @@ class TRANSFORMATIONS_API ConvertTiledMoeBlockTo3GatherMatmuls;
 
 class TRANSFORMATIONS_API ConvertTiledMoeBlockToGatherMatmuls;
 
-}  // namespace pass
-}  // namespace ov
+}  // namespace ov::pass
 
 // ============================================================================
 // ConvertTiledMoeBlockTo2GatherMatmuls

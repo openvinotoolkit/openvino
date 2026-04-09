@@ -5,9 +5,7 @@
 #include "ov_ops/gather_matmul.hpp"
 
 #include <cstddef>
-#include <deque>
 #include <memory>
-#include <unordered_set>
 #include <vector>
 
 #include "matmul_shape_inference.hpp"
@@ -19,40 +17,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/op.hpp"
-
-namespace {
-// Inline equivalent of ov::op::util::is_on_path<ov::op::v0::Constant>()
-// to avoid dependency on openvino_transformations library.
-bool is_on_constant_path(const ov::Output<ov::Node>& output) {
-    auto* root_node = output.get_node();
-    if (!root_node || root_node->get_output_size() == 0) {
-        return false;
-    }
-    std::deque<ov::Node*> nodes_to_check = {root_node};
-    std::unordered_set<ov::Node*> visited;
-    while (!nodes_to_check.empty()) {
-        auto* current_node = nodes_to_check.front();
-        nodes_to_check.pop_front();
-        if (visited.count(current_node)) {
-            continue;
-        }
-        visited.insert(current_node);
-        if (current_node->get_input_size() == 0) {
-            if (!ov::is_type<ov::op::v0::Constant>(current_node)) {
-                return false;
-            }
-        } else {
-            for (const auto& input_value : current_node->input_values()) {
-                auto* input_node = input_value.get_node();
-                if (!visited.count(input_node)) {
-                    nodes_to_check.push_front(input_node);
-                }
-            }
-        }
-    }
-    return true;
-}
-}  // namespace
 
 namespace ov::op::internal {
 
@@ -79,9 +43,6 @@ void GatherMatmul::validate_and_infer_types() {
                           "Number of inputs is incorrect. Current value is: ",
                           input_size,
                           ", expected at least 4.");
-
-    // Check input B is on constant path
-    NODE_VALIDATION_CHECK(this, is_on_constant_path(input_value(1)), "Input B must be on constant path.");
 
     const auto& a_shape = get_input_partial_shape(0);
     const auto& b_shape = get_input_partial_shape(1);

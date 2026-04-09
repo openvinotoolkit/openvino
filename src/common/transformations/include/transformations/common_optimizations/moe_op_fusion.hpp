@@ -4,21 +4,18 @@
 
 #pragma once
 
-#include "openvino/core/type/element_type.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
-namespace ov {
-namespace pass {
+namespace ov::pass {
 
 // BGM→MOE passes (GatherMatmul graph → MOE op, used by GPU)
 class TRANSFORMATIONS_API Convert2GatherMatmulMoeBlockToMoeOp;
 class TRANSFORMATIONS_API Convert3GatherMatmulMoeBlockToMoeOp;
 class TRANSFORMATIONS_API MoeOpFusion;
 
-}  // namespace pass
-}  // namespace ov
+}  // namespace ov::pass
 
 // BGM→MOE passes — convert post-BGM graph (GatherMatmul + compact routing) to MOE op.
 // When BGMCompressed nodes are present, produces MOECompressed instead of MOE.
