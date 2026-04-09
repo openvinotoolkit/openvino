@@ -205,11 +205,6 @@ macro(ov_find_package_tbb)
                 # system TBB failed to be found
                 set(ENABLE_SYSTEM_TBB OFF CACHE BOOL "" FORCE)
 
-                if(ANDROID)
-                    message(FATAL_ERROR
-                        "TBB was not found for Android. Provide -DTBB_DIR when configuring OpenVINO.")
-                endif()
-
                 # TBB on system is not found, download prebuilt one
                 # if TBBROOT env variable is not defined
                 ov_download_tbb()
