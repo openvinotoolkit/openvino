@@ -6,7 +6,6 @@
 
 #include "element_visitor.hpp"
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/atan2.hpp"
 #include "utils.hpp"
 
@@ -14,16 +13,15 @@ namespace ov {
 namespace op {
 namespace atan2 {
 struct Evaluate : element::NoAction<bool> {
-    using ov::element::NoAction<bool>::visit;
+    using element::NoAction<bool>::visit;
 
-    template <element::Type_t ET>
+    template <element::Type_t ET, class T = fundamental_type_for<ET>>
     static result_type visit(const Tensor& in_y,
                              const Tensor& in_x,
                              Tensor& out,
                              const Shape& y_shape,
                              const Shape& x_shape,
                              const AutoBroadcastSpec& broadcast_spec) {
-        using T = typename element_type_traits<ET>::value_type;
         reference::atan2(in_y.data<const T>(),
                          in_x.data<const T>(),
                          out.data<T>(),
