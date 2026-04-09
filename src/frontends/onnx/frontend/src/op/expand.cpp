@@ -20,9 +20,9 @@ ov::OutputVector expand(const ov::frontend::onnx::Node& node) {
 
     if (common::is_failsafe_node(shape.get_node_shared_ptr()) ||
         common::is_constant_empty_node(shape.get_node_shared_ptr())) {
-        // in case the "shape" input is connected to a failsafe node created in place of an invalid initializer
-        // the target shape should be ignored and this Expand operation should not modify its input tensor
-        // the Broadcast created below should be eliminated later on by an appropriate optimization pass
+        // Ignore an unusable target shape, such as a failsafe node created for an invalid
+        // initializer or an empty constant. Use an identity broadcast so Expand preserves
+        // the input tensor, and let a later optimization pass eliminate this Broadcast.
         const auto identity_broadcast = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
         return {std::make_shared<v3::Broadcast>(data, identity_broadcast, ov::op::BroadcastType::BIDIRECTIONAL)};
     } else {
