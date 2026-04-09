@@ -53,6 +53,10 @@ This contents explain the internal implementation of dynamic shape support in th
 * Model caching for dynamic shape (TBD)
 -->
 
+## Additional Documentation
+* [How to build with DPC++ support](./docs/gpu_plugin_with_sycl.md)
+* [GPU plugin Level Zero support](./docs/gpu_plugin_with_level_zero.md)
+
 ## Troubleshooting / Debugging
 * [Debug utils](./docs/gpu_debug_utils.md)
 * [Debugging guide](./docs/debugging_guide.md)

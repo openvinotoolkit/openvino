@@ -16,6 +16,7 @@ OpenVINO™ toolkit is officially supported and validated on the following platf
 | Arrow Lake (integrated NPU)   | NPU 3720    | 0xAD1D         | Ubuntu* 22, Ubuntu* 24, MS Windows* 11   |
 | Lunar Lake (integrated NPU)   | NPU 4000    | 0x643E         | Ubuntu* 22, Ubuntu* 24, MS Windows* 11   |
 | Panther Lake (integrated NPU) | NPU 5010    | 0xB03E         | Ubuntu* 22, Ubuntu* 24, MS Windows* 11   |
+| Wildcat Lake (integrated NPU) | NPU 5020    | 0xFD3E         | Ubuntu* 22, Ubuntu* 24, MS Windows* 11   |
 <br>
 
 ## High Level Design
@@ -194,6 +195,7 @@ The following properties are supported (may differ based on current system confi
 | `ov::range_for_async_infer_requests`/</br>`RANGE_FOR_ASYNC_INFER_REQUESTS` | RO | Returns a tuple (bottom, top, step). </br> Not used by the NPU plugin. | `N/A` | `N/A` |
 | `ov::range_for_streams`/</br>`RANGE_FOR_STREAMS` | RO | Returns a tuple (bottom, top).</br> Not used by the NPU plugin. | `N/A`| `N/A` |
 | `ov::enable_profiling`/</br>`PERF_COUNT` | RW | Enables or disables performance counters. | `YES`/ `NO` | `NO` |
+| `ov::workload_type`/</br>`WORKLOAD_TYPE` | RW | Selects the NPU workload profile for model execution. | `DEFAULT`/ `EFFICIENT`| `DEFAULT` |
 | `ov::hint::performance_mode`/</br>`PERFORMANCE_HINT` | RW | Sets the performance profile used to determine default values of Tiles/DMAs/NIREQs.</br>Default values for each profile are documented below. | `THROUGHPUT`/</br>`LATENCY`/</br>`UNDEFINED` | `UNDEFINED` |
 | `ov::hint::num_requests`/</br>`PERFORMANCE_HINT_NUM_REQUESTS` | RW | Sets the number of outstanding inference requests. | `[0-]` | `1` |
 | `ov::hint::model_priority`/</br>`MODEL_PRIORITY` | RW | Assigns a priority for the model execution. | `LOW`/</br>`MEDIUM`/</br>`HIGH` | `MEDIUM` |
@@ -220,7 +222,7 @@ The following properties are supported (may differ based on current system confi
 | `ov::intel_npu::qdq_optimization`/</br>`NPU_QDQ_OPTIMIZATION` | RW | Enable/Disable additional optimizations and balances performance and accuracy for QDQ format models, quantized using ONNX Runtime | `YES` / `NO` | `NO` |
 | `ov::intel_npu::qdq_optimization_aggressive`/</br>`NPU_QDQ_OPTIMIZATION_AGGRESSIVE` | RW | Enable/Disable additional optimizations to improve performance for QDQ format models, quantized using ONNX Runtime | `YES` / `NO` | `NO` |
 | `ov::intel_npu::turbo`/</br>`NPU_TURBO` | RW | Set Turbo mode on/off | `YES`/ `NO`| `NO` |
-| `ov::intel_npu::platform`/</br>`NPU_PLATFORM` | RW | Selects the target compilation platform. Used in offline compilation | `3720`/</br>`4000`</br>`5010` | `AUTO_DETECT` |
+| `ov::intel_npu::platform`/</br>`NPU_PLATFORM` | RW | Selects the target compilation platform. Used in offline compilation | `3720`/</br>`4000`</br>`5010`</br>`5020` | `AUTO_DETECT` |
 | `ov::intel_npu::tiles`/</br>`NPU_TILES` | RW | Sets the number of npu tiles to compile the model for | `[0-]` | `-1` |
 | `ov::intel_npu::max_tiles`/</br>`NPU_MAX_TILES` | RO | Maximum number of tiles supported by the device we compile for. It will be populated by driver, if present. | `[1-6] depends on npu platform` | `[-1]` |
 | `ov::intel_npu::bypass_umd_caching`/</br>`NPU_BYPASS_UMD_CACHING` | RW | Bypass the caching of compiled models in UMD. | `YES`/ `NO`| `NO` |
@@ -244,9 +246,11 @@ The following table shows the default values for the number of Tiles and DMA Eng
 | THROUGHPUT       | 3720                | 2 (all of them)      |
 | THROUGHPUT       | 4000                | 2 (out of 5/6)       |
 | THROUGHPUT       | 5010                | 1 (out of 3)         |
+| THROUGHPUT       | 5020                | 1 (out of 1)         |
 | LATENCY          | 3720                | 2 (all of them)      |
 | LATENCY          | 4000                | 4 (out of 5/6)       |
 | LATENCY          | 5010                | 3 (out of 3)         |
+| LATENCY          | 5020                | 1 (out of 1)         |
 <br>
 
 ### Performance Hint: Optimal Number of Inference Requests
@@ -258,6 +262,7 @@ The following table shows the optimal number of inference requests returned by t
 | 3720                | 4                                           | 1                                       |
 | 4000                | 8                                           | 1                                       |
 | 5010                | 8                                           | 1                                       |
+| 5020                | 8                                           | 1                                       |
 <br>
 
 ### Compilation mode parameters
