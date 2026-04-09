@@ -87,6 +87,8 @@ public:
 
     bool isBlobDataImported(const GraphDescriptor& graphDescriptor) const;
 
+    void evict_memory(const GraphDescriptor& graphDescriptor) const;
+
 private:
     void getMetadata(ze_graph_handle_t graphHandle,
                      uint32_t indexUsedByDriver,
