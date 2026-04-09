@@ -167,7 +167,7 @@ function(ov_download_tbb)
         if(ANDROID)
             message(WARNING
                 "Prebuilt TBB is not available on Android. Build oneTBB separately and provide "
-                "TBBROOT / TBB_DIR before configuring OpenVINO.")
+                "TBB_DIR before configuring OpenVINO.")
         else()
             message(WARNING "Prebuilt TBB is not available on current platform")
         endif()
@@ -235,7 +235,7 @@ function(ov_download_tbbbind_2_5)
         # TMP: for Apple Silicon TBB does not provide TBBBind
         if(NOT (APPLE AND AARCH64))
             message(WARNING "prebuilt TBBBIND_2_5 is not available.
-Build oneTBB from sources and set TBBROOT environment var before OpenVINO cmake configure")
+Build oneTBB from sources and set TBB_DIR before OpenVINO cmake configure")
         endif()
         return()
     endif()
