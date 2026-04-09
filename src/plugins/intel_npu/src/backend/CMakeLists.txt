@@ -20,14 +20,16 @@ target_compile_definitions(${TARGET_NAME}
 target_include_directories(${TARGET_NAME}
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<TARGET_PROPERTY:openvino::npu_vm_runtime_api,INTERFACE_INCLUDE_DIRECTORIES> #To fix 2)zero_dynamic_pipeline.cpp:16:10: fatal error: npu_vm_execute.hpp: No such file or directory
+        $<TARGET_PROPERTY:openvino_npu_compiler_adapter,INTERFACE_INCLUDE_DIRECTORIES> #src/backend/src/zero_dynamic_pipeline.cpp fatal error: intel_npu/runtime/npu_vm_runtime.hpp: No such file or directory
 )
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         openvino_npu_common
         openvino::npu_al
-        # openvino::npu_vm_utils
-        openvino_npu_compiler_adapter
+        # openvino::npu_vm_utils # if move vm to vm_utils, need to link here
+        openvino_npu_compiler_adapter # To fix 1)#zero_dynamic_pipeline.cpp:16:10: fatal error: npu_vm_execute.hpp: No such file or directory
 )
 #
 # targets install

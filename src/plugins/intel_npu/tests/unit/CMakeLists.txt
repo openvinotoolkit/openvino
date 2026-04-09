@@ -38,6 +38,8 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/backend/include/
             ${OpenVINO_SOURCE_DIR}/thirdparty/level_zero/level-zero
             ${OpenVINO_SOURCE_DIR}/thirdparty/level_zero/level-zero/include
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/compiler_adapter/include ## To fix: FAILED: src/plugins/intel_npu/tests/unit/CMakeFiles/ov_npu_unit_tests.dir/__/__/src/backend/src/zero_dynamic_pipeline.cpp.o ... npu_vm_runtime_api.hpp:10:10: fatal error: intel_npu/runtime/npu_vm_runtime.hpp: No such file or directory
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/vm/runtime/include
         OBJECT_FILES
             # plugin/src
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/metadata.cpp

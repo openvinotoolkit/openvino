@@ -65,7 +65,7 @@ public:
     void set_last_submitted_id(uint32_t id_index) override;
     uint32_t get_last_submitted_id() const override;
 
-    void* get_mlir_engine() const override;
+    void* get_vm_engine() const override;
 
     void getBinding(GraphArguments& args) override;
 

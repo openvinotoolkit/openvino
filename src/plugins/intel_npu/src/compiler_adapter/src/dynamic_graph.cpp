@@ -328,8 +328,8 @@ void DynamicGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescript
         OPENVINO_THROW("Failed to execute VM runtime engine");
     } else {
         for (auto& out : outputDescriptors) {
-            std::shared_ptr<DynamicGraph::MemRefTypeImpl> outImpl =
-                std::static_pointer_cast<DynamicGraph::MemRefTypeImpl>(out._impl);
+            std::shared_ptr<MemRefTypeImpl> outImpl =
+                std::static_pointer_cast<MemRefTypeImpl>(out._impl);
             if (outImpl == nullptr) {
                 OPENVINO_THROW("MemRefType implementation is broken, unkown error happens in shape prediction.");
             }
@@ -613,7 +613,7 @@ DynamicGraph::~DynamicGraph() {
     }
 }
 
-void* DynamicGraph::get_mlir_engine() const {
+void* DynamicGraph::get_vm_engine() const {
     auto* impl = reinterpret_cast<DynamicGraphImpl*>(_impl.get());
     return impl ? impl->_engine : nullptr;
 }

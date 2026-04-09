@@ -220,7 +220,7 @@ void DynamicPipeline::push() {
         // L0 wrapper handle closed command list
         command_lists->resetCommandList();
 
-        auto engine = static_cast<npu_mlir_runtime_handle_t>(dynamicGraph->get_mlir_engine());
+        auto engine = static_cast<npu_vm_runtime_handle_t>(dynamicGraph->get_vm_engine());
         vm_execute_graph(engine,
                          _init_structs,
                          command_lists->getBinding(),

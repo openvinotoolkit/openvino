@@ -60,13 +60,13 @@ public:
     ~IDynamicGraph() override = default;
 
     /**
-     * @brief Returns the opaque MLIR engine handle owned by the graph.
+     * @brief Returns the opaque VM engine handle owned by the graph.
      *
-     * The pipeline casts this to @c npu_mlir_runtime_handle_t and passes it to
+     * The pipeline casts this to @c npu_vm_runtime_handle_t and passes it to
      * @c vm_execute_graph() so that the graph object does not need to hold
      * inference-request-specific state.
      */
-    virtual void* get_mlir_engine() const {
+    virtual void* get_vm_engine() const {
         return nullptr;
     }
 
