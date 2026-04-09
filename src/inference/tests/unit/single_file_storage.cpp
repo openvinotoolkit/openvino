@@ -30,6 +30,7 @@ protected:
     void SetUp() override {
         m_file_path = ov::test::utils::generateTestFilePrefix() + ".bin";
         m_storage = std::make_unique<SingleFileStorage>(m_file_path);
+        m_storage->initialize();
         ASSERT_TRUE(std::filesystem::exists(m_file_path));
     }
 
@@ -101,6 +102,7 @@ TEST_F(SingleFileStorageTest, WriteReadCacheEntry) {
     blob_read_test(*m_storage);
     m_storage.reset();
     SingleFileStorage reopened_storage(m_file_path);
+    reopened_storage.initialize();
     blob_read_test(reopened_storage);
 }
 
@@ -168,6 +170,7 @@ TEST_F(SingleFileStorageTest, AppendOnlyCacheEntry) {
     m_storage.reset();
 
     SingleFileStorage reopened_storage(m_file_path);
+    reopened_storage.initialize();
     OV_EXPECT_THROW_HAS_SUBSTRING(reopened_storage.write_cache_entry(blob_id, [&](std::ostream&) {}),
                                   ov::AssertFailure,
                                   blob_id + " already exists in cache");
@@ -258,6 +261,7 @@ TEST_F(SingleFileStorageTest, ContextMetaWriteRead) {
     m_storage.reset();
 
     SingleFileStorage reopened_storage(m_file_path);
+    reopened_storage.initialize();
     meta_read_test(reopened_storage);
 }
 
@@ -277,7 +281,9 @@ TEST_F(SingleFileStorageTest, ContextMetaAppendDelta) {
     m_storage.reset();
     const auto file_size_after_first_write = test::utils::fileSize(m_file_path.string());
 
-    SingleFileStorage{m_file_path}.write_context(test_context);
+    SingleFileStorage storage{m_file_path};
+    storage.initialize();
+    storage.write_context(test_context);
     const auto file_size_after_second_write = test::utils::fileSize(m_file_path.string());
     EXPECT_EQ(file_size_after_second_write, file_size_after_first_write)
         << "Rewriting the same context should not increase file size";
@@ -341,7 +347,9 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceAppendDelta) {
     m_storage.reset();
     const auto file_size_after_first_write = test::utils::fileSize(m_file_path.string());
 
-    SingleFileStorage{m_file_path}.write_context(test_context);
+    SingleFileStorage file_storage{m_file_path};
+    file_storage.initialize();
+    file_storage.write_context(test_context);
     const auto file_size_after_second_write = test::utils::fileSize(m_file_path.string());
     EXPECT_EQ(file_size_after_second_write, file_size_after_first_write)
         << "Rewriting the same context should not increase file size";

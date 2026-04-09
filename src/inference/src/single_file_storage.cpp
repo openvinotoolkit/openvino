@@ -86,12 +86,6 @@ SingleFileStorage::SingleFileStorage(const std::filesystem::path& path)
         util::Version file_version{0, 0, 0};
         read_version(stream, file_version);
         validate_version(file_version);
-
-        if (!build_content_index(stream)) {
-            m_blob_index.clear();
-            m_shared_context->m_cache_sources.clear();
-            m_shared_context->m_weight_registry.clear();
-        }
     }
 }
 
@@ -334,5 +328,23 @@ void SingleFileStorage::write_context(const weight_sharing::Context& context) {
         };
         write_tlv_record(stream, static_cast<TLVTraits::TagType>(Tag::WeightSource), weight_source_writer);
     }
+
+    for (const auto& [source_id, buffer] : context.m_runtime_sources) {
+        m_shared_context->m_runtime_sources.emplace(source_id, buffer);
+    }
 }
+
+void SingleFileStorage::initialize(std::shared_ptr<ov::wsh::Context> weight_sharing_context) {
+    if (weight_sharing_context) {
+        m_shared_context = std::move(weight_sharing_context);
+    }
+
+    if (std::ifstream stream(m_file_path, std::ios::binary); stream.good()) {
+        util::Version file_version;
+        read_version(stream, file_version);
+        OPENVINO_ASSERT(util::is_version_compatible(m_version, file_version), "Incompatible cache format");
+        OPENVINO_ASSERT(build_content_index(stream), "The cache file may be corrupted or in an unsupported format");
+    }
+}
+
 };  // namespace ov::runtime
