@@ -400,6 +400,10 @@ void ze_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output)
     }
 }
 
+ze_context_handle_t ze_stream::get_context() {
+    return _engine.get_context();
+}
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
 dnnl::stream& ze_stream::get_onednn_stream() {
     OPENVINO_ASSERT(m_queue_type == QueueTypes::in_order, "[GPU] Can't create onednn stream handle as onednn doesn't support out-of-order queue");
