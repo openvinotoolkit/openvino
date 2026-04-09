@@ -77,6 +77,12 @@ static constexpr Property<bool> enable_loop_unrolling{"GPU_ENABLE_LOOP_UNROLLING
  */
 static constexpr Property<bool> disable_winograd_convolution{"GPU_DISABLE_WINOGRAD_CONVOLUTION"};
 
+/**
+ * @brief Property which forces all empty host tensors to be allocated as USM host tensors
+ * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
+ */
+static constexpr Property<bool> default_usm_host_tensor_allocation{"DEFAULT_USM_HOST_TENSOR_ALLOCATION"};
+
 namespace hint {
 /**
  * @brief This enum represents the possible value of ov::intel_gpu::hint::queue_throttle property:
