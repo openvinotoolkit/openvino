@@ -198,7 +198,7 @@ jobs:
       - name: Prepare iGPU test container
         if: ${{ matrix.lane == 'gpu' }}
         run: |
-          apt-get update && apt-get install -y pigz wget software-properties-common ca-certificates gpg-agent tzdata clinfo git
+          apt-get update && apt-get install -y pigz wget software-properties-common ca-certificates gpg-agent tzdata clinfo git python3-yaml
         env:
           DEBIAN_FRONTEND: noninteractive
           TZ: "Europe/London"
@@ -271,6 +271,7 @@ jobs:
           fi
 
       - name: Setup Python 3.11
+        if: ${{ matrix.lane == 'cpu' }}
         uses: ./.github/actions/setup_python
         with:
           version: '3.11'
@@ -279,6 +280,7 @@ jobs:
           self-hosted-runner: 'true'
 
       - name: Install coverage Python dependencies
+        if: ${{ matrix.lane == 'cpu' }}
         run: python3 -m pip install -r .github/scripts/coverage/requirements-ci.txt
 
       - name: Run ${{ matrix.lane_name }} C++ coverage tests
