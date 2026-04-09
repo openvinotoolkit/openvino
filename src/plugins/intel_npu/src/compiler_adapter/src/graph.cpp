@@ -109,14 +109,15 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(
     size_t paddingSize = utils::align_size_to_standard_page_size(blobSize) - blobSize;
     std::string encryptedBlobStr;
     if (encryptionCallbackOpt.has_value()) {
-        std::string tmpBlobStr(reinterpret_cast<const char*>(blobPtr), blobSize);
-        if (paddingSize > 0) {
-            // Pad plaintext before encryption so decrypting the full serialized buffer remains symmetric.
-            std::fill_n(std::back_inserter(tmpBlobStr), paddingSize, 0);
-        }
+        {
+            std::string tmpBlobStr(reinterpret_cast<const char*>(blobPtr), blobSize);
+            if (paddingSize > 0) {
+                // Pad plaintext before encryption so decrypting the full serialized buffer remains symmetric.
+                std::fill_n(std::back_inserter(tmpBlobStr), paddingSize, 0);
+            }
 
-        encryptedBlobStr = encryptionCallbackOpt.value()(tmpBlobStr);
-        tmpBlobStr.clear();
+            encryptedBlobStr = encryptionCallbackOpt.value()(tmpBlobStr);
+        }
 
         blobPtr = reinterpret_cast<decltype(blobPtr)>(encryptedBlobStr.c_str());
         blobSize = encryptedBlobStr.size();

@@ -314,7 +314,7 @@ void Metadata<METADATA_VERSION_2_4>::write(std::ostream& stream) {
 void Metadata<METADATA_VERSION_2_5>::write(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_4>::write(stream);
 
-    uint8_t isEncryptedBlob = _isEncryptedBlob;
+    const uint8_t isEncryptedBlob = _isEncryptedBlob;
     stream.write(reinterpret_cast<const char*>(&isEncryptedBlob), sizeof(isEncryptedBlob));
 
     append_padding_blob_size_and_magic(stream);
@@ -345,7 +345,7 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
     case METADATA_VERSION_2_4:
         return std::make_unique<Metadata<METADATA_VERSION_2_4>>(blobSize);
     case METADATA_VERSION_2_5:
-        return std::make_unique<Metadata<METADATA_VERSION_2_4>>(blobSize);
+        return std::make_unique<Metadata<METADATA_VERSION_2_5>>(blobSize);
     default:
         return nullptr;
     }
@@ -542,7 +542,9 @@ size_t Metadata<METADATA_VERSION_2_4>::get_metadata_size() const {
 }
 
 size_t Metadata<METADATA_VERSION_2_5>::get_metadata_size() const {
-    size_t metadataSize = Metadata<METADATA_VERSION_2_4>::get_metadata_size() + sizeof(_isEncryptedBlob);
+    size_t metadataSize = Metadata<METADATA_VERSION_2_4>::get_metadata_size() +
+                          sizeof(uint8_t);  // intermediate uint8_t will be used to write bool due to possible platform
+                                            // different sizes of bool
 
     return metadataSize;
 }
