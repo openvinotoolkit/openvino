@@ -2084,7 +2084,9 @@ void TopK::prepareParams() {
     } else {
         top_k = getSrcDataAtPortAs<int>(TOPK_K)[0];
     }
-    CPU_NODE_ASSERT(static_cast<size_t>(top_k) <= src_dims[axis], "gets top_k out of range!");
+    CPU_NODE_ASSERT(top_k >= 1, "K (", top_k, ") must be greater or equal to 1.");
+    CPU_NODE_ASSERT(static_cast<size_t>(top_k) <= src_dims[axis],
+                    "K (", top_k, ") exceeds the axis dimension (", src_dims[axis], ").");
 
     if (jit_mode) {
         if (!preset_params_done) {

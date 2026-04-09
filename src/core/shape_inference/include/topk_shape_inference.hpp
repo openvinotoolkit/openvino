@@ -82,13 +82,6 @@ std::vector<TRShape> shape_infer(const util::TopKBase* op,
 
             const auto& k = (*k_as_shape)[0];
             if (k.is_static()) {
-                NODE_VALIDATION_CHECK(op,
-                                      !dim_axis.is_static() || k.get_length() <= dim_axis.get_length(),
-                                      "'K' (",
-                                      k.get_length(),
-                                      ") exceeds the axis dimension (",
-                                      dim_axis.get_length(),
-                                      ").");
                 dim_axis = k;
             } else {
                 // in this dynamic branch we are sure of dim_axis's type
