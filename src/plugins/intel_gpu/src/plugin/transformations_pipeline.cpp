@@ -678,7 +678,15 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 kv_cache_config.keyCacheDimOrder = {0, 1, 2, 3};  //  default dim order of [num_blocks, num_kv_heads, block_size, head_size]
             } else {
                 kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size;
-                kv_cache_config.keyCacheDimOrder = {0, 1, 3, 2};
+                // BY_CHANNEL quantization uses {0,1,3,2} (head_size outer, block_size inner)
+                // so that per-channel scales cover all tokens for each head dimension.
+                // This applies to both INT4 and INT8 BY_CHANNEL modes.
+                // Per-token INT4 uses {0,1,2,3} (row-major, head_size inner) for micro-kernel compatibility.
+                const bool is_int4_kv = (kv_cache_precision == ov::element::i4 || kv_cache_precision == ov::element::u4);
+                const bool is_key_by_channel = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL);
+                kv_cache_config.keyCacheDimOrder = (is_int4_kv && !is_key_by_channel)
+                                                      ? std::vector<size_t>{0, 1, 2, 3}
+                                                      : std::vector<size_t>{0, 1, 3, 2};
             }
             kv_cache_config.keyCacheQuantBychannel = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
             kv_cache_config.keyCacheGroupSize = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
@@ -708,15 +716,17 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                             block_size);
                             block_size += (block_size / kv_sub_block_size) * infer_precision.size() * 2;
                         } else if (precision == ov::element::i4 || precision == ov::element::u4) {
-                            head_size = align_to(head_size / 2, 16);
-                            block_size += infer_precision.size() * 4;
+                            // INT4 BY_CHANNEL with {0,1,3,2}: block_size is innermost dim (packed)
+                            // Pack 16 u4 tokens → 8 bytes, plus scale/zp = 4 bytes → 12 bytes per column
+                            block_size = block_size / 2 + infer_precision.size() * 2;
                         }
                     } else {
                         if (precision == ov::element::i8 || precision == ov::element::u8) {
                             head_size += infer_precision.size() * 2 * group_num;
                         } else if (precision == ov::element::i4 || precision == ov::element::u4) {
                             head_size = align_to(head_size / 2, 16);
-                            head_size += infer_precision.size() * 4 * group_num;
+                            // INT4 per-token quantization: always need scale + zp per token row
+                            head_size += infer_precision.size() * 2;  // fp16 scale + fp16 zp = 4 bytes
                         }
                     }
                 },

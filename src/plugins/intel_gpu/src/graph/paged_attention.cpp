@@ -45,9 +45,12 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
                                 impl_param.get_input_layout(key_cache_idx).data_type == ov::element::u8 ||
                                 data_type_traits::is_i4_u4(key_cache_dt);
     auto expected_block_size = desc->has_xattention ? paged_attention::block_size_xattn : paged_attention::block_size;
+    // Both INT4 and INT8 BY_CHANNEL use dim order {0,1,3,2} with block_size at dim[3].
+    const bool is_int4 = data_type_traits::is_i4_u4(key_cache_dt);
     if (key_cache_compressed && key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
-        if (data_type_traits::is_i4_u4(key_cache_dt)) {
-            expected_block_size += 8;
+        if (is_int4) {
+            // INT4 BY_CHANNEL: block_size dim stores packed tokens + 2 scale/zp = block/2 + 4 = 12
+            expected_block_size = expected_block_size / 2 + 4;
         } else {
             constexpr size_t kv_sub_block_size = 16;
             OPENVINO_ASSERT(expected_block_size % kv_sub_block_size == 0,
@@ -63,7 +66,11 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
                      "[GPU] Paged Attention key cache quantization mode mismatch: prim.is_key_by_channel : ",
                      desc->is_key_by_channel, " but exec_config : ", impl_param.get_program().get_config().get_key_cache_quant_mode());
 
-    const auto block_size_idx = desc->has_xattention ? 2 : 3;
+    // Both INT4 and INT8 BY_CHANNEL use {0,1,3,2} dim order (block_size at dim[3]).
+    // XAttention and per-token modes use {0,1,2,3} (block_size at dim[2]).
+    const auto block_size_idx = (desc->has_xattention ||
+                                 (is_int4 && key_cache_quant_mode != ov::internal::CacheQuantMode::BY_CHANNEL))
+                                    ? 2 : 3;
     bool valid_block_size = key_cache_ps.is_dynamic() ||
                             (key_cache_ps[block_size_idx].get_length() == static_cast<ov::Dimension::value_type>(expected_block_size));
     OPENVINO_ASSERT(valid_block_size, "[GPU] Incorrect block size for Paged Attention operation for key cache quant mode "

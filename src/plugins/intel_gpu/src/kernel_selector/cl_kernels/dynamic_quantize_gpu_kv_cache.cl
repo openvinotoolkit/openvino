@@ -92,10 +92,11 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
 
 #if IS_INT4_COMPRESSED
     // 4-bit unsigned asymmetric quantization: map [min, max] to [0, 15].
-    // Two INT4 values are packed per byte using SUBGROUP_SIZE-stride grouping:
-    //   output byte at physical offset (k * SUBGROUP_SIZE + sglid) holds:
-    //     lo nibble = quantized val[(2k)   * SUBGROUP_SIZE + sglid]
-    //     hi nibble = quantized val[(2k+1) * SUBGROUP_SIZE + sglid]
+    // Adjacent head dimensions are packed into one byte:
+    //   output byte at position (i * SUBGROUP_SIZE + sglid) holds:
+    //     lo nibble = quantized head[2*(i*SUBGROUP_SIZE + sglid)]
+    //     hi nibble = quantized head[2*(i*SUBGROUP_SIZE + sglid) + 1]
+    // This layout matches the micro-kernel's u4 row-major (Layout::T) expectation.
     min_value = work_group_reduce_min(min_value);
     max_value = work_group_reduce_max(max_value);
 
@@ -104,32 +105,42 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
     ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((UINT4_RANGE) / diff_value);
     ACCUMULATOR_TYPE zp_tmp    = (ACCUMULATOR_TYPE)(-min_value * scale_tmp); // maps min -> 0, max -> UINT4_RANGE
 
-    // INT4 packed buffer: the output layout uses i8 with full head_size shape.
-    // Use element-level offset directly (same stride as layout) so that SDPA
-    // can address rows with the standard GET_INDEX pitch.
+    // Quantize all values to u4 range first
+    uchar qval[INNERMOST_DIM_VALUE / SUBGROUP_SIZE];
+    unroll_for (uint i = 0; i < INNERMOST_DIM_VALUE / SUBGROUP_SIZE; i++) {
+        qval[i] = (uchar)clamp(convert_int_rte((float)val[i] * scale_tmp + zp_tmp), 0, UINT4_RANGE);
+    }
+
+    // Pack adjacent head dimensions using sub-group shuffle.
+    // val[j] holds head position (j * SUBGROUP_SIZE + sglid).
+    // Output byte at iteration i, lane sglid represents head positions:
+    //   lo = head[2*i*SG + 2*sglid], hi = head[2*i*SG + 2*sglid + 1]
     const uint output_offset = OUTPUT_GET_INDEX(b, f, y, x);
-    // Pairs of consecutive SUBGROUP_SIZE blocks are packed together.
-    // Process complete pairs first (handles HEAD_SIZE that is multiple of 2*SUBGROUP_SIZE).
 #define NUM_SUBGROUP_CHUNKS (INNERMOST_DIM_VALUE / SUBGROUP_SIZE)
-#define NUM_FULL_PAIRS (NUM_SUBGROUP_CHUNKS / 2)
-    unroll_for (uint i = 0; i < NUM_FULL_PAIRS * 2; i += 2) {
-        uchar q0 = (uchar)clamp(convert_int_rte((float)val[i]     * scale_tmp + zp_tmp), 0, UINT4_RANGE);
-        uchar q1 = (uchar)clamp(convert_int_rte((float)val[i + 1] * scale_tmp + zp_tmp), 0, UINT4_RANGE);
-        // Pack: lo nibble = q0, hi nibble = q1
-        char packed = cvt_uint8x2_to_uint4x2((uchar2)(q0, q1));
-        OUTPUT_BLOCK_WRITE(output, output_offset + (i / 2) * SUBGROUP_SIZE, packed);
+#define NUM_OUTPUT_ITERS (NUM_SUBGROUP_CHUNKS / 2)
+    unroll_for (uint i = 0; i < NUM_OUTPUT_ITERS; i++) {
+        // Determine which val[] index and lane to shuffle from.
+        // For sglid 0-7:  source index = 2*i,   source lane = 2*sglid  / 2*sglid+1
+        // For sglid 8-15: source index = 2*i+1,  source lane = 2*(sglid-8) / 2*(sglid-8)+1
+        uint src_idx = (sglid < 8) ? (2 * i) : (2 * i + 1);
+        uint base_lane = (sglid < 8) ? (2 * sglid) : (2 * (sglid - 8));
+        uchar q_lo = intel_sub_group_shuffle(qval[src_idx], base_lane);
+        uchar q_hi = intel_sub_group_shuffle(qval[src_idx], base_lane + 1);
+        char packed = cvt_uint8x2_to_uint4x2((uchar2)(q_lo, q_hi));
+        OUTPUT_BLOCK_WRITE(output, output_offset + i * SUBGROUP_SIZE, packed);
     }
 #if (NUM_SUBGROUP_CHUNKS % 2) != 0
-    // Handle the last odd chunk: pack low nibble only, zero-pad high nibble.
+    // Handle the last odd chunk: only lo nibble valid.
     {
-        const uint i = NUM_FULL_PAIRS * 2;
-        uchar q0 = (uchar)clamp(convert_int_rte((float)val[i] * scale_tmp + zp_tmp), 0, UINT4_RANGE);
-        char packed = cvt_uint8x2_to_uint4x2((uchar2)(q0, 0));
-        OUTPUT_BLOCK_WRITE(output, output_offset + (i / 2) * SUBGROUP_SIZE, packed);
+        const uint src_idx = NUM_SUBGROUP_CHUNKS - 1;
+        uint base_lane = (sglid < 8) ? (2 * sglid) : (2 * (sglid - 8));
+        uchar q_lo = intel_sub_group_shuffle(qval[(sglid < 8) ? src_idx : src_idx], base_lane);
+        char packed = cvt_uint8x2_to_uint4x2((uchar2)(q_lo, 0));
+        OUTPUT_BLOCK_WRITE(output, output_offset + NUM_OUTPUT_ITERS * SUBGROUP_SIZE, packed);
     }
 #endif
 #undef NUM_SUBGROUP_CHUNKS
-#undef NUM_FULL_PAIRS
+#undef NUM_OUTPUT_ITERS
 
     const uint scale_idx = FUNC_CALL(get_scales_offset)(OPTIONAL_SHAPE_INFO_TENSOR b, f, y, x);
     if (grouped_indexes == 0 && sglid == 0) {
