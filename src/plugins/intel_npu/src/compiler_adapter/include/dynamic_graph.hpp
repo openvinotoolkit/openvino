@@ -10,8 +10,8 @@
 
 #include "intel_npu/common/idynamic_graph.hpp"
 #include "intel_npu/common/network_metadata.hpp"
-#include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
