@@ -36,6 +36,6 @@ target_include_directories(${TARGET_NAME}
 #         openvino_npu_zero_utils
 # )
 
-# if(NOT BUILD_SHARED_LIBS)
-#     target_compile_definitions(${TARGET_NAME} PRIVATE OPENVINO_STATIC_LIBRARY)
-# endif()
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(${TARGET_NAME} PRIVATE OPENVINO_STATIC_LIBRARY)
+endif()
