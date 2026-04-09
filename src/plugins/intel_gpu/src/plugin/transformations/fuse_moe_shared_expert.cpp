@@ -54,7 +54,10 @@ FuseMOESharedExpert::FuseMOESharedExpert() {
     auto shared_swish_m = wrap_type<ov::op::v4::Swish>({shared_gate_m});
     auto shared_up_weight_m = any_input();
     auto shared_up_m = wrap_type<ov::op::v0::MatMul>({shared_hidden_states_m, shared_up_weight_m});
-    auto shared_mul_m = wrap_type<ov::op::v1::Multiply>({shared_swish_m, shared_up_m});
+    // Multiply is commutative: handle both input orders
+    auto shared_mul_m_1 = wrap_type<ov::op::v1::Multiply>({shared_swish_m, shared_up_m});
+    auto shared_mul_m_2 = wrap_type<ov::op::v1::Multiply>({shared_up_m, shared_swish_m});
+    auto shared_mul_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{shared_mul_m_1, shared_mul_m_2});
     auto shared_down_weight_m = any_input();
     auto shared_down_m = wrap_type<ov::op::v0::MatMul>({shared_mul_m, shared_down_weight_m});
 
@@ -62,7 +65,10 @@ FuseMOESharedExpert::FuseMOESharedExpert() {
     auto shared_gate_gate_wei_m = any_input();
     auto shared_gate_gate_m = wrap_type<ov::op::v0::MatMul>({shared_hidden_states_m, shared_gate_gate_wei_m});
     auto shared_gate_sigmoid_m = wrap_type<ov::op::v0::Sigmoid>({shared_gate_gate_m});
-    auto shared_expert_gated_m = wrap_type<ov::op::v1::Multiply>({shared_gate_sigmoid_m, shared_down_m});
+    // Multiply is commutative: handle both input orders
+    auto shared_expert_gated_m_1 = wrap_type<ov::op::v1::Multiply>({shared_gate_sigmoid_m, shared_down_m});
+    auto shared_expert_gated_m_2 = wrap_type<ov::op::v1::Multiply>({shared_down_m, shared_gate_sigmoid_m});
+    auto shared_expert_gated_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{shared_expert_gated_m_1, shared_expert_gated_m_2});
     auto shared_expert_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{shared_down_m, shared_expert_gated_m});
     auto shared_expert_reshaped_m = optional<ov::op::v1::Reshape>({shared_expert_m, any_input()});
 
@@ -94,13 +100,17 @@ FuseMOESharedExpert::FuseMOESharedExpert() {
             pattern_map.at(shared_down_weight_m),  // shared down weight
         };
 
-        if (pattern_map.count(shared_gate_gate_wei_m)) {
+        // Use shared_gate_sigmoid_m to reliably detect whether the gating branch matched.
+        // shared_gate_gate_wei_m is any_input() and may be spuriously bound even when
+        // the Or pattern took the non-gating (shared_down_m) branch.
+        bool has_gating = pattern_map.count(shared_gate_sigmoid_m) > 0;
+        if (has_gating) {
             new_inputs.push_back(pattern_map.at(shared_gate_gate_wei_m));
         } else {
             // Models without gate_gate: insert a dummy so input count is always 10
             size_t hidden_size = moe->get_output_partial_shape(0).rbegin()->get_length();
             new_inputs.push_back(
-                ov::op::v0::Constant::create(moe->get_output_element_type(0), ov::Shape{hidden_size, 1}, std::vector<float>(hidden_size, 0.0f)));
+                ov::op::v0::Constant::create(ov::element::f16, ov::Shape{hidden_size, 1}, std::vector<float>(hidden_size, 0.0f)));
         }
 
         auto new_moe = std::make_shared<ov::op::internal::MOE>(new_inputs, moe->get_config());

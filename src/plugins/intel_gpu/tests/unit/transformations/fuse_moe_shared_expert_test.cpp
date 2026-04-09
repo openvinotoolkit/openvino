@@ -48,6 +48,25 @@ static ov::Output<ov::Node> create_decompression_chain(
     return convert;
 }
 
+// Helper to create a symmetric weight decompression chain: Const -> Convert(f16) -> Mul(scale) -> Reshape -> Convert(f32)
+static ov::Output<ov::Node> create_sym_decompression_chain(
+    ov::element::Type wei_type,
+    const ov::Shape& wei_shape,
+    const ov::Shape& scale_shape,
+    const ov::Shape& reshape_target,
+    float wei_val = 1.0f,
+    float scale_val = 0.01f) {
+    auto wei = op::v0::Constant::create(wei_type, wei_shape, {wei_val});
+    auto scale = op::v0::Constant::create(element::f16, scale_shape, {scale_val});
+    auto reshape_const = op::v0::Constant::create(element::i32, Shape{reshape_target.size()}, reshape_target);
+
+    auto w_f16 = std::make_shared<op::v0::Convert>(wei, element::f16);
+    auto mul = std::make_shared<op::v1::Multiply>(w_f16, scale);
+    auto reshape = std::make_shared<op::v1::Reshape>(mul, reshape_const, false);
+    auto convert = std::make_shared<op::v0::Convert>(reshape, element::f32);
+    return convert;
+}
+
 TEST_F(TransformationTestsF, FuseMOESharedExpertWithSigmoidGating) {
     disable_rt_info_check();
     {
@@ -205,8 +224,8 @@ TEST_F(TransformationTestsF, FuseMOESharedExpertWithoutGating) {
         auto sh_down_decompressed = create_decompression_chain(
             element::u4, {2048, 6, 128}, {2048, 6, 1}, {2048, 6, 1}, {2048, 768}, 2.0f, 1.0f, 0.02f);
 
-        // Without gating, FuseMOESharedExpert inserts a dummy gate_gate constant
-        auto dummy_gate_gate = ov::op::v0::Constant::create(element::f32, Shape{2048, 1}, std::vector<float>(2048, 0.0f));
+        // Without gating, FuseMOESharedExpert inserts a dummy gate_gate constant (f16 to match ConvertMOEToMOECompressed)
+        auto dummy_gate_gate = ov::op::v0::Constant::create(element::f16, Shape{2048, 1}, std::vector<float>(2048, 0.0f));
 
         ov::op::internal::MOE::Config config;
         config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
@@ -215,6 +234,94 @@ TEST_F(TransformationTestsF, FuseMOESharedExpertWithoutGating) {
                              gate_decompressed, up_decompressed, down_decompressed,
                              sh_gate_decompressed, sh_up_decompressed, sh_down_decompressed,
                              dummy_gate_gate}, config);
+
+        model_ref = std::make_shared<ov::Model>(moe_expected, ov::ParameterVector{hidden_states, routing_weights, routing_idx});
+    }
+}
+
+// Test FuseMOESharedExpert with symmetric quantization (Convert -> Multiply, no Subtract)
+TEST_F(TransformationTestsF, FuseMOESharedExpertSymmetricWithGating) {
+    disable_rt_info_check();
+    {
+        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
+        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{128, 1, 32, 1});
+        auto routing_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{32, 8});
+
+        // MOE expert sym-quant decompression chains (no Subtract)
+        auto gate_decompressed = create_sym_decompression_chain(
+            element::i4, {128, 768, 16, 128}, {128, 768, 16, 1}, {128, 768, 2048});
+        auto up_decompressed = create_sym_decompression_chain(
+            element::i4, {128, 768, 16, 128}, {128, 768, 16, 1}, {128, 768, 2048});
+        auto down_decompressed = create_sym_decompression_chain(
+            element::i4, {128, 2048, 6, 128}, {128, 2048, 6, 1}, {128, 2048, 768});
+
+        ov::op::internal::MOE::Config config;
+        config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+        auto hidden_states_f32 = std::make_shared<ov::op::v0::Convert>(hidden_states, element::f32);
+        auto moe = std::make_shared<ov::op::internal::MOE>(
+            ov::OutputVector{hidden_states_f32, routing_weights, routing_idx,
+                             gate_decompressed, up_decompressed, down_decompressed}, config);
+
+        // Shared expert with sym-quant decompression chains
+        auto reshape_const_hs = op::v0::Constant::create(element::i64, Shape{2}, {32, 2048});
+        auto hidden_states_reshaped = std::make_shared<ov::op::v1::Reshape>(hidden_states_f32, reshape_const_hs, false);
+
+        auto sh_gate_decompressed = create_sym_decompression_chain(
+            element::i4, {768, 16, 128}, {768, 16, 1}, {768, 2048}, 2.0f, 0.02f);
+        auto sh_up_decompressed = create_sym_decompression_chain(
+            element::i4, {768, 16, 128}, {768, 16, 1}, {768, 2048}, 2.0f, 0.02f);
+        auto sh_down_decompressed = create_sym_decompression_chain(
+            element::i4, {2048, 6, 128}, {2048, 6, 1}, {2048, 768}, 2.0f, 0.02f);
+
+        auto shared_gate_m = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshaped, sh_gate_decompressed, false, true);
+        auto shared_swish_m = std::make_shared<ov::op::v4::Swish>(shared_gate_m);
+        auto shared_up_m = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshaped, sh_up_decompressed, false, true);
+        auto shared_mul_m = std::make_shared<ov::op::v1::Multiply>(shared_swish_m, shared_up_m);
+        auto shared_down_m = std::make_shared<ov::op::v0::MatMul>(shared_mul_m, sh_down_decompressed, false, true);
+
+        // Sigmoid gating
+        auto gate_gate_wei = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{2048, 1}, std::vector<float>(2048, 1.0f));
+        auto gate_gate_mm = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshaped, gate_gate_wei);
+        auto gate_sigmoid = std::make_shared<ov::op::v0::Sigmoid>(gate_gate_mm);
+        auto shared_gated = std::make_shared<ov::op::v1::Multiply>(gate_sigmoid, shared_down_m);
+
+        auto reshape_const_output = op::v0::Constant::create(element::i64, Shape{2}, {32, 2048});
+        auto shared_reshaped = std::make_shared<ov::op::v1::Reshape>(shared_gated, reshape_const_output, false);
+        auto add_m = std::make_shared<ov::op::v1::Add>(moe, shared_reshaped);
+
+        model = std::make_shared<ov::Model>(add_m, ov::ParameterVector{hidden_states, routing_weights, routing_idx});
+        manager.register_pass<FuseMOESharedExpert>();
+    }
+    {
+        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
+        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{128, 1, 32, 1});
+        auto routing_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{32, 8});
+
+        auto hidden_states_f32 = std::make_shared<ov::op::v0::Convert>(hidden_states, element::f32);
+
+        auto gate_decompressed = create_sym_decompression_chain(
+            element::i4, {128, 768, 16, 128}, {128, 768, 16, 1}, {128, 768, 2048});
+        auto up_decompressed = create_sym_decompression_chain(
+            element::i4, {128, 768, 16, 128}, {128, 768, 16, 1}, {128, 768, 2048});
+        auto down_decompressed = create_sym_decompression_chain(
+            element::i4, {128, 2048, 6, 128}, {128, 2048, 6, 1}, {128, 2048, 768});
+
+        auto sh_gate_decompressed = create_sym_decompression_chain(
+            element::i4, {768, 16, 128}, {768, 16, 1}, {768, 2048}, 2.0f, 0.02f);
+        auto sh_up_decompressed = create_sym_decompression_chain(
+            element::i4, {768, 16, 128}, {768, 16, 1}, {768, 2048}, 2.0f, 0.02f);
+        auto sh_down_decompressed = create_sym_decompression_chain(
+            element::i4, {2048, 6, 128}, {2048, 6, 1}, {2048, 768}, 2.0f, 0.02f);
+
+        auto gate_gate_wei = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{2048, 1}, std::vector<float>(2048, 1.0f));
+
+        ov::op::internal::MOE::Config config;
+        config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+        auto moe_expected = std::make_shared<ov::op::internal::MOE>(
+            ov::OutputVector{hidden_states_f32, routing_weights, routing_idx,
+                             gate_decompressed, up_decompressed, down_decompressed,
+                             sh_gate_decompressed, sh_up_decompressed, sh_down_decompressed,
+                             gate_gate_wei}, config);
 
         model_ref = std::make_shared<ov::Model>(moe_expected, ov::ParameterVector{hidden_states, routing_weights, routing_idx});
     }
