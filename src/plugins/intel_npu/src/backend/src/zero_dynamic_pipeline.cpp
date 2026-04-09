@@ -13,11 +13,11 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "npu_vm_execute.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
+#include "npu_vm_execute.hpp"
 
 namespace {
 std::vector<size_t> get_strides(const std::vector<size_t>& strides_in_bytes, size_t element_size) {

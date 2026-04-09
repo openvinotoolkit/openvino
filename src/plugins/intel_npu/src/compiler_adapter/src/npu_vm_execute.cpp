@@ -17,8 +17,7 @@ void vm_execute_graph(npu_vm_runtime_handle_t engine,
     // On subsequent inferences the _impl is reused and only pointer values
     // inside the existing handles are refreshed.
     std::shared_ptr<GraphArgumentsImpl> argsImpl =
-        args._impl ? std::static_pointer_cast<GraphArgumentsImpl>(args._impl)
-                   : std::make_shared<GraphArgumentsImpl>();
+        args._impl ? std::static_pointer_cast<GraphArgumentsImpl>(args._impl) : std::make_shared<GraphArgumentsImpl>();
 
     npu_vm_runtime_execute_params_t* params = &argsImpl->_executeParams;
 

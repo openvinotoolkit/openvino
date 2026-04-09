@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "intel_npu/common/idynamic_graph.hpp"
-#include "npu_vm_runtime_api.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "npu_vm_runtime_api.hpp"
 #include "openvino/core/except.hpp"
