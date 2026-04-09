@@ -22,7 +22,7 @@ namespace ov {
 namespace test {
 
 /*
- * Exact cut pattern around model node Multiply_9114:
+ * Exact cut pattern used in these tests:
  *   Parameter -> FakeQuantize(scalar) -> Conv(1x1, i8->f32 dequantized weights)
  *             -> Add(bias) -> Relu -> Result
  */
