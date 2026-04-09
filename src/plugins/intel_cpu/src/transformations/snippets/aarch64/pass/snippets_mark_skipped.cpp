@@ -264,6 +264,19 @@ bool isSuitableMatMulWithConstantPath(const std::shared_ptr<Node>& node) {
 }
 
 #if defined(OPENVINO_ARCH_ARM64)
+bool isACLInt8PadFQChainMarked(const std::shared_ptr<Node>& node) {
+    if (!match_acl_int8_pad_fq_chain(node)) {
+        return false;
+    }
+
+    snippets::pass::SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+    for (const auto& consumer : node->output(0).get_target_inputs()) {
+        snippets::pass::SetSnippetsNodeType(consumer.get_node()->shared_from_this(),
+                                            snippets::pass::SnippetsNodeType::SkippedByPlugin);
+    }
+    return true;
+}
+
 bool isACLInt8PoolingFQChainMarked(const std::shared_ptr<Node>& node) {
     if (!match_acl_int8_pooling_fq_chain(node)) {
         return false;
@@ -304,6 +317,9 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
             continue;
         }
 #if defined(OPENVINO_ARCH_ARM64)
+        if (isACLInt8PadFQChainMarked(node)) {
+            continue;
+        }
         if (isACLInt8PoolingFQChainMarked(node)) {
             continue;
         }
