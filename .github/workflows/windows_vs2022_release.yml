@@ -647,7 +647,7 @@ jobs:
   iGPU:
     name: iGPU Tests
     needs: [ Build, Smart_CI ]
-    uses: ./.github/workflows/job_gpu_tests_windows.yml
+    uses: ./.github/workflows/job_gpu_tests.yml
     strategy:
       max-parallel: 2
       fail-fast: false
