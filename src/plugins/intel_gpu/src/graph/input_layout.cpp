@@ -10,6 +10,21 @@
 #include <memory>
 #include <algorithm>
 
+namespace {
+
+bool requires_eager_input_allocation(const cldnn::input_layout_node& node) {
+    if (node.is_dynamic()) {
+        return false;
+    }
+
+    const auto& out_layout = node.get_output_layout();
+
+    // Scalars assume input memory is always materialized. Blocked inputs still have
+    // initialization paths that depend on an eager placeholder allocation.
+    return out_layout.count() <= 1 || cldnn::format::is_blocked(out_layout.format);
+}
+}  // namespace
+
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(input_layout)
 
@@ -18,8 +33,7 @@ input_layout_node::typed_program_node(const std::shared_ptr<input_layout> dprim,
 }
 
 input_layout_inst::typed_primitive_inst(network& network, const input_layout_node& node)
-    // allocate memory for scalars as they assume the memory is available and not lazily allocated...
-    : parent(network, node, /*allocate_mem*/ !node.is_dynamic() && node.get_output_layout().count() <= 1) {
+    : parent(network, node, /*allocate_mem*/ requires_eager_input_allocation(node)) {
     _has_valid_input = false;                          // by default input for 'input_layout' is invalid as long as user doesn't call set_data
 }
 
@@ -40,14 +54,14 @@ event::ptr input_layout_inst::set_data(memory::ptr mem, bool need_to_check_memor
         if (_outputs.empty()) {
             _outputs.resize(1);
         }
-        _outputs[0] = mem;
+        set_output_memory(mem, false);
     } else {
         if (_outputs.empty()) {
             _outputs.resize(1);
         }
         // Only allocate if needed and not already large enough
         if (!_outputs[0] || _outputs[0]->size() < mem->size()) {
-            _outputs[0] = engine.allocate_memory(mem->get_layout(), engine.get_preferred_memory_allocation_type(), false);
+            set_output_memory(engine.allocate_memory(mem->get_layout(), engine.get_preferred_memory_allocation_type(), false), false);
         }
         mem_lock<uint8_t> src(mem, stream);
         ev = _outputs[0]->copy_from(stream, src.data(), false);

@@ -326,8 +326,14 @@ event::ptr network::set_input_data(const primitive_id& id, memory::ptr data, boo
     }
 
     auto input = std::static_pointer_cast<input_layout_inst>(primitive_inst);
+    auto ev = input->set_data(data, need_to_check_memory_to_set);
 
-    return input->set_data(data, need_to_check_memory_to_set);
+    // Lazy input_layout allocation means some static kernels may have skipped argument
+    // binding during network initialization because the input-backed dependency buffer
+    // was not available yet. Force a fresh argument binding before the next execute.
+    _reset_arguments = true;
+
+    return ev;
 }
 
 void network::add_default_output_chains() {
