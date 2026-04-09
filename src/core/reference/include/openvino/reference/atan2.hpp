@@ -15,9 +15,6 @@ namespace reference {
 /**
  * @brief Reference implementation of binary Atan2 operator.
  *
- * Computes atan2(y, x) element-wise with broadcasting support.
- * Handles all IEEE 754 edge cases (±0, ±inf, NaN) via std::atan2.
- *
  * @param y              Pointer to y (ordinate) input data.
  * @param x              Pointer to x (abscissa) input data.
  * @param out            Pointer to output data.
