@@ -68,5 +68,19 @@ private:
     bool m_allow_adaptive_rkv;
     bool m_allow_qq_bias;
 };
+
+/**
+ * @brief Post-cleanup pass for paged extensions that removes obsolete state branches
+ * and dangling model parameters produced by paged fusions.
+ *
+ * \ingroup ov_pass_cpp_api
+ */
+class OPENVINO_API PagedExtensionsPostCleanup : public ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("PagedExtensionsPostCleanup");
+
+    PagedExtensionsPostCleanup();
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+};
 }  // namespace pass
 }  // namespace ov

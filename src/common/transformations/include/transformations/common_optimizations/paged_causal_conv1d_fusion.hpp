@@ -16,11 +16,5 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
-class TRANSFORMATIONS_API PagedCausalConv1DPostCleanup : public ov::pass::ModelPass {
-public:
-    PagedCausalConv1DPostCleanup();
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
-};
-
 }  // namespace pass
 }  // namespace ov
