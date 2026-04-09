@@ -14,6 +14,7 @@ set(MANDATORY_UNIT_TESTS_LIBS
         "openvino::npu_al"
         "openvino::npu_logger_utils"
         "openvino_npu_common"
+    "openvino_npu_compiler_adapter"  ## fix /usr/bin/ld: zero_dynamic_pipeline.cpp:(.text._ZN9intel_npu15DynamicPipeline4pushEv+0x26f): undefined reference to `intel_npu::vm_execute_graph(_npu_vm_runtime_handle_t*, std::shared_ptr<intel_npu::ZeroInitStructsHolder> const&, intel_npu::IDynamicGraph::GraphArguments&, std::vector<_ze_command_list_handle_t*, std::allocator<_ze_command_list_handle_t*> >&, _ze_command_queue_handle_t*, _ze_fence_handle_t*, _ze_event_handle_t*)'
         "openvino::npu_ops"
 )
 
