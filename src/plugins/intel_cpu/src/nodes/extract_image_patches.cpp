@@ -525,27 +525,25 @@ void ExtractImagePatches::ExtractImagePatchesRefExecutor::executeReference(void*
         [&](const size_t ob, const size_t kh, const size_t kw, const size_t ic) {
             const int64_t iw_start = static_cast<int64_t>(kw * RW) - PL;
             const int64_t ih_start = static_cast<int64_t>(kh * RH) - PT;
-            const size_t ih_lpad =
-                ih_start >= 0
-                    ? 0
-                    : static_cast<size_t>(std::ceil(-1.F * static_cast<float>(ih_start) / static_cast<float>(jpp.SH)));
-            const size_t iw_lpad =
-                iw_start >= 0
-                    ? 0
-                    : static_cast<size_t>(std::ceil(-1.F * static_cast<float>(iw_start) / static_cast<float>(jpp.SW)));
+            const size_t ih_lpad = ih_start >= 0 ? 0
+                                                 : static_cast<size_t>((-ih_start + static_cast<int64_t>(jpp.SH) - 1) /
+                                                                       static_cast<int64_t>(jpp.SH));
+            const size_t iw_lpad = iw_start >= 0 ? 0
+                                                 : static_cast<size_t>((-iw_start + static_cast<int64_t>(jpp.SW) - 1) /
+                                                                       static_cast<int64_t>(jpp.SW));
 
+            const int64_t ih_diff = static_cast<int64_t>(IH) - ih_start;
             const size_t ih_hpad =
-                static_cast<size_t>(std::ceil((static_cast<float>(IH) - 1.F * static_cast<float>(ih_start)) /
-                                              static_cast<float>(jpp.SH))) > jpp.OH
-                    ? jpp.OH
-                    : static_cast<size_t>(std::ceil((static_cast<float>(IH) + -1.F * static_cast<float>(ih_start)) /
-                                                    static_cast<float>(jpp.SH)));
+                ih_diff <= 0 ? 0
+                             : std::min<size_t>(static_cast<size_t>((ih_diff + static_cast<int64_t>(jpp.SH) - 1) /
+                                                                    static_cast<int64_t>(jpp.SH)),
+                                                jpp.OH);
+            const int64_t iw_diff = static_cast<int64_t>(jpp.IW) - iw_start;
             const size_t iw_hpad =
-                static_cast<size_t>(std::ceil((static_cast<float>(jpp.IW) - 1.F * static_cast<float>(iw_start)) /
-                                              static_cast<float>(jpp.SW))) > jpp.OW
-                    ? jpp.OW
-                    : static_cast<size_t>(std::ceil((static_cast<float>(jpp.IW) - 1.F * static_cast<float>(iw_start)) /
-                                                    static_cast<float>(jpp.SW)));
+                iw_diff <= 0 ? 0
+                             : std::min<size_t>(static_cast<size_t>((iw_diff + static_cast<int64_t>(jpp.SW) - 1) /
+                                                                    static_cast<int64_t>(jpp.SW)),
+                                                jpp.OW);
 
             char* my_dst_ptr = dst_data + (ob * ostrides_partial[0] + kh * ostrides_partial[1] +
                                            kw * ostrides_partial[2] + ic * ostrides_partial[3]) *
@@ -605,26 +603,24 @@ void ExtractImagePatches::ExtractImagePatchesJitExecutor::executeOptimizedGeneri
         [&](const size_t ob, const size_t kh, const size_t kw, const size_t ic) {
             const int64_t ih_start = kh * RH - PT;
             const int64_t iw_start = kw * RW - PL;
-            const size_t ih_lpad =
-                ih_start >= 0
-                    ? 0
-                    : static_cast<size_t>(std::ceil(-1.F * static_cast<float>(ih_start) / static_cast<float>(jpp.SH)));
-            const size_t iw_lpad =
-                iw_start >= 0
-                    ? 0
-                    : static_cast<size_t>(std::ceil(-1.F * static_cast<float>(iw_start) / static_cast<float>(jpp.SW)));
+            const size_t ih_lpad = ih_start >= 0 ? 0
+                                                 : static_cast<size_t>((-ih_start + static_cast<int64_t>(jpp.SH) - 1) /
+                                                                       static_cast<int64_t>(jpp.SH));
+            const size_t iw_lpad = iw_start >= 0 ? 0
+                                                 : static_cast<size_t>((-iw_start + static_cast<int64_t>(jpp.SW) - 1) /
+                                                                       static_cast<int64_t>(jpp.SW));
+            const int64_t ih_diff = static_cast<int64_t>(IH) - ih_start;
             const size_t ih_hpad =
-                static_cast<size_t>(std::ceil((static_cast<float>(IH) - 1.F * static_cast<float>(ih_start)) /
-                                              static_cast<float>(jpp.SH))) > jpp.OH
-                    ? jpp.OH
-                    : static_cast<size_t>(std::ceil((static_cast<float>(IH) - 1.F * static_cast<float>(ih_start)) /
-                                                    static_cast<float>(jpp.SH)));
+                ih_diff <= 0 ? 0
+                             : std::min<size_t>(static_cast<size_t>((ih_diff + static_cast<int64_t>(jpp.SH) - 1) /
+                                                                    static_cast<int64_t>(jpp.SH)),
+                                                jpp.OH);
+            const int64_t iw_diff = static_cast<int64_t>(jpp.IW) - iw_start;
             const size_t iw_hpad =
-                static_cast<size_t>(std::ceil((static_cast<float>(jpp.IW) - 1.F * static_cast<float>(iw_start)) /
-                                              static_cast<float>(jpp.SW))) > jpp.OW
-                    ? jpp.OW
-                    : static_cast<size_t>(std::ceil((static_cast<float>(jpp.IW) - 1.F * static_cast<float>(iw_start)) /
-                                                    static_cast<float>(jpp.SW)));
+                iw_diff <= 0 ? 0
+                             : std::min<size_t>(static_cast<size_t>((iw_diff + static_cast<int64_t>(jpp.SW) - 1) /
+                                                                    static_cast<int64_t>(jpp.SW)),
+                                                jpp.OW);
 
             size_t dst_offset = ob * ostrides_partial[0] + kh * ostrides_partial[1] + kw * ostrides_partial[2] +
                                 ic * ostrides_partial[3];
