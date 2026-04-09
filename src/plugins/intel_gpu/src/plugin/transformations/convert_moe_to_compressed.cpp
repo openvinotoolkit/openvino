@@ -79,15 +79,19 @@ namespace ov::intel_gpu {
          mul_m_##SUFFIX, mul2_m_##SUFFIX, convert_mul_m_##SUFFIX});
 
 #define MOE_COMPRESSED_WEIGHT_GEMM3_PATTERN(SUFFIX)\
-    auto gemm3_compressed_weights_m_##SUFFIX = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u4,ov::element::u8}));\
-    auto gemm3_zp_m_##SUFFIX = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u4, ov::element::u8}));\
+    auto gemm3_compressed_weights_m_##SUFFIX = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u4, ov::element::u8, ov::element::i4, ov::element::i8}));\
+    auto gemm3_zp_m_##SUFFIX = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u4, ov::element::u8, ov::element::i4, ov::element::i8}));\
     \
     auto gemm3_weight_convert_m_##SUFFIX = wrap_type<ov::op::v0::Convert>({gemm3_compressed_weights_m_##SUFFIX}, type_matches(ov::element::f16));\
     auto gemm3_zp_convert_m_##SUFFIX = wrap_type<ov::op::v0::Convert>({gemm3_zp_m_##SUFFIX}, type_matches(ov::element::f16));\
     auto gemm3_sub_m_##SUFFIX = wrap_type<ov::op::v1::Subtract>({gemm3_weight_convert_m_##SUFFIX, gemm3_zp_convert_m_##SUFFIX});\
     \
     auto gemm3_scale_m_##SUFFIX = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::f16));\
-    auto gemm3_mul_m_##SUFFIX = wrap_type<ov::op::v1::Multiply>({gemm3_sub_m_##SUFFIX, gemm3_scale_m_##SUFFIX});\
+    /* Asymmetric: Convert -> Subtract(zp) -> Multiply(scale) */\
+    auto gemm3_mul_asym_m_##SUFFIX = wrap_type<ov::op::v1::Multiply>({gemm3_sub_m_##SUFFIX, gemm3_scale_m_##SUFFIX});\
+    /* Symmetric: Convert -> Multiply(scale), no Subtract */\
+    auto gemm3_mul_sym_m_##SUFFIX = wrap_type<ov::op::v1::Multiply>({gemm3_weight_convert_m_##SUFFIX, gemm3_scale_m_##SUFFIX});\
+    auto gemm3_mul_m_##SUFFIX = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{gemm3_mul_asym_m_##SUFFIX, gemm3_mul_sym_m_##SUFFIX});\
     \
     auto gemm3_reshape_ungroup_##SUFFIX = [](const ov::Output<ov::Node>& output) {\
         auto in_ps = output.get_node()->get_input_partial_shape(0);\
@@ -103,7 +107,6 @@ namespace ov::intel_gpu {
 
 #define MOE_COMPRESSED_WEIGHT_GEMM3(SUFFIX)\
     auto gemm3_scale_##SUFFIX = pattern_map.at(gemm3_scale_m_##SUFFIX).get_node_shared_ptr();\
-    auto gemm3_zp_##SUFFIX = pattern_map.at(gemm3_zp_m_##SUFFIX).get_node_shared_ptr();\
     auto gemm3_scale_shape_##SUFFIX = gemm3_scale_##SUFFIX->get_shape();\
     gemm3_scale_shape_##SUFFIX.pop_back();\
     auto gemm3_reshape_const_##SUFFIX = ov::op::v0::Constant::create(\
@@ -111,7 +114,6 @@ namespace ov::intel_gpu {
         ov::Shape{ gemm3_scale_shape_##SUFFIX.size() }, \
         gemm3_scale_shape_##SUFFIX);\
     auto gemm3_scale_reshape_##SUFFIX = std::make_shared<ov::op::v1::Reshape>(gemm3_scale_##SUFFIX, gemm3_reshape_const_##SUFFIX, false);\
-    auto gemm3_zp_reshape_##SUFFIX = std::make_shared<ov::op::v1::Reshape>(gemm3_zp_##SUFFIX, gemm3_reshape_const_##SUFFIX, false);\
     \
     std::vector<size_t> gemm3_transpose_order_##SUFFIX(gemm3_scale_reshape_##SUFFIX->get_shape().size());\
     std::iota(gemm3_transpose_order_##SUFFIX.begin(), gemm3_transpose_order_##SUFFIX.end(), 0);\
@@ -120,7 +122,11 @@ namespace ov::intel_gpu {
         ov::element::i32, \
         ov::Shape{ gemm3_transpose_order_##SUFFIX.size() }, \
         gemm3_transpose_order_##SUFFIX);\
-    auto gemm3_transpose_scale_##SUFFIX = std::make_shared<ov::op::v1::Transpose>(gemm3_scale_reshape_##SUFFIX, gemm3_transpose_const_##SUFFIX);\
+    auto gemm3_transpose_scale_##SUFFIX = std::make_shared<ov::op::v1::Transpose>(gemm3_scale_reshape_##SUFFIX, gemm3_transpose_const_##SUFFIX);
+
+#define MOE_COMPRESSED_WEIGHT_GEMM3_ZP(SUFFIX)\
+    auto gemm3_zp_##SUFFIX = pattern_map.at(gemm3_zp_m_##SUFFIX).get_node_shared_ptr();\
+    auto gemm3_zp_reshape_##SUFFIX = std::make_shared<ov::op::v1::Reshape>(gemm3_zp_##SUFFIX, gemm3_reshape_const_##SUFFIX, false);\
     auto gemm3_transpose_zp_##SUFFIX = std::make_shared<ov::op::v1::Transpose>(gemm3_zp_reshape_##SUFFIX, gemm3_transpose_const_##SUFFIX);
 
 ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
@@ -253,6 +259,14 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
                 OPENVINO_THROW("Moe weight shape must be 3D or 4D.");
             }
             bool has_shared_expert = pattern_map.count(gemm3_compressed_weights_m_shared_gate) > 0;
+            // Detect symmetric quantization: no Subtract(zp) node matched
+            bool has_zp = pattern_map.count(gemm3_zp_m_gate) > 0;
+
+            // Helper: create scalar zero-filled dummy ZP constant for symmetric quantization.
+            // Uses shape {1} to minimize memory allocation since ZP is not used at runtime when has_zp=false.
+            auto make_dummy_zp = [&](const std::string& proj_suffix, const ov::Shape& /*scale_shape*/, ov::element::Type weight_dt) {
+                return ov::op::v0::Constant::create(weight_dt, ov::Shape{1}, std::vector<int8_t>(1, 0));
+            };
 
             OutputVector args(has_shared_expert ? 22 : 12);
             args[0] = pattern_map.at(hidden_states_m);
@@ -262,28 +276,55 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
             if (group_compressed) {
                 MOE_COMPRESSED_WEIGHT_GEMM3(gate);
                 args[4] = gemm3_transpose_scale_gate;
-                args[5] = gemm3_transpose_zp_gate;
+                if (has_zp) {
+                    MOE_COMPRESSED_WEIGHT_GEMM3_ZP(gate);
+                    args[5] = gemm3_transpose_zp_gate;
+                } else {
+                    args[5] = make_dummy_zp("gate", {}, pattern_map.at(gemm3_compressed_weights_m_gate).get_element_type());
+                }
             } else {
                 args[4] = pattern_map.at(gemm3_scale_m_gate);
-                args[5] = pattern_map.at(gemm3_zp_m_gate);
+                if (has_zp) {
+                    args[5] = pattern_map.at(gemm3_zp_m_gate);
+                } else {
+                    args[5] = make_dummy_zp("gate", {}, pattern_map.at(gemm3_compressed_weights_m_gate).get_element_type());
+                }
             }
             args[6] = pattern_map.at(gemm3_compressed_weights_m_up);
             if (group_compressed) {
                 MOE_COMPRESSED_WEIGHT_GEMM3(up);
                 args[7] =  gemm3_transpose_scale_up;
-                args[8] =  gemm3_transpose_zp_up;
+                if (has_zp) {
+                    MOE_COMPRESSED_WEIGHT_GEMM3_ZP(up);
+                    args[8] = gemm3_transpose_zp_up;
+                } else {
+                    args[8] = make_dummy_zp("up", {}, pattern_map.at(gemm3_compressed_weights_m_up).get_element_type());
+                }
             } else {
                 args[7] = pattern_map.at(gemm3_scale_m_up);
-                args[8] = pattern_map.at(gemm3_zp_m_up);
+                if (has_zp) {
+                    args[8] = pattern_map.at(gemm3_zp_m_up);
+                } else {
+                    args[8] = make_dummy_zp("up", {}, pattern_map.at(gemm3_compressed_weights_m_up).get_element_type());
+                }
             }
             args[9] = pattern_map.at(gemm3_compressed_weights_m_down);
             if (group_compressed) {
                 MOE_COMPRESSED_WEIGHT_GEMM3(down);
                 args[10] =  gemm3_transpose_scale_down;
-                args[11] =  gemm3_transpose_zp_down;
+                if (has_zp) {
+                    MOE_COMPRESSED_WEIGHT_GEMM3_ZP(down);
+                    args[11] = gemm3_transpose_zp_down;
+                } else {
+                    args[11] = make_dummy_zp("down", {}, pattern_map.at(gemm3_compressed_weights_m_down).get_element_type());
+                }
             } else {
                 args[10] = pattern_map.at(gemm3_scale_m_down);
-                args[11] = pattern_map.at(gemm3_zp_m_down);
+                if (has_zp) {
+                    args[11] = pattern_map.at(gemm3_zp_m_down);
+                } else {
+                    args[11] = make_dummy_zp("down", {}, pattern_map.at(gemm3_compressed_weights_m_down).get_element_type());
+                }
             }
 
             if (has_shared_expert) {
@@ -291,28 +332,55 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
                 if (group_compressed) {
                     MOE_COMPRESSED_WEIGHT_GEMM3(shared_gate);
                     args[13] = gemm3_transpose_scale_shared_gate;
-                    args[14] = gemm3_transpose_zp_shared_gate;
+                    if (has_zp) {
+                        MOE_COMPRESSED_WEIGHT_GEMM3_ZP(shared_gate);
+                        args[14] = gemm3_transpose_zp_shared_gate;
+                    } else {
+                        args[14] = make_dummy_zp("shared_gate", {}, pattern_map.at(gemm3_compressed_weights_m_shared_gate).get_element_type());
+                    }
                 } else {
                     args[13] = pattern_map.at(gemm3_scale_m_shared_gate);
-                    args[14] = pattern_map.at(gemm3_zp_m_shared_gate);
+                    if (has_zp) {
+                        args[14] = pattern_map.at(gemm3_zp_m_shared_gate);
+                    } else {
+                        args[14] = make_dummy_zp("shared_gate", {}, pattern_map.at(gemm3_compressed_weights_m_shared_gate).get_element_type());
+                    }
                 }
                 args[15] = pattern_map.at(gemm3_compressed_weights_m_shared_up);
                 if (group_compressed) {
                     MOE_COMPRESSED_WEIGHT_GEMM3(shared_up);
                     args[16] = gemm3_transpose_scale_shared_up;
-                    args[17] = gemm3_transpose_zp_shared_up;
+                    if (has_zp) {
+                        MOE_COMPRESSED_WEIGHT_GEMM3_ZP(shared_up);
+                        args[17] = gemm3_transpose_zp_shared_up;
+                    } else {
+                        args[17] = make_dummy_zp("shared_up", {}, pattern_map.at(gemm3_compressed_weights_m_shared_up).get_element_type());
+                    }
                 } else {
                     args[16] = pattern_map.at(gemm3_scale_m_shared_up);
-                    args[17] = pattern_map.at(gemm3_zp_m_shared_up);
+                    if (has_zp) {
+                        args[17] = pattern_map.at(gemm3_zp_m_shared_up);
+                    } else {
+                        args[17] = make_dummy_zp("shared_up", {}, pattern_map.at(gemm3_compressed_weights_m_shared_up).get_element_type());
+                    }
                 }
                 args[18] = pattern_map.at(gemm3_compressed_weights_m_shared_down);
                 if (group_compressed) {
                     MOE_COMPRESSED_WEIGHT_GEMM3(shared_down);
                     args[19] = gemm3_transpose_scale_shared_down;
-                    args[20] = gemm3_transpose_zp_shared_down;
+                    if (has_zp) {
+                        MOE_COMPRESSED_WEIGHT_GEMM3_ZP(shared_down);
+                        args[20] = gemm3_transpose_zp_shared_down;
+                    } else {
+                        args[20] = make_dummy_zp("shared_down", {}, pattern_map.at(gemm3_compressed_weights_m_shared_down).get_element_type());
+                    }
                 } else {
                     args[19] = pattern_map.at(gemm3_scale_m_shared_down);
-                    args[20] = pattern_map.at(gemm3_zp_m_shared_down);
+                    if (has_zp) {
+                        args[20] = pattern_map.at(gemm3_zp_m_shared_down);
+                    } else {
+                        args[20] = make_dummy_zp("shared_down", {}, pattern_map.at(gemm3_compressed_weights_m_shared_down).get_element_type());
+                    }
                 }
                 if (pattern_map.count(shared_gate_gate_wei_m)) {
                     args[21] = pattern_map.at(shared_gate_gate_wei_m);
@@ -327,6 +395,7 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
             config.num_expert = weight_shape[0];
             config.num_shared_expert = has_shared_expert ? 1 : 0;
             config.group_size = group_compressed ? weight_shape[3] : std::numeric_limits<size_t>::max();
+            config.has_zp = has_zp;
             auto topk_shape = pattern_map.at(topk_m).get_partial_shape();
             if (!topk_shape[1].is_static()) {
                 OPENVINO_THROW("K dimenion in moe topk input should be static..");
