@@ -121,33 +121,39 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         Q = rotaryEmbedding(Q, cos, sin, rotary_interleaved);
         K = rotaryEmbedding(K, cos, sin, rotary_interleaved);
     }
-    const auto is_static_input = K.get_partial_shape().is_static() && past_key.get_partial_shape().is_static();
-    const bool is_prefill_model = is_static_input && K.get_partial_shape()[2].get_length() != 1;
-    const bool is_kvcache_model = is_static_input && K.get_partial_shape()[2].get_length() == 1;
 
-    // re-designed kv cache for NPU static shape.
-    // use max_seq_len = 2048 as an example
-    // in prefill
+    // For better performance on NPU.
+    // Re-designed kv cache for NPU static shape, only output current KV to save DMA bandwidth.
+    // Use max_seq_len = 2048 as an example:
+    // In prefill
     //    past_key/value = [B, N, 2048, H]
     //    current_key/value = [B, N, 64, H] -> output it.
-    //    concat_key/value = [B, N, 2048+64, H] -> use it to calculate attention
+    //    concat_key/value = [B, N, 2048+64, H] -> use it to calculate attention.
     //    seqlens_k = 64 - 1
-    //    The valid data is in the end of the buffer.
+    //    When calculate attention, the valid data is in the end of the buffer.
+    // In host
+    //    insert output 64 current KV into the beginning of 2048 past_key/value buffer.
     // in kvcache
     //    past_key/value = [B, N, 2048, H]
     //    current_key/value = [B, N, 1, H] -> output it
     //    concat_key/value = [B, N, 2048+1, H] -> use it to calculate attention
-    //    seqlens_k = 33
-    //    The valid data is in the front part and the last one of the buffer. [1,1,1,...,1,0,0,...0,0,1]
+    //    seqlens_k = valid_tokens - 1
+    //    When calculate attention, the valid data is in the begining and the end one of the buffer.
+    //    [1,1,1,...,1,0,0,...0,0,1]
+    const auto is_static_input = K.get_partial_shape().is_static() && past_key.get_partial_shape().is_static();
+    const bool is_static_and_prefill_model = is_static_input && K.get_partial_shape()[2].get_length() != 1;
+    const bool is_static_and_kvcache_model = is_static_input && K.get_partial_shape()[2].get_length() == 1;
 
-    // for NPU static shape design, output current KV only.
-    ov::Output<ov::Node> present_k = K;
-    ov::Output<ov::Node> present_v = V;
+    ov::Output<ov::Node> present_k;
+    ov::Output<ov::Node> present_v;
 
     auto construct_kv_cache = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
         return register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2);
     };
     if (is_static_input) {
+        // for NPU static shape design, output current KV only.
+        present_k = K;
+        present_v = V;
         K = construct_kv_cache(past_key, K);
         V = construct_kv_cache(past_value, V);
     } else {
@@ -215,18 +221,18 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
                 register_new_node(v0::Constant::create(T, ov::Shape{}, {std::numeric_limits<ov::float16>::lowest()}));
         mask = register_new_node<v1::Select>(triu, minus_inf, typed_zero);
 
-        // past KV's valid data should be put in the front of the buffer, it should be done by application level.
+        // Past KV's valid data should be put in the front of the buffer, it should be done by application level.
         const auto past_k_node_len = get_dimensions(past_key.get_node_shared_ptr(), {2});
-        if (is_prefill_model) {
+        if (is_static_and_prefill_model) {
             auto left_mask = register_new_node<v1::Less>(hori_range, past_seqlen);  // first N
             auto righ_mask = register_new_node<v1::GreaterEqual>(hori_range, past_k_node_len);
-            const auto atte_mask = register_new_node<v1::LogicalOr>(left_mask, righ_mask);       // [1,1,1,..., 0,0,1,...,1]
+            const auto atte_mask = register_new_node<v1::LogicalOr>(left_mask, righ_mask);  // [1,1,1,..., 0,0,1,...,1]
             mask = register_new_node<v1::Select>(atte_mask, mask, minus_inf);
         }
-        if (is_kvcache_model) {
-            const auto left_mask = register_new_node<v1::Less>(hori_range, seqlens_elemi64);     // first N
+        if (is_static_and_kvcache_model) {
+            const auto left_mask = register_new_node<v1::Less>(hori_range, seqlens_elemi64);          // first N
             const auto righ_mask = register_new_node<v1::GreaterEqual>(hori_range, past_k_node_len);  // last 1
-            const auto atte_mask = register_new_node<v1::LogicalOr>(left_mask, righ_mask);       // [1,1,1,..., 0,0,0,1]
+            const auto atte_mask = register_new_node<v1::LogicalOr>(left_mask, righ_mask);  // [1,1,1,..., 0,0,0,1]
             mask = register_new_node<v1::Select>(atte_mask, typed_zero, minus_inf);
         }
     }
