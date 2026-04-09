@@ -320,6 +320,7 @@ struct RoPEFrequencies {
 static RoPEFrequencies build_rope_frequencies(size_t head_dim,
                                               ov::element::Type precision,
                                               const ov::Output<ov::Node>& position_ids,
+                                              const ov::Output<ov::Node>& shape_source = {},
                                               const std::string& prefix = "model.rope") {
     const size_t half_dim = head_dim / 2;
 
@@ -331,7 +332,25 @@ static RoPEFrequencies build_rope_frequencies(size_t head_dim,
     auto inv_freq = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, half_dim, 1}, inv_freq_data);
     inv_freq->set_friendly_name(prefix + ".inv_freq");
 
-    // position_ids [batch, seq] -> Unsqueeze -> Convert(f32) -> MatMul(inv_freq)
+    // Broadcast inv_freq to [batch, half_dim, 1] using batch dim from shape_source.
+    // This ShapeOf -> Gather -> Concat -> Broadcast chain matches NPUW's RopePatternLLama2.
+    const auto& batch_source = shape_source.get_node() ? shape_source : position_ids;
+    auto shape_of = std::make_shared<ov::opset11::ShapeOf>(batch_source, ov::element::i64);
+    shape_of->set_friendly_name(prefix + ".shapeof");
+    auto batch_dim = std::make_shared<ov::opset11::Gather>(shape_of,
+        ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {0}),
+        ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+    batch_dim->set_friendly_name(prefix + ".batch_gather");
+    auto broadcast_shape = std::make_shared<ov::opset11::Concat>(
+        ov::OutputVector{batch_dim->output(0),
+                         ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {static_cast<int64_t>(half_dim)})->output(0),
+                         ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1})->output(0)}, 0);
+    broadcast_shape->set_friendly_name(prefix + ".broadcast_shape");
+    auto inv_freq_broadcast = std::make_shared<ov::op::v3::Broadcast>(
+        inv_freq, broadcast_shape, ov::op::BroadcastType::BIDIRECTIONAL);
+    inv_freq_broadcast->set_friendly_name(prefix + ".inv_freq_broadcast");
+
+    // position_ids [batch, seq] -> Unsqueeze -> Convert(f32) -> MatMul(broadcast_inv_freq)
     // -> Transpose -> Concat(self,self) -> Sin/Cos -> Unsqueeze [batch, 1, seq, head_dim]
     auto unsq_axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1});
     auto unsqueezed = std::make_shared<ov::opset11::Unsqueeze>(position_ids, unsq_axis);
@@ -340,7 +359,7 @@ static RoPEFrequencies build_rope_frequencies(size_t head_dim,
     auto converted = std::make_shared<ov::opset11::Convert>(unsqueezed, ov::element::f32);
     converted->set_friendly_name(prefix + ".pos_convert");
 
-    auto matmul = std::make_shared<ov::opset11::MatMul>(inv_freq, converted, false, false);
+    auto matmul = std::make_shared<ov::opset11::MatMul>(inv_freq_broadcast, converted, false, false);
     matmul->set_friendly_name(prefix + ".freq_matmul");
 
     auto perm = ov::opset11::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 2, 1});
@@ -379,9 +398,11 @@ static RoPEFrequencies build_rope_frequencies(size_t head_dim,
     return {cos_out, sin_out};
 }
 
-HalfRotationRoPE::HalfRotationRoPE(size_t hd, ov::element::Type precision, const ov::Output<ov::Node>& position_ids)
+HalfRotationRoPE::HalfRotationRoPE(size_t hd, ov::element::Type precision,
+                                   const ov::Output<ov::Node>& position_ids,
+                                   const ov::Output<ov::Node>& shape_source)
     : head_dim(hd) {
-    auto freq = build_rope_frequencies(hd, precision, position_ids);
+    auto freq = build_rope_frequencies(hd, precision, position_ids, shape_source);
     cos_freq = freq.cos;
     sin_freq = freq.sin;
 }
@@ -421,9 +442,11 @@ ov::Output<ov::Node> HalfRotationRoPE::operator()(const ov::Output<ov::Node>& in
     return output->output(0);
 }
 
-InterleavedRoPE::InterleavedRoPE(size_t hd, ov::element::Type precision, const ov::Output<ov::Node>& position_ids)
+InterleavedRoPE::InterleavedRoPE(size_t hd, ov::element::Type precision,
+                                 const ov::Output<ov::Node>& position_ids,
+                                 const ov::Output<ov::Node>& shape_source)
     : head_dim(hd) {
-    auto freq = build_rope_frequencies(hd, precision, position_ids);
+    auto freq = build_rope_frequencies(hd, precision, position_ids, shape_source);
     cos_freq = freq.cos;
     sin_freq = freq.sin;
 }
