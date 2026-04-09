@@ -236,9 +236,89 @@ struct PagedAttentionManager {
     }
 
     memory::ptr get_key_cache_memory_cm() {
-        auto key_cache_dt = kv_cache_compression ? data_types::i8 : data_types::f16;
+        if (is_turboquant_kv_cache()) {
+            constexpr int turboquant_bits = 4;
+            constexpr int turboquant_levels = 1 << turboquant_bits;
+            constexpr int turboquant_subgroup = 16;
+            const int packed_head_size = k_head_size * turboquant_bits / 8;
+            const int adjusted_tq_head_size = packed_head_size + static_cast<int>(sizeof(ov::float16));
+            const auto num_blocks = block_indices.back() + 1;
+
+            auto key_cache_shape = ov::PartialShape{static_cast<int64_t>(num_blocks),
+                                                    static_cast<int64_t>(num_kv_heads),
+                                                    static_cast<int64_t>(block_size),
+                                                    static_cast<int64_t>(adjusted_tq_head_size)};
+            auto key_cache_layout = layout{key_cache_shape, data_types::u8, format::bfyx};
+            auto memory = test_engine.allocate_memory(key_cache_layout);
+
+            for (int i = 0; i < static_cast<int>(subsequence_descs.size()); i++) {
+                const int past_len = subsequence_descs[i].past_len;
+                if (past_len == 0)
+                    continue;
+
+                const int blocks_num = ceil_div(past_len + 1, block_size);
+                const int start_block_idx = block_indices[block_indices_begins[i]];
+
+                for (int block_idx = 0; block_idx < blocks_num; block_idx++) {
+                    const int last_token_idx = block_idx == blocks_num - 1 ? (past_len - block_size * block_idx) : block_size;
+
+                    for (int token_idx = 0; token_idx < last_token_idx; token_idx++) {
+                        for (int head_idx = 0; head_idx < num_kv_heads; head_idx++) {
+                            const size_t input_token_offset = static_cast<size_t>(block_idx) * block_size + token_idx;
+                            ov::float16* data_ptr = key_data[i].data() + input_token_offset * num_kv_heads * k_head_size + head_idx * k_head_size;
+
+                            float token_norm = 0.0f;
+                            for (int d = 0; d < k_head_size; d++) {
+                                token_norm = std::max(token_norm, std::abs(static_cast<float>(data_ptr[d])));
+                            }
+                            token_norm = std::max(token_norm, 1e-6f);
+
+                            std::vector<uint8_t> packed_data(packed_head_size, 0);
+                            std::vector<uint8_t> q(k_head_size, 0);
+                            for (int d = 0; d < k_head_size; d++) {
+                                const float normalized = std::clamp(static_cast<float>(data_ptr[d]) / token_norm, -1.0f, 1.0f);
+                                const float tq_index = ((normalized + 1.0f) * 0.5f) * static_cast<float>(turboquant_levels - 1);
+                                const int qidx = std::clamp(static_cast<int>(std::nearbyint(tq_index)), 0, turboquant_levels - 1);
+                                q[d] = static_cast<uint8_t>(qidx);
+                            }
+
+                            for (int packed_idx = 0; packed_idx < packed_head_size; packed_idx++) {
+                                const int subgroup_lane = packed_idx % turboquant_subgroup;
+                                const int pack_group = packed_idx / turboquant_subgroup;
+                                const int d0 = pack_group * 2 * turboquant_subgroup + subgroup_lane;
+                                const int d1 = d0 + turboquant_subgroup;
+
+                                uint8_t packed_byte = q[d0] & 0xFu;
+                                if (d1 < k_head_size)
+                                    packed_byte |= static_cast<uint8_t>((q[d1] & 0xFu) << 4);
+
+                                packed_data[packed_idx] = packed_byte;
+                            }
+
+                            const size_t block_stride = static_cast<size_t>(block_size) * static_cast<size_t>(adjusted_tq_head_size);
+                            const size_t head_base = (static_cast<size_t>(start_block_idx + block_idx) * num_kv_heads + head_idx) * block_stride;
+                            const size_t token_base = head_base + static_cast<size_t>(token_idx) * static_cast<size_t>(adjusted_tq_head_size);
+
+                            set_values(test_stream, memory, packed_data.data(), static_cast<size_t>(packed_head_size), token_base);
+
+                            ov::float16 norm = ov::float16(token_norm);
+                            const size_t norm_off_f16 = (token_base + static_cast<size_t>(packed_head_size)) / 2;
+                            set_values(test_stream, memory, &norm, 1, norm_off_f16);
+                        }
+                    }
+                }
+            }
+
+            return memory;
+        }
+
+        auto key_cache_dt = data_types::f16;
+        if (kv_cache_compression || is_turboquant_kv_cache()) {
+            key_cache_dt = is_turboquant_kv_cache() ? data_types::u8 : data_types::i8;
+        }
         const int head_size = k_head_size;
         const int adjusted_head_size = head_size + (kv_cache_compression ? 4 : 0);
+        const bool use_unsigned_quant = has_xattention || is_turboquant_kv_cache();
 
         const auto num_blocks = block_indices.back() + 1;
         auto key_cache_shape = ov::PartialShape{static_cast<int64_t>(num_blocks),
@@ -277,8 +357,8 @@ struct PagedAttentionManager {
                             //   data:  block_base_i8 + t*head_size                 (u8 semantics), size=head_size bytes
                             //   scale: scale_base_i8 + t*sizeof(fp16)              (fp16), indexed as (scale_base_i8/2 + t)
                             //   zp:    zp_base_i8 + t*sizeof(fp16)                 (fp16), indexed as (zp_base_i8/2 + t)
-                            // xattention quant: q∈[0..255], dequant x ≈ (q - zp) * scale, where scale=(max-min)/255, zp=(-min)*255/(max-min).
-                            auto [qdata, scale, zp] = quantize_data(src_ptr, head_size, false, true);
+                            // For XAttention/TurboQuant this path uses unsigned quantization.
+                            auto [qdata, scale, zp] = quantize_data(src_ptr, head_size, false, use_unsigned_quant);
                             int8_t* qptr = reinterpret_cast<int8_t*>(qdata.data());
 
                             const size_t block_stride_i8 = static_cast<size_t>(adjusted_head_size) * block_size;
@@ -616,7 +696,7 @@ struct PagedAttentionManager {
         const int head_size = v_head_size;
         int scale_zp_bytes = 0;
         if (kv_cache_compression) {
-            value_cache_dt = is_int4_kv_cache() ? data_types::u8 : data_types::i8;
+            value_cache_dt = (is_int4_kv_cache() || is_turboquant_kv_cache()) ? data_types::u8 : data_types::i8;
             scale_zp_bytes = is_int4_kv_cache() ? 8 : 4;
         }
 
@@ -719,12 +799,13 @@ struct PagedAttentionManager {
                             set_values(test_stream, memory, &inv_scale_fp16, 1, scale_off_f16);
                             set_values(test_stream, memory, &zp_fp16, 1, zp_off_f16);
                         } else {
+                            const bool use_turboquant_value_by_token = is_turboquant_kv_cache();
                             // Compressed Value cache layout:
                             // logical shape: [num_blocks, num_kv_heads, block_size, adjusted_head_size], dt=i8 (adjusted_head_size=head_size+4).
                             // Per (block, head): data at block_base_i8 + t*head_size; scale/zp are fp16 arrays at scale_base_i8/zp_base_i8
                             // (fp16 element offsets: scale_base_i8/2 + t, zp_base_i8/2 + t).
                             // has_xattention uses unsigned [0..255] quant; dequant x ≈ (q - zp) * scale, scale=(max-min)/255, zp=(-min)*255/(max-min).
-                            auto [qdata, scale, zp] = quantize_data(src_ptr, head_size, false, has_xattention);
+                            auto [qdata, scale, zp] = quantize_data(src_ptr, head_size, false, has_xattention || use_turboquant_value_by_token);
                             int8_t* qptr = reinterpret_cast<int8_t*>(qdata.data());
 
                             const size_t block_stride_i8 = static_cast<size_t>(adjusted_head_size) * static_cast<size_t>(block_size);
@@ -1083,8 +1164,9 @@ struct PagedAttentionReference {
             const auto& subsequence_desc = pam.subsequence_descs[i];
             const auto kv_seq_len = subsequence_desc.num_tokens + subsequence_desc.past_len;
 
-            auto key_data = pam.key_data[i];
-            if (pam.rotation_config.apply_rotation) {
+            const bool use_key_cache_for_reference = (key_cache_mem != nullptr) && pam.kv_cache_compression;
+            auto key_data = use_key_cache_for_reference ? read_key_from_cache(key_cache_mem, i, kv_seq_len) : pam.key_data[i];
+            if (!use_key_cache_for_reference && pam.rotation_config.apply_rotation) {
                 auto blocks_start = pam.block_indices_begins[i];
                 auto blocks_end = pam.block_indices_begins[i + 1];
 
@@ -1562,7 +1644,57 @@ private:
                 }
             }
         } else {
-            if (pam.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
+            if (pam.is_turboquant_kv_cache()) {
+                // TurboQuant BY_TOKEN: [num_blocks, kv_heads, block_size, packed_head_size + sizeof(fp16)] u8
+                // packed nibble layout (SG=16):
+                //   y = pack_group * SG + lane
+                //   d0 = pack_group * 2 * SG + lane  -> low nibble
+                //   d1 = d0 + SG                      -> high nibble
+                // token norm is fp16 at byte offset packed_head_size for each (block, head, token).
+                mem_lock<uint8_t, mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
+                constexpr int SG = 16;
+                const int packed_head_size = pam.k_head_size / 2;
+                const int adjusted_tq_head_size = packed_head_size + static_cast<int>(sizeof(ov::float16));
+                constexpr float affine_bias = -1.0f;
+                constexpr float affine_scale = 2.0f / 15.0f;
+
+                for (int block_idx = 0; block_idx < num_blocks; block_idx++) {
+                    const int physical_block = pam.block_indices[blocks_start + block_idx];
+                    const int tokens_in_block = std::min(pam.block_size, total_tokens - block_idx * pam.block_size);
+
+                    for (int token_offset = 0; token_offset < tokens_in_block; token_offset++) {
+                        const int token_idx = block_idx * pam.block_size + token_offset;
+
+                        for (int head_idx = 0; head_idx < pam.num_kv_heads; head_idx++) {
+                            const size_t token_base =
+                                ((static_cast<size_t>(physical_block) * pam.num_kv_heads + static_cast<size_t>(head_idx)) * pam.block_size +
+                                 static_cast<size_t>(token_offset)) *
+                                static_cast<size_t>(adjusted_tq_head_size);
+
+                            ov::float16 token_norm_h = ov::float16(0.0f);
+                            const size_t norm_off_f16 = (token_base + static_cast<size_t>(packed_head_size)) / 2;
+                            const auto* cache_ptr_h = reinterpret_cast<const ov::float16*>(cache_ptr.data());
+                            token_norm_h = cache_ptr_h[norm_off_f16];
+                            const float token_norm = static_cast<float>(token_norm_h);
+
+                            const size_t out_base = static_cast<size_t>(head_idx) * total_tokens * pam.k_head_size +
+                                                    static_cast<size_t>(token_idx) * pam.k_head_size;
+
+                            for (int d = 0; d < pam.k_head_size; d++) {
+                                const int lane = d % SG;
+                                const int pack_group = d / (2 * SG);
+                                const int y = pack_group * SG + lane;
+                                const int group_in_pack = (d / SG) % 2;  // 0: low nibble, 1: high nibble
+
+                                const uint8_t packed_byte = cache_ptr[token_base + static_cast<size_t>(y)];
+                                const uint8_t qidx = (group_in_pack == 0) ? (packed_byte & 0xFu) : ((packed_byte >> 4) & 0xFu);
+                                const float centroid = static_cast<float>(qidx) * affine_scale + affine_bias;
+                                key_data[out_base + d] = ov::float16(centroid * token_norm);
+                            }
+                        }
+                    }
+                }
+            } else if (pam.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
                 if (pam.is_int4_kv_cache()) {
                     // INT4 BY_CHANNEL: [num_blocks, kv_heads, k_head_size/2, block_size+8] u8
                     // Each packed dim p: byte holds two u4 values (lower=even dim, upper=odd dim).
@@ -1852,7 +1984,7 @@ public:
         auto value_mem = pam.get_value_memory();
         
         memory::ptr key_cache_mem;
-        if (p.has_xattention) {
+        if (p.has_xattention || p.key_cache_quant_mode == ov::internal::CacheQuantMode::TURBOQUANT) {
             key_cache_mem = pam.get_key_cache_memory_cm();
         } else {
             key_cache_mem = pam.get_key_cache_memory();
@@ -2277,11 +2409,16 @@ TEST_P(turboquant_test, basic) {
         GTEST_SKIP();
     auto p = GetParam();
 
-    // TurboQuant currently supports only single-subsequence tests.
+    // TurboQuant currently supports only single-subsequence CM path tests.
     ASSERT_EQ(p.subsequences.size(), 1);
+    ASSERT_EQ(p.block_size, 16);
+    ASSERT_TRUE(p.kv_cache_compression);
+    ASSERT_EQ(p.key_cache_quant_mode, ov::internal::CacheQuantMode::TURBOQUANT);
+    ASSERT_EQ(p.kv_cache_precision, ov::element::dynamic);
     ASSERT_FALSE(p.has_xattention);
 
-    execute(p, false);
+    // PA primitive is the target and SDPA-based path is the reference.
+    execute(p, true);
 }
 
 class turboquant_invalid_test : public PagedAttentionTest<paged_attention_test_params> {};
@@ -2524,15 +2661,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention, xattention_test, ::testing::Values
 
 INSTANTIATE_TEST_SUITE_P(smoke_cm_turboquant, turboquant_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
     // decode path (generate)
-    paged_attention_test_params{ {{1, 64}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::TURBOQUANT, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u8 },
+    paged_attention_test_params{ {{1, 64}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::TURBOQUANT, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
     // prefill path
-    paged_attention_test_params{ {{64, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::TURBOQUANT, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u8 },
-    // decode path with int4 cache precision
-    paged_attention_test_params{ {{1, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::TURBOQUANT, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 },
+    paged_attention_test_params{ {{64, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::TURBOQUANT, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
 }));
 
 INSTANTIATE_TEST_SUITE_P(smoke_cm_turboquant_invalid_xattention, turboquant_invalid_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
-    paged_attention_test_params{ {{64, 0}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::TURBOQUANT, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128}, ov::element::u8 },
+    paged_attention_test_params{ {{64, 0}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::TURBOQUANT, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} },
 }));
 
 INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention_block_size, xattention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{

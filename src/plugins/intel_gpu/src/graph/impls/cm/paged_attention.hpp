@@ -32,6 +32,7 @@ struct PagedAttentionImplementationManager : public ImplementationManager {
         static constexpr std::array supported_kv_types = {
             ov::element::f16,
             ov::element::i8,
+            ov::element::u8,
         };
 
         auto desc = node.as<paged_attention>().get_primitive();
