@@ -56,9 +56,9 @@ std::string vector_to_string(const std::vector<T, A>& v) {
     return "[ " + ov::util::join(v) + " ]";
 }
 
-std::string to_lower(const std::string& s);
+std::string to_lower(const std::string_view s);
 
-std::string to_upper(const std::string& s);
+std::string to_upper(const std::string_view s);
 
 inline size_t hash_combine(size_t val, const size_t seed) {
     return seed ^ (val + 0x9e3779b9 + (seed << 6) + (seed >> 2));

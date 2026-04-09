@@ -6,15 +6,19 @@
 
 #include <algorithm>
 
-std::string ov::util::to_lower(const std::string& s) {
-    std::string rc = s;
-    std::transform(rc.begin(), rc.end(), rc.begin(), ::tolower);
+std::string ov::util::to_lower(const std::string_view s) {
+    std::string rc{s};
+    std::transform(rc.begin(), rc.end(), rc.begin(), [](unsigned char c) {
+        return std::tolower(c);
+    });
     return rc;
 }
 
-std::string ov::util::to_upper(const std::string& s) {
-    std::string rc = s;
-    std::transform(rc.begin(), rc.end(), rc.begin(), ::toupper);
+std::string ov::util::to_upper(const std::string_view s) {
+    std::string rc{s};
+    std::transform(rc.begin(), rc.end(), rc.begin(), [](unsigned char c) {
+        return std::toupper(c);
+    });
     return rc;
 }
 
