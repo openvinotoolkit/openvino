@@ -662,10 +662,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // Plain PA already falls back to compressed KV cache for BY_TOKEN on GPU.
             // XAttention builds its dedicated KV layout in this pass, so normalize the
             // precision here before ConvertPagedAttnInputs materializes that layout.
-            if (use_xattention &&
-                key_cache_quant_mode == ov::internal::CacheQuantMode::BY_TOKEN &&
-                (kv_cache_precision == ov::element::f16 || kv_cache_precision == ov::element::f32 ||
-                 kv_cache_precision == ov::element::bf16)) {
+            if (use_xattention && key_cache_quant_mode == ov::internal::CacheQuantMode::BY_TOKEN) {
                 kv_cache_precision = ov::element::i8;
             }
             kv_cache_config.keyCachePrecision = kv_cache_precision;
