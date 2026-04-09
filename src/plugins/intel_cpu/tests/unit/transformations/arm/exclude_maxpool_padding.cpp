@@ -56,26 +56,9 @@ Output<Node> make_pad(const Output<Node>& input,
 
     std::vector<int64_t> pad_end_values{0, 0};
     pad_end_values.insert(pad_end_values.end(), pads_end.begin(), pads_end.end());
-
-    Output<Node> padded = input;
-    for (size_t dim = 0; dim < pad_begin_values.size(); ++dim) {
-        if (pad_begin_values[dim] == 0 && pad_end_values[dim] == 0) {
-            continue;
-        }
-
-        std::vector<int64_t> dim_pad_begin_values(pad_begin_values.size(), 0);
-        std::vector<int64_t> dim_pad_end_values(pad_end_values.size(), 0);
-        dim_pad_begin_values[dim] = pad_begin_values[dim];
-        dim_pad_end_values[dim] = pad_end_values[dim];
-
-        const auto pad_begin = op::v0::Constant::create(element::i64,
-                                                        Shape{dim_pad_begin_values.size()},
-                                                        dim_pad_begin_values);
-        const auto pad_end = op::v0::Constant::create(element::i64, Shape{dim_pad_end_values.size()}, dim_pad_end_values);
-        padded = std::make_shared<op::v12::Pad>(padded, pad_begin, pad_end, pad_value, op::PadMode::CONSTANT);
-    }
-
-    return padded;
+    const auto pad_begin = op::v0::Constant::create(element::i64, Shape{pad_begin_values.size()}, pad_begin_values);
+    const auto pad_end = op::v0::Constant::create(element::i64, Shape{pad_end_values.size()}, pad_end_values);
+    return std::make_shared<op::v12::Pad>(input, pad_begin, pad_end, pad_value, op::PadMode::CONSTANT);
 }
 
 Output<Node> maybe_make_fake_quantize(const Output<Node>& input,

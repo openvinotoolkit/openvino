@@ -574,7 +574,10 @@ bool Convolution::canFuse(const NodePtr& node) const {
     if (node->getType() == Type::FakeQuantize) {
         const auto fqOutPrc = node->getOriginalOutputPrecisionAtPort(0);
         const auto convInPrc = getOriginalInputPrecisionAtPort(0);
-        if (any_of(convInPrc, ov::element::u8, ov::element::i8) && fqOutPrc != convInPrc) {
+        const bool isAclInt8ConvFqChain = canBeExecutedInInt8() &&
+                                         any_of(fqOutPrc, ov::element::u8, ov::element::i8) &&
+                                         convInPrc == fqOutPrc;
+        if (!isAclInt8ConvFqChain) {
             return false;
         }
     }

@@ -8,11 +8,16 @@
 /*
  * Description:
  *     ExcludeMaxPoolPadding detects MaxPool operations with explicit non-zero
- *     padding and moves that padding into a dedicated Pad operation.
+ *     padding, creates a single Pad operation with the full extended
+ *     pads_begin/pads_end vectors, and rewires MaxPool to consume that Pad.
  *     The MaxPool node is then updated to use zero paddings with
  *     PadType::VALID, so the padding is represented explicitly in the graph.
+ *     The Pad value is chosen as 0 when the MaxPool input comes from a
+ *     FakeQuantize with non-negative output range, otherwise it is set to the
+ *     lowest representable floating-point value of the input type.
  *     This form allows the ARM ACL backend to enable exclude_padding-based
- *     optimized MaxPool kernels.
+ *     optimized MaxPool kernels while keeping padding on all spatial axes in a
+ *     single explicit Pad node.
  *
  * Before:
  *
@@ -32,25 +37,25 @@
  *
  * After:
  *
- * +---------------+    +------------------+    +------------------+
- * | Input tensor  |    | pads_begin/end   |    | -inf converted   |
- * +-------+-------+    +--------+---------+    | to input type     |
- *         |                     |              +---------+--------+
- *         |                     |                        |
- *   +-----v---------------------v------------------------v---+
- *   | Pad (CONSTANT)                                        |
- *   +--------------------------+----------------------------+
- *                              |
- *                    +---------v----------------+
- *                    | MaxPool                  |
- *                    | pads_begin = 0           |
- *                    | pads_end = 0             |
- *                    | auto_pad = VALID         |
- *                    +------------+-------------+
- *                                 |
- *                          +------v------+
- *                          |   Result    |
- *                          +-------------+
+ * +---------------+    +------------------+    +------------------+    +------------------+
+ * | Input tensor  |    | pads_begin full  |    | pads_end full    |    | pad value        |
+ * +-------+-------+    +--------+---------+    +--------+---------+    | 0 or type min    |
+ *         |                     |                       |              +---------+--------+
+ *         |                     |                       |                        |
+ *   +-----v---------------------v-----------------------v------------------------v---+
+ *   | Pad (CONSTANT)                                                                 |
+ *   +-----------------------------------+--------------------------------------------+
+ *                                       |
+ *                             +---------v----------------+
+ *                             | MaxPool                  |
+ *                             | pads_begin = 0           |
+ *                             | pads_end = 0             |
+ *                             | auto_pad = VALID         |
+ *                             +------------+-------------+
+ *                                          |
+ *                                   +------v------+
+ *                                   |   Result    |
+ *                                   +-------------+
  *
  */
 
