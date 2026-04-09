@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,30 @@ KERNEL (gather_nonzero_ref)(
     volatile __global INPUT1_TYPE* output_shape,
     __global OUTPUT_TYPE* output)
 {
-    int local_offset = 0;
+    const uint local_idx = get_local_id(0);
+    const uint num_work_items = get_global_size(0);
+    const uint data_size = TOTAL_DATA_SIZE;
+    const uint items_num = data_size / num_work_items;
+    const uint leftovers = data_size - (items_num * num_work_items);
+
+    uint workitem_nonzero_count = 0;
+    uint actual_items_num = items_num;
+    uint input_idx  = (actual_items_num * local_idx) + leftovers;
+    if (local_idx < leftovers) {
+        actual_items_num = items_num + 1;
+        input_idx  = actual_items_num * local_idx;
+    }
+    uint final_item = input_idx + actual_items_num;
+
+    for (uint iter = 0; iter < actual_items_num; iter++) {
+        const uint idx = input_idx + iter;
+        uint count = (input[idx] == INPUT0_VAL_ZERO) ? 0 : 1;
+        workitem_nonzero_count += count;
+    }
+
+    work_group_barrier(CLK_LOCAL_MEM_FENCE);
+    uint local_offset = work_group_scan_exclusive_add(workitem_nonzero_count);
+
     const int result_size = OV_INPUT_RANK * OUTPUT_FEATURE_NUM; // output shape: [ov_rank, count_nonzero]
 
     OUTPUT_TYPE* out_mem;
@@ -115,10 +138,9 @@ KERNEL (gather_nonzero_ref)(
         out_mem[x_pos] = x; \
         local_offset++;
 #endif
-    int input_idx = 0;
-    int global_output_offset = 0;
+
     // load to local mem
-    for (; input_idx + VSIZE <= TOTAL_DATA_SIZE; input_idx += VSIZE) {
+    for (; input_idx + VSIZE <= final_item; input_idx += VSIZE) {
         MAKE_VECTOR_TYPE(INPUT0_TYPE, VSIZE) inputs = VLOAD(0, input + input_idx);
         for (int v = 0; v < VSIZE; ++v) {
             int input_idx_v = input_idx + v;
@@ -129,19 +151,21 @@ KERNEL (gather_nonzero_ref)(
     }
 
     // leftovers
-    for (;input_idx < TOTAL_DATA_SIZE; ++input_idx) {
+    for (;input_idx < final_item; ++input_idx) {
         int input_idx_v = input_idx;
         int v = 0;
         if (input[input_idx] != INPUT0_VAL_ZERO) {
             ADD_IDXS;
          }
     }
-
-    if (use_local_mem) {
+    
+    work_group_barrier(CLK_LOCAL_MEM_FENCE);
+    int global_output_offset = 0;
+    if (use_local_mem && local_idx == 0) {
         // write back to global mem
         int local_out_iter = 0;
         for (; local_out_iter + VSIZE < result_size; local_out_iter += VSIZE) {
-            vstore8(VLOAD(0, out_mem + local_out_iter), 0, output + global_output_offset + local_out_iter);
+            VSTORE(VLOAD(0, out_mem + local_out_iter), 0, output + global_output_offset + local_out_iter);
         }
         // leftover
         for (; local_out_iter < result_size; ++local_out_iter) {
