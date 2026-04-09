@@ -19,14 +19,14 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(count_nonzero)
 layout count_nonzero_inst::calc_output_layout(count_nonzero_node const& node, kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(node.get_primitive()->output_data_types[0]) == false &&
            "Output data type forcing is not supported for count_nonzero_node!");
-    return layout{cldnn::data_types::i32, cldnn::format::bfyx, tensor{1, 1, 1, 1024}};
+    return layout{cldnn::data_types::i32, cldnn::format::bfyx, tensor{1, 1, 1, 1}};
 }
 
 template<typename ShapeType>
 std::vector<layout> count_nonzero_inst::calc_output_layouts(count_nonzero_node const& /*node*/, kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
             "Output data type forcing is not supported for count_nonzero_node!");
-    return {layout{ov::PartialShape{1024}, cldnn::data_types::i32, cldnn::format::bfyx}};
+    return {layout{ov::PartialShape{1}, cldnn::data_types::i32, cldnn::format::bfyx}};
 }
 
 std::string count_nonzero_inst::to_string(count_nonzero_node const& node) {
@@ -38,7 +38,7 @@ std::string count_nonzero_inst::to_string(count_nonzero_node const& node) {
 
     json_composite count_nonzero_info;
     count_nonzero_info.add("input id", input.id());
-    count_nonzero_info.add("output shape", tensor{1, 1, 1, 1024});
+    count_nonzero_info.add("output shape", tensor{1, 1, 1, 4});
 
     node_info->add("count_nonzero info", count_nonzero_info);
     node_info->dump(primitive_description);

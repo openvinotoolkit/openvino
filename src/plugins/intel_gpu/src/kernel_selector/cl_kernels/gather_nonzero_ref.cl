@@ -21,6 +21,7 @@ KERNEL (gather_nonzero_ref)(
     const uint items_num = data_size / num_work_items;
     const uint leftovers = data_size - (items_num * num_work_items);
 
+    uint workitem_nonzero_count = 0;
     uint actual_items_num = items_num;
     uint input_idx  = (actual_items_num * local_idx) + leftovers;
     if (local_idx < leftovers) {
@@ -29,7 +30,15 @@ KERNEL (gather_nonzero_ref)(
     }
     uint final_item = input_idx + actual_items_num;
 
-    int local_offset = local_idx == 0 ? 0 : output_shape[local_idx];
+    for (uint iter = 0; iter < actual_items_num; iter++) {
+        const uint idx = input_idx + iter;
+        uint count = (input[idx] == INPUT0_VAL_ZERO) ? 0 : 1;
+        workitem_nonzero_count += count;
+    }
+
+    work_group_barrier(CLK_LOCAL_MEM_FENCE);
+    uint local_offset = work_group_scan_exclusive_add(workitem_nonzero_count);
+
     const int result_size = OV_INPUT_RANK * OUTPUT_FEATURE_NUM; // output shape: [ov_rank, count_nonzero]
 
     OUTPUT_TYPE* out_mem;
@@ -150,13 +159,13 @@ KERNEL (gather_nonzero_ref)(
          }
     }
     
-    sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+    work_group_barrier(CLK_LOCAL_MEM_FENCE);
     int global_output_offset = 0;
     if (use_local_mem && local_idx == 0) {
         // write back to global mem
         int local_out_iter = 0;
         for (; local_out_iter + VSIZE < result_size; local_out_iter += VSIZE) {
-            vstore8(VLOAD(0, out_mem + local_out_iter), 0, output + global_output_offset + local_out_iter);
+            VSTORE(VLOAD(0, out_mem + local_out_iter), 0, output + global_output_offset + local_out_iter);
         }
         // leftover
         for (; local_out_iter < result_size; ++local_out_iter) {
