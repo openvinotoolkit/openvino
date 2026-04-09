@@ -1615,6 +1615,8 @@ std::shared_ptr<ov::Model> generateBinaryEltwise(const std::shared_ptr<ov::op::O
     std::shared_ptr<ov::Node> eltwiseNode;
     if (ov::is_type<ov::op::v0::SquaredDifference>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::SquaredDifference>(params.front(), params.back());
+    } else if (ov::is_type<ov::op::v17::Atan2>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v17::Atan2>(params.front(), params.back());
     } else if (ov::is_type<ov::op::v1::Add>(node)) {
         eltwiseNode = std::make_shared<ov::op::v1::Add>(params.front(), params.back());
     } else if (ov::is_type<ov::op::v1::Divide>(node)) {
