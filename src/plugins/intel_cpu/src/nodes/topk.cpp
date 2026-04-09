@@ -2078,13 +2078,13 @@ void TopK::prepareParams() {
 
     if (isDynamicNode()) {
         const int src_k = getSrcDataAtPortAs<int>(TOPK_K)[0];
-        CPU_NODE_ASSERT(static_cast<size_t>(src_k) <= src_dims[axis], "gets top_k out of range!");
         if (top_k != src_k) {
             top_k = src_k;
         }
     } else {
         top_k = getSrcDataAtPortAs<int>(TOPK_K)[0];
     }
+    CPU_NODE_ASSERT(static_cast<size_t>(top_k) <= src_dims[axis], "gets top_k out of range!");
 
     if (jit_mode) {
         if (!preset_params_done) {
