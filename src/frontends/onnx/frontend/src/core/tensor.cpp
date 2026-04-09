@@ -435,21 +435,23 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
     }
     ov::element::Type ov_type = get_ov_type();
     size_t element_count = get_data_size();
+    const auto shape_elements = shape_size(m_shape);
     if (ov::element::is_nibble_type(ov_type)) {
         element_count *= 2;  // Each byte contains 2 data items
-        if (shape_size(m_shape) % 2) {
+        if (shape_elements % 2) {
             // Odd elements
             element_count--;
         }
     }
-    if (has_external_data()) {
+    std::shared_ptr<ov::AlignedBuffer> constant_buffer;
+    bool external_data_valid = has_external_data();
+    if (external_data_valid) {
         const auto ext_data = m_tensor_place != nullptr
                                   ? detail::TensorExternalData(*m_tensor_place->get_data_location(),
                                                                reinterpret_cast<size_t>(m_tensor_place->get_data()),
                                                                m_tensor_place->get_data_size())
                                   : detail::TensorExternalData(*m_tensor_proto);
 
-        std::shared_ptr<ov::AlignedBuffer> constant_buffer;
         if (ext_data.data_location() == detail::ORT_MEM_ADDR) {
             constant_buffer = ext_data.load_external_mem_data();
         } else if (m_mmap_cache) {
@@ -457,7 +459,23 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
         } else {
             constant_buffer = ext_data.load_external_data(m_model_dir.string());
         }
+        if (element_count == 0 && constant_buffer) {
+            element_count = constant_buffer->size() * 8 / ov_type.bitwidth();
+        }
+    }
 
+    if (element_count != shape_elements && !(element_count == 0 && m_shape.empty())) {
+        std::string error_msg =
+            external_data_valid
+                ? "The size of the external data file does not match the byte size of an initializer '"
+                : "The size of the initializer does not match the number of elements implied by its shape for tensor '";
+        error_msg += get_name() + "' in the model";
+        throw error::invalid_external_data(error_msg);
+    }
+
+    if (element_count == 0) {
+        constant = common::make_failsafe_constant(ov_type);
+    } else if (constant_buffer) {
         try {
             constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, constant_buffer);
         } catch (const ov::Exception&) {
@@ -465,7 +483,7 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
                 "The size of the external data file does not match the byte size of an initializer '" + get_name() +
                 "' in the model");
         }
-    } else if (element_count == shape_size(m_shape) && m_tensor_proto != nullptr) {
+    } else if (m_tensor_proto != nullptr) {
         switch (m_tensor_proto->data_type()) {
         case TensorProto_DataType::TensorProto_DataType_FLOAT:
         case TensorProto_DataType::TensorProto_DataType_DOUBLE:
@@ -512,12 +530,12 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
             constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<std::string>().data());
             break;
         default:
-            ONNX_UNSUPPORTED_DATA_TYPE(
-                m_tensor_proto->data_type(),
-                "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, INT8, INT16, INT32, INT64, "
-                "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
+            ONNX_UNSUPPORTED_DATA_TYPE(m_tensor_proto->data_type(),
+                                       "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, "
+                                       "INT8, INT16, INT32, INT64, "
+                                       "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
         }
-    } else if (element_count == shape_size(m_shape) && m_tensor_place != nullptr) {
+    } else if (m_tensor_place != nullptr) {
         switch (m_tensor_place->get_element_type()) {
         case ov::element::f32:
         case ov::element::f64:
@@ -564,13 +582,11 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
             constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<std::string>().data());
             break;
         default:
-            ONNX_UNSUPPORTED_DATA_TYPE(
-                m_tensor_proto->data_type(),
-                "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, INT8, INT16, INT32, INT64, "
-                "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
+            ONNX_UNSUPPORTED_DATA_TYPE(m_tensor_proto->data_type(),
+                                       "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, "
+                                       "INT8, INT16, INT32, INT64, "
+                                       "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
         }
-    } else if (element_count == 0 && m_shape.size() == 0) {
-        constant = common::make_failsafe_constant(ov_type);
     } else {
         FRONT_END_THROW("Tensor shape doesn't match data size");
     }
