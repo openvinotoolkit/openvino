@@ -257,6 +257,8 @@ dnnl::memory gpu_usm::get_onednn_memory(dnnl::memory::desc desc, int64_t offset)
 
 dnnl::memory gpu_usm::get_onednn_grouped_memory(dnnl::memory::desc desc, const memory& offsets) const {
     auto onednn_engine = _engine->get_onednn_engine();
+    OPENVINO_ASSERT(memory_capabilities::is_usm_type(offsets.get_allocation_type()));
+    OPENVINO_ASSERT(offsets.get_engine() == this->_engine);
     dnnl::memory dnnl_mem = dnnl::ze_interop::make_memory(desc, onednn_engine,
         {reinterpret_cast<uint8_t*>(_buffer.get()), reinterpret_cast<uint8_t*>(offsets.buffer_ptr())});
     return dnnl_mem;

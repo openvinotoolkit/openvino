@@ -660,6 +660,8 @@ dnnl::memory gpu_usm::get_onednn_grouped_memory(dnnl::memory::desc desc, const m
 #ifdef OV_GPU_WITH_ZE_RT
         OPENVINO_THROW("[GPU] Using OCL OneDNN API with L0 runtime");
 #else
+    OPENVINO_ASSERT(memory_capabilities::is_usm_type(offsets.get_allocation_type()));
+    OPENVINO_ASSERT(offsets.get_engine() == this->_engine);
     dnnl::memory dnnl_mem = dnnl::ocl_interop::make_memory(desc, onednn_engine, dnnl::ocl_interop::memory_kind::usm,
         {reinterpret_cast<uint8_t*>(_buffer.get()), reinterpret_cast<uint8_t*>(offsets.buffer_ptr())});
     return dnnl_mem;
