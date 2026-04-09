@@ -155,8 +155,10 @@ std::optional<size_t> extract_conv_layer_index_upstream(const ov::Output<ov::Nod
             }
         }
 
-        for (size_t input_index = 0; input_index < node->get_input_size(); ++input_index) {
-            to_visit.push_back(node->get_input_node_shared_ptr(input_index));
+        // Follow only data-flow input 0 to avoid any dependency on auxiliary index tensors
+        // (e.g. beam_idx on Gather input 1).
+        if (node->get_input_size() > 0) {
+            to_visit.push_back(node->get_input_node_shared_ptr(0));
         }
     }
 
@@ -312,6 +314,11 @@ public:
             const auto unsqueeze_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
             const auto unsqueeze = std::make_shared<v0::Unsqueeze>(paged_conv, unsqueeze_axis);
             unsqueeze->set_friendly_name(group_conv_node->get_friendly_name());
+
+            // Keep legacy branch independent from new conv_state_table parameter.
+            // Old present-state consumers are rewired to the original past-state data path,
+            // while conv_state_table remains connected only to PagedCausalConv1D input[1].
+            state_slice->output(0).replace(past_state_output);
 
             ov::NodeVector new_nodes;
             new_nodes.reserve(8);
