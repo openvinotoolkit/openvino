@@ -10,8 +10,8 @@
 
 #include "intel_npu/common/idynamic_graph.hpp"
 #include "intel_npu/common/network_metadata.hpp"
-#include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
@@ -103,7 +103,7 @@ public:
                                   ze_graph_profiling_pool_handle_t profiling) = 0;
         virtual void predictOutputShape(std::vector<MemRefType>& inputDescriptors,
                                         std::vector<MemRefType>& outputDescriptors) = 0;
-        virtual ~Impl() {};
+        virtual ~Impl(){};
     };
 
     DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
