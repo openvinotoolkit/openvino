@@ -758,6 +758,33 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_if_negative_missing_branches) {
     }
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_if_with_initializer_as_output) {
+    /*
+       if (condition) {
+         return identity(x)
+       } else {
+         return initializer constant [0, 0, 0]
+       }
+       Tests that an If branch whose output is directly an initializer
+       (no compute nodes, no graph inputs) converts correctly.
+    */
+    const auto model = convert_model("controlflow/if_with_initializer_as_output.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // condition == true => return x
+    test_case.add_input<bool>({true});
+    test_case.add_input<float>({1.0f, 2.0f, 3.0f});
+    test_case.add_expected_output<float>({1.0f, 2.0f, 3.0f});
+    test_case.run();
+
+    // condition == false => return initializer [0, 0, 0]
+    test_case.add_input<bool>({false});
+    test_case.add_input<float>({1.0f, 2.0f, 3.0f});
+    test_case.add_expected_output<float>({0.0f, 0.0f, 0.0f});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_if_negative_mismatch_between_branches_output) {
     try {
         const auto model = convert_model("controlflow/if_negative_mismatch_between_branches_output.onnx");
