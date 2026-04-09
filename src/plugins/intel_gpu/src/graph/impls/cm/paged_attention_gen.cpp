@@ -172,9 +172,9 @@ JitConstants PagedAttentionGeneratorKVCacheUpdate::get_jit_constants(const kerne
             // 2: key by-channel + value by-token quantized cache layout
             jit.make("KV_CACHE_COMPRESSION", 2);
             jit.make("SUB_BLOCK_SIZE", KV_SUB_BLOCK_SIZE);
-            jit.make("ADJUSTED_BLOCK_SIZE", desc->has_xattention ?
-                                               PA_KV_CACHE_BLOCK_SIZE_XATTN + PA_KV_CACHE_BLOCK_SIZE_XATTN / KV_SUB_BLOCK_SIZE * 4 :
-                                               PA_KV_CACHE_BLOCK_SIZE_LEGACY + PA_KV_CACHE_BLOCK_SIZE_LEGACY / KV_SUB_BLOCK_SIZE * 4);
+            jit.make("ADJUSTED_BLOCK_SIZE",
+                     desc->has_xattention ? PA_KV_CACHE_BLOCK_SIZE_XATTN + PA_KV_CACHE_BLOCK_SIZE_XATTN / KV_SUB_BLOCK_SIZE * 4
+                                          : PA_KV_CACHE_BLOCK_SIZE_LEGACY + PA_KV_CACHE_BLOCK_SIZE_LEGACY / KV_SUB_BLOCK_SIZE * 4);
             jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
         } else {
             jit.make("KV_CACHE_COMPRESSION", 1);
