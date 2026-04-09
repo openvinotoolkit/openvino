@@ -930,6 +930,50 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 #endif
 
+#if SLIDING_WINDOW_SIZE != 0
+inline void FUNC(apply_sliding_window_seq_range)(int* in_out_this_work_item_min_seq_idx_curr, const int default_this_work_item_max_seq_idx) {
+    const int default_this_work_item_min_seq_idx_sliding_window = default_this_work_item_max_seq_idx - SLIDING_WINDOW_SIZE + 1;
+    if(*in_out_this_work_item_min_seq_idx_curr == 0) {
+        *in_out_this_work_item_min_seq_idx_curr = default_this_work_item_min_seq_idx_sliding_window;
+    } else {
+        *in_out_this_work_item_min_seq_idx_curr = min(*in_out_this_work_item_min_seq_idx_curr, default_this_work_item_min_seq_idx_sliding_window);
+    }
+}
+#endif
+
+#if HAS_TOKEN_TYPE_IDS
+    // Bidirectional attention for image token groups (e.g. Gemma3 VLM):
+    // Compute per-lane effective causal limit to extend the visible range for image tokens
+    // This is a REFERENCE implementation.
+    inline void FUNC(apply_bi_dir_seq_range)(
+                            const __global int* token_type_ids, 
+                            const int seq_len, 
+                            int* out_this_work_item_max_seq_idx, 
+                            int* out_this_work_item_min_seq_idx, 
+                            int* out_this_work_subgroup_max_seq_idx, 
+                            const int default_this_work_item_max_seq_idx) {
+        int token_group_end = default_this_work_item_max_seq_idx;
+        int token_group_begin = default_this_work_item_max_seq_idx;
+
+        if (token_type_ids[token_group_end] == 1) {
+            int new_group_end = token_group_end + 1;
+            while (new_group_end < seq_len && token_type_ids[new_group_end] == 1) {
+                new_group_end++;
+            }
+            token_group_end = new_group_end - 1;
+
+            int new_group_begin = token_group_begin - 1;
+            while (new_group_begin >= 0 && token_type_ids[new_group_begin] == 1) {
+                new_group_begin--;
+            }
+            token_group_begin = new_group_begin + 1;
+        }
+        *out_this_work_item_max_seq_idx = token_group_end;
+        *out_this_work_item_min_seq_idx = token_group_begin;
+        *out_this_work_subgroup_max_seq_idx = sub_group_reduce_max(token_group_end) + 1;
+    }
+#endif
+
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 KERNEL(sdpa_opt)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -1051,40 +1095,18 @@ KERNEL(sdpa_opt)(
     int this_work_item_min_seq_idx_temp = default_this_work_item_min_seq_idx;
     int this_work_subgroup_max_seq_idx_temp = default_this_work_subgroup_max_seq_idx;
     #if IS_PAGED_ATTENTION
-
         #if HAS_TOKEN_TYPE_IDS
-            // Bidirectional attention for image token groups (e.g. Gemma3 VLM):
-            // Compute per-lane effective causal limit to extend the visible range for image tokens
-            // This is a REFERENCE implementation.
-            
-            int token_group_end = default_this_work_item_max_seq_idx;
-            int token_group_begin = default_this_work_item_max_seq_idx;
-
-            if (token_type_ids[token_group_end] == 1) {
-                int new_group_end = token_group_end + 1;
-                while (new_group_end < SOURCE_SEQ_LEN && token_type_ids[new_group_end] == 1) {
-                    new_group_end++;
-                }
-                token_group_end = new_group_end - 1;
-
-                int new_group_begin = token_group_begin - 1;
-                while (new_group_begin >= 0 && token_type_ids[new_group_begin] == 1) {
-                    new_group_begin--;
-                }
-                token_group_begin = new_group_begin + 1;
-            }
-            this_work_item_max_seq_idx_temp = token_group_end;
-            this_work_item_min_seq_idx_temp = token_group_begin;
-            this_work_subgroup_max_seq_idx_temp = sub_group_reduce_max(token_group_end) + 1;
+            FUNC_CALL(apply_bi_dir_seq_range)(token_type_ids, 
+                                              SOURCE_SEQ_LEN, 
+                                              &this_work_item_max_seq_idx_temp, 
+                                              &this_work_item_min_seq_idx_temp, 
+                                              &this_work_subgroup_max_seq_idx_temp, 
+                                              default_this_work_item_max_seq_idx);
         #endif
 
         #if SLIDING_WINDOW_SIZE != 0
-            const int default_this_work_item_min_seq_idx_sliding_window = default_this_work_item_max_seq_idx - SLIDING_WINDOW_SIZE + 1;
-            #if HAS_TOKEN_TYPE_IDS
-                this_work_item_min_seq_idx_temp = min(this_work_item_min_seq_idx_temp, default_this_work_item_min_seq_idx_sliding_window);
-            #else
-                this_work_item_min_seq_idx_temp = default_this_work_item_min_seq_idx_sliding_window;
-            #endif
+            FUNC_CALL(apply_sliding_window_seq_range)(&this_work_item_min_seq_idx_temp, 
+                                                      default_this_work_item_max_seq_idx);
         #else
             this_work_item_min_seq_idx_temp = default_this_work_item_min_seq_idx;
         #endif //< SLIDING_WINDOW_SIZE
