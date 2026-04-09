@@ -8,7 +8,7 @@ file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
-add_library(${TARGET_NAME} STATIC ${SOURCES} $<TARGET_OBJECTS:openvino_npu_vcl_utils>)
+add_library(${TARGET_NAME} STATIC ${SOURCES} $<TARGET_OBJECTS:openvino_npu_vcl_utils> $<TARGET_OBJECTS:openvino_npu_vm_utils>)
 
 ov_build_target_faster(${TARGET_NAME}
     PCH_HEADER "src/precomp.hpp"
