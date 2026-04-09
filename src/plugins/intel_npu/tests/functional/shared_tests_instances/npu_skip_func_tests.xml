@@ -892,4 +892,14 @@ Example:
         </filters>
     </skip_config>
 
+    <skip_config>
+        <message>TiWithLstmCell model won't provide `WeightlessCacheAttribute` in constants' rt_info</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <filter>.*WeightlessCacheAccuracy.TiWithLstmCell.*ENABLE_WEIGHTLESS.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>

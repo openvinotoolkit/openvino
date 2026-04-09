@@ -4,6 +4,9 @@
 
 #include "plugin.hpp"
 
+#include <fstream>
+#include <numeric>
+
 #include "compiled_model.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
@@ -564,11 +567,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         const bool cacheModeOptimizeSize = (localConfig.get<CACHE_MODE>() == ov::CacheMode::OPTIMIZE_SIZE);
         if (localConfig.get<ENABLE_WEIGHTLESS>() && !cacheModeOptimizeSize) {
             _logger.warning(
-                "The cache mode was not set to \"optimize size\" but the \"ENABLE_WEIGHTLESS\" configuration option"
+                "The cache mode was not set to \"optimize size\" but the \"ENABLE_WEIGHTLESS\" configuration option "
                 "was set to true. Weights separation WILL NOT be performed in this case.");
         } else if (!localConfig.get<ENABLE_WEIGHTLESS>() && cacheModeOptimizeSize) {
             _logger.warning(
-                "The cache mode was set to \"optimize size\" but the \"ENABLE_WEIGHTLESS\" configuration option"
+                "The cache mode was set to \"optimize size\" but the \"ENABLE_WEIGHTLESS\" configuration option "
                 "was set to false. Weights separation WILL be performed in this case.");
         }
 
@@ -636,12 +639,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::optional<decltype(std::declval<ov::EncryptionCallbacks>().encrypt)> encryptionCallback = std::nullopt;
     if (encryptionCallbacksOpt.has_value()) {
-        if (!encryptionCallbacksOpt->encrypt) {
-            OPENVINO_THROW("Encryption callbacks were provided for compiled model creation, but the encrypt "
-                           "callback is null. Provide EncryptionCallbacks::encrypt to enable encrypted blob "
-                           "export, or do not pass encryption callbacks for unencrypted compilation.");
+        if (encryptionCallbacksOpt->encrypt) {
+            encryptionCallback = encryptionCallbacksOpt->encrypt;
+        } else if (encryptionCallbacksOpt->decrypt) {
+            _logger.warning("Encryption callbacks were provided for compiled model creation, but the encrypt "
+                            "callback is null. Proceeding with unencrypted compilation; encrypted blob export "
+                            "will be disabled.");
         }
-        encryptionCallback = encryptionCallbacksOpt->encrypt;
     }
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
@@ -748,7 +752,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         } else {
             _logger.info("Blob compatibility check skipped.");
             if (isNotNullDecryption) {
-                _logger.warning("Recieved decryption callback, but metadata parsing is skipped and cannot determine if "
+                _logger.warning("Received decryption callback, but metadata parsing is skipped and cannot determine if "
                                 "blob was encrypted or not.");
             }
         }
@@ -760,38 +764,123 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         const bool isEncryptedBlobOrNullMetadata =
             (metadata == nullptr || (metadata != nullptr && metadata->is_encrypted_blob()));
         if (isNotNullDecryption && isEncryptedBlobOrNullMetadata) {
-            if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
-                OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
+            std::string decryptedMainBlobStr;
+            std::vector<std::string> decryptedInitBlobsStr;
+            std::optional<std::vector<uint64_t>> initSizes;
+            size_t mainSize = blobSize;
+            if (metadata) {
+                initSizes = metadata->get_init_sizes();
+                if (initSizes.has_value()) {
+                    const uint64_t sumInitSizes = std::accumulate(initSizes->begin(), initSizes->end(), uint64_t{0});
+                    if (sumInitSizes > blobSize) {
+                        OPENVINO_THROW("Malformed blob metadata: sum of init blob sizes (",
+                                       sumInitSizes,
+                                       ") exceeds total blob size (",
+                                       blobSize,
+                                       ")");
+                    }
+                    mainSize -= sumInitSizes;
+                    decryptedInitBlobsStr.reserve(initSizes->size());
+                }
             }
 
-            std::string decryptedBlobStr;
+            OPENVINO_ASSERT(mainSize > 0, "Invalid main blob size!");
+            if (mainSize > static_cast<decltype(mainSize)>(std::numeric_limits<std::streamsize>::max())) {
+                OPENVINO_THROW("Main blob size is too large to be represented on a std::streamsize!");
+            }
+
             {
-                std::string blobStr;
-                blobStr.resize(blobSize);  // +1x blob size
-                const auto expectedReadSize = static_cast<std::streamsize>(blobSize);
-                stream.read(&blobStr.at(0), static_cast<std::streamsize>(blobSize));
+                std::string encryptedMainBlobStr;
+                encryptedMainBlobStr.resize(mainSize);  // + 1x main blob size
+                const auto expectedReadSize = static_cast<std::streamsize>(mainSize);
+                stream.read(&encryptedMainBlobStr.at(0), static_cast<std::streamsize>(mainSize));
                 if (stream.gcount() != expectedReadSize) {
-                    OPENVINO_THROW("Failed to read the full encrypted cache blob from stream: expected ",
-                                   blobSize,
+                    OPENVINO_THROW("Failed to read the full encrypted blob from stream: expected ",
+                                   mainSize,
                                    " bytes, got ",
                                    stream.gcount(),
                                    " bytes");
                 }
-
-                decryptedBlobStr = encryptionCallbacksOpt->decrypt(blobStr);  // +2x blob size
-            }  // -1x blob size, move is not permitted above
-
-            size_t alignedSize = utils::align_size_to_standard_page_size(decryptedBlobStr.size());
-            size_t paddingSize = alignedSize - decryptedBlobStr.size();
-            tensor = ov::Tensor(ov::element::u8, ov::Shape{alignedSize}, customAllocator);
-            std::memcpy(tensor.data<char>(), decryptedBlobStr.c_str(), decryptedBlobStr.size());
-            if (paddingSize > 0) {
-                _logger.warning("Decrypted blob size was not page aligned, additional %zu bytes padding will be added",
-                                paddingSize);
-                std::memset(tensor.data<char>() + decryptedBlobStr.size(), 0, paddingSize);
+                decryptedMainBlobStr = encryptionCallbacksOpt->decrypt(encryptedMainBlobStr);  // + 2x main blob size
+            }  // -1x main blob size when exiting this scope, but still additional one in ov::Tensor below
+            size_t alignedSizeDecryptedMainBlob = utils::align_size_to_standard_page_size(decryptedMainBlobStr.size());
+            size_t paddingSizeDecryptedMainBlob = alignedSizeDecryptedMainBlob - decryptedMainBlobStr.size();
+            if (paddingSizeDecryptedMainBlob > 0) {
+                _logger.warning(
+                    "Decrypted main blob size was not page aligned, additional %zu bytes padding will be added",
+                    paddingSizeDecryptedMainBlob);
+                std::fill_n(std::back_inserter(decryptedMainBlobStr), paddingSizeDecryptedMainBlob, 0);
             }
-            decryptedBlobStr.clear();  // -1x blob size, but still additional one in ov::Tensor above
-            return parse(tensor, std::move(metadata), npuPluginProperties);
+
+            size_t totalDecryptedInitAlignedSizes = 0;
+            if (initSizes.has_value()) {
+                for (auto& initSize : initSizes.value()) {  // will also change initSizes to decrypted init blobs sizes
+                    OPENVINO_ASSERT(initSize > 0, "Invalid init blob size!");
+                    if (initSize > static_cast<std::remove_reference_t<decltype(initSize)>>(
+                                       std::numeric_limits<std::streamsize>::max())) {
+                        OPENVINO_THROW("Init size is too large to be represented on a std::streamsize!");
+                    }
+
+                    {
+                        std::string encryptedInitBlobStr;
+                        encryptedInitBlobStr.resize(initSize);  // + 1x init blob size
+                        const auto expectedReadSize = static_cast<std::streamsize>(initSize);
+                        stream.read(&encryptedInitBlobStr.at(0), static_cast<std::streamsize>(initSize));
+                        if (stream.gcount() != expectedReadSize) {
+                            OPENVINO_THROW("Failed to read the full encrypted init blob from stream: expected ",
+                                           initSize,
+                                           " bytes, got ",
+                                           stream.gcount(),
+                                           " bytes");
+                        }
+                        decryptedInitBlobsStr.push_back(
+                            encryptionCallbacksOpt->decrypt(encryptedInitBlobStr));  // + 2x init blob size
+                    }  // -1x init blob size when exiting this scope, but still additional one in ov::Tensor below
+                    auto& decryptedInitBlobStr = decryptedInitBlobsStr.back();
+                    size_t alignedSizeDecryptedInitBlob =
+                        utils::align_size_to_standard_page_size(decryptedInitBlobStr.size());
+                    size_t paddingSizeDecryptedInitBlob = alignedSizeDecryptedInitBlob - decryptedInitBlobStr.size();
+                    if (paddingSizeDecryptedInitBlob > 0) {
+                        _logger.warning(
+                            "Decrypted init blob size was not page aligned, additional %zu bytes padding will be added",
+                            paddingSizeDecryptedInitBlob);
+                        std::fill_n(std::back_inserter(decryptedInitBlobStr), paddingSizeDecryptedInitBlob, 0);
+                    }
+                    initSize = alignedSizeDecryptedInitBlob;
+                    totalDecryptedInitAlignedSizes += alignedSizeDecryptedInitBlob;
+                }
+            }
+
+            OPENVINO_ASSERT(
+                ((alignedSizeDecryptedMainBlob + totalDecryptedInitAlignedSizes) % utils::STANDARD_PAGE_SIZE) == 0,
+                "Sum of decrypted main blob size and size of decrypted init blobs should be page aligned!");
+            tensor = ov::Tensor(ov::element::u8,
+                                ov::Shape{alignedSizeDecryptedMainBlob + totalDecryptedInitAlignedSizes},
+                                customAllocator);  // + 1x main blob size + init blobs sizes
+            std::memcpy(tensor.data<char>(), decryptedMainBlobStr.c_str(), decryptedMainBlobStr.size());
+            ov::Tensor roiInitBlobTensor(tensor,
+                                         ov::Coordinate{decryptedMainBlobStr.size()},
+                                         ov::Coordinate{tensor.get_byte_size()});
+            for (const auto& decryptedInitBlobStr : decryptedInitBlobsStr) {
+                std::memcpy(roiInitBlobTensor.data<char>(), decryptedInitBlobStr.c_str(), decryptedInitBlobStr.size());
+                roiInitBlobTensor = ov::Tensor(roiInitBlobTensor,
+                                               ov::Coordinate{decryptedInitBlobStr.size()},
+                                               ov::Coordinate{roiInitBlobTensor.get_byte_size()});
+            }
+
+            // parsed metadata will contain sizes of encrypted blobs, need to create an updated version of metadata with
+            // sizes of decrypted blobs instead
+            auto updatedMetadata = metadata != nullptr
+                                       ? std::make_unique<Metadata<CURRENT_METADATA_VERSION>>(
+                                             alignedSizeDecryptedMainBlob + totalDecryptedInitAlignedSizes,
+                                             CURRENT_OPENVINO_VERSION,
+                                             initSizes,
+                                             metadata->get_batch_size(),
+                                             metadata->get_input_layouts(),
+                                             metadata->get_output_layouts(),
+                                             /* encryptionCallbacksOpt = */ std::nullopt)
+                                       : nullptr;  // no need to pass encryption information at this point
+            return parse(tensor, std::move(updatedMetadata), npuPluginProperties);
         }
         if (metadata) {
             OPENVINO_ASSERT(!metadata->is_encrypted_blob(), "Cannot parse encrypted blob!");
@@ -877,41 +966,133 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
         } else {
             _logger.info("Blob compatibility check skipped.");
             if (isNotNullDecryption) {
-                _logger.warning("Recieved decryption callback, but metadata parsing is skipped and cannot determine if "
+                _logger.warning("Received decryption callback, but metadata parsing is skipped and cannot determine if "
                                 "blob was encrypted or not.");
             }
         }
         OPENVINO_ASSERT(blobSize > 0, "Parsed blob size is empty from the given buffer!");
+        const ov::Tensor roiTensor(compiledBlob,
+                                   ov::Coordinate{0},
+                                   ov::Coordinate{blobSize});  // ROI tensor to skip NPU plugin metadata
 
         const bool isEncryptedBlobOrNullMetadata =
             (metadata == nullptr || (metadata != nullptr && metadata->is_encrypted_blob()));
         if (isNotNullDecryption && isEncryptedBlobOrNullMetadata) {
-            std::string decryptedBlobStr;
-            {
-                std::string blobStr(compiledBlob.data<const char>(), blobSize);  // +1x blob size
-                decryptedBlobStr = encryptionCallbacksOpt->decrypt(blobStr);     // + 2x blob size
-            }  // -1x blobSize when deallocating blobStr
-
-            size_t alignedSize = utils::align_size_to_standard_page_size(decryptedBlobStr.size());
-            size_t paddingSize = alignedSize - decryptedBlobStr.size();
-            ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
-            ov::Tensor tensor(ov::element::u8, ov::Shape{alignedSize}, customAllocator);
-            std::memcpy(tensor.data<char>(), decryptedBlobStr.c_str(), decryptedBlobStr.size());
-            if (paddingSize > 0) {
-                _logger.warning("Decrypted blob size was not page aligned, additional %zu bytes padding will be added",
-                                paddingSize);
-                std::memset(tensor.data<char>() + decryptedBlobStr.size(), 0, paddingSize);
+            std::string decryptedMainBlobStr;
+            std::vector<std::string> decryptedInitBlobsStr;
+            std::optional<std::vector<uint64_t>> initSizes;
+            size_t mainSize = blobSize;
+            if (metadata) {
+                initSizes = metadata->get_init_sizes();
+                if (initSizes.has_value()) {
+                    const uint64_t sumInitSizes = std::accumulate(initSizes->begin(), initSizes->end(), uint64_t{0});
+                    if (sumInitSizes > blobSize) {
+                        OPENVINO_THROW("Malformed blob metadata: sum of init blob sizes (",
+                                       sumInitSizes,
+                                       ") exceeds total blob size (",
+                                       blobSize,
+                                       ")");
+                    }
+                    mainSize -= sumInitSizes;
+                    decryptedInitBlobsStr.reserve(initSizes->size());
+                }
             }
-            decryptedBlobStr.clear();  // -1x blob size, but still additional one in ov::Tensor above
-            return parse(tensor, std::move(metadata), npuPluginProperties);
+
+            OPENVINO_ASSERT(mainSize > 0, "Invalid main blob size!");
+            OPENVINO_ASSERT(mainSize <= roiTensor.get_byte_size(),
+                            "Cannot read ",
+                            mainSize,
+                            " bytes from available ",
+                            roiTensor.get_byte_size(),
+                            " of the given buffer!");
+
+            {
+                std::string encryptedMainBlobStr(roiTensor.data<const char>(), mainSize);      // + 1x main blob size
+                decryptedMainBlobStr = encryptionCallbacksOpt->decrypt(encryptedMainBlobStr);  // + 2x main blob size
+            }  // -1x main blob size when exiting this scope, but still additional one in ov::Tensor below
+            size_t alignedSizeDecryptedMainBlob = utils::align_size_to_standard_page_size(decryptedMainBlobStr.size());
+            size_t paddingSizeDecryptedMainBlob = alignedSizeDecryptedMainBlob - decryptedMainBlobStr.size();
+            if (paddingSizeDecryptedMainBlob > 0) {
+                _logger.warning(
+                    "Decrypted main blob size was not page aligned, additional %zu bytes padding will be added",
+                    paddingSizeDecryptedMainBlob);
+                std::fill_n(std::back_inserter(decryptedMainBlobStr), paddingSizeDecryptedMainBlob, 0);
+            }
+
+            size_t totalDecryptedInitAlignedSizes = 0;
+            if (initSizes.has_value()) {
+                ov::Tensor roiInitBlobTensor(roiTensor,
+                                             ov::Coordinate{mainSize},
+                                             ov::Coordinate{roiTensor.get_byte_size()});
+                for (auto& initSize : initSizes.value()) {  // will also change initSizes to decrypted init blobs sizes
+                    OPENVINO_ASSERT(initSize > 0, "Invalid init blob size!");
+                    OPENVINO_ASSERT(initSize <= roiInitBlobTensor.get_byte_size(),
+                                    "Cannot read ",
+                                    initSize,
+                                    " bytes from available ",
+                                    roiInitBlobTensor.get_byte_size(),
+                                    " of the given buffer!");
+
+                    {
+                        std::string encryptedInitBlobStr(roiInitBlobTensor.data<const char>(),
+                                                         initSize);  // + 1x init blob size
+                        decryptedInitBlobsStr.push_back(
+                            encryptionCallbacksOpt->decrypt(encryptedInitBlobStr));  // + 2x init blob size
+                    }  // -1x init blob size when exiting this scope, but still additional one in ov::Tensor below
+                    auto& decryptedInitBlobStr = decryptedInitBlobsStr.back();
+                    size_t alignedSizeDecryptedInitBlob =
+                        utils::align_size_to_standard_page_size(decryptedInitBlobStr.size());
+                    size_t paddingSizeDecryptedInitBlob = alignedSizeDecryptedInitBlob - decryptedInitBlobStr.size();
+                    if (paddingSizeDecryptedInitBlob > 0) {
+                        _logger.warning(
+                            "Decrypted init blob size was not page aligned, additional %zu bytes padding will be added",
+                            paddingSizeDecryptedInitBlob);
+                        std::fill_n(std::back_inserter(decryptedInitBlobStr), paddingSizeDecryptedInitBlob, 0);
+                    }
+                    roiInitBlobTensor = ov::Tensor(roiInitBlobTensor,
+                                                   ov::Coordinate{initSize},
+                                                   ov::Coordinate{roiInitBlobTensor.get_byte_size()});
+                    initSize = alignedSizeDecryptedInitBlob;
+                    totalDecryptedInitAlignedSizes += alignedSizeDecryptedInitBlob;
+                }
+            }
+
+            OPENVINO_ASSERT(
+                ((alignedSizeDecryptedMainBlob + totalDecryptedInitAlignedSizes) % utils::STANDARD_PAGE_SIZE) == 0,
+                "Sum of decrypted main blob size and size of decrypted init blobs should be page aligned!");
+            ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
+            ov::Tensor tensor(ov::element::u8,
+                              ov::Shape{alignedSizeDecryptedMainBlob + totalDecryptedInitAlignedSizes},
+                              customAllocator);  // + 1x main blob size + init blobs sizes
+            std::memcpy(tensor.data<char>(), decryptedMainBlobStr.c_str(), decryptedMainBlobStr.size());
+            ov::Tensor roiInitBlobTensor(tensor,
+                                         ov::Coordinate{decryptedMainBlobStr.size()},
+                                         ov::Coordinate{tensor.get_byte_size()});
+            for (const auto& decryptedInitBlobStr : decryptedInitBlobsStr) {
+                std::memcpy(roiInitBlobTensor.data<char>(), decryptedInitBlobStr.c_str(), decryptedInitBlobStr.size());
+                roiInitBlobTensor = ov::Tensor(roiInitBlobTensor,
+                                               ov::Coordinate{decryptedInitBlobStr.size()},
+                                               ov::Coordinate{roiInitBlobTensor.get_byte_size()});
+            }
+
+            // parsed metadata will contain sizes of encrypted blobs, need to create an updated version of metadata with
+            // sizes of decrypted blobs instead
+            auto updatedMetadata = metadata != nullptr
+                                       ? std::make_unique<Metadata<CURRENT_METADATA_VERSION>>(
+                                             alignedSizeDecryptedMainBlob + totalDecryptedInitAlignedSizes,
+                                             CURRENT_OPENVINO_VERSION,
+                                             initSizes,
+                                             metadata->get_batch_size(),
+                                             metadata->get_input_layouts(),
+                                             metadata->get_output_layouts(),
+                                             /* encryptionCallbacksOpt = */ std::nullopt)
+                                       : nullptr;  // no need to pass encryption information at this point
+            return parse(tensor, std::move(updatedMetadata), npuPluginProperties);
         }
         if (metadata) {
             OPENVINO_ASSERT(!metadata->is_encrypted_blob(), "Cannot parse encrypted blob!");
         }
 
-        const ov::Tensor roiTensor(compiledBlob,
-                                   ov::Coordinate{0},
-                                   ov::Coordinate{blobSize});  // ROI tensor to skip NPU plugin metadata
         return parse(roiTensor, std::move(metadata), npuPluginProperties);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
@@ -1026,7 +1207,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
                           ONEAPI_VERSION_MINOR(compilerVersion.value()));
         }
     } else {
-        _logger.info("Blob compatibility check skipped.");
+        _logger.warning(
+            "Metadata parsing is skipped, if this is a weightless blob, init schedules cannot be parsed from it!");
     }
 
     const ov::Tensor tensorMain(tensorBig,
@@ -1043,30 +1225,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
             const ov::Tensor tensorInit(tensorBig,
                                         ov::Coordinate{cursorPosition},
                                         ov::Coordinate{cursorPosition + initSize});
-            const bool isNotNullDecryption = (encryptionCallbacksOpt.has_value() && encryptionCallbacksOpt->decrypt);
-            const bool isEncryptedBlobOrNullMetadata =
-                (metadata == nullptr || (metadata != nullptr && metadata->is_encrypted_blob()));
-            if (isNotNullDecryption && isEncryptedBlobOrNullMetadata) {
-                std::string encryptedInitBlob(tensorInit.data<const char>(), tensorInit.get_byte_size());
-                auto decryptedInitBlob = encryptionCallbacksOpt->decrypt(encryptedInitBlob);
-                encryptedInitBlob.clear();
-
-                size_t alignedSize = utils::align_size_to_standard_page_size(decryptedInitBlob.size());
-                size_t paddingSize = alignedSize - decryptedInitBlob.size();
-                ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
-                ov::Tensor decryptedInitTensor(ov::element::u8, ov::Shape{alignedSize}, customAllocator);
-                std::memcpy(decryptedInitTensor.data<char>(), decryptedInitBlob.c_str(), decryptedInitBlob.size());
-
-                if (paddingSize > 0) {
-                    _logger.warning(
-                        "Decrypted blob size was not page aligned, additional %zu bytes padding will be added",
-                        paddingSize);
-                    std::memset(decryptedInitTensor.data<char>() + decryptedInitBlob.size(), 0, paddingSize);
-                }
-                tensorsInits.push_back(decryptedInitTensor);
-            } else {
-                tensorsInits.push_back(tensorInit);
-            }
+            tensorsInits.push_back(tensorInit);
             cursorPosition += initSize;
         }
 
