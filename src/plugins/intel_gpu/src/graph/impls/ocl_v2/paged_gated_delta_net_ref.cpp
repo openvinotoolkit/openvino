@@ -13,6 +13,10 @@ namespace {
 
 constexpr size_t v_block_size = 4;
 
+size_t get_v_block_size(size_t v_head_dims) {
+    return 4;
+}
+
 size_t get_subgroup_size(gpu_arch arch) {
     switch (arch) {
     case gpu_arch::gen9:
@@ -83,7 +87,7 @@ protected:
         jit.make("V_HEAD_NUM", v_head_nums);
         jit.make("K_HEAD_DIM", k_head_dims);
         jit.make("V_HEAD_DIM", v_head_dims);
-        jit.make("V_BLOCK_SIZE", v_block_size);
+        jit.make("V_BLOCK_SIZE", get_v_block_size(v_head_dims));
         jit.make("SUBGROUP_SIZE", get_subgroup_size(params.get_device_info().arch));
         jit.make("K_VEC_SIZE", get_vec_size(params));
         jit.make("SCALE_FACTOR", scale_factor);
@@ -119,7 +123,8 @@ protected:
             const size_t sequences = seq_shape[0].get_length() > 0 ? seq_shape[0].get_length() - 1 : 0;
             const size_t head_nums = v_shape[1].get_length();
             const size_t v_head_dims = v_shape[2].get_length();
-            const size_t v_blocks = (v_head_dims + v_block_size - 1) / v_block_size;
+            const size_t current_v_block_size = get_v_block_size(v_head_dims);
+            const size_t v_blocks = (v_head_dims + current_v_block_size - 1) / current_v_block_size;
             const size_t subgroup_size = get_subgroup_size(params.get_device_info().arch);
 
             auto get_head_offset = [](const cldnn::layout& layout, size_t head_dim_idx) {
