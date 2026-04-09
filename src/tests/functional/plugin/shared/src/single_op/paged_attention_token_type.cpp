@@ -84,7 +84,8 @@ static std::shared_ptr<ov::Model> PrepareModel(ov::element::Type data_type,
 
     float scale_value = 1.0f / std::sqrt(static_cast<float>(head_size));
     auto scale = std::make_shared<v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{scale_value});
-    auto sliding_window = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{sliding_window_size});
+    auto sliding_window =
+        std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{sliding_window_size});
     auto alibi_slopes = std::make_shared<v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{});
     auto max_context_len = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{1024});
     auto score_aggregation_window = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
@@ -104,6 +105,8 @@ static std::shared_ptr<ov::Model> PrepareModel(ov::element::Type data_type,
         std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
 
     auto token_type_ids = MakeParam(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "token_type_ids");
+    auto qq_bias = std::make_shared<v0::Constant>(ov::element::u8, Shape{0}, std::vector<uint8_t>{0});
+    auto qq_bias_begins = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
 
     ParameterVector params = {q,
                               k,
@@ -141,9 +144,11 @@ static std::shared_ptr<ov::Model> PrepareModel(ov::element::Type data_type,
                               adaptive_rkv_evictable_sizes,
                               adaptive_rkv_diversity_block_set_indices,
                               adaptive_rkv_diversity_block_set_indices_begins,
-                              token_type_ids};
+                              token_type_ids,
+                              qq_bias,
+                              qq_bias_begins};
 
-    OPENVINO_ASSERT(pa_inputs.size() == 26);
+    OPENVINO_ASSERT(pa_inputs.size() == 28);
 
     auto paged_attn = std::make_shared<op::PagedAttentionExtension>(pa_inputs);
     paged_attn->get_rt_info()["num_k_heads"] = head_num;
