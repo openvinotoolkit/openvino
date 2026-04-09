@@ -18,7 +18,7 @@ namespace ov::tests {
 
 namespace {
 auto make_const(element::Type et, const Shape& shape) {
-    return Constant::create(et, shape, std::vector<float>(shape_size(shape), 0.f));
+    return Constant::create(et, shape, {0.f});
 }
 
 auto make_param(element::Type et, const PartialShape& shape) {
