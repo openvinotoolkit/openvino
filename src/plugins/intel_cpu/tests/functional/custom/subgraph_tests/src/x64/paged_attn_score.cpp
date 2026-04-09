@@ -139,6 +139,8 @@ public:
         auto adaptive_rkv_diversity_block_set_indices_begins =
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
         auto token_type_ids = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{});
+        auto qq_bias = std::make_shared<ov::op::v0::Constant>(ov::element::u8, Shape{0}, std::vector<uint8_t>{0});
+        auto qq_bias_begins = std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
         ParameterVector params =
             {q, k, v, key_cache, value_cache, past_lens, subsequence_begins, block_indices, block_indices_begins};
         auto paged_attn = std::make_shared<op::PagedAttentionExtension>(OutputVector{q,
@@ -166,7 +168,9 @@ public:
                                                                                      adaptive_rkv_evictable_sizes,
                                                                                      adaptive_rkv_diversity_block_set_indices,
                                                                                      adaptive_rkv_diversity_block_set_indices_begins,
-                                                                                     token_type_ids});
+                                                                                     token_type_ids,
+                                                                                     qq_bias,
+                                                                                     qq_bias_begins});
         paged_attn->get_rt_info()["num_k_heads"] = head_num;
         paged_attn->get_rt_info()["k_head_size"] = head_size;
         paged_attn->get_rt_info()["num_v_heads"] = head_num;
