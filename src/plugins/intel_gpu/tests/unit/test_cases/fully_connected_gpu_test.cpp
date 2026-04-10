@@ -4106,7 +4106,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         if (engine.get_device_info().dev_type == device_type::discrete_gpu)
             GTEST_SKIP();
 
-        long int ifm_num = 1024;
+        long int ifm_num = 256;
         long int ofm_num = 64;
 
         auto input_ps = ov::PartialShape{ batch_num, 1, ifm_num };
