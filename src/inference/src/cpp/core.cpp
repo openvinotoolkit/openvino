@@ -135,7 +135,6 @@ CompiledModel Core::compile_model(const std::string& model_path, const std::stri
     return compile_model(ov::util::make_path(model_path), device_name, config);
 }
 
-
 CompiledModel Core::compile_model(const std::string& model,
                                   const ov::Tensor& weights,
                                   const std::string& device_name,
@@ -239,10 +238,6 @@ Any Core::get_property(const std::string& device_name, const std::string& name, 
 
 std::vector<std::string> Core::get_available_devices() const {
     OV_CORE_CALL_STATEMENT(return _impl->get_available_devices(););
-}
-
-void Core::register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& properties) {
-    register_plugin(ov::util::make_path(plugin), device_name, properties);
 }
 
 void Core::register_plugin(const std::filesystem::path& plugin_path,
