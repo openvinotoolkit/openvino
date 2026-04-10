@@ -28,8 +28,9 @@ static void pin_thread_to_core(size_t core_index) {
 
 int main(int argc, char** argv) {
     if (argc < 3) {
-        std::cerr << "Usage: " << argv[0] << " <model_path> <num_threads> [-infer_precision <i8|u8|f32|bf16>] [-shape [1,64]] [-layout [NW]]\n";
+        std::cerr << "Usage: " << argv[0] << " <model_path> <num_threads> [-infer_precision <i8|u8|f32|bf16>] [-shape [1,64]] [-layout [NW]] [-core_base <N>]\n";
         std::cerr << "Purpose: multi-thread synchronous CPU inference benchmark with one compiled model and one infer request per app thread.\n";
+        std::cerr << "  -core_base <N>  Starting core index for thread pinning (default: 0). Thread i is pinned to core (core_base + i).\n";
         return 1;
     }
     const std::string model_path = argv[1];
@@ -42,9 +43,20 @@ int main(int argc, char** argv) {
     // Optional args for multithread_sync_app:
     // -infer_precision <i8|u8|f32|bf16> -shape [1,64] -layout [NW]
     std::string shape_arg, layout_arg, infer_precision_arg;
+    int core_base = 0;
     for (int i = 3; i < argc; ++i) {
         std::string a = argv[i];
-        if (a == "-shape") {
+        if (a == "-core_base") {
+            if (i + 1 >= argc) {
+                std::cerr << "Missing value for -core_base\n";
+                return 1;
+            }
+            core_base = std::stoi(argv[++i]);
+            if (core_base < 0) {
+                std::cerr << "core_base must be >= 0\n";
+                return 1;
+            }
+        } else if (a == "-shape") {
             if (i + 1 >= argc) {
                 std::cerr << "Missing value for -shape\n";
                 return 1;
@@ -193,7 +205,7 @@ int main(int argc, char** argv) {
 
     for (int i = 0; i < num_threads; ++i) {
         threads.emplace_back([&, i]() {
-            pin_thread_to_core(static_cast<size_t>(16 + i));
+            pin_thread_to_core(static_cast<size_t>(core_base + i));
             auto& req = requests[i];
             auto& local = thread_durations[static_cast<size_t>(i)];
             for (uint64_t k = 0; k < iters_per_thread; ++k) {
