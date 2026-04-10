@@ -10,11 +10,13 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/tlv_format.hpp"
 #include "openvino/util/mmap_object.hpp"
 
 namespace ov::test {
 
 using runtime::SingleFileStorage;
+using runtime::TLVTraits;
 
 namespace {
 constexpr uint64_t version_size() {
@@ -22,7 +24,12 @@ constexpr uint64_t version_size() {
 }
 }  // namespace
 
-class SingleFileStorageTest : public ::testing::Test {
+struct SingleFileStorageTestParam {
+    SingleFileStorage::Tag tag;
+    runtime::TLVValueWriter writer;
+};
+
+class SingleFileStorageTest : public ::testing::TestWithParam<SingleFileStorageTestParam> {
 protected:
     std::filesystem::path m_file_path;
     std::unique_ptr<SingleFileStorage> m_storage;
@@ -31,7 +38,7 @@ protected:
         m_file_path = ov::test::utils::generateTestFilePrefix() + ".bin";
         m_storage = std::make_unique<SingleFileStorage>(m_file_path);
         m_storage->initialize();
-        ASSERT_TRUE(std::filesystem::exists(m_file_path));
+        ASSERT_TRUE(util::file_exists(m_file_path));
     }
 
     void TearDown() override {
@@ -123,7 +130,7 @@ TEST_F(SingleFileStorageTest, BlobAlignment) {
 
     while (stream.good() && stream.tellg() < stream_end) {
         SingleFileStorage::Tag tag;
-        runtime::TLVTraits::LengthType length;
+        TLVTraits::LengthType length;
         stream.read(reinterpret_cast<char*>(&tag), sizeof(tag));
         ASSERT_TRUE(stream.good());
         stream.read(reinterpret_cast<char*>(&length), sizeof(length));
@@ -261,7 +268,7 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceWrite) {
 
     while (stream.good() && stream.tellg() < stream_end) {
         SingleFileStorage::Tag tag;
-        runtime::TLVTraits::LengthType length;
+        TLVTraits::LengthType length;
         stream.read(reinterpret_cast<char*>(&tag), sizeof(tag));
         ASSERT_TRUE(stream.good());
         stream.read(reinterpret_cast<char*>(&length), sizeof(length));
@@ -325,4 +332,96 @@ TEST_F(SingleFileStorageTest, WriterMisposition) {
                     AssertFailure,
                     ::testing::HasSubstr("Invalid blob size"));
 }
+
+TEST_P(SingleFileStorageTest, WrongSizeWritten) {
+    m_storage.reset();
+    std::fstream fs(m_file_path, std::ios::binary | std::ios::in | std::ios::out | std::ios::ate);
+    const auto& [tag, writer] = GetParam();
+    runtime::write_tlv_record(fs, static_cast<TLVTraits::TagType>(tag), writer);
+    {
+        /* Append ignoreable data to fill the file allowing SingleFileStorage::initialize() to "read beyond" the
+         * malformed record. Otherwise stream not good check would trigger expected exception. */
+        constexpr size_t sz = 100 * (sizeof(TLVTraits::TagType) + sizeof(TLVTraits::LengthType));
+        std::vector<char> data(sz, 0);
+        fs.write(data.data(), data.size());
+    }
+    fs.close();
+    OV_EXPECT_THROW(SingleFileStorage{m_file_path}.initialize(),
+                    AssertFailure,
+                    ::testing::HasSubstr("cache file may be corrupted"));
+}
+using sfstp = SingleFileStorageTestParam;
+INSTANTIATE_TEST_SUITE_P(
+    Initialize,
+    SingleFileStorageTest,
+    ::testing::ValuesIn({sfstp{SingleFileStorage::Tag::Blob,
+                               [](std::ostream& s) {
+                                   s.put('a');
+                               }},
+                         sfstp{SingleFileStorage::Tag::Blob,
+                               [](std::ostream& s) {
+                                   const SingleFileStorage::BlobIdType id = 0x7531;
+                                   const SingleFileStorage::PadSizeType padding_size = 0x17;
+                                   s.write(reinterpret_cast<const char*>(&id), sizeof(id));
+                                   s.write(reinterpret_cast<const char*>(&padding_size), sizeof(padding_size));
+                                   const std::vector<char> too_short_padding(padding_size - 1, 0);
+                                   s.write(too_short_padding.data(), too_short_padding.size());
+                               }},
+                         sfstp{SingleFileStorage::Tag::BlobMap,
+                               [](std::ostream& s) {
+                                   const std::string text = "test";
+                                   s.write(text.data(), text.size());
+                               }},
+                         sfstp{SingleFileStorage::Tag::BlobMap,
+                               [](std::ostream& s) {
+                                   const SingleFileStorage::BlobIdType id = 07531;
+                                   const TLVTraits::TagType tag =
+                                       static_cast<TLVTraits::TagType>(SingleFileStorage::Tag::String);
+                                   const std::string text = "test";
+                                   const TLVTraits::LengthType length = text.size() - 1;
+                                   s.write(reinterpret_cast<const char*>(&id), sizeof(id));
+                                   s.write(reinterpret_cast<const char*>(&tag), sizeof(tag));
+                                   s.write(reinterpret_cast<const char*>(&length), sizeof(length));
+                                   s.write(text.data(), text.size());
+                               }},
+                         sfstp{SingleFileStorage::Tag::BlobMap,
+                               [](std::ostream& s) {
+                                   const SingleFileStorage::BlobIdType id = 07531;
+                                   const TLVTraits::TagType tag =
+                                       static_cast<TLVTraits::TagType>(SingleFileStorage::Tag::String);
+                                   const std::string text = "test";
+                                   const TLVTraits::LengthType length = text.size() + 1;
+                                   s.write(reinterpret_cast<const char*>(&id), sizeof(id));
+                                   s.write(reinterpret_cast<const char*>(&tag), sizeof(tag));
+                                   s.write(reinterpret_cast<const char*>(&length), sizeof(length));
+                                   s.write(text.data(), text.size());
+                               }},
+                         sfstp{SingleFileStorage::Tag::ConstantMeta,
+                               [](std::ostream& s) {
+                                   s.put('b');
+                               }},
+                         sfstp{SingleFileStorage::Tag::ConstantMeta,
+                               [](std::ostream& s) {
+                                   const std::vector<char> data(4 * sizeof(uint64_t) + sizeof(uint8_t) - 1, 0);
+                                   s.write(data.data(), data.size());
+                               }},
+                         sfstp{SingleFileStorage::Tag::ConstantMeta,
+                               [](std::ostream& s) {
+                                   const std::vector<char> data(7 * sizeof(uint64_t) + 2 * sizeof(uint8_t) + 1, 0);
+                                   s.write(data.data(), data.size());
+                               }},
+                         sfstp{SingleFileStorage::Tag::WeightSource,
+                               [](std::ostream& s) {
+                                   s.put('c');
+                               }},
+                         sfstp{SingleFileStorage::Tag::WeightSource, [](std::ostream& s) {
+                                   const SingleFileStorage::DataIdType device_id = 9;
+                                   const SingleFileStorage::DataIdType source_id = 10;
+                                   const SingleFileStorage::PadSizeType padding_size = 11;
+                                   s.write(reinterpret_cast<const char*>(&device_id), sizeof(device_id));
+                                   s.write(reinterpret_cast<const char*>(&source_id), sizeof(source_id));
+                                   s.write(reinterpret_cast<const char*>(&padding_size), sizeof(padding_size));
+                                   const std::vector<char> padding(padding_size - 1, 0);
+                                   s.write(padding.data(), padding.size());
+                               }}}));
 }  // namespace ov::test

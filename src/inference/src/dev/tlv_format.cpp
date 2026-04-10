@@ -89,7 +89,7 @@ bool scan_tlv_records(std::istream& stream, const TLVValueScanner& scanners) {
             return false;
         }
         stream.read(reinterpret_cast<char*>(&size), sizeof(size));
-        if (!stream.good()) {
+        if (!stream.good() || (stream_end - stream.tellg() < static_cast<std::streamoff>(size))) {
             return false;
         }
 
@@ -98,9 +98,6 @@ bool scan_tlv_records(std::istream& stream, const TLVValueScanner& scanners) {
                 return false;
             }
         } else {
-            if (stream_end - stream.tellg() < static_cast<std::streamoff>(size) || !stream.good()) {
-                return false;
-            }
             stream.seekg(size, std::ios::cur);
             if (!stream.good()) {
                 return false;
