@@ -538,7 +538,7 @@ void primitive_inst::update_shape() {
 
     if (get_node().is_type<dynamic_quantize>() && get_flag(ExecutionFlags::SHAPE_CHANGED)) {
         auto &layout = _impl_params->get_output_layout(0);
-        OPENVINO_ASSERT(one_of(layout.data_type, {data_types::f16, data_types::i8, data_types::u8}),
+        OPENVINO_ASSERT(one_of(layout.data_type, {data_types::f16, data_types::i8, data_types::u8, data_types::f8e4m3, data_types::f8e5m2}),
             "[GPU] Unsupported data type of dynamic_quantize: ", layout.data_type);
         if (layout.data_type == data_types::f16)
             set_can_be_optimized(true);

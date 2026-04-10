@@ -156,6 +156,9 @@ std::string toString(Datatype dType) {
         case Datatype::INT64:  return "INT64";
         case Datatype::F16:    return "F16";
         case Datatype::F32:    return "F32";
+        case Datatype::F8E4M3: return "F8E4M3";
+        case Datatype::F8E5M2: return "F8E5M2";
+        case Datatype::F8E8M0: return "F8E8M0";
         default: return "";
     }
 }

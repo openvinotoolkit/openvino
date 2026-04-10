@@ -308,7 +308,7 @@ void add_required_reorders::run(program& p) {
                     continue;
                 max_in_dims = std::max(cldnn::format::dimension(node.first->get_output_layout().format), max_in_dims);
             }
-            // This list of preferred layouts has been selected arbitrary due to developers' experience
+            // This list of preferred layouts has been selected arbitrarily due to developers' experience
             preferred_layout_formats = { cldnn::format::get_default_format(max_in_dims) };
             if (max_in_dims == 8) {
                 preferred_layout_formats.push_back(cldnn::format::bfvuwzyx);

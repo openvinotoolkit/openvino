@@ -1505,8 +1505,8 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             min_val = "-" + macroName + "_VAL_MAX";
             val_one = "1.0h";
             val_zero = "0.0h";
-            to_type = "convert_half(v)";
-            to_type_sat = "convert_half(v)";
+            to_type = "_convert_half(v)";
+            to_type_sat = "_convert_half(v)";
             as_type = "as_half(v)";
             max_func = "fmax";
             min_func = "fmin";
@@ -1537,14 +1537,50 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             type_size = "2";
             is_fp = false;
             break;
+        case Datatype::F8E4M3:
+            type = "fp8e4m3_t";
+            max_val = "(fp8e4m3_t){as_char((char)0x7E)}"; // 448.0
+            min_val = "(fp8e4m3_t){as_char((char)0xFE)}"; // -448.0
+            val_one = "(fp8e4m3_t){as_char((char)0x38)}";
+            val_zero = "(fp8e4m3_t){as_char((char)0x0)}";
+            to_type = "_convert_fp8e4m3_t(v)";
+            to_type_sat = "_convert_fp8e4m3_t_sat(v)";
+            as_type = "as_fp8e4m3_t(v)";
+            type_size = "1";
+            is_fp = true;
+            break;
+        case Datatype::F8E5M2:
+            type = "fp8e5m2_t";
+            max_val = "(fp8e5m2_t){as_uchar((uchar)0x7B)}"; // 57344.0
+            min_val = "(fp8e5m2_t){as_uchar((uchar)0xFB)}"; // -57344.0
+            val_one = "(fp8e5m2_t){as_uchar((uchar)0x3C)}";
+            val_zero = "(fp8e5m2_t){as_uchar((uchar)0x0)}";
+            to_type = "_convert_fp8e5m2_t(v)";
+            to_type_sat = "_convert_fp8e5m2_t_sat(v)";
+            as_type = "as_fp8e5m2_t(v)";
+            type_size = "1";
+            is_fp = true;
+            break;
+        case Datatype::F8E8M0:
+            type = "fp8e8m0_t";
+            max_val = "(fp8e8m0_t){as_uchar((uchar)0xFE)}"; // 2^127
+            min_val = "(fp8e8m0_t){as_uchar((uchar)0x00)}"; // 2^(-127)
+            val_one = "(fp8e8m0_t){as_uchar((uchar)0x7F)}";
+            val_zero = ""; // There is no representation of zero in FP8E8M0
+            to_type = "_convert_fp8e8m0_t(v)";
+            to_type_sat = "_convert_fp8e8m0_t_sat(v)";
+            as_type = "as_fp8e8m0_t(v)";
+            type_size = "1";
+            is_fp = true;
+            break;
         default:
             type = "float";
             max_val = "FLT_MAX";
             min_val = "-" + macroName + "_VAL_MAX";
             val_one = "1.0f";
             val_zero = "0.0f";
-            to_type = "convert_float(v)";
-            to_type_sat = "convert_float(v)";
+            to_type = "_convert_float(v)";
+            to_type_sat = "_convert_float(v)";
             as_type = "as_float(v)";
             max_func = "fmax";
             min_func = "fmin";
@@ -1590,6 +1626,12 @@ JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& ma
             return MakeTypeJitConstants(Datatype::INT32, macroName);
         case WeightsType::BF16:
             return MakeTypeJitConstants(Datatype::BF16, macroName);
+        case WeightsType::F8E4M3:
+            return MakeTypeJitConstants(Datatype::F8E4M3, macroName);
+        case WeightsType::F8E5M2:
+            return MakeTypeJitConstants(Datatype::F8E5M2, macroName);
+        case WeightsType::F8E8M0:
+            return MakeTypeJitConstants(Datatype::F8E8M0, macroName);
     }
     assert(false || "Unreachable!");
     // FIXME: Is there some builtin_unreachable available?
