@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/paged_causal_conv1d_fusion.hpp"
+#include "transformations/paged_attention/paged_causal_conv1d_fusion.hpp"
 
 #include <gtest/gtest.h>
 

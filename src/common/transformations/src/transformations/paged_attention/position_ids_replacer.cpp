@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/sdpa_to_paged_attention/position_ids_replacer.hpp"
+#include "transformations/paged_attention/position_ids_replacer.hpp"
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
