@@ -3,7 +3,7 @@ run-name: ${{ github.event_name == 'schedule' && 'Code coverage - Nightly' || 'C
 on:
   schedule:
     # run daily at 01:00 UTC
-    - cron: '0 1 * * *'
+    - cron: '0 0 * * *'
   workflow_dispatch:
 
 concurrency:
