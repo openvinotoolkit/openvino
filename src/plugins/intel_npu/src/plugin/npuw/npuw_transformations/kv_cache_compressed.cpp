@@ -293,7 +293,6 @@ ov::npuw::DecomposeDynamicQuantize::DecomposeDynamicQuantize() {
         //
         auto cst_0 =
             ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0f / quant_max});  // for scale normalization
-        auto cst_1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});     // optional offset
 
         auto dq_input = dq_ptr->input_value(0);
         auto has_zp = dq_ptr->outputs().size() == 3;
@@ -337,7 +336,12 @@ ov::npuw::DecomposeDynamicQuantize::DecomposeDynamicQuantize() {
         std::shared_ptr<ov::Node> zp, zp_clamped;
         if (has_zp) {
             // --- Compute zero-point ---
-            auto zp_float = std::make_shared<ov::op::v1::Divide>(cst_1, scale);  // optional: (0 - min)/scale
+            // zp = round( (-min) / scale ),  then clamp to [quant_min, quant_max]
+            auto cst_neg_1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {-1.0f});
+            auto neg_min = std::make_shared<ov::op::v1::Multiply>(clamped_min, cst_neg_1);  // negate min
+            set_friendly_name(neg_min, "Zp/NegMin");
+
+            auto zp_float = std::make_shared<ov::op::v1::Divide>(neg_min, scale);  // (-min) / scale
             set_friendly_name(zp_float, "Zp/Divide");
 
             auto zp_rounded = std::make_shared<ov::op::v5::Round>(zp_float, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
@@ -475,7 +479,7 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
         return kv_dyn_quant;
     };
 
-    // helper to recreate dequantisation nodes - TODO: probably better to insert Dequantize Node, than decompose it or
+    // helper to recreate dequantization nodes - TODO: probably better to insert Dequantize Node, than decompose it or
     // not.
     auto create_dequant_nodes = [&model, &create_parameter_with_name, &clear_embedding_index, &make_name](
                                     std::shared_ptr<ov::Node> start_node,
@@ -527,8 +531,6 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
             concat_consumer.replace_source_output(dequantized);
         }
     };
-
-    bool quantize_inserted_before_concat = false;
 
     for (auto&& pattern_nodes : pattern_nodes_list) {
         if (!pattern_nodes.past_key_concat_node) {

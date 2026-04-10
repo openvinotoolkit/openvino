@@ -31,8 +31,11 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
+#include <cctype>
 #include <cmath>
 #include <cstdlib>
+#include <iomanip>
 #include <limits>
 #include <numeric>
 #include <random>
@@ -94,7 +97,6 @@ AccuracyMetrics compute_metrics(const float* original, const float* reconstructe
 enum class DistributionKind { Uniform, GenGaussian };
 
 struct DQTestParams {
-    std::string name;
     int decompose_version;
     Shape shape;
     unsigned seed;
@@ -111,8 +113,83 @@ struct DQTestParams {
     double        threshold    = 0.02;   // rel-L2 pass threshold
 };
 
+static element::Type resolve_quant_dt(const DQTestParams& p) {
+    return (p.quant_dt != element::dynamic)
+               ? p.quant_dt
+               : (p.decompose_version == 2 ? element::u8 : element::i8);
+}
+
+static std::string dist_to_token(DistributionKind kind) {
+    return kind == DistributionKind::Uniform ? "Uniform" : "GGD";
+}
+
+static std::string type_to_token(const element::Type& t) {
+    if (t == element::u8)
+        return "u8";
+    if (t == element::i8)
+        return "i8";
+    if (t == element::i4)
+        return "i4";
+    return "dyn";
+}
+
+static std::string float_to_token(float v) {
+    std::ostringstream ss;
+    ss << std::fixed << std::setprecision(3) << v;
+    auto token = ss.str();
+    while (!token.empty() && token.back() == '0') {
+        token.pop_back();
+    }
+    if (!token.empty() && token.back() == '.') {
+        token.pop_back();
+    }
+    for (auto& ch : token) {
+        if (ch == '-') {
+            ch = 'm';
+        } else if (ch == '.') {
+            ch = 'p';
+        }
+    }
+    return token;
+}
+
+static std::string sanitize_gtest_name(std::string name) {
+    for (auto& ch : name) {
+        if (!std::isalnum(static_cast<unsigned char>(ch))) {
+            ch = '_';
+        }
+    }
+    return name;
+}
+
+static std::string make_test_case_name(const DQTestParams& p) {
+    std::ostringstream os;
+    os << "V" << p.decompose_version
+       << "_" << dist_to_token(p.dist_kind)
+       << "_" << (p.is_symmetric ? "Sym" : "Asym")
+       << "_" << type_to_token(resolve_quant_dt(p));
+
+    if (p.dist_kind == DistributionKind::Uniform) {
+        os << "_R" << float_to_token(p.uniform_min) << "_" << float_to_token(p.uniform_max);
+    } else {
+        os << "_Mu" << float_to_token(p.ggd_mu)
+           << "_A" << float_to_token(p.ggd_alpha)
+           << "_B" << float_to_token(p.ggd_beta);
+    }
+
+    os << "_S";
+    for (size_t i = 0; i < p.shape.size(); ++i) {
+        if (i > 0) {
+            os << "x";
+        }
+        os << p.shape[i];
+    }
+    os << "_Seed" << p.seed;
+    return sanitize_gtest_name(os.str());
+}
+
 std::ostream& operator<<(std::ostream& os, const DQTestParams& p) {
-    return os << p.name;
+    return os << make_test_case_name(p);
 }
 
 
@@ -124,9 +201,7 @@ op::internal::DynamicQuantize::Attributes make_dq_config(const Shape& shape,
     using QT = op::internal::DynamicQuantize::QuantizationType;
 
     // Resolve effective quantization dtype: explicit override beats version default.
-    const element::Type quant_dt = (p.quant_dt != element::dynamic)
-                                       ? p.quant_dt
-                                       : (p.decompose_version == 2 ? element::u8 : element::i8);
+    const element::Type quant_dt = resolve_quant_dt(p);
 
     op::internal::DynamicQuantize::Attributes config;
     config.scale_dt    = element::f32;
@@ -609,7 +684,7 @@ TEST_P(DynamicQuantizeAccuracyTest, RoundtripAccuracy) {
 
     auto metrics = evaluate_roundtrip(model, data.data(), element_count);
 
-    std::cout << p.name << " (V" << p.decompose_version << ", fp16) [evaluate]:" << std::endl;
+    std::cout << make_test_case_name(p) << " (V" << p.decompose_version << ", fp16) [evaluate]:" << std::endl;
     print_metrics("  roundtrip", metrics);
 
     EXPECT_LT(metrics.rel_l2_norm, p.threshold)
@@ -627,7 +702,7 @@ TEST_P(DynamicQuantizeAccuracyTest, SplitModelRoundtripAccuracy) {
     auto metrics = evaluate_split_roundtrip(quant_model, dequant_model,
                                             data.data(), element_count);
 
-    std::cout << p.name << " (V" << p.decompose_version << ", fp16) [split evaluate]:"
+    std::cout << make_test_case_name(p) << " (V" << p.decompose_version << ", fp16) [split evaluate]:"
               << std::endl;
     print_metrics("  split roundtrip", metrics);
 
@@ -664,7 +739,7 @@ TEST_P(DynamicQuantizeAccuracyTest, DeviceRoundtripAccuracy) {
         GTEST_SKIP() << "Device '" << device << "' is not available: " << e.what();
     }
 
-    std::cout << p.name << " (V" << p.decompose_version << ", fp16) [" << device
+    std::cout << make_test_case_name(p) << " (V" << p.decompose_version << ", fp16) [" << device
               << ", split]:" << std::endl;
     print_metrics("  reference (evaluate)", ref_metrics);
     print_metrics("  device    (" + device + ")", dev_metrics);
@@ -683,33 +758,37 @@ TEST_P(DynamicQuantizeAccuracyTest, DeviceRoundtripAccuracy) {
 // ============================================================================
 // Helper functions for concise param construction
 // ============================================================================
+static std::string get_test_case_name(const ::testing::TestParamInfo<DQTestParams>& info) {
+    return make_test_case_name(info.param);
+}
+
 // clang-format off
-static DQTestParams make_uniform(const std::string& name, int version, Shape shape,
+static DQTestParams make_uniform(int version, Shape shape,
                                  float lo, float hi, unsigned seed) {
-    return {name, version, shape, seed, DistributionKind::Uniform,
+    return {version, shape, seed, DistributionKind::Uniform,
             lo, hi, 0.0f, 0.0f, 0.0f};
 }
 
-static DQTestParams make_ggd(const std::string& name, int version, Shape shape,
+static DQTestParams make_ggd(int version, Shape shape,
                              float mu, float alpha, float beta, unsigned seed) {
-    return {name, version, shape, seed, DistributionKind::GenGaussian,
+    return {version, shape, seed, DistributionKind::GenGaussian,
             0.0f, 0.0f, mu, alpha, beta};
 }
 
 // Symmetric i4 factories: decompose_version=1 (V1 now handles i4 via dtype dispatch),
 // is_symmetric=true (2 DQ outputs, no ZP), higher threshold (coarser 4-bit grid).
-static DQTestParams make_sym_i4_uniform(const std::string& name, Shape shape,
+static DQTestParams make_sym_i4_uniform(Shape shape,
                                         float lo, float hi, unsigned seed) {
-    DQTestParams p = make_uniform(name, 1, shape, lo, hi, seed);
+    DQTestParams p = make_uniform(1, shape, lo, hi, seed);
     p.quant_dt     = element::i4;
     p.is_symmetric = true;
     p.threshold    = 0.15;  // i4: ±7 levels → higher quantisation error
     return p;
 }
 
-static DQTestParams make_sym_i4_ggd(const std::string& name, Shape shape,
+static DQTestParams make_sym_i4_ggd(Shape shape,
                                     float mu, float alpha, float beta, unsigned seed) {
-    DQTestParams p = make_ggd(name, 1, shape, mu, alpha, beta, seed);
+    DQTestParams p = make_ggd(1, shape, mu, alpha, beta, seed);
     p.quant_dt     = element::i4;
     p.is_symmetric = true;
     // GGD heavy-tail distributions produce outliers that compress the i4 scale,
@@ -719,31 +798,54 @@ static DQTestParams make_sym_i4_ggd(const std::string& name, Shape shape,
 }
 // clang-format on
 
+static std::vector<DQTestParams> make_uniform_cases(int version) {
+    return {
+        make_uniform(version, {1, 8, 64, 128}, -1.0f, 1.0f, 42),
+        make_uniform(version, {1, 8, 64, 128}, -10.0f, 10.0f, 77),
+        make_uniform(version, {1, 8, 64, 128}, 0.0f, 5.0f, 999),
+        make_uniform(version, {1, 8, 1024, 128}, -3.0f, 3.0f, 314),
+    };
+}
+
+static std::vector<DQTestParams> make_ggd_cases(int version) {
+    return {
+        make_ggd(version, {1, 8, 1024, 128}, 0.018f, 1.121f, 0.923f, 42),
+        make_ggd(version, {1, 8, 1024, 128}, 0.032f, 1.388f, 1.016f, 77),
+        make_ggd(version, {1, 8, 1024, 128}, -0.027f, 1.830f, 1.271f, 123),
+    };
+}
+
+static std::vector<DQTestParams> make_sym_i4_uniform_cases() {
+    return {
+        make_sym_i4_uniform({1, 8, 64, 128}, -1.0f, 1.0f, 42),
+        make_sym_i4_uniform({1, 8, 64, 128}, -10.0f, 10.0f, 77),
+        make_sym_i4_uniform({1, 8, 64, 128}, 0.0f, 5.0f, 999),
+        make_sym_i4_uniform({1, 8, 1024, 128}, -3.0f, 3.0f, 314),
+    };
+}
+
+static std::vector<DQTestParams> make_sym_i4_ggd_cases() {
+    return {
+        make_sym_i4_ggd({1, 8, 1024, 128}, 0.018f, 1.121f, 0.923f, 42),
+        make_sym_i4_ggd({1, 8, 1024, 128}, 0.032f, 1.388f, 1.016f, 77),
+        make_sym_i4_ggd({1, 8, 1024, 128}, -0.027f, 1.830f, 1.271f, 123),
+    };
+}
+
 // ============================================================================
 // Test instantiation -- V1: handcrafted symmetric i8 [-127, 127]
 // ============================================================================
 INSTANTIATE_TEST_SUITE_P(
     V1_Uniform,
     DynamicQuantizeAccuracyTest,
-    ::testing::Values(
-        make_uniform("V1_SmallRange",        1, {1, 8, 64, 128},   -1.0f,  1.0f,  42),
-        make_uniform("V1_WiderRange",        1, {1, 8, 64, 128},   -10.0f, 10.0f, 77),
-        make_uniform("V1_AsymPositive",      1, {1, 8, 64, 128},   0.0f,   5.0f,  999),
-        make_uniform("V1_LargeSeq",          1, {1, 8, 1024, 128}, -3.0f,  3.0f,  314)
-    ),
-    [](const ::testing::TestParamInfo<DQTestParams>& info) { return info.param.name; }
-);
+    ::testing::ValuesIn(make_uniform_cases(1)),
+    get_test_case_name);
 
 INSTANTIATE_TEST_SUITE_P(
     V1_GenGaussian,
     DynamicQuantizeAccuracyTest,
-    ::testing::Values(
-        make_ggd("V1_HeavyTails",   1, {1, 8, 1024, 128}, 0.018f, 1.121f, 0.923f, 42),
-        make_ggd("V1_NearLaplace",  1, {1, 8, 1024, 128}, 0.032f, 1.388f, 1.016f, 77),
-        make_ggd("V1_NearNormal",   1, {1, 8, 1024, 128}, -0.027f, 1.830f, 1.271f, 123)
-    ),
-    [](const ::testing::TestParamInfo<DQTestParams>& info) { return info.param.name; }
-);
+    ::testing::ValuesIn(make_ggd_cases(1)),
+    get_test_case_name);
 
 // ============================================================================
 // Test instantiation -- V2: ONNX DynamicQuantizeLinear u8 [0, 255]
@@ -751,25 +853,14 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     V2_Uniform,
     DynamicQuantizeAccuracyTest,
-    ::testing::Values(
-        make_uniform("V2_SmallRange",        2, {1, 8, 64, 128},   -1.0f,  1.0f,  42),
-        make_uniform("V2_WiderRange",        2, {1, 8, 64, 128},   -10.0f, 10.0f, 77),
-        make_uniform("V2_AsymPositive",      2, {1, 8, 64, 128},   0.0f,   5.0f,  999),
-        make_uniform("V2_LargeSeq",          2, {1, 8, 1024, 128}, -3.0f,  3.0f,  314)
-    ),
-    [](const ::testing::TestParamInfo<DQTestParams>& info) { return info.param.name; }
-);
+    ::testing::ValuesIn(make_uniform_cases(2)),
+    get_test_case_name);
 
 INSTANTIATE_TEST_SUITE_P(
     V2_GenGaussian,
     DynamicQuantizeAccuracyTest,
-    ::testing::Values(
-        make_ggd("V2_HeavyTails",   2, {1, 8, 1024, 128}, 0.018f, 1.121f, 0.923f, 42),
-        make_ggd("V2_NearLaplace",  2, {1, 8, 1024, 128}, 0.032f, 1.388f, 1.016f, 77),
-        make_ggd("V2_NearNormal",   2, {1, 8, 1024, 128}, -0.027f, 1.830f, 1.271f, 123)
-    ),
-    [](const ::testing::TestParamInfo<DQTestParams>& info) { return info.param.name; }
-);
+    ::testing::ValuesIn(make_ggd_cases(2)),
+    get_test_case_name);
 
 // ============================================================================
 // Test instantiation -- V3: compiler pattern style i8 [-128, 127]
@@ -777,25 +868,14 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     V3_Uniform,
     DynamicQuantizeAccuracyTest,
-    ::testing::Values(
-        make_uniform("V3_SmallRange",        3, {1, 8, 64, 128},   -1.0f,  1.0f,  42),
-        make_uniform("V3_WiderRange",        3, {1, 8, 64, 128},   -10.0f, 10.0f, 77),
-        make_uniform("V3_AsymPositive",      3, {1, 8, 64, 128},   0.0f,   5.0f,  999),
-        make_uniform("V3_LargeSeq",          3, {1, 8, 1024, 128}, -3.0f,  3.0f,  314)
-    ),
-    [](const ::testing::TestParamInfo<DQTestParams>& info) { return info.param.name; }
-);
+    ::testing::ValuesIn(make_uniform_cases(3)),
+    get_test_case_name);
 
 INSTANTIATE_TEST_SUITE_P(
     V3_GenGaussian,
     DynamicQuantizeAccuracyTest,
-    ::testing::Values(
-        make_ggd("V3_HeavyTails",   3, {1, 8, 1024, 128}, 0.018f, 1.121f, 0.923f, 42),
-        make_ggd("V3_NearLaplace",  3, {1, 8, 1024, 128}, 0.032f, 1.388f, 1.016f, 77),
-        make_ggd("V3_NearNormal",   3, {1, 8, 1024, 128}, -0.027f, 1.830f, 1.271f, 123)
-    ),
-    [](const ::testing::TestParamInfo<DQTestParams>& info) { return info.param.name; }
-);
+    ::testing::ValuesIn(make_ggd_cases(3)),
+    get_test_case_name);
 
 // ============================================================================
 // Test instantiation -- V1 symmetric i4: handcrafted symmetric i4 [-7, 7]
@@ -803,24 +883,42 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     V1_Symmetric_i4_Uniform,
     DynamicQuantizeAccuracyTest,
-    ::testing::Values(
-        make_sym_i4_uniform("V1_i4_SmallRange",   {1, 8, 64, 128},   -1.0f,  1.0f,  42),
-        make_sym_i4_uniform("V1_i4_WiderRange",   {1, 8, 64, 128},   -10.0f, 10.0f, 77),
-        make_sym_i4_uniform("V1_i4_AsymPositive", {1, 8, 64, 128},   0.0f,   5.0f,  999),
-        make_sym_i4_uniform("V1_i4_LargeSeq",     {1, 8, 1024, 128}, -3.0f,  3.0f,  314)
-    ),
-    [](const ::testing::TestParamInfo<DQTestParams>& info) { return info.param.name; }
-);
+    ::testing::ValuesIn(make_sym_i4_uniform_cases()),
+    get_test_case_name);
 
 INSTANTIATE_TEST_SUITE_P(
     V1_Symmetric_i4_GenGaussian,
     DynamicQuantizeAccuracyTest,
-    ::testing::Values(
-        make_sym_i4_ggd("V1_i4_HeavyTails",  {1, 8, 1024, 128}, 0.018f, 1.121f, 0.923f, 42),
-        make_sym_i4_ggd("V1_i4_NearLaplace", {1, 8, 1024, 128}, 0.032f, 1.388f, 1.016f, 77),
-        make_sym_i4_ggd("V1_i4_NearNormal",  {1, 8, 1024, 128}, -0.027f, 1.830f, 1.271f, 123)
-    ),
-    [](const ::testing::TestParamInfo<DQTestParams>& info) { return info.param.name; }
-);
+    ::testing::ValuesIn(make_sym_i4_ggd_cases()),
+    get_test_case_name);
+
+// ============================================================================
+// Test instantiation -- asymmetric i8 offset distributions for all versions.
+//
+// V1 coverage additionally exposes the known bug in zero-point computation:
+//   zp = 0 / scale  (always zero)
+// which causes clipping for shifted distributions (min/max away from zero).
+// This can fail until V1 formula is corrected to use -min/scale.
+// ============================================================================
+static std::vector<DQTestParams> make_asym_i8_offset_cases() {
+    static constexpr std::array<int, 3> versions = {1, 2, 3};
+
+    std::vector<DQTestParams> cases;
+    cases.reserve(versions.size() * 3u);
+
+    for (const int version : versions) {
+        cases.push_back(make_uniform(version, {1, 8, 64, 128}, 0.5f, 5.0f, 42));
+        cases.push_back(make_uniform(version, {1, 8, 64, 128}, 1.0f, 5.0f, 77));
+        cases.push_back(make_uniform(version, {1, 8, 64, 128}, -5.0f, -0.5f, 99));
+    }
+
+    return cases;
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Asymmetric_i8_OffsetCoverage,
+    DynamicQuantizeAccuracyTest,
+    ::testing::ValuesIn(make_asym_i8_offset_cases()),
+    get_test_case_name);
 
 }  // namespace

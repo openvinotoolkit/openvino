@@ -1009,13 +1009,11 @@ std::vector<ov::npuw::util::SDPAPatternNodes> find_sdpa_pattern_nodes_internal(c
     LOG_BLOCK();
     // Search for the pattern: MatMul -> Add -> Softmax -> MatMul
     auto ops = model->get_ordered_ops();
-    size_t softmax_order_idx = 0;
     for (auto&& node : ops) {
         if (!ov::is_type<ov::op::v8::Softmax>(node))
             continue;
         LOG_DEBUG("Examining node: " << node->get_friendly_name() << " (" << node->get_type_name() << ")");
 
-        const size_t current_order_idx = softmax_order_idx++;
         ov::npuw::util::SDPAPatternNodes candidate;
         auto& current_node = candidate;
         current_node.softmax_node = node;

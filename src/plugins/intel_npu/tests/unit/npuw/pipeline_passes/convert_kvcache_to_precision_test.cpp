@@ -5,11 +5,11 @@
 #include <gtest/gtest.h>
 
 #include <map>
-#include <regex>
 #include <sstream>
 #include <string>
 
 #include "llm_pass_test_fixture.hpp"
+#include "../util.hpp"
 #include "openvino/runtime/properties.hpp"
 
 // --- Design note -------------------------------------------------------------------------
@@ -23,15 +23,6 @@
 namespace {
 
 using ov::test::npuw::RecordingFactory;
-
-bool any_name_matches(const ov::Output<const ov::Node>& port, const std::regex& re) {
-    for (const auto& name : port.get_names()) {
-        if (std::regex_match(name, re)) {
-            return true;
-        }
-    }
-    return false;
-}
 
 bool any_name_contains(const ov::Output<const ov::Node>& port, std::string_view needle) {
     for (const auto& name : port.get_names()) {
@@ -52,8 +43,8 @@ const std::map<ov::element::Type, std::map<std::string, ov::element::Type>>& pre
 
 const std::map<ov::element::Type, std::map<std::string, ov::element::Type>>& precision_value_matrix() {
     static const std::map<ov::element::Type, std::map<std::string, ov::element::Type>> matrix = {
-        {ov::element::u8, {{"value", ov::element::i4}, {"scale", ov::element::f32}}},
-        {ov::element::i8, {{"value", ov::element::i4}, {"scale", ov::element::f32}}}
+        {ov::element::u8, {{"value", ov::element::i8}, {"scale", ov::element::f32}}},
+        {ov::element::i8, {{"value", ov::element::i8}, {"scale", ov::element::f32}}}
     };
     return matrix;
 }
@@ -79,8 +70,6 @@ void expect_kv_cache_input_types(const std::shared_ptr<ov::Model>& model, const 
     // Value cache: symmetric quantization -> value tensor (i4) + scale (f32), no zero_point.
     const bool is_quantized = is_quantized_kv_type(kv_type);
 
-    const std::regex past_key_cache_re(R"(past_key_values\.\d+\.key)");
-    const std::regex past_value_cache_re(R"(past_key_values\.\d+\.value)");
     constexpr std::string_view past_key_scale_name = "/past_key_values/key/scale";
     constexpr std::string_view past_key_zp_name = "/past_key_values/key/zp";
     constexpr std::string_view past_value_scale_name = "/past_key_values/value/scale";
@@ -94,14 +83,26 @@ void expect_kv_cache_input_types(const std::shared_ptr<ov::Model>& model, const 
     bool found_value_zp_input = false;
 
     for (const auto& input : model->inputs()) {
-        if (any_name_matches(input, past_key_cache_re)) {
+        // Check if any name on this input matches past_key_values pattern
+        bool is_past_key = false;
+        bool is_past_value = false;
+        for (const auto& name : input.get_names()) {
+            if (!is_past_key && ov::npuw::util::isPastKeyValuesKey(name).has_value()) {
+                is_past_key = true;
+            }
+            if (!is_past_value && ov::npuw::util::isPastKeyValuesValue(name).has_value()) {
+                is_past_value = true;
+            }
+        }
+
+        if (is_past_key) {
             found_key_cache_input = true;
             const auto expected = is_quantized ? precision_key_matrix().at(kv_type).at("value") : kv_type;
             EXPECT_EQ(input.get_element_type(), expected)
                 << "past_key_values.<N>.key input must have type " << expected;
         }
 
-        if (any_name_matches(input, past_value_cache_re)) {
+        if (is_past_value) {
             found_value_cache_input = true;
             const auto expected = is_quantized ? precision_value_matrix().at(kv_type).at("value") : kv_type;
             EXPECT_EQ(input.get_element_type(), expected)
@@ -157,8 +158,6 @@ void expect_kv_cache_input_types(const std::shared_ptr<ov::Model>& model, const 
 void expect_kv_cache_present_output_types(const std::shared_ptr<ov::Model>& model, const ov::element::Type kv_type) {
     const bool is_quantized = is_quantized_kv_type(kv_type);
 
-    const std::regex present_key_re(R"(present\.\d+\.key)");
-    const std::regex present_value_re(R"(present\.\d+\.value)");
     constexpr std::string_view present_key_scale_name = "/present/key/scale";
     constexpr std::string_view present_key_zp_name = "/present/key/zp";
     constexpr std::string_view present_value_scale_name = "/present/value/scale";
@@ -172,14 +171,26 @@ void expect_kv_cache_present_output_types(const std::shared_ptr<ov::Model>& mode
     bool found_present_value_zp = false;
 
     for (const auto& output : model->outputs()) {
-        if (any_name_matches(output, present_key_re)) {
+        // Check if any name on this output matches present pattern
+        bool is_present_key = false;
+        bool is_present_value = false;
+        for (const auto& name : output.get_names()) {
+            if (!is_present_key && ov::npuw::util::isPresentKeyValuesKey(name).has_value()) {
+                is_present_key = true;
+            }
+            if (!is_present_value && ov::npuw::util::isPresentKeyValuesValue(name).has_value()) {
+                is_present_value = true;
+            }
+        }
+
+        if (is_present_key) {
             found_present_key = true;
             const auto expected = is_quantized ? precision_key_matrix().at(kv_type).at("value") : kv_type;
             EXPECT_EQ(output.get_element_type(), expected)
                 << "present.<N>.key output must have type " << expected;
         }
 
-        if (any_name_matches(output, present_value_re)) {
+        if (is_present_value) {
             found_present_value = true;
             const auto expected = is_quantized ? precision_value_matrix().at(kv_type).at("value") : kv_type;
             EXPECT_EQ(output.get_element_type(), expected)

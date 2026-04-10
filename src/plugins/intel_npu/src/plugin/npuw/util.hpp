@@ -200,8 +200,8 @@ struct SDPAPatternNodes {
     std::shared_ptr<ov::Node> past_value_concat_node = nullptr;
 
     bool is_valid() const {
-        return matmul1_node && matmul2_node && softmax_node && add_node && 
-               past_key_concat_node && past_value_concat_node;
+        return matmul1_node && matmul2_node && softmax_node && add_node && past_key_concat_node &&
+               past_value_concat_node;
     }
 
     // Log pattern information for debugging

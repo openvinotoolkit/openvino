@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <string>
 #include <vector>
+#include <limits>
 
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
