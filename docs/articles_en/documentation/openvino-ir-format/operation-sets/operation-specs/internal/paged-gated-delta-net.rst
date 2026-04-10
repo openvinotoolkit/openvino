@@ -71,6 +71,14 @@ The ``past_lens[s]`` value indicates how many tokens have already been processed
 the most recent cached block before ``past_lens[s]`` is loaded, and the remaining
 tokens up to ``past_lens[s]`` are replayed from that checkpoint.
 
+Use cases:
+	
+1. prefill with no past. Read from block 0, write to block 1...N
+2. prefill with past_len % cache_interval == 0. Read from block 0, write to block 1...N
+3. prefill with past_len % cache_interval !=0. Read from block 0, write to block 1...N
+4. decode with past_len % cache_interval == 0. Read from block 0, write to block 1
+5. decode with past_len % cache_interval !=0. Read from block 0, write to block 1
+ 
 **Attributes**
 
 * *use_qk_l2norm*
