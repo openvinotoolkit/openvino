@@ -28,21 +28,30 @@ void ov::npuw::LLMInferBaseRequest::update_kvcache_for(
         }
         auto dst_tensor = request->get_tensor(in_ports.at(input_name));
         const auto& kv_dim = (output_name.find("value") != std::string::npos && v_transposed) ? 3u : kvcache_desc.dim;
-        auto dst_slice = uu::make_tensor_slice(dst_tensor,
-                                               kv_dim,
-                                               kvcache_desc.num_stored_tokens - num_tokens,
-                                               kvcache_desc.num_stored_tokens);
         auto src_tensor = request->get_tensor(out_ports.at(output_name));
 
         // NOTE: Sometimes present kv layer can contain greater seq_len
         //       than was sent to be processed
-        uint32_t src_seq_len = static_cast<uint32_t>(src_tensor->get_shape()[kv_dim]);
+        const uint32_t src_seq_len = static_cast<uint32_t>(src_tensor->get_shape()[kv_dim]);
         OPENVINO_ASSERT(num_tokens <= src_seq_len);
-        if (src_seq_len > num_tokens) {
-            auto src_slice = uu::make_tensor_slice(src_tensor, kv_dim, src_seq_len - num_tokens, src_seq_len);
-            uu::copy_tensor_by_dim(src_slice, dst_slice, kv_dim, kv_dim);
+        const uint32_t src_start = src_seq_len - num_tokens;
+        const uint32_t dst_start = kvcache_desc.num_stored_tokens - num_tokens;
+        const uint32_t dst_end   = kvcache_desc.num_stored_tokens;
+
+        // i4/u4 tensors cannot be sliced via ROI tensor (OV runtime does not support
+        // sub-byte strides). Use the nibble-aware direct copy for these types.
+        const bool is_i4 = (dst_tensor->get_element_type().bitwidth() == 4u);
+        if (is_i4) {
+            uu::copy_tensor_slice_i4(src_tensor, kv_dim, src_start, src_seq_len,
+                                     dst_tensor, kv_dim, dst_start);
         } else {
-            uu::copy_tensor_by_dim(src_tensor, dst_slice, kv_dim, kv_dim);
+            auto dst_slice = uu::make_tensor_slice(dst_tensor, kv_dim, dst_start, dst_end);
+            if (src_start > 0u) {
+                auto src_slice = uu::make_tensor_slice(src_tensor, kv_dim, src_start, src_seq_len);
+                uu::copy_tensor_by_dim(src_slice, dst_slice, kv_dim, kv_dim);
+            } else {
+                uu::copy_tensor_by_dim(src_tensor, dst_slice, kv_dim, kv_dim);
+            }
         }
     }
 }

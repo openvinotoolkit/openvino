@@ -22,6 +22,20 @@ ov::SoPtr<ov::ITensor> make_tensor_slice(ov::SoPtr<ov::ITensor> tensor,
                                          uint32_t start_pos,
                                          uint32_t end_pos);
 
+// Copy elements [src_start, src_end) along src_dim from src into dst starting
+// at dst_start along dst_dim, for i4/u4 tensors where positions may be odd
+// (sub-byte aligned). This function avoids ROI tensor creation for sub-byte
+// element types and therefore can be used where make_tensor_slice is not
+// supported.
+// Note: currently supports src_dim == dst_dim.
+void copy_tensor_slice_i4(const ov::SoPtr<ov::ITensor>& src,
+                          uint32_t src_dim,
+                          uint32_t src_start,
+                          uint32_t src_end,
+                          const ov::SoPtr<ov::ITensor>& dst,
+                          uint32_t dst_dim,
+                          uint32_t dst_start);
+
 void copy_by_planes(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor> dst_tensor);
 
 void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITensor>& dst);

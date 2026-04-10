@@ -520,6 +520,17 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
 
         const auto prefill_chunk_size = m_npuw_llm_compiled_model->m_prefill_chunk_size;
         const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
+        // Any ROI-based slicing for i4/u4 is unsupported by make_tensor path,
+        // so route all i4 copy ranges through the direct nibble-aware copier.
+        const bool is_i4_tensor = (prefill_out_tensor->get_element_type().bitwidth() == 4u);
+        if (is_i4_tensor) {
+            OPENVINO_ASSERT(pre_kv_dim == gen_kv_dim,
+                            "i4 KV copy currently supports src/dst on the same dim only: "
+                            "pre_kv_dim=",
+                            pre_kv_dim,
+                            ", gen_kv_dim=",
+                            gen_kv_dim);
+        }
         if (use_chunk_prefill) {
             // The chunk prefilled KV results are divided into two parts:
             // Part 1: The KV results from loops 1 to n-1 have been copied into the 'past' KV input tensor
@@ -533,57 +544,59 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
                 // Create backup of past KV tensor when buffer sharing is enabled to prevent data corruption
                 // This is necessary because subsequent copy operations would overwrite the shared buffer
                 auto prefill_past_kv = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
-                ov::SoPtr<ov::ITensor> tmp_dense_kv_tensor;
-                ov::SoPtr<ov::ITensor> prefill_past_kv_chunks;
+                ov::SoPtr<ov::ITensor> source_past_kv;
                 if (m_past_kv_bound) {
-                    tmp_dense_kv_tensor = ov::npuw::util::allocMem(prefill_past_kv->get_element_type(),
-                                                                   prefill_past_kv->get_shape(),
-                                                                   m_pre_alloc_device,
-                                                                   m_npuw_llm_compiled_model->get_plugin());
+                    auto tmp_dense_kv_tensor = ov::npuw::util::allocMem(prefill_past_kv->get_element_type(),
+                                                                        prefill_past_kv->get_shape(),
+                                                                        m_pre_alloc_device,
+                                                                        m_npuw_llm_compiled_model->get_plugin());
                     prefill_past_kv->copy_to(tmp_dense_kv_tensor._ptr);
-                    prefill_past_kv_chunks = make_tensor_slice(tmp_dense_kv_tensor,
-                                                               pre_kv_dim,
-                                                               0u,
-                                                               static_cast<uint32_t>(tokens_in_past_chunks));
+                    source_past_kv = tmp_dense_kv_tensor;
                 } else {
-                    prefill_past_kv_chunks = make_tensor_slice(prefill_past_kv,
-                                                               pre_kv_dim,
-                                                               0u,
-                                                               static_cast<uint32_t>(tokens_in_past_chunks));
+                    source_past_kv = prefill_past_kv;
                 }
 
-                auto kvcache_past_kv_chunks = uu::make_tensor_slice(kvcache_in_tensor,
-                                                                    gen_kv_dim,
-                                                                    0u,
-                                                                    static_cast<uint32_t>(tokens_in_past_chunks));
-
-                uu::copy_tensor_by_dim(prefill_past_kv_chunks, kvcache_past_kv_chunks, pre_kv_dim, gen_kv_dim);
+                LOG_DEBUG("Copying past KV chunks with size " << tokens_in_past_chunks << " from prefill to kv-cache tensor.");
+                if (is_i4_tensor) {
+                    uu::copy_tensor_slice_i4(source_past_kv, pre_kv_dim, 0u,
+                                             static_cast<uint32_t>(tokens_in_past_chunks),
+                                             kvcache_in_tensor, gen_kv_dim, 0u);
+                } else {
+                    auto prefill_past_kv_chunks = uu::make_tensor_slice(source_past_kv, pre_kv_dim, 0u,
+                                                                        static_cast<uint32_t>(tokens_in_past_chunks));
+                    auto kvcache_past_kv_chunks = uu::make_tensor_slice(kvcache_in_tensor, gen_kv_dim, 0u,
+                                                                        static_cast<uint32_t>(tokens_in_past_chunks));
+                    uu::copy_tensor_by_dim(prefill_past_kv_chunks, kvcache_past_kv_chunks, pre_kv_dim, gen_kv_dim);
+                }
             }
-
             // Copy part 2 KV results
-            auto prefill_present_kv_chunk =
-                uu::make_tensor_slice(prefill_out_tensor,
-                                      pre_kv_dim,
-                                      static_cast<uint32_t>(prefill_chunk_size - m_tokens_in_present_chunk),
-                                      static_cast<uint32_t>(prefill_chunk_size));
-
-            auto kvcache_last_kv_chunk = uu::make_tensor_slice(kvcache_in_tensor,
-                                                               gen_kv_dim,
-                                                               static_cast<uint32_t>(tokens_in_past_chunks),
-                                                               kvcache_desc.num_stored_tokens);
-
-            uu::copy_tensor_by_dim(prefill_present_kv_chunk, kvcache_last_kv_chunk, pre_kv_dim, gen_kv_dim);
+            const uint32_t chunk2_src_start = static_cast<uint32_t>(prefill_chunk_size - m_tokens_in_present_chunk);
+            const uint32_t chunk2_src_end   = static_cast<uint32_t>(prefill_chunk_size);
+            const uint32_t chunk2_dst_start = static_cast<uint32_t>(tokens_in_past_chunks);
+            if (is_i4_tensor) {
+                uu::copy_tensor_slice_i4(prefill_out_tensor, pre_kv_dim, chunk2_src_start, chunk2_src_end,
+                                         kvcache_in_tensor, gen_kv_dim, chunk2_dst_start);
+            } else {
+                auto prefill_present_kv_chunk =
+                    uu::make_tensor_slice(prefill_out_tensor, pre_kv_dim, chunk2_src_start, chunk2_src_end);
+                auto kvcache_last_kv_chunk =
+                    uu::make_tensor_slice(kvcache_in_tensor, gen_kv_dim, chunk2_dst_start,
+                                         kvcache_desc.num_stored_tokens);
+                uu::copy_tensor_by_dim(prefill_present_kv_chunk, kvcache_last_kv_chunk, pre_kv_dim, gen_kv_dim);
+            }
         } else {
-            auto prefill_out_slice =
-                uu::make_tensor_slice(prefill_out_tensor,
-                                      pre_kv_dim,
-                                      kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
-                                      kvcache_desc.max_prompt_size);
-
-            auto kvcache_in_slice =
-                uu::make_tensor_slice(kvcache_in_tensor, gen_kv_dim, 0u, kvcache_desc.num_stored_tokens);
-
-            uu::copy_tensor_by_dim(prefill_out_slice, kvcache_in_slice, pre_kv_dim, gen_kv_dim);
+            const uint32_t src_start = kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens;
+            const uint32_t src_end   = kvcache_desc.max_prompt_size;
+            if (is_i4_tensor) {
+                uu::copy_tensor_slice_i4(prefill_out_tensor, pre_kv_dim, src_start, src_end,
+                                         kvcache_in_tensor, gen_kv_dim, 0u);
+            } else {
+                auto prefill_out_slice =
+                    uu::make_tensor_slice(prefill_out_tensor, pre_kv_dim, src_start, src_end);
+                auto kvcache_in_slice =
+                    uu::make_tensor_slice(kvcache_in_tensor, gen_kv_dim, 0u, kvcache_desc.num_stored_tokens);
+                uu::copy_tensor_by_dim(prefill_out_slice, kvcache_in_slice, pre_kv_dim, gen_kv_dim);
+            }
         }
     });
     LOG_DEBUG("Done.");
