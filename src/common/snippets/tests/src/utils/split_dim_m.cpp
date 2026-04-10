@@ -5,14 +5,14 @@
 #include "utils/split_dim_m.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "snippets/pass/split_dimension_m.hpp"
+#include "snippets/lowered/pass/mha_parallel_wa_optimizer.hpp"
 #include "snippets/utils/utils.hpp"
 
 namespace ov {
 namespace test {
 namespace snippets {
 
-std::string SplitDimensionMTest::getTestCaseName(testing::TestParamInfo<SplitDimensionMParams> obj) {
+std::string MHAParallelWASplitTest::getTestCaseName(testing::TestParamInfo<MHAParallelWASplitParams> obj) {
     const auto& input = obj.param.input;
     const auto& reference = obj.param.reference;
     std::ostringstream result;
@@ -29,11 +29,11 @@ std::string SplitDimensionMTest::getTestCaseName(testing::TestParamInfo<SplitDim
     return result.str();
 }
 
-TEST_P(SplitDimensionMTest, SplitDimensionM) {
+TEST_P(MHAParallelWASplitTest, MHAParallelWASplit) {
     const auto& input = GetParam().input;
     const auto& reference = GetParam().reference;
 
-    // last_dim is fixed since it doesn't affect the SplitDimensionM result.
+    // last_dim is fixed since it doesn't affect the MHAParallelWAOptimizer::split result.
     static const size_t last_dim = 1024;
     ov::Shape shape;
     if (input.cur_batch.has_value()) {
@@ -42,10 +42,10 @@ TEST_P(SplitDimensionMTest, SplitDimensionM) {
         shape = {input.cur_m, last_dim};
     }
     size_t batch_m_dim, new_m_dim;
-    bool result = ov::snippets::pass::SplitDimensionM::split(shape,
-                                                             input.concurrency,
-                                                             batch_m_dim,
-                                                             new_m_dim);
+    bool result = ov::snippets::lowered::pass::MHAParallelWAOptimizer::split(shape,
+                                                                             input.concurrency,
+                                                                             batch_m_dim,
+                                                                             new_m_dim);
 
     ASSERT_EQ(result, reference.is_split);
     if (result) {
@@ -54,8 +54,8 @@ TEST_P(SplitDimensionMTest, SplitDimensionM) {
     }
 }
 
-namespace SplitDimensionMInstantiation {
-const std::vector<SplitDimensionMParams> split_dimension_cases = {
+namespace MHAParallelWASplitInstantiation {
+const std::vector<MHAParallelWASplitParams> split_dimension_cases = {
     // Negative test cases: split is not needed
     {InputData{{40} /*cur_batch*/, 32 /*cur_m*/, 40 /*concurrency*/}, ReferenceData{false /*is_split*/}},
     {InputData{{65}, 32, 40}, ReferenceData{false}},
@@ -84,12 +84,12 @@ const std::vector<SplitDimensionMParams> split_dimension_cases = {
     {InputData{std::nullopt, 4097, 32}, ReferenceData{false, 4097, 32}},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_SplitDimensionM,
-                         SplitDimensionMTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAParallelWASplit,
+                         MHAParallelWASplitTest,
                          ::testing::ValuesIn(split_dimension_cases),
-                         SplitDimensionMTest::getTestCaseName);
+                         MHAParallelWASplitTest::getTestCaseName);
 
-}  // namespace SplitDimensionMInstantiation
+}  // namespace MHAParallelWASplitInstantiation
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

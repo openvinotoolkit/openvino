@@ -229,18 +229,14 @@ TEST_F(FunctionalOffloadTensorTest, read_wrong_dynamic_shape) {
     }
 }
 
-TEST_F(FunctionalOffloadTensorTest, read_type_doesnt_fit_file_size) {
+TEST_F(FunctionalOffloadTensorTest, allow_auto_size_less_than_file_size) {
     {
         std::ofstream fout(file_name, std::ios::binary);
         fout.write(reinterpret_cast<char*>(init_values.data()), data_size - 1);
     }
     ASSERT_TRUE(std::filesystem::exists(file_name));
-
-    {
-        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov::element::f32), ov::Exception);
-        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov::element::f32, PartialShape::dynamic(1), 0, false),
-                     ov::Exception);
-    }
+    EXPECT_NO_THROW(std::ignore = read_tensor_data(file_name, ov::element::f32));
+    EXPECT_NO_THROW(std::ignore = read_tensor_data(file_name, ov::element::f32, PartialShape::dynamic(1), 0, false));
 }
 
 TEST_F(FunctionalOffloadTensorTest, read_null_shape) {
