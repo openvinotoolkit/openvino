@@ -30,6 +30,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/reference/erfinv.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
@@ -384,6 +385,9 @@ void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_
                 break;
             case Algorithm::EltwiseSoftSign:
                 *dst_ptr_f = src_f[0] / (1 + std::fabs(src_f[0]));
+                break;
+            case Algorithm::EltwiseErfInv:
+                *dst_ptr_f = static_cast<T>(ov::reference::func::erfinv(static_cast<float>(src_f[0])));
                 break;
             // @todo implement proper isinfinite for non-float precisions
             case Algorithm::EltwiseIsFinite:
