@@ -324,14 +324,14 @@ event::ptr network::set_input_data(const primitive_id& id, memory::ptr data, boo
     if (primitive_inst->type() != input_layout::type_id()) {
         CLDNN_ERROR_MESSAGE(id, "primitive " + id + " is not an input");
     }
-
     auto input = std::static_pointer_cast<input_layout_inst>(primitive_inst);
+    const bool was_unallocated = !input->output_memory_ptr();
     auto ev = input->set_data(data, need_to_check_memory_to_set);
 
-    // Lazy input_layout allocation means some static kernels may have skipped argument
-    // binding during network initialization because the input-backed dependency buffer
-    // was not available yet. Force a fresh argument binding before the next execute.
-    _reset_arguments = true;
+    // Only force rebind on the first call for a lazy-allocated input —
+    // the initial set_arguments() skipped nodes whose dep buffer was null.
+    if (was_unallocated)
+        _reset_arguments = true;
 
     return ev;
 }

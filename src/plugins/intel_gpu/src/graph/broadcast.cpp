@@ -137,6 +137,7 @@ void broadcast_inst::on_execute() {
 void broadcast_inst::update_output_memory() {
     if (!can_be_optimized())
         return;
+
     build_deps();
 
     if (input_memory_ptr() == nullptr)
