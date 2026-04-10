@@ -189,6 +189,8 @@ bool matchLoRAMatMulBString(const std::string& input);
 
 bool matchLoRAMatMulAlphaString(const std::string& input);
 
+bool matchLinCacheString(const std::string& input);
+
 template <typename T>
 void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) {
     T* tensor_data = tensor->data<T>();

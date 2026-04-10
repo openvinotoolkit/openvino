@@ -71,6 +71,10 @@ public:
         register_patterns({sin, cos}, std::move(callback));
     }
 };
+
+#ifdef __GNUC__
+#    pragma GCC diagnostic pop
+#endif
 }  // anonymous namespace
 
 bool ov::npuw::AddPositionIdsParam::run_on_model(const std::shared_ptr<ov::Model>& model) {
@@ -84,7 +88,3 @@ bool ov::npuw::AddPositionIdsParam::run_on_model(const std::shared_ptr<ov::Model
     model->validate_nodes_and_infer_types();
     return true;
 }
-
-#ifdef __GNUC__
-#    pragma GCC diagnostic pop
-#endif

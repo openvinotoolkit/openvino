@@ -59,6 +59,11 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
         } else if (ov::npuw::util::matchLoRAMatMulBString(input_name)) {
             new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
+        } else if (ov::npuw::util::matchLinCacheString(input_name)) {
+            const auto& partial_shape = input.get_partial_shape();
+            new_shape = partial_shape;
+            // FIXME: Does batch axes of KVCache and Linear Cache have same positions?
+            new_shape[kv_axes_position.batch] = 1;  // batch_dim
         } else {
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;

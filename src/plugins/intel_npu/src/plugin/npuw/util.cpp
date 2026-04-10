@@ -906,6 +906,11 @@ bool ov::npuw::util::matchLoRAMatMulAlphaString(const std::string& input) {
     return ov::npuw::util::matchStringWithLoRAPattern(input, LoRANames::MatMul_alpha);
 }
 
+bool ov::npuw::util::matchLinCacheString(const std::string& input) {
+    std::regex regex_pattern(R"(^cache_params\.past\.(conv|ssm)\.(\d+)$)");
+    return std::regex_match(input, regex_pattern);
+}
+
 void ov::npuw::util::fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val) {
     auto* tensor_data = reinterpret_cast<uint8_t*>(tensor->data());
     const size_t byte_size = tensor->get_byte_size();
