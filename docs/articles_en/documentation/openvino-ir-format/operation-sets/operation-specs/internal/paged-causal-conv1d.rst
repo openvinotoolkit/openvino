@@ -4,7 +4,7 @@ PagedCausalConv1D
 =================
 
 .. meta::
-  :description: Learn about PagedCausalConv1D - a paged stateful causal 1D convolution operation for time-series and autoregressive models.
+  :description: Learn about PagedCausalConv1D - a paged causal 1D convolution operation for time-series and autoregressive models.
 
 **Versioned name**: *PagedCausalConv1D*
 
@@ -30,8 +30,34 @@ the output embedding.
 (used during prefill to support prefix caching and chunked prefill).
 4. Saves the final state for each sequence into the last assigned block.
 
-The convolution state is initially a zero tensor and is updated using the same logic as for *StatefulCausalConv1D*.
+The convolution state is initially a zero tensor.
 Paged memory management allows states to be shared across sequences (prefix caching) and allocated on demand.
+
+
+**Paged memory management**
+
+The convolutional state table is organized as non-contiguous pages (blocks). Each block stores one
+complete state snapshot at a particular token position in the sequence.
+
+For sequence ``s``, the assigned physical block indices are
+``block_indices[block_indices_begins[s] : block_indices_begins[s+1]]``.
+These indices address rows in ``conv_state_table``. The first block stores the state after
+``cache_interval[s]`` tokens, the second after ``2 * cache_interval[s]`` tokens, and so on.
+When ``cache_interval[s] <= 0``, no state caching is performed for that sequence.
+
+The ``past_lens[s]`` value indicates how many tokens have already been processed for sequence
+``s``. Combined with the cached blocks, it determines the starting state for new tokens:
+the most recent cached block before ``past_lens[s]`` is loaded, and the remaining
+tokens up to ``past_lens[s]`` are replayed from that checkpoint.
+
+Use cases:
+	
+1. prefill with no past. Read from block 0, write to block 1...N
+2. prefill with past_len % cache_interval == 0. Read from block 0, write to block 1...N
+3. prefill with past_len % cache_interval !=0. Read from block 0, write to block 1...N
+4. decode with past_len % cache_interval == 0. Read from block 0, write to block 1
+5. decode with past_len % cache_interval !=0. Read from block 0, write to block 1
+
 
 .. code-block:: py
     :force:
