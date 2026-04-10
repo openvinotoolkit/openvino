@@ -2,7 +2,7 @@ name: Code coverage
 run-name: ${{ github.event_name == 'schedule' && 'Code coverage - Nightly' || 'Code coverage' }}
 on:
   schedule:
-    # run daily at 01:00 UTC
+    # run daily at 00:00 UTC
     - cron: '0 0 * * *'
   workflow_dispatch:
 
