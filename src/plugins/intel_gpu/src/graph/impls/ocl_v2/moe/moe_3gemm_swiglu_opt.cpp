@@ -1439,6 +1439,8 @@ public:
             GPU_DEBUG_TRACE_DETAIL << "\tlws = {" << local[0] << ", " << local[1] << ", " << local[2] << "}" << std::endl;
         }
 
+        kernel_dump_info.add_entry_point(stage.kernel->get_id());
+
         return stream.enqueue_kernel(*stage.kernel, desc, {}, events, needs_completion_event);
     }
 
@@ -2038,6 +2040,7 @@ public:
         size_t token_num = get_seq_len(hidden_states_layout);
         scratch_buffers scratch;
         prepare_internal_buffers(instance, scratch, token_num);
+        kernel_dump_info.clear_entries();
 
         // routing: softmax+topk or sigmoid+bias+topk
         auto lws_size = config.num_expert;
