@@ -573,13 +573,13 @@ std::string get_test_device() {
 // ============================================================================
 class DynamicQuantizeAccuracyTest : public ::testing::TestWithParam<DQTestParams> {
 protected:
-    static void print_metrics(const std::string& label, const AccuracyMetrics& m) {
-        std::cout << "  " << label
-                  << ": L2=" << m.l2_norm
-                  << ", relL2=" << m.rel_l2_norm
-                  << ", maxAbs=" << m.max_abs_error
-                  << ", meanAbs=" << m.mean_abs_error
-                  << std::endl;
+    static std::string format_metrics(const AccuracyMetrics& m) {
+        std::ostringstream os;
+        os << "L2=" << m.l2_norm
+           << ", relL2=" << m.rel_l2_norm
+           << ", maxAbs=" << m.max_abs_error
+           << ", meanAbs=" << m.mean_abs_error;
+        return os.str();
     }
 
     std::vector<float> generate_data(const DQTestParams& p, size_t count) {
@@ -649,9 +649,7 @@ TEST_P(DynamicQuantizeAccuracyTest, RoundtripAccuracy) {
 
     auto metrics = evaluate_roundtrip(model, data.data(), element_count);
 
-    std::cout << make_test_case_name(p) << " (V" << p.decompose_version << ", fp16) [evaluate]:" << std::endl;
-    print_metrics("  roundtrip", metrics);
-
+    SCOPED_TRACE("roundtrip metrics: " + format_metrics(metrics));
     EXPECT_LT(metrics.rel_l2_norm, p.threshold)
         << "V" << p.decompose_version << " relative L2 too high";
 }
@@ -667,10 +665,7 @@ TEST_P(DynamicQuantizeAccuracyTest, SplitModelRoundtripAccuracy) {
     auto metrics = evaluate_split_roundtrip(quant_model, dequant_model,
                                             data.data(), element_count);
 
-    std::cout << make_test_case_name(p) << " (V" << p.decompose_version << ", fp16) [split evaluate]:"
-              << std::endl;
-    print_metrics("  split roundtrip", metrics);
-
+    SCOPED_TRACE("split roundtrip metrics: " + format_metrics(metrics));
     EXPECT_LT(metrics.rel_l2_norm, p.threshold)
         << "V" << p.decompose_version << " split model relative L2 too high";
 }
@@ -704,10 +699,8 @@ TEST_P(DynamicQuantizeAccuracyTest, DeviceRoundtripAccuracy) {
         GTEST_SKIP() << "Device '" << device << "' is not available: " << e.what();
     }
 
-    std::cout << make_test_case_name(p) << " (V" << p.decompose_version << ", fp16) [" << device
-              << ", split]:" << std::endl;
-    print_metrics("  reference (evaluate)", ref_metrics);
-    print_metrics("  device    (" + device + ")", dev_metrics);
+    SCOPED_TRACE("reference metrics: " + format_metrics(ref_metrics));
+    SCOPED_TRACE("device metrics: " + format_metrics(dev_metrics));
 
     EXPECT_LT(dev_metrics.rel_l2_norm, p.threshold)
         << "V" << p.decompose_version << " on " << device << ": relative L2 too high";

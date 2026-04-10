@@ -107,8 +107,8 @@ ov::OutputVector dynamic_quantize_linear(std::shared_ptr<ov::Node> input, size_t
 // ── V3 helper function (compiler pattern style) ──────────────────────────────
 
 ov::OutputVector dynamic_quantize_linear_v3(const ov::Output<ov::Node>& input,
-                                               size_t reduction_axis,
-                                               const std::string& name_prefix) {
+                                            size_t reduction_axis,
+                                            const std::string& name_prefix) {
     auto make_name = [&name_prefix](const std::string& suffix) {
         return name_prefix + "/" + suffix;
     };
@@ -549,13 +549,13 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
         }
 
         create_dequant_nodes(pattern_nodes.past_key_concat_node->input_value(0).get_node_shared_ptr(),
-            pattern_nodes.past_key_concat_node,
-            true,
-            params.key);
+                             pattern_nodes.past_key_concat_node,
+                             true,
+                             params.key);
         create_dequant_nodes(pattern_nodes.past_value_concat_node->input_value(0).get_node_shared_ptr(),
-            pattern_nodes.past_value_concat_node,
-            false,
-            params.value);
+                             pattern_nodes.past_value_concat_node,
+                             false,
+                             params.value);
 
         pattern_index++;
     }
