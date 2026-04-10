@@ -485,7 +485,8 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, TextEmbedOptionCompilesEmbeddingDecod
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
     ASSERT_NO_THROW(compiled = create_compiled_model(build_embedding_decoder_model(),
-                                                      {{"NPUW_TEXT_EMBED", "YES"}},
+                                                      {{"NPUW_TEXT_EMBED", "YES"},
+                                                       {"NPUW_LLM_SHARED_HEAD", "NO"}},
                                                       recorder));
     ASSERT_NE(compiled, nullptr);
     EXPECT_GE(recorder.calls().size(), 1u);
