@@ -364,7 +364,7 @@ bool PagedCausalConv1DFusion::run_on_model(const std::shared_ptr<ov::Model>& mod
 
     SharedRuntimeInputs shared_inputs{
         track_created_parameter(
-            create_or_get_named_parameter(model, "paged_conv_subsequence_begins", ov::element::i32, ov::PartialShape{-1})),
+            create_or_get_named_parameter(model, "subsequence_begins", ov::element::i32, ov::PartialShape{-1})),
         track_created_parameter(create_or_get_named_parameter(model, "paged_conv_block_indices", ov::element::i32, ov::PartialShape{-1})),
         track_created_parameter(
             create_or_get_named_parameter(model, "paged_conv_block_indices_begins", ov::element::i32, ov::PartialShape{-1})),
