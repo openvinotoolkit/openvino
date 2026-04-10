@@ -54,3 +54,20 @@ TEST(PagedCausalConv1DRealModel, SDPAToPAThenCommonOptimizations) {
     EXPECT_GE(count_ops_by_type(model, "PagedCausalConv1D"), 1u);
     EXPECT_LE(count_ops_by_type(model, "GroupConvolution"), group_conv_count_after_sdpa_to_pa);
 }
+
+TEST(PagedCausalConv1DRealModel, SDPAToPACreatesSeveralPagedOps) {
+    const char* env_path = std::getenv("OV_PCC_REAL_MODEL_PATH");
+    if (!env_path || std::string(env_path).empty()) {
+        GTEST_SKIP() << "OV_PCC_REAL_MODEL_PATH is not set";
+    }
+
+    ov::Core core;
+    auto model = core.read_model(env_path);
+
+    ov::pass::Manager sdpa_to_pa_pm;
+    sdpa_to_pa_pm.register_pass<ov::pass::SDPAToPagedAttention>(false, false, false, false, false, false);
+    sdpa_to_pa_pm.run_passes(model);
+
+    EXPECT_GE(count_ops_by_type(model, "PagedAttentionExtension"), 2u);
+    EXPECT_GE(count_ops_by_type(model, "PagedCausalConv1D"), 2u);
+}
