@@ -133,10 +133,6 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
 
     using namespace ov::pass;
     REGISTER_PASS(manager, DisableDecompressionConvertConstantFolding)
-    // PagedCausalConv1DFusion must run before SliceToStridedSlice converts v8::Slice to v1::StridedSlice
-    REGISTER_PASS(manager, PagedCausalConv1DFusion)
-    // Cleanup pass must run after paged fusions to remove obsolete state branches and dangling parameters.
-    REGISTER_PASS(manager, PagedExtensionsPostCleanup)
     // MOCTransformations contain StridedSliceOptimization transformation,
     // so we must call SliceToStridedSlice before MOCTransformations call
     REGISTER_PASS(manager, SliceToStridedSlice, true)
@@ -269,9 +265,6 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     // because we cannot insert any MaxPools since they may prevent
     // other optimizations
     REGISTER_PASS(manager, StridesOptimization)
-    // Final cleanup to remove parameters and legacy state nodes that became unused
-    // after all common transformations.
-    REGISTER_PASS(manager, PagedExtensionsPostCleanup)
     REGISTER_PASS(manager, Validate)
     manager.run_passes(f);
 

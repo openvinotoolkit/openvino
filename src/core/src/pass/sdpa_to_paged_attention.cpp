@@ -392,8 +392,10 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     model->add_parameters(kv_parameters);
     PagedCausalConv1DFusion().run_on_model(model);
-    PagedExtensionsPostCleanup().run_on_model(model);
     model->validate_nodes_and_infer_types();
+    
+    PagedExtensionsPostCleanup().run_on_model(model);
+
     return true;
 }
 
