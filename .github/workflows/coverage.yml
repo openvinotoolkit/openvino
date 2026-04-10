@@ -307,21 +307,9 @@ jobs:
             --artifact-dir "${dir}"
           echo "dir=${dir}" >> "$GITHUB_OUTPUT"
 
-      - name: Upload Codecov (C++ runtime, ${{ matrix.lane_name }})
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
-        with:
-          files: ${{ env.OV_WORKSPACE }}/coverage.info
-          disable_search: true
-          plugins: noop
-          flags: cpp-runtime-cpp-${{ matrix.lane }}
-          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-          fail_ci_if_error: true
-          verbose: true
-
       - name: Upload C++ ${{ matrix.lane_name }} artifact
         if: ${{ always() }}
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2 We are not using newest version v6.0.0 due to very frequent issues with 'Error: Unable to make request: ECONNRESET'
         with:
           name: coverage-cpp-${{ matrix.lane }}
           path: ${{ steps.lane_artifact.outputs.dir }}
@@ -451,30 +439,6 @@ jobs:
             --artifact-name coverage-python-cpu \
             --artifact-dir "${dir}"
           echo "dir=${dir}" >> "$GITHUB_OUTPUT"
-
-      - name: Upload Codecov (Python API, CPU)
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
-        with:
-          files: ${{ env.OV_WORKSPACE }}/python-coverage.xml
-          disable_search: true
-          plugins: noop
-          flags: python-api-frontend-layer-ovc-cpu
-          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-          fail_ci_if_error: true
-          verbose: true
-
-      - name: Upload Codecov (C++ runtime, Python suite, CPU)
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
-        with:
-          files: ${{ env.OV_WORKSPACE }}/coverage.info
-          disable_search: true
-          plugins: noop
-          flags: cpp-runtime-python-cpu
-          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-          fail_ci_if_error: true
-          verbose: true
 
       - name: Upload Python CPU artifact
         if: ${{ always() }}
@@ -610,30 +574,6 @@ jobs:
             --artifact-dir "${dir}"
           echo "dir=${dir}" >> "$GITHUB_OUTPUT"
 
-      - name: Upload Codecov (JS bindings, CPU)
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
-        with:
-          files: ${{ env.OV_WORKSPACE }}/js-lcov.info
-          disable_search: true
-          plugins: noop
-          flags: nodejs-bindings-unit-e2e-cpu
-          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-          fail_ci_if_error: true
-          verbose: true
-
-      - name: Upload Codecov (C++ runtime, JS suite, CPU)
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
-        with:
-          files: ${{ env.OV_WORKSPACE }}/coverage.info
-          disable_search: true
-          plugins: noop
-          flags: cpp-runtime-js-cpu
-          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-          fail_ci_if_error: true
-          verbose: true
-
       - name: Upload JS CPU artifact
         if: ${{ always() }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -702,3 +642,94 @@ jobs:
           retention-days: 14
           compression-level: 0
           overwrite: true
+
+      - name: Upload Codecov (C++ runtime, CPU)
+        if: ${{ always() && hashFiles('artifacts/cpp/coverage-cpp-cpu/coverage.info') != '' }}
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        with:
+          files: ${{ github.workspace }}/artifacts/cpp/coverage-cpp-cpu/coverage.info
+          disable_search: true
+          plugins: noop
+          flags: cpp-runtime-cpp-cpu
+          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
+          fail_ci_if_error: true
+          verbose: true
+
+      - name: Upload Codecov (C++ runtime, GPU Unit)
+        if: ${{ always() && hashFiles('artifacts/cpp/coverage-cpp-gpu-unit/coverage.info') != '' }}
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        with:
+          files: ${{ github.workspace }}/artifacts/cpp/coverage-cpp-gpu-unit/coverage.info
+          disable_search: true
+          plugins: noop
+          flags: cpp-runtime-cpp-gpu-unit
+          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
+          fail_ci_if_error: true
+          verbose: true
+
+      - name: Upload Codecov (C++ runtime, GPU Func)
+        if: ${{ always() && hashFiles('artifacts/cpp/coverage-cpp-gpu-func/coverage.info') != '' }}
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        with:
+          files: ${{ github.workspace }}/artifacts/cpp/coverage-cpp-gpu-func/coverage.info
+          disable_search: true
+          plugins: noop
+          flags: cpp-runtime-cpp-gpu-func
+          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
+          fail_ci_if_error: true
+          verbose: true
+
+      - name: Upload Codecov (Python API, CPU)
+        if: ${{ always() && needs.CoverageConfig.outputs.should_run_cpu == 'true' && hashFiles('artifacts/python/coverage-python-cpu/python-coverage.xml') != '' }}
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        with:
+          files: ${{ github.workspace }}/artifacts/python/coverage-python-cpu/python-coverage.xml
+          disable_search: true
+          plugins: noop
+          flags: python-api-frontend-layer-ovc-cpu
+          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
+          fail_ci_if_error: true
+          verbose: true
+
+      - name: Upload Codecov (C++ runtime, Python suite, CPU)
+        if: ${{ always() && needs.CoverageConfig.outputs.should_run_cpu == 'true' && hashFiles('artifacts/python/coverage-python-cpu/coverage.info') != '' }}
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        with:
+          files: ${{ github.workspace }}/artifacts/python/coverage-python-cpu/coverage.info
+          disable_search: true
+          plugins: noop
+          flags: cpp-runtime-python-cpu
+          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
+          fail_ci_if_error: true
+          verbose: true
+
+      - name: Upload Codecov (JS bindings, CPU)
+        if: ${{ always() && needs.CoverageConfig.outputs.should_run_cpu == 'true' && hashFiles('artifacts/js/coverage-js-cpu/js-lcov.info') != '' }}
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        with:
+          files: ${{ github.workspace }}/artifacts/js/coverage-js-cpu/js-lcov.info
+          disable_search: true
+          plugins: noop
+          flags: nodejs-bindings-unit-e2e-cpu
+          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
+          fail_ci_if_error: true
+          verbose: true
+
+      - name: Upload Codecov (C++ runtime, JS suite, CPU)
+        if: ${{ always() && needs.CoverageConfig.outputs.should_run_cpu == 'true' && hashFiles('artifacts/js/coverage-js-cpu/coverage.info') != '' }}
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        with:
+          files: ${{ github.workspace }}/artifacts/js/coverage-js-cpu/coverage.info
+          disable_search: true
+          plugins: noop
+          flags: cpp-runtime-js-cpu
+          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
+          fail_ci_if_error: true
+          verbose: true
