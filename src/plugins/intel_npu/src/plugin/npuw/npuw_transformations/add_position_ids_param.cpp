@@ -59,8 +59,8 @@ public:
             set_node_name(position_ids, "position_ids");
 
             OPENVINO_ASSERT(range_node->get_output_size() == 1, "Range node should have exactly one output");
-            auto& range_inputs = range_node->get_output_target_inputs(0);
-            for (auto& input : range_inputs) {
+            auto range_inputs = range_node->get_output_target_inputs(0);
+            for (auto&& input : range_inputs) {
                 input.replace_source_output(position_ids->output(0));
             }
 
