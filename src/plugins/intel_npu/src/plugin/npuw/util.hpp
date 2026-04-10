@@ -190,6 +190,8 @@ bool matchLoRAMatMulBString(const std::string& input);
 
 bool matchLoRAMatMulAlphaString(const std::string& input);
 
+bool matchLinCacheString(const std::string& input);
+
 // Structure to hold SDPA pattern nodes
 struct SDPAPatternNodes {
     std::shared_ptr<ov::Node> matmul1_node = nullptr;

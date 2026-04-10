@@ -103,6 +103,11 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             NPUW_ASSERT(num_layers.is_static());  // num_layers must be resolved
             NPUW_ASSERT(proj_dim.is_static());    // projection_dim must be resolved
             new_shape = ov::PartialShape({1, input_size, num_layers, proj_dim});
+        } else if (ov::npuw::util::matchLinCacheString(input_name)) {
+            const auto& partial_shape = input.get_partial_shape();
+            new_shape = partial_shape;
+            // FIXME: Does batch axes of KVCache and Linear Cache have same positions?
+            new_shape[kv_axes_position.batch] = 1;  // batch_dim
         } else {
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
