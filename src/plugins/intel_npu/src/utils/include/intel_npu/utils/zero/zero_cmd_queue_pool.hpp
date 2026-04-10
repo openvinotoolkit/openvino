@@ -7,6 +7,7 @@
 #include <ze_api.h>
 #include <ze_command_queue_npu_ext.h>
 
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
@@ -31,31 +32,10 @@ struct ZeroCmdQueueKey {
 
 struct ZeroCmdQueueKeyHash {
     size_t operator()(const ZeroCmdQueueKey& key) const {
-        // Initial 64-bit seed for deterministic key mixing.
-        static constexpr uint64_t kFnvOffsetBasis64 = 1469598103934665603ULL;
-        // 64-bit golden-ratio constant used by boost-style hash combine.
-        static constexpr uint64_t kHashCombineConstant64 = 0x9e3779b97f4a7c15ULL;
-
-        uint64_t hash = kFnvOffsetBasis64;
-        const auto hash_combine = [&hash](const uint64_t value) {
-            // Mix each field into the running hash; suitable for unordered_map use.
-            hash ^= value + kHashCombineConstant64 + (hash << 6) + (hash >> 2);
-        };
-        hash_combine(std::hash<void*>{}(key.context));
-        hash_combine(std::hash<void*>{}(key.device));
-        hash_combine(static_cast<uint64_t>(key.desc.priority));
-        if (key.desc.workload.has_value()) {
-            hash_combine(1ULL);
-            hash_combine(static_cast<uint64_t>(key.desc.workload.value()));
-        } else {
-            hash_combine(0ULL);
-        }
-        hash_combine(static_cast<uint64_t>(key.desc.options));
-        if (key.desc.options & ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC || !key.desc.shared_common_queue) {
-            OPENVINO_ASSERT(key.desc.owner_tag != nullptr,
-                            "owner_tag must not be null when ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC is set");
-            hash_combine(std::hash<const void*>{}(key.desc.owner_tag));
-        }
+        uint64_t hash = zero_hashing::kFnvOffsetBasis64;
+        hash = zero_hashing::hash_combine64(hash, std::hash<void*>{}(key.context));
+        hash = zero_hashing::hash_combine64(hash, std::hash<void*>{}(key.device));
+        hash = zero_hashing::hash_combine64(hash, key.desc.key());
 
         return static_cast<size_t>(hash);
     }

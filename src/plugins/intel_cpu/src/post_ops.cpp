@@ -47,6 +47,7 @@ EltwiseKind getEltwiseKind(const Algorithm alg) {
     case Algorithm::EltwiseNegative:
     case Algorithm::EltwiseErf:
     case Algorithm::EltwiseSoftSign:
+    case Algorithm::EltwiseErfInv:
     case Algorithm::EltwiseLog:
         return EltwiseKind::Activation;
     // ScaleShift algorithms
@@ -206,6 +207,8 @@ ActivationPostOp::Type convertToActivationPostOpt(const Algorithm alg) {
         return ActivationPostOp::Type::erf;
     case Algorithm::EltwiseSoftSign:
         return ActivationPostOp::Type::soft_sign;
+    case Algorithm::EltwiseErfInv:
+        return ActivationPostOp::Type::erfinv;
     case Algorithm::EltwiseLog:
         return ActivationPostOp::Type::log;
     default:
@@ -274,6 +277,8 @@ Algorithm convertToEltwiseAlgorithm(const ActivationPostOp::Type type) {
         return Algorithm::EltwiseErf;
     case ActivationPostOp::Type::soft_sign:
         return Algorithm::EltwiseSoftSign;
+    case ActivationPostOp::Type::erfinv:
+        return Algorithm::EltwiseErfInv;
     case ActivationPostOp::Type::log:
         return Algorithm::EltwiseLog;
     default:
