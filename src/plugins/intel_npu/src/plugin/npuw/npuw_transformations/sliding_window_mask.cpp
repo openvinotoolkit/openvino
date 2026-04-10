@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "phi3_sliding_mask.hpp"
+#include "sliding_window_mask.hpp"
 
 #include "../logging.hpp"
 #include "openvino/op/ops.hpp"
@@ -505,7 +505,7 @@ public:
 
 namespace ov::npuw {
 
-bool Phi3SlidingMask::run_on_model(const std::shared_ptr<ov::Model>& model) {
+bool SlidingWindowMask::run_on_model(const std::shared_ptr<ov::Model>& model) {
     std::shared_ptr<ov::Node> attention_mask_node_ptr = nullptr;
     std::shared_ptr<ov::Node> position_ids_node_ptr = nullptr;
     for (const auto& i : model->inputs()) {
