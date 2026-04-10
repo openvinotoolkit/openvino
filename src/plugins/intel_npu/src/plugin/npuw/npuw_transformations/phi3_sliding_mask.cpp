@@ -22,6 +22,109 @@ namespace {
 #    pragma GCC diagnostic ignored "-Wattributes"
 #endif
 
+// ============================================================================
+// Shared helper: Rebuild sliding window attention mask for static KV buffers
+// ============================================================================
+// This function implements the common 4-step transformation used by both
+// Phi3 and Gemma4 sliding window attention patterns:
+//
+// 1. (K > pos_ids - window) & (K <= cache_pos)    -- Use temporal position for window bound
+// 2. (K > cache_pos - window) | (K < past_kv_len) -- Always allow past tokens
+// 3. Result = 1 & 2
+// 4. Clean = 3 & attention_mask[past_kv_len:].T   -- Remove padding artefacts
+//
+// The only difference between Phi3 and Gemma4 patterns is how they construct
+// cache_position (Q range), which is handled by pattern matching before calling this.
+void rebuild_sliding_window_mask(const std::shared_ptr<ov::Node>& attention_mask_node_ptr,
+                                 const std::shared_ptr<ov::Node>& position_ids_node_ptr,
+                                 const std::shared_ptr<ov::Node>& matched_past_kv_len,
+                                 const std::shared_ptr<ov::Node>& matched_full_ctx_len,
+                                 const std::shared_ptr<ov::Node>& matched_key_range_row,
+                                 const std::shared_ptr<ov::Node>& matched_neg_window_size,
+                                 const std::shared_ptr<ov::Node>& matched_sliding_mask,
+                                 const std::shared_ptr<ov::Node>& matched_sliding_and_causal_mask,
+                                 const char* log_prefix) {
+    auto neg_window_size_const = std::static_pointer_cast<ov::op::v0::Constant>(matched_neg_window_size);
+    OPENVINO_ASSERT(neg_window_size_const->get_output_size() == 1,
+                    "Sliding window size constant must be of size 1, but got " +
+                        std::to_string(neg_window_size_const->get_output_size()));
+
+    OPENVINO_ASSERT(attention_mask_node_ptr, "Passed attention_mask node is nullptr!");
+    OPENVINO_ASSERT(position_ids_node_ptr, "Passed position_ids node is nullptr!");
+
+    // Create constants
+    auto const_zero = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, 0);
+    auto const_three = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, 3);
+
+    // =======================================================================
+    // STEP 1: (K > pos_ids - window) & (K <= cache_pos)
+    //         Use temporal position_ids instead of buffer index for window bound
+    // =======================================================================
+    std::shared_ptr<ov::Node> query_range_as_pos_ids = position_ids_node_ptr;
+    if (neg_window_size_const->output(0).get_element_type() == ov::element::f32) {
+        query_range_as_pos_ids = std::make_shared<ov::op::v0::Convert>(position_ids_node_ptr, ov::element::f32);
+    }
+    auto query_range_as_pos_ids_unsqueezed =
+        std::make_shared<ov::op::v0::Unsqueeze>(query_range_as_pos_ids, const_zero);
+    auto query_range_as_pos_ids_col =
+        std::make_shared<ov::op::v0::Unsqueeze>(query_range_as_pos_ids_unsqueezed, const_three);
+    auto query_range_as_pos_left_bound =
+        std::make_shared<ov::op::v1::Add>(query_range_as_pos_ids_col, matched_neg_window_size);
+    auto sliding_mask_for_right_padding =
+        std::make_shared<ov::op::v1::Greater>(matched_key_range_row, query_range_as_pos_left_bound);
+    matched_sliding_and_causal_mask->input(0).replace_source_output(sliding_mask_for_right_padding);
+
+    // =======================================================================
+    // STEP 2: (K > cache_pos - window) | (K < past_kv_len)
+    //         Always allow attending to past prefill tokens
+    // =======================================================================
+    std::shared_ptr<ov::Node> past_kv_len_argument = matched_past_kv_len;
+    if (neg_window_size_const->output(0).get_element_type() == ov::element::f32) {
+        past_kv_len_argument = std::make_shared<ov::op::v0::Convert>(matched_past_kv_len, ov::element::f32);
+    }
+    auto only_past_tokens_mask = std::make_shared<ov::op::v1::Less>(matched_key_range_row, past_kv_len_argument);
+    auto sliding_mask_for_left_padding_or_only_past =
+        std::make_shared<ov::op::v13::BitwiseOr>(matched_sliding_mask, only_past_tokens_mask);
+
+    // =======================================================================
+    // STEP 3: Result = 1 & 2
+    // =======================================================================
+    auto target_inputs = matched_sliding_and_causal_mask->output(0).get_target_inputs();
+    auto new_sliding_and_causal_mask =
+        std::make_shared<ov::op::v13::BitwiseAnd>(matched_sliding_and_causal_mask,
+                                                  sliding_mask_for_left_padding_or_only_past);
+
+    // =======================================================================
+    // STEP 4: Clean = 3 & attention_mask[past_kv_len:].T
+    //         Remove padding artefacts
+    // =======================================================================
+    std::vector<int64_t> shape_rank_one{1};
+    auto shape_rank_one_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, shape_rank_one);
+    auto past_len_reshaped = std::make_shared<ov::op::v1::Reshape>(matched_past_kv_len, shape_rank_one_const, false);
+    auto full_ctx_len_reshaped =
+        std::make_shared<ov::op::v1::Reshape>(matched_full_ctx_len, shape_rank_one_const, false);
+    auto const_one_rank_one = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 1);
+    auto attention_mask_bool = std::make_shared<ov::op::v0::Convert>(attention_mask_node_ptr, ov::element::boolean);
+    auto present_atten_mask_bool = std::make_shared<ov::op::v8::Slice>(attention_mask_bool,
+                                                                       past_len_reshaped,
+                                                                       full_ctx_len_reshaped,
+                                                                       const_one_rank_one,
+                                                                       const_one_rank_one);
+    std::vector<int64_t> vector_shape{-1, 1};
+    auto vector_shape_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{2}, vector_shape);
+    auto present_atten_mask_bool_col =
+        std::make_shared<ov::op::v1::Reshape>(present_atten_mask_bool, vector_shape_const, false);
+    auto clean_sliding_and_causal_mask =
+        std::make_shared<ov::op::v13::BitwiseAnd>(new_sliding_and_causal_mask, present_atten_mask_bool_col);
+
+    // Replace all target inputs
+    for (auto&& input : target_inputs) {
+        input.replace_source_output(clean_sliding_and_causal_mask);
+    }
+
+    LOG_INFO(std::string(log_prefix) + " sliding window attention pattern found and replaced.");
+}
+
 class OldPhi3SlidingMaskMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::patterns::OldPhi3SlidingMaskMatcher");
@@ -272,95 +375,33 @@ public:
         auto sliding_and_causal_mask = opp::wrap_type<ov::op::v13::BitwiseAnd>({sliding_and_true, causal_mask});
 
         auto callback = [=](opp::Matcher& m) {
-            LOG_INFO("Found (4.53) pattern for Phi-3 Sliding Window Attention, will be replaced with custom for static "
-                     "shapes.");
             auto& node_to_output = m.get_pattern_value_map();
+
+            // Extract matched nodes from pattern
             auto optional_squeeze = node_to_output.find(past_kv_len_squeeze);
             auto matched_past_kv_len = optional_squeeze != node_to_output.end()
                                            ? optional_squeeze->second.get_node_shared_ptr()
                                            : node_to_output.at(past_kv_len).get_node_shared_ptr();
             auto matched_full_ctx_len = node_to_output.at(full_ctx_len).get_node_shared_ptr();
-            auto node_neg_window_size = node_to_output.at(neg_window_size).get_node_shared_ptr();
+            auto matched_neg_window_size = node_to_output.at(neg_window_size).get_node_shared_ptr();
             auto matched_sliding_mask = node_to_output.at(sliding_mask).get_node_shared_ptr();
             auto matched_sliding_and_causal_mask = node_to_output.at(sliding_and_causal_mask).get_node_shared_ptr();
 
             auto optional_convert = node_to_output.find(opt_key_range_row_f32);
-            std::shared_ptr<ov::Node> matched_key_range_row =
-                optional_convert != node_to_output.end() ? optional_convert->second.get_node_shared_ptr()
-                                                         : node_to_output.at(key_range_row).get_node_shared_ptr();
-            auto matched_neg_window_size = std::static_pointer_cast<ov::op::v0::Constant>(node_neg_window_size);
-            OPENVINO_ASSERT(matched_neg_window_size->get_output_size() == 1,
-                            "Sliding window size constant must be of size 1, but got " +
-                                std::to_string(matched_neg_window_size->get_output_size()));
+            auto matched_key_range_row = optional_convert != node_to_output.end()
+                                             ? optional_convert->second.get_node_shared_ptr()
+                                             : node_to_output.at(key_range_row).get_node_shared_ptr();
 
-            std::shared_ptr<ov::Node> passed_attention_mask = attention_mask_node_ptr;
-            std::shared_ptr<ov::Node> passed_position_ids = position_ids_node_ptr;
-            OPENVINO_ASSERT(passed_attention_mask, "Passed attention_mask node is nullptr!");
-            OPENVINO_ASSERT(passed_position_ids, "Passed position_ids node is nullptr!");
-
-            auto const_zero = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, 0);
-            auto const_one = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, 1);
-            auto const_three = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, 3);
-
-            // 1.(K range > (Q_pos range - sliding window).T) & (K range <= Q range.T)
-            std::shared_ptr<ov::Node> query_range_as_pos_ids = passed_position_ids;
-            if (matched_neg_window_size->output(0).get_element_type() == ov::element::f32) {
-                query_range_as_pos_ids = std::make_shared<ov::op::v0::Convert>(passed_position_ids, ov::element::f32);
-            }
-            auto query_range_as_pos_ids_unsqueezed =
-                std::make_shared<ov::op::v0::Unsqueeze>(query_range_as_pos_ids, const_zero);
-            auto query_range_as_pos_ids_col =
-                std::make_shared<ov::op::v0::Unsqueeze>(query_range_as_pos_ids_unsqueezed, const_three);
-            auto query_range_as_pos_left_bound =
-                std::make_shared<ov::op::v1::Add>(query_range_as_pos_ids_col, matched_neg_window_size);
-            auto sliding_mask_for_right_padding =
-                std::make_shared<ov::op::v1::Greater>(matched_key_range_row, query_range_as_pos_left_bound);
-            matched_sliding_and_causal_mask->input(0).replace_source_output(sliding_mask_for_right_padding);
-
-            // 2. (K range > (Q range - sliding window).T) | (K range < shape(past_key_values, 2))
-            std::shared_ptr<ov::Node> past_kv_len_argument = matched_past_kv_len;
-            if (matched_neg_window_size->output(0).get_element_type() == ov::element::f32) {
-                past_kv_len_argument = std::make_shared<ov::op::v0::Convert>(matched_past_kv_len, ov::element::f32);
-            }
-            auto only_past_tokens_mask =
-                std::make_shared<ov::op::v1::Less>(matched_key_range_row, past_kv_len_argument);
-            auto sliding_mask_for_left_padding_or_only_past =
-                std::make_shared<ov::op::v13::BitwiseOr>(matched_sliding_mask, only_past_tokens_mask);
-
-            // 3. Result = 1 & 2
-            // Save target inputs first:
-            auto target_inputs = matched_sliding_and_causal_mask->output(0).get_target_inputs();
-            auto new_sliding_and_causal_mask =
-                std::make_shared<ov::op::v13::BitwiseAnd>(matched_sliding_and_causal_mask,
-                                                          sliding_mask_for_left_padding_or_only_past);
-
-            // 4. Removing extra padding via : 3 & attention_mask_input[past_kv_len:].T
-            std::vector<int64_t> shape_rank_one{1};
-            auto shape_rank_one_const =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, shape_rank_one);
-            auto past_len_reshaped =
-                std::make_shared<ov::op::v1::Reshape>(matched_past_kv_len, shape_rank_one_const, false);
-            auto full_ctx_len_reshaped =
-                std::make_shared<ov::op::v1::Reshape>(matched_full_ctx_len, shape_rank_one_const, false);
-            auto const_one_rank_one = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 1);
-            auto attention_mask_bool =
-                std::make_shared<ov::op::v0::Convert>(passed_attention_mask, ov::element::boolean);
-            auto present_atten_mask_bool = std::make_shared<ov::op::v8::Slice>(attention_mask_bool,
-                                                                               past_len_reshaped,
-                                                                               full_ctx_len_reshaped,
-                                                                               const_one_rank_one,
-                                                                               const_one_rank_one);
-            std::vector<int64_t> vector_shape{-1, 1};
-            auto vector_shape_const =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{2}, vector_shape);
-            auto present_atten_mask_bool_col =
-                std::make_shared<ov::op::v1::Reshape>(present_atten_mask_bool, vector_shape_const, false);
-            auto clean_sliding_and_causal_mask =
-                std::make_shared<ov::op::v13::BitwiseAnd>(new_sliding_and_causal_mask, present_atten_mask_bool_col);
-            for (auto&& input : target_inputs) {
-                input.replace_source_output(clean_sliding_and_causal_mask);
-            }
-
+            // Call shared transformation helper
+            rebuild_sliding_window_mask(attention_mask_node_ptr,
+                                        position_ids_node_ptr,
+                                        matched_past_kv_len,
+                                        matched_full_ctx_len,
+                                        matched_key_range_row,
+                                        matched_neg_window_size,
+                                        matched_sliding_mask,
+                                        matched_sliding_and_causal_mask,
+                                        "Phi-3 (4.53)");
             return true;
         };
         register_matcher(std::make_shared<opp::Matcher>(sliding_and_causal_mask, "Phi3SlidingMaskMatcher"),
@@ -400,8 +441,7 @@ public:
         };
 
         // K (key) side: Range(0, past_kv_len + seq_len, 1)
-        auto past_kv_len =
-            opp::wrap_type<ov::op::v8::Gather>({opp::any_input(), opp::any_input(), opp::any_input()});
+        auto past_kv_len = opp::wrap_type<ov::op::v8::Gather>({opp::any_input(), opp::any_input(), opp::any_input()});
         auto past_kv_len_squeeze = opp::optional<ov::op::v0::Squeeze>({past_kv_len});
         auto zero_const = opp::wrap_type<ov::op::v0::Constant>();
         auto full_ctx_len = opp::wrap_type<ov::op::v1::Add>({opp::any_input(), past_kv_len_squeeze});
@@ -410,130 +450,50 @@ public:
         auto opt_key_range_f32 = opp::optional<ov::op::v0::Convert>({key_range_row->output(0)});
 
         // Q (query) side: Gemma4-specific -- cache_pos = Range(0, seq_len) + past_kv_len
-        auto q_range =
-            opp::wrap_type<ov::op::v4::Range>({opp::any_input(), opp::any_input(), opp::any_input()});
+        auto q_range = opp::wrap_type<ov::op::v4::Range>({opp::any_input(), opp::any_input(), opp::any_input()});
         auto cache_position = opp::wrap_type<ov::op::v1::Add>({q_range, past_kv_len_squeeze});
         auto query_range_column = unsqueeze_sequence(cache_position);
 
         // Sliding window & causal masks (positive form: 1 = attend)
         auto neg_window_size = opp::wrap_type<ov::op::v0::Constant>();
         auto query_left_bound = opp::wrap_type<ov::op::v1::Add>({query_range_column, neg_window_size});
-        auto sliding_mask =
-            opp::wrap_type<ov::op::v1::Greater>({opt_key_range_f32, query_left_bound});
-        auto sliding_and_true =
-            opp::wrap_type<ov::op::v13::BitwiseAnd>({opp::any_input(), sliding_mask});
-        auto causal_mask =
-            opp::wrap_type<ov::op::v1::LessEqual>({opt_key_range_f32, query_range_column});
-        auto sliding_and_causal_mask =
-            opp::wrap_type<ov::op::v13::BitwiseAnd>({sliding_and_true, causal_mask});
+        auto sliding_mask = opp::wrap_type<ov::op::v1::Greater>({opt_key_range_f32, query_left_bound});
+        auto sliding_and_true = opp::wrap_type<ov::op::v13::BitwiseAnd>({opp::any_input(), sliding_mask});
+        auto causal_mask = opp::wrap_type<ov::op::v1::LessEqual>({opt_key_range_f32, query_range_column});
+        auto sliding_and_causal_mask = opp::wrap_type<ov::op::v13::BitwiseAnd>({sliding_and_true, causal_mask});
 
         auto callback = [=](opp::Matcher& m) {
-            LOG_INFO("Found Gemma4 sliding window attention pattern, will be replaced with custom for "
-                     "static shapes.");
-            std::cout << "Found Gemma4 sliding window attention pattern, will be replaced with custom for static shapes."
-                      << std::endl;
             auto& node_to_output = m.get_pattern_value_map();
+
+            // Extract matched nodes from pattern
             auto optional_squeeze = node_to_output.find(past_kv_len_squeeze);
             auto matched_past_kv_len = optional_squeeze != node_to_output.end()
                                            ? optional_squeeze->second.get_node_shared_ptr()
                                            : node_to_output.at(past_kv_len).get_node_shared_ptr();
             auto matched_full_ctx_len = node_to_output.at(full_ctx_len).get_node_shared_ptr();
-            auto node_neg_window_size = node_to_output.at(neg_window_size).get_node_shared_ptr();
+            auto matched_neg_window_size = node_to_output.at(neg_window_size).get_node_shared_ptr();
             auto matched_sliding_mask = node_to_output.at(sliding_mask).get_node_shared_ptr();
-            auto matched_sliding_and_causal_mask =
-                node_to_output.at(sliding_and_causal_mask).get_node_shared_ptr();
+            auto matched_sliding_and_causal_mask = node_to_output.at(sliding_and_causal_mask).get_node_shared_ptr();
 
             auto optional_convert = node_to_output.find(opt_key_range_f32);
-            std::shared_ptr<ov::Node> matched_key_range_row =
-                optional_convert != node_to_output.end()
-                    ? optional_convert->second.get_node_shared_ptr()
-                    : node_to_output.at(key_range_row).get_node_shared_ptr();
+            auto matched_key_range_row = optional_convert != node_to_output.end()
+                                             ? optional_convert->second.get_node_shared_ptr()
+                                             : node_to_output.at(key_range_row).get_node_shared_ptr();
 
-            auto matched_neg_window_size =
-                std::static_pointer_cast<ov::op::v0::Constant>(node_neg_window_size);
-            OPENVINO_ASSERT(matched_neg_window_size->get_output_size() == 1,
-                            "Sliding window size constant must be of size 1, but got " +
-                                std::to_string(matched_neg_window_size->get_output_size()));
-
-            std::shared_ptr<ov::Node> passed_attention_mask = attention_mask_node_ptr;
-            std::shared_ptr<ov::Node> passed_position_ids = position_ids_node_ptr;
-            OPENVINO_ASSERT(passed_attention_mask, "Passed attention_mask node is nullptr!");
-            OPENVINO_ASSERT(passed_position_ids, "Passed position_ids node is nullptr!");
-
-            auto const_zero = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, 0);
-            auto const_three = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, 3);
-
-            // 1. (K > (pos_ids - window).T) & (K <= cache_pos.T)
-            //    Replace window left-bound to use temporal position_ids instead of buffer index.
-            std::shared_ptr<ov::Node> query_range_as_pos_ids = passed_position_ids;
-            if (matched_neg_window_size->output(0).get_element_type() == ov::element::f32) {
-                query_range_as_pos_ids =
-                    std::make_shared<ov::op::v0::Convert>(passed_position_ids, ov::element::f32);
-            }
-            auto query_range_as_pos_ids_unsqueezed =
-                std::make_shared<ov::op::v0::Unsqueeze>(query_range_as_pos_ids, const_zero);
-            auto query_range_as_pos_ids_col =
-                std::make_shared<ov::op::v0::Unsqueeze>(query_range_as_pos_ids_unsqueezed, const_three);
-            auto query_range_as_pos_left_bound =
-                std::make_shared<ov::op::v1::Add>(query_range_as_pos_ids_col, matched_neg_window_size);
-            auto sliding_mask_for_right_padding =
-                std::make_shared<ov::op::v1::Greater>(matched_key_range_row,
-                                                      query_range_as_pos_left_bound);
-            matched_sliding_and_causal_mask->input(0).replace_source_output(
-                sliding_mask_for_right_padding);
-
-            // 2. (K > cache_pos - window) | (K < past_kv_len)
-            //    Always allow attending to past prefill tokens regardless of window.
-            std::shared_ptr<ov::Node> past_kv_len_argument = matched_past_kv_len;
-            if (matched_neg_window_size->output(0).get_element_type() == ov::element::f32) {
-                past_kv_len_argument =
-                    std::make_shared<ov::op::v0::Convert>(matched_past_kv_len, ov::element::f32);
-            }
-            auto only_past_tokens_mask =
-                std::make_shared<ov::op::v1::Less>(matched_key_range_row, past_kv_len_argument);
-            auto sliding_mask_for_left_padding_or_only_past =
-                std::make_shared<ov::op::v13::BitwiseOr>(matched_sliding_mask, only_past_tokens_mask);
-
-            // 3. Result = 1 & 2
-            auto target_inputs = matched_sliding_and_causal_mask->output(0).get_target_inputs();
-            auto new_sliding_and_causal_mask =
-                std::make_shared<ov::op::v13::BitwiseAnd>(matched_sliding_and_causal_mask,
-                                                          sliding_mask_for_left_padding_or_only_past);
-
-            // 4. Clean = 3 & attention_mask[past_kv_len:].T  (remove padding artefacts)
-            std::vector<int64_t> shape_rank_one{1};
-            auto shape_rank_one_const =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, shape_rank_one);
-            auto past_len_reshaped =
-                std::make_shared<ov::op::v1::Reshape>(matched_past_kv_len, shape_rank_one_const, false);
-            auto full_ctx_len_reshaped =
-                std::make_shared<ov::op::v1::Reshape>(matched_full_ctx_len, shape_rank_one_const, false);
-            auto const_one_rank_one =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 1);
-            auto attention_mask_bool =
-                std::make_shared<ov::op::v0::Convert>(passed_attention_mask, ov::element::boolean);
-            auto present_atten_mask_bool =
-                std::make_shared<ov::op::v8::Slice>(attention_mask_bool,
-                                                    past_len_reshaped,
-                                                    full_ctx_len_reshaped,
-                                                    const_one_rank_one,
-                                                    const_one_rank_one);
-            std::vector<int64_t> vector_shape{-1, 1};
-            auto vector_shape_const =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{2}, vector_shape);
-            auto present_atten_mask_bool_col =
-                std::make_shared<ov::op::v1::Reshape>(present_atten_mask_bool, vector_shape_const, false);
-            auto clean_sliding_and_causal_mask = std::make_shared<ov::op::v13::BitwiseAnd>(
-                new_sliding_and_causal_mask, present_atten_mask_bool_col);
-            for (auto&& input : target_inputs) {
-                input.replace_source_output(clean_sliding_and_causal_mask);
-            }
-
+            // Call shared transformation helper
+            rebuild_sliding_window_mask(attention_mask_node_ptr,
+                                        position_ids_node_ptr,
+                                        matched_past_kv_len,
+                                        matched_full_ctx_len,
+                                        matched_key_range_row,
+                                        matched_neg_window_size,
+                                        matched_sliding_mask,
+                                        matched_sliding_and_causal_mask,
+                                        "Gemma4");
             return true;
         };
-        register_matcher(
-            std::make_shared<opp::Matcher>(sliding_and_causal_mask, "GemmaSlidingMaskMatcher"),
-            std::move(callback));
+        register_matcher(std::make_shared<opp::Matcher>(sliding_and_causal_mask, "GemmaSlidingMaskMatcher"),
+                         std::move(callback));
     }
 };
 
