@@ -364,13 +364,13 @@ bool PagedCausalConv1DFusion::run_on_model(const std::shared_ptr<ov::Model>& mod
 
     SharedRuntimeInputs shared_inputs{
         track_created_parameter(
-            create_or_get_named_parameter(model, "subsequence_begins", ov::element::i32, ov::PartialShape{-1})),
-        track_created_parameter(create_or_get_named_parameter(model, "block_indices", ov::element::i32, ov::PartialShape{-1})),
+            create_or_get_named_parameter(model, "paged_conv_subsequence_begins", ov::element::i32, ov::PartialShape{-1})),
+        track_created_parameter(create_or_get_named_parameter(model, "paged_conv_block_indices", ov::element::i32, ov::PartialShape{-1})),
         track_created_parameter(
-            create_or_get_named_parameter(model, "block_indices_begins", ov::element::i32, ov::PartialShape{-1})),
-        track_created_parameter(create_or_get_named_parameter(model, "past_lens", ov::element::i32, ov::PartialShape{-1})),
+            create_or_get_named_parameter(model, "paged_conv_block_indices_begins", ov::element::i32, ov::PartialShape{-1})),
+        track_created_parameter(create_or_get_named_parameter(model, "paged_conv_past_lens", ov::element::i32, ov::PartialShape{-1})),
         track_created_parameter(
-            create_or_get_named_parameter(model, "cache_interval", ov::element::i32, ov::PartialShape{-1}))};
+            create_or_get_named_parameter(model, "paged_conv_cache_interval", ov::element::i32, ov::PartialShape{-1}))};
 
     std::map<size_t, std::shared_ptr<v0::Parameter>> conv_state_tables;
     for (const auto& node : model->get_ordered_ops()) {
