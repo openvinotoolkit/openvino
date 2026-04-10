@@ -19,6 +19,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/paged_causal_conv1d_fusion.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 #include "transformations/sdpa_to_paged_attention/position_ids_replacer.hpp"
@@ -390,6 +391,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     }
 
     model->add_parameters(kv_parameters);
+    PagedCausalConv1DFusion().run_on_model(model);
     PagedExtensionsPostCleanup().run_on_model(model);
     model->validate_nodes_and_infer_types();
     return true;

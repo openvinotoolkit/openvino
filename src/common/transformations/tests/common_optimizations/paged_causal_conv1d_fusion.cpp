@@ -221,19 +221,9 @@ TEST(PagedCausalConv1DRealModel, RealModelAfterPATransformation) {
     ov::Core core;
     auto model = core.read_model(model_path);
 
-    ov::pass::Manager precondition_manager;
-    precondition_manager.register_pass<ov::pass::PrepareSDPAToPARepresentation>(
-        false,
-        false,
-        false,
-        false,
-        false);
-    precondition_manager.register_pass<ov::pass::SDPAToPagedAttention>(false, false, false, false, false, false);
-    precondition_manager.run_passes(model);
-
-    ov::pass::Manager fusion_manager;
-    fusion_manager.register_pass<ov::pass::PagedCausalConv1DFusion>();
-    fusion_manager.run_passes(model);
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::SDPAToPagedAttention>(false, false, false, false, false, false);
+    manager.run_passes(model);
 
     size_t pcc_count = 0;
     for (const auto& node : model->get_ordered_ops()) {
