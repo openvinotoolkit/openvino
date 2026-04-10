@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,7 +48,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
 
 const std::vector<ov::AnyMap> cpu_inproperties = {
     {{ov::hint::performance_mode.name(), "DOESN'T EXIST"}},
-    {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY), {ov::hint::num_requests(-1)}},
     {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
      {ov::hint::num_requests.name(), "should be int"}},
     {{ov::num_streams.name(), "OFF"}},

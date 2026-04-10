@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "rope_opt.hpp"
@@ -96,6 +96,8 @@ protected:
                 jit.make("USE_ROPE_CACHE", true);
             }
             jit.make("CHATGLM", true);
+        } else if (desc->config.is_ltx_video) {
+            jit.make("LTX_VIDEO", true);
         } else if (desc->config.is_interleaved) {
             jit.make("RotateInterleaved", true);
         } else {
@@ -163,7 +165,10 @@ protected:
                     } else {
                         wgs.global = {b, f, cfg.head_cnt * (cfg.rotary_ndims / 2ul) / vec_size};
                     }
-
+                } else if (cfg.is_ltx_video) {
+                    auto b = extract_channel(ChannelName::BATCH, in_l);
+                    auto f = extract_channel(ChannelName::FEATURE, in_l);
+                    wgs.global = {b, f, cfg.rotary_ndims / 2ul / vec_size};
                 } else {
                     auto b = extract_channel(ChannelName::BATCH, out_l);
                     auto f = extract_channel(ChannelName::FEATURE, out_l);

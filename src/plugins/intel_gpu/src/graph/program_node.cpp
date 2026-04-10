@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1635,7 +1635,7 @@ void program_node::create_onednn_primitive_attributes(
                         new_layout.set_partial_shape(new_input_pshape);
                         in = new_layout;
                     }
-                    dnnl::memory::dims dims = onednn::convert_gemm_tensor(in.get_tensor(), rank, false);
+                    dnnl::memory::dims dims = onednn::convert_tensor(in.get_tensor(), rank, false);
                     dnnl::memory::data_type dt = onednn::convert_data_type(in.data_type);
                     dnnl::memory::format_tag fmt = onednn::convert_gemm_data_format(dims, in.format);
                     post_ops.append_binary(alg, dnnl::memory::desc(dims, dt, fmt));
@@ -1652,13 +1652,17 @@ void program_node::create_onednn_primitive_attributes(
                     dnnl::memory::format_tag fmt = onednn::convert_gemm_data_format(dims, in.format);
                     post_ops.append_binary(alg, dnnl::memory::desc(dims, dt, fmt));
                     update_onednn_post_op_list(op_type, dep_idx, fmt, false, dims, dt);
-                } else {
-                    auto mem_desc = cldnn::format::is_blocked(get_output_layout().format)
-                        ? onednn::layout_to_memory_desc_blocked(in, dnnl::memory::format_tag::undef)
-                        : onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::undef);
+                } else if (is_type<reduce>()) {
+                    auto mem_desc = onednn::layout_to_memory_desc_blocked(in, dnnl::memory::format_tag::undef);
                     post_ops.append_binary(alg, mem_desc);
                     update_onednn_post_op_list(op_type, dep_idx, onednn::convert_data_format(in.format), false,
                             mem_desc.get_dims(), mem_desc.get_data_type());
+                } else {
+                    auto mem_desc = cldnn::format::is_blocked(get_output_layout().format)
+                                        ? onednn::layout_to_memory_desc_blocked(in, dnnl::memory::format_tag::undef)
+                                        : onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::undef);
+                    post_ops.append_binary(alg, mem_desc);
+                    update_onednn_post_op_list(op_type, dep_idx, onednn::convert_data_format(in.format), false, mem_desc.get_dims(), mem_desc.get_data_type());
                 }
             };
 

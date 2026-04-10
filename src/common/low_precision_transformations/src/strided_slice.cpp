@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -151,10 +151,7 @@ bool StridedSliceTransformation::canBeTransformed(const std::shared_ptr<Node>& o
         return false;
     }
 
-    const auto is_dequantization_scalar =
-        ((dequantization.subtract && shape_size(dequantization.subtractConstant->get_shape()) == 1ull) &&
-        (dequantization.multiply && shape_size(dequantization.multiplyConstant->get_shape()) == 1ull));
-
+    const auto is_dequantization_scalar = dequantization.isPerTensor();
     if (operation->get_input_partial_shape(0).rank().is_dynamic() && !is_dequantization_scalar) {
         return false;
     }

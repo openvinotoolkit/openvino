@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,43 @@ namespace frontend {
 namespace pytorch {
 
 using namespace ov::op;
+
+namespace {
+// Helper to extract complex part element type from raw type
+element::Type get_complex_part_type(const Any& raw_type) {
+    element::Type complex_part_type = element::dynamic;
+    if (raw_type.is<type::Complex>()) {
+        const auto& complex_type = raw_type.as<type::Complex>();
+        if (complex_type.element_type.is<element::Type>()) {
+            complex_part_type = complex_type.element_type.as<element::Type>();
+        }
+    } else if (raw_type.is<type::Tensor>()) {
+        const auto& tensor_type = raw_type.as<type::Tensor>();
+        if (tensor_type.element_type.is<type::Complex>()) {
+            const auto& complex_type = tensor_type.element_type.as<type::Complex>();
+            if (complex_type.element_type.is<element::Type>()) {
+                complex_part_type = complex_type.element_type.as<element::Type>();
+            }
+        }
+    }
+    return complex_part_type;
+}
+
+// Helper to create parameter and register it in tensor_map, wrapping in ComplexTypeMark if needed
+void register_parameter_in_tensor_map(const std::shared_ptr<v0::Parameter>& parameter,
+                                      size_t input_id,
+                                      const Any& type_any,
+                                      const Any& raw_type,
+                                      const std::shared_ptr<std::unordered_map<size_t, Output<Node>>>& tensor_map) {
+    if (type_any.is<type::Complex>()) {
+        auto complex_part_type = get_complex_part_type(raw_type);
+        auto complex_mark = std::make_shared<ComplexTypeMark>(parameter->output(0), complex_part_type);
+        (*tensor_map)[input_id] = complex_mark;
+    } else {
+        (*tensor_map)[input_id] = parameter;
+    }
+}
+}  // namespace
 
 TranslateSession::TranslateSession(const ov::frontend::InputModel::Ptr& input_model,
                                    const std::unordered_map<std::string, CreatorFunction>& translator_map,
@@ -112,7 +149,8 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             for (size_t i = 0; i < inputs.size(); ++i) {
                 element::Type type = element::dynamic;
                 PartialShape pshape = pytorch_model->get_input_shape(i);
-                auto type_any = simplified_type_interpret(pytorch_model->get_input_type(i));
+                auto raw_type = pytorch_model->get_input_type(i);
+                auto type_any = simplified_type_interpret(raw_type);
                 // TODO: Use special API to set custom type specification
                 if (type_any.is<element::Type>()) {
                     type = type_any.as<element::Type>();
@@ -121,7 +159,8 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 parameter->set_friendly_name(pytorch_model->get_input_signature_name(i));
                 encode_tensor_name(parameter->output(0), inputs.at(i), {pytorch_model->get_input_debug_name(i)});
                 parameters->emplace_back(parameter);
-                (*tensor_map)[inputs.at(i)] = parameter;
+
+                register_parameter_in_tensor_map(parameter, inputs.at(i), type_any, raw_type, tensor_map);
             }
         }
         if (input_model) {
@@ -148,17 +187,19 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                     // Linkage to external scope will be performed on the level of the parent operation (if or loop)
                     // TODO: Eliminate duplication with the main code for Parameters creation
                     PartialShape ps = node->get_input_shape(i);
-                    auto type = simplified_type_interpret(node->get_input_type(i));
+                    auto raw_type = node->get_input_type(i);
+                    auto type = simplified_type_interpret(raw_type);
                     auto dtype = element::dynamic;
                     if (type.is<element::Type>()) {
                         dtype = type.as<element::Type>();
                     }
                     auto parameter = std::make_shared<v0::Parameter>(dtype, ps);
-                    (*tensor_map)[input] = parameter;
                     // set name of parameter to the index of node in the model
                     encode_tensor_name(parameter->output(0), input);
                     parameters->push_back(parameter);
                     inserted_params.push_back(input);
+
+                    register_parameter_in_tensor_map(parameter, input, type, raw_type, tensor_map);
                 }
             }
             auto context = NodeContext(node, external_tensor_map, tensor_map, parameters, mutated_tensors, this);

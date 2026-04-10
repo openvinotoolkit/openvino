@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,10 +10,12 @@
 #include "paged_attention_opt.hpp"
 
 #include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 #include "ocl_v2/utils/jitter.hpp"
 #include "scaled_dot_product_attention_inst.h"
 #include "paged_attention_inst.h"
+#include "paged_attention_opt.hpp"
 #include "sdpa_base.hpp"
 #include "../utils/kernel_generator.hpp"
 // clang-format on
@@ -27,12 +29,8 @@ size_t get_subgroup_size(gpu_arch arch) {
     case gpu_arch::xe_hp:
     case gpu_arch::xe_hpg:
         return 8;
-    case gpu_arch::xe_hpc:
-    case gpu_arch::xe2:
-    case gpu_arch::xe3:
-        return 16;
     default:
-        return 0;
+        return 16;
     }
 }
 
@@ -290,7 +288,7 @@ sdpa_config_t xehpg_q_h64_s64_2nd = {8, 8, 8, 8, 8, 2, 8, 2};
 sdpa_config_t xehpg_q_h64_s128_2nd = {16, 8, 8, 8, 8, 4, 8, 4};
 sdpa_config_t xehpg_q_h64_2nd = {16, 16, 8, 8, 16, 2, 8, 4};
 
-sdpa_config_t xehpg_h128_pa = {16, 16, 16, 16, 8, 1, 8, 1};
+sdpa_config_t xehpg_h128_pa = {16, 16, 16, 16, 8, 2, 8, 2};
 sdpa_config_t xehpg_h128 = {16, 16, 32, 8, 8, 2, 4, 4};
 sdpa_config_t xehpg_h128_s32 = {16, 16, 16, 8, 16, 2, 8, 4};
 sdpa_config_t xehpg_h128_2nd = {8, 16, 16, 8, 16, 1, 8, 2};
@@ -870,10 +868,10 @@ void SDPAMicroGenerator::init_sdpa_configuration(const kernel_impl_params& impl_
 }
 
 KernelData SDPAMicroGenerator::get_kernel_data(const kernel_impl_params& params) const {
-    std::vector<micro::Package> gemms(2);  // KQ and VS
+    std::vector<micro::Package> gemms(4);  // KQ, VS, KcQ and VcS
     sdpa_configuration sdpa_config;
     init_sdpa_configuration(params, sdpa_config);
-    init_microkernels(params, sdpa_config, gemms[kq_id], gemms[vs_id], m_is_prefill, m_is_gqa_single_token);
+    init_microkernels(params, sdpa_config, gemms[kq_id], gemms[vs_id], gemms[kcq_id], gemms[vcs_id], m_is_prefill, m_is_gqa_single_token);
 
     const auto& device_info = params.get_device_info();
     auto jit = get_jit_constants(params, gemms[kq_id], gemms[vs_id]);
@@ -907,12 +905,30 @@ KernelData SDPAMicroGenerator::get_kernel_data(const kernel_impl_params& params)
     shim_options.decorator = "vs";
     kd.code->jit += generateShim(gemms[vs_id], micro::HostLanguage::OpenCL_C, shim_options);
 
+    bool need_256_grf = false;
     if (gemms[kq_id].grfMin > 128 || gemms[vs_id].grfMin > 128) {
+        need_256_grf = true;
         kd.code->options += " -cl-intel-256-GRF-per-thread";
     }
 
-    for (auto& p : gemms) {
-        kd.micro_kernels.push_back(std::make_shared<micro::MicroKernelPackage>(p));
+    kd.micro_kernels.push_back(std::make_shared<micro::MicroKernelPackage>(gemms[kq_id]));
+    kd.micro_kernels.push_back(std::make_shared<micro::MicroKernelPackage>(gemms[vs_id]));
+
+    if (!m_is_prefill && !m_is_gqa_single_token) {
+        shim_options.microkernelID++;
+        shim_options.decorator = "kcq";
+        kd.code->jit += generateShim(gemms[kcq_id], micro::HostLanguage::OpenCL_C, shim_options);
+
+        shim_options.microkernelID++;
+        shim_options.decorator = "vcs";
+        kd.code->jit += generateShim(gemms[vcs_id], micro::HostLanguage::OpenCL_C, shim_options);
+
+        if (!need_256_grf && (gemms[kcq_id].grfMin > 128 || gemms[vcs_id].grfMin > 128)) {
+            kd.code->options += " -cl-intel-256-GRF-per-thread";
+        }
+
+        kd.micro_kernels.push_back(std::make_shared<micro::MicroKernelPackage>(gemms[kcq_id]));
+        kd.micro_kernels.push_back(std::make_shared<micro::MicroKernelPackage>(gemms[vcs_id]));
     }
 
     return kd;
@@ -934,6 +950,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         const auto has_alibi = params.get_input_layout(paged_attention::PagedAttentionInputIdx::ALIBI).count() > 0;
         const auto has_scale_input = !desc->scale_val.has_value();
         const auto has_scores_output = desc->has_scores_output();
+        const auto has_qq_bias = desc->has_qq_bias;
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
         const auto& out_offsets_map = params.out_port_to_shape_info_offset;
@@ -960,6 +977,14 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
             jit.make("HAS_SINK_INPUT", 1);
         }
 
+        if (has_qq_bias && !m_is_prefill) {
+            jit.make("HAS_QQ_BIAS", 1);
+            const auto& qq_bias_layout = params.input_layouts[paged_attention::PagedAttentionInputIdx::QQ_BIAS];
+            jit.make("QQ_BIAS_DATA_T", to_ocl_type(qq_bias_layout.data_type));
+            const auto& qq_bias_begins_layout = params.input_layouts[paged_attention::PagedAttentionInputIdx::QQ_BIAS_BEGINS];
+            jit.make("QQ_BIAS_BEGINS_DATA_T", to_ocl_type(qq_bias_begins_layout.data_type));
+        }
+
         jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
         if (has_scores_output) {
             jit.add(make_layout_jit_constants("OUTPUT" + to_code_string(1), params.output_layouts[1], out_offsets_map.at(1)));
@@ -973,6 +998,9 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
             jit.make("SINK_DATA_T", to_ocl_type(sink_layout.data_type));
             jit.make("HAS_SINK_INPUT", 1);
         }
+
+        // QQ_BIAS is a paged-attention-only feature.
+        jit.make("HAS_QQ_BIAS", 0);
     }
     const auto& device_info = params.get_device_info();
 
@@ -1135,15 +1163,28 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     jit.make("KV_GROUP_SIZE", Q_num_heads_dim / K_num_heads_dim);
 
     if (d_full) {
-        if (ldq % 4 == 0)
+        const auto sg_size = get_subgroup_size(device_info.arch);
+        constexpr size_t packed_elems_per_uint = sizeof(uint32_t) / sizeof(ov::float16);
+        constexpr size_t max_block_elems = 16;  // max 16 elements per block load/store per item
+        const auto q_block_elems = (d_max / packed_elems_per_uint) / sg_size;
+        if (ldq % 4 == 0 && q_block_elems <= max_block_elems)
             jit.make("BLOCK_Q", 1);
         // TODO: Causes accuracy drop for static SD model. Enable back once the issue is resolved
-        // if (lda % 4 == 0 && v_full)
+        // const auto a_block_elems = static_cast<size_t>(gemm_vs.getSetting("sg_tile_m")) / sg_size;
+        // if (lda % 4 == 0 && v_full && a_block_elems <= max_block_elems)
         //     jit.make("BLOCK_A", 1);
         jit.make("REMAINDER_Q", !q_full);
     } else if (device_info.arch >= gpu_arch::xe_hpc) {
         auto vbytes = n_values.get_length() * ov::element::Type(V.data_type).size();
-        if (lda % 16 == 0 && vbytes % 4 == 0)
+        const auto sg_tile_m = static_cast<size_t>(gemm_vs.getSetting("sg_tile_m"));
+        const auto sg_size = get_subgroup_size(device_info.arch);
+        // tile_ops.cl defines DEF_BLOCK2D_LOAD_STORE for half up to vl=16 (BR=32, BC=8).
+        // tile element vector = sg_tile_m * max_BC / sg_size; must be <= 16 (max defined vl).
+        const bool block2d_compatible = (sg_tile_m * 8 / sg_size) <= 16;  // sg_tile_m <= 32
+        const bool use_block2d = lda % 16 == 0 && vbytes % 4 == 0 && block2d_compatible;
+        GPU_DEBUG_TRACE_DETAIL << "BLOCK_2D_A check: sg_tile_m=" << sg_tile_m << " sg_size=" << sg_size << " lda=" << lda << " vbytes=" << vbytes
+                               << " block2d_compatible=" << block2d_compatible << " => " << (use_block2d ? "enabled" : "disabled") << std::endl;
+        if (use_block2d)
             jit.make("BLOCK_2D_A", 1);
     }
 
@@ -1245,6 +1286,7 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
 
     if (config.is_paged_attention) {
         const auto desc = params.typed_desc<paged_attention>();
+        const auto has_qq_bias = desc->has_qq_bias;
         if (m_is_prefill) {
             args.push_back({ArgumentDescriptor::Types::INPUT, 1});  // Key
             args.push_back({ArgumentDescriptor::Types::INPUT, 0});  // Q
@@ -1253,6 +1295,8 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
             args.push_back({ArgumentDescriptor::Types::INPUT, 3});  // Key cache
             args.push_back({ArgumentDescriptor::Types::INPUT, 0});  // Q
             args.push_back({ArgumentDescriptor::Types::INPUT, 4});  // Value cache
+            args.push_back({ArgumentDescriptor::Types::INPUT, 1});  // Key
+            args.push_back({ArgumentDescriptor::Types::INPUT, 2});  // Value
         }
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});  // A
 
@@ -1267,6 +1311,12 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
 
         if (desc->has_sink_input)
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SINKS});  // sink
+
+        if (has_qq_bias && !m_is_prefill) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});  // qq_bias
+            args.push_back(
+                {ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});  // qq_bias_begins                              // qq_bias_num
+        }
 
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});  // blocked_indexes_start_and_gws_mapping
     } else {
@@ -1383,6 +1433,8 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
                                            const sdpa_configuration& configuration,
                                            micro::Package& gemm_kq,
                                            micro::Package& gemm_vs,
+                                           micro::Package& gemm_kcq,
+                                           micro::Package& gemm_vcs,
                                            bool is_prefill,
                                            bool is_gqa_single_token) {
     // TODO: Remove once micro API is thread safe
@@ -1437,8 +1489,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
                                      is_paged_attention,
                                      is_prefill);
         break;
-    case gpu_arch::xe2:
-    case gpu_arch::xe3: {
+    default: {
         config = choose_config_xe2(static_cast<int32_t>(k_head_size),
                                    static_cast<int32_t>(nkeys_v),
                                    thin_q,
@@ -1448,8 +1499,6 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
                                    is_prefill);
         break;
     }
-    default:
-        break;
     }
 
     OPENVINO_ASSERT(config != nullptr);
@@ -1473,7 +1522,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     problem_kq.A.layout = (is_paged_attention && !is_prefill) ? micro::MatrixLayout::N : micro::MatrixLayout::T;
 
     /* Set up microkernel options */
-    micro::GEMMProtocol::Options opts_kq;
+    micro::GEMMOptions opts_kq;
     opts_kq.localB = true;
     opts_kq.slmPtr = true;
 
@@ -1579,8 +1628,35 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         throw;
     }
 
+    if (!is_prefill && !is_gqa_single_token) {
+        /* Update for optional GEMM: Kc*Q */
+        opts_kq.scaleA = false;
+        opts_kq.offsetA = false;
+
+        auto problem_kcq = problem;
+        problem_kcq.Ta_ext = convert_type(Q.data_type);
+        problem_kcq.A.layout = micro::MatrixLayout::T;
+        problem_kcq.B.layout = micro::MatrixLayout::Pr;
+        problem_kcq.C.layout = micro::MatrixLayout::T;
+        problem_kcq.A.setAlignment(micro::alignment_for_ld(k_head_size * problem.Ta));
+        problem_kcq.B.setAlignment(64);  // Q is packed in VNNI format in SLM
+        problem_kcq.B.crosspack = 2;
+        problem_kcq.B.tileR = static_cast<uint16_t>(d_max);
+        problem_kcq.B.tileC = static_cast<uint16_t>(get_subgroup_size(device_info.arch));
+
+        GPU_DEBUG_TRACE_DETAIL << "kcq: sizes = {" << sizes.m << ", " << sizes.n << ", " << sizes.k << ", " << sizes.batch << "}\n";
+
+        /* Ask microkernel provider for microkernel */
+        try {
+            gemm_kcq = micro::select_gemm_microkernel(opts_kq, hw_info, sizes, problem_kcq, reqs_kq);
+        } catch (const std::runtime_error& ex) {
+            GPU_DEBUG_TRACE_DETAIL << "Can't create KcQ sdpa_micro kernel: " << ex.what() << "\n";
+            throw;
+        }
+    }
+
     /* Set up microkernel options */
-    micro::GEMMProtocol::Options opts_vs;
+    micro::GEMMOptions opts_vs;
     opts_vs.localB = true;
     opts_vs.slmPtr = true;
 
@@ -1667,6 +1743,35 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     } catch (const std::runtime_error& ex) {
         GPU_DEBUG_TRACE_DETAIL << "Can't create VS sdpa_micro kernel: " << ex.what() << "\n";
         throw;
+    }
+
+    if (!is_prefill && !is_gqa_single_token) {
+        /* Update for optional GEMM: Vc*S */
+        opts_vs.scaleA = false;
+        opts_vs.offsetA = false;
+
+        auto problem_vcs = problem;
+        problem_vcs.Ta_ext = convert_type(Q.data_type);
+        problem_vcs.A.layout = micro::MatrixLayout::N;
+
+        problem_vcs.B.layout = micro::MatrixLayout::Pr;
+        problem_vcs.C.layout = micro::MatrixLayout::N;
+        problem_vcs.A.setAlignment(micro::alignment_for_ld(v_head_size * problem.Ta));
+        problem_vcs.B.setAlignment(64);  // S is packed in SLM
+        problem_vcs.B.crosspack = 16;
+        sizes.m = n_values.is_dynamic() ? -1 : n_values.get_length();
+        sizes.n = gemm_kq.getSetting("wg_tile_n");
+        sizes.k = gemm_kq.getSetting("wg_tile_m");
+
+        GPU_DEBUG_TRACE_DETAIL << "vcs: sizes = {" << sizes.m << ", " << sizes.n << ", " << sizes.k << ", " << sizes.batch << "}\n";
+
+        /* Ask microkernel provider for microkernel */
+        try {
+            gemm_vcs = micro::select_gemm_microkernel(opts_vs, hw_info, sizes, problem_vcs, reqs_vs, adjust_vs);
+        } catch (const std::runtime_error& ex) {
+            GPU_DEBUG_TRACE_DETAIL << "Can't create VcS sdpa_micro kernel: " << ex.what() << "\n";
+            throw;
+        }
     }
 }
 }  // namespace ov::intel_gpu::ocl

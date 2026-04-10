@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -37,7 +37,7 @@ class TestBinaryComparison(JaxLayerTest):
 
         self.input_shapes = input_shapes
         self.input_type = input_type
-        
+
         def jax_binary(x, y):
             return reduce_map[binary_op](x, y)
 

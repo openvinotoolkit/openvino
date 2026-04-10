@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,6 +54,16 @@ class ShapeOfParameter : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::attn::ShapeOfParameter");
     ShapeOfParameter();
+};
+
+class RegularizeSDPA : public ov::pass::ModelPass {
+    bool m_run_broadcast_pattern = false;
+
+public:
+    OPENVINO_MODEL_PASS_RTTI("ov::npuw::RegularizeSDPA");
+    explicit RegularizeSDPA(bool run_broadcast_pattern) : m_run_broadcast_pattern(run_broadcast_pattern) {};
+
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
 }  // namespace regularize

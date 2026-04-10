@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -73,12 +73,11 @@ class quantized_decomposed_quantize_per_channel_aten_dequantize(torch.nn.Module)
 
 
 class TestQuantizePerTensorDequantize(PytorchLayerTest):
-    rng = np.random.default_rng(seed=123)
 
     def _prepare_input(self):
-        return (5.00 * self.rng.random([100, 100], dtype=np.float32) + 5.00,)
+        return (5.00 * self.random.rand(100, 100) + 5.00,)
 
-    @pytest.mark.parametrize("scale", [ 
+    @pytest.mark.parametrize("scale", [
         1.0, 0.21, 0.62
     ])
     @pytest.mark.parametrize("zero_point", [
@@ -96,17 +95,16 @@ class TestQuantizePerTensorDequantize(PytorchLayerTest):
                        reason='Ticket - 122715')
     def test_quantize_per_tensor_dequantize(self, scale, zero_point, dtype, ie_device, precision, ir_version):
         if dtype == torch.quint8: zero_point = abs(zero_point)
-        self._test(aten_quantize_per_tensor_aten_dequantize(scale, zero_point, dtype), None, ["aten::quantize_per_tensor", "aten::dequantize"],
+        self._test(aten_quantize_per_tensor_aten_dequantize(scale, zero_point, dtype), ["aten::quantize_per_tensor", "aten::dequantize"],
                 ie_device, precision, ir_version, quantized_ops=True, quant_size=scale)
 
 
 class TestDecomposedQuantizePerTensorDequantize(PytorchLayerTest):
-    rng = np.random.default_rng(seed=123)
 
     def _prepare_input(self):
-        return (5.00 * self.rng.random([100, 100], dtype=np.float32) + 5.00,)
+        return (5.00 * self.random.rand(100, 100) + 5.00,)
 
-    @pytest.mark.parametrize("scale", [ 
+    @pytest.mark.parametrize("scale", [
         1.0, 0.21, 0.62
     ])
     @pytest.mark.parametrize("zero_point", [
@@ -127,17 +125,16 @@ class TestDecomposedQuantizePerTensorDequantize(PytorchLayerTest):
             quant_min = 0
             quant_max = 255
         self._test(quantized_decomposed_quantize_per_tensor_aten_dequantize(scale,
-                zero_point, quant_min, quant_max, dtype), None, ["aten::quantize_per_tensor", "aten::dequantize"],
+                zero_point, quant_min, quant_max, dtype), ["aten::quantize_per_tensor", "aten::dequantize"],
                 ie_device, precision, ir_version, quantized_ops=True, quant_size=scale, **kwargs)
 
 
 class TestQuantizePerChannelDequantize(PytorchLayerTest):
-    rng = np.random.default_rng(seed=123)
 
     def _prepare_input(self):
-        return (5.00 * self.rng.random([5, 6, 7, 8], dtype=np.float32) + 5.00,)
+        return (5.00 * self.random.rand(5, 6, 7, 8) + 5.00,)
 
-    @pytest.mark.parametrize("scale, zero_point, axis", [ 
+    @pytest.mark.parametrize("scale, zero_point, axis", [
         [
             np.array([1.0, 0.21, 0.62, 0.5, 0.74], dtype=np.float32),
             np.array([0, -1, 2, -3, 4], dtype=np.int32),
@@ -151,7 +148,7 @@ class TestQuantizePerChannelDequantize(PytorchLayerTest):
         pytest.param(
             np.array([1.0, 0.21, 0.62, 0.5, 0.11, 0.89, 0.32], dtype=np.float32),
             np.array([0, -1, 2, -3, 4, -5, -7], dtype=np.int32),
-            2, 
+            2,
             marks=pytest.mark.skip(reason="Axis = 2 not supported in FakeQuantize.")),
         [
             np.array([1.0, 0.21, 0.62, 0.5, 0.74, 0.11, 0.89, 0.32], dtype=np.float32),
@@ -170,20 +167,19 @@ class TestQuantizePerChannelDequantize(PytorchLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_quantize_per_channel_dequantize(self, scale, zero_point, dtype, axis, ie_device, precision, ir_version):
-        self.rng.shuffle(scale)
-        self.rng.shuffle(zero_point)
+        self.random.shuffle(scale)
+        self.random.shuffle(zero_point)
         if dtype == torch.quint8: zero_point = abs(zero_point)
-        self._test(aten_quantize_per_channel_aten_dequantize(scale, zero_point, dtype, axis), None, ["aten::quantize_per_channel", "aten::dequantize"],
+        self._test(aten_quantize_per_channel_aten_dequantize(scale, zero_point, dtype, axis), ["aten::quantize_per_channel", "aten::dequantize"],
                 ie_device, precision, ir_version, quantized_ops=True, quant_size=scale)
 
 
 class TestDecomposedQuantizePerChannelDequantize(PytorchLayerTest):
-    rng = np.random.default_rng(seed=123)
 
     def _prepare_input(self):
-        return (5.00 * self.rng.random([5, 6, 7, 8], dtype=np.float32) + 5.00,)
+        return (5.00 * self.random.rand(5, 6, 7, 8) + 5.00,)
 
-    @pytest.mark.parametrize("scale, zero_point, axis", [ 
+    @pytest.mark.parametrize("scale, zero_point, axis", [
         [
             np.array([1.0, 0.21, 0.62, 0.5, 0.74], dtype=np.float32),
             np.array([0, -1, 2, -3, 4], dtype=np.int32),
@@ -213,8 +209,8 @@ class TestDecomposedQuantizePerChannelDequantize(PytorchLayerTest):
     def test_decomposed_quantize_per_channel_dequantize(self, scale, zero_point, dtype, axis, ie_device, precision, ir_version):
         kwargs = {}
         kwargs["custom_eps"] = 0.15
-        self.rng.shuffle(scale)
-        self.rng.shuffle(zero_point)
+        self.random.shuffle(scale)
+        self.random.shuffle(zero_point)
         quant_min = -128
         quant_max = 127
         if dtype == torch.uint8:
@@ -222,5 +218,5 @@ class TestDecomposedQuantizePerChannelDequantize(PytorchLayerTest):
             quant_min = 0
             quant_max = 255
         self._test(quantized_decomposed_quantize_per_channel_aten_dequantize(scale,
-                zero_point, quant_min, quant_max, dtype, axis), None, ["aten::quantize_per_tensor", "aten::dequantize"],
+                zero_point, quant_min, quant_max, dtype, axis), ["aten::quantize_per_tensor", "aten::dequantize"],
                 ie_device, precision, ir_version, quantized_ops=True, quant_size=scale, **kwargs)

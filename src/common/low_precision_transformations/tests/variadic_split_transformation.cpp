@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,6 +94,24 @@ TEST_P(VariadicSplitTransformation, CompareFunctions) {
 }
 
 const std::vector<VariadicSplitTransformationTestValues> testValues = {
+
+    {{1, 3, 16, 16},
+     std::int64_t{2},
+     std::vector<size_t>{10, 6},
+     LayerTransformation::createParamsU8I8(),
+     // ActualValues
+     {
+      ov::element::f16, // Parameter precision
+      {{}, {}, ov::builder::subgraph::DequantizationOperations::Multiply({3.f}/*constant value*/, ov::element::f16/*out precision*/).setConstantPrecision(ov::element::f32)}
+    },
+    // ExpectedValues
+    {ov::element::f16,
+     {},
+     ov::element::f16,
+     {
+         {{}, {}, ov::builder::subgraph::DequantizationOperations::Multiply({3.f}, ov::element::f16).setConstantPrecision(ov::element::f32)},
+         {{}, {}, ov::builder::subgraph::DequantizationOperations::Multiply({3.f}, ov::element::f16).setConstantPrecision(ov::element::f32)},
+     }}},
     // U8 per tensor quantization
     {{1, 3, 16, 16},
      std::int64_t{2},

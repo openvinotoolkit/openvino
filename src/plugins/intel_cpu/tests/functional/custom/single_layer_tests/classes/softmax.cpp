@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,7 +59,7 @@ void SoftMaxLayerCPUTest::SetUp() {
 
     const auto softMax = std::make_shared<ov::op::v1::Softmax>(params.at(0), config.axis);
 
-    function = makeNgraphFunction(inType, params, softMax, "SoftMax");
+    function = create_ov_model(inType, params, softMax, "SoftMax");
 }
 
 TEST_P(SoftMaxLayerCPUTest, CompareWithRefs) {

@@ -1,37 +1,10 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 include(ProcessorCount)
 include(CheckCXXCompilerFlag)
 include(CheckCXXSourceCompiles)
-
-#
-# ov_disable_deprecated_warnings()
-#
-# Disables deprecated warnings generation in current scope (directory, function)
-# Defines ov_c_cxx_deprecated variable which contains C / C++ compiler flags
-#
-macro(ov_disable_deprecated_warnings)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        set(ov_c_cxx_deprecated "/wd4996")
-    elseif(OV_COMPILER_IS_INTEL_LLVM)
-        if(WIN32)
-            set(ov_c_cxx_deprecated "/Wno-deprecated-declarations")
-        else()
-            set(ov_c_cxx_deprecated "-Wno-deprecated-declarations")
-        endif()
-    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
-        set(ov_c_cxx_deprecated "-Wno-deprecated-declarations")
-    else()
-        message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
-    endif()
-
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${ov_c_cxx_deprecated}")
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${ov_c_cxx_deprecated}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ov_c_cxx_deprecated}")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ov_c_cxx_deprecated}")
-endmacro()
 
 #
 # ov_deprecated_no_errors()
@@ -424,24 +397,6 @@ function(ov_link_system_libraries TARGET_NAME)
             target_link_libraries(${TARGET_NAME} ${MODE} ${arg})
         endif()
     endforeach()
-endfunction()
-
-#
-# ov_try_use_gold_linker()
-#
-# Tries to use gold linker in current scope (directory, function)
-#
-function(ov_try_use_gold_linker)
-    # don't use the gold linker, if the mold linker is set
-    if(CMAKE_EXE_LINKER_FLAGS MATCHES "mold" OR CMAKE_MODULE_LINKER_FLAGS MATCHES "mold" OR CMAKE_SHARED_LINKER_FLAGS MATCHES "mold")
-        return()
-    endif()
-
-    # gold linker on ubuntu20.04 may fail to link binaries build with sanitizer
-    if(CMAKE_COMPILER_IS_GNUCXX AND NOT ENABLE_SANITIZER AND NOT CMAKE_CROSSCOMPILING)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold" PARENT_SCOPE)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold" PARENT_SCOPE)
-    endif()
 endfunction()
 
 #

@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
+#include <filesystem>
 #include <map>
 #include <vector>
 #include <string>
@@ -38,7 +39,7 @@ public:
                                                               const ov::AnyMap& properties,
                                                               const ov::SoPtr<ov::IRemoteContext>& context) const override;
 
-    std::shared_ptr<ov::ICompiledModel> compile_model(const std::string& model_path,
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::filesystem::path& model_path,
                                                       const ov::AnyMap& properties) const override;
 
     MOCKTESTMACRO bool is_meta_device(const std::string& priorities) const;
@@ -47,7 +48,7 @@ public:
 
     MOCKTESTMACRO std::string get_device_list(ov::AnyMap& properties,
                                               const std::shared_ptr<const ov::Model>& model = nullptr,
-                                              const std::string& model_path = {}) const;
+                                              const std::filesystem::path& model_path = {}) const;
 
     MOCKTESTMACRO std::list<DeviceInformation> get_valid_device(const std::vector<DeviceInformation>& meta_devices,
                                                                 const std::string& model_precision = "FP32") const;
@@ -78,7 +79,7 @@ public:
                                                              const ov::AnyMap& properties) const override;
 
 private:
-    std::shared_ptr<ov::ICompiledModel> compile_model_impl(const std::string& model_path,
+    std::shared_ptr<ov::ICompiledModel> compile_model_impl(const std::filesystem::path& model_path,
                                                            const std::shared_ptr<const ov::Model>& model,
                                                            const ov::AnyMap& properties,
                                                            const std::string& model_precision = "FP32") const;

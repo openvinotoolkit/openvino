@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -273,6 +273,26 @@ ShapeOfParameter::ShapeOfParameter() {
         return false;  // root hasn't changed (?)
     };
     register_matcher(std::make_shared<opp::Matcher>(param_shp, "ShapeOfParameter"), std::move(callback));
+}
+
+bool RegularizeSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    bool model_changed = false;
+    if (m_run_broadcast_pattern) {
+        ov::pass::GraphRewrite rewr;
+        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast>();
+        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast2>();
+
+        model_changed |= rewr.run_on_model(model);
+    }
+
+    // FIXME: generally all these patterns are supposed to improve the partitioning - thus
+    // the performance. However, ShapeOfParameter seems to be working fine for all known case,
+    // while AttentionBroadcast patterns might break the partitioning (related to F16IC).
+    ov::pass::GraphRewrite rewr2;
+    rewr2.add_matcher<ov::npuw::patterns::regularize::ShapeOfParameter>();
+    model_changed |= rewr2.run_on_model(model);
+
+    return model_changed;
 }
 
 }  // namespace regularize

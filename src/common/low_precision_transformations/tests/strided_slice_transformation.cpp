@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,8 @@
 
 #include "ov_lpt_models/strided_slice.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/builders.hpp"
+#include "openvino/op/strided_slice.hpp"
 
 namespace {
 using namespace testing;
@@ -66,10 +68,9 @@ typedef std::tuple<
 class StridedSliceTransformation : public LayerTransformation, public testing::WithParamInterface<StridedSliceTransformationParams> {
 public:
     void SetUp() override {
-        const ov::PartialShape inputShape = std::get<0>(GetParam());
-        const StridedSliceTransformationTestValues testValues = std::get<1>(GetParam());
+        const auto& [inputShape, testValues] = GetParam();
 
-        actualFunction = ov::builder::subgraph::StridedSliceFunction::getOriginal(
+        actualFunction = ov::builder::subgraph::StridedSliceFunction::get(
             testValues.actual.inputPrecision,
             inputShape,
             testValues.actual.dequantization,
@@ -86,9 +87,10 @@ public:
         transformer.add<ov::pass::low_precision::StridedSliceTransformation, ov::op::v1::StridedSlice>(testValues.params);
         transformer.transform(actualFunction);
 
-        referenceFunction = ov::builder::subgraph::StridedSliceFunction::getReference(
+        referenceFunction = ov::builder::subgraph::StridedSliceFunction::get(
             testValues.expected.inputPrecision,
             inputShape,
+            testValues.expected.dequantizationBefore,
             testValues.layerParams.begin,
             testValues.layerParams.end,
             testValues.layerParams.strides,
@@ -97,14 +99,11 @@ public:
             testValues.layerParams.newAxisMask,
             testValues.layerParams.shrinkAxisMask,
             testValues.layerParams.elipsisMask,
-            testValues.expected.dequantizationBefore,
-            testValues.expected.preicsionAfterOperation,
             testValues.expected.dequantizationAfter);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<StridedSliceTransformationParams> obj) {
-        const ov::PartialShape inputShape = std::get<0>(obj.param);
-        const StridedSliceTransformationTestValues testValues = std::get<1>(obj.param);
+        const auto& [inputShape, testValues] = obj.param;
 
         std::ostringstream result;
         result <<
@@ -724,5 +723,98 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(testValuesWithDQBySpatialDimension)),
     StridedSliceTransformation::getTestCaseName);
 } // namespace inputs_3d
+
+namespace non_const_inputs {
+
+struct StridedSliceNonConstInputsTestValues {
+    class Params {
+    public:
+        ov::element::Type inputPrecision;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
+    };
+
+    Params actual;
+    Params expected;
+};
+
+typedef std::tuple<ov::PartialShape, StridedSliceNonConstInputsTestValues>
+    StridedSliceNonConstInputsParams;
+
+class StridedSliceNonConstInputsTransformation
+    : public TransformationTestsF,
+      public testing::WithParamInterface<StridedSliceNonConstInputsParams> {
+public:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        const auto& [inputShape, tv] = GetParam();
+
+        const ov::PartialShape sliceInputShape{ov::Dimension::dynamic()};
+        const std::vector<int64_t> beginMask{1, 0, 1, 1};
+        const std::vector<int64_t> endMask{1, 0, 1, 1};
+
+        model = StridedSliceFunction::getWithParamInputs(tv.actual.inputPrecision,
+                                                         inputShape,
+                                                         tv.actual.dequantizationBefore,
+                                                         sliceInputShape,
+                                                         sliceInputShape,
+                                                         sliceInputShape,
+                                                         beginMask,
+                                                         endMask,
+                                                         tv.actual.dequantizationAfter);
+
+        model_ref = StridedSliceFunction::getWithParamInputs(tv.expected.inputPrecision,
+                                                             inputShape,
+                                                             tv.expected.dequantizationBefore,
+                                                             sliceInputShape,
+                                                             sliceInputShape,
+                                                             sliceInputShape,
+                                                             beginMask,
+                                                             endMask,
+                                                             tv.expected.dequantizationAfter);
+
+        const auto lptParams = TestTransformationParams::toParams(LayerTransformation::createParamsU8I8());
+        manager.register_pass<ov::pass::low_precision::StridedSliceTransformation>(lptParams);
+    }
+
+    static std::string getTestCaseName(testing::TestParamInfo<StridedSliceNonConstInputsParams> obj) {
+        const auto& [inputShape, tv] = obj.param;
+        std::ostringstream result;
+        result << inputShape << "_" << tv.actual.inputPrecision
+               << "_deq" << tv.actual.dequantizationBefore;
+        return result.str();
+    }
+};
+
+TEST_P(StridedSliceNonConstInputsTransformation, CompareFunctions) {}
+
+const std::vector<StridedSliceNonConstInputsTestValues> testValues = {
+    {
+        { ov::element::u8, {{ov::element::f32}, {128.f}, {0.1f}}, {} },
+        { ov::element::u8, {}, {{ov::element::f32}, {128.f}, {0.1f}} }
+    },
+    {
+        { ov::element::u8, {{ov::element::f32}, {}, {0.1f}}, {} },
+        { ov::element::u8, {}, {{ov::element::f32}, {}, {0.1f}} }
+    },
+    {
+        { ov::element::u8, {{ov::element::f32}, {{128.f, 64.f, 128.f}}, {{0.1f, 0.01f, 1.f}}}, {} },
+        { ov::element::u8, {{ov::element::f32}, {{128.f, 64.f, 128.f}}, {{0.1f, 0.01f, 1.f}}}, {} }
+    },
+    {
+        { ov::element::u8, {{ov::element::f32}, {{}}, {{0.1f, 0.01f, 1.f}}}, {} },
+        { ov::element::u8, {{ov::element::f32}, {{}}, {{0.1f, 0.01f, 1.f}}}, {} }
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    StridedSliceNonConstInputsTransformation,
+    ::testing::Combine(
+        ::testing::Values(ov::PartialShape{1, 3, 24, 24}),
+        ::testing::ValuesIn(testValues)),
+    StridedSliceNonConstInputsTransformation::getTestCaseName);
+
+} // namespace non_const_inputs
 
 } // namespace

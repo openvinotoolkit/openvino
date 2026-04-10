@@ -1,23 +1,25 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <string>
+#include <ostream>
 
 namespace cldnn {
 
 /// @brief Defines available engine types
 enum class engine_types : int32_t {
     ocl,
-    sycl
+    sycl,
+    ze
 };
 
 inline std::ostream& operator<<(std::ostream& os, const engine_types& type) {
     switch (type) {
     case engine_types::ocl: os << "ocl"; break;
     case engine_types::sycl: os << "sycl"; break;
+    case engine_types::ze: os << "ze"; break;
     default: os << "unknown"; break;
     }
 
@@ -27,11 +29,13 @@ inline std::ostream& operator<<(std::ostream& os, const engine_types& type) {
 /// @brief Defines available runtime types
 enum class runtime_types : int32_t {
     ocl,
+    ze,
 };
 
 inline std::ostream& operator<<(std::ostream& os, const runtime_types& type) {
     switch (type) {
     case runtime_types::ocl: os << "ocl"; break;
+    case runtime_types::ze: os << "ze"; break;
     default: os << "unknown"; break;
     }
 

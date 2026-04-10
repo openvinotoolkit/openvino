@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,6 +37,5 @@ public:
                                                                                          ov::element::u8,
                                                                                          ov::element::i16,
                                                                                          ov::element::u16},
-                              const ov::element::TypeVector& supported_original_precisions = {ov::element::f32},
-                              const bool ignore_consumers_count_check = false);
+                              const ov::element::TypeVector& supported_original_precisions = {ov::element::f32});
 };

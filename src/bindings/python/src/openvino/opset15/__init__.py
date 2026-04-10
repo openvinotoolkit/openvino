@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # New operations added in Opset15
@@ -13,6 +13,9 @@ from openvino.opset15.ops import string_tensor_unpack
 from openvino.opset15.ops import bitwise_left_shift
 from openvino.opset15.ops import bitwise_right_shift
 from openvino.opset15.ops import slice_scatter
+from openvino.opset15.ops import search_sorted
+from openvino.opset15.ops import squeeze
+from openvino.opset15.ops import stft
 
 # Operators from previous opsets
 from openvino.opset1.ops import absolute
@@ -170,7 +173,6 @@ from openvino.opset5.ops import round
 from openvino.opset13.ops import scaled_dot_product_attention
 from openvino.opset12.ops import scatter_elements_update
 from openvino.opset3.ops import scatter_update
-from openvino.opset15.ops import search_sorted
 from openvino.opset1.ops import select
 from openvino.opset1.ops import selu
 from openvino.opset3.ops import shape_of
@@ -188,8 +190,6 @@ from openvino.opset1.ops import space_to_depth
 from openvino.opset1.ops import split
 from openvino.opset1.ops import sqrt
 from openvino.opset1.ops import squared_difference
-from openvino.opset15.ops import squeeze
-from openvino.opset15.ops import stft
 from openvino.opset1.ops import strided_slice
 from openvino.opset1.ops import subtract
 from openvino.opset4.ops import swish

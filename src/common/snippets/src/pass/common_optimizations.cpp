@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,6 @@
 #include "snippets/pass/extract_unsupported_transposes.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/softmax_reshape_elimination.hpp"
-#include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/pass/subgraph_manager.hpp"
 #include "snippets/pass/transform_convert.hpp"
 #include "snippets/pass/validate.hpp"
@@ -60,10 +59,6 @@ CommonOptimizations::CommonOptimizations(const CommonOptimizations::Config& conf
                                ov::snippets::pass::ExtractUnsupportedTransposes,
                                is_domain_sensitive,
                                config.get_transpose_support_callback());
-        REGISTER_SNIPPETS_PASS(subgraph_manager,
-                               ov::snippets::pass::SplitDimensionM,
-                               is_domain_sensitive && config.get_split_m_dimension(),
-                               config.get_concurrency());
         subgraph_manager.run_passes(subgraph);
 
         // Validate the body after all common optimizations

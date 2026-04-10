@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/reference/convert.hpp"
@@ -146,22 +147,38 @@ TEST_F(FunctionalOffloadTensorTest, read_small_file) {
     auto new_shape = shape;
     new_shape[0] = 10;
     {
-        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, new_shape, 0), ov::Exception);
-        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, new_shape, 0, false), ov::Exception);
+        OV_EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, new_shape, 0),
+                        std::runtime_error,
+                        ::testing::HasSubstr("Requested mapping range exceeds"));
+        OV_EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, new_shape, 0, false),
+                        AssertFailure,
+                        ::testing::HasSubstr("Requested space exceeds available bounds"));
     }
 }
 
 TEST_F(FunctionalOffloadTensorTest, read_too_big_offset) {
     {
         // offset + data_size > file_size
-        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, 1), ov::Exception);
-        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, 1, false), ov::Exception);
+        OV_EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, 1),
+                        std::runtime_error,
+                        ::testing::HasSubstr("Requested mapping range exceeds"));
+        OV_EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, 1, false),
+                        AssertFailure,
+                        ::testing::HasSubstr("Requested space exceeds available bounds"));
         // offset == file_size
-        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, data_size), ov::Exception);
-        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, data_size, false), ov::Exception);
+        OV_EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, data_size),
+                        std::runtime_error,
+                        ::testing::HasSubstr("Requested mapping range exceeds"));
+        OV_EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, data_size, false),
+                        AssertFailure,
+                        ::testing::HasSubstr("Requested space exceeds available bounds"));
         // offset > file_size
-        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, data_size + 1), ov::Exception);
-        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, data_size + 1, false), ov::Exception);
+        OV_EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, data_size + 1),
+                        std::runtime_error,
+                        ::testing::HasSubstr("Requested mapping range exceeds"));
+        OV_EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, data_size + 1, false),
+                        AssertFailure,
+                        ::testing::HasSubstr("Requested space exceeds available bounds"));
     }
 }
 
@@ -212,18 +229,14 @@ TEST_F(FunctionalOffloadTensorTest, read_wrong_dynamic_shape) {
     }
 }
 
-TEST_F(FunctionalOffloadTensorTest, read_type_doesnt_fit_file_size) {
+TEST_F(FunctionalOffloadTensorTest, allow_auto_size_less_than_file_size) {
     {
         std::ofstream fout(file_name, std::ios::binary);
         fout.write(reinterpret_cast<char*>(init_values.data()), data_size - 1);
     }
     ASSERT_TRUE(std::filesystem::exists(file_name));
-
-    {
-        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov::element::f32), ov::Exception);
-        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov::element::f32, PartialShape::dynamic(1), 0, false),
-                     ov::Exception);
-    }
+    EXPECT_NO_THROW(std::ignore = read_tensor_data(file_name, ov::element::f32));
+    EXPECT_NO_THROW(std::ignore = read_tensor_data(file_name, ov::element::f32, PartialShape::dynamic(1), 0, false));
 }
 
 TEST_F(FunctionalOffloadTensorTest, read_null_shape) {
