@@ -11,8 +11,7 @@
 
 #include "openvino/reference/utils/type_util.hpp"
 
-namespace ov {
-namespace reference {
+namespace ov::reference {
 namespace func {
 
 // Rational polynomial approximation of erfinv.
@@ -87,5 +86,4 @@ template <class T>
 void erfinv(const T* arg, T* out, const size_t count) {
     std::transform(arg, arg + count, out, func::erfinv<T>);
 }
-}  // namespace reference
-}  // namespace ov
+}  // namespace ov::reference

@@ -52,6 +52,10 @@ static std::pair<SEW, LMUL> getVTypeForElementSize(const ov::element::Type& type
     }
 }
 
+static bool requires_zvfh(const ov::element::Type& input_type, const ov::element::Type& output_type) {
+    return input_type != output_type && any_of(ov::element::f16, input_type, output_type);
+}
+
 /// ABS ///
 jit_abs_emitter::jit_abs_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                                  ov::intel_cpu::riscv64::cpu_isa_t host_isa,
@@ -154,6 +158,11 @@ jit_convert_saturation_emitter::jit_convert_saturation_emitter(ov::intel_cpu::ri
         any_of(output_type, ov::element::f32, ov::element::f16, ov::element::i32, ov::element::i8, ov::element::u8);
     OV_CPU_JIT_EMITTER_ASSERT(is_supported_input && is_supported_output,
                               "Unsupported conversion: ",
+                              input_type,
+                              " -> ",
+                              output_type);
+    OV_CPU_JIT_EMITTER_ASSERT(!requires_zvfh(input_type, output_type) || mayiuse(cpu_isa_t::gv_zvfh),
+                              "Unsupported Zvfh conversion: ",
                               input_type,
                               " -> ",
                               output_type);
@@ -364,6 +373,11 @@ jit_convert_truncation_emitter::jit_convert_truncation_emitter(ov::intel_cpu::ri
         any_of(output_type, ov::element::f32, ov::element::f16, ov::element::i32, ov::element::i8, ov::element::u8);
     OV_CPU_JIT_EMITTER_ASSERT(is_supported_input && is_supported_output,
                               "Unsupported conversion: ",
+                              input_type,
+                              " -> ",
+                              output_type);
+    OV_CPU_JIT_EMITTER_ASSERT(!requires_zvfh(input_type, output_type) || mayiuse(cpu_isa_t::gv_zvfh),
+                              "Unsupported Zvfh conversion: ",
                               input_type,
                               " -> ",
                               output_type);
