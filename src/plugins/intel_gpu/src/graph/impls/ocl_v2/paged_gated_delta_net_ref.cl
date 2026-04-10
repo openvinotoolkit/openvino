@@ -15,6 +15,8 @@ inline float FUNC(sum8)(float8 v) {
     return v.s0 + v.s1 + v.s2 + v.s3 + v.s4 + v.s5 + v.s6 + v.s7;
 }
 
+// Fast-path helper for head_size == 128: load one float8 lane of q/k, compute its
+// subgroup L2 norm, and apply the final scaling used by the gated-delta update.
 inline void FUNC(normalize_kq_128)(float8* b_k, float8* b_q) {
     float k_sum = FUNC(sum8)((*b_k) * (*b_k));
     k_sum = sub_group_reduce_add(k_sum);
@@ -47,9 +49,11 @@ typedef MAKE_VECTOR_TYPE(float, K_VEC_SIZE) K_VEC_TYPE;
 #define K_VEC_TO_TMP(vec, tmp) CAT(vstore, K_VEC_SIZE)((vec), 0, (tmp))
 
 #if (K_VEC_SIZE == 8)
-#define K_VEC_DOT(a, b) (dot((a).lo, (b).lo) + dot((a).hi, (b).hi))
+#define K_VEC_DOT(a, b) FUNC(sum8)((a) * (b))
+#define K_VEC_SUM_SQ(a) FUNC(sum8)((a) * (a))
 #else
 #define K_VEC_DOT(a, b) dot((a), (b))
+#define K_VEC_SUM_SQ(a) dot((a), (a))
 #endif
 
 #define K_VEC_COUNT (K_LANE_ELEMS / K_VEC_SIZE)
@@ -99,6 +103,9 @@ KERNEL(paged_gated_delta_net_ref)
     const int v_head_base = (h + value_head_offset) * v_head_stride;
     const int state_stride = K_HEAD_DIM * V_HEAD_DIM;
 
+    // Per-subgroup working set:
+    // - `state` holds the recurrent KxV tile for the current head and V block.
+    // - `q_norm` / `k_norm` hold the normalized query/key used for this token update.
 #if KV_OPT_VEC_PATH
     K_VEC_TYPE state[V_BLOCK_SIZE][K_VEC_COUNT];
     K_VEC_TYPE q_norm[K_VEC_COUNT];
@@ -112,6 +119,9 @@ KERNEL(paged_gated_delta_net_ref)
     const int initial_block_id = block_indices[block_begin];
     const int initial_block_base = (initial_block_id * V_HEAD_NUM + h) * state_stride;
 
+    // 1. LOAD INITIAL STATE BLOCK
+    // Each subgroup owns one V tile and loads the corresponding recurrent state rows
+    // for the current head from the first cache block of the sequence.
 #pragma unroll
     for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
         int curr_iv = start_iv + v_idx;
@@ -144,6 +154,7 @@ KERNEL(paged_gated_delta_net_ref)
     int token = token_begin;
     int slot = 1;
     while (token < token_end) {
+        // Process one cache chunk, then spill the updated recurrent tile to the next cache block.
         const int chunk_end = interval > 0 ? min(token + interval, token_end) : token_end;
 
         int q_base = token * q_token_stride + q_head_base;
@@ -152,7 +163,9 @@ KERNEL(paged_gated_delta_net_ref)
         int g_idx = token * V_HEAD_NUM + h;
 
         for (; token < chunk_end; token++, q_base += q_token_stride, k_base += k_token_stride, v_base += v_token_stride, g_idx += V_HEAD_NUM) {
-
+            // 2. LOAD COMMON TIMESTEP DATA
+            // Read q/k for this token and prepare normalized vectors used by both the
+            // recurrent-state projection (`h_k`) and the final output projection.
             float q_sum_local = 0.0f;
             float k_sum_local = 0.0f;
 #if KV_OPT_VEC_PATH && (K_VEC_SIZE == 8) && (K_VEC_COUNT == 1)
@@ -165,8 +178,8 @@ KERNEL(paged_gated_delta_net_ref)
                 const int offset = kc * K_VEC_SIZE * SUBGROUP_SIZE;
                 q_norm[kc] = K_VEC_LOAD_Q(query, q_base + offset);
                 k_norm[kc] = K_VEC_LOAD_K(key, k_base + offset);
-                q_sum_local += K_VEC_DOT(q_norm[kc], q_norm[kc]);
-                k_sum_local += K_VEC_DOT(k_norm[kc], k_norm[kc]);
+                q_sum_local += K_VEC_SUM_SQ(q_norm[kc]);
+                k_sum_local += K_VEC_SUM_SQ(k_norm[kc]);
             }
 #else
             for (int ks = 0; ks < K_SLICE_SIZE; ks++) {
@@ -185,6 +198,7 @@ KERNEL(paged_gated_delta_net_ref)
             }
 #endif
 
+            // Complete the subgroup reduction and apply the final q/k scaling.
 #if KV_OPT_VEC_PATH && (K_VEC_SIZE == 8) && (K_VEC_COUNT == 1)
             // already normalized by FUNC(normalize_kq_128)
 #else
@@ -207,10 +221,17 @@ KERNEL(paged_gated_delta_net_ref)
 #endif
 #endif
 
+            // `gate` decays the previous recurrent state, while `beta` scales the new token update.
             const float b_g = exp(convert_float(gate[g_idx]));
             const float b_beta = convert_float(beta[g_idx]);
 
 #if KV_OPT_VEC_PATH
+            // 3. RECURRENT UPDATE
+            // Fast vector path:
+            // - gather the current V tile,
+            // - project the decayed state onto k to get h_k,
+            // - compute the delta update from (v - h_k),
+            // - apply the update and project the new state onto q.
             float b_v_block[V_BLOCK_SIZE];
             float h_k_block[V_BLOCK_SIZE];
             float update_block[V_BLOCK_SIZE];
@@ -224,6 +245,7 @@ KERNEL(paged_gated_delta_net_ref)
                 b_v_block[v_idx] = sub_group_broadcast(v_val, v_lane);
             }
 
+            // Decay the recurrent state, then compute h_k = <state, k_norm> for each V lane.
 #pragma unroll
             for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
                 float h_k_local = 0.0f;
@@ -240,11 +262,13 @@ KERNEL(paged_gated_delta_net_ref)
                 h_k_block[v_idx] = sub_group_reduce_add(h_k_local);
             }
 
+            // Convert the residual `(v - h_k)` into the per-lane update magnitude.
 #pragma unroll
             for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
                 update_block[v_idx] = (b_v_block[v_idx] - h_k_block[v_idx]) * b_beta;
             }
 
+            // Inject the key-aligned update into state, then compute output = <state, q_norm>.
 #pragma unroll
             for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
                 float out_val_local = 0.0f;
@@ -262,6 +286,8 @@ KERNEL(paged_gated_delta_net_ref)
             }
 #endif
 
+            // Final output store. The scalar path computes its update/output here; the vector path
+            // has already done that work and only consumes `out_block`.
 #pragma unroll
             for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
                 int curr_iv = start_iv + v_idx;
@@ -299,6 +325,8 @@ KERNEL(paged_gated_delta_net_ref)
             }
         }
 
+        // 4. WRITE BACK STATE BLOCK
+        // Spill the updated recurrent tile so the next cache interval resumes from this state.
         const int block_id = block_indices[block_begin + slot];
         slot++;
         const int block_base = (block_id * V_HEAD_NUM + h) * state_stride;
