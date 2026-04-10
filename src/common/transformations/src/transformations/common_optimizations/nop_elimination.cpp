@@ -836,8 +836,7 @@ EliminateConcatSlice::EliminateConcatSlice() {
             if (slice_stop > static_cast<int64_t>(concat->get_shape()[concat_axis]))
                 slice_stop = static_cast<int64_t>(concat->get_shape()[concat_axis]);
 
-            slice_out_index_in_concat.push_back(
-                std::make_tuple(slice_node, slice_start, slice_stop - 1));
+            slice_out_index_in_concat.push_back(std::make_tuple(slice_node, slice_start, slice_stop - 1));
         }
         if (slice_out_index_in_concat.size() == 1)
             return false;
