@@ -8,6 +8,8 @@
 
 #include <common_test_utils/test_common.hpp>
 
+#include "llm_test_helpers.hpp"
+#include "model_builder.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/serialize.hpp"
 
@@ -556,5 +558,40 @@ TEST_F(MoETransformationTest, AWQvsNonAWQComparison) {
     EXPECT_EQ(result_awq->get_input_partial_shape(0), result_non_awq->get_input_partial_shape(0))
         << "AWQ and non-AWQ models should have identical output shapes";
 }
+
+// ============================================================================
+// MoEFFN + build_llm E2E Tests (uses build_moe_llm_test_model from llm_test_helpers.hpp)
+// ============================================================================
+
+TEST_F(MoETransformationTest, BuildMoELLM_HasExpertAndRouterNodes) {
+    auto model = ov::test::npuw::build_moe_llm_test_model();
+    ASSERT_NE(model, nullptr);
+
+    bool has_tile = false, has_topk = false, has_reduce_sum = false;
+    size_t topk_router_count = 0, scatter_count = 0;
+
+    for (const auto& op : model->get_ordered_ops()) {
+        if (std::dynamic_pointer_cast<ov::op::v0::Tile>(op))
+            has_tile = true;
+        if (std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(op))
+            has_reduce_sum = true;
+        if (auto topk = std::dynamic_pointer_cast<ov::op::v11::TopK>(op)) {
+            has_topk = true;
+            if (topk->get_friendly_name().find(".mlp.router") != std::string::npos) {
+                EXPECT_EQ(topk->get_mode(), ov::op::v11::TopK::Mode::MAX);
+                topk_router_count++;
+            }
+        }
+        if (std::dynamic_pointer_cast<ov::op::v3::ScatterElementsUpdate>(op))
+            scatter_count++;
+    }
+
+    EXPECT_TRUE(has_tile) << "Missing Tile (expert)";
+    EXPECT_TRUE(has_topk) << "Missing TopK (router)";
+    EXPECT_TRUE(has_reduce_sum) << "Missing ReduceSum (aggregation)";
+    EXPECT_EQ(topk_router_count, 2u) << "One router TopK per layer";
+    EXPECT_EQ(scatter_count, 2u) << "One ScatterElementsUpdate per layer";
+}
+
 
 }  // namespace
