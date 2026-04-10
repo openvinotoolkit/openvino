@@ -33,15 +33,7 @@ constexpr auto g_present_name = "present";
 bool isKey(const std::string& n) {
     return n.find(g_key_cache_name) != std::string::npos;
 }
-bool isValue(const std::string& n) {
-    return n.find(g_value_cache_name) != std::string::npos;
-}
-bool isPast(const std::string& n) {
-    return n.find(g_past_name) != std::string::npos;
-}
-bool isPresent(const std::string& n) {
-    return n.find(g_present_name) != std::string::npos;
-}
+
 std::string cacheName(bool is_key) {
     return is_key ? g_key_cache_name : g_value_cache_name;
 }
@@ -400,8 +392,8 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
 
     // in per token quantization lets use 1 scale/zp per token, effectively means shape should be clear from embeddings
     auto clear_embedding_index = [](auto shape_node, bool k_tensor) {
-        constexpr size_t k_embedding_index = 3;
-        constexpr size_t v_embedding_index = 2;
+        constexpr int64_t k_embedding_index = 3;
+        constexpr int64_t v_embedding_index = 2;
 
         auto kv_shape = shape_node->get_output_partial_shape(0);
         auto embedding_index = k_tensor ? k_embedding_index : v_embedding_index;
