@@ -101,9 +101,7 @@ the constraint ``out_channels == hidden_size``), and ``out_channels`` must equal
         return output
 
 
-**No attributes**
-
-This operation has no attributes. All configuration is provided through the input tensors.
+**Attributes**: *PagedCausalConv1D* operation has no attributes.
 
 
 **Inputs**
