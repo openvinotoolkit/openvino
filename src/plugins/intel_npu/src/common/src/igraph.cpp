@@ -94,4 +94,6 @@ uint32_t IGraph::get_last_submitted_id() const {
     OPENVINO_THROW("get_last_submitted_id not implemented");
 }
 
+void IGraph::evict_memory() {}
+
 }  // namespace intel_npu

@@ -24,13 +24,13 @@ pluggy==1.6.0
 pydata-sphinx-theme==0.14.4
 Pygments==2.20.0
 pyparsing==3.3.2
-pytest==9.0.2
+pytest==9.0.3
 pytest-html==4.2.0
 pytest-metadata==3.1.1
 py>=1.11.0
 pytz==2026.1.post1
 pyyaml==6.0.3
-requests==2.33.0
+requests==2.33.1
 six==1.17.0
 snowballstemmer==3.0.1
 soupsieve==2.8.3

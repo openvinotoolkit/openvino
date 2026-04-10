@@ -28,7 +28,7 @@ int main(int argc, char** argv, char** envp) {
 
     std::shared_ptr<intel_npu::ZeroApi> zeroApi;
     try {
-        zeroApi = intel_npu::ZeroApi::getInstance();
+        zeroApi = intel_npu::ZeroApi::get_instance();
         if (zeroApi) {
             zeroApi->zelSetDriverTeardown();
         }
