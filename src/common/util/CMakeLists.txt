@@ -47,7 +47,19 @@ target_link_libraries(${TARGET_NAME}
 if (WIN32)
     set(MONITORS_WIN_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/)
     target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${MONITORS_WIN_INCLUDE_DIR}>)
-    target_link_libraries(${TARGET_NAME} PRIVATE Shlwapi)
+
+    # IPF (Intel Platform Framework) SDK for device monitoring
+    set(IPF_SDK_ROOT "" CACHE PATH "Path to Intel Platform Framework (IPF) SDK root directory")
+    if (IPF_SDK_ROOT)
+        target_include_directories(${TARGET_NAME} PRIVATE
+            "${IPF_SDK_ROOT}/include"
+            "${IPF_SDK_ROOT}/include/thirdparty")
+        target_link_libraries(${TARGET_NAME} PRIVATE
+            "$<$<CONFIG:Debug>:${IPF_SDK_ROOT}/lib/Debug/ClientApiLib.lib>"
+            "$<$<CONFIG:Release>:${IPF_SDK_ROOT}/lib/Release/ClientApiLib.lib>")
+    else()
+        message(WARNING "IPF_SDK_ROOT is not set. Device monitoring on Windows requires the IPF SDK.")
+    endif()
 endif()
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)

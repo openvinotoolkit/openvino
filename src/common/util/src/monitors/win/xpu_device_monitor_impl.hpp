@@ -4,36 +4,56 @@
 
 #pragma once
 #include <map>
-
-#include "openvino/util/idevice_monitor.hpp"
-
-#define NOMINMAX
-#include <pdh.h>
-#include <pdhmsg.h>
-#include <windows.h>
-
-#include <chrono>
-#include <filesystem>
+#include <memory>
 #include <string>
-#include <system_error>
-#include <thread>
 
-#include "query_wrapper.hpp"
+#include "IpfClient.h"
+#include "openvino/util/idevice_monitor.hpp"
 
 namespace ov::util {
 class XPUDeviceMonitorImpl : public IDeviceMonitorImpl {
 public:
-    XPUDeviceMonitorImpl(const std::string& device_luid);
-    void init_core_counters(const std::string& device_luid);
-    std::vector<std::filesystem::path> expand_wild_card_path(const std::filesystem::path& wild_card_path);
-    std::vector<PDH_HCOUNTER> add_counter(const std::vector<std::filesystem::path>& path_list);
-    std::map<std::string, float> get_utilization() override;
+    XPUDeviceMonitorImpl(const std::string& device_luid) : m_device_luid(device_luid) {
+        try {
+            m_ipf = std::make_unique<Ipf::ClientApi>();
+        } catch (...) {
+            m_ipf = nullptr;
+        }
+    }
+
+    std::map<std::string, float> get_utilization() override {
+        std::map<std::string, float> result;
+        if (m_device_luid.empty() || !m_ipf) {
+            return result;
+        }
+        try {
+            // Try device-specific path first (e.g., "Platform.GPU.<luid>.Utilization")
+            // then fall back to generic path.
+            // The actual namespace structure depends on the IPF GPU provider implementation.
+            // TODO: Update path once IPF GPU utilization provider is available.
+            std::string device_path = "Platform.GPU." + m_device_luid + ".Utilization";
+            auto value_str = m_ipf->GetValue(device_path);
+            if (!value_str.empty() && value_str != "null") {
+                result[m_device_luid] = std::stof(value_str);
+                return result;
+            }
+
+            // Fallback: try generic GPU utilization path
+            value_str = m_ipf->GetValue("Platform.GPU.Utilization");
+            if (!value_str.empty() && value_str != "null") {
+                result[m_device_luid] = std::stof(value_str);
+            } else {
+                result[m_device_luid] = 0.0f;
+            }
+        } catch (...) {
+            result[m_device_luid] = 0.0f;
+        }
+        return result;
+    }
 
 private:
-    QueryWrapper m_query;
-    std::map<std::string, std::vector<std::vector<PDH_HCOUNTER>>> m_core_time_counters;
-    std::chrono::time_point<std::chrono::system_clock> m_last_time_stamp = std::chrono::system_clock::now();
-    std::string m_luid;
-    static constexpr int m_monitor_duration = 500;
+    std::string m_device_luid;
+    std::unique_ptr<Ipf::ClientApi> m_ipf;
 };
+
 }  // namespace ov::util

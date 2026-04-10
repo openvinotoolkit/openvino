@@ -4,38 +4,46 @@
 
 #pragma once
 #include <map>
-
-#include "openvino/util/idevice_monitor.hpp"
-
-#define NOMINMAX
-#include <pdh.h>
-#include <pdhmsg.h>
-#include <windows.h>
-
-#include <chrono>
-#include <filesystem>
+#include <memory>
 #include <string>
-#include <system_error>
-#include <thread>
 
-#include "query_wrapper.hpp"
+#include "IpfClient.h"
+#include "openvino/util/idevice_monitor.hpp"
 
 namespace ov::util {
 class CPUDeviceMonitorImpl : public IDeviceMonitorImpl {
 public:
-    CPUDeviceMonitorImpl();
-    constexpr int query_number_of_cores() {
-        // Query the number of logical processors
-        // Only focuses on the total usage, so we can use _Total counter
-        return 0;
+    CPUDeviceMonitorImpl() {
+        try {
+            m_ipf = std::make_unique<Ipf::ClientApi>();
+        } catch (...) {
+            m_ipf = nullptr;
+        }
     }
-    std::map<std::string, float> get_utilization() override;
+
+    std::map<std::string, float> get_utilization() override {
+        std::map<std::string, float> result;
+        if (!m_ipf) {
+            result["Total"] = 0.0f;
+            return result;
+        }
+        try {
+            // Query CPU utilization from IPF namespace
+            // The actual path may vary depending on IPF provider availability
+            auto value_str = m_ipf->GetValue("Platform.SOC.CPU.Utilization");
+            if (!value_str.empty() && value_str != "null") {
+                result["Total"] = std::stof(value_str);
+            } else {
+                result["Total"] = 0.0f;
+            }
+        } catch (...) {
+            result["Total"] = 0.0f;
+        }
+        return result;
+    }
 
 private:
-    QueryWrapper m_query;
-    std::vector<PDH_HCOUNTER> m_core_time_counters;
-    std::chrono::time_point<std::chrono::system_clock> m_last_time_stamp = std::chrono::system_clock::now();
-    static constexpr int m_monitor_duration = 10;
+    std::unique_ptr<Ipf::ClientApi> m_ipf;
 };
 
 }  // namespace ov::util
