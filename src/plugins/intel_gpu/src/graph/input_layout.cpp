@@ -54,7 +54,17 @@ event::ptr input_layout_inst::set_data(memory::ptr mem, bool need_to_check_memor
         if (_outputs.empty()) {
             _outputs.resize(1);
         }
-        set_output_memory(mem, false);
+        if (_max_output_layout_count.empty()) {
+            _max_output_layout_count.resize(1);
+        }
+
+        // Do not use set_output_memory() for externally-owned memory here.
+        // The same device buffer can be rebound with a different logical layout,
+        // and primitive_inst::set_output_memory() short-circuits on buffer identity.
+        // That keeps a stale memory object/layout on input_layout and breaks
+        // dynamic stateful flows that feed previous outputs back as inputs.
+        _outputs[0] = mem;
+        _max_output_layout_count[0] = mem->get_layout().get_linear_size();
     } else {
         if (_outputs.empty()) {
             _outputs.resize(1);
