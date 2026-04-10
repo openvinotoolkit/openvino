@@ -194,6 +194,11 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     }
 
     // outputs
+    // Materialize any output tensors that are direct constants (initializers used as graph
+    // outputs without being consumed by any op).  These are not created during the inputs or
+    // operations loops because they have data but are not referenced as op inputs.
+    // Also handle subgraph outputs that reference parent scope tensors — lookup_tensor()
+    // will create a Parameter for any parent-scope non-constant value.
     ResultVector results;
     results.reserve(model_onnx->get_outputs().size());
     for (const auto& output : model_onnx->get_outputs()) {
@@ -202,7 +207,16 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                 "Inputs of ov::frontend::onnx::InputModel must be TensorONNXPlace instances");
         const auto name = tensor->get_names()[0];
         if (!m_tensor_values.count(name)) {
-            continue;
+            auto place_it = all_tensor_places.find(name);
+            if (place_it != all_tensor_places.end() &&
+                (place_it->second->get_data() != nullptr || place_it->second->get_data_location() != nullptr)) {
+                create_const_or_param(name, place_it->second);
+            } else if (lookup_tensor(name).get_node() != nullptr) {
+                // lookup_tensor resolved the name from a parent scope and may have
+                // created a new Parameter — the value is now in m_tensor_values.
+            } else {
+                continue;
+            }
         }
         const auto& output_value = m_tensor_values[name];
         const auto result = std::make_shared<ov::op::v0::Result>(output_value);
