@@ -2086,7 +2086,11 @@ void TopK::prepareParams() {
     }
     CPU_NODE_ASSERT(top_k >= 1, "K (", top_k, ") must be greater or equal to 1.");
     CPU_NODE_ASSERT(static_cast<size_t>(top_k) <= src_dims[axis],
-                    "K (", top_k, ") exceeds the axis dimension (", src_dims[axis], ").");
+                    "K (",
+                    top_k,
+                    ") exceeds the axis dimension (",
+                    src_dims[axis],
+                    ").");
 
     if (jit_mode) {
         if (!preset_params_done) {
