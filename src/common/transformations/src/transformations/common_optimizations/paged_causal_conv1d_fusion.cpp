@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <limits>
 #include <map>
 #include <memory>
@@ -166,6 +167,29 @@ std::optional<size_t> extract_conv_layer_index_upstream(const ov::Output<ov::Nod
     return std::nullopt;
 }
 
+std::optional<size_t> extract_conv_layer_index_from_conv_name(const std::string& name) {
+    static constexpr const char* layer_marker = "layers.";
+    const auto marker_pos = name.find(layer_marker);
+    if (marker_pos == std::string::npos) {
+        return std::nullopt;
+    }
+
+    const size_t index_begin = marker_pos + std::strlen(layer_marker);
+    size_t index_end = index_begin;
+    while (index_end < name.size() && std::isdigit(name[index_end])) {
+        ++index_end;
+    }
+    if (index_end == index_begin) {
+        return std::nullopt;
+    }
+
+    if (name.find(".conv", index_end) == std::string::npos) {
+        return std::nullopt;
+    }
+
+    return static_cast<size_t>(std::stoull(name.substr(index_begin, index_end - index_begin)));
+}
+
 std::string make_conv_state_table_name(const size_t layer_index) {
     return std::string(CONV_STATE_TABLE_PREFIX) + std::to_string(layer_index);
 }
@@ -183,12 +207,10 @@ public:
                                   const std::map<size_t, std::shared_ptr<v0::Parameter>>& conv_state_tables) {
         MATCHER_SCOPE(PagedCausalConv1DFusion);
 
-        auto token_input = any_input();
-        auto past_state = any_input();
-        auto state_concat = wrap_type<v0::Concat>({past_state, token_input}, is_concat_axis_minus_one);
+    auto conv_input = any_input();
 
         auto weight_const = wrap_type<v0::Constant>();
-        auto group_conv = wrap_type<v1::GroupConvolution>({state_concat, weight_const});
+    auto group_conv = wrap_type<v1::GroupConvolution>({conv_input, weight_const});
 
         auto slice2 = wrap_type<v8::Slice>({group_conv, any_input(), any_input(), any_input(), any_input()});
 
@@ -199,9 +221,8 @@ public:
 
             const auto& pm = m.get_pattern_value_map();
 
-            const auto past_state_output = pm.at(past_state);
-            const auto token_input_node = pm.at(token_input).get_node_shared_ptr();
-            const auto state_concat_node = pm.at(state_concat).get_node_shared_ptr();
+            const auto conv_input_output = pm.at(conv_input);
+            const auto conv_input_node = conv_input_output.get_node_shared_ptr();
             const auto group_conv_node = ov::as_type_ptr<v1::GroupConvolution>(pm.at(group_conv).get_node_shared_ptr());
             const auto weight_node = ov::as_type_ptr<v0::Constant>(pm.at(weight_const).get_node_shared_ptr());
 
@@ -213,18 +234,16 @@ public:
                 return false;
             }
 
-            const auto layer_index = extract_conv_layer_index_upstream(past_state_output);
+            auto layer_index = extract_conv_layer_index_upstream(conv_input_output);
+            if (!layer_index) {
+                layer_index = extract_conv_layer_index_from_conv_name(group_conv_node->get_friendly_name());
+            }
             if (!layer_index) {
                 return false;
             }
 
             const auto conv_state_table_it = conv_state_tables.find(*layer_index);
             if (conv_state_table_it == conv_state_tables.end()) {
-                return false;
-            }
-
-            const auto& state_pshape = past_state_output.get_partial_shape();
-            if (state_pshape.rank().is_dynamic() || state_pshape.rank().get_length() != 3) {
                 return false;
             }
 
@@ -238,6 +257,35 @@ public:
                 return false;
             }
 
+            ov::Output<ov::Node> token_node = conv_input_output;
+            ov::Output<ov::Node> past_state_output;
+            std::shared_ptr<v0::Concat> state_concat_node;
+
+            if (const auto concat = ov::as_type_ptr<v0::Concat>(conv_input_node)) {
+                if (concat->get_input_size() == 2 && is_concat_axis_minus_one(concat->output(0))) {
+                    const auto input0 = concat->input_value(0);
+                    const auto input1 = concat->input_value(1);
+                    const auto input0_layer_index = extract_conv_layer_index_upstream(input0);
+                    const auto input1_layer_index = extract_conv_layer_index_upstream(input1);
+
+                    if (input0_layer_index && !input1_layer_index) {
+                        past_state_output = input0;
+                        token_node = input1;
+                        state_concat_node = concat;
+                    } else if (!input0_layer_index && input1_layer_index) {
+                        past_state_output = input1;
+                        token_node = input0;
+                        state_concat_node = concat;
+                    }
+                }
+            }
+
+            const auto& state_pshape = past_state_output.get_node() ? past_state_output.get_partial_shape()
+                                                                     : conv_state_table_it->second->get_partial_shape();
+            if (state_pshape.rank().is_dynamic() || state_pshape.rank().get_length() != 3) {
+                return false;
+            }
+
             if (!state_pshape[1].compatible(weight_shape[0]) || !state_pshape[2].compatible(weight_shape[3])) {
                 return false;
             }
@@ -245,7 +293,6 @@ public:
             const size_t hidden_size = weight_shape[0];
             const size_t kernel_size = weight_shape[3];
 
-            ov::Output<ov::Node> token_node = token_input_node;
             const auto& token_pshape = token_node.get_partial_shape();
             if (token_pshape.rank().is_dynamic() || token_pshape.rank().get_length() != 3) {
                 return false;
@@ -271,23 +318,27 @@ public:
             const auto& pads_begin = group_conv_node->get_pads_begin();
             const auto& pads_end = group_conv_node->get_pads_end();
             const auto& dilations = group_conv_node->get_dilations();
-            if (strides != ov::Strides{1} || pads_begin != ov::CoordinateDiff{0} || pads_end != ov::CoordinateDiff{0} ||
-                dilations != ov::Strides{1}) {
+            if (strides != ov::Strides{1} || dilations != ov::Strides{1}) {
+                return false;
+            }
+            if (pads_begin.size() != 1 || pads_end.size() != 1 || pads_begin[0] != pads_end[0]) {
                 return false;
             }
 
             std::shared_ptr<v8::Slice> state_slice;
-            for (const auto& input : state_concat_node->output(0).get_target_inputs()) {
-                const auto consumer = input.get_node()->shared_from_this();
-                const auto candidate = ov::as_type_ptr<v8::Slice>(consumer);
-                if (!candidate || !is_slice_axis_2(candidate)) {
-                    continue;
+            if (state_concat_node) {
+                for (const auto& input : state_concat_node->output(0).get_target_inputs()) {
+                    const auto consumer = input.get_node()->shared_from_this();
+                    const auto candidate = ov::as_type_ptr<v8::Slice>(consumer);
+                    if (!candidate || !is_slice_axis_2(candidate)) {
+                        continue;
+                    }
+                    state_slice = candidate;
+                    break;
                 }
-                state_slice = candidate;
-                break;
-            }
-            if (!state_slice) {
-                return false;
+                if (!state_slice) {
+                    return false;
+                }
             }
 
             const auto weight_reshape_shape =
@@ -316,10 +367,12 @@ public:
             const auto unsqueeze = std::make_shared<v0::Unsqueeze>(paged_conv, unsqueeze_axis);
             unsqueeze->set_friendly_name(group_conv_node->get_friendly_name());
 
-            // Keep legacy branch independent from new conv_state_table parameter.
+            // Keep legacy concat branch independent from new conv_state_table parameter.
             // Old present-state consumers are rewired to the original past-state data path,
             // while conv_state_table remains connected only to PagedCausalConv1D input[1].
-            state_slice->output(0).replace(past_state_output);
+            if (state_slice && past_state_output.get_node()) {
+                state_slice->output(0).replace(past_state_output);
+            }
 
             ov::NodeVector new_nodes;
             new_nodes.reserve(8);

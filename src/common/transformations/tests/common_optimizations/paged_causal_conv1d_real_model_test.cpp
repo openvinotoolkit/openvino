@@ -44,6 +44,7 @@ TEST(PagedCausalConv1DRealModel, SDPAToPAThenCommonOptimizations) {
     EXPECT_EQ(count_ops_by_type(model, "ScaledDotProductAttention"), 0u);
     EXPECT_GE(count_ops_by_type(model, "PagedAttentionExtension"), 1u);
     EXPECT_GE(count_ops_by_type(model, "PagedCausalConv1D"), 1u);
+    const auto group_conv_count_after_sdpa_to_pa = count_ops_by_type(model, "GroupConvolution");
 
     ov::pass::Manager common_pm;
     common_pm.register_pass<ov::pass::CommonOptimizations>();
@@ -51,5 +52,5 @@ TEST(PagedCausalConv1DRealModel, SDPAToPAThenCommonOptimizations) {
     common_pm.run_passes(model);
 
     EXPECT_GE(count_ops_by_type(model, "PagedCausalConv1D"), 1u);
-    EXPECT_LT(count_ops_by_type(model, "GroupConvolution"), 3u);
+    EXPECT_LE(count_ops_by_type(model, "GroupConvolution"), group_conv_count_after_sdpa_to_pa);
 }

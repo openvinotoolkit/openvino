@@ -155,6 +155,50 @@ std::shared_ptr<ov::Model> build_model_with_multiply_post_op(bool add_present_st
     return std::make_shared<ov::Model>(results, params);
 }
 
+std::shared_ptr<ov::Model> build_model_without_concat_lfm2_like() {
+    const Shape state_shape{2, 3, 4};
+    const Shape token_shape{2, 3, 1};
+
+    auto conv_state_hint = std::make_shared<v0::Parameter>(element::f32, state_shape);
+    conv_state_hint->set_friendly_name("cache_params_past_conv_hint");
+    conv_state_hint->get_output_tensor(0).set_names({"cache_params.past.conv.0"});
+
+    auto token = std::make_shared<v0::Parameter>(element::f32, token_shape);
+    auto gate = std::make_shared<v0::Parameter>(element::f32, token_shape);
+    auto conv_input = std::make_shared<v1::Multiply>(token, gate);
+
+    auto weights = v0::Constant::create(element::f32, Shape{3, 1, 1, 4}, std::vector<float>(12, 0.25f));
+    auto group_conv =
+        std::make_shared<v1::GroupConvolution>(conv_input, weights, Strides{1}, CoordinateDiff{2}, CoordinateDiff{2}, Strides{1});
+    group_conv->set_friendly_name("__module.model.model.layers.0.conv.conv/aten::_convolution/GroupConvolution");
+
+    auto neg_one = v0::Constant::create(element::i64, Shape{1}, {-1});
+    auto one = v0::Constant::create(element::i64, Shape{1}, {1});
+    auto slice_begin = std::make_shared<v1::Multiply>(neg_one, one);
+    auto slice_end = v0::Constant::create(element::i64, Shape{1}, {std::numeric_limits<int64_t>::max()});
+    auto slice_step = v0::Constant::create(element::i64, Shape{1}, {1});
+    auto slice_axis = v0::Constant::create(element::i64, Shape{1}, {2});
+
+    auto slice2 = std::make_shared<v8::Slice>(group_conv, slice_begin, slice_end, slice_step, slice_axis);
+    auto swish = std::make_shared<v4::Swish>(slice2);
+
+    auto subsequence_begins = make_i32_param("subsequence_begins", Shape{3});
+    auto block_indices = make_i32_param("paged_conv_block_indices", Shape{5});
+    auto block_indices_begins = make_i32_param("paged_conv_block_indices_begins", Shape{3});
+    auto past_lens = make_i32_param("paged_conv_past_lens", Shape{2});
+    auto cache_interval = make_i32_param("paged_conv_cache_interval", Shape{2});
+
+    ParameterVector params{token,
+                           gate,
+                           conv_state_hint,
+                           subsequence_begins,
+                           block_indices,
+                           block_indices_begins,
+                           past_lens,
+                           cache_interval};
+    return std::make_shared<ov::Model>(ResultVector{std::make_shared<v0::Result>(swish)}, params);
+}
+
 }  // namespace
 
 class PagedCausalConv1DFusionTest : public ::TransformationTestsF {};
@@ -193,6 +237,27 @@ TEST_F(PagedCausalConv1DFusionTest, FusesWhenPresentStateIsResult) {
 
 TEST_F(PagedCausalConv1DFusionTest, FusesMultiplyPostOpAndGenericTokenInput) {
     model = build_model_with_multiply_post_op(true);
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::PagedCausalConv1DFusion>();
+    manager.run_passes(model);
+
+    size_t pcc_count = 0;
+    size_t group_conv_count = 0;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (std::string(op->get_type_name()) == "PagedCausalConv1D") {
+            ++pcc_count;
+        }
+        if (ov::is_type<ov::op::v1::GroupConvolution>(op)) {
+            ++group_conv_count;
+        }
+    }
+    EXPECT_EQ(pcc_count, 1u);
+    EXPECT_EQ(group_conv_count, 0u);
+}
+
+TEST_F(PagedCausalConv1DFusionTest, FusesNonConcatPatternWithSymmetricPadding) {
+    model = build_model_without_concat_lfm2_like();
 
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::PagedCausalConv1DFusion>();
