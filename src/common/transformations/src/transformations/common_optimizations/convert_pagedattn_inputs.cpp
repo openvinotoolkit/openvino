@@ -57,6 +57,8 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
     auto adaptive_rkv_diversity_block_set_indices_begins = pattern::any_input(pattern::has_static_rank());
     auto token_type_ids = pattern::any_input(pattern::has_static_rank());
 
+    auto qq_bias = pattern::any_input(pattern::has_static_rank());
+    auto qq_bias_begins = pattern::any_input(pattern::has_static_rank());
     auto result = pattern::wrap_type<ov::op::PagedAttentionExtension>({Q,
                                                                        K,
                                                                        V,
@@ -82,7 +84,9 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
                                                                        adaptive_rkv_evictable_sizes,
                                                                        adaptive_rkv_diversity_block_set_indices,
                                                                        adaptive_rkv_diversity_block_set_indices_begins,
-                                                                       token_type_ids});
+                                                                       token_type_ids,
+                                                                       qq_bias,
+                                                                       qq_bias_begins});
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto pa_op = m.get_match_root();
         auto key_cache = ov::as_type_ptr<v0::Parameter>(pa_op->get_input_node_shared_ptr(3));

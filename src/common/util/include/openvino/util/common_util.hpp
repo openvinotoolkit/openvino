@@ -307,6 +307,5 @@ constexpr bool mul_overflow(T x, T y, T& result) {
     return false;
 #endif
 }
-
 }  // namespace util
 }  // namespace ov
