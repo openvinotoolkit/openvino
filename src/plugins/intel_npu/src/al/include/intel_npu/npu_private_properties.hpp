@@ -350,6 +350,15 @@ static constexpr ov::Property<bool> weightless_blob{"NPU_WEIGHTLESS_BLOB"};
 
 /**
  * @brief [Only for NPU Plugin]
+ * Type: string. Default is "".
+ *
+ * This option is used to verify if a compiled model's runtime requirements are compatible
+ * with the current environment.
+ */
+static constexpr ov::Property<std::string> runtime_requirements_check{"RUNTIME_REQUIREMENTS_CHECK"};
+
+/**
+ * @brief [Only for NPU Plugin]
  * Type: enum. Default is "AUTO".
  *
  * This config option concerns the algorithm used for serializing the "ov::Model" at compilation time in order to be

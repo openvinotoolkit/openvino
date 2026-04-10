@@ -1371,6 +1371,20 @@ struct ENABLE_WEIGHTLESS final : OptionBase<ENABLE_WEIGHTLESS, bool> {
     }
 };
 
+struct RUNTIME_REQUIREMENTS_CHECK final : OptionBase<RUNTIME_REQUIREMENTS_CHECK, std::string> {
+    static std::string_view key() {
+        return ov::intel_npu::runtime_requirements_check.name();
+    }
+
+    static std::string defaultValue() {
+        return "";
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
 struct WEIGHTLESS_BLOB final : OptionBase<WEIGHTLESS_BLOB, bool> {
     static std::string_view key() {
         return ov::intel_npu::weightless_blob.name();
