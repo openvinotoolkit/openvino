@@ -28,6 +28,16 @@ computation:
    def torch_recurrent_gated_delta_rule(
        query, key, value, recurrent_state, gate, beta,
    ):
+       def l2norm(x: torch.FloatTensor, dim: int = -1, eps: float = 1e-6):
+           """This function is intended to align with the l2norm implementation in the FLA library."""
+           inv_norm = torch.rsqrt((x * x).sum(dim=dim, keepdim=True) + eps)
+           return x * inv_norm
+
+       # Optional L2 normalization of query and key (when use_qk_l2norm is True)
+       if use_qk_l2norm:
+           query = l2norm(query, dim=-1, q_l2_norm_eps)
+           key = l2norm(key, dim=-1, k_l2_norm_eps)
+
        batch_size, sequence_length, num_heads, k_head_dim = key.shape
        v_head_dim = value.shape[-1]
        scale = 1 / (query.shape[-1] ** 0.5)
@@ -52,6 +62,36 @@ computation:
        return output_attn, output_recurrent_state
 
 
+**Attributes**
+
+* *use_qk_l2norm*
+
+  * **Description**: When ``True``, applies L2 normalization to query and key vectors before
+    the recurrent update, using ``q_l2_norm_eps`` and ``k_l2_norm_eps`` as the minimum
+    normalization denominators to avoid division by zero.
+  * **Type**: ``boolean``
+  * **Default value**: ``False``
+  * **Required**: *no*
+
+* *q_l2_norm_eps*
+
+  * **Description**: Epsilon value used as the minimum denominator when L2-normalizing query
+    vectors. Only used when ``use_qk_l2norm`` is ``True``.
+  * **Range of values**: a positive floating-point number
+  * **Type**: ``float``
+  * **Default value**: ``1e-6``
+  * **Required**: *no*
+
+* *k_l2_norm_eps*
+
+  * **Description**: Epsilon value used as the minimum denominator when L2-normalizing key
+    vectors. Only used when ``use_qk_l2norm`` is ``True``.
+  * **Range of values**: a positive floating-point number
+  * **Type**: ``float``
+  * **Default value**: ``1e-6``
+  * **Required**: *no*
+
+
 **Inputs**
 
 * **1**: ``query`` - 4D tensor of type *T* and shape ``[batch_size, seq_len, num_heads, key_head_dim]``,
@@ -61,17 +101,17 @@ computation:
 * **2**: ``key`` - 4D tensor of type *T* and shape ``[batch_size, seq_len, num_heads, key_head_dim]``,
   the key vectors for each token and head. **Required.**
 
-* **3**: ``value`` - 4D tensor of type *T* and shape ``[batch_size, seq_len, num_heads, value_head_dim]``,
+* **3**: ``value`` - 4D tensor of type *T* and shape ``[batch_size, seq_len, v_num_heads, value_head_dim]``,
   the value vectors for each token and head. **Required.**
 
 * **4**: ``recurrent_state`` - 4D tensor of type *T* and shape
-  ``[batch_size, num_heads, key_head_dim, value_head_dim]``, the recurrent (initially all-zeros) hidden state matrix.  **Required.**
+  ``[batch_size, v_num_heads, key_head_dim, value_head_dim]``, the recurrent (initially all-zeros) hidden state matrix.  **Required.**
 
-* **5**: ``gate`` - 3D tensor of type *T* and shape ``[batch_size, seq_len, num_heads]``,
+* **5**: ``gate`` - 3D tensor of type *T* and shape ``[batch_size, seq_len, v_num_heads]``,
   the forget gate in log-space. Applied as ``exp(g)`` at each time step to decay the
   hidden state before the delta update. **Required.**
 
-* **6**: ``beta`` - 3D tensor of type *T* and shape ``[batch_size, seq_len, num_heads]``,
+* **6**: ``beta`` - 3D tensor of type *T* and shape ``[batch_size, seq_len, v_num_heads]``,
   the write gate controlling how much of the delta correction is applied to the hidden
   state. **Required.**
 
@@ -79,12 +119,19 @@ computation:
 **Outputs**
 
 * **1**: ``output_attn`` - 4D tensor of type *T* and shape
-  ``[batch_size, seq_len, num_heads, value_head_dim]``, the output vectors at each time step
+  ``[batch_size, seq_len, v_num_heads, value_head_dim]``, the output vectors at each time step
   produced by applying the state matrix to the (scaled) query.
 
 * **2**: ``output_recurrent_state`` - 4D tensor of type *T* and shape
-  ``[batch_size, num_heads, key_head_dim, value_head_dim]``, the hidden state matrix
+  ``[batch_size, v_num_heads, key_head_dim, value_head_dim]``, the hidden state matrix
   after processing the last token in the sequence.
+
+
+.. note::
+
+   This operation uses grouped-query linear attention. The number of groups is
+   ``num_groups = v_num_heads // num_heads``. Each query and key head is shared by
+   ``num_groups`` consecutive value heads, with the mapping ``h_q = h_v // num_groups``.
 
 
 **Types**
