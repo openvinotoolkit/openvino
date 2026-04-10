@@ -92,8 +92,8 @@ public:
         auto outputs = network->execute();
 
         // input_layout no longer pre-allocates memory at network construction time,
-        // so the peak no longer includes the input buffer (sizeof(float) * batch_num * feature_num * x_size * y_size)
-        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)(64 - sizeof(float) * batch_num * feature_num * x_size * y_size));
+        const uint64_t input_buf_size = sizeof(float) * batch_num * feature_num * x_size * y_size;
+        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)(64 - input_buf_size));
     }
 
     void test_basic_non_padded_relu_and_pooling_pipe(bool is_caching_test) {
@@ -126,8 +126,8 @@ public:
         auto outputs = network->execute();
 
         // input_layout no longer pre-allocates memory at network construction time,
-        // so the peak no longer includes the input buffer (sizeof(float) * batch_num * feature_num * x_size * y_size)
-        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)(896 - sizeof(float) * batch_num * feature_num * x_size * y_size));
+        const uint64_t input_buf_size = sizeof(float) * batch_num * feature_num * x_size * y_size;
+        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)(896 - input_buf_size));
     }
 
     void test_multi_outputs_network(bool is_caching_test) {
@@ -163,8 +163,8 @@ public:
         auto outputs = network->execute();
 
         // input_layout no longer pre-allocates memory at network construction time,
-        // so the peak no longer includes the input buffer (sizeof(float) * batch_num * feature_num * x_size * y_size)
-        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)(1536 - sizeof(float) * batch_num * feature_num * x_size * y_size));
+        const uint64_t input_buf_size = sizeof(float) * batch_num * feature_num * x_size * y_size;
+        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)(1536 - input_buf_size));
     }
 
     void test_oooq(bool is_caching_test) {
@@ -203,8 +203,8 @@ public:
         auto outputs = network->execute();
 
         // input_layout no longer pre-allocates memory at network construction time,
-        // so the peak no longer includes the input buffer (sizeof(float) * batch_num * feature_num * x_size * y_size)
-        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)(2560 - sizeof(float) * batch_num * feature_num * x_size * y_size));
+        const uint64_t input_buf_size = sizeof(float) * batch_num * feature_num * x_size * y_size;
+        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)(2560 - input_buf_size));
     }
 
     void test_shared_mem_pool_same_topology_twice() {
@@ -413,20 +413,16 @@ public:
 
         auto dev_info = engine->get_device_info();
         // input_layout no longer pre-allocates memory at network construction time,
-        // so the peak no longer includes the input buffer (sizeof(float) * batch_8 * feature_num * inp_x_size * inp_y_size)
-        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)(4744 - sizeof(float) * batch_8 * feature_num * inp_x_size * inp_y_size));
+        const uint64_t input_buf_size = sizeof(float) * batch_8 * feature_num * inp_x_size * inp_y_size;
+        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)(4744 - input_buf_size));
 
         topo.change_input_layout("input", input_1->get_layout());//change input layout to batch=1
 
         network::ptr network_second = get_network(*engine, topo, config, get_test_stream_ptr(), is_caching_test);
         network_second->set_input_data("input", input_1);
         auto outputs_second = network_second->execute();
-        // Peak after both networks: old value was 5912. It is reduced by the eliminated batch_8 input_layout
-        // pre-alloc (sizeof(float)*batch_8*feature_num*inp_x_size*inp_y_size = 1536 bytes). However, in the
-        // old code that freed 1536-byte slot re-entered the memory pool and was reused to satisfy a small
-        // 16-byte allocation in network_second, avoiding a fresh alloc. Without the pre-alloc that slot never
-        // exists, so the 16 bytes are allocated fresh, adding +16 to the new peak.
-        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)(5912 - sizeof(float) * batch_8 * feature_num * inp_x_size * inp_y_size + 16));
+
+        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)(5928 - input_buf_size));
     }
 
     void test_shared_dep_two_output(bool is_caching_test) {
