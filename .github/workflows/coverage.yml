@@ -9,7 +9,7 @@ on:
         required: false
         default: true
       run-gpu-tests:
-        description: 'Build with GPU support and run the iGPU C++ coverage lane'
+        description: 'Build with GPU support and run the iGPU C++ coverage lanes'
         type: boolean
         required: false
         default: true
@@ -57,15 +57,17 @@ jobs:
             should_run_any='true'
           fi
 
-          cpu_lane='{"lane":"cpu","lane_name":"CPU","runner_label":"aks-linux-16-cores-32gb","container_options":""}'
-          gpu_lane='{"lane":"gpu","lane_name":"GPU","runner_label":"igpu","container_options":"--group-add 44 --group-add 993 --device /dev/dri/card1:/dev/dri/card1 --device /dev/dri/renderD128:/dev/dri/renderD128"}'
+          cpu_lane='{"lane":"cpu","lane_name":"CPU","test_profile":"cpu","test_names":"","runner_label":"aks-linux-16-cores-32gb","container_image":"","container_options":"","uses_igpu":"false"}'
+          gpu_unit_lane='{"lane":"gpu-unit","lane_name":"GPU Unit","test_profile":"gpu","test_names":"ov_onnx_frontend_tests,ov_onnx_frontend_tests (ONNX_ITERATOR=0),ov_gpu_unit_tests,test_inference_async,test_inference_sync","runner_label":"igpu","container_image":"ubuntu:22.04","container_options":"--group-add 44 --group-add 993 --device /dev/dri/card1:/dev/dri/card1 --device /dev/dri/renderD128:/dev/dri/renderD128","uses_igpu":"true"}'
+          gpu_func_lane='{"lane":"gpu-func","lane_name":"GPU Func","test_profile":"gpu","test_names":"ov_gpu_func_tests","runner_label":"igpu","container_image":"ubuntu:22.04","container_options":"--group-add 44 --group-add 993 --device /dev/dri/card1:/dev/dri/card1 --device /dev/dri/renderD128:/dev/dri/renderD128","uses_igpu":"true"}'
 
           if [[ "${should_run_cpu}" == 'true' && "${should_run_gpu}" == 'true' ]]; then
-            selected_lanes='cpu,gpu'
+            selected_lanes='cpu,gpu-unit,gpu-func'
             cpp_matrix="$(cat <<EOF
           {"include":[
             ${cpu_lane},
-            ${gpu_lane}
+            ${gpu_unit_lane},
+            ${gpu_func_lane}
           ]}
           EOF
             )"
@@ -78,10 +80,11 @@ jobs:
           EOF
             )"
           elif [[ "${should_run_gpu}" == 'true' ]]; then
-            selected_lanes='gpu'
+            selected_lanes='gpu-unit,gpu-func'
             cpp_matrix="$(cat <<EOF
           {"include":[
-            ${gpu_lane}
+            ${gpu_unit_lane},
+            ${gpu_func_lane}
           ]}
           EOF
             )"
@@ -170,7 +173,7 @@ jobs:
       - self-hosted
       - ${{ matrix.runner_label }}
     container:
-      image: ${{ matrix.lane == 'gpu' && 'ubuntu:22.04' || fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
+      image: ${{ matrix.uses_igpu == 'true' && matrix.container_image || fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
       volumes:
         - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro
         - /mount:/mount
@@ -178,14 +181,15 @@ jobs:
       options: ${{ matrix.container_options }}
     strategy:
       fail-fast: false
-      max-parallel: 2
+      max-parallel: 3
       matrix: ${{ fromJSON(needs.CoverageConfig.outputs.cpp_matrix) }}
     defaults:
       run:
         shell: bash
         working-directory: ${{ github.workspace }}
     env:
-      TEST_PROFILE: ${{ matrix.lane }}
+      TEST_PROFILE: ${{ matrix.test_profile }}
+      CXX_TEST_NAMES: ${{ matrix.test_names }}
       OV_WORKSPACE: ${{ github.workspace }}
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
@@ -196,9 +200,9 @@ jobs:
       COVERAGE_WRITE_STEP_SUMMARY: 'false'
     steps:
       - name: Prepare iGPU test container
-        if: ${{ matrix.lane == 'gpu' }}
+        if: ${{ matrix.uses_igpu == 'true' }}
         run: |
-          apt-get update && apt-get install -y pigz wget software-properties-common ca-certificates gpg-agent tzdata clinfo git python3-yaml
+          apt-get update && apt-get install -y pigz wget software-properties-common ca-certificates gpg-agent tzdata clinfo git lcov python3-yaml
         env:
           DEBIAN_FRONTEND: noninteractive
           TZ: "Europe/London"
@@ -234,7 +238,7 @@ jobs:
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Install iGPU runtime dependencies
-        if: ${{ matrix.lane == 'gpu' }}
+        if: ${{ matrix.uses_igpu == 'true' }}
         run: |
           set -euo pipefail
           "${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh" -c=core -c=dev -c=gpu -y
@@ -253,7 +257,7 @@ jobs:
           popd
 
       - name: Verify GPU device availability
-        if: ${{ matrix.lane == 'gpu' }}
+        if: ${{ matrix.uses_igpu == 'true' }}
         run: clinfo
 
       - name: Restore coverage notes
@@ -271,7 +275,7 @@ jobs:
           fi
 
       - name: Setup Python 3.11
-        if: ${{ matrix.lane == 'cpu' }}
+        if: ${{ matrix.test_profile == 'cpu' }}
         uses: ./.github/actions/setup_python
         with:
           version: '3.11'
@@ -280,7 +284,7 @@ jobs:
           self-hosted-runner: 'true'
 
       - name: Install coverage Python dependencies
-        if: ${{ matrix.lane == 'cpu' }}
+        if: ${{ matrix.test_profile == 'cpu' }}
         run: python3 -m pip install -r .github/scripts/coverage/requirements-ci.txt
 
       - name: Run ${{ matrix.lane_name }} C++ coverage tests
@@ -297,7 +301,7 @@ jobs:
           python3 .github/scripts/coverage/ci_reports.py collect-suite-results \
             --workspace "${{ env.OV_WORKSPACE }}" \
             --suite cpp \
-            --profile "${{ matrix.lane }}" \
+            --profile "${{ matrix.test_profile }}" \
             --lane "${{ matrix.lane }}" \
             --artifact-name "coverage-cpp-${{ matrix.lane }}" \
             --artifact-dir "${dir}"
