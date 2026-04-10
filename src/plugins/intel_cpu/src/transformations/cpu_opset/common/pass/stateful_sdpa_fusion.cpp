@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <memory>
 #include <tuple>
+#include <unordered_map>
 #include <vector>
 
 #include "openvino/cc/pass/itt.hpp"
@@ -309,7 +310,26 @@ bool SDPASubgraphFusion::run_on_model(const std::shared_ptr<ov::Model>& f) {
 
     CPU_REGISTER_PASS_COMMON(ctx_manager, ov::pass::SimplifyGatherShapeOf);
     CPU_REGISTER_PASS_COMMON(ctx_manager, ov::pass::transpose_sinking::TSShapeOfForward);
-    CPU_REGISTER_PASS_COMMON(ctx_manager, StatefulSDPAFusion);
+
+    // Skip StatefulSDPAFusion if any SDPA K/V input node is shared by multiple SDPAs.
+    // This indicates KV cache sharing (e.g. Per-Layer Sharing / PLS architecture),
+    // which is not supported by the fused SDPAWithKVCache kernel.
+    auto has_shared_kv_inputs = [](const std::shared_ptr<ov::Model>& model) {
+        std::unordered_map<ov::Node*, int> kv_input_sdpa_count;
+        for (const auto& op : model->get_ops()) {
+            if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(op.get())) {
+                kv_input_sdpa_count[op->input_value(1).get_node()]++;
+                kv_input_sdpa_count[op->input_value(2).get_node()]++;
+            }
+        }
+        return std::any_of(kv_input_sdpa_count.begin(),
+                           kv_input_sdpa_count.end(),
+                           [](const auto& p) { return p.second > 1; });
+    };
+
+    if (!has_shared_kv_inputs(f)) {
+        CPU_REGISTER_PASS_COMMON(ctx_manager, StatefulSDPAFusion);
+    }
     // TODO: remove the following after snippets support patterns with dynamic shapes
     CPU_REGISTER_PASS_X64(ctx_manager, ov::intel_cpu::SDPAFuseTransposeReshape);
 
