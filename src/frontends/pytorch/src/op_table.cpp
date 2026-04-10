@@ -90,7 +90,6 @@ OP_CONVERTER(translate_empty);
 OP_CONVERTER(translate_empty_like);
 OP_CONVERTER(translate_erf);
 OP_CONVERTER(translate_erfc);
-OP_CONVERTER(translate_erfinv);
 OP_CONVERTER(translate_expand);
 OP_CONVERTER(translate_expand_as);
 OP_CONVERTER(translate_exp);
