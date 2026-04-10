@@ -12,6 +12,7 @@ namespace pass {
 
 class TRANSFORMATIONS_API EliminateConcat;
 class TRANSFORMATIONS_API EliminateConcatStridedSlice;
+class TRANSFORMATIONS_API EliminateConcatSlice;
 class TRANSFORMATIONS_API EliminateConvert;
 class TRANSFORMATIONS_API EliminateIdentityConvert;
 class TRANSFORMATIONS_API EliminateConvertNonZero;
@@ -135,6 +136,18 @@ class ov::pass::EliminateConcatStridedSlice : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("EliminateConcatStridedSlice");
     EliminateConcatStridedSlice();
+};
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief EliminateConcatSlice eliminates Slice & Concat,
+ * if the Slices split the tensor into the parts and these parts be equal to the original parts before Concat.
+ * Same as EliminateConcatStridedSlice but for v8::Slice operations.
+ */
+class ov::pass::EliminateConcatSlice : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("EliminateConcatSlice");
+    EliminateConcatSlice();
 };
 
 /**
