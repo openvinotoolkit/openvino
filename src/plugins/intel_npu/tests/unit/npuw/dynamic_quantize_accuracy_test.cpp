@@ -558,41 +558,6 @@ AccuracyMetrics evaluate_split_roundtrip_on_device(const std::shared_ptr<Model>&
     return compute_metrics(input_data, output_f32.data(), element_count);
 }
 
-// ============================================================================
-// Helper: evaluate a roundtrip model on a real device via ov::Core.
-// ============================================================================
-AccuracyMetrics evaluate_roundtrip_on_device(const std::shared_ptr<Model>& model,
-                                             const std::string& device_name,
-                                             const float* input_data,
-                                             size_t element_count) {
-    Core core;
-    ov::AnyMap device_config;
-    if (device_name == "NPU") {
-        device_config[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::PLUGIN;
-    }
-
-    auto compiled = core.compile_model(model, device_name, device_config);
-    auto infer_request = compiled.create_infer_request();
-
-    auto input_tensor = Tensor(element::f16, model->get_parameters()[0]->get_shape());
-    auto* in_dst = input_tensor.data<ov::float16>();
-    for (size_t i = 0; i < element_count; ++i) {
-        in_dst[i] = ov::float16(input_data[i]);
-    }
-
-    infer_request.set_input_tensor(input_tensor);
-    infer_request.infer();
-
-    auto output_tensor = infer_request.get_output_tensor();
-
-    std::vector<float> output_f32(element_count);
-    const auto* src = output_tensor.data<ov::float16>();
-    for (size_t i = 0; i < element_count; ++i) {
-        output_f32[i] = static_cast<float>(src[i]);
-    }
-
-    return compute_metrics(input_data, output_f32.data(), element_count);
-}
 
 // ============================================================================
 // Helper: get the target device from the environment, empty if not set

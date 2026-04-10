@@ -42,6 +42,7 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/openvino.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
@@ -133,6 +134,62 @@ std::shared_ptr<Model> build_sdpa_model(size_t num_sdpa) {
     }
 
     auto model = std::make_shared<Model>(results, params, "sdpa_test_" + std::to_string(num_sdpa));
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+std::shared_ptr<Model> build_sdpa_model_with_hanging_past_consumers() {
+    // [batch, heads, seq_past, head_dim]
+    const Shape past_shape      = {1, 4, 8, 64};
+    const Shape new_token_shape = {1, 4, 1, 64};
+    const Shape mask_shape      = {1, 1, 1, 9};
+
+    ParameterVector params;
+    ResultVector results;
+
+    auto make_param = [&](const std::string& name, const Shape& shape) {
+        auto p = std::make_shared<op::v0::Parameter>(element::f32, shape);
+        p->set_friendly_name(name);
+        p->output(0).get_tensor().set_names({name});
+        params.push_back(p);
+        return p;
+    };
+
+    auto make_result = [&](Output<Node> out, const std::string& name) {
+        auto r = std::make_shared<op::v0::Result>(out);
+        r->set_friendly_name(name);
+        r->output(0).get_tensor().set_names({name});
+        results.push_back(r);
+    };
+
+    auto past_key = make_param("past_key_values.0.key", past_shape);
+    auto past_val = make_param("past_key_values.0.value", past_shape);
+    auto query = make_param("query.0", new_token_shape);
+    auto new_key = make_param("new_key.0", new_token_shape);
+    auto new_val = make_param("new_value.0", new_token_shape);
+    auto mask = make_param("mask.0", mask_shape);
+
+    auto concat_key = std::make_shared<op::v0::Concat>(OutputVector{past_key, new_key}, 2);
+    auto concat_val = std::make_shared<op::v0::Concat>(OutputVector{past_val, new_val}, 2);
+
+    auto qk = std::make_shared<op::v0::MatMul>(query, concat_key, false, true);
+    auto add = std::make_shared<op::v1::Add>(qk->output(0), mask->output(0));
+    auto softmax = std::make_shared<op::v8::Softmax>(add->output(0), 3);
+    auto attn_out = std::make_shared<op::v0::MatMul>(softmax->output(0), concat_val->output(0));
+
+    // Extra non-concat consumers that must keep reading from original past cache params.
+    auto key_shapeof = std::make_shared<op::v3::ShapeOf>(past_key);
+    key_shapeof->set_friendly_name("past_key_values.0.key.shapeof");
+    auto val_shapeof = std::make_shared<op::v3::ShapeOf>(past_val);
+    val_shapeof->set_friendly_name("past_key_values.0.value.shapeof");
+
+    make_result(concat_key->output(0), "present.0.key");
+    make_result(concat_val->output(0), "present.0.value");
+    make_result(attn_out->output(0), "attn_out.0");
+    make_result(key_shapeof->output(0), "past_key_shapeof.0");
+    make_result(val_shapeof->output(0), "past_value_shapeof.0");
+
+    auto model = std::make_shared<Model>(results, params, "sdpa_hanging_consumers_test");
     model->validate_nodes_and_infer_types();
     return model;
 }
@@ -342,6 +399,54 @@ TEST_P(KVCacheCompressionPassTest, AttnOutputMatchesWithIdentityDequant) {
         EXPECT_LT(rel_l2, 1e-5)
             << "attn_out." << n << " diverges with identity dequant (rel L2=" << rel_l2 << ")";
     }
+}
+
+TEST(KVCacheCompressionPassRegressionTest, KeepsNonConcatConsumersOnOriginalPastCacheEdges) {
+    auto model = build_sdpa_model_with_hanging_past_consumers();
+
+    ov::npuw::KVCacheCompressionParams params;
+    params.key = {QuantizationType::Asymmetric, element::u8};
+    params.value = {QuantizationType::Asymmetric, element::u8};
+    ASSERT_NO_THROW(ov::npuw::run_kv_cache_dynamic_quantization_passes(model, params));
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+
+    auto get_result_by_name = [&model](const std::string& name) -> std::shared_ptr<op::v0::Result> {
+        for (const auto& result : model->get_results()) {
+            if (result->get_friendly_name() == name) {
+                return result;
+            }
+        }
+        return nullptr;
+    };
+
+    auto key_shape_res = get_result_by_name("past_key_shapeof.0");
+    auto val_shape_res = get_result_by_name("past_value_shapeof.0");
+    ASSERT_NE(key_shape_res, nullptr);
+    ASSERT_NE(val_shape_res, nullptr);
+
+    auto key_shapeof = ov::as_type_ptr<op::v3::ShapeOf>(key_shape_res->input_value(0).get_node_shared_ptr());
+    auto val_shapeof = ov::as_type_ptr<op::v3::ShapeOf>(val_shape_res->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(key_shapeof, nullptr) << "past_key_shapeof.0 must be produced by ShapeOf";
+    ASSERT_NE(val_shapeof, nullptr) << "past_value_shapeof.0 must be produced by ShapeOf";
+
+    auto key_src = key_shapeof->input_value(0).get_node_shared_ptr();
+    auto val_src = val_shapeof->input_value(0).get_node_shared_ptr();
+
+    auto key_param = ov::as_type_ptr<op::v0::Parameter>(key_src);
+    auto val_param = ov::as_type_ptr<op::v0::Parameter>(val_src);
+
+    const std::string key_src_name = key_src ? key_src->get_friendly_name() : std::string("<null>");
+    const std::string val_src_name = val_src ? val_src->get_friendly_name() : std::string("<null>");
+
+    ASSERT_TRUE(key_param != nullptr)
+        << "ShapeOf(past_key) must stay connected to original past_key parameter, got node '"
+        << key_src_name << "'";
+    ASSERT_TRUE(val_param != nullptr)
+        << "ShapeOf(past_value) must stay connected to original past_value parameter, got node '"
+        << val_src_name << "'";
+
+    EXPECT_EQ(key_param->get_friendly_name(), "past_key_values.0.key");
+    EXPECT_EQ(val_param->get_friendly_name(), "past_key_values.0.value");
 }
 
 // ============================================================================

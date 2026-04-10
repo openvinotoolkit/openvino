@@ -106,7 +106,7 @@ ov::OutputVector dynamic_quantize_linear(std::shared_ptr<ov::Node> input, size_t
 
 // ── V3 helper function (compiler pattern style) ──────────────────────────────
 
-ov::OutputVector build_dynamic_quantize_linear(const ov::Output<ov::Node>& input,
+ov::OutputVector dynamic_quantize_linear_v3(const ov::Output<ov::Node>& input,
                                                size_t reduction_axis,
                                                const std::string& name_prefix) {
     auto make_name = [&name_prefix](const std::string& suffix) {
@@ -225,8 +225,6 @@ ov::npuw::DecomposeDynamicQuantize3::DecomposeDynamicQuantize3() {
         auto& node_to_output = m.get_pattern_value_map();
         auto dq_ptr = node_to_output.at(dynamic_quantize).get_node_shared_ptr();
 
-        // This pass only handles symmetric i8 (signed integer, range [-128,127]).
-        // Asymmetric or non-i8 nodes are handled by other passes.
         auto dq_node = ov::as_type_ptr<ov::op::internal::DynamicQuantize>(dq_ptr);
 
         LOG_DEBUG("Found DynamicQuantize : " << dq_ptr->get_friendly_name() << " decomposing");
@@ -240,7 +238,7 @@ ov::npuw::DecomposeDynamicQuantize3::DecomposeDynamicQuantize3() {
         auto dq_input = dq_ptr->input_value(0);
         auto has_zp = dq_ptr->outputs().size() == 3;
 
-        auto dq_results = build_dynamic_quantize_linear(dq_input, reduction_axis, dq_ptr->get_friendly_name());
+        auto dq_results = dynamic_quantize_linear_v3(dq_input, reduction_axis, dq_ptr->get_friendly_name());
 
         dq_ptr->output(0).replace(dq_results[0]);
         dq_ptr->output(1).replace(dq_results[1]);
@@ -483,6 +481,7 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
     // not.
     auto create_dequant_nodes = [&model, &create_parameter_with_name, &clear_embedding_index, &make_name](
                                     std::shared_ptr<ov::Node> start_node,
+                                    std::shared_ptr<ov::Node> concat_node,
                                     bool isKey,
                                     const KVCacheCompressionConfig& cfg) {
         const std::string node_name = isKey ? g_key_cache_name : g_value_cache_name;
@@ -495,8 +494,13 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
             return make_name("DynamicQuantize") + "/" + g_past_name + "/" + node_name + "/" + base_name;
         };
 
-        // Take snapshot of the ORIGINAL edge BEFORE building new nodes
-        auto concat_consumers_set = start_node->output(0).get_target_inputs();
+        // Take snapshot of the ORIGINAL concat edge BEFORE building new nodes.
+        std::vector<ov::Input<ov::Node>> concat_consumers;
+        for (auto&& consumer : start_node->output(0).get_target_inputs()) {
+            if (consumer.get_node() == concat_node.get()) {
+                concat_consumers.push_back(consumer);
+            }
+        }
 
         LOG_INFO("Found Dequantize for " << node_name << " insertion point after: " << start_node->get_name()
                                          << ") shape: " << start_node->get_shape());
@@ -526,8 +530,8 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
         auto dequantized = std::make_shared<ov::op::v1::Multiply>(fp_subtracted_zp, fp_scale);
         dequantized->set_friendly_name(make_dq_name("scale"));
 
-        // substitute concat consumers to read from dq chain
-        for (auto&& concat_consumer : concat_consumers_set) {
+        // Rewire only the matched concat input and leave unrelated consumers intact.
+        for (auto&& concat_consumer : concat_consumers) {
             concat_consumer.replace_source_output(dequantized);
         }
     };
@@ -545,11 +549,13 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
         }
 
         create_dequant_nodes(pattern_nodes.past_key_concat_node->input_value(0).get_node_shared_ptr(),
-                             true,
-                             params.key);
+            pattern_nodes.past_key_concat_node,
+            true,
+            params.key);
         create_dequant_nodes(pattern_nodes.past_value_concat_node->input_value(0).get_node_shared_ptr(),
-                             false,
-                             params.value);
+            pattern_nodes.past_value_concat_node,
+            false,
+            params.value);
 
         pattern_index++;
     }
