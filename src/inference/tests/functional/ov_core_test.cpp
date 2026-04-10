@@ -302,7 +302,7 @@ TEST_P(UnicodePathTest, read_compile_model) {
     const auto prefix_dir = utils::generateTestFilePrefix();
 
     const auto model_path =
-        std::filesystem::path(prefix_dir) / fs_path_from_variant() / std::filesystem::path(model_name);
+        std::filesystem::path(prefix_dir) / std::filesystem::path(GetParam()) / std::filesystem::path(model_name);
     ov::test::utils::generate_test_model(model_path, "");
 
     ov::Core core;
