@@ -97,6 +97,10 @@ public:
                 return read_model(std::string(model_path),
                                   bin_path ? std::string(bin_path) : std::string{},
                                   properties);
+            } else {
+                return read_model(std::filesystem::path(model_path),
+                                  bin_path ? std::filesystem::path(bin_path) : std::filesystem::path{},
+                                  properties);
             }
         } else if constexpr (std::is_constructible_v<std::string, Path>) {
             return read_model(std::string(model_path), std::string(bin_path), properties);
