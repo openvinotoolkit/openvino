@@ -498,4 +498,28 @@ void jit_kernel::uni_vblendps(const Xbyak::Zmm& z1, const Xbyak::Zmm& z2, uint16
     vblendmps(z1 | k1, z1, z2);
 }
 
+void jit_kernel::uni_vblendps(const Xbyak::Xmm& dst,
+                              const Xbyak::Xmm& src1,
+                              const Xbyak::Xmm& src2,
+                              uint16_t mask) {
+    vblendps(dst, src1, src2, static_cast<uint8_t>(mask));
+}
+
+void jit_kernel::uni_vblendps(const Xbyak::Ymm& dst,
+                              const Xbyak::Ymm& src1,
+                              const Xbyak::Ymm& src2,
+                              uint16_t mask) {
+    vblendps(dst, src1, src2, static_cast<uint8_t>(mask));
+}
+
+void jit_kernel::uni_vblendps(const Xbyak::Zmm& dst,
+                              const Xbyak::Zmm& src1,
+                              const Xbyak::Zmm& src2,
+                              uint16_t mask) {
+    auto reg = var<uint32_t>();
+    mov(reg, mask);
+    kmovw(k1, reg);
+    vblendmps(dst | k1, src1, src2);
+}
+
 }  // namespace ov::intel_cpu

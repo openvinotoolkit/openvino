@@ -130,18 +130,38 @@ struct jit_uni_converter : public jit_kernel {
 protected:
     jit_uni_converter();
 
+    // Aggregate output of `yuv_to_rgb`. Kept as a plain struct of three
+    // `variable` members so the function can return by value without the
+    // tuple/`std::tie`/`std::move` ceremony — each call site ends up with a
+    // single named local (`auto rgb = yuv_to_rgb(...)`) that captures cleanly
+    // in nested lambdas and reads as `rgb.r`, `rgb.g`, `rgb.b`. Aggregate
+    // init from three prvalue FMA expressions materializes the members
+    // directly via C++17 guaranteed copy elision — no move ctor calls, no
+    // vmovups emitted into the kernel stream.
+    //
+    // Planar YUV triple returned by `load_yuv` and consumed by `yuv_to_rgb`.
+    // Passed by value into `yuv_to_rgb` so the function owns its own copies
+    // and can rebind them in place via the move-assign operator at
+    // jit_kernel.hpp:549 (`y = (y - y_off) * y_scale`). The old register's
+    // refcount drops immediately on rebind, recovering the slot for later
+    // work. This keeps the per-iteration vector-register working peak down
+    // to ~8 — well within the DSL's 16-register vector pool.
     template <size_t N>
-    void yuv_to_rgb(const variable<float[N]>& y,
-                    const variable<float[N]>& u,
-                    const variable<float[N]>& v,
-                    const variable<uint8_t>& color_format,
-                    bool round);
-    template <typename T, size_t N>
-    void store_tail(const variable<T*>& dst,
-                    const variable<float[N]>& a,
-                    const variable<float[N]>& b,
-                    const variable<float[N]>& c,
-                    const variable<size_t>& size);
+    struct yuv_vec {
+        variable<float[N]> y;
+        variable<float[N]> u;
+        variable<float[N]> v;
+    };
+
+    template <size_t N>
+    struct rgb_vec {
+        variable<float[N]> r;
+        variable<float[N]> g;
+        variable<float[N]> b;
+    };
+
+    template <size_t N>
+    rgb_vec<N> yuv_to_rgb(yuv_vec<N> yuv, bool is_integral);
 
     function_t _fn = nullptr;
     variable<const float*> _consts;
@@ -155,148 +175,55 @@ void jit_uni_converter::init() {
 }
 
 template <size_t N>
-void jit_uni_converter::yuv_to_rgb(const variable<float[N]>& y,
-                                   const variable<float[N]>& u,
-                                   const variable<float[N]>& v,
-                                   const variable<uint8_t>& color_format,
-                                   bool round) {
-    auto clip = [&](const variable<float[N]>& op, const variable<float[N]>& a, const variable<float[N]>& b) {
-        if (round) {
-            uni_vroundps(op, op, 0);
-        }
-        uni_vmaxps(op, op, a);
-        uni_vminps(op, op, b);
+jit_uni_converter::rgb_vec<N> jit_uni_converter::yuv_to_rgb(yuv_vec<N> yuv, bool is_integral) {
+    // BT.601 slot layout in the static data[] array populated via
+    // `_consts = data` at the two create() sites below.
+    //   0: Y_OFFSET  = 16
+    //   1: UV_OFFSET = 128
+    //   2: Y_SCALE   = 1.164
+    //   3: V_TO_R    = 1.596
+    //   4: U_TO_G    = 0.391
+    //   5: U_TO_B    = 2.018
+    //   6: V_TO_G    = 0.813
+    //   7: CLAMP_HI  = 255
+    auto bc = [&](int slot) {
+        auto t = var<float[N]>();
+        uni_vbroadcastss(t, ptr[_consts + slot * sizeof(float)]);
+        return t;
     };
 
-    // blend r,g,b and put to r0,r1,r2
-    auto blend = [&](const variable<float[N]>& r,
-                     const variable<float[N]>& g,
-                     const variable<float[N]>& b,
-                     const variable<float[N]>& r0,
-                     const variable<float[N]>& r1,
-                     const variable<float[N]>& r2) {
-        /*
-            Input:
-            r0,r1,r2,r3,r4,r5,r6,r7
-            g0,g1,g2,g3,g4,g5,g6,g7
-            b0,b1,b2,b3,b4,b5,b6,b7
+    // BT.601:  y' = 1.164 * (y - 16),  u' = u - 128,  v' = v - 128
+    //          R  = y' + 1.596 * v'
+    //          G  = y' - 0.391 * u' - 0.813 * v'
+    //          B  = y' + 2.018 * u'
+    //
+    // In-place mutation via move-assign-rebind (jit_kernel.hpp:549): each
+    // assignment drops the old register (raw Y/U/V) and rebinds to the
+    // prvalue result's fresh register. Old slots return to the pool
+    // immediately, keeping the working peak low.
+    yuv.y = (yuv.y - bc(0)) * bc(2);
+    auto uv_off = bc(1);
+    yuv.u = yuv.u - uv_off;
+    yuv.v = yuv.v - uv_off;
 
-            Permutation:
-            r0,r3,r6,r1,r4,r7,r2,r5
-            g5,g0,g3,g6,g1,g4,g7,g2
-            b2,b5,b0,b3,b6,b1,b4,b7
+    auto r = fma(bc(3), yuv.v, yuv.y);                       // y + 1.596 * v
+    auto g = fnma(bc(6), yuv.v, fnma(bc(4), yuv.u, yuv.y));  // y - 0.391 * u - 0.813 * v
+    auto b = fma(bc(5), yuv.u, yuv.y);                       // y + 2.018 * u
 
-            Blend
-            r0,g0,xx,r1,g1,xx,r2,g2     blend 1+2 by mask 10210210
-            r0,g0,b0,r1,g1,b1,r2,g2     blend +3  by mask 00100100
+    // Float-output path only: preserve the [0, 255] output contract.
+    // Integer-output path skips this entirely — the narrowing store emitter
+    // (jit_store_emitter, default arithmetic_mode::saturation) rounds via
+    // vcvtps2dq and saturates via the pack chain when narrowing float to u8.
+    if (!is_integral) {
+        auto lo = var<float[N]>();
+        uni_vxorps(lo, lo, lo);
+        auto hi = bc(7);
+        r = r.clamp(lo, hi);
+        g = g.clamp(lo, hi);
+        b = b.clamp(lo, hi);
+    }
 
-            xx,r3,g3,xx,r4,g4,xx,r5     blend 1+2 by mask 02102102
-            b2,r3,g3,b3,r4,g4,b4,r5     blend +3  by mask 01001001
-
-            g5,xx,r6,g6,xx,r7,g7,xx     blend 1+2 by mask 21021021
-            g5,b5,r6,g6,b6,r7,g7,b7     blend +3  by mask 10010010
-
-            Result
-            a = r0,g0,b0,r1,g1,b1,r2,g2
-            b = b2,r3,g3,b3,r4,g4,b4,r5
-            c = g5,b5,r6,g6,b6,r7,g7,b7
-        */
-
-        auto genPermutationMask = [&](int offset) {
-            std::array<uint8_t, N> mask{};
-            for (size_t i = 0; i < mask.size(); ++i) {
-                mask[(i * 3 + offset) % mask.size()] = i;
-            }
-            return mask;
-        };
-
-        r = r.permute(genPermutationMask(0));
-        g = g.permute(genPermutationMask(1));
-        b = b.permute(genPermutationMask(2));
-
-        auto blendWithMask = [&](int offset, const variable<float[N]>& result) {
-            static const uint32_t blendMasks[2] = {0x92492492, 0x24924924};
-            const auto mask0 = static_cast<const uint16_t>(blendMasks[0] >> ((offset * N) % 3));
-            const auto mask1 = static_cast<const uint16_t>(blendMasks[1] >> ((offset * N) % 3));
-
-            result = r;
-            result = result.blend(g, mask0);
-            result = result.blend(b, mask1);
-        };
-
-        blendWithMask(0, r0);
-        blendWithMask(1, r1);
-        blendWithMask(2, r2);
-    };  // blend
-
-    // Reserve registers
-    auto r = var<float[N]>();
-    auto g = var<float[N]>();
-    auto b = var<float[N]>();
-    auto tmp = var<float[N]>();
-
-    uni_vbroadcastss(tmp, ptr[_consts + 0 * sizeof(float)]);  // tmp = [16.0f,16.0f,...]
-    uni_vsubps(y, y, tmp);                                    // y = y - tmp
-    uni_vbroadcastss(tmp, ptr[_consts + 1 * sizeof(float)]);  // tmp = [128.F,128.F,...]
-    uni_vsubps(u, u, tmp);                                    // u = u - tmp
-    uni_vsubps(v, v, tmp);                                    // v = v - tmp
-
-    uni_vbroadcastss(tmp, ptr[_consts + 2 * sizeof(float)]);  // tmp = [1.164f,1.164f,...]
-    uni_vmulps(y, y, tmp);                                    // y = y * tmp
-
-    uni_vbroadcastss(r, ptr[_consts + 3 * sizeof(float)]);  // r = [1.596f,1.596f,...]
-    uni_vmulps(r, r, v);                                    // r = r * v
-    uni_vaddps(r, r, y);                                    // r = r + y
-
-    uni_vbroadcastss(g, ptr[_consts + 4 * sizeof(float)]);    // g = [0.391f,0.391f,...]
-    uni_vmulps(g, g, u);                                      // g = g * u
-    uni_vsubps(g, y, g);                                      // g = y - g
-    uni_vbroadcastss(tmp, ptr[_consts + 6 * sizeof(float)]);  // tmp = [0.813f,0.813f,...]
-    uni_vmulps(tmp, tmp, v);                                  // tmp = tmp * v
-    uni_vsubps(g, g, tmp);                                    // g = g - tmp
-
-    uni_vbroadcastss(b, ptr[_consts + 5 * sizeof(float)]);  // b = [2.018f,2.018f,...]
-    uni_vmulps(b, b, u);                                    // b = b * u
-    uni_vaddps(b, b, y);                                    // b = b + y
-
-    // clip
-    uni_vxorps(y, y, y);
-    uni_vbroadcastss(u, ptr[_consts + 7 * sizeof(float)]);
-
-    clip(r, y, u);
-    clip(g, y, u);
-    clip(b, y, u);
-
-    _if(color_format == 0)
-        ._then([&] {
-            blend(r, g, b, y, u, v);
-        })
-        ._else([&] {
-            blend(b, g, r, y, u, v);
-        });
-}
-
-template <typename T, size_t N>
-void jit_uni_converter::store_tail(const variable<T*>& dst,
-                                   const variable<float[N]>& a,
-                                   const variable<float[N]>& b,
-                                   const variable<float[N]>& c,
-                                   const variable<size_t>& size) {
-    const size_t step = N * sizeof(T);
-    auto s = stack(3 * step);
-
-    auto sptr = var<T*>();
-    sptr = s.pointer();
-
-    store(sptr, a);
-    sptr += step;
-    store(sptr, b);
-    sptr += step;
-    store(sptr, c);
-
-    auto copy_size = size * static_cast<size_t>(3U);
-
-    copy<T>(ptr[dst], s.pointer(), copy_size);
+    return rgb_vec<N>{std::move(r), std::move(g), std::move(b)};
 }
 #endif
 
@@ -423,8 +350,7 @@ template <typename T, size_t N>
 class JitConverter<T[N]> : public jit_uni_converter {
 private:
     void generate() override;
-    std::tuple<variable<float[N]>, variable<float[N]>, variable<float[N]>> load_yuv(const variable<const T*>& src_y,
-                                                                                    const variable<const T*>& src_uv);
+    yuv_vec<N> load_yuv(const variable<const T*>& src_y, const variable<const T*>& src_uv);
     std::tuple<variable<float[N]>, variable<float[N]>> unpack_uv(const variable<float[N]>& uv);
 };
 
@@ -450,19 +376,17 @@ void JitConverter<T[N]>::generate() {
     foreach (0, width, [&]([[maybe_unused]] const Reg64& idx) {
         auto yuv = load_yuv(src_y, src_uv);
 
-        // Aliases
-        const auto& y = std::get<0>(yuv);
-        const auto& u = std::get<1>(yuv);
-        const auto& v = std::get<2>(yuv);
+        auto rgb = yuv_to_rgb(std::move(yuv), std::is_integral_v<T>);
 
-        yuv_to_rgb(y, u, v, colorFormat, std::is_integral_v<T>);
+        _if(colorFormat == 0)
+            ._then([&] {
+                store_interleaved3(dst, rgb.r, rgb.g, rgb.b);
+            })
+            ._else([&] {
+                store_interleaved3(dst, rgb.b, rgb.g, rgb.r);
+            });
 
-        store(dst, y);
-        dst += step;
-        store(dst, u);
-        dst += step;
-        store(dst, v);
-        dst += step;
+        dst += 3 * step;
     })
         ;
 
@@ -470,54 +394,47 @@ void JitConverter<T[N]>::generate() {
     width &= N - 1;
 
     _if(width != 0)._then([&] {
-        auto y = var<float[N]>();
-        auto uv = var<float[N]>();
+        auto y_raw = var<float[N]>(src_y, width);
+        auto uv = var<float[N]>(src_uv, width);
+        auto [u_raw, v_raw] = unpack_uv(uv);
 
-        load(y, src_y, width);
-        load(uv, src_uv, width);
+        yuv_vec<N> yuv{std::move(y_raw), std::move(u_raw), std::move(v_raw)};
+        auto rgb = yuv_to_rgb(std::move(yuv), std::is_integral_v<T>);
 
-        auto uv_pair = unpack_uv(uv);
-
-        // Aliases
-        const auto& u = std::get<0>(uv_pair);
-        const auto& v = std::get<1>(uv_pair);
-
-        yuv_to_rgb(y, u, v, colorFormat, std::is_integral_v<T>);
-
-        store_tail(dst, y, u, v, width);
+        _if(colorFormat == 0)
+            ._then([&] {
+                store_interleaved3(dst, rgb.r, rgb.g, rgb.b, width);
+            })
+            ._else([&] {
+                store_interleaved3(dst, rgb.b, rgb.g, rgb.r, width);
+            });
     });
 
     postamble();
 }
 
 template <typename T, size_t N>
-std::tuple<jit_kernel::variable<float[N]>, jit_kernel::variable<float[N]>, jit_kernel::variable<float[N]>>
+jit_uni_converter::yuv_vec<N>
 JitConverter<T[N]>::load_yuv(const variable<const T*>& src_y, const variable<const T*>& src_uv) {
-    auto y = var<float[N]>();
-    auto uv = var<float[N]>();
+    auto y = var<float[N]>(src_y);
+    auto uv = var<float[N]>(src_uv);
 
-    load(y, src_y);
-    load(uv, src_uv);
-
-    auto uv_pair = unpack_uv(uv);
+    auto [u, v] = unpack_uv(uv);
 
     src_y += N * sizeof(T);
     src_uv += N * sizeof(T);
 
-    return std::make_tuple(std::move(y), std::move(std::get<0>(uv_pair)), std::move(std::get<1>(uv_pair)));
+    return {std::move(y), std::move(u), std::move(v)};
 }
 
 template <typename T, size_t N>
 std::tuple<jit_kernel::variable<float[N]>, jit_kernel::variable<float[N]>> JitConverter<T[N]>::unpack_uv(
     const variable<float[N]>& uv) {
-    auto u = var<float[N]>();
-    auto v = var<float[N]>();
+    constexpr uint8_t even_mask = 0xA0;  // 0b10100000 → [0,0,2,2] per 128-bit lane
+    constexpr uint8_t odd_mask = 0xF5;   // 0b11110101 → [1,1,3,3] per 128-bit lane
 
-    const uint8_t even_mask = 0xA0;  // 0b10100000
-    const uint8_t odd_mask = 0xF5;   // 0b11110101
-
-    uni_vshufps(u, uv, uv, even_mask);  // u = uv[0,0,2,2,4,4,6,6]
-    uni_vshufps(v, uv, uv, odd_mask);   // v = uv[1,1,3,3,5,5,7,7]
+    auto u = uv.shuffle(even_mask);  // u = uv[0,0,2,2,4,4,6,6,...]
+    auto v = uv.shuffle(odd_mask);   // v = uv[1,1,3,3,5,5,7,7,...]
 
     return std::make_tuple(std::move(u), std::move(v));
 }
@@ -760,9 +677,9 @@ template <typename T, size_t N>
 class JitConverter<T[N]> : public jit_uni_converter {
 private:
     void generate() override;
-    std::tuple<variable<float[N]>, variable<float[N]>, variable<float[N]>> load_yuv(const variable<const T*>& src_y,
-                                                                                    const variable<const T*>& src_u,
-                                                                                    const variable<const T*>& src_v);
+    yuv_vec<N> load_yuv(const variable<const T*>& src_y,
+                        const variable<const T*>& src_u,
+                        const variable<const T*>& src_v);
     void unpack_uv(const variable<float[N]>& u, const variable<float[N]>& v);
 };
 
@@ -789,19 +706,17 @@ void JitConverter<T[N]>::generate() {
     foreach (0, width, [&]([[maybe_unused]] const Reg64& idx) {
         auto yuv = load_yuv(src_y, src_u, src_v);
 
-        // Aliases
-        const auto& y = std::get<0>(yuv);
-        const auto& u = std::get<1>(yuv);
-        const auto& v = std::get<2>(yuv);
+        auto rgb = yuv_to_rgb(std::move(yuv), std::is_integral_v<T>);
 
-        yuv_to_rgb(y, u, v, colorFormat, std::is_integral_v<T>);
+        _if(colorFormat == 0)
+            ._then([&] {
+                store_interleaved3(dst, rgb.r, rgb.g, rgb.b);
+            })
+            ._else([&] {
+                store_interleaved3(dst, rgb.b, rgb.g, rgb.r);
+            });
 
-        store(dst, y);
-        dst += step;
-        store(dst, u);
-        dst += step;
-        store(dst, v);
-        dst += step;
+        dst += 3 * step;
     })
         ;
 
@@ -809,38 +724,37 @@ void JitConverter<T[N]>::generate() {
     width &= N - 1;
 
     _if(width != 0)._then([&] {
-        auto y = var<float[N]>();
-        auto u = var<float[N]>();
-        auto v = var<float[N]>();
-
         auto uv_width = width >> 1;
 
-        load(y, src_y, width);
-        load(u, src_u, uv_width);
-        load(v, src_v, uv_width);
+        auto y_raw = var<float[N]>(src_y, width);
+        auto u_raw = var<float[N]>(src_u, uv_width);
+        auto v_raw = var<float[N]>(src_v, uv_width);
 
-        unpack_uv(u, v);
+        unpack_uv(u_raw, v_raw);
 
-        yuv_to_rgb(y, u, v, colorFormat, std::is_integral_v<T>);
+        yuv_vec<N> yuv{std::move(y_raw), std::move(u_raw), std::move(v_raw)};
+        auto rgb = yuv_to_rgb(std::move(yuv), std::is_integral_v<T>);
 
-        store_tail(dst, y, u, v, width);
+        _if(colorFormat == 0)
+            ._then([&] {
+                store_interleaved3(dst, rgb.r, rgb.g, rgb.b, width);
+            })
+            ._else([&] {
+                store_interleaved3(dst, rgb.b, rgb.g, rgb.r, width);
+            });
     });
 
     postamble();
 }
 
 template <typename T, size_t N>
-std::tuple<jit_kernel::variable<float[N]>, jit_kernel::variable<float[N]>, jit_kernel::variable<float[N]>>
+jit_uni_converter::yuv_vec<N>
 JitConverter<T[N]>::load_yuv(const variable<const T*>& src_y,
                              const variable<const T*>& src_u,
                              const variable<const T*>& src_v) {
-    auto y = var<float[N]>();
-    auto u = var<float[N]>();
-    auto v = var<float[N]>();
-
-    load(y, src_y);
-    load(u, src_u, N / 2);
-    load(v, src_v, N / 2);
+    auto y = var<float[N]>(src_y);
+    auto u = var<float[N]>(src_u, N / 2);
+    auto v = var<float[N]>(src_v, N / 2);
 
     unpack_uv(u, v);
 
@@ -848,7 +762,7 @@ JitConverter<T[N]>::load_yuv(const variable<const T*>& src_y,
     src_u += N * sizeof(T) / 2;
     src_v += N * sizeof(T) / 2;
 
-    return std::make_tuple(std::move(y), std::move(u), std::move(v));
+    return {std::move(y), std::move(u), std::move(v)};
 }
 
 template <typename T, size_t N>
