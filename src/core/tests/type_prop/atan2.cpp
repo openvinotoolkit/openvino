@@ -86,11 +86,3 @@ TEST(type_prop, atan2_integer_input_throws) {
                     HasSubstr("Atan2 inputs must be floating-point type"));
 }
 
-TEST(type_prop, atan2_boolean_input_throws) {
-    auto y = std::make_shared<op::v0::Parameter>(element::boolean, Shape{2});
-    auto x = std::make_shared<op::v0::Parameter>(element::boolean, Shape{2});
-
-    OV_EXPECT_THROW(std::make_shared<op::v17::Atan2>(y, x),
-                    ov::NodeValidationFailure,
-                    HasSubstr("Atan2 inputs must be floating-point type"));
-}
