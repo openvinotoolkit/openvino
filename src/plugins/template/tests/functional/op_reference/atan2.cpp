@@ -94,12 +94,12 @@ std::vector<Atan2Params> generateParams() {
                     std::vector<T>{-1.f, -1.f},
                     std::vector<T>{static_cast<T>(3 * pi / 4), static_cast<T>(pi)}),
         // Negative y
-        Atan2Params(PartialShape{2},
-                    PartialShape{2},
+        Atan2Params(PartialShape{3},
+                    PartialShape{3},
                     ET,
-                    std::vector<T>{-1.f, -1.f},
-                    std::vector<T>{1.f, -1.f},
-                    std::vector<T>{static_cast<T>(-pi / 4), static_cast<T>(-3 * pi / 4)}),
+                    std::vector<T>{-1.f, -1.f, 0.f},
+                    std::vector<T>{1.f, -1.f, 0.f},
+                    std::vector<T>{static_cast<T>(-pi / 4), static_cast<T>(-3 * pi / 4), 0.f}),
         // Broadcast: scalar x
         Atan2Params(PartialShape{3},
                     PartialShape{1},
