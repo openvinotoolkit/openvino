@@ -86,7 +86,7 @@ std::vector<Atan2Params> generateParams() {
                                    static_cast<T>(pi / 2),
                                    0.f,
                                    static_cast<T>(std::atan2(pi / 2, pi / 2))}),
-        // Quadrant II: y>0, x<0 → result near +π
+        // Quadrant II: y>0, x<0 
         Atan2Params(PartialShape{2},
                     PartialShape{2},
                     ET,
