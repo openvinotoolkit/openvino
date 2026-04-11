@@ -56,6 +56,7 @@ struct ActivationPostOp {
         ceiling,
         erf,
         soft_sign,
+        erfinv,
         log,
     };
 
