@@ -25,18 +25,25 @@ def patch_gptq():
     orig_cuda_is_available = torch.cuda.is_available
     orig_cuda_is_bf16_supported = torch.cuda.is_bf16_supported
     orig_cuda_get_device_capability = torch.cuda.get_device_capability
+    orig_cuda_device_count = torch.cuda.device_count
     orig_post_init_model = None
     orig_gemm_forward = None
     torch.set_default_dtype(torch.float32)
-    torch.cuda.is_available = lambda: True
-    torch.cuda.is_bf16_supported = lambda: False
-    torch.cuda.get_device_capability = lambda n: (9, 1)
+
+    # Import GPTQ-related modules BEFORE faking CUDA availability.
+    # gptqmodel performs CUDA device init at import time; if it sees
+    # cuda.is_available()=True while there is no real GPU, it crashes
+    # trying to create CUDA streams.
+    try:
+        import gptqmodel  # noqa: F401
+    except ImportError:
+        pass
+    try:
+        import auto_gptq  # noqa: F401
+    except ImportError:
+        pass
 
     try:
-        # Patch at the transformers level to avoid GPU-only post_init_model
-        # from optimum.gptq.  transformers' GptqHfQuantizer delegates to
-        # optimum_quantizer.post_init_model() which calls gptq_post_init
-        # (requires GPU).  Replace with a CPU-safe stub.
         from transformers.quantizers.quantizer_gptq import GptqHfQuantizer
 
         orig_post_init_model = GptqHfQuantizer._process_model_after_weight_loading
@@ -48,12 +55,38 @@ def patch_gptq():
                 model.quantize_config = StoreAttr()
                 oq = self.optimum_quantizer
                 model.quantize_config.desc_act = oq.desc_act
+                # gptqmodel's HFKernelLinear needs wf_unsqueeze_* buffers
+                # (registered by PackableQuantLinear.post_init) but we must
+                # NOT call optimize() which repacks qweight/qzeros into a
+                # layout incompatible with OV's GPTQ decompression pattern.
+                # Instead: register buffers only and force "train" mode so
+                # the forward uses dequantize_weight (no compiled kernel).
+                #
+                # Also convert GPTQ v1→v2 qzeros format: auto_gptq stores
+                # qzeros as (zero_point - 1); gptqmodel's dequantize_weight
+                # expects actual zero_point values (v2). For 4-bit int32
+                # packed format, add 0x11111111 (+1 per nibble).
+                try:
+                    from gptqmodel.nn_modules.qlinear import PackableQuantLinear
+                    for _, submodule in model.named_modules():
+                        if isinstance(submodule, PackableQuantLinear):
+                            # v1→v2 qzeros conversion (4-bit int32 only)
+                            if submodule.bits == 4 and submodule.qzeros.dtype == torch.int32:
+                                submodule.qzeros.data += 0x11111111
+                            PackableQuantLinear.post_init(submodule)
+                            submodule.linear_mode = "train"
+                except ImportError:
+                    pass
                 if oq.desc_act and not oq.disable_exllama and oq.max_input_length is not None:
                     try:
-                        from auto_gptq import exllama_set_max_input_length
+                        from gptqmodel import exllama_set_max_input_length
                         model = exllama_set_max_input_length(model, oq.max_input_length)
                     except ImportError:
-                        pass
+                        try:
+                            from auto_gptq import exllama_set_max_input_length
+                            model = exllama_set_max_input_length(model, oq.max_input_length)
+                        except ImportError:
+                            pass
             return model
 
         GptqHfQuantizer._process_model_after_weight_loading = _process_model_after_weight_loading_cpu
@@ -61,6 +94,11 @@ def patch_gptq():
         pass
 
     try:
+        # Stub PytorchGELUTanh removed in newer transformers but needed by autoawq
+        import transformers.activations as _act
+        if not hasattr(_act, 'PytorchGELUTanh'):
+            _act.PytorchGELUTanh = _act.GELUActivation
+
         # patch GEMM module to work without CUDA GPU
         from awq.modules.linear.gemm import WQLinearMMFunction
         from awq.utils.packing_utils import dequantize_gemm
@@ -82,7 +120,7 @@ def patch_gptq():
             x = x.to(torch.float16)
 
             out = dequantize_gemm(qweight, qzeros, scales, w_bit, group_size)
-            out = torch.matmul(x, out)
+            out = torch.matmul(x, out.to(x.dtype))
 
             out = out + bias if bias is not None else out
             out = out.reshape(out_shape)
@@ -95,11 +133,19 @@ def patch_gptq():
         WQLinearMMFunction.forward = new_forward
     except ImportError:
         pass
-    return (orig_cuda_is_available, orig_cuda_is_bf16_supported, orig_cuda_get_device_capability), orig_post_init_model, orig_gemm_forward
+
+    # Fake CUDA availability AFTER all imports are done, so gptqmodel's
+    # module-level CUDA init has already completed safely on CPU.
+    torch.cuda.is_available = lambda: True
+    torch.cuda.is_bf16_supported = lambda: False
+    torch.cuda.get_device_capability = lambda n: (9, 1)
+    torch.cuda.device_count = lambda: 1
+
+    return (orig_cuda_is_available, orig_cuda_is_bf16_supported, orig_cuda_get_device_capability, orig_cuda_device_count), orig_post_init_model, orig_gemm_forward
 
 
 def unpatch_gptq(orig_cuda_check, orig_post_init_model, orig_gemm_forward):
-    torch.cuda.is_available, torch.cuda.is_bf16_supported, torch.cuda.get_device_capability = orig_cuda_check
+    torch.cuda.is_available, torch.cuda.is_bf16_supported, torch.cuda.get_device_capability, torch.cuda.device_count = orig_cuda_check
     try:
         from transformers.quantizers.quantizer_gptq import GptqHfQuantizer
         GptqHfQuantizer._process_model_after_weight_loading = orig_post_init_model
@@ -110,6 +156,164 @@ def unpatch_gptq(orig_cuda_check, orig_post_init_model, orig_gemm_forward):
         WQLinearMMFunction.forward = orig_gemm_forward
     except ImportError:
         pass
+
+
+def _patch_vmap_for_jit():
+    """Patch masking for JIT trace compatibility using optimum-intel's approach.
+
+    Transformers >=4.53 uses torch.vmap in masking_utils which is incompatible
+    with torch.jit.trace. Registers vmap-free mask functions from
+    transformers.integrations.executorch into ALL_MASK_ATTENTION_FUNCTIONS,
+    same as optimum-intel's OVDecoderModelPatcher.
+    """
+    saved = {}
+    try:
+        from transformers.masking_utils import ALL_MASK_ATTENTION_FUNCTIONS, sdpa_mask, eager_mask
+        from transformers.integrations.executorch import sdpa_mask_without_vmap
+
+        def eager_mask_without_vmap(*args, **kwargs):
+            kwargs.pop("allow_is_causal_skip", None)
+            dtype = kwargs.get("dtype", torch.float32)
+            mask = sdpa_mask_without_vmap(*args, allow_is_causal_skip=False, **kwargs)
+            mask = torch.where(
+                mask,
+                torch.tensor(0.0, device=mask.device, dtype=dtype),
+                torch.tensor(torch.finfo(torch.float16).min, device=mask.device, dtype=dtype),
+            )
+            return mask
+
+        saved["sdpa"] = sdpa_mask
+        saved["eager"] = eager_mask
+        ALL_MASK_ATTENTION_FUNCTIONS.register("eager", eager_mask_without_vmap)
+        ALL_MASK_ATTENTION_FUNCTIONS.register("sdpa", eager_mask_without_vmap)
+    except (ImportError, AttributeError):
+        pass
+    return saved
+
+
+def _unpatch_vmap(saved):
+    if saved:
+        try:
+            from transformers.masking_utils import ALL_MASK_ATTENTION_FUNCTIONS
+            for name, func in saved.items():
+                ALL_MASK_ATTENTION_FUNCTIONS.register(name, func)
+        except ImportError:
+            pass
+
+
+def _patch_dynamic_layer_for_jit():
+    """Patch DynamicLayer.lazy_initialization to create properly-shaped empty tensors.
+
+    The default implementation creates 1D empty tensors (shape [0]), which causes
+    aten::cat failures when traced with 4D key/value states. This patch creates 4D
+    empty tensors with 0 sequence length instead.
+    """
+    orig = None
+    try:
+        from transformers.cache_utils import DynamicLayer
+
+        orig = DynamicLayer.lazy_initialization
+
+        def _lazy_init_4d(self, key_states):
+            self.dtype, self.device = key_states.dtype, key_states.device
+            shape = list(key_states.shape)
+            shape[-2] = 0
+            self.keys = torch.zeros(shape, dtype=self.dtype, device=self.device)
+            self.values = torch.zeros(shape, dtype=self.dtype, device=self.device)
+            self.is_initialized = True
+
+        DynamicLayer.lazy_initialization = _lazy_init_4d
+    except (ImportError, AttributeError):
+        pass
+    return orig
+
+
+def _unpatch_dynamic_layer(orig):
+    if orig is not None:
+        try:
+            from transformers.cache_utils import DynamicLayer
+            DynamicLayer.lazy_initialization = orig
+        except ImportError:
+            pass
+
+
+def _needs_dynamic_cache_wrapper():
+    try:
+        from transformers import __version__
+        major, minor = [int(x) for x in __version__.split(".")[:2]]
+        return (major, minor) >= (4, 48)
+    except (ImportError, ValueError):
+        return False
+
+
+class DynamicCacheModelWrapper(torch.nn.Module):
+    """Wraps a causal LM to convert tuple past_key_values <-> DynamicCache.
+
+    Newer transformers (>=4.48) use DynamicCache by default for many models.
+    This wrapper ensures the model accepts tuple PKV (for OV tracing
+    compatibility) and returns tuple PKV.
+    """
+
+    def __init__(self, model, example_keys=None):
+        super().__init__()
+        self._wrapped = model
+
+        # Build an ordered list of parameter names matching the example keys,
+        # preserving the original forward signature order.
+        orig_params = list(inspect.signature(model.forward).parameters)
+        if example_keys is not None:
+            ordered_keys = [k for k in orig_params if k in example_keys]
+        else:
+            ordered_keys = orig_params
+
+        # Create a forward function that converts tuple PKV <-> DynamicCache
+        def _forward(*args, **kwargs):
+            from transformers.cache_utils import DynamicCache
+
+            # When called with positional args (during JIT tracing), convert
+            # to kwargs using the ordered parameter names so the underlying
+            # model receives correctly-named arguments regardless of
+            # intermediate parameters (like cache_position) in its signature.
+            if args and not kwargs:
+                for name, arg in zip(ordered_keys, args):
+                    kwargs[name] = arg
+                args = ()
+
+            # Convert tuple PKV to DynamicCache
+            if "past_key_values" in kwargs and isinstance(kwargs["past_key_values"], (tuple, list)):
+                kwargs["past_key_values"] = DynamicCache.from_legacy_cache(kwargs["past_key_values"])
+
+            outputs = model(**kwargs)
+
+            if isinstance(outputs, (tuple, list)):
+                outputs = type(outputs)(
+                    v.to_legacy_cache() if isinstance(v, DynamicCache) else v
+                    for v in outputs
+                )
+            else:
+                # ModelOutput (dict-like): convert DynamicCache PKV
+                if hasattr(outputs, 'past_key_values'):
+                    pkv = outputs.past_key_values
+                    if isinstance(pkv, DynamicCache):
+                        outputs['past_key_values'] = pkv.to_legacy_cache()
+                # Convert ModelOutput to tuple for JIT trace compatibility
+                outputs = tuple(v for v in outputs.values() if v is not None)
+
+            return outputs
+
+        # Set clean __signature__ so OV's process_dict_inputs matches inputs
+        # without needing a wrapper (avoids Cache type annotation exec failure).
+        sig_params = [
+            inspect.Parameter(k, inspect.Parameter.POSITIONAL_OR_KEYWORD, default=None)
+            for k in ordered_keys
+        ]
+        _forward.__signature__ = inspect.Signature(parameters=sig_params)
+        _forward.__wrapped__ = model.forward
+        self.forward = _forward
+
+    @property
+    def config(self):
+        return self._wrapped.config
 
 
 def to_numpy(t):
@@ -150,53 +354,57 @@ class TestLLMModel(TestTorchConvertModel):
         from huggingface_hub import snapshot_download
         from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
 
-        model = None
-        example = None
-        model_cached = snapshot_download(name)  # required to avoid HF rate limits
+        model_cached = snapshot_download(name)
         try:
-            config = AutoConfig.from_pretrained(model_cached, trust_remote_code=True)
+            config = AutoConfig.from_pretrained(model_cached)
         except Exception:
             config = {}
-        model_kwargs = {"torchscript": True, "trust_remote_code": True}
+        model_kwargs = {"torchscript": True}
         is_quant = is_quantized_model(config)
-        is_gpt2 = name == "openai-community/gpt2"
 
         if is_quant:
             self.cuda_available, self.gptq_postinit, self.orig_gemm_forward = patch_gptq()
-            model_kwargs["torch_dtype"] = "auto"
             model_kwargs["torch_dtype"] = torch.float32
             self.ov_config = {"DYNAMIC_QUANTIZATION_GROUP_SIZE": "0"}
-        elif is_gpt2:
-            model_kwargs["torch_dtype"] = torch.float16
         else:
             model_kwargs["torch_dtype"] = "auto"
-        model_cached = snapshot_download(name)  # required to avoid HF rate limits
-        t = AutoTokenizer.from_pretrained(model_cached, trust_remote_code=True)
+
+        t = AutoTokenizer.from_pretrained(model_cached)
         self.model = AutoModelForCausalLM.from_pretrained(model_cached, **model_kwargs)
         if is_quant:
             model = self.model
         else:
-            assert self.model.config.torch_dtype in [
-                torch.float16, torch.bfloat16] or is_gpt2
             model = copy.deepcopy(self.model).float()
 
+        # Build example inputs based on what the model's forward accepts
+        fwd_params = set(inspect.signature(self.model.forward).parameters)
         example = t("Some input text to verify that model works.",
                     return_tensors='pt').__dict__['data']
-        atype = type.replace("_gptq", "")
-        if atype not in ["gptj", "starcoder2", "mpt"]:
+        if "past_key_values" in fwd_params:
             pkv, am = self.get_pkv(model, t)
             example["past_key_values"] = pkv
             example["attention_mask"] = torch.cat(
                 [example["attention_mask"], am], -1)
-        if atype not in ["opt", "falcon", "mbart", "mpt"]:
+        if "position_ids" in fwd_params:
             ids = torch.cumsum(example["attention_mask"] != 0, dim=1) - 1
-            example["position_ids"] = ids[:, -
-                                          example["input_ids"].shape[1]:]
+            example["position_ids"] = ids[:, -example["input_ids"].shape[1]:]
         self.example = example
+
+        # Wrap models for DynamicCache <-> tuple conversion
+        if _needs_dynamic_cache_wrapper():
+            example_keys = set(example.keys())
+            if is_quant:
+                self.model = DynamicCacheModelWrapper(self.model, example_keys)
+                model = self.model
+            else:
+                self.model = DynamicCacheModelWrapper(self.model, example_keys)
+                model = DynamicCacheModelWrapper(model, example_keys)
+
         return model
 
     def get_inputs_info(self, model_obj):
-        return list(inspect.signature(getattr(model_obj, "forward", model_obj.__call__)).parameters)
+        target = model_obj._wrapped if isinstance(model_obj, DynamicCacheModelWrapper) else model_obj
+        return list(inspect.signature(getattr(target, "forward", target.__call__)).parameters)
 
     def prepare_inputs(self, inputs_info):
         inputs = getattr(self, "inputs", self.example)
@@ -220,13 +428,24 @@ class TestLLMModel(TestTorchConvertModel):
 
     def convert_model_impl(self, model_obj):
         is_patched = False
-        if getattr(self.model.config, "torch_dtype", None) in [torch.float16, torch.bfloat16]:
+        # Detect actual model dtype from parameters (config.torch_dtype can be None)
+        model_dtype = next(
+            (p.dtype for p in self.model.parameters()), torch.float32)
+        if model_dtype in [torch.float16, torch.bfloat16]:
             patch(self.model)
             is_patched = True
         # initialize model after patching
         self.model(**self.example)
-        with torch.no_grad():
-            ovm = super().convert_model_impl(self.model)
+        # Patch vmap for JIT trace compatibility (transformers >=4.53)
+        orig_vmap = _patch_vmap_for_jit()
+        # Patch DynamicLayer for JIT trace (transformers >=4.57)
+        orig_cache = _patch_dynamic_layer_for_jit()
+        try:
+            with torch.no_grad():
+                ovm = super().convert_model_impl(self.model)
+        finally:
+            _unpatch_vmap(orig_vmap)
+            _unpatch_dynamic_layer(orig_cache)
         if is_patched:
             unpatch(self.model, "_openvino_module_extension_patch_orig_forward")
         #    model_obj.float()
@@ -245,7 +464,9 @@ class TestLLMModel(TestTorchConvertModel):
                             return_tensors='pt').__dict__['data']
         with torch.no_grad():
             pkv = model(**for_pkv)[1]
-
+        # Convert DynamicCache to legacy tuple format if needed
+        if hasattr(pkv, 'to_legacy_cache'):
+            pkv = pkv.to_legacy_cache()
         return pkv, for_pkv["attention_mask"]
 
     def get_supported_precommit_models():
@@ -267,8 +488,8 @@ class TestLLMModel(TestTorchConvertModel):
         self.run(model_name=name, model_link=type, ie_device=ie_device)
 
     @pytest.mark.parametrize("type,name", [
-        ("gpt_neox", "databricks/dolly-v2-3b"),
-        ("gpt_neox_japanese", "rinna/japanese-gpt-neox-3.6b"),
+        ("gpt_neox", "EleutherAI/pythia-1.4b"),
+        ("gpt_neox_japanese", "abeja/gpt-neox-japanese-2.7b"),
         ("opt", "facebook/opt-1.3b"),
         ("phi", "microsoft/phi-2"),
         ("phi3", "microsoft/Phi-3-mini-4k-instruct"),

@@ -1,12 +1,16 @@
 # Extra dependencies for test_llm.py (LLM quantized models)
 # These are NOT needed by test_hf_transformers.py
 
+# Override transformers version for LLM tests (newer DynamicCache/masking support)
+# hf_transformers.txt pins 4.47.1 for non-LLM tests; LLM tests need >= 4.57
+transformers==4.57.6
+huggingface-hub>=0.34.0
+
 # quantized model deps
-autoawq==0.2.7; platform_system == "Linux" and platform_machine == "x86_64"
+autoawq==0.2.9; platform_system == "Linux" and platform_machine == "x86_64"
 triton==3.5.1; platform_system == "Linux" and platform_machine == "x86_64"
-auto-gptq==0.7.1; platform_system == "Linux" and platform_machine == "x86_64" and python_version < "3.12"
+gptqmodel==5.7.0; platform_system == "Linux" and platform_machine == "x86_64" and python_version < "3.12"
 peft==0.17.1; platform_system == "Linux" and platform_machine == "x86_64" and python_version < "3.12"
 
 # optimum (required by transformers' GptqHfQuantizer for GPTQ model loading)
-# Pinned to 1.24.0 for compatibility with auto-gptq 0.7.1
 optimum==1.24.0; python_version < "3.12"
