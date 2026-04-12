@@ -72,12 +72,16 @@ def torch_tensor_to_ov_const(torch_t: torch.Tensor, shared_memory=True):
     torch_t = torch_t.contiguous()
     if dtype == torch.bfloat16:
         # reinterpret bfloat16 data as float16 to allow conversion to numpy
+        if torch_t.dim() == 0:
+            torch_t = torch_t.reshape(1)
         torch_t = torch_t.view(torch.float16)
         narr = torch_t.numpy(force=True)
         tensor = Tensor(narr, torch_t.shape, OVType.bf16)
         ov_const = op.Constant(tensor, shared_memory=shared_memory)
     elif dtype in F8_DTYPE_MAP:
         # reinterpret f8 data as u8 to allow conversion to numpy
+        if torch_t.dim() == 0:
+            torch_t = torch_t.reshape(1)
         torch_t = torch_t.view(torch.uint8)
         narr = torch_t.numpy(force=True)
         tensor = Tensor(narr, torch_t.shape, F8_DTYPE_MAP[dtype])

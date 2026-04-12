@@ -31,3 +31,32 @@ class TestScalarTensor(PytorchLayerTest):
         self._test(*self.create_model(), ie_device, precision, ir_version, use_convert_model=True)
 
 
+class TestZeroDimBF16Buffer:
+    """Regression test: 0-dim bfloat16/float8 buffers must not crash
+    torch_tensor_to_ov_const during model conversion."""
+
+    @staticmethod
+    def _build_params():
+        params = [torch.bfloat16]
+        f8_e4m3 = getattr(torch, "float8_e4m3fn", None)
+        if f8_e4m3 is not None:
+            params.append(f8_e4m3)
+        f8_e5m2 = getattr(torch, "float8_e5m2", None)
+        if f8_e5m2 is not None:
+            params.append(f8_e5m2)
+        return params
+
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("buf_dtype", _build_params.__func__())
+    def test_zero_dim_buffer_conversion(self, buf_dtype):
+        from openvino.frontend.pytorch.utils import torch_tensor_to_ov_const
+
+        if buf_dtype == torch.bfloat16:
+            t = torch.tensor(8.0, dtype=torch.bfloat16)
+        else:
+            t = torch.zeros(1, dtype=buf_dtype).reshape(())
+
+        const = torch_tensor_to_ov_const(t, shared_memory=False)
+        assert const.get_output_shape(0) == [1]
+
+
