@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <sstream>
 
 #include "base_reference_test.hpp"
 
