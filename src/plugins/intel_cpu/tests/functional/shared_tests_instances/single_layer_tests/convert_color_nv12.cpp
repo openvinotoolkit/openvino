@@ -11,7 +11,8 @@ namespace {
 using ov::test::ConvertColorNV12LayerTest;
 
 const std::vector<ov::Shape> in_shapes = {
-    {1, 10, 10, 1}
+    {1, 10, 10, 1},
+    {1, 10, 32, 1}
 };
 
 auto generate_input_static_shapes = [] (const std::vector<ov::Shape>& original_shapes, bool single_plane) {

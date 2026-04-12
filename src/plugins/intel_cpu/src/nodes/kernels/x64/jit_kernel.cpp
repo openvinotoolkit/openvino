@@ -528,9 +528,10 @@ void jit_kernel::uni_vblendps(const Xbyak::Zmm& dst,
 // ── IR mode ────────────────────────────────────────────────────────────
 
 void jit_kernel::ir_use(std::vector<jit_kernel_ir::value_id> reads,
-                        jit_kernel_ir::EmitFn emit) {
+                        jit_kernel_ir::EmitFn emit,
+                        const char* name) {
     if (_ir_mode) {
-        _ir->use(std::move(reads), std::move(emit));
+        _ir->use(std::move(reads), std::move(emit), name);
         return;
     }
     // Eager: call the emit closure immediately.

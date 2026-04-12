@@ -130,6 +130,28 @@ bool find_next_use(std::list<Op>& ops, value_id vid, std::uint32_t after,
     return false;
 }
 
+// Recursively rewrite all reads of `old_id` → `new_id` in an op list,
+// including nested REGION bodies. Returns the highest op index where
+// a rewrite occurred, or `last_read` unchanged if no rewrites happen.
+void rewrite_reads_recursive(std::list<Op>& ops, value_id old_id,
+                             value_id new_id, std::uint32_t& scan_idx,
+                             std::uint32_t& last_read) {
+    for (auto& op : ops) {
+        if (op.body) {
+            rewrite_reads_recursive(op.body->ops(), old_id, new_id,
+                                    scan_idx, last_read);
+        } else {
+            for (auto& read : op.reads) {
+                if (read == old_id) {
+                    read = new_id;
+                    last_read = scan_idx;
+                }
+            }
+            ++scan_idx;
+        }
+    }
+}
+
 }  // namespace
 
 Assignment linear_scan(IR& ir,
@@ -191,17 +213,18 @@ Assignment linear_scan(IR& ir,
 
     for (std::size_t i = 0; i < order.size(); ++i) {
         auto iv_idx = order[i];
-        auto& iv = intervals[iv_idx];
-        expire(iv.start);
+        // Note: do NOT hold a reference to intervals[iv_idx] across
+        // the remat block — push_back can reallocate the vector.
+        expire(intervals[iv_idx].start);
 
         // Trivial coalescing
-        if (iv.copy_of != invalid_value) {
-            auto src_it = result.reg.find(iv.copy_of);
+        if (intervals[iv_idx].copy_of != invalid_value) {
+            auto src_it = result.reg.find(intervals[iv_idx].copy_of);
             if (src_it != result.reg.end()) {
                 auto fl_it = std::find(free_list.begin(), free_list.end(), src_it->second.idx);
                 if (fl_it != free_list.end()) {
                     free_list.erase(fl_it);
-                    result.reg.emplace(iv.id, src_it->second);
+                    result.reg.emplace(intervals[iv_idx].id, src_it->second);
                     insert_active(iv_idx, src_it->second);
                     continue;
                 }
@@ -210,87 +233,126 @@ Assignment linear_scan(IR& ir,
 
         // Rematerialization: if pool exhausted, evict a remat-able victim
         if (free_list.empty()) {
-            // Find active entry with furthest end that is rematerializable
-            std::size_t victim_pos = active.size();  // invalid sentinel
+            // Collect rematerializable candidates sorted by furthest end
+            std::vector<std::size_t> candidates;
             for (std::size_t a = 0; a < active.size(); ++a) {
                 auto vid = intervals[active[a].iv_idx].id;
                 auto def_it = def_map.find(vid);
                 if (def_it == def_map.end()) continue;
                 if (!def_it->second->reads.empty()) continue;
-                if (victim_pos == active.size() ||
-                    intervals[active[a].iv_idx].end > intervals[active[victim_pos].iv_idx].end) {
-                    victim_pos = a;
-                }
+                candidates.push_back(a);
             }
+            std::sort(candidates.begin(), candidates.end(),
+                      [&](std::size_t a, std::size_t b) {
+                          return intervals[active[a].iv_idx].end > intervals[active[b].iv_idx].end;
+                      });
 
-            if (victim_pos < active.size()) {
+            bool evicted = false;
+            for (auto victim_pos : candidates) {
                 auto& victim = active[victim_pos];
                 auto victim_id = intervals[victim.iv_idx].id;
-                auto victim_reg = victim.reg;
-                auto victim_original_end = intervals[victim.iv_idx].end;
                 auto* victim_def = def_map[victim_id];
 
-                // Truncate victim's interval at the eviction point
-                intervals[victim.iv_idx].end = iv.start;
-
-                // Find victim's next use after eviction
+                // Find victim's next use after eviction point.
+                // If no forward use, retry from the beginning — the value
+                // may be used earlier in a loop body that wraps around.
                 UseLocation use_loc{};
                 std::uint32_t search_idx = 0;
-                find_next_use(ir.ops(), victim_id, iv.start, search_idx, use_loc);
+                find_next_use(ir.ops(), victim_id, intervals[iv_idx].start, search_idx, use_loc);
 
-                if (use_loc.parent_list) {
-                    // Clone: insert a remat op before the use site
-                    auto new_id = static_cast<value_id>(intervals.size());
-                    ir.set_value_count(new_id + 1);
+                if (!use_loc.parent_list) {
+                    search_idx = 0;
+                    find_next_use(ir.ops(), victim_id, 0, search_idx, use_loc);
+                }
 
-                    Op remat_op;
-                    remat_op.def = new_id;
-                    remat_op.emit = victim_def->emit;
+                if (!use_loc.parent_list) {
+                    // No use found at all — value is dead, skip.
+                    continue;
+                }
 
-                    use_loc.parent_list->insert(use_loc.it, std::move(remat_op));
+                auto victim_reg = victim.reg;
 
-                    // Rewrite reads: victim_id → new_id from use_loc onward
+                // Truncate victim's interval at the eviction point
+                intervals[victim.iv_idx].end = intervals[iv_idx].start;
+
+                // Clone: insert a remat op before the use site
+                auto new_id = static_cast<value_id>(intervals.size());
+                ir.set_value_count(new_id + 1);
+
+                Op remat_op;
+                remat_op.def = new_id;
+                remat_op.emit = victim_def->emit;
+                remat_op.name = "remat";
+
+                use_loc.parent_list->insert(use_loc.it, std::move(remat_op));
+
+                // Rewrite reads: victim_id → new_id from use_loc onward,
+                // including inside nested REGION bodies (if/else branches).
+                // Track the last read index to compute the clone's actual end.
+                // The remat op was inserted before use_loc.it, so use_loc.it
+                // is now at index use_loc.index + 1.
+                std::uint32_t clone_last_read = use_loc.index;
+                {
+                    std::uint32_t scan_idx = use_loc.index + 1;
                     for (auto it = use_loc.it; it != use_loc.parent_list->end(); ++it) {
-                        for (auto& read : it->reads) {
-                            if (read == victim_id) read = new_id;
+                        if (it->body) {
+                            rewrite_reads_recursive(it->body->ops(), victim_id,
+                                                    new_id, scan_idx,
+                                                    clone_last_read);
+                        } else {
+                            for (auto& read : it->reads) {
+                                if (read == victim_id) {
+                                    read = new_id;
+                                    clone_last_read = scan_idx;
+                                }
+                            }
+                            ++scan_idx;
                         }
                     }
-
-                    // Create interval for the clone
-                    Interval remat_iv;
-                    remat_iv.id = new_id;
-                    remat_iv.start = use_loc.index;
-                    remat_iv.end = victim_original_end;
-                    intervals.push_back(remat_iv);
-                    auto new_iv_idx = intervals.size() - 1;
-
-                    // Insert into sorted order for later processing
-                    auto insert_pos = std::upper_bound(
-                        order.begin() + static_cast<long>(i) + 1, order.end(),
-                        new_iv_idx,
-                        [&](std::size_t a, std::size_t b) {
-                            return intervals[a].start < intervals[b].start ||
-                                   (intervals[a].start == intervals[b].start &&
-                                    intervals[a].id < intervals[b].id);
-                        });
-                    order.insert(insert_pos, new_iv_idx);
                 }
+
+                // Create interval for the clone — use actual last read,
+                // not the original's end. This keeps the clone short-lived
+                // (especially inside loops where the original was extended).
+                Interval remat_iv;
+                remat_iv.id = new_id;
+                remat_iv.start = use_loc.index;
+                remat_iv.end = clone_last_read;
+                intervals.push_back(remat_iv);
+                auto new_iv_idx = intervals.size() - 1;
+
+                // Insert into sorted order for later processing
+                auto insert_pos = std::upper_bound(
+                    order.begin() + static_cast<long>(i) + 1, order.end(),
+                    new_iv_idx,
+                    [&](std::size_t a, std::size_t b) {
+                        return intervals[a].start < intervals[b].start ||
+                               (intervals[a].start == intervals[b].start &&
+                                intervals[a].id < intervals[b].id);
+                    });
+                order.insert(insert_pos, new_iv_idx);
 
                 // Remove victim from active, free its register
                 active.erase(active.begin() + static_cast<long>(victim_pos));
                 free_list.push_back(victim_reg.idx);
-            } else {
+                evicted = true;
+                break;
+            }
+
+            if (!evicted) {
                 throw allocation_failure(
                     "jit_kernel_ir::linear_scan: pool of " + std::to_string(pool_size) +
-                    " registers exhausted at op index " + std::to_string(iv.start) +
-                    " (value id " + std::to_string(iv.id) +
+                    " registers exhausted at op index " + std::to_string(intervals[iv_idx].start) +
+                    " (value id " + std::to_string(intervals[iv_idx].id) +
                     "); no rematerializable victim found");
             }
         }
 
         PhysReg reg{free_list.front()};
         free_list.pop_front();
-        result.reg.emplace(iv.id, reg);
+        // Re-fetch from intervals[] — remat may have push_back'd,
+        // invalidating the earlier `iv` reference.
+        result.reg.emplace(intervals[iv_idx].id, reg);
         insert_active(iv_idx, reg);
 
         if (active.size() > result.peak_live) {
@@ -320,7 +382,8 @@ void dump_ops_impl(std::ostream& os, const std::list<Op>& ops, std::uint32_t& i,
             } else {
                 os << "       ";
             }
-            os << (op.is_copy ? "copy" : "op") << "(";
+            const char* tag = op.is_copy ? "copy" : (op.name[0] ? op.name : "op");
+            os << tag << "(";
             for (std::size_t r = 0; r < op.reads.size(); ++r) {
                 if (r != 0) os << ", ";
                 os << "%" << op.reads[r];

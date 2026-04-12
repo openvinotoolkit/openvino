@@ -377,9 +377,13 @@ void JitConverter<T[N]>::generate() {
         // ── IR mode: register allocation across the entire loop ─────────
         begin_ir();
 
-        // Broadcast BT.601 coefficients — loop-invariant
+        // Broadcast BT.601 coefficients — loop-invariant.
+        // Use _consts.reg() directly to avoid creating a temporary GPR
+        // variable via operator+ — the temporary's register would be
+        // freed before the IR emit closure fires at lowering time.
         auto bc = [&](int slot) {
-            return ir_broadcast<N>(ptr[_consts + slot * sizeof(float)]);
+            return ir_broadcast<N>(
+                address_frame(sizeof(float))[_consts.reg() + slot * sizeof(float)]);
         };
 
         auto y_off    = bc(0);   // 16
@@ -395,7 +399,7 @@ void JitConverter<T[N]>::generate() {
         auto clamp_lo = ir_def<N>({}, [this](const jit_kernel_ir::EmitContext& ctx) {
             using reg_type = typename reg_traits<float[N]>::type;
             uni_vxorps(reg_type(ctx.def->idx), reg_type(ctx.def->idx), reg_type(ctx.def->idx));
-        });
+        }, "vxorps");
 
         auto src_y_idx  = static_cast<std::uint32_t>(src_y.reg().getIdx());
         auto src_uv_idx = static_cast<std::uint32_t>(src_uv.reg().getIdx());
@@ -463,29 +467,27 @@ void JitConverter<T[N]>::generate() {
             ;
     }
 
-    // @todo claude: tail handling not yet ported to IR mode.
-    // For f32 IR path, tail is skipped — width must be a multiple of N.
-    if constexpr (!std::is_same_v<T, float>) {
-        mov(width, argPtr(&Params::width));
-        width &= N - 1;
+    // Tail: handle remaining width % N elements (eager mode for both
+    // f32 and u8 — IR mode was ended above for the f32 bulk loop).
+    mov(width, argPtr(&Params::width));
+    width &= N - 1;
 
-        _if(width != 0)._then([&] {
-            auto y_raw = var<float[N]>(src_y, width);
-            auto uv = var<float[N]>(src_uv, width);
-            auto [u_raw, v_raw] = unpack_uv(uv);
+    _if(width != 0)._then([&] {
+        auto y_raw = var<float[N]>(src_y, width);
+        auto uv = var<float[N]>(src_uv, width);
+        auto [u_raw, v_raw] = unpack_uv(uv);
 
-            yuv_vec<N> yuv{std::move(y_raw), std::move(u_raw), std::move(v_raw)};
-            auto rgb = yuv_to_rgb(std::move(yuv), std::is_integral_v<T>);
+        yuv_vec<N> yuv{std::move(y_raw), std::move(u_raw), std::move(v_raw)};
+        auto rgb = yuv_to_rgb(std::move(yuv), std::is_integral_v<T>);
 
-            _if(colorFormat == 0)
-                ._then([&] {
-                    store_interleaved3(dst, rgb.r, rgb.g, rgb.b, width);
-                })
-                ._else([&] {
-                    store_interleaved3(dst, rgb.b, rgb.g, rgb.r, width);
-                });
-        });
-    }
+        _if(colorFormat == 0)
+            ._then([&] {
+                store_interleaved3(dst, rgb.r, rgb.g, rgb.b, width);
+            })
+            ._else([&] {
+                store_interleaved3(dst, rgb.b, rgb.g, rgb.r, width);
+            });
+    });
 
     postamble();
 }

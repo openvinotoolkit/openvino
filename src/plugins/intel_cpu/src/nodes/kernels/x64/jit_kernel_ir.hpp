@@ -69,6 +69,7 @@ struct Op {
     bool is_copy = false;                // trivial coalescing hint (unused in Slice 1)
     std::unique_ptr<IR> body;            // non-null = region op (loop, branch)
     bool is_loop = false;                // true = extend intervals across body (repeats)
+    const char* name = "";               // debug tag for dump (not used by allocator)
 };
 
 // Builder / container for the recorded op stream.
@@ -77,22 +78,22 @@ struct Op {
 class IR {
 public:
     // Record an op that defines a fresh value. Returns the new value id.
-    value_id def(std::vector<value_id> reads, EmitFn emit) {
+    value_id def(std::vector<value_id> reads, EmitFn emit, const char* name = "") {
         const value_id id = _next_value++;
-        target().push_back(Op{std::move(reads), id, std::move(emit), /*is_copy=*/false, /*body=*/nullptr, /*is_loop=*/false});
+        target().push_back(Op{std::move(reads), id, std::move(emit), /*is_copy=*/false, /*body=*/nullptr, /*is_loop=*/false, name});
         return id;
     }
 
     // Record an op that reads values but defines none (e.g. a store).
-    void use(std::vector<value_id> reads, EmitFn emit) {
-        target().push_back(Op{std::move(reads), invalid_value, std::move(emit), /*is_copy=*/false, /*body=*/nullptr, /*is_loop=*/false});
+    void use(std::vector<value_id> reads, EmitFn emit, const char* name = "") {
+        target().push_back(Op{std::move(reads), invalid_value, std::move(emit), /*is_copy=*/false, /*body=*/nullptr, /*is_loop=*/false, name});
     }
 
     // Record a copy-like op: defines a fresh value whose contents come from a
     // single source. Flagged for the allocator's trivial coalescing pass.
-    value_id copy(value_id src, EmitFn emit) {
+    value_id copy(value_id src, EmitFn emit, const char* name = "") {
         const value_id id = _next_value++;
-        target().push_back(Op{std::vector<value_id>{src}, id, std::move(emit), /*is_copy=*/true, /*body=*/nullptr, /*is_loop=*/false});
+        target().push_back(Op{std::vector<value_id>{src}, id, std::move(emit), /*is_copy=*/true, /*body=*/nullptr, /*is_loop=*/false, name});
         return id;
     }
 
