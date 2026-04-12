@@ -269,7 +269,7 @@ KERNEL(pa_sdpa_opt)(
 #endif
 
             // Loop for qk_index
-#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
+#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED && defined(IS_KEY_BY_CHANNEL)
             // INT4 BY_CHANNEL: dim order {0,1,3,2}: [blocks, heads, head_size, packed_block+scales]
             // Each column (head dim) = COMP_K_OFFSET packed bytes + 4 bytes scale/zp.
             // Token sglid's u4 value is at packed byte sglid/2, nibble sglid%2.
@@ -316,7 +316,7 @@ KERNEL(pa_sdpa_opt)(
                 }
             #endif
 
-#else  // !(IS_KV_COMPRESSED && IS_INT4_COMPRESSED)
+#else  // !(IS_KV_COMPRESSED && IS_INT4_COMPRESSED && defined(IS_KEY_BY_CHANNEL))
             #define KEY_BLOCK_UNCOMPRESSED MAKE_VECTOR_TYPE(INPUT0_TYPE, KEY_VEC_SIZE)
 #ifdef DISABLE_QK_LOOP_UNROLL
             for (uint qk_idx = 0; qk_idx < K_HEAD_SIZE / KEY_VEC_SIZE; qk_idx++) {
@@ -325,13 +325,19 @@ KERNEL(pa_sdpa_opt)(
 #endif
 
 #if IS_KV_COMPRESSED
-                #ifdef IS_KEY_BY_CHANNEL
-                    const uint key_comp_offset = key_block_offset + qk_idx * SUBGROUP_SIZE * hidden_stride + sglid * hidden_stride + PAGED_ATTENTION_BLOCK_SIZE;
-                    INPUT0_TYPE* key_comp_ptr = key_cache + key_comp_offset;
-                    INPUT0_TYPE comp_scale = key_comp_ptr[0];
-                    INPUT0_TYPE comp_zp = key_comp_ptr[1];
-                #endif
-
+    #if IS_INT4_COMPRESSED
+                // INT4 BY_TOKEN head-major: [blocks, heads, packed_head_size * block_size, scales, zps]
+                // Each byte packs 2 adjacent head dims (lo nibble, hi nibble)
+                // Use scalar reads (not BLOCK_READN) to avoid subgroup block read issues with byte types
+                KEY_BLOCK_UNCOMPRESSED k_vals;
+                unroll_for (uint i = 0; i < KEY_VEC_SIZE / 2; i++) {
+                    uint packed_h = qk_idx * (KEY_VEC_SIZE / 2) + i;
+                    INPUT1_TYPE packed_byte = key_cache[key_block_offset + packed_h * hidden_stride + sglid];
+                    MAKE_VECTOR_TYPE(char, U4_ELEMS_PER_BYTE) buff = unpack_to_char(*(uint4x2_t *)&packed_byte);
+                    k_vals[2 * i]     = ((INPUT0_TYPE)(char)buff.s0 - comp_zp) * comp_scale;
+                    k_vals[2 * i + 1] = ((INPUT0_TYPE)(char)buff.s1 - comp_zp) * comp_scale;
+                }
+    #else
                 KEY_BLOCK_UNCOMPRESSED k_vals;
                 uint init_index = key_block_offset + 0 * hidden_stride * KEY_VEC_SIZE;
                 unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
@@ -342,6 +348,7 @@ KERNEL(pa_sdpa_opt)(
                     k_vals[i] = (k_vals[i] - comp_zp) * comp_scale;
                 #endif
                 }
+    #endif  // IS_INT4_COMPRESSED
 #else  //  !IS_KV_COMPRESSED
                 KEY_BLOCK k_vals = 0;
                 unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {

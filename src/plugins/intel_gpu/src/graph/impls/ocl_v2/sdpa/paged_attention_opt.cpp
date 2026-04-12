@@ -245,13 +245,21 @@ JitConstants make_uint4_kv_cache_jit_constants(const kernel_impl_params& params)
     auto& kv_dt = params.input_layouts[PagedAttentionInputIdx::KEY].data_type;
 
     if (data_type_traits::is_i4_u4(kv_cache_dt)) {
-        // INT4 compression: K is BY_CHANNEL (packed block), V is per-token (packed head)
         const auto scales_zp_size = get_element_size(kv_dt) * 2;  // fp16 scale + fp16 zp = 4 bytes
+        const auto is_key_by_channel = desc->is_key_by_channel;
         jit.make("IS_INT4_COMPRESSED", true);
-        // K BY_CHANNEL: head_size is NOT packed (outer dim), block_size IS packed (inner dim)
-        jit.make("PACKED_K_HEAD_SIZE", desc->k_head_size);  // K head not packed for BY_CHANNEL
-        jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
-        jit.make("PACKED_K_BLOCK_SIZE", paged_attention_block_size / u4_elems_per_byte);  // 8 bytes packed block
+        if (is_key_by_channel) {
+            // K BY_CHANNEL: head_size is NOT packed (outer dim), block_size IS packed (inner dim)
+            jit.make("PACKED_K_HEAD_SIZE", desc->k_head_size);
+            jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
+            jit.make("PACKED_K_BLOCK_SIZE", paged_attention_block_size / u4_elems_per_byte);
+        } else {
+            // K BY_TOKEN: head_size IS packed (inner dim), block_size is NOT packed
+            const auto packed_k_head_size = kernel_selector::Align(desc->k_head_size / u4_elems_per_byte, subgroup_size);
+            jit.make("PACKED_K_HEAD_SIZE", packed_k_head_size);
+            jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", packed_k_head_size + scales_zp_size);
+            jit.make("PACKED_K_BLOCK_SIZE", paged_attention_block_size);
+        }
         // V per-token: head_size IS packed (inner dim)
         jit.make("PACKED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size / u4_elems_per_byte, subgroup_size)));
         jit.make("PACKED_ADJUSTED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size / u4_elems_per_byte, subgroup_size)) + scales_zp_size);
@@ -295,10 +303,16 @@ public:
             jit.add(make_uint4_kv_cache_jit_constants(params));
 
             if (data_type_traits::is_i4_u4(kv_cache_dt)) {
-                // INT4 BY_CHANNEL: K dim order {0,1,3,2}, block_size packed in innermost dim
-                jit.make("IS_KEY_BY_CHANNEL", 1);
-                jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);                                                  // 128 (outer dim, not packed)
-                jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size / u4_elems_per_byte + scales_zp_size);  // 8+4=12
+                if (is_key_by_channel) {
+                    // INT4 BY_CHANNEL: K dim order {0,1,3,2}, block_size packed in innermost dim
+                    jit.make("IS_KEY_BY_CHANNEL", 1);
+                    jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
+                    jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size / u4_elems_per_byte + scales_zp_size);
+                } else {
+                    // INT4 BY_TOKEN: K dim order {0,1,2,3}, head_size packed
+                    jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size + scales_zp_size);
+                    jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
+                }
                 jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size + scales_zp_size);
             } else if (is_key_by_channel) {
                 jit.make("IS_KEY_BY_CHANNEL", 1);
@@ -957,10 +971,16 @@ protected:
             jit.add(make_uint4_kv_cache_jit_constants(params));
 
             if (data_type_traits::is_i4_u4(kv_cache_dt)) {
-                // INT4 BY_CHANNEL: K dim order {0,1,3,2}, block_size packed in innermost dim
-                jit.make("IS_KEY_BY_CHANNEL", 1);
-                jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);                                                  // 128 (outer dim, not packed)
-                jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size / u4_elems_per_byte + scales_zp_size);  // 8+4=12
+                if (is_key_by_channel) {
+                    // INT4 BY_CHANNEL: K dim order {0,1,3,2}, block_size packed in innermost dim
+                    jit.make("IS_KEY_BY_CHANNEL", 1);
+                    jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
+                    jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size / u4_elems_per_byte + scales_zp_size);
+                } else {
+                    // INT4 BY_TOKEN: K dim order {0,1,2,3}, head_size packed
+                    jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size + scales_zp_size);
+                    jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
+                }
                 jit.make("NUM_K_HEAD_SIZE_PARTITIONS", get_num_k_head_size_partitions(desc->is_key_by_channel, desc->k_head_size));
                 jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size + scales_zp_size);
             } else if (is_key_by_channel) {
@@ -1362,6 +1382,12 @@ public:
         }
 
         if (desc->has_alibi) {
+            return false;
+        }
+
+        // Disable micro SDPA for INT4 BY_TOKEN due to accuracy issues
+        const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
+        if (data_type_traits::is_i4_u4(kv_cache_dt) && !desc->is_key_by_channel) {
             return false;
         }
 
