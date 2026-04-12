@@ -779,13 +779,11 @@ TEST(SubgraphCollectorInitTest, shared_constant_different_consumers) {
 
     // add and sub must not be placed in the same subgraph
     // Otherwise, shared constant handling or affinity enforcement is broken
-    ASSERT_NE(add_sg, sub_sg)
-        << "add and sub must be placed into different subgraphs";
+    ASSERT_NE(add_sg, sub_sg) << "add and sub must be placed into different subgraphs";
 
     // The shared constant must remain in the same subgraph as add (DEV.0)
     // It must not be pulled into DEV.1 only because sub consumes it
-    ASSERT_EQ(add_sg, const_sg)
-        << "shared constant must stay in the same subgraph as add";
+    ASSERT_EQ(add_sg, const_sg) << "shared constant must stay in the same subgraph as add";
 }
 
 // Diamond pattern: A(CPU)→B(GPU)→D(CPU), A(CPU)→C(CPU)→D(CPU)
@@ -840,10 +838,14 @@ TEST(SubgraphCollectorCyclicTest, diamond_with_cross_device_creates_split) {
     // A and B must be in different subgraphs (different device)
     std::shared_ptr<ov::Node> a_node, b_node, c_node, d_node;
     for (const auto& node : model->get_ordered_ops()) {
-        if (node->get_friendly_name() == "A") a_node = node;
-        if (node->get_friendly_name() == "B") b_node = node;
-        if (node->get_friendly_name() == "C") c_node = node;
-        if (node->get_friendly_name() == "D") d_node = node;
+        if (node->get_friendly_name() == "A")
+            a_node = node;
+        if (node->get_friendly_name() == "B")
+            b_node = node;
+        if (node->get_friendly_name() == "C")
+            c_node = node;
+        if (node->get_friendly_name() == "D")
+            d_node = node;
     }
     ASSERT_NE(ids.at(a_node), ids.at(b_node));
 
@@ -881,8 +883,13 @@ TEST(SubgraphCollectorCyclicTest, alternating_devices_no_cycles) {
     auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 
     const std::map<std::string, std::string> affinity_map = {
-        {"input", "DEV0"}, {"c1", "DEV0"}, {"A", "DEV0"}, {"B", "DEV1"},
-        {"C", "DEV0"},     {"D", "DEV1"},  {"res", "DEV1"},
+        {"input", "DEV0"},
+        {"c1", "DEV0"},
+        {"A", "DEV0"},
+        {"B", "DEV1"},
+        {"C", "DEV0"},   
+        {"D", "DEV1"},
+        {"res", "DEV1"},
     };
     SubgraphCollector::AffinitiesMap affinities;
     for (const auto& node : model->get_ordered_ops()) {
@@ -895,10 +902,14 @@ TEST(SubgraphCollectorCyclicTest, alternating_devices_no_cycles) {
     // Each affinity change creates a new subgraph
     std::shared_ptr<ov::Node> a_node, b_node, c_node, d_node;
     for (const auto& node : model->get_ordered_ops()) {
-        if (node->get_friendly_name() == "A") a_node = node;
-        if (node->get_friendly_name() == "B") b_node = node;
-        if (node->get_friendly_name() == "C") c_node = node;
-        if (node->get_friendly_name() == "D") d_node = node;
+        if (node->get_friendly_name() == "A")
+            a_node = node;
+        if (node->get_friendly_name() == "B")
+            b_node = node;
+        if (node->get_friendly_name() == "C")
+            c_node = node;
+        if (node->get_friendly_name() == "D")
+            d_node = node;
     }
     ASSERT_NE(ids.at(a_node), ids.at(b_node));
     ASSERT_NE(ids.at(b_node), ids.at(c_node));
@@ -951,8 +962,14 @@ TEST(SubgraphCollectorCyclicTest, fan_out_fan_in_cycle_resolution) {
     auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 
     const std::map<std::string, std::string> affinity_map = {
-        {"input", "CPU"}, {"c1", "CPU"}, {"A", "CPU"}, {"B", "GPU"},
-        {"C", "CPU"},     {"E", "CPU"},  {"D", "CPU"}, {"res", "CPU"},
+        {"input", "CPU"},
+        {"c1", "CPU"},
+        {"A", "CPU"},
+        {"B", "GPU"},
+        {"C", "CPU"},
+        {"E", "CPU"},
+        {"D", "CPU"},
+        {"res", "CPU"},
     };
     SubgraphCollector::AffinitiesMap affinities;
     for (const auto& node : model->get_ordered_ops()) {
@@ -995,8 +1012,7 @@ TEST(SubgraphCollectorCyclicTest, two_independent_paths_no_split) {
     auto result2 = std::make_shared<ov::op::v0::Result>(add2);
     result2->set_friendly_name("res2");
 
-    auto model =
-        std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{param1, param2});
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{param1, param2});
 
     SubgraphCollector::AffinitiesMap affinities;
     for (const auto& node : model->get_ordered_ops()) {
@@ -1011,7 +1027,8 @@ TEST(SubgraphCollectorCyclicTest, two_independent_paths_no_split) {
     ASSERT_EQ("SINGLE_DEV", subgraphs[0]._affinity);
 }
 
-// Test that in case of bidirectional cycle between subgraphs, the cycle is split by affinity and the resulting subgraphs are ordered in a way that allows sequential execution without deadlocks
+// Test that in case of bidirectional cycle between subgraphs, the cycle is split by affinity and the resulting
+// subgraphs are ordered in a way that allows sequential execution without deadlocks
 TEST(SubgraphCollectorCyclicTest, bidirectional_cycle_split) {
     auto model = create_test_model2();
 
