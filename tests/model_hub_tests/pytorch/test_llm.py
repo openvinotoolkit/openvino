@@ -3,6 +3,7 @@
 
 import copy
 import inspect
+from contextlib import contextmanager
 
 import numpy as np
 import platform
@@ -158,61 +159,40 @@ def unpatch_gptq(orig_cuda_check, orig_post_init_model, orig_gemm_forward):
         pass
 
 
-def _patch_vmap_for_jit():
-    """Patch masking for JIT trace compatibility using optimum-intel's approach.
+@contextmanager
+def _patch_for_jit_trace():
+    """Patch transformers internals for JIT trace compatibility.
 
-    Transformers >=4.53 uses torch.vmap in masking_utils which is incompatible
-    with torch.jit.trace. Registers vmap-free mask functions from
-    transformers.integrations.executorch into ALL_MASK_ATTENTION_FUNCTIONS,
-    same as optimum-intel's OVDecoderModelPatcher.
+    1. Replace vmap-based mask functions (transformers >=4.53) with vmap-free
+       variants from transformers.integrations.executorch, using float masks
+       with -65504 for masked positions (required by OV).
+    2. Patch DynamicLayer.lazy_initialization (transformers >=4.57) to create
+       4D empty tensors instead of 1D, avoiding aten::cat shape mismatches.
     """
-    saved = {}
+    saved_masks = {}
+    orig_lazy_init = None
     try:
         from transformers.masking_utils import ALL_MASK_ATTENTION_FUNCTIONS, sdpa_mask, eager_mask
         from transformers.integrations.executorch import sdpa_mask_without_vmap
 
-        def eager_mask_without_vmap(*args, **kwargs):
+        def _eager_mask_no_vmap(*args, **kwargs):
             kwargs.pop("allow_is_causal_skip", None)
             dtype = kwargs.get("dtype", torch.float32)
             mask = sdpa_mask_without_vmap(*args, allow_is_causal_skip=False, **kwargs)
-            mask = torch.where(
+            return torch.where(
                 mask,
                 torch.tensor(0.0, device=mask.device, dtype=dtype),
                 torch.tensor(torch.finfo(torch.float16).min, device=mask.device, dtype=dtype),
             )
-            return mask
 
-        saved["sdpa"] = sdpa_mask
-        saved["eager"] = eager_mask
-        ALL_MASK_ATTENTION_FUNCTIONS.register("eager", eager_mask_without_vmap)
-        ALL_MASK_ATTENTION_FUNCTIONS.register("sdpa", eager_mask_without_vmap)
+        saved_masks = {"sdpa": sdpa_mask, "eager": eager_mask}
+        ALL_MASK_ATTENTION_FUNCTIONS.register("eager", _eager_mask_no_vmap)
+        ALL_MASK_ATTENTION_FUNCTIONS.register("sdpa", _eager_mask_no_vmap)
     except (ImportError, AttributeError):
         pass
-    return saved
-
-
-def _unpatch_vmap(saved):
-    if saved:
-        try:
-            from transformers.masking_utils import ALL_MASK_ATTENTION_FUNCTIONS
-            for name, func in saved.items():
-                ALL_MASK_ATTENTION_FUNCTIONS.register(name, func)
-        except ImportError:
-            pass
-
-
-def _patch_dynamic_layer_for_jit():
-    """Patch DynamicLayer.lazy_initialization to create properly-shaped empty tensors.
-
-    The default implementation creates 1D empty tensors (shape [0]), which causes
-    aten::cat failures when traced with 4D key/value states. This patch creates 4D
-    empty tensors with 0 sequence length instead.
-    """
-    orig = None
     try:
         from transformers.cache_utils import DynamicLayer
-
-        orig = DynamicLayer.lazy_initialization
+        orig_lazy_init = DynamicLayer.lazy_initialization
 
         def _lazy_init_4d(self, key_states):
             self.dtype, self.device = key_states.dtype, key_states.device
@@ -225,25 +205,13 @@ def _patch_dynamic_layer_for_jit():
         DynamicLayer.lazy_initialization = _lazy_init_4d
     except (ImportError, AttributeError):
         pass
-    return orig
-
-
-def _unpatch_dynamic_layer(orig):
-    if orig is not None:
-        try:
-            from transformers.cache_utils import DynamicLayer
-            DynamicLayer.lazy_initialization = orig
-        except ImportError:
-            pass
-
-
-def _needs_dynamic_cache_wrapper():
     try:
-        from transformers import __version__
-        major, minor = [int(x) for x in __version__.split(".")[:2]]
-        return (major, minor) >= (4, 48)
-    except (ImportError, ValueError):
-        return False
+        yield
+    finally:
+        for name, func in saved_masks.items():
+            ALL_MASK_ATTENTION_FUNCTIONS.register(name, func)
+        if orig_lazy_init is not None:
+            DynamicLayer.lazy_initialization = orig_lazy_init
 
 
 class DynamicCacheModelWrapper(torch.nn.Module):
@@ -390,8 +358,13 @@ class TestLLMModel(TestTorchConvertModel):
             example["position_ids"] = ids[:, -example["input_ids"].shape[1]:]
         self.example = example
 
-        # Wrap models for DynamicCache <-> tuple conversion
-        if _needs_dynamic_cache_wrapper():
+        # Wrap models for DynamicCache <-> tuple conversion (transformers >=4.48)
+        try:
+            from transformers.cache_utils import DynamicCache  # noqa: F401
+            needs_wrapper = True
+        except ImportError:
+            needs_wrapper = False
+        if needs_wrapper:
             example_keys = set(example.keys())
             if is_quant:
                 self.model = DynamicCacheModelWrapper(self.model, example_keys)
@@ -436,16 +409,8 @@ class TestLLMModel(TestTorchConvertModel):
             is_patched = True
         # initialize model after patching
         self.model(**self.example)
-        # Patch vmap for JIT trace compatibility (transformers >=4.53)
-        orig_vmap = _patch_vmap_for_jit()
-        # Patch DynamicLayer for JIT trace (transformers >=4.57)
-        orig_cache = _patch_dynamic_layer_for_jit()
-        try:
-            with torch.no_grad():
-                ovm = super().convert_model_impl(self.model)
-        finally:
-            _unpatch_vmap(orig_vmap)
-            _unpatch_dynamic_layer(orig_cache)
+        with _patch_for_jit_trace(), torch.no_grad():
+            ovm = super().convert_model_impl(self.model)
         if is_patched:
             unpatch(self.model, "_openvino_module_extension_patch_orig_forward")
         #    model_obj.float()

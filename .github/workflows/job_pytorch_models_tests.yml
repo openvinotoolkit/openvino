@@ -137,7 +137,7 @@ jobs:
       - name: Install deps for LLM model tests
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope2' }}
         run: |
-          python3 -m pip install \
+          python3 -m pip install --no-build-isolation \
             -r ${INSTALL_TEST_DIR}/requirements_pytorch \
             -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/llm.txt
 
