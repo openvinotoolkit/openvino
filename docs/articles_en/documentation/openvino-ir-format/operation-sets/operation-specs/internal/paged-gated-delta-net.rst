@@ -32,8 +32,8 @@ value head ``h_v`` (``0 .. v_num_heads - 1``), where the corresponding query/key
 
     # Optional L2 normalization of query and key (when use_qk_l2norm is True)
     if use_qk_l2norm:
-        q[t, h_q] = l2norm(q[t, h_q], dim=-1, q_l2_norm_eps)
-        k[t, h_q] = l2norm(k[t, h_q], dim=-1, k_l2_norm_eps)
+        q[t, h_q] = l2norm(q[t, h_q], dim=-1, eps=q_l2_norm_eps)
+        k[t, h_q] = l2norm(k[t, h_q], dim=-1, eps=k_l2_norm_eps)
 
     # Grouped-query mapping: each value head h_v shares the query/key head h_q
     num_groups = v_num_heads // num_heads
