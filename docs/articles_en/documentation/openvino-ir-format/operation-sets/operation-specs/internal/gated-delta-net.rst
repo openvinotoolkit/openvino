@@ -35,8 +35,8 @@ computation:
 
        # Optional L2 normalization of query and key (when use_qk_l2norm is True)
        if use_qk_l2norm:
-           query = l2norm(query, dim=-1, q_l2_norm_eps)
-           key = l2norm(key, dim=-1, k_l2_norm_eps)
+           query = l2norm(query, dim=-1, eps=q_l2_norm_eps)
+           key = l2norm(key, dim=-1, eps=k_l2_norm_eps)
 
        batch_size, sequence_length, num_heads, k_head_dim = key.shape
        v_head_dim = value.shape[-1]
