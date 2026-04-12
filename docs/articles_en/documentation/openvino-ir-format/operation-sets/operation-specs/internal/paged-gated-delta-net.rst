@@ -41,7 +41,7 @@ value head ``h_v`` (``0 .. v_num_heads - 1``), where the corresponding query/key
 
     # Retrieve current estimate from state
     # S[h_v]: recurrent state, shape [value_head_dim, key_head_dim]
-    r = k[t, h_q] @ S[h_v].tranpose(1, 0)                            # shape: [value_head_dim]
+    r = k[t, h_q] @ S[h_v].transpose(1, 0)                           # shape: [value_head_dim]
 
     # Gated delta update
     S[h_v] = gate[t, h_v] * S[h_v] \
