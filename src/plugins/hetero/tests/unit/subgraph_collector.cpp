@@ -11,10 +11,20 @@
 #include "op/device_subgraph.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/ops.hpp"
+#include "openvino/op/util/op_types.hpp"
 
 using namespace ov::hetero;
 
 namespace {
+std::set<std::string> collect_subgraph_node_names(const Subgraph& subgraph) {
+    std::set<std::string> node_names;
+    auto sub_model = std::make_shared<ov::Model>(subgraph._results, subgraph._sinks, subgraph._parameters);
+    for (const auto& node : sub_model->get_ordered_ops()) {
+        node_names.insert(node->get_friendly_name());
+    }
+    return node_names;
+}
+
 std::shared_ptr<ov::Model> create_test_model() {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 3, 2, 2});
     param->set_friendly_name("input");
@@ -609,4 +619,448 @@ TEST_F(SubgraphCollectorTest, merge_independent_submodel) {
     OV_ASSERT_NO_THROW(
         ov::hetero::merge_submodels(actual_submodels, actual_mapping_info._submodels_input_to_prev_output));
     ASSERT_EQ(1, actual_submodels.size());
+}
+
+// All nodes on the same device: init() should produce a single subgraph
+// (only graph-input boundaries, no affinity-based splits)
+TEST(SubgraphCollectorInitTest, all_same_affinity_single_subgraph) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 2, 2});
+    param->set_friendly_name("input");
+    auto const_val = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, {1.0f});
+    const_val->set_friendly_name("const_val");
+    auto add = std::make_shared<ov::op::v1::Add>(param, const_val);
+    add->set_friendly_name("add");
+    auto subtract = std::make_shared<ov::op::v1::Subtract>(add, const_val);
+    subtract->set_friendly_name("sub");
+    auto result = std::make_shared<ov::op::v0::Result>(subtract);
+    result->set_friendly_name("res");
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+
+    SubgraphCollector::AffinitiesMap affinities;
+    for (const auto& node : model->get_ordered_ops()) {
+        affinities[node] = "MOCK.0";
+    }
+
+    SubgraphCollector collector(model, affinities);
+    auto ids = collector.get_subgraph_ids();
+
+    // All non-parameter/constant nodes should share the same subgraph id
+    std::set<SubgraphCollector::SubgraphId> unique_ids;
+    for (const auto& [node, id] : ids) {
+        if (!ov::op::util::is_parameter(node) && !ov::op::util::is_constant(node)) {
+            unique_ids.insert(id);
+        }
+    }
+    // add, sub, res should all be in one subgraph
+    ASSERT_EQ(1, unique_ids.size());
+}
+
+// Each node has a different affinity: init() should create separate subgraphs
+TEST(SubgraphCollectorInitTest, all_different_affinities) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 4});
+    param->set_friendly_name("input");
+    auto const_val = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {3.0f});
+    const_val->set_friendly_name("const_val");
+    auto add = std::make_shared<ov::op::v1::Add>(param, const_val);
+    add->set_friendly_name("add");
+    auto subtract = std::make_shared<ov::op::v1::Subtract>(add, const_val);
+    subtract->set_friendly_name("sub");
+    auto result = std::make_shared<ov::op::v0::Result>(subtract);
+    result->set_friendly_name("res");
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+
+    const std::map<std::string, std::string> affinity_map = {
+        {"input", "DEV.0"},
+        {"const_val", "DEV.0"},
+        {"add", "DEV.1"},
+        {"sub", "DEV.2"},
+        {"res", "DEV.2"},
+    };
+    SubgraphCollector::AffinitiesMap affinities;
+    for (const auto& node : model->get_ordered_ops()) {
+        affinities[node] = affinity_map.at(node->get_friendly_name());
+    }
+
+    SubgraphCollector collector(model, affinities);
+    auto ids = collector.get_subgraph_ids();
+
+    // add and sub must be in different subgraphs
+    std::shared_ptr<ov::Node> add_node, sub_node;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (node->get_friendly_name() == "add")
+            add_node = node;
+        if (node->get_friendly_name() == "sub")
+            sub_node = node;
+    }
+    ASSERT_NE(ids.at(add_node), ids.at(sub_node));
+}
+
+// Result node inherits affinity from its input (special init() behavior)
+TEST(SubgraphCollectorInitTest, result_inherits_input_affinity) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
+    param->set_friendly_name("input");
+    auto const_val = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
+    const_val->set_friendly_name("const_val");
+    auto add = std::make_shared<ov::op::v1::Add>(param, const_val);
+    add->set_friendly_name("add");
+    auto result = std::make_shared<ov::op::v0::Result>(add);
+    result->set_friendly_name("res");
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+
+    // Intentionally assign result to a different device than add
+    // init() should override result's affinity to match add's
+    const std::map<std::string, std::string> affinity_map = {
+        {"input", "DEV.A"},
+        {"const_val", "DEV.A"},
+        {"add", "DEV.A"},
+        {"res", "DEV.B"},
+    };
+    SubgraphCollector::AffinitiesMap affinities;
+    for (const auto& node : model->get_ordered_ops()) {
+        affinities[node] = affinity_map.at(node->get_friendly_name());
+    }
+
+    SubgraphCollector collector(model, affinities);
+    auto ids = collector.get_subgraph_ids();
+
+    // Result should be in the same subgraph as add (affinity was overridden)
+    std::shared_ptr<ov::Node> add_node, res_node;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (node->get_friendly_name() == "add")
+            add_node = node;
+        if (node->get_friendly_name() == "res")
+            res_node = node;
+    }
+    ASSERT_EQ(ids.at(add_node), ids.at(res_node));
+}
+
+// Constant is shared by two consumers with different affinities
+// init() should handle the shared constant correctly
+TEST(SubgraphCollectorInitTest, shared_constant_different_consumers) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 2});
+    param->set_friendly_name("input");
+    auto const_val = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {5.0f});
+    const_val->set_friendly_name("shared_const");
+    auto add = std::make_shared<ov::op::v1::Add>(param, const_val);
+    add->set_friendly_name("add");
+    auto sub = std::make_shared<ov::op::v1::Subtract>(add, const_val);
+    sub->set_friendly_name("sub");
+    auto result = std::make_shared<ov::op::v0::Result>(sub);
+    result->set_friendly_name("res");
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+
+    // Explicit affinity assignment for each node
+    const std::map<std::string, std::string> affinity_map = {
+        {"input", "DEV.0"},
+        {"shared_const", "DEV.0"},
+        {"add", "DEV.0"},
+        {"sub", "DEV.1"},
+        {"res", "DEV.1"},
+    };
+
+    // Build affinity map for SubgraphCollector
+    SubgraphCollector::AffinitiesMap affinities;
+    for (const auto& node : model->get_ordered_ops()) {
+        affinities[node] = affinity_map.at(node->get_friendly_name());
+    }
+
+    // Run subgraph collection
+    SubgraphCollector collector(model, affinities);
+    const auto& [subgraphs, mapping] = collector.run();
+
+    // The model must be split into at least two subgraphs (DEV.0 and DEV.1)
+    ASSERT_GE(subgraphs.size(), 2);
+
+    const auto add_sg = mapping.at(add);
+    const auto sub_sg = mapping.at(sub);
+    const auto const_sg = mapping.at(const_val);
+
+    // add and sub must not be placed in the same subgraph
+    // Otherwise, shared constant handling or affinity enforcement is broken
+    ASSERT_NE(add_sg, sub_sg)
+        << "add and sub must be placed into different subgraphs";
+
+    // The shared constant must remain in the same subgraph as add (DEV.0)
+    // It must not be pulled into DEV.1 only because sub consumes it
+    ASSERT_EQ(add_sg, const_sg)
+        << "shared constant must stay in the same subgraph as add";
+}
+
+// Diamond pattern: A(CPU)→B(GPU)→D(CPU), A(CPU)→C(CPU)→D(CPU)
+// B is on a different device, creating a path CPU→GPU→CPU that forms
+// a cyclic dependency at the subgraph level. split_cyclic_dependencies()
+// should break this cycle.
+TEST(SubgraphCollectorCyclicTest, diamond_with_cross_device_creates_split) {
+    //  param ──→ A(CPU) ──→ B(GPU) ──→ D(CPU) ──→ result
+    //                └──→ C(CPU) ──────→ D
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 2});
+    param->set_friendly_name("input");
+    auto const_val = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
+    const_val->set_friendly_name("const_val");
+
+    // A: CPU
+    auto a_add = std::make_shared<ov::op::v1::Add>(param, const_val);
+    a_add->set_friendly_name("A");
+
+    // B: GPU (different device)
+    auto b_sub = std::make_shared<ov::op::v1::Subtract>(a_add, const_val);
+    b_sub->set_friendly_name("B");
+
+    // C: CPU (same as A, D)
+    auto c_mul = std::make_shared<ov::op::v1::Multiply>(a_add, const_val);
+    c_mul->set_friendly_name("C");
+
+    // D: CPU - takes both B(GPU) and C(CPU)
+    auto d_add = std::make_shared<ov::op::v1::Add>(b_sub, c_mul);
+    d_add->set_friendly_name("D");
+
+    auto result = std::make_shared<ov::op::v0::Result>(d_add);
+    result->set_friendly_name("res");
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+
+    const std::map<std::string, std::string> affinity_map = {
+        {"input", "CPU"},
+        {"const_val", "CPU"},
+        {"A", "CPU"},
+        {"B", "GPU"},
+        {"C", "CPU"},
+        {"D", "CPU"},
+        {"res", "CPU"},
+    };
+    SubgraphCollector::AffinitiesMap affinities;
+    for (const auto& node : model->get_ordered_ops()) {
+        affinities[node] = affinity_map.at(node->get_friendly_name());
+    }
+
+    SubgraphCollector collector(model, affinities);
+    auto ids = collector.get_subgraph_ids();
+
+    // A and B must be in different subgraphs (different device)
+    std::shared_ptr<ov::Node> a_node, b_node, c_node, d_node;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (node->get_friendly_name() == "A") a_node = node;
+        if (node->get_friendly_name() == "B") b_node = node;
+        if (node->get_friendly_name() == "C") c_node = node;
+        if (node->get_friendly_name() == "D") d_node = node;
+    }
+    ASSERT_NE(ids.at(a_node), ids.at(b_node));
+
+    // The split should produce a valid topologically-sortable set of subgraphs
+    const auto& [subgraphs, mapping] = collector.run();
+    ASSERT_GE(subgraphs.size(), 3);  // At least: {A}, {B}, {C+D or split further}
+
+    // Verify round-trip: merge back and ensure the model is valid
+    std::vector<std::shared_ptr<ov::Model>> submodels;
+    for (auto& sg : subgraphs) {
+        submodels.push_back(std::make_shared<ov::Model>(sg._results, sg._sinks, sg._parameters));
+    }
+    OV_ASSERT_NO_THROW(ov::hetero::merge_submodels(submodels, mapping._submodels_input_to_prev_output));
+    ASSERT_EQ(1, submodels.size());
+}
+
+// Linear chain with alternating devices: forces multiple splits but no cycles
+TEST(SubgraphCollectorCyclicTest, alternating_devices_no_cycles) {
+    // param → A(DEV0) → B(DEV1) → C(DEV0) → D(DEV1) → result
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
+    param->set_friendly_name("input");
+    auto c1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
+    c1->set_friendly_name("c1");
+
+    auto a = std::make_shared<ov::op::v1::Add>(param, c1);
+    a->set_friendly_name("A");
+    auto b = std::make_shared<ov::op::v1::Subtract>(a, c1);
+    b->set_friendly_name("B");
+    auto c = std::make_shared<ov::op::v1::Add>(b, c1);
+    c->set_friendly_name("C");
+    auto d = std::make_shared<ov::op::v1::Subtract>(c, c1);
+    d->set_friendly_name("D");
+    auto result = std::make_shared<ov::op::v0::Result>(d);
+    result->set_friendly_name("res");
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+
+    const std::map<std::string, std::string> affinity_map = {
+        {"input", "DEV0"}, {"c1", "DEV0"}, {"A", "DEV0"}, {"B", "DEV1"},
+        {"C", "DEV0"},     {"D", "DEV1"},  {"res", "DEV1"},
+    };
+    SubgraphCollector::AffinitiesMap affinities;
+    for (const auto& node : model->get_ordered_ops()) {
+        affinities[node] = affinity_map.at(node->get_friendly_name());
+    }
+
+    SubgraphCollector collector(model, affinities);
+    auto ids = collector.get_subgraph_ids();
+
+    // Each affinity change creates a new subgraph
+    std::shared_ptr<ov::Node> a_node, b_node, c_node, d_node;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (node->get_friendly_name() == "A") a_node = node;
+        if (node->get_friendly_name() == "B") b_node = node;
+        if (node->get_friendly_name() == "C") c_node = node;
+        if (node->get_friendly_name() == "D") d_node = node;
+    }
+    ASSERT_NE(ids.at(a_node), ids.at(b_node));
+    ASSERT_NE(ids.at(b_node), ids.at(c_node));
+    ASSERT_NE(ids.at(c_node), ids.at(d_node));
+
+    const auto& [subgraphs, mapping] = collector.run();
+    // A, B, C, D each in its own subgraph (4 compute subgraphs)
+    ASSERT_EQ(4, subgraphs.size());
+
+    // Verify merge produces a valid model
+    std::vector<std::shared_ptr<ov::Model>> submodels;
+    for (auto& sg : subgraphs) {
+        submodels.push_back(std::make_shared<ov::Model>(sg._results, sg._sinks, sg._parameters));
+    }
+    OV_ASSERT_NO_THROW(ov::hetero::merge_submodels(submodels, mapping._submodels_input_to_prev_output));
+    ASSERT_EQ(1, submodels.size());
+}
+
+// Complex cycle: A(CPU) fans out to B(GPU) and C(CPU),
+// B(GPU) feeds into D(CPU), C(CPU) feeds into D(CPU).
+// D also depends transitively on A through both paths.
+// split_cyclic_dependencies must break the cycle so D's subgraph
+// is schedulable after B's.
+TEST(SubgraphCollectorCyclicTest, fan_out_fan_in_cycle_resolution) {
+    //         ┌→ B(GPU) ─┐
+    // param → A(CPU)      → D(CPU) → result
+    //         └→ C(CPU) ──→ E(CPU) → D
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 2});
+    param->set_friendly_name("input");
+    auto c1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {2.0f});
+    c1->set_friendly_name("c1");
+
+    auto a = std::make_shared<ov::op::v1::Add>(param, c1);
+    a->set_friendly_name("A");
+
+    auto b = std::make_shared<ov::op::v1::Subtract>(a, c1);  // GPU
+    b->set_friendly_name("B");
+
+    auto c_node = std::make_shared<ov::op::v1::Multiply>(a, c1);  // CPU
+    c_node->set_friendly_name("C");
+
+    auto e = std::make_shared<ov::op::v1::Add>(c_node, c1);  // CPU
+    e->set_friendly_name("E");
+
+    auto d = std::make_shared<ov::op::v1::Add>(b, e);  // CPU
+    d->set_friendly_name("D");
+
+    auto result = std::make_shared<ov::op::v0::Result>(d);
+    result->set_friendly_name("res");
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+
+    const std::map<std::string, std::string> affinity_map = {
+        {"input", "CPU"}, {"c1", "CPU"}, {"A", "CPU"}, {"B", "GPU"},
+        {"C", "CPU"},     {"E", "CPU"},  {"D", "CPU"}, {"res", "CPU"},
+    };
+    SubgraphCollector::AffinitiesMap affinities;
+    for (const auto& node : model->get_ordered_ops()) {
+        affinities[node] = affinity_map.at(node->get_friendly_name());
+    }
+
+    SubgraphCollector collector(model, affinities);
+
+    // The collector should not throw (cycles properly resolved)
+    const auto& [subgraphs, mapping] = collector.run();
+
+    // At least 3 subgraphs: pre-B CPU ops, GPU (B), post-B CPU ops
+    ASSERT_GE(subgraphs.size(), 3);
+
+    // Verify topological sort succeeded by merging back
+    std::vector<std::shared_ptr<ov::Model>> submodels;
+    for (auto& sg : subgraphs) {
+        submodels.push_back(std::make_shared<ov::Model>(sg._results, sg._sinks, sg._parameters));
+    }
+    OV_ASSERT_NO_THROW(ov::hetero::merge_submodels(submodels, mapping._submodels_input_to_prev_output));
+    ASSERT_EQ(1, submodels.size());
+}
+
+// Two independent paths, all same device — no cycles, no splits needed
+TEST(SubgraphCollectorCyclicTest, two_independent_paths_no_split) {
+    auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2});
+    param1->set_friendly_name("input1");
+    auto param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2});
+    param2->set_friendly_name("input2");
+    auto c1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
+    c1->set_friendly_name("c1");
+
+    auto add1 = std::make_shared<ov::op::v1::Add>(param1, c1);
+    add1->set_friendly_name("add1");
+    auto add2 = std::make_shared<ov::op::v1::Add>(param2, c1);
+    add2->set_friendly_name("add2");
+
+    auto result1 = std::make_shared<ov::op::v0::Result>(add1);
+    result1->set_friendly_name("res1");
+    auto result2 = std::make_shared<ov::op::v0::Result>(add2);
+    result2->set_friendly_name("res2");
+
+    auto model =
+        std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{param1, param2});
+
+    SubgraphCollector::AffinitiesMap affinities;
+    for (const auto& node : model->get_ordered_ops()) {
+        affinities[node] = "SINGLE_DEV";
+    }
+
+    SubgraphCollector collector(model, affinities);
+    const auto& [subgraphs, mapping] = collector.run();
+
+    // All on same device, both independent paths merge into one subgraph
+    ASSERT_EQ(1, subgraphs.size());
+    ASSERT_EQ("SINGLE_DEV", subgraphs[0]._affinity);
+}
+
+TEST_F(SubgraphCollectorCyclicTest, bidirectional_cycle_split) {
+    const std::map<std::string, std::string> supported_ops = {
+        {"input", "MOCK.0"},
+        {"const_val", "MOCK.0"},
+        {"add1", "MOCK.0"},
+        {"add2", "MOCK.0"},
+        {"sub", "MOCK.1"},
+        {"add3", "MOCK.0"},
+        {"reshape_val", "MOCK.0"},
+        {"reshape", "MOCK.0"},
+        {"res", "MOCK.0"},
+    };
+
+    SubgraphCollector::AffinitiesMap affinities;
+    for (const auto& node : m_model->get_ordered_ops()) {
+        affinities[node] = supported_ops.at(node->get_friendly_name());
+    }
+
+    SubgraphCollector subgraph_collector(m_model, affinities);
+    const auto& [ordered_subgraphs, mapping_info] = subgraph_collector.run();
+
+    ASSERT_EQ(3, ordered_subgraphs.size());
+
+    size_t mock0_count = 0;
+    size_t mock1_count = 0;
+    for (const auto& subgraph : ordered_subgraphs) {
+        if (subgraph._affinity == "MOCK.0") {
+            ++mock0_count;
+        } else if (subgraph._affinity == "MOCK.1") {
+            ++mock1_count;
+        }
+    }
+    ASSERT_EQ(2, mock0_count);
+    ASSERT_EQ(1, mock1_count);
+
+    for (const auto& edge : mapping_info._submodels_input_to_prev_output) {
+        const auto& in_subgraph_id = edge.first.first;
+        const auto& out_subgraph_id = edge.second.first;
+        ASSERT_LT(out_subgraph_id, in_subgraph_id);
+    }
+
+    bool has_upstream_mock0 = false;
+    bool has_downstream_mock0 = false;
+    for (const auto& subgraph : ordered_subgraphs) {
+        const auto names = collect_subgraph_node_names(subgraph);
+        if (subgraph._affinity == "MOCK.0" && names.count("add1") && names.count("add2")) {
+            has_upstream_mock0 = true;
+        }
+        if (subgraph._affinity == "MOCK.0" && names.count("add3") && names.count("reshape")) {
+            has_downstream_mock0 = true;
+        }
+    }
+    ASSERT_TRUE(has_upstream_mock0);
+    ASSERT_TRUE(has_downstream_mock0);
 }
