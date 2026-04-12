@@ -3,7 +3,6 @@
 //
 #include "openvino/op/moe.hpp"
 
-#include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/moe_gather.hpp>
 #include <intel_gpu/primitives/moe_scatter_reduction.hpp>
 #include <intel_gpu/primitives/swiglu.hpp>
@@ -98,31 +97,11 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         input_infos.push_back(cldnn::input_info(input));
     }
     if (config.expert_type == ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU) {
-        // Create GEMM3_SWIGLU specific primitives
-        //   0: hidden_states - input tensor with hidden representations
-        //   1: routing_weights - [num_experts, ...] normalized weights for selected experts
-        //      (input to final multiplication)
-        //   2: router_topk_output_indices - [..., topk] indices of selected top-k experts
-        //   3: w0_weight - expert weights for first projection,
-        //   shape [num_experts, inter_size, group_num, group_size]
-        //   4: w0_scale - expert scale for first projection for compressed experts,
-        //   shape [num_experts, inter_size, group_num, 1]
-        //   5: w0_zp - expert zp for first projection for compressed experts,
-        //   shape [num_experts, inter_size, group_num, 1]
-        //   6: w1_weight - expert weights for second projection,
-        //   shape [num_experts, inter_size, group_num, group_size]
-        //   7: w1_scale - expert scale for second projection for compressed experts,
-        //   shape [num_experts, inter_size, group_num, 1]
-        //   8: w1_zp - expert zp for second projection for compressed experts,
-        //   shape [num_experts, inter_size, group_num, 1]
-        //   9: w2_weight - expert weights for final projection,
-        //   shape [num_experts, hidden_size, group_num, group_size]
-        //   10: w2_scale - expert scale for final projection for compressed experts,
-        //   shape [num_experts, hidden_size, group_num, 1]
-        //   11: w2_zp - expert zp for final projection for compressed experts,
-        //   shape [num_experts, hidden_size, group_num, 1]
-
-        // Use moe_3gemm_fused_compressed to replace it.
+        // GEMM3_SWIGLU (Qwen3-style MoE) should be handled by FuseMOE3GemmCompressed
+        // which converts MOECompressed(GEMM3_SWIGLU) → MOE3GemmFusedCompressed executed
+        // by the OCL moe_3gemm_swiglu_opt kernel on all architectures.  If execution
+        // reaches here the transformation pipeline is misconfigured.
+        OPENVINO_THROW("[GPU] MOECompressed(GEMM3_SWIGLU) must be handled by FuseMOE3GemmCompressed before program build");
     } else {
         // Create GEMM2_BIAS_SWIGLU_CLAMP specific primitives
         // input0 : input {#tokens, hidden_size}
