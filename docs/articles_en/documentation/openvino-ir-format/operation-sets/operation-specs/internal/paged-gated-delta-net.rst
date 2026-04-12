@@ -73,7 +73,7 @@ tokens up to ``past_lens[s]`` are replayed from that checkpoint.
 
 Use cases:
 	
-1. prefill with no past. Read from block 0, write to block 1...N
+1. prefill with no past. Read from block 0 (initialized to all 0), write to block 1...N
 2. prefill with past_len % cache_interval == 0. Read from block 0, write to block 1...N
 3. prefill with past_len % cache_interval !=0. Read from block 0, write to block 1...N
 4. decode with past_len % cache_interval == 0. Read from block 0, write to block 1
