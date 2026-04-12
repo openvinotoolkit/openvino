@@ -887,7 +887,7 @@ TEST(SubgraphCollectorCyclicTest, alternating_devices_no_cycles) {
         {"c1", "DEV0"},
         {"A", "DEV0"},
         {"B", "DEV1"},
-        {"C", "DEV0"},   
+        {"C", "DEV0"},
         {"D", "DEV1"},
         {"res", "DEV1"},
     };
