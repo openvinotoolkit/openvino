@@ -42,8 +42,11 @@ Atan2::Atan2(const Output<Node>& y, const Output<Node>& x, const AutoBroadcastSp
 void Atan2::validate_and_infer_types() {
     OV_OP_SCOPE(v17_Atan2_validate_and_infer_types);
     BinaryElementwiseArithmetic::validate_and_infer_types();
+    // BinaryElementwiseArithmetic ensures both inputs have the same type,
+    // so checking input 0 is sufficient to validate both.
+    // Allow dynamic type to support partial inference during graph construction.
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(0).is_real(),
+                          get_input_element_type(0).is_dynamic() || get_input_element_type(0).is_real(),
                           "Atan2 inputs must be floating-point type, got: ",
                           get_input_element_type(0));
 }

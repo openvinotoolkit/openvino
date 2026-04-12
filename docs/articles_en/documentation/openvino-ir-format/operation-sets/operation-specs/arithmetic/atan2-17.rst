@@ -32,6 +32,7 @@ Only floating-point input types are supported.
 
     * *none* - no auto-broadcasting is allowed, all input shapes must match
     * *numpy* - numpy broadcasting rules, description is available in :doc:`Broadcast Rules For Elementwise Operations <../../broadcast-rules>`
+    * *pdpd* - PaddlePaddle-style broadcasting rules, description is available in :doc:`Broadcast Rules For Elementwise Operations <../../broadcast-rules>`
 
   * **Type**: string
   * **Default value**: "numpy"

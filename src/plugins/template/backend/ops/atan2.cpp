@@ -13,6 +13,7 @@ bool evaluate(const std::shared_ptr<ov::op::v17::Atan2>& op,
               ov::TensorVector& outputs,
               const ov::TensorVector& inputs) {
     using T = ov::fundamental_type_for<ET>;
+    outputs[0].set_shape(infer_broadcast_shape(op.get(), inputs));
     ov::reference::atan2(inputs[0].data<const T>(),
                          inputs[1].data<const T>(),
                          outputs[0].data<T>(),
