@@ -4,15 +4,9 @@
 
 #include "include/batch_headers/fetch_data.cl"
 
-#if OUTPUT_DIMS == 5
-    #define INPUT_0 input0[INPUT0_GET_INDEX_SAFE(b, f, z, y, x)]
-    #define INPUT_1 input1[INPUT1_GET_INDEX_SAFE(b, f, z, y, x)]
-    #define INPUT_2 input2[INPUT2_GET_INDEX_SAFE(b, f, z, y, x)]
-#elif OUTPUT_DIMS == 4
-    #define INPUT_0 input0[INPUT0_GET_INDEX_SAFE(b, f, y, x)]
-    #define INPUT_1 input1[INPUT1_GET_INDEX_SAFE(b, f, y, x)]
-    #define INPUT_2 input2[INPUT2_GET_INDEX_SAFE(b, f, y, x)]
-#endif
+// INPUT_0, INPUT_1, INPUT_2 are JIT-defined in select_kernel_base.cpp with
+// correct per-input dimensionality to support broadcasting (e.g., a 4D mask
+// broadcast to a 5D output).
 
 KERNEL(select)(
     OPTIONAL_SHAPE_INFO_ARG

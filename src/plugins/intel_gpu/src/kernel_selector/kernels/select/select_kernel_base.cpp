@@ -41,6 +41,22 @@ JitConstants SelectKernelBase::GetJitConstantsCommon(const select_params& params
 
     jit.AddConstant(MakeJitConstant("INPUTS_DECLS", inputs_decls));
 
+    // Generate INPUT_N macros with correct dimensionality for each input tensor.
+    // Each input may have a different rank than the output (e.g., a 2D mask broadcast
+    // to a 5D output), so the index arguments must match each input's GET_INDEX_SAFE
+    // macro, which is generated based on that input's actual layout.
+    for (size_t i = 0; i < params.inputs.size(); i++) {
+        std::string indexArgs;
+        switch (params.inputs[i].Dimentions()) {
+        case 6:  indexArgs = "b, f, w, z, y, x"; break;
+        case 5:  indexArgs = "b, f, z, y, x"; break;
+        default: indexArgs = "b, f, y, x"; break;
+        }
+        std::string macro = "input" + toCodeString(i) + "[INPUT" + toCodeString(i) +
+                            "_GET_INDEX_SAFE(" + indexArgs + ")]";
+        jit.AddConstant(MakeJitConstant("INPUT_" + toCodeString(i), macro));
+    }
+
     std::string destType, absType;
 
     // i8, i8, i8

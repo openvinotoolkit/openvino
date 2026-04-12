@@ -2558,3 +2558,48 @@ TEST(select_cpu_impl_f32, select_basic_bfyx_2x2x2x2_bcast_mask_2x2x1x2) {
         ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
+
+// Regression test: 5D output with 4D broadcast mask.
+// The mask (condition) tensor has fewer dimensions than the output, requiring
+// per-input dimensionality in the generated INPUT_N macros.
+TEST(select_gpu_f32, select_5d_broadcast_mask_4d) {
+    auto& engine = get_test_engine();
+
+    // 5D output: [1, 2, 2, 2, 2] in bfzyx format
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ 1, 2, 2, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ 1, 2, 2, 2, 2 } });
+    // 4D mask broadcast to 5D: [1, 1, 2, 2] in bfyx — broadcasts across z dimension
+    auto mask = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
+    topology.add(input_layout("mask", mask->get_layout()));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
+
+    // Fill input with 1s, input2 with 0s
+    std::vector<float> ones(16, 1.f);
+    std::vector<float> zeros(16, 0.f);
+    set_values(input, ones);
+    set_values(input2, zeros);
+    // Mask: lower-triangular [2x2] — nonzero selects input (true), zero selects input2 (false)
+    set_values(mask, { 1.f, 0.f, 1.f, 1.f });
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    network.set_input_data("input2", input2);
+    network.set_input_data("mask", mask);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("select").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    // The mask [1,0; 1,1] is broadcast across batch, feature, and z dimensions.
+    // For each (b,f,z) slice: element (0,0)=1(input), (0,1)=0(input2), (1,0)=1(input), (1,1)=1(input)
+    for (int slice = 0; slice < 4; slice++) {  // 1*2*2 = 4 slices of z*f*b
+        ASSERT_EQ(1.f, output_ptr[slice * 4 + 0]);  // mask=1 -> input=1
+        ASSERT_EQ(0.f, output_ptr[slice * 4 + 1]);  // mask=0 -> input2=0
+        ASSERT_EQ(1.f, output_ptr[slice * 4 + 2]);  // mask=1 -> input=1
+        ASSERT_EQ(1.f, output_ptr[slice * 4 + 3]);  // mask=1 -> input=1
+    }
+}
