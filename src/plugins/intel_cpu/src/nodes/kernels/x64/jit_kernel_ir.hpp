@@ -21,6 +21,7 @@
 #include <functional>
 #include <iosfwd>
 #include <limits>
+#include <list>
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -101,14 +102,12 @@ public:
     template <typename BodyBuilder>
     void region(EmitFn emit, BodyBuilder&& body_builder, bool is_loop = false) {
         auto body = std::make_unique<IR>();
-        // Body ops are recorded via target() which pushes into body->_ops,
-        // but value_ids are minted by the ROOT IR's _next_value (since
-        // def()/use() are called on the root). No sync needed — the root's
-        // counter is authoritative.
-
+        // Save/restore cursor so nested regions (e.g. ir_if inside a loop)
+        // don't clobber the outer cursor.
+        auto* saved_cursor = _cursor;
         _cursor = &body->_ops;
         body_builder();
-        _cursor = nullptr;
+        _cursor = saved_cursor;
 
         target().push_back(Op{{}, invalid_value, std::move(emit), false,
                               std::move(body), is_loop});
@@ -120,16 +119,18 @@ public:
         region(std::move(emit), std::forward<BodyBuilder>(body_builder), /*is_loop=*/true);
     }
 
-    [[nodiscard]] const std::vector<Op>& ops() const noexcept { return _ops; }
+    [[nodiscard]] const std::list<Op>& ops() const noexcept { return _ops; }
+    [[nodiscard]] std::list<Op>& ops() noexcept { return _ops; }
     [[nodiscard]] std::size_t value_count() const noexcept { return _next_value; }
+    void set_value_count(value_id v) noexcept { _next_value = v; }
 
     void dump(std::ostream& os) const;
 
 private:
-    std::vector<Op>& target() { return _cursor ? *_cursor : _ops; }
+    std::list<Op>& target() { return _cursor ? *_cursor : _ops; }
 
-    std::vector<Op> _ops;
-    std::vector<Op>* _cursor = nullptr;    // non-null = recording into a body
+    std::list<Op> _ops;
+    std::list<Op>* _cursor = nullptr;    // non-null = recording into a body
     value_id _next_value = 0;
 };
 
@@ -141,6 +142,7 @@ struct Interval {
     value_id id = invalid_value;
     std::uint32_t start = 0;
     std::uint32_t end = 0;
+    value_id copy_of = invalid_value;  // source value if this is a copy op
 
     [[nodiscard]] bool covers(std::uint32_t op_index) const noexcept {
         return op_index >= start && op_index <= end;
@@ -166,10 +168,12 @@ public:
     using std::runtime_error::runtime_error;
 };
 
-// Pass 3: linear scan (Poletto & Sarkar 1999).
-// Slice 1 has no spill support — throws allocation_failure on pool overflow.
-// Slice 1 has no coalescing — is_copy is ignored.
-Assignment linear_scan(const std::vector<Interval>& intervals,
+// Pass 3: linear scan (Poletto & Sarkar 1999) with trivial coalescing
+// and rematerialization. When the pool overflows, evicts a rematerializable
+// value (empty reads) and clones its def op before the next use.
+// Mutates `ir` to insert remat ops.
+Assignment linear_scan(IR& ir,
+                       std::vector<Interval>& intervals,
                        std::uint32_t pool_size);
 
 // Debug helper: text dump of the op stream. Used by IR::dump and by tests

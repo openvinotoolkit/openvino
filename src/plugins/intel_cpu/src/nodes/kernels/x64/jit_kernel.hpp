@@ -283,7 +283,7 @@ protected:
     // into `*_reg` through `const` methods; move-assignment extends this by
     // letting the handle point to a different slot without copying contents.
     mutable shared_reg<reg_type> _reg;
-    jit_kernel_ir::value_id _vid = jit_kernel_ir::invalid_value;
+    mutable jit_kernel_ir::value_id _vid = jit_kernel_ir::invalid_value;
 };
 
 template <typename T>
@@ -364,6 +364,7 @@ public:
     const variable& operator=(variable&& rhs) const noexcept {
         if (this != &rhs) {
             base::_reg = std::move(rhs._reg);
+            base::_vid = rhs._vid;
         }
         return *this;
     }
@@ -588,6 +589,7 @@ public:
     const variable& operator=(variable&& rhs) const noexcept {
         if (this != &rhs) {
             base::_reg = std::move(rhs._reg);
+            base::_vid = rhs._vid;
         }
         return *this;
     }
@@ -630,22 +632,7 @@ public:
 
     variable permute(const uint8_t* order) const {
         static_assert(std::is_same_v<T, float>, "vector permute requires float element type");
-        if (base::_kernel.ir_mode()) {
-            using reg_type = typename reg_traits<type>::type;
-            // Copy order data — the pointer may not survive to lowering time.
-            auto order_copy = std::make_shared<std::array<uint8_t, N>>();
-            std::copy_n(order, N, order_copy->data());
-            return base::_kernel.template ir_def<N>(
-                {base::vid()},
-                [&k = base::_kernel, order_copy](const jit_kernel_ir::EmitContext& ctx) {
-                    k.uni_vpermps(reg_type(ctx.def->idx),
-                                  order_copy->data(),
-                                  reg_type(ctx.reads[0].idx));
-                });
-        }
-        variable res(base::_kernel);
-        base::_kernel.uni_vpermps(res, order, base::reg());
-        return res;
+        return base::_kernel.vec_permute(*this, order);
     }
 
     // In-lane shuffle with a 2-bit-per-lane imm8 selector (vshufps).
@@ -974,6 +961,18 @@ public:
                               const variable<float[N]>& a,
                               const variable<float[N]>& b);
 
+    // Copy a vector value. In IR mode, records a copy op (coalescing hint).
+    // In eager mode, emits vmovups into a fresh register.
+    template <size_t N>
+    variable<float[N]> vec_copy(const variable<float[N]>& src);
+
+    // Permute vector lanes. ISA dispatch: SSE uses shufps (imm8),
+    // AVX2/AVX-512 express the permute table as an IR-managed value
+    // so the allocator tracks the extra register.
+    template <size_t N>
+    variable<float[N]> vec_permute(const variable<float[N]>& src,
+                                   const uint8_t* order);
+
     // IR-mode load/store for f32 vectors. The pointer variable is an
     // eager-mode Reg64; the vector result/source is an IR value_id.
     // These emit vmovups — no type conversion. Type-converting loads
@@ -1008,14 +1007,18 @@ public:
     // destructive (overwrite first operand), so lower() emits a vmovups
     // seed + the FMA. The allocator's coalescing pass can eliminate the
     // seed when the source interval ends at the FMA.
+    // Destructive ternary dispatch: result = seed ± a * b.
+    // The seed is consumed (moved in eager, read in IR). Caller provides
+    // the seed via vec_copy().
     template <size_t N>
     variable<float[N]> vec_op(Insn3 insn,
+                              const variable<float[N]>& seed,
                               const variable<float[N]>& a,
-                              const variable<float[N]>& b,
-                              const variable<float[N]>& c);
+                              const variable<float[N]>& b);
 
+    // Destructive FMA: d = d ± s1 * s2. Seed copy handled by vec_copy().
     template <typename Reg>
-    void lower(Insn3 insn, const Reg& d, const Reg& s1, const Reg& s2, const Reg& s3);
+    void lower(Insn3 insn, const Reg& d, const Reg& s1, const Reg& s2);
 
     // ── Syntactic sugar: instruction functors ──────────────────────────
     // Lightweight callable that binds an instruction enum to this kernel.
@@ -1313,18 +1316,19 @@ template <size_t N>
 jit_kernel::variable<float[N]> jit_kernel::fma(const variable<float[N]>& a,
                                                 const variable<float[N]>& b,
                                                 const variable<float[N]>& c) {
-    // fma(a, b, c) = a * b + c. Maps to vfmadd231ps: dst = dst + s2 * s3.
-    // lower() seeds dst with c (the addend), then FMAs with a, b.
-    return vec_op(Insn3::fmadd231ps, c, a, b);
+    // fma(a, b, c) = a * b + c.
+    // vec_copy seeds the accumulator; allocator may coalesce if c is dead.
+    auto seed = vec_copy(c);
+    return vec_op(Insn3::fmadd231ps, seed, a, b);
 }
 
 template <size_t N>
 jit_kernel::variable<float[N]> jit_kernel::fnma(const variable<float[N]>& a,
                                                  const variable<float[N]>& b,
                                                  const variable<float[N]>& c) {
-    // fnma(a, b, c) = c - a * b. Maps to vfnmadd231ps: dst = dst - s2 * s3.
-    // lower() seeds dst with c (the minuend), then FNMAs with a, b.
-    return vec_op(Insn3::fnmadd231ps, c, a, b);
+    // fnma(a, b, c) = c - a * b.
+    auto seed = vec_copy(c);
+    return vec_op(Insn3::fnmadd231ps, seed, a, b);
 }
 
 // ── IR mode: instructions as data ──────────────────────────────────────
@@ -1368,46 +1372,120 @@ jit_kernel::variable<float[N]> jit_kernel::vec_op(Insn2 insn,
 }
 
 template <typename Reg>
-void jit_kernel::lower(Insn3 insn, const Reg& d, const Reg& s1, const Reg& s2, const Reg& s3) {
-    // FMA semantics: result = s1 * s2 + s3 (fmadd231) or s3 - s1 * s2 (fnmadd231).
-    // xbyak's vfmadd231ps overwrites the first operand: d = d + s2 * s3.
-    // So we seed d with s1 (the addend), then FMA with the multiplicands.
-    if (d.getIdx() != s1.getIdx()) {
-        uni_vmovups(d, s1);
-    }
+void jit_kernel::lower(Insn3 insn, const Reg& d, const Reg& s1, const Reg& s2) {
+    // Destructive FMA: d = d + s1 * s2 (fmadd231) or d = d - s1 * s2 (fnmadd231).
+    // The seed copy (vmovups into d) is handled by vec_copy() — the allocator
+    // may coalesce it, eliminating the copy entirely.
     switch (insn) {
-    case Insn3::fmadd231ps:  uni_vfmadd231ps(d, s2, s3);  break;
-    case Insn3::fnmadd231ps: uni_vfnmadd231ps(d, s2, s3); break;
+    case Insn3::fmadd231ps:  uni_vfmadd231ps(d, s1, s2);  break;
+    case Insn3::fnmadd231ps: uni_vfnmadd231ps(d, s1, s2); break;
     default: OPENVINO_THROW("jit_kernel::lower: unknown Insn3 value ", static_cast<int>(insn));
     }
 }
 
 template <size_t N>
 jit_kernel::variable<float[N]> jit_kernel::vec_op(Insn3 insn,
+                                                   const variable<float[N]>& seed,
                                                    const variable<float[N]>& a,
-                                                   const variable<float[N]>& b,
-                                                   const variable<float[N]>& c) {
+                                                   const variable<float[N]>& b) {
     using reg_type = typename reg_traits<float[N]>::type;
 
     if (_ir_mode) {
-        auto vid = _ir->def({a.vid(), b.vid(), c.vid()},
+        // Destructive FMA: the seed was already copied by vec_copy().
+        // reads[0] = seed (coalesced or copied), reads[1] = a, reads[2] = b.
+        // The seed's register should ideally BE the def register (via coalescing).
+        // If not coalesced, we need a mov — but that means vec_copy already
+        // emitted one, and we'd double-move. To avoid that, always mov seed→def
+        // and rely on coalescing to make it a self-move (eliminated by CPU).
+        auto vid = _ir->def({seed.vid(), a.vid(), b.vid()},
             [this, insn](const jit_kernel_ir::EmitContext& ctx) {
+                uni_vmovups(reg_type(ctx.def->idx), reg_type(ctx.reads[0].idx));
                 lower(insn,
                       reg_type(ctx.def->idx),
-                      reg_type(ctx.reads[0].idx),
                       reg_type(ctx.reads[1].idx),
                       reg_type(ctx.reads[2].idx));
             });
         return variable<float[N]>(*this, vid);
     }
 
-    // Eager path
-    variable<float[N]> res(*this);
+    // Eager path: seed already copied by fma()/fnma() via vec_copy().
+    // Destructive FMA into the seed's register, return by move.
     lower(insn,
-          static_cast<const reg_type&>(res.reg()),
+          static_cast<const reg_type&>(seed.reg()),
           static_cast<const reg_type&>(a.reg()),
-          static_cast<const reg_type&>(b.reg()),
-          static_cast<const reg_type&>(c.reg()));
+          static_cast<const reg_type&>(b.reg()));
+    return std::move(const_cast<variable<float[N]>&>(seed));
+}
+
+template <size_t N>
+jit_kernel::variable<float[N]> jit_kernel::vec_copy(const variable<float[N]>& src) {
+    using reg_type = typename reg_traits<float[N]>::type;
+
+    if (_ir_mode) {
+        auto vid = _ir->copy(src.vid(),
+            [this](const jit_kernel_ir::EmitContext& ctx) {
+                uni_vmovups(reg_type(ctx.def->idx), reg_type(ctx.reads[0].idx));
+            });
+        return variable<float[N]>(*this, vid);
+    }
+
+    variable<float[N]> res(*this);
+    uni_vmovups(static_cast<const reg_type&>(res.reg()),
+                static_cast<const reg_type&>(src.reg()));
+    return res;
+}
+
+template <size_t N>
+jit_kernel::variable<float[N]> jit_kernel::vec_permute(const variable<float[N]>& src,
+                                                        const uint8_t* order) {
+    using reg_type = typename reg_traits<float[N]>::type;
+
+    if (_ir_mode) {
+        if constexpr (N <= 4) {
+            // SSE: shufps with imm8 — no extra register needed
+            uint8_t imm8 = 0;
+            for (std::size_t i = 0; i < 4; ++i)
+                imm8 |= order[i] << (i * 2);
+            return ir_def<N>({src.vid()},
+                [this, imm8](const jit_kernel_ir::EmitContext& ctx) {
+                    Xbyak::Xmm def(ctx.def->idx), s(ctx.reads[0].idx);
+                    if (def.getIdx() != s.getIdx())
+                        movdqu(def, s);
+                    shufps(def, s, imm8);
+                });
+        } else {
+            // AVX2/AVX-512: permute table as a separate IR-managed value.
+            // Store table data in the constant pool; capture address for
+            // the emit closure. Load via a scratch GPR (same pattern as
+            // variable::operator=(const type&)).
+            int data[N];
+            for (std::size_t i = 0; i < N; ++i)
+                data[i] = order[i];
+            const int* cref = constant(data, N);
+            auto addr = reinterpret_cast<std::uintptr_t>(cref);
+
+            auto table = ir_def<N>({},
+                [this, addr](const jit_kernel_ir::EmitContext& ctx) {
+                    // Use a temp GPR to hold the constant address
+                    auto tmp = var<const int*>();
+                    tmp = reinterpret_cast<const int*>(addr);
+                    uni_vmovdqu(reg_type(ctx.def->idx),
+                                address_frame(sizeof(reg_type))[tmp.reg()]);
+                });
+
+            return ir_def<N>({src.vid(), table.vid()},
+                [this](const jit_kernel_ir::EmitContext& ctx) {
+                    vpermps(reg_type(ctx.def->idx),
+                            reg_type(ctx.reads[1].idx),
+                            reg_type(ctx.reads[0].idx));
+                });
+        }
+    }
+
+    // Eager path: uni_vpermps handles ISA dispatch + scratch internally
+    variable<float[N]> res(*this);
+    uni_vpermps(static_cast<const reg_type&>(res.reg()), order,
+                static_cast<const reg_type&>(src.reg()));
     return res;
 }
 

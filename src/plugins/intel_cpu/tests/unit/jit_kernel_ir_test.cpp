@@ -92,7 +92,7 @@ TEST(JitKernelIR, IntervalsOnStraightLine) {
     const value_id c = ir.def({a, b}, stub());
     const value_id d = ir.def({c, a}, stub());
 
-    const auto intervals = compute_intervals(ir);
+    auto intervals = compute_intervals(ir);
     ASSERT_EQ(intervals.size(), 4U);
 
     EXPECT_EQ(intervals[a].start, 0U);
@@ -116,8 +116,8 @@ TEST(JitKernelIR, LinearScanFitsInPool) {
     const value_id d = ir.def({c, a}, stub());
     (void)d;
 
-    const auto intervals = compute_intervals(ir);
-    const auto assignment = linear_scan(intervals, /*pool_size=*/4);
+    auto intervals = compute_intervals(ir);
+    const auto assignment = linear_scan(ir, intervals, /*pool_size=*/4);
 
     expect_all_assigned(intervals, assignment);
     expect_no_overlap_conflict(intervals, assignment);
@@ -142,8 +142,8 @@ TEST(JitKernelIR, LinearScanReusesFreedRegisters) {
     }
     (void)prev;
 
-    const auto intervals = compute_intervals(ir);
-    const auto assignment = linear_scan(intervals, /*pool_size=*/2);
+    auto intervals = compute_intervals(ir);
+    const auto assignment = linear_scan(ir, intervals, /*pool_size=*/2);
 
     expect_all_assigned(intervals, assignment);
     expect_no_overlap_conflict(intervals, assignment);
@@ -152,22 +152,36 @@ TEST(JitKernelIR, LinearScanReusesFreedRegisters) {
 }
 
 TEST(JitKernelIR, LinearScanThrowsOnOverflow) {
-    // Five long-lived values, all reads bundled into one final op so every
-    // value is simultaneously live at op 5. Pool of 4 must fail.
+    // Five long-lived non-rematerializable values (each reads its predecessor),
+    // all bundled into one final op. Pool of 4 must fail — no remat possible
+    // because every value has dependencies.
     IR ir;
     std::vector<value_id> values;
-    for (int i = 0; i < 5; ++i) {
-        values.push_back(ir.def({}, stub()));
+    value_id prev = ir.def({}, stub());  // first one has no reads (remat-able)
+    values.push_back(prev);
+    for (int i = 1; i < 5; ++i) {
+        prev = ir.def({prev}, stub());   // depends on predecessor — not remat-able
+        values.push_back(prev);
     }
     ir.use(values, stub());  // single op reading all five
 
-    const auto intervals = compute_intervals(ir);
-    EXPECT_THROW(linear_scan(intervals, /*pool_size=*/4), allocation_failure);
+    auto intervals = compute_intervals(ir);
+    EXPECT_THROW(linear_scan(ir, intervals, /*pool_size=*/4), allocation_failure);
 
     // Same IR with a pool large enough should succeed.
-    const auto assignment = linear_scan(intervals, /*pool_size=*/5);
-    expect_all_assigned(intervals, assignment);
-    expect_no_overlap_conflict(intervals, assignment);
+    IR ir2;
+    std::vector<value_id> values2;
+    prev = ir2.def({}, stub());
+    values2.push_back(prev);
+    for (int i = 1; i < 5; ++i) {
+        prev = ir2.def({prev}, stub());
+        values2.push_back(prev);
+    }
+    ir2.use(values2, stub());
+    auto intervals2 = compute_intervals(ir2);
+    const auto assignment = linear_scan(ir2, intervals2, /*pool_size=*/5);
+    expect_all_assigned(intervals2, assignment);
+    expect_no_overlap_conflict(intervals2, assignment);
     EXPECT_EQ(assignment.peak_live, 5U);
 }
 
@@ -182,12 +196,12 @@ TEST(JitKernelIR, UseWithoutDefDoesNotCreateValue) {
     EXPECT_EQ(ir.value_count(), 1U);
     EXPECT_EQ(ir.ops().size(), 2U);
 
-    const auto intervals = compute_intervals(ir);
+    auto intervals = compute_intervals(ir);
     ASSERT_EQ(intervals.size(), 1U);
     EXPECT_EQ(intervals[v].start, 0U);
     EXPECT_EQ(intervals[v].end, 1U);  // extended by the use
 
-    const auto assignment = linear_scan(intervals, /*pool_size=*/1);
+    const auto assignment = linear_scan(ir, intervals, /*pool_size=*/1);
     EXPECT_EQ(assignment.peak_live, 1U);
 }
 
@@ -200,11 +214,13 @@ TEST(JitKernelIR, CopyOpRecordedAsCopy) {
     const value_id b = ir.copy(a, stub());
 
     ASSERT_EQ(ir.ops().size(), 2U);
-    EXPECT_FALSE(ir.ops()[0].is_copy);
-    EXPECT_TRUE(ir.ops()[1].is_copy);
-    EXPECT_EQ(ir.ops()[1].def, b);
-    ASSERT_EQ(ir.ops()[1].reads.size(), 1U);
-    EXPECT_EQ(ir.ops()[1].reads[0], a);
+    auto it = ir.ops().begin();
+    EXPECT_FALSE(it->is_copy);
+    ++it;
+    EXPECT_TRUE(it->is_copy);
+    EXPECT_EQ(it->def, b);
+    ASSERT_EQ(it->reads.size(), 1U);
+    EXPECT_EQ(it->reads[0], a);
 }
 
 TEST(JitKernelIR, DumpProducesNonEmptyText) {
@@ -218,8 +234,8 @@ TEST(JitKernelIR, DumpProducesNonEmptyText) {
     const value_id c = ir.def({a, b}, stub());
     (void)c;
 
-    const auto intervals = compute_intervals(ir);
-    const auto assignment = linear_scan(intervals, /*pool_size=*/3);
+    auto intervals = compute_intervals(ir);
+    const auto assignment = linear_scan(ir, intervals, /*pool_size=*/3);
 
     std::ostringstream op_dump;
     dump_ops(op_dump, ir);
@@ -240,8 +256,8 @@ TEST(JitKernelIR, DeadValueFreesRegisterImmediately) {
     (void)ir.def({}, stub());  // dead
     (void)ir.def({}, stub());  // dead, would fail on pool=1 if dead value held its reg
 
-    const auto intervals = compute_intervals(ir);
-    const auto assignment = linear_scan(intervals, /*pool_size=*/1);
+    auto intervals = compute_intervals(ir);
+    const auto assignment = linear_scan(ir, intervals, /*pool_size=*/1);
     EXPECT_EQ(assignment.peak_live, 1U);
     EXPECT_EQ(assignment.reg.size(), 2U);
 }

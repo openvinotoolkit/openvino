@@ -13,6 +13,9 @@
 #include <cstdint>
 #include <cstring>
 #include <functional>
+#include <iostream>
+#include <list>
+#include <sstream>
 #include <stdexcept>
 
 #include "openvino/core/except.hpp"
@@ -548,14 +551,35 @@ void jit_kernel::end_ir() {
     if (!_ir_mode) return;
 
     // Allocate: compute_intervals walks the tree recursively.
-    const auto intervals = jit_kernel_ir::compute_intervals(*_ir);
+    auto intervals = jit_kernel_ir::compute_intervals(*_ir);
     const auto pool_size = static_cast<std::uint32_t>(_free_rmmregs.size());
-    const auto assignment = jit_kernel_ir::linear_scan(intervals, pool_size);
+
+    if (std::getenv("OV_JIT_IR_DUMP")) {
+        std::ostringstream os;
+        os << "=== IR before allocation: pool_size=" << pool_size
+           << " values=" << intervals.size() << " ===\n";
+        jit_kernel_ir::dump_ops(os, *_ir);
+        os << "--- intervals ---\n";
+        jit_kernel_ir::dump_assignment(os, intervals, jit_kernel_ir::Assignment{});
+        std::cout << os.str();
+    }
+
+    const auto assignment = jit_kernel_ir::linear_scan(*_ir, intervals, pool_size);
+
+    if (std::getenv("OV_JIT_IR_DUMP")) {
+        std::ostringstream os;
+        os << "=== IR allocation: pool_size=" << pool_size
+           << " peak_live=" << assignment.peak_live
+           << " values=" << intervals.size() << " ===\n";
+        jit_kernel_ir::dump_ops(os, *_ir);
+        jit_kernel_ir::dump_assignment(os, intervals, assignment);
+        std::cout << os.str();
+    }
 
     // Lower: walk the tree, emit xbyak. Loop ops emit header, recurse
     // into body, body's last op emits footer (set up by foreach).
-    std::function<void(const std::vector<jit_kernel_ir::Op>&)> lower;
-    lower = [&](const std::vector<jit_kernel_ir::Op>& ops) {
+    std::function<void(const std::list<jit_kernel_ir::Op>&)> lower;
+    lower = [&](const std::list<jit_kernel_ir::Op>& ops) {
         for (const auto& op : ops) {
             if (op.body) {
                 // Loop op: emit header, lower body (footer is last body op)

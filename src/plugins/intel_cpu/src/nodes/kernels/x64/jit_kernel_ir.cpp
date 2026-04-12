@@ -6,7 +6,9 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib>
 #include <deque>
+#include <iostream>
 #include <ostream>
 #include <string>
 #include <vector>
@@ -19,7 +21,7 @@ namespace {
 // assigning sequential indices. When a loop body is encountered, its ops
 // are walked inline and all intervals overlapping the loop range are
 // extended to cover the full body.
-void compute_intervals_impl(const std::vector<Op>& ops,
+void compute_intervals_impl(const std::list<Op>& ops,
                             std::vector<Interval>& intervals,
                             std::uint32_t& index) {
     for (const auto& op : ops) {
@@ -30,14 +32,16 @@ void compute_intervals_impl(const std::vector<Op>& ops,
             auto region_end = (index > 0) ? index - 1 : 0u;
 
             if (op.is_loop) {
-                // Loop: any interval overlapping [begin, end] must cover
-                // the full body (the loop may iterate).
+                // Loop: values defined BEFORE the loop but used INSIDE
+                // must stay live through the entire body (the loop iterates
+                // and each iteration re-reads the value). Values defined
+                // inside the loop are SSA-fresh each iteration — they keep
+                // their natural intra-iteration lifetime.
                 for (auto& iv : intervals) {
                     if (iv.start == std::numeric_limits<std::uint32_t>::max()) continue;
-                    if (iv.start <= region_end && iv.end >= region_begin) {
-                        if (iv.end < region_end) {
-                            iv.end = region_end;
-                        }
+                    if (iv.start < region_begin && iv.end >= region_begin &&
+                        iv.end < region_end) {
+                        iv.end = region_end;
                     }
                 }
             }
@@ -54,6 +58,9 @@ void compute_intervals_impl(const std::vector<Op>& ops,
                 intervals[op.def].start = index;
                 if (intervals[op.def].end < index) {
                     intervals[op.def].end = index;
+                }
+                if (op.is_copy && op.reads.size() == 1) {
+                    intervals[op.def].copy_of = op.reads[0];
                 }
             }
             ++index;
@@ -77,37 +84,83 @@ std::vector<Interval> compute_intervals(const IR& ir) {
     return intervals;
 }
 
-Assignment linear_scan(const std::vector<Interval>& intervals,
-                       std::uint32_t pool_size) {
-    // Sort intervals by start op index. Intervals that never got a def
-    // (sentinel start == max) sort to the end and are skipped.
-    std::vector<const Interval*> order;
-    order.reserve(intervals.size());
-    for (const auto& iv : intervals) {
-        if (iv.start != std::numeric_limits<std::uint32_t>::max()) {
-            order.push_back(&iv);
+namespace {
+
+// Build a map: value_id → Op* (the defining op) by walking the IR tree.
+// Also collects which ops are rematerializable (empty reads, not a region).
+void collect_def_ops(std::list<Op>& ops,
+                     std::unordered_map<value_id, Op*>& def_map) {
+    for (auto& op : ops) {
+        if (op.def != invalid_value) {
+            def_map[op.def] = &op;
+        }
+        if (op.body) {
+            collect_def_ops(op.body->ops(), def_map);
         }
     }
-    std::sort(order.begin(), order.end(), [](const Interval* a, const Interval* b) {
-        if (a->start != b->start) {
-            return a->start < b->start;
+}
+
+// Find the list position and iterator of the op that first reads `vid`
+// at or after op index `after`. Walks the tree linearly.
+struct UseLocation {
+    std::list<Op>* parent_list = nullptr;
+    std::list<Op>::iterator it;
+    std::uint32_t index = 0;
+};
+
+bool find_next_use(std::list<Op>& ops, value_id vid, std::uint32_t after,
+                   std::uint32_t& index, UseLocation& result) {
+    for (auto it = ops.begin(); it != ops.end(); ++it) {
+        auto& op = *it;
+        if (op.body) {
+            if (find_next_use(op.body->ops(), vid, after, index, result))
+                return true;
+        } else {
+            if (index >= after) {
+                for (auto read : op.reads) {
+                    if (read == vid) {
+                        result = {&ops, it, index};
+                        return true;
+                    }
+                }
+            }
+            ++index;
         }
-        return a->id < b->id;
+    }
+    return false;
+}
+
+}  // namespace
+
+Assignment linear_scan(IR& ir,
+                       std::vector<Interval>& intervals,
+                       std::uint32_t pool_size) {
+    // Build def map for rematerialization lookup
+    std::unordered_map<value_id, Op*> def_map;
+    collect_def_ops(ir.ops(), def_map);
+
+    // Use indices into intervals[] — safe across push_back/reallocation.
+    std::vector<std::size_t> order;
+    order.reserve(intervals.size());
+    for (std::size_t idx = 0; idx < intervals.size(); ++idx) {
+        if (intervals[idx].start != std::numeric_limits<std::uint32_t>::max()) {
+            order.push_back(idx);
+        }
+    }
+    std::sort(order.begin(), order.end(), [&](std::size_t a, std::size_t b) {
+        if (intervals[a].start != intervals[b].start) {
+            return intervals[a].start < intervals[b].start;
+        }
+        return intervals[a].id < intervals[b].id;
     });
 
-    // Free list of physical register indices. Pop front = "youngest freed".
-    // Later slices may swap this for a recency-biased policy.
     std::deque<std::uint32_t> free_list;
     for (std::uint32_t r = 0; r < pool_size; ++r) {
         free_list.push_back(r);
     }
 
-    // Active set: intervals currently holding a register. Kept sorted by end
-    // ascending so expire() is a linear scan of the front. For Slice 1's
-    // scale (dozens of intervals) linear is fine; promote to a heap later if
-    // the profile says so.
     struct ActiveEntry {
-        const Interval* iv = nullptr;
+        std::size_t iv_idx = 0;   // index into intervals[]
         PhysReg reg{};
     };
     std::vector<ActiveEntry> active;
@@ -116,12 +169,9 @@ Assignment linear_scan(const std::vector<Interval>& intervals,
     result.reg.reserve(order.size());
 
     auto expire = [&](std::uint32_t current_start) {
-        // Free any interval whose end is strictly before the new interval's
-        // start. Equal-end is NOT expired — a value used at op i is still
-        // live at op i and conflicts with another def at op i.
         auto it = active.begin();
         while (it != active.end()) {
-            if (it->iv->end < current_start) {
+            if (intervals[it->iv_idx].end < current_start) {
                 free_list.push_back(it->reg.idx);
                 it = active.erase(it);
             } else {
@@ -130,30 +180,118 @@ Assignment linear_scan(const std::vector<Interval>& intervals,
         }
     };
 
-    auto insert_active = [&](const Interval* iv, PhysReg reg) {
-        // Keep active sorted by end ascending for cheap front-expiry.
-        auto pos = std::upper_bound(active.begin(), active.end(), iv->end,
-                                    [](std::uint32_t end, const ActiveEntry& e) {
-                                        return end < e.iv->end;
+    auto insert_active = [&](std::size_t iv_idx, PhysReg reg) {
+        auto end = intervals[iv_idx].end;
+        auto pos = std::upper_bound(active.begin(), active.end(), end,
+                                    [&](std::uint32_t e, const ActiveEntry& ae) {
+                                        return e < intervals[ae.iv_idx].end;
                                     });
-        active.insert(pos, ActiveEntry{iv, reg});
+        active.insert(pos, ActiveEntry{iv_idx, reg});
     };
 
-    for (const Interval* iv : order) {
-        expire(iv->start);
+    for (std::size_t i = 0; i < order.size(); ++i) {
+        auto iv_idx = order[i];
+        auto& iv = intervals[iv_idx];
+        expire(iv.start);
 
+        // Trivial coalescing
+        if (iv.copy_of != invalid_value) {
+            auto src_it = result.reg.find(iv.copy_of);
+            if (src_it != result.reg.end()) {
+                auto fl_it = std::find(free_list.begin(), free_list.end(), src_it->second.idx);
+                if (fl_it != free_list.end()) {
+                    free_list.erase(fl_it);
+                    result.reg.emplace(iv.id, src_it->second);
+                    insert_active(iv_idx, src_it->second);
+                    continue;
+                }
+            }
+        }
+
+        // Rematerialization: if pool exhausted, evict a remat-able victim
         if (free_list.empty()) {
-            throw allocation_failure(
-                "jit_kernel_ir::linear_scan: pool of " + std::to_string(pool_size) +
-                " registers exhausted at op index " + std::to_string(iv->start) +
-                " (value id " + std::to_string(iv->id) +
-                "); Slice 1 has no spill support");
+            // Find active entry with furthest end that is rematerializable
+            std::size_t victim_pos = active.size();  // invalid sentinel
+            for (std::size_t a = 0; a < active.size(); ++a) {
+                auto vid = intervals[active[a].iv_idx].id;
+                auto def_it = def_map.find(vid);
+                if (def_it == def_map.end()) continue;
+                if (!def_it->second->reads.empty()) continue;
+                if (victim_pos == active.size() ||
+                    intervals[active[a].iv_idx].end > intervals[active[victim_pos].iv_idx].end) {
+                    victim_pos = a;
+                }
+            }
+
+            if (victim_pos < active.size()) {
+                auto& victim = active[victim_pos];
+                auto victim_id = intervals[victim.iv_idx].id;
+                auto victim_reg = victim.reg;
+                auto victim_original_end = intervals[victim.iv_idx].end;
+                auto* victim_def = def_map[victim_id];
+
+                // Truncate victim's interval at the eviction point
+                intervals[victim.iv_idx].end = iv.start;
+
+                // Find victim's next use after eviction
+                UseLocation use_loc{};
+                std::uint32_t search_idx = 0;
+                find_next_use(ir.ops(), victim_id, iv.start, search_idx, use_loc);
+
+                if (use_loc.parent_list) {
+                    // Clone: insert a remat op before the use site
+                    auto new_id = static_cast<value_id>(intervals.size());
+                    ir.set_value_count(new_id + 1);
+
+                    Op remat_op;
+                    remat_op.def = new_id;
+                    remat_op.emit = victim_def->emit;
+
+                    use_loc.parent_list->insert(use_loc.it, std::move(remat_op));
+
+                    // Rewrite reads: victim_id → new_id from use_loc onward
+                    for (auto it = use_loc.it; it != use_loc.parent_list->end(); ++it) {
+                        for (auto& read : it->reads) {
+                            if (read == victim_id) read = new_id;
+                        }
+                    }
+
+                    // Create interval for the clone
+                    Interval remat_iv;
+                    remat_iv.id = new_id;
+                    remat_iv.start = use_loc.index;
+                    remat_iv.end = victim_original_end;
+                    intervals.push_back(remat_iv);
+                    auto new_iv_idx = intervals.size() - 1;
+
+                    // Insert into sorted order for later processing
+                    auto insert_pos = std::upper_bound(
+                        order.begin() + static_cast<long>(i) + 1, order.end(),
+                        new_iv_idx,
+                        [&](std::size_t a, std::size_t b) {
+                            return intervals[a].start < intervals[b].start ||
+                                   (intervals[a].start == intervals[b].start &&
+                                    intervals[a].id < intervals[b].id);
+                        });
+                    order.insert(insert_pos, new_iv_idx);
+                }
+
+                // Remove victim from active, free its register
+                active.erase(active.begin() + static_cast<long>(victim_pos));
+                free_list.push_back(victim_reg.idx);
+            } else {
+                throw allocation_failure(
+                    "jit_kernel_ir::linear_scan: pool of " + std::to_string(pool_size) +
+                    " registers exhausted at op index " + std::to_string(iv.start) +
+                    " (value id " + std::to_string(iv.id) +
+                    "); no rematerializable victim found");
+            }
         }
 
         PhysReg reg{free_list.front()};
         free_list.pop_front();
-        result.reg.emplace(iv->id, reg);
-        insert_active(iv, reg);
+        result.reg.emplace(iv.id, reg);
+        insert_active(iv_idx, reg);
 
         if (active.size() > result.peak_live) {
             result.peak_live = static_cast<std::uint32_t>(active.size());
@@ -167,25 +305,36 @@ void IR::dump(std::ostream& os) const {
     dump_ops(os, *this);
 }
 
-void dump_ops(std::ostream& os, const IR& ir) {
-    const auto& ops = ir.ops();
-    for (std::uint32_t i = 0; i < ops.size(); ++i) {
-        const Op& op = ops[i];
-        os << "  " << i << ": ";
-        if (op.def != invalid_value) {
-            os << "%" << op.def << " = ";
+namespace {
+void dump_ops_impl(std::ostream& os, const std::list<Op>& ops, std::uint32_t& i, int depth) {
+    std::string indent(static_cast<std::size_t>(depth) * 2 + 2, ' ');
+    for (const auto& op : ops) {
+        if (op.body) {
+            os << indent << (op.is_loop ? "LOOP {\n" : "REGION {\n");
+            dump_ops_impl(os, op.body->ops(), i, depth + 1);
+            os << indent << "}\n";
         } else {
-            os << "       ";
-        }
-        os << (op.is_copy ? "copy" : "op") << "(";
-        for (std::size_t r = 0; r < op.reads.size(); ++r) {
-            if (r != 0) {
-                os << ", ";
+            os << indent << i << ": ";
+            if (op.def != invalid_value) {
+                os << "%" << op.def << " = ";
+            } else {
+                os << "       ";
             }
-            os << "%" << op.reads[r];
+            os << (op.is_copy ? "copy" : "op") << "(";
+            for (std::size_t r = 0; r < op.reads.size(); ++r) {
+                if (r != 0) os << ", ";
+                os << "%" << op.reads[r];
+            }
+            os << ")\n";
+            ++i;
         }
-        os << ")\n";
     }
+}
+}  // namespace
+
+void dump_ops(std::ostream& os, const IR& ir) {
+    std::uint32_t i = 0;
+    dump_ops_impl(os, ir.ops(), i, 0);
 }
 
 void dump_assignment(std::ostream& os,
