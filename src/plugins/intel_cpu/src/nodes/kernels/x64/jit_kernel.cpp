@@ -522,4 +522,66 @@ void jit_kernel::uni_vblendps(const Xbyak::Zmm& dst,
     vblendmps(dst | k1, src1, src2);
 }
 
+// ── IR mode ────────────────────────────────────────────────────────────
+
+void jit_kernel::ir_use(std::vector<jit_kernel_ir::value_id> reads,
+                        jit_kernel_ir::EmitFn emit) {
+    if (_ir_mode) {
+        _ir->use(std::move(reads), std::move(emit));
+        return;
+    }
+    // Eager: call the emit closure immediately.
+    std::vector<jit_kernel_ir::PhysReg> no_reads;
+    jit_kernel_ir::EmitContext ctx{std::nullopt, no_reads};
+    emit(ctx);
+}
+
+void jit_kernel::begin_ir() {
+    OPENVINO_ASSERT(!_ir_mode, "begin_ir() called while already in IR mode");
+    static const bool enabled = std::getenv("OV_JIT_IR_MODE") != nullptr;
+    if (!enabled) return;
+    _ir_mode = true;
+    _ir = std::make_unique<jit_kernel_ir::IR>();
+}
+
+void jit_kernel::end_ir() {
+    if (!_ir_mode) return;
+
+    // Allocate: compute_intervals walks the tree recursively.
+    const auto intervals = jit_kernel_ir::compute_intervals(*_ir);
+    const auto pool_size = static_cast<std::uint32_t>(_free_rmmregs.size());
+    const auto assignment = jit_kernel_ir::linear_scan(intervals, pool_size);
+
+    // Lower: walk the tree, emit xbyak. Loop ops emit header, recurse
+    // into body, body's last op emits footer (set up by foreach).
+    std::function<void(const std::vector<jit_kernel_ir::Op>&)> lower;
+    lower = [&](const std::vector<jit_kernel_ir::Op>& ops) {
+        for (const auto& op : ops) {
+            if (op.body) {
+                // Loop op: emit header, lower body (footer is last body op)
+                std::vector<jit_kernel_ir::PhysReg> no_reads;
+                const jit_kernel_ir::EmitContext ctx{std::nullopt, no_reads};
+                op.emit(ctx);
+                lower(op.body->ops());
+            } else {
+                std::vector<jit_kernel_ir::PhysReg> read_regs;
+                read_regs.reserve(op.reads.size());
+                for (auto vid : op.reads) {
+                    read_regs.push_back(assignment.reg.at(vid));
+                }
+                std::optional<jit_kernel_ir::PhysReg> def_reg;
+                if (op.def != jit_kernel_ir::invalid_value) {
+                    def_reg = assignment.reg.at(op.def);
+                }
+                const jit_kernel_ir::EmitContext ctx{def_reg, read_regs};
+                op.emit(ctx);
+            }
+        }
+    };
+    lower(_ir->ops());
+
+    _ir.reset();
+    _ir_mode = false;
+}
+
 }  // namespace ov::intel_cpu

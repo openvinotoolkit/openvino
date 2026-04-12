@@ -20,9 +20,16 @@
 #include "cpu/x64/jit_generator.hpp"
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "jit_kernel_ir.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
+
+// Instruction tags for the "instructions as data" dispatch.
+// Each enum value maps to a single xbyak instruction in jit_kernel::lower().
+// Adding a new instruction: add enum value here + one case in lower().
+enum class Insn2 : uint8_t { vaddps, vsubps, vmulps, vmaxps, vminps, COUNT };
+enum class Insn3 : uint8_t { fmadd231ps, fnmadd231ps, COUNT };
 
 struct jit_kernel;
 
@@ -251,6 +258,10 @@ public:
         return _reg;
     }
 
+    [[nodiscard]] jit_kernel_ir::value_id vid() const noexcept {
+        return _vid;
+    }
+
     // XByak relies on implicit conversions
     operator reg_type&() const {  // NOLINT(google-explicit-constructor)
         return reg();
@@ -262,6 +273,7 @@ public:
 
 protected:
     variable_base(jit_kernel& krnl, const shared_reg<reg_type>& reg);
+    variable_base(jit_kernel& krnl, jit_kernel_ir::value_id vid);
     ~variable_base() = default;
 
     jit_kernel& _kernel;
@@ -271,6 +283,7 @@ protected:
     // into `*_reg` through `const` methods; move-assignment extends this by
     // letting the handle point to a different slot without copying contents.
     mutable shared_reg<reg_type> _reg;
+    jit_kernel_ir::value_id _vid = jit_kernel_ir::invalid_value;
 };
 
 template <typename T>
@@ -551,6 +564,7 @@ public:
     variable(variable&&) noexcept = default;
     explicit variable(jit_kernel& krnl);
     variable(jit_kernel& krnl, const shared_reg<reg_type>& reg);
+    variable(jit_kernel& krnl, jit_kernel_ir::value_id vid);
 
     const variable& operator=(reg_type& rhs) const {
         base::_kernel.uni_vmovups(base::reg(), rhs);
@@ -591,6 +605,16 @@ public:
     // see "Value-transforming operations are by value" in jit_kernel.md.
     variable blend(const variable& rhs, uint16_t mask) const {
         static_assert(std::is_same_v<T, float>, "vector blend requires float element type");
+        if (base::_kernel.ir_mode()) {
+            using reg_type = typename reg_traits<type>::type;
+            return base::_kernel.template ir_def<N>(
+                {base::vid(), rhs.vid()},
+                [&k = base::_kernel, mask](const jit_kernel_ir::EmitContext& ctx) {
+                    k.uni_vblendps(reg_type(ctx.def->idx),
+                                   reg_type(ctx.reads[0].idx),
+                                   reg_type(ctx.reads[1].idx), mask);
+                });
+        }
         variable res(base::_kernel);
         base::_kernel.uni_vblendps(res, base::reg(), rhs, mask);
         return res;
@@ -601,14 +625,24 @@ public:
     // for all value-transforming operations — see "Value-transforming
     // operations are by value" in jit_kernel.md.
     variable permute(const std::array<uint8_t, N>& order) const {
-        static_assert(std::is_same_v<T, float>, "vector permute requires float element type");
-        variable res(base::_kernel);
-        base::_kernel.uni_vpermps(res, order.data(), base::reg());
-        return res;
+        return permute(order.data());
     }
 
     variable permute(const uint8_t* order) const {
         static_assert(std::is_same_v<T, float>, "vector permute requires float element type");
+        if (base::_kernel.ir_mode()) {
+            using reg_type = typename reg_traits<type>::type;
+            // Copy order data — the pointer may not survive to lowering time.
+            auto order_copy = std::make_shared<std::array<uint8_t, N>>();
+            std::copy_n(order, N, order_copy->data());
+            return base::_kernel.template ir_def<N>(
+                {base::vid()},
+                [&k = base::_kernel, order_copy](const jit_kernel_ir::EmitContext& ctx) {
+                    k.uni_vpermps(reg_type(ctx.def->idx),
+                                  order_copy->data(),
+                                  reg_type(ctx.reads[0].idx));
+                });
+        }
         variable res(base::_kernel);
         base::_kernel.uni_vpermps(res, order, base::reg());
         return res;
@@ -621,14 +655,21 @@ public:
     // Self-shuffle overload is the common form for lane-duplicating
     // deinterleave patterns.
     variable shuffle(uint8_t imm) const {
-        static_assert(std::is_same_v<T, float>, "vector shuffle requires float element type");
-        variable res(base::_kernel);
-        base::_kernel.uni_vshufps(res, base::reg(), base::reg(), imm);
-        return res;
+        return shuffle(*this, imm);
     }
 
     variable shuffle(const variable& other, uint8_t imm) const {
         static_assert(std::is_same_v<T, float>, "vector shuffle requires float element type");
+        if (base::_kernel.ir_mode()) {
+            using reg_type = typename reg_traits<type>::type;
+            return base::_kernel.template ir_def<N>(
+                {base::vid(), other.vid()},
+                [&k = base::_kernel, imm](const jit_kernel_ir::EmitContext& ctx) {
+                    k.uni_vshufps(reg_type(ctx.def->idx),
+                                  reg_type(ctx.reads[0].idx),
+                                  reg_type(ctx.reads[1].idx), imm);
+                });
+        }
         variable res(base::_kernel);
         base::_kernel.uni_vshufps(res, base::reg(), other, imm);
         return res;
@@ -642,36 +683,29 @@ public:
     // would just push the same pair onto every caller.
     variable clamp(const variable& lo, const variable& hi) const {
         static_assert(std::is_same_v<T, float>, "vector clamp requires float element type");
-        variable res(base::_kernel);
-        base::_kernel.uni_vmaxps(res, base::reg(), lo);
-        base::_kernel.uni_vminps(res, res, hi);
-        return res;
+        auto clamped_lo = base::_kernel.vec_op(Insn2::vmaxps, *this, lo);
+        return base::_kernel.vec_op(Insn2::vminps, clamped_lo, hi);
     }
 
-    // Vector arithmetic (Phase 1). Rule: one overload = one instruction.
+    // Vector arithmetic. Dispatches through jit_kernel::vec_op() which handles
+    // both eager mode (emit xbyak immediately) and IR mode (record into IR).
     // Float-only; integer vector ops and divide are intentionally not provided.
     template <typename U = T>
     variable operator+(const variable& rhs) const {
         static_assert(std::is_same_v<U, float>, "vector operator+ requires float element type");
-        variable res(base::_kernel);
-        base::_kernel.uni_vaddps(res, base::reg(), rhs);
-        return res;
+        return base::_kernel.vec_op(Insn2::vaddps, *this, rhs);
     }
 
     template <typename U = T>
     variable operator-(const variable& rhs) const {
         static_assert(std::is_same_v<U, float>, "vector operator- requires float element type");
-        variable res(base::_kernel);
-        base::_kernel.uni_vsubps(res, base::reg(), rhs);
-        return res;
+        return base::_kernel.vec_op(Insn2::vsubps, *this, rhs);
     }
 
     template <typename U = T>
     variable operator*(const variable& rhs) const {
         static_assert(std::is_same_v<U, float>, "vector operator* requires float element type");
-        variable res(base::_kernel);
-        base::_kernel.uni_vmulps(res, base::reg(), rhs);
-        return res;
+        return base::_kernel.vec_op(Insn2::vmulps, *this, rhs);
     }
 };
 
@@ -903,6 +937,18 @@ public:
     template <typename T>
     if_expression<T> _if(const boolean_expression<T>& expr) const;
 
+    // IR-mode conditional: records then/else bodies as nested regions.
+    // Condition must be set via ir_cmp() before calling this.
+    // `jcc` is the jump type for the ELSE case (e.g. jge, jne).
+    template <typename ThenFn, typename ElseFn>
+    void ir_if(void (Xbyak::CodeGenerator::*jcc)(const Xbyak::Label&, Xbyak::CodeGenerator::LabelType),
+               ThenFn&& then_fn, ElseFn&& else_fn);
+
+    // Overload without else branch.
+    template <typename ThenFn>
+    void ir_if(void (Xbyak::CodeGenerator::*jcc)(const Xbyak::Label&, Xbyak::CodeGenerator::LabelType),
+               ThenFn&& then_fn);
+
     void uni_vpermps(const Xbyak::Xmm& x1, const uint8_t mask[4], const Xbyak::Operand& op);
     void uni_vpermps(const Xbyak::Ymm& y1, const uint8_t mask[8], const Xbyak::Operand& op);
     void uni_vpermps(const Xbyak::Zmm& z1, const uint8_t mask[16], const Xbyak::Operand& op);
@@ -912,6 +958,107 @@ public:
     void uni_vblendps(const Xbyak::Xmm& dst, const Xbyak::Xmm& src1, const Xbyak::Xmm& src2, uint16_t mask);
     void uni_vblendps(const Xbyak::Ymm& dst, const Xbyak::Ymm& src1, const Xbyak::Ymm& src2, uint16_t mask);
     void uni_vblendps(const Xbyak::Zmm& dst, const Xbyak::Zmm& src1, const Xbyak::Zmm& src2, uint16_t mask);
+
+    // ── IR mode ──────────────────────────────────────────────────────────
+    // Opt-in recording mode. DSL calls record into IR instead of emitting
+    // xbyak immediately. end_ir() runs allocation + lowering.
+
+    [[nodiscard]] bool ir_mode() const noexcept { return _ir_mode; }
+    void begin_ir();
+    void end_ir();
+
+    // Generic dispatch: binary vector op. Handles IR/eager branching,
+    // register allocation, and width dispatch in one place.
+    template <size_t N>
+    variable<float[N]> vec_op(Insn2 insn,
+                              const variable<float[N]>& a,
+                              const variable<float[N]>& b);
+
+    // IR-mode load/store for f32 vectors. The pointer variable is an
+    // eager-mode Reg64; the vector result/source is an IR value_id.
+    // These emit vmovups — no type conversion. Type-converting loads
+    // (u8→f32 etc.) require the barrier mechanism (not yet implemented).
+    template <size_t N, typename PtrT>
+    variable<float[N]> ir_load(const variable<PtrT>& ptr);
+
+    template <size_t N, typename PtrT, typename ElemT>
+    void ir_store(const variable<PtrT>& ptr, const variable<ElemT[N]>& val);
+
+    // ir_store with byte offset from pointer base.
+    template <size_t N, typename PtrT, typename ElemT>
+    void ir_store(const variable<PtrT>& ptr, size_t byte_offset,
+                  const variable<ElemT[N]>& val);
+
+    // Low-level bridge helpers for IR mode: record a def/use op with a
+    // custom emit closure. Used by ir_load/ir_store internally and
+    // available for custom bridging when needed.
+    template <size_t N>
+    variable<float[N]> ir_def(std::vector<jit_kernel_ir::value_id> reads,
+                              jit_kernel_ir::EmitFn emit);
+    void ir_use(std::vector<jit_kernel_ir::value_id> reads,
+                jit_kernel_ir::EmitFn emit);
+
+    // Lowering: maps instruction enum to xbyak call. The only code that
+    // names specific xbyak instructions. Templated on register type so
+    // uni_* overloads resolve naturally from the caller's width.
+    template <typename Reg>
+    void lower(Insn2 insn, const Reg& d, const Reg& s1, const Reg& s2);
+
+    // Ternary dispatch: result = f(a, b, c). FMA instructions are
+    // destructive (overwrite first operand), so lower() emits a vmovups
+    // seed + the FMA. The allocator's coalescing pass can eliminate the
+    // seed when the source interval ends at the FMA.
+    template <size_t N>
+    variable<float[N]> vec_op(Insn3 insn,
+                              const variable<float[N]>& a,
+                              const variable<float[N]>& b,
+                              const variable<float[N]>& c);
+
+    template <typename Reg>
+    void lower(Insn3 insn, const Reg& d, const Reg& s1, const Reg& s2, const Reg& s3);
+
+    // ── Syntactic sugar: instruction functors ──────────────────────────
+    // Lightweight callable that binds an instruction enum to this kernel.
+    // Deduces vector width N from the variable arguments.
+    //   auto c = vaddps(a, b);   // instead of vec_op(Insn2::vaddps, a, b)
+    struct Op2 {
+        jit_kernel* self;
+        Insn2 insn;
+        template <size_t N>
+        variable<float[N]> operator()(const variable<float[N]>& a,
+                                      const variable<float[N]>& b) const {
+            return self->vec_op(insn, a, b);
+        }
+    };
+
+    struct Op3 {
+        jit_kernel* self;
+        Insn3 insn;
+        template <size_t N>
+        variable<float[N]> operator()(const variable<float[N]>& a,
+                                      const variable<float[N]>& b,
+                                      const variable<float[N]>& c) const {
+            return self->vec_op(insn, a, b, c);
+        }
+    };
+
+    Op2 vaddps{this, Insn2::vaddps};
+    Op2 vsubps{this, Insn2::vsubps};
+    Op2 vmulps{this, Insn2::vmulps};
+    Op2 vmaxps{this, Insn2::vmaxps};
+    Op2 vminps{this, Insn2::vminps};
+    Op3 vfmadd231ps{this, Insn3::fmadd231ps};
+    Op3 vfnmadd231ps{this, Insn3::fnmadd231ps};
+
+    // Broadcast a scalar from memory into an IR vector variable.
+    template <size_t N>
+    variable<float[N]> ir_broadcast(const Xbyak::Address& addr);
+
+    // GPR compare — sets flags, no result. In IR mode records a deferred
+    // cmp; in eager mode emits immediately. Operands are scalar variables
+    // or immediates (not IR-managed vector values).
+    template <typename A, typename B>
+    void ir_cmp(const A& a, const B& b);
 
     void postamble();
 
@@ -924,6 +1071,10 @@ private:
     reg_indices _free_rmmregs;
     internal::consts_table _consts;
     std::unordered_map<size_t, std::unique_ptr<jit_emitter>> _emitters;
+
+    // IR mode state
+    bool _ir_mode = false;
+    std::unique_ptr<jit_kernel_ir::IR> _ir;
 };
 
 template <>
@@ -1004,6 +1155,16 @@ void jit_kernel::store(const variable<DstT>& dst, const variable<SrcT[N]>& src, 
     using src_type = std::remove_cv_t<std::remove_pointer_t<SrcT>>;
     using dst_type = std::remove_cv_t<std::remove_pointer_t<DstT>>;
 
+    if (_ir_mode) {
+        // @todo claude: IR mode only supports same-type full-width stores.
+        // Type-converting stores (f32→u8) need the barrier mechanism.
+        OPENVINO_ASSERT((std::is_same_v<src_type, dst_type>),
+                        "IR mode store: type conversion not yet supported");
+        OPENVINO_ASSERT(length == N, "IR mode store: partial stores not yet supported");
+        ir_store(dst, src);
+        return;
+    }
+
     const std::vector<size_t> pool_vec_idxs(_free_rmmregs.begin(), _free_rmmregs.end());
     const std::vector<size_t> pool_gpr_idxs(_free_x64regs.begin(), _free_x64regs.end());
 
@@ -1042,21 +1203,73 @@ void jit_kernel::foreach (const B& begin,
                           const S& step) {
     using namespace Xbyak;
 
-    Label loop, exit;
+    if (!_ir_mode) {
+        // Eager path: emit loop control flow immediately
+        Label loop, exit;
+        auto idx = var<size_t>();
+        idx = begin;
+        L(loop);
+        cmp(idx, end);
+        jge(exit, T_NEAR);
+        fn(idx);
+        add(idx, step);
+        jmp(loop, T_NEAR);
+        L(exit);
+        return;
+    }
 
+    // IR path: loop counter lives in eager mode (GPR, not IR-managed).
+    // Body ops record into a nested IR via _ir->loop().
     auto idx = var<size_t>();
-
     idx = begin;
+    auto idx_reg_idx = idx.reg().getIdx();
 
-    L(loop);
-    cmp(idx, end);
-    jge(exit, T_NEAR);
+    // Build a compare closure, handling immediate, Reg64, and variable end values.
+    std::function<void()> cmp_fn;
+    if constexpr (std::is_integral_v<std::decay_t<E>>) {
+        auto end_val = static_cast<size_t>(end);
+        cmp_fn = [this, idx_reg_idx, end_val]() {
+            cmp(Xbyak::Reg64(idx_reg_idx), end_val);
+        };
+    } else if constexpr (std::is_base_of_v<Xbyak::Reg, std::decay_t<E>>) {
+        auto end_reg_idx = end.getIdx();
+        cmp_fn = [this, idx_reg_idx, end_reg_idx]() {
+            cmp(Xbyak::Reg64(idx_reg_idx), Xbyak::Reg64(end_reg_idx));
+        };
+    } else {
+        auto end_reg_idx = end.reg().getIdx();
+        cmp_fn = [this, idx_reg_idx, end_reg_idx]() {
+            cmp(Xbyak::Reg64(idx_reg_idx), Xbyak::Reg64(end_reg_idx));
+        };
+    }
 
-    fn(idx);
+    auto loop_label = std::make_shared<Xbyak::Label>();
+    auto exit_label = std::make_shared<Xbyak::Label>();
+    auto step_val = static_cast<size_t>(step);
 
-    add(idx, step);
-    jmp(loop, T_NEAR);
-    L(exit);
+    // The loop op's emit closure emits: header, then the body is lowered
+    // by the lowering pass, then the footer (recorded as last op in body).
+    _ir->loop(
+        // Header emit: L(loop); cmp(idx, end); jge(exit)
+        [this, loop_label, exit_label, cmp_fn](const jit_kernel_ir::EmitContext&) {
+            L(*loop_label);
+            cmp_fn();
+            jge(*exit_label, Xbyak::CodeGenerator::T_NEAR);
+        },
+        // Body builder: records ops into nested IR
+        [&]() {
+            fn(idx);
+
+            // Footer: add(idx, step); jmp(loop); L(exit)
+            // Recorded as the last use() in the body so lowering emits it
+            // after all body ops.
+            _ir->use({}, [this, loop_label, exit_label, idx_reg_idx, step_val](
+                             const jit_kernel_ir::EmitContext&) {
+                add(Xbyak::Reg64(idx_reg_idx), step_val);
+                jmp(*loop_label, Xbyak::CodeGenerator::T_NEAR);
+                L(*exit_label);
+            });
+        });
 }
 
 template <typename T>
@@ -1100,20 +1313,243 @@ template <size_t N>
 jit_kernel::variable<float[N]> jit_kernel::fma(const variable<float[N]>& a,
                                                 const variable<float[N]>& b,
                                                 const variable<float[N]>& c) {
-    variable<float[N]> res(*this);
-    uni_vmovups(res, c);
-    uni_vfmadd231ps(res, a, b);
-    return res;
+    // fma(a, b, c) = a * b + c. Maps to vfmadd231ps: dst = dst + s2 * s3.
+    // lower() seeds dst with c (the addend), then FMAs with a, b.
+    return vec_op(Insn3::fmadd231ps, c, a, b);
 }
 
 template <size_t N>
 jit_kernel::variable<float[N]> jit_kernel::fnma(const variable<float[N]>& a,
                                                  const variable<float[N]>& b,
                                                  const variable<float[N]>& c) {
+    // fnma(a, b, c) = c - a * b. Maps to vfnmadd231ps: dst = dst - s2 * s3.
+    // lower() seeds dst with c (the minuend), then FNMAs with a, b.
+    return vec_op(Insn3::fnmadd231ps, c, a, b);
+}
+
+// ── IR mode: instructions as data ──────────────────────────────────────
+
+template <typename Reg>
+void jit_kernel::lower(Insn2 insn, const Reg& d, const Reg& s1, const Reg& s2) {
+    switch (insn) {
+    case Insn2::vaddps: uni_vaddps(d, s1, s2); break;
+    case Insn2::vsubps: uni_vsubps(d, s1, s2); break;
+    case Insn2::vmulps: uni_vmulps(d, s1, s2); break;
+    case Insn2::vmaxps: uni_vmaxps(d, s1, s2); break;
+    case Insn2::vminps: uni_vminps(d, s1, s2); break;
+    default: OPENVINO_THROW("jit_kernel::lower: unknown Insn2 value ", static_cast<int>(insn));
+    }
+}
+
+template <size_t N>
+jit_kernel::variable<float[N]> jit_kernel::vec_op(Insn2 insn,
+                                                   const variable<float[N]>& a,
+                                                   const variable<float[N]>& b) {
+    using reg_type = typename reg_traits<float[N]>::type;
+
+    if (_ir_mode) {
+        auto vid = _ir->def({a.vid(), b.vid()},
+            [this, insn](const jit_kernel_ir::EmitContext& ctx) {
+                lower(insn,
+                      reg_type(ctx.def->idx),
+                      reg_type(ctx.reads[0].idx),
+                      reg_type(ctx.reads[1].idx));
+            });
+        return variable<float[N]>(*this, vid);
+    }
+
+    // Eager path: allocate register, emit immediately
     variable<float[N]> res(*this);
-    uni_vmovups(res, c);
-    uni_vfnmadd231ps(res, a, b);
+    lower(insn,
+          static_cast<const reg_type&>(res.reg()),
+          static_cast<const reg_type&>(a.reg()),
+          static_cast<const reg_type&>(b.reg()));
     return res;
+}
+
+template <typename Reg>
+void jit_kernel::lower(Insn3 insn, const Reg& d, const Reg& s1, const Reg& s2, const Reg& s3) {
+    // FMA semantics: result = s1 * s2 + s3 (fmadd231) or s3 - s1 * s2 (fnmadd231).
+    // xbyak's vfmadd231ps overwrites the first operand: d = d + s2 * s3.
+    // So we seed d with s1 (the addend), then FMA with the multiplicands.
+    if (d.getIdx() != s1.getIdx()) {
+        uni_vmovups(d, s1);
+    }
+    switch (insn) {
+    case Insn3::fmadd231ps:  uni_vfmadd231ps(d, s2, s3);  break;
+    case Insn3::fnmadd231ps: uni_vfnmadd231ps(d, s2, s3); break;
+    default: OPENVINO_THROW("jit_kernel::lower: unknown Insn3 value ", static_cast<int>(insn));
+    }
+}
+
+template <size_t N>
+jit_kernel::variable<float[N]> jit_kernel::vec_op(Insn3 insn,
+                                                   const variable<float[N]>& a,
+                                                   const variable<float[N]>& b,
+                                                   const variable<float[N]>& c) {
+    using reg_type = typename reg_traits<float[N]>::type;
+
+    if (_ir_mode) {
+        auto vid = _ir->def({a.vid(), b.vid(), c.vid()},
+            [this, insn](const jit_kernel_ir::EmitContext& ctx) {
+                lower(insn,
+                      reg_type(ctx.def->idx),
+                      reg_type(ctx.reads[0].idx),
+                      reg_type(ctx.reads[1].idx),
+                      reg_type(ctx.reads[2].idx));
+            });
+        return variable<float[N]>(*this, vid);
+    }
+
+    // Eager path
+    variable<float[N]> res(*this);
+    lower(insn,
+          static_cast<const reg_type&>(res.reg()),
+          static_cast<const reg_type&>(a.reg()),
+          static_cast<const reg_type&>(b.reg()),
+          static_cast<const reg_type&>(c.reg()));
+    return res;
+}
+
+template <size_t N, typename PtrT>
+jit_kernel::variable<float[N]> jit_kernel::ir_load(const variable<PtrT>& src_ptr) {
+    using reg_type = typename reg_traits<float[N]>::type;
+    auto ptr_idx = static_cast<std::uint32_t>(src_ptr.reg().getIdx());
+    return ir_def<N>({}, [this, ptr_idx](const jit_kernel_ir::EmitContext& ctx) {
+        uni_vmovups(reg_type(ctx.def->idx),
+                    address_frame(sizeof(reg_type))[Xbyak::Reg64(ptr_idx)]);
+    });
+}
+
+template <size_t N, typename PtrT, typename ElemT>
+void jit_kernel::ir_store(const variable<PtrT>& dst_ptr, const variable<ElemT[N]>& val) {
+    ir_store(dst_ptr, size_t{0}, val);
+}
+
+template <size_t N, typename PtrT, typename ElemT>
+void jit_kernel::ir_store(const variable<PtrT>& dst_ptr, size_t byte_offset,
+                          const variable<ElemT[N]>& val) {
+    using reg_type = typename reg_traits<ElemT[N]>::type;
+    auto ptr_idx = static_cast<std::uint32_t>(dst_ptr.reg().getIdx());
+    if (_ir_mode) {
+        ir_use({val.vid()}, [this, ptr_idx, byte_offset](const jit_kernel_ir::EmitContext& ctx) {
+            uni_vmovups(address_frame(sizeof(reg_type))[Xbyak::Reg64(ptr_idx) + byte_offset],
+                        reg_type(ctx.reads[0].idx));
+        });
+    } else {
+        uni_vmovups(address_frame(sizeof(reg_type))[Xbyak::Reg64(ptr_idx) + byte_offset],
+                    static_cast<const reg_type&>(val.reg()));
+    }
+}
+
+template <size_t N>
+jit_kernel::variable<float[N]> jit_kernel::ir_def(std::vector<jit_kernel_ir::value_id> reads,
+                                                   jit_kernel_ir::EmitFn emit) {
+    if (_ir_mode) {
+        auto vid = _ir->def(std::move(reads), std::move(emit));
+        return variable<float[N]>(*this, vid);
+    }
+    // Eager: call the emit closure immediately with a fresh register.
+    variable<float[N]> res(*this);
+    std::vector<jit_kernel_ir::PhysReg> no_reads;
+    jit_kernel_ir::EmitContext ctx{jit_kernel_ir::PhysReg{static_cast<std::uint32_t>(res.reg().getIdx())}, no_reads};
+    emit(ctx);
+    return res;
+}
+
+template <size_t N>
+jit_kernel::variable<float[N]> jit_kernel::ir_broadcast(const Xbyak::Address& addr) {
+    using reg_type = typename reg_traits<float[N]>::type;
+    if (_ir_mode) {
+        return ir_def<N>({}, [this, addr](const jit_kernel_ir::EmitContext& ctx) {
+            uni_vbroadcastss(reg_type(ctx.def->idx), addr);
+        });
+    }
+    variable<float[N]> res(*this);
+    uni_vbroadcastss(res, addr);
+    return res;
+}
+
+template <typename A, typename B>
+void jit_kernel::ir_cmp(const A& a, const B& b) {
+    // x86 cmp: first operand is always a register.
+    static_assert(!std::is_integral_v<std::decay_t<A>>,
+                  "ir_cmp: first operand must be a register, not an immediate");
+    auto a_idx = a.reg().getIdx();
+    if (_ir_mode) {
+        if constexpr (std::is_integral_v<std::decay_t<B>>) {
+            auto b_val = static_cast<size_t>(b);
+            _ir->use({}, [this, a_idx, b_val](const jit_kernel_ir::EmitContext&) {
+                cmp(Xbyak::Reg64(a_idx), b_val);
+            });
+        } else {
+            auto b_idx = b.reg().getIdx();
+            _ir->use({}, [this, a_idx, b_idx](const jit_kernel_ir::EmitContext&) {
+                cmp(Xbyak::Reg64(a_idx), Xbyak::Reg64(b_idx));
+            });
+        }
+    } else {
+        cmp(a, b);
+    }
+}
+
+template <typename ThenFn, typename ElseFn>
+void jit_kernel::ir_if(
+        void (Xbyak::CodeGenerator::*jcc)(const Xbyak::Label&, Xbyak::CodeGenerator::LabelType),
+        ThenFn&& then_fn, ElseFn&& else_fn) {
+    if (_ir_mode) {
+        auto else_label = std::make_shared<Xbyak::Label>();
+        auto exit_label = std::make_shared<Xbyak::Label>();
+
+        _ir->region(
+            [this, jcc, else_label](const jit_kernel_ir::EmitContext&) {
+                (this->*jcc)(*else_label, Xbyak::CodeGenerator::T_NEAR);
+            },
+            [&]() { then_fn(); });
+
+        _ir->region(
+            [this, else_label, exit_label](const jit_kernel_ir::EmitContext&) {
+                jmp(*exit_label, Xbyak::CodeGenerator::T_NEAR);
+                L(*else_label);
+            },
+            [&]() { else_fn(); });
+
+        _ir->use({}, [this, exit_label](const jit_kernel_ir::EmitContext&) {
+            L(*exit_label);
+        });
+    } else {
+        Xbyak::Label else_label, exit_label;
+        (this->*jcc)(else_label, Xbyak::CodeGenerator::T_NEAR);
+        then_fn();
+        jmp(exit_label, Xbyak::CodeGenerator::T_NEAR);
+        L(else_label);
+        else_fn();
+        L(exit_label);
+    }
+}
+
+template <typename ThenFn>
+void jit_kernel::ir_if(
+        void (Xbyak::CodeGenerator::*jcc)(const Xbyak::Label&, Xbyak::CodeGenerator::LabelType),
+        ThenFn&& then_fn) {
+    if (_ir_mode) {
+        auto exit_label = std::make_shared<Xbyak::Label>();
+
+        _ir->region(
+            [this, jcc, exit_label](const jit_kernel_ir::EmitContext&) {
+                (this->*jcc)(*exit_label, Xbyak::CodeGenerator::T_NEAR);
+            },
+            [&]() { then_fn(); });
+
+        _ir->use({}, [this, exit_label](const jit_kernel_ir::EmitContext&) {
+            L(*exit_label);
+        });
+    } else {
+        Xbyak::Label exit_label;
+        (this->*jcc)(exit_label, Xbyak::CodeGenerator::T_NEAR);
+        then_fn();
+        L(exit_label);
+    }
 }
 
 template <size_t N>
@@ -1158,13 +1594,9 @@ void jit_kernel::store_interleaved3(const variable<T*>& dst,
     auto [o0, o1, o2] = interleave_regs(a, b, c);
 
     const size_t step = N * sizeof(T);
-    auto p = var<T*>();
-    p = dst;
-    store(p, o0);
-    p += step;
-    store(p, o1);
-    p += step;
-    store(p, o2);
+    ir_store(dst, size_t{0}, o0);
+    ir_store(dst, step, o1);
+    ir_store(dst, 2 * step, o2);
 }
 
 template <typename T, size_t N>
@@ -1306,13 +1738,20 @@ variable_base<T, register_tag>::variable_base(jit_kernel& krnl, const shared_reg
       _reg(reg) {}
 
 template <typename T>
+variable_base<T, register_tag>::variable_base(jit_kernel& krnl, jit_kernel_ir::value_id vid)
+    : _kernel(krnl),
+      _vid(vid) {}
+
+template <typename T>
 variable_base<T, register_tag>::variable_base(const variable_base& rhs) : _kernel(rhs._kernel),
-                                                                          _reg(rhs._reg) {}
+                                                                          _reg(rhs._reg),
+                                                                          _vid(rhs._vid) {}
 
 template <typename T>
 variable_base<T, register_tag>::variable_base(variable_base&& rhs) noexcept
     : _kernel(rhs._kernel),
-      _reg(std::move(rhs._reg)) {}
+      _reg(std::move(rhs._reg)),
+      _vid(rhs._vid) {}
 
 template <typename T>
 variable_base<T, memory_tag>::variable_base(jit_kernel& krnl, const shared_reg<reg_type>& addr)
@@ -1351,6 +1790,9 @@ variable<T[N], register_tag>::variable(jit_kernel& krnl)
 
 template <typename T, size_t N>
 variable<T[N], register_tag>::variable(jit_kernel& krnl, const shared_reg<reg_type>& reg) : base(krnl, reg) {}
+
+template <typename T, size_t N>
+variable<T[N], register_tag>::variable(jit_kernel& krnl, jit_kernel_ir::value_id vid) : base(krnl, vid) {}
 
 // NOLINTEND(cppcoreguidelines-c-copy-assignment-signature, misc-unconventional-assign-operator)
 

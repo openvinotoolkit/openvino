@@ -175,10 +175,10 @@ private:
             load(a, a_ptr);
             load(b, b_ptr);
 
-            std::ignore = a.blend(b, 0xAAAA);
-            std::ignore = a.permute(order);
+            auto blended = a.blend(b, 0xAAAA);
+            auto permuted = blended.permute(order);
 
-            store(result, a);
+            store(result, permuted);
 
             postamble();
         }

@@ -373,42 +373,119 @@ void JitConverter<T[N]>::generate() {
 
     width >>= reg_capacity_log;
 
-    foreach (0, width, [&]([[maybe_unused]] const Reg64& idx) {
-        auto yuv = load_yuv(src_y, src_uv);
+    if constexpr (std::is_same_v<T, float>) {
+        // ── IR mode: register allocation across the entire loop ─────────
+        begin_ir();
 
-        auto rgb = yuv_to_rgb(std::move(yuv), std::is_integral_v<T>);
+        // Broadcast BT.601 coefficients — loop-invariant
+        auto bc = [&](int slot) {
+            return ir_broadcast<N>(ptr[_consts + slot * sizeof(float)]);
+        };
 
-        _if(colorFormat == 0)
-            ._then([&] {
-                store_interleaved3(dst, rgb.r, rgb.g, rgb.b);
-            })
-            ._else([&] {
-                store_interleaved3(dst, rgb.b, rgb.g, rgb.r);
+        auto y_off    = bc(0);   // 16
+        auto uv_off   = bc(1);   // 128
+        auto y_scale  = bc(2);   // 1.164
+        auto v_to_r   = bc(3);   // 1.596
+        auto u_to_g   = bc(4);   // 0.391
+        auto u_to_b   = bc(5);   // 2.018
+        auto v_to_g   = bc(6);   // 0.813
+        auto clamp_hi = bc(7);   // 255
+
+        // Zero for clamp lower bound
+        auto clamp_lo = ir_def<N>({}, [this](const jit_kernel_ir::EmitContext& ctx) {
+            using reg_type = typename reg_traits<float[N]>::type;
+            uni_vxorps(reg_type(ctx.def->idx), reg_type(ctx.def->idx), reg_type(ctx.def->idx));
+        });
+
+        auto src_y_idx  = static_cast<std::uint32_t>(src_y.reg().getIdx());
+        auto src_uv_idx = static_cast<std::uint32_t>(src_uv.reg().getIdx());
+        auto dst_idx    = static_cast<std::uint32_t>(dst.reg().getIdx());
+
+        constexpr uint8_t even_mask = 0xA0;
+        constexpr uint8_t odd_mask  = 0xF5;
+
+        foreach (size_t{0}, width, [&]([[maybe_unused]] const variable<size_t>& idx) {
+            // Load Y and UV
+            auto y_raw = ir_load<N>(src_y);
+            auto uv    = ir_load<N>(src_uv);
+
+            // Unpack UV via shuffle
+            auto u_raw = uv.shuffle(even_mask);
+            auto v_raw = uv.shuffle(odd_mask);
+
+            // BT.601 conversion
+            auto y = vmulps(vsubps(y_raw, y_off), y_scale);
+            auto u = vsubps(u_raw, uv_off);
+            auto v = vsubps(v_raw, uv_off);
+
+            auto r = fma(v_to_r, v, y);
+            auto g = fnma(v_to_g, v, fnma(u_to_g, u, y));
+            auto b = fma(u_to_b, u, y);
+
+            // Clamp to [0, 255]
+            r = r.clamp(clamp_lo, clamp_hi);
+            g = g.clamp(clamp_lo, clamp_hi);
+            b = b.clamp(clamp_lo, clamp_hi);
+
+            // Conditional store: RGB or BGR
+            ir_cmp(colorFormat, size_t{0});
+            ir_if(&Xbyak::CodeGenerator::jne,
+                [&]() { store_interleaved3(dst, r, g, b); },
+                [&]() { store_interleaved3(dst, b, g, r); });
+
+            // Advance pointers
+            ir_use({}, [this, src_y_idx, src_uv_idx, dst_idx](
+                           const jit_kernel_ir::EmitContext&) {
+                add(Xbyak::Reg64(src_y_idx), step);
+                add(Xbyak::Reg64(src_uv_idx), step);
+                add(Xbyak::Reg64(dst_idx), 3 * step);
             });
+        });
 
-        dst += 3 * step;
-    })
-        ;
+        end_ir();
+    } else {
+        // ── Eager mode: u8 path (unchanged) ─────────────────────────────
+        foreach (0, width, [&]([[maybe_unused]] const Reg64& idx) {
+            auto yuv = load_yuv(src_y, src_uv);
 
-    mov(width, argPtr(&Params::width));
-    width &= N - 1;
+            auto rgb = yuv_to_rgb(std::move(yuv), std::is_integral_v<T>);
 
-    _if(width != 0)._then([&] {
-        auto y_raw = var<float[N]>(src_y, width);
-        auto uv = var<float[N]>(src_uv, width);
-        auto [u_raw, v_raw] = unpack_uv(uv);
+            _if(colorFormat == 0)
+                ._then([&] {
+                    store_interleaved3(dst, rgb.r, rgb.g, rgb.b);
+                })
+                ._else([&] {
+                    store_interleaved3(dst, rgb.b, rgb.g, rgb.r);
+                });
 
-        yuv_vec<N> yuv{std::move(y_raw), std::move(u_raw), std::move(v_raw)};
-        auto rgb = yuv_to_rgb(std::move(yuv), std::is_integral_v<T>);
+            dst += 3 * step;
+        })
+            ;
+    }
 
-        _if(colorFormat == 0)
-            ._then([&] {
-                store_interleaved3(dst, rgb.r, rgb.g, rgb.b, width);
-            })
-            ._else([&] {
-                store_interleaved3(dst, rgb.b, rgb.g, rgb.r, width);
-            });
-    });
+    // @todo claude: tail handling not yet ported to IR mode.
+    // For f32 IR path, tail is skipped — width must be a multiple of N.
+    if constexpr (!std::is_same_v<T, float>) {
+        mov(width, argPtr(&Params::width));
+        width &= N - 1;
+
+        _if(width != 0)._then([&] {
+            auto y_raw = var<float[N]>(src_y, width);
+            auto uv = var<float[N]>(src_uv, width);
+            auto [u_raw, v_raw] = unpack_uv(uv);
+
+            yuv_vec<N> yuv{std::move(y_raw), std::move(u_raw), std::move(v_raw)};
+            auto rgb = yuv_to_rgb(std::move(yuv), std::is_integral_v<T>);
+
+            _if(colorFormat == 0)
+                ._then([&] {
+                    store_interleaved3(dst, rgb.r, rgb.g, rgb.b, width);
+                })
+                ._else([&] {
+                    store_interleaved3(dst, rgb.b, rgb.g, rgb.r, width);
+                });
+        });
+    }
 
     postamble();
 }
