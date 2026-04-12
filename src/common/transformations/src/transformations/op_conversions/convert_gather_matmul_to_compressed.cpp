@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "convert_batch_gather_matmul_to_compressed.hpp"
+#include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
 
 #include <cstddef>
 #include <memory>
@@ -19,29 +19,30 @@
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/pp.hpp"
-#include "transformations/cpu_opset/common/op/batch_gather_matmul.hpp"
-#include "transformations/cpu_opset/common/op/batch_gather_matmul_compressed.hpp"
+#include "ov_ops/gather_matmul.hpp"
+#include "ov_ops/gather_matmul_compressed.hpp"
 #include "transformations/op_conversions/convert_fc_to_compressed.hpp"
 #include "transformations/pattern_blocks/compressed_weights_block.hpp"
 
-ov::intel_cpu::ConvertBatchGatherMatmulToBatchGatherMatmulCompressed::
-    ConvertBatchGatherMatmulToBatchGatherMatmulCompressed(
-        const std::vector<ov::element::Type>& supported_activation_types,
-        const std::vector<ov::element::Type>& supported_weights_types,
-        const SupportsPredicate& supports_config,
-        bool convert_u4zp_to_u8) {
+ov::pass::ConvertGatherMatmulToGatherMatmulCompressed::ConvertGatherMatmulToGatherMatmulCompressed(
+    const std::vector<ov::element::Type>& supported_activation_types,
+    const std::vector<ov::element::Type>& supported_weights_types,
+    const SupportsPredicate& supports_config,
+    bool convert_u4zp_to_u8) {
     using namespace ov::pass::pattern;
+    using ov::op::internal::GatherMatmul;
+    using ov::op::internal::GatherMatmulCompressed;
 
     auto activation = any_input(type_matches_any(supported_activation_types));
     auto weights_block =
         std::make_shared<ov::pass::pattern::op::CompressedWeightsBlock>(supported_weights_types, std::set<size_t>{3});
     auto indices = any_input();
     auto bias = any_input();
-    auto batch_gather_matmul = wrap_type<BatchGatherMatmul>({activation, weights_block, indices, bias});
+    auto gather_matmul = wrap_type<GatherMatmul>({activation, weights_block, indices, bias});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        auto bgm = ov::as_type_ptr<BatchGatherMatmul>(pattern_map.at(batch_gather_matmul).get_node_shared_ptr());
+        auto bgm = ov::as_type_ptr<GatherMatmul>(pattern_map.at(gather_matmul).get_node_shared_ptr());
         if (!bgm || transformation_callback(bgm)) {
             return false;
         }
@@ -62,12 +63,12 @@ ov::intel_cpu::ConvertBatchGatherMatmulToBatchGatherMatmulCompressed::
                                                                                                   batched_weights,
                                                                                                   result_nodes);
 
-        auto new_bgm = std::make_shared<BatchGatherMatmulCompressed>(pattern_map.at(activation),
-                                                                     bgm_input_b,
-                                                                     pattern_map.at(indices),
-                                                                     pattern_map.at(bias),
-                                                                     bgm_input_scale,
-                                                                     bgm_input_zp);
+        auto new_bgm = std::make_shared<GatherMatmulCompressed>(pattern_map.at(activation),
+                                                                bgm_input_b,
+                                                                pattern_map.at(indices),
+                                                                pattern_map.at(bias),
+                                                                bgm_input_scale,
+                                                                bgm_input_zp);
 
         const size_t IC = *(weights_shape.rbegin());
         const size_t OC = *(weights_shape.rbegin() + 1);
@@ -86,6 +87,6 @@ ov::intel_cpu::ConvertBatchGatherMatmulToBatchGatherMatmulCompressed::
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(batch_gather_matmul, "ConvertBatchGatherMatmulToBatchGatherMatmulCompressed");
+    auto m = std::make_shared<Matcher>(gather_matmul, "ConvertGatherMatmulToGatherMatmulCompressed");
     this->register_matcher(m, callback);
 }
