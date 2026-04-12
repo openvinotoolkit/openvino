@@ -655,8 +655,8 @@ TEST(SubgraphCollectorInitTest, all_same_affinity_single_subgraph) {
     ASSERT_EQ(1, unique_ids.size());
 }
 
-// Each node has a different affinity: init() should create separate subgraphs
-TEST(SubgraphCollectorInitTest, all_different_affinities) {
+// Adjacent compute ops use different affinities: init() should split add and sub into separate subgraphs
+TEST(SubgraphCollectorInitTest, adjacent_compute_ops_different_affinities) {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 4});
     param->set_friendly_name("input");
     auto const_val = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {3.0f});
@@ -766,14 +766,16 @@ TEST(SubgraphCollectorInitTest, shared_constant_different_consumers) {
 
     // Run subgraph collection
     SubgraphCollector collector(model, affinities);
-    const auto& [subgraphs, mapping] = collector.run();
+    const auto& [subgraphs, mapping_info] = collector.run();
+    (void)mapping_info;
+    const auto& subgraph_ids = collector.get_subgraph_ids();
 
     // The model must be split into at least two subgraphs (DEV.0 and DEV.1)
     ASSERT_GE(subgraphs.size(), 2);
 
-    const auto add_sg = mapping.at(add);
-    const auto sub_sg = mapping.at(sub);
-    const auto const_sg = mapping.at(const_val);
+    const auto add_sg = subgraph_ids.at(add);
+    const auto sub_sg = subgraph_ids.at(sub);
+    const auto const_sg = subgraph_ids.at(const_val);
 
     // add and sub must not be placed in the same subgraph
     // Otherwise, shared constant handling or affinity enforcement is broken
@@ -1009,7 +1011,10 @@ TEST(SubgraphCollectorCyclicTest, two_independent_paths_no_split) {
     ASSERT_EQ("SINGLE_DEV", subgraphs[0]._affinity);
 }
 
-TEST_F(SubgraphCollectorCyclicTest, bidirectional_cycle_split) {
+// Test that in case of bidirectional cycle between subgraphs, the cycle is split by affinity and the resulting subgraphs are ordered in a way that allows sequential execution without deadlocks
+TEST(SubgraphCollectorCyclicTest, bidirectional_cycle_split) {
+    auto model = create_test_model2();
+
     const std::map<std::string, std::string> supported_ops = {
         {"input", "MOCK.0"},
         {"const_val", "MOCK.0"},
@@ -1023,11 +1028,11 @@ TEST_F(SubgraphCollectorCyclicTest, bidirectional_cycle_split) {
     };
 
     SubgraphCollector::AffinitiesMap affinities;
-    for (const auto& node : m_model->get_ordered_ops()) {
+    for (const auto& node : model->get_ordered_ops()) {
         affinities[node] = supported_ops.at(node->get_friendly_name());
     }
 
-    SubgraphCollector subgraph_collector(m_model, affinities);
+    SubgraphCollector subgraph_collector(model, affinities);
     const auto& [ordered_subgraphs, mapping_info] = subgraph_collector.run();
 
     ASSERT_EQ(3, ordered_subgraphs.size());
