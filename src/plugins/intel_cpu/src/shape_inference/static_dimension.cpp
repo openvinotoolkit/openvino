@@ -8,8 +8,17 @@
 
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace ov::intel_cpu {
+
+namespace {
+StaticDimension::value_type checked_mul(StaticDimension::value_type lhs, StaticDimension::value_type rhs) {
+    StaticDimension::value_type result = 0;
+    OPENVINO_ASSERT(!ov::util::mul_overflow(lhs, rhs, result), "[shape infer] StaticDimension multiplication overflow");
+    return result;
+}
+}  // namespace
 
 std::ostream& operator<<(std::ostream& str, const StaticDimension& dimension) {
     return str << dimension.get_length();
@@ -64,7 +73,7 @@ StaticDimension StaticDimension::operator-(const StaticDimension& dim) const {
 }
 
 StaticDimension StaticDimension::operator*(const StaticDimension& dim) const {
-    return {m_dimension * dim.m_dimension};
+    return {checked_mul(m_dimension, dim.m_dimension)};
 }
 
 StaticDimension StaticDimension::operator+(value_type val) const {
@@ -76,7 +85,7 @@ StaticDimension StaticDimension::operator-(value_type val) const {
 }
 
 StaticDimension StaticDimension::operator*(value_type val) const {
-    return {m_dimension * val};
+    return {checked_mul(m_dimension, val)};
 }
 
 StaticDimension& StaticDimension::operator*=(const StaticDimension& dim) {
@@ -156,7 +165,7 @@ StaticDimension& StaticDimension::operator=(value_type val) {
 
 StaticDimension StaticDimension::operator*(const ov::Dimension& dim) const {
     if (dim.is_static()) {
-        return {static_cast<value_type>(m_dimension * dim.get_length())};
+        return {checked_mul(m_dimension, static_cast<value_type>(dim.get_length()))};
     }
     // For dynamic dimensions, return 0 (or could throw)
     return {0};

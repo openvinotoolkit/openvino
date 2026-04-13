@@ -6,6 +6,7 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
+#include "openvino/core/shape_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/reference/tile.hpp"
@@ -30,6 +31,11 @@ void Tile::validate_and_infer_types() {
                           "Tile repeats must have any integer element type, but has ",
                           repeats_et);
     auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
+    if (output_shapes[0].is_static()) {
+        NODE_VALIDATION_CHECK(this,
+                              ov::util::shape_size_safe(output_shapes[0].to_shape()).has_value(),
+                              "Tile output shape is too large and overflows size_t element count");
+    }
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 
     set_input_is_relevant_to_shape(0);
@@ -53,6 +59,8 @@ bool Tile::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 
     const std::vector<ov::PartialShape> input_shapes{d.get_shape(), r.get_shape()};
     const auto output_shape = shape_infer(this, input_shapes, make_tensor_accessor(inputs)).front().to_shape();
+    OPENVINO_ASSERT(ov::util::shape_size_safe(output_shape).has_value(),
+                    "Tile output shape is too large and overflows size_t element count");
     outputs[0].set_shape(output_shape);
     repeats.insert(repeats.begin(), output_shape.size() - repeats.size(), 1);
     reference::tile(static_cast<const char*>(d.data()),

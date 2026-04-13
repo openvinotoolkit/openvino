@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "shape_inference/static_shape.hpp"
+
 #include <gmock/gmock.h>
 
+#include <limits>
+
 #include "common_test_utils/test_assertions.hpp"
-#include "shape_inference/static_shape.hpp"
 
 using namespace testing;
 using namespace ov::intel_cpu;
@@ -265,4 +268,12 @@ TEST_F(StaticShapeAdapterTest, subscript_op_on_container) {
     EXPECT_EQ(shape[2], StaticDimension(123));
     EXPECT_EQ(shape[0], StaticDimension(10));
     EXPECT_EQ(shape[4], StaticDimension(3));
+}
+
+TEST_F(StaticShapeAdapterTest, static_dimension_multiplication_throws_on_overflow) {
+    const auto max = std::numeric_limits<StaticDimension::value_type>::max();
+    const StaticDimension a{max};
+    const StaticDimension b{2};
+
+    OV_EXPECT_THROW(std::ignore = a * b, ov::Exception, HasSubstr("StaticDimension multiplication overflow"));
 }

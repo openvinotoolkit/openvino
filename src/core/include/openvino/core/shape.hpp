@@ -5,12 +5,14 @@
 #pragma once
 
 #include <cstdio>
+#include <limits>
 #include <numeric>
 #include <vector>
 
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/axis_set.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/strides.hpp"
 
 namespace ov {
@@ -89,10 +91,16 @@ size_t shape_size(ForwardIt start_dim, const ForwardIt end_dim) {
                   "shape_size expects 2 forward iterators as inputs. value_type of those iterators has to be an "
                   "arithmetic type so that they can be used in multiplication operation.");
 
-    return std::accumulate(start_dim,
-                           end_dim,
-                           typename std::iterator_traits<ForwardIt>::value_type{1},
-                           std::multiplies<typename std::iterator_traits<ForwardIt>::value_type>());
+    size_t size = 1;
+    for (auto it = start_dim; it != end_dim; ++it) {
+        const auto dim = static_cast<size_t>(*it);
+        if (dim != 0 && size > std::numeric_limits<size_t>::max() / dim) {
+            OPENVINO_THROW("shape_size overflow while computing tensor element count");
+        }
+        size *= dim;
+    }
+
+    return size;
 }
 
 /**
@@ -112,7 +120,11 @@ std::vector<size_t> row_major_strides(const SHAPE_TYPE& shape) {
     auto st = strides.rbegin();
     for (auto d = shape.rbegin(); d != shape.rend() && st != strides.rend(); d++, st++) {
         *st = s;
-        s *= *d;
+        const auto dim = static_cast<size_t>(*d);
+        if (dim != 0 && s > std::numeric_limits<size_t>::max() / dim) {
+            OPENVINO_THROW("row_major_strides overflow while computing tensor strides");
+        }
+        s *= dim;
     }
     return strides;
 }
@@ -121,7 +133,11 @@ template <typename SHAPE_TYPE>
 size_t row_major_stride(const SHAPE_TYPE& shape, size_t axis) {
     size_t s = 1;
     for (size_t i = shape.size(); i-- > axis + 1;) {
-        s *= shape[i];
+        const auto dim = static_cast<size_t>(shape[i]);
+        if (dim != 0 && s > std::numeric_limits<size_t>::max() / dim) {
+            OPENVINO_THROW("row_major_stride overflow while computing tensor stride");
+        }
+        s *= dim;
     }
     return s;
 }
