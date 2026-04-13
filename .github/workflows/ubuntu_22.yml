@@ -606,7 +606,7 @@ jobs:
     with:
       device: 'igpu'
       test_type: ${{ matrix.TEST_TYPE }}
-      runner: "[ 'self-hosted', 'igpu' ]"
+      runner: "[ 'self-hosted', 'igpu', 'Linux' ]"
       runner-group: 'Intel-GPU'
       image: ubuntu:22.04
       options: "--group-add 44 --group-add 993 --device /dev/dri/card1:/dev/dri/card1 --device /dev/dri/renderD128:/dev/dri/renderD128"
@@ -624,7 +624,7 @@ jobs:
     with:
       device: 'dgpu'
       test_type: ${{ matrix.TEST_TYPE }}
-      runner: "[ 'self-hosted', 'dgpu', 'Arc-A770' ]"
+      runner: "[ 'self-hosted', 'dgpu', 'Arc-A770', 'Linux' ]"
       runner-group: 'Intel-GPU'
       image: ubuntu:22.04
       options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
