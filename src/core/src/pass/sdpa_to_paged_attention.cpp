@@ -23,7 +23,9 @@
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
+#include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
 #include "transformations/paged_attention/paged_causal_conv1d_fusion.hpp"
+#include "transformations/paged_attention/paged_gated_delta_net_fusion.hpp"
 #include "transformations/paged_attention/position_ids_replacer.hpp"
 #include "transformations/paged_attention/prev_sequence_length_pattern.hpp"
 #include "transformations/paged_attention/state_management_pattern.hpp"
@@ -423,6 +425,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     model->add_parameters(kv_parameters);
     PagedCausalConv1DFusion().run_on_model(model);
+    GatedDeltaNetFusion().run_on_model(model);
+    PagedGatedDeltaNetFusion().run_on_model(model);
     model->validate_nodes_and_infer_types();
 
     PagedExtensionsPostCleanup().run_on_model(model);
@@ -489,6 +493,17 @@ bool ov::pass::PagedExtensionsPostCleanup::run_on_model(const std::shared_ptr<ov
             model->remove_result(result);
             changed = true;
         }
+    }
+
+    ov::ResultVector marked_results_to_remove;
+    for (const auto& result : model->get_results()) {
+        if (is_marked_for_paged_extensions_cleanup(result)) {
+            marked_results_to_remove.push_back(result);
+        }
+    }
+    for (const auto& result : marked_results_to_remove) {
+        model->remove_result(result);
+        changed = true;
     }
 
     // Common cleanup for Assign sinks marked by paged transformations.
