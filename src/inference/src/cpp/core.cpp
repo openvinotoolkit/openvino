@@ -83,13 +83,6 @@ std::shared_ptr<ov::Model> Core::read_model(const std::filesystem::path& model_p
     OV_CORE_CALL_STATEMENT(return _impl->read_model(model_path, bin_path, properties););
 }
 
-std::shared_ptr<ov::Model> Core::read_model(const std::string& model_path,
-                                            const std::string& bin_path,
-                                            const AnyMap& properties) const {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Read model");
-    return read_model(ov::util::make_path(model_path), ov::util::make_path(bin_path), properties);
-}
-
 std::shared_ptr<ov::Model> Core::read_model(const std::string& model, const ov::Tensor& weights) const {
     OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Read model");
     OV_CORE_CALL_STATEMENT(return _impl->read_model(model, weights););
@@ -123,16 +116,6 @@ CompiledModel Core::compile_model(const std::filesystem::path& model_path,
         auto exec = _impl->compile_model(model_path, device_name, config);
         return {exec._ptr, exec._so};
     });
-}
-
-CompiledModel Core::compile_model(const std::string& model_path, const AnyMap& config) {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Compile model");
-    return compile_model(ov::util::make_path(model_path), ov::default_device_name, config);
-}
-
-CompiledModel Core::compile_model(const std::string& model_path, const std::string& device_name, const AnyMap& config) {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Compile model");
-    return compile_model(ov::util::make_path(model_path), device_name, config);
 }
 
 CompiledModel Core::compile_model(const std::string& model,
@@ -253,10 +236,6 @@ void Core::unload_plugin(const std::string& device_name) {
 
         _impl->unload_plugin(devName);
     });
-}
-
-void Core::register_plugins(const std::string& xml_config_file) {
-    register_plugins(ov::util::make_path(xml_config_file));
 }
 
 void Core::register_plugins(const std::filesystem::path& xml_config_file) {
