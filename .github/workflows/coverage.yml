@@ -221,13 +221,12 @@ jobs:
       max-parallel: 2
       matrix:
         include:
-          # Temporary smoke-only GPU selection to validate workflow plumbing without running long GPU suites.
           - lane: gpu-unit
-            lane_name: GPU ONNX
-            test_names: ov_onnx_frontend_tests,ov_onnx_frontend_tests (ONNX_ITERATOR=0)
+            lane_name: GPU Unit
+            test_names: ov_onnx_frontend_tests,ov_onnx_frontend_tests (ONNX_ITERATOR=0),ov_gpu_unit_tests,test_inference_async,test_inference_sync
           - lane: gpu-func
-            lane_name: GPU Inference
-            test_names: test_inference_async,test_inference_sync
+            lane_name: GPU Func
+            test_names: ov_gpu_func_tests
     defaults:
       run:
         shell: bash
