@@ -250,7 +250,7 @@ void PagedGatedDeltaNetLayerTest::SetUp() {
 
     targetDevice = device;
     this->data_type = data_type;
-
+    configuration[ov::hint::inference_precision.name()] = data_type;
     OPENVINO_ASSERT(!seq_lengths.empty());
     OPENVINO_ASSERT(seq_lengths.size() == cache_intervals.size());
 

@@ -48,16 +48,15 @@ void PagedGatedDeltaNet::initSupportedPrimitiveDescriptors() {
     auto dataPrecision = ov::element::f32;
     std::vector<PortConfigurator> inPortConfigs;
     for (size_t i = 0; i < getParentEdges().size(); ++i) {
-        const bool is_i32_input = i >= 6;
         inPortConfigs.emplace_back(LayoutType::ncsp,
-                                   is_i32_input ? ov::element::i32 : dataPrecision,
+                                   getOriginalInputPrecisionAtPort(i),
                                    getInputShapeAtPort(i),
                                    false,
                                    -1);
     }
 
     std::vector<PortConfigurator> outPortConfigs = {
-        PortConfigurator{LayoutType::ncsp, dataPrecision, getOutputShapeAtPort(0), false, -1}};
+        PortConfigurator{LayoutType::ncsp, getOriginalOutputPrecisionAtPort(0), getOutputShapeAtPort(0), false, -1}};
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }
 
