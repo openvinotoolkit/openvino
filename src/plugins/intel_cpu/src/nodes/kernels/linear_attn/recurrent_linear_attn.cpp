@@ -159,6 +159,9 @@ void recurrent_linear_attn_paged(const ov::intel_cpu::PlainTensor& query,
                                  const ov::intel_cpu::PlainTensor& block_indices_begins,
                                  const ov::intel_cpu::PlainTensor& past_lens,
                                  const ov::intel_cpu::PlainTensor& cache_interval,
+                                 float q_l2_norm_eps,
+                                 float k_l2_norm_eps,
+                                 bool fuse_qk_l2norm,
                                  ov::intel_cpu::PlainTensor& output_attn,
                                  float* temp_buffer,
                                  const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
@@ -172,8 +175,8 @@ void recurrent_linear_attn_paged(const ov::intel_cpu::PlainTensor& query,
                     "[CPU] paged_gdn: key shape mismatch with query");
     OPENVINO_ASSERT(value.m_dims[0] == tokens && value.m_dims[1] == v_heads,
                     "[CPU] paged_gdn: value shape mismatch with query tokens/heads");
-    OPENVINO_ASSERT(recurrent_state_table.m_dims[1] == v_heads && recurrent_state_table.m_dims[2] == k_head_dims &&
-                        recurrent_state_table.m_dims[3] == v_head_dims,
+    OPENVINO_ASSERT(recurrent_state_table.m_dims[1] == v_heads && recurrent_state_table.m_dims[2] == v_head_dims &&
+                        recurrent_state_table.m_dims[3] == k_head_dims,
                     "[CPU] paged_gdn: recurrent_state_table shape mismatch");
 
     const auto seq_tensor_size = subsequence_begins.m_dims[0];
@@ -197,7 +200,7 @@ void recurrent_linear_attn_paged(const ov::intel_cpu::PlainTensor& query,
 
         const int32_t block_id = block_indices.at<int32_t>({static_cast<size_t>(block_begin)});
         for (size_t j = 0; j < k_head_dims; j++) {
-            init_state[j] = recurrent_state_table.at<float>({static_cast<size_t>(block_id), i_h, j, i_v});
+            init_state[j] = recurrent_state_table.at<float>({static_cast<size_t>(block_id), i_h, i_v, j});
         }
 
         const size_t hk = i_h / group_size;
@@ -209,8 +212,10 @@ void recurrent_linear_attn_paged(const ov::intel_cpu::PlainTensor& query,
                 b_q[j] = query.at<float>({token_u, hk, j});
             }
 
-            l2norm(b_k, k_head_dims, 1e-6f);
-            l2norm(b_q, k_head_dims, 1e-6f);
+            if (fuse_qk_l2norm) {
+                l2norm(b_k, k_head_dims, k_l2_norm_eps);
+                l2norm(b_q, k_head_dims, q_l2_norm_eps);
+            }
 
             multiply_scalar(b_q, b_q, q_scale, k_head_dims);
 
@@ -240,7 +245,7 @@ void recurrent_linear_attn_paged(const ov::intel_cpu::PlainTensor& query,
                     if (slot < seq_blocks) {
                         const int32_t block_id = block_indices.at<int32_t>({static_cast<size_t>(block_begin + slot)});
                         for (size_t j = 0; j < k_head_dims; j++) {
-                            recurrent_state_table.at<float>({static_cast<size_t>(block_id), i_h, j, i_v}) =
+                            recurrent_state_table.at<float>({static_cast<size_t>(block_id), i_h, i_v, j}) =
                                 init_state[j];
                         }
                     }

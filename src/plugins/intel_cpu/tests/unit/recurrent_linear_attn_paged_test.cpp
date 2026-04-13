@@ -58,7 +58,7 @@ void run_reference(const std::vector<float>& query,
     output.resize(static_cast<size_t>(tokens) * v_heads * v_head_size);
 
     const auto state_off = [=](int32_t block, int32_t h, int32_t k_idx, int32_t v_idx) {
-        return ((block * v_heads + h) * qk_head_size + k_idx) * v_head_size + v_idx;
+        return ((block * v_heads + h) * v_head_size + v_idx) * qk_head_size + k_idx;
     };
 
     for (int32_t seq = 0; seq < num_sequences; seq++) {
@@ -263,8 +263,8 @@ TEST_P(PagedGatedDeltaNetKernelTest, MatchesReferenceAndUpdatesState) {
     PlainTensor state_t;
     state_t.resize({block_indices.size(),
                     static_cast<size_t>(v_heads),
-                    static_cast<size_t>(qk_head_size),
-                    static_cast<size_t>(v_head_size)},
+                    static_cast<size_t>(v_head_size),
+                    static_cast<size_t>(qk_head_size)},
                    recurrent_state_table.data());
     PlainTensor gate_t;
     gate_t.resize({static_cast<size_t>(tokens), static_cast<size_t>(v_heads)}, gate.data());
@@ -321,6 +321,9 @@ TEST_P(PagedGatedDeltaNetKernelTest, MatchesReferenceAndUpdatesState) {
                                 block_indices_begins_t,
                                 past_lens_t,
                                 cache_interval_t,
+                                1e-6f,
+                                1e-6f,
+                                true,
                                 output_t,
                                 temp_buffer.data(),
                                 cpu_parallel);

@@ -43,6 +43,9 @@ GatedDeltaNet::GatedDeltaNet(const std::shared_ptr<ov::Node>& op, const GraphCon
         m_k_l2_norm_eps = gdn->get_k_l2_norm_eps();
         m_is_paged = false;
     } else {
+        m_fuse_qk_l2norm = gdn->get_fuse_qk_l2norm();
+        m_q_l2_norm_eps = gdn->get_q_l2_norm_eps();
+        m_k_l2_norm_eps = gdn->get_k_l2_norm_eps();
         m_is_paged = true;
     }
 }
@@ -118,6 +121,9 @@ void GatedDeltaNet::execute([[maybe_unused]] const dnnl::stream& strm) {
                                     block_indices_begins,
                                     past_lens,
                                     cache_interval,
+                                    m_fuse_qk_l2norm,
+                                    m_q_l2_norm_eps,
+                                    m_k_l2_norm_eps,
                                     output_attn,
                                     temp_buffer,
                                     context->getCpuParallel());
