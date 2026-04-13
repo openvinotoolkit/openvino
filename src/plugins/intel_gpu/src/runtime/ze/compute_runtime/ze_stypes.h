@@ -9,7 +9,7 @@
 #ifndef _ZE_STYPES_H
 #define _ZE_STYPES_H
 
-#include <ze_api.h>
+#include <level_zero/ze_api.h>
 #include <zes_api.h>
 #include <zet_api.h>
 
