@@ -1072,6 +1072,18 @@ void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& no
     auto output_channels = get_convolution_channel_count(node, output_layout, false);
 
     if (i8_u8_input) {
+        // When the convolution output feeds an MVN node that requires alignment,
+        // prefer plain format to avoid the costly blocked -> plain -> blocked reorder pair
+        // that reorder_inputs would otherwise insert around the MVN.
+        bool mvn_consumer = has_direct_mvn_consumer(node);
+        if (mvn_consumer) {
+            auto default_fmt = format::get_default_format(rank);
+            node.set_preferred_input_fmt(0, default_fmt);
+            node.set_preferred_output_fmt(0, default_fmt);
+            GPU_DEBUG_LOG << node.id() << ": override blocked to plain format (MVN consumer detected)" << std::endl;
+            return;
+        }
+
         // Set default input format for i8/u8 input
         node.set_preferred_input_fmt(0, get_fsv32_format(rank));
 
@@ -1443,19 +1455,8 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         expected = get_expected_format(node.as<convolution>());
         // Set expected input and output preferred format for onednn convolution in dynamic.
         // This is a temporal implementation because we are guessing required format for OneDNN conv. In the end, we should use byxf format.
-        if (node.is_dynamic() && use_onednn_impls) {
-            // When downstream MVN requires plain format, sync preferred in/out with the plain
-            // expected already chosen by get_expected_format(), covering all data types (i8/u8/fp16).
-            // This avoids the blocked->plain->blocked reorder pair that reorder_inputs would otherwise
-            // insert at the oneDNN conv input boundary (reorder_inputs.cpp, reorder_convolution lambda).
-            if (has_direct_mvn_consumer(node.as<convolution>())) {
-                node.as<convolution>().set_preferred_input_fmt(0, expected);
-                node.as<convolution>().set_preferred_output_fmt(0, expected);
-                GPU_DEBUG_LOG << node.id() << ": plain preferred fmt for MVN consumer (all dtypes)" << std::endl;
-            } else {
-                set_onednn_dyn_conv_preferred_format(node.as<convolution>());
-            }
-        }
+        if (node.is_dynamic() && use_onednn_impls)
+            set_onednn_dyn_conv_preferred_format(node.as<convolution>());
     } else if (node.is_type<quantize>()) {
         expected = get_expected_format(node.as<quantize>());
     } else if (node.is_type<reorder>() || node.is_type<input_layout>()) {
