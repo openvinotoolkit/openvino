@@ -725,10 +725,10 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                 if (info.dataShape.empty()) {
                     // dataShape can be empty only when compile_only=true and the input is dynamic with no
                     // -data_shape/-i provided.
-                    OPENVINO_ASSERT(compile_only,
-                                    "dataShape is empty for input '",
-                                    item.get_any_name(),
-                                    "' in non-compile_only mode.");
+                    if (!compile_only) {
+                        throw std::logic_error("dataShape is empty for input '" + item.get_any_name() +
+                                               "' in non-compile_only mode.");
+                    }
                     slog::warn << "-b option is ignored in compile_only mode (no concrete data shape available for '"
                                << item.get_any_name() << "')." << slog::endl;
                     is_there_at_least_one_batch_dim = true;
