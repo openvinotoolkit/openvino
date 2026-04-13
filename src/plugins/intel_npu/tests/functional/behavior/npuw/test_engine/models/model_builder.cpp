@@ -5,7 +5,7 @@
 #include "model_builder.hpp"
 
 #include <algorithm>
-#include <climits>
+#include <cstdint>
 #include <unordered_map>
 
 #include "openvino/op/assign.hpp"
