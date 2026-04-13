@@ -1022,13 +1022,20 @@ INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusion4DConcreteValuesPositiveTests_f
                                                                                                          true))),
                          GroupNormalizationFusion4DConcreteValuesTestsF::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusion4DConcreteValuesPositiveTests_f16,
+                         GroupNormalizationFusion4DConcreteValuesTestsF,
+                         ValuesIn(expand_vals(valid_vals_4d_concrete,
+                                              GroupNormalizationFusionTransformationTestAdditionalValues(element::f16,
+                                                                                                         true))),
+                         GroupNormalizationFusion4DConcreteValuesTestsF::getTestCaseName);
+
 // Standalone negative tests for 4D-specific edge cases that require custom model construction.
 // When model_ref is not set, TransformationTestsF::TearDown clones the model, runs the pass,
 // and verifies the model is unchanged — confirming the fusion does NOT fire.
 class GroupNormalizationFusion4DNegativeEdgeCasesF : public TransformationTestsF {};
 
 // Helper: builds a 4D InstanceNorm-style pattern with customizable MVN axes and 4D trailing dimension.
-// Returns the final Add node (group_norm_beta_add).
+// Returns a Model whose output is the final Add node (beta_add).
 static std::shared_ptr<Model> build_4d_pattern_model(const PartialShape& data_shape,
                                                      int64_t num_groups,
                                                      const std::vector<long long>& mvn_axes_vals,
