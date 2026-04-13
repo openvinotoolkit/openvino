@@ -122,6 +122,7 @@
 #include "transformations/op_conversions/normalize_l2_decomposition.hpp"
 #include "transformations/op_conversions/rnn_cell_decomposition.hpp"
 #include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
+#include "transformations/op_conversions/atan2_decomposition.hpp"
 #include "transformations/op_conversions/softmax_decomposition.hpp"
 #include "transformations/op_conversions/softsign_decomposition.hpp"
 #include "transformations/op_conversions/unique_decomposition.hpp"
@@ -855,6 +856,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertDetectionOutput8ToDetectionOutput1);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertROIAlign9To3);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::SoftSignDecomposition);
+    CPU_DISABLE_PASS_COMMON(manager, ov::pass::Atan2Decomposition);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::UniqueDecomposition);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertTopK11ToTopK3);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::HSwishDecomposition);

@@ -118,6 +118,7 @@
 #include "transformations/op_conversions/reduce_l2_decomposition.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
+#include "transformations/op_conversions/atan2_decomposition.hpp"
 #include "transformations/op_conversions/softmax_decomposition.hpp"
 #include "transformations/op_conversions/softsign_decomposition.hpp"
 #include "transformations/op_conversions/unique_decomposition.hpp"
@@ -184,6 +185,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(decomp, EinsumDecomposition)
     decomp->add_matcher<SoftmaxDecomposition, false>();
     ADD_MATCHER(decomp, SoftSignDecomposition)
+    ADD_MATCHER(decomp, Atan2Decomposition)
     ADD_MATCHER(decomp, DropoutWithRandomUniformReplacer)
     ADD_MATCHER(decomp, TransposeReshapeEliminationForMatmul)
     ADD_MATCHER(decomp, EyeDecomposition)
