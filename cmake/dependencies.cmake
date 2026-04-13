@@ -164,13 +164,9 @@ function(ov_download_tbb)
                 SHA256 "ead39877d182dc6ce6bcdc92fa000def79fa9fc19f78979e4faab5d6f560a434"
                 USE_NEW_LOCATION TRUE)
     else()
-        if(ANDROID)
-            message(WARNING
-                "Prebuilt TBB is not available on Android. Build oneTBB separately and provide "
-                "TBB_DIR before configuring OpenVINO.")
-        else()
-            message(WARNING "Prebuilt TBB is not available on current platform")
-        endif()
+        message(WARNING
+            "Prebuilt TBB is not available on current platform. "
+            "Build oneTBB from sources and set TBB_DIR before OpenVINO cmake configure")
     endif()
 
     update_deps_cache(TBBROOT "${TBB}" "Path to TBB root folder")

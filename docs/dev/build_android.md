@@ -79,6 +79,9 @@ If `TBB_DIR` is not provided, Android configure fails by design.
   cmake --install $OPV_HOME_DIR/one-tbb-build
   ```
 
+Android OpenVINO configuration expects the separately built OneTBB package.
+`TBB_DIR` must be provided when configuring OpenVINO.
+Android configuration with `TBBROOT` is no longer supported.
 ### Clone OpenVINO™ GenAI (Optional)
   ```sh
   git clone --recursive https://github.com/openvinotoolkit/openvino.genai $OPV_HOME_DIR/openvino.genai
@@ -99,8 +102,8 @@ If `TBB_DIR` is not provided, Android configure fails by design.
         -DANDROID_ABI=$CURRENT_ANDROID_ABI \
         -DANDROID_PLATFORM=$CURRENT_ANDROID_PLATFORM \
         -DANDROID_STL=$CURRENT_ANDROID_STL \
-        -DOPENVINO_EXTRA_MODULES=$OPV_HOME_DIR/openvino.genai \
-        -DTBB_DIR=$OPV_HOME_DIR/one-tbb-install/lib/cmake/TBB
+        -DTBB_DIR=$OPV_HOME_DIR/one-tbb-install/lib/cmake/TBB \
+        -DOPENVINO_EXTRA_MODULES=$OPV_HOME_DIR/openvino.genai
   # Build OpenVINO™ project 
   cmake --build $OPV_HOME_DIR/openvino-build --parallel
   # Install OpenVINO™ project 

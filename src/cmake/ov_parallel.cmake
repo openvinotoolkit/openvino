@@ -81,7 +81,8 @@ macro(ov_find_package_tbb)
             if(NOT DEFINED TBB_DIR AND NOT DEFINED ENV{TBB_DIR})
                 message(FATAL_ERROR
                     "Android build with TBB threading requires a separately built oneTBB package. "
-                    "Configure OpenVINO with -DTBB_DIR=<path>/lib/cmake/TBB.")
+                    "Build oneTBB as described in docs/dev/build_android.md and configure OpenVINO "
+                    "with -DTBB_DIR=<path>/lib/cmake/TBB.")
             endif()
         endif()
 
