@@ -10,10 +10,11 @@
 #define _ZE_STYPES_H
 
 #include <level_zero/ze_api.h>
-#include <zes_api.h>
-#include <zet_api.h>
+#include <level_zero/zes_api.h>
+#include <level_zero/zet_api.h>
 
 #include <cstdint>
+
 using ze_structure_type_ext_t = uint32_t;
 using zet_structure_type_ext_t = uint32_t;
 using zes_structure_type_ext_t = uint32_t;
