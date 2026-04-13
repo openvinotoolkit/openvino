@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/cpu_opset/common/pass/convert_batch_gather_matmul_to_compressed.hpp"
+#include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
 
 #include <memory>
 
@@ -15,12 +15,11 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/cpu_opset/common/op/batch_gather_matmul.hpp"
-#include "transformations/cpu_opset/common/op/batch_gather_matmul_compressed.hpp"
+#include "ov_ops/gather_matmul.hpp"
+#include "ov_ops/gather_matmul_compressed.hpp"
 
 using namespace testing;
 using namespace ov::pass;
-using namespace ov::intel_cpu;
 
 namespace {
 struct ConvertBGMToCompressedParams {
@@ -46,8 +45,8 @@ TEST_P(ConvertBGMToCompressed, ConvertBGMToCompressedTest) {
     const std::vector<ov::element::Type> supported_activation_types{ov::element::f32};
     const std::vector<ov::element::Type> supported_weights_types{compressed_type_};
 
-    manager.register_pass<ConvertBatchGatherMatmulToBatchGatherMatmulCompressed>(supported_activation_types,
-                                                                                 supported_weights_types);
+    manager.register_pass<ConvertGatherMatmulToGatherMatmulCompressed>(supported_activation_types,
+                                                                       supported_weights_types);
     auto weight_reshaped_dims = [&]() {
         std::vector<int64_t> wei_reshaped;
         for (size_t i = 0; i < wei_shape_.size() - 2; ++i) {
@@ -80,7 +79,7 @@ TEST_P(ConvertBGMToCompressed, ConvertBGMToCompressedTest) {
 
         auto index = ov::op::v0::Constant::create(ov::element::i32, index_shape_, {1});
 
-        auto bgm = std::make_shared<BatchGatherMatmul>(input, wei_scale, index);
+        auto bgm = std::make_shared<ov::op::internal::GatherMatmul>(input, wei_scale, index);
         model = std::make_shared<ov::Model>(ov::OutputVector{bgm}, ov::ParameterVector{input});
     }
 
@@ -101,8 +100,12 @@ TEST_P(ConvertBGMToCompressed, ConvertBGMToCompressedTest) {
         auto zp_const = ov::op::v0::Constant::create(compressed_type_, scale_zp_shape, {1});
         auto index = ov::op::v0::Constant::create(ov::element::i32, index_shape_, {1});
         auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0});
-        auto bgm_compressed =
-            std::make_shared<BatchGatherMatmulCompressed>(input, weights_const, index, bias, scale_const, zp_const);
+        auto bgm_compressed = std::make_shared<ov::op::internal::GatherMatmulCompressed>(input,
+                                                                                         weights_const,
+                                                                                         index,
+                                                                                         bias,
+                                                                                         scale_const,
+                                                                                         zp_const);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{bgm_compressed}, ov::ParameterVector{input});
     }
