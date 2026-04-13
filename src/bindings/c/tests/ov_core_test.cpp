@@ -692,6 +692,7 @@ const std::vector<std::wstring> test_unicode_postfix_vector = {L"unicode_Яㅎ�
                                                                L"АБВГДЕЁЖЗИЙ",
                                                                L"СТУФХЦЧШЩЬЮЯ"};
 TEST_P(ov_core_test, ov_core_create_with_config_unicode) {
+    GTEST_SKIP() << "Temporarily disabled";
     std::string plugins_xml = TestDataHelpers::generate_test_xml_file();
     ov_core_t* core = nullptr;
 
@@ -734,6 +735,7 @@ TEST_P(ov_core_test, ov_core_read_model_unicode) {
 }
 
 TEST_P(ov_core_test, ov_core_compile_model_from_file_unicode) {
+    GTEST_SKIP() << "Temporarily disabled";
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));

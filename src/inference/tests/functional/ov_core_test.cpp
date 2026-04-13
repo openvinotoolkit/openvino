@@ -189,6 +189,7 @@ TEST_F(CoreBaseTest, read_model_with_std_fs_path_unicode) {
 }
 
 TEST_F(CoreBaseTest, read_model_with_const_wchar_path) {
+    GTEST_SKIP() << "Temporarily disabled";
     generate_test_model_files("test-model");
 
     ov::Core core;

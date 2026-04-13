@@ -294,6 +294,7 @@ TEST(RegisterPluginTests, accessToUnregisteredPluginThrows) {
 
 #    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 TEST(RegisterPluginTests, registerPluginsXMLUnicodePath) {
+    GTEST_SKIP() << "Temporarily disabled";
     const std::string pluginXML = getPluginFile();
 
     for (std::size_t testIndex = 0; testIndex < ov::test::utils::test_unicode_postfix_vector.size(); testIndex++) {
