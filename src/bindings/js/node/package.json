@@ -28,7 +28,7 @@
     "install_runtime": "npm run download_runtime -- --ignore-if-exists"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.3",
+    "@eslint/js": "^10.0.1",
     "@types/node": "^22.19.1",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
