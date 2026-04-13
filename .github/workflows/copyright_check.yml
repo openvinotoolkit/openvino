@@ -34,7 +34,7 @@ jobs:
 
       - name: Upload diff artifact
         if: steps.check.outcome == 'failure'
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: copyright-fixes
           path: copyright_fixes.diff
