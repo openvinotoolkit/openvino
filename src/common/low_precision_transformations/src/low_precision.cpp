@@ -338,7 +338,6 @@ bool ov::pass::low_precision::LowPrecision::doesModelContainMXFPPatterns(
         const std::shared_ptr<const ov::Model>& model) {
     using namespace ov::op;
     using namespace ov::pass::pattern;
-    MATCHER_SCOPE(doesModelContainMXFPPatterns);
 
     auto weight_pattern = any_input(
         type_matches_any({ov::element::Type_t::f8e4m3, ov::element::Type_t::f8e5m2, ov::element::Type_t::f4e2m1}) &&
