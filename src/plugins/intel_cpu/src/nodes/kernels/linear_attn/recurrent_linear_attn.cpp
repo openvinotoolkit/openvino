@@ -197,6 +197,7 @@ void recurrent_linear_attn_paged(const ov::intel_cpu::PlainTensor& query,
         const int32_t block_end = block_indices_begins.at<int32_t>({seq + 1});
         const int32_t seq_blocks = std::max(block_end - block_begin, 0);
         const int32_t seq_interval = cache_interval.at<int32_t>({seq});
+        OPENVINO_ASSERT(seq_blocks > 0, "[CPU] paged_gdn: each sequence must have at least one cache block");
 
         const int32_t block_id = block_indices.at<int32_t>({static_cast<size_t>(block_begin)});
         for (size_t j = 0; j < k_head_dims; j++) {
@@ -236,19 +237,17 @@ void recurrent_linear_attn_paged(const ov::intel_cpu::PlainTensor& query,
             const float b_output = dot_product(init_state, b_q, k_head_dims, nullptr, nullptr, nullptr, 0);
             output_attn.at<float>({token_u, i_h, i_v}) = b_output;
 
-            if (seq_interval > 0 && seq_blocks > 0) {
-                const int32_t local_token_idx = token - token_begin;
-                const int32_t processed_tokens = local_token_idx + 1;
-                const bool should_store = ((processed_tokens % seq_interval) == 0) || (token == token_end - 1);
-                if (should_store) {
-                    const int slot = (processed_tokens + seq_interval - 1) / seq_interval;
-                    if (slot < seq_blocks) {
-                        const int32_t block_id = block_indices.at<int32_t>({static_cast<size_t>(block_begin + slot)});
-                        for (size_t j = 0; j < k_head_dims; j++) {
-                            recurrent_state_table.at<float>({static_cast<size_t>(block_id), i_h, i_v, j}) =
-                                init_state[j];
-                        }
-                    }
+            const int32_t local_token_idx = token - token_begin;
+            const int32_t processed_tokens = local_token_idx + 1;
+            const bool interval_hit = (seq_interval > 0) && ((processed_tokens % seq_interval) == 0);
+            const bool is_last_token = (token == token_end - 1);
+            const bool should_store = interval_hit || is_last_token;
+            if (should_store) {
+                const int32_t slot =
+                    (seq_interval > 0) ? ((processed_tokens + seq_interval - 1) / seq_interval) : (seq_blocks - 1);
+                const int32_t block_id = block_indices.at<int32_t>({static_cast<size_t>(block_begin + slot)});
+                for (size_t j = 0; j < k_head_dims; j++) {
+                    recurrent_state_table.at<float>({static_cast<size_t>(block_id), i_h, i_v, j}) = init_state[j];
                 }
             }
         }

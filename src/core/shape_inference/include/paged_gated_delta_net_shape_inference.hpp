@@ -65,10 +65,10 @@ std::vector<TRShape> shape_infer(const OpType* op, const std::vector<T>& input_s
                            v_head_num,
                            ".");
 
-    // [num_blocks, v_num_heads, key_head_dim, value_head_dim]
+    // [num_blocks, v_num_heads, value_head_dim, key_head_dim]
     const auto state_head_num = state_ps[1];
-    const auto state_key_dim = state_ps[2];
-    const auto state_value_dim = state_ps[3];
+    const auto state_key_dim = state_ps[3];
+    const auto state_value_dim = state_ps[2];
 
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,

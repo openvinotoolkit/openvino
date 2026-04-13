@@ -37,17 +37,12 @@ GatedDeltaNet::GatedDeltaNet(const std::shared_ptr<ov::Node>& op, const GraphCon
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    if (const auto& gdn = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(op)) {
-        m_fuse_qk_l2norm = gdn->get_fuse_qk_l2norm();
-        m_q_l2_norm_eps = gdn->get_q_l2_norm_eps();
-        m_k_l2_norm_eps = gdn->get_k_l2_norm_eps();
-        m_is_paged = false;
-    } else {
-        m_fuse_qk_l2norm = gdn->get_fuse_qk_l2norm();
-        m_q_l2_norm_eps = gdn->get_q_l2_norm_eps();
-        m_k_l2_norm_eps = gdn->get_k_l2_norm_eps();
-        m_is_paged = true;
-    }
+    const auto& gdn = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(op);
+    OPENVINO_ASSERT(gdn != nullptr, "Expected GatedDeltaNet node");
+    m_fuse_qk_l2norm = gdn->get_fuse_qk_l2norm();
+    m_q_l2_norm_eps = gdn->get_q_l2_norm_eps();
+    m_k_l2_norm_eps = gdn->get_k_l2_norm_eps();
+    m_is_paged = false;
 }
 
 void GatedDeltaNet::initSupportedPrimitiveDescriptors() {
@@ -147,9 +142,8 @@ void GatedDeltaNet::execute([[maybe_unused]] const dnnl::stream& strm) {
 
 bool GatedDeltaNet::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                          std::string& errorMessage) noexcept {
-    if (op == nullptr ||
-        (!ov::is_type<ov::op::internal::GatedDeltaNet>(op) && !ov::is_type<ov::op::internal::PagedGatedDeltaNet>(op))) {
-        errorMessage = "Node is not an instance of ov::op::internal::GatedDeltaNet/PagedGatedDeltaNet.";
+    if (op == nullptr || !ov::is_type<ov::op::internal::GatedDeltaNet>(op)) {
+        errorMessage = "Node is not an instance of ov::op::internal::GatedDeltaNet.";
         return false;
     }
     return true;
