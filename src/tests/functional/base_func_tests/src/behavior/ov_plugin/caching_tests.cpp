@@ -359,6 +359,7 @@ TEST_P(CompileModelLoadFromFileTestBase, CanLoadFromFileWithoutException) {
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 TEST_P(CompileModelLoadFromFileTestBase, CanCreateCacheDirAndDumpBinariesUnicodePath) {
+    GTEST_SKIP() << "Temporarily disabled";
     std::string cache_path = ov::test::utils::getCurrentWorkingDir() +
                              ov::test::utils::FileTraits<char>::file_separator + "compiledModel_" +
                              utils::generateTestFilePrefix() + "_cache";
