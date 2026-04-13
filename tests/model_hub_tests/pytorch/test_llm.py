@@ -40,11 +40,6 @@ def patch_gptq():
     except ImportError:
         pass
     try:
-        import auto_gptq  # noqa: F401
-    except ImportError:
-        pass
-
-    try:
         from transformers.quantizers.quantizer_gptq import GptqHfQuantizer
 
         orig_post_init_model = GptqHfQuantizer._process_model_after_weight_loading
@@ -83,11 +78,7 @@ def patch_gptq():
                         from gptqmodel import exllama_set_max_input_length
                         model = exllama_set_max_input_length(model, oq.max_input_length)
                     except ImportError:
-                        try:
-                            from auto_gptq import exllama_set_max_input_length
-                            model = exllama_set_max_input_length(model, oq.max_input_length)
-                        except ImportError:
-                            pass
+                        pass
             return model
 
         GptqHfQuantizer._process_model_after_weight_loading = _process_model_after_weight_loading_cpu
@@ -95,45 +86,57 @@ def patch_gptq():
         pass
 
     try:
-        # Stub PytorchGELUTanh removed in newer transformers but needed by autoawq
-        import transformers.activations as _act
-        if not hasattr(_act, 'PytorchGELUTanh'):
-            _act.PytorchGELUTanh = _act.GELUActivation
+        # Patch gptqmodel's AWQ linear to work on CPU without compiled
+        # kernels.  Bypass the broken awq_weight_dequantize (gptqmodel
+        # 5.7.0 passes sym= to dequantize_gemm which doesn't accept it)
+        # and the transform_cpu path (crashes on missing g_idx).
+        # Note: _replace_awq_with_linear() replaces these modules before
+        # conversion, so this patch only serves as a safety fallback.
+        from gptqmodel.nn_modules.qlinear.torch_fused_awq import TorchFusedAwqQuantLinear
+        from gptqmodel.quantization.awq.utils.packing_utils import dequantize_gemm as _awq_dequant
+        _orig_awq_forward = TorchFusedAwqQuantLinear.forward
 
-        # patch GEMM module to work without CUDA GPU
-        from awq.modules.linear.gemm import WQLinearMMFunction
-        from awq.utils.packing_utils import dequantize_gemm
+        def _awq_forward_cpu(self, x):
+            orig_dtype = x.dtype
+            out_shape = x.shape[:-1] + (self.out_features,)
+            x_flat = x.reshape(-1, x.shape[-1]).to(torch.float16)
+            weight = _awq_dequant(self.qweight, self.qzeros, self.scales,
+                                  self.bits, self.group_size)
+            out = torch.matmul(x_flat, weight)
+            if self.bias is not None:
+                out.add_(self.bias)
+            return out.reshape(out_shape).to(orig_dtype)
 
-        def new_forward(
-            ctx,
-            x,
-            qweight,
-            qzeros,
-            scales,
-            w_bit=4,
-            group_size=128,
-            bias=None,
-            out_features=0,
-        ):
-            ctx.out_features = out_features
-
-            out_shape = x.shape[:-1] + (out_features,)
-            x = x.to(torch.float16)
-
-            out = dequantize_gemm(qweight, qzeros, scales, w_bit, group_size)
-            out = torch.matmul(x, out.to(x.dtype))
-
-            out = out + bias if bias is not None else out
-            out = out.reshape(out_shape)
-
-            if len(out.shape) == 2:
-                out = out.unsqueeze(0)
-            return out
-
-        orig_gemm_forward = WQLinearMMFunction.forward
-        WQLinearMMFunction.forward = new_forward
+        TorchFusedAwqQuantLinear.forward = _awq_forward_cpu
+        orig_gemm_forward = _orig_awq_forward
     except ImportError:
         pass
+
+    if orig_gemm_forward is None:
+        try:
+            # Fallback: patch autoawq GEMM module for older setups
+            from awq.modules.linear.gemm import WQLinearMMFunction
+            from awq.utils.packing_utils import dequantize_gemm
+
+            def new_forward(
+                ctx, x, qweight, qzeros, scales,
+                w_bit=4, group_size=128, bias=None, out_features=0,
+            ):
+                ctx.out_features = out_features
+                out_shape = x.shape[:-1] + (out_features,)
+                x = x.to(torch.float16)
+                out = dequantize_gemm(qweight, qzeros, scales, w_bit, group_size)
+                out = torch.matmul(x, out.to(x.dtype))
+                out = out + bias if bias is not None else out
+                out = out.reshape(out_shape)
+                if len(out.shape) == 2:
+                    out = out.unsqueeze(0)
+                return out
+
+            orig_gemm_forward = WQLinearMMFunction.forward
+            WQLinearMMFunction.forward = new_forward
+        except ImportError:
+            pass
 
     # Fake CUDA availability AFTER all imports are done, so gptqmodel's
     # module-level CUDA init has already completed safely on CPU.
@@ -152,49 +155,82 @@ def unpatch_gptq(orig_cuda_check, orig_post_init_model, orig_gemm_forward):
         GptqHfQuantizer._process_model_after_weight_loading = orig_post_init_model
     except ImportError:
         pass
+    if orig_gemm_forward is not None:
+        try:
+            from gptqmodel.nn_modules.qlinear.torch_fused_awq import TorchFusedAwqQuantLinear
+            TorchFusedAwqQuantLinear.forward = orig_gemm_forward
+        except ImportError:
+            try:
+                from awq.modules.linear.gemm import WQLinearMMFunction
+                WQLinearMMFunction.forward = orig_gemm_forward
+            except ImportError:
+                pass
+
+
+def _replace_awq_with_linear(model):
+    """Replace AWQ quantized linear layers with plain nn.Linear.
+
+    Eagerly dequantizes packed int weights into float16 so the conversion
+    graph contains only standard matmul ops (no bitwise dequantization).
+    """
     try:
-        from awq.modules.linear.gemm import WQLinearMMFunction
-        WQLinearMMFunction.forward = orig_gemm_forward
+        from gptqmodel.nn_modules.qlinear.torch_fused_awq import TorchFusedAwqQuantLinear
+        from gptqmodel.quantization.awq.utils.packing_utils import dequantize_gemm
     except ImportError:
-        pass
+        return
+
+    for name, module in list(model.named_modules()):
+        if not isinstance(module, TorchFusedAwqQuantLinear):
+            continue
+        weight = dequantize_gemm(
+            module.qweight, module.qzeros, module.scales,
+            module.bits, module.group_size,
+        ).t().contiguous().float()  # dequantize_gemm returns (in, out); Linear expects (out, in)
+        linear = torch.nn.Linear(
+            module.in_features, module.out_features,
+            bias=module.bias is not None, dtype=weight.dtype,
+        )
+        linear.weight = torch.nn.Parameter(weight, requires_grad=False)
+        if module.bias is not None:
+            linear.bias = torch.nn.Parameter(module.bias.data.clone(), requires_grad=False)
+        # Replace module in parent
+        parts = name.rsplit(".", 1)
+        parent = model.get_submodule(parts[0]) if len(parts) == 2 else model
+        setattr(parent, parts[-1], linear)
 
 
 @contextmanager
 def _patch_for_jit_trace():
     """Patch transformers internals for JIT trace compatibility.
 
-    1. Replace vmap-based mask functions (transformers >=4.53) with vmap-free
-       variants from transformers.integrations.executorch, using float masks
-       with -65504 for masked positions (required by OV).
-    2. Patch DynamicLayer.lazy_initialization (transformers >=4.57) to create
-       4D empty tensors instead of 1D, avoiding aten::cat shape mismatches.
+    1. Wrap sdpa_mask/eager_mask to coerce q_length from a 0-d tensor
+       (produced by torch.jit.trace) to a plain int, preventing the BC
+       check in sdpa_mask from crashing on q_length.shape[0].
+    2. Patch DynamicLayer.lazy_initialization to create 4D empty tensors
+       instead of 1D, avoiding aten::cat shape mismatches during trace.
     """
     saved_masks = {}
     orig_lazy_init = None
     try:
         from transformers.masking_utils import ALL_MASK_ATTENTION_FUNCTIONS, sdpa_mask, eager_mask
-        from transformers.integrations.executorch import sdpa_mask_without_vmap
 
-        def _eager_mask_no_vmap(*args, **kwargs):
-            kwargs.pop("allow_is_causal_skip", None)
-            dtype = kwargs.get("dtype", torch.float32)
-            mask = sdpa_mask_without_vmap(*args, allow_is_causal_skip=False, **kwargs)
-            return torch.where(
-                mask,
-                torch.tensor(0.0, device=mask.device, dtype=dtype),
-                torch.tensor(torch.finfo(torch.float16).min, device=mask.device, dtype=dtype),
-            )
+        def _wrap_mask_fn(orig_fn):
+            def _patched(*args, **kwargs):
+                if "q_length" in kwargs and isinstance(kwargs["q_length"], torch.Tensor):
+                    kwargs["q_length"] = kwargs["q_length"].item()
+                return orig_fn(*args, **kwargs)
+            return _patched
 
         saved_masks = {"sdpa": sdpa_mask, "eager": eager_mask}
-        ALL_MASK_ATTENTION_FUNCTIONS.register("eager", _eager_mask_no_vmap)
-        ALL_MASK_ATTENTION_FUNCTIONS.register("sdpa", _eager_mask_no_vmap)
+        ALL_MASK_ATTENTION_FUNCTIONS.register("sdpa", _wrap_mask_fn(sdpa_mask))
+        ALL_MASK_ATTENTION_FUNCTIONS.register("eager", _wrap_mask_fn(eager_mask))
     except (ImportError, AttributeError):
         pass
     try:
         from transformers.cache_utils import DynamicLayer
         orig_lazy_init = DynamicLayer.lazy_initialization
 
-        def _lazy_init_4d(self, key_states):
+        def _lazy_init_4d(self, key_states, value_states=None):
             self.dtype, self.device = key_states.dtype, key_states.device
             shape = list(key_states.shape)
             shape[-2] = 0
@@ -249,13 +285,16 @@ class DynamicCacheModelWrapper(torch.nn.Module):
 
             # Convert tuple PKV to DynamicCache
             if "past_key_values" in kwargs and isinstance(kwargs["past_key_values"], (tuple, list)):
-                kwargs["past_key_values"] = DynamicCache.from_legacy_cache(kwargs["past_key_values"])
+                kwargs["past_key_values"] = DynamicCache(ddp_cache_data=kwargs["past_key_values"])
 
             outputs = model(**kwargs)
 
+            def _dc_to_tuples(dc):
+                return tuple((k, v) for k, v, _ in dc)
+
             if isinstance(outputs, (tuple, list)):
                 outputs = type(outputs)(
-                    v.to_legacy_cache() if isinstance(v, DynamicCache) else v
+                    _dc_to_tuples(v) if isinstance(v, DynamicCache) else v
                     for v in outputs
                 )
             else:
@@ -263,7 +302,7 @@ class DynamicCacheModelWrapper(torch.nn.Module):
                 if hasattr(outputs, 'past_key_values'):
                     pkv = outputs.past_key_values
                     if isinstance(pkv, DynamicCache):
-                        outputs['past_key_values'] = pkv.to_legacy_cache()
+                        outputs['past_key_values'] = _dc_to_tuples(pkv)
                 # Convert ModelOutput to tuple for JIT trace compatibility
                 outputs = tuple(v for v in outputs.values() if v is not None)
 
@@ -327,15 +366,15 @@ class TestLLMModel(TestTorchConvertModel):
             config = AutoConfig.from_pretrained(model_cached)
         except Exception:
             config = {}
-        model_kwargs = {"torchscript": True}
+        model_kwargs = {}
         is_quant = is_quantized_model(config)
 
         if is_quant:
             self.cuda_available, self.gptq_postinit, self.orig_gemm_forward = patch_gptq()
-            model_kwargs["torch_dtype"] = torch.float32
+            model_kwargs["dtype"] = torch.float32
             self.ov_config = {"DYNAMIC_QUANTIZATION_GROUP_SIZE": "0"}
         else:
-            model_kwargs["torch_dtype"] = "auto"
+            model_kwargs["dtype"] = "auto"
 
         t = AutoTokenizer.from_pretrained(model_cached)
         self.model = AutoModelForCausalLM.from_pretrained(model_cached, **model_kwargs)
@@ -407,13 +446,15 @@ class TestLLMModel(TestTorchConvertModel):
         if model_dtype in [torch.float16, torch.bfloat16]:
             patch(self.model)
             is_patched = True
+        # Replace AWQ quantized linear modules with plain nn.Linear so that
+        # the trace/conversion graph has no bitwise dequantization ops.
+        _replace_awq_with_linear(self.model)
         # initialize model after patching
         self.model(**self.example)
         with _patch_for_jit_trace(), torch.no_grad():
             ovm = super().convert_model_impl(self.model)
         if is_patched:
             unpatch(self.model, "_openvino_module_extension_patch_orig_forward")
-        #    model_obj.float()
         return ovm
 
     def teardown_method(self):
@@ -425,13 +466,15 @@ class TestLLMModel(TestTorchConvertModel):
 
     @staticmethod
     def get_pkv(model, tokenizer):
+        from transformers.cache_utils import DynamicCache
+
         for_pkv = tokenizer("To get past key values",
                             return_tensors='pt').__dict__['data']
         with torch.no_grad():
             pkv = model(**for_pkv)[1]
-        # Convert DynamicCache to legacy tuple format if needed
-        if hasattr(pkv, 'to_legacy_cache'):
-            pkv = pkv.to_legacy_cache()
+        # Convert DynamicCache to tuple-of-tuples format for OV tracing
+        if isinstance(pkv, DynamicCache):
+            pkv = tuple((k, v) for k, v, _ in pkv)
         return pkv, for_pkv["attention_mask"]
 
     def get_supported_precommit_models():
