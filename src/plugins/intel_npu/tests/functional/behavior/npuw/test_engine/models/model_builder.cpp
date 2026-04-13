@@ -1430,6 +1430,8 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     clear();
 
     LLMConfig config = config_in;
+    OPENVINO_ASSERT(config.mamba_ratio == 0 || config.use_kv_cache,
+                    "Hybrid models (mamba_ratio > 0) require use_kv_cache — SSM/conv states are inherently stateful");
     if (!config.norm)
         config.norm = LayerNorm(config.hidden_size, config.precision);
     if (!config.ffn)
