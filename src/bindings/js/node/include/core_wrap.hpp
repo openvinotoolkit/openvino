@@ -6,10 +6,13 @@
 
 #include <napi.h>
 
+#include <istream>
+#include <memory>
 #include <thread>
 #include <variant>
 
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 
 class CoreWrap : public Napi::ObjectWrap<CoreWrap> {
 public:
@@ -126,15 +129,22 @@ struct TsfnCompileModelContext {
 };
 
 struct ImportModelContext {
-    ImportModelContext(Napi::Env env, ov::Core& core) : deferred(Napi::Promise::Deferred::New(env)), _core{core} {};
+    ImportModelContext(Napi::Env env, ov::Core& core) : deferred(Napi::Promise::Deferred::New(env)), _core{core} {}
+
     std::thread nativeThread;
 
     Napi::Promise::Deferred deferred;
     Napi::ThreadSafeFunction tsfn;
 
-    std::stringstream _stream;
+    std::unique_ptr<ov::SharedStreamBuffer> _buffer;
+    std::unique_ptr<std::istream> _stream;
+    // ---- KEEP BACKING MEMORY ALIVE FOR ASYNC IMPORT ----
+    ov::Tensor _tensor_owner;                            // owns tensor memory for async path
+    Napi::Reference<Napi::Buffer<uint8_t>> _buffer_ref;  // keeps JS Buffer alive
+
     std::string _device;
     std::map<std::string, ov::Any> _config = {};
+
     ov::Core& _core;
     ov::CompiledModel _compiled_model;
 };
