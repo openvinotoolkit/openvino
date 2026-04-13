@@ -39,6 +39,7 @@ class OPENVINO_RUNTIME_API Core {
     std::shared_ptr<Impl> _impl;
 
 public:
+    ///@{
     /** @brief Constructs an OpenVINO Core instance with devices
      * and their plugins description.
      *
@@ -52,7 +53,13 @@ public:
      * 1. (dynamic build) default `plugins.xml` file located in the same folder as OpenVINO runtime shared library;
      * 2. (static build) statically defined configuration. In this case path to the .xml file is ignored.
      */
-    explicit Core(const std::filesystem::path& xml_config_file = {});
+    explicit Core(const std::string& xml_config_file = {});
+
+    explicit Core(const std::filesystem::path& xml_config_file);
+
+    template <class TPath, std::enable_if_t<std::is_constructible_v<std::string, TPath>>* = nullptr>
+    explicit Core(const TPath& xml_config_file) : Core(std::string(xml_config_file)) {}
+    ///@}
 
     /**
      * @brief Returns device plugins version information.

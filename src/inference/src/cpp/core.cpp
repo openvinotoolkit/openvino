@@ -63,6 +63,8 @@ public:
     Impl() : ov::CoreImpl() {}
 };
 
+Core::Core(const std::string& xml_config_file) : Core(ov::util::make_path(xml_config_file)) {}
+
 Core::Core(const std::filesystem::path& xml_config_file) : _impl(std::make_shared<Impl>()) {
     if (const auto xml_path = find_plugins_xml(xml_config_file); !xml_path.empty()) {
         // If XML is default, load default plugins by absolute paths
