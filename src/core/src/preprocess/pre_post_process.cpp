@@ -116,10 +116,11 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
 
         const bool does_model_contain_mxfp_patterns =
             ov::pass::low_precision::LowPrecision::doesModelContainMXFPPatterns(model);
-        REGISTER_PASS(manager,
-                      MarkDequantization,
-                      TypeVector{i32, u32, i16, u16, i8, u8, u6, i4, u4, u3, u2, u1, nf4, f8e4m3, f8e5m2, f4e2m1, f8e8m0},
-                      false);
+        REGISTER_PASS(
+            manager,
+            MarkDequantization,
+            TypeVector{i32, u32, i16, u16, i8, u8, u6, i4, u4, u3, u2, u1, nf4, f8e4m3, f8e5m2, f4e2m1, f8e8m0},
+            false);
         if (does_model_contain_mxfp_patterns) {
             REGISTER_PASS(manager, MarkDequantization, TypeVector{f8e4m3, f8e5m2, f4e2m1, f8e8m0}, false, false);
         }
