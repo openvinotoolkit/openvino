@@ -29,84 +29,8 @@ env:
   NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
 
 jobs:
-  CoverageConfig:
-    runs-on: ubuntu-latest
-    outputs:
-      should_run_any: ${{ steps.resolve.outputs.should_run_any }}
-      should_run_cpu: ${{ steps.resolve.outputs.should_run_cpu }}
-      should_run_gpu: ${{ steps.resolve.outputs.should_run_gpu }}
-      selected_lanes: ${{ steps.resolve.outputs.selected_lanes }}
-      cpp_matrix: ${{ steps.resolve.outputs.cpp_matrix }}
-    steps:
-      - name: Resolve coverage lanes
-        id: resolve
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if [[ "${{ github.event_name }}" == 'pull_request' ]]; then
-            should_run_cpu='false'
-            should_run_gpu='true'
-          else
-            should_run_cpu='${{ github.event.inputs.run-cpu-tests == 'true' && 'true' || 'false' }}'
-            should_run_gpu='${{ github.event.inputs.run-gpu-tests == 'true' && 'true' || 'false' }}'
-          fi
-
-          should_run_any='false'
-          if [[ "${should_run_cpu}" == 'true' || "${should_run_gpu}" == 'true' ]]; then
-            should_run_any='true'
-          fi
-
-          cpu_lane='{"lane":"cpu","lane_name":"CPU","test_profile":"cpu","test_names":"","runner_label":"aks-linux-16-cores-32gb","container_image":"","container_options":"","uses_igpu":"false"}'
-          # Temporary smoke-only GPU selection to validate workflow plumbing without running long GPU suites.
-          gpu_unit_lane='{"lane":"gpu-unit","lane_name":"GPU ONNX","test_profile":"gpu","test_names":"ov_onnx_frontend_tests,ov_onnx_frontend_tests (ONNX_ITERATOR=0)","runner_label":"igpu","container_image":"ubuntu:22.04","container_options":"--group-add 44 --group-add 993 --device /dev/dri/card1:/dev/dri/card1 --device /dev/dri/renderD128:/dev/dri/renderD128","uses_igpu":"true"}'
-          gpu_func_lane='{"lane":"gpu-func","lane_name":"GPU Inference","test_profile":"gpu","test_names":"test_inference_async,test_inference_sync","runner_label":"igpu","container_image":"ubuntu:22.04","container_options":"--group-add 44 --group-add 993 --device /dev/dri/card1:/dev/dri/card1 --device /dev/dri/renderD128:/dev/dri/renderD128","uses_igpu":"true"}'
-
-          if [[ "${should_run_cpu}" == 'true' && "${should_run_gpu}" == 'true' ]]; then
-            selected_lanes='cpu,gpu-unit,gpu-func'
-            cpp_matrix="$(cat <<EOF
-          {"include":[
-            ${cpu_lane},
-            ${gpu_unit_lane},
-            ${gpu_func_lane}
-          ]}
-          EOF
-            )"
-          elif [[ "${should_run_cpu}" == 'true' ]]; then
-            selected_lanes='cpu'
-            cpp_matrix="$(cat <<EOF
-          {"include":[
-            ${cpu_lane}
-          ]}
-          EOF
-            )"
-          elif [[ "${should_run_gpu}" == 'true' ]]; then
-            selected_lanes='gpu-unit,gpu-func'
-            cpp_matrix="$(cat <<EOF
-          {"include":[
-            ${gpu_unit_lane},
-            ${gpu_func_lane}
-          ]}
-          EOF
-            )"
-          else
-            selected_lanes='none'
-            cpp_matrix='{"include":[]}'
-          fi
-
-          {
-            echo "should_run_any=${should_run_any}"
-            echo "should_run_cpu=${should_run_cpu}"
-            echo "should_run_gpu=${should_run_gpu}"
-            echo "selected_lanes=${selected_lanes}"
-            echo "cpp_matrix<<EOF"
-            printf '%s\n' "${cpp_matrix}"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-
   Docker:
-    needs: CoverageConfig
-    if: ${{ needs.CoverageConfig.outputs.should_run_any == 'true' }}
+    if: ${{ github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' || github.event.inputs.run-gpu-tests == 'true' }}
     runs-on: aks-linux-4-cores-16gb-docker-build
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
@@ -131,8 +55,8 @@ jobs:
 
   Build:
     name: Build coverage artifacts
-    needs: [CoverageConfig, Docker]
-    if: ${{ needs.CoverageConfig.outputs.should_run_any == 'true' }}
+    needs: Docker
+    if: ${{ github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' || github.event.inputs.run-gpu-tests == 'true' }}
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
@@ -163,33 +87,153 @@ jobs:
         -DENABLE_OV_TF_FRONTEND=ON
         -DENABLE_OV_TF_LITE_FRONTEND=ON
         -DENABLE_INTEL_NPU=OFF
-        ${{ needs.CoverageConfig.outputs.should_run_gpu == 'true' && '-DENABLE_INTEL_GPU=ON' || '-DENABLE_INTEL_GPU=OFF' }}
-        ${{ needs.CoverageConfig.outputs.should_run_gpu == 'true' && '-DENABLE_ONEDNN_FOR_GPU=ON' || '-DENABLE_ONEDNN_FOR_GPU=OFF' }}
+        ${{ (github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true') && '-DENABLE_INTEL_GPU=ON' || '-DENABLE_INTEL_GPU=OFF' }}
+        ${{ (github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true') && '-DENABLE_ONEDNN_FOR_GPU=ON' || '-DENABLE_ONEDNN_FOR_GPU=OFF' }}
 
   CoverageCpp:
-    name: Coverage C++ (${{ matrix.lane_name }})
-    needs: [CoverageConfig, Docker, Build]
-    if: ${{ needs.CoverageConfig.outputs.should_run_any == 'true' }}
-    runs-on:
-      - self-hosted
-      - ${{ matrix.runner_label }}
+    name: Coverage C++ (CPU)
+    needs: [Docker, Build]
+    if: ${{ github.event_name != 'pull_request' && github.event.inputs.run-cpu-tests == 'true' }}
+    runs-on: aks-linux-16-cores-32gb
     container:
-      image: ${{ matrix.uses_igpu == 'true' && matrix.container_image || fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
+      image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
       volumes:
         - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro
         - /mount:/mount
         - ${{ github.workspace }}:${{ github.workspace }}
-      options: ${{ matrix.container_options }}
-    strategy:
-      fail-fast: false
-      max-parallel: 3
-      matrix: ${{ fromJSON(needs.CoverageConfig.outputs.cpp_matrix) }}
     defaults:
       run:
         shell: bash
         working-directory: ${{ github.workspace }}
     env:
-      TEST_PROFILE: ${{ matrix.test_profile }}
+      TEST_PROFILE: cpu
+      OV_WORKSPACE: ${{ github.workspace }}
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      INSTALL_PKG_DIR: ${{ github.workspace }}/install
+      BIN_DIR: ${{ github.workspace }}/install/tests
+      BUILD_DIR: ${{ github.workspace }}/openvino/openvino_build
+      BUILD_JS_DIR: ${{ github.workspace }}/openvino/openvino_build_js
+      COVERAGE_WRITE_STEP_SUMMARY: 'false'
+    steps:
+      - name: Checkout sources
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          submodules: 'true'
+
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download coverage build notes
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: coverage_build_notes
+          path: ${{ github.workspace }}/coverage_notes
+
+      - name: Extract OpenVINO packages
+        run: |
+          pigz -dc openvino_package.tar.gz | tar -xf - -C "${INSTALL_DIR}"
+          pigz -dc openvino_tests.tar.gz | tar -xf - -C "${INSTALL_DIR}"
+        working-directory: ${{ env.INSTALL_DIR }}
+
+      - name: Restore coverage notes
+        run: |
+          set -euo pipefail
+          notes_root="${{ github.workspace }}/coverage_notes"
+          if [[ -d "${notes_root}/coverage_build_notes" ]]; then
+            notes_root="${notes_root}/coverage_build_notes"
+          fi
+          rm -rf "${BUILD_DIR}" "${BUILD_JS_DIR}"
+          mkdir -p "${BUILD_DIR}" "${BUILD_JS_DIR}"
+          cp -a "${notes_root}/main-build/." "${BUILD_DIR}/"
+          if [[ -d "${notes_root}/js-build" ]]; then
+            cp -a "${notes_root}/js-build/." "${BUILD_JS_DIR}/"
+          fi
+
+      - name: Setup Python 3.11
+        uses: ./.github/actions/setup_python
+        with:
+          version: '3.11'
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
+
+      - name: Install coverage Python dependencies
+        run: python3 -m pip install -r .github/scripts/coverage/requirements-ci.txt
+
+      - name: Run CPU C++ coverage tests
+        run: python3 .github/scripts/coverage/coverage.py step run-cpp-tests
+
+      - name: Generate CPU native C/C++ coverage report
+        run: python3 .github/scripts/coverage/coverage.py step collect-cpp-coverage
+
+      - name: Collect C++ CPU results
+        id: cpu_artifact
+        if: ${{ always() }}
+        run: |
+          dir="${RUNNER_TEMP}/coverage-cpp-cpu"
+          python3 .github/scripts/coverage/ci_reports.py collect-suite-results \
+            --workspace "${{ env.OV_WORKSPACE }}" \
+            --suite cpp \
+            --profile cpu \
+            --lane cpu \
+            --artifact-name coverage-cpp-cpu \
+            --artifact-dir "${dir}"
+          echo "dir=${dir}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload C++ CPU artifact
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2 We are not using newest version v6.0.0 due to very frequent issues with 'Error: Unable to make request: ECONNRESET'
+        with:
+          name: coverage-cpp-cpu
+          path: ${{ steps.cpu_artifact.outputs.dir }}
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 0
+          overwrite: true
+
+  CoverageCppGpu:
+    name: Coverage C++ GPU (${{ matrix.lane_name }})
+    needs: Build
+    if: ${{ github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true' }}
+    runs-on:
+      - self-hosted
+      - igpu
+    container:
+      image: ubuntu:22.04
+      volumes:
+        - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro
+        - /mount:/mount
+        - ${{ github.workspace }}:${{ github.workspace }}
+      options: --group-add 44 --group-add 993 --device /dev/dri/card1:/dev/dri/card1 --device /dev/dri/renderD128:/dev/dri/renderD128
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          # Temporary smoke-only GPU selection to validate workflow plumbing without running long GPU suites.
+          - lane: gpu-unit
+            lane_name: GPU ONNX
+            test_names: ov_onnx_frontend_tests,ov_onnx_frontend_tests (ONNX_ITERATOR=0)
+          - lane: gpu-func
+            lane_name: GPU Inference
+            test_names: test_inference_async,test_inference_sync
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ github.workspace }}
+    env:
+      TEST_PROFILE: gpu
       CXX_TEST_NAMES: ${{ matrix.test_names }}
       OV_WORKSPACE: ${{ github.workspace }}
       INSTALL_DIR: ${{ github.workspace }}/install
@@ -201,7 +245,6 @@ jobs:
       COVERAGE_WRITE_STEP_SUMMARY: 'false'
     steps:
       - name: Prepare iGPU test container
-        if: ${{ matrix.uses_igpu == 'true' }}
         run: |
           apt-get update && apt-get install -y pigz wget software-properties-common ca-certificates gpg-agent tzdata clinfo git lcov python3-yaml
         env:
@@ -239,7 +282,6 @@ jobs:
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Install iGPU runtime dependencies
-        if: ${{ matrix.uses_igpu == 'true' }}
         run: |
           set -euo pipefail
           "${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh" -c=core -c=dev -c=gpu -y
@@ -258,7 +300,6 @@ jobs:
           popd
 
       - name: Verify GPU device availability
-        if: ${{ matrix.uses_igpu == 'true' }}
         run: clinfo
 
       - name: Restore coverage notes
@@ -275,19 +316,6 @@ jobs:
             cp -a "${notes_root}/js-build/." "${BUILD_JS_DIR}/"
           fi
 
-      - name: Setup Python 3.11
-        if: ${{ matrix.test_profile == 'cpu' }}
-        uses: ./.github/actions/setup_python
-        with:
-          version: '3.11'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
-          self-hosted-runner: 'true'
-
-      - name: Install coverage Python dependencies
-        if: ${{ matrix.test_profile == 'cpu' }}
-        run: python3 -m pip install -r .github/scripts/coverage/requirements-ci.txt
-
       - name: Run ${{ matrix.lane_name }} C++ coverage tests
         run: python3 .github/scripts/coverage/coverage.py step run-cpp-tests
 
@@ -302,7 +330,7 @@ jobs:
           python3 .github/scripts/coverage/ci_reports.py collect-suite-results \
             --workspace "${{ env.OV_WORKSPACE }}" \
             --suite cpp \
-            --profile "${{ matrix.test_profile }}" \
+            --profile gpu \
             --lane "${{ matrix.lane }}" \
             --artifact-name "coverage-cpp-${{ matrix.lane }}" \
             --artifact-dir "${dir}"
@@ -321,8 +349,8 @@ jobs:
 
   CoveragePython:
     name: Coverage Python
-    needs: [CoverageConfig, Docker, Build]
-    if: ${{ needs.CoverageConfig.outputs.should_run_cpu == 'true' }}
+    needs: [Docker, Build]
+    if: ${{ github.event_name != 'pull_request' && github.event.inputs.run-cpu-tests == 'true' }}
     runs-on: aks-linux-16-cores-32gb
     container:
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
@@ -454,8 +482,8 @@ jobs:
 
   CoverageJS:
     name: Coverage JS
-    needs: [CoverageConfig, Docker, Build]
-    if: ${{ needs.CoverageConfig.outputs.should_run_cpu == 'true' }}
+    needs: [Docker, Build]
+    if: ${{ github.event_name != 'pull_request' && github.event.inputs.run-cpu-tests == 'true' }}
     runs-on: aks-linux-4-cores-16gb
     container:
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
@@ -587,8 +615,8 @@ jobs:
           overwrite: true
 
   CoverageSummary:
-    if: ${{ always() && needs.CoverageConfig.outputs.should_run_any == 'true' && needs.Build.result == 'success' }}
-    needs: [CoverageConfig, Build, CoverageCpp, CoveragePython, CoverageJS]
+    if: ${{ always() && needs.Build.result == 'success' }}
+    needs: [Build, CoverageCpp, CoverageCppGpu, CoveragePython, CoverageJS]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
@@ -604,26 +632,41 @@ jobs:
           path: ${{ github.workspace }}/artifacts/cpp
 
       - name: Download Python artifacts
-        if: ${{ needs.CoverageConfig.outputs.should_run_cpu == 'true' }}
+        if: ${{ github.event_name != 'pull_request' && github.event.inputs.run-cpu-tests == 'true' }}
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           pattern: coverage-python-*
           path: ${{ github.workspace }}/artifacts/python
 
       - name: Download JS artifacts
-        if: ${{ needs.CoverageConfig.outputs.should_run_cpu == 'true' }}
+        if: ${{ github.event_name != 'pull_request' && github.event.inputs.run-cpu-tests == 'true' }}
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           pattern: coverage-js-*
           path: ${{ github.workspace }}/artifacts/js
+
+      - name: Resolve selected lanes
+        id: lanes
+        run: |
+          selected_lanes='none'
+          if [[ "${{ github.event_name }}" == 'pull_request' ]]; then
+            selected_lanes='gpu-unit,gpu-func'
+          elif [[ "${{ github.event.inputs.run-cpu-tests }}" == 'true' && "${{ github.event.inputs.run-gpu-tests }}" == 'true' ]]; then
+            selected_lanes='cpu,gpu-unit,gpu-func'
+          elif [[ "${{ github.event.inputs.run-cpu-tests }}" == 'true' ]]; then
+            selected_lanes='cpu'
+          elif [[ "${{ github.event.inputs.run-gpu-tests }}" == 'true' ]]; then
+            selected_lanes='gpu-unit,gpu-func'
+          fi
+          echo "selected_lanes=${selected_lanes}" >> "$GITHUB_OUTPUT"
 
       - name: Generate final summary
         run: |
           python3 .github/scripts/coverage/ci_reports.py render-summary \
             --workspace "${{ github.workspace }}" \
             --summary-file "${GITHUB_STEP_SUMMARY}" \
-            --selection "${{ needs.CoverageConfig.outputs.selected_lanes }}" \
-            --selected-lanes "${{ needs.CoverageConfig.outputs.selected_lanes }}"
+            --selection "${{ steps.lanes.outputs.selected_lanes }}" \
+            --selected-lanes "${{ steps.lanes.outputs.selected_lanes }}"
 
       - name: Merge duration reports
         run: |
@@ -682,7 +725,7 @@ jobs:
           verbose: true
 
       - name: Upload Codecov (Python API, CPU)
-        if: ${{ always() && needs.CoverageConfig.outputs.should_run_cpu == 'true' && hashFiles('artifacts/python/coverage-python-cpu/python-coverage.xml') != '' }}
+        if: ${{ always() && hashFiles('artifacts/python/coverage-python-cpu/python-coverage.xml') != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: ${{ github.workspace }}/artifacts/python/coverage-python-cpu/python-coverage.xml
@@ -695,7 +738,7 @@ jobs:
           verbose: true
 
       - name: Upload Codecov (C++ runtime, Python suite, CPU)
-        if: ${{ always() && needs.CoverageConfig.outputs.should_run_cpu == 'true' && hashFiles('artifacts/python/coverage-python-cpu/coverage.info') != '' }}
+        if: ${{ always() && hashFiles('artifacts/python/coverage-python-cpu/coverage.info') != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: ${{ github.workspace }}/artifacts/python/coverage-python-cpu/coverage.info
@@ -708,7 +751,7 @@ jobs:
           verbose: true
 
       - name: Upload Codecov (JS bindings, CPU)
-        if: ${{ always() && needs.CoverageConfig.outputs.should_run_cpu == 'true' && hashFiles('artifacts/js/coverage-js-cpu/js-lcov.info') != '' }}
+        if: ${{ always() && hashFiles('artifacts/js/coverage-js-cpu/js-lcov.info') != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: ${{ github.workspace }}/artifacts/js/coverage-js-cpu/js-lcov.info
@@ -721,7 +764,7 @@ jobs:
           verbose: true
 
       - name: Upload Codecov (C++ runtime, JS suite, CPU)
-        if: ${{ always() && needs.CoverageConfig.outputs.should_run_cpu == 'true' && hashFiles('artifacts/js/coverage-js-cpu/coverage.info') != '' }}
+        if: ${{ always() && hashFiles('artifacts/js/coverage-js-cpu/coverage.info') != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: ${{ github.workspace }}/artifacts/js/coverage-js-cpu/coverage.info
