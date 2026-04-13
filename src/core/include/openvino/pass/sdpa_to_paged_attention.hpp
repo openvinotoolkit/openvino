@@ -15,7 +15,7 @@ namespace pass {
 /**
  * @brief The transformation converts model inputs and helper subgraphs to PagedAttention-compatible representation.
  * The pass is intended to be executed as a prerequisite before SDPA->PA and PagedCausalConv1D-related fusions.
- * 
+ *
  * \\ingroup ov_pass_cpp_api
  */
 class OPENVINO_API PrepareSDPAToPARepresentation : public ModelPass {

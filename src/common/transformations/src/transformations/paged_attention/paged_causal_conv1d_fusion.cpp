@@ -18,13 +18,13 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/assign.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_causal_conv1d.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/assign.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/slice.hpp"
@@ -119,8 +119,9 @@ std::optional<size_t> parse_layer_index_from_name(const std::string& name, const
         return std::nullopt;
     }
     const std::string suffix = name.substr(prefix.size());
-    if (suffix.empty() ||
-        !std::all_of(suffix.begin(), suffix.end(), [](const char value) { return std::isdigit(value) != 0; })) {
+    if (suffix.empty() || !std::all_of(suffix.begin(), suffix.end(), [](const char value) {
+            return std::isdigit(value) != 0;
+        })) {
         return std::nullopt;
     }
     return static_cast<size_t>(std::stoull(suffix));
@@ -204,13 +205,13 @@ ov::PartialShape make_conv_state_table_shape(const ov::PartialShape& past_state_
 class PagedCausalConv1DFusionMatcher : public ov::pass::MatcherPass {
 public:
     PagedCausalConv1DFusionMatcher(const SharedRuntimeInputs& shared_inputs,
-                                  const std::map<size_t, std::shared_ptr<v0::Parameter>>& conv_state_tables) {
+                                   const std::map<size_t, std::shared_ptr<v0::Parameter>>& conv_state_tables) {
         MATCHER_SCOPE(PagedCausalConv1DFusion);
 
-    auto conv_input = any_input();
+        auto conv_input = any_input();
 
         auto weight_const = wrap_type<v0::Constant>();
-    auto group_conv = wrap_type<v1::GroupConvolution>({conv_input, weight_const});
+        auto group_conv = wrap_type<v1::GroupConvolution>({conv_input, weight_const});
 
         auto slice2 = wrap_type<v8::Slice>({group_conv, any_input(), any_input(), any_input(), any_input()});
 
@@ -248,7 +249,8 @@ public:
             }
 
             const auto& weight_pshape = weight_node->get_output_partial_shape(0);
-            if (weight_pshape.rank().is_dynamic() || weight_pshape.rank().get_length() != 4 || !weight_pshape.is_static()) {
+            if (weight_pshape.rank().is_dynamic() || weight_pshape.rank().get_length() != 4 ||
+                !weight_pshape.is_static()) {
                 return false;
             }
 
@@ -281,7 +283,7 @@ public:
             }
 
             const auto& state_pshape = past_state_output.get_node() ? past_state_output.get_partial_shape()
-                                                                     : conv_state_table_it->second->get_partial_shape();
+                                                                    : conv_state_table_it->second->get_partial_shape();
             if (state_pshape.rank().is_dynamic() || state_pshape.rank().get_length() != 3) {
                 return false;
             }
@@ -351,15 +353,16 @@ public:
 
             const auto bias_node = make_zero_bias(input_embeds_node->get_output_element_type(0), hidden_size);
 
-            const auto paged_conv = std::make_shared<ov::op::internal::PagedCausalConv1D>(input_embeds_node,
-                                                                                           conv_state_table_it->second,
-                                                                                           weight_reshape,
-                                                                                           bias_node,
-                                                                                           shared_inputs.subsequence_begins,
-                                                                                           shared_inputs.block_indices,
-                                                                                           shared_inputs.block_indices_begins,
-                                                                                           shared_inputs.past_lens,
-                                                                                           shared_inputs.cache_interval);
+            const auto paged_conv =
+                std::make_shared<ov::op::internal::PagedCausalConv1D>(input_embeds_node,
+                                                                      conv_state_table_it->second,
+                                                                      weight_reshape,
+                                                                      bias_node,
+                                                                      shared_inputs.subsequence_begins,
+                                                                      shared_inputs.block_indices,
+                                                                      shared_inputs.block_indices_begins,
+                                                                      shared_inputs.past_lens,
+                                                                      shared_inputs.cache_interval);
 
             paged_conv->set_friendly_name(group_conv_node->get_friendly_name() + "/PagedCausalConv1D");
 
@@ -407,23 +410,15 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion() {
 bool PagedCausalConv1DFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(PagedCausalConv1DFusion);
 
-    ov::ParameterVector created_parameters;
-    const auto track_created_parameter = [&created_parameters](const ParameterCreationResult& creation_result) {
-        if (creation_result.created) {
-            created_parameters.push_back(creation_result.parameter);
-        }
-        return creation_result.parameter;
-    };
-
     SharedRuntimeInputs shared_inputs{
-        track_created_parameter(
-            create_or_get_named_parameter(model, "subsequence_begins", ov::element::i32, ov::PartialShape{-1})),
-        track_created_parameter(create_or_get_named_parameter(model, "paged_conv_block_indices", ov::element::i32, ov::PartialShape{-1})),
-        track_created_parameter(
-            create_or_get_named_parameter(model, "paged_conv_block_indices_begins", ov::element::i32, ov::PartialShape{-1})),
-        track_created_parameter(create_or_get_named_parameter(model, "paged_conv_past_lens", ov::element::i32, ov::PartialShape{-1})),
-        track_created_parameter(
-            create_or_get_named_parameter(model, "paged_conv_cache_interval", ov::element::i32, ov::PartialShape{-1}))};
+        create_or_get_named_parameter(model, "subsequence_begins", ov::element::i32, ov::PartialShape{-1}).parameter,
+        create_or_get_named_parameter(model, "paged_conv_block_indices", ov::element::i32, ov::PartialShape{-1})
+            .parameter,
+        create_or_get_named_parameter(model, "paged_conv_block_indices_begins", ov::element::i32, ov::PartialShape{-1})
+            .parameter,
+        create_or_get_named_parameter(model, "paged_conv_past_lens", ov::element::i32, ov::PartialShape{-1}).parameter,
+        create_or_get_named_parameter(model, "paged_conv_cache_interval", ov::element::i32, ov::PartialShape{-1})
+            .parameter};
 
     std::map<size_t, std::shared_ptr<v0::Parameter>> conv_state_tables;
     for (const auto& node : model->get_ordered_ops()) {
@@ -434,14 +429,12 @@ bool PagedCausalConv1DFusion::run_on_model(const std::shared_ptr<ov::Model>& mod
                 continue;
             }
 
-            const auto conv_state_table = create_or_get_named_parameter(model,
-                                                                        make_conv_state_table_name(*layer_index),
-                                                                        output.get_element_type(),
-                                                                        make_conv_state_table_shape(output.get_partial_shape()));
+            const auto conv_state_table =
+                create_or_get_named_parameter(model,
+                                              make_conv_state_table_name(*layer_index),
+                                              output.get_element_type(),
+                                              make_conv_state_table_shape(output.get_partial_shape()));
             conv_state_tables[*layer_index] = conv_state_table.parameter;
-            if (conv_state_table.created) {
-                created_parameters.push_back(conv_state_table.parameter);
-            }
         }
     }
 
@@ -450,14 +443,7 @@ bool PagedCausalConv1DFusion::run_on_model(const std::shared_ptr<ov::Model>& mod
     manager.register_pass<PagedCausalConv1DFusionMatcher>(shared_inputs, conv_state_tables);
     const bool rewritten = manager.run_passes(model);
 
-    for (const auto& parameter : created_parameters) {
-        if (parameter->output(0).get_target_inputs().empty() && model->get_parameter_index(parameter) >= 0) {
-            model->remove_parameter(parameter);
-        }
-    }
-
     return rewritten;
 }
 
 }  // namespace ov::pass
-

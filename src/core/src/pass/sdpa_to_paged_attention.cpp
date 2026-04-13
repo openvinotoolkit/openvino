@@ -19,9 +19,9 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/paged_attention/paged_causal_conv1d_fusion.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
+#include "transformations/paged_attention/paged_causal_conv1d_fusion.hpp"
 #include "transformations/paged_attention/position_ids_replacer.hpp"
 #include "transformations/paged_attention/prev_sequence_length_pattern.hpp"
 #include "transformations/paged_attention/state_management_pattern.hpp"
@@ -59,9 +59,9 @@ static std::shared_ptr<v0::Parameter> get_parameter(const std::shared_ptr<ov::Mo
 }
 
 static std::shared_ptr<v0::Parameter> create_or_get_named_parameter(const std::shared_ptr<ov::Model>& model,
-                                                                     const std::string& name,
-                                                                     const ov::element::Type& type,
-                                                                     const ov::PartialShape& pshape) {
+                                                                    const std::string& name,
+                                                                    const ov::element::Type& type,
+                                                                    const ov::PartialShape& pshape) {
     if (auto param = get_parameter(model, name)) {
         return param;
     }
@@ -151,8 +151,7 @@ static PARepresentationContext prepare_sdpa_to_pa_representation(const std::shar
         // Graph modifications (input_ids reshape, position_ids replacement, pattern passes) were already
         // applied by a prior PrepareSDPAToPARepresentation run. Rebuild context fields from existing params.
         context.position_ids = get_parameter(model, "position_ids");
-        OPENVINO_ASSERT(context.position_ids,
-                        "Model was expected to have 'position_ids' parameter after preparation.");
+        OPENVINO_ASSERT(context.position_ids, "Model was expected to have 'position_ids' parameter after preparation.");
         // Reconstruct unsqueezed_position_ids: it is the sole consumer of position_ids in the graph.
         const auto& pos_targets = context.position_ids->get_output_target_inputs(0);
         OPENVINO_ASSERT(!pos_targets.empty(), "position_ids parameter has no consumers after preparation.");
@@ -218,10 +217,9 @@ static PARepresentationContext prepare_sdpa_to_pa_representation(const std::shar
 
     ov::pass::Manager manager("Prepare SDPA to PA representation");
     manager.set_per_pass_validation(false);
-    manager.register_pass<PrevSequenceLengthPattern>(
-        context.processed_input_ids,
-        context.max_context_len,
-        context.position_ids);
+    manager.register_pass<PrevSequenceLengthPattern>(context.processed_input_ids,
+                                                     context.max_context_len,
+                                                     context.position_ids);
     manager.register_pass<TotalSequenceLengthPattern>(context.max_context_len);
     manager.register_pass<TotalSequenceLengthPatternQwen>(context.max_context_len);
     manager.register_pass<TotalSequenceLengthPatternCodeGen2>(context.max_context_len);
@@ -251,15 +249,15 @@ ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_in
       m_allow_qq_bias(allow_qq_bias) {}
 
 ov::pass::PrepareSDPAToPARepresentation::PrepareSDPAToPARepresentation(bool use_per_layer_block_indices_inputs,
-                                                                                                                                             bool allow_score_aggregation,
-                                                                                                                                             bool allow_cache_rotation,
-                                                                                                                                             bool allow_xattention,
-                                                                                                                                             bool allow_adaptive_rkv)
-        : m_use_per_layer_block_indices_inputs(use_per_layer_block_indices_inputs),
-            m_allow_score_aggregation(allow_score_aggregation),
-            m_allow_cache_rotation(allow_cache_rotation),
-            m_allow_xattention(allow_xattention),
-            m_allow_adaptive_rkv(allow_adaptive_rkv) {}
+                                                                       bool allow_score_aggregation,
+                                                                       bool allow_cache_rotation,
+                                                                       bool allow_xattention,
+                                                                       bool allow_adaptive_rkv)
+    : m_use_per_layer_block_indices_inputs(use_per_layer_block_indices_inputs),
+      m_allow_score_aggregation(allow_score_aggregation),
+      m_allow_cache_rotation(allow_cache_rotation),
+      m_allow_xattention(allow_xattention),
+      m_allow_adaptive_rkv(allow_adaptive_rkv) {}
 
 bool ov::pass::PrepareSDPAToPARepresentation::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(PrepareSDPAToPARepresentation);
@@ -393,7 +391,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     model->add_parameters(kv_parameters);
     PagedCausalConv1DFusion().run_on_model(model);
     model->validate_nodes_and_infer_types();
-    
+
     PagedExtensionsPostCleanup().run_on_model(model);
 
     return true;
@@ -437,7 +435,8 @@ bool ov::pass::PagedExtensionsPostCleanup::run_on_model(const std::shared_ptr<ov
     if (!fused_layer_indices.empty()) {
         const auto is_fused_conv_variable = [&fused_layer_indices](const std::string& variable_id) {
             for (const auto layer_index : fused_layer_indices) {
-                const std::string layer_marker = std::string(cache_params_past_conv_prefix) + std::to_string(layer_index);
+                const std::string layer_marker =
+                    std::string(cache_params_past_conv_prefix) + std::to_string(layer_index);
                 if (variable_id.find(layer_marker) != std::string::npos) {
                     return true;
                 }

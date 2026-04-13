@@ -8,6 +8,7 @@
 
 #include <cstdlib>
 #include <string>
+
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/concat.hpp"
@@ -61,8 +62,12 @@ std::shared_ptr<ov::Model> build_model(bool add_present_state_result) {
     auto state_concat = std::make_shared<v0::Concat>(OutputVector{past_state, token_transpose}, -1);
 
     auto weights = v0::Constant::create(element::f32, Shape{3, 1, 1, 4}, std::vector<float>(12, 0.25f));
-    auto group_conv = std::make_shared<v1::GroupConvolution>(state_concat, weights, Strides{1}, CoordinateDiff{0},
-                                                             CoordinateDiff{0}, Strides{1});
+    auto group_conv = std::make_shared<v1::GroupConvolution>(state_concat,
+                                                             weights,
+                                                             Strides{1},
+                                                             CoordinateDiff{0},
+                                                             CoordinateDiff{0},
+                                                             Strides{1});
 
     auto neg_one = v0::Constant::create(element::i64, Shape{1}, {-1});
     auto one = v0::Constant::create(element::i64, Shape{1}, {1});
@@ -90,8 +95,13 @@ std::shared_ptr<ov::Model> build_model(bool add_present_state_result) {
     auto past_lens = make_i32_param("past_lens", Shape{2});
     auto cache_interval = make_i32_param("cache_interval", Shape{2});
 
-    ParameterVector params{input_embeds, past_state, subsequence_begins, block_indices, block_indices_begins,
-                           past_lens, cache_interval};
+    ParameterVector params{input_embeds,
+                           past_state,
+                           subsequence_begins,
+                           block_indices,
+                           block_indices_begins,
+                           past_lens,
+                           cache_interval};
     return std::make_shared<ov::Model>(results, params);
 }
 
@@ -110,11 +120,11 @@ std::shared_ptr<ov::Model> build_model_with_multiply_post_op(bool add_present_st
 
     auto weights = v0::Constant::create(element::f32, Shape{3, 1, 1, 4}, std::vector<float>(12, 0.25f));
     auto group_conv = std::make_shared<v1::GroupConvolution>(state_concat,
-                                                              weights,
-                                                              Strides{1},
-                                                              CoordinateDiff{0},
-                                                              CoordinateDiff{0},
-                                                              Strides{1});
+                                                             weights,
+                                                             Strides{1},
+                                                             CoordinateDiff{0},
+                                                             CoordinateDiff{0},
+                                                             Strides{1});
 
     auto neg_one = v0::Constant::create(element::i64, Shape{1}, {-1});
     auto one = v0::Constant::create(element::i64, Shape{1}, {1});
@@ -168,8 +178,12 @@ std::shared_ptr<ov::Model> build_model_without_concat_lfm2_like() {
     auto conv_input = std::make_shared<v1::Multiply>(token, gate);
 
     auto weights = v0::Constant::create(element::f32, Shape{3, 1, 1, 4}, std::vector<float>(12, 0.25f));
-    auto group_conv =
-        std::make_shared<v1::GroupConvolution>(conv_input, weights, Strides{1}, CoordinateDiff{2}, CoordinateDiff{2}, Strides{1});
+    auto group_conv = std::make_shared<v1::GroupConvolution>(conv_input,
+                                                             weights,
+                                                             Strides{1},
+                                                             CoordinateDiff{2},
+                                                             CoordinateDiff{2},
+                                                             Strides{1});
     group_conv->set_friendly_name("__module.model.model.layers.0.conv.conv/aten::_convolution/GroupConvolution");
 
     auto neg_one = v0::Constant::create(element::i64, Shape{1}, {-1});
@@ -220,13 +234,21 @@ std::shared_ptr<ov::Model> build_model_without_concat_lfm2_like_multiple() {
     auto conv_input_1 = std::make_shared<v1::Multiply>(token_1, gate_1);
 
     auto weights_0 = v0::Constant::create(element::f32, Shape{3, 1, 1, 4}, std::vector<float>(12, 0.25f));
-    auto group_conv_0 =
-        std::make_shared<v1::GroupConvolution>(conv_input_0, weights_0, Strides{1}, CoordinateDiff{2}, CoordinateDiff{2}, Strides{1});
+    auto group_conv_0 = std::make_shared<v1::GroupConvolution>(conv_input_0,
+                                                               weights_0,
+                                                               Strides{1},
+                                                               CoordinateDiff{2},
+                                                               CoordinateDiff{2},
+                                                               Strides{1});
     group_conv_0->set_friendly_name("__module.model.model.layers.0.conv.conv/aten::_convolution/GroupConvolution");
 
     auto weights_1 = v0::Constant::create(element::f32, Shape{3, 1, 1, 4}, std::vector<float>(12, 0.5f));
-    auto group_conv_1 =
-        std::make_shared<v1::GroupConvolution>(conv_input_1, weights_1, Strides{1}, CoordinateDiff{2}, CoordinateDiff{2}, Strides{1});
+    auto group_conv_1 = std::make_shared<v1::GroupConvolution>(conv_input_1,
+                                                               weights_1,
+                                                               Strides{1},
+                                                               CoordinateDiff{2},
+                                                               CoordinateDiff{2},
+                                                               Strides{1});
     group_conv_1->set_friendly_name("__module.model.model.layers.1.conv.conv/aten::_convolution/GroupConvolution");
 
     auto neg_one = v0::Constant::create(element::i64, Shape{1}, {-1});

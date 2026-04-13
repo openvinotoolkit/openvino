@@ -43,7 +43,6 @@
 #include "transformations/common_optimizations/normalize_l2_fusion.hpp"
 #include "transformations/common_optimizations/optimize_strided_slice.hpp"
 #include "transformations/common_optimizations/pad_fusion.hpp"
-#include "transformations/paged_attention/paged_causal_conv1d_fusion.hpp"
 #include "transformations/common_optimizations/pull_transpose_through_fq.hpp"
 #include "transformations/common_optimizations/random_uniform_fusion.hpp"
 #include "transformations/common_optimizations/reduce_merge.hpp"
@@ -123,6 +122,7 @@
 #include "transformations/op_conversions/softmax_decomposition.hpp"
 #include "transformations/op_conversions/softsign_decomposition.hpp"
 #include "transformations/op_conversions/unique_decomposition.hpp"
+#include "transformations/paged_attention/paged_causal_conv1d_fusion.hpp"
 #include "transformations/symbolic_transformations/dereshape_matmul.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 

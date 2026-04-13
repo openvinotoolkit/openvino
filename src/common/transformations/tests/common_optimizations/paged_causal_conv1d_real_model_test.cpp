@@ -38,7 +38,8 @@ TEST(PagedCausalConv1DRealModel, SDPAToPAThenCommonOptimizations) {
 
     ov::pass::Manager sdpa_to_pa_pm;
     sdpa_to_pa_pm.register_pass<ov::pass::SDPAToPagedAttention>(false, false, false, false, false, false);
-    sdpa_to_pa_pm.register_pass<ov::pass::Serialize>("paged_causal_conv1d_real_model.xml", "paged_causal_conv1d_real_model.bin");
+    sdpa_to_pa_pm.register_pass<ov::pass::Serialize>("paged_causal_conv1d_real_model.xml",
+                                                     "paged_causal_conv1d_real_model.bin");
     sdpa_to_pa_pm.run_passes(model);
 
     EXPECT_EQ(count_ops_by_type(model, "ScaledDotProductAttention"), 0u);
@@ -48,7 +49,8 @@ TEST(PagedCausalConv1DRealModel, SDPAToPAThenCommonOptimizations) {
 
     ov::pass::Manager common_pm;
     common_pm.register_pass<ov::pass::CommonOptimizations>();
-    common_pm.register_pass<ov::pass::Serialize>("paged_causal_conv1d_real_model_after_common_opt.xml", "paged_causal_conv1d_real_model_after_common_opt.bin");
+    common_pm.register_pass<ov::pass::Serialize>("paged_causal_conv1d_real_model_after_common_opt.xml",
+                                                 "paged_causal_conv1d_real_model_after_common_opt.bin");
     common_pm.run_passes(model);
 
     EXPECT_GE(count_ops_by_type(model, "PagedCausalConv1D"), 1u);
