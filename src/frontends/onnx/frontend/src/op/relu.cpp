@@ -16,6 +16,10 @@ ov::OutputVector relu(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<ov::op::v0::Relu>(ov_inputs.at(0))};
 }
 
+// Opset version differences (same conversion applies to all):
+//   opset 6:  removed 'consumed_inputs' attribute; added shape inference
+//   opset 13: extended type T to include bfloat16
+//   opset 14: extended type T to include int8, int16, int32, int64
 ONNX_OP("Relu", OPSET_SINCE(1), ai_onnx::opset_1::relu);
 }  // namespace opset_1
 }  // namespace ai_onnx
