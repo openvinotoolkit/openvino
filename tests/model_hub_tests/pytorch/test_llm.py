@@ -28,6 +28,7 @@ def patch_gptq():
     orig_cuda_get_device_capability = torch.cuda.get_device_capability
     orig_cuda_device_count = torch.cuda.device_count
     orig_post_init_model = None
+    orig_awq_post_init = None
     orig_gemm_forward = None
     torch.set_default_dtype(torch.float32)
 
@@ -85,16 +86,24 @@ def patch_gptq():
     except ImportError:
         pass
 
+    # Patch AWQ quantizer to skip gptqmodel's post_init/optimize, which
+    # repacks qweight/qzeros into a layout that dequantize_gemm cannot
+    # handle.  _replace_awq_with_linear() will dequantize from the
+    # original packed format instead.
+    try:
+        from transformers.quantizers.quantizer_awq import AwqQuantizer
+        orig_awq_post_init = AwqQuantizer._process_model_after_weight_loading
+        AwqQuantizer._process_model_after_weight_loading = lambda self, model, **kwargs: model
+    except ImportError:
+        pass
+
     try:
         # Patch gptqmodel's AWQ linear to work on CPU without compiled
-        # kernels.  Bypass the broken awq_weight_dequantize (gptqmodel
-        # 5.7.0 passes sym= to dequantize_gemm which doesn't accept it)
-        # and the transform_cpu path (crashes on missing g_idx).
-        # Note: _replace_awq_with_linear() replaces these modules before
-        # conversion, so this patch only serves as a safety fallback.
-        from gptqmodel.nn_modules.qlinear.torch_fused_awq import TorchFusedAwqQuantLinear
+        # kernels.  _replace_awq_with_linear() replaces these modules
+        # before conversion, so this patch only serves as a safety fallback.
+        from gptqmodel.nn_modules.qlinear import AWQuantLinear
         from gptqmodel.quantization.awq.utils.packing_utils import dequantize_gemm as _awq_dequant
-        _orig_awq_forward = TorchFusedAwqQuantLinear.forward
+        _orig_awq_forward = AWQuantLinear.forward
 
         def _awq_forward_cpu(self, x):
             orig_dtype = x.dtype
@@ -107,7 +116,7 @@ def patch_gptq():
                 out.add_(self.bias)
             return out.reshape(out_shape).to(orig_dtype)
 
-        TorchFusedAwqQuantLinear.forward = _awq_forward_cpu
+        AWQuantLinear.forward = _awq_forward_cpu
         orig_gemm_forward = _orig_awq_forward
     except ImportError:
         pass
@@ -145,20 +154,26 @@ def patch_gptq():
     torch.cuda.get_device_capability = lambda n: (9, 1)
     torch.cuda.device_count = lambda: 1
 
-    return (orig_cuda_is_available, orig_cuda_is_bf16_supported, orig_cuda_get_device_capability, orig_cuda_device_count), orig_post_init_model, orig_gemm_forward
+    return (orig_cuda_is_available, orig_cuda_is_bf16_supported, orig_cuda_get_device_capability, orig_cuda_device_count), orig_post_init_model, orig_awq_post_init, orig_gemm_forward
 
 
-def unpatch_gptq(orig_cuda_check, orig_post_init_model, orig_gemm_forward):
+def unpatch_gptq(orig_cuda_check, orig_post_init_model, orig_awq_post_init, orig_gemm_forward):
     torch.cuda.is_available, torch.cuda.is_bf16_supported, torch.cuda.get_device_capability, torch.cuda.device_count = orig_cuda_check
     try:
         from transformers.quantizers.quantizer_gptq import GptqHfQuantizer
         GptqHfQuantizer._process_model_after_weight_loading = orig_post_init_model
     except ImportError:
         pass
+    if orig_awq_post_init is not None:
+        try:
+            from transformers.quantizers.quantizer_awq import AwqQuantizer
+            AwqQuantizer._process_model_after_weight_loading = orig_awq_post_init
+        except ImportError:
+            pass
     if orig_gemm_forward is not None:
         try:
-            from gptqmodel.nn_modules.qlinear.torch_fused_awq import TorchFusedAwqQuantLinear
-            TorchFusedAwqQuantLinear.forward = orig_gemm_forward
+            from gptqmodel.nn_modules.qlinear import AWQuantLinear
+            AWQuantLinear.forward = orig_gemm_forward
         except ImportError:
             try:
                 from awq.modules.linear.gemm import WQLinearMMFunction
@@ -170,17 +185,18 @@ def unpatch_gptq(orig_cuda_check, orig_post_init_model, orig_gemm_forward):
 def _replace_awq_with_linear(model):
     """Replace AWQ quantized linear layers with plain nn.Linear.
 
-    Eagerly dequantizes packed int weights into float16 so the conversion
-    graph contains only standard matmul ops (no bitwise dequantization).
+    Eagerly dequantizes packed int weights into float32 so the conversion
+    graph contains only standard matmul ops (no bitwise dequantization or
+    compiled kernels).
     """
     try:
-        from gptqmodel.nn_modules.qlinear.torch_fused_awq import TorchFusedAwqQuantLinear
+        from gptqmodel.nn_modules.qlinear import AWQuantLinear
         from gptqmodel.quantization.awq.utils.packing_utils import dequantize_gemm
     except ImportError:
         return
 
     for name, module in list(model.named_modules()):
-        if not isinstance(module, TorchFusedAwqQuantLinear):
+        if not isinstance(module, AWQuantLinear):
             continue
         weight = dequantize_gemm(
             module.qweight, module.qzeros, module.scales,
@@ -354,7 +370,7 @@ torch.manual_seed(0)
 class TestLLMModel(TestTorchConvertModel):
     def setup_class(self):
         self.infer_timeout = 1800
-        self.cuda_available, self.gptq_postinit, self.orig_gemm_forward = None, None, None
+        self.cuda_available, self.gptq_postinit, self.awq_postinit, self.orig_gemm_forward = None, None, None, None
 
     @retry(3, exceptions=(OSError,), delay=1)
     def load_model(self, name, type):
@@ -370,7 +386,7 @@ class TestLLMModel(TestTorchConvertModel):
         is_quant = is_quantized_model(config)
 
         if is_quant:
-            self.cuda_available, self.gptq_postinit, self.orig_gemm_forward = patch_gptq()
+            self.cuda_available, self.gptq_postinit, self.awq_postinit, self.orig_gemm_forward = patch_gptq()
             model_kwargs["dtype"] = torch.float32
             self.ov_config = {"DYNAMIC_QUANTIZATION_GROUP_SIZE": "0"}
         else:
@@ -378,6 +394,10 @@ class TestLLMModel(TestTorchConvertModel):
 
         t = AutoTokenizer.from_pretrained(model_cached)
         self.model = AutoModelForCausalLM.from_pretrained(model_cached, **model_kwargs)
+        # Replace AWQ quantized linear modules with plain nn.Linear (eagerly
+        # dequantized weights) before any forward pass, to prevent gptqmodel
+        # from repacking weights and to keep bitwise ops out of the graph.
+        _replace_awq_with_linear(self.model)
         if is_quant:
             model = self.model
         else:
@@ -446,9 +466,6 @@ class TestLLMModel(TestTorchConvertModel):
         if model_dtype in [torch.float16, torch.bfloat16]:
             patch(self.model)
             is_patched = True
-        # Replace AWQ quantized linear modules with plain nn.Linear so that
-        # the trace/conversion graph has no bitwise dequantization ops.
-        _replace_awq_with_linear(self.model)
         # initialize model after patching
         self.model(**self.example)
         with _patch_for_jit_trace(), torch.no_grad():
@@ -460,8 +477,8 @@ class TestLLMModel(TestTorchConvertModel):
     def teardown_method(self):
         # restore after gptq patching
         if self.cuda_available is not None:
-            unpatch_gptq(self.cuda_available, self.gptq_postinit, self.orig_gemm_forward)
-            self.cuda_available, self.gptq_postinit, self.orig_gemm_forward = None, None, None
+            unpatch_gptq(self.cuda_available, self.gptq_postinit, self.awq_postinit, self.orig_gemm_forward)
+            self.cuda_available, self.gptq_postinit, self.awq_postinit, self.orig_gemm_forward = None, None, None, None
         super().teardown_method()
 
     @staticmethod
