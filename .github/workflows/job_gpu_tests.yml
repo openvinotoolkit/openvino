@@ -177,7 +177,6 @@ jobs:
       - name: OpenVINO GPU RoPE Tests
         if: ${{ inputs.test_type == 'rope' }}
         run: |
-          source ${INSTALL_DIR}/setupvars.sh
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_rope.txt
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_transformations.py \
