@@ -43,6 +43,7 @@ py::dtype get_dtype(const ov::element::Type& ov_type) {
 
 std::map<int, ov::element::Type> init_num_to_ov_type() {
     static const std::map<std::string, ov::element::Type> str_to_type_mapping = {
+        {"bfloat16", ov::element::bf16},
         {"float16", ov::element::f16},
         {"float32", ov::element::f32},
         {"float64", ov::element::f64},
