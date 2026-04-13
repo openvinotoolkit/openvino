@@ -60,18 +60,32 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
                                one_of(in0_dt, {data_types::f16, data_types::f32, data_types::i8, data_types::u8}) &&
                                one_of(wei_dt, {data_types::u8, data_types::i8, data_types::u4, data_types::i4}) &&
                                one_of(out_dt, {data_types::f16, data_types::f32, data_types::u8, data_types::i8});
-        if (!f16f16_case && !f32f32_case && !u8s8_case && !compressed_case)
+        const bool fp_compressed_case = fc_prim->compressed_weights && one_of(in0_dt, {data_types::f8e4m3, data_types::f8e5m2}) &&
+                                        one_of(wei_dt, {data_types::f8e4m3, data_types::f8e5m2}) && one_of(out_dt, {data_types::f16, data_types::f32});
+        if (!f16f16_case && !f32f32_case && !u8s8_case && !compressed_case && !fp_compressed_case)
             LOG_AND_RETURN_FALSE(node);
 
         if (fc_prim->compressed_weights) {
             if (fc_prim->decompression_zero_point.is_valid()) {
-                auto decompression_zp_idx = fc_prim->bias.is_valid() ? 4 : 3;
-                auto decompression_zp_dt = fc_node.get_input_layout(decompression_zp_idx).data_type;
+                const auto decompression_zp_idx = fc_prim->bias.is_valid() ? 4 : 3;
+                const auto decompression_zp_dt = fc_node.get_input_layout(decompression_zp_idx).data_type;
                 if ((wei_dt != ov::element::Type_t::i4 && wei_dt != ov::element::Type_t::u4 && wei_dt != ov::element::Type_t::u8) ||
                     (decompression_zp_dt != ov::element::Type_t::i4 && decompression_zp_dt != ov::element::Type_t::u8 &&
                      decompression_zp_dt != ov::element::Type_t::i8)) {
                     LOG_AND_RETURN_FALSE(node);
                 }
+            }
+        }
+
+        if (fp_compressed_case && fc_prim->decompression_scale.is_valid() && fc_prim->activation_scale.is_valid()) {
+            auto decompression_scale_idx = fc_prim->bias.is_valid() ? 3 : 2;
+            auto weight_scale_dt = fc_node.get_input_layout(decompression_scale_idx).data_type;
+            auto activation_scale_dt = fc_node.get_input_layout(decompression_scale_idx + 1).data_type;
+            if (activation_scale_dt != weight_scale_dt) {
+                LOG_AND_RETURN_FALSE(node);
+            }
+            if (!one_of(activation_scale_dt, {ov::element::Type_t::f8e8m0, ov::element::Type_t::f16})) {
+                LOG_AND_RETURN_FALSE(node);
             }
         }
 

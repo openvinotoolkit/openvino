@@ -270,6 +270,12 @@ void log_memory_to_file(memory::ptr mem, layout data_layout, stream& stream, std
         dump<int8_t>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::u8)
         dump<uint8_t>(actual_mem, stream, file_stream, dump_raw);
+    else if (mem_dt == cldnn::data_types::f8e5m2)
+        dump<ov::float8_e5m2>(actual_mem, stream, file_stream, dump_raw);
+    else if (mem_dt == cldnn::data_types::f8e4m3)
+        dump<ov::float8_e4m3>(actual_mem, stream, file_stream, dump_raw);
+    else if (mem_dt == cldnn::data_types::f8e8m0)
+        dump<ov::float8_e8m0>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::boolean)
         dump<uint8_t>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::i4 || mem_dt == cldnn::data_types::u4)

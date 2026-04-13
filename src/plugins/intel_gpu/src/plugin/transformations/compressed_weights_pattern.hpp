@@ -4,11 +4,14 @@
 
 #pragma once
 
+#include "openvino/pass/pattern/op/optional.hpp"
+
 using namespace ov::pass::pattern;
 #define FC_COMPRESSED_WEIGHT_PATTERN\
         auto compressed_constant = [](const ov::Output<ov::Node>& output) {\
             return (output.get_element_type() == ov::element::u8 || output.get_element_type() == ov::element::i8 ||\
-                    output.get_element_type() == ov::element::u4 || output.get_element_type() == ov::element::i4);\
+                    output.get_element_type() == ov::element::u4 || output.get_element_type() == ov::element::i4 ||\
+                    output.get_element_type() == ov::element::f8e4m3 || output.get_element_type() == ov::element::f8e5m2);\
         };\
         \
         auto reshape_squeeze = [](const ov::Output<ov::Node>& output) {\
@@ -36,7 +39,8 @@ using namespace ov::pass::pattern;
 \
         auto mul_const_m = wrap_type<ov::op::v0::Constant>();\
         auto mul_with_sub_m = wrap_type<ov::op::v1::Multiply>({subtract_m, mul_const_m});\
-        auto mul_no_sub_m = wrap_type<ov::op::v1::Multiply>({decompressed_weights_m, mul_const_m});\
+        auto mul_const_convert_m = ov::pass::pattern::optional<ov::op::v0::Convert>(mul_const_m);\
+        auto mul_no_sub_m = wrap_type<ov::op::v1::Multiply>({decompressed_weights_m, mul_const_convert_m});\
         auto mul_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{mul_with_sub_m, mul_no_sub_m});\
 \
         auto reshape_const_m = wrap_type<ov::op::v0::Constant>();\

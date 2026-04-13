@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "itt.hpp"
+#include "low_precision/low_precision.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/adaptive_pool_to_reduce.hpp"
@@ -144,8 +145,16 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     if (m_low_precision_enabled) {
         // Transformation call example, to check with the real model
         manager.register_pass<MarkGatherSubgraph>(TypeVector{f8e4m3}, TypeVector{u4});
+        const bool does_model_contain_mxfp_patterns = ov::pass::low_precision::LowPrecision::doesModelContainMXFPPatterns(f);
         manager.register_pass<ov::pass::MarkDequantization>(
-            TypeVector{i32, u32, i16, u16, i8, u8, u6, i4, u4, nf4, u3, u2, u1, f4e2m1, f8e4m3, f8e5m2, f8e8m0});
+            TypeVector{i32, u32, i16, u16, i8, u8, u6, i4, u4, nf4, u3, u2, u1, f8e4m3, f8e5m2, f4e2m1, f8e8m0},
+            false);
+        if (does_model_contain_mxfp_patterns) {
+            manager.register_pass<ov::pass::MarkDequantization>(
+                TypeVector{f8e4m3, f8e5m2, f4e2m1, f8e8m0},
+                false,
+                false);
+        }
     }
     if (!m_use_shapes) {
         manager.register_pass<ov::pass::DisableShapeOfConstantFolding>();

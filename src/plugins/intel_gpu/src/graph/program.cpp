@@ -909,9 +909,15 @@ void program::add_intermediate(program_node& node,
                                size_t prev_idx,
                                bool connect_int_node_with_old_dep,
                                bool move_usrs_of_prev_to_node) {
-    if (connect_int_node_with_old_dep && !node.dependencies.empty())
-        throw std::invalid_argument(
-            "Node which is about to be added in between two other nodes should not have any existing dependencies");
+    if (connect_int_node_with_old_dep && !node.dependencies.empty()) {
+        std::string deps;
+        for (auto& dep : node.dependencies) {
+            deps += dep.first->id() + " ( " + dep.first->get_primitive()->type_string() + " ), ";
+        }
+        OPENVINO_THROW("Node which is about to be added in between two other nodes should not have any existing dependencies. Node: " + node.id() + " ( " +
+                       node.get_primitive()->type_string() + " )" + ". Next: " + next.id() + " ( " + next.get_primitive()->type_string() +
+                       " ). Dependencies: " + deps);
+    }
 
     auto& prev = next.get_dependency(prev_idx);
     // firstly add connection, later replace dependency, so 'prev' won't become dangling and therefore removed
