@@ -449,7 +449,7 @@ struct BertConfig : public BaseModelConfig {
 
 
 
-/// Fixed-size state variable (recurrent/conv states — no sequence growth, no beam gather).
+/// Fixed-size state variable (recurrent/conv states — no sequence growth, optional beam reorder).
 struct FixedStateResult {
     std::shared_ptr<ov::op::util::Variable> variable;
     ov::Output<ov::Node> read_value;

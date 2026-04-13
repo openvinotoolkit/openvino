@@ -868,6 +868,7 @@ static std::string make_kv_var_id(const std::string& layer, const std::string& i
 }
 
 /// Hybrid model state naming: cache_params.past.{type}.{N}cache_params.present.{type}.{N}
+/// Missing separator between past+present halves is intentional — matches OV's StatefulToStateless pass.
 static std::string make_cache_params_var_id(const std::string& type, const std::string& idx) {
     return "cache_params.past." + type + "." + idx + "cache_params.present." + type + "." + idx;
 }
@@ -1533,8 +1534,10 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
                                                 lin_idx, pfx, prec,
                                                 config.weight,
                                                 RMSNorm(config.get_value_dim(), prec));
-                                            m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(result.conv_assign));
-                                            m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(result.recurrent_assign));
+                                            if (config.use_kv_cache) {
+                                                m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(result.conv_assign));
+                                                m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(result.recurrent_assign));
+                                            }
                                             return result.output;
                                         };
                                         return config.pre_norm
@@ -2284,6 +2287,10 @@ LinearAttnResult make_linear_attn_layer(
     ov::element::Type prec,
     const WeightFn& weight_fn,
     const NormFn& norm_fn) {
+    // SSM recurrence uses a single head count for Q/K/V reshape — head counts must match.
+    OPENVINO_ASSERT(num_key_heads == num_value_heads,
+                    "Linear attention requires num_key_heads == num_value_heads, got ",
+                    num_key_heads, " vs ", num_value_heads);
     const auto key_dim = num_key_heads * key_head_dim;
     const auto value_dim = num_value_heads * value_head_dim;
     const auto conv_dim = 2 * key_dim + value_dim;
