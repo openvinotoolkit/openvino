@@ -46,20 +46,25 @@ enum class Eagle3ModelRole {
 //   [1]               num_accepted_tokens
 //   [2 .. 2+N-1]      accepted_token_mask (1 = accepted, 0 = rejected), N = num_total_generated
 //
-// Usage example:
+// Usage example (write path — call before the next infer()):
 //   auto states = infer_request.query_state();
 //   for (auto& state : states) {
 //       if (state->get_name() == "npuw_eagle3_sampling_result") {
-//           auto tensor = state->get_state();
+//           const size_t N = num_total_generated;
+//           ov::Tensor tensor(ov::element::i64,
+//                             ov::Shape{Eagle3SamplingState::kHeaderSize + N});
 //           auto* data = tensor.data<int64_t>();
-//           data[0] = num_total_generated;
-//           data[1] = num_accepted_tokens;
-//           for (size_t i = 0; i < mask.size(); ++i)
+//           data[0] = static_cast<int64_t>(N);
+//           data[1] = static_cast<int64_t>(num_accepted_tokens);
+//           for (size_t i = 0; i < N; ++i)
 //               data[Eagle3SamplingState::kHeaderSize + i] = mask[i] ? 1 : 0;
-//           state->set_state(tensor);
+//           state->set_state(ov::get_tensor_impl(tensor));
 //           break;
 //       }
 //   }
+//
+// get_state() returns a tensor sized to kHeaderSize + num_total_generated,
+// reflecting only the valid portion of the internal buffer.
 class Eagle3SamplingState : public ov::IVariableState {
 public:
     // Maximum number of tokens in a single speculative decoding round.
@@ -77,6 +82,20 @@ public:
         std::fill_n(m_state->data<int64_t>(), m_state->get_size(), 0);
     }
 
+    // Returns a tensor sized to kHeaderSize + num_total_generated, so the returned
+    // size is symmetric with what set_state() accepts — no fixed-size padding exposed.
+    ov::SoPtr<ov::ITensor> get_state() const override {
+        const auto* data = m_state->data<int64_t>();
+        const uint32_t num_total = data[0] > 0 ? static_cast<uint32_t>(data[0]) : 0u;
+        OPENVINO_ASSERT(num_total <= kMaxSpecTokens,
+                        "Eagle3SamplingState: num_total_generated (" + std::to_string(num_total) +
+                            ") exceeds kMaxSpecTokens (" + std::to_string(kMaxSpecTokens) + ")");
+        const size_t actual_size = kHeaderSize + num_total;
+        auto result = ov::Tensor(ov::element::i64, ov::Shape{actual_size});
+        std::copy_n(data, actual_size, result.data<int64_t>());
+        return ov::get_tensor_impl(result);
+    }
+
     void set_state(const ov::SoPtr<ov::ITensor>& state) override {
         // Copy the caller-provided tensor into our fixed-size internal buffer.
         OPENVINO_ASSERT(state->get_element_type() == ov::element::i64, "Eagle3SamplingState expects int64 tensor");
@@ -85,7 +104,16 @@ public:
                         "Eagle3SamplingState: input tensor size (" + std::to_string(state->get_size()) +
                             ") exceeds maximum capacity (" + std::to_string(m_state->get_size()) +
                             "). Consider increasing kMaxSpecTokens.");
-        std::copy_n(state->data<int64_t>(), state->get_size(), m_state->data<int64_t>());
+        // Validate that the tensor is large enough to hold the mask entries declared in the header.
+        const auto* src = state->data<int64_t>();
+        const uint32_t declared_total = static_cast<uint32_t>(src[0]);
+        OPENVINO_ASSERT(state->get_size() >= kHeaderSize + declared_total,
+                        "Eagle3SamplingState: tensor size (" + std::to_string(state->get_size()) +
+                            ") is too small for declared num_total_generated (" + std::to_string(declared_total) + ")");
+        // Zero the full internal buffer first to avoid stale mask data from a previous
+        // set_state() call influencing a later extract when the new tensor is smaller.
+        std::fill_n(m_state->data<int64_t>(), m_state->get_size(), int64_t{0});
+        std::copy_n(src, state->get_size(), m_state->data<int64_t>());
     }
 
     // Extract sampling result and clear the state
@@ -97,6 +125,13 @@ public:
         auto* data = m_state->data<int64_t>();
         num_total = static_cast<uint32_t>(data[0]);
         num_accepted = static_cast<uint32_t>(data[1]);
+
+        OPENVINO_ASSERT(num_total <= kMaxSpecTokens,
+                        "Eagle3SamplingState: num_total_generated (" + std::to_string(num_total) +
+                            ") exceeds kMaxSpecTokens (" + std::to_string(kMaxSpecTokens) + ")");
+        OPENVINO_ASSERT(num_accepted <= num_total,
+                        "Eagle3SamplingState: num_accepted_tokens (" + std::to_string(num_accepted) +
+                            ") cannot exceed num_total_generated (" + std::to_string(num_total) + ")");
 
         mask.clear();
         mask.reserve(num_total);
@@ -223,7 +258,7 @@ private:
     // For chunked prefill: track the write offset in the pre-allocated tensor
     uint32_t m_chunked_seq_offset = 0;
 
-    SamplingResult m_pending_sampling_result;    ///< Pending sampling result from previous inference
+    SamplingResult m_pending_sampling_result;               ///< Pending sampling result from previous inference
     std::shared_ptr<Eagle3SamplingState> m_sampling_state;  ///< VariableState for external pipeline communication
 };
 

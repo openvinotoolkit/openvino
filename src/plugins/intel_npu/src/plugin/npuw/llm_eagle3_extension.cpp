@@ -97,6 +97,7 @@ void Eagle3Extension::store_user_inputs(const ov::IInferRequest& request,
             "hidden_states input must be float32 or float16");
         OPENVINO_ASSERT(tensor->get_shape().size() == 3,
                         "hidden_states must have 3 dimensions: [batch, token_length, embedding_size]");
+        OPENVINO_ASSERT(tensor->get_shape()[0] == 1, "hidden_states batch dimension must be 1");
         m_hidden_states = tensor;
     }
 }
@@ -436,6 +437,9 @@ void Eagle3Extension::trim_kvcache_by_sampling(
     //   Physical KV cache length = 14 + 8 = 22
     //   num_stored_tokens        = 14 + 2 = 16  (set by pipeline)
     //   gen_start_pos            = 16 - 2  = 14
+    OPENVINO_ASSERT(num_stored_tokens >= result.num_accepted_tokens,
+                    "Eagle3: inconsistent token counts: num_stored_tokens (" + std::to_string(num_stored_tokens) +
+                        ") < num_accepted_tokens (" + std::to_string(result.num_accepted_tokens) + ")");
     uint32_t gen_start_pos = num_stored_tokens - result.num_accepted_tokens;
 
     LOG_VERB("Eagle3: Rearranging KV cache, gen_start_pos=" << gen_start_pos
@@ -472,9 +476,9 @@ void Eagle3Extension::trim_kvcache_by_sampling(
         const std::string input_name = "past_key_values" + output_name.substr(present_prefix.size());
 
         auto in_port_it = in_ports.find(input_name);
-        if (in_port_it == in_ports.end()) {
-            continue;  // Skip if this is not a KV cache layer
-        }
+        OPENVINO_ASSERT(in_port_it != in_ports.end(),
+                        "Eagle3: KV cache output '" + output_name + "' has no matching input '" + input_name +
+                            "'. Model configuration is incorrect.");
 
         auto past_kv_tensor = request->get_tensor(in_port_it->second);
 

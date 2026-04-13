@@ -594,8 +594,8 @@ void ov::npuw::LLMInferRequest::trim_kvcache_for_speculative_decoding(ov::SoPtr<
     auto position_id = position_ids->data<int64_t>()[0];
     auto dirty_num = kvcache_desc.num_stored_tokens - static_cast<uint32_t>(position_id);
     if (dirty_num > 0) {
-        LOG_DEBUG("Trim kv cache from " << kvcache_desc.num_stored_tokens << " length"
-                                        << " to " << position_id << " length");
+        LOG_DEBUG("Trim kv cache from " << kvcache_desc.num_stored_tokens << " length" << " to " << position_id
+                                        << " length");
     }
     kvcache_desc.num_stored_tokens -= dirty_num;
 }
@@ -1045,7 +1045,7 @@ void ov::npuw::LLMInferRequest::infer() {
     OPENVINO_ASSERT(ov::element::i64 == attention_mask->get_element_type());
     OPENVINO_ASSERT(ov::element::i64 == position_ids->get_element_type());
 
-    // Eagle3: Accept and validate eagle3 specific inputs
+    // Eagle3: Store Eagle3 specific inputs with pre-validation
     if (m_eagle3_ext.is_eagle3_model()) {
         m_eagle3_ext.store_user_inputs(*this, inputs);
     }
