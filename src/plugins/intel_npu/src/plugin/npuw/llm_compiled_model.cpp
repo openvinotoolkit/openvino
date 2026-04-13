@@ -11,6 +11,7 @@
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
 #include "moe_transformations/apply_moe_device_routed_transforms.hpp"
+#include "npuw_transformations/add_position_ids_param.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
 #include "npuw_transformations/decompose_gqa.hpp"
 #include "npuw_transformations/lora_stateful_to_stateless.hpp"
@@ -767,6 +768,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         ov::npuw::util::PrepareTextEmbeddingModel(seq_len_dim).run_on_model(kvcache_model);
     } else {
         LOG_DEBUG("Transform kvcache model from stateful to stateless.");
+        ov::npuw::AddPositionIdsParam().run_on_model(kvcache_model);
         ov::pass::StatefulToStateless().run_on_model(kvcache_model);
     }
 
