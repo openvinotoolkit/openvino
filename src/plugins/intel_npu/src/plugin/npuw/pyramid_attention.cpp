@@ -79,12 +79,12 @@ std::optional<ov::npuw::function::Attention> create_attention_from_model(
     const auto& params = model->get_parameters();
     for (const auto& param : params) {
         const std::string param_name = param->get_friendly_name();
-        if (ov::npuw::util::isPastKeyValuesKey(param_name)) {
+        if (ov::npuw::util::isPastKeyParamContiguous(param_name)) {
             auto dim_iter = past_key_sequence_dims.find(param_name);
             if (dim_iter != past_key_sequence_dims.end()) {
                 attention._inputs.push_back(ov::npuw::function::Attention::Param{param, dim_iter->second});
             }
-        } else if (ov::npuw::util::isPastKeyValuesValue(param_name)) {
+        } else if (ov::npuw::util::isPastValueParamContiguous(param_name)) {
             auto dim_iter = past_value_sequence_dims.find(param_name);
             if (dim_iter != past_value_sequence_dims.end()) {
                 attention._inputs.push_back(ov::npuw::function::Attention::Param{param, dim_iter->second});
@@ -158,7 +158,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
                 new_shapes[param->output(0)] = new_shape;
                 LOG_DEBUG("  Mask param '" << param_name << "' shape: " << original_shape << " -> " << new_shape);
             }
-        } else if (ov::npuw::util::isPastKeyValuesKey(param_name)) {
+        } else if (ov::npuw::util::isPastKeyParamContiguous(param_name)) {
             // Handle past key parameters
             // Use pre-analyzed sequence dimension information
             auto dim_iter = past_key_sequence_dims.find(param_name);
@@ -173,7 +173,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
                 LOG_WARN("No pre-analyzed sequence dimension for past key param: " << param_name);
                 return std::nullopt;
             }
-        } else if (ov::npuw::util::isPastKeyValuesValue(param_name)) {
+        } else if (ov::npuw::util::isPastValueParamContiguous(param_name)) {
             // Handle past value parameters
             // Use pre-analyzed sequence dimension information
             auto dim_iter = past_value_sequence_dims.find(param_name);
@@ -287,8 +287,8 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
         const auto& original_params = model->get_parameters();
         for (const auto& param : original_params) {
             const std::string param_name = param->get_friendly_name();
-            bool is_target_param = is_key ? ov::npuw::util::isPastKeyValuesKey(param_name)
-                                          : ov::npuw::util::isPastKeyValuesValue(param_name);
+            bool is_target_param = is_key ? ov::npuw::util::isPastKeyParamContiguous(param_name)
+                                          : ov::npuw::util::isPastValueParamContiguous(param_name);
 
             if (is_target_param) {
                 sequence_dims[param_name] = concat_axis;
@@ -333,9 +333,9 @@ SDPAPatternNodes find_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model
     for (auto input : model->inputs()) {
         auto input_node = input.get_node();
         auto input_name = input_node->get_friendly_name();
-        if (ov::npuw::util::isPastKeyValuesKey(input_name)) {
+        if (ov::npuw::util::isPastKeyParamContiguous(input_name)) {
             pattern_nodes.past_key_param_node = input_node->shared_from_this();
-        } else if (ov::npuw::util::isPastKeyValuesValue(input_name)) {
+        } else if (ov::npuw::util::isPastValueParamContiguous(input_name)) {
             pattern_nodes.past_value_param_node = input_node->shared_from_this();
         }
     }
