@@ -93,7 +93,7 @@ jobs:
   CoverageCpp:
     name: Coverage C++ (CPU)
     needs: [Docker, Build]
-    if: ${{ github.event_name != 'pull_request' && github.event.inputs.run-cpu-tests == 'true' }}
+    if: ${{ github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' }}
     runs-on: aks-linux-16-cores-32gb
     container:
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
@@ -349,7 +349,7 @@ jobs:
   CoveragePython:
     name: Coverage Python
     needs: [Docker, Build]
-    if: ${{ github.event_name != 'pull_request' && github.event.inputs.run-cpu-tests == 'true' }}
+    if: ${{ github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' }}
     runs-on: aks-linux-16-cores-32gb
     container:
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
@@ -647,7 +647,7 @@ jobs:
   CoverageJS:
     name: Coverage JS
     needs: [Docker, Build]
-    if: ${{ github.event_name != 'pull_request' && github.event.inputs.run-cpu-tests == 'true' }}
+    if: ${{ github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' }}
     runs-on: aks-linux-4-cores-16gb
     container:
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
@@ -803,7 +803,7 @@ jobs:
           path: ${{ github.workspace }}/artifacts/python
 
       - name: Download JS artifacts
-        if: ${{ github.event_name != 'pull_request' && github.event.inputs.run-cpu-tests == 'true' }}
+        if: ${{ github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' }}
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           pattern: coverage-js-*
@@ -814,7 +814,7 @@ jobs:
         run: |
           selected_lanes='none'
           if [[ "${{ github.event_name }}" == 'pull_request' ]]; then
-            selected_lanes='gpu,gpu-unit,gpu-func'
+            selected_lanes='cpu,gpu,gpu-unit,gpu-func'
           elif [[ "${{ github.event.inputs.run-cpu-tests }}" == 'true' && "${{ github.event.inputs.run-gpu-tests }}" == 'true' ]]; then
             selected_lanes='cpu,gpu,gpu-unit,gpu-func'
           elif [[ "${{ github.event.inputs.run-cpu-tests }}" == 'true' ]]; then
