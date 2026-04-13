@@ -9,7 +9,7 @@ on:
         required: false
         default: true
       run-gpu-tests:
-        description: 'Build with GPU support and run the iGPU C++ coverage lanes'
+        description: 'Build with GPU support and run the iGPU coverage lanes'
         type: boolean
         required: false
         default: true
@@ -479,6 +479,170 @@ jobs:
           compression-level: 0
           overwrite: true
 
+  CoveragePythonGpu:
+    name: Coverage Python GPU
+    needs: Build
+    if: ${{ github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true' }}
+    runs-on:
+      - self-hosted
+      - igpu
+    container:
+      image: ubuntu:22.04
+      volumes:
+        - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro
+        - /mount:/mount
+        - ${{ github.workspace }}:${{ github.workspace }}
+      options: --group-add 44 --group-add 993 --device /dev/dri/card1:/dev/dri/card1 --device /dev/dri/renderD128:/dev/dri/renderD128
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ github.workspace }}
+    env:
+      TEST_PROFILE: gpu
+      OV_WORKSPACE: ${{ github.workspace }}
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      INSTALL_PKG_DIR: ${{ github.workspace }}/install
+      BUILD_DIR: ${{ github.workspace }}/openvino/openvino_build
+      BUILD_JS_DIR: ${{ github.workspace }}/openvino/openvino_build_js
+      COVERAGE_WRITE_STEP_SUMMARY: 'false'
+    steps:
+      - name: Prepare iGPU test container
+        run: |
+          apt-get update && apt-get install -y pigz wget software-properties-common ca-certificates gpg-agent tzdata clinfo git lcov python3-yaml
+        env:
+          DEBIAN_FRONTEND: noninteractive
+          TZ: "Europe/London"
+
+      - name: Checkout sources
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          submodules: 'true'
+
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO wheels
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: openvino_wheels
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download coverage build notes
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: coverage_build_notes
+          path: ${{ github.workspace }}/coverage_notes
+
+      - name: Extract OpenVINO packages
+        run: |
+          pigz -dc openvino_package.tar.gz | tar -xf - -C "${INSTALL_DIR}"
+          pigz -dc openvino_tests.tar.gz | tar -xf - -C "${INSTALL_DIR}"
+        working-directory: ${{ env.INSTALL_DIR }}
+
+      - name: Install iGPU runtime dependencies
+        run: |
+          set -euo pipefail
+          "${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh" -c=core -c=dev -c=gpu -y
+
+          tmp_dir="$(mktemp -d)"
+          trap 'rm -rf "${tmp_dir}"' EXIT
+          pushd "${tmp_dir}"
+          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-core_1.0.15985.7_amd64.deb
+          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-opencl_1.0.15985.7_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu-dbgsym_1.3.28454.6_amd64.ddeb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu_1.3.28454.6_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd-dbgsym_24.05.28454.6_amd64.ddeb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd_24.05.28454.6_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/libigdgmm12_22.3.11_amd64.deb
+          dpkg -i *.deb
+          popd
+
+      - name: Verify GPU device availability
+        run: clinfo
+
+      - name: Restore coverage notes
+        run: |
+          set -euo pipefail
+          notes_root="${{ github.workspace }}/coverage_notes"
+          if [[ -d "${notes_root}/coverage_build_notes" ]]; then
+            notes_root="${notes_root}/coverage_build_notes"
+          fi
+          rm -rf "${BUILD_DIR}" "${BUILD_JS_DIR}"
+          mkdir -p "${BUILD_DIR}" "${BUILD_JS_DIR}"
+          cp -a "${notes_root}/main-build/." "${BUILD_DIR}/"
+          if [[ -d "${notes_root}/js-build" ]]; then
+            cp -a "${notes_root}/js-build/." "${BUILD_JS_DIR}/"
+          fi
+
+      - name: Setup Python 3.11
+        uses: ./.github/actions/setup_python
+        with:
+          version: '3.11'
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
+
+      - name: Install coverage Python dependencies
+        run: python3 -m pip install -r .github/scripts/coverage/requirements-ci.txt
+
+      - name: Install OpenVINO Python wheels
+        uses: ./.github/actions/install_ov_wheels
+        with:
+          wheels-dir-path: ${{ env.INSTALL_DIR }}
+          wheels-to-install: 'openvino'
+
+      - name: Install Python test dependencies
+        run: |
+          python3 -m pip install -r "${INSTALL_DIR}/tests/bindings/python/requirements_test.txt"
+          python3 -m pip install -r "${INSTALL_DIR}/tests/python/preprocess/torchvision/requirements.txt"
+          python3 -m pip install -r "${INSTALL_DIR}/tests/layer_tests/requirements.txt"
+          python3 -m pip install -r "${INSTALL_DIR}/tests/requirements_onnx"
+          python3 -m pip install -r "${INSTALL_DIR}/tests/requirements_jax"
+          python3 -m pip install -r "${INSTALL_DIR}/tests/requirements_pytorch"
+          python3 -m pip install -r "${INSTALL_DIR}/tests/requirements_tensorflow"
+
+      - name: Run GPU Python coverage tests
+        run: python3 .github/scripts/coverage/coverage.py step run-python-tests
+
+      - name: Generate GPU native C/C++ coverage report
+        run: python3 .github/scripts/coverage/coverage.py step collect-cpp-coverage
+
+      - name: Collect Python GPU results
+        id: gpu_artifact
+        if: ${{ always() }}
+        run: |
+          dir="${RUNNER_TEMP}/coverage-python-gpu"
+          python3 .github/scripts/coverage/ci_reports.py collect-suite-results \
+            --workspace "${{ env.OV_WORKSPACE }}" \
+            --suite python \
+            --profile gpu \
+            --lane gpu \
+            --artifact-name coverage-python-gpu \
+            --artifact-dir "${dir}"
+          echo "dir=${dir}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Python GPU artifact
+        if: ${{ always() }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: coverage-python-gpu
+          path: ${{ steps.gpu_artifact.outputs.dir }}
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 0
+          overwrite: true
+
   CoverageJS:
     name: Coverage JS
     needs: [Docker, Build]
@@ -615,7 +779,7 @@ jobs:
 
   CoverageSummary:
     if: ${{ always() && needs.Build.result == 'success' }}
-    needs: [Build, CoverageCpp, CoverageCppGpu, CoveragePython, CoverageJS]
+    needs: [Build, CoverageCpp, CoverageCppGpu, CoveragePython, CoveragePythonGpu, CoverageJS]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
@@ -631,7 +795,7 @@ jobs:
           path: ${{ github.workspace }}/artifacts/cpp
 
       - name: Download Python artifacts
-        if: ${{ github.event_name != 'pull_request' && github.event.inputs.run-cpu-tests == 'true' }}
+        if: ${{ github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' || github.event.inputs.run-gpu-tests == 'true' }}
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           pattern: coverage-python-*
@@ -649,13 +813,13 @@ jobs:
         run: |
           selected_lanes='none'
           if [[ "${{ github.event_name }}" == 'pull_request' ]]; then
-            selected_lanes='gpu-unit,gpu-func'
+            selected_lanes='gpu,gpu-unit,gpu-func'
           elif [[ "${{ github.event.inputs.run-cpu-tests }}" == 'true' && "${{ github.event.inputs.run-gpu-tests }}" == 'true' ]]; then
-            selected_lanes='cpu,gpu-unit,gpu-func'
+            selected_lanes='cpu,gpu,gpu-unit,gpu-func'
           elif [[ "${{ github.event.inputs.run-cpu-tests }}" == 'true' ]]; then
             selected_lanes='cpu'
           elif [[ "${{ github.event.inputs.run-gpu-tests }}" == 'true' ]]; then
-            selected_lanes='gpu-unit,gpu-func'
+            selected_lanes='gpu,gpu-unit,gpu-func'
           fi
           echo "selected_lanes=${selected_lanes}" >> "$GITHUB_OUTPUT"
 
@@ -744,6 +908,32 @@ jobs:
           disable_search: true
           plugins: noop
           flags: cpp-runtime-python-cpu
+          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
+          fail_ci_if_error: true
+          verbose: true
+
+      - name: Upload Codecov (Python API, GPU)
+        if: ${{ always() && hashFiles('artifacts/python/coverage-python-gpu/python-coverage.xml') != '' }}
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        with:
+          files: ${{ github.workspace }}/artifacts/python/coverage-python-gpu/python-coverage.xml
+          disable_search: true
+          plugins: noop
+          flags: python-api-frontend-layer-ovc-gpu
+          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
+          fail_ci_if_error: true
+          verbose: true
+
+      - name: Upload Codecov (C++ runtime, Python suite, GPU)
+        if: ${{ always() && hashFiles('artifacts/python/coverage-python-gpu/coverage.info') != '' }}
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        with:
+          files: ${{ github.workspace }}/artifacts/python/coverage-python-gpu/coverage.info
+          disable_search: true
+          plugins: noop
+          flags: cpp-runtime-python-gpu
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: true
