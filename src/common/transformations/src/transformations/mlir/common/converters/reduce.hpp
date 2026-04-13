@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "reduce.hpp"
+#pragma once
 
 #include <openvino/op/constant.hpp>
 #include <openvino/op/reduce_max.hpp>
@@ -22,10 +22,9 @@
 #include "mlir/IR/Value.h"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-namespace {
+namespace ov {
+namespace mlir {
 
-using namespace ov;
-using namespace ov::mlir;
 using Value = ::mlir::Value;
 using ValueRange = ::mlir::ValueRange;
 
@@ -33,7 +32,7 @@ template <typename OVOp>
 struct ConvertReduce {
     ConvertReduce() = default;
 
-    void operator()(ConversionContext& context, NodePtr node) {
+    Operation* operator()(ConversionContext& context, NodePtr node) {
         auto el_type = importPrecision(context.context, node->get_input_element_type(0));
         auto input_shape = node->get_input_partial_shape(0);
         auto input_rank = input_shape.rank().get_length();
@@ -107,7 +106,7 @@ struct ConvertReduce {
             result = ::mlir::linalg::BroadcastOp::create(builder, loc, result, empty, reduction_axes).getResult()[0];
         }
 
-        context.nodeOutputMap[node->output(0)] = result;
+        return result.getDefiningOp();
     }
 
 private:
@@ -133,7 +132,7 @@ private:
         } else if constexpr (std::is_same_v<OVOp, ov::op::v1::ReduceProd>) {
             return getConstant(builder, type, 1, loc);
         } else {
-            static_assert(false, "Unsupported reduction operation");
+            static_assert(sizeof(OVOp) == 0, "Unsupported reduction operation");
         }
     }
 
@@ -168,26 +167,10 @@ private:
                 return ::mlir::arith::MulIOp::create(builder, loc, lhs, rhs);
             }
         } else {
-            static_assert(false, "Unsupported reduction operation");
+            static_assert(sizeof(OVOp) == 0, "Unsupported reduction operation");
         }
     }
 };
-
-}  // namespace
-
-namespace ov {
-namespace mlir {
-
-template <typename OVOp>
-ReducePattern<OVOp>::ReducePattern()
-    : MarkPattern(std::make_shared<pass::pattern::op::WrapType>(OVOp::get_type_info_static()), ConvertReduce<OVOp>()) {}
-
-// Explicit template instantiations
-template class ReducePattern<ov::op::v1::ReduceMax>;
-template class ReducePattern<ov::op::v1::ReduceMean>;
-template class ReducePattern<ov::op::v1::ReduceMin>;
-template class ReducePattern<ov::op::v1::ReduceProd>;
-template class ReducePattern<ov::op::v1::ReduceSum>;
 
 }  // namespace mlir
 }  // namespace ov

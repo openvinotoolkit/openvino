@@ -2,21 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include "mlir/Dialect/Linalg/Passes.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 
 #include <openvino/op/transpose.hpp>
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-#include "transpose.hpp"
 #include "../convert_common.hpp"
 
-namespace {
-
-using namespace ov::mlir;
+namespace ov {
+namespace mlir {
 
 struct ConvertTranspose {
-    void operator()(ConversionContext& context, NodePtr node) {
+    Operation* operator()(ConversionContext& context, NodePtr node) {
         auto loc = createLocation(context.context, node);
         auto& builder = context.builder();
         const auto input = context.getInputs(node)[0];
@@ -33,21 +33,11 @@ struct ConvertTranspose {
         ov::Coordinate coords = const_order->get_coordinate_val();
         SmallVector<int64_t> order(coords.begin(), coords.end());
 
-        auto empty = builder.create<tensor::EmptyOp>(loc, out_type, dynamic_dimensions);
-        auto transpose = builder.create<linalg::TransposeOp>(loc, input, empty, order);
-        context.addOutputs(node, transpose);
+        auto empty = tensor::EmptyOp::create(builder, loc, out_type, dynamic_dimensions);
+        auto transpose = linalg::TransposeOp::create(builder, loc, input, empty, order);
+        return transpose;
     }
 };
-
-}  // namespace
-
-namespace ov {
-namespace mlir {
-
-using namespace ov::pass::pattern;
-using namespace ov::op;
-
-TransposePattern::TransposePattern() : MarkPattern(wrap_type<v1::Transpose>({any_input(), any_input()}), ConvertTranspose()) {}
 
 }  // namespace mlir
 }  // namespace ov

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include "mlir/Dialect/Shape/IR/Shape.h"
 #include "mlir/Dialect/Linalg/Passes.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
@@ -10,15 +12,13 @@
 #include <openvino/op/gather.hpp>
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-#include "gather.hpp"
 #include "../convert_common.hpp"
 
-namespace {
-
-using namespace ov::mlir;
+namespace ov {
+namespace mlir {
 
 struct ConvertGather {
-    void operator()(ConversionContext& context, NodePtr node) {
+    Operation* operator()(ConversionContext& context, NodePtr node) {
         // TODO: support batch attribute
         auto loc = createLocation(context.context, node);
         auto& builder = context.builder();
@@ -44,43 +44,33 @@ struct ConvertGather {
             SmallVector<int64_t> new_shape({1});
             indices_type = RankedTensorType::get(new_shape, importPrecision(context.context, ov_index_element_type));
             SmallVector<ReassociationIndices> reassociation; // intentionally empty for scalar
-            auto expanded = builder.create<tensor::ExpandShapeOp>(loc, indices_type, indices, reassociation);
+            auto expanded = tensor::ExpandShapeOp::create(builder, loc, indices_type, indices, reassociation);
             indices_expanded = expanded.getResult();
         }
 
         // Convert negative indices into positive ones: compare to zero and select from orinal or a sum based on
         // the resulting predicate.
-        auto empty = builder.create<tensor::EmptyOp>(loc, indices_type, dynamic_index_dims);
+        auto empty = tensor::EmptyOp::create(builder, loc, indices_type, dynamic_index_dims);
         auto zero = getConstant(builder, ov_index_element_type, 0);
-        auto fill = builder.create<linalg::FillOp>(loc, mlir::ValueRange{zero}, mlir::ValueRange{empty});
+        auto fill = linalg::FillOp::create(builder, loc, mlir::ValueRange{zero}, mlir::ValueRange{empty});
         auto pred = arith::CmpIPredicate::slt;
-        auto cmpi = builder.create<arith::CmpIOp>(loc, pred, indices_expanded, fill.getResult(0));
-        auto shape_of = builder.create<shape::ShapeOfOp>(loc, mlir::ValueRange{input});
-        auto cast = builder.create<arith::IndexCastOp>(loc, indices_type, mlir::ValueRange{shape_of});
+        auto cmpi = arith::CmpIOp::create(builder, loc, pred, indices_expanded, fill.getResult(0));
+        auto shape_of = shape::ShapeOfOp::create(builder, loc, mlir::ValueRange{input});
+        auto cast = arith::IndexCastOp::create(builder, loc, indices_type, mlir::ValueRange{shape_of});
 
-        auto empty_add = builder.create<tensor::EmptyOp>(loc, indices_expanded.getType(), dynamic_index_dims);
-        auto add = builder.create<linalg::AddOp>(loc, mlir::ValueRange{cast.getResult(), indices_expanded}, mlir::ValueRange{empty_add});
-        auto select = builder.create<linalg::SelectOp>(loc, mlir::ValueRange{cmpi.getResult(), add.getResult(0), indices_expanded}, mlir::ValueRange{empty_add});
+        auto empty_add = tensor::EmptyOp::create(builder, loc, indices_expanded.getType(), dynamic_index_dims);
+        auto add = linalg::AddOp::create(builder, loc, mlir::ValueRange{cast.getResult(), indices_expanded}, mlir::ValueRange{empty_add});
+        auto select = linalg::SelectOp::create(builder, loc, mlir::ValueRange{cmpi.getResult(), add.getResult(0), indices_expanded}, mlir::ValueRange{empty_add});
 
         auto gather_node = std::dynamic_pointer_cast<ov::op::util::GatherBase>(node);
         assert(gather_node && "Expected a gather node");
         int64_t axis = gather_node->get_axis();
 
         llvm::SmallVector<int64_t> gather_dims{axis};
-        auto gather = builder.create<tensor::GatherOp>(loc, out_type, input, select.getResult(0), gather_dims, false);
-        context.addOutputs(node, gather);
+        auto gather = tensor::GatherOp::create(builder, loc, out_type, input, select.getResult(0), gather_dims, false);
+        return gather;
     }
 };
-
-}  // namespace
-
-namespace ov {
-namespace mlir {
-
-using namespace ov::pass::pattern;
-using namespace ov::op;
-
-GatherPattern::GatherPattern() : MarkPattern(wrap_type<v8::Gather>({any_input(), any_input(), any_input()}), ConvertGather()) {}
 
 }  // namespace mlir
 }  // namespace ov

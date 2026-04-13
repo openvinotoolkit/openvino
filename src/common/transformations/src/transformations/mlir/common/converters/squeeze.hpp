@@ -2,22 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include "mlir/Dialect/Linalg/Passes.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 
 #include <openvino/op/squeeze.hpp>
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-#include "squeeze.hpp"
 #include "../convert_common.hpp"
 
 
-namespace {
-
-using namespace ov::mlir;
+namespace ov {
+namespace mlir {
 
 struct ConvertSqueeze {
-    void operator()(ConversionContext& context, NodePtr node) {
+    Operation* operator()(ConversionContext& context, NodePtr node) {
         auto loc = createLocation(context.context, node);
         auto& builder = context.builder();
         const auto input = context.getInputs(node)[0];
@@ -37,20 +37,10 @@ struct ConvertSqueeze {
             }
         }
 
-        auto reshape = builder.create<tensor::CollapseShapeOp>(loc, input, collapse_groups);
-        context.addOutputs(node, reshape);
+        auto reshape = tensor::CollapseShapeOp::create(builder, loc, input, collapse_groups);
+        return reshape;
     }
 };
-
-}  // namespace
-
-namespace ov {
-namespace mlir {
-
-using namespace ov::pass::pattern;
-using namespace ov::op;
-
-SqueezePattern::SqueezePattern() : MarkPattern(wrap_type<v0::Squeeze>({any_input()}), ConvertSqueeze()) {}
 
 }  // namespace mlir
 }  // namespace ov

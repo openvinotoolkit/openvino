@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include "mlir/Dialect/Linalg/Passes.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 
@@ -9,15 +11,13 @@
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-#include "concat.hpp"
 #include "../convert_common.hpp"
 
-namespace {
-
-using namespace ov::mlir;
+namespace ov {
+namespace mlir {
 
 struct ConvertConcat {
-    void operator()(ConversionContext& context, NodePtr node) {
+    Operation* operator()(ConversionContext& context, NodePtr node) {
         auto loc = createLocation(context.context, node);
         auto& builder = context.builder();
         const auto inputs = context.getInputs(node);
@@ -32,20 +32,10 @@ struct ConvertConcat {
             axis += rank;
         }
 
-        auto concat = builder.create<tensor::ConcatOp>(loc, axis, mlir::ValueRange{inputs});
-        context.addOutputs(node, concat);
+        auto concat = tensor::ConcatOp::create(builder, loc, axis, mlir::ValueRange{inputs});
+        return concat;
     }
 };
-
-}  // namespace
-
-namespace ov {
-namespace mlir {
-
-using namespace ov::pass::pattern;
-using namespace ov::op;
-
-ConcatPattern::ConcatPattern() : MarkPattern(wrap_type<v0::Concat>(), ConvertConcat()) {}
 
 }  // namespace mlir
 }  // namespace ov

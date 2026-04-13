@@ -23,8 +23,8 @@
 #include <unordered_map>
 
 // TODO: Prune unused headers -- it's hard to understand needed ones
-#include "conversion_context.hpp"
-#include "convert_common.hpp"
+#include "graph_converter.hpp"
+#include "common/convert_common.hpp"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/InitLLVM.h"
@@ -78,19 +78,7 @@
 #endif
 
 #include "mlir_op.hpp"
-#include "op/concat.hpp"
-#include "op/matmul.hpp"
-#include "op/relu.hpp"
-#include "op/floor.hpp"
-#include "op/gather.hpp"
-#include "op/shape_of.hpp"
-#include "op/slice.hpp"
-#include "op/squeeze.hpp"
-#include "op/transpose.hpp"
-#include "op/unsqueeze.hpp"
-#include "op/sdpa.hpp"
-#include "op/binary_eltwise.hpp"
-#include "op/reduce.hpp"
+#include "conversion/patterns.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/symbol.hpp"
@@ -160,7 +148,7 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
     auto sysSpec = TargetSystemSpecAttr::get(context, {DataLayoutEntryAttr::get(deviceStr, deviceSpec)});
     module.getOperation()->setAttr("#dlti.sys_spec", sysSpec);
 
-    ConversionContext conversion_context(context, &block_builder);
+    GraphConverter graph_converter(context, &block_builder);
 
     for (size_t i = 0; i < inputs.size(); ++i) {
         auto funcInputVal = func.getArgument(i);
@@ -170,7 +158,7 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
         auto tensorTy = mlir::RankedTensorType::get(ranked.getShape(), ranked.getElementType());
         auto tensor = block_builder.create<bufferization::ToTensorOp>(
             loc, tensorTy, funcInputVal, /*restrict = */ true, /*writable=*/ true);
-        conversion_context.nodeOutputMap.emplace(inputs[i], tensor);
+        graph_converter.nodeOutputMap.emplace(inputs[i], tensor);
 
         // FIXME: Avoid pre-population of dimension_map, take dimension values only if needed
         auto input_shape = inputs[i].get_partial_shape();
@@ -182,9 +170,9 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
                     auto symbol = dim.get_symbol();
                     assert(symbol);
                     symbol = ov::symbol::ancestor_of(symbol);
-                    if(dim.is_dynamic() && !conversion_context.dimension_map.count(symbol)) {
+                    if(dim.is_dynamic() && !graph_converter.dimension_map.count(symbol)) {
                         auto dimSize = block_builder.create<tensor::DimOp>(loc, tensor, j);
-                        conversion_context.dimension_map[symbol] = dimSize;
+                        graph_converter.dimension_map[symbol] = dimSize;
                     }
                 }
             }
@@ -193,14 +181,14 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
 
     for (size_t i = 0; i < nodes.size(); ++i) {
         auto node = nodes[i];
-        conversion_context.convert(node);
+        graph_converter.convert(node);
     }
 
     SmallVector<mlir::Value> funcOutputs;
     funcOutputs.reserve(outputs.size());
 
     for (size_t i = 0; i < outputs.size(); ++i) {
-        auto tensor = conversion_context.nodeOutputMap.at(outputs[i]);
+        auto tensor = graph_converter.nodeOutputMap.at(outputs[i]);
         auto memref = func.getArgument(i + inputs.size());
         auto loc = createLocation(context, outputs[i].get_node_shared_ptr());
         // Ensure the result is stored in the provided function argument.

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include "mlir/Dialect/Shape/IR/Shape.h"
 #include "mlir/Dialect/Linalg/Passes.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
@@ -10,37 +12,25 @@
 #include <openvino/op/shape_of.hpp>
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-#include "shape_of.hpp"
 #include "../convert_common.hpp"
 
 
-namespace {
-
-using namespace ov::mlir;
+namespace ov {
+namespace mlir {
 
 struct ConvertShapeOf {
-    void operator()(ConversionContext& context, NodePtr node) {
+    Operation* operator()(ConversionContext& context, NodePtr node) {
         auto loc = createLocation(context.context, node);
         auto& builder = context.builder();
         const auto ov_output_element_type = node->get_output_element_type(0);
         const auto ov_output_shape = node->get_output_partial_shape(0);
         const auto input = context.getInputs(node)[0];
-        auto shapeOf = builder.create<shape::ShapeOfOp>(loc, mlir::ValueRange{input});
+        auto shapeOf = shape::ShapeOfOp::create(builder, loc, mlir::ValueRange{input});
         auto casted_type = RankedTensorType::get(ArrayRef(importShape(ov_output_shape)), importPrecision(context.context, ov_output_element_type));
-        auto cast = builder.create<arith::IndexCastOp>(loc, casted_type, mlir::ValueRange{shapeOf});
-        context.addOutputs(node, cast);
+        auto cast = arith::IndexCastOp::create(builder, loc, casted_type, mlir::ValueRange{shapeOf});
+        return cast;
     }
 };
-
-}  // namespace
-
-namespace ov {
-namespace mlir {
-
-using namespace ov::pass::pattern;
-using namespace ov::op;
-
-ShapeOfPattern::ShapeOfPattern() : MarkPattern(wrap_type<v3::ShapeOf>({any_input()}), ConvertShapeOf()) {}
 
 }  // namespace mlir
 }  // namespace ov

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include "mlir/Dialect/Shape/IR/Shape.h"
 #include "mlir/Dialect/Linalg/Passes.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
@@ -10,16 +12,14 @@
 #include <openvino/op/unsqueeze.hpp>
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-#include "unsqueeze.hpp"
 #include "../convert_common.hpp"
 
 
-namespace {
-
-using namespace ov::mlir;
+namespace ov {
+namespace mlir {
 
 struct ConvertUnsqueeze {
-    void operator()(ConversionContext& context, NodePtr node) {
+    Operation* operator()(ConversionContext& context, NodePtr node) {
         auto loc = createLocation(context.context, node);
         auto& builder = context.builder();
         const auto input = context.getInputs(node)[0];
@@ -55,20 +55,10 @@ struct ConvertUnsqueeze {
         }
 
         auto result_type = RankedTensorType::get(shape, importPrecision(context.context, ov_output_element_type));
-        auto expand_shape = builder.create<tensor::ExpandShapeOp>(loc, result_type, input, expand_groups);
-        context.addOutputs(node, expand_shape);
+        auto expand_shape = tensor::ExpandShapeOp::create(builder, loc, result_type, input, expand_groups);
+        return expand_shape;
     }
 };
-
-}  // namespace
-
-namespace ov {
-namespace mlir {
-
-using namespace ov::pass::pattern;
-using namespace ov::op;
-
-UnsqueezePattern::UnsqueezePattern() : MarkPattern(wrap_type<v0::Unsqueeze>({any_input(), any_input()}), ConvertUnsqueeze()) {}
 
 }  // namespace mlir
 }  // namespace ov

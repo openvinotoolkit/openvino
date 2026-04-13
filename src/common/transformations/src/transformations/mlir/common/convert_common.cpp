@@ -6,64 +6,8 @@
 
 #include <openvino/util/env_util.hpp>
 
-
-namespace {
-
-using namespace mlir;
-
-IntegerType getSInt4Type(MLIRContext* ctx) {
-    return IntegerType::get(ctx, 4, IntegerType::Signed);
-}
-
-IntegerType getSInt8Type(MLIRContext* ctx) {
-    return IntegerType::get(ctx, 8, IntegerType::Signed);
-}
-
-IntegerType getSInt16Type(MLIRContext* ctx) {
-    return IntegerType::get(ctx, 16, IntegerType::Signed);
-}
-
-IntegerType getSInt32Type(MLIRContext* ctx) {
-    return IntegerType::get(ctx, 32, IntegerType::Signed);
-}
-
-IntegerType getSInt64Type(MLIRContext* ctx) {
-    return IntegerType::get(ctx, 64, IntegerType::Signed);
-}
-
-IntegerType getUInt4Type(MLIRContext* ctx) {
-    return IntegerType::get(ctx, 4, IntegerType::Unsigned);
-}
-
-IntegerType getUInt8Type(MLIRContext* ctx) {
-    return IntegerType::get(ctx, 8, IntegerType::Unsigned);
-}
-
-IntegerType getUInt16Type(MLIRContext* ctx) {
-    return IntegerType::get(ctx, 16, IntegerType::Unsigned);
-}
-
-IntegerType getUInt32Type(MLIRContext* ctx) {
-    return IntegerType::get(ctx, 32, IntegerType::Unsigned);
-}
-
-IntegerType getUInt64Type(MLIRContext* ctx) {
-    return IntegerType::get(ctx, 64, IntegerType::Unsigned);
-}
-
-IntegerType getBool8Type(MLIRContext* ctx) {
-    // Signless 8-bit integer use for BOOL, to distinguish it from U8
-    return IntegerType::get(ctx, 8, IntegerType::Signless);
-}
-
-}
-
 namespace ov {
 namespace mlir {
-
-bool is_debug() {
-    return util::getenv_bool("OV_MLIR_DEBUG", false);
-}
 
 Location createLayerLocation(MLIRContext* ctx, const std::string& layerName, const std::string& layerType) {
     const auto layerNameAttr = StringAttr::get(ctx, layerName);
@@ -129,6 +73,52 @@ RankedTensorType importTensor(MLIRContext* ctx,
 
 Location createLocation(MLIRContext* ctx, NodePtr node) {
     return createLayerLocation(ctx, node->get_friendly_name(), node->get_type_name());
+}
+
+BroadcastDimensions broadcast_dimensions(const PartialShape& src, const PartialShape& dst) {
+    assert(statically_broadcastable(src, dst));
+
+    auto src_rank = src.rank().get_length();
+    auto dst_rank = dst.rank().get_length();
+    auto offset = dst_rank - src_rank;
+
+    BroadcastDimensions result;
+    auto& [collapse_groups, dimensions] = result;
+    ReassociationIndices group;
+    bool group_bonded = false;  // true if `group` has a non-brodcasted dimension
+
+    size_t dst_i = 0;  // dimension index in the `dst` shape
+    for(; dst_i < offset; ++dst_i) {
+        dimensions.push_back(dst_i);
+    }
+    for(; dst_i < dst_rank; ++dst_i) {
+        auto src_i = dst_i - offset;
+        auto src_d = src[src_i];
+        auto dst_d = dst[dst_i];
+        if(has_broadcast(src_d, dst_d)) {
+            dimensions.push_back(dst_i);
+        } else {
+            if(group_bonded) {
+                collapse_groups.emplace_back(group);
+                group = ReassociationIndices();
+            } else {
+                group_bonded = true;
+            }
+        }
+        group.push_back(src_i);
+    }
+
+    if(group_bonded && !group.empty()) {
+        collapse_groups.emplace_back(group);
+    }
+
+    assert(dst_rank - dimensions.size() == collapse_groups.size());
+
+    return result;
+}
+
+bool symbol_ancestor_less (SymbolPtr x, SymbolPtr y) {
+    return ov::symbol::ancestor_of(x) < ov::symbol::ancestor_of(y);
 }
 
 bool elementwise_no_broadcast_predicate(const ov::Output<ov::Node>& output) {
@@ -209,50 +199,8 @@ bool statically_broadcastable(const PartialShape& from, const PartialShape& to) 
     return true;
 }
 
-BroadcastDimensions broadcast_dimensions(const PartialShape& src, const PartialShape& dst) {
-    assert(statically_broadcastable(src, dst));
-
-    auto src_rank = src.rank().get_length();
-    auto dst_rank = dst.rank().get_length();
-    auto offset = dst_rank - src_rank;
-
-    BroadcastDimensions result;
-    auto& [collapse_groups, dimensions] = result;
-    ReassociationIndices group;
-    bool group_bonded = false;  // true if `group` has a non-brodcasted dimension
-
-    size_t dst_i = 0;  // dimension index in the `dst` shape
-    for(; dst_i < offset; ++dst_i) {
-        dimensions.push_back(dst_i);
-    }
-    for(; dst_i < dst_rank; ++dst_i) {
-        auto src_i = dst_i - offset;
-        auto src_d = src[src_i];
-        auto dst_d = dst[dst_i];
-        if(has_broadcast(src_d, dst_d)) {
-            dimensions.push_back(dst_i);
-        } else {
-            if(group_bonded) {
-                collapse_groups.emplace_back(group);
-                group = ReassociationIndices();
-            } else {
-                group_bonded = true;
-            }
-        }
-        group.push_back(src_i);
-    }
-
-    if(group_bonded && !group.empty()) {
-        collapse_groups.emplace_back(group);
-    }
-
-    assert(dst_rank - dimensions.size() == collapse_groups.size());
-
-    return result;
-}
-
-bool symbol_ancestor_less (SymbolPtr x, SymbolPtr y) {
-    return ov::symbol::ancestor_of(x) < ov::symbol::ancestor_of(y);
+bool is_debug() {
+    return util::getenv_bool("OV_MLIR_DEBUG", false);
 }
 
 } // namespace mlir

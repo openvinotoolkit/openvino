@@ -5,7 +5,8 @@
 // #include "mlir/IR/BuiltinAttributes.h"
 // #include "mlir/IR/BuiltinTypes.h"
 
-#include "conversion_context.hpp"
+#include "common/conversion_context.hpp"
+#include "graph_converter.hpp"
 
 
 namespace ov {
@@ -14,16 +15,15 @@ namespace mlir {
 using namespace ::mlir;
 
 
-std::string ConversionContext::rt_info_convertor () {
+std::string GraphConverter::rt_info_convertor () {
     return "__mlir_convertor";
 }
 
 
-ConversionContext::ConversionContext(mlir::MLIRContext* context, mlir::OpBuilder* block_builder)
-    : context(context),
-        block_builder(block_builder) {}
+GraphConverter::GraphConverter(mlir::MLIRContext* context, mlir::OpBuilder* block_builder)
+    : _ctx(context, block_builder, [this](NodePtr node) { return getInputs(node); }, [this](const Dimension& dim) { return get_dimension_value(dim); }) {}
 
-SmallVector<mlir::Value> ConversionContext::getInputs(NodePtr node) {
+SmallVector<mlir::Value> GraphConverter::getInputs(NodePtr node) {
     SmallVector<mlir::Value> out;
     out.reserve(node->get_input_size());
     for (const auto& input : node->inputs()) {
@@ -32,7 +32,7 @@ SmallVector<mlir::Value> ConversionContext::getInputs(NodePtr node) {
     return out;
 }
 
-void ConversionContext::addOutputs(NodePtr node, mlir::Operation* op) {
+void GraphConverter::addOutputs(NodePtr node, mlir::Operation* op) {
     const auto results = op->getOpResults();
 
     OPENVINO_ASSERT(
@@ -47,18 +47,19 @@ void ConversionContext::addOutputs(NodePtr node, mlir::Operation* op) {
     }
 }
 
-void ConversionContext::convert(NodePtr node) {
+void GraphConverter::convert(NodePtr node) {
     auto convertor = node->get_rt_info()[rt_info_convertor()].as<Convertor>();
-    convertor(*this, node);
+    auto mlirOp = convertor(_ctx, node);
+    addOutputs(node, mlirOp);
 }
 
-void ConversionContext::set_convertor(NodePtr node, const Convertor& convertor) {
+void GraphConverter::set_convertor(NodePtr node, const Convertor& convertor) {
     Convertor local_copy = convertor;
     auto as_any = ov::Any(local_copy);
     node->get_rt_info()[rt_info_convertor()] = as_any;
 }
 
-Value ConversionContext::get_dimension_value(const Dimension& d) {
+Value GraphConverter::get_dimension_value(const Dimension& d) {
     auto symbol = d.get_symbol();
     assert(symbol);
     symbol = ov::symbol::ancestor_of(symbol);
@@ -66,16 +67,6 @@ Value ConversionContext::get_dimension_value(const Dimension& d) {
     // FIXME: Add dimensions on demand to avoid unnecessary operations in the produced MLIR
     assert(dimension_map.count(symbol));
     return dimension_map.at(symbol);
-}
-
-SmallVector<Value> ConversionContext::get_dynamic_dimension_values (const PartialShape& shape) {
-    SmallVector<Value> dims;
-    for (const auto& dim: shape) {
-        if (dim.is_dynamic()) {
-            dims.push_back(get_dimension_value(dim));
-        }
-    }
-    return dims;
 }
 
 
@@ -93,12 +84,12 @@ bool get_subgraph_mark(NodePtr node) {
 }
 
 
-MarkPattern::MarkPattern(NodePtr pattern, ConversionContext::Convertor convertor) {
+MarkPattern::MarkPattern(NodePtr pattern, GraphConverter::Convertor convertor) {
     auto callback = [convertor](ov::pass::pattern::Matcher& m) {
         // TODO: support multi-node patterns marking
         auto node = m.get_match_root();
         set_subgraph_mark(node);
-        ConversionContext::set_convertor(node, convertor);
+        GraphConverter::set_convertor(node, convertor);
         return true;
     };
 

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/Dialect/Linalg/Passes.h"
 
@@ -17,12 +19,10 @@
 #include "gc/Dialect/Linalgx/LinalgxOps.h"
 #include "mlir/IR/AffineExpr.h"
 
-#include "sdpa.hpp"
 #include "../convert_common.hpp"
 
-namespace {
-
-using namespace ov::mlir;
+namespace ov {
+namespace mlir {
 
 struct ConvertSDPA {
     static SmallVector<AffineMap> getStandardAttentionIndexingMaps(MLIRContext *ctx,
@@ -63,7 +63,7 @@ struct ConvertSDPA {
         return {};
     }
 
-    void operator()(ConversionContext& context, NodePtr node) {
+    Operation* operator()(ConversionContext& context, NodePtr node) {
         auto loc = createLocation(context.context, node);
         auto& builder = context.builder();
         const auto inputs = context.getInputs(node);
@@ -113,11 +113,11 @@ struct ConvertSDPA {
             if (maskRank == 3) {
                 // [1, M, N] → [M, N]: collapse dims [0,1] and [2]
                 SmallVector<ReassociationIndices> reassoc = {{0, 1}, {2}};
-                mask = builder.create<tensor::CollapseShapeOp>(loc, mask, reassoc);
+                mask = tensor::CollapseShapeOp::create(builder, loc, mask, reassoc);
             } else if (maskRank == 4) {
                 // [1, 1, M, N] → [M, N]: collapse dims [0,1,2] and [3]
                 SmallVector<ReassociationIndices> reassoc = {{0, 1, 2}, {3}};
-                mask = builder.create<tensor::CollapseShapeOp>(loc, mask, reassoc);
+                mask = tensor::CollapseShapeOp::create(builder, loc, mask, reassoc);
             }
             // maskRank == 2: already 2D, no change needed
         }
@@ -145,30 +145,20 @@ struct ConvertSDPA {
         const auto ov_output_shape = node->get_output_partial_shape(0);
         auto outType = importTensor(context.context, ov_output_shape, ov_output_element_type);
         auto dynamic_dimensions = context.get_dynamic_dimension_values(ov_output_shape);
-        auto empty = builder.create<tensor::EmptyOp>(loc, outType, dynamic_dimensions);
+        auto empty = tensor::EmptyOp::create(builder, loc, outType, dynamic_dimensions);
         auto zero = getConstant(builder, ov_output_element_type, 0);
-        auto fill = builder.create<linalg::FillOp>(loc, mlir::ValueRange{zero}, mlir::ValueRange{empty});
+        auto fill = linalg::FillOp::create(builder, loc, mlir::ValueRange{zero}, mlir::ValueRange{empty});
 
         SmallVector<AffineMap> indexingMaps =
             getStandardAttentionIndexingMaps(context.context, hasMask, qRank);
 
-        Operation* sdpa = builder.create<linalgx::AttentionOp>(
+        Operation* sdpa = linalgx::AttentionOp::create(builder,
             loc, fill.getResult(0).getType(), inputs[0], inputs[1], inputs[2], scale, fill.getResult(0),
             builder.getAffineMapArrayAttr(indexingMaps), mask);
-        context.addOutputs(node, sdpa);
+        return sdpa;
     }
 };
 
-}  // namespace
-
-namespace ov {
-namespace mlir {
-
-using namespace ov::pass::pattern;
-using namespace ov::op;
-
-SDPAPattern::SDPAPattern()
-    : MarkPattern(wrap_type<v13::ScaledDotProductAttention>(), ConvertSDPA()) {}
-
 }  // namespace mlir
 }  // namespace ov
+

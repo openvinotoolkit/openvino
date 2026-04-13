@@ -13,7 +13,7 @@
 #include "openvino/op/op.hpp"
 #include "openvino/core/shape.hpp"
 
-#include "convert_common.hpp"
+#include "common/convert_common.hpp"
 
 #ifdef GC_USE_GPU // GC_GPU requires IMEX support
 #include "gc/Utils/Error.h"
