@@ -181,7 +181,7 @@ tests:
     profile_skip_reason: "GPU profile is OFF"
 
   - name: test_inference_async
-    binary: test_inference_async
+    binary: memory_tests/test_inference_async
     mode: raw
     profiles: [cpu, gpu, npu]
     args:
@@ -190,7 +190,7 @@ tests:
       default: "__MODEL_PATH__ CPU"
 
   - name: test_inference_sync
-    binary: test_inference_sync
+    binary: memory_tests/test_inference_sync
     mode: raw
     profiles: [cpu, gpu, npu]
     args:

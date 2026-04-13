@@ -58,8 +58,9 @@ jobs:
           fi
 
           cpu_lane='{"lane":"cpu","lane_name":"CPU","test_profile":"cpu","test_names":"","runner_label":"aks-linux-16-cores-32gb","container_image":"","container_options":"","uses_igpu":"false"}'
-          gpu_unit_lane='{"lane":"gpu-unit","lane_name":"GPU Unit","test_profile":"gpu","test_names":"ov_onnx_frontend_tests,ov_onnx_frontend_tests (ONNX_ITERATOR=0),ov_gpu_unit_tests,test_inference_async,test_inference_sync","runner_label":"igpu","container_image":"ubuntu:22.04","container_options":"--group-add 44 --group-add 993 --device /dev/dri/card1:/dev/dri/card1 --device /dev/dri/renderD128:/dev/dri/renderD128","uses_igpu":"true"}'
-          gpu_func_lane='{"lane":"gpu-func","lane_name":"GPU Func","test_profile":"gpu","test_names":"ov_gpu_func_tests","runner_label":"igpu","container_image":"ubuntu:22.04","container_options":"--group-add 44 --group-add 993 --device /dev/dri/card1:/dev/dri/card1 --device /dev/dri/renderD128:/dev/dri/renderD128","uses_igpu":"true"}'
+          # Temporary smoke-only GPU selection to validate workflow plumbing without running long GPU suites.
+          gpu_unit_lane='{"lane":"gpu-unit","lane_name":"GPU ONNX","test_profile":"gpu","test_names":"ov_onnx_frontend_tests,ov_onnx_frontend_tests (ONNX_ITERATOR=0)","runner_label":"igpu","container_image":"ubuntu:22.04","container_options":"--group-add 44 --group-add 993 --device /dev/dri/card1:/dev/dri/card1 --device /dev/dri/renderD128:/dev/dri/renderD128","uses_igpu":"true"}'
+          gpu_func_lane='{"lane":"gpu-func","lane_name":"GPU Inference","test_profile":"gpu","test_names":"test_inference_async,test_inference_sync","runner_label":"igpu","container_image":"ubuntu:22.04","container_options":"--group-add 44 --group-add 993 --device /dev/dri/card1:/dev/dri/card1 --device /dev/dri/renderD128:/dev/dri/renderD128","uses_igpu":"true"}'
 
           if [[ "${should_run_cpu}" == 'true' && "${should_run_gpu}" == 'true' ]]; then
             selected_lanes='cpu,gpu-unit,gpu-func'
@@ -594,8 +595,6 @@ jobs:
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
-          sparse-checkout: |
-            .github/scripts/coverage
           submodules: 'false'
 
       - name: Download C++ artifacts
