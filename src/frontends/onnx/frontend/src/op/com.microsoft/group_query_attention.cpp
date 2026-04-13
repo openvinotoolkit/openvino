@@ -124,15 +124,6 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         ov_op_inputs.push_back(onnx_op_inputs[i]);
     }
 
-    // NOTE: GroupQueryAttention requires 7 inputs, while the internal implementation
-    // unconditionally accesses sin_cache and cos_cache at the moment.
-    // Null/dummy placeholders added for compatibility.
-    constexpr size_t internal_inputs_count_min = 9;
-
-    for (size_t i = ov_op_inputs.size(); i < internal_inputs_count_min; ++i) {
-        ov_op_inputs.push_back(std::make_shared<ov::frontend::onnx::NullNode>()->output(0));
-    }
-
     return std::make_shared<internal::GroupQueryAttention>(ov_op_inputs,
                                                            num_heads,
                                                            kv_num_heads,
