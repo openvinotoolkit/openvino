@@ -420,7 +420,7 @@ struct LLMConfig : public BaseModelConfig {
     size_t get_linear_value_head_dim() const { return linear_value_head_dim ? linear_value_head_dim : head_dim; }
     size_t get_key_dim() const { return get_linear_num_key_heads() * get_linear_key_head_dim(); }
     size_t get_value_dim() const { return get_linear_num_value_heads() * get_linear_value_head_dim(); }
-    size_t get_conv_dim() const { return get_key_dim() + 2 * get_value_dim(); }
+    size_t get_conv_dim() const { return 2 * get_key_dim() + get_value_dim(); }
 };
 
 struct WhisperConfig : public BaseModelConfig {

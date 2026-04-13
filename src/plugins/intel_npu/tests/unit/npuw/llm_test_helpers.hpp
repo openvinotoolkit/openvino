@@ -66,6 +66,16 @@ inline std::shared_ptr<ov::Model> build_llm_test_model_with_kv_fake_convert(cons
     return model;
 }
 
+/// Hybrid LLM: mamba_ratio=1 means alternating linear-attention / full-attention layers.
+/// 4 layers → layers 0,2 linear; layers 1,3 full attention.
+inline std::shared_ptr<ov::Model> build_hybrid_llm_test_model() {
+    auto cfg = make_test_model_config();
+    cfg.num_layers = 4;
+    cfg.mamba_ratio = 1;
+    ModelBuilder mb;
+    return mb.build_llm(cfg);
+}
+
 inline std::shared_ptr<ov::Model> build_whisper_decoder_test_model() {
     ModelBuilder mb;
     return mb.build_whisper_decoder(make_test_model_config<WhisperConfig>());

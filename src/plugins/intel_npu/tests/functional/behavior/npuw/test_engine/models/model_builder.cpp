@@ -2162,7 +2162,7 @@ CausalConvResult make_causal_conv(const ov::Output<ov::Node>& input,
 /// SSM recurrence Loop body: per-timestep state update and query.
 ///   h_new = h_prev * exp(decay) + outer(k, v)
 ///   y = (q @ h_new) * gate
-/// params[0..6]: iter, q_t, k_t, v_t, decay_t, gate_t, h_prev
+/// params[0..5]: q_t, k_t, v_t, decay_t, gate_t, h_prev
 /// results[0..2]: condition(true), h_new, y
 static std::shared_ptr<ov::Model> build_ssm_loop_body(ov::element::Type prec,
                                                        int64_t H, int64_t Dk, int64_t Dv,
@@ -2171,7 +2171,6 @@ static std::shared_ptr<ov::Model> build_ssm_loop_body(ov::element::Type prec,
     auto P = [&](ov::element::Type t, ov::PartialShape s) {
         return params.emplace_back(std::make_shared<ov::op::v0::Parameter>(t, s));
     };
-    /*iter*/ P(ov::element::i64, {});
     auto q     = P(prec, {-1, H, 1, Dk});
     auto k     = P(prec, {-1, H, 1, Dk});
     auto v     = P(prec, {-1, H, 1, Dv});
@@ -2240,7 +2239,7 @@ RecurrentStateResult make_recurrent_state(const ov::Output<ov::Node>& query,
     ov::ParameterVector bp;
     ov::ResultVector br;
     auto body = build_ssm_loop_body(prec, H, Dk, Dv, bp, br);
-    //  bp: [iter, q, k, v, decay, gate, h]    br: [cond, h_new, y]
+    //  bp: [q, k, v, decay, gate, h]    br: [cond, h_new, y]
 
     auto loop = std::make_shared<ov::op::v5::Loop>(seq_len,
         ov::opset11::Constant::create(ov::element::boolean, ov::Shape{}, {true}));
@@ -2250,9 +2249,9 @@ RecurrentStateResult make_recurrent_state(const ov::Output<ov::Node>& query,
     // Slice Q/K/V/decay/gate per timestep on seq axis (2)
     ov::OutputVector sliced_srcs = {q_mh, k_mh, v_mh, decay_mh, gate_mh};
     for (size_t i = 0; i < sliced_srcs.size(); ++i)
-        loop->set_sliced_input(bp[i + 1], sliced_srcs[i], 0, 1, 1, -1, 2);
+        loop->set_sliced_input(bp[i], sliced_srcs[i], 0, 1, 1, -1, 2);
 
-    loop->set_merged_input(bp[6], state.read_value, br[1]);  // h back-edge
+    loop->set_merged_input(bp[5], state.read_value, br[1]);  // h back-edge
 
     auto output  = loop->get_concatenated_slices(br[2], 0, 1, 1, -1, 2);  // [batch, H, seq, Dv]
     auto final_h = loop->get_iter_value(br[1], -1);                        // [batch, H, Dk, Dv]
@@ -2287,7 +2286,7 @@ LinearAttnResult make_linear_attn_layer(
     const NormFn& norm_fn) {
     const auto key_dim = num_key_heads * key_head_dim;
     const auto value_dim = num_value_heads * value_head_dim;
-    const auto conv_dim = key_dim + 2 * value_dim;
+    const auto conv_dim = 2 * key_dim + value_dim;
     auto layer_str = std::to_string(linear_layer_idx);
     auto ap = prefix + "linear_attn.";
 
@@ -2304,10 +2303,10 @@ LinearAttnResult make_linear_attn_layer(
     auto conv = make_causal_conv(qkv, seq_source, beam_idx, conv_dim, conv_kernel,
                                  make_cache_params_var_id("conv", layer_str), ap + "conv.", prec);
 
-    // QKV split: [batch, seq, conv_dim] -> Q[key_dim], K[value_dim], V[value_dim]
+    // QKV split: [batch, seq, conv_dim] -> Q[key_dim], K[key_dim], V[value_dim]
     auto split_lens = ov::opset11::Constant::create(ov::element::i64, ov::Shape{3},
         std::vector<int64_t>{static_cast<int64_t>(key_dim),
-                             static_cast<int64_t>(value_dim),
+                             static_cast<int64_t>(key_dim),
                              static_cast<int64_t>(value_dim)});
     auto qkv_split = std::make_shared<ov::opset11::VariadicSplit>(
         conv.output, ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {-1}), split_lens);
