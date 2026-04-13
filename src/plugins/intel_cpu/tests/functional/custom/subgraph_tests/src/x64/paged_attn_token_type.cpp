@@ -7,6 +7,7 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "internal_properties.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "openvino/reference/adaptive_rkv_diversity.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -453,6 +454,8 @@ public:
         auto adaptive_rkv_diversity_block_set_indices_begins =
             std::make_shared<v0::Constant>(ov::element::i32, Shape{2}, std::vector<int32_t>{0, 2});
         auto token_type_ids = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{});
+        auto qq_bias = std::make_shared<v0::Constant>(ov::element::u8, Shape{0}, std::vector<uint8_t>{0});
+        auto qq_bias_begins = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
 
         OutputVector inputs = {q,
                                k,
@@ -479,7 +482,9 @@ public:
                                adaptive_rkv_evictable_sizes,
                                adaptive_rkv_diversity_block_set_indices,
                                adaptive_rkv_diversity_block_set_indices_begins,
-                               token_type_ids};
+                               token_type_ids,
+                               qq_bias,
+                               qq_bias_begins};
 
         auto paged_attn = std::make_shared<op::PagedAttentionExtension>(inputs);
         paged_attn->get_rt_info()["num_k_heads"] = head_num;
@@ -521,60 +526,27 @@ public:
     std::vector<float> build_expected_diversity() const {
         constexpr size_t token_count = 64;
         constexpr size_t head_size = 4;
+        constexpr size_t head_num = 1;
         constexpr size_t start_size = 32;
         constexpr size_t eviction_size = 32;
-        std::vector<float> key_data(token_count * head_size);
+        constexpr size_t block_size = 32;
+
+        // Build key data in [num_heads, token_count, head_size] layout
+        std::vector<float> key_data(head_num * token_count * head_size);
         for (size_t token_idx = 0; token_idx < token_count; token_idx++) {
             for (size_t dim = 0; dim < head_size; dim++) {
                 key_data[token_idx * head_size + dim] = make_key_value(token_idx, dim);
             }
         }
 
-        std::vector<float> normalized(key_data.size());
-        for (size_t token_idx = 0; token_idx < token_count; token_idx++) {
-            float norm = 0.0f;
-            for (size_t dim = 0; dim < head_size; dim++) {
-                const auto value = key_data[token_idx * head_size + dim];
-                norm += value * value;
-            }
-            norm = std::sqrt(norm + std::numeric_limits<float>::epsilon());
-            for (size_t dim = 0; dim < head_size; dim++) {
-                normalized[token_idx * head_size + dim] = key_data[token_idx * head_size + dim] / norm;
-            }
-        }
+        ov::reference::AdaptiveRKVDiversityCalculator<float> calculator(start_size, eviction_size, block_size);
+        auto block_diversity = calculator.calculate_block_diversity(
+            key_data.data(), ov::Shape{head_num, token_count, head_size});
 
-        std::vector<float> eviction_similarity(eviction_size * eviction_size, 0.0f);
-        for (size_t row = 0; row < eviction_size; row++) {
-            for (size_t col = 0; col < eviction_size; col++) {
-                if (row == col) {
-                    continue;
-                }
-                float dot = 0.0f;
-                for (size_t dim = 0; dim < head_size; dim++) {
-                    dot += normalized[(start_size + row) * head_size + dim] *
-                           normalized[(start_size + col) * head_size + dim];
-                }
-                eviction_similarity[row * eviction_size + col] = dot;
-            }
-        }
-
-        for (size_t row = 0; row < eviction_size; row++) {
-            float mean = 0.0f;
-            for (size_t col = 0; col < eviction_size; col++) {
-                mean += eviction_similarity[row * eviction_size + col];
-            }
-            mean /= static_cast<float>(eviction_size);
-            for (size_t col = 0; col < eviction_size; col++) {
-                auto& value = eviction_similarity[row * eviction_size + col];
-                value = value >= mean ? value : 0.0f;
-            }
-        }
-
-        std::vector<float> flat(eviction_size, 0.0f);
-        for (size_t col = 0; col < eviction_size; col++) {
-            for (size_t row = 0; row < eviction_size; row++) {
-                flat[col] -= eviction_similarity[row * eviction_size + col];
-            }
+        // Flatten [evict_blocks, eviction_size] → 1-D vector
+        std::vector<float> flat;
+        for (const auto& row : block_diversity) {
+            flat.insert(flat.end(), row.begin(), row.end());
         }
         return flat;
     }
