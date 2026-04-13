@@ -144,6 +144,7 @@ class TestLLMModel(TestTorchConvertModel):
     def setup_class(self):
         self.infer_timeout = 1800
         self.cuda_available, self.gptq_postinit, self.orig_gemm_forward = None, None, None
+        self.export_mode = False
 
     @retry(3, exceptions=(OSError,), delay=1)
     def load_model(self, name, type):
@@ -182,16 +183,19 @@ class TestLLMModel(TestTorchConvertModel):
 
         example = t("Some input text to verify that model works.",
                     return_tensors='pt').__dict__['data']
-        atype = type.replace("_gptq", "")
-        if atype not in ["gptj", "starcoder2", "mpt"]:
-            pkv, am = self.get_pkv(model, t)
-            example["past_key_values"] = pkv
-            example["attention_mask"] = torch.cat(
-                [example["attention_mask"], am], -1)
-        if atype not in ["opt", "falcon", "mbart", "mpt"]:
-            ids = torch.cumsum(example["attention_mask"] != 0, dim=1) - 1
-            example["position_ids"] = ids[:, -
-                                          example["input_ids"].shape[1]:]
+        # In export mode PKVs are omitted: FX export flattens PKV tuples
+        # into individual tensor inputs which complicates input mapping.
+        if not self.export_mode:
+            atype = type.replace("_gptq", "")
+            if atype not in ["gptj", "starcoder2", "mpt"]:
+                pkv, am = self.get_pkv(model, t)
+                example["past_key_values"] = pkv
+                example["attention_mask"] = torch.cat(
+                    [example["attention_mask"], am], -1)
+            if atype not in ["opt", "falcon", "mbart", "mpt"]:
+                ids = torch.cumsum(example["attention_mask"] != 0, dim=1) - 1
+                example["position_ids"] = ids[:, -
+                                              example["input_ids"].shape[1]:]
         self.example = example
         return model
 
@@ -219,6 +223,8 @@ class TestLLMModel(TestTorchConvertModel):
         return flattenize_outputs(fw_outputs)
 
     def convert_model_impl(self, model_obj):
+        if self.export_mode:
+            return self._convert_model_export(model_obj)
         is_patched = False
         if getattr(self.model.config, "torch_dtype", None) in [torch.float16, torch.bfloat16]:
             patch(self.model)
@@ -232,7 +238,50 @@ class TestLLMModel(TestTorchConvertModel):
         #    model_obj.float()
         return ovm
 
+    def _convert_model_export(self, model_obj):
+        from torch.export import export
+        from openvino import convert_model
+        from openvino.frontend.pytorch.quantized import (
+            detect_quantized_model,
+            patch_quantized_for_export,
+            unpatch_quantized_for_export,
+        )
+
+        is_quant_patched = False
+
+        quant_type = detect_quantized_model(self.model)
+        if quant_type:
+            patch_quantized_for_export(self.model)
+            is_quant_patched = True
+
+        # Initialize model after patching
+        self.model(**self.example)
+
+        with torch.no_grad():
+            exported = export(
+                self.model,
+                args=tuple(),
+                kwargs=self.example,
+                strict=False,
+            )
+            # Restore CUDA mocks before convert_model because
+            # run_decompositions() tries to preserve CUDA RNG state
+            # and fails when CUDA is mocked but not really available.
+            # Only restore CUDA check functions — the AWQ GEMM forward
+            # must stay patched for infer_fw_model.
+            if self.cuda_available is not None:
+                (torch.cuda.is_available,
+                 torch.cuda.is_bf16_supported,
+                 torch.cuda.get_device_capability) = self.cuda_available
+            ovm = convert_model(exported, verbose=True)
+
+        if is_quant_patched:
+            unpatch_quantized_for_export(self.model)
+
+        return ovm
+
     def teardown_method(self):
+        self.export_mode = False
         # restore after gptq patching
         if self.cuda_available is not None:
             unpatch_gptq(self.cuda_available, self.gptq_postinit, self.orig_gemm_forward)
@@ -309,4 +358,18 @@ class TestLLMModel(TestTorchConvertModel):
         ("mixstral_awq", "TheBloke/SauerkrautLM-Mixtral-8x7B-AWQ"),
     ])
     def test_convert_model_very_large(self, name, type, ie_device):
+        self.run(model_name=name, model_link=type, ie_device=ie_device)
+
+    def get_supported_export_precommit_models():
+        if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+            return []
+        return [
+            ("llama_awq", "casperhansen/tinyllama-1b-awq"),
+        ]
+
+    @pytest.mark.parametrize("type,name", get_supported_export_precommit_models())
+    @pytest.mark.precommit
+    @pytest.mark.nightly
+    def test_export_model_precommit(self, name, type, ie_device):
+        self.export_mode = True
         self.run(model_name=name, model_link=type, ie_device=ie_device)
