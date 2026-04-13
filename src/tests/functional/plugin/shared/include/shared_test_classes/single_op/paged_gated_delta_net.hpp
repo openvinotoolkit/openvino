@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -33,11 +34,13 @@ public:
 
 protected:
     std::vector<ov::Tensor> calculate_refs() override;
+    std::vector<ov::Tensor> get_plugin_outputs() override;
     void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) override;
     void SetUp() override;
 
 private:
-    std::vector<float> ref_recurrent_state_table;
+    std::map<std::shared_ptr<ov::Node>, ov::Tensor> host_inputs;
+    ov::element::Type data_type;
 };
 
 }  // namespace ov::test
