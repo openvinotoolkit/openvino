@@ -12,7 +12,7 @@
     "@napi-rs/canvas": "^0.1.83",
     "args": "^5.0.3",
     "eslint": "^10.0.0",
-    "https-proxy-agent": "^7.0.6"
+    "https-proxy-agent": "^9.0.0"
   },
   "scripts": {
     "lint": "eslint .",
