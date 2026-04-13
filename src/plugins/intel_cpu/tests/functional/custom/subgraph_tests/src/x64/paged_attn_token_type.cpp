@@ -3,6 +3,8 @@
 //
 
 
+#include <numeric>
+
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "internal_properties.hpp"
@@ -403,8 +405,36 @@ TEST_P(PagedAttnTokenTypeTest, PostImageTextIsCausal) {
     }
 }
 
-class PagedAttnAdaptiveRKVDiversityTest : public SubgraphBaseTest, public CPUTestsBase {
+struct DiversityTestParams {
+    size_t head_size;
+    size_t head_num;
+    size_t block_size;
+    size_t start_size;
+    size_t eviction_size;
+    size_t num_data_blocks;
+    std::string name;
+};
+
+class PagedAttnAdaptiveRKVDiversityTest : public testing::WithParamInterface<DiversityTestParams>,
+                                          virtual public SubgraphBaseTest,
+                                          public CPUTestsBase {
 public:
+    static std::string getTestCaseName(const testing::TestParamInfo<DiversityTestParams>& obj) {
+        return obj.param.name;
+    }
+
+    // model parameters
+    size_t kHeadSize;
+    size_t kHeadNum;
+    // paged attention parameters
+    size_t kBlockSize;
+    size_t kNumDataBlocks;
+    size_t kNumBlocks;
+    size_t kTokenCount;
+    // adaptive RKV parameters
+    size_t kStartSize;
+    size_t kEvictionSize;
+
     static std::shared_ptr<ov::op::v0::Parameter> make_param(const PartialShape& pshape,
                                                              element::Type element_type,
                                                              const std::string& name) {
@@ -415,6 +445,16 @@ public:
     }
 
     void SetUp() override {
+        const auto& p = GetParam();
+        kHeadSize = p.head_size;
+        kHeadNum = p.head_num;
+        kBlockSize = p.block_size;
+        kStartSize = p.start_size;
+        kEvictionSize = p.eviction_size;
+        kNumDataBlocks = p.num_data_blocks;
+        kNumBlocks = kNumDataBlocks + 1;
+        kTokenCount = kNumDataBlocks * kBlockSize;
+
         targetDevice = utils::DEVICE_CPU;
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;
         configuration[ov::hint::kv_cache_precision.name()] = ov::element::f32;
@@ -422,23 +462,25 @@ public:
     }
 
     std::shared_ptr<ov::Model> build_model() {
-        constexpr size_t head_size = 4;
-        constexpr size_t head_num = 1;
+        const auto hs = static_cast<int64_t>(kHeadSize);
+        const auto hn = static_cast<int64_t>(kHeadNum);
+        const auto bs = static_cast<int64_t>(kBlockSize);
+        const auto nb = static_cast<int64_t>(kNumBlocks);
 
-        auto q = make_param(PartialShape{1, head_size * head_num}, ov::element::f32, "q");
-        auto k = make_param(PartialShape{1, head_size}, ov::element::f32, "k");
-        auto v = make_param(PartialShape{1, head_size}, ov::element::f32, "v");
-        auto key_cache = make_param(PartialShape{3, head_num, 32, head_size}, ov::element::f32, "key_cache.0");
-        auto value_cache = make_param(PartialShape{3, head_num, 32, head_size}, ov::element::f32, "value_cache.0");
+        auto q = make_param(PartialShape{1, hs * hn}, ov::element::f32, "q");
+        auto k = make_param(PartialShape{1, hs * hn}, ov::element::f32, "k");
+        auto v = make_param(PartialShape{1, hs * hn}, ov::element::f32, "v");
+        auto key_cache = make_param(PartialShape{nb, hn, bs, hs}, ov::element::f32, "key_cache.0");
+        auto value_cache = make_param(PartialShape{nb, hn, bs, hs}, ov::element::f32, "value_cache.0");
         auto past_lens = make_param(PartialShape{1}, ov::element::i32, "past_lens");
         auto subsequence_begins = make_param(PartialShape{2}, ov::element::i32, "subsequence_begins");
-        auto block_indices = make_param(PartialShape{3}, ov::element::i32, "block_indices");
+        auto block_indices = make_param(PartialShape{nb}, ov::element::i32, "block_indices");
         auto block_indices_begins = make_param(PartialShape{2}, ov::element::i32, "block_indices_begins");
 
         auto scale = std::make_shared<v0::Constant>(ov::element::f32, Shape{}, std::vector<float>{0.5f});
         auto sliding_window = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
         auto alibi_slopes = std::make_shared<v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{});
-        auto max_context_len = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{96});
+        auto max_context_len = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{static_cast<int32_t>(kNumBlocks * kBlockSize)});
         auto score_aggregation_window = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{});
         auto rotated_block_indices = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{});
         auto rotation_deltas = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{});
@@ -447,12 +489,14 @@ public:
         auto xattention_block_size = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{64});
         auto xattention_stride = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{8});
         auto sinks = std::make_shared<v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{});
-        auto adaptive_rkv_start_size = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{32});
-        auto adaptive_rkv_evictable_sizes = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, std::vector<int32_t>{32});
+        auto adaptive_rkv_start_size = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{static_cast<int32_t>(kStartSize)});
+        auto adaptive_rkv_evictable_sizes = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, std::vector<int32_t>{static_cast<int32_t>(kEvictionSize)});
+        std::vector<int32_t> block_set_indices_data(kNumDataBlocks);
+        std::iota(block_set_indices_data.begin(), block_set_indices_data.end(), 0);
         auto adaptive_rkv_diversity_block_set_indices =
-            std::make_shared<v0::Constant>(ov::element::i32, Shape{2}, std::vector<int32_t>{0, 1});
+            std::make_shared<v0::Constant>(ov::element::i32, Shape{kNumDataBlocks}, block_set_indices_data);
         auto adaptive_rkv_diversity_block_set_indices_begins =
-            std::make_shared<v0::Constant>(ov::element::i32, Shape{2}, std::vector<int32_t>{0, 2});
+            std::make_shared<v0::Constant>(ov::element::i32, Shape{2}, std::vector<int32_t>{0, static_cast<int32_t>(kNumDataBlocks)});
         auto token_type_ids = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{});
         auto qq_bias = std::make_shared<v0::Constant>(ov::element::u8, Shape{0}, std::vector<uint8_t>{0});
         auto qq_bias_begins = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
@@ -487,10 +531,10 @@ public:
                                qq_bias_begins};
 
         auto paged_attn = std::make_shared<op::PagedAttentionExtension>(inputs);
-        paged_attn->get_rt_info()["num_k_heads"] = head_num;
-        paged_attn->get_rt_info()["k_head_size"] = head_size;
-        paged_attn->get_rt_info()["num_v_heads"] = head_num;
-        paged_attn->get_rt_info()["v_head_size"] = head_size;
+        paged_attn->get_rt_info()["num_k_heads"] = kHeadNum;
+        paged_attn->get_rt_info()["k_head_size"] = kHeadSize;
+        paged_attn->get_rt_info()["num_v_heads"] = kHeadNum;
+        paged_attn->get_rt_info()["v_head_size"] = kHeadSize;
 
         return std::make_shared<ov::Model>(OutputVector{paged_attn->output(0), paged_attn->output(1), paged_attn->output(2)},
                                            ParameterVector{q,
@@ -512,36 +556,36 @@ public:
 
     void fill_key_cache(ov::Tensor& key_cache_tensor) const {
         std::fill_n(key_cache_tensor.data<float>(), key_cache_tensor.get_size(), 0.0f);
-        auto* key_cache_ptr = key_cache_tensor.data<float>();
-        for (size_t block = 0; block < 2; block++) {
-            for (size_t token = 0; token < 32; token++) {
-                const size_t global_token = block * 32 + token;
-                for (size_t dim = 0; dim < 4; dim++) {
-                    key_cache_ptr[((block * 32 + token) * 4) + dim] = make_key_value(global_token, dim);
+        auto* ptr = key_cache_tensor.data<float>();
+        // cache layout: [num_blocks, num_heads, block_size, head_size]
+        for (size_t block = 0; block < kNumDataBlocks; block++) {
+            for (size_t head = 0; head < kHeadNum; head++) {
+                for (size_t token = 0; token < kBlockSize; token++) {
+                    const size_t global_token = block * kBlockSize + token;
+                    for (size_t dim = 0; dim < kHeadSize; dim++) {
+                        const size_t offset = ((block * kHeadNum + head) * kBlockSize + token) * kHeadSize + dim;
+                        ptr[offset] = make_key_value(global_token, head * kHeadSize + dim);
+                    }
                 }
             }
         }
     }
 
     std::vector<float> build_expected_diversity() const {
-        constexpr size_t token_count = 64;
-        constexpr size_t head_size = 4;
-        constexpr size_t head_num = 1;
-        constexpr size_t start_size = 32;
-        constexpr size_t eviction_size = 32;
-        constexpr size_t block_size = 32;
-
         // Build key data in [num_heads, token_count, head_size] layout
-        std::vector<float> key_data(head_num * token_count * head_size);
-        for (size_t token_idx = 0; token_idx < token_count; token_idx++) {
-            for (size_t dim = 0; dim < head_size; dim++) {
-                key_data[token_idx * head_size + dim] = make_key_value(token_idx, dim);
+        std::vector<float> key_data(kHeadNum * kTokenCount * kHeadSize);
+        for (size_t head = 0; head < kHeadNum; head++) {
+            for (size_t token_idx = 0; token_idx < kTokenCount; token_idx++) {
+                for (size_t dim = 0; dim < kHeadSize; dim++) {
+                    key_data[(head * kTokenCount + token_idx) * kHeadSize + dim] =
+                        make_key_value(token_idx, head * kHeadSize + dim);
+                }
             }
         }
 
-        ov::reference::AdaptiveRKVDiversityCalculator<float> calculator(start_size, eviction_size, block_size);
+        ov::reference::AdaptiveRKVDiversityCalculator<float> calculator(kStartSize, kEvictionSize, kBlockSize);
         auto block_diversity = calculator.calculate_block_diversity(
-            key_data.data(), ov::Shape{head_num, token_count, head_size});
+            key_data.data(), ov::Shape{kHeadNum, kTokenCount, kHeadSize});
 
         // Flatten [evict_blocks, eviction_size] → 1-D vector
         std::vector<float> flat;
@@ -552,35 +596,35 @@ public:
     }
 };
 
-TEST_F(PagedAttnAdaptiveRKVDiversityTest, smoke_AdaptiveRKVDiversityMatchesReference) {
+TEST_P(PagedAttnAdaptiveRKVDiversityTest, smoke_AdaptiveRKVDiversityMatchesReference) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     compile_model();
     auto infer_request = compiledModel.create_infer_request();
 
-    ov::Tensor q(ov::element::f32, {1, 4});
-    ov::Tensor k(ov::element::f32, {1, 4});
-    ov::Tensor v(ov::element::f32, {1, 4});
-    ov::Tensor key_cache(ov::element::f32, {3, 1, 32, 4});
-    ov::Tensor value_cache(ov::element::f32, {3, 1, 32, 4});
+    ov::Tensor q(ov::element::f32, {1, kHeadSize * kHeadNum});
+    ov::Tensor k(ov::element::f32, {1, kHeadSize * kHeadNum});
+    ov::Tensor v(ov::element::f32, {1, kHeadSize * kHeadNum});
+    ov::Tensor key_cache(ov::element::f32, {kNumBlocks, kHeadNum, kBlockSize, kHeadSize});
+    ov::Tensor value_cache(ov::element::f32, {kNumBlocks, kHeadNum, kBlockSize, kHeadSize});
     ov::Tensor past_lens(ov::element::i32, {1});
     ov::Tensor subsequence_begins(ov::element::i32, {2});
-    ov::Tensor block_indices(ov::element::i32, {3});
+    ov::Tensor block_indices(ov::element::i32, {kNumBlocks});
     ov::Tensor block_indices_begins(ov::element::i32, {2});
 
-    std::fill_n(q.data<float>(), 4, 0.1f);
-    std::fill_n(k.data<float>(), 4, 0.2f);
-    std::fill_n(v.data<float>(), 4, 0.3f);
+    std::fill_n(q.data<float>(), kHeadSize * kHeadNum, 0.1f);
+    std::fill_n(k.data<float>(), kHeadSize * kHeadNum, 0.2f);
+    std::fill_n(v.data<float>(), kHeadSize * kHeadNum, 0.3f);
     std::fill_n(value_cache.data<float>(), value_cache.get_size(), 0.0f);
     fill_key_cache(key_cache);
 
-    past_lens.data<int32_t>()[0] = 64;
+    past_lens.data<int32_t>()[0] = static_cast<int32_t>(kTokenCount);
     subsequence_begins.data<int32_t>()[0] = 0;
     subsequence_begins.data<int32_t>()[1] = 1;
-    block_indices.data<int32_t>()[0] = 0;
-    block_indices.data<int32_t>()[1] = 1;
-    block_indices.data<int32_t>()[2] = 2;
+    for (size_t i = 0; i < kNumBlocks; i++) {
+        block_indices.data<int32_t>()[i] = static_cast<int32_t>(i);
+    }
     block_indices_begins.data<int32_t>()[0] = 0;
-    block_indices_begins.data<int32_t>()[1] = 3;
+    block_indices_begins.data<int32_t>()[1] = static_cast<int32_t>(kNumBlocks);
 
     for (const auto& input : function->get_parameters()) {
         const auto& name = input->get_friendly_name();
@@ -616,6 +660,20 @@ TEST_F(PagedAttnAdaptiveRKVDiversityTest, smoke_AdaptiveRKVDiversityMatchesRefer
         EXPECT_NEAR(actual_ptr[idx], expected[idx], 1e-5f) << "Mismatch at index " << idx;
     }
 }
+
+const std::vector<DiversityTestParams> diversity_test_configs = {
+    // head_size, head_num, block_size, start_size, eviction_size, num_data_blocks, name
+    {4,  1, 32, 32, 32, 2, "single_head_minimal"},
+    {16, 4, 32, 32, 32, 2, "multi_head_base"},
+    {16, 4, 32, 32, 64, 3, "large_eviction"},
+    {16, 2, 32, 64, 32, 3, "large_start"},
+    {16, 4, 32, 64, 64, 4, "balanced_large"},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_AdaptiveRKVDiversity,
+                         PagedAttnAdaptiveRKVDiversityTest,
+                         ::testing::ValuesIn(diversity_test_configs),
+                         PagedAttnAdaptiveRKVDiversityTest::getTestCaseName);
 
 namespace {
 
