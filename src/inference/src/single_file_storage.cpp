@@ -105,7 +105,7 @@ bool SingleFileStorage::build_content_index(std::ifstream& stream) {
             return false;
         }
         const auto blob_data_pos = s.seekg(padding_size, std::ios::cur).tellg();
-        if (!s.good()) {
+        if (!s.good() || blob_data_pos < 0) {
             return false;
         }
         const auto blob_data_size = static_cast<std::streamoff>(size - header_size - padding_size);
