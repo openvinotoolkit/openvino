@@ -151,6 +151,14 @@ jobs:
           echo "HF_HUB_CACHE=/mount/caches/huggingface" >> "$GITHUB_ENV"
           echo "HUGGINGFACE_HUB_CACHE=/mount/caches/huggingface" >> "$GITHUB_ENV"
 
+      - name: Update CA certificates
+        if: ${{ inputs.test_type == 'rope' }}
+        run: |
+          apt-get update && apt-get install -y ca-certificates
+          update-ca-certificates
+          echo "PIP_CERT=/etc/ssl/certs/ca-certificates.crt" >> "$GITHUB_ENV"
+          echo "REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt" >> "$GITHUB_ENV"
+
       - name: Setup Python 3.11
         if: ${{ inputs.test_type == 'rope' }}
         uses: ./.github/actions/setup_python
