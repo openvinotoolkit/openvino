@@ -18,6 +18,7 @@ OPS = {
     "aten::erf_": torch.erf_,
     "aten::erfc": torch.erfc,
     "aten::erfc_": torch.erfc_,
+    "aten::erfinv": torch.erfinv,
     "aten::exp": torch.exp,
     "aten::exp_": torch.exp_,
     "aten::expm1": torch.expm1,
@@ -136,9 +137,14 @@ class unary_op_complex_net(torch.nn.Module):
 
 
 class TestUnaryOp(PytorchLayerTest):
-    def _prepare_input(self):
-        # random number in range [1, 11)
-        x = torch.rand(2, 10) * 10 + 1
+    def _prepare_input(self, unit_range=False):
+        if unit_range:
+            # atanh requires inputs in (-1, 1); use uniform random in that range.
+            # Integer dtypes will truncate to 0, giving atanh(0)=0 — still exercises the op.
+            x = self.random.torch_rand(2, 10) * 1.99 - 0.995
+        else:
+            # random number in range [1, 11)
+            x = self.random.torch_rand(2, 10) * 10 + 1
         return (x.to(self.dtype).numpy(),)
 
     @pytest.mark.nightly
@@ -153,6 +159,7 @@ class TestUnaryOp(PytorchLayerTest):
                                  "aten::sqrt",
                                  "aten::erf",
                                  "aten::erfc",
+                                 "aten::erfinv",
                                  "aten::exp",
                                  "aten::expm1",
                                  "aten::relu",
@@ -185,8 +192,11 @@ class TestUnaryOp(PytorchLayerTest):
         self.dtype = dtype
         if self.use_torch_export() and op_type == "aten::atanh" and dtype in [torch.int8, torch.int32, torch.int64]:
             pytest.xfail(reason="torch.export after 2.4.0 doesn't support unsigned int types for atanh in some configurations")
-        self._test(unary_op_net(OPS[op_type], dtype), None, op_type,
-                   ie_device, precision, ir_version)
+        if ie_device == "GPU" and op_type == "aten::erfinv":
+            pytest.xfail(reason="erfinv is not supported on GPU")
+        self._test(unary_op_net(OPS[op_type], dtype), op_type,
+                   ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"unit_range": op_type in ("aten::atanh", "aten::erfinv")})
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -232,7 +242,7 @@ class TestUnaryOp(PytorchLayerTest):
         self.dtype = dtype
         if self.use_torch_compile_backend() and op_type == "aten::sigmoid_":
             pytest.xfail(reason="Accuracy issue, one or two values are off sometimes")
-        self._test(unary_op_net(OPS[op_type], dtype), None, op_type,
+        self._test(unary_op_net(OPS[op_type], dtype), op_type,
                    ie_device, precision, ir_version)
 
     @pytest.mark.nightly
@@ -245,6 +255,7 @@ class TestUnaryOp(PytorchLayerTest):
                                  "aten::sqrt",
                                  "aten::erf",
                                  "aten::erfc",
+                                 "aten::erfinv",
                                  "aten::exp",
                                  "aten::expm1",
                                  "aten::relu",
@@ -272,8 +283,11 @@ class TestUnaryOp(PytorchLayerTest):
                              ])
     def test_unary_op_out(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
-        self._test(unary_op_out_net(OPS[op_type], dtype), None, op_type,
-                   ie_device, precision, ir_version)
+        if ie_device == "GPU" and op_type == "aten::erfinv":
+            pytest.xfail(reason="erfinv is not supported on GPU")
+        self._test(unary_op_out_net(OPS[op_type], dtype), op_type,
+                   ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"unit_range": op_type in ("aten::atanh", "aten::erfinv")})
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -288,7 +302,7 @@ class TestUnaryOp(PytorchLayerTest):
                              ])
     def test_unary_func_op_inplace(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
-        self._test(unary_func_op_inplace_net(OPS[op_type], dtype), None, op_type + "_",
+        self._test(unary_func_op_inplace_net(OPS[op_type], dtype), op_type + "_",
                    ie_device, precision, ir_version)
 
     @pytest.mark.nightly
@@ -298,7 +312,7 @@ class TestUnaryOp(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64, torch.int8, torch.uint8, torch.int32, torch.int64])
     def test_prim_abs(self, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
-        self._test(prim_abs_net(dtype), None, "prim::abs",
+        self._test(prim_abs_net(dtype), "prim::abs",
                    ie_device, precision, ir_version, fx_kind="aten.abs")
 
     @pytest.mark.nightly
@@ -311,5 +325,5 @@ class TestUnaryOp(PytorchLayerTest):
                              ])
     def test_complex_unary_op(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
-        self._test(unary_op_complex_net(OPS[op_type], dtype), None, op_type,
+        self._test(unary_op_complex_net(OPS[op_type], dtype), op_type,
                    ie_device, precision, ir_version)

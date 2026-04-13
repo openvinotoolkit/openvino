@@ -30,6 +30,8 @@
 #include "openvino/op/group_normalization.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/softmax.hpp"
@@ -103,8 +105,6 @@
 #include "snippets/utils/utils.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 
-using namespace ov::op::util;
-
 namespace ov::snippets::op {
 
 void Subgraph::set_generator(std::shared_ptr<ov::snippets::Generator> generator) {
@@ -113,6 +113,11 @@ void Subgraph::set_generator(std::shared_ptr<ov::snippets::Generator> generator)
 
 void Subgraph::set_virtual_port_count(const size_t count) {
     m_virtual_port_count = count;
+}
+
+bool Subgraph::is_dynamic() const {
+    // Note: some control flow optimizations may introduce dynamism to the Subgraph
+    return ov::Node::is_dynamic() || (m_linear_ir != nullptr && m_linear_ir->is_dynamic());
 }
 
 auto Subgraph::is_domain_sensitive_op(const std::shared_ptr<ov::Node>& op) -> bool {
@@ -125,6 +130,8 @@ auto Subgraph::is_domain_sensitive_op(const std::shared_ptr<ov::Node>& op) -> bo
                               ov::op::v1::Broadcast,
                               ov::op::v3::Broadcast,
                               ov::op::v12::GroupNormalization,
+                              ov::op::v1::ReduceSum,
+                              ov::op::v1::ReduceMax,
                               op::Reshape>(op);
 }
 
@@ -141,7 +148,7 @@ void Subgraph::init_config() {
         update(config.m_is_quantized, ov::is_type<ov::op::v0::FakeQuantize>(op));
         update(config.m_has_domain_sensitive_ops, is_domain_sensitive_op(op));
         update(config.m_has_broadcast_sensitive_ops,
-               ov::is_type_any_of<ov::op::v12::GroupNormalization, op::Reshape>(op));
+               ov::is_type_any_of<ov::op::v12::GroupNormalization, ov::snippets::op::Reshape>(op));
     }
 }
 
@@ -268,19 +275,21 @@ auto Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> s
 
     ov::OutputVector subgraph_inputs;
 
-    for (const auto& input : node->input_values()) {
-        if (ov::is_type<ov::opset1::Constant>(input.get_node_shared_ptr()) &&
+    for (size_t i = 0; i < node->get_input_size(); ++i) {
+        const auto& input = node->input(i);
+        const auto& source_output = input.get_source_output();
+        if (ov::is_type<ov::opset1::Constant>(source_output.get_node_shared_ptr()) &&
             (ov::shape_size(input.get_shape()) == 1 || ov::is_type<ov::op::v0::FakeQuantize>(node) ||
-             constant_input_should_be_inside_body(node))) {
-            body_inputs.push_back(input);
+             constant_input_should_be_inside_body(input))) {
+            body_inputs.push_back(source_output);
         } else {
             auto parameter =
                 std::make_shared<ov::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
             body_parameters.push_back(parameter);
-            body_parameters.back()->set_friendly_name(input.get_node()->get_friendly_name());
+            body_parameters.back()->set_friendly_name(source_output.get_node()->get_friendly_name());
             body_inputs.push_back(parameter->output(0));
 
-            subgraph_inputs.push_back(input);
+            subgraph_inputs.push_back(source_output);
         }
     }
 
@@ -327,9 +336,10 @@ void Subgraph::fill_empty_output_names(const Output<Node>& target_output_node,
     }
 }
 
-auto Subgraph::constant_input_should_be_inside_body(const std::shared_ptr<ov::Node>& node) -> bool {
+auto Subgraph::constant_input_should_be_inside_body(const Input<ov::Node>& node_input) -> bool {
     return ov::is_type_any_of<ov::op::v1::Transpose, ov::op::v1::Broadcast, ov::op::v3::Broadcast, ov::op::v1::Reshape>(
-        node);
+               node_input.get_node()) &&
+           node_input.get_index() == 1;
 }
 
 bool Subgraph::check_broadcast(const std::shared_ptr<const ov::Node>& node) {
