@@ -8,7 +8,7 @@
 #include "utils/fusing_test_utils.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/matmul.hpp"
+#include "openvino/op/max_pool.hpp"
 #include "openvino/util/common_util.hpp"
 
 using namespace CPUTestUtils;
@@ -17,10 +17,11 @@ namespace ov {
 namespace test {
 
 struct QuantizationParams {
-    std::vector<std::vector<float>> intervals;  // quantize intervals
-    std::vector<size_t> fqConstShapes;          // fq constant shapes
-    element::Type expectedPrecision;            // convolution expected precision
-    bool perChannelWeightsScale;                // use per-channel scale on weights
+    std::vector<std::vector<float>> inputIntervals;   // quantize intervals before convolution
+    std::vector<std::vector<float>> outputIntervals;  // quantize intervals after convolution
+    std::vector<size_t> fqConstShapes;                // fq constant shapes
+    element::Type expectedPrecision;                  // convolution expected precision
+    bool perChannelWeightsScale;                      // use per-channel scale on weights
 };
 
 typedef std::tuple<
@@ -39,8 +40,12 @@ public:
         std::ostringstream results;
 
         results << "IS=" << inputShape << "_InPRC=" << inputPrecision
-                << "_ExpectedPRC=" << quantizationParams.expectedPrecision << "_Intervals=";
-        for (const auto& vecInt : quantizationParams.intervals) {
+                << "_ExpectedPRC=" << quantizationParams.expectedPrecision << "_InputIntervals=";
+        for (const auto& vecInt : quantizationParams.inputIntervals) {
+            results << ov::util::vector_to_string(vecInt) << ",";
+        }
+        results << "_OutputIntervals=";
+        for (const auto& vecInt : quantizationParams.outputIntervals) {
             results << ov::util::vector_to_string(vecInt) << ",";
         }
         results << "_fqShapes=" << ov::util::vector_to_string(quantizationParams.fqConstShapes)
@@ -61,17 +66,18 @@ protected:
         ov::ParameterVector input_params{
             std::make_shared<ov::op::v0::Parameter>(inputPrecision, inputDynamicShapes[0])};
 
-        const auto& quantizeIntervals = quantizationParams.intervals;
+        const auto& inputIntervals = quantizationParams.inputIntervals;
+        const auto& outputIntervals = quantizationParams.outputIntervals;
         const auto& fqConstShapes = quantizationParams.fqConstShapes;
 
         auto fq_before = ov::test::utils::make_fake_quantize(input_params[0],
                                                              inputPrecision,
                                                              256,
                                                              fqConstShapes,
-                                                             quantizeIntervals[0],
-                                                             quantizeIntervals[1],
-                                                             quantizeIntervals[2],
-                                                             quantizeIntervals[3]);
+                                     inputIntervals[0],
+                                     inputIntervals[1],
+                                     inputIntervals[2],
+                                     inputIntervals[3]);
 
         auto weights = utils::make_constant(element::i8, {4, 3, 2, 2});
         auto convert = std::make_shared<op::v0::Convert>(weights, element::f32);
@@ -120,17 +126,29 @@ protected:
                                                             inputPrecision,
                                                             256,
                                                             {},
-                                                            {quantizeIntervals[0][0]},
-                                                            {quantizeIntervals[1][0]},
-                                                            {quantizeIntervals[2][0]},
-                                                            {quantizeIntervals[3][0]});
+                                                            {outputIntervals[0][0]},
+                                                            {outputIntervals[1][0]},
+                                                            {outputIntervals[2][0]},
+                                                            {outputIntervals[3][0]});
 
-        auto matmul_const = ov::test::utils::make_constant(ov::element::i8, {1, 1});
-        auto convert_mm = std::make_shared<op::v0::Convert>(matmul_const, inputPrecision);
-        auto multiply_mm = std::make_shared<op::v1::Multiply>(convert_mm, op::v0::Constant::create(inputPrecision, {1, 1}, {0.1}));
-        const auto matMul = std::make_shared<ov::op::v0::MatMul>(fq_after, multiply_mm, false, false);
+        std::shared_ptr<Node> output;
+        {
+            const ov::Strides strides = {1, 1};
+            const ov::Shape padsBegin = {0, 0};
+            const ov::Shape padsEnd = {0, 0};
+            const ov::Shape kernel = {1, 1};
+            const auto roundingType = ov::op::RoundingType::CEIL;
+            const auto padType = op::PadType::EXPLICIT;
+            output = std::make_shared<ov::op::v1::MaxPool>(fq_after,
+                                                           strides,
+                                                           padsBegin,
+                                                           padsEnd,
+                                                           kernel,
+                                                           roundingType,
+                                                           padType);
+        }
 
-        function = create_ov_model(inputPrecision, input_params, matMul, "ConvFQ");
+        function = create_ov_model(inputPrecision, input_params, output, "ConvFQ");
     }
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
@@ -176,10 +194,18 @@ const element::Type expectedConvPrecBySignedFQRange = element::f32;
 const element::Type expectedConvPrecByUnsignedFQRange = element::f32;
 #endif
 
+const std::vector<std::vector<float>> signedIntervals{{-1.28f}, {1.27f}, {-1.28f}, {1.27f}};
+const std::vector<std::vector<float>> unsignedIntervals{{0.f}, {2.55f}, {0.f}, {2.55f}};
+
 std::vector<QuantizationParams> quantizationParams{
-    {{{-1.28f}, {1.27f}, {-1.28f}, {1.27f}}, {}, expectedConvPrecBySignedFQRange, false}, //i8, per-tensor
-    {{{0.f}, {2.55f}, {0.f}, {2.55f}}, {}, expectedConvPrecByUnsignedFQRange, false},    //u8, per-tensor
-    {{{-1.28f}, {1.27f}, {-1.28f}, {1.27f}}, {}, expectedConvPrecBySignedFQRange, true}, //i8, per channel
+    {signedIntervals, signedIntervals, {}, expectedConvPrecBySignedFQRange, false},       // i8 -> i8, per-tensor
+    {unsignedIntervals, unsignedIntervals, {}, expectedConvPrecByUnsignedFQRange, false},  // u8 -> u8, per-tensor
+    {signedIntervals, signedIntervals, {}, expectedConvPrecBySignedFQRange, true},        // i8 -> i8, per-channel
+};
+
+std::vector<QuantizationParams> mixedOutputQuantizationParams{
+    {unsignedIntervals, signedIntervals, {}, expectedConvPrecByUnsignedFQRange, false},  // u8 -> i8
+    {signedIntervals, unsignedIntervals, {}, expectedConvPrecBySignedFQRange, false},    // i8 -> u8
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_CPU,
@@ -188,6 +214,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_CPU,
                                             ::testing::Values(element::f32),
                                             ::testing::ValuesIn(quantizationParams),
                                             ::testing::Values(false, true),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ConvAndFQ::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQMixedOutput_CPU,
+                         ConvAndFQ,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes),
+                                            ::testing::Values(element::f32),
+                                            ::testing::ValuesIn(mixedOutputQuantizationParams),
+                                            ::testing::Values(true),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ConvAndFQ::getTestCaseName);
 }  // namespace
