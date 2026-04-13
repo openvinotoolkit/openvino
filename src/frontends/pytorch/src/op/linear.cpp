@@ -145,9 +145,14 @@ Output<Node> unpack_gptq_qweight(const Output<Node>& c, int64_t group_size) {
     const size_t K = initial_shape[0];  // in_features / 8
     const size_t N = initial_shape[1];  // out_features
     const size_t in_features = K * 8;
-    FRONT_END_OP_CONVERSION_CHECK(in_features % group_size == 0, "GPTQ in_features must be divisible by group_size.");
-    const size_t n_groups = in_features / static_cast<size_t>(group_size);
-    auto new_shape = Shape{n_groups, static_cast<size_t>(group_size), N};
+    FRONT_END_OP_CONVERSION_CHECK(group_size > 0, "GPTQ group_size must be greater than 0.");
+    FRONT_END_OP_CONVERSION_CHECK(static_cast<size_t>(group_size) <= in_features,
+                                  "GPTQ group_size must not exceed in_features.");
+    const size_t group_size_u = static_cast<size_t>(group_size);
+    FRONT_END_OP_CONVERSION_CHECK(in_features % group_size_u == 0,
+                                  "GPTQ in_features must be divisible by group_size.");
+    const size_t n_groups = in_features / group_size_u;
+    auto new_shape = Shape{n_groups, group_size_u, N};
     auto new_const = std::make_shared<v0::Constant>(element::u4, new_shape, 0);
     auto dst = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(new_const->get_data_ptr()));
     for (size_t i = 0; i < K; ++i) {

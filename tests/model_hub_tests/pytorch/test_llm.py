@@ -254,30 +254,30 @@ class TestLLMModel(TestTorchConvertModel):
             patch_quantized_for_export(self.model)
             is_quant_patched = True
 
-        # Initialize model after patching
-        self.model(**self.example)
+        try:
+            # Initialize model after patching
+            self.model(**self.example)
 
-        with torch.no_grad():
-            exported = export(
-                self.model,
-                args=tuple(),
-                kwargs=self.example,
-                strict=False,
-            )
-            # Restore CUDA mocks before convert_model because
-            # run_decompositions() tries to preserve CUDA RNG state
-            # and fails when CUDA is mocked but not really available.
-            # Only restore CUDA check functions — the AWQ GEMM forward
-            # must stay patched for infer_fw_model.
-            if self.cuda_available is not None:
-                (torch.cuda.is_available,
-                 torch.cuda.is_bf16_supported,
-                 torch.cuda.get_device_capability) = self.cuda_available
-            ovm = convert_model(exported, verbose=True)
-
-        if is_quant_patched:
-            unpatch_quantized_for_export(self.model)
-
+            with torch.no_grad():
+                exported = export(
+                    self.model,
+                    args=tuple(),
+                    kwargs=self.example,
+                    strict=False,
+                )
+                # Restore CUDA mocks before convert_model because
+                # run_decompositions() tries to preserve CUDA RNG state
+                # and fails when CUDA is mocked but not really available.
+                # Only restore CUDA check functions — the AWQ GEMM forward
+                # must stay patched for infer_fw_model.
+                if self.cuda_available is not None:
+                    (torch.cuda.is_available,
+                     torch.cuda.is_bf16_supported,
+                     torch.cuda.get_device_capability) = self.cuda_available
+                ovm = convert_model(exported, verbose=True)
+        finally:
+            if is_quant_patched:
+                unpatch_quantized_for_export(self.model)
         return ovm
 
     def teardown_method(self):
