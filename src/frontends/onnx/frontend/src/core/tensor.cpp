@@ -430,8 +430,6 @@ std::vector<std::string> Tensor::get_data() const {
 
 std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
     std::shared_ptr<ov::op::v0::Constant> constant{nullptr};
-    const size_t alignment = 64;
-
     if (m_tensor_proto != nullptr && m_tensor_proto->has_segment()) {
         FRONT_END_THROW("Loading segments isn't supported");
     }
@@ -493,43 +491,43 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
         case TensorProto_DataType::TensorProto_DataType_INT64:
         case TensorProto_DataType::TensorProto_DataType_UINT32:
         case TensorProto_DataType::TensorProto_DataType_UINT64:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data_ptr(), alignment);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data_ptr());
             break;
         case TensorProto_DataType::TensorProto_DataType_INT4:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<int8_t>().data(), alignment);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<int8_t>().data());
             break;
         case TensorProto_DataType::TensorProto_DataType_INT8:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<int8_t>().data(), alignment);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<int8_t>().data());
             break;
         case TensorProto_DataType::TensorProto_DataType_INT16:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<int16_t>().data(), alignment);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<int16_t>().data());
             break;
         case TensorProto_DataType::TensorProto_DataType_UINT4:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<uint8_t>().data(), alignment);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<uint8_t>().data());
             break;
         case TensorProto_DataType::TensorProto_DataType_UINT8:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<uint8_t>().data(), alignment);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<uint8_t>().data());
             break;
         case TensorProto_DataType::TensorProto_DataType_UINT16:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<uint16_t>().data(), alignment);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<uint16_t>().data());
             break;
         case TensorProto_DataType::TensorProto_DataType_BOOL:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<char>().data(), alignment);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<char>().data());
             break;
         case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<ov::bfloat16>().data(), alignment);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<ov::bfloat16>().data());
             break;
         case TensorProto_DataType::TensorProto_DataType_FLOAT16:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<ov::float16>().data(), alignment);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<ov::float16>().data());
             break;
         case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<ov::float8_e4m3>().data(), alignment);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<ov::float8_e4m3>().data());
             break;
         case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<ov::float8_e5m2>().data(), alignment);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<ov::float8_e5m2>().data());
             break;
         case TensorProto_DataType::TensorProto_DataType_STRING:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<std::string>().data(), alignment);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<std::string>().data());
             break;
         default:
             ONNX_UNSUPPORTED_DATA_TYPE(m_tensor_proto->data_type(),
@@ -538,6 +536,7 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
                                        "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
         }
     } else if (m_tensor_place != nullptr) {
+#if 0
         switch (m_tensor_place->get_element_type()) {
         case ov::element::f32:
         case ov::element::f64:
@@ -545,43 +544,43 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
         case ov::element::i64:
         case ov::element::u32:
         case ov::element::u64:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data_ptr(), alignment);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data_ptr());
             break;
         case ov::element::i4:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<int8_t>().data(), alignment);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<int8_t>().data());
             break;
         case ov::element::i8:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<int8_t>().data(), alignment);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<int8_t>().data());
             break;
         case ov::element::i16:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<int16_t>().data(), alignment);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<int16_t>().data());
             break;
         case ov::element::u4:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<uint8_t>().data(), alignment);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<uint8_t>().data());
             break;
         case ov::element::u8:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<uint8_t>().data(), alignment);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<uint8_t>().data());
             break;
         case ov::element::u16:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<uint16_t>().data(), alignment);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<uint16_t>().data());
             break;
         case ov::element::boolean:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<char>().data(), alignment);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<char>().data());
             break;
         case ov::element::bf16:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<ov::bfloat16>().data(), alignment);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<ov::bfloat16>().data());
             break;
         case ov::element::f16:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<ov::float16>().data(), alignment);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<ov::float16>().data());
             break;
         case ov::element::f8e4m3:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<ov::float8_e4m3>().data(), alignment);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<ov::float8_e4m3>().data());
             break;
         case ov::element::f8e5m2:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<ov::float8_e5m2>().data(), alignment);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<ov::float8_e5m2>().data());
             break;
         case ov::element::string:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<std::string>().data(), alignment);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<std::string>().data());
             break;
         default:
             ONNX_UNSUPPORTED_DATA_TYPE(m_tensor_proto->data_type(),
@@ -589,6 +588,14 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
                                        "INT8, INT16, INT32, INT64, "
                                        "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
         }
+#else
+        //This is applicable only when has_external_data() is false;
+
+        if (ov::element::string == m_tensor_place->get_element_type())
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<std::string>().data());
+        else
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data_ptr_nc(), 64);
+#endif
     } else {
         FRONT_END_THROW("Tensor shape doesn't match data size");
     }
