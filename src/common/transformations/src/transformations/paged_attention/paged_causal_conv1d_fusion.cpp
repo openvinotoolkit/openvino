@@ -17,7 +17,6 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/assign.hpp"
-#include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/group_conv.hpp"
@@ -29,6 +28,7 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/read_value_base.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -105,8 +105,7 @@ std::shared_ptr<ov::Node> find_upstream_cache_param(const ov::Output<ov::Node>& 
             }
         } else if (ov::as_type_ptr<v0::Parameter>(node)) {
             const auto& pshape = node->get_output_partial_shape(0);
-            if (pshape.rank().is_static() && pshape.rank().get_length() == 3 &&
-                !node->output(0).get_names().empty()) {
+            if (pshape.rank().is_static() && pshape.rank().get_length() == 3 && !node->output(0).get_names().empty()) {
                 return node;
             }
         }
@@ -215,13 +214,12 @@ ov::PartialShape make_conv_state_table_shape(const ov::PartialShape& past_state_
 
 class PagedCausalConv1DFusionMatcher : public ov::pass::MatcherPass {
 public:
-    PagedCausalConv1DFusionMatcher(
-        const SharedRuntimeInputs& shared_inputs,
-        const std::vector<std::shared_ptr<ov::Node>>& ordered_cache_nodes,
-                const std::shared_ptr<ov::Model>& model)
-                : m_shared_inputs(shared_inputs),
-                    m_ordered_cache_nodes(ordered_cache_nodes),
-                    m_model(model) {
+    PagedCausalConv1DFusionMatcher(const SharedRuntimeInputs& shared_inputs,
+                                   const std::vector<std::shared_ptr<ov::Node>>& ordered_cache_nodes,
+                                   const std::shared_ptr<ov::Model>& model)
+        : m_shared_inputs(shared_inputs),
+          m_ordered_cache_nodes(ordered_cache_nodes),
+          m_model(model) {
         MATCHER_SCOPE(PagedCausalConv1DFusion);
 
         auto conv_input = any_input();
@@ -276,9 +274,9 @@ public:
                     m_cache_to_state_table[cache_param] = conv_state_table.parameter;
                 }
 
-                m_group_conv_fusion_resources[group_conv_node.get()] = {m_cache_to_state_table.at(cache_param),
-                                                                         extract_cache_variable_marker(cache_param)
-                                                                             .value_or("")};
+                m_group_conv_fusion_resources[group_conv_node.get()] = {
+                    m_cache_to_state_table.at(cache_param),
+                    extract_cache_variable_marker(cache_param).value_or("")};
                 fusion_resources_it = m_group_conv_fusion_resources.find(group_conv_node.get());
             }
             const auto& fusion_resources = fusion_resources_it->second;
