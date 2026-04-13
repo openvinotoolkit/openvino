@@ -40,5 +40,6 @@ public:
                            ParameterVector& adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
                            ResultVector& adaptive_rkv_diversity_results,
                            const std::map<std::string, std::shared_ptr<op::v0::Parameter>>& optional_model_wide_params,
+                           const std::shared_ptr<ov::Model>& model,
                            std::unordered_set<std::string>& var_ids_to_remove);
 };

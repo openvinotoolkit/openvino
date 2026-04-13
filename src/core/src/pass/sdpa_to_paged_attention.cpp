@@ -8,12 +8,14 @@
 #include <cctype>
 #include <optional>
 #include <set>
+#include <unordered_set>
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/subtract.hpp"
@@ -82,6 +84,23 @@ std::optional<size_t> parse_layer_index_from_name(const std::string& name, const
         return std::nullopt;
     }
     return static_cast<size_t>(std::stoul(index_str));
+}
+
+static constexpr const char* marked_for_paged_extensions_cleanup = "marked_for_paged_extensions_cleanup";
+static constexpr const char* paged_conv_cache_source = "paged_conv_cache_source";
+
+static void mark_for_paged_extensions_cleanup(const std::shared_ptr<ov::Node>& node) {
+    node->get_rt_info()[marked_for_paged_extensions_cleanup] = true;
+}
+
+static void mark_for_paged_conv_cache_source(const std::shared_ptr<ov::Node>& node) {
+    node->get_rt_info()[paged_conv_cache_source] = true;
+}
+
+static bool is_marked_for_paged_extensions_cleanup(const std::shared_ptr<const ov::Node>& node) {
+    const auto& rt_info = node->get_rt_info();
+    return rt_info.count(marked_for_paged_extensions_cleanup) &&
+           rt_info.at(marked_for_paged_extensions_cleanup).as<bool>();
 }
 
 static PARepresentationContext prepare_sdpa_to_pa_representation(const std::shared_ptr<ov::Model>& model,
@@ -318,21 +337,35 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
                                                   adaptive_rkv_diversity_results,
                                                   context.optional_model_wide_params,
+                                                  model,
                                                   var_ids_to_remove);
     manager.run_passes(model);
 
     {
-        // Remove all Assigns aggressively, the path from the kv-cache concat to Assign can be complicated,
-        // but there is no reason to track it and reject part of the Assigns, because the model will remain
-        // in incorrect form anyway.
+        // Fallback marking path: ensures all Assigns linked by variable_id from matched
+        // ReadValue nodes are marked even if some were not seen in immediate per-match marking.
         auto sinks = model->get_sinks();
-
-        for (auto& sink : sinks) {
-            if (auto assign = ov::as_type_ptr<ov::op::util::AssignBase>(sink)) {
+        for (const auto& sink : sinks) {
+            if (const auto assign = ov::as_type_ptr<ov::op::util::AssignBase>(sink)) {
                 if (var_ids_to_remove.count(assign->get_variable_id())) {
-                    model->remove_sink(sink);
+                    mark_for_paged_extensions_cleanup(sink);
                 }
             }
+        }
+
+        // Mark conv-cache ReadValue nodes that were detected by StateManagementPattern.
+        for (const auto& node : model->get_ordered_ops()) {
+            const auto rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(node);
+            if (!rv) {
+                continue;
+            }
+            if (!var_ids_to_remove.count(rv->get_variable_id())) {
+                continue;
+            }
+            if (rv->get_variable_id().find(".past.conv.") == std::string::npos) {
+                continue;
+            }
+            mark_for_paged_conv_cache_source(rv);
         }
     }
 
@@ -405,7 +438,6 @@ bool ov::pass::PagedExtensionsPostCleanup::run_on_model(const std::shared_ptr<ov
     RUN_ON_MODEL_SCOPE(PagedExtensionsPostCleanup);
 
     static constexpr const char* conv_state_table_prefix = "conv_state_table.";
-    static constexpr const char* cache_params_past_conv_prefix = "cache_params.past.conv.";
     static constexpr const char* cache_params_present_conv_prefix = "cache_params.present.conv.";
 
     std::set<size_t> fused_layer_indices;
@@ -433,31 +465,6 @@ bool ov::pass::PagedExtensionsPostCleanup::run_on_model(const std::shared_ptr<ov
     bool changed = false;
 
     if (!fused_layer_indices.empty()) {
-        const auto is_fused_conv_variable = [&fused_layer_indices](const std::string& variable_id) {
-            for (const auto layer_index : fused_layer_indices) {
-                const std::string layer_marker =
-                    std::string(cache_params_past_conv_prefix) + std::to_string(layer_index);
-                if (variable_id.find(layer_marker) != std::string::npos) {
-                    return true;
-                }
-            }
-            return false;
-        };
-
-        ov::SinkVector sinks_to_remove;
-        for (const auto& sink : model->get_sinks()) {
-            const auto assign_v6 = ov::as_type_ptr<ov::op::v6::Assign>(sink);
-            const auto assign_v3 = ov::as_type_ptr<ov::op::v3::Assign>(sink);
-            if ((assign_v6 && is_fused_conv_variable(assign_v6->get_variable_id())) ||
-                (assign_v3 && is_fused_conv_variable(assign_v3->get_variable_id()))) {
-                sinks_to_remove.push_back(sink);
-            }
-        }
-        for (const auto& sink : sinks_to_remove) {
-            model->remove_sink(sink);
-            changed = true;
-        }
-
         ov::ResultVector results_to_remove;
         for (const auto& result : model->get_results()) {
             bool remove_result = false;
@@ -484,9 +491,46 @@ bool ov::pass::PagedExtensionsPostCleanup::run_on_model(const std::shared_ptr<ov
         }
     }
 
+    // Common cleanup for Assign sinks marked by paged transformations.
+    ov::SinkVector sinks_to_remove;
+    for (const auto& sink : model->get_sinks()) {
+        const auto assign_v6 = ov::as_type_ptr<ov::op::v6::Assign>(sink);
+        const auto assign_v3 = ov::as_type_ptr<ov::op::v3::Assign>(sink);
+        if ((assign_v6 || assign_v3) && is_marked_for_paged_extensions_cleanup(sink)) {
+            sinks_to_remove.push_back(sink);
+        }
+    }
+    for (const auto& sink : sinks_to_remove) {
+        model->remove_sink(sink);
+        changed = true;
+    }
+
+    // Remove parameters that are not reachable from model outputs/sinks.
+    // This handles dead branches left after paged rewrites where a parameter may still
+    // have direct consumers, but the whole subgraph is disconnected from observable outputs.
+    std::set<std::shared_ptr<ov::Node>> live_nodes;
+    std::vector<std::shared_ptr<ov::Node>> dfs_stack;
+    for (const auto& result : model->get_results()) {
+        dfs_stack.push_back(result);
+    }
+    for (const auto& sink : model->get_sinks()) {
+        dfs_stack.push_back(sink);
+    }
+
+    while (!dfs_stack.empty()) {
+        const auto node = dfs_stack.back();
+        dfs_stack.pop_back();
+        if (!live_nodes.insert(node).second) {
+            continue;
+        }
+        for (const auto& input : node->input_values()) {
+            dfs_stack.push_back(input.get_node_shared_ptr());
+        }
+    }
+
     ov::ParameterVector params_to_remove;
     for (const auto& parameter : model->get_parameters()) {
-        if (!parameter->output(0).get_target_inputs().empty()) {
+        if (live_nodes.count(parameter) > 0) {
             continue;
         }
         params_to_remove.push_back(parameter);

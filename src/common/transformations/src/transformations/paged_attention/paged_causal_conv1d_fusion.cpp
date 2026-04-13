@@ -5,8 +5,6 @@
 #include "transformations/paged_attention/paged_causal_conv1d_fusion.hpp"
 
 #include <algorithm>
-#include <cctype>
-#include <cstring>
 #include <limits>
 #include <map>
 #include <memory>
@@ -19,6 +17,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/assign.hpp"
+#include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/group_conv.hpp"
@@ -44,8 +43,97 @@ namespace v8 = ov::op::v8;
 
 namespace {
 
-constexpr const char* CACHE_PARAMS_PAST_CONV_PREFIX = "cache_params.past.conv.";
 constexpr const char* CONV_STATE_TABLE_PREFIX = "conv_state_table.";
+constexpr const char* MARKED_FOR_PAGED_EXTENSIONS_CLEANUP = "marked_for_paged_extensions_cleanup";
+constexpr const char* PAGED_CONV_CACHE_SOURCE = "paged_conv_cache_source";
+
+struct GroupConvFusionResources {
+    std::shared_ptr<v0::Parameter> conv_state_table;
+    std::string cache_variable_marker;
+};
+
+bool is_real_model_conv_group_conv(const std::shared_ptr<v1::GroupConvolution>& group_conv) {
+    const auto& name = group_conv->get_friendly_name();
+    return name.find(".conv.conv/aten::_convolution/GroupConvolution") != std::string::npos ||
+           name.find(".conv/aten::_convolution/GroupConvolution") != std::string::npos;
+}
+
+bool is_probable_conv_cache_readvalue(const std::shared_ptr<ov::op::util::ReadValueBase>& rv) {
+    const auto& pshape = rv->get_output_partial_shape(0);
+    if (!(pshape.rank().is_static() && pshape.rank().get_length() == 3)) {
+        return false;
+    }
+    const auto& rt_info = rv->get_rt_info();
+    if (rt_info.count(PAGED_CONV_CACHE_SOURCE) && rt_info.at(PAGED_CONV_CACHE_SOURCE).as<bool>()) {
+        return true;
+    }
+    return rv->get_variable_id().find(".past.conv.") != std::string::npos;
+}
+
+void mark_for_paged_extensions_cleanup(const std::shared_ptr<ov::Node>& node) {
+    node->get_rt_info()[MARKED_FOR_PAGED_EXTENSIONS_CLEANUP] = true;
+}
+
+void mark_assign_sinks_for_cache_marker(const std::shared_ptr<ov::Model>& model,
+                                        const std::string& cache_variable_marker) {
+    if (cache_variable_marker.empty()) {
+        return;
+    }
+    for (const auto& sink : model->get_sinks()) {
+        if (const auto assign = ov::as_type_ptr<ov::op::util::AssignBase>(sink)) {
+            if (assign->get_variable_id().find(cache_variable_marker) != std::string::npos) {
+                mark_for_paged_extensions_cleanup(sink);
+            }
+        }
+    }
+}
+
+std::shared_ptr<ov::Node> find_upstream_cache_param(const ov::Output<ov::Node>& output) {
+    std::set<std::shared_ptr<ov::Node>> visited;
+    std::vector<std::shared_ptr<ov::Node>> to_visit = {output.get_node_shared_ptr()};
+
+    while (!to_visit.empty()) {
+        const auto node = to_visit.back();
+        to_visit.pop_back();
+        if (!visited.insert(node).second) {
+            continue;
+        }
+
+        if (const auto rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(node)) {
+            if (is_probable_conv_cache_readvalue(rv)) {
+                return node;
+            }
+        } else if (ov::as_type_ptr<v0::Parameter>(node)) {
+            const auto& pshape = node->get_output_partial_shape(0);
+            if (pshape.rank().is_static() && pshape.rank().get_length() == 3 &&
+                !node->output(0).get_names().empty()) {
+                return node;
+            }
+        }
+
+        // Real models may place cache-state branch on either Concat input, so visit
+        // all Concat inputs. For other ops, keep input0 traversal to avoid following
+        // auxiliary index paths (e.g. Gather input1).
+        if (ov::as_type_ptr<v0::Concat>(node)) {
+            for (size_t input_index = 0; input_index < node->get_input_size(); ++input_index) {
+                to_visit.push_back(node->get_input_node_shared_ptr(input_index));
+            }
+        } else if (node->get_input_size() > 0) {
+            to_visit.push_back(node->get_input_node_shared_ptr(0));
+        }
+    }
+
+    return nullptr;
+}
+
+std::optional<std::string> extract_cache_variable_marker(const std::shared_ptr<ov::Node>& node) {
+    for (size_t output_index = 0; output_index < node->get_output_size(); ++output_index) {
+        for (const auto& name : node->output(output_index).get_names()) {
+            return name;
+        }
+    }
+    return std::nullopt;
+}
 
 struct SharedRuntimeInputs {
     std::shared_ptr<v0::Parameter> subsequence_begins;
@@ -114,83 +202,6 @@ ParameterCreationResult create_or_get_named_parameter(const std::shared_ptr<ov::
     return {parameter, true};
 }
 
-std::optional<size_t> parse_layer_index_from_name(const std::string& name, const std::string& prefix) {
-    if (name.rfind(prefix, 0) != 0) {
-        return std::nullopt;
-    }
-    const std::string suffix = name.substr(prefix.size());
-    if (suffix.empty() || !std::all_of(suffix.begin(), suffix.end(), [](const char value) {
-            return std::isdigit(value) != 0;
-        })) {
-        return std::nullopt;
-    }
-    return static_cast<size_t>(std::stoull(suffix));
-}
-
-std::optional<size_t> extract_conv_layer_index(const ov::Output<ov::Node>& output) {
-    for (const auto& name : output.get_names()) {
-        if (const auto layer_index = parse_layer_index_from_name(name, CACHE_PARAMS_PAST_CONV_PREFIX)) {
-            return layer_index;
-        }
-    }
-    return parse_layer_index_from_name(output.get_node()->get_friendly_name(), CACHE_PARAMS_PAST_CONV_PREFIX);
-}
-
-std::optional<size_t> extract_conv_layer_index_upstream(const ov::Output<ov::Node>& output) {
-    if (const auto direct = extract_conv_layer_index(output)) {
-        return direct;
-    }
-
-    std::set<std::shared_ptr<ov::Node>> visited;
-    std::vector<std::shared_ptr<ov::Node>> to_visit;
-    to_visit.push_back(output.get_node_shared_ptr());
-
-    while (!to_visit.empty()) {
-        const auto node = to_visit.back();
-        to_visit.pop_back();
-        if (!visited.insert(node).second) {
-            continue;
-        }
-
-        for (size_t output_index = 0; output_index < node->get_output_size(); ++output_index) {
-            if (const auto layer_index = extract_conv_layer_index(node->output(output_index))) {
-                return layer_index;
-            }
-        }
-
-        // Follow only data-flow input 0 to avoid any dependency on auxiliary index tensors
-        // (e.g. beam_idx on Gather input 1).
-        if (node->get_input_size() > 0) {
-            to_visit.push_back(node->get_input_node_shared_ptr(0));
-        }
-    }
-
-    return std::nullopt;
-}
-
-std::optional<size_t> extract_conv_layer_index_from_conv_name(const std::string& name) {
-    static constexpr const char* layer_marker = "layers.";
-    const auto marker_pos = name.find(layer_marker);
-    if (marker_pos == std::string::npos) {
-        return std::nullopt;
-    }
-
-    const size_t index_begin = marker_pos + std::strlen(layer_marker);
-    size_t index_end = index_begin;
-    while (index_end < name.size() && std::isdigit(name[index_end])) {
-        ++index_end;
-    }
-    if (index_end == index_begin) {
-        return std::nullopt;
-    }
-
-    if (name.find(".conv", index_end) == std::string::npos) {
-        return std::nullopt;
-    }
-
-    return static_cast<size_t>(std::stoull(name.substr(index_begin, index_end - index_begin)));
-}
-
 std::string make_conv_state_table_name(const size_t layer_index) {
     return std::string(CONV_STATE_TABLE_PREFIX) + std::to_string(layer_index);
 }
@@ -204,14 +215,19 @@ ov::PartialShape make_conv_state_table_shape(const ov::PartialShape& past_state_
 
 class PagedCausalConv1DFusionMatcher : public ov::pass::MatcherPass {
 public:
-    PagedCausalConv1DFusionMatcher(const SharedRuntimeInputs& shared_inputs,
-                                   const std::map<size_t, std::shared_ptr<v0::Parameter>>& conv_state_tables) {
+    PagedCausalConv1DFusionMatcher(
+        const SharedRuntimeInputs& shared_inputs,
+        const std::vector<std::shared_ptr<ov::Node>>& ordered_cache_nodes,
+                const std::shared_ptr<ov::Model>& model)
+                : m_shared_inputs(shared_inputs),
+                    m_ordered_cache_nodes(ordered_cache_nodes),
+                    m_model(model) {
         MATCHER_SCOPE(PagedCausalConv1DFusion);
 
         auto conv_input = any_input();
 
-        auto weight_const = wrap_type<v0::Constant>();
-        auto group_conv = wrap_type<v1::GroupConvolution>({conv_input, weight_const});
+        auto weight_input = any_input();
+        auto group_conv = wrap_type<v1::GroupConvolution>({conv_input, weight_input});
 
         auto slice2 = wrap_type<v8::Slice>({group_conv, any_input(), any_input(), any_input(), any_input()});
 
@@ -225,7 +241,7 @@ public:
             const auto conv_input_output = pm.at(conv_input);
             const auto conv_input_node = conv_input_output.get_node_shared_ptr();
             const auto group_conv_node = ov::as_type_ptr<v1::GroupConvolution>(pm.at(group_conv).get_node_shared_ptr());
-            const auto weight_node = ov::as_type_ptr<v0::Constant>(pm.at(weight_const).get_node_shared_ptr());
+            const auto weight_node = pm.at(weight_input).get_node_shared_ptr();
 
             if (!group_conv_node || !weight_node) {
                 return false;
@@ -235,18 +251,37 @@ public:
                 return false;
             }
 
-            auto layer_index = extract_conv_layer_index_upstream(conv_input_output);
-            if (!layer_index) {
-                layer_index = extract_conv_layer_index_from_conv_name(group_conv_node->get_friendly_name());
-            }
-            if (!layer_index) {
-                return false;
-            }
+            auto fusion_resources_it = m_group_conv_fusion_resources.find(group_conv_node.get());
+            if (fusion_resources_it == m_group_conv_fusion_resources.end()) {
+                auto cache_param = find_upstream_cache_param(group_conv_node->input_value(0));
+                if (!cache_param && is_real_model_conv_group_conv(group_conv_node)) {
+                    while (m_fallback_cache_index < m_ordered_cache_nodes.size() &&
+                           m_cache_to_state_table.count(m_ordered_cache_nodes[m_fallback_cache_index])) {
+                        ++m_fallback_cache_index;
+                    }
+                    if (m_fallback_cache_index < m_ordered_cache_nodes.size()) {
+                        cache_param = m_ordered_cache_nodes[m_fallback_cache_index];
+                    }
+                }
+                if (!cache_param) {
+                    return false;
+                }
 
-            const auto conv_state_table_it = conv_state_tables.find(*layer_index);
-            if (conv_state_table_it == conv_state_tables.end()) {
-                return false;
+                if (!m_cache_to_state_table.count(cache_param)) {
+                    const auto conv_state_table = create_or_get_named_parameter(
+                        m_model,
+                        make_conv_state_table_name(m_cache_to_state_table.size()),
+                        cache_param->get_output_element_type(0),
+                        make_conv_state_table_shape(cache_param->get_output_partial_shape(0)));
+                    m_cache_to_state_table[cache_param] = conv_state_table.parameter;
+                }
+
+                m_group_conv_fusion_resources[group_conv_node.get()] = {m_cache_to_state_table.at(cache_param),
+                                                                         extract_cache_variable_marker(cache_param)
+                                                                             .value_or("")};
+                fusion_resources_it = m_group_conv_fusion_resources.find(group_conv_node.get());
             }
+            const auto& fusion_resources = fusion_resources_it->second;
 
             const auto& weight_pshape = weight_node->get_output_partial_shape(0);
             if (weight_pshape.rank().is_dynamic() || weight_pshape.rank().get_length() != 4 ||
@@ -267,14 +302,14 @@ public:
                 if (concat->get_input_size() == 2 && is_concat_axis_minus_one(concat->output(0))) {
                     const auto input0 = concat->input_value(0);
                     const auto input1 = concat->input_value(1);
-                    const auto input0_layer_index = extract_conv_layer_index_upstream(input0);
-                    const auto input1_layer_index = extract_conv_layer_index_upstream(input1);
+                    const auto input0_cache = find_upstream_cache_param(input0);
+                    const auto input1_cache = find_upstream_cache_param(input1);
 
-                    if (input0_layer_index && !input1_layer_index) {
+                    if (input0_cache && !input1_cache) {
                         past_state_output = input0;
                         token_node = input1;
                         state_concat_node = concat;
-                    } else if (!input0_layer_index && input1_layer_index) {
+                    } else if (!input0_cache && input1_cache) {
                         past_state_output = input1;
                         token_node = input0;
                         state_concat_node = concat;
@@ -282,8 +317,9 @@ public:
                 }
             }
 
-            const auto& state_pshape = past_state_output.get_node() ? past_state_output.get_partial_shape()
-                                                                    : conv_state_table_it->second->get_partial_shape();
+            const auto& state_pshape = past_state_output.get_node()
+                                           ? past_state_output.get_partial_shape()
+                                           : fusion_resources.conv_state_table->get_partial_shape();
             if (state_pshape.rank().is_dynamic() || state_pshape.rank().get_length() != 3) {
                 return false;
             }
@@ -338,7 +374,12 @@ public:
                     state_slice = candidate;
                     break;
                 }
-                if (!state_slice) {
+
+                // Keep strict requirement for non-stateful cache sources (Parameter-based paths),
+                // but allow stateful ReadValue-based real-model paths without legacy state slice.
+                auto cache_source = find_upstream_cache_param(state_concat_node->output(0));
+                const bool stateful_cache = ov::as_type_ptr<ov::op::util::ReadValueBase>(cache_source) != nullptr;
+                if (!state_slice && !stateful_cache) {
                     return false;
                 }
             }
@@ -355,14 +396,14 @@ public:
 
             const auto paged_conv =
                 std::make_shared<ov::op::internal::PagedCausalConv1D>(input_embeds_node,
-                                                                      conv_state_table_it->second,
+                                                                      fusion_resources.conv_state_table,
                                                                       weight_reshape,
                                                                       bias_node,
-                                                                      shared_inputs.subsequence_begins,
-                                                                      shared_inputs.block_indices,
-                                                                      shared_inputs.block_indices_begins,
-                                                                      shared_inputs.past_lens,
-                                                                      shared_inputs.cache_interval);
+                                                                      m_shared_inputs.subsequence_begins,
+                                                                      m_shared_inputs.block_indices,
+                                                                      m_shared_inputs.block_indices_begins,
+                                                                      m_shared_inputs.past_lens,
+                                                                      m_shared_inputs.cache_interval);
 
             paged_conv->set_friendly_name(group_conv_node->get_friendly_name() + "/PagedCausalConv1D");
 
@@ -391,12 +432,21 @@ public:
             }
             ov::copy_runtime_info(m.get_matched_nodes(), new_nodes);
             ov::replace_node(group_conv_node, unsqueeze);
+            mark_assign_sinks_for_cache_marker(m_model, fusion_resources.cache_variable_marker);
             return true;
         };
 
         const auto matcher = std::make_shared<ov::pass::pattern::Matcher>(slice2, matcher_name);
         register_matcher(matcher, callback);
     }
+
+private:
+    SharedRuntimeInputs m_shared_inputs;
+    std::vector<std::shared_ptr<ov::Node>> m_ordered_cache_nodes;
+    std::shared_ptr<ov::Model> m_model;
+    std::map<std::shared_ptr<ov::Node>, std::shared_ptr<v0::Parameter>> m_cache_to_state_table;
+    std::map<const ov::Node*, GroupConvFusionResources> m_group_conv_fusion_resources;
+    size_t m_fallback_cache_index = 0;
 };
 
 }  // namespace
@@ -420,27 +470,30 @@ bool PagedCausalConv1DFusion::run_on_model(const std::shared_ptr<ov::Model>& mod
         create_or_get_named_parameter(model, "paged_conv_cache_interval", ov::element::i32, ov::PartialShape{-1})
             .parameter};
 
-    std::map<size_t, std::shared_ptr<v0::Parameter>> conv_state_tables;
+    std::vector<std::shared_ptr<ov::Node>> ordered_cache_nodes;
     for (const auto& node : model->get_ordered_ops()) {
-        for (size_t output_index = 0; output_index < node->get_output_size(); ++output_index) {
-            const auto output = node->output(output_index);
-            const auto layer_index = extract_conv_layer_index(output);
-            if (!layer_index || conv_state_tables.count(*layer_index)) {
-                continue;
+        if (const auto rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(node)) {
+            if (is_probable_conv_cache_readvalue(rv)) {
+                ordered_cache_nodes.push_back(rv);
             }
-
-            const auto conv_state_table =
-                create_or_get_named_parameter(model,
-                                              make_conv_state_table_name(*layer_index),
-                                              output.get_element_type(),
-                                              make_conv_state_table_shape(output.get_partial_shape()));
-            conv_state_tables[*layer_index] = conv_state_table.parameter;
+            continue;
+        }
+        const auto param = ov::as_type_ptr<v0::Parameter>(node);
+        if (!param) {
+            continue;
+        }
+        const auto& pshape = param->get_output_partial_shape(0);
+        if (!(pshape.rank().is_static() && pshape.rank().get_length() == 3)) {
+            continue;
+        }
+        if (!param->output(0).get_names().empty() && param->output(0).get_target_inputs().empty()) {
+            ordered_cache_nodes.push_back(param);
         }
     }
 
     ov::pass::Manager manager(get_pass_config(), "PagedCausalConv1DFusion");
     manager.set_per_pass_validation(false);
-    manager.register_pass<PagedCausalConv1DFusionMatcher>(shared_inputs, conv_state_tables);
+    manager.register_pass<PagedCausalConv1DFusionMatcher>(shared_inputs, ordered_cache_nodes, model);
     const bool rewritten = manager.run_passes(model);
 
     return rewritten;

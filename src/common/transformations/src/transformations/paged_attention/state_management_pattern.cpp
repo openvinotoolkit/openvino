@@ -8,8 +8,10 @@
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/assign.hpp"
 #include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -57,8 +59,28 @@ constexpr const char* NUM_K_HEADS = "num_k_heads";
 constexpr const char* K_HEAD_SIZE = "k_head_size";
 constexpr const char* NUM_V_HEADS = "num_v_heads";
 constexpr const char* V_HEAD_SIZE = "v_head_size";
+constexpr const char* MARKED_FOR_PAGED_EXTENSIONS_CLEANUP = "marked_for_paged_extensions_cleanup";
+constexpr const char* PAGED_CONV_CACHE_SOURCE = "paged_conv_cache_source";
 using namespace ov::pass;
 using ov::OutputVector;
+
+static void mark_for_paged_extensions_cleanup(const std::shared_ptr<ov::Node>& node) {
+    node->get_rt_info()[MARKED_FOR_PAGED_EXTENSIONS_CLEANUP] = true;
+}
+
+static void mark_assign_sinks_for_variable_id(const std::shared_ptr<ov::Model>& model, const std::string& variable_id) {
+    for (const auto& sink : model->get_sinks()) {
+        if (const auto assign = ov::as_type_ptr<ov::op::util::AssignBase>(sink)) {
+            if (assign->get_variable_id() == variable_id) {
+                mark_for_paged_extensions_cleanup(sink);
+            }
+        }
+    }
+}
+
+static void mark_for_paged_conv_cache_source(const std::shared_ptr<ov::Node>& node) {
+    node->get_rt_info()[PAGED_CONV_CACHE_SOURCE] = true;
+}
 
 static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> general_alibi_pattern() {
     // Optional pattern to capture alibi slopes (based on pattern from bloom)
@@ -322,6 +344,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     ParameterVector& adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
     ResultVector& adaptive_rkv_diversity_results,
     const std::map<std::string, std::shared_ptr<op::v0::Parameter>>& optional_model_wide_params,
+    const std::shared_ptr<ov::Model>& model,
     std::unordered_set<std::string>& var_ids_to_remove) {
     MATCHER_SCOPE(StateManagementPattern);
 
@@ -596,6 +619,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                 if (auto rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(
                         pattern_map.at(read_value).get_node_shared_ptr())) {
                     var_ids_to_remove.insert(rv->get_variable_id());
+                    mark_assign_sinks_for_variable_id(model, rv->get_variable_id());
+                    if (rv->get_variable_id().find(".past.conv.") != std::string::npos) {
+                        mark_for_paged_conv_cache_source(rv);
+                    }
                 }
             }
         }
