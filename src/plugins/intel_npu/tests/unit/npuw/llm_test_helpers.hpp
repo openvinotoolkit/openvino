@@ -68,7 +68,7 @@ inline std::shared_ptr<ov::Model> build_llm_test_model_with_kv_fake_convert(cons
 
 inline std::shared_ptr<ov::Model> build_whisper_decoder_test_model() {
     ModelBuilder mb;
-    return mb.build_whisper_decoder(make_test_model_config<WhisperDecoderConfig>());
+    return mb.build_whisper_decoder(make_test_model_config<WhisperConfig>());
 }
 
 inline std::shared_ptr<ov::Model> build_embedding_test_model() {

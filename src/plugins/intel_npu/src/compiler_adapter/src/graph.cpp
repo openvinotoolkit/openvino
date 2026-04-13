@@ -339,6 +339,12 @@ const std::optional<std::size_t> Graph::get_batch_size() const {
     return _batchSize;
 }
 
+void Graph::evict_memory() {
+    if (_zeGraphExt != nullptr) {
+        _zeGraphExt->evict_memory(_graphDesc);
+    }
+}
+
 Graph::~Graph() {
     // make sure all the context-dependent components are destroyed before the zero context is destroyed
     if (_zeGraphExt != nullptr) {

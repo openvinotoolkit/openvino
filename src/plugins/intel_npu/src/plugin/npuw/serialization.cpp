@@ -164,6 +164,10 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::compiled::HostF
 
     // Serialize tile_size
     write(stream, var._tile_size);
+
+    // Serialize can_use_tensor_view
+    write(stream, var._can_use_tensor_view);
+
     // Note: _tile_model_to_compile and _compiled_tile_model are not serialized here
     // They are handled separately in CompiledModelDesc::serialize()
 }
@@ -389,6 +393,10 @@ void ov::npuw::s11n::read(std::istream& stream, ov::npuw::compiled::HostFlashAtt
 
     // Deserialize tile_size
     read(stream, var._tile_size);
+
+    // Deserialize can_use_tensor_view
+    read(stream, var._can_use_tensor_view);
+
     // Note: _tile_model_to_compile and _compiled_tile_model are not deserialized here
     // They are handled separately in CompiledModelDesc::deserialize()
 }

@@ -71,47 +71,46 @@ static HFATileInputs create_hfa_tile_inputs(const ov::Shape& q_shape,
 
     HFATileInputs inputs;
 
+    auto set_param_name = [](std::shared_ptr<ov::op::v0::Parameter>& param, HFATileInputId id) {
+        const char* name = hfa_tile_input_id_to_string(id);
+        param->set_friendly_name(name);
+        param->output(0).get_tensor().set_names({name});
+    };
+
     // past_acc: [batch, num_heads, seq_len, head_dim]
     inputs.past_acc =
         std::make_shared<ov::op::v0::Parameter>(input_dtype, ov::Shape{batch, num_heads, seq_len, head_dim});
-    inputs.past_acc->set_friendly_name("past_acc");
-    inputs.past_acc->output(0).get_tensor().set_names({"past_acc"});
+    set_param_name(inputs.past_acc, HFATileInputId::PAST_ACC);
 
     // past_max: [batch, num_heads, seq_len, 1]
     inputs.past_max = std::make_shared<ov::op::v0::Parameter>(input_dtype, ov::Shape{batch, num_heads, seq_len, 1});
-    inputs.past_max->set_friendly_name("past_max");
-    inputs.past_max->output(0).get_tensor().set_names({"past_max"});
+    set_param_name(inputs.past_max, HFATileInputId::PAST_MAX);
 
     // past_d: [batch, num_heads, seq_len, 1]
     inputs.past_d = std::make_shared<ov::op::v0::Parameter>(input_dtype, ov::Shape{batch, num_heads, seq_len, 1});
-    inputs.past_d->set_friendly_name("past_d");
-    inputs.past_d->output(0).get_tensor().set_names({"past_d"});
+    set_param_name(inputs.past_d, HFATileInputId::PAST_D);
 
     // k_tile: [batch, kv_num_heads, tile_size, head_dim]
     inputs.k_tile = std::make_shared<ov::op::v0::Parameter>(
         input_dtype,
         ov::Shape{batch, kv_num_heads, static_cast<size_t>(tile_size), head_dim});
-    inputs.k_tile->set_friendly_name("k_tile");
-    inputs.k_tile->output(0).get_tensor().set_names({"k_tile"});
+    set_param_name(inputs.k_tile, HFATileInputId::K_TILE);
 
     // v_tile: [batch, kv_num_heads, head_dim, tile_size]
     inputs.v_tile = std::make_shared<ov::op::v0::Parameter>(
         input_dtype,
         ov::Shape{batch, kv_num_heads, head_dim, static_cast<size_t>(tile_size)});
-    inputs.v_tile->set_friendly_name("v_tile");
-    inputs.v_tile->output(0).get_tensor().set_names({"v_tile"});
+    set_param_name(inputs.v_tile, HFATileInputId::V_TILE);
 
     // q: [batch, num_heads, seq_len, head_dim]
     inputs.q = std::make_shared<ov::op::v0::Parameter>(input_dtype, ov::Shape{batch, num_heads, seq_len, head_dim});
-    inputs.q->set_friendly_name("q");
-    inputs.q->output(0).get_tensor().set_names({"q"});
+    set_param_name(inputs.q, HFATileInputId::Q);
 
     // mask_tile: [batch, 1, seq_len, tile_size] - use mask's original dtype
     inputs.mask_tile =
         std::make_shared<ov::op::v0::Parameter>(mask_dtype,
                                                 ov::Shape{batch, 1, seq_len, static_cast<size_t>(tile_size)});
-    inputs.mask_tile->set_friendly_name("mask_tile");
-    inputs.mask_tile->output(0).get_tensor().set_names({"mask_tile"});
+    set_param_name(inputs.mask_tile, HFATileInputId::MASK_TILE);
 
     return inputs;
 }
@@ -785,19 +784,19 @@ static void build_tile_param_mapping(HostFlashAttention& hfa, const std::shared_
         const std::string& name = *tensor_names.begin();
 
         // Map tensor name to enum ID
-        if (name == "past_acc") {
+        if (name == hfa_tile_input_id_to_string(HFATileInputId::PAST_ACC)) {
             hfa._tile_param_index_map[HFATileInputId::PAST_ACC] = i;
-        } else if (name == "past_max") {
+        } else if (name == hfa_tile_input_id_to_string(HFATileInputId::PAST_MAX)) {
             hfa._tile_param_index_map[HFATileInputId::PAST_MAX] = i;
-        } else if (name == "past_d") {
+        } else if (name == hfa_tile_input_id_to_string(HFATileInputId::PAST_D)) {
             hfa._tile_param_index_map[HFATileInputId::PAST_D] = i;
-        } else if (name == "k_tile") {
+        } else if (name == hfa_tile_input_id_to_string(HFATileInputId::K_TILE)) {
             hfa._tile_param_index_map[HFATileInputId::K_TILE] = i;
-        } else if (name == "v_tile") {
+        } else if (name == hfa_tile_input_id_to_string(HFATileInputId::V_TILE)) {
             hfa._tile_param_index_map[HFATileInputId::V_TILE] = i;
-        } else if (name == "q") {
+        } else if (name == hfa_tile_input_id_to_string(HFATileInputId::Q)) {
             hfa._tile_param_index_map[HFATileInputId::Q] = i;
-        } else if (name == "mask_tile") {
+        } else if (name == hfa_tile_input_id_to_string(HFATileInputId::MASK_TILE)) {
             hfa._tile_param_index_map[HFATileInputId::MASK_TILE] = i;
         } else {
             LOG_WARN("Unknown tile model input name: " << name);
