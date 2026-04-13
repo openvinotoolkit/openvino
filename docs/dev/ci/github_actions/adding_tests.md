@@ -70,7 +70,7 @@ NVIDIA_Plugin:
   defaults:
     run:
       shell: bash
-  runs-on: aks-linux-16-cores-32gb
+  runs-on: aks-linux-16-cores-32gb-st
   container:
     image: openvinogithubactions.azurecr.io/dockerhub/nvidia/cuda:11.8.0-runtime-ubuntu20.04
     volumes:
