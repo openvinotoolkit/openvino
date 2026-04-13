@@ -205,8 +205,14 @@ void PagedGatedDeltaNetLayerTest::SetUp() {
 
     int32_t num_blocks = 0;
     for (size_t i = 0; i < seq_lengths.size(); i++) {
-        OPENVINO_ASSERT(cache_intervals[i] > 0);
-        num_blocks += 1 + (seq_lengths[i] + cache_intervals[i] - 1) / cache_intervals[i];
+        OPENVINO_ASSERT(cache_intervals[i] >= 0);
+        if (cache_intervals[i] == 0) {
+            // interval == 0: use exactly 2 blocks per sequence
+            // block 0 for read, block 1 for final write.
+            num_blocks += 2;
+        } else {
+            num_blocks += 1 + (seq_lengths[i] + cache_intervals[i] - 1) / cache_intervals[i];
+        }
     }
 
     const ov::Shape q_shape{static_cast<size_t>(tokens), static_cast<size_t>(qk_heads), static_cast<size_t>(qk_head_size)};
@@ -305,12 +311,14 @@ void PagedGatedDeltaNetLayerTest::generate_inputs(const std::vector<ov::Shape>& 
     for (int32_t seq = 0; seq < num_sequences; seq++) {
         const int32_t seq_len = seq_lengths[seq];
         const int32_t seq_interval = cache_intervals[seq];
+        OPENVINO_ASSERT(seq_interval >= 0);
 
         subsequence_begins.push_back(subsequence_begins.back() + seq_len);
         past_lens.push_back(1 + (seq % 3));
         cache_interval.push_back(seq_interval);
 
-        const int32_t required_slots = 1 + (seq_len + seq_interval - 1) / seq_interval;
+        const int32_t required_slots =
+            (seq_interval == 0) ? 2 : (1 + (seq_len + seq_interval - 1) / seq_interval);
         for (int32_t i = 0; i < required_slots; i++) {
             block_indices.push_back(total_blocks + i);
         }

@@ -244,7 +244,7 @@ void recurrent_linear_attn_paged(const ov::intel_cpu::PlainTensor& query,
             const bool should_store = interval_hit || is_last_token;
             if (should_store) {
                 const int32_t slot =
-                    (seq_interval > 0) ? ((processed_tokens + seq_interval - 1) / seq_interval) : (seq_blocks - 1);
+                    (seq_interval > 0) ? ((processed_tokens + seq_interval - 1) / seq_interval) : 1;
                 const int32_t block_id = block_indices.at<int32_t>({static_cast<size_t>(block_begin + slot)});
                 for (size_t j = 0; j < k_head_dims; j++) {
                     recurrent_state_table.at<float>({static_cast<size_t>(block_id), i_h, i_v, j}) = init_state[j];
