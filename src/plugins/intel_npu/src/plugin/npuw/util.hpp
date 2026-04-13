@@ -243,9 +243,14 @@ private:
     mutable bool done = false;
 };
 
-bool isPastKeyValuesKey(const std::string& str);
-
-bool isPastKeyValuesValue(const std::string& str);
+// Matches any past key param: contiguous (past_key_values.N.key) or block-split (key_block_M).
+bool isPastKeyParam(const std::string& str);
+// Matches any past value param: contiguous or block-split.
+bool isPastValueParam(const std::string& str);
+// Matches only the contiguous (non-block-split) past key param.
+bool isPastKeyParamContiguous(const std::string& str);
+// Matches only the contiguous (non-block-split) past value param.
+bool isPastValueParamContiguous(const std::string& str);
 
 }  // namespace util
 }  // namespace npuw

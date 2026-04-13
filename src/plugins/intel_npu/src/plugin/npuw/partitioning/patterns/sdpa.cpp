@@ -106,16 +106,16 @@ SDPA::SDPA(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const st
 
 SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
                                const std::string& isol_tag) {
-    auto convert1 = opp::wrap_type<ov::op::v0::Convert>({opp::any_input()});
-    auto concat1 = opp::wrap_type<ov::op::v0::Concat>({convert1, opp::any_input()});
+    // Match Concat with any number of inputs (including multi-input from KV cache block split)
+    // Don't constrain the number of inputs - just match any Concat node
+    auto concat1 = opp::wrap_type<ov::op::v0::Concat>();
 
     // GQA optional nodes
     auto unsqueeze1 = opp::optional<ov::op::v0::Unsqueeze>({concat1, opp::any_input()});
     auto broadcast1 = opp::optional<ov::op::v3::Broadcast>({unsqueeze1, opp::any_input()});
     auto reshape1 = opp::optional<ov::op::v1::Reshape>({broadcast1, opp::any_input()});
 
-    auto convert2 = opp::wrap_type<ov::op::v0::Convert>({opp::any_input()});
-    auto concat2 = opp::wrap_type<ov::op::v0::Concat>({convert2, opp::any_input()});
+    auto concat2 = opp::wrap_type<ov::op::v0::Concat>();
 
     // GQA optional nodes
     auto unsqueeze2 = opp::optional<ov::op::v0::Unsqueeze>({concat2, opp::any_input()});
@@ -147,15 +147,34 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
             }
         };
 
-        // Isolate all matched nodes in the pattern
-        isolate_matched(convert1);
-        isolate_matched(concat1);
+        // Isolate concat nodes and their Convert inputs (if any)
+        auto isolate_concat_with_inputs = [&](const auto& concat_pattern) {
+            auto concat_iter = node_to_output.find(concat_pattern);
+            if (concat_iter != node_to_output.end()) {
+                auto concat_node = concat_iter->second.get_node_shared_ptr();
+                node_to_gptr->at(concat_node)->isolate(isol_tag);
+
+                // Also isolate all Convert inputs to this Concat
+                for (size_t i = 0; i < concat_node->get_input_size(); ++i) {
+                    auto input_node = concat_node->get_input_node_shared_ptr(i);
+                    if (auto convert_node = std::dynamic_pointer_cast<ov::op::v0::Convert>(input_node)) {
+                        if (node_to_gptr->count(convert_node)) {
+                            node_to_gptr->at(convert_node)->isolate(isol_tag);
+                        }
+                    }
+                }
+            }
+        };
+
+        // Isolate Concat nodes with all their Convert inputs
+        isolate_concat_with_inputs(concat1);
+        isolate_concat_with_inputs(concat2);
+
+        // Isolate all other matched nodes in the pattern
         isolate_matched(unsqueeze1);
         isolate_matched(broadcast1);
         isolate_matched(reshape1);
 
-        isolate_matched(convert2);
-        isolate_matched(concat2);
         isolate_matched(unsqueeze2);
         isolate_matched(broadcast2);
         isolate_matched(reshape2);
@@ -253,7 +272,7 @@ AttentionBroadcast2::AttentionBroadcast2() {
 
 ShapeOfParameter::ShapeOfParameter() {
     auto param_in = opp::wrap_type<ov::op::v0::Parameter>();
-    auto param_cvt = opp::wrap_type<ov::op::v0::Convert>({param_in});
+    auto param_cvt = opp::optional<ov::op::v0::Convert>({param_in});
     auto param_shp = opp::wrap_type<ov::op::v3::ShapeOf>({param_cvt});
 
     // Note: Use [=] to make sure the above objects stay alive in the callback
