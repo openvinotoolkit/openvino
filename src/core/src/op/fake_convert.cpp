@@ -9,6 +9,7 @@
 #include "itt.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/reference/fake_convert.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace ov::op::v13 {
 namespace {

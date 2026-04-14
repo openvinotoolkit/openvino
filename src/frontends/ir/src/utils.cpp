@@ -10,7 +10,8 @@
 namespace ov {
 
 void operator>>(const std::stringstream& in, ov::element::Type& type) {
-    type = ov::element::Type(ov::util::trim(in.str()));
+    const std::string type_name{util::trim(in.str())};
+    type = element::Type(type_name);
 }
 
 }  // namespace ov

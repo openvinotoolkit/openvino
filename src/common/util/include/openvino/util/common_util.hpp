@@ -7,10 +7,12 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <charconv>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
 #include <numeric>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -104,43 +106,33 @@ constexpr uint64_t u64_hash_combine(uint64_t seed, std::initializer_list<uint64_
 }
 
 /**
- * @brief trim from start (in place)
- * @param s - string to trim
+ * @brief Return a string view with leading whitespace removed.
+ *
+ * @param s A string view to trim.
+ * @return A string view with leading whitespace removed.
  */
-inline std::string ltrim(const std::string& s) {
-    std::string ret = s;
-    ret.erase(ret.begin(), std::find_if(ret.begin(), ret.end(), [](int c) {
-                  return !std::isspace(c);
-              }));
-    return ret;
+constexpr std::string_view ltrim(const std::string_view s) {
+    const auto not_ws_pos = s.find_first_not_of(" \t\n\r\f\v");
+    return not_ws_pos == std::string_view::npos ? std::string_view() : s.substr(not_ws_pos);
 }
 
 /**
- * @brief trim from end (in place)
- * @param s - string to trim
+ * @brief Return a string view with trailing whitespace removed.
+ * @param s A string view to trim.
+ * @return A string view with trailing whitespace removed.
  */
-inline std::string rtrim(const std::string& s) {
-    std::string ret = s;
-    ret.erase(std::find_if(ret.rbegin(),
-                           ret.rend(),
-                           [](int c) {
-                               return !std::isspace(c);
-                           })
-                  .base(),
-              ret.end());
-    return ret;
+constexpr std::string_view rtrim(const std::string_view s) {
+    const auto not_ws_pos = s.find_last_not_of(" \t\n\r\f\v");
+    return not_ws_pos == std::string_view::npos ? std::string_view() : s.substr(0, not_ws_pos + 1);
 }
 
 /**
- * @brief Trims std::string from both ends (in place)
- * @ingroup ov_dev_api_error_debug
- * @param s A reference to a std::tring to trim
- * @return A reference to a trimmed std::string
+ * @brief Return a string view with leading and trailing whitespace removed.
+ * @param s A string view to trim.
+ * @return A string view with leading and trailing whitespace removed.
  */
-inline std::string trim(const std::string& s) {
-    std::string ret = ltrim(s);
-    ret = rtrim(ret);
-    return ret;
+constexpr std::string_view trim(const std::string_view s) {
+    return ltrim(rtrim(s));
 }
 
 /**
@@ -307,5 +299,89 @@ constexpr bool mul_overflow(T x, T y, T& result) {
     return false;
 #endif
 }
+
+/**
+ * @brief Parses a string view into a container, optionally validating each field.
+ *
+ * This function splits the input string view `sv` using the specified separator `sep` and inserts the parsed values
+ * into the provided `result` container.
+ * An optional `field_validator` can be provided to validate each field before insertion.
+ *
+ * @tparam Container The type of the container to store the parsed values.
+ * @tparam FieldValidator A callable type used to validate each field.
+ * @param sv The input string view to parse.
+ * @param result The container to store the parsed values.
+ * @param sep The separator used to split the string view.
+ * @param field_validator The callable used to validate each field.
+ */
+template <class Container, class FieldValidator = bool>
+void parse_view_into_container(std::string_view sv,
+                               Container& result,
+                               std::string_view sep = ",",
+                               FieldValidator field_validator = {}) {
+    while (!sv.empty()) {
+        using V = typename Container::value_type;
+
+        const auto sep_pos = sv.find(sep);
+        const auto field = sv.substr(0, sep_pos);
+        if constexpr (std::is_invocable_v<FieldValidator, std::string_view>) {
+            field_validator(field);
+        }
+
+        if constexpr (std::is_arithmetic_v<V>) {
+            V value{};
+            const auto ec = std::from_chars(field.begin(), field.end(), value).ec;
+            result.insert(result.end(), (ec == std::errc() ? value : V{}));
+        } else {
+            result.insert(result.end(), V{field});
+        }
+
+        if (sep_pos == std::string_view::npos) {
+            break;
+        } else {
+            sv = sv.substr(sep_pos + sep.size());
+        }
+    }
+}
+
+/**
+ * @brief Splits a string view into a container of string views.
+ *
+ * This function splits the input string view `sv` using the specified separator `sep` and inserts the parsed values
+ * into the provided `result` container.
+ *
+ * @tparam Container The type of the container to store the parsed values.
+ * @param sv The input string view to parse.
+ * @param sep The separator used to split the string view.
+ * @return Container The container with the parsed string views.
+ */
+template <class Container>
+Container split_to_views(std::string_view sv, std::string_view sep = ",") {
+    Container result{};
+    parse_view_into_container(sv, result, sep);
+    return result;
+}
+
+/**
+ * @brief Splits a string view into a container of string views, optionally validating each field.
+ *
+ * This function splits the input string view `sv` using the specified separator `sep` and inserts the parsed values
+ * into the provided `result` container.
+ * An optional `field_validator` can be provided to validate each field before insertion.
+ *
+ * @tparam Container The type of the container to store the parsed values.
+ * @tparam FieldValidator A callable type used to validate each field.
+ * @param sv The input string view to parse.
+ * @param sep The separator used to split the string view.
+ * @param field_validator The callable used to validate each field.
+ * @return Container The container with the parsed string views.
+ */
+template <class Container, class FieldValidator>
+Container split_to_views(std::string_view sv, std::string_view sep = ",", FieldValidator field_validator = {}) {
+    Container result{};
+    parse_view_into_container(sv, result, sep, field_validator);
+    return result;
+}
+
 }  // namespace util
 }  // namespace ov

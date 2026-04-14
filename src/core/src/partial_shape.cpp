@@ -28,20 +28,16 @@ ov::PartialShape::PartialShape(const Shape& shape)
 
 ov::PartialShape::PartialShape(const std::string& value) {
     auto val = ov::util::trim(value);
-    if (val[0] == '[' && val[val.size() - 1] == ']')
-        val = val.substr(1, val.size() - 2);
-    val = ov::util::trim(val);
-    if (val == "...") {
-        m_rank_is_static = false;
-        m_dimensions = std::vector<Dimension>();
-        return;
+    if (val[0] == '[' && val[val.size() - 1] == ']') {
+        val.remove_prefix(1);
+        val.remove_suffix(1);
+        val = ov::util::trim(val);
     }
-    m_rank_is_static = true;
-    std::stringstream ss(val);
-    std::string field;
-    while (getline(ss, field, ',')) {
-        OPENVINO_ASSERT(!field.empty(), "Cannot get vector of dimensions! \"" + value + "\" is incorrect");
-        m_dimensions.emplace_back(field);
+
+    if (m_rank_is_static = (val != "..."); m_rank_is_static) {
+        util::parse_view_into_container(val, m_dimensions, ",", [&value](auto&& dim_field) {
+            OPENVINO_ASSERT(!dim_field.empty(), "Cannot get vector of dimensions! \"", value, "\" is incorrect");
+        });
     }
 }
 
