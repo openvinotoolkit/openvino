@@ -30,6 +30,7 @@ env:
 
 jobs:
   Docker:
+    name: Coverage Docker Images
     if: ${{ github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' || github.event.inputs.run-gpu-tests == 'true' }}
     runs-on: aks-linux-4-cores-16gb-docker-build
     container:
@@ -54,7 +55,7 @@ jobs:
           changed_components: '{"docker_env":false,"dockerfiles":false}'
 
   Build:
-    name: Build coverage artifacts
+    name: Coverage Build Artifacts
     needs: Docker
     if: ${{ github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' || github.event.inputs.run-gpu-tests == 'true' }}
     uses: ./.github/workflows/job_build_linux.yml
@@ -198,12 +199,12 @@ jobs:
           name: coverage-cpp-cpu
           path: ${{ steps.cpu_artifact.outputs.dir }}
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 7
           compression-level: 0
           overwrite: true
 
   CoverageCppGpu:
-    name: Coverage C++ GPU (${{ matrix.lane_name }})
+    name: Coverage C++ (${{ matrix.lane_name }})
     needs: Build
     if: ${{ github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true' }}
     runs-on:
@@ -222,10 +223,10 @@ jobs:
       matrix:
         include:
           - lane: gpu-unit
-            lane_name: GPU Unit
+            lane_name: GPU Unit Tests
             test_names: ov_onnx_frontend_tests,ov_onnx_frontend_tests (ONNX_ITERATOR=0),ov_gpu_unit_tests,test_inference_async,test_inference_sync
           - lane: gpu-func
-            lane_name: GPU Func
+            lane_name: GPU Functional Tests
             test_names: ov_gpu_func_tests
     defaults:
       run:
@@ -342,12 +343,12 @@ jobs:
           name: coverage-cpp-${{ matrix.lane }}
           path: ${{ steps.lane_artifact.outputs.dir }}
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 7
           compression-level: 0
           overwrite: true
 
   CoveragePython:
-    name: Coverage Python
+    name: Coverage Python (CPU)
     needs: [Docker, Build]
     if: ${{ github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' }}
     runs-on: aks-linux-16-cores-32gb
@@ -470,17 +471,17 @@ jobs:
 
       - name: Upload Python CPU artifact
         if: ${{ always() }}
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2 We are not using newest version v6.0.0 due to very frequent issues with 'Error: Unable to make request: ECONNRESET'
         with:
           name: coverage-python-cpu
           path: ${{ steps.cpu_artifact.outputs.dir }}
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 7
           compression-level: 0
           overwrite: true
 
   CoveragePythonGpu:
-    name: Coverage Python GPU
+    name: Coverage Python (GPU)
     needs: Build
     if: ${{ github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true' }}
     runs-on:
@@ -635,17 +636,17 @@ jobs:
 
       - name: Upload Python GPU artifact
         if: ${{ always() }}
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2 We are not using newest version v6.0.0 due to very frequent issues with 'Error: Unable to make request: ECONNRESET'
         with:
           name: coverage-python-gpu
           path: ${{ steps.gpu_artifact.outputs.dir }}
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 7
           compression-level: 0
           overwrite: true
 
   CoverageJS:
-    name: Coverage JS
+    name: Coverage JS (CPU)
     needs: [Docker, Build]
     if: ${{ github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' }}
     runs-on: aks-linux-4-cores-16gb
@@ -769,16 +770,17 @@ jobs:
 
       - name: Upload JS CPU artifact
         if: ${{ always() }}
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2 We are not using newest version v6.0.0 due to very frequent issues with 'Error: Unable to make request: ECONNRESET'
         with:
           name: coverage-js-cpu
           path: ${{ steps.cpu_artifact.outputs.dir }}
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 7
           compression-level: 0
           overwrite: true
 
   CoverageSummary:
+    name: Coverage Summary
     if: ${{ always() && needs.Build.result == 'success' }}
     needs: [Build, CoverageCpp, CoverageCppGpu, CoveragePython, CoveragePythonGpu, CoverageJS]
     runs-on: ubuntu-latest
@@ -825,6 +827,7 @@ jobs:
           echo "selected_lanes=${selected_lanes}" >> "$GITHUB_OUTPUT"
 
       - name: Generate final summary
+        if: ${{ always() }}
         run: |
           python3 .github/scripts/coverage/ci_reports.py render-summary \
             --workspace "${{ github.workspace }}" \
@@ -833,6 +836,7 @@ jobs:
             --selected-lanes "${{ steps.lanes.outputs.selected_lanes }}"
 
       - name: Merge duration reports
+        if: ${{ always() }}
         run: |
           python3 .github/scripts/coverage/ci_reports.py merge-durations \
             --workspace "${{ github.workspace }}" \
@@ -840,20 +844,28 @@ jobs:
 
       - name: Upload merged duration artifact
         if: ${{ always() }}
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2 We are not using newest version v6.0.0 due to very frequent issues with 'Error: Unable to make request: ECONNRESET'
         with:
           name: coverage-test-durations
           path: coverage-test-durations-all.csv
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 7
           compression-level: 0
           overwrite: true
 
+      - name: Resolve Codecov upload files
+        id: coverage_files
+        if: ${{ always() }}
+        run: |
+          python3 .github/scripts/coverage/ci_reports.py resolve-uploads \
+            --workspace "${{ github.workspace }}" \
+            --output-file "${GITHUB_OUTPUT}"
+
       - name: Upload Codecov (C++ runtime, CPU)
-        if: ${{ always() && hashFiles('artifacts/cpp/coverage-cpp-cpu/coverage.info') != '' }}
+        if: ${{ always() && steps.coverage_files.outputs.cpp_cpu != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: ${{ github.workspace }}/artifacts/cpp/coverage-cpp-cpu/coverage.info
+          files: ${{ steps.coverage_files.outputs.cpp_cpu }}
           disable_search: true
           plugins: noop
           flags: cpp-runtime-cpp-cpu
@@ -863,10 +875,10 @@ jobs:
           verbose: true
 
       - name: Upload Codecov (C++ runtime, GPU Unit)
-        if: ${{ always() && hashFiles('artifacts/cpp/coverage-cpp-gpu-unit/coverage.info') != '' }}
+        if: ${{ always() && steps.coverage_files.outputs.cpp_gpu_unit != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: ${{ github.workspace }}/artifacts/cpp/coverage-cpp-gpu-unit/coverage.info
+          files: ${{ steps.coverage_files.outputs.cpp_gpu_unit }}
           disable_search: true
           plugins: noop
           flags: cpp-runtime-cpp-gpu-unit
@@ -876,10 +888,10 @@ jobs:
           verbose: true
 
       - name: Upload Codecov (C++ runtime, GPU Func)
-        if: ${{ always() && hashFiles('artifacts/cpp/coverage-cpp-gpu-func/coverage.info') != '' }}
+        if: ${{ always() && steps.coverage_files.outputs.cpp_gpu_func != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: ${{ github.workspace }}/artifacts/cpp/coverage-cpp-gpu-func/coverage.info
+          files: ${{ steps.coverage_files.outputs.cpp_gpu_func }}
           disable_search: true
           plugins: noop
           flags: cpp-runtime-cpp-gpu-func
@@ -889,10 +901,10 @@ jobs:
           verbose: true
 
       - name: Upload Codecov (Python API, CPU)
-        if: ${{ always() && hashFiles('artifacts/python/coverage-python-cpu/python-coverage.xml') != '' }}
+        if: ${{ always() && steps.coverage_files.outputs.python_cpu_xml != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: ${{ github.workspace }}/artifacts/python/coverage-python-cpu/python-coverage.xml
+          files: ${{ steps.coverage_files.outputs.python_cpu_xml }}
           disable_search: true
           plugins: noop
           flags: python-api-frontend-layer-ovc-cpu
@@ -902,10 +914,10 @@ jobs:
           verbose: true
 
       - name: Upload Codecov (C++ runtime, Python suite, CPU)
-        if: ${{ always() && hashFiles('artifacts/python/coverage-python-cpu/coverage.info') != '' }}
+        if: ${{ always() && steps.coverage_files.outputs.python_cpu_info != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: ${{ github.workspace }}/artifacts/python/coverage-python-cpu/coverage.info
+          files: ${{ steps.coverage_files.outputs.python_cpu_info }}
           disable_search: true
           plugins: noop
           flags: cpp-runtime-python-cpu
@@ -915,10 +927,10 @@ jobs:
           verbose: true
 
       - name: Upload Codecov (Python API, GPU)
-        if: ${{ always() && hashFiles('artifacts/python/coverage-python-gpu/python-coverage.xml') != '' }}
+        if: ${{ always() && steps.coverage_files.outputs.python_gpu_xml != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: ${{ github.workspace }}/artifacts/python/coverage-python-gpu/python-coverage.xml
+          files: ${{ steps.coverage_files.outputs.python_gpu_xml }}
           disable_search: true
           plugins: noop
           flags: python-api-frontend-layer-ovc-gpu
@@ -928,10 +940,10 @@ jobs:
           verbose: true
 
       - name: Upload Codecov (C++ runtime, Python suite, GPU)
-        if: ${{ always() && hashFiles('artifacts/python/coverage-python-gpu/coverage.info') != '' }}
+        if: ${{ always() && steps.coverage_files.outputs.python_gpu_info != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: ${{ github.workspace }}/artifacts/python/coverage-python-gpu/coverage.info
+          files: ${{ steps.coverage_files.outputs.python_gpu_info }}
           disable_search: true
           plugins: noop
           flags: cpp-runtime-python-gpu
@@ -941,10 +953,10 @@ jobs:
           verbose: true
 
       - name: Upload Codecov (JS bindings, CPU)
-        if: ${{ always() && hashFiles('artifacts/js/coverage-js-cpu/js-lcov.info') != '' }}
+        if: ${{ always() && steps.coverage_files.outputs.js_cpu_lcov != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: ${{ github.workspace }}/artifacts/js/coverage-js-cpu/js-lcov.info
+          files: ${{ steps.coverage_files.outputs.js_cpu_lcov }}
           disable_search: true
           plugins: noop
           flags: nodejs-bindings-unit-e2e-cpu
@@ -954,10 +966,10 @@ jobs:
           verbose: true
 
       - name: Upload Codecov (C++ runtime, JS suite, CPU)
-        if: ${{ always() && hashFiles('artifacts/js/coverage-js-cpu/coverage.info') != '' }}
+        if: ${{ always() && steps.coverage_files.outputs.js_cpu_info != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: ${{ github.workspace }}/artifacts/js/coverage-js-cpu/coverage.info
+          files: ${{ steps.coverage_files.outputs.js_cpu_info }}
           disable_search: true
           plugins: noop
           flags: cpp-runtime-js-cpu
