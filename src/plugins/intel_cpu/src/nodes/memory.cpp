@@ -716,7 +716,87 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
     }
 }
 
-// @todo add ascii diagramm for memory mapping / reuse
+// Memory mapping / reuse for a MemoryInput <-> MemoryOutput sibling pair
+//
+// 1. Sibling pair and shared VariableState (double-buffer)
+// ---------------------------------------------------------
+//
+//   +--------------------------- VariableState ---------------------------+
+//   |  buf_0 (primary)                          buf_1 (secondary)        |
+//   |                                                                     |
+//   |  input_mem()  --> one buf     output_mem() --> other buf           |
+//   |                     commit(): swap(buf_0, buf_1)                   |
+//   +---------------------------------------------------------------------+
+//        |  read                                             ^  write
+//        v                                                   |
+//   +--------------+  child edge  +--------------+  parent edge  +----------------+
+//   | MemoryInput  | -----------> | Computation  | ------------> | MemoryOutput   |
+//   | (ReadValue)  |              |    nodes     |               |   (Assign)     |
+//   +--------------+              +--------------+               +----------------+
+//        |                                                              |
+//        +----------------------- sibling link ------------------------+
+//                      (both share the same VariableState)
+//
+//
+// 2. ProxyMemoryBlock edge reuse (the "reuse" this diagram describes)
+// -------------------------------------------------------------------
+//
+//   MemoryInput::resolveInPlaceEdges (LOOK_UP):
+//     Creates one ProxyMemoryBlock and wraps it in Memory for every child edge.
+//     At runtime (runStatic / runDynamic):
+//
+//       if internDesc compatible with assignedMem.desc:
+//         memBlock->setMemBlock(assignedMem->getMemoryBlock())
+//         --> child edge memory IS the state buffer  (zero-copy path)
+//       else:
+//         memBlock->reset()
+//         dst->load(*src)
+//         --> child edge has its own block, data is copied from state
+//
+//   MemoryOutput::resolveInPlaceEdges (LOOK_DOWN):
+//     Creates one ProxyMemoryBlock and wraps it in Memory for the parent edge.
+//     When state is assigned (assignExtMemory):
+//
+//       if inpDesc compatible with extMemDesc:
+//         memBlock->setMemBlockResize(assignedMem->getMemoryBlock())
+//         --> parent edge memory IS the state buffer (zero-copy path)
+//       else:
+//         memBlock->reset()
+//         assignedMem->load(*inputMem) in runStatic
+//         --> parent edge has its own block, data is copied into state
+//
+//
+// 3. MemoryInput with subgraph (ReadValueWithSubgraph)
+// -----------------------------------------------------
+//
+//   registerToAllocationContext() wires edges so data never copies across boundaries:
+//
+//   outer parent edge[i]  --sharedMemFrom-->  subGraph input node[i] child edges
+//   outer child  edge[i]  <--sharedMemFrom--  subGraph output node[i] parent edge
+//
+//   Resulting zero-copy flow:
+//
+//   [outer parent nodes]
+//          |  outer parent edge (owns memory)
+//          v
+//   +------------------+
+//   | subGraph Input   |  (shared from outer parent edge - no allocation)
+//   |    nodes         |
+//   +------------------+
+//          |  inner edges (own memory)
+//          v
+//   +------------------+
+//   | subGraph body    |
+//   +------------------+
+//          |  inner output edge (owns memory)
+//          v
+//   +------------------+
+//   | subGraph Output  |  (shared from outer child edge - no allocation)
+//   |    node          |
+//   +------------------+
+//          |  outer child edge (owns memory)
+//          v
+//   [outer child nodes]
 void MemoryInput::createPrimitive() {
     if (haveSubgraph()) {
         CPU_NODE_ASSERT(getParentEdges().size() == subGraph->inputsNumber(),
