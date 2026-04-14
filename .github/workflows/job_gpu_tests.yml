@@ -130,6 +130,7 @@ jobs:
             .github/actions
           sparse-checkout-cone-mode: false
           submodules: 'false'
+          clean: 'false'
 
       - name: Download OpenVINO artifacts (wheels)
         if: ${{ inputs.test_type == 'rope' }}
