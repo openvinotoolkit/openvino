@@ -591,7 +591,7 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
 #else
         if (ov::element::string != m_tensor_place->get_element_type()) {
             const size_t num_bytes = m_tensor_place->get_data_size();
-            void* data_ptr = const_cast<void *>(get_data_ptr_nc());
+            void* data_ptr = const_cast<void*>(m_tensor_place->get_data());
             auto constant_buffer = std::make_shared<ov::AlignedBuffer>(data_ptr, num_bytes);
             constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, constant_buffer);
         } else {

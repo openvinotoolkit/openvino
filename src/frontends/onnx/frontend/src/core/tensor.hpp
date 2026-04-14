@@ -214,13 +214,6 @@ public:
         ONNX_UNSUPPORTED_DATA_TYPE(m_tensor_proto->data_type(), "[nothing expected]");
     }
 
-    const void* get_data_ptr_nc() const {
-        if (m_tensor_place != nullptr) {
-            return m_tensor_place->get_data();
-        }
-        return nullptr;
-    }
-
     const std::string get_name() const {
         if (m_tensor_place != nullptr) {
             const auto& names = m_tensor_place->get_names();
