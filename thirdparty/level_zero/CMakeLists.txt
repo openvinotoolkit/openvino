@@ -42,8 +42,11 @@ add_custom_command(OUTPUT "${ZE_HEADERS_STAMP_FILE}"
 add_custom_target(prepare_ze_headers ALL DEPENDS "${ZE_HEADERS_STAMP_FILE}")
 add_dependencies(ze_loader prepare_ze_headers)
 
+# OpenVINO prefers include pattern with level-zero pattern 
+# include patterns without level-zero/ prefix is supported for thirdparty 
 set_property(TARGET ze_loader APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES
     $<BUILD_INTERFACE:${ZE_INCLUDE_DIR}>
+    $<BUILD_INTERFACE:${ZE_INCLUDE_DIR}/level_zero>
 )
 
 # This VERSION file created by L0 may cause compilation issue of oneTBB headers, so remove it
