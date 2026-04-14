@@ -47,14 +47,10 @@ bool allow_fused_kernel(const program_node& node) {
         return false;
     }
 
-    constexpr int64_t fsv = 16;
-    // feature count needs to be static for following checks
-    if (in0_layout.get_partial_shape()[1].is_dynamic())
+    if (extract_dim(ChannelName::FEATURE, in0_layout).is_dynamic())
         return false;
-    // feature count should be a multiple of fsv
     if (in0_layout.feature() % fsv != 0)
         return false;
-    // group size must be a divisor of fsv
     const auto group_size = in0_layout.feature() / std::static_pointer_cast<const group_normalization>(node.get_primitive())->num_groups;
     return fsv % group_size == 0;
 }
