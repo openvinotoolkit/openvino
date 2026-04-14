@@ -217,12 +217,16 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         }
 
         // moe_3gemm_fused_compressed uses oneDNN internally for matrix multiplications
-        // (onednn_linear wrappers in moe_3gemm_swiglu_opt.cpp), which requires an
-        // in-order OCL command queue.  Set queue_type directly here so that only the
-        // queue mode is affected — use_onednn is left unchanged, keeping oneDNN
-        // disabled for all other ops (FC, convolution, etc.) on non-systolic hardware.
+        // (onednn_linear wrappers in moe_3gemm_swiglu_opt.cpp), which requires:
+        //   1. use_onednn=true so create_onednn_engine() is called during program build
+        //      (see program.cpp: lo.enable_onednn_for<lstm_seq/gru_seq> path which makes
+        //       onednn_impls_optimization_attribute non-empty, triggering engine init).
+        //   2. in-order OCL command queue (finalize_impl sets this when use_onednn=true).
+        // On non-systolic hardware (supports_immad=false), use_onednn is otherwise false;
+        // setting it true here is safe because FuseVectorizedFC (systolic FC) is gated
+        // independently on supports_immad, so no systolic ops are introduced.
         if (ov::is_type<ov::intel_gpu::op::MOE3GemmFusedCompressed>(op)) {
-            m_queue_type = QueueTypes::in_order;
+            m_use_onednn = true;
         }
 
         if (auto multi_subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op)) {
