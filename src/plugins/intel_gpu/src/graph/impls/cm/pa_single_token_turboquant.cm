@@ -49,8 +49,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 	int* subsequence_begins [[type("svmptr_t")]],
 	float* output [[type("svmptr_t")]],
 	float* lse [[type("svmptr_t")]],
-	const half* tq_q_t [[type("svmptr_t")]],
-	const half* tq_centroids [[type("svmptr_t")]],
+	const float* tq_q_t [[type("svmptr_t")]],
+	const float* tq_centroids [[type("svmptr_t")]],
 	int q_len// 1
 	) {
 	const uint seq_idx = cm_global_id(0);
@@ -71,17 +71,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 	}
 	const uint total_blocks_num = (kv_len + KV_BLOCK_SIZE - 1) / KV_BLOCK_SIZE;
 	constexpr uint kv_pitch = HEAD_SIZE * sizeof(KV_ELEMENT_TYPE);
-	// [TurboQuant affine decode params]
-	// Approximate centroid LUT by affine mapping: value = scale * idx + bias.
-	// We derive (scale, bias) from centroid endpoints.
-	half affine_scale_h = 0.0f;
-	half affine_bias_h = 0.0f;
-	{
-		vector<half, (1 << TQ_BITS)> centroid_h;
-		cm_svm_block_read<half, (1 << TQ_BITS)>((svmptr_t)tq_centroids, centroid_h);
-		affine_bias_h = centroid_h[0];
-		affine_scale_h = (half)((centroid_h[(1 << TQ_BITS) - 1] - centroid_h[0]) / (float)((1 << TQ_BITS) - 1));
-	}
+	// [TurboQuant centroid LUT]
+	vector<float, (1 << TQ_BITS)> centroid_f;
+	cm_svm_block_read<float, (1 << TQ_BITS)>((svmptr_t)tq_centroids, centroid_f);
 
 	// [Load and rotate Q]
 	// Q layout: [seq, head, dim] chunk for current (kv_head, q_head_chunk).
@@ -175,14 +167,14 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 					for (int n = 0; n < REG_N; n++) {
 						uint8_t packed_idx0 = (uint8_t)packed_row0[n];
 						uint8_t packed_idx1 = (uint8_t)packed_row1[n];
-						half deq0_lo = (half)((half)(packed_idx0 & 0x0f) * affine_scale_h + affine_bias_h);
-						half deq0_hi = (half)((half)(packed_idx0 >> 4) * affine_scale_h + affine_bias_h);
-						half deq1_lo = (half)((half)(packed_idx1 & 0x0f) * affine_scale_h + affine_bias_h);
-						half deq1_hi = (half)((half)(packed_idx1 >> 4) * affine_scale_h + affine_bias_h);
-						Kt[2 * p][n] = (half)(deq0_lo * knorm_vec[n]);
-						Kt[2 * p + 1][n] = (half)(deq0_hi * knorm_vec[n]);
-						Kt[2 * (p + 1)][n] = (half)(deq1_lo * knorm_vec[n]);
-						Kt[2 * (p + 1) + 1][n] = (half)(deq1_hi * knorm_vec[n]);
+						float deq0_lo = centroid_f[(int)(packed_idx0 & 0x0f)];
+						float deq0_hi = centroid_f[(int)(packed_idx0 >> 4)];
+						float deq1_lo = centroid_f[(int)(packed_idx1 & 0x0f)];
+						float deq1_hi = centroid_f[(int)(packed_idx1 >> 4)];
+						Kt[2 * p][n] = (half)(deq0_lo * (float)knorm_vec[n]);
+						Kt[2 * p + 1][n] = (half)(deq0_hi * (float)knorm_vec[n]);
+						Kt[2 * (p + 1)][n] = (half)(deq1_lo * (float)knorm_vec[n]);
+						Kt[2 * (p + 1) + 1][n] = (half)(deq1_hi * (float)knorm_vec[n]);
 					}
 				}
 

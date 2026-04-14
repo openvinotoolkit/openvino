@@ -60,8 +60,8 @@ CM_INLINE void store_vec(svmptr_t out_ptr, uint offset_bytes, vector_ref<T, HS> 
 template <int HS>
 CM_INLINE void tq_quantize_vector(
     vector_ref<half, HS> x,
-    const half* q_t [[type("svmptr_t")]],
-    const half* boundaries [[type("svmptr_t")]],
+    const float* q_t [[type("svmptr_t")]],
+    const float* boundaries [[type("svmptr_t")]],
     vector_ref<uchar, HS> out_idx,
     half& out_norm) {
 
@@ -112,8 +112,8 @@ template <int HS>
 CM_INLINE void tq_dequantize_vector(
     vector_ref<uchar, HS> idx,
     half in_norm,
-    const half* q [[type("svmptr_t")]],
-    const half* centroids [[type("svmptr_t")]],
+    const float* q [[type("svmptr_t")]],
+    const float* centroids [[type("svmptr_t")]],
     vector_ref<half, HS> out_x) {
 
     vector<float, HS> x_rot;
@@ -178,8 +178,8 @@ CM_INLINE void store_packed_indices(
 template <int HS>
 CM_INLINE void turboquant_quantize_impl(
     const half* x [[type("svmptr_t")]],
-    const half* q_t [[type("svmptr_t")]],
-    const half* boundaries [[type("svmptr_t")]],
+    const float* q_t [[type("svmptr_t")]],
+    const float* boundaries [[type("svmptr_t")]],
     uint32_t n_tokens,
     uint32_t x_pitch,
     uint32_t x_offset,
@@ -210,8 +210,8 @@ CM_INLINE void turboquant_quantize_impl(
 CM_INLINE void turboquant_dequantize_impl(
     const uint8_t* idx_in [[type("svmptr_t")]],
     const half* norms_in [[type("svmptr_t")]],
-    const half* q [[type("svmptr_t")]],
-    const half* centroids [[type("svmptr_t")]],
+    const float* q [[type("svmptr_t")]],
+    const float* centroids [[type("svmptr_t")]],
     half* x_out [[type("svmptr_t")]],
     uint32_t x_pitch,
     uint32_t x_offset,
@@ -262,18 +262,13 @@ CM_INLINE void load_vec_u8(vector_ref<uchar, HS> out, const uint8_t* in [[type("
 //     block_indices_begins : [batch_size_in_sequences + 1]          (i32)
 //
 //   TurboQuant tables:
-//     key_q_t          : [K_HEAD_SIZE, K_HEAD_SIZE]                 (half)
-//     key_boundaries   : [(1 << TQ_BITS) - 1]                       (half)
-//     value_q_t        : [V_HEAD_SIZE, V_HEAD_SIZE]                 (half)
-//     value_boundaries : [(1 << TQ_BITS) - 1]                       (half)
+//     key_q_t          : [K_HEAD_SIZE, K_HEAD_SIZE]                 (float)
+//     key_boundaries   : [(1 << TQ_BITS) - 1]                       (float)
 //
 // Packed cache storage (uint8 byte-addressed):
 //   key_cache   : [num_blocks, KV_HEADS_NUM, PAGED_ATTENTION_BLOCK_SIZE * (((K_HEAD_SIZE * TQ_BITS + 7)/8) + 2)] (u8)
-//   value_cache :
-//     - if VALUE_CACHE_MODE==1 (TurboQuant):
-//         [num_blocks, KV_HEADS_NUM, PAGED_ATTENTION_BLOCK_SIZE * (((V_HEAD_SIZE * TQ_BITS + 7)/8) + 2)] (u8)
-//     - if VALUE_CACHE_MODE==0 (per-token u8 + fp16 scale/zp):
-//         [num_blocks, KV_HEADS_NUM, PAGED_ATTENTION_BLOCK_SIZE * (V_HEAD_SIZE + 4)] (u8)
+//   value_cache : [num_blocks, KV_HEADS_NUM, PAGED_ATTENTION_BLOCK_SIZE * (V_HEAD_SIZE + 4)] (u8)
+//     - value remains per-token u8 payload + fp16 scale/zp metadata
 //
 // Per (block, head) byte layout for key_cache (same pattern for value_cache):
 //   let K_PACKED_BYTES = (K_HEAD_SIZE * TQ_BITS + 7) / 8
@@ -285,9 +280,6 @@ CM_INLINE void load_vec_u8(vector_ref<uchar, HS> out, const uint8_t* in [[type("
 //
 // This matches TurboQuantMSE compressed-size accounting:
 //   bits-per-index storage + 2-byte norm per vector.
-#ifndef VALUE_CACHE_MODE
-#define VALUE_CACHE_MODE 0
-#endif
 
 template <int HS>
 CM_INLINE void quantize_and_store_value_per_token(vector_ref<half, HS> data,
@@ -322,10 +314,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const int32_t* subsequence_begins [[type("svmptr_t")]],  // [batch_size_in_sequences + 1]
     uint8_t* key_cache [[type("svmptr_t")]],                 // [num_blocks, KV_HEADS_NUM, BLOCK_SIZE * (((K_HEAD_SIZE * TQ_BITS + 7)/8) + 2)] packed u8
     uint8_t* value_cache [[type("svmptr_t")]],               // [num_blocks, KV_HEADS_NUM, BLOCK_SIZE * (((V_HEAD_SIZE * TQ_BITS + 7)/8) + 2)] packed u8
-    const half* key_q_t [[type("svmptr_t")]],                // [K_HEAD_SIZE, K_HEAD_SIZE]
-    const half* key_boundaries [[type("svmptr_t")]],         // [(1 << TQ_BITS) - 1]
-    const half* value_q_t [[type("svmptr_t")]],              // [V_HEAD_SIZE, V_HEAD_SIZE]
-    const half* value_boundaries [[type("svmptr_t")]],       // [(1 << TQ_BITS) - 1]
+    const float* key_q_t [[type("svmptr_t")]],               // [K_HEAD_SIZE, K_HEAD_SIZE]
+    const float* key_boundaries [[type("svmptr_t")]],        // [(1 << TQ_BITS) - 1]
     uint32_t key_pitch,                                        // key row stride in half elements
     uint32_t key_offset,                                       // key base offset in half elements
     uint32_t value_pitch,                                      // value row stride in half elements
@@ -334,9 +324,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 
     static_assert(K_HEAD_SIZE % 16 == 0 && V_HEAD_SIZE % 16 == 0);
     constexpr uint K_PACKED_BYTES = (K_HEAD_SIZE * TQ_BITS + 7) / 8;
-    constexpr uint V_PACKED_BYTES = (V_HEAD_SIZE * TQ_BITS + 7) / 8;
     constexpr uint K_TOKEN_BYTES = K_PACKED_BYTES + 2;
-    constexpr uint V_TOKEN_BYTES = V_PACKED_BYTES + 2;
 
     const auto head_idx = cm_group_id(1);
     const uint token_idx = cm_global_id(2);
@@ -377,33 +365,13 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
             1);
     }
 
-    #if VALUE_CACHE_MODE
-        uint block_v_base_offset = (block_indices[block_offset] * KV_HEADS_NUM + head_idx) * V_TOKEN_BYTES * PAGED_ATTENTION_BLOCK_SIZE;
-        half* value_norm_base = reinterpret_cast<half*>(value_cache + block_v_base_offset + V_PACKED_BYTES * PAGED_ATTENTION_BLOCK_SIZE);
+    constexpr uint V_TOKEN_BYTES_PER_TOKEN_Q = V_HEAD_SIZE + 4;
+    uint block_v_base_offset = (block_indices[block_offset] * KV_HEADS_NUM + head_idx) * V_TOKEN_BYTES_PER_TOKEN_Q * PAGED_ATTENTION_BLOCK_SIZE;
+    uint value_in_offset = token_idx * value_pitch + head_idx * V_HEAD_SIZE + value_offset;
 
-        turboquant_quantize_impl<V_HEAD_SIZE>(
-            value,
-            value_q_t,
-            value_boundaries,
-            subsequence_begins[batch_size_in_sequences],
-            value_pitch,
-            value_offset,
-            head_idx,
-            token_idx,
-            value_cache,
-            value_norm_base,
-            block_v_base_offset + token_start_pos * V_PACKED_BYTES,
-            token_start_pos,
-            1);
-    #else
-        constexpr uint V_TOKEN_BYTES_PER_TOKEN_Q = V_HEAD_SIZE + 4;
-        uint block_v_base_offset = (block_indices[block_offset] * KV_HEADS_NUM + head_idx) * V_TOKEN_BYTES_PER_TOKEN_Q * PAGED_ATTENTION_BLOCK_SIZE;
-        uint value_in_offset = token_idx * value_pitch + head_idx * V_HEAD_SIZE + value_offset;
-
-        vector<half, V_HEAD_SIZE> value_data;
-        load_vec_half<V_HEAD_SIZE>(value_data, value, value_in_offset * sizeof(half));
-        quantize_and_store_value_per_token<V_HEAD_SIZE>(value_data, value_cache, block_v_base_offset, token_start_pos);
-    #endif
+    vector<half, V_HEAD_SIZE> value_data;
+    load_vec_half<V_HEAD_SIZE>(value_data, value, value_in_offset * sizeof(half));
+    quantize_and_store_value_per_token<V_HEAD_SIZE>(value_data, value_cache, block_v_base_offset, token_start_pos);
 }
 
 } // namespace KERNEL_NAME

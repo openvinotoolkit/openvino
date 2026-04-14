@@ -169,8 +169,8 @@ JitConstants PagedAttentionGeneratorKVCacheUpdate::get_jit_constants(const kerne
     if (_turboquant) {
         jit.make("TQ_BITS", 4);
         jit.make("HEAD_SIZE", desc->k_head_size);
-        // Keep value cache in per-token u8 + fp16 scale/zp layout.
-        jit.make("VALUE_CACHE_MODE", 0);
+        // TurboQuant is applied to key cache only.
+        // Value cache keeps per-token u8 + fp16 scale/zp layout.
         jit.make("KV_CACHE_COMPRESSION_PER_TOKEN", 1);
         jit.make("ADJUSTED_K_HEAD_SIZE", (desc->k_head_size * 4 + 7) / 8 + 2);
         jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size + 4);
@@ -206,9 +206,6 @@ Arguments PagedAttentionGeneratorKVCacheUpdate::get_arguments_desc(const kernel_
     if (_turboquant) {
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::TQ_Q_TRANSFORM});  // key_q_t
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::TQ_BOUNDARIES});   // key_boundaries
-        // VALUE_CACHE_MODE=0 path does not use these tensors, reuse key tables to keep ABI stable.
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::TQ_Q_TRANSFORM});  // value_q_t
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::TQ_BOUNDARIES});   // value_boundaries
     }
 
     // scalar

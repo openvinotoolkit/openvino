@@ -46,8 +46,8 @@ void pa_lsc_u8_tq(
 	int q_len,
 	int kv_len,
 	svmptr_t q_base [[type("svmptr_t")]],
-	const half* tq_q_t [[type("svmptr_t")]],
-	const half* tq_centroids [[type("svmptr_t")]],
+	const float* tq_q_t [[type("svmptr_t")]],
+	const float* tq_centroids [[type("svmptr_t")]],
 	svmptr_t k_cache_base [[type("svmptr_t")]],
 	svmptr_t v_cache_base [[type("svmptr_t")]],
 	svmptr_t o_base [[type("svmptr_t")]],
@@ -135,8 +135,8 @@ void pa_lsc_u8_tq(
 		}
 	}
 
-	vector<half, (1 << TQ_BITS)> centroid_lut;
-	cm_svm_block_read<half, (1 << TQ_BITS)>((svmptr_t)tq_centroids, centroid_lut);
+	vector<float, (1 << TQ_BITS)> centroid_lut;
+	cm_svm_block_read<float, (1 << TQ_BITS)>((svmptr_t)tq_centroids, centroid_lut);
 
 	lsc::block_2d_desc<uint8_t, 1, kv_step, REG_K/2> b2dK(
 		reinterpret_cast<uint8_t*>(k_cache_base), CMPA_BLOCK_SZ - 1, K_PACKED_BYTES * sizeof(uint8_t) - 1, K_PACKED_BYTES * sizeof(uint8_t) - 1, 0, 0);
@@ -191,10 +191,10 @@ void pa_lsc_u8_tq(
 					#pragma unroll
 					for (int c = 0; c < REG_K/2; c++) {
 						uint8_t pv = packedK[r][c];
-						half c0 = centroid_lut[(int)(pv & 0x0f)];
-						half c1 = centroid_lut[(int)(pv >> 4)];
-						kmat[r][2*c] = cm_mul<half>(c0, dscale[r]);
-						kmat[r][2*c + 1] = cm_mul<half>(c1, dscale[r]);
+						float c0 = centroid_lut[(int)(pv & 0x0f)];
+						float c1 = centroid_lut[(int)(pv >> 4)];
+						kmat[r][2*c] = (half)(c0 * (float)dscale[r]);
+						kmat[r][2*c + 1] = (half)(c1 * (float)dscale[r]);
 					}
 				}
 
@@ -321,8 +321,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 	int32_t* block_indices_begins [[type("svmptr_t")]],
 	int32_t* subsequence_begins [[type("svmptr_t")]],
 	half* output [[type("svmptr_t")]],
-	const half* tq_q_t [[type("svmptr_t")]],
-	const half* tq_centroids [[type("svmptr_t")]],
+	const float* tq_q_t [[type("svmptr_t")]],
+	const float* tq_centroids [[type("svmptr_t")]],
 	int q_len
 	) {
 	constexpr int is_causal = CMFLA_IS_CAUSAL;

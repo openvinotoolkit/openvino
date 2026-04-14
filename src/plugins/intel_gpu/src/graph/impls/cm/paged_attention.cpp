@@ -10,7 +10,10 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <cmath>
 #include <memory>
+#include <mutex>
+#include <unordered_map>
 #include <utility>
 
 #include "common_utils/jitter.hpp"
@@ -24,6 +27,7 @@
 #include "paged_attention_inst.h"
 #include "primitive_cm_base.hpp"
 #include "primitive_inst.h"
+#include "turboquant_data.hpp"
 
 #define DUMP_XATTN_INTERNALS 0
 #if DUMP_XATTN_INTERNALS
@@ -36,9 +40,7 @@
 namespace ov::intel_gpu::cm {
 
 namespace {
-constexpr size_t kTurboQuantBits = 4;
-constexpr size_t kTurboQuantCentroidsCount = static_cast<size_t>(1u << kTurboQuantBits);
-constexpr size_t kTurboQuantBoundariesCount = kTurboQuantCentroidsCount - 1;
+using namespace ov::intel_gpu::cm::turboquant;
 
 bool is_turboquant_requested(const kernel_impl_params& params) {
     const auto mode = params.get_program().get_config().get_key_cache_quant_mode();
@@ -91,9 +93,9 @@ void append_turboquant_internal_buffers(std::vector<BufferDescriptor>& internal_
     const auto desc = params.typed_desc<paged_attention>();
     const auto q_t_elements = desc->k_head_size * desc->k_head_size;
     const bool lockable = true;
-    internal_buffers.emplace_back(q_t_elements, ov::element::f16, lockable);  // TQ_Q_TRANSFORM
-    internal_buffers.emplace_back(kTurboQuantCentroidsCount, ov::element::f16, lockable);   // TQ_CENTROIDS
-    internal_buffers.emplace_back(kTurboQuantBoundariesCount, ov::element::f16, lockable);  // TQ_BOUNDARIES
+    internal_buffers.emplace_back(q_t_elements, ov::element::f32, lockable);  // TQ_Q_TRANSFORM
+    internal_buffers.emplace_back(kTurboQuantCentroidsCount, ov::element::f32, lockable);   // TQ_CENTROIDS
+    internal_buffers.emplace_back(kTurboQuantBoundariesCount, ov::element::f32, lockable);  // TQ_BOUNDARIES
 }
 }  // namespace
 
@@ -317,9 +319,9 @@ public:
                 OPENVINO_ASSERT(q_t_mem != nullptr && centroids_mem != nullptr && boundaries_mem != nullptr,
                                 "TurboQuant internal buffers are not allocated");
 
-                const size_t q_t_count = q_t_mem->size() / sizeof(ov::float16);
-                const size_t centroids_count = centroids_mem->size() / sizeof(ov::float16);
-                const size_t boundaries_count = boundaries_mem->size() / sizeof(ov::float16);
+                const size_t q_t_count = q_t_mem->size() / sizeof(float);
+                const size_t centroids_count = centroids_mem->size() / sizeof(float);
+                const size_t boundaries_count = boundaries_mem->size() / sizeof(float);
 
                 OPENVINO_ASSERT(q_t_count == head_size * head_size,
                                 "Unexpected TurboQuant Q_T size: expected ",
@@ -341,31 +343,19 @@ public:
                                        << ", centroids=" << centroids_count
                                        << ", boundaries=" << boundaries_count << std::endl;
 
-                std::vector<ov::float16> q_t_host(q_t_count);
-                std::vector<ov::float16> centroids_host(centroids_count);
-                std::vector<ov::float16> boundaries_host(boundaries_count);
-
                 // Internal TurboQuant tables. Keep table ownership inside primitive internals.
-                for (size_t i = 0; i < head_size; ++i) {
-                    for (size_t j = 0; j < head_size; ++j) {
-                        q_t_host[i * head_size + j] = ov::float16(i == j ? 1.0f : 0.0f);
-                    }
-                }
+                // Use deterministic orthonormal matrix generation (ported from SDPA Turbo host path).
+                const auto& turbo = get_turbo_matrices(head_size);
+                const auto& tq_tables = get_turbo_codebook_tables(head_size);
 
-                for (size_t i = 0; i < centroids_count; ++i) {
-                    const float c = -1.0f + (2.0f * static_cast<float>(i)) / static_cast<float>(centroids_count - 1);
-                    centroids_host[i] = ov::float16(c);
-                }
+                OPENVINO_ASSERT(centroids_count == tq_tables.centroids.size(),
+                                "Unexpected 4-bit TurboQuant codebook size");
+                OPENVINO_ASSERT(boundaries_count == tq_tables.boundaries.size(),
+                                "Unexpected 4-bit TurboQuant boundaries size");
 
-                for (size_t i = 0; i < boundaries_count; ++i) {
-                    const float c0 = -1.0f + (2.0f * static_cast<float>(i)) / static_cast<float>(centroids_count - 1);
-                    const float c1 = -1.0f + (2.0f * static_cast<float>(i + 1)) / static_cast<float>(centroids_count - 1);
-                    boundaries_host[i] = ov::float16(0.5f * (c0 + c1));
-                }
-
-                q_t_mem->copy_from(stream, q_t_host.data(), true);
-                centroids_mem->copy_from(stream, centroids_host.data(), true);
-                boundaries_mem->copy_from(stream, boundaries_host.data(), true);
+                q_t_mem->copy_from(stream, turbo.q_t.data(), true);
+                centroids_mem->copy_from(stream, tq_tables.centroids.data(), true);
+                boundaries_mem->copy_from(stream, tq_tables.boundaries.data(), true);
 
                 m_tq_tables_initialized = true;
                 m_tq_tables_head_size = head_size;
@@ -412,29 +402,10 @@ public:
                 Stage::Ptr& xattn_post_proc = use_256 ? xattn_estimate_post_proc_256 : xattn_estimate_post_proc;
                 Stage::Ptr& pa_multi_token = use_256 ? pa_multi_token_256 : pa_multi_token_128;
 
-                GPU_DEBUG_TRACE_DETAIL << "[CM PA] execute_stage begin: xattn_gemmqk" << std::endl;
                 res_event = {execute_stage(res_event, instance, xattn_gemmqk)};
-                GPU_DEBUG_TRACE_DETAIL << "[CM PA] execute_stage end: xattn_gemmqk" << std::endl;
-                stream.finish();
-                XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_GEMMQK_MAX);  // 2: kq_max_wg
-                XATTN_DUMP(instance,
-                           PagedAttentionInternBuffIdx::XATTN_GEMMQK_EXPSUMS);  // idx 3: kq_exp_partial_sum is subject to change in find_block kernel.
-                GPU_DEBUG_TRACE_DETAIL << "[CM PA] execute_stage begin: xattn_find_block" << std::endl;
                 res_event = {execute_stage(res_event, instance, xattn_find_block)};
-                GPU_DEBUG_TRACE_DETAIL << "[CM PA] execute_stage end: xattn_find_block" << std::endl;
-                stream.finish();
-                XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK);  // 4: sparse_block_mask
-#if FIND_DEBUG_ACC
-                XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_FIND_DEBUG_ACC);  // 6: kq_sum for debug purpose only
-#endif
-                GPU_DEBUG_TRACE_DETAIL << "[CM PA] execute_stage begin: xattn_post_proc" << std::endl;
                 res_event = {execute_stage(res_event, instance, xattn_post_proc)};
-                GPU_DEBUG_TRACE_DETAIL << "[CM PA] execute_stage end: xattn_post_proc" << std::endl;
-                stream.finish();
-                GPU_DEBUG_TRACE_DETAIL << "[CM PA] execute_stage begin: pa_multi_token" << std::endl;
                 res_event = {execute_stage(res_event, instance, pa_multi_token)};
-                GPU_DEBUG_TRACE_DETAIL << "[CM PA] execute_stage end: pa_multi_token" << std::endl;
-                stream.finish();
             }
         } else {
             GPU_DEBUG_TRACE_DETAIL << "[CM PA] execute_stage begin: pa_single_token" << std::endl;
