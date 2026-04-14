@@ -187,7 +187,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::runtime_requirements.name()) {
         std::vector<uint8_t> compilerDescriptor = _propertiesManager->getCompiledModelCompatibilityDescriptor(_graph);
 
-        std::stringstream requirementsString;
+        std::ostringstream requirementsString;
         requirementsString.write(reinterpret_cast<const char*>(compilerDescriptor.data()),
                                  static_cast<std::streamsize>(compilerDescriptor.size()));
 
@@ -199,7 +199,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
                                            std::nullopt,
                                            std::nullopt)
             .write(requirementsString);
-        return encode_compatibility_string(requirementsString.str());
+        return utils::encode_compatibility_string(requirementsString.str());
     }
 
     // default behaviour

@@ -319,4 +319,11 @@ std::vector<uint8_t> DriverCompilerAdapter::get_compiled_model_compatibility_des
     return _zeGraphExt->getCompatibilityDescriptor(graph->get_handle());
 }
 
+bool DriverCompilerAdapter::validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const {
+    if (!_zeGraphExt->isCompatibilityDescriptorSupported()) {
+        OPENVINO_THROW("");
+    }
+    return _zeGraphExt->validateCompatibilityDescriptor(compatibilityDescriptor);
+}
+
 }  // namespace intel_npu
