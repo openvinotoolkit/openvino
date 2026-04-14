@@ -6,8 +6,10 @@
 #include <functional>
 #include <list>
 #include <memory>
+#include <mutex>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "intel_gpu/runtime/engine.hpp"
 
@@ -22,17 +24,19 @@ public:
 
     std::pair<size_t, bool> get_lru_item(size_t layer, size_t expert);
     size_t get_total_experts() const {
+        std::lock_guard<std::mutex> lock(m_mutex);
         return m_total_experts;
     }
 
     void evict_one();
 
     size_t size() const {
+        std::lock_guard<std::mutex> lock(m_mutex);
         return m_total_experts;
     }
     std::pair<size_t, bool> get_item(size_t layer, size_t expert);
-
     void set_filled(size_t lru_expert_no) {
+        std::lock_guard<std::mutex> lock(m_mutex);
         if (lru_expert_no >= m_filled_list.size()) {
             return;
         }
@@ -71,6 +75,8 @@ private:
     std::list<Node> m_list;
     std::vector<bool> m_filled_list;
     std::unordered_map<Key, std::list<Node>::iterator, KeyHash> m_map;
+    mutable std::mutex m_mutex;
 
     void move_to_end(std::list<Node>::iterator it);
+    void evict_one_unlocked();
 };

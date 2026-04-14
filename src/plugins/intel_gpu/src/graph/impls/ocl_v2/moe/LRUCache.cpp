@@ -11,7 +11,7 @@ LRUCache::LRUCache(size_t max_total_experts, EvictCallback cb)
       m_total_experts(0),
       m_to_filled_lru_expert_no(0),
       m_on_evict(std::move(cb)) {
-    m_filled_list.resize(max_total_experts, false);
+        m_filled_list.resize(max_total_experts, false);
 }
 
 void LRUCache::move_to_end(std::list<Node>::iterator it) {
@@ -20,7 +20,7 @@ void LRUCache::move_to_end(std::list<Node>::iterator it) {
     m_list.splice(m_list.end(), m_list, it);
 }
 
-void LRUCache::evict_one() {
+void LRUCache::evict_one_unlocked() {
     if (m_list.empty())
         return;
 
@@ -34,13 +34,20 @@ void LRUCache::evict_one() {
     --m_total_experts;
 }
 
+void LRUCache::evict_one() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    evict_one_unlocked();
+}
+
 std::pair<size_t, bool> LRUCache::get_lru_item(size_t layer, size_t expert) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     Key key{layer, expert};
     auto it = m_map.find(key);
     if (it == m_map.end()) {
         size_t to_filled_no = 0;
         if (m_total_experts >= m_max_total_experts) {
-            evict_one();
+            evict_one_unlocked();
             to_filled_no = m_to_filled_lru_expert_no;
         } else {
             to_filled_no = m_total_experts;
