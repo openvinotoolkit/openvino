@@ -2305,7 +2305,7 @@ TEST_F(TransformationTestsF, EliminateConcatSlice) {
 
         model = std::make_shared<ov::Model>(ResultVector{result1, result2},
                                             ParameterVector{param1, param2, param3, param4, add_param});
-        manager.register_pass<ov::pass::EliminateConcatSlice>();
+        manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
     }
     {
         int64_t axis = 2;
@@ -2355,7 +2355,7 @@ TEST_F(TransformationTestsF, EliminateConcatSliceAll) {
         auto result2 = std::make_shared<op::v0::Result>(relu2);
 
         model = std::make_shared<ov::Model>(ResultVector{result1, result2}, ParameterVector{param1, param2});
-        manager.register_pass<ov::pass::EliminateConcatSlice>();
+        manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
     }
     {
         auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 10, 1});
@@ -2395,7 +2395,7 @@ TEST_F(TransformationTestsF, EliminateConcatSliceConcat) {
 
         auto result = std::make_shared<op::v0::Result>(concat1);
         model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{param1, param2, param3});
-        manager.register_pass<ov::pass::EliminateConcatSlice>();
+        manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
     }
     {
         int64_t axis = 2;
@@ -2435,7 +2435,7 @@ TEST_F(TransformationTestsF, EliminateConcatSliceMismatch) {
 
         auto result = std::make_shared<op::v0::Result>(concat1);
         model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{param1, param2, param3});
-        manager.register_pass<ov::pass::EliminateConcatSlice>();
+        manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
     }
     {
         int64_t axis = 2;
@@ -2480,7 +2480,7 @@ TEST_F(TransformationTestsF, EliminateConcatSliceDiffAxis) {
 
         auto result = std::make_shared<op::v0::Result>(relu);
         model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{param1, param2, param3});
-        manager.register_pass<ov::pass::EliminateConcatSlice>();
+        manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
     }
     {
         int64_t axis = 2;
@@ -2525,7 +2525,7 @@ TEST_F(TransformationTestsF, EliminateConcatSliceNonUnitStep) {
         auto result2 = std::make_shared<op::v0::Result>(relu2);
 
         model = std::make_shared<ov::Model>(ResultVector{result1, result2}, ParameterVector{param1, param2});
-        manager.register_pass<ov::pass::EliminateConcatSlice>();
+        manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
     }
     {
         int64_t axis = 2;
@@ -2587,7 +2587,7 @@ TEST_F(TransformationTestsF, EliminateConcatSliceWithAxes) {
 
         model = std::make_shared<ov::Model>(ResultVector{result1, result2, result3},
                                             ParameterVector{param1, param2, param3});
-        manager.register_pass<ov::pass::EliminateConcatSlice>();
+        manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
     }
     {
         auto param1 = make_shared<v0::Parameter>(element::f32, Shape{2, 3, 10});
