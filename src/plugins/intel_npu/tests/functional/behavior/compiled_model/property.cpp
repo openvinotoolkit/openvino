@@ -17,7 +17,6 @@ std::vector<std::pair<std::string, ov::Any>> exe_network_supported_properties = 
     {ov::hint::num_requests.name(), ov::Any(8)},
     {ov::hint::enable_cpu_pinning.name(), ov::Any(true)},
     {ov::hint::performance_mode.name(), ov::Any(ov::hint::PerformanceMode::THROUGHPUT)},
-    {ov::hint::model_priority.name(), ov::Any(ov::hint::Priority::MEDIUM)},
     {ov::optimal_number_of_infer_requests.name(), ov::Any(2)},
 };
 
@@ -50,8 +49,7 @@ std::vector<std::pair<std::string, ov::Any>> compat_plugin_internal_mutable_prop
 };
 
 std::vector<std::pair<std::string, ov::Any>> plugin_internal_mutable_properties = {
-    {ov::intel_npu::max_tiles.name(), ov::Any(8)},
-    {ov::intel_npu::stepping.name(), ov::Any(4)},
+    {ov::intel_npu::stepping.name(), ov::Any(4)}
 };
 
 std::vector<std::pair<std::string, ov::Any>> plugin_public_immutable_properties = {
@@ -66,6 +64,7 @@ std::vector<std::pair<std::string, ov::Any>> plugin_public_immutable_properties 
     {ov::optimal_number_of_infer_requests.name(), ov::Any(4)},
     {ov::intel_npu::device_alloc_mem_size.name(), ov::Any(2)},
     {ov::intel_npu::device_total_mem_size.name(), ov::Any(2)},
+    {ov::intel_npu::max_tiles.name(), ov::Any(9999)}
 };
 
 std::vector<std::pair<std::string, ov::Any>> invalid_device_ids = {
@@ -143,6 +142,12 @@ std::vector<std::pair<std::string, ov::Any>> valid_device_ids = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CheckCompilerType,
                          CheckCompilerTypeProperty,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(valid_device_ids)),
+                         CheckCompilerTypeProperty::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CheckCompilerType,
+                         CheckCompilerPropertyWhenImporting,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(valid_device_ids)),
                          CheckCompilerTypeProperty::getTestCaseName);

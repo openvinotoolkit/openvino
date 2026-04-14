@@ -4,7 +4,7 @@
 
 #include "zero_dynamic_pipeline.hpp"
 
-#include <ze_api.h>
+#include <level_zero/ze_api.h>
 #include <ze_graph_ext.h>
 
 #include <sstream>
@@ -14,6 +14,7 @@
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
 
@@ -40,79 +41,49 @@ std::vector<size_t> get_strides(const std::vector<size_t>& strides_in_bytes, siz
 }  // namespace
 
 namespace intel_npu {
-DynamicPipeline::DynamicPipeline(const Config& config,
-                                 const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                  const std::shared_ptr<IGraph>& graph,
+                                 const Config& config,
                                  const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
                                  const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
                                  size_t batch_size)
-    : Pipeline(config, init_structs, graph, input_tensors, output_tensors, "DynamicPipeline", batch_size) {
+    : IPipeline(init_structs, graph, batch_size, config, "DynamicPipeline") {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::DynamicPipeline::DynamicPipeline");
 
-    _logger.debug("DynamicPipeline - initialize started, number_of_command_lists %i", _number_of_command_lists);
+    OPENVINO_ASSERT(!_run_inferences_sequentially, "In-order execution doesn't work for dynamic pipeline");
+
+    _logger.debug("DynamicPipeline - initialization started, batch size: %i", _batch_size);
 
     intel_npu::IDynamicGraph* dynamicGraph = dynamic_cast<intel_npu::IDynamicGraph*>(graph.get());
-    if (!dynamicGraph) {
-        OPENVINO_THROW("Failed to cast graph to IDynamicGraph");
-    }
+    OPENVINO_ASSERT(dynamicGraph != nullptr, "Failed to cast graph to IDynamicGraph");
 
-    if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-        _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-        _graph->resize_last_submitted_event(_number_of_command_lists);
-    }
+    if (!_sync_output_with_fences) {
+        _event_pool = std::make_shared<EventPool>(_init_structs->getDevice(),
+                                                  _init_structs->getContext(),
+                                                  _batch_size ? static_cast<uint32_t>(_batch_size) : 1);
 
-    OPENVINO_ASSERT(_sync_output_with_fences || !_config.get<RUN_INFERENCES_SEQUENTIALLY>() ||
-                        _init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1),
-                    "In-order execution doesn't work in case synchronization of the inferences is done using events");
-
-    if (_config.has<PERF_COUNT>() && _config.get<PERF_COUNT>()) {
-        auto profiling_pool =
-            std::make_shared<zeroProfiling::ProfilingPool>(_init_structs, _graph, zeroProfiling::POOL_SIZE);
-        _profiling_query = std::make_unique<zeroProfiling::ProfilingQuery>(_init_structs, 0);
-
-        if (profiling_pool->create()) {
-            _profiling_query->create(profiling_pool);
-        }
-
-        if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
-            _logger.debug("ZeroInferRequest::ZeroInferRequest - profiling type == ov::intel_npu::ProfilingType::INFER");
-            _npu_profiling =
-                std::make_shared<zeroProfiling::NpuInferProfiling>(_init_structs, _config.get<LOG_LEVEL>());
-        }
-    }
-
-    if (!_sync_output_with_fences || (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-                                      _config.get<RUN_INFERENCES_SEQUENTIALLY>())) {
-        _event_pool =
-            std::make_shared<EventPool>(_init_structs->getDevice(),
-                                        _init_structs->getContext(),
-                                        _number_of_command_lists ? static_cast<uint32_t>(_number_of_command_lists) : 1);
-
-        _events.reserve(_number_of_command_lists);
-        for (size_t i = 0; i < _number_of_command_lists; i++) {
+        _events.reserve(_batch_size);
+        for (size_t i = 0; i < _batch_size; i++) {
             _events.emplace_back(std::make_shared<Event>(_event_pool, static_cast<uint32_t>(i)));
         }
     }
-    _logger.debug("DynamicPipeline - emplace_back _event_pool and _command_queue completed");
+    _logger.debug("DynamicPipeline - event pool and command queue setup completed");
 
     uint64_t num_of_subgraphs = dynamicGraph->get_num_subgraphs();
 
-    _command_lists.reserve(_number_of_command_lists);
-    for (size_t i = 0; i < _number_of_command_lists; i++) {
-        _command_lists.emplace_back(std::make_unique<PipelinedCommandLists>(num_of_subgraphs,
-                                                                            _init_structs,
-                                                                            _graph->get_command_queue_group_ordinal()));
+    _command_lists.reserve(_batch_size);
+    for (size_t i = 0; i < _batch_size; i++) {
+        _command_lists.emplace_back(std::make_unique<PipelinedCommandLists>(num_of_subgraphs, _init_structs));
     }
 
     if (_sync_output_with_fences) {
-        _fences.reserve(_number_of_command_lists);
-
-        for (size_t i = 0; i < _number_of_command_lists; i++) {
-            _fences.emplace_back(std::make_unique<Fence>(_graph->get_command_queue()));
+        _fences.reserve(_batch_size);
+        for (size_t i = 0; i < _batch_size; i++) {
+            _fences.emplace_back(std::make_unique<Fence>(_command_queue));
         }
     }
 
-    for (size_t i = 0; i < _number_of_command_lists; i++) {
+    for (size_t i = 0; i < _batch_size; i++) {
         _logger.debug("DynamicPipeline - set args for command list number: %zu", i);
 
         _command_lists.at(i)->bind(dynamicGraph);
@@ -146,18 +117,18 @@ DynamicPipeline::DynamicPipeline(const Config& config,
                 continue;
             }
 
-            _logger.debug(" update tensor property for input desc index: %d", desc.indexUsedByDriver);
+            _logger.debug("DynamicPipeline - update tensor property for input desc index: %d", desc.indexUsedByDriver);
             const auto& tensor = input_tensors.at(io_index).at(0);
             size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
             if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
-                dynamicGraph->set_argument_value(desc.indexUsedByDriver,
-                                                 static_cast<unsigned char*>(tensor->data()) +
-                                                     (i * tensor->get_byte_size()) / _number_of_command_lists);
-                graphArguments.setArgumentProperties(desc.indexUsedByDriver,
-                                                     static_cast<unsigned char*>(tensor->data()) +
-                                                         (i * tensor->get_byte_size()) / _number_of_command_lists,
-                                                     tensor->get_shape(),
-                                                     get_strides(tensor->get_strides(), elementSize));
+                dynamicGraph->set_argument_value(
+                    desc.indexUsedByDriver,
+                    static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_byte_size()) / _batch_size);
+                graphArguments.setArgumentProperties(
+                    desc.indexUsedByDriver,
+                    static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_byte_size()) / _batch_size,
+                    tensor->get_shape(),
+                    get_strides(tensor->get_strides(), elementSize));
             } else {
                 dynamicGraph->set_argument_value_with_strides(
                     desc.indexUsedByDriver,
@@ -178,14 +149,14 @@ DynamicPipeline::DynamicPipeline(const Config& config,
             const auto& tensor = output_tensors.at(io_index);
             size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
             if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
-                dynamicGraph->set_argument_value(desc.indexUsedByDriver,
-                                                 static_cast<unsigned char*>(tensor->data()) +
-                                                     (i * tensor->get_byte_size()) / _number_of_command_lists);
-                graphArguments.setArgumentProperties(desc.indexUsedByDriver,
-                                                     static_cast<unsigned char*>(tensor->data()) +
-                                                         (i * tensor->get_byte_size()) / _number_of_command_lists,
-                                                     tensor->get_shape(),
-                                                     get_strides(tensor->get_strides(), elementSize));
+                dynamicGraph->set_argument_value(
+                    desc.indexUsedByDriver,
+                    static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_byte_size()) / _batch_size);
+                graphArguments.setArgumentProperties(
+                    desc.indexUsedByDriver,
+                    static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_byte_size()) / _batch_size,
+                    tensor->get_shape(),
+                    get_strides(tensor->get_strides(), elementSize));
             } else {
                 dynamicGraph->set_argument_value_with_strides(
                     desc.indexUsedByDriver,
@@ -201,26 +172,28 @@ DynamicPipeline::DynamicPipeline(const Config& config,
             ++io_index;
         }
     }
-    _logger.debug("DynamicPipeline - initialize completed");
+    _logger.debug("DynamicPipeline - initialization completed");
 }
 
 void DynamicPipeline::push() {
-    _logger.debug("DynamicPipeline - push() started");
+    _logger.debug("push - started");
 
-    if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-        _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-        if (_id) {
-            auto previousIndex = _graph->get_last_submitted_id();
+    auto* dynamicGraph = dynamic_cast<IDynamicGraph*>(_graph.get());
+    OPENVINO_ASSERT(dynamicGraph != nullptr, "Failed to cast graph to IDynamicGraph");
 
-            if (_id != ++previousIndex) {
-                OPENVINO_THROW("Inferences should be called in the same order they were called the first time!");
+    const auto command_queue_desc = _graph->get_command_queue_desc();
+    const bool command_queue_version_changed = (command_queue_desc.key() != _command_queue->desc().key());
+    if (command_queue_version_changed) {
+        _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, command_queue_desc);
+
+        if (_sync_output_with_fences) {
+            for (size_t i = 0; i < _fences.size(); i++) {
+                _fences[i] = std::make_unique<Fence>(_command_queue);
             }
         }
-
-        _graph->set_last_submitted_id(_id);
     }
 
-    auto commandQueueHandle = _graph->get_command_queue()->handle();
+    auto commandQueueHandle = _command_queue->handle();
     for (size_t i = 0; i < _command_lists.size(); ++i) {
         OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
 
@@ -233,34 +206,33 @@ void DynamicPipeline::push() {
         auto& command_lists = _command_lists.at(i);
         auto& graphArguments = command_lists->getBinding();
         if (_logger.level() >= ov::log::Level::DEBUG) {
-            _logger.debug("Inputs info for dynamic graph:");
+            _logger.debug("push - inputs info for dynamic graph:");
             for (auto& memType : graphArguments._inputs) {
-                _logger.debug("input: %s", memType.toString().c_str());
+                _logger.debug("push - input: %s", memType.toString().c_str());
             }
-            _logger.debug("Outputs info for dynamic graph:");
+            _logger.debug("push - outputs info for dynamic graph:");
             for (auto& memType : graphArguments._outputs) {
-                _logger.debug("output: %s", memType.toString().c_str());
+                _logger.debug("push - output: %s", memType.toString().c_str());
             }
         }
 
         // L0 wrapper handle closed command list
         command_lists->resetCommandList();
 
-        dynamic_cast<IDynamicGraph*>(_graph.get())
-            ->execute(_init_structs,
-                      command_lists->getBinding(),
-                      command_lists->getHandles(),
-                      commandQueueHandle,
-                      fence,
-                      event,
-                      nullptr);
+        dynamicGraph->execute(_init_structs,
+                              command_lists->getBinding(),
+                              command_lists->getHandles(),
+                              commandQueueHandle,
+                              fence,
+                              event,
+                              nullptr);
     }
 
-    _logger.debug("DynamicPipeline - push() completed");
+    _logger.debug("push - completed");
 }
 
 void DynamicPipeline::pull() {
-    _logger.debug("DynamicPipeline - pull() started");
+    _logger.debug("pull - started");
     OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PULL, itt::domains::LevelZeroBackend, "DynamicPipeline", "pull");
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
@@ -275,11 +247,11 @@ void DynamicPipeline::pull() {
         }
     }
 
-    _logger.debug("DynamicPipeline - pull() completed");
+    _logger.debug("pull - completed");
 }
 
 void DynamicPipeline::reset() const {
-    _logger.debug("DynamicPipeline - reset() started");
+    _logger.debug("reset - started");
     for (size_t i = 0; i < _command_lists.size(); ++i) {
         if (_sync_output_with_fences) {
             _fences.at(i)->reset();
@@ -288,14 +260,14 @@ void DynamicPipeline::reset() const {
         }
     }
 
-    _logger.debug("Pipeline - rest() completed");
+    _logger.debug("reset - completed");
 }
 
 void DynamicPipeline::update_graph_arguments(uint32_t index,
                                              const std::shared_ptr<ZeroTensor>& zeroTensor,
-                                             std::shared_ptr<ov::ITensor> userTensor) {
+                                             const std::shared_ptr<ov::ITensor>& userTensor) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "DynamicPipeline", "updateCommandList");
-    _logger.debug("DynamicPipeline - updateCommandList");
+    _logger.debug("update_graph_arguments - update command list");
     // This is the tensor with right shape and strides
     // The required check is alredy done in inferRequest
     const std::shared_ptr<ov::ITensor>& tensor = userTensor ? userTensor : zeroTensor;
@@ -322,12 +294,12 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
 void DynamicPipeline::update_graph_arguments(uint32_t index,
                                              const std::shared_ptr<ZeroTensor>& zeroTensor,
                                              size_t batch_index,
-                                             std::shared_ptr<ov::ITensor> userTensor) {
+                                             const std::shared_ptr<ov::ITensor>& userTensor) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL,
                       itt::domains::LevelZeroBackend,
                       "DynamicPipeline",
                       "updateCommandListIndex");
-    _logger.debug("DynamicPipeline - updateCommandListIndex");
+    _logger.debug("update_graph_arguments - update command list by index");
     // This is the tensor with right shape and strides
     // The required check is alredy done in inferRequest
     const std::shared_ptr<ov::ITensor>& tensor = userTensor ? userTensor : zeroTensor;
@@ -351,22 +323,6 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
                                        get_strides(tensor->get_strides(), elementSize),
                                        tensor->get_shape());
     }
-}
-
-std::vector<ov::ProfilingInfo> DynamicPipeline::get_profiling_info() const {
-    _logger.debug("InferRequest::get_profiling_info started");
-    if (!_config.has<PERF_COUNT>() || !_config.get<PERF_COUNT>()) {
-        _logger.warning("InferRequest::get_profiling_info complete with empty {}.");
-        return {};
-    }
-
-    if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
-        _logger.debug("InferRequest::get_profiling_info complete with _npu_profiling->getNpuInferStatistics().");
-        return _npu_profiling->getNpuInferStatistics();
-    }
-
-    _logger.debug("InferRequest::get_profiling_info complete with compiler->process_profiling_output().");
-    return _graph->process_profiling_output(_profiling_query->getData<uint8_t>(), _config);
 }
 
 }  // namespace intel_npu

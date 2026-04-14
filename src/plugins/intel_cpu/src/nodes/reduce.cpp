@@ -2237,8 +2237,8 @@ void Reduce::initSupportedPrimitiveDescriptors() {
                 axis += static_cast<int>(getInputShapeAtPort(REDUCE_DATA).getRank());
             }
         }
-        pushDesc(LayoutType::nspc, LayoutType::nspc, input_prec, output_prec, impl_desc_type::undef, true);
-        pushDesc(LayoutType::ncsp, LayoutType::ncsp, input_prec, output_prec, impl_desc_type::undef, true);
+        pushDesc(LayoutType::nspc, LayoutType::nspc, input_prec, output_prec, impl_desc_type::acl, true);
+        pushDesc(LayoutType::ncsp, LayoutType::ncsp, input_prec, output_prec, impl_desc_type::acl, true);
         canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
     }
 
