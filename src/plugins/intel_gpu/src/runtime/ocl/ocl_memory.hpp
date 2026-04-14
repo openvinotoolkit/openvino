@@ -51,6 +51,7 @@ struct gpu_buffer : public lockable_gpu_mem, public memory {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */, int64_t offset = 0) const override;
+    dnnl::memory get_onednn_grouped_memory(dnnl::memory::desc /* desc */, const memory& offsets) const override;
 #endif
 
 protected:
@@ -127,6 +128,7 @@ struct gpu_usm : public lockable_gpu_mem, public memory {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */, int64_t offset = 0) const override;
+    dnnl::memory get_onednn_grouped_memory(dnnl::memory::desc /* desc */, const memory& offsets) const override;
 #endif
 
     static allocation_type detect_allocation_type(const ocl_engine* engine, const void* mem_ptr);

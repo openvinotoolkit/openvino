@@ -784,10 +784,9 @@ Example:
     </skip_config>
 
     <skip_config>
-        <message>Only "developer built" compilers support weights separation</message>
+        <message>Non "developer build" CiDs don't support weights separation yet</message>
         <filters>
-            <filter>.*WeightsSeparationTests.*</filter>
-            <filter>.*WeightsSeparationIterativeTests.*</filter>
+            <filter>.*WeightsSeparationIterativeTests.*DRIVER.*</filter>
         </filters>
     </skip_config>
 
@@ -815,13 +814,6 @@ Example:
         <filters>
             <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
             <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u1\D.*</filter>
-        </filters>
-    </skip_config>
-
-    <skip_config>
-        <message>The "one shot" implementation of the weights separation feature is supported only in the compiler-in-plugin flow</message>
-        <filters>
-            <filter>.*WeightsSeparationOneShotTests.*</filter>
         </filters>
     </skip_config>
 
@@ -884,6 +876,18 @@ Example:
         </enable_rules>
         <filters>
             <filter>.*BooleanPrecisionInferRequestRunTests.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E#206393 -->
+    <skip_config>
+        <message>Skip memory standard allocation tests for Win NPU3720 due to OS issue, E#206393.</message>
+        <enable_rules>
+            <operating_system>windows</operating_system>
+            <device>3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*ZeroGraphTest.SetAlignedBlob.*zeGraphNpuExtVersion=(1.13|1.14|1.15|1.16).*</filter>
         </filters>
     </skip_config>
 

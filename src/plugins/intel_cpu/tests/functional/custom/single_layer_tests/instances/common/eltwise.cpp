@@ -276,6 +276,11 @@ static const std::vector<std::vector<InputShape>> bitwise_in_shapes_4D = {
     },
 };
 
+static const std::vector<std::vector<InputShape>> bitwise_in_shapes_2D_broadcast = {
+    {{{1, -1}, {{1, 64}, {1, 1}}}, {{1, 64}, {{1, 64}}}},
+    {{{-1, -1}, {{32, 256}, {1, 1}}}, {{32, 256}, {{32, 256}}}},
+};
+
 static const std::vector<CPUSpecificParams>& bitwiseCpuParams() {
     static const std::vector<CPUSpecificParams> params = {CPUSpecificParams({nhwc, nhwc}, {nhwc}, {}, {}),
                                                           CPUSpecificParams({nchw, nchw}, {nchw}, {}, {})};
@@ -315,6 +320,27 @@ const auto params_4D_bitwise = ::testing::Combine(
     ::testing::Values(false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Bitwise, EltwiseLayerCPUTest, params_4D_bitwise, EltwiseLayerCPUTest::getTestCaseName);
+
+const auto params_2D_bitwise_broadcast =
+    ::testing::Combine(::testing::Combine(::testing::ValuesIn(bitwise_in_shapes_2D_broadcast),
+                                          ::testing::ValuesIn({ov::test::utils::EltwiseTypes::BITWISE_AND,
+                                                               ov::test::utils::EltwiseTypes::BITWISE_OR,
+                                                               ov::test::utils::EltwiseTypes::BITWISE_XOR}),
+                                          ::testing::ValuesIn(secondaryInputTypes()),
+                                          ::testing::ValuesIn({ov::test::utils::OpType::VECTOR}),
+                                          ::testing::ValuesIn({ov::element::Type_t::i8, ov::element::Type_t::u8}),
+                                          ::testing::Values(ov::element::Type_t::dynamic),
+                                          ::testing::Values(ov::element::Type_t::dynamic),
+                                          ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                          ::testing::Values(ov::AnyMap())),
+                       ::testing::Values(CPUSpecificParams({}, {}, {}, {})),
+                       ::testing::Values(emptyFusingSpec),
+                       ::testing::Values(false));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_2D_Bitwise_i8u8_Broadcast,
+                         EltwiseLayerCPUTest,
+                         params_2D_bitwise_broadcast,
+                         EltwiseLayerCPUTest::getTestCaseName);
 
 const auto params_4D_bitwise_i32 = ::testing::Combine(
     ::testing::Combine(
