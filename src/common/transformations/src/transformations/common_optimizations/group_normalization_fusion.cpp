@@ -148,11 +148,16 @@ GroupNormalizationFusion::GroupNormalizationFusion() {
                     (pre_mvn_shape_vals[0] != static_cast<long long>(input_ps[0].get_max_length())))
                     return false;
             }
-            // Validate second dimension (groups): must explicitly match num_groups.
-            // Do not allow 0 (special-zero copy), because that can copy the input channel
-            // dimension and broaden the fusion beyond the intended {N, G, ...} reshape.
-            if (pre_mvn_shape_vals[1] != static_cast<long long>(num_groups))
+            // Validate second dimension (groups): allow either an explicit num_groups value
+            // or special-zero copy when it provably copies the input channel dimension and
+            // that channel dimension is equal to num_groups.
+            if (pre_mvn_shape_vals[1] == 0ll) {
+                if (!input_ps[1].is_static() ||
+                    input_ps[1].get_length() != static_cast<long long>(num_groups))
+                    return false;
+            } else if (pre_mvn_shape_vals[1] != static_cast<long long>(num_groups)) {
                 return false;
+            }
             // Validate third dimension: can be -1 (infer) or the actual flattened size
             // The actual size is verified through reshape_out_ps which is already validated
             if (pre_mvn_shape_vals[2] != -1ll) {
