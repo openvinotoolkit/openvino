@@ -6,6 +6,10 @@
 
 #include <gtest/gtest.h>
 
+#include <memory>
+#include <stdexcept>
+#include <streambuf>
+
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
@@ -22,6 +26,30 @@ namespace {
 constexpr uint64_t version_size() {
     return 3 * sizeof(uint16_t);  // major, minor, patch
 }
+
+class FlushFailingStreambuf final : public std::streambuf {
+public:
+    explicit FlushFailingStreambuf(std::streambuf* delegate) : m_delegate(delegate) {}
+
+protected:
+    std::streamsize xsputn(const char* s, std::streamsize count) override {
+        return m_delegate->sputn(s, count);
+    }
+
+    int_type overflow(int_type ch) override {
+        if (traits_type::eq_int_type(ch, traits_type::eof())) {
+            return traits_type::not_eof(ch);
+        }
+        return m_delegate->sputc(traits_type::to_char_type(ch));
+    }
+
+    int sync() override {
+        return -1;
+    }
+
+private:
+    std::streambuf* m_delegate;
+};
 }  // namespace
 
 struct SingleFileStorageTestParam {
@@ -191,6 +219,67 @@ TEST_F(SingleFileStorageTest, AppendOnlyCacheEntry) {
         read_called = true;
     }));
     EXPECT_TRUE(read_called);
+}
+
+TEST_F(SingleFileStorageTest, RollsBackPartialAppendAfterWriteFailure) {
+    const auto original_size = test::utils::fileSize(m_file_path.string());
+
+    EXPECT_THROW(m_storage->write_cache_entry("321",
+                                              [&](std::ostream& stream) {
+                                                  stream << "partial";
+                                                  throw std::runtime_error("write failed");
+                                              }),
+                 std::runtime_error);
+
+    EXPECT_EQ(test::utils::fileSize(m_file_path.string()), original_size);
+    EXPECT_NO_THROW(m_storage->write_cache_entry("321", [&](std::ostream& stream) {
+        stream << "complete";
+    }));
+}
+
+TEST_F(SingleFileStorageTest, RollsBackPartialAppendAfterFlushFailure) {
+    const auto original_size = test::utils::fileSize(m_file_path.string());
+    std::unique_ptr<FlushFailingStreambuf> failing_streambuf;
+
+    EXPECT_THROW(m_storage->write_cache_entry("654",
+                                              [&](std::ostream& stream) {
+                                                  failing_streambuf =
+                                                      std::make_unique<FlushFailingStreambuf>(stream.rdbuf());
+                                                  stream.rdbuf(failing_streambuf.get());
+                                                  stream << "partial";
+                                              }),
+                 std::ios_base::failure);
+
+    EXPECT_EQ(test::utils::fileSize(m_file_path.string()), original_size);
+    EXPECT_NO_THROW(m_storage->write_cache_entry("654", [&](std::ostream& stream) {
+        stream << "complete";
+    }));
+
+    m_storage.reset();
+    SingleFileStorage reopened_storage(m_file_path);
+    reopened_storage.initialize();
+
+    bool read_called = false;
+    EXPECT_NO_THROW(reopened_storage.read_cache_entry("654", false, [&](const ICacheManager::CompiledBlobVariant&) {
+        read_called = true;
+    }));
+    EXPECT_TRUE(read_called);
+}
+
+TEST_F(SingleFileStorageTest, RecreatesCorruptedStorageOnInitialize) {
+    {
+        std::ofstream stream(m_file_path, std::ios::binary | std::ios::app);
+        stream.put('');
+    }
+
+    m_storage.reset();
+    SingleFileStorage reopened_storage(m_file_path);
+    EXPECT_NO_THROW(reopened_storage.initialize());
+    EXPECT_EQ(test::utils::fileSize(m_file_path.string()), version_size());
+
+    EXPECT_NO_THROW(reopened_storage.write_cache_entry("777", [&](std::ostream& stream) {
+        stream << "complete";
+    }));
 }
 
 TEST_F(SingleFileStorageTest, ContextMetaWriteRead) {

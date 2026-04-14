@@ -12,7 +12,6 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
-#include <memory>
 #include <string>
 #include <variant>
 
@@ -51,7 +50,19 @@ private:
         // Fix the bug caused by pugixml, which may return unexpected results if the locale is different from "C".
         ScopedLocale plocal_C(LC_ALL, "C");
         const auto blob_path = get_blob_file(id);
-        std::ofstream stream(blob_path, std::ios_base::binary);
+
+        std::error_code ec;
+        if (std::filesystem::exists(blob_path)) {
+            std::filesystem::permissions(blob_path,
+                                         std::filesystem::perms::owner_read | std::filesystem::perms::owner_write |
+                                             std::filesystem::perms::group_read,
+                                         std::filesystem::perm_options::replace,
+                                         ec);
+        }
+
+        std::ofstream stream;
+        stream.exceptions(std::ios_base::failbit | std::ios_base::badbit);
+        stream.open(blob_path, std::ios_base::binary | std::ios_base::trunc);
         writer(stream);
         stream.close();
         std::filesystem::permissions(blob_path,
@@ -76,7 +87,6 @@ private:
 
     void remove_cache_entry(const std::string& id) override {
         const auto blob_path = get_blob_file(id);
-
         if (std::filesystem::exists(blob_path)) {
             std::ignore = std::filesystem::remove(blob_path);
         }
