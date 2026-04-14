@@ -14,7 +14,6 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
@@ -230,24 +229,6 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     return {output, present_k, present_v};
 }
 
-// make split functions is a copy-past from ONNX FE. TODO: move it to one place
-// make split functions is a copy-past from ONNX FE. TODO: move it to one place
-ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::make_split(const ov::Output<ov::Node>& value,
-                                                                        int64_t num_splits,
-                                                                        int64_t axis) {
-    const auto axis_node = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {axis}));
-    const auto shape = register_new_node<v3::ShapeOf>(value);
-    const auto zero = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
-    const auto axis_idx = v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
-    const auto dim_size = register_new_node<v8::Gather>(shape, axis_idx, zero);
-    const auto n = v0::Constant::create(ov::element::i64, ov::Shape{1}, {num_splits});
-    const auto each_len = register_new_node<v1::Divide>(dim_size, n);
-    const auto split_lengths = register_new_node<v3::Broadcast>(each_len, n);
-    const auto split = register_new_node<v1::VariadicSplit>(value, axis_node, split_lengths);
-
-    return split->outputs();
-}
-
 std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::get_dimensions(
     const std::shared_ptr<v3::ShapeOf>& shape,
     const std::vector<int>& dims) {
@@ -297,7 +278,14 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::rotaryEmbe
     // Core RoPE formula (matches RoPEFusionGPTOSS pattern for both modes)
     // first_ = first_half * cos - second_half * sin
     // second_ = second_half * cos + first_half * sin
-    auto in_split = make_split(rope_input, 2, -1);
+    const auto& cos_partial_shape = cos.get_partial_shape();
+    const auto half_head_size_val =
+        static_cast<int64_t>(cos_partial_shape[cos_partial_shape.rank().get_length() - 1].get_length());
+    const auto split_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
+    const auto split_lengths =
+        v0::Constant::create(ov::element::i64, ov::Shape{2}, {half_head_size_val, half_head_size_val});
+    // Split along last axis using constant split_lengths to enable RoPE fusion pattern matching
+    auto in_split = register_new_node<v1::VariadicSplit>(rope_input, split_axis, split_lengths)->outputs();
     auto first_half_mul_cos = register_new_node<v1::Multiply>(in_split[0], cos_4d);
     auto second_half_mul_sin = register_new_node<v1::Multiply>(in_split[1], sin_4d);
     auto neg_one = v0::Constant::create(ov::element::f32, ov::Shape{}, {-1.0f});

@@ -10,10 +10,8 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
@@ -33,20 +31,6 @@ namespace frontend {
 namespace onnx {
 namespace com_microsoft {
 namespace opset_1 {
-
-ov::OutputVector make_split(const ov::Output<ov::Node>& value, int64_t num_splits, int64_t axis) {
-    const auto axis_node = v0::Constant::create(ov::element::i64, ov::Shape{}, {axis});
-    const auto shape = std::make_shared<v3::ShapeOf>(value, ov::element::i64);
-    const auto zero = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
-    const auto axis_idx = v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
-    const auto dim_size = std::make_shared<v8::Gather>(shape, axis_idx, zero);
-    const auto n = v0::Constant::create(ov::element::i64, ov::Shape{1}, {num_splits});
-    const auto each_len = std::make_shared<v1::Divide>(dim_size, n);
-    const auto split_lengths = std::make_shared<v3::Broadcast>(each_len, n);
-    const auto split = std::make_shared<v1::VariadicSplit>(value, axis_node, split_lengths);
-
-    return split->outputs();
-}
 
 std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<v3::ShapeOf>& shape, const std::vector<int>& dims) {
     static const auto zero = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
@@ -87,7 +71,8 @@ ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node& node) {
                      last_dim.is_static(),
                      "cos_cache last dimension must be static to derive head size, got: ",
                      cos_cache_shape);
-    const auto headsize_val = static_cast<int64_t>(last_dim.get_length() * 2);
+    const auto half_head_size_val = static_cast<int64_t>(last_dim.get_length());
+    const auto head_size_val = half_head_size_val * 2;
 
     const auto input_shape = std::make_shared<v3::ShapeOf>(input);
     const auto input_rank = input.get_partial_shape().rank();
@@ -96,7 +81,7 @@ ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node& node) {
 
     ov::Output<ov::Node> input_4d = input;
     if (input_is_3d) {
-        const auto headsize = v0::Constant::create(ov::element::i64, ov::Shape{1}, {headsize_val});
+        const auto headsize = v0::Constant::create(ov::element::i64, ov::Shape{1}, {head_size_val});
         const auto input_shape_prev_2 = get_dimensions(input_shape, {0, 1});
         auto new_input_shape = std::make_shared<v0::Concat>(ov::NodeVector{input_shape_prev_2, minus_one, headsize}, 0);
         auto input_reshaped =
@@ -128,7 +113,7 @@ ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node& node) {
     if (interleaved) {
         input_4d_shape = std::make_shared<v3::ShapeOf>(input_4d);
         dim_bns = get_dimensions(input_4d_shape, {0, 1, 2});
-        half_head_size = v0::Constant::create(ov::element::i64, ov::Shape{1}, {last_dim.get_length()});
+        half_head_size = v0::Constant::create(ov::element::i64, ov::Shape{1}, {half_head_size_val});
         perm_5d = v0::Constant::create(ov::element::i64, ov::Shape{5}, {0, 1, 2, 4, 3});
 
         // Deinterleave: [bs,num_heads,seqlen,head_size]
@@ -144,7 +129,11 @@ ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node& node) {
     // Core RoPE formula (matches RoPEFusionGPTOSS pattern for both modes)
     // first_ = first_half * cos - second_half * sin
     // second_ = second_half * cos + first_half * sin
-    auto in_split = make_split(rope_input, 2, -1);  // [bs,num_heads,seqlen,head_size/2]
+    const auto split_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
+    const auto split_lengths =
+        v0::Constant::create(ov::element::i64, ov::Shape{2}, {half_head_size_val, half_head_size_val});
+    // Split along last axis using constant split_lengths to enable RoPE fusion pattern matching
+    auto in_split = std::make_shared<v1::VariadicSplit>(rope_input, split_axis, split_lengths)->outputs();
     auto first_half_mul_cos = std::make_shared<v1::Multiply>(in_split[0], cos_4d);
     auto second_half_mul_sin = std::make_shared<v1::Multiply>(in_split[1], sin_4d);
     const auto neg_one = v0::Constant::create(ov::element::f32, ov::Shape{}, {-1.0f});
