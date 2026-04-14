@@ -2005,8 +2005,8 @@ public:
         auto uw_dt = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_1))->get_layout().data_type);
         auto dw_dt = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_2))->get_layout().data_type);
 
-        // ZP is present for all quantized (non-fp16) weight types
-        bool has_zp = (gw_dt != dnnl::memory::data_type::f16);
+        // Use the model config to determine ZP presence (symmetric vs asymmetric quantization)
+        bool has_zp = config.has_zp;
 
         int K_gu = _hidden_size;        // K for gate / up
         int N_gu = _intermediate_size;  // N for gate / up
@@ -2553,15 +2553,13 @@ public:
         if (_has_shared_expert) {
             auto& engine = instance.get_network().get_engine();
             init_shared_primitives(engine, scratch.moe_fusion_wei_addr, static_cast<int>(token_num));
-            // execute_shared_expert will read the output of moe_gemm_down, so it should be after ret_env is ready, but it doesn't need to wait for ret_env to
-            // be ready, since execute_shared_expert will be serialized with the following kernels by onednn stream, just make sure ret_env is submitted before
-            // execute_shared_expert.
-            // if (ret_env)
-            //     ret_env->wait();
+            // Shared expert's down_proj uses sum post-op (output += result), so the
+            // scatter_reduce must have written the MoE output first.  Both are on the
+            // same in-order OCL queue, so submission order guarantees execution order.
+            // No explicit wait() is needed — the in-order queue serializes all GPU work,
+            // and any subsequent primitive on the same queue will see the completed output.
             execute_shared_expert(stream.get_onednn_stream(), static_cast<int>(token_num), hidden_states_mem_ptr, final_hidden_states_mem_ptr, scratch);
         }
-        // Wait for the final event to be ready
-        // ret_env->wait();
         return ret_env;
     }
 };
