@@ -338,13 +338,9 @@ TEST(group_normalization, basic_b_fs_yx_fsv16) {
         reorder("output_bfyx_f32", input_info("group_normalization_fsv16_f32"), format::bfyx, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
-    // FixMe: this code does not distinguish between individual implementations of a given type and can force
-    // an undesirable one. Re-enable this when the logic in layout_optimizer.cpp no longer discards the name
-    /*
     ov::intel_gpu::ImplementationDesc gn_impl = {format::b_fs_yx_fsv16, "group_normalization_fsv16", impl_types::ocl};
     config.set_property(
         ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"group_normalization_fsv16_f32", gn_impl}}));
-    */
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
 
@@ -415,12 +411,8 @@ TEST(group_normalization, basic_b_fs_yx_fsv16_fused) {
                       reorder("output_bfyx_f32", input_info("group_normalization_fsv16_fused_f32"), format::bfyx, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
-    // FixMe: this code does not distinguish between individual implementations of a given type and can force
-    // an undesirable one. Re-enable this when the logic in layout_optimizer.cpp no longer discards the name
-    /*
-    ov::intel_gpu::ImplementationDesc gn_impl = {format::b_fs_yx_fsv16, "group_normalization_fsv16_fused", impl_types::ocl};
+    ov::intel_gpu::ImplementationDesc gn_impl = {format::b_fs_yx_fsv16, "group_normalization_fsv16", impl_types::ocl};
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"group_normalization_fsv16_fused_f32", gn_impl}}));
-    */
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
 
