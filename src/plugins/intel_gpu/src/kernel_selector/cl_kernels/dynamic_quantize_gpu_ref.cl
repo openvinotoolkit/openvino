@@ -6,7 +6,6 @@
 
 #include "include/batch_headers/fetch_data.cl"
 #if IS_F8
-#include "include/batch_headers/common.cl"
 #include "include/batch_headers/f8_utils.cl"
 #endif
 

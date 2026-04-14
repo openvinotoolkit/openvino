@@ -6,7 +6,6 @@
 
 #include "include/batch_headers/fetch_data.cl"
 #if IS_F8
-#include "include/batch_headers/common.cl"
 #include "include/batch_headers/f8_utils.cl"
 #endif
 
@@ -116,7 +115,9 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #endif
     output_scale[output_idx] = TO_OUTPUT1_TYPE(1.0h / quan_scale);
 
+#if !(IS_MXFP)
     FOR_PRECOMPUTED_REDUCTION(output_precomputed_reduction[output_idx] = precomputed_reduction);
+#endif
 }
 
 // ***********************************************
@@ -253,7 +254,9 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #if ASYMMETRIC_QUANTIZATION
         output_zp[output_idx] = convert_uchar_rte(zp);
 #endif
+#if !(IS_MXFP)
         FOR_PRECOMPUTED_REDUCTION(output_precomputed_reduction[output_idx] = precomputed_reduction);
+#endif
     }
 }
 
