@@ -481,10 +481,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (!disable_moe_opt) {
             manager.register_pass<ov::pass::FuseVectorizedMOE2GEMM>();
             pass_config->set_callback<ov::pass::FuseVectorizedMOE2GEMM>([&](const_node_ptr& root) -> bool {
-                // Currently moe op is only supported by >= xe2
+                // Currently moe op is only supported by systolic-array architectures
                 auto& engine = m_context->get_engine();
                 const auto& info = engine.get_device_info();
-                return (info.arch != cldnn::gpu_arch::xe2) && (info.arch != cldnn::gpu_arch::xe3);
+                return (!info.supports_immad);
             });
 
             manager.register_pass<ov::pass::FuseVectorizedMOE3GEMM>();
