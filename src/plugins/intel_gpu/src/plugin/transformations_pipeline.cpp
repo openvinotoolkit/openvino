@@ -79,6 +79,7 @@
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/convert_moe_to_compressed.hpp"
+#include "plugin/transformations/fuse_moe_shared_expert.hpp"
 #include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
 #include "plugin/transformations/decompose_reduce_scalar_output.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
@@ -96,6 +97,7 @@
 #include "plugin/transformations/lora_subgraph_horizontal_fusion.hpp"
 #include "plugin/transformations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
+#include "plugin/transformations/pa_kv_reorder_fusion.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
 #include "plugin/transformations/sink_reshape.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
@@ -418,8 +420,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             ov::pass::Manager qdq_stripping_manager("Plugin:GPU:QDQ_Stripping");
             using namespace ov::element;
             // QDQ stripping pipeline
+            // 0. Deduplicate identical DQ subgraphs sharing a common Convert node
+            qdq_stripping_manager.register_pass<ov::pass::SharedOpOptimization>();
             // 1. Fuse FQ->Convert->DQ to a single FQ
-            qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16}, TypeVector{f32}, true);
+            qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16}, TypeVector{f32});
             // 2. Strip FQ layers with unsupported levels
             const bool need_weights_adjustment = infer_precision == ov::element::f16;
             qdq_stripping_manager.register_pass<FQStrippingTransformation>(std::set<size_t>{levels::int16}, need_weights_adjustment);
@@ -477,10 +481,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (!disable_moe_opt) {
             manager.register_pass<ov::pass::FuseVectorizedMOE2GEMM>();
             pass_config->set_callback<ov::pass::FuseVectorizedMOE2GEMM>([&](const_node_ptr& root) -> bool {
-                // Currently moe op is only supported by >= xe2
+                // Currently moe op is only supported by systolic-array architectures
                 auto& engine = m_context->get_engine();
                 const auto& info = engine.get_device_info();
-                return (info.arch != cldnn::gpu_arch::xe2) && (info.arch != cldnn::gpu_arch::xe3);
+                return (!info.supports_immad);
             });
 
             manager.register_pass<ov::pass::FuseVectorizedMOE3GEMM>();
@@ -498,6 +502,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     break;
                 }
             }
+            manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
             manager.register_pass<ov::intel_gpu::ConvertMOEToMOECompressed>(is_pa);
             manager.register_pass<ov::intel_gpu::FuseMOE3GemmCompressed>();
         }
@@ -715,6 +720,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         precision = (config.get_kv_cache_precision() == ov::element::i4) ? ov::element::i8 : ov::element::u8;
                     }
                 });
+            manager.register_pass<ov::intel_gpu::PaKVReorderFusion>(kv_cache_config.keyCacheQuantBychannel,
+                                                                    kv_cache_config.keyCacheDimOrder,
+                                                                    kv_cache_config.valueCacheDimOrder,
+                                                                    kv_cache_config.keyCachePrecision,
+                                                                    kv_cache_config.valueCachePrecision,
+                                                                    kv_cache_config.inferencePrecision);
         }
 
         pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node> node){

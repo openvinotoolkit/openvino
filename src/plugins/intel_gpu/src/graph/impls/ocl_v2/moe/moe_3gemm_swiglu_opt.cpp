@@ -72,7 +72,13 @@ struct onednn_matmul {
     dnnl::primitive_attr attr;
     dnnl::post_ops postops;
 
-    onednn_matmul(dnnl::memory::data_type act_dtype, dnnl::memory::data_type weight_dtype, int batch_size, int ic, int oc, int ic_group_size = -1) {
+    onednn_matmul(dnnl::memory::data_type act_dtype,
+                  dnnl::memory::data_type weight_dtype,
+                  int batch_size,
+                  int ic,
+                  int oc,
+                  int ic_group_size = -1,
+                  bool has_zp = true) {
         m_a_type = act_dtype;
         m_w_type = weight_dtype;
         m_K_groups = 0;
@@ -84,7 +90,10 @@ struct onednn_matmul {
             m_M = batch_size;
         }
         if (ic_group_size >= 0) {
-            w_scale(ic_group_size).w_zp(ic_group_size).fpmath_f16();
+            w_scale(ic_group_size);
+            if (has_zp)
+                w_zp(ic_group_size);
+            fpmath_f16();
         }
     }
 
@@ -180,8 +189,9 @@ struct onednn_matmul {
                   int ic,
                   int oc,
                   int ic_group_size,
-                  type t)
-        : onednn_matmul(act_dtype, weight_dtype, batch, ic, oc, ic_group_size) {
+                  type t,
+                  bool has_zp = true)
+        : onednn_matmul(act_dtype, weight_dtype, batch, ic, oc, ic_group_size, has_zp) {
         if (t == type::with_bin_mul) {
             bin_post_id = 0;
             post_op_bin_mul(true);
@@ -299,7 +309,8 @@ struct onednn_linear {
                                 dnnl::memory scale,
                                 dnnl::memory zp) {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("onednn_linear::create()"));
-        auto mm = make_cacheable<onednn_matmul>(eng, act_dtype, weight_dtype, batch, ic, oc, ic_group_size, t);
+        bool has_zp = static_cast<bool>(zp);
+        auto mm = make_cacheable<onednn_matmul>(eng, act_dtype, weight_dtype, batch, ic, oc, ic_group_size, t, has_zp);
         onednn_linear linear;
         linear.mm = mm;
         linear.bin_post_id = mm->bin_post_id;
@@ -691,8 +702,11 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     jit.make("DOWN_GROUP_SIZE", down_group_size);
     jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
     jit.make("MOE_DTYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
+    jit.make("HAS_ZP", desc->_config.has_zp ? 1 : 0);
 
     ov::element::Type weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).data_type;
+    bool is_signed_weight = (weight_dt == ov::element::i4 || weight_dt == ov::element::i8);
+    jit.make("WEIGHT_IS_SIGNED", is_signed_weight ? 1 : 0);
     // auto scale_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::SCALE_0)).data_type;
     // auto zp_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::ZP_0)).data_type;
     if (weight_dt == ov::element::u4 || weight_dt == ov::element::i4) {
@@ -940,8 +954,7 @@ public:
 
         auto& engine = params.prog->get_engine();
         const auto& info = engine.get_device_info();
-        // FIXME: CVS-182236 Prefill performance on discrete GPU is bad when using micro_gemm_prefill, need to investigate further, disable it for now.
-        if (info.arch < gpu_arch::xe2 || info.dev_type == cldnn::device_type::discrete_gpu) {
+        if (info.arch < gpu_arch::xe2) {
             use_micro_gemm_prefill = false;
             GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): use_micro_gemm_prefill=" << use_micro_gemm_prefill
                                    << ", arch=" << static_cast<int>(info.arch) << std::endl;
@@ -952,7 +965,7 @@ public:
 
         // Remove this limitation once micro_gemm kernels has supported i8/u8 weights.
         const auto& weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).data_type;
-        if (weight_dt != data_types::u4 && use_micro_gemm_prefill) {
+        if (!(weight_dt == data_types::u4 || weight_dt == data_types::i4) && use_micro_gemm_prefill) {
             use_micro_gemm_prefill = false;
         }
 
@@ -1043,12 +1056,15 @@ public:
                                                      scale_offset);
 
                 // zp shape: [ic / ic_group_size, oc], type: u4/i8
-                int64_t zp_offset =
-                    j * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size, moe_fusion_wei_addr.zp[i]->get_layout());
-                dnnl_weights[i].zp = convert2dnnl(moe_fusion_wei_addr.zp[i],
-                                                  {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},
-                                                  dnnl::memory::format_tag::ab,
-                                                  zp_offset);
+                // Skip ZP memory allocation for symmetric quantization (has_zp=false) to save memory
+                if (cur_moe->_config.has_zp) {
+                    int64_t zp_offset =
+                        j * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size, moe_fusion_wei_addr.zp[i]->get_layout());
+                    dnnl_weights[i].zp = convert2dnnl(moe_fusion_wei_addr.zp[i],
+                                                      {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},
+                                                      dnnl::memory::format_tag::ab,
+                                                      zp_offset);
+                }
             }
         }
     }
@@ -1213,16 +1229,17 @@ public:
         auto max_batch = has_shared_expert ? (max_topk + 1) * token_num : max_topk * token_num;
         layout layout_gateup_out(ov::Shape{max_batch, static_cast<size_t>(config.inter_size)}, data_type, cldnn::format::bfyx);
         layout layout_down_out(ov::Shape{max_batch, static_cast<size_t>(config.hidden_size)}, data_type, cldnn::format::bfyx);
-        internal_buffers.emplace_back(layout_gateup_out, true);  // 2: up output
-        internal_buffers.emplace_back(layout_down_out, true);    // 3: down output
+        internal_buffers.emplace_back(layout_gateup_out, false);  // 2: up output (GPU-only)
+        internal_buffers.emplace_back(layout_down_out, false);    // 3: down output (GPU-only)
         // onednn: scratch.x, scratch.routing_weights = gather(x, ...)
         //         scratch.up = up(scratch.x)
         //         scratch.gate = gate(scratch.x) * scratch.up
         //         scratch.y = down(scratch.gate) * routing_weights
-        internal_buffers.emplace_back(layout_down_out, true);  // 4: up/gate input, scratch.x has same layout with down output
+        internal_buffers.emplace_back(layout_down_out, false);  // 4: up/gate input, scratch.x has same layout with down output (GPU-only)
         layout routing_layout(ov::Shape{max_batch}, data_type, cldnn::format::bfyx);
-        internal_buffers.emplace_back(routing_layout, true);     // 5: routing_weights
-        internal_buffers.emplace_back(layout_gateup_out, true);  // 6: gate output, scratch.gate has same layout with up
+        internal_buffers.emplace_back(routing_layout, true);      // 5: routing_weights
+        internal_buffers.emplace_back(layout_gateup_out, false);  // 6: gate output, scratch.gate has same layout with up (GPU-only)
+
         // expert masks for gpu
         layout index_layout(ov::Shape{expert_num, token_num}, ov::element::i32, cldnn::format::bfyx);
         internal_buffers.emplace_back(index_layout, true);  // 7: expert_mask_batch
@@ -1421,6 +1438,8 @@ public:
             GPU_DEBUG_TRACE_DETAIL << "\tgws = {" << global[0] << ", " << global[1] << ", " << global[2] << "}" << std::endl;
             GPU_DEBUG_TRACE_DETAIL << "\tlws = {" << local[0] << ", " << local[1] << ", " << local[2] << "}" << std::endl;
         }
+
+        kernel_dump_info.add_entry_point(stage.kernel->get_id());
 
         return stream.enqueue_kernel(*stage.kernel, desc, {}, events, needs_completion_event);
     }
@@ -2021,6 +2040,7 @@ public:
         size_t token_num = get_seq_len(hidden_states_layout);
         scratch_buffers scratch;
         prepare_internal_buffers(instance, scratch, token_num);
+        kernel_dump_info.clear_entries();
 
         // routing: softmax+topk or sigmoid+bias+topk
         auto lws_size = config.num_expert;
