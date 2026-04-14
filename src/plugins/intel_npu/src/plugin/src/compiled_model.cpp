@@ -5,6 +5,7 @@
 #include "compiled_model.hpp"
 
 #include <fstream>
+#include <iomanip>
 #include <string_view>
 
 #include "async_infer_request.hpp"
@@ -20,14 +21,22 @@
 
 namespace {
 
-std::string encode_compatibility_string(const std::string& raw_string) {
+std::string encode_compatibility_string(const std::string& decoded_string) {
     // TODO look for better solutions
-    // TODO also the reverse
+    // TODO make this utility for testing reasons?
     std::stringstream encoded_stringstream;
-    for (const auto unit : raw_string) {
-        encoded_stringstream << std::hex << int(unit) << std::endl;
+    for (const auto unit : decoded_string) {
+        encoded_stringstream << std::hex << std::setw(2) << std::setfill('0') << int(unit);
     }
-    return encoded_stringstream.str()
+    return encoded_stringstream.str();
+}
+
+std::string decode_compatibility_string(const std::string& encoded_string) {
+    std::string decoded_string;
+    for (auto unit_index = 0; unit_index < encoded_string.length(); unit_index += 2) {
+        decoded_string += std::stoi(encoded_string.substr(unit_index, 2), nullptr, 16);
+    }
+    return decoded_string;
 }
 
 }  // namespace
