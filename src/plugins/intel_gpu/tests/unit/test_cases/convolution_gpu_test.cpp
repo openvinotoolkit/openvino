@@ -11995,8 +11995,6 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_depthwise_quantized) {
                   << ", is_valid_strid: " << is_valid_strid
                   << ", is_valid_padding: " << is_valid_padding
                   << ", is_valid_ranks: " << is_valid_ranks;
-        ASSERT_EQ(1, 1);
-        return;
     }
 
     auto calculate_ref = [&](memory::ptr input, memory::ptr weights,
