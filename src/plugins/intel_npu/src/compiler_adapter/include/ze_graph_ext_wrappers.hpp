@@ -75,6 +75,8 @@ public:
 
     std::vector<uint8_t> getCompatibilityDescriptor(const ze_graph_handle_t handle) const;
 
+    std::vector<uint8_t> validateCompatibilityDescriptor(const std::string& descriptor) const;
+
     void getGraphBinary(const GraphDescriptor& graphDescriptor,
                         std::vector<uint8_t>& blob,
                         const uint8_t*& blobPtr,

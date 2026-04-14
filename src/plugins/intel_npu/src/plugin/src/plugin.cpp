@@ -16,6 +16,7 @@
 #include "intel_npu/common/parser_factory.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/compatibility_string.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "metrics.hpp"
@@ -359,6 +360,26 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
+    if (name == ov::runtime_requirements.name()) {
+        if (arguments.empty()) {
+            // TODO is this good?
+            return true;
+        }
+
+        std::string decodedString = utils::decode_compatibility_string(arguments.at("TODO"));
+        const ov::Tensor viewTensor =
+            ov::Tensor(ov::element::Type_t::u8, ov::Shape(decodedString.length()), decodedString.data());
+
+        // The plugin cares only about the string size and the metadata version check for now. Additional checks based
+        // on other metadata fields can be done following this line.
+        const std::unique_ptr<MetadataBase> metadata = read_metadata_from(viewTensor);
+
+        const size_t compilerStringSize = metadata->get_blob_size();
+        // Discard everything else but the compiler section
+        decodedString = decodedString.substr(0, compilerStringSize);
+        return _propertiesManager->checkCompiledModelCompatibilityDescriptor(decodedString);
+    }
+
     if (!arguments.empty()) {
         auto npuPluginArguments = arguments;
         exclude_model_ptr_from_map(npuPluginArguments);

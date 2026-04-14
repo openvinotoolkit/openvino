@@ -299,4 +299,8 @@ std::vector<uint8_t> PluginCompilerAdapter::get_compiled_model_compatibility_des
     return _compiler->get_compiled_model_compatibility_descriptor();
 }
 
+bool validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const {
+    return _compiler->validate_compatibility_descriptor(compatibilityDescriptor);
+}
+
 }  // namespace intel_npu
