@@ -47,6 +47,14 @@ protected:
         return -1;
     }
 
+    pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which) override {
+        return m_delegate->pubseekoff(off, dir, which);
+    }
+
+    pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
+        return m_delegate->pubseekpos(pos, which);
+    }
+
 private:
     std::streambuf* m_delegate;
 };
@@ -241,14 +249,18 @@ TEST_F(SingleFileStorageTest, RollsBackPartialAppendAfterFlushFailure) {
     const auto original_size = test::utils::fileSize(m_file_path.string());
     std::unique_ptr<FlushFailingStreambuf> failing_streambuf;
 
-    EXPECT_THROW(m_storage->write_cache_entry("654",
-                                              [&](std::ostream& stream) {
-                                                  failing_streambuf =
-                                                      std::make_unique<FlushFailingStreambuf>(stream.rdbuf());
-                                                  stream.rdbuf(failing_streambuf.get());
-                                                  stream << "partial";
-                                              }),
-                 std::ios_base::failure);
+    try {
+        m_storage->write_cache_entry("654", [&](std::ostream& stream) {
+            failing_streambuf = std::make_unique<FlushFailingStreambuf>(stream.rdbuf());
+            stream.rdbuf(failing_streambuf.get());
+            stream << "partial";
+            stream.flush();
+        });
+        FAIL() << "Expected std::ios_base::failure";
+    } catch (const std::ios_base::failure&) {
+    } catch (...) {
+        FAIL() << "Unexpected exception type";
+    }
 
     EXPECT_EQ(test::utils::fileSize(m_file_path.string()), original_size);
     EXPECT_NO_THROW(m_storage->write_cache_entry("654", [&](std::ostream& stream) {
