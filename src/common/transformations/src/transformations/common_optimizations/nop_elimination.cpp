@@ -576,8 +576,7 @@ bool extract_slice_range_along_axis(const std::shared_ptr<ov::Node>& user,
             }
             return true;
         };
-        if (!check_axis(strided_slice_node->get_begin_mask()) ||
-            !check_axis(strided_slice_node->get_end_mask())) {
+        if (!check_axis(strided_slice_node->get_begin_mask()) || !check_axis(strided_slice_node->get_end_mask())) {
             return false;
         }
 
@@ -679,8 +678,7 @@ std::shared_ptr<ov::Node> build_residual_slice(const std::shared_ptr<ov::Node>& 
     if (ov::is_type<v1::StridedSlice>(slice_node)) {
         std::vector<std::shared_ptr<ov::Node>> new_slice_in_nodes{new_concat_node};
 
-        const auto& begin_constant_node =
-            ov::util::get_constant_from_source(slice_node->get_input_node_shared_ptr(1));
+        const auto& begin_constant_node = ov::util::get_constant_from_source(slice_node->get_input_node_shared_ptr(1));
         auto begin_values = begin_constant_node->cast_vector<int64_t>();
         begin_values[concat_axis] = slice_begin - new_start_value;
         new_slice_in_nodes.push_back(
@@ -689,8 +687,7 @@ std::shared_ptr<ov::Node> build_residual_slice(const std::shared_ptr<ov::Node>& 
         const auto& end_constant_node = ov::util::get_constant_from_source(slice_node->get_input_node_shared_ptr(2));
         auto end_values = end_constant_node->cast_vector<int64_t>();
         end_values[concat_axis] = slice_end - new_start_value + 1;
-        new_slice_in_nodes.push_back(
-            v0::Constant::create(ov::element::i64, ov::Shape{end_values.size()}, end_values));
+        new_slice_in_nodes.push_back(v0::Constant::create(ov::element::i64, ov::Shape{end_values.size()}, end_values));
 
         return slice_node->clone_with_new_inputs(ov::as_output_vector(new_slice_in_nodes));
     }
@@ -760,11 +757,7 @@ EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
         for (const auto& user : concat_users) {
             int64_t begin_idx = 0;
             int64_t end_idx_inclusive = 0;
-            if (!extract_slice_range_along_axis(user,
-                                                concat_axis,
-                                                concat->get_shape(),
-                                                begin_idx,
-                                                end_idx_inclusive)) {
+            if (!extract_slice_range_along_axis(user, concat_axis, concat->get_shape(), begin_idx, end_idx_inclusive)) {
                 return false;
             }
             slice_out_index_in_concat.push_back(std::make_tuple(user, begin_idx, end_idx_inclusive));
