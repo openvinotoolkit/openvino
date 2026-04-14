@@ -329,7 +329,17 @@ void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
         size_t num_elements_in_output = 0;
 
         const size_t K_CACHE_IDX = PagedAttentionExecutor::ID_KCACHE;
-        const size_t block_size = inputs[K_CACHE_IDX]->getStaticDims()[2];
+        // For by-channel quantized caches, dim[2] includes parameter header rows
+        // (scales/zps). Subtract them to get the actual PA block_size.
+        const auto& cpuConfig = context->getConfig();
+        bool quantKeybyChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision, true);
+        size_t block_size = inputs[K_CACHE_IDX]->getStaticDims()[2];
+        if (quantKeybyChannel && cpuConfig.keyCachePrecision.is_integral()) {
+            size_t params_count = (cpuConfig.keyCachePrecision == ov::element::i8) ? 1 : 2;
+            size_t sub_byte_mult = (cpuConfig.keyCachePrecision == ov::element::u4) ? 2 : 1;
+            size_t key_params_size = sizeof(float) * params_count * sub_byte_mult;
+            block_size -= key_params_size;
+        }
 
         const size_t ADAPTIVE_RKV_EVICTABLE_SIZES_IDX = PagedAttentionExecutor::ID_ADAPTIVE_RKV_EVICTABLE_SIZES;
         auto evictable_sizes_dims = inputs[ADAPTIVE_RKV_EVICTABLE_SIZES_IDX]->getStaticDims();
