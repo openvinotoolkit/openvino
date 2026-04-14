@@ -322,8 +322,9 @@ bool SDPASubgraphFusion::run_on_model(const std::shared_ptr<ov::Model>& f) {
         std::unordered_map<std::string, std::unordered_set<ov::Node*>> var_to_sdpas;
         for (const auto& op : model->get_ops()) {
             auto read_value = ov::as_type_ptr<ov::op::v6::ReadValue>(op);
-            if (!read_value)
+            if (!read_value) {
                 continue;
+            }
             const auto& var_id = read_value->get_variable_id();
             std::queue<ov::Node*> queue;
             std::unordered_set<ov::Node*> visited;
@@ -335,8 +336,9 @@ bool SDPASubgraphFusion::run_on_model(const std::shared_ptr<ov::Model>& f) {
                 for (size_t i = 0; i < node->get_output_size(); i++) {
                     for (const auto& input : node->get_output_target_inputs(i)) {
                         auto* consumer = input.get_node();
-                        if (!visited.insert(consumer).second)
+                        if (!visited.insert(consumer).second) {
                             continue;
+                        }
                         if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(consumer)) {
                             var_to_sdpas[var_id].insert(consumer);
                         } else {
