@@ -20,7 +20,7 @@ on:
 permissions: read-all
 
 env:
-  HF_HUB_CACHE_LIN: /mount/caches/huggingfacex
+  HF_HUB_CACHE_LIN: /mount/caches/huggingface
   HF_HUB_CACHE_WIN: "C:\\mount\\caches\\huggingface"
 
 jobs:
@@ -33,7 +33,6 @@ jobs:
       volumes:
         - /mount:/mount
         - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      options: "-e HF_TOKENX" # Needed for HuggingFace cache authentication
     defaults:
       run:
         shell: bash

@@ -42,7 +42,10 @@ def patch_gptq(config):
     return orig_cuda_check, orig_post_init_model
 
 def run_gptq_torchfx(tmp_path, model_id, model_link, prompt_result_pair):
-    model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
+    try:
+        model_cached = snapshot_download(model_id, local_files_only=True)
+    except Exception:
+        model_cached = snapshot_download(model_id)  # fallback: download if not cached
     config = AutoConfig.from_pretrained(model_cached, trust_remote_code=True, torch_dtype=torch.float32)
     cuda, post_init = patch_gptq(config)
     tokenizer = AutoTokenizer.from_pretrained(model_cached, trust_remote_code=True, torch_dtype=torch.float32)
