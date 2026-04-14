@@ -24,7 +24,7 @@ pluggy==1.6.0
 pydata-sphinx-theme==0.17.0
 Pygments==2.20.0
 pyparsing==3.3.2
-pytest==9.0.2
+pytest==9.0.3
 pytest-html==4.2.0
 pytest-metadata==3.1.1
 py>=1.11.0
