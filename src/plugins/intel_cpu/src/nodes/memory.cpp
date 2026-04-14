@@ -722,10 +722,10 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
 // ---------------------------------------------------------
 //
 //   +--------------------------- VariableState ---------------------------+
-//   |  buf_0 (primary)                          buf_1 (secondary)        |
+//   |  buf_0 (primary)                          buf_1 (secondary)         |
 //   |                                                                     |
-//   |  input_mem()  --> one buf     output_mem() --> other buf           |
-//   |                     commit(): swap(buf_0, buf_1)                   |
+//   |  input_mem()  --> one buf     output_mem() --> other buf            |
+//   |                     commit(): swap(buf_0, buf_1)                    |
 //   +---------------------------------------------------------------------+
 //        |  read                                             ^  write
 //        v                                                   |
