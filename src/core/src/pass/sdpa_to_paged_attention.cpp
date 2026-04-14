@@ -523,36 +523,24 @@ bool ov::pass::PagedExtensionsPostCleanup::run_on_model(const std::shared_ptr<ov
     // Remove parameters that are not reachable from model outputs/sinks.
     // This handles dead branches left after paged rewrites where a parameter may still
     // have direct consumers, but the whole subgraph is disconnected from observable outputs.
-    std::set<std::shared_ptr<ov::Node>> live_nodes;
-    std::vector<std::shared_ptr<ov::Node>> dfs_stack;
-    for (const auto& result : model->get_results()) {
-        dfs_stack.push_back(result);
-    }
-    for (const auto& sink : model->get_sinks()) {
-        dfs_stack.push_back(sink);
-    }
+    for (auto& param_name : {"beam_idx", "attention_mask"}) {
+        if (auto param = get_parameter(model, param_name)) {
+            model->remove_parameter(param);
 
-    while (!dfs_stack.empty()) {
-        const auto node = dfs_stack.back();
-        dfs_stack.pop_back();
-        if (!live_nodes.insert(node).second) {
-            continue;
-        }
-        for (const auto& input : node->input_values()) {
-            dfs_stack.push_back(input.get_node_shared_ptr());
-        }
-    }
-
-    ov::ParameterVector params_to_remove;
-    for (const auto& parameter : model->get_parameters()) {
-        if (live_nodes.count(parameter) > 0) {
-            continue;
-        }
-        params_to_remove.push_back(parameter);
-    }
-    for (const auto& parameter : params_to_remove) {
-        if (model->get_parameter_index(parameter) >= 0) {
-            model->remove_parameter(parameter);
+            if (param->output(0).get_target_inputs().size() == 0) {
+                std::stringstream consumers;
+                consumers << std::endl;
+                for (auto& input : param->output(0).get_target_inputs()) {
+                    consumers << *input.get_node() << std::endl;
+                }
+                OPENVINO_ASSERT(param->output(0).get_target_inputs().size() == 0,
+                                "PagedAttention transformation failed: couldn't remove ",
+                                param->output(0).get_target_inputs().size(),
+                                " inputs of ",
+                                param_name,
+                                " input: ",
+                                consumers.str());
+            }
             changed = true;
         }
     }
