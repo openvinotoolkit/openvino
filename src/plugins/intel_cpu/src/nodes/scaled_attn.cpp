@@ -1749,8 +1749,13 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             // Use mha_turboq pipeline for all single-token decoding when S == SV.
             // This unifies codec, quantized (u8/u4), and raw paths through a single pipeline.
             // OV_TURBOQ_LEGACY_ATTN=1 reverts to the old per-type dispatch.
+            // ARM SIMD abstraction not yet wired through mha_turboq — fall back to legacy.
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+            const bool use_turboq_pipeline = false;
+#else
             static const bool force_legacy = std::getenv("OV_TURBOQ_LEGACY_ATTN") != nullptr;
             const bool use_turboq_pipeline = !force_legacy;
+#endif
             if (use_turboq_pipeline) {
                 // Use mha_turboq pipeline.
                 auto make_cache_codec = [](ov::internal::CacheCodecMode mode,

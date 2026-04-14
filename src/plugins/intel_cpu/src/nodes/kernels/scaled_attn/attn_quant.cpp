@@ -592,7 +592,11 @@ void attn_quant_u4(const float* src, void* dst, size_t n, float& scale, float& z
     quant_u4(src, dst, n, scale, zp);
 }
 
-void attn_quant_u8_typed(const void* src, uint8_t* dst, size_t n, float& scale, float& zp,
+void attn_quant_u8_typed(const void* src,
+                         uint8_t* dst,
+                         size_t n,
+                         float& scale,
+                         float& zp,
                          ov::element::Type src_precision) {
     if (src_precision == ov::element::bf16) {
         quant_u8(static_cast<const ov::bfloat16*>(src), dst, n, scale, zp);
@@ -603,7 +607,11 @@ void attn_quant_u8_typed(const void* src, uint8_t* dst, size_t n, float& scale, 
     }
 }
 
-void attn_quant_u4_typed(const void* src, void* dst, size_t n, float& scale, float& zp,
+void attn_quant_u4_typed(const void* src,
+                         void* dst,
+                         size_t n,
+                         float& scale,
+                         float& zp,
                          ov::element::Type src_precision) {
     if (src_precision == ov::element::bf16) {
         quant_u4(static_cast<const ov::bfloat16*>(src), dst, n, scale, zp);
