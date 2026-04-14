@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
@@ -442,6 +443,16 @@ std::vector<ov::Tensor> PagedGatedDeltaNetLayerTest::calculate_refs() {
                                                  element_type);
     }
 
+    if (element_type == ov::element::bf16) {
+        return calculate_typed_refs<ov::bfloat16>(host_inputs,
+                                                  function,
+                                                  qk_heads,
+                                                  v_heads,
+                                                  qk_head_size,
+                                                  v_head_size,
+                                                  element_type);
+    }
+
     return calculate_typed_refs<float>(host_inputs,
                                        function,
                                        qk_heads,
@@ -466,8 +477,8 @@ std::vector<ov::Tensor> PagedGatedDeltaNetLayerTest::get_plugin_outputs() {
 void PagedGatedDeltaNetLayerTest::compare(const std::vector<ov::Tensor>& expected,
                                           const std::vector<ov::Tensor>& actual) {
     ASSERT_EQ(expected.size(), actual.size());
-    abs_threshold = 2e-4f;
-    rel_threshold = 1e-5f;
+    abs_threshold = (data_type == ov::element::bf16) ? 1e-3f : 2e-4f;
+    rel_threshold = (data_type == ov::element::bf16) ? 1e-2f : 1e-5f;
     ov::test::utils::compare(expected[0], actual[0], abs_threshold, rel_threshold);
     ov::test::utils::compare(expected[1], actual[1], abs_threshold, rel_threshold);
 }

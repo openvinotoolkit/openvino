@@ -28,6 +28,12 @@ std::vector<PagedGatedDeltaNetLayerParams> paged_gdn_test_cases = {
     {2, 6, 32, 64, {4, 2, 3}, {3, 2, 5}, ov::element::f16, "CPU"},
     {4, 8, 32, 64, {15, 32, 33}, {16, 16, 16}, ov::element::f16, "CPU"},
     {8, 8, 128, 128, {15, 32, 33}, {16, 16, 16}, ov::element::f16, "CPU"},
+    {2, 4, 8, 8, {3, 3}, {2, 3}, ov::element::bf16, "CPU"},
+    {2, 4, 8, 8, {3, 2}, {0, 0}, ov::element::bf16, "CPU"},
+    {1, 4, 16, 8, {2, 5, 1}, {1, 4, 2}, ov::element::bf16, "CPU"},
+    {2, 6, 32, 64, {4, 2, 3}, {3, 2, 5}, ov::element::bf16, "CPU"},
+    {4, 8, 32, 64, {15, 32, 33}, {16, 16, 16}, ov::element::bf16, "CPU"},
+    {8, 8, 128, 128, {15, 32, 33}, {16, 16, 16}, ov::element::bf16, "CPU"},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_PagedGatedDeltaNet,
