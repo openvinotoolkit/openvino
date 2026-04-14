@@ -81,7 +81,7 @@ inline SingleTokenQChunking get_single_token_q_chunking(const kernel_impl_params
 }
 
 inline std::string get_pa_build_options() {
-    return " -cmc -mCM_printregusage -mdump_asm -g2 -Qxcm_register_file_size=" + std::to_string(PA_CM_REGISTER_FILE_SIZE);
+    return " -cmc -Qxcm_register_file_size=" + std::to_string(PA_CM_REGISTER_FILE_SIZE);
 }
 
 #define FIND_DEBUG_ACC 0

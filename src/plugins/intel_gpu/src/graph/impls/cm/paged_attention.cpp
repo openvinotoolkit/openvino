@@ -301,7 +301,8 @@ public:
         if (m_use_turboquant) {
             auto& intermediates = instance.get_intermediates_memories();
             const size_t head_size = desc->k_head_size;
-            if (!m_tq_tables_initialized || m_tq_tables_head_size != head_size) {
+            // if (!m_tq_tables_initialized || m_tq_tables_head_size != head_size) 
+            {
                 GPU_DEBUG_TRACE_DETAIL << "[CM PA][TQ] init tables: begin (head_size=" << head_size
                                        << ", prev_initialized=" << static_cast<int>(m_tq_tables_initialized)
                                        << ", prev_head_size=" << m_tq_tables_head_size << ")" << std::endl;

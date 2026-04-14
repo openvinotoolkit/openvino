@@ -3034,7 +3034,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_cm_turboquant, turboquant_test, ::testing::Values
     paged_attention_test_params{ {{1, 16}}, 1, 1, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::TURBOQUANT, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
     paged_attention_test_params{ {{1, 16}}, 2, 1, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::TURBOQUANT, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
     paged_attention_test_params{ {{1, 16}}, 2, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::TURBOQUANT, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
-    paged_attention_test_params{ {{1, 16}}, 32, 8, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::TURBOQUANT, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
+    paged_attention_test_params{ {{1, 6}}, 32, 8, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::TURBOQUANT, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
+    
+    paged_attention_test_params{ {{1, 6}}, 32, 8, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::TURBOQUANT, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
     
     paged_attention_test_params{ {{1, 16}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::TURBOQUANT, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
     paged_attention_test_params{ {{1, 64}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::TURBOQUANT, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },

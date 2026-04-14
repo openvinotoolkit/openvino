@@ -238,8 +238,12 @@ inline const TurboMatrices& get_turbo_matrices(size_t d) {
 
     std::lock_guard<std::mutex> lock(m);
     auto it = cache.find(d);
-    if (it != cache.end())
+    if (it != cache.end()) {
+        GPU_DEBUG_TRACE_DETAIL << "TurboQuant matrices cache hit for head size " << d << " (cache size: " << cache.size() << ")" << std::endl;
         return it->second;
+    }
+    GPU_DEBUG_TRACE_DETAIL << "Generating TurboQuant matrices for head size " << d << " (existing cache size: " << cache.size() << ")" << std::endl;
+
 
     TurboMatrices mats;
     mats.q.resize(d * d);
@@ -266,6 +270,7 @@ inline const TurboMatrices& get_turbo_matrices(size_t d) {
     }
 
     auto [inserted_it, _] = cache.emplace(d, std::move(mats));
+    GPU_DEBUG_TRACE_DETAIL << "TurboQuant matrices cache insert for head size " << d << " (new cache size: " << cache.size() << ")" << std::endl;
     return inserted_it->second;
 }
 

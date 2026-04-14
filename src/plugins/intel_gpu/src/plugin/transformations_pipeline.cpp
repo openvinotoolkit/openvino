@@ -669,12 +669,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             if (use_turboquant) {
                 // TurboQuant uses by-token KV cache path with explicit fixed layout.
-                kv_cache_config.keyCachePrecision = (kv_cache_precision == ov::element::i8 || kv_cache_precision == ov::element::i4)
-                                                         ? ov::element::i4
-                                                         : ov::element::u4;
-                kv_cache_config.valueCachePrecision = (kv_cache_precision == ov::element::i8 || kv_cache_precision == ov::element::i4)
-                                                          ? ov::element::i8
-                                                          : ov::element::u8;
+                kv_cache_config.keyCachePrecision = ov::element::u4;
+                kv_cache_config.valueCachePrecision = ov::element::u8;
                 kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size;
                 kv_cache_config.keyCacheDimOrder = {0, 1, 2, 3};
                 kv_cache_config.keyCacheQuantBychannel = false;
