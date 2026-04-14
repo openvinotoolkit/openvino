@@ -19,6 +19,7 @@
 #include "nodes/ctc_greedy_decoder.h"
 #include "nodes/ctc_greedy_decoder_seq_len.h"
 #include "nodes/ctc_loss.h"
+#include "nodes/pa_kv_reorder.hpp"
 #include "nodes/cum_sum.h"
 #include "nodes/deconv.h"
 #include "nodes/def_conv.h"
@@ -239,6 +240,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(Subgraph, Type::Subgraph);
     INTEL_CPU_NODE(Composite, Type::SubModel);
     INTEL_CPU_NODE(ScaledDotProductAttention, Type::ScaledDotProductAttention);
+    INTEL_CPU_NODE(PaKVReorder, Type::PaKVReorder);
     INTEL_CPU_NODE(SearchSorted, Type::SearchSorted);
     INTEL_CPU_NODE(SegmentMax, Type::SegmentMax);
     INTEL_CPU_NODE(LoRA, Type::LoRA);

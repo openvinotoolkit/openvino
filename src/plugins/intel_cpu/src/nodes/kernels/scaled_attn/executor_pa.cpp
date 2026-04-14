@@ -8,6 +8,7 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <type_traits>
 #include <vector>
@@ -465,6 +466,11 @@ struct MHAHelper {
     PlainTensor _token_type;                // [total_batched_tokens], int32 — 0=text, 1=image
     std::vector<int32_t> _image_group_end;  // for image token i, the exclusive end of its group
 
+    // Speculative tree mask (qq_bias)
+    bool _has_qq_bias = false;
+    PlainTensor _qq_bias;         // [sum(spec_num_i * spec_num_i)], u8
+    PlainTensor _qq_bias_begins;  // [B_seq + 1], i32
+
     // Precompute image group boundaries from token_type_ids.
     // For each image token, _image_group_end[i] = index past the last contiguous image token in the same group.
     // For text tokens, _image_group_end[i] = -1.
@@ -508,6 +514,59 @@ struct MHAHelper {
         }
         return default_ncausal;
     }
+
+    void set_qq_bias(const PlainTensor& qq_bias, const PlainTensor& qq_bias_begins) {
+        _has_qq_bias = true;
+        _qq_bias = qq_bias;
+        _qq_bias_begins = qq_bias_begins;
+    }
+
+    void clear_qq_bias() {
+        _has_qq_bias = false;
+        _qq_bias = PlainTensor();
+        _qq_bias_begins = PlainTensor();
+    }
+
+    bool qq_bias_is_allowed(size_t batch_in_seq, size_t query_spec_idx, size_t key_idx, size_t past_len) const {
+        if (!_has_qq_bias) {
+            return true;
+        }
+
+        if (key_idx < past_len) {
+            return true;
+        }
+
+        OPENVINO_ASSERT(_qq_bias_begins && _qq_bias,
+                        "PagedAttention: invalid qq_bias state (missing qq_bias or qq_bias_begins)");
+
+        const auto qq_begin = static_cast<size_t>(_qq_bias_begins.ptr<int32_t>()[batch_in_seq]);
+        const auto qq_end = static_cast<size_t>(_qq_bias_begins.ptr<int32_t>()[batch_in_seq + 1]);
+        OPENVINO_ASSERT(qq_begin <= qq_end && qq_end <= _qq_bias.size(0),
+                        "PagedAttention: qq_bias_begins contains invalid range");
+
+        const auto qq_num = qq_end - qq_begin;
+        if (qq_num == 0) {
+            return true;
+        }
+
+        const auto spec_num = static_cast<size_t>(std::sqrt(static_cast<float>(qq_num)));
+        if (spec_num == 0 || spec_num * spec_num != qq_num) {
+            return true;
+        }
+
+        if (query_spec_idx >= spec_num) {
+            return true;
+        }
+
+        const auto key_spec_idx = key_idx - past_len;
+        if (key_spec_idx >= spec_num) {
+            return true;
+        }
+
+        const auto qq_off = qq_begin + query_spec_idx * spec_num + key_spec_idx;
+        return _qq_bias.ptr<uint8_t>()[qq_off] != 0;
+    }
+
     CpuParallelPtr _cpu_parallel;
 
     MHAHelper() {
@@ -849,6 +908,14 @@ struct MHAHelper {
                 // apply attention mask & sofmax
                 auto ncausal = get_ncausal(q_token_start + m, cur_kv_len - q_cnt + (m - q_start) + 1, cur_kv_len);
                 auto* score = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
+                if (_has_qq_bias) {
+                    const auto past_len = cur_kv_len - q_len;
+                    for (size_t key_idx = past_len; key_idx < cur_kv_len; key_idx++) {
+                        if (!qq_bias_is_allowed(batch_in_seq, m, key_idx, past_len)) {
+                            score[key_idx] = std::numeric_limits<float>::lowest();
+                        }
+                    }
+                }
                 // dequantization of q matrix could be fused with _d_scale since softmax is done by row
                 float revised_d_scale =
                     _params.is_sage_attn
@@ -1427,6 +1494,14 @@ struct MHAHelper {
             //  apply attention mask & sofmax
             float* score = _weight_bhl.ptr<float>(b, h, pq);
             OPENVINO_DEBUG_ASSERT(score != nullptr, "PagedAttention: _weight_bhl buffer must be allocated");
+            if (_has_qq_bias) {
+                const auto past_len = cur_kv_len - q_len;
+                for (size_t key_idx = past_len; key_idx < cur_kv_len; key_idx++) {
+                    if (!qq_bias_is_allowed(b, pq, key_idx, past_len)) {
+                        score[key_idx] = std::numeric_limits<float>::lowest();
+                    }
+                }
+            }
             float* alibi_lookup = nullptr;
             float alibi_slope = 0.F;
             if (alibi_slopes) {
@@ -2052,8 +2127,12 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             }
         }
 
-        OPENVINO_ASSERT(inputs[ID_QQ_BIAS]->getShape().hasZeroDims(),
-                        "CPU plugin doesn't support qq_bias (tree mask) in paged attention yet");
+        if (!inputs[ID_QQ_BIAS]->getShape().hasZeroDims()) {
+            qq_bias.reset(inputs[ID_QQ_BIAS]);
+            OPENVINO_ASSERT(!inputs[ID_QQ_BIAS_BEGINS]->getShape().hasZeroDims(),
+                            "PagedAttention: qq_bias_begins must be provided with qq_bias");
+            qq_bias_begins.reset(inputs[ID_QQ_BIAS_BEGINS]);
+        }
 
         output_emb.reset(outputs[0]);
         if (outputs.size() >= 2) {
@@ -2209,6 +2288,11 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
         if (token_type_ids) {
             token_type_ids.assert_dims({B_token});
+        }
+
+        if (qq_bias) {
+            qq_bias.assert_dims({0}, true);
+            qq_bias_begins.assert_dims({B_seq + 1});
         }
 
         output_emb.assert_dims({B_token, H * SV});
@@ -2398,6 +2482,13 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         } else {
             _helper._token_type = PlainTensor();
             _helper._image_group_end.clear();
+            _helper._has_image_tokens = false;
+        }
+
+        if (qq_bias) {
+            _helper.set_qq_bias(qq_bias, qq_bias_begins);
+        } else {
+            _helper.clear_qq_bias();
         }
 
         if (rotated_block_indices) {
