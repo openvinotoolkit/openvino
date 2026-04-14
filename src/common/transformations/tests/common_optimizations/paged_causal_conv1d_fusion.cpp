@@ -106,6 +106,86 @@ std::shared_ptr<ov::Model> build_model(bool add_present_state_result) {
     return std::make_shared<ov::Model>(results, params);
 }
 
+std::shared_ptr<ov::Model> build_model_ref(bool add_present_state_result) {
+    const Shape input_shape{2, 3};
+    const Shape state_shape{2, 3, 4};
+
+    auto input_embeds = std::make_shared<v0::Parameter>(element::f32, input_shape);
+    auto past_state = std::make_shared<v0::Parameter>(element::f32, state_shape);
+    past_state->get_output_tensor(0).set_names({"cache_params.past.conv.0"});
+
+    auto part_shape = v0::Constant::create(element::i64, Shape{3}, {2, 3, 1});
+    auto part0 = std::make_shared<v1::Reshape>(input_embeds, part_shape, false);
+    auto part1 = std::make_shared<v1::Reshape>(input_embeds, part_shape, false);
+    auto part2 = std::make_shared<v1::Reshape>(input_embeds, part_shape, false);
+
+    auto token_concat = std::make_shared<v0::Concat>(OutputVector{part0, part1, part2}, -1);
+    auto transpose_order = v0::Constant::create(element::i64, Shape{3}, {0, 2, 1});
+    auto token_transpose = std::make_shared<v1::Transpose>(token_concat, transpose_order);
+
+    auto input_embeds_shape =
+        v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{-1, 3});
+    auto input_embeds_reshape = std::make_shared<v1::Reshape>(token_transpose, input_embeds_shape, false);
+
+    auto weight_reshape_shape =
+        v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{3, 1, 4});
+    auto weights = v0::Constant::create(element::f32, Shape{3, 1, 1, 4}, std::vector<float>(12, 0.25f));
+    auto weight_reshape = std::make_shared<v1::Reshape>(weights, weight_reshape_shape, false);
+
+    auto bias_node = v0::Constant::create(element::f32, Shape{3}, std::vector<float>(3, 0.0f));
+
+    auto conv_state_table = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 3, 4});
+    conv_state_table->set_friendly_name("conv_state_table.0");
+    conv_state_table->get_output_tensor(0).set_names({"conv_state_table.0"});
+
+    auto subsequence_begins = make_i32_param("subsequence_begins", Shape{3});
+    auto block_indices = make_i32_param("block_indices", Shape{5});
+    auto block_indices_begins = make_i32_param("block_indices_begins", Shape{3});
+    auto past_lens = make_i32_param("past_lens", Shape{2});
+    auto cache_interval = make_i32_param("cache_interval", Shape{2});
+
+    const auto paged_conv =
+        std::make_shared<ov::op::internal::PagedCausalConv1D>(input_embeds_reshape,
+                                                              conv_state_table,
+                                                              weight_reshape,
+                                                              bias_node,
+                                                              subsequence_begins,
+                                                              block_indices,
+                                                              block_indices_begins,
+                                                              past_lens,
+                                                              cache_interval);
+
+    const auto unsqueeze_axis = v0::Constant::create(element::i64, Shape{1}, {2});
+    const auto unsqueeze = std::make_shared<v0::Unsqueeze>(paged_conv, unsqueeze_axis);
+
+    auto swish = std::make_shared<v4::Swish>(unsqueeze);
+
+    ResultVector results;
+    results.push_back(std::make_shared<v0::Result>(swish));
+
+    if (add_present_state_result) {
+        auto state_slice = std::make_shared<v8::Slice>(
+            past_state,
+            v0::Constant::create(element::i64, Shape{1}, {-1}),
+            v0::Constant::create(element::i64, Shape{1}, {std::numeric_limits<int64_t>::max()}),
+            v0::Constant::create(element::i64, Shape{1}, {1}),
+            v0::Constant::create(element::i64, Shape{1}, {2}));
+        auto present_res = std::make_shared<v0::Result>(state_slice);
+        present_res->get_output_tensor(0).set_names({"cache_params.present.conv.0"});
+        results.push_back(present_res);
+    }
+
+    ParameterVector params{input_embeds,
+                           past_state,
+                           conv_state_table,
+                           subsequence_begins,
+                           block_indices,
+                           block_indices_begins,
+                           past_lens,
+                           cache_interval};
+    return std::make_shared<ov::Model>(results, params);
+}
+
 std::shared_ptr<ov::Model> build_model_with_multiply_post_op(bool add_present_state_result) {
     const Shape state_shape{2, 3, 4};
     const Shape token_shape{2, 3, 1};
@@ -368,6 +448,7 @@ TEST_F(PagedCausalConv1DFusionTest, FusesWhenPresentStateIsResult) {
     manager.register_pass<ov::pass::PagedCausalConv1DFusion>();
     manager.run_passes(model);
 
+    // Verify transformation result: PagedCausalConv1D present, GroupConv absent
     size_t pcc_count = 0;
     size_t group_conv_count = 0;
     for (const auto& op : model->get_ordered_ops()) {
@@ -378,8 +459,8 @@ TEST_F(PagedCausalConv1DFusionTest, FusesWhenPresentStateIsResult) {
             ++group_conv_count;
         }
     }
-    EXPECT_EQ(pcc_count, 1u);
-    EXPECT_EQ(group_conv_count, 0u);
+    EXPECT_EQ(pcc_count, 1u) << "Expected 1 PagedCausalConv1D after fusion";
+    EXPECT_EQ(group_conv_count, 0u) << "Expected 0 GroupConvolution after fusion";
 }
 
 TEST_F(PagedCausalConv1DFusionTest, FusesMultiplyPostOpAndGenericTokenInput) {
@@ -389,6 +470,7 @@ TEST_F(PagedCausalConv1DFusionTest, FusesMultiplyPostOpAndGenericTokenInput) {
     manager.register_pass<ov::pass::PagedCausalConv1DFusion>();
     manager.run_passes(model);
 
+    // Verify transformation result: PagedCausalConv1D present, GroupConv and Slice removed
     size_t pcc_count = 0;
     size_t group_conv_count = 0;
     for (const auto& op : model->get_ordered_ops()) {
@@ -399,8 +481,8 @@ TEST_F(PagedCausalConv1DFusionTest, FusesMultiplyPostOpAndGenericTokenInput) {
             ++group_conv_count;
         }
     }
-    EXPECT_EQ(pcc_count, 1u);
-    EXPECT_EQ(group_conv_count, 0u);
+    EXPECT_EQ(pcc_count, 1u) << "Expected 1 PagedCausalConv1D after fusion";
+    EXPECT_EQ(group_conv_count, 0u) << "Expected 0 GroupConvolution after fusion";
 }
 
 TEST_F(PagedCausalConv1DFusionTest, FusesNonConcatPatternWithSymmetricPadding) {
@@ -410,8 +492,10 @@ TEST_F(PagedCausalConv1DFusionTest, FusesNonConcatPatternWithSymmetricPadding) {
     manager.register_pass<ov::pass::PagedCausalConv1DFusion>();
     manager.run_passes(model);
 
+    // Verify transformation result: PagedCausalConv1D present, GroupConv and Slice removed
     size_t pcc_count = 0;
     size_t group_conv_count = 0;
+    size_t slice_count = 0;
     for (const auto& op : model->get_ordered_ops()) {
         if (std::string(op->get_type_name()) == "PagedCausalConv1D") {
             ++pcc_count;
@@ -419,9 +503,13 @@ TEST_F(PagedCausalConv1DFusionTest, FusesNonConcatPatternWithSymmetricPadding) {
         if (ov::is_type<ov::op::v1::GroupConvolution>(op)) {
             ++group_conv_count;
         }
+        if (ov::is_type<ov::op::v8::Slice>(op)) {
+            ++slice_count;
+        }
     }
-    EXPECT_EQ(pcc_count, 1u);
-    EXPECT_EQ(group_conv_count, 0u);
+    EXPECT_EQ(pcc_count, 1u) << "Expected 1 PagedCausalConv1D after fusion";
+    EXPECT_EQ(group_conv_count, 0u) << "Expected 0 GroupConvolution after fusion";
+    EXPECT_EQ(slice_count, 0u) << "Expected no Slice remaining, slice2 fused into PagedCausalConv1D";
 }
 
 TEST_F(PagedCausalConv1DFusionTest, FusesSeveralNonConcatPatternsWithSymmetricPadding) {
@@ -431,8 +519,10 @@ TEST_F(PagedCausalConv1DFusionTest, FusesSeveralNonConcatPatternsWithSymmetricPa
     manager.register_pass<ov::pass::PagedCausalConv1DFusion>();
     manager.run_passes(model);
 
+    // Verify transformation result: 2 PagedCausalConv1D, no GroupConv
     size_t pcc_count = 0;
     size_t group_conv_count = 0;
+    size_t slice_count = 0;
     for (const auto& op : model->get_ordered_ops()) {
         if (std::string(op->get_type_name()) == "PagedCausalConv1D") {
             ++pcc_count;
@@ -440,9 +530,13 @@ TEST_F(PagedCausalConv1DFusionTest, FusesSeveralNonConcatPatternsWithSymmetricPa
         if (ov::is_type<ov::op::v1::GroupConvolution>(op)) {
             ++group_conv_count;
         }
+        if (ov::is_type<ov::op::v8::Slice>(op)) {
+            ++slice_count;
+        }
     }
-    EXPECT_EQ(pcc_count, 2u);
-    EXPECT_EQ(group_conv_count, 0u);
+    EXPECT_EQ(pcc_count, 2u) << "Expected 2 PagedCausalConv1D after fusion";
+    EXPECT_EQ(group_conv_count, 0u) << "Expected 0 GroupConvolution after fusion";
+    EXPECT_EQ(slice_count, 0u) << "Expected no Slice remaining, both slice_0 and slice_1 fused";
 }
 
 TEST_F(PagedCausalConv1DFusionTest, FusesWhenWeightsComeFromConvertPath) {
@@ -452,6 +546,7 @@ TEST_F(PagedCausalConv1DFusionTest, FusesWhenWeightsComeFromConvertPath) {
     manager.register_pass<ov::pass::PagedCausalConv1DFusion>();
     manager.run_passes(model);
 
+    // Verify transformation result: PagedCausalConv1D present, GroupConv and Slice removed
     size_t pcc_count = 0;
     size_t group_conv_count = 0;
     for (const auto& op : model->get_ordered_ops()) {
@@ -462,8 +557,8 @@ TEST_F(PagedCausalConv1DFusionTest, FusesWhenWeightsComeFromConvertPath) {
             ++group_conv_count;
         }
     }
-    EXPECT_EQ(pcc_count, 1u);
-    EXPECT_EQ(group_conv_count, 0u);
+    EXPECT_EQ(pcc_count, 1u) << "Expected 1 PagedCausalConv1D after fusion";
+    EXPECT_EQ(group_conv_count, 0u) << "Expected 0 GroupConvolution after fusion";
 }
 
 TEST(PagedCausalConv1DRealModel, RealModelAfterPATransformation) {

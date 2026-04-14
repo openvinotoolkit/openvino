@@ -429,7 +429,7 @@ public:
                 new_nodes.push_back(token_transpose_to_2d);
             }
             ov::copy_runtime_info(m.get_matched_nodes(), new_nodes);
-            ov::replace_node(group_conv_node, unsqueeze);
+            ov::replace_node(pm.at(slice2).get_node_shared_ptr(), unsqueeze);
             mark_assign_sinks_for_cache_marker(m_model, fusion_resources.cache_variable_marker);
             return true;
         };
