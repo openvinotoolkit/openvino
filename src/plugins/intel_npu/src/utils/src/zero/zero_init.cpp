@@ -423,6 +423,7 @@ const std::shared_ptr<ZeroInitStructsHolder> ZeroInitStructsHolder::getInstance(
         // Check if device is still valid
         auto res = zeDeviceGetStatus(instance->getDevice());
         if (res == ZE_RESULT_ERROR_DEVICE_LOST) {
+            destroyContextForInstance(instance);
             weak_instance.reset();
             instance.reset();
         }
@@ -434,6 +435,15 @@ const std::shared_ptr<ZeroInitStructsHolder> ZeroInitStructsHolder::getInstance(
     }
 
     return instance;
+}
+
+void ZeroInitStructsHolder::destroyContextForInstance(std::shared_ptr<ZeroInitStructsHolder>& instance) {
+    if (!instance) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(instance->_mutex);
+    instance->destroyContextLocked();
 }
 
 ze_device_graph_properties_t ZeroInitStructsHolder::getCompilerProperties() {
@@ -501,20 +511,26 @@ void ZeroInitStructsHolder::setContextOptions(const uint32_t options) {
     setContextProperties();
 }
 
-ZeroInitStructsHolder::~ZeroInitStructsHolder() {
-    if (_context) {
-        _log.debug("ZeroInitStructsHolder - performing zeContextDestroy");
-        auto result = zeContextDestroy(_context);
-        _context = nullptr;
-        if (result != ZE_RESULT_SUCCESS) {
-            if (result == ZE_RESULT_ERROR_UNINITIALIZED) {
-                _log.warning(
-                    "zeContextDestroy failed to destroy the context; Level zero context was already destroyed");
-            } else {
-                _log.error("zeContextDestroy failed %#X", uint64_t(result));
-            }
+void ZeroInitStructsHolder::destroyContextLocked() {
+    if (!_context) {
+        return;
+    }
+
+    _log.debug("ZeroInitStructsHolder - performing zeContextDestroy");
+    auto result = zeContextDestroy(_context);
+    _context = nullptr;
+    if (result != ZE_RESULT_SUCCESS) {
+        if (result == ZE_RESULT_ERROR_UNINITIALIZED) {
+            _log.warning("zeContextDestroy failed to destroy the context; Level zero context was already destroyed");
+        } else {
+            _log.error("zeContextDestroy failed %#X", uint64_t(result));
         }
     }
+}
+
+ZeroInitStructsHolder::~ZeroInitStructsHolder() {
+    std::lock_guard<std::mutex> lock(_mutex);
+    destroyContextLocked();
 }
 
 }  // namespace intel_npu

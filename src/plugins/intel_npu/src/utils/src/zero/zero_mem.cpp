@@ -111,6 +111,11 @@ uint64_t ZeroMem::id() {
 }
 
 ZeroMem::~ZeroMem() {
+    if (!_init_structs->getContext()) {
+        _logger.warning("Context is null while trying to free memory with id %lu. Memory might be already freed.", _id);
+        return;
+    }
+
     auto result = zeMemFree(_init_structs->getContext(), _ptr);
     if (ZE_RESULT_SUCCESS != result) {
         _logger.error("L0 zeMemFree result: %s, code %#X - %s",
