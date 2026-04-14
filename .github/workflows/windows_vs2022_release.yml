@@ -656,7 +656,7 @@ jobs:
     with:
       device: 'igpu'
       test_type: ${{ matrix.TEST_TYPE }}
-      runner: "[ 'self-hosted', 'Windows' ]"
+      runner: "[ 'self-hosted', 'Windows' 'ov-dmz-18' ]"
       runner-group: 'Intel-GPU'
     # if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
 
