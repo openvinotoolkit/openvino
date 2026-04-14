@@ -579,7 +579,7 @@ bool VCLCompilerImpl::is_option_supported(std::string option, std::optional<std:
     return false;
 }
 
-std::vector<uint8_t> VCLCompilerImpl::get_compiled_model_compatibility_descriptor() {
+std::vector<uint8_t> VCLCompilerImpl::get_compiled_model_compatibility_descriptor() const {
     // TODO use the new call
     vcl_allocator allocator;
     uint8_t* blob = nullptr;
@@ -592,6 +592,10 @@ std::vector<uint8_t> VCLCompilerImpl::get_compiled_model_compatibility_descripto
                                                 &size,
                                                 &compatibilityDescriptor,
                                                 &descriptorSize);
+}
+
+bool VCLCompilerImpl::validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const {
+    // TODO use the new call
 }
 
 }  // namespace intel_npu

@@ -74,6 +74,7 @@ public:
     std::string determineDeviceId(const ov::AnyMap& properties) const;
     ov::intel_npu::CompilerType determineCompilerType(const ov::AnyMap& properties) const;
     std::vector<uint8_t> getCompiledModelCompatibilityDescriptor(const std::shared_ptr<IGraph>& graph) const;
+    bool checkCompiledModelCompatibilityDescriptor(const std::string& compatibilityString) const;
 
 private:
     struct CopyState {

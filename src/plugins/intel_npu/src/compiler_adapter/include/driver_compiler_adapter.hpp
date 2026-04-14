@@ -35,6 +35,8 @@ public:
     std::vector<uint8_t> get_compiled_model_compatibility_descriptor(
         const std::shared_ptr<IGraph>& graph) const override;
 
+    bool validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const override;
+
 private:
     bool isCompilerOptionSupported(const FilteredConfig& config,
                                    const ze_graph_compiler_version_info_t& compilerVersion,

@@ -88,12 +88,14 @@ public:
 
     std::shared_ptr<void> getLinkedLibrary() const;
 
-    std::vector<uint8_t> get_compiled_model_compatibility_descriptor();
+    std::vector<uint8_t> get_compiled_model_compatibility_descriptor() const;
+
+    bool validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const;
 
 private:
     /**
-     * @brief Compiles the given model according to the given configuration. During the model serialization step, the
-     * "WeightlessCacheAttribute" may be stored within the serialized model if requested.
+     * @brief Compiles the given model according to the given configuration. During the model serialization step,
+     * the "WeightlessCacheAttribute" may be stored within the serialized model if requested.
      * @note Storing the "WeightlessCacheAttribute" is necessary if the "weights separation" flow is being used.
      */
     ov::Tensor compile(const std::shared_ptr<const ov::Model>& model,
