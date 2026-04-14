@@ -5,41 +5,19 @@
 #include "compiled_model.hpp"
 
 #include <fstream>
-#include <iomanip>
 #include <string_view>
 
 #include "async_infer_request.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/compatibility_string.hpp"
 #include "metadata.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
-
-namespace {
-
-std::string encode_compatibility_string(const std::string& decoded_string) {
-    // TODO look for better solutions
-    // TODO make this utility for testing reasons?
-    std::stringstream encoded_stringstream;
-    for (const auto unit : decoded_string) {
-        encoded_stringstream << std::hex << std::setw(2) << std::setfill('0') << int(unit);
-    }
-    return encoded_stringstream.str();
-}
-
-std::string decode_compatibility_string(const std::string& encoded_string) {
-    std::string decoded_string;
-    for (auto unit_index = 0; unit_index < encoded_string.length(); unit_index += 2) {
-        decoded_string += std::stoi(encoded_string.substr(unit_index, 2), nullptr, 16);
-    }
-    return decoded_string;
-}
-
-}  // namespace
 
 namespace intel_npu {
 
