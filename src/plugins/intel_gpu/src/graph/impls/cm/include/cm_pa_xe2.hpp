@@ -12,11 +12,11 @@
 #error "SPARSE_BLOCK_SIZE must be defined"
 #endif
 
-#ifndef CMPA_KVCACHE_U8
-#error "CMPA_KVCACHE_U8 must be defined"
+#ifndef KV_CACHE_COMPRESSION
+#error "KV_CACHE_COMPRESSION must be defined"
 #endif
 
-#if CMPA_KVCACHE_U8
+#if KV_CACHE_COMPRESSION
 #define OPTIMIZED_SPARSE_PIPELINE ( \
                                    (SPARSE_BLOCK_SIZE == CMPA_WG_SEQ_LEN) && \
                                    (SPARSE_BLOCK_SIZE == 128 || SPARSE_BLOCK_SIZE == 256) && \
@@ -34,13 +34,13 @@
         "This optimized pipeline requires SPARSE_BLOCK_SIZE to be the same as CMPA_WG_SEQ_LEN");
     static_assert(SPARSE_BLOCK_SIZE == 128 || SPARSE_BLOCK_SIZE == 256,
         "This optimized pipeline assumes SPARSE_BLOCK_SIZE is 128 or 256 to efficiently index sparse blocks");
-#if CMPA_KVCACHE_U8
+#if KV_CACHE_COMPRESSION
     static_assert((CMPA_BLOCK_SZ % SPARSE_BLOCK_SIZE) == 0,
         "U8 optimized sparse pipeline assumes CMPA_BLOCK_SZ is divisible by SPARSE_BLOCK_SIZE to efficiently index kvcache blocks");
 #endif
 #endif
 
-#if CMPA_KVCACHE_U8
+#if KV_CACHE_COMPRESSION
 template<bool use_causal_mask, int num_heads, int num_kv_heads, int head_size, int is_q_fused = 0>
 void pa_lsc_u8(
     uint slm_K,
@@ -83,8 +83,10 @@ void pa_lsc_u8(
     auto q_tokens_left = q_len;
     static_assert(q_step == REG_N);
     static_assert(kv_step == REG_K);
-    static_assert(CMPA_SUB_BLOCK_SZ % 16 == 0, "CMPA_SUB_BLOCK_SZ must be divisible by 16");
-    static_assert(CMPA_BLOCK_SZ % CMPA_SUB_BLOCK_SZ == 0, "CMPA_BLOCK_SZ must be divisible by CMPA_SUB_BLOCK_SZ");
+#if KV_CACHE_COMPRESSION == 2
+    static_assert(SUB_BLOCK_SIZE % 16 == 0, "SUB_BLOCK_SIZE must be divisible by 16");
+    static_assert(CMPA_BLOCK_SZ % SUB_BLOCK_SIZE == 0, "CMPA_BLOCK_SZ must be divisible by SUB_BLOCK_SIZE");
+#endif
 
     if (q_tokens_left < 0) q_tokens_left = 0;
     if (q_tokens_left > q_step) q_tokens_left = q_step;
@@ -110,10 +112,10 @@ void pa_lsc_u8(
     lsc::block_2d_desc<uint8_t, 1, REG_K, REG_N> b2dV(
         v_cache_base, CMPA_BLOCK_SZ - 1, head_size * sizeof(uint8_t) - 1, kv_pitch - 1, 0, 0);
 
-#if CMPA_KVCACHE_U8 == 1
+#if KV_CACHE_COMPRESSION == 1
     constexpr int k_quan_blk_stride = CMFLA_NUM_KV_HEADS * (CMFLA_HEAD_SIZE + 4) * CMPA_BLOCK_SZ * sizeof(uint8_t);
 #else
-    constexpr int k_quan_blk_stride = CMFLA_NUM_KV_HEADS * CMFLA_HEAD_SIZE * (CMPA_BLOCK_SZ + CMPA_BLOCK_SZ / CMPA_SUB_BLOCK_SZ * 4) * sizeof(uint8_t);
+    constexpr int k_quan_blk_stride = CMFLA_NUM_KV_HEADS * CMFLA_HEAD_SIZE * (CMPA_BLOCK_SZ + CMPA_BLOCK_SZ / SUB_BLOCK_SIZE * 4) * sizeof(uint8_t);
 #endif
     constexpr int v_quan_blk_stride = CMFLA_NUM_KV_HEADS * (CMFLA_HEAD_SIZE + 4) * CMPA_BLOCK_SZ * sizeof(uint8_t);
 
@@ -168,7 +170,7 @@ void pa_lsc_u8(
         int kv_left = kv_step;
         if (kv_pos + kv_step > kv_stop) kv_left = kv_stop - kv_pos;
 
-#if CMPA_KVCACHE_U8 == 1
+#if KV_CACHE_COMPRESSION == 1
         uint32_t k_dscale_offset =
             cur_block_id * k_quan_blk_stride +
             CMPA_BLOCK_SZ * head_size * sizeof(uint8_t) +
@@ -178,8 +180,8 @@ void pa_lsc_u8(
         uint32_t k_dscale_offset =
             cur_block_id * k_quan_blk_stride +
             CMPA_BLOCK_SZ * head_size * sizeof(uint8_t) +
-            kv_pos_in_block / CMPA_SUB_BLOCK_SZ * head_size * sizeof(half);
-        uint32_t k_zp_offset = k_dscale_offset + CMPA_BLOCK_SZ / CMPA_SUB_BLOCK_SZ * head_size * sizeof(half);
+            kv_pos_in_block / SUB_BLOCK_SIZE * head_size * sizeof(half);
+        uint32_t k_zp_offset = k_dscale_offset + CMPA_BLOCK_SZ / SUB_BLOCK_SIZE * head_size * sizeof(half);
 #endif
         uint32_t v_dscale_offset =
             cur_block_id * v_quan_blk_stride +
@@ -195,7 +197,7 @@ void pa_lsc_u8(
 
         if (wg_local_id < local_size / 2) {
             // ---- Load K scales / zps ----
-#if CMPA_KVCACHE_U8 == 1
+#if KV_CACHE_COMPRESSION == 1
             cm_svm_block_read(reinterpret_cast<svmptr_t>(k_cache_base + k_dscale_offset), dscale);
             cm_svm_block_read(reinterpret_cast<svmptr_t>(k_cache_base + k_zp_offset), zp);
 #endif
@@ -208,7 +210,7 @@ void pa_lsc_u8(
             b2dK.set_block_y(kv_pos_in_block);
 
             for (int k = REG_K * wg_local_id; k < head_size; k += REG_K * (local_size / 2)) {
-#if CMPA_KVCACHE_U8 == 2
+#if KV_CACHE_COMPRESSION == 2
                 cm_svm_block_read(reinterpret_cast<svmptr_t>(k_cache_base + k_dscale_offset + k * sizeof(half)), dscale);
                 cm_svm_block_read(reinterpret_cast<svmptr_t>(k_cache_base + k_zp_offset + k * sizeof(half)), zp);
 #endif
@@ -216,7 +218,7 @@ void pa_lsc_u8(
 
                 #pragma unroll
                 for (int r = 0; r < kv_step; r++) {
-#if CMPA_KVCACHE_U8 == 1
+#if KV_CACHE_COMPRESSION == 1
                     kmat[r] = quanKmat[r] - zp[r];
                     kmat[r] = cm_mul<half>(kmat[r], dscale[r]);
 #else
@@ -392,7 +394,7 @@ void pa_lsc_u8(
 #endif
         int cur_block_id = block_indices[kv_pos / CMPA_BLOCK_SZ];
         int kv_pos_in_block = kv_pos - (kv_pos / CMPA_BLOCK_SZ) * CMPA_BLOCK_SZ;
-#if CMPA_KVCACHE_U8 == 1
+#if KV_CACHE_COMPRESSION == 1
         uint32_t k_dscale_offset =
             cur_block_id * k_quan_blk_stride +
             CMPA_BLOCK_SZ * head_size * sizeof(uint8_t) +
@@ -402,8 +404,8 @@ void pa_lsc_u8(
         uint32_t k_dscale_offset =
             cur_block_id * k_quan_blk_stride +
             CMPA_BLOCK_SZ * head_size * sizeof(uint8_t) +
-            kv_pos_in_block / CMPA_SUB_BLOCK_SZ * head_size * sizeof(half);
-        uint32_t k_zp_offset = k_dscale_offset + CMPA_BLOCK_SZ / CMPA_SUB_BLOCK_SZ * head_size * sizeof(half);
+            kv_pos_in_block / SUB_BLOCK_SIZE * head_size * sizeof(half);
+        uint32_t k_zp_offset = k_dscale_offset + CMPA_BLOCK_SZ / SUB_BLOCK_SIZE * head_size * sizeof(half);
 #endif
         uint32_t v_dscale_offset =
             cur_block_id * v_quan_blk_stride +
@@ -419,7 +421,7 @@ void pa_lsc_u8(
         slm_buff_id_write++;
 
         if (wg_local_id < local_size / 2) {
-#if CMPA_KVCACHE_U8 == 1
+#if KV_CACHE_COMPRESSION == 1
             cm_svm_block_read(reinterpret_cast<svmptr_t>(k_cache_base + k_dscale_offset), dscale);
             cm_svm_block_read(reinterpret_cast<svmptr_t>(k_cache_base + k_zp_offset), zp);
 #endif
@@ -431,7 +433,7 @@ void pa_lsc_u8(
             b2dK.set_block_y(kv_pos_in_block);
 
             for (int k = REG_K * wg_local_id; k < head_size; k += REG_K * (local_size / 2)) {
-#if CMPA_KVCACHE_U8 == 2
+#if KV_CACHE_COMPRESSION == 2
                 cm_svm_block_read(reinterpret_cast<svmptr_t>(k_cache_base + k_dscale_offset + k * sizeof(half)), dscale);
                 cm_svm_block_read(reinterpret_cast<svmptr_t>(k_cache_base + k_zp_offset + k * sizeof(half)), zp);
 #endif
@@ -439,7 +441,7 @@ void pa_lsc_u8(
 
                 #pragma unroll
                 for (int r = 0; r < kv_step; r++) {
-#if CMPA_KVCACHE_U8 == 1
+#if KV_CACHE_COMPRESSION == 1
                     kmat[r] = quanKmat[r] - zp[r];
                     kmat[r] = cm_mul<half>(kmat[r], dscale[r]);
 #else

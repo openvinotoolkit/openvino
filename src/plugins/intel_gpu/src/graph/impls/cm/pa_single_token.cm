@@ -34,7 +34,7 @@
     // Currently supports 'by channel' and 'by token' for K, V still uses 'by token'.
     // scale/zp is half-precision, so size = 2 * 2 = 4 bytes
     #if KV_CACHE_COMPRESSION == 2
-    #define GROUPS_PER_BLOCK (KV_BLOCK_SIZE / SUB_GROUP_SIZE)
+    #define GROUPS_PER_BLOCK (KV_BLOCK_SIZE / SUB_BLOCK_SIZE)
     #define K_SCALE_ZP_SIZE (4 * GROUPS_PER_BLOCK) // scale/zp bytes
     #define V_SCALE_ZP_SIZE 4 // scale/zp bytes
     #elif KV_CACHE_COMPRESSION == 1
@@ -236,7 +236,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 
             #pragma unroll
             #if KV_CACHE_COMPRESSION
-                #if !USE_LSC_BLOCK_2D_DESC && KV_CACHE_COMPRESSION_BY_TOKEN && XE_ARCH==1
+                #if !USE_LSC_BLOCK_2D_DESC && KV_CACHE_COMPRESSION == 1 && XE_ARCH==1
                 for(int k = 0, ri = 0; k < HEAD_SIZE/4; k += (REG_K/4)*4, ri += 4 ) {
                 #else
                 for(int k = 0, ri = 0; k < HEAD_SIZE/4; k += REG_K/4, ri ++ ) {
@@ -245,7 +245,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                 for(int k = 0, ri = 0; k < HEAD_SIZE/2; k += REG_K/2, ri ++ ) {
             #endif
                 // matrix<half, REG_K, REG_N> Kt = 0;
-                #if !USE_LSC_BLOCK_2D_DESC && KV_CACHE_COMPRESSION && KV_CACHE_COMPRESSION_BY_TOKEN && XE_ARCH==1
+                #if !USE_LSC_BLOCK_2D_DESC && KV_CACHE_COMPRESSION == 1 && XE_ARCH==1
                 matrix<uint8_t, REG_N, REG_K*4> temp4; // 8 x 64
                 uint cur_kv_offset4 = kv_offset + kv_pos * kv_stride + k * 4;
                 #pragma unroll
@@ -298,7 +298,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                         quant_dst.row(r+1) = quant_src.select<2,1,8,2>(r,1);
                     }
                     #if KV_CACHE_COMPRESSION == 2
-                    uint group_idx = (kv_pos / SUB_GROUP_SIZE);
+                    uint group_idx = (kv_pos / SUB_BLOCK_SIZE);
                     vector<half, REG_K> temp_scale, temp_zp;
                     svmptr_t scale_ptr = (svmptr_t)(key + k_scale_zp_offset
                                         + group_idx * HEAD_SIZE * sizeof(half)
@@ -337,7 +337,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                     for(int kk = 0; kk < REG_N; kk++) {
                         cm_svm_block_read<uint8_t, REG_K>((svmptr_t)(key + cur_kv_offset + kk * kv_stride), temp[kk].format<uint8_t>());
                     }
-                    #if KV_CACHE_COMPRESSION_BY_TOKEN
+                    #if KV_CACHE_COMPRESSION == 1
                     matrix<half, REG_N, REG_K> KtNormal = temp;
                     KtNormal = KtNormal - temp_zp;
                     KtNormal = cm_mul<half>(KtNormal, temp_scale);

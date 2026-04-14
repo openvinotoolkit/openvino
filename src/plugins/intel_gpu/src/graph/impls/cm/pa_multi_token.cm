@@ -19,7 +19,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     SurfaceIndex q_gather [[type("buffer_t")]],
 #endif
 #ifdef CM_HAS_LSC_UNTYPED_2D
-#if CMPA_KVCACHE_U8
+#if KV_CACHE_COMPRESSION
     int8_t* k_cache [[type("svmptr_t")]],
     int8_t* v_cache [[type("svmptr_t")]],
 #else
@@ -27,7 +27,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     half* v_cache [[type("svmptr_t")]],
 #endif
 #else
-#if CMPA_KVCACHE_U8
+#if KV_CACHE_COMPRESSION
     int8_t* k_cache [[type("svmptr_t")]],
     SurfaceIndex v_cache_stateful [[type("buffer_t")]],
 #else
@@ -53,11 +53,13 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     constexpr int head_size = CMFLA_HEAD_SIZE;
     constexpr int num_kv_heads = CMFLA_NUM_KV_HEADS;
     constexpr int pa_block_sz = CMPA_BLOCK_SZ;
-    constexpr int sub_block_sz = CMPA_SUB_BLOCK_SZ;
+#if KV_CACHE_COMPRESSION == 2
+    constexpr int sub_block_sz = SUB_BLOCK_SIZE;
+#endif
     //# query [q_len, num_heads, S]
     //# k_cache [kv_len, num_heads, S]
     //# v_cache [kv_len, num_heads, S]
-#if CMPA_KVCACHE_U8
+#if KV_CACHE_COMPRESSION
     constexpr uint K_SLM_SIZE = (4*kv_step * head_size * sizeof(half));
     constexpr uint V_SLM_SIZE = (4*kv_step * head_size * sizeof(half));
     constexpr uint Q_SLM_SIZE = 0;
@@ -137,8 +139,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     wg_block_mask_base = sparse_block_mask_wg + (h * cm_group_count(2) + wg_id) * num_k_blocks;
  #endif
 
-#if CMPA_KVCACHE_U8
-#if CMPA_KVCACHE_U8 == 1
+#if KV_CACHE_COMPRESSION
+#if KV_CACHE_COMPRESSION == 1
     uint k_offset = hkv * (head_size + 4) * pa_block_sz;
 #else
     uint k_offset = hkv * head_size * (pa_block_sz + pa_block_sz / sub_block_sz * 4);

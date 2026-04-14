@@ -90,6 +90,7 @@ CM_INLINE void store_kvcache(const svmptr_t kv_cache [[type("svmptr_t")]], uint 
     }
 }
 
+// Note that process_quantization_per_token is always needed by v-cache, either KV_CACHE_COMPRESSION is 1 or 2.
 #if KV_CACHE_COMPRESSION
 template <int HEAD_SIZE>
 CM_INLINE void process_quantization_per_token(const half* in, uchar* out, uint in_offset, uint data_offset, uint scale_offset) {
@@ -113,6 +114,15 @@ CM_INLINE void process_quantization_per_token(const half* in, uchar* out, uint i
 }
 #endif
 
+// Typical cases of per channel quantization involve the following steps:
+// [Step 1] Load the current tokens in this subblock, and evaluate the minimum and maximum values.
+// [Step 2] Load and dequantize the tail of the past tokens in this subblock. The tail size plus the current token
+//          size mentioned in [Step 1] should equal SUB_BLOCK_SIZE. Update the minimum and maximum values.
+// [Step 3] Calculate the (new) scales and zero points based on the minimum and maximum values.
+// [Step 4] Use the scales and zero points to requantize and store the tail of the past tokens.
+// [Step 5] Use the scales and zero points to quantize and store the current tokens.
+// [Step 6] Store the scales and zero points.
+// Note that [Step 2] and [Step 4] can be skipped for cases with no tail of past tokens.
 #if KV_CACHE_COMPRESSION == 2
 template <int HEAD_SIZE>
 CM_INLINE void process_quantization_per_channel(const half* in,
