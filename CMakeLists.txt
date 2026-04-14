@@ -141,15 +141,6 @@ function(ov_developer_package_export_targets)
         "A list of OpenVINO Developer Package exported targets" FORCE)
 endfunction()
 
-
-#
-# TPP-MLIR
-#
-
-# enables tpp-mlir for temporary MLIR lowering CPU pipeline
-# FIXME: Move to all-upsteram lowering into XSMM/DNN/MKL
-include(cmake/tpp-mlir.cmake)
-
 #
 # Graph Compiler
 #

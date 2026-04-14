@@ -84,7 +84,6 @@
 #include "transformations/fp16_compression/mark_floatpoint_range.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/op_conversions/convert_avgpool_downgrade.hpp"
-#include "transformations/mlir/convert.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 #include "transformations/op_conversions/convert_broadcast3.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"

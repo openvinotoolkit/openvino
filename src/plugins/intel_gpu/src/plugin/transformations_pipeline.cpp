@@ -143,7 +143,9 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/normalize_l2_decomposition.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
+#ifdef GRAPH_COMPILER
 #include "transformations/mlir/convert.hpp"
+#endif
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 #include "transformations/op_conversions/convert_broadcast3.hpp"
@@ -730,8 +732,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node> node){
-            if (!config.get_enable_sdpa_optimization())
+            if (!config.get_enable_sdpa_optimization()) {
+#ifdef GRAPH_COMPILER
                 return true;
+#else
+                return false;
+#endif
+            }
 
             auto sdpa = ov::as_type_ptr<const ov::op::v13::ScaledDotProductAttention>(node);
             // TODO: sdpa_opt is not supporting sink_input for 1st token case yet
@@ -1595,6 +1602,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::ConstantsReduce>();
 
+#ifdef GRAPH_COMPILER
         auto loweringContext = std::make_shared<ov::EvaluationContext>();
         auto it = m_context->get_property().find(ov::intel_gpu::ocl_context.name());
         if (it != m_context->get_property().end()) {
@@ -1603,6 +1611,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             loweringContext->insert(ov::intel_gpu::ocl_context(it->second.as<ov::intel_gpu::gpu_handle_param>()));
         }
         ov::pass::transformMLIR(func, loweringContext);
+#endif
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation
