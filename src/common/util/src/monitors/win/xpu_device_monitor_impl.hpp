@@ -60,15 +60,12 @@ public:
                 std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl::get_utilization: fallback value = " << val << std::endl;
                 result[m_device_luid] = val;
             } else {
-                std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl::get_utilization: all paths returned empty/null, fallback to 0.0" << std::endl;
-                result[m_device_luid] = 0.0f;
+                std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl::get_utilization: all paths returned empty/null, returning empty map" << std::endl;
             }
         } catch (const std::exception& e) {
-            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl::get_utilization: exception: " << e.what() << std::endl;
-            result[m_device_luid] = 0.0f;
+            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl::get_utilization: exception: " << e.what() << ", returning empty map" << std::endl;
         } catch (...) {
-            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl::get_utilization: unknown exception" << std::endl;
-            result[m_device_luid] = 0.0f;
+            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl::get_utilization: unknown exception, returning empty map" << std::endl;
         }
         return result;
     }
