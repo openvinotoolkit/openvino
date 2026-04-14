@@ -78,10 +78,10 @@ void PagedCausalConv1D::execute([[maybe_unused]] const dnnl::stream& strm) {
     OPENVINO_ASSERT(getOriginalInputPrecisionAtPort(3) == ov::element::f32,
                     "PagedCausalConv1D supports only f32 conv_bias precision in CPU plugin.");
 
-    const auto input_embeds_shape = getInputShapeAtPort(0).getDims();
-    const auto state_table_shape = getInputShapeAtPort(1).getDims();
-    const auto weight_shape = getInputShapeAtPort(2).getDims();
-    const auto bias_shape = getInputShapeAtPort(3).getDims();
+    const auto input_embeds_shape = getSrcMemoryAtPort(0)->getStaticDims();
+    const auto state_table_shape = getSrcMemoryAtPort(1)->getStaticDims();
+    const auto weight_shape = getSrcMemoryAtPort(2)->getStaticDims();
+    const auto bias_shape = getSrcMemoryAtPort(3)->getStaticDims();
 
     OPENVINO_ASSERT(input_embeds_shape.size() == 2,
                     "PagedCausalConv1D expects input_embeds rank 2, got ",
@@ -114,9 +114,7 @@ void PagedCausalConv1D::execute([[maybe_unused]] const dnnl::stream& strm) {
                     weight_shape[2],
                     " and ",
                     kernel_size);
-    OPENVINO_ASSERT(bias_shape.size() == 1,
-                    "PagedCausalConv1D expects conv_bias rank 1, got ",
-                    bias_shape.size());
+    OPENVINO_ASSERT(bias_shape.size() == 1, "PagedCausalConv1D expects conv_bias rank 1, got ", bias_shape.size());
 
     const bool has_bias = bias_shape[0] != 0;
     OPENVINO_ASSERT(!has_bias || bias_shape[0] == hidden_size,
@@ -137,7 +135,7 @@ void PagedCausalConv1D::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     auto* output_embeds = getDstDataAtPortAs<float>(0);
 
-    const auto& subseq_shape = getInputShapeAtPort(4).getDims();
+    const auto subseq_shape = getSrcMemoryAtPort(4)->getStaticDims();
     OPENVINO_ASSERT(!subseq_shape.empty(), "PagedCausalConv1D expects non-empty subsequence_begins input.");
     OPENVINO_ASSERT(subseq_shape[0] >= 1, "PagedCausalConv1D expects subsequence_begins shape[0] >= 1.");
 
