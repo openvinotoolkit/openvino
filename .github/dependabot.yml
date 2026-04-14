@@ -132,6 +132,42 @@ updates:
       - "rkazants"
     versioning-strategy: increase-if-necessary
 
+  # JavaScript API (Node.js bindings)
+  - package-ecosystem: npm
+    directory: "/src/bindings/js/node/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Poland"
+    open-pull-requests-limit: 3
+    assignees:
+      - "mlukasze"
+      - "Retribution98"
+      - "almilosz"
+    versioning-strategy: lockfile-only
+    groups:
+      npm-packages:
+        patterns:
+          - "*"
+
+  # JavaScript samples (Node.js)
+  - package-ecosystem: npm
+    directory: "/samples/js/node/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Poland"
+    open-pull-requests-limit: 3
+    assignees:
+      - "mlukasze"
+      - "Retribution98"
+      - "almilosz"
+    versioning-strategy: lockfile-only
+    groups:
+      npm-packages:
+        patterns:
+          - "*"
+
   #
   # Github actions - CI
   #
