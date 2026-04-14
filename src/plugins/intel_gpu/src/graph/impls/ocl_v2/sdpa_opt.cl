@@ -116,7 +116,11 @@ inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uin
 
 #define OUTPUT_BLOCK_READ(ptr, offset) BLOCK_READN(OUTPUT_TYPE, 1, ptr, offset)
 #define OUTPUT_BLOCK_WRITE(ptr, offset, val) BLOCK_WRITEN(OUTPUT_TYPE, 1, ptr, offset, val)
+#if IS_INT4_COMPRESSED
+#define VALUE_BLOCK_READ(ptr, offset) ((ptr)[(offset) + sglid])
+#else
 #define VALUE_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT2_TYPE, 1, ptr, offset)
+#endif
 #define SUBGROUPS_PER_WG CEIL_DIV(V_HEAD_SIZE * SG_SCALE_FACTOR, SUBGROUP_SIZE)
 
 #if IS_KV_COMPRESSED
@@ -350,7 +354,7 @@ KERNEL(sdpa_opt)(
                 //     lo nibble -> key val at head dim [head_idx_index + 2*sglid]
                 //     hi nibble -> key val at head dim [head_idx_index + 2*sglid + 1]
                 for (uint head_idx_index = 0; head_idx_index + 2 * SUBGROUP_SIZE <= K_HEAD_SIZE; head_idx_index += 2 * SUBGROUP_SIZE) {
-                    #define KEY_BLOCK_READ_1(ptr, offset) BLOCK_READN(INPUT1_TYPE, 1, ptr, offset)
+                    #define KEY_BLOCK_READ_1(ptr, offset) ((ptr)[(offset) + sglid])
                     INPUT1_TYPE packed_byte = KEY_BLOCK_READ_1(key_input, key_offset + head_idx_index / 2);
                     char2 unpacked = unpack_to_char(*(uint4x2_t*)&packed_byte);
 
@@ -370,7 +374,7 @@ KERNEL(sdpa_opt)(
 #if (K_HEAD_SIZE % (2 * SUBGROUP_SIZE)) != 0
                 {
                     const uint head_idx_index = (K_HEAD_SIZE / (2 * SUBGROUP_SIZE)) * (2 * SUBGROUP_SIZE);
-                    #define KEY_BLOCK_READ_1(ptr, offset) BLOCK_READN(INPUT1_TYPE, 1, ptr, offset)
+                    #define KEY_BLOCK_READ_1(ptr, offset) ((ptr)[(offset) + sglid])
                     INPUT1_TYPE packed_byte = KEY_BLOCK_READ_1(key_input, key_offset + head_idx_index / 2);
                     char2 unpacked = unpack_to_char(*(uint4x2_t*)&packed_byte);
 
@@ -755,18 +759,20 @@ KERNEL(sdpa_opt)(
 #endif
 #endif
 
-#if IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
+#if IS_INT4_COMPRESSED
         // Adjacent head packing: byte = head_size_idx/2, nibble = head_size_idx%2
         // val_packed_x: base byte offset for BLOCK_READ (aligned to SUBGROUP_SIZE)
         const uint val_packed_x = (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE;
         // Shuffle source: which lane holds the byte containing our head element
         const uint shuffle_src_p0 = (head_size_idx & (2 * SUBGROUP_SIZE - 1)) >> 1;
         const uint nibble_sel_p0 = sglid & 1;
+    #ifndef BEAM_TABLE_TYPE
     #ifdef INPUT2_DIMS_ORDER
         const uint value_base_p0 = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 0, val_packed_x);
     #else
         const uint value_base_p0 = INPUT2_GET_INDEX(b0_idx, b1_idx, 0, val_packed_x);
     #endif
+    #endif // !BEAM_TABLE_TYPE
 #endif
 
 #if SG_SCALE_FACTOR > 1
@@ -779,8 +785,13 @@ KERNEL(sdpa_opt)(
 
         for (uint seq_len = seq_len_start; seq_len < seq_len_end; seq_len++) {
 #ifdef BEAM_TABLE_TYPE
+    #if IS_INT4_COMPRESSED
+            const uint b_idx = beam_table[FUNC_CALL(get_bt_index_value)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, val_packed_x)];
+            uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, val_packed_x);
+    #else
             const uint b_idx = beam_table[FUNC_CALL(get_bt_index_value)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, sgid * SUBGROUP_SIZE)];
             uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, sgid * SUBGROUP_SIZE);
+    #endif
 #else
             const uint b_idx = b0_idx;
     #if IS_INT4_COMPRESSED
@@ -812,7 +823,7 @@ KERNEL(sdpa_opt)(
                 const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, value_offset);
 #endif
 
-#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
+#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
                 // INT4 adjacent packing: shuffle to get correct byte, select nibble by lane parity
                 INPUT2_TYPE needed_byte = intel_sub_group_shuffle(value_packed, shuffle_src_p0);
                 char2 v_unpacked = unpack_to_char(*(uint4x2_t*)&needed_byte);
@@ -849,8 +860,16 @@ KERNEL(sdpa_opt)(
             const uint b_idx = b0_idx;
 #endif
 
-#if IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
+#if IS_INT4_COMPRESSED
+    #ifdef BEAM_TABLE_TYPE
+        #ifdef INPUT2_DIMS_ORDER
+            const uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + seq_len, val_packed_x);
+        #else
+            const uint value_offset = INPUT2_GET_INDEX(b_idx, b1_idx, start_partition_idx + seq_len, val_packed_x);
+        #endif
+    #else
             const uint value_offset = value_base_p0 + (start_partition_idx + seq_len) * value_pitch;
+    #endif
 #elif defined(INPUT2_DIMS_ORDER)
             const uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + seq_len, head_size_idx);
 #else
@@ -871,7 +890,7 @@ KERNEL(sdpa_opt)(
             }
 
             const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, value_offset);
-#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
+#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
             // INT4 adjacent packing: shuffle to get correct byte, select nibble by lane parity
             INPUT2_TYPE needed_byte = intel_sub_group_shuffle(value_packed, shuffle_src_p0);
             char2 v_rem_unpacked = unpack_to_char(*(uint4x2_t*)&needed_byte);
@@ -1497,12 +1516,12 @@ KERNEL(sdpa_opt)(
                 KEY_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(key_zp, key_scale, comp_offset);
 #endif
 #endif
-#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
+#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
                 {
-                    // INT4 adjacent packing: BLOCK_READ gives 16 head-dim bytes per lane.
+                    // INT4 adjacent packing: scalar read gives 16 head-dim bytes per lane.
                     // Lane i holds key at head dims (hi + 2*i) and (hi + 2*i + 1).
                     // Load query values matching adjacent-packed head dims.
-                    #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, 1, ptr, offset);
+                    #define KEY_BLOCK_READ(ptr, offset) ((ptr)[(offset) + sglid])
                     #define QUERY_VEC MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
                     for (uint hi = 0; hi + 2 * SUBGROUP_SIZE <= K_HEAD_SIZE; hi += 2 * SUBGROUP_SIZE) {
                         QUERY_VEC qvec_lo, qvec_hi;
@@ -1513,7 +1532,11 @@ KERNEL(sdpa_opt)(
                             qvec_hi[i] = slm_query[(hi + 2 * i + 1) * TARGET_SEQ_LEN_BLOCK_SIZE + sglid];
                         }
                         unroll_for (uint key_row_idx = 0; key_row_idx < TARGET_SEQ_LEN_BLOCK_SIZE; key_row_idx++) {
+#ifdef BEAM_TABLE_TYPE
+                            const INPUT1_TYPE packed_byte = KEY_BLOCK_READ(key_input, sub_group_broadcast(key_offset, key_row_idx) + hi / 2);
+#else
                             const INPUT1_TYPE packed_byte = KEY_BLOCK_READ(key_input, key_offset + key_row_idx * key_pitch + hi / 2);
+#endif
                             char2 unpacked = unpack_to_char(*(uint4x2_t*)&packed_byte);
                             KEY_COMPRESSION_SCALE_TYPE key_lo = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s0) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
                             KEY_COMPRESSION_SCALE_TYPE key_hi = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s1) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
@@ -1532,7 +1555,11 @@ KERNEL(sdpa_opt)(
                             qvec_lo[i] = slm_query[(hi + 2 * i) * TARGET_SEQ_LEN_BLOCK_SIZE + sglid];
                         }
                         unroll_for (uint key_row_idx = 0; key_row_idx < TARGET_SEQ_LEN_BLOCK_SIZE; key_row_idx++) {
+#ifdef BEAM_TABLE_TYPE
+                            const INPUT1_TYPE packed_byte = KEY_BLOCK_READ(key_input, sub_group_broadcast(key_offset, key_row_idx) + hi / 2);
+#else
                             const INPUT1_TYPE packed_byte = KEY_BLOCK_READ(key_input, key_offset + key_row_idx * key_pitch + hi / 2);
+#endif
                             char2 unpacked = unpack_to_char(*(uint4x2_t*)&packed_byte);
                             KEY_COMPRESSION_SCALE_TYPE key_lo = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s0) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
                             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
@@ -1611,27 +1638,27 @@ KERNEL(sdpa_opt)(
                 KEY_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(key_zp, key_scale, comp_offset);
 #endif
 #endif
-#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
+#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
                 {
                     // INT4 partial block: process 2*SUBGROUP_SIZE logical head dims per iteration
-                    #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, 1, ptr, offset)
+                    #define KEY_BLOCK_READ(ptr, offset) ((ptr)[(offset) + sglid])
                     #define QUERY_VEC_TYPE MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
                     const uint key_pitch_int4 = K_HEAD_SIZE;
                     for (uint hi = 0; hi + 2 * SUBGROUP_SIZE <= K_HEAD_SIZE; hi += 2 * SUBGROUP_SIZE) {
                         QUERY_VEC_TYPE qvec_lo, qvec_hi;
-                        uint qlo = hi * TARGET_SEQ_LEN_BLOCK_SIZE + sglid;
-                        uint qhi_off = (hi + SUBGROUP_SIZE) * TARGET_SEQ_LEN_BLOCK_SIZE + sglid;
-                        unroll_for (uint q_row = 0; q_row < TARGET_SEQ_LEN_BLOCK_SIZE; q_row++) {
-                            qvec_lo[q_row] = slm_query[qlo];
-                            qvec_hi[q_row] = slm_query[qhi_off];
-                            qlo += TARGET_SEQ_LEN_BLOCK_SIZE;
-                            qhi_off += TARGET_SEQ_LEN_BLOCK_SIZE;
+                        unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
+                            qvec_lo[i] = slm_query[(hi + 2 * i) * TARGET_SEQ_LEN_BLOCK_SIZE + sglid];
+                            qvec_hi[i] = slm_query[(hi + 2 * i + 1) * TARGET_SEQ_LEN_BLOCK_SIZE + sglid];
                         }
                         unroll_for (uint key_row_idx = 0; key_row_idx < TARGET_SEQ_LEN_BLOCK_SIZE; key_row_idx++) {
                             KEY_COMPRESSION_SCALE_TYPE key_lo = 0;
                             KEY_COMPRESSION_SCALE_TYPE key_hi = 0;
                             if (key_row_idx < seq_len_calc_size) {
+#ifdef BEAM_TABLE_TYPE
+                                const INPUT1_TYPE packed_byte = KEY_BLOCK_READ(key_input, sub_group_broadcast(key_offset, key_row_idx) + hi / 2);
+#else
                                 const INPUT1_TYPE packed_byte = KEY_BLOCK_READ(key_input, key_offset + key_row_idx * key_pitch_int4 + hi / 2);
+#endif
                                 char2 unpacked = unpack_to_char(*(uint4x2_t*)&packed_byte);
                                 key_lo = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s0) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
                                 key_hi = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s1) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
@@ -1647,15 +1674,17 @@ KERNEL(sdpa_opt)(
                     {
                         const uint hi = (K_HEAD_SIZE / (2 * SUBGROUP_SIZE)) * (2 * SUBGROUP_SIZE);
                         QUERY_VEC_TYPE qvec_lo;
-                        uint qlo = hi * TARGET_SEQ_LEN_BLOCK_SIZE + sglid;
-                        unroll_for (uint q_row = 0; q_row < TARGET_SEQ_LEN_BLOCK_SIZE; q_row++) {
-                            qvec_lo[q_row] = slm_query[qlo];
-                            qlo += TARGET_SEQ_LEN_BLOCK_SIZE;
+                        unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
+                            qvec_lo[i] = slm_query[(hi + 2 * i) * TARGET_SEQ_LEN_BLOCK_SIZE + sglid];
                         }
                         unroll_for (uint key_row_idx = 0; key_row_idx < TARGET_SEQ_LEN_BLOCK_SIZE; key_row_idx++) {
                             KEY_COMPRESSION_SCALE_TYPE key_lo = 0;
                             if (key_row_idx < seq_len_calc_size) {
+#ifdef BEAM_TABLE_TYPE
+                                const INPUT1_TYPE packed_byte = KEY_BLOCK_READ(key_input, sub_group_broadcast(key_offset, key_row_idx) + hi / 2);
+#else
                                 const INPUT1_TYPE packed_byte = KEY_BLOCK_READ(key_input, key_offset + key_row_idx * key_pitch_int4 + hi / 2);
+#endif
                                 char2 unpacked = unpack_to_char(*(uint4x2_t*)&packed_byte);
                                 key_lo = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s0) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
                             }
@@ -2038,16 +2067,18 @@ KERNEL(sdpa_opt)(
 #endif
 #endif
 
-#if IS_INT4_COMPRESSED && !defined(IS_PAGED_ATTENTION) && !defined(BEAM_TABLE_TYPE)
+#if IS_INT4_COMPRESSED && !defined(IS_PAGED_ATTENTION)
             const uint val_packed_x_s1 = (head_size_idx / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE;
             // Adjacent head packing: shuffle to get correct byte, select nibble by lane parity
             const uint shuffle_src_s1 = (head_size_idx & (2 * SUBGROUP_SIZE - 1)) >> 1;
             const uint nibble_sel_s1 = sglid & 1;
+    #ifndef BEAM_TABLE_TYPE
     #ifdef INPUT2_DIMS_ORDER
             const uint value_base_s1 = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 0, val_packed_x_s1);
     #else
             const uint value_base_s1 = INPUT2_GET_INDEX(b0_idx, b1_idx, 0, val_packed_x_s1);
     #endif
+    #endif // !BEAM_TABLE_TYPE
 #endif
 
             if (partition_seq_len == SEQ_LEN_PARTITION_SIZE) {
@@ -2066,8 +2097,13 @@ KERNEL(sdpa_opt)(
                                         (start_partition_idx + (seq_len)) * value_pitch + head_size_idx;
 #else
 #ifdef BEAM_TABLE_TYPE
+    #if IS_INT4_COMPRESSED
+                    const uint b_idx = beam_table[FUNC_CALL(get_bt_index_value)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len) + sglid, val_packed_x_s1)];
+                    const uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + (seq_len) + sglid, val_packed_x_s1);
+    #else
                     const uint b_idx = beam_table[FUNC_CALL(get_bt_index_value)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len) + sglid, sgid * SUBGROUP_SIZE)];
                     const uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + (seq_len) + sglid, sgid * SUBGROUP_SIZE);
+    #endif
 #else
                     const uint b_idx = b0_idx;
     #if IS_INT4_COMPRESSED
@@ -2102,7 +2138,7 @@ KERNEL(sdpa_opt)(
                         const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, value_offset);
                         #endif
 
-                        #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
+                        #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
                         INPUT2_TYPE needed_byte = intel_sub_group_shuffle(value_packed, shuffle_src_s1);
                         char2 v_unpacked = unpack_to_char(*(uint4x2_t*)&needed_byte);
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (nibble_sel_s1 == 0 ?
@@ -2132,7 +2168,7 @@ KERNEL(sdpa_opt)(
                         #else
                             const INPUT2_TYPE value_packed = value_input[value_offset];
                         #endif
-                        #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
+                        #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
                             INPUT2_TYPE needed_byte_elt = intel_sub_group_shuffle(value_packed, shuffle_src_s1);
                             char2 v_unpacked_elt = unpack_to_char(*(uint4x2_t*)&needed_byte_elt);
                             VALUE_COMPRESSION_SCALE_TYPE value_val = (nibble_sel_s1 == 0 ?
@@ -2175,8 +2211,13 @@ KERNEL(sdpa_opt)(
                                         (start_partition_idx + (seq_len * SUBGROUP_SIZE)) * value_pitch + head_size_idx;
             #else // !IS_PAGED_ATTENTION
                 #ifdef BEAM_TABLE_TYPE
+    #if IS_INT4_COMPRESSED
+                    const uint b_idx = beam_table[FUNC_CALL(get_bt_index_value)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, val_packed_x_s1)];
+                    uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, val_packed_x_s1);
+    #else
                     const uint b_idx = beam_table[FUNC_CALL(get_bt_index_value)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, sgid * SUBGROUP_SIZE)];
                     uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, sgid * SUBGROUP_SIZE);
+    #endif
                 #else
                     const uint b_idx = b0_idx;
                 #if IS_INT4_COMPRESSED
@@ -2213,7 +2254,7 @@ KERNEL(sdpa_opt)(
                         const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, value_offset);
                 #endif
 
-                #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
+                #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
                         INPUT2_TYPE needed_byte = intel_sub_group_shuffle(value_packed, shuffle_src_s1);
                         char2 v_unpacked = unpack_to_char(*(uint4x2_t*)&needed_byte);
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (nibble_sel_s1 == 0 ?
@@ -2243,7 +2284,7 @@ KERNEL(sdpa_opt)(
                         #else
                             const INPUT2_TYPE value_packed = value_input[value_offset];
                         #endif
-                        #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
+                        #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
                             INPUT2_TYPE needed_byte_elt = intel_sub_group_shuffle(value_packed, shuffle_src_s1);
                             char2 v_unpacked_elt = unpack_to_char(*(uint4x2_t*)&needed_byte_elt);
                             VALUE_COMPRESSION_SCALE_TYPE value_val = (nibble_sel_s1 == 0 ?
@@ -2289,8 +2330,13 @@ KERNEL(sdpa_opt)(
 
 #else // !IS_PAGED_ATTENTION
 #ifdef BEAM_TABLE_TYPE
+    #if IS_INT4_COMPRESSED
+                    const uint b_idx = beam_table[FUNC_CALL(get_bt_index_value)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + seq_len_leftovers_start + sglid, val_packed_x_s1)];
+                    const uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + seq_len_leftovers_start + sglid, val_packed_x_s1);
+    #else
                     const uint b_idx = beam_table[FUNC_CALL(get_bt_index_value)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + seq_len_leftovers_start + sglid, sgid * SUBGROUP_SIZE)];
                     const uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + seq_len_leftovers_start + sglid, sgid * SUBGROUP_SIZE);
+    #endif
 #else
                     const uint b_idx = b0_idx;
     #if IS_INT4_COMPRESSED
@@ -2333,7 +2379,7 @@ KERNEL(sdpa_opt)(
                         #endif
                     #endif // V_HEAD_SIZE_LEFTOVER
 
-#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
+#if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
                         INPUT2_TYPE needed_byte = intel_sub_group_shuffle(value_packed, shuffle_src_s1);
                         char2 v_left_unpacked = unpack_to_char(*(uint4x2_t*)&needed_byte);
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (nibble_sel_s1 == 0 ?

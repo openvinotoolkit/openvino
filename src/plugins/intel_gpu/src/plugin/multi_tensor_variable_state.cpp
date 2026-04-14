@@ -190,9 +190,10 @@ VariableStateIndirectKVCacheCompressed::VariableStateIndirectKVCacheCompressed(
 
     // For 4-bit KV-cache, two INT4 values are packed per byte.
     // Halve the innermost dim of the allocation to reduce physical memory usage.
-    if (m_is_4bit_kv_cache) {
-        m_hidden_states[0]->set_alloc_inner_dim_divisor(2);
-    }
+    // TODO: Enable after fixing stride/offset calculations for packed INT4 layout.
+    // if (m_is_4bit_kv_cache) {
+    //     m_hidden_states[0]->set_alloc_inner_dim_divisor(2);
+    // }
 }
 
 VariableState::Ptr VariableStateIndirectKVCacheCompressed::get_compression_scale_state() const {
