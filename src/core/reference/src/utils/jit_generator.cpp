@@ -11,6 +11,13 @@
 #    endif
 #    include <xbyak/xbyak_util.h>
 
+#    ifndef _WIN32
+#        include <sys/mman.h>
+
+#        include <mutex>
+#        include <unordered_map>
+#    endif
+
 #    include "openvino/core/except.hpp"
 #    include "openvino/core/type/bfloat16.hpp"
 #    include "openvino/core/type/float16.hpp"
@@ -18,21 +25,82 @@
 
 namespace {
 #    if (OV_ENABLE_EXTERNAL_SANITIZER == 1)
-// Custom allocator that rounds up the requested size to a full page boundary.
-// This ensures each CodeArray occupies complete pages so that setProtectModeRW()
-// called during destruction cannot strip the execute permission from pages that
-// are simultaneously used by another live CodeArray instance.
-// (The default Xbyak::Allocator aligns the *start* address to a page but does
-// not round up the *size*, so two small allocations may share a page.)
+// Custom allocator that uses OS-level page-mapped memory (VirtualAlloc on Windows,
+// mmap(MAP_ANONYMOUS) on Linux) instead of the malloc family.
+//
+// Root cause of the ASAN access violation
+// =========================================
+// Xbyak::AlignedMalloc calls _aligned_malloc (Windows) / posix_memalign (Linux).
+// Both are intercepted by ASAN and fulfilled from ASAN's own Arena Regions -- large
+// contiguous blocks that ASAN reserves with VirtualAlloc/mmap and then sub-divides
+// internally.  Even when the requested size and the returned address are both
+// page-aligned, the backing physical page still belongs to the Arena Region and is
+// therefore subject to ASAN's internal page-lifecycle operations:
+//
+//   1. Arena decommit/recommit: when ASAN reclaims pages inside an Arena for memory
+//      pressure it calls VirtualAlloc(..., MEM_COMMIT, PAGE_READWRITE), which drops
+//      the PAGE_EXECUTE bit that Xbyak had previously set via VirtualProtect.  The
+//      next call through the JIT function pointer then triggers an access violation.
+//
+//   2. Redzone enforcement: ASAN places redzone bytes immediately around every heap
+//      allocation and marks those redzones PAGE_NOACCESS.  If the redzone boundary
+//      falls on the same OS page as the JIT buffer (possible when the Arena layout
+//      does not perfectly align to page boundaries at the Arena level), the
+//      VirtualProtect call for the redzone strips the execute permission from the
+//      shared page.
+//
+// Simply rounding the requested size up to a page boundary is not sufficient:
+// it aligns the *allocation* but does not move the page out of ASAN's Arena, so
+// ASAN's internal page management can still modify the page's protection attributes.
+//
+// Fix: use VirtualAlloc / mmap(MAP_ANONYMOUS) directly
+// ======================================================
+// These OS primitives create an independent Virtual Address Region that is entirely
+// outside any ASAN-managed Arena.  ASAN uses these same primitives internally and
+// therefore never instruments or tracks memory obtained through them.  No redzones
+// are added, no decommit/recommit logic touches the region, and the page protection
+// set by Xbyak (PAGE_EXECUTE_READWRITE) remains stable for the lifetime of the
+// process.
 struct PageAlignedAllocator : public Xbyak::Allocator {
     uint8_t* alloc(size_t size) override {
         const size_t page_size = Xbyak::inner::getPageSize();
         size = (size + page_size - 1) & ~(page_size - 1);
-        return reinterpret_cast<uint8_t*>(Xbyak::AlignedMalloc(size, page_size));
+#        ifdef _WIN32
+        return reinterpret_cast<uint8_t*>(VirtualAlloc(nullptr, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
+#        else
+        void* p = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        if (p == MAP_FAILED)
+            return nullptr;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            alloc_sizes_[reinterpret_cast<uintptr_t>(p)] = size;
+        }
+        return reinterpret_cast<uint8_t*>(p);
+#        endif
     }
     void free(uint8_t* p) override {
-        Xbyak::AlignedFree(p);
+        if (!p)
+            return;
+#        ifdef _WIN32
+        VirtualFree(p, 0, MEM_RELEASE);
+#        else
+        size_t sz = 0;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            auto it = alloc_sizes_.find(reinterpret_cast<uintptr_t>(p));
+            if (it != alloc_sizes_.end()) {
+                sz = it->second;
+                alloc_sizes_.erase(it);
+            }
+        }
+        if (sz)
+            munmap(p, sz);
+#        endif
     }
+#        ifndef _WIN32
+    std::mutex mutex_;
+    std::unordered_map<uintptr_t, size_t> alloc_sizes_;
+#        endif
 };
 
 Xbyak::Allocator& getPageAlignedAllocator() {
@@ -94,16 +162,15 @@ bool Generator::is_x64() {
 
 Generator::Generator(cpu_isa_t isa, void* code_ptr, size_t code_size)
 // Note: the ASAN tools (e.g. clang's AddressSanitizer) may insert red zones around the allocated code buffer, and
-// change the buffer's attribute to non-executable. To avoid this, we use a custom allocator that rounds up the buffer
-// size to a full page boundary, so that each CodeArray occupies complete pages and setProtectModeRW() called during
-// destruction cannot strip the execute permission from pages that are simultaneously used by another live CodeArray
-// instance.
-// This only for ASAN, the production still keeps using original logic with default allocator, so the performance is not
-// affected.
+// change the buffer's attribute to non-executable. To avoid this, we use a custom allocator that rounds up the
+// buffer size to a full page boundary, so that each CodeArray occupies complete pages and setProtectModeRW() called
+// during destruction cannot strip the execute permission from pages that are simultaneously used by another live
+// CodeArray instance. This only for ASAN, the production still keeps using original logic with default allocator,
+// so the performance is not affected.
 #    if (OV_ENABLE_EXTERNAL_SANITIZER == 1)
     : Xbyak::CodeGenerator(code_size, code_ptr, &getPageAlignedAllocator()),
 #    else
-    : Xbyak::CodeGenerator(code_size, code_ptr, nullptr),
+    : Xbyak::CodeGenerator(code_size, code_ptr),
 #    endif
       size_of_abi_save_regs(num_abi_save_gpr_regs * rax.getBit() / 8 + xmm_to_preserve * xmm_len),
       reg_EVEX_max_8b_offt(rbp) {
