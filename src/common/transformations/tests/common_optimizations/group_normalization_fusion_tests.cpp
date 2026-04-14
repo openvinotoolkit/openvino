@@ -705,10 +705,15 @@ protected:
         int64_t batch = static_cast<int64_t>(static_shape[0]);
         int64_t merged_spatial = 1;
         for (size_t i = 1; i < static_shape.size(); i++) {
-            if (i == 1)
-                merged_spatial = static_cast<int64_t>(static_shape[i]) / num_groups;
-            else
+            if (i == 1) {
+                const auto channels = static_cast<int64_t>(static_shape[i]);
+                if (channels % num_groups != 0) {
+                    throw std::runtime_error("Channel dimension must be divisible by num_groups for concrete values test!");
+                }
+                merged_spatial = channels / num_groups;
+            } else {
                 merged_spatial *= static_cast<int64_t>(static_shape[i]);
+            }
         }
 
         // Reshape directly to 4D with concrete values: {batch, num_groups, merged_spatial, 1}
