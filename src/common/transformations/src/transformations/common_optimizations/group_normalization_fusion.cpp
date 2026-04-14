@@ -137,8 +137,7 @@ GroupNormalizationFusion::GroupNormalizationFusion() {
 
         auto pre_mvn_shape_vals_correct = [](const std::vector<int64_t>& pre_mvn_shape_vals,
                                              const ov::PartialShape& input_ps,
-                                             const ov::Dimension::value_type num_groups,
-                                             const ov::PartialShape& reshape_out_ps) -> bool {
+                                             const ov::Dimension::value_type num_groups) -> bool {
             // Validate first dimension (batch): must be 0 (special value) or match input batch size
             if (input_ps[0].is_dynamic()) {
                 if (pre_mvn_shape_vals[0] != 0ll)
@@ -152,19 +151,27 @@ GroupNormalizationFusion::GroupNormalizationFusion() {
             // or special-zero copy when it provably copies the input channel dimension and
             // that channel dimension is equal to num_groups.
             if (pre_mvn_shape_vals[1] == 0ll) {
-                if (!input_ps[1].is_static() ||
-                    input_ps[1].get_length() != static_cast<long long>(num_groups))
+                if (!input_ps[1].is_static() || input_ps[1].get_length() != static_cast<long long>(num_groups))
                     return false;
             } else if (pre_mvn_shape_vals[1] != static_cast<long long>(num_groups)) {
                 return false;
             }
-            // Validate third dimension: can be -1 (infer) or the actual flattened size
-            // The actual size is verified through reshape_out_ps which is already validated
+            // Validate third dimension: can be -1 (infer) or the actual flattened size.
+            // When a concrete value is given, we must verify it against the expected
+            // merged spatial size computed from the input shape, not from the reshape
+            // output (which is derived from the same constant and would be tautological).
             if (pre_mvn_shape_vals[2] != -1ll) {
-                // If not -1, it must match the actual output dimension
-                if (!reshape_out_ps[2].is_static())
+                // Compute expected merged spatial: (C / G) * product(spatial dims)
+                // All relevant input dimensions must be static to verify.
+                if (!input_ps[1].is_static())
                     return false;
-                if (pre_mvn_shape_vals[2] != static_cast<long long>(reshape_out_ps[2].get_length()))
+                int64_t expected_merged = input_ps[1].get_length() / num_groups;
+                for (int64_t d = 2; d < input_ps.rank().get_length(); d++) {
+                    if (input_ps[d].is_dynamic())
+                        return false;
+                    expected_merged *= input_ps[d].get_length();
+                }
+                if (pre_mvn_shape_vals[2] != expected_merged)
                     return false;
             }
             // For 4D pattern, validate the trailing dimension value is 1
@@ -175,10 +182,7 @@ GroupNormalizationFusion::GroupNormalizationFusion() {
             return true;
         };
 
-        if (!pre_mvn_shape_vals_correct(pre_mvn_shape_const->cast_vector<int64_t>(),
-                                        input_ps,
-                                        num_groups,
-                                        pre_mvn_reshape_out_ps))
+        if (!pre_mvn_shape_vals_correct(pre_mvn_shape_const->cast_vector<int64_t>(), input_ps, num_groups))
             return false;
 
         // number of channels has to be divisible by number of groups
