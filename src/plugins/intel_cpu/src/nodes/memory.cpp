@@ -721,11 +721,18 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
 // 1. Sibling pair and shared VariableState (double-buffer)
 // ---------------------------------------------------------
 //
-//   +--------------------------- VariableState ---------------------------+
-//   |  buf_0 (primary)                          buf_1 (secondary)         |
+//   MemoryInput::makeState() always creates VariableStateDoubleBuffer.
+//   (MemoryInputSingle and MemoryInputSDPA use single-buffer variants
+//    where input_mem() == output_mem() and commit() is a no-op.)
+//
+//   +--------------------------- VariableStateDoubleBuffer ---------------+
+//   |  buf[0]                                               buf[1]        |
 //   |                                                                     |
-//   |  input_mem()  --> one buf     output_mem() --> other buf            |
-//   |                     commit(): swap(buf_0, buf_1)                    |
+//   |  prime_mem()  = buf[buffer_num]                                    |
+//   |  second_mem() = buf[buffer_num ^ 1]                                |
+//   |                                                                     |
+//   |  input_mem()  --> prime_mem()    output_mem() --> second_mem()     |
+//   |                     commit(): buffer_num ^= 1  (toggles prime)     |
 //   +---------------------------------------------------------------------+
 //        |  read                                             ^  write
 //        v                                                   |
