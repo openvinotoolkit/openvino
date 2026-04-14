@@ -17,7 +17,6 @@
 #include "../primitive_ocl_base.hpp"
 #include "common_tools.h"
 #include "common_utils/jitter.hpp"
-#include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "kv_cache_inst.h"
 #include "openvino/core/partial_shape.hpp"
@@ -577,6 +576,7 @@ public:
 
         const auto desc = params.typed_desc<paged_attention>();
         const auto has_alibi = params.get_input_layout(PagedAttentionInputIdx::ALIBI).count() > 0;
+        const auto has_qq_bias = desc->has_qq_bias;
         const auto has_scale_input = !desc->scale_val.has_value();
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
@@ -595,11 +595,18 @@ public:
         }
         if (has_scale_input) {
             const size_t tensor_id = PagedAttentionInputIdx::SCALE;
-            jit.add(make_layout_jit_constants("INPUT" + to_code_string(6), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
+            jit.add(make_layout_jit_constants("INPUT" + to_code_string(7), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
         }
         if (has_alibi) {
             const size_t tensor_id = PagedAttentionInputIdx::ALIBI;
-            jit.add(make_layout_jit_constants("INPUT" + to_code_string(7), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
+            jit.add(make_layout_jit_constants("INPUT" + to_code_string(8), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
+        }
+        if (has_qq_bias) {
+            jit.make("HAS_QQ_BIAS", 1);
+            const auto& qq_layout = params.input_layouts[PagedAttentionInputIdx::QQ_BIAS];
+            jit.make("QQ_BIAS_DATA_T", to_ocl_type(qq_layout.data_type));
+            const auto& qq_begins_layout = params.input_layouts[PagedAttentionInputIdx::QQ_BIAS_BEGINS];
+            jit.make("QQ_BIAS_BEGINS_DATA_T", to_ocl_type(qq_begins_layout.data_type));
         }
         jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
 
@@ -611,6 +618,7 @@ public:
 
         const auto desc = params.typed_desc<paged_attention>();
         const auto has_alibi = params.get_input_layout(PagedAttentionInputIdx::ALIBI).count() > 0;
+        const auto has_qq_bias = desc->has_qq_bias;
         const auto has_scale_input = !desc->scale_val.has_value();
         const auto has_scores_output = desc->has_scores_output();
 
@@ -638,6 +646,10 @@ public:
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SINKS});  // sink
         }
 
+        if (has_qq_bias) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});         // qq_bias
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});  // qq_bias_begins
+        }
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
         add_intermediate_inputs(args, has_scores_output, true, desc->has_score_aggregation);
         return args;
@@ -649,7 +661,6 @@ public:
             auto& wgs = kd.params.workGroups;
             const auto desc = params.typed_desc<paged_attention>();
             auto* rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
-
             const size_t total_tokens = params.input_layouts[0].get_partial_shape()[0].get_length();
             const size_t heads_num = desc->heads_num;
             const size_t head_size = desc->v_head_size;
@@ -1449,6 +1460,7 @@ public:
         const bool has_adaptive_rkv = desc->has_adaptive_rkv;
 
         update_stages_flags(instance);
+        kernel_dump_info.clear_entries();
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         assert(rt_params != nullptr);
         prepare_internal_buffers(static_cast<paged_attention_inst&>(instance), rt_params->stage, rt_params->use_micro_sdpa, rt_params->query_block_size);

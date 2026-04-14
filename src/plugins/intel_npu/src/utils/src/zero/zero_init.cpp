@@ -61,48 +61,6 @@ std::tuple<uint32_t, std::string> queryDriverExtensionVersion(const char* extNam
     return std::make_tuple(targetVersion, functionExtName ? functionExtName : "");
 }
 
-uint32_t findCommandQueueGroupOrdinal(ze_device_handle_t device_handle,
-                                      const ze_command_queue_group_property_flags_t command_queue_group_property) {
-    std::vector<ze_command_queue_group_properties_t> command_group_properties;
-    uint32_t command_queue_group_count = 0;
-
-    // Discover all command queue groups
-    THROW_ON_FAIL_FOR_LEVELZERO(
-        "zeDeviceGetCommandQueueGroupProperties",
-        intel_npu::zeDeviceGetCommandQueueGroupProperties(device_handle, &command_queue_group_count, nullptr));
-
-    command_group_properties.resize(command_queue_group_count);
-
-    for (auto& prop : command_group_properties) {
-        prop.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_GROUP_PROPERTIES;
-        prop.pNext = nullptr;
-    }
-
-    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetCommandQueueGroupProperties",
-                                intel_npu::zeDeviceGetCommandQueueGroupProperties(device_handle,
-                                                                                  &command_queue_group_count,
-                                                                                  command_group_properties.data()));
-
-    for (uint32_t index = 0; index < command_group_properties.size(); ++index) {
-        const auto& flags = command_group_properties[index].flags;
-        if (flags == command_queue_group_property) {
-            return index;
-        }
-    }
-
-    // if we don't find a group where only the proper flag is enabled then search for a group where that flag is
-    // enabled
-    for (uint32_t index = 0; index < command_group_properties.size(); ++index) {
-        const auto& flags = command_group_properties[index].flags;
-        if (flags & command_queue_group_property) {
-            return index;
-        }
-    }
-
-    // if still don't find compute flag, return 0
-    return 0;
-}
-
 }  // namespace
 
 namespace intel_npu {
@@ -209,7 +167,7 @@ void ZeroInitStructsHolder::initNpuDriver() {
 }
 
 ZeroInitStructsHolder::ZeroInitStructsHolder()
-    : _zero_api(ZeroApi::getInstance()),
+    : _zero_api(ZeroApi::get_instance()),
       _log("NPUZeroInitStructsHolder", Logger::global().level()) {
     _log.debug("ZeroInitStructsHolder - initialize NPU Driver");
     initNpuDriver();
@@ -451,7 +409,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     }
 
     _command_queue_group_ordinal =
-        findCommandQueueGroupOrdinal(_device_handle, ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
+        zeroUtils::findCommandQueueGroupOrdinal(_device_handle, ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
 }
 
 const std::shared_ptr<ZeroInitStructsHolder> ZeroInitStructsHolder::getInstance() {
@@ -469,21 +427,27 @@ const std::shared_ptr<ZeroInitStructsHolder> ZeroInitStructsHolder::getInstance(
 
 ze_device_graph_properties_t ZeroInitStructsHolder::getCompilerProperties() {
     std::lock_guard<std::mutex> lock(_mutex);
-    if (!_compiler_properties.has_value()) {
-        // Obtain compiler-in-driver properties
-        _compiler_properties.emplace(ze_device_graph_properties_t{});
-        _compiler_properties->stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
-        auto result =
-            _graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(_device_handle, &_compiler_properties.value());
-        THROW_ON_FAIL_FOR_LEVELZERO("pfnDeviceGetGraphProperties", result);
+    initCompilerPropertiesLocked();
+    return _compiler_properties.value();
+}
+
+void ZeroInitStructsHolder::initCompilerPropertiesLocked() {
+    if (_compiler_properties.has_value()) {
+        return;
     }
-    return _compiler_properties.value_or(ze_device_graph_properties_t{});
+
+    // Keep optional disengaged unless driver query succeeds.
+    ze_device_graph_properties_t compiler_properties = {};
+    compiler_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
+    auto result = _graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(_device_handle, &compiler_properties);
+    THROW_ON_FAIL_FOR_LEVELZERO("pfnDeviceGetGraphProperties", result);
+
+    _compiler_properties = compiler_properties;
 }
 
 uint32_t ZeroInitStructsHolder::getCompilerVersion() {
-    if (!_compiler_properties.has_value()) {
-        (void)getCompilerProperties();
-    }
+    std::lock_guard<std::mutex> lock(_mutex);
+    initCompilerPropertiesLocked();
     return ZE_MAKE_VERSION(_compiler_properties->compilerVersion.major, _compiler_properties->compilerVersion.minor);
 }
 
