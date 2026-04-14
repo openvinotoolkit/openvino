@@ -97,6 +97,8 @@ private:
     void initCompilerPropertiesLocked();
     void getExtensionFunctionAddress(const std::string& name, const uint32_t version, void** function_address);
     void setContextProperties();
+    void destroyContextLocked();
+    static void destroyContextForInstance(std::shared_ptr<ZeroInitStructsHolder>& instance);
 
     inline ZeroMemPool& getZeroMemPool() {
         return _zero_mem_pool;
