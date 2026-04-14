@@ -186,13 +186,13 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
 
     const auto input2_has_padding = params.inputs[2].has_dynamic_pad() || params.inputs[2].PitchesDifferFromLogicalDims();
 
-    // In case of padded input2 (updates), we also need blocked layout, because UPDATES_INDEX is calculated based on output sizes
-    const auto blocked_layout = !(SimpleLayout(params.inputs[0].GetLayout()) &&
-                                  SimpleLayout(params.inputs[1].GetLayout()) &&
-                                  SimpleLayout(params.inputs[2].GetLayout())) || input2_has_padding;
+    // In case of padded input2 (updates), we also need non-planar indexing, because UPDATES_INDEX is calculated based on output sizes
+    const auto use_layout_aware_indexing = !(SimpleLayout(params.inputs[0].GetLayout()) &&
+                                             SimpleLayout(params.inputs[1].GetLayout()) &&
+                                             SimpleLayout(params.inputs[2].GetLayout())) || input2_has_padding;
 
-    if (blocked_layout) {
-        jit.AddConstant(MakeJitConstant("BLOCKED_LAYOUT", "1"));
+    if (use_layout_aware_indexing) {
+        jit.AddConstant(MakeJitConstant("USE_LAYOUT_AWARE_INDEXING", "1"));
     }
 
     jit.AddConstant(MakeJitConstant("UPDATES_INDEX_ORDER", GetUpdatesIndexOrder(params)));
@@ -205,8 +205,10 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
     auto default_order = GetDefaultOrder(output.GetDims().size());
 
     size_t dims = default_order.size();
-    // For blocked layout, this is just planar index, offset will be added later
-    std::string get_update_idx = blocked_layout ? "0" : "(INPUT2_OFFSET)";
+    // UPDATES_GET_INDEX just calculates planar index
+    // In case of simple planar layout, this index will be used directly, so need to add INPUT2_OFFSET
+    // In case of non-planar layout, INPUT2_GET_INDEX macro will be used, which adds the offset internally
+    std::string get_update_idx = use_layout_aware_indexing ? "0" : "(INPUT2_OFFSET)";
     std::string get_update_idx_src = "UPDATES_GET_INDEX(";
     for (size_t i = 0; i < dims; ++i) {
         if (i == dims-1) {
