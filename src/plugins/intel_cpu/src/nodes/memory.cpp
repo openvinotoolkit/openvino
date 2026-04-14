@@ -723,7 +723,8 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
 //
 //   MemoryInput::makeState() always creates VariableStateDoubleBuffer.
 //   (MemoryInputSingle and MemoryInputSDPA use single-buffer variants
-//    where input_mem() == output_mem() and commit() is a no-op.)
+//    where input_mem() == output_mem(); commit() does not swap buffers,
+//    but is still used to clear the reset-state flag.)
 //
 //   +--------------------------- VariableStateDoubleBuffer ---------------+
 //   |  buf[0]                                               buf[1]        |
