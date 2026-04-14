@@ -28,9 +28,9 @@ public:
     /// \param gate Gate tensor [batch_size_in_tokens, v_num_heads].
     /// \param beta Beta tensor [batch_size_in_tokens, v_num_heads].
     /// \param subsequence_begins Start indices of tokens from current sequences [batch_size_in_sequences+1].
-    /// \param block_indices Block index along 0-th dim in recurrent_state table [num_blocks].
-    /// \param block_indices_begins Defines how block indices are split among sequences [batch_size_in_sequences+1].
-    /// \param past_lens Number of tokens already handled per sequence [batch_size_in_sequences].
+    /// \param la_block_indices Block index along 0-th dim in recurrent_state table [num_blocks].
+    /// \param la_block_indices_begins Defines how block indices are split among sequences [batch_size_in_sequences+1].
+    /// \param processed_tokens Number of tokens already handled per sequence [batch_size_in_sequences].
     /// \param cache_interval Interval between tokens to cache state [batch_size_in_sequences].
     /// \param fuse_qk_l2norm Enables fusing q/k L2-normalization into this op.
     /// \param q_l2_norm_eps Epsilon used for query L2-normalization when fusion is enabled.
@@ -42,9 +42,9 @@ public:
                        const Output<Node>& gate,
                        const Output<Node>& beta,
                        const Output<Node>& subsequence_begins,
-                       const Output<Node>& block_indices,
-                       const Output<Node>& block_indices_begins,
-                       const Output<Node>& past_lens,
+                       const Output<Node>& la_block_indices,
+                       const Output<Node>& la_block_indices_begins,
+                       const Output<Node>& processed_tokens,
                        const Output<Node>& cache_interval,
                        bool fuse_qk_l2norm = false,
                        float q_l2_norm_eps = 1e-6F,

@@ -20,9 +20,9 @@ std::shared_ptr<op::internal::PagedGatedDeltaNet> make_pgdn(const element::Type&
                                                             const PartialShape& gate_ps,
                                                             const PartialShape& beta_ps,
                                                             const PartialShape& subsequence_begins_ps,
-                                                            const PartialShape& block_indices_ps,
-                                                            const PartialShape& block_indices_begins_ps,
-                                                            const PartialShape& past_lens_ps,
+                                                            const PartialShape& la_block_indices_ps,
+                                                            const PartialShape& la_block_indices_begins_ps,
+                                                            const PartialShape& processed_tokens_ps,
                                                             const PartialShape& cache_interval_ps) {
     auto query = std::make_shared<op::v0::Parameter>(data_et, query_ps);
     auto key = std::make_shared<op::v0::Parameter>(data_et, key_ps);
@@ -31,9 +31,9 @@ std::shared_ptr<op::internal::PagedGatedDeltaNet> make_pgdn(const element::Type&
     auto gate = std::make_shared<op::v0::Parameter>(data_et, gate_ps);
     auto beta = std::make_shared<op::v0::Parameter>(data_et, beta_ps);
     auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, subsequence_begins_ps);
-    auto block_indices = std::make_shared<op::v0::Parameter>(element::i32, block_indices_ps);
-    auto block_indices_begins = std::make_shared<op::v0::Parameter>(element::i32, block_indices_begins_ps);
-    auto past_lens = std::make_shared<op::v0::Parameter>(element::i32, past_lens_ps);
+    auto la_block_indices = std::make_shared<op::v0::Parameter>(element::i32, la_block_indices_ps);
+    auto la_block_indices_begins = std::make_shared<op::v0::Parameter>(element::i32, la_block_indices_begins_ps);
+    auto processed_tokens = std::make_shared<op::v0::Parameter>(element::i32, processed_tokens_ps);
     auto cache_interval = std::make_shared<op::v0::Parameter>(element::i32, cache_interval_ps);
 
     return std::make_shared<op::internal::PagedGatedDeltaNet>(OutputVector{query,
@@ -43,9 +43,9 @@ std::shared_ptr<op::internal::PagedGatedDeltaNet> make_pgdn(const element::Type&
                                                                            gate,
                                                                            beta,
                                                                            subsequence_begins,
-                                                                           block_indices,
-                                                                           block_indices_begins,
-                                                                           past_lens,
+                                                                           la_block_indices,
+                                                                           la_block_indices_begins,
+                                                                           processed_tokens,
                                                                            cache_interval});
 }
 
@@ -60,9 +60,9 @@ TEST(type_prop, paged_gated_delta_net_static_f32) {
                               Shape{10, 4},        // gate
                               Shape{10, 4},        // beta
                               Shape{3},            // subsequence_begins
-                              Shape{5},            // block_indices
-                              Shape{3},            // block_indices_begins
-                              Shape{2},            // past_lens
+                              Shape{5},            // la_block_indices
+                              Shape{3},            // la_block_indices_begins
+                              Shape{2},            // processed_tokens
                               Shape{2});           // cache_interval
 
     EXPECT_EQ(op->get_output_size(), 1);
@@ -214,5 +214,42 @@ TEST(type_prop, paged_gated_delta_net_wrong_input_count) {
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::PagedGatedDeltaNet>(OutputVector{p, p, p}),
                     NodeValidationFailure,
                     testing::HasSubstr("PagedGatedDeltaNet expects 11 inputs"));
+}
+
+TEST(type_prop, paged_gated_delta_net_dynamic_rank_accepted) {
+    // Dynamic rank inputs should be accepted during model import / shape propagation
+    const auto op = make_pgdn(element::f32,
+                              PartialShape::dynamic(),  // query - dynamic rank
+                              PartialShape::dynamic(),  // key - dynamic rank
+                              PartialShape::dynamic(),  // value - dynamic rank
+                              PartialShape::dynamic(),  // recurrent_state_table - dynamic rank
+                              PartialShape::dynamic(),  // gate - dynamic rank
+                              PartialShape::dynamic(),  // beta - dynamic rank
+                              PartialShape{-1},
+                              PartialShape{-1},
+                              PartialShape{-1},
+                              PartialShape{-1},
+                              PartialShape{-1});
+
+    EXPECT_EQ(op->get_output_size(), 1);
+}
+
+TEST(type_prop, paged_gated_delta_net_dynamic_type_accepted) {
+    // Dynamic element type inputs should be accepted during model import / shape propagation
+    const auto op = make_pgdn(element::dynamic,
+                              Shape{10, 4, 8},
+                              Shape{10, 4, 8},
+                              Shape{10, 4, 16},
+                              Shape{5, 4, 8, 16},
+                              Shape{10, 4},
+                              Shape{10, 4},
+                              Shape{3},
+                              Shape{5},
+                              Shape{3},
+                              Shape{2},
+                              Shape{2});
+
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_output_element_type(0), element::dynamic);
 }
 }  // namespace ov::test

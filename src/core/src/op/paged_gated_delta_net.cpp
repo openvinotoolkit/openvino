@@ -26,12 +26,12 @@ inline void input_check(const ov::Node* node,
     const auto& tp = node->get_input_element_type(idx);
 
     auto rank_check = [&](const Rank& rank) {
-        return !rank.is_dynamic() && is_rank_compatible_any_of(rank.get_length(), allowed_ranks);
+        return rank.is_dynamic() || is_rank_compatible_any_of(rank.get_length(), allowed_ranks);
     };
 
     auto type_check = [&](const Type& type) {
-        auto it = std::find(allowed_types.begin(), allowed_types.end(), tp);
-        return !type.is_dynamic() && (allowed_types.empty() || it != allowed_types.end());
+        auto it = std::find(allowed_types.begin(), allowed_types.end(), type);
+        return type.is_dynamic() || allowed_types.empty() || it != allowed_types.end();
     };
 
     NODE_VALIDATION_CHECK(node,
@@ -65,9 +65,9 @@ PagedGatedDeltaNet::PagedGatedDeltaNet(const Output<Node>& query,
                                        const Output<Node>& gate,
                                        const Output<Node>& beta,
                                        const Output<Node>& subsequence_begins,
-                                       const Output<Node>& block_indices,
-                                       const Output<Node>& block_indices_begins,
-                                       const Output<Node>& past_lens,
+                                       const Output<Node>& la_block_indices,
+                                       const Output<Node>& la_block_indices_begins,
+                                       const Output<Node>& processed_tokens,
                                        const Output<Node>& cache_interval,
                                        bool fuse_qk_l2norm,
                                        float q_l2_norm_eps,
@@ -79,9 +79,9 @@ PagedGatedDeltaNet::PagedGatedDeltaNet(const Output<Node>& query,
           gate,
           beta,
           subsequence_begins,
-          block_indices,
-          block_indices_begins,
-          past_lens,
+          la_block_indices,
+          la_block_indices_begins,
+          processed_tokens,
           cache_interval}),
       m_fuse_qk_l2norm(fuse_qk_l2norm),
       m_q_l2_norm_eps(q_l2_norm_eps),
@@ -117,9 +117,9 @@ void PagedGatedDeltaNet::validate_and_infer_types() {
     input_check(this, 4, "gate", {2}, float_types);
     input_check(this, 5, "beta", {2}, float_types);
     input_check(this, 6, "subsequence_begins", {1}, {ov::element::i32});
-    input_check(this, 7, "block_indices", {1}, {ov::element::i32});
-    input_check(this, 8, "block_indices_begins", {1}, {ov::element::i32});
-    input_check(this, 9, "past_lens", {1}, {ov::element::i32});
+    input_check(this, 7, "la_block_indices", {1}, {ov::element::i32});
+    input_check(this, 8, "la_block_indices_begins", {1}, {ov::element::i32});
+    input_check(this, 9, "processed_tokens", {1}, {ov::element::i32});
     input_check(this, 10, "cache_interval", {1}, {ov::element::i32});
 
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
