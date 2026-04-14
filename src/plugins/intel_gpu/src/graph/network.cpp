@@ -328,10 +328,15 @@ event::ptr network::set_input_data(const primitive_id& id, memory::ptr data, boo
     const bool was_unallocated = !input->output_memory_ptr();
     auto ev = input->set_data(data, need_to_check_memory_to_set);
 
-    // Only force rebind on the first call for a lazy-allocated input —
-    // the initial set_arguments() skipped nodes whose dep buffer was null.
-    if (was_unallocated)
+    if (was_unallocated) {
+        // The initial set_arguments() skipped nodes whose dep buffer was null —
+        // force a fresh rebind now that the buffer is available.
         _reset_arguments = true;
+        // Record the shared mem type now that the lazy input has a buffer.
+        // Non-lazy inputs are recorded at allocate_primitive_instance() time.
+        if (input->output_memory_ptr())
+            _in_out_shared_mem_types.push_back(input->output_memory_ptr()->get_internal_params().mem_type);
+    }
 
     return ev;
 }
@@ -393,9 +398,6 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
     std::vector<primitive_inst*> chain;
     std::stack<const primitive_inst*> candidates;
     auto& eng = get_engine();
-
-    if (p_inst->output_memory_ptr())
-        _in_out_shared_mem_types.push_back(p_inst->output_memory_ptr()->get_internal_params().mem_type);
 
     const auto& mem_orig = p_inst->output_memory();
 
@@ -884,15 +886,11 @@ std::vector<primitive_id> network::get_input_ids() const {
     return ret;
 }
 
-std::vector<layout> network::get_input_layouts() {
+std::vector<layout> network::get_input_layouts() const {
     std::vector<layout> ret;
     ret.reserve(_inputs.size());
-    for (auto const& input : _inputs) {
-        if (input->output_memory_ptr())
-            _in_out_shared_mem_types.push_back(input->output_memory_ptr()->get_internal_params().mem_type);
-
+    for (auto const& input : _inputs)
         ret.push_back(input->output_memory_ptr() ? input->output_memory_ptr()->get_layout() : input->get_output_layout());
-    }
     return ret;
 }
 
