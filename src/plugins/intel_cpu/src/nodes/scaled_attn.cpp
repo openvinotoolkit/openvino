@@ -197,14 +197,16 @@ static void u8_quantize_single(const PlainTensor& cur,
     auto H = cur.size(1);
     auto L1 = cur.size(2);
     auto S = cur.size(3);
+    const auto prec = cur.get_precision();
     cpu_parallel->parallel_for3d(L1, B, H, [&](size_t m, size_t b, size_t h) {
         auto* p_szp = scale_zp.ptr<float>(L0 + m, b, h);
         for (size_t group_id = 0; group_id < S / group_size; group_id++) {
-            attn_quant_u8(cur.ptr<float>(b, h, m, group_id * group_size),
-                          dst.ptr<uint8_t>(b, h, L0 + m, group_id * group_size),
-                          group_size,
-                          p_szp[group_id * 2],
-                          p_szp[group_id * 2 + 1]);
+            attn_quant_u8_typed(cur.ptr_v(b, h, m, group_id * group_size),
+                                dst.ptr<uint8_t>(b, h, L0 + m, group_id * group_size),
+                                group_size,
+                                p_szp[group_id * 2],
+                                p_szp[group_id * 2 + 1],
+                                prec);
         }
     });
 }
@@ -219,14 +221,16 @@ static void u4_quantize_single(const PlainTensor& cur,
     auto H = cur.size(1);
     auto L1 = cur.size(2);
     auto S = cur.size(3);
+    const auto prec = cur.get_precision();
     cpu_parallel->parallel_for3d(L1, B, H, [&](size_t m, size_t b, size_t h) {
         auto* p_szp = scale_zp.ptr<float>(L0 + m, b, h);
         for (size_t group_id = 0; group_id < S / group_size; group_id++) {
-            attn_quant_u4(cur.ptr<float>(b, h, m, group_id * group_size),
-                          dst.ptr<uint8_t, ov::element::u4>(b, h, L0 + m, group_id * group_size),
-                          group_size,
-                          p_szp[group_id * 2],
-                          p_szp[group_id * 2 + 1]);
+            attn_quant_u4_typed(cur.ptr_v(b, h, m, group_id * group_size),
+                                dst.ptr<uint8_t, ov::element::u4>(b, h, L0 + m, group_id * group_size),
+                                group_size,
+                                p_szp[group_id * 2],
+                                p_szp[group_id * 2 + 1],
+                                prec);
         }
     });
 }

@@ -50,6 +50,13 @@ void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
 void attn_quant_u8(const float* src, uint8_t* dst, size_t n, float& scale, float& zp);
 void attn_quant_u4(const float* src, void* dst, size_t n, float& scale, float& zp);
 
+// Typed variants: dispatch on src_precision, T→f32 conversion happens inside the
+// templated SIMD load (no intermediate buffer).
+void attn_quant_u8_typed(const void* src, uint8_t* dst, size_t n, float& scale, float& zp,
+                         ov::element::Type src_precision);
+void attn_quant_u4_typed(const void* src, void* dst, size_t n, float& scale, float& zp,
+                         ov::element::Type src_precision);
+
 void attn_dequant_u8(const uint8_t* src, float* dst, size_t n, float* params);
 
 void attn_quant_by_channel_u8(const float* src,
