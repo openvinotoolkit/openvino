@@ -316,6 +316,107 @@ TEST(TransformationTests, StateConcatSDPASharedKVCache) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
+// Mix of SDPAs in one model:
+//  - "shared" part: one pair of Variables feeds two SDPAs (SDPA_s1, SDPA_s2)
+//  - "exclusive" part: another pair of Variables feeds a single SDPA (SDPA_e)
+// After SDPASubgraphFusion, only SDPA_e must be fused to ScaledDotProductAttentionWithKVCache;
+// SDPA_s1 and SDPA_s2 must remain as plain ScaledDotProductAttention.
+static std::shared_ptr<ov::Model> makeMixedSharedAndExclusiveKVModel(const ov::PartialShape& inputShape) {
+    auto make_param = [&](element::Type t, const ov::PartialShape& s) {
+        return std::make_shared<ov::op::v0::Parameter>(t, s);
+    };
+    auto beam_idx = make_param(element::i32, ov::PartialShape{-1});
+
+    // Shared part
+    auto q_s1 = make_param(element::f32, inputShape);
+    auto k_s1 = make_param(element::f32, inputShape);
+    auto v_s1 = make_param(element::f32, inputShape);
+    auto q_s2 = make_param(element::f32, inputShape);
+    auto k_s2 = make_param(element::f32, inputShape);
+    auto v_s2 = make_param(element::f32, inputShape);
+    auto init_ks = make_param(element::f32, inputShape);
+    auto init_vs = make_param(element::f32, inputShape);
+    auto var_ks = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{inputShape, element::f32, "shared_pastk"});
+    auto var_vs = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{inputShape, element::f32, "shared_pastv"});
+    auto rv_ks1 = std::make_shared<ov::op::v6::ReadValue>(init_ks, var_ks);
+    auto rv_vs1 = std::make_shared<ov::op::v6::ReadValue>(init_vs, var_vs);
+    auto g_ks1 = std::make_shared<ov::op::v8::Gather>(rv_ks1, beam_idx, op::v0::Constant::create(element::i32, {1}, {0}));
+    auto g_vs1 = std::make_shared<ov::op::v8::Gather>(rv_vs1, beam_idx, op::v0::Constant::create(element::i32, {1}, {0}));
+    auto c_ks1 = std::make_shared<ov::op::v0::Concat>(OutputVector{g_ks1, k_s1}, 2);
+    auto c_vs1 = std::make_shared<ov::op::v0::Concat>(OutputVector{g_vs1, v_s1}, 2);
+    auto sdpa_s1 = std::make_shared<ov::opset13::ScaledDotProductAttention>(q_s1, c_ks1, c_vs1, false);
+    auto add_s1 = std::make_shared<op::v1::Add>(sdpa_s1, op::v0::Constant::create(element::f32, {1}, {1.0f}));
+
+    auto rv_ks2 = std::make_shared<ov::op::v6::ReadValue>(init_ks, var_ks);
+    auto rv_vs2 = std::make_shared<ov::op::v6::ReadValue>(init_vs, var_vs);
+    auto g_ks2 = std::make_shared<ov::op::v8::Gather>(rv_ks2, beam_idx, op::v0::Constant::create(element::i32, {1}, {0}));
+    auto g_vs2 = std::make_shared<ov::op::v8::Gather>(rv_vs2, beam_idx, op::v0::Constant::create(element::i32, {1}, {0}));
+    auto c_ks2 = std::make_shared<ov::op::v0::Concat>(OutputVector{g_ks2, k_s2}, 2);
+    auto c_vs2 = std::make_shared<ov::op::v0::Concat>(OutputVector{g_vs2, v_s2}, 2);
+    auto sdpa_s2 = std::make_shared<ov::opset13::ScaledDotProductAttention>(q_s2, c_ks2, c_vs2, false);
+    auto add_s2 = std::make_shared<op::v1::Add>(sdpa_s2, op::v0::Constant::create(element::f32, {1}, {1.0f}));
+
+    auto assign_ks = std::make_shared<op::v6::Assign>(c_ks1, var_ks);
+    auto assign_vs = std::make_shared<op::v6::Assign>(c_vs1, var_vs);
+
+    // Exclusive part (single SDPA on its own Variables — eligible for fusion)
+    auto q_e = make_param(element::f32, inputShape);
+    auto k_e = make_param(element::f32, inputShape);
+    auto v_e = make_param(element::f32, inputShape);
+    auto init_ke = make_param(element::f32, inputShape);
+    auto init_ve = make_param(element::f32, inputShape);
+    auto var_ke = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{inputShape, element::f32, "excl_pastk"});
+    auto var_ve = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{inputShape, element::f32, "excl_pastv"});
+    auto rv_ke = std::make_shared<ov::op::v6::ReadValue>(init_ke, var_ke);
+    auto rv_ve = std::make_shared<ov::op::v6::ReadValue>(init_ve, var_ve);
+    auto g_ke = std::make_shared<ov::op::v8::Gather>(rv_ke, beam_idx, op::v0::Constant::create(element::i32, {1}, {0}));
+    auto g_ve = std::make_shared<ov::op::v8::Gather>(rv_ve, beam_idx, op::v0::Constant::create(element::i32, {1}, {0}));
+    auto c_ke = std::make_shared<ov::op::v0::Concat>(OutputVector{g_ke, k_e}, 2);
+    auto c_ve = std::make_shared<ov::op::v0::Concat>(OutputVector{g_ve, v_e}, 2);
+    auto sdpa_e = std::make_shared<ov::opset13::ScaledDotProductAttention>(q_e, c_ke, c_ve, false);
+    auto add_e = std::make_shared<op::v1::Add>(sdpa_e, op::v0::Constant::create(element::f32, {1}, {1.0f}));
+    auto assign_ke = std::make_shared<op::v6::Assign>(c_ke, var_ke);
+    auto assign_ve = std::make_shared<op::v6::Assign>(c_ve, var_ve);
+
+    ResultVector results{std::make_shared<ov::op::v0::Result>(add_s1),
+                         std::make_shared<ov::op::v0::Result>(add_s2),
+                         std::make_shared<ov::op::v0::Result>(add_e)};
+    SinkVector sinks{assign_ks, assign_vs, assign_ke, assign_ve};
+    ParameterVector params{q_s1, k_s1, v_s1, q_s2, k_s2, v_s2, init_ks, init_vs,
+                           q_e,  k_e,  v_e,  init_ke, init_ve, beam_idx};
+    return std::make_shared<Model>(results, sinks, params, "MixedSharedExclusiveKV");
+}
+
+TEST(TransformationTests, StateConcatSDPAMixedSharedAndExclusive) {
+#if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
+    GTEST_SKIP() << "Skipping StateConcatSDPAMixedSharedAndExclusive test on Android X64";
+#endif
+    // Exclusive-cache SDPA must still be fused; shared-cache SDPAs must be left alone.
+    auto inputShape = ov::PartialShape{-1, 8, -1, 64};
+    auto f = makeMixedSharedAndExclusiveKVModel(inputShape);
+
+    ov::pass::Manager m;
+    m.register_pass<ov::pass::InitNodeInfo>();
+    m.register_pass<SDPASubgraphFusion>();
+    m.run_passes(f);
+
+    size_t plain_sdpa = 0;
+    size_t fused_sdpa = 0;
+    for (const auto& op : f->get_ops()) {
+        if (ov::is_type<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(op)) {
+            ++fused_sdpa;
+        } else if (ov::is_type<ov::opset13::ScaledDotProductAttention>(op)) {
+            ++plain_sdpa;
+        }
+    }
+    ASSERT_EQ(fused_sdpa, 1u) << "exclusive-cache SDPA must be fused";
+    ASSERT_EQ(plain_sdpa, 2u) << "both shared-cache SDPAs must remain unfused";
+}
+
 TEST(TransformationTests, StateConcatSDPANonSharedViaSubgraphFusion) {
 #if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
     GTEST_SKIP() << "Skipping StateConcatSDPANonSharedViaSubgraphFusion test on Android X64";
