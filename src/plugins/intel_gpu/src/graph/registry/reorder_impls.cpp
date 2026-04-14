@@ -6,6 +6,7 @@
 #include "registry.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "primitive_inst.h"
+#include "reorder_inst.h"
 
 #if OV_GPU_WITH_ONEDNN
     #include "impls/onednn/reorder_onednn.hpp"

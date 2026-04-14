@@ -15,7 +15,7 @@ namespace ov {
 namespace hetero {
 namespace itt {
 namespace domains {
-OV_ITT_DOMAIN(Hetero);
+OV_ITT_DOMAIN(Hetero, "ov::hetero");
 }  // namespace domains
 }  // namespace itt
 }  // namespace hetero
