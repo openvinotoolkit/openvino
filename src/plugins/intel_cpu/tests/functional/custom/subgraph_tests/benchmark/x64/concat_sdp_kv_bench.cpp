@@ -3,9 +3,9 @@
 //
 // KV cache benchmark: compares decode performance across quantization modes.
 //
-// Run with: ov_cpu_func_subgraph_concat_sdp_kv_bench --gtest_filter='*KVCacheBench*'
+// Run with: ov_cpu_benchmark_tests --gtest_filter='*KVCacheBench*'
 
-#include "custom/subgraph_tests/src/classes/concat_sdp_kv_bench.hpp"
+#include "custom/subgraph_tests/benchmark/classes/concat_sdp_kv_bench.hpp"
 
 #include "shared_test_classes/base/benchmark.hpp"
 
@@ -107,7 +107,7 @@ TEST_P(ConcatSDPKVBenchTest, Benchmark) {
 // ============================================================================
 
 // f32 baseline
-INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_llama8b_f32,
+INSTANTIATE_TEST_SUITE_P(benchmark_KVCacheBench_llama8b_f32,
                          ConcatSDPKVBenchTest,
                          ::testing::Combine(::testing::ValuesIn(precisions()),
                                             ::testing::ValuesIn(benchShapes_llama8b),
@@ -118,7 +118,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_llama8b_f32,
                          ConcatSDPKVBenchBase::getTestCaseName);
 
 // Symmetric u8 with group sizes
-INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_llama8b_u8,
+INSTANTIATE_TEST_SUITE_P(benchmark_KVCacheBench_llama8b_u8,
                          ConcatSDPKVBenchTest,
                          ::testing::Combine(::testing::ValuesIn(precisions()),
                                             ::testing::ValuesIn(benchShapes_llama8b),
@@ -129,7 +129,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_llama8b_u8,
                          ConcatSDPKVBenchBase::getTestCaseName);
 
 // Symmetric u4 with group sizes
-INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_llama8b_u4,
+INSTANTIATE_TEST_SUITE_P(benchmark_KVCacheBench_llama8b_u4,
                          ConcatSDPKVBenchTest,
                          ::testing::Combine(::testing::ValuesIn(precisions()),
                                             ::testing::ValuesIn(benchShapes_llama8b),
@@ -140,7 +140,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_llama8b_u4,
                          ConcatSDPKVBenchBase::getTestCaseName);
 
 // Symmetric TBQ
-INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_llama8b_tbq,
+INSTANTIATE_TEST_SUITE_P(benchmark_KVCacheBench_llama8b_tbq,
                          ConcatSDPKVBenchTest,
                          ::testing::Combine(::testing::ValuesIn(precisions()),
                                             ::testing::ValuesIn(benchShapes_llama8b),
@@ -155,7 +155,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_llama8b_tbq,
 // ============================================================================
 
 // K=tbq, V=u8
-INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_llama8b_Ktbq_Vu8,
+INSTANTIATE_TEST_SUITE_P(benchmark_KVCacheBench_llama8b_Ktbq_Vu8,
                          ConcatSDPKVBenchTest,
                          ::testing::Combine(::testing::ValuesIn(precisions()),
                                             ::testing::ValuesIn(benchShapes_llama8b),
@@ -166,7 +166,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_llama8b_Ktbq_Vu8,
                          ConcatSDPKVBenchBase::getTestCaseName);
 
 // K=u8, V=tbq
-INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_llama8b_Ku8_Vtbq,
+INSTANTIATE_TEST_SUITE_P(benchmark_KVCacheBench_llama8b_Ku8_Vtbq,
                          ConcatSDPKVBenchTest,
                          ::testing::Combine(::testing::ValuesIn(precisions()),
                                             ::testing::ValuesIn(benchShapes_llama8b),
@@ -177,7 +177,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_llama8b_Ku8_Vtbq,
                          ConcatSDPKVBenchBase::getTestCaseName);
 
 // K=none (f32), V=tbq
-INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_llama8b_Kf32_Vtbq,
+INSTANTIATE_TEST_SUITE_P(benchmark_KVCacheBench_llama8b_Kf32_Vtbq,
                          ConcatSDPKVBenchTest,
                          ::testing::Combine(::testing::ValuesIn(precisions()),
                                             ::testing::ValuesIn(benchShapes_llama8b),
@@ -188,7 +188,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_llama8b_Kf32_Vtbq,
                          ConcatSDPKVBenchBase::getTestCaseName);
 
 // K=tbq, V=none (f32)
-INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_llama8b_Ktbq_Vf32,
+INSTANTIATE_TEST_SUITE_P(benchmark_KVCacheBench_llama8b_Ktbq_Vf32,
                          ConcatSDPKVBenchTest,
                          ::testing::Combine(::testing::ValuesIn(precisions()),
                                             ::testing::ValuesIn(benchShapes_llama8b),
@@ -199,7 +199,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_llama8b_Ktbq_Vf32,
                          ConcatSDPKVBenchBase::getTestCaseName);
 
 // K=u4, V=u8
-INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_llama8b_Ku4_Vu8,
+INSTANTIATE_TEST_SUITE_P(benchmark_KVCacheBench_llama8b_Ku4_Vu8,
                          ConcatSDPKVBenchTest,
                          ::testing::Combine(::testing::ValuesIn(precisions()),
                                             ::testing::ValuesIn(benchShapes_llama8b),
@@ -210,7 +210,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_llama8b_Ku4_Vu8,
                          ConcatSDPKVBenchBase::getTestCaseName);
 
 // K=u8, V=u4
-INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_llama8b_Ku8_Vu4,
+INSTANTIATE_TEST_SUITE_P(benchmark_KVCacheBench_llama8b_Ku8_Vu4,
                          ConcatSDPKVBenchTest,
                          ::testing::Combine(::testing::ValuesIn(precisions()),
                                             ::testing::ValuesIn(benchShapes_llama8b),
@@ -225,7 +225,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_llama8b_Ku8_Vu4,
 // ============================================================================
 
 // Synthetic (H=Hk=8, no GQA)
-INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_synthetic,
+INSTANTIATE_TEST_SUITE_P(benchmark_KVCacheBench_synthetic,
                          ConcatSDPKVBenchTest,
                          ::testing::Combine(::testing::ValuesIn(precisions()),
                                             ::testing::ValuesIn(benchShapes_synthetic),
@@ -236,7 +236,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_synthetic,
                          ConcatSDPKVBenchBase::getTestCaseName);
 
 // Qwen 2.5 7B
-INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_qwen7b,
+INSTANTIATE_TEST_SUITE_P(benchmark_KVCacheBench_qwen7b,
                          ConcatSDPKVBenchTest,
                          ::testing::Combine(::testing::ValuesIn(precisions()),
                                             ::testing::ValuesIn(benchShapes_qwen7b),
@@ -247,7 +247,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_qwen7b,
                          ConcatSDPKVBenchBase::getTestCaseName);
 
 // Gemma 3 27B (head_dim=256)
-INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_gemma3,
+INSTANTIATE_TEST_SUITE_P(benchmark_KVCacheBench_gemma3,
                          ConcatSDPKVBenchTest,
                          ::testing::Combine(::testing::ValuesIn(precisions()),
                                             ::testing::ValuesIn(benchShapes_gemma3),
@@ -258,7 +258,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_gemma3,
                          ConcatSDPKVBenchBase::getTestCaseName);
 
 // Qwen 3.5 4B (head_dim=256)
-INSTANTIATE_TEST_SUITE_P(smoke_KVCacheBench_qwen35,
+INSTANTIATE_TEST_SUITE_P(benchmark_KVCacheBench_qwen35,
                          ConcatSDPKVBenchTest,
                          ::testing::Combine(::testing::ValuesIn(precisions()),
                                             ::testing::ValuesIn(benchShapes_qwen35),

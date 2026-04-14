@@ -65,6 +65,12 @@ if(NOT (X86 OR X86_64))
          ${CMAKE_CURRENT_SOURCE_DIR}/utils/x64)
 endif()
 
+# Benchmark sources live in dedicated directories and are built into a separate
+# ov_cpu_benchmark_tests binary — exclude them from the main ov_cpu_func_tests.
+list(APPEND EXCLUDED_SOURCE_PATHS
+     ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/benchmark
+     ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/benchmark)
+
 if(NOT (ARM OR AARCH64))
     list(APPEND EXCLUDED_SOURCE_PATHS
          ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/arm
@@ -119,3 +125,58 @@ include(cmake/target_per_test.cmake)
 if(DEFINED ENABLE_CPU_SPECIFIC_TESTS_PATH)
     set_target_properties(${TARGET_NAME} PROPERTIES EXCLUDE_FROM_ALL ON)
 endif()
+
+# ---------------------------------------------------------------------------
+# ov_cpu_benchmark_tests: separate binary bundling benchmark-style tests.
+# Kept outside ov_cpu_func_tests — their runtime is dominated by measurement
+# loops, not correctness verification.
+# Sources live under custom/{subgraph,single_layer}_tests/benchmark/.
+# benchmark instances can reuse ov_cpu_func_tests test classes or define their own.
+# ---------------------------------------------------------------------------
+set(BENCH_TARGET_NAME ov_cpu_benchmark_tests)
+
+# Cross-platform benchmark sources (test class definitions).
+set(BENCH_TEST_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/benchmark/classes/concat_sdp_kv_bench.cpp)
+
+# Architecture-specific benchmark instance sources.
+if(X86_64)
+    list(APPEND BENCH_TEST_SOURCES
+         ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/benchmark/x64/concat_sdp_kv_bench.cpp)
+endif()
+
+set(BENCH_REQUIRED_FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/core_config.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/skip_tests_config.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/set_device_name.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils/cpu_test_utils.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils/fusing_test_utils.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils/transformations/insert_fake_quantize.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils/transformations/insert_requantize.cpp)
+if(X86_64)
+    list(APPEND BENCH_REQUIRED_FILES ${CMAKE_CURRENT_SOURCE_DIR}/utils/x64/filter_cpu_info.cpp)
+elseif(ARM OR AARCH64)
+    list(APPEND BENCH_REQUIRED_FILES ${CMAKE_CURRENT_SOURCE_DIR}/utils/arm/filter_cpu_info.cpp)
+elseif(RISCV64)
+    list(APPEND BENCH_REQUIRED_FILES ${CMAKE_CURRENT_SOURCE_DIR}/utils/riscv64/filter_cpu_info.cpp)
+endif()
+
+# ROOT points at the benchmark class dir (kept narrow so recursive globbing
+# doesn't pick up unrelated sources); EXCLUDED_SOURCE_PATHS drops it entirely
+# and we add back only the explicit sources via OBJECT_FILES.
+ov_add_test_target(
+    NAME ${BENCH_TARGET_NAME}
+    ROOT ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/benchmark
+    INCLUDES ${INCLUDES}
+    EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/benchmark
+    OBJECT_FILES ${BENCH_REQUIRED_FILES} ${BENCH_TEST_SOURCES}
+    DEFINES ${DEFINES}
+    DEPENDENCIES ${DEPENDENCIES}
+    LINK_LIBRARIES ${LINK_LIBRARIES}
+    # Separate install component — CI's 'tests' install step won't try to copy
+    # this binary if it wasn't built (EXCLUDE_FROM_ALL below).
+    COMPONENT benchmark_tests
+    LABELS OV CPU BENCHMARK)
+
+ov_set_threading_interface_for(${BENCH_TARGET_NAME})
+set_target_properties(${BENCH_TARGET_NAME} PROPERTIES EXCLUDE_FROM_ALL ON)
