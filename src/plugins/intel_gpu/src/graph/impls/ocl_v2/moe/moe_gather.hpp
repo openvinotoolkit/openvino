@@ -36,11 +36,7 @@ struct MoeGatherRef : public ImplementationManager {
         const auto& out_layout = node.get_output_layout(0);
         const auto& input_pshapes = in0_layout.get_partial_shape();
 
-        // Accept rank-2 [tokens, hidden] (Qwen3-style, batch already flattened)
-        // and rank-3 [batch, tokens, hidden].  The kernel only needs the last
-        // dimension (hidden_size) to be static.
-        const auto input_rank = input_pshapes.rank().get_length();
-        if ((input_rank != 2 && input_rank != 3) || input_pshapes[input_rank - 1].is_dynamic()) {
+        if (input_pshapes.rank() != 3 || input_pshapes[2].is_dynamic()) {
             return false;
         }
 
