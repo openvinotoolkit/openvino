@@ -19,6 +19,7 @@
 #include "remote_context.hpp"
 #include "template/properties.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
+#include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
@@ -127,6 +128,16 @@ ov::SoPtr<ov::IRemoteContext> ov::template_plugin::Plugin::get_default_context(
 void transform_model(const std::shared_ptr<ov::Model>& model) {
     // Perform common optimizations and device-specific transformations
     ov::pass::Manager passManager("Plugin:Template");
+
+    // Resolve dynamic element types on KV cache parameters before CommonOptimizations,
+    // otherwise ConstantFolding (inside CommonOptimizations) fails on dynamic types.
+    ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
+    cacheConfig.keyCachePrecision = ov::element::f32;
+    cacheConfig.valueCachePrecision = ov::element::f32;
+    cacheConfig.inferencePrecision = ov::element::f32;
+    auto noop_shape = [](const ov::element::Type&, const bool, const size_t, int64_t&, int64_t&) {};
+    passManager.register_pass<ov::pass::ConvertPagedAttnInputs>(cacheConfig, noop_shape);
+
     // Example: register CommonOptimizations transformation from transformations library
     passManager.register_pass<ov::pass::CommonOptimizations>();
     // Disable some transformations

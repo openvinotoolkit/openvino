@@ -64,9 +64,13 @@ ov::OutputVector make_valid_pa_args(const element::Type& t = element::f32) {
 
     auto token_type_ids = std::make_shared<Parameter>(element::i32, PartialShape{0});
 
-    return {query, key,   value, key_cache,  value_cache, past_lens, subseq,   block_idx,     block_beg,
-            scale, slide, alibi, maxctx,     scorew,      rotated,   deltas,   trig,          xthr,
-            xbs,   xst,   sinks, arkv_start, arkv_evict,  arkv_idx,  arkv_beg, token_type_ids};
+    auto qq_bias = std::make_shared<Parameter>(element::u8, PartialShape{4});
+    auto qq_bias_begins = std::make_shared<Parameter>(element::i32, PartialShape{2});
+
+    return {query,         key,   value, key_cache,  value_cache, past_lens, subseq,   block_idx,      block_beg,
+            scale,         slide, alibi, maxctx,     scorew,      rotated,   deltas,   trig,           xthr,
+            xbs,           xst,   sinks, arkv_start, arkv_evict,  arkv_idx,  arkv_beg, token_type_ids, qq_bias,
+            qq_bias_begins};
 }
 }  // namespace
 TEST(type_prop, paged_attention_static_eviction_per_block) {
@@ -308,10 +312,10 @@ TEST(type_prop, paged_attention_invalid_rank_key_cache) {
 
 TEST(type_prop, paged_attention_invalid_input_count) {
     auto args = make_valid_pa_args();
-    args.pop_back();  // 24 instead of 25
+    args.pop_back();  // 27 instead of 28
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args),
                     ov::NodeValidationFailure,
-                    HasSubstr("26 inputs"));
+                    HasSubstr("28 inputs"));
 }
 
 TEST(type_prop, paged_attention_invalid_past_lens_rank) {
