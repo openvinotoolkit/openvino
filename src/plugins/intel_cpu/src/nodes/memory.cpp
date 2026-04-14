@@ -728,11 +728,11 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
 //   +--------------------------- VariableStateDoubleBuffer ---------------+
 //   |  buf[0]                                               buf[1]        |
 //   |                                                                     |
-//   |  prime_mem()  = buf[buffer_num]                                    |
-//   |  second_mem() = buf[buffer_num ^ 1]                                |
+//   |  prime_mem()  = buf[buffer_num]                                     |
+//   |  second_mem() = buf[buffer_num ^ 1]                                 |
 //   |                                                                     |
-//   |  input_mem()  --> prime_mem()    output_mem() --> second_mem()     |
-//   |                     commit(): buffer_num ^= 1  (toggles prime)     |
+//   |  input_mem()  --> prime_mem()    output_mem() --> second_mem()      |
+//   |                     commit(): buffer_num ^= 1  (toggles prime)      |
 //   +---------------------------------------------------------------------+
 //        |  read                                             ^  write
 //        v                                                   |
