@@ -10,7 +10,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <queue>
 #include <tuple>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "openvino/cc/pass/itt.hpp"
@@ -309,7 +312,48 @@ bool SDPASubgraphFusion::run_on_model(const std::shared_ptr<ov::Model>& f) {
 
     CPU_REGISTER_PASS_COMMON(ctx_manager, ov::pass::SimplifyGatherShapeOf);
     CPU_REGISTER_PASS_COMMON(ctx_manager, ov::pass::transpose_sinking::TSShapeOfForward);
-    CPU_REGISTER_PASS_COMMON(ctx_manager, StatefulSDPAFusion);
+
+    // Skip StatefulSDPAFusion if any KV-cache Variable is shared between multiple SDPA blocks.
+    // Models like Gemma3n/Gemma4 share KV-cache across attention layers, which the fused
+    // ScaledDotProductAttentionWithKVCache kernel does not support.
+    // Detection: BFS forward from each ReadValue to find all reachable SDPA nodes,
+    // grouped by variable_id. If any variable feeds >1 SDPA, skip fusion entirely.
+    auto has_shared_kv_cache = [](const std::shared_ptr<ov::Model>& model) {
+        std::unordered_map<std::string, std::unordered_set<ov::Node*>> var_to_sdpas;
+        for (const auto& op : model->get_ops()) {
+            auto read_value = ov::as_type_ptr<ov::op::v6::ReadValue>(op);
+            if (!read_value)
+                continue;
+            const auto& var_id = read_value->get_variable_id();
+            std::queue<ov::Node*> queue;
+            std::unordered_set<ov::Node*> visited;
+            queue.push(read_value.get());
+            visited.insert(read_value.get());
+            while (!queue.empty()) {
+                auto* node = queue.front();
+                queue.pop();
+                for (size_t i = 0; i < node->get_output_size(); i++) {
+                    for (const auto& input : node->get_output_target_inputs(i)) {
+                        auto* consumer = input.get_node();
+                        if (!visited.insert(consumer).second)
+                            continue;
+                        if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(consumer)) {
+                            var_to_sdpas[var_id].insert(consumer);
+                        } else {
+                            queue.push(consumer);
+                        }
+                    }
+                }
+            }
+        }
+        return std::any_of(var_to_sdpas.begin(), var_to_sdpas.end(), [](const auto& p) {
+            return p.second.size() > 1;
+        });
+    };
+
+    if (!has_shared_kv_cache(f)) {
+        CPU_REGISTER_PASS_COMMON(ctx_manager, StatefulSDPAFusion);
+    }
     // TODO: remove the following after snippets support patterns with dynamic shapes
     CPU_REGISTER_PASS_X64(ctx_manager, ov::intel_cpu::SDPAFuseTransposeReshape);
 

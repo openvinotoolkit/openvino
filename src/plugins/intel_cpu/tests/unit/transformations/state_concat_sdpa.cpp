@@ -19,9 +19,12 @@
 #include "transformations/utils/print_model.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/assign.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/read_value.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -236,4 +239,97 @@ TEST(TransformationTests, StateConcatSDPAWithExtraNode) {
             ASSERT_TRUE(res.first) << res.second;
         }
     }
+}
+
+// Build a model with two SDPA blocks sharing the same KV-cache Variables.
+// Path 1: ReadValue -> Gather -> Concat -> SDPA1
+// Path 2: ReadValue -> Gather -> Concat -> SDPA2
+// Both paths use the same var_k/var_v (shared KV-cache).
+static std::shared_ptr<ov::Model> makeSharedKVModel(const ov::PartialShape& inputShape) {
+    auto q1 = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto k1 = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto v1 = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto q2 = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto k2 = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto v2 = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto init_k = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto init_v = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto beam_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, ov::PartialShape{-1});
+
+    // Shared variables for KV-cache
+    auto var_k = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{inputShape, element::f32, "shared_pastk"});
+    auto var_v = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{inputShape, element::f32, "shared_pastv"});
+
+    // Path 1: ReadValue -> Gather -> Concat -> SDPA1
+    auto pastk1 = std::make_shared<ov::op::v6::ReadValue>(init_k, var_k);
+    auto pastv1 = std::make_shared<ov::op::v6::ReadValue>(init_v, var_v);
+    auto gather_k1 = std::make_shared<ov::op::v8::Gather>(
+        pastk1, beam_idx, op::v0::Constant::create(element::i32, {1}, {0}));
+    auto gather_v1 = std::make_shared<ov::op::v8::Gather>(
+        pastv1, beam_idx, op::v0::Constant::create(element::i32, {1}, {0}));
+    auto concat_k1 = std::make_shared<ov::op::v0::Concat>(OutputVector{gather_k1, k1}, 2);
+    auto concat_v1 = std::make_shared<ov::op::v0::Concat>(OutputVector{gather_v1, v1}, 2);
+    auto sdpa1 = std::make_shared<ov::opset13::ScaledDotProductAttention>(q1, concat_k1, concat_v1, false);
+    auto add1 = std::make_shared<op::v1::Add>(sdpa1, op::v0::Constant::create(element::f32, {1}, {1.0f}));
+
+    // Path 2: ReadValue -> Gather -> Concat -> SDPA2 (same variables, different ReadValue instances)
+    auto pastk2 = std::make_shared<ov::op::v6::ReadValue>(init_k, var_k);
+    auto pastv2 = std::make_shared<ov::op::v6::ReadValue>(init_v, var_v);
+    auto gather_k2 = std::make_shared<ov::op::v8::Gather>(
+        pastk2, beam_idx, op::v0::Constant::create(element::i32, {1}, {0}));
+    auto gather_v2 = std::make_shared<ov::op::v8::Gather>(
+        pastv2, beam_idx, op::v0::Constant::create(element::i32, {1}, {0}));
+    auto concat_k2 = std::make_shared<ov::op::v0::Concat>(OutputVector{gather_k2, k2}, 2);
+    auto concat_v2 = std::make_shared<ov::op::v0::Concat>(OutputVector{gather_v2, v2}, 2);
+    auto sdpa2 = std::make_shared<ov::opset13::ScaledDotProductAttention>(q2, concat_k2, concat_v2, false);
+    auto add2 = std::make_shared<op::v1::Add>(sdpa2, op::v0::Constant::create(element::f32, {1}, {1.0f}));
+
+    // Assigns from path 1
+    auto assign_k = std::make_shared<op::v6::Assign>(concat_k1, var_k);
+    auto assign_v = std::make_shared<op::v6::Assign>(concat_v1, var_v);
+
+    ResultVector results{std::make_shared<ov::op::v0::Result>(add1),
+                         std::make_shared<ov::op::v0::Result>(add2)};
+    SinkVector sinks{assign_k, assign_v};
+    return std::make_shared<Model>(results, sinks,
+        ParameterVector{q1, k1, v1, q2, k2, v2, init_k, init_v, beam_idx}, "SharedKVModel");
+}
+
+TEST(TransformationTests, StateConcatSDPASharedKVCache) {
+#if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
+    GTEST_SKIP() << "Skipping StateConcatSDPASharedKVCache test on Android X64";
+#endif
+    // When KV-cache is shared between multiple SDPA blocks, StatefulSDPAFusion must NOT apply.
+    auto inputShape = ov::PartialShape{-1, 8, -1, 64};
+    auto f = makeSharedKVModel(inputShape);
+    auto f_ref = f->clone();
+
+    ov::pass::Manager m;
+    m.register_pass<ov::pass::InitNodeInfo>();
+    m.register_pass<SDPASubgraphFusion>();
+    m.run_passes(f);
+
+    // Verify no ScaledDotProductAttentionWithKVCache was created (fusion was skipped)
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, StateConcatSDPANonSharedViaSubgraphFusion) {
+#if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
+    GTEST_SKIP() << "Skipping StateConcatSDPANonSharedViaSubgraphFusion test on Android X64";
+#endif
+    // Non-shared KV-cache model must still be fused when running through SDPASubgraphFusion.
+    auto inputShape = ov::PartialShape{-1, 8, -1, 64};
+    auto f = makeSDPA(inputShape);
+    auto f_ref = makeSDPA(inputShape, true);
+
+    ov::pass::Manager m;
+    m.register_pass<ov::pass::InitNodeInfo>();
+    m.register_pass<SDPASubgraphFusion>();
+    m.run_passes(f);
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
 }
