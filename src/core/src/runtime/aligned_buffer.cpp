@@ -31,7 +31,7 @@ AlignedBuffer::AlignedBuffer(AlignedBuffer&& other)
     other.m_byte_size = 0;
 }
 
-AlignedBuffer::AlignedBuffer(void* pData, size_t byte_size) {
+AlignedBuffer::AlignedBuffer(void* pData, const size_t byte_size) {
     //The buffer is owned by the caller. This class does not need to manage it.
     m_allocated_buffer = nullptr;
     m_aligned_buffer = reinterpret_cast<char *>(pData);

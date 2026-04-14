@@ -589,12 +589,14 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
                                        "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
         }
 #else
-        //This is applicable only when has_external_data() is false;
-
-        if (ov::element::string == m_tensor_place->get_element_type())
+        if (ov::element::string != m_tensor_place->get_element_type()) {
+            const size_t num_bytes = m_tensor_place->get_data_size();
+            void* data_ptr = const_cast<void *>(get_data_ptr_nc());
+            auto constant_buffer = std::make_shared<ov::AlignedBuffer>(data_ptr, num_bytes);
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, constant_buffer);
+        } else {
             constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<std::string>().data());
-        else
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data_ptr_nc(), 64);
+        }
 #endif
     } else {
         FRONT_END_THROW("Tensor shape doesn't match data size");
