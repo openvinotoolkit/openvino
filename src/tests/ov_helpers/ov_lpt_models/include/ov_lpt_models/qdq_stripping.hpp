@@ -30,7 +30,8 @@ public:
                                          size_t levels = 65536);
     static ov::Output<ov::Node> build_dq(const ov::Output<ov::Node>& input,
                                          const ov::element::Type& quantization_precision,
-                                         const QuantizationParams& qp);
+                                         const QuantizationParams& qp,
+                                         bool convert_on_zero_point = true);
 
     // Builds a weight-DQ pattern: Constant(quantized_type) -> Convert(f32) -> Subtract(zp) -> Multiply(scale)
     // When seed is provided, generates random constant values using make_constant.

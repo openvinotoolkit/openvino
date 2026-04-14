@@ -18,7 +18,7 @@ namespace intel_npu {
 class DynamicGraph final : public IDynamicGraph {
 public:
     struct MemRefTypeImpl {
-        npu_mlir_runtime_mem_ref_handle_t _memRef;
+        npu_vm_runtime_mem_ref_handle_t _memRef;
 
         MemRefTypeImpl() : _memRef(nullptr) {}
 
@@ -31,14 +31,14 @@ public:
             if (_memRef == nullptr) {
                 createMemRef(memref._dimsCount);
             }
-            auto result = npuMLIRRuntimeSetMemRef(_memRef,
-                                                  memref._basePtr,
-                                                  memref._data,
-                                                  memref._offset,
-                                                  memref._sizes.data(),
-                                                  memref._strides.data(),
-                                                  memref._dimsCount);
-            if (result != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
+            auto result = npuVMRuntimeSetMemRef(_memRef,
+                                                memref._basePtr,
+                                                memref._data,
+                                                memref._offset,
+                                                memref._sizes.data(),
+                                                memref._strides.data(),
+                                                memref._dimsCount);
+            if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
                 throw std::runtime_error("Failed to update MemRef handle");
             }
         }
@@ -48,13 +48,13 @@ public:
                 return;
             }
 
-            if (npuMLIRRuntimeParseMemRef(_memRef,
-                                          &memref._basePtr,
-                                          &memref._data,
-                                          &memref._offset,
-                                          memref._sizes.data(),
-                                          memref._strides.data(),
-                                          &memref._dimsCount) != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
+            if (npuVMRuntimeParseMemRef(_memRef,
+                                        &memref._basePtr,
+                                        &memref._data,
+                                        &memref._offset,
+                                        memref._sizes.data(),
+                                        memref._strides.data(),
+                                        &memref._dimsCount) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
                 throw std::runtime_error("Failed to parse MemRef handle");
             }
         }
@@ -62,8 +62,8 @@ public:
     private:
         void createMemRef(int64_t dimsCount) {
             if (_memRef == nullptr) {
-                auto result = npuMLIRRuntimeCreateMemRef(dimsCount, &_memRef);
-                if (result != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
+                auto result = npuVMRuntimeCreateMemRef(dimsCount, &_memRef);
+                if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
                     OPENVINO_THROW("Failed to create MemRef handle");
                 }
             }
@@ -71,16 +71,16 @@ public:
 
         void destroyMemRef() {
             if (_memRef != nullptr) {
-                npuMLIRRuntimeDestroyMemRef(_memRef);
+                npuVMRuntimeDestroyMemRef(_memRef);
                 _memRef = nullptr;
             }
         }
     };
 
     struct GraphArgumentsImpl : public GraphArguments {
-        std::vector<npu_mlir_runtime_mem_ref_handle_t> _inputMemRefs;
-        std::vector<npu_mlir_runtime_mem_ref_handle_t> _outputMemRefs;
-        npu_mlir_runtime_execute_params_t _executeParams = {};
+        std::vector<npu_vm_runtime_mem_ref_handle_t> _inputMemRefs;
+        std::vector<npu_vm_runtime_mem_ref_handle_t> _outputMemRefs;
+        npu_vm_runtime_execute_params_t _executeParams = {};
     };
 
     class Impl {
@@ -129,6 +129,7 @@ public:
 
     CommandQueueDesc get_command_queue_desc() const override;
     void set_workload_type(const ov::WorkloadType workloadType) override;
+    void set_model_priority(const ov::hint::Priority modelPriority) override;
 
     void set_batch_size(std::size_t batch) override;
 
