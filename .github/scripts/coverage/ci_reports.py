@@ -24,12 +24,16 @@ METADATA_FILE = "coverage-artifact-metadata.json"
 
 UPLOAD_DEFS = {
     "cpp_cpu": ("coverage-cpp-cpu", "coverage.info"),
-    "cpp_gpu_unit": ("coverage-cpp-gpu-unit", "coverage.info"),
-    "cpp_gpu_func": ("coverage-cpp-gpu-func", "coverage.info"),
+    "cpp_igpu_unit": ("coverage-cpp-igpu-unit", "coverage.info"),
+    "cpp_igpu_func": ("coverage-cpp-igpu-func", "coverage.info"),
+    "cpp_dgpu_unit": ("coverage-cpp-dgpu-unit", "coverage.info"),
+    "cpp_dgpu_func": ("coverage-cpp-dgpu-func", "coverage.info"),
     "python_cpu_xml": ("coverage-python-cpu", "python-coverage.xml"),
     "python_cpu_info": ("coverage-python-cpu", "coverage.info"),
-    "python_gpu_xml": ("coverage-python-gpu", "python-coverage.xml"),
-    "python_gpu_info": ("coverage-python-gpu", "coverage.info"),
+    "python_igpu_xml": ("coverage-python-igpu", "python-coverage.xml"),
+    "python_igpu_info": ("coverage-python-igpu", "coverage.info"),
+    "python_dgpu_xml": ("coverage-python-dgpu", "python-coverage.xml"),
+    "python_dgpu_info": ("coverage-python-dgpu", "coverage.info"),
     "js_cpu_lcov": ("coverage-js-cpu", "js-lcov.info"),
     "js_cpu_info": ("coverage-js-cpu", "coverage.info"),
 }

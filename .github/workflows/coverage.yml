@@ -9,7 +9,7 @@ on:
         required: false
         default: true
       run-gpu-tests:
-        description: 'Build with GPU support and run the iGPU coverage lanes'
+        description: 'Build with GPU support and run the GPU coverage lanes'
         type: boolean
         required: false
         default: true
@@ -204,29 +204,36 @@ jobs:
           overwrite: true
 
   CoverageCppGpu:
-    name: Coverage C++ (${{ matrix.lane_name }})
+    name: Coverage C++ (${{ matrix.gpu.name }}, ${{ matrix.lane.name }})
     needs: Build
     if: ${{ github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true' }}
-    runs-on:
-      - self-hosted
-      - igpu
+    runs-on: ${{ fromJSON(matrix.gpu.runs_on) }}
     container:
       image: ubuntu:22.04
       volumes:
         - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro
         - /mount:/mount
         - ${{ github.workspace }}:${{ github.workspace }}
-      options: --group-add 44 --group-add 993 --device /dev/dri/card1:/dev/dri/card1 --device /dev/dri/renderD128:/dev/dri/renderD128
+      options: ${{ matrix.gpu.container_options }}
     strategy:
       fail-fast: false
-      max-parallel: 2
+      max-parallel: 4
       matrix:
-        include:
-          - lane: gpu-unit
-            lane_name: GPU Unit Tests
+        gpu:
+          - id: igpu
+            name: iGPU
+            runs_on: '["self-hosted","igpu"]'
+            container_options: "--group-add 44 --group-add 993 --device /dev/dri/card1:/dev/dri/card1 --device /dev/dri/renderD128:/dev/dri/renderD128"
+          - id: dgpu
+            name: dGPU Arc A770
+            runs_on: '["self-hosted","dgpu","Arc-A770","Linux"]'
+            container_options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
+        lane:
+          - id: unit
+            name: GPU Unit Tests
             test_names: ov_onnx_frontend_tests,ov_onnx_frontend_tests (ONNX_ITERATOR=0),ov_gpu_unit_tests,test_inference_async,test_inference_sync
-          - lane: gpu-func
-            lane_name: GPU Functional Tests
+          - id: func
+            name: GPU Functional Tests
             test_names: ov_gpu_func_tests
     defaults:
       run:
@@ -234,7 +241,7 @@ jobs:
         working-directory: ${{ github.workspace }}
     env:
       TEST_PROFILE: gpu
-      CXX_TEST_NAMES: ${{ matrix.test_names }}
+      CXX_TEST_NAMES: ${{ matrix.lane.test_names }}
       OV_WORKSPACE: ${{ github.workspace }}
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
@@ -244,7 +251,7 @@ jobs:
       BUILD_JS_DIR: ${{ github.workspace }}/openvino/openvino_build_js
       COVERAGE_WRITE_STEP_SUMMARY: 'false'
     steps:
-      - name: Prepare iGPU test container
+      - name: Prepare ${{ matrix.gpu.name }} test container
         run: |
           apt-get update && apt-get install -y pigz wget software-properties-common ca-certificates gpg-agent tzdata clinfo git lcov python3-yaml
         env:
@@ -281,7 +288,7 @@ jobs:
           pigz -dc openvino_tests.tar.gz | tar -xf - -C "${INSTALL_DIR}"
         working-directory: ${{ env.INSTALL_DIR }}
 
-      - name: Install iGPU runtime dependencies
+      - name: Install GPU runtime dependencies
         run: |
           set -euo pipefail
           "${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh" -c=core -c=dev -c=gpu -y
@@ -316,31 +323,31 @@ jobs:
             cp -a "${notes_root}/js-build/." "${BUILD_JS_DIR}/"
           fi
 
-      - name: Run ${{ matrix.lane_name }} C++ coverage tests
+      - name: Run ${{ matrix.gpu.name }} ${{ matrix.lane.name }} C++ coverage tests
         run: python3 .github/scripts/coverage/coverage.py step run-cpp-tests
 
-      - name: Generate ${{ matrix.lane_name }} native C/C++ coverage report
+      - name: Generate ${{ matrix.gpu.name }} ${{ matrix.lane.name }} native C/C++ coverage report
         run: python3 .github/scripts/coverage/coverage.py step collect-cpp-coverage
 
-      - name: Collect C++ ${{ matrix.lane_name }} results
+      - name: Collect C++ ${{ matrix.gpu.name }} ${{ matrix.lane.name }} results
         id: lane_artifact
         if: ${{ always() }}
         run: |
-          dir="${RUNNER_TEMP}/coverage-cpp-${{ matrix.lane }}"
+          dir="${RUNNER_TEMP}/coverage-cpp-${{ matrix.gpu.id }}-${{ matrix.lane.id }}"
           python3 .github/scripts/coverage/ci_reports.py collect-suite-results \
             --workspace "${{ env.OV_WORKSPACE }}" \
             --suite cpp \
             --profile gpu \
-            --lane "${{ matrix.lane }}" \
-            --artifact-name "coverage-cpp-${{ matrix.lane }}" \
+            --lane "${{ matrix.gpu.id }}-${{ matrix.lane.id }}" \
+            --artifact-name "coverage-cpp-${{ matrix.gpu.id }}-${{ matrix.lane.id }}" \
             --artifact-dir "${dir}"
           echo "dir=${dir}" >> "$GITHUB_OUTPUT"
 
-      - name: Upload C++ ${{ matrix.lane_name }} artifact
+      - name: Upload C++ ${{ matrix.gpu.name }} ${{ matrix.lane.name }} artifact
         if: ${{ always() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2 We are not using newest version v6.0.0 due to very frequent issues with 'Error: Unable to make request: ECONNRESET'
         with:
-          name: coverage-cpp-${{ matrix.lane }}
+          name: coverage-cpp-${{ matrix.gpu.id }}-${{ matrix.lane.id }}
           path: ${{ steps.lane_artifact.outputs.dir }}
           if-no-files-found: warn
           retention-days: 7
@@ -481,19 +488,29 @@ jobs:
           overwrite: true
 
   CoveragePythonGpu:
-    name: Coverage Python (GPU)
+    name: Coverage Python (${{ matrix.gpu.name }})
     needs: Build
     if: ${{ github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true' }}
-    runs-on:
-      - self-hosted
-      - igpu
+    runs-on: ${{ fromJSON(matrix.gpu.runs_on) }}
     container:
       image: ubuntu:22.04
       volumes:
         - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro
         - /mount:/mount
         - ${{ github.workspace }}:${{ github.workspace }}
-      options: --group-add 44 --group-add 993 --device /dev/dri/card1:/dev/dri/card1 --device /dev/dri/renderD128:/dev/dri/renderD128
+      options: ${{ matrix.gpu.container_options }}
+    strategy:
+      fail-fast: false
+      matrix:
+        gpu:
+          - id: igpu
+            name: iGPU
+            runs_on: '["self-hosted","igpu"]'
+            container_options: "--group-add 44 --group-add 993 --device /dev/dri/card1:/dev/dri/card1 --device /dev/dri/renderD128:/dev/dri/renderD128"
+          - id: dgpu
+            name: dGPU Arc A770
+            runs_on: '["self-hosted","dgpu","Arc-A770","Linux"]'
+            container_options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
     defaults:
       run:
         shell: bash
@@ -509,7 +526,7 @@ jobs:
       COVERAGE_WRITE_STEP_SUMMARY: 'false'
       REQUESTS_CA_BUNDLE: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
     steps:
-      - name: Prepare iGPU test container
+      - name: Prepare ${{ matrix.gpu.name }} test container
         run: |
           apt-get update && apt-get install -y pigz wget software-properties-common ca-certificates gpg-agent tzdata clinfo git lcov python3-yaml
         env:
@@ -552,7 +569,7 @@ jobs:
           pigz -dc openvino_tests.tar.gz | tar -xf - -C "${INSTALL_DIR}"
         working-directory: ${{ env.INSTALL_DIR }}
 
-      - name: Install iGPU runtime dependencies
+      - name: Install GPU runtime dependencies
         run: |
           set -euo pipefail
           "${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh" -c=core -c=dev -c=gpu -y
@@ -614,31 +631,31 @@ jobs:
           python3 -m pip install -r "${INSTALL_DIR}/tests/requirements_pytorch"
           python3 -m pip install -r "${INSTALL_DIR}/tests/requirements_tensorflow"
 
-      - name: Run GPU Python coverage tests
+      - name: Run ${{ matrix.gpu.name }} Python coverage tests
         run: python3 .github/scripts/coverage/coverage.py step run-python-tests
 
-      - name: Generate GPU native C/C++ coverage report
+      - name: Generate ${{ matrix.gpu.name }} native C/C++ coverage report
         run: python3 .github/scripts/coverage/coverage.py step collect-cpp-coverage
 
-      - name: Collect Python GPU results
+      - name: Collect Python ${{ matrix.gpu.name }} results
         id: gpu_artifact
         if: ${{ always() }}
         run: |
-          dir="${RUNNER_TEMP}/coverage-python-gpu"
+          dir="${RUNNER_TEMP}/coverage-python-${{ matrix.gpu.id }}"
           python3 .github/scripts/coverage/ci_reports.py collect-suite-results \
             --workspace "${{ env.OV_WORKSPACE }}" \
             --suite python \
             --profile gpu \
-            --lane gpu \
-            --artifact-name coverage-python-gpu \
+            --lane "${{ matrix.gpu.id }}" \
+            --artifact-name "coverage-python-${{ matrix.gpu.id }}" \
             --artifact-dir "${dir}"
           echo "dir=${dir}" >> "$GITHUB_OUTPUT"
 
-      - name: Upload Python GPU artifact
+      - name: Upload Python ${{ matrix.gpu.name }} artifact
         if: ${{ always() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2 We are not using newest version v6.0.0 due to very frequent issues with 'Error: Unable to make request: ECONNRESET'
         with:
-          name: coverage-python-gpu
+          name: coverage-python-${{ matrix.gpu.id }}
           path: ${{ steps.gpu_artifact.outputs.dir }}
           if-no-files-found: warn
           retention-days: 7
@@ -816,13 +833,13 @@ jobs:
         run: |
           selected_lanes='none'
           if [[ "${{ github.event_name }}" == 'pull_request' ]]; then
-            selected_lanes='cpu,gpu,gpu-unit,gpu-func'
+            selected_lanes='cpu,igpu,igpu-unit,igpu-func,dgpu,dgpu-unit,dgpu-func'
           elif [[ "${{ github.event.inputs.run-cpu-tests }}" == 'true' && "${{ github.event.inputs.run-gpu-tests }}" == 'true' ]]; then
-            selected_lanes='cpu,gpu,gpu-unit,gpu-func'
+            selected_lanes='cpu,igpu,igpu-unit,igpu-func,dgpu,dgpu-unit,dgpu-func'
           elif [[ "${{ github.event.inputs.run-cpu-tests }}" == 'true' ]]; then
             selected_lanes='cpu'
           elif [[ "${{ github.event.inputs.run-gpu-tests }}" == 'true' ]]; then
-            selected_lanes='gpu,gpu-unit,gpu-func'
+            selected_lanes='igpu,igpu-unit,igpu-func,dgpu,dgpu-unit,dgpu-func'
           fi
           echo "selected_lanes=${selected_lanes}" >> "$GITHUB_OUTPUT"
 
@@ -874,27 +891,53 @@ jobs:
           fail_ci_if_error: true
           verbose: true
 
-      - name: Upload Codecov (C++ runtime, GPU Unit)
-        if: ${{ always() && steps.coverage_files.outputs.cpp_gpu_unit != '' }}
+      - name: Upload Codecov (C++ runtime, iGPU Unit)
+        if: ${{ always() && steps.coverage_files.outputs.cpp_igpu_unit != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: ${{ steps.coverage_files.outputs.cpp_gpu_unit }}
+          files: ${{ steps.coverage_files.outputs.cpp_igpu_unit }}
           disable_search: true
           plugins: noop
-          flags: cpp-runtime-cpp-gpu-unit
+          flags: cpp-runtime-cpp-igpu-unit
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: true
           verbose: true
 
-      - name: Upload Codecov (C++ runtime, GPU Func)
-        if: ${{ always() && steps.coverage_files.outputs.cpp_gpu_func != '' }}
+      - name: Upload Codecov (C++ runtime, iGPU Func)
+        if: ${{ always() && steps.coverage_files.outputs.cpp_igpu_func != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: ${{ steps.coverage_files.outputs.cpp_gpu_func }}
+          files: ${{ steps.coverage_files.outputs.cpp_igpu_func }}
           disable_search: true
           plugins: noop
-          flags: cpp-runtime-cpp-gpu-func
+          flags: cpp-runtime-cpp-igpu-func
+          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
+          fail_ci_if_error: true
+          verbose: true
+
+      - name: Upload Codecov (C++ runtime, dGPU Unit)
+        if: ${{ always() && steps.coverage_files.outputs.cpp_dgpu_unit != '' }}
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        with:
+          files: ${{ steps.coverage_files.outputs.cpp_dgpu_unit }}
+          disable_search: true
+          plugins: noop
+          flags: cpp-runtime-cpp-dgpu-unit
+          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
+          fail_ci_if_error: true
+          verbose: true
+
+      - name: Upload Codecov (C++ runtime, dGPU Func)
+        if: ${{ always() && steps.coverage_files.outputs.cpp_dgpu_func != '' }}
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        with:
+          files: ${{ steps.coverage_files.outputs.cpp_dgpu_func }}
+          disable_search: true
+          plugins: noop
+          flags: cpp-runtime-cpp-dgpu-func
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: true
@@ -926,27 +969,53 @@ jobs:
           fail_ci_if_error: true
           verbose: true
 
-      - name: Upload Codecov (Python API, GPU)
-        if: ${{ always() && steps.coverage_files.outputs.python_gpu_xml != '' }}
+      - name: Upload Codecov (Python API, iGPU)
+        if: ${{ always() && steps.coverage_files.outputs.python_igpu_xml != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: ${{ steps.coverage_files.outputs.python_gpu_xml }}
+          files: ${{ steps.coverage_files.outputs.python_igpu_xml }}
           disable_search: true
           plugins: noop
-          flags: python-api-frontend-layer-ovc-gpu
+          flags: python-api-frontend-layer-ovc-igpu
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: true
           verbose: true
 
-      - name: Upload Codecov (C++ runtime, Python suite, GPU)
-        if: ${{ always() && steps.coverage_files.outputs.python_gpu_info != '' }}
+      - name: Upload Codecov (C++ runtime, Python suite, iGPU)
+        if: ${{ always() && steps.coverage_files.outputs.python_igpu_info != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: ${{ steps.coverage_files.outputs.python_gpu_info }}
+          files: ${{ steps.coverage_files.outputs.python_igpu_info }}
           disable_search: true
           plugins: noop
-          flags: cpp-runtime-python-gpu
+          flags: cpp-runtime-python-igpu
+          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
+          fail_ci_if_error: true
+          verbose: true
+
+      - name: Upload Codecov (Python API, dGPU)
+        if: ${{ always() && steps.coverage_files.outputs.python_dgpu_xml != '' }}
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        with:
+          files: ${{ steps.coverage_files.outputs.python_dgpu_xml }}
+          disable_search: true
+          plugins: noop
+          flags: python-api-frontend-layer-ovc-dgpu
+          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
+          fail_ci_if_error: true
+          verbose: true
+
+      - name: Upload Codecov (C++ runtime, Python suite, dGPU)
+        if: ${{ always() && steps.coverage_files.outputs.python_dgpu_info != '' }}
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        with:
+          files: ${{ steps.coverage_files.outputs.python_dgpu_info }}
+          disable_search: true
+          plugins: noop
+          flags: cpp-runtime-python-dgpu
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: true
