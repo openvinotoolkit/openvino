@@ -269,6 +269,14 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
             << "Switching to BY_TOKEN mode." << std::endl;
         m_value_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
     }
+    // 4-bit KV cache with PA backend does not support BY_TOKEN quantization mode.
+    // if (is_paged_attention_model && ov::element::Type(get_kv_cache_precision()).bitwidth() == 4) {
+    //     OPENVINO_ASSERT(get_key_cache_quant_mode() != ov::internal::CacheQuantMode::BY_TOKEN &&
+    //                     get_value_cache_quant_mode() != ov::internal::CacheQuantMode::BY_TOKEN,
+    //                     "[GPU] 4-bit KV cache (u4/i4) with PagedAttention backend does not support BY_TOKEN quantization mode. "
+    //                     "Please use BY_CHANNEL mode or switch to 8-bit (i8) KV cache precision.");
+    // }
+
     // Disable FlashAttn V2 online softmax tricks by default for non-LLMs.
     if (!is_set_by_user(ov::intel_gpu::could_use_flashattn_v2) && !is_LLM) {
         m_could_use_flashattn_v2 = false;
@@ -310,6 +318,10 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
     // Replace UINT8 KV-cache compression data type with INT8, as plugin is supposed to work with INT8 internally
     if (get_kv_cache_precision() == ov::element::u8) {
         m_kv_cache_precision = ov::element::i8;
+    }
+    // Replace U4/I4 KV-cache compression data type with corresponding i4 for internal use
+    if (get_kv_cache_precision() == ov::element::u4) {
+        m_kv_cache_precision = ov::element::i4;
     }
 
 #ifdef ENABLE_DEBUG_CAPS
