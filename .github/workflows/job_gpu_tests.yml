@@ -121,6 +121,10 @@ jobs:
       # RoPE test steps (only for test_type == 'rope')
       #
 
+      - name: Install git
+        if: ${{ inputs.test_type == 'rope' }}
+        run: apt-get update && apt-get install -y git
+
       - name: Fetch actions
         if: ${{ inputs.test_type == 'rope' }}
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
