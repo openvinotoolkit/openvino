@@ -1251,7 +1251,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
                         #if COMPRESSED_WEIGHTS_INT8
                             ACCUM_DQ_TYPE modified_calc_buff = ((int *)(&acc_tmp[fi]))[bi] - ((float)(wei_zp[fi]) * activation_sum[bi]);
-                            float tmp = convert_float(modified_calc_buff) * convert_float(ds) * convert_float(de_quantize_scale[bi]);
+                            float tmp = convert_float(modified_calc_buff) * convert_float(de_quantize_scale[bi]) * convert_float(ds);
                         #else
                             float tmp = convert_float(((int *)(&acc_tmp[fi]))[bi]) * convert_float(de_quantize_scale[bi]) * convert_float(ds);
                         #endif
@@ -1283,7 +1283,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
                         #if COMPRESSED_WEIGHTS_INT8
                             ACCUM_DQ_TYPE modified_calc_buff = ((float)((int *)(&acc_tmp[fi]))[bi]) - ((float)(wei_zp[fi]) * activation_sum[bi]);
-                            float tmp = convert_float(modified_calc_buff) * convert_float(ds) * convert_float(de_quantize_scale[bi]);
+                            float tmp = convert_float(modified_calc_buff) * convert_float(de_quantize_scale[bi]) * convert_float(ds);
                         #else
                             float tmp = convert_float(((int *)(&acc_tmp[fi]))[bi]) * convert_float(de_quantize_scale[bi]) * convert_float(ds);
                         #endif
@@ -1301,7 +1301,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                 ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
                 #if COMPRESSED_WEIGHTS_INT8
                     float modified_calc_buff = ((float)((int *)(&acc_tmp[fi]))[bi]) - ((float)(wei_zp[fi]) * activation_sum[bi]);
-                    float tmp = modified_calc_buff * convert_float(ds) * convert_float(de_quantize_scale[bi]);
+                    float tmp = modified_calc_buff * convert_float(de_quantize_scale[bi]) * convert_float(ds);
                 #else
                     float tmp = convert_float(((int *)(&acc_tmp[fi]))[bi]) * convert_float(de_quantize_scale[bi]) * convert_float(ds);
                 #endif
