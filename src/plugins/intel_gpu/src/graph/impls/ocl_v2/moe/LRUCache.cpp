@@ -11,7 +11,7 @@ LRUCache::LRUCache(size_t max_total_experts, EvictCallback cb)
       m_total_experts(0),
       m_to_filled_lru_expert_no(0),
       m_on_evict(std::move(cb)) {
-        m_filled_list.resize(max_total_experts, false);
+    m_filled_list.resize(max_total_experts, false);
 }
 
 void LRUCache::move_to_end(std::list<Node>::iterator it) {
