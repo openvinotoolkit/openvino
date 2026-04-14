@@ -10,21 +10,22 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/op/op.hpp"
+#include "transformations_visibility.hpp"
 
-namespace ov::intel_cpu {
+namespace ov::op::internal {
 
-class BatchGatherMatmul : public ov::op::Op {
+class TRANSFORMATIONS_API GatherMatmul : public ov::op::Op {
 public:
-    OPENVINO_OP("BatchGatherMatmul", "cpu_plugin_opset");
+    OPENVINO_OP("GatherMatmul");
 
-    BatchGatherMatmul() = default;
+    GatherMatmul() = default;
 
-    BatchGatherMatmul(const ov::Output<Node>& A,
-                      const ov::Output<Node>& B,
-                      const ov::Output<Node>& indices,
-                      const ov::Output<Node>& bias);
+    GatherMatmul(const ov::Output<Node>& A,
+                 const ov::Output<Node>& B,
+                 const ov::Output<Node>& indices,
+                 const ov::Output<Node>& bias);
 
-    BatchGatherMatmul(const ov::Output<Node>& A, const ov::Output<Node>& B, const ov::Output<Node>& indices);
+    GatherMatmul(const ov::Output<Node>& A, const ov::Output<Node>& B, const ov::Output<Node>& indices);
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
@@ -36,4 +37,4 @@ private:
     static constexpr bool transp_b = true;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace ov::op::internal
