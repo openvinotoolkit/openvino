@@ -81,6 +81,21 @@ struct DeviceOps {
 
 const uint8_t MAX_REVISION = 0xff;
 
+static bool is_xe2_or_xe3_family(gpu_arch arch) {
+    switch (arch) {
+    case gpu_arch::xe2:
+    case gpu_arch::xe3:
+    case gpu_arch::xe3p_35_10:
+    case gpu_arch::xe3p_35_11:
+    case gpu_arch::xe3p_unknown:
+        return true;
+    default:
+        return false;
+    }
+}
+
+const DeviceOps xe2_xe3_fallback_ops = { {}, { 1, 16, 32, 128, 256, 0 }, {} };
+
 const std::vector<DeviceOps> device_ops_table = {
 //    | gfx_ver                                 | MAD                   | DPAS (immad)  | DP4A | device_id |
 //    |                                         |  fp64 |  fp32 |  fp16 |  fp16 |  int8 | int8 |           |
@@ -120,11 +135,19 @@ float device::get_gops(data_types dt) const {
             [&info](auto& entry) {
                 return entry.match(info);
             });
+
+        const DeviceOps* selected_ops = nullptr;
         if (it != device_ops_table.end()) {
-            opsPerEU = it->get_ops(info, dt);
+            selected_ops = &(*it);
+        } else if (is_xe2_or_xe3_family(info.arch)) {
+            selected_ops = &xe2_xe3_fallback_ops;
+        }
+
+        if (selected_ops != nullptr) {
+            opsPerEU = selected_ops->get_ops(info, dt);
             if (DeviceOps::is_zero(opsPerEU) && (dt == data_types::i8 || dt == data_types::u8)) {
                 // WA: ops of i8/u8 is twice of f16.
-                opsPerEU = it->get_ops_for_mad(data_types::f16) * 2;
+                opsPerEU = selected_ops->get_ops_for_mad(data_types::f16) * 2;
             }
         }
     } catch (std::exception& e) {
