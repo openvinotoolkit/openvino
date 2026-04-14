@@ -38,6 +38,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
@@ -165,6 +166,13 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
         configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
+
+        // MOE3GemmFusedCompressed uses the fused MOE GEMM pipeline which requires systolic
+        // (HW_MATMUL / supports_immad). Skip on iGPU where kernels fall back to different
+        // precision characteristics.
+        auto capabilities = core->get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
+        if (std::find(capabilities.cbegin(), capabilities.cend(), ov::intel_gpu::capability::HW_MATMUL) == capabilities.cend())
+            GTEST_SKIP();
 
         const auto& [p, fusion_level] = GetParam();
         init_input_shapes(p.input_shapes);
