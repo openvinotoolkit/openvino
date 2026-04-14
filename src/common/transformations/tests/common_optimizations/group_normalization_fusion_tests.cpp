@@ -47,6 +47,7 @@ class GroupNormalizationFusionTestBase {
 protected:
     element::Type elem_type;
     int64_t num_channels;
+    bool positive_test;
     bool instance_norm_gamma_present;
     bool instance_norm_beta_present;
 
@@ -64,6 +65,76 @@ protected:
     double epsilon;
 
     virtual void read_test_parameters() = 0;
+
+    static std::string get_test_case_name(const GroupNormalizationFusionTransformationTestValues& params) {
+        const auto& data_shape = std::get<0>(params);
+        const auto& instance_norm_gamma_shape = std::get<1>(params);
+        const auto& instance_norm_beta_shape = std::get<2>(params);
+        const auto& group_norm_gamma_shape = std::get<3>(params);
+        const auto& group_norm_beta_shape = std::get<4>(params);
+        const auto& num_groups = std::get<5>(params);
+        const auto& epsilon = std::get<6>(params);
+        const auto& elem_type = std::get<7>(params);
+        const auto& positive_test = std::get<8>(params);
+
+        std::ostringstream results;
+
+        results << "T=" << elem_type << "_";
+        results << "Input=" << utils::partialShape2str({data_shape}) << "_";
+        results << "InstNormGamma=" << utils::partialShape2str({instance_norm_gamma_shape}) << "_";
+        results << "InstNormBeta=" << utils::partialShape2str({instance_norm_beta_shape}) << "_";
+        results << "GroupNormGamma=" << utils::partialShape2str({group_norm_gamma_shape}) << "_";
+        results << "GroupNormBeta=" << utils::partialShape2str({group_norm_beta_shape}) << "_";
+        results << "NumGroups=" << num_groups << "_";
+        results << "Epsilon=" << epsilon << "_";
+        results << "PositiveTest=" << std::boolalpha << positive_test;
+
+        return results.str();
+    }
+
+    void read_test_parameters_impl(const GroupNormalizationFusionTransformationTestValues& params) {
+        data_shape = std::get<0>(params);
+        if (!data_shape.rank().is_static())
+            throw std::runtime_error("Rank of input tensor has to be static!");
+        if (data_shape.rank().get_max_length() < 2)
+            throw std::runtime_error("Expected at least two dimensions in input tensor!");
+        if (!data_shape[1].is_static())
+            throw std::runtime_error("Channel dimension in input tensor has to be static!");
+        num_channels = data_shape[1].get_max_length();
+        instance_norm_gamma_shape = std::get<1>(params);
+        instance_norm_beta_shape = std::get<2>(params);
+        group_norm_gamma_shape = std::get<3>(params);
+        group_norm_beta_shape = std::get<4>(params);
+        num_groups = std::get<5>(params);
+        if (num_groups < 1)
+            throw std::runtime_error("Number of groups has to be positive!");
+        epsilon = std::get<6>(params);
+        elem_type = std::get<7>(params);
+        positive_test = std::get<8>(params);
+
+        instance_norm_gamma_present = (instance_norm_gamma_shape != Shape{});
+        instance_norm_beta_present = (instance_norm_beta_shape != Shape{});
+
+        if (positive_test) {
+            if ((instance_norm_gamma_shape != Shape{}) &&
+                (shape_size(instance_norm_gamma_shape) != static_cast<size_t>(num_groups)))
+                throw std::runtime_error("Shape of instance norm gamma has to either be empty or contain "
+                                         "exactly <num_groups> elements");
+            if ((instance_norm_beta_shape != Shape{}) &&
+                (shape_size(instance_norm_beta_shape) != static_cast<size_t>(num_groups)))
+                throw std::runtime_error("Shape of instance norm beta has to either be empty shape or contain "
+                                         "exactly <num_groups> elements");
+            if (shape_size(group_norm_gamma_shape) != static_cast<size_t>(num_channels))
+                throw std::runtime_error("Shape of group norm gamma has to contain exactly <num_channels> elements");
+            if (shape_size(group_norm_beta_shape) != static_cast<size_t>(num_channels))
+                throw std::runtime_error("Shape of group norm beta has to contain exactly <num_channels> elements");
+
+            instance_norm_gamma_present = instance_norm_gamma_present &&
+                                          (shape_size(instance_norm_gamma_shape) == static_cast<size_t>(num_groups));
+            instance_norm_beta_present =
+                instance_norm_beta_present && (shape_size(instance_norm_beta_shape) == static_cast<size_t>(num_groups));
+        }
+    }
 
     void generate_weights_init_values() {
         if (instance_norm_gamma_present) {
@@ -118,106 +189,8 @@ protected:
 
         return std::make_shared<Model>(OutputVector{group_norm_beta_add}, ParameterVector{input});
     }
-};
 
-class GroupNormalizationFusionTransformationTestsF
-    : public GroupNormalizationFusionTestBase,
-      public TransformationTestsF,
-      public testing::WithParamInterface<GroupNormalizationFusionTransformationTestValues> {
-public:
-    static std::string getTestCaseName(
-        const testing::TestParamInfo<GroupNormalizationFusionTransformationTestValues>& obj) {
-        const auto& params = obj.param;
-
-        const auto& data_shape = std::get<0>(params);
-        const auto& instance_norm_gamma_shape = std::get<1>(params);
-        const auto& instance_norm_beta_shape = std::get<2>(params);
-        const auto& group_norm_gamma_shape = std::get<3>(params);
-        const auto& group_norm_beta_shape = std::get<4>(params);
-        const auto& num_groups = std::get<5>(params);
-        const auto& epsilon = std::get<6>(params);
-        const auto& elem_type = std::get<7>(params);
-        const auto& positive_test = std::get<8>(params);
-
-        std::ostringstream results;
-
-        results << "T=" << elem_type << "_";
-        results << "Input=" << utils::partialShape2str({data_shape}) << "_";
-        results << "InstNormGamma=" << utils::partialShape2str({instance_norm_gamma_shape}) << "_";
-        results << "InstNormBeta=" << utils::partialShape2str({instance_norm_beta_shape}) << "_";
-        results << "GroupNormGamma=" << utils::partialShape2str({group_norm_gamma_shape}) << "_";
-        results << "GroupNormBeta=" << utils::partialShape2str({group_norm_beta_shape}) << "_";
-        results << "NumGroups=" << num_groups << "_";
-        results << "Epsilon=" << epsilon << "_";
-        results << "PositiveTest=" << std::boolalpha << positive_test;
-
-        return results.str();
-    }
-
-    void run() {
-        read_test_parameters();
-        generate_weights_init_values();
-        model = create_model();
-        manager.register_pass<pass::GroupNormalizationFusion>();
-
-        if (positive_test) {
-            model_ref = create_ref_model();
-        } else {
-            ASSERT_EQ(count_ops_of_type<op::v12::GroupNormalization>(model), 0);
-            test_skipped = true;
-        }
-    }
-
-protected:
-    bool positive_test;
-
-    void read_test_parameters() override {
-        const auto& params = GetParam();
-
-        data_shape = std::get<0>(params);
-        if (!data_shape.rank().is_static())
-            throw std::runtime_error("Rank of input tensor has to be static!");
-        if (data_shape.rank().get_max_length() < 2)
-            throw std::runtime_error("Expected at least two dimensions in input tensor!");
-        if (!data_shape[1].is_static())
-            throw std::runtime_error("Channel dimension in input tensor has to be static!");
-        num_channels = data_shape[1].get_max_length();
-        instance_norm_gamma_shape = std::get<1>(params);
-        instance_norm_beta_shape = std::get<2>(params);
-        group_norm_gamma_shape = std::get<3>(params);
-        group_norm_beta_shape = std::get<4>(params);
-        num_groups = std::get<5>(params);
-        if (num_groups < 1)
-            throw std::runtime_error("Number of groups has to be positive!");
-        epsilon = std::get<6>(params);
-        elem_type = std::get<7>(params);
-        positive_test = std::get<8>(params);
-
-        instance_norm_gamma_present = (instance_norm_gamma_shape != Shape{});
-        instance_norm_beta_present = (instance_norm_beta_shape != Shape{});
-
-        if (positive_test) {
-            if ((instance_norm_gamma_shape != Shape{}) &&
-                (shape_size(instance_norm_gamma_shape) != static_cast<size_t>(num_groups)))
-                throw std::runtime_error("Shape of instance norm gamma has to either be empty or contain "
-                                         "exactly <num_groups> elements");
-            if ((instance_norm_beta_shape != Shape{}) &&
-                (shape_size(instance_norm_beta_shape) != static_cast<size_t>(num_groups)))
-                throw std::runtime_error("Shape of instance norm beta has to either be empty shape or contain "
-                                         "exactly <num_groups> elements");
-            if (shape_size(group_norm_gamma_shape) != static_cast<size_t>(num_channels))
-                throw std::runtime_error("Shape of group norm gamma has to contain exactly <num_channels> elements");
-            if (shape_size(group_norm_beta_shape) != static_cast<size_t>(num_channels))
-                throw std::runtime_error("Shape of group norm beta has to contain exactly <num_channels> elements");
-
-            instance_norm_gamma_present = instance_norm_gamma_present &&
-                                          (shape_size(instance_norm_gamma_shape) == static_cast<size_t>(num_groups));
-            instance_norm_beta_present =
-                instance_norm_beta_present && (shape_size(instance_norm_beta_shape) == static_cast<size_t>(num_groups));
-        }
-    }
-
-    std::shared_ptr<Model> create_ref_model() {
+    std::shared_ptr<Model> create_ref_model_impl() {
         auto input = std::make_shared<op::v0::Parameter>(elem_type, data_shape);
 
         auto shape_1d_const = op::v0::Constant::create(element::i64, Shape{1}, {1});
@@ -271,6 +244,45 @@ protected:
                                                                         epsilon);
 
         return std::make_shared<Model>(OutputVector{group_norm}, ParameterVector{input});
+    }
+
+    void run_transformation_test(const std::shared_ptr<Model>& model_under_test,
+                                 pass::Manager& test_manager,
+                                 std::shared_ptr<Model>& transformed_model,
+                                 std::shared_ptr<Model>& reference_model) {
+        transformed_model = model_under_test;
+        test_manager.register_pass<pass::GroupNormalizationFusion>();
+
+        if (positive_test) {
+            reference_model = create_ref_model_impl();
+        } else {
+            // Verify no GroupNormalization exists before the pass runs.
+            // Leave reference_model unset so TransformationTestsF::TearDown
+            // clones the original model and verifies the pass leaves it unchanged.
+            ASSERT_EQ(count_ops_of_type<op::v12::GroupNormalization>(transformed_model), 0);
+        }
+    }
+};
+
+class GroupNormalizationFusionTransformationTestsF
+    : public GroupNormalizationFusionTestBase,
+      public TransformationTestsF,
+      public testing::WithParamInterface<GroupNormalizationFusionTransformationTestValues> {
+public:
+    static std::string getTestCaseName(
+        const testing::TestParamInfo<GroupNormalizationFusionTransformationTestValues>& obj) {
+        return get_test_case_name(obj.param);
+    }
+
+    void run() {
+        read_test_parameters();
+        generate_weights_init_values();
+        run_transformation_test(create_model(), manager, model, model_ref);
+    }
+
+protected:
+    void read_test_parameters() override {
+        read_test_parameters_impl(GetParam());
     }
 };
 
@@ -563,94 +575,18 @@ class GroupNormalizationFusion4DTestsF
 public:
     static std::string getTestCaseName(
         const testing::TestParamInfo<GroupNormalizationFusionTransformationTestValues>& obj) {
-        const auto& params = obj.param;
-
-        const auto& data_shape = std::get<0>(params);
-        const auto& instance_norm_gamma_shape = std::get<1>(params);
-        const auto& instance_norm_beta_shape = std::get<2>(params);
-        const auto& group_norm_gamma_shape = std::get<3>(params);
-        const auto& group_norm_beta_shape = std::get<4>(params);
-        const auto& num_groups = std::get<5>(params);
-        const auto& epsilon = std::get<6>(params);
-        const auto& elem_type = std::get<7>(params);
-        const auto& positive_test = std::get<8>(params);
-
-        std::ostringstream results;
-
-        results << "T=" << elem_type << "_";
-        results << "Input=" << utils::partialShape2str({data_shape}) << "_";
-        results << "InstNormGamma=" << utils::partialShape2str({instance_norm_gamma_shape}) << "_";
-        results << "InstNormBeta=" << utils::partialShape2str({instance_norm_beta_shape}) << "_";
-        results << "GroupNormGamma=" << utils::partialShape2str({group_norm_gamma_shape}) << "_";
-        results << "GroupNormBeta=" << utils::partialShape2str({group_norm_beta_shape}) << "_";
-        results << "NumGroups=" << num_groups << "_";
-        results << "Epsilon=" << epsilon << "_";
-        results << "PositiveTest=" << std::boolalpha << positive_test;
-
-        return results.str();
+        return get_test_case_name(obj.param);
     }
 
     void run() {
         read_test_parameters();
         generate_weights_init_values();
-        model = create_model_4d();
-        manager.register_pass<pass::GroupNormalizationFusion>();
-
-        if (positive_test) {
-            model_ref = create_ref_model();
-        } else {
-            ASSERT_EQ(count_ops_of_type<op::v12::GroupNormalization>(model), 0);
-            test_skipped = true;
-        }
+        run_transformation_test(create_model_4d(), manager, model, model_ref);
     }
 
 protected:
-    bool positive_test;
-
     void read_test_parameters() override {
-        const auto& params = GetParam();
-
-        data_shape = std::get<0>(params);
-        if (!data_shape.rank().is_static())
-            throw std::runtime_error("Rank of input tensor has to be static!");
-        if (data_shape.rank().get_max_length() < 2)
-            throw std::runtime_error("Expected at least two dimensions in input tensor!");
-        if (!data_shape[1].is_static())
-            throw std::runtime_error("Channel dimension in input tensor has to be static!");
-        num_channels = data_shape[1].get_max_length();
-        instance_norm_gamma_shape = std::get<1>(params);
-        instance_norm_beta_shape = std::get<2>(params);
-        group_norm_gamma_shape = std::get<3>(params);
-        group_norm_beta_shape = std::get<4>(params);
-        num_groups = std::get<5>(params);
-        if (num_groups < 1)
-            throw std::runtime_error("Number of groups has to be positive!");
-        epsilon = std::get<6>(params);
-        elem_type = std::get<7>(params);
-        positive_test = std::get<8>(params);
-
-        instance_norm_gamma_present = (instance_norm_gamma_shape != Shape{});
-        instance_norm_beta_present = (instance_norm_beta_shape != Shape{});
-
-        if (positive_test) {
-            if ((instance_norm_gamma_shape != Shape{}) &&
-                (shape_size(instance_norm_gamma_shape) != static_cast<size_t>(num_groups)))
-                throw std::runtime_error("Shape of instance norm gamma has to either be empty or contain "
-                                         "exactly <num_groups> elements");
-            if ((instance_norm_beta_shape != Shape{}) &&
-                (shape_size(instance_norm_beta_shape) != static_cast<size_t>(num_groups)))
-                throw std::runtime_error("Shape of instance norm beta has to either be empty shape or contain "
-                                         "exactly <num_groups> elements");
-            if (shape_size(group_norm_gamma_shape) != static_cast<size_t>(num_channels))
-                throw std::runtime_error("Shape of group norm gamma has to contain exactly <num_channels> elements");
-            if (shape_size(group_norm_beta_shape) != static_cast<size_t>(num_channels))
-                throw std::runtime_error("Shape of group norm beta has to contain exactly <num_channels> elements");
-
-            instance_norm_gamma_present = instance_norm_gamma_present &&
-                                          (shape_size(instance_norm_gamma_shape) == static_cast<size_t>(num_groups));
-            instance_norm_beta_present =
-                instance_norm_beta_present && (shape_size(instance_norm_beta_shape) == static_cast<size_t>(num_groups));
-        }
+        read_test_parameters_impl(GetParam());
     }
 
     // Creates the 4D InstanceNorm pattern model
@@ -691,63 +627,6 @@ protected:
         auto group_norm_beta_add = std::make_shared<op::v1::Add>(group_norm_gamma_multiply, group_norm_beta_const);
 
         return std::make_shared<Model>(OutputVector{group_norm_beta_add}, ParameterVector{input});
-    }
-
-    // Reference model - same as the 3D tests
-    std::shared_ptr<Model> create_ref_model() {
-        auto input = std::make_shared<op::v0::Parameter>(elem_type, data_shape);
-
-        auto shape_1d_const = op::v0::Constant::create(element::i64, Shape{1}, {1});
-        auto gather_axis_const = op::v0::Constant::create(element::i64, Shape{1}, {0});
-        auto gather_indices_vals = std::vector<int64_t>();
-        for (auto i = 0ll; i < num_groups; i++)
-            gather_indices_vals.insert(gather_indices_vals.end(), num_channels / num_groups, i);
-        auto gather_indices_const =
-            op::v0::Constant::create(element::i64, Shape{static_cast<size_t>(num_channels)}, gather_indices_vals);
-
-        std::shared_ptr<Node> group_norm_gamma_1d = std::make_shared<op::v0::Squeeze>(group_norm_gamma_const);
-        std::shared_ptr<Node> group_norm_beta_1d = std::make_shared<op::v0::Squeeze>(group_norm_beta_const);
-
-        if (instance_norm_beta_present) {
-            std::shared_ptr<Node> instance_norm_beta_1d = nullptr;
-
-            if (shape_size(instance_norm_beta_shape) == 1) {
-                instance_norm_beta_1d =
-                    std::make_shared<op::v1::Reshape>(instance_norm_beta_const, shape_1d_const, true);
-            } else {
-                instance_norm_beta_1d = std::make_shared<op::v0::Squeeze>(instance_norm_beta_const);
-            }
-
-            instance_norm_beta_1d =
-                std::make_shared<op::v8::Gather>(instance_norm_beta_1d, gather_indices_const, gather_axis_const);
-
-            auto group_norm_beta_corr_multiply =
-                std::make_shared<ov::op::v1::Multiply>(group_norm_gamma_1d, instance_norm_beta_1d);
-            group_norm_beta_1d = std::make_shared<ov::op::v1::Add>(group_norm_beta_corr_multiply, group_norm_beta_1d);
-        }
-
-        if (instance_norm_gamma_present) {
-            std::shared_ptr<Node> instance_norm_gamma_1d = nullptr;
-
-            if (shape_size(instance_norm_gamma_shape) == 1) {
-                instance_norm_gamma_1d =
-                    std::make_shared<op::v1::Reshape>(instance_norm_gamma_const, shape_1d_const, true);
-            } else {
-                instance_norm_gamma_1d = std::make_shared<op::v0::Squeeze>(instance_norm_gamma_const);
-            }
-
-            instance_norm_gamma_1d =
-                std::make_shared<op::v8::Gather>(instance_norm_gamma_1d, gather_indices_const, gather_axis_const);
-            group_norm_gamma_1d = std::make_shared<ov::op::v1::Multiply>(group_norm_gamma_1d, instance_norm_gamma_1d);
-        }
-
-        auto group_norm = std::make_shared<op::v12::GroupNormalization>(input,
-                                                                        group_norm_gamma_1d,
-                                                                        group_norm_beta_1d,
-                                                                        num_groups,
-                                                                        epsilon);
-
-        return std::make_shared<Model>(OutputVector{group_norm}, ParameterVector{input});
     }
 };
 
@@ -800,94 +679,18 @@ class GroupNormalizationFusion4DConcreteValuesTestsF
 public:
     static std::string getTestCaseName(
         const testing::TestParamInfo<GroupNormalizationFusionTransformationTestValues>& obj) {
-        const auto& params = obj.param;
-
-        const auto& data_shape = std::get<0>(params);
-        const auto& instance_norm_gamma_shape = std::get<1>(params);
-        const auto& instance_norm_beta_shape = std::get<2>(params);
-        const auto& group_norm_gamma_shape = std::get<3>(params);
-        const auto& group_norm_beta_shape = std::get<4>(params);
-        const auto& num_groups = std::get<5>(params);
-        const auto& epsilon = std::get<6>(params);
-        const auto& elem_type = std::get<7>(params);
-        const auto& positive_test = std::get<8>(params);
-
-        std::ostringstream results;
-
-        results << "T=" << elem_type << "_";
-        results << "Input=" << utils::partialShape2str({data_shape}) << "_";
-        results << "InstNormGamma=" << utils::partialShape2str({instance_norm_gamma_shape}) << "_";
-        results << "InstNormBeta=" << utils::partialShape2str({instance_norm_beta_shape}) << "_";
-        results << "GroupNormGamma=" << utils::partialShape2str({group_norm_gamma_shape}) << "_";
-        results << "GroupNormBeta=" << utils::partialShape2str({group_norm_beta_shape}) << "_";
-        results << "NumGroups=" << num_groups << "_";
-        results << "Epsilon=" << epsilon << "_";
-        results << "PositiveTest=" << std::boolalpha << positive_test;
-
-        return results.str();
+        return get_test_case_name(obj.param);
     }
 
     void run() {
         read_test_parameters();
         generate_weights_init_values();
-        model = create_model_4d_concrete();
-        manager.register_pass<pass::GroupNormalizationFusion>();
-
-        if (positive_test) {
-            model_ref = create_ref_model();
-        } else {
-            ASSERT_EQ(count_ops_of_type<op::v12::GroupNormalization>(model), 0);
-            test_skipped = true;
-        }
+        run_transformation_test(create_model_4d_concrete(), manager, model, model_ref);
     }
 
 protected:
-    bool positive_test;
-
     void read_test_parameters() override {
-        const auto& params = GetParam();
-
-        data_shape = std::get<0>(params);
-        if (!data_shape.rank().is_static())
-            throw std::runtime_error("Rank of input tensor has to be static!");
-        if (data_shape.rank().get_max_length() < 2)
-            throw std::runtime_error("Expected at least two dimensions in input tensor!");
-        if (!data_shape[1].is_static())
-            throw std::runtime_error("Channel dimension in input tensor has to be static!");
-        num_channels = data_shape[1].get_max_length();
-        instance_norm_gamma_shape = std::get<1>(params);
-        instance_norm_beta_shape = std::get<2>(params);
-        group_norm_gamma_shape = std::get<3>(params);
-        group_norm_beta_shape = std::get<4>(params);
-        num_groups = std::get<5>(params);
-        if (num_groups < 1)
-            throw std::runtime_error("Number of groups has to be positive!");
-        epsilon = std::get<6>(params);
-        elem_type = std::get<7>(params);
-        positive_test = std::get<8>(params);
-
-        instance_norm_gamma_present = (instance_norm_gamma_shape != Shape{});
-        instance_norm_beta_present = (instance_norm_beta_shape != Shape{});
-
-        if (positive_test) {
-            if ((instance_norm_gamma_shape != Shape{}) &&
-                (shape_size(instance_norm_gamma_shape) != static_cast<size_t>(num_groups)))
-                throw std::runtime_error("Shape of instance norm gamma has to either be empty or contain "
-                                         "exactly <num_groups> elements");
-            if ((instance_norm_beta_shape != Shape{}) &&
-                (shape_size(instance_norm_beta_shape) != static_cast<size_t>(num_groups)))
-                throw std::runtime_error("Shape of instance norm beta has to either be empty shape or contain "
-                                         "exactly <num_groups> elements");
-            if (shape_size(group_norm_gamma_shape) != static_cast<size_t>(num_channels))
-                throw std::runtime_error("Shape of group norm gamma has to contain exactly <num_channels> elements");
-            if (shape_size(group_norm_beta_shape) != static_cast<size_t>(num_channels))
-                throw std::runtime_error("Shape of group norm beta has to contain exactly <num_channels> elements");
-
-            instance_norm_gamma_present = instance_norm_gamma_present &&
-                                          (shape_size(instance_norm_gamma_shape) == static_cast<size_t>(num_groups));
-            instance_norm_beta_present =
-                instance_norm_beta_present && (shape_size(instance_norm_beta_shape) == static_cast<size_t>(num_groups));
-        }
+        read_test_parameters_impl(GetParam());
     }
 
     // Creates the 4D InstanceNorm pattern model with concrete shape values
@@ -946,62 +749,6 @@ protected:
         auto group_norm_beta_add = std::make_shared<op::v1::Add>(group_norm_gamma_multiply, group_norm_beta_const);
 
         return std::make_shared<Model>(OutputVector{group_norm_beta_add}, ParameterVector{input});
-    }
-
-    std::shared_ptr<Model> create_ref_model() {
-        auto input = std::make_shared<op::v0::Parameter>(elem_type, data_shape);
-
-        auto shape_1d_const = op::v0::Constant::create(element::i64, Shape{1}, {1});
-        auto gather_axis_const = op::v0::Constant::create(element::i64, Shape{1}, {0});
-        auto gather_indices_vals = std::vector<int64_t>();
-        for (auto i = 0ll; i < num_groups; i++)
-            gather_indices_vals.insert(gather_indices_vals.end(), num_channels / num_groups, i);
-        auto gather_indices_const =
-            op::v0::Constant::create(element::i64, Shape{static_cast<size_t>(num_channels)}, gather_indices_vals);
-
-        std::shared_ptr<Node> group_norm_gamma_1d = std::make_shared<op::v0::Squeeze>(group_norm_gamma_const);
-        std::shared_ptr<Node> group_norm_beta_1d = std::make_shared<op::v0::Squeeze>(group_norm_beta_const);
-
-        if (instance_norm_beta_present) {
-            std::shared_ptr<Node> instance_norm_beta_1d = nullptr;
-
-            if (shape_size(instance_norm_beta_shape) == 1) {
-                instance_norm_beta_1d =
-                    std::make_shared<op::v1::Reshape>(instance_norm_beta_const, shape_1d_const, true);
-            } else {
-                instance_norm_beta_1d = std::make_shared<op::v0::Squeeze>(instance_norm_beta_const);
-            }
-
-            instance_norm_beta_1d =
-                std::make_shared<op::v8::Gather>(instance_norm_beta_1d, gather_indices_const, gather_axis_const);
-
-            auto group_norm_beta_corr_multiply =
-                std::make_shared<ov::op::v1::Multiply>(group_norm_gamma_1d, instance_norm_beta_1d);
-            group_norm_beta_1d = std::make_shared<ov::op::v1::Add>(group_norm_beta_corr_multiply, group_norm_beta_1d);
-        }
-
-        if (instance_norm_gamma_present) {
-            std::shared_ptr<Node> instance_norm_gamma_1d = nullptr;
-
-            if (shape_size(instance_norm_gamma_shape) == 1) {
-                instance_norm_gamma_1d =
-                    std::make_shared<op::v1::Reshape>(instance_norm_gamma_const, shape_1d_const, true);
-            } else {
-                instance_norm_gamma_1d = std::make_shared<op::v0::Squeeze>(instance_norm_gamma_const);
-            }
-
-            instance_norm_gamma_1d =
-                std::make_shared<op::v8::Gather>(instance_norm_gamma_1d, gather_indices_const, gather_axis_const);
-            group_norm_gamma_1d = std::make_shared<ov::op::v1::Multiply>(group_norm_gamma_1d, instance_norm_gamma_1d);
-        }
-
-        auto group_norm = std::make_shared<op::v12::GroupNormalization>(input,
-                                                                        group_norm_gamma_1d,
-                                                                        group_norm_beta_1d,
-                                                                        num_groups,
-                                                                        epsilon);
-
-        return std::make_shared<Model>(OutputVector{group_norm}, ParameterVector{input});
     }
 };
 
@@ -1070,6 +817,23 @@ static std::shared_ptr<Model> build_4d_pattern_model(const PartialShape& data_sh
     auto beta_add = std::make_shared<op::v1::Add>(gamma_mul, beta_const);
 
     return std::make_shared<Model>(OutputVector{beta_add}, ParameterVector{input});
+}
+
+// 4D pattern with negative MVN axes {-2, -1}; these should normalize to {2, 3}
+// and still fuse successfully.
+TEST(GroupNormalizationFusion4DAdditionalTests, NegativeMVNAxesNormalizedToPositive) {
+    auto model = build_4d_pattern_model(PartialShape{1, 320, 64, 64},
+                                        /*num_groups=*/32,
+                                        /*mvn_axes_vals=*/{-2, -1},
+                                        /*trailing_dim=*/1);
+
+    ASSERT_EQ(count_ops_of_type<op::v12::GroupNormalization>(model), 0);
+
+    pass::Manager m;
+    m.register_pass<pass::GroupNormalizationFusion>();
+    OV_ASSERT_NO_THROW(m.run_passes(model));
+
+    ASSERT_EQ(count_ops_of_type<op::v12::GroupNormalization>(model), 1);
 }
 
 // 4D pattern with wrong MVN axes: {1, 2} instead of {2, 3}
