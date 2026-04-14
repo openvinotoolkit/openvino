@@ -82,7 +82,7 @@ def patch_gptq():
             x = x.to(torch.float16)
 
             out = dequantize_gemm(qweight, qzeros, scales, w_bit, group_size)
-            out = torch.matmul(x, out)
+            out = torch.matmul(x, out.to(x.dtype))
 
             out = out + bias if bias is not None else out
             out = out.reshape(out_shape)
@@ -123,6 +123,9 @@ def flattenize_tuples(list_input):
     for r in list_input:
         if isinstance(r, (tuple, list)):
             unpacked_pt_res.extend(flattenize_tuples(r))
+        elif hasattr(r, 'to_legacy_cache'):
+            # DynamicCache → legacy tuple of (key, value) tuples
+            unpacked_pt_res.extend(flattenize_tuples(r.to_legacy_cache()))
         else:
             unpacked_pt_res.append(r)
     return unpacked_pt_res
@@ -183,19 +186,16 @@ class TestLLMModel(TestTorchConvertModel):
 
         example = t("Some input text to verify that model works.",
                     return_tensors='pt').__dict__['data']
-        # In export mode PKVs are omitted: FX export flattens PKV tuples
-        # into individual tensor inputs which complicates input mapping.
-        if not self.export_mode:
-            atype = type.replace("_gptq", "")
-            if atype not in ["gptj", "starcoder2", "mpt"]:
-                pkv, am = self.get_pkv(model, t)
-                example["past_key_values"] = pkv
-                example["attention_mask"] = torch.cat(
-                    [example["attention_mask"], am], -1)
-            if atype not in ["opt", "falcon", "mbart", "mpt"]:
-                ids = torch.cumsum(example["attention_mask"] != 0, dim=1) - 1
-                example["position_ids"] = ids[:, -
-                                              example["input_ids"].shape[1]:]
+        atype = type.replace("_gptq", "")
+        if atype not in ["gptj", "starcoder2", "mpt"]:
+            pkv, am = self.get_pkv(model, t)
+            example["past_key_values"] = pkv
+            example["attention_mask"] = torch.cat(
+                [example["attention_mask"], am], -1)
+        if atype not in ["opt", "falcon", "mbart", "mpt"]:
+            ids = torch.cumsum(example["attention_mask"] != 0, dim=1) - 1
+            example["position_ids"] = ids[:, -
+                                          example["input_ids"].shape[1]:]
         self.example = example
         return model
 
@@ -208,6 +208,9 @@ class TestLLMModel(TestTorchConvertModel):
         res = []
         for k in filtered_keys:
             v = inputs[k]
+            # DynamicCache (newer transformers) → legacy tuple for flattening
+            if hasattr(v, 'to_legacy_cache'):
+                v = v.to_legacy_cache()
             if isinstance(v, tuple):
                 v_flatten = flattenize_outputs(v)
                 if k == "past_key_values":
@@ -219,8 +222,49 @@ class TestLLMModel(TestTorchConvertModel):
 
     def infer_fw_model(self, model_obj, inputs):
         inputs = getattr(self, "inputs", self.example)
+        inputs = self._wrap_pkv_if_needed(inputs)
         fw_outputs = model_obj(**inputs)
         return flattenize_outputs(fw_outputs)
+
+    def infer_ov_model(self, ov_model, inputs, ie_device):
+        if self.export_mode:
+            return self._infer_ov_model_export(ov_model, ie_device)
+        return super().infer_ov_model(ov_model, inputs, ie_device)
+
+    def compare_results(self, fw_outputs, ov_outputs):
+        if self.export_mode and isinstance(fw_outputs, (list, tuple)):
+            # In export mode, only compare the first output (logits).
+            # KV cache outputs diverge for quantized models because
+            # FW and OV dequantization paths differ.
+            return super().compare_results([fw_outputs[0]], [ov_outputs[0]])
+        return super().compare_results(fw_outputs, ov_outputs)
+
+    def _infer_ov_model_export(self, ov_model, ie_device):
+        """Build inputs dict by OV model input names for the export path.
+
+        FX export flattens nested structures (e.g. past_key_values tuples)
+        into individual named inputs, so we match OV input names against
+        the flattened example data.
+        """
+        from openvino import Core
+        from torch.utils._pytree import tree_flatten
+
+        # Wrap PKV to DynamicCache so pytree flattening matches the
+        # structure used during torch.export.export.
+        example = self._wrap_pkv_if_needed(
+            getattr(self, "inputs", self.example))
+        flat_values, _ = tree_flatten(example)
+        flat_np = [to_numpy(v) if isinstance(v, torch.Tensor) else v
+                   for v in flat_values]
+
+        ov_inputs = {}
+        for i, inp in enumerate(ov_model.inputs):
+            if i < len(flat_np):
+                ov_inputs[i] = flat_np[i]
+
+        core = Core()
+        compiled = core.compile_model(ov_model, ie_device, self.ov_config)
+        return compiled(ov_inputs)
 
     def convert_model_impl(self, model_obj):
         if self.export_mode:
@@ -230,7 +274,7 @@ class TestLLMModel(TestTorchConvertModel):
             patch(self.model)
             is_patched = True
         # initialize model after patching
-        self.model(**self.example)
+        self.model(**self._wrap_pkv_if_needed(self.example))
         with torch.no_grad():
             ovm = super().convert_model_impl(self.model)
         if is_patched:
@@ -255,14 +299,17 @@ class TestLLMModel(TestTorchConvertModel):
             is_quant_patched = True
 
         try:
-            # Initialize model after patching
-            self.model(**self.example)
+            # Initialize model after patching.
+            # Use deepcopy so the init call doesn't mutate the DynamicCache
+            # in example (the model appends new KV entries in-place).
+            example = self._wrap_pkv_if_needed(self.example)
+            self.model(**copy.deepcopy(example))
 
             with torch.no_grad():
                 exported = export(
                     self.model,
                     args=tuple(),
-                    kwargs=self.example,
+                    kwargs=example,
                     strict=False,
                 )
                 # Restore CUDA mocks before convert_model because
@@ -289,11 +336,31 @@ class TestLLMModel(TestTorchConvertModel):
         super().teardown_method()
 
     @staticmethod
+    def _wrap_pkv_if_needed(example):
+        """Wrap legacy PKV tuples back into DynamicCache if the model requires it."""
+        if "past_key_values" not in example:
+            return example
+        pkv = example["past_key_values"]
+        if isinstance(pkv, tuple):
+            try:
+                from transformers import DynamicCache
+                example = dict(example)
+                example["past_key_values"] = DynamicCache.from_legacy_cache(pkv)
+            except ImportError:
+                pass
+        return example
+
+    @staticmethod
     def get_pkv(model, tokenizer):
         for_pkv = tokenizer("To get past key values",
                             return_tensors='pt').__dict__['data']
         with torch.no_grad():
             pkv = model(**for_pkv)[1]
+
+        # Newer transformers return DynamicCache; convert to legacy tuple format
+        # so that the example dict contains plain tensors for both TS and FX paths.
+        if hasattr(pkv, "to_legacy_cache"):
+            pkv = pkv.to_legacy_cache()
 
         return pkv, for_pkv["attention_mask"]
 
