@@ -460,12 +460,12 @@ bool PagedCausalConv1DFusion::run_on_model(const std::shared_ptr<ov::Model>& mod
 
     SharedRuntimeInputs shared_inputs{
         create_or_get_named_parameter(model, "subsequence_begins", ov::element::i32, ov::PartialShape{-1}).parameter,
-        create_or_get_named_parameter(model, "paged_conv_block_indices", ov::element::i32, ov::PartialShape{-1})
+        create_or_get_named_parameter(model, "la.block_indices", ov::element::i32, ov::PartialShape{-1})
             .parameter,
-        create_or_get_named_parameter(model, "paged_conv_block_indices_begins", ov::element::i32, ov::PartialShape{-1})
+        create_or_get_named_parameter(model, "la.block_indices_begins", ov::element::i32, ov::PartialShape{-1})
             .parameter,
-        create_or_get_named_parameter(model, "paged_conv_past_lens", ov::element::i32, ov::PartialShape{-1}).parameter,
-        create_or_get_named_parameter(model, "paged_conv_cache_interval", ov::element::i32, ov::PartialShape{-1})
+        create_or_get_named_parameter(model, "la.past_lens", ov::element::i32, ov::PartialShape{-1}).parameter,
+        create_or_get_named_parameter(model, "la.cache_interval", ov::element::i32, ov::PartialShape{-1})
             .parameter};
 
     std::vector<std::shared_ptr<ov::Node>> ordered_cache_nodes;

@@ -289,10 +289,10 @@ std::shared_ptr<ov::Model> build_model_with_converted_weights(bool add_present_s
     }
 
     auto subsequence_begins = make_i32_param("subsequence_begins", Shape{3});
-    auto block_indices = make_i32_param("paged_conv_block_indices", Shape{5});
-    auto block_indices_begins = make_i32_param("paged_conv_block_indices_begins", Shape{3});
-    auto past_lens = make_i32_param("paged_conv_past_lens", Shape{2});
-    auto cache_interval = make_i32_param("paged_conv_cache_interval", Shape{2});
+    auto block_indices = make_i32_param("la.block_indices", Shape{5});
+    auto block_indices_begins = make_i32_param("la.block_indices_begins", Shape{3});
+    auto past_lens = make_i32_param("la.past_lens", Shape{2});
+    auto cache_interval = make_i32_param("la.cache_interval", Shape{2});
 
     ParameterVector params{token,
                            gate,
@@ -337,10 +337,10 @@ std::shared_ptr<ov::Model> build_model_without_concat_lfm2_like() {
     auto swish = std::make_shared<v4::Swish>(slice2);
 
     auto subsequence_begins = make_i32_param("subsequence_begins", Shape{3});
-    auto block_indices = make_i32_param("paged_conv_block_indices", Shape{5});
-    auto block_indices_begins = make_i32_param("paged_conv_block_indices_begins", Shape{3});
-    auto past_lens = make_i32_param("paged_conv_past_lens", Shape{2});
-    auto cache_interval = make_i32_param("paged_conv_cache_interval", Shape{2});
+    auto block_indices = make_i32_param("la.block_indices", Shape{5});
+    auto block_indices_begins = make_i32_param("la.block_indices_begins", Shape{3});
+    auto past_lens = make_i32_param("la.past_lens", Shape{2});
+    auto cache_interval = make_i32_param("la.cache_interval", Shape{2});
 
     ParameterVector params{token,
                            gate,
@@ -405,10 +405,10 @@ std::shared_ptr<ov::Model> build_model_without_concat_lfm2_like_multiple() {
     auto swish_1 = std::make_shared<v4::Swish>(slice_1);
 
     auto subsequence_begins = make_i32_param("subsequence_begins", Shape{3});
-    auto block_indices = make_i32_param("paged_conv_block_indices", Shape{5});
-    auto block_indices_begins = make_i32_param("paged_conv_block_indices_begins", Shape{3});
-    auto past_lens = make_i32_param("paged_conv_past_lens", Shape{2});
-    auto cache_interval = make_i32_param("paged_conv_cache_interval", Shape{2});
+    auto block_indices = make_i32_param("la.block_indices", Shape{5});
+    auto block_indices_begins = make_i32_param("la.block_indices_begins", Shape{3});
+    auto past_lens = make_i32_param("la.past_lens", Shape{2});
+    auto cache_interval = make_i32_param("la.cache_interval", Shape{2});
 
     ParameterVector params{token_0,
                            gate_0,

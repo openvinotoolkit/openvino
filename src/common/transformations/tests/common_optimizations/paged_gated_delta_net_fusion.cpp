@@ -57,10 +57,10 @@ std::shared_ptr<ov::Model> build_fusable_model() {
     present_state->get_output_tensor(0).set_names({"cache_params.present.recurrent_state.0"});
 
     auto subsequence_begins = make_i32_param("subsequence_begins", Shape{3});
-    auto block_indices = make_i32_param("paged_gdn.block_indices", Shape{5});
-    auto block_indices_begins = make_i32_param("paged_gdn.block_indices_begins", Shape{3});
-    auto past_lens = make_i32_param("paged_gdn.past_lens", Shape{2});
-    auto cache_interval = make_i32_param("paged_gdn.cache_interval", Shape{2});
+    auto block_indices = make_i32_param("la.block_indices", Shape{5});
+    auto block_indices_begins = make_i32_param("la.block_indices_begins", Shape{3});
+    auto past_lens = make_i32_param("la.past_lens", Shape{2});
+    auto cache_interval = make_i32_param("la.cache_interval", Shape{2});
 
     ParameterVector params{
         query,
