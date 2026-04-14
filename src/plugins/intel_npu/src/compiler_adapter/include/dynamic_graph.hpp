@@ -116,7 +116,8 @@ public:
     DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                  ov::Tensor blob,
                  bool blobAllocatedByPlugin,
-                 const FilteredConfig& config);
+                 const FilteredConfig& config,
+                 bool isOptimizedDynamicStrideSupported);
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
@@ -198,6 +199,7 @@ private:
      */
     std::optional<std::size_t> _batchSize = std::nullopt;
 
+    bool _isOptimizedDynamicStrideSupported = false;
     Logger _logger;
 
     std::unique_ptr<Impl> _impl;

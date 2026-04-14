@@ -16,6 +16,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset6.hpp"
@@ -183,6 +184,34 @@ public:
             }
         }
 
+        auto initStruct = ::intel_npu::ZeroInitStructsHolder::getInstance();
+        if (initStruct->getGraphDdiTable().version() >= ZE_MAKE_VERSION(1, 11)) {
+            isOptimizedDynamicStrideSupported =
+                initStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(initStruct->getDevice(),
+                                                                            ZE_NPU_DRIVER_OPTIONS,
+                                                                            "OPTIMIZED_DYNAMIC_STRIDE",
+                                                                            nullptr) == ZE_RESULT_SUCCESS;
+            ::intel_npu::Logger::global().warning("OPTIMIZED_DYNAMIC_STRIDE compiler option is %s",
+                                                  isOptimizedDynamicStrideSupported ? "supported" : "not supported");
+        }
+        // TODO: Remove when ready. Force the feature be open to check driver
+        isOptimizedDynamicStrideSupported = true;
+
+        const char* supportDynamicStride = std::getenv("SUPPORT_DYNAMIC_STRIDE");
+        if (supportDynamicStride != nullptr) {
+            if (std::string(supportDynamicStride) == "1") {
+                ::intel_npu::Logger::global().warning(
+                    "SUPPORT_DYNAMIC_STRIDE is set to 1, enable updateMutableCommandList to support dynamic stride");
+                isOptimizedDynamicStrideSupported = true;
+            } else {
+                ::intel_npu::Logger::global().warning(
+                    "SUPPORT_DYNAMIC_STRIDE is set to %s, disable updateMutableCommandList, dynamic stride "
+                    "will not be supported",
+                    supportDynamicStride);
+                isOptimizedDynamicStrideSupported = false;
+            }
+        }
+
         APIBaseTest::SetUp();
     }
 
@@ -235,12 +264,14 @@ protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
     bool isTargetDevice = false;
+    static bool isOptimizedDynamicStrideSupported;
 };
+
+bool InferWithHostCompileTests::isOptimizedDynamicStrideSupported = true;
 
 InferWithHostCompileTests::ScopedLogCapture::ScopedLogCapture()
     : callback([this](std::string_view s) {
           stream << s << std::endl;
-          std::cout << s << std::endl;
       }) {
     ov::util::set_log_callback(callback);
 }
@@ -398,6 +429,10 @@ void InferWithHostCompileTests::setInputInferAndCompare(const std::shared_ptr<ov
 }
 
 bool InferWithHostCompileTests::logContains(const ScopedLogCapture& logCapture, const std::string& expectedEntry) {
+    if (!isOptimizedDynamicStrideSupported) {
+        // Skip log check in this case, always reset command list and run with runtime
+        return true;
+    }
     return logCapture.str().find(expectedEntry) != std::string::npos;
 }
 
@@ -571,6 +606,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     if (setupResult.status == RuntimeCompareStatus::skip) {
         GTEST_SKIP() << setupResult.message;
     }
+
     auto& testContext = setupResult.context;
 
     // Start with a smaller valid dynamic shape.
@@ -677,15 +713,67 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
 
     logCapture.clear();
     auto zeroContext = core->get_default_context(target_device);
-    auto inputHostTensor = zeroContext.create_host_tensor(model->input().get_element_type(), shape);
-    auto hostTensorSource = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
-    ASSERT_EQ(hostTensorSource.get_byte_size(), inputHostTensor.get_byte_size())
+    auto inputHostTensorForForthInfer = zeroContext.create_host_tensor(model->input().get_element_type(), shape);
+    auto hostTensorSourceForForthInfer =
+        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
+    ASSERT_EQ(hostTensorSourceForForthInfer.get_byte_size(), inputHostTensorForForthInfer.get_byte_size())
         << "Source and destination tensors must have identical byte sizes for copy";
-    std::memcpy(inputHostTensor.data(), hostTensorSource.data(), hostTensorSource.get_byte_size());
-    setInputInferAndCompare(model, reqDynamic1, reqReference1, inputHostTensor, "CompileAndInferWithZeroTensor_fourth");
+    std::memcpy(inputHostTensorForForthInfer.data(),
+                hostTensorSourceForForthInfer.data(),
+                hostTensorSourceForForthInfer.get_byte_size());
+    setInputInferAndCompare(model,
+                            reqDynamic1,
+                            reqReference1,
+                            inputHostTensorForForthInfer,
+                            "CompileAndInferWithZeroTensor_fourth");
     // Feeding a context-allocated host tensor should also update the command list to the new pointer.
     ASSERT_TRUE(logContains(logCapture, "Update command list with new tensor pointer"))
         << "Expected log to contain 'Update command list with new tensor pointer' for fourth inference, but got: "
+        << logCapture.str();
+
+    logCapture.clear();
+    auto outputShape = reqDynamic1.get_tensor(model->output()).get_shape();
+    auto zeroOutputTensorForFifthInfer = zeroContext.create_host_tensor(model->input().get_element_type(), outputShape);
+    auto hostTensorSourceForOutputForFifthInfer =
+        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), outputShape, 100, 0);
+    ASSERT_EQ(hostTensorSourceForOutputForFifthInfer.get_byte_size(), zeroOutputTensorForFifthInfer.get_byte_size())
+        << "Source and destination tensors must have identical byte sizes for copy";
+    std::memcpy(zeroOutputTensorForFifthInfer.data(),
+                hostTensorSourceForOutputForFifthInfer.data(),
+                hostTensorSourceForOutputForFifthInfer.get_byte_size());
+    OV_ASSERT_NO_THROW(reqDynamic1.set_tensor(model->output(), zeroOutputTensorForFifthInfer));
+    inferAndCompare(model, reqDynamic1, reqReference1, "CompileAndInferWithZeroTensor_fifth");
+    // Feeding a context-allocated host tensor should also update the command list to the new pointer.
+    ASSERT_TRUE(logContains(logCapture, "Update command list with new tensor pointer"))
+        << "Expected log to contain 'Update command list with new tensor pointer' for fifth inference, but got: "
+        << logCapture.str();
+
+    logCapture.clear();
+    auto inputTensorForSixthInfer =
+        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(),
+                                                reqDynamic1.get_tensor(model->input()).get_shape(),
+                                                100,
+                                                0);
+
+    auto outputShapeForSixthInfer = reqDynamic1.get_tensor(model->output()).get_shape();
+    auto zeroOutputTensorForSixthInfer =
+        zeroContext.create_host_tensor(model->input().get_element_type(), outputShapeForSixthInfer);
+    auto hostTensorSourceForOutputForSixthInfer =
+        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), outputShapeForSixthInfer, 100, 0);
+    ASSERT_EQ(hostTensorSourceForOutputForSixthInfer.get_byte_size(), zeroOutputTensorForSixthInfer.get_byte_size())
+        << "Source and destination tensors must have identical byte sizes for copy";
+    std::memcpy(zeroOutputTensorForSixthInfer.data(),
+                hostTensorSourceForOutputForSixthInfer.data(),
+                hostTensorSourceForOutputForSixthInfer.get_byte_size());
+    OV_ASSERT_NO_THROW(reqDynamic1.set_tensor(model->output(), zeroOutputTensorForSixthInfer));
+    setInputInferAndCompare(model,
+                            reqDynamic1,
+                            reqReference1,
+                            inputTensorForSixthInfer,
+                            "CompileAndInferWithZeroTensor_sixth");
+    // Feeding a context-allocated host tensor should also update the command list to the new pointer.
+    ASSERT_TRUE(logContains(logCapture, "Update command list with new tensor pointer"))
+        << "Expected log to contain 'Update command list with new tensor pointer' for sixth inference, but got: "
         << logCapture.str();
 }
 

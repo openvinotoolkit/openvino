@@ -24,7 +24,9 @@ public:
     using MemRefType = DynamicGraph::MemRefType;
 
 public:
-    DynamicGraphImpl() : _logger("DynamicGraphImpl", Logger::global().level()) {}
+    DynamicGraphImpl(bool isOptimizedDynamicStrideSupported)
+        : _isOptimizedDynamicStrideSupported(isOptimizedDynamicStrideSupported),
+          _logger("DynamicGraphImpl", Logger::global().level()) {}
     void initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata) override;
     void createExecutionEngine(std::optional<ov::Tensor>& blob);
     void prepareMetadata(NetworkMetadata& metadata);
@@ -67,6 +69,7 @@ public:
     npu_vm_runtime_properties_t _engineProperties;
     DynamicGraph::GraphArguments _binding;
     bool _initialized = false;
+    bool _isOptimizedDynamicStrideSupported = false;
     Logger _logger;
 };
 
@@ -343,11 +346,34 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
     std::vector<uint64_t> commandListIndexArray;
     bool noTensorChange = true;
     bool allTensorHasOldShape = true;
-    // Prepare command list index array for UpdateMutableCommandList API
-    // Empty means some tensor has new shape, can not reuse commandlist
-    prepareCommandListIndexArray(args, commandListIndexArray, noTensorChange, allTensorHasOldShape);
 
-    if (args._impl == nullptr || !allTensorHasOldShape) {
+    // TODO: remove once verified by driver
+    _isOptimizedDynamicStrideSupported = true;
+    const char* supportDynamicStride = std::getenv("SUPPORT_DYNAMIC_STRIDE");
+    if (supportDynamicStride != nullptr) {
+        if (std::string(supportDynamicStride) == "1") {
+            _logger.debug(
+                "SUPPORT_DYNAMIC_STRIDE is set to 1, enable updateMutableCommandList to support dynamic stride");
+            _isOptimizedDynamicStrideSupported = true;
+        } else {
+            _logger.debug("SUPPORT_DYNAMIC_STRIDE is set to %s, disable updateMutableCommandList, dynamic stride will "
+                          "not be supported",
+                          supportDynamicStride);
+            _isOptimizedDynamicStrideSupported = false;
+        }
+    }
+
+    if (_isOptimizedDynamicStrideSupported) {
+        _logger.debug(
+            "Optimized dynamic stride is supported, prepare command list index array for UpdateMutableCommandList API");
+        // Prepare command list index array for UpdateMutableCommandList API
+        // Empty means some tensor has new shape, can not reuse commandlist
+        prepareCommandListIndexArray(args, commandListIndexArray, noTensorChange, allTensorHasOldShape);
+    } else {
+        _logger.debug("Optimized dynamic stride is not supported, will reset command list to run with runtime");
+    }
+
+    if (args._impl == nullptr || !_isOptimizedDynamicStrideSupported || !allTensorHasOldShape) {
         _logger.debug("Reset command list to run with runtime");
         // Reset commandLists since there are tensor with new shapes or it is the first execution, can not reuse command
         // list with update
@@ -531,9 +557,11 @@ void DynamicGraphImpl::prepareCommandListIndexArray(DynamicGraph::GraphArguments
 DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                            ov::Tensor blob,
                            bool blobAllocatedByPlugin,
-                           const FilteredConfig& config)
+                           const FilteredConfig& config,
+                           bool isOptimizedDynamicStrideSupported)
     : _zeroInitStruct(zeroInitStruct),
       _blob(std::move(blob)),
+      _isOptimizedDynamicStrideSupported(isOptimizedDynamicStrideSupported),
       _logger("DynamicGraph", config.get<LOG_LEVEL>()) {
     _logger.info("Create DynamicGraph");
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
@@ -541,7 +569,7 @@ DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroIni
         return;
     }
 
-    _impl = std::make_unique<DynamicGraphImpl>();
+    _impl = std::make_unique<DynamicGraphImpl>(isOptimizedDynamicStrideSupported);
 
     // TODO: metadata needs to be parsed even when CREATE_EXECUTOR is 0 or DEFER_WEIGHTS_LOAD is YES, keep here to
     // support pure compilation without vm runtime initialize VM execution engine, metadata, input&output
@@ -675,7 +703,7 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
     _logger.debug("Graph initialize start");
 
     if (!_impl) {
-        _impl = std::make_unique<DynamicGraphImpl>();
+        _impl = std::make_unique<DynamicGraphImpl>(_isOptimizedDynamicStrideSupported);
         // initialize VM execution engine, metadata, input&output descriptors
         _impl->initialize(_blob, _metadata);
         _num_of_subgraphs = _impl->getNumSubgraphs();
