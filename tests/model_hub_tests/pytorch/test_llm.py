@@ -222,7 +222,6 @@ class TestLLMModel(TestTorchConvertModel):
 
     def infer_fw_model(self, model_obj, inputs):
         inputs = getattr(self, "inputs", self.example)
-        inputs = self._wrap_pkv_if_needed(inputs)
         fw_outputs = model_obj(**inputs)
         return flattenize_outputs(fw_outputs)
 
@@ -249,10 +248,7 @@ class TestLLMModel(TestTorchConvertModel):
         from openvino import Core
         from torch.utils._pytree import tree_flatten
 
-        # Wrap PKV to DynamicCache so pytree flattening matches the
-        # structure used during torch.export.export.
-        example = self._wrap_pkv_if_needed(
-            getattr(self, "inputs", self.example))
+        example = getattr(self, "inputs", self.example)
         flat_values, _ = tree_flatten(example)
         flat_np = [to_numpy(v) if isinstance(v, torch.Tensor) else v
                    for v in flat_values]
@@ -274,7 +270,7 @@ class TestLLMModel(TestTorchConvertModel):
             patch(self.model)
             is_patched = True
         # initialize model after patching
-        self.model(**self._wrap_pkv_if_needed(self.example))
+        self.model(**self.example)
         with torch.no_grad():
             ovm = super().convert_model_impl(self.model)
         if is_patched:
@@ -299,17 +295,14 @@ class TestLLMModel(TestTorchConvertModel):
             is_quant_patched = True
 
         try:
-            # Initialize model after patching.
-            # Use deepcopy so the init call doesn't mutate the DynamicCache
-            # in example (the model appends new KV entries in-place).
-            example = self._wrap_pkv_if_needed(self.example)
-            self.model(**copy.deepcopy(example))
+            # Initialize model after patching
+            self.model(**self.example)
 
             with torch.no_grad():
                 exported = export(
                     self.model,
                     args=tuple(),
-                    kwargs=example,
+                    kwargs=self.example,
                     strict=False,
                 )
                 # Restore CUDA mocks before convert_model because
@@ -334,21 +327,6 @@ class TestLLMModel(TestTorchConvertModel):
             unpatch_gptq(self.cuda_available, self.gptq_postinit, self.orig_gemm_forward)
             self.cuda_available, self.gptq_postinit, self.orig_gemm_forward = None, None, None
         super().teardown_method()
-
-    @staticmethod
-    def _wrap_pkv_if_needed(example):
-        """Wrap legacy PKV tuples back into DynamicCache if the model requires it."""
-        if "past_key_values" not in example:
-            return example
-        pkv = example["past_key_values"]
-        if isinstance(pkv, tuple):
-            try:
-                from transformers import DynamicCache
-                example = dict(example)
-                example["past_key_values"] = DynamicCache.from_legacy_cache(pkv)
-            except ImportError:
-                pass
-        return example
 
     @staticmethod
     def get_pkv(model, tokenizer):
