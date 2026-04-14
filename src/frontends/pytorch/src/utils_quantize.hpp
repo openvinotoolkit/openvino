@@ -193,6 +193,14 @@ OutputVector quantizable_op(const NodeContext& context) {
  */
 std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64_t axis);
 
+
+/**
+ * Captures aten::stack of 8 elements produced by unpacking uint3 weights.
+ * This pattern is transformed to a 3 Constant nodes with bit manipulations to unpack uint3 values on the fly.
+ * This transformation is required to support quantized models with uint3 weight.
+ */
+std::shared_ptr<Node> u3_compression_stack(const OutputVector& list_elems, int64_t axis);
+
 }  // namespace pytorch
 }  // namespace frontend
 }  // namespace ov
