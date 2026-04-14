@@ -634,7 +634,7 @@ TEST_P(GroupNormalizationFusion4DTestsF, GroupNormalizationFusion4DTests) {
     GroupNormalizationFusion4DTestsF::run();
 }
 
-std::vector<GroupNormalizationFusionTestBaseValues> valid_vals_4d = {
+const std::vector<GroupNormalizationFusionTestBaseValues> valid_vals_4d = {
     std::make_tuple(PartialShape{1, 320}, Shape{}, Shape{}, Shape{320}, Shape{320}, 1, 1e-5),
     std::make_tuple(PartialShape{1, 320}, Shape{1, 32, 1, 1}, Shape{1, 32, 1, 1}, Shape{320}, Shape{320}, 32, 1e-5),
     std::make_tuple(PartialShape{1, 64, 8, 8},
@@ -756,7 +756,7 @@ TEST_P(GroupNormalizationFusion4DConcreteValuesTestsF, GroupNormalizationFusion4
     GroupNormalizationFusion4DConcreteValuesTestsF::run();
 }
 
-std::vector<GroupNormalizationFusionTestBaseValues> valid_vals_4d_concrete = {
+const std::vector<GroupNormalizationFusionTestBaseValues> valid_vals_4d_concrete = {
     std::make_tuple(PartialShape{2, 64, 8, 8}, Shape{}, Shape{}, Shape{64, 1, 1}, Shape{64, 1, 1}, 8, 1e-5),
     std::make_tuple(PartialShape{1, 320, 64, 64}, Shape{}, Shape{}, Shape{320, 1, 1}, Shape{1, 320, 1, 1}, 32, 1e-5),
     std::make_tuple(PartialShape{4, 512, 64, 64}, Shape{}, Shape{}, Shape{512, 1, 1}, Shape{1, 512, 1, 1}, 32, 1e-6),
@@ -789,6 +789,8 @@ static std::shared_ptr<Model> build_4d_pattern_model(const PartialShape& data_sh
                                                      long long trailing_dim,
                                                      float epsilon = 1e-5f,
                                                      element::Type elem_type = element::f32) {
+    OPENVINO_ASSERT(data_shape[1].is_static() && data_shape[1].get_length() > 0,
+                    "Channel dimension must be static and positive for build_4d_pattern_model");
     const auto num_channels = data_shape[1].get_max_length();
 
     auto input = std::make_shared<op::v0::Parameter>(elem_type, data_shape);
@@ -796,7 +798,7 @@ static std::shared_ptr<Model> build_4d_pattern_model(const PartialShape& data_sh
     // Reshape directly to 4D: {0, G, -1, trailing_dim}
     auto pre_mvn_shape_4d =
         op::v0::Constant::create<long long>(element::i64, Shape{4}, {0, num_groups, -1, trailing_dim});
-    auto reshape_4d = std::make_shared<v1::Reshape>(input, pre_mvn_shape_4d, true);
+    auto reshape_4d = std::make_shared<op::v1::Reshape>(input, pre_mvn_shape_4d, true);
 
     // MVN with custom axes
     auto mvn_axes = op::v0::Constant::create<long long>(element::i64, Shape{mvn_axes_vals.size()}, mvn_axes_vals);
@@ -804,7 +806,7 @@ static std::shared_ptr<Model> build_4d_pattern_model(const PartialShape& data_sh
 
     // Reshape back to original shape
     auto post_shape = std::make_shared<op::v0::ShapeOf>(input);
-    auto post_reshape = std::make_shared<v1::Reshape>(mvn, post_shape, true);
+    auto post_reshape = std::make_shared<op::v1::Reshape>(mvn, post_shape, true);
 
     // Group norm gamma/beta
     auto gamma_const = op::v0::Constant::create(elem_type,
