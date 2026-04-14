@@ -49,6 +49,12 @@ struct PagedAttentionOpt : public ImplementationManager {
         };
 
         auto desc = node.as<paged_attention>().get_primitive();
+        const auto key_cache_quant_mode = node.get_program().get_config().get_key_cache_quant_mode();
+        if (key_cache_quant_mode == ov::internal::CacheQuantMode::TURBOQUANT) {
+            GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because TurboQuant requires CM paged attention path. " << std::endl;
+            return false;
+        }
+
         if (desc->has_xattention) {
             GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because XAttention is not supported with ocl. " << std::endl;
             return false;

@@ -103,7 +103,7 @@ static constexpr Property<uint32_t, PropertyMutability::RO> cache_header_alignme
 /**
  * @brief Enum to define possible cache quant schema hints.
  */
-enum class CacheQuantMode { AUTO = 0, BY_CHANNEL = 1, BY_TOKEN = 2 };
+enum class CacheQuantMode { AUTO = 0, BY_CHANNEL = 1, BY_TOKEN = 2, TURBOQUANT = 3 };
 
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const CacheQuantMode& mode) {
@@ -114,6 +114,8 @@ inline std::ostream& operator<<(std::ostream& os, const CacheQuantMode& mode) {
         return os << "BY_CHANNEL";
     case CacheQuantMode::BY_TOKEN:
         return os << "BY_TOKEN";
+    case CacheQuantMode::TURBOQUANT:
+        return os << "TURBOQUANT";
     default:
         OPENVINO_THROW("Unsupported cache quant mode");
     }
@@ -128,6 +130,8 @@ inline std::istream& operator>>(std::istream& is, CacheQuantMode& mode) {
         mode = CacheQuantMode::BY_CHANNEL;
     } else if (str == "BY_TOKEN") {
         mode = CacheQuantMode::BY_TOKEN;
+    } else if (str == "TURBOQUANT") {
+        mode = CacheQuantMode::TURBOQUANT;
     } else {
         OPENVINO_THROW("Unsupported cache quant mode: ", str);
     }
@@ -140,6 +144,7 @@ inline std::istream& operator>>(std::istream& is, CacheQuantMode& mode) {
  * @param AUTO - Default mode decided by plugin.
  * @param BY_CHANNEL - Quantize key cache by channel dimension.
  * @param BY_TOKEN - Quantize key cache by token dimension.
+ * @param TURBOQUANT - Use TurboQuant mode for key cache.
 
     By channel: Quantize along with tokens in each channel
     ┌──┬──┬─────────────────────────┐
@@ -170,6 +175,7 @@ static constexpr Property<CacheQuantMode, PropertyMutability::RW> key_cache_quan
  * @param AUTO - Default mode decided by plugin
  * @param BY_CHANNEL - Quantize value cache by channel dimension.
  * @param BY_TOKEN - Quantize key cache by token dimension.
+ * @param TURBOQUANT - Use TurboQuant mode for value cache.
  */
 
 static constexpr Property<CacheQuantMode, PropertyMutability::RW> value_cache_quant_mode{"VALUE_CACHE_QUANT_MODE"};

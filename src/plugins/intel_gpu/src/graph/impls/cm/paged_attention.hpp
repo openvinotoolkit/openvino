@@ -30,10 +30,14 @@ struct PagedAttentionImplementationManager : public ImplementationManager {
             ov::element::i8,
         };
 
-        // Enable CM PA only in case of XAttention been enabled. May decouple them in future.
         auto desc = node.as<paged_attention>().get_primitive();
-        if (!desc->has_xattention) {
-            GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because we enable CM PA when XAttention is enabled. " << std::endl;
+        auto& engine = node.get_program().get_engine();
+        const auto& config = node.get_program().get_config();
+        const bool use_turboquant = config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::TURBOQUANT;
+
+        // Enable CM PA for either XAttention path or TurboQuant path.
+        if (!desc->has_xattention && !use_turboquant) {
+            GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because neither XAttention nor TurboQuant CM path is enabled. " << std::endl;
             return false;
         }
 
@@ -43,8 +47,6 @@ struct PagedAttentionImplementationManager : public ImplementationManager {
             return false;
         }
 
-        auto& engine = node.get_program().get_engine();
-        const auto& config = node.get_program().get_config();
         const auto& info = engine.get_device_info();
         // CM optimized for systolic-array architectures
         if (!check_cm_jit_support(engine, config) || !info.supports_immad || !config.get_use_cm()) {

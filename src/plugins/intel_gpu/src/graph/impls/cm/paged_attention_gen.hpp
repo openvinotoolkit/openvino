@@ -81,7 +81,7 @@ inline SingleTokenQChunking get_single_token_q_chunking(const kernel_impl_params
 }
 
 inline std::string get_pa_build_options() {
-    return " -cmc -Qxcm_register_file_size=" + std::to_string(PA_CM_REGISTER_FILE_SIZE);
+    return " -cmc -mCM_printregusage -mdump_asm -g2 -Qxcm_register_file_size=" + std::to_string(PA_CM_REGISTER_FILE_SIZE);
 }
 
 #define FIND_DEBUG_ACC 0
@@ -127,6 +127,13 @@ enum PagedAttentionInternBuffIdx {
     XATTN_BLOCKMASK_MERGED = 5,  // 5: sparse_block_mask_wg
 #if FIND_DEBUG_ACC
     XATTN_FIND_DEBUG_ACC = 6,  // 6: kq_sum for debug purpose only
+    TQ_Q_TRANSFORM = 7,        // 7: TurboQuant query rotation transform (q_t)
+    TQ_CENTROIDS = 8,          // 8: TurboQuant centroids LUT
+    TQ_BOUNDARIES = 9,         // 9: TurboQuant boundaries
+#else
+    TQ_Q_TRANSFORM = 6,  // 6: TurboQuant query rotation transform (q_t)
+    TQ_CENTROIDS = 7,    // 7: TurboQuant centroids LUT
+    TQ_BOUNDARIES = 8,   // 8: TurboQuant boundaries
 #endif
 };
 
@@ -152,17 +159,25 @@ public:
 
 class PagedAttentionGeneratorKVCacheUpdate : public PagedAttentionGeneratorBase {
 public:
-    PagedAttentionGeneratorKVCacheUpdate() : PagedAttentionGeneratorBase("pa_kv_cache_update_ref") {}
+    explicit PagedAttentionGeneratorKVCacheUpdate(bool turboquant = false)
+                : PagedAttentionGeneratorBase(turboquant ?  "compressed_kv_cache_update_tq" : "pa_kv_cache_update_ref"),
+          _turboquant(turboquant) {}
+
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
+
+private:
+    bool _turboquant = false;
 };
 
 class PagedAttentionGeneratorMultiToken : public PagedAttentionGeneratorBase {
 public:
-    explicit PagedAttentionGeneratorMultiToken(size_t xattn_block_size = 1)
-        : PagedAttentionGeneratorBase("pa_multi_token", "_cm_bs" + std::to_string(xattn_block_size)),
-          _xattn_block_size(xattn_block_size) {}
+    explicit PagedAttentionGeneratorMultiToken(size_t xattn_block_size = 1, bool turboquant = false)
+        : PagedAttentionGeneratorBase(turboquant ? "pa_multi_token_turboquant" : "pa_multi_token",
+                                     turboquant ? "" : "_cm_bs" + std::to_string(xattn_block_size)),
+          _xattn_block_size(xattn_block_size),
+          _turboquant(turboquant) {}
 
     static size_t get_q_step(const kernel_impl_params& params) {
         const auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
@@ -183,11 +198,15 @@ public:
 
 private:
     size_t _xattn_block_size;
+    bool _turboquant = false;
 };
 
 class PagedAttentionGeneratorSingleToken : public PagedAttentionGeneratorBase {
 public:
-    PagedAttentionGeneratorSingleToken() : PagedAttentionGeneratorBase("pa_single_token") {}
+    explicit PagedAttentionGeneratorSingleToken(bool turboquant = false)
+        : PagedAttentionGeneratorBase(turboquant ? "pa_single_token_turboquant" : "pa_single_token"),
+          _turboquant(turboquant) {}
+
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
@@ -201,6 +220,9 @@ public:
             return PA_KV_CACHE_BLOCK_SIZE_XATTN;
         }
     }
+
+private:
+    bool _turboquant = false;
 };
 
 class PagedAttentionGeneratorSingleTokenFinalization : public PagedAttentionGeneratorBase {

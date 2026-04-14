@@ -40,6 +40,7 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
     const auto key_cache_idx = cldnn::paged_attention::PagedAttentionInputIdx::KEY_CACHE;
     const auto& key_cache_ps = impl_param.get_input_layout(key_cache_idx).get_partial_shape();
     const auto& key_cache_quant_mode = impl_param.get_program().get_config().get_key_cache_quant_mode();
+    const bool use_turboquant = key_cache_quant_mode == ov::internal::CacheQuantMode::TURBOQUANT;
     const auto key_cache_dt = impl_param.get_program().get_config().get_kv_cache_precision();
     bool key_cache_compressed = impl_param.get_input_layout(key_cache_idx).data_type == ov::element::i8 ||
                                 impl_param.get_input_layout(key_cache_idx).data_type == ov::element::u8 ||
@@ -56,7 +57,7 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
                      "[GPU] Paged Attention key cache quantization mode mismatch: prim.is_key_by_channel : ",
                      desc->is_key_by_channel, " but exec_config : ", impl_param.get_program().get_config().get_key_cache_quant_mode());
 
-    const auto block_size_idx = desc->has_xattention ? 2 : 3;
+    const auto block_size_idx = (desc->has_xattention || use_turboquant) ? 2 : 3;
     bool valid_block_size = key_cache_ps.is_dynamic() ||
                             (key_cache_ps[block_size_idx].get_length() == static_cast<ov::Dimension::value_type>(expected_block_size));
     OPENVINO_ASSERT(valid_block_size, "[GPU] Incorrect block size for Paged Attention operation for key cache quant mode "

@@ -1,0 +1,400 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+namespace KERNEL_NAME {
+
+// Dedicated TurboQuant prefill kernel entry.
+// This file is extracted from pa_multi_token.cm and intentionally keeps only:
+//   - CM_HAS_LSC_UNTYPED_2D == 1 path
+//   - CMPA_KVCACHE_U8 == 1 path (KV cache compression)
+//   - SPARSE_BLOCK_SIZE == 1 path
+//
+// Kernel symbol is fixed to: cm_pa_multi_token_turboquant
+
+
+#ifndef CM_HAS_LSC_UNTYPED_2D
+#error "cm_pa_multi_token_turboquant requires CM_HAS_LSC_UNTYPED_2D"
+#endif
+
+#if SPARSE_BLOCK_SIZE != 1
+#error "cm_pa_multi_token_turboquant requires SPARSE_BLOCK_SIZE==1"
+#endif
+
+#if CMPA_KVCACHE_U8 != 1
+#error "cm_pa_multi_token_turboquant requires KV_CACHE_COMPRESSION==True (CMPA_KVCACHE_U8==1)"
+#endif
+
+#if CM_GRF_WIDTH != 512
+#error "cm_pa_multi_token_turboquant requires XE_ARCH>=2"
+#endif
+
+#ifndef CMPA_WG_SEQ_LEN
+#error "CMPA_WG_SEQ_LEN must be defined"
+#endif
+
+#include "cm_attention_common.hpp"
+
+template<bool use_causal_mask, int num_heads, int num_kv_heads, int head_size, int is_q_fused = 0>
+void pa_lsc_u8_tq(
+	uint slm_K,
+	uint slm_V,
+	int wg_local_id,
+	int local_size,
+	int q_start,
+	int kv_stop,
+	int q_len,
+	int kv_len,
+	svmptr_t q_base [[type("svmptr_t")]],
+	const half* tq_q_t [[type("svmptr_t")]],
+	const half* tq_centroids [[type("svmptr_t")]],
+	svmptr_t k_cache_base [[type("svmptr_t")]],
+	svmptr_t v_cache_base [[type("svmptr_t")]],
+	svmptr_t o_base [[type("svmptr_t")]],
+	int32_t past_lens,
+	int32_t* block_indices [[type("svmptr_t")]]) {
+
+	constexpr uint o_pitch = (num_heads * head_size * sizeof(half));
+	constexpr uint q_pitch = is_q_fused
+		? ((num_heads + num_kv_heads * 2) * head_size * sizeof(half))
+		: o_pitch;
+
+	constexpr uint kv_pitch = head_size * sizeof(uint8_t);
+	constexpr uint K_PACKED_BYTES = (head_size * TQ_BITS + 7) / 8;
+	constexpr uint K_TOKEN_BYTES = K_PACKED_BYTES + 2;
+
+	vector<float, q_step> cur_max;
+	vector<float, q_step> cur_sum;
+
+	cur_max = -3e38f;
+	cur_sum = 0;
+
+	constexpr int num_P_tiles = REG_N / REG_M;
+	matrix<half, head_size / REG_K, REG_K * REG_N> rQ;
+	matrix<float, head_size / REG_N * num_P_tiles, REG_M * REG_N> rO;
+	bool first_active = true;
+
+	auto q_tokens_left = q_len;
+	static_assert(q_step == REG_N);
+	static_assert(kv_step == REG_K);
+
+	if (q_tokens_left < 0) q_tokens_left = 0;
+	if (q_tokens_left > q_step) q_tokens_left = q_step;
+
+	if (q_tokens_left > 0) {
+		lsc::block_2d_desc<uint, 1, REG_N, REG_K / 2> b2dQ(
+			reinterpret_cast<uint*>(q_base),
+			q_tokens_left - 1,
+			head_size * sizeof(half) - 1,
+			q_pitch - 1,
+			0, 0);
+
+		#pragma unroll
+		for (int k = 0, ri = 0; k < head_size / 2; k += REG_K / 2, ri++) {
+			cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(k));
+		}
+
+		vector<half, q_step * head_size> q_src = 0;
+		vector<half, q_step * head_size> q_rot = 0;
+
+		#pragma unroll
+		for (int ri = 0; ri < head_size / REG_K; ri++) {
+			auto q_chunk = rQ[ri].format<half, REG_K, REG_N>();
+			#pragma unroll
+			for (int rk = 0; rk < REG_K; rk++) {
+				int gk = ri * REG_K + rk;
+				for (int qt = 0; qt < q_tokens_left; qt++) {
+					q_src[qt * head_size + gk] = q_chunk.format<half>()[rk * REG_N + qt];
+				}
+			}
+		}
+
+		for (int qt = 0; qt < q_tokens_left; qt++) {
+			#pragma unroll
+			for (int j = 0; j < head_size; j++) {
+				float acc = 0.0f;
+				#pragma unroll
+				for (int i = 0; i < head_size; i++) {
+					acc += (float)q_src[qt * head_size + i] * (float)tq_q_t[i * head_size + j];
+				}
+				q_rot[qt * head_size + j] = (half)acc;
+			}
+		}
+
+		#pragma unroll
+		for (int ri = 0; ri < head_size / REG_K; ri++) {
+			auto q_chunk = rQ[ri].format<half, REG_K, REG_N>();
+			#pragma unroll
+			for (int rk = 0; rk < REG_K; rk++) {
+				int gk = ri * REG_K + rk;
+				for (int qt = 0; qt < q_step; qt++) {
+					half v = (qt < q_tokens_left) ? q_rot[qt * head_size + gk] : (half)0.0f;
+					q_chunk.format<half>()[rk * REG_N + qt] = cm_mul<half>(v, (half)scale_factor);
+				}
+			}
+		}
+	}
+
+	vector<half, (1 << TQ_BITS)> centroid_lut;
+	cm_svm_block_read<half, (1 << TQ_BITS)>((svmptr_t)tq_centroids, centroid_lut);
+
+	lsc::block_2d_desc<uint8_t, 1, kv_step, REG_K/2> b2dK(
+		reinterpret_cast<uint8_t*>(k_cache_base), CMPA_BLOCK_SZ - 1, K_PACKED_BYTES * sizeof(uint8_t) - 1, K_PACKED_BYTES * sizeof(uint8_t) - 1, 0, 0);
+	lsc::block_2d_desc<uint8_t, 1, REG_K, REG_N> b2dV(
+		v_cache_base, CMPA_BLOCK_SZ - 1, head_size * sizeof(uint8_t) - 1, kv_pitch - 1, 0, 0);
+
+	constexpr int k_quan_blk_stride =
+		CMFLA_NUM_KV_HEADS * K_TOKEN_BYTES * CMPA_BLOCK_SZ * sizeof(uint8_t);
+	constexpr int v_quan_blk_stride =
+		CMFLA_NUM_KV_HEADS * (CMFLA_HEAD_SIZE + 4) * CMPA_BLOCK_SZ * sizeof(uint8_t);
+
+	int causal_left = q_start + past_lens;
+
+	constexpr uint slm_buff_size = kv_step * head_size * sizeof(half);
+	int slm_buff_id_write = 0;
+	int slm_buff_id_read  = 0;
+
+	auto load_slm_KV = [&](int kv_pos) {
+		if (kv_pos >= kv_stop) return;
+
+		int cur_block_id = block_indices[kv_pos / CMPA_BLOCK_SZ];
+		int kv_pos_in_block = kv_pos - (kv_pos / CMPA_BLOCK_SZ) * CMPA_BLOCK_SZ;
+		uint32_t k_dscale_offset =
+			cur_block_id * k_quan_blk_stride +
+			CMPA_BLOCK_SZ * K_PACKED_BYTES * sizeof(uint8_t) +
+			kv_pos_in_block * sizeof(half);
+		uint32_t v_dscale_offset =
+			cur_block_id * v_quan_blk_stride +
+			CMPA_BLOCK_SZ * head_size * sizeof(uint8_t) +
+			kv_pos_in_block * sizeof(half);
+
+		uint slm_offset = (slm_buff_id_write & 3) * slm_buff_size;
+		vector<half, kv_step> dscale;
+		vector<half, kv_step> zp;
+		int kv_left = (kv_stop - kv_pos) > kv_step ? kv_step : (kv_stop - kv_pos);
+
+		slm_buff_id_write++;
+
+		if (wg_local_id < local_size / 2) {
+			cm_svm_block_read(reinterpret_cast<svmptr_t>(k_cache_base + k_dscale_offset), dscale);
+
+			matrix<half, kv_step, REG_K> kmat;
+			matrix<uint8_t, kv_step, REG_K/2> packedK;
+			b2dK.set_base_ptr(reinterpret_cast<uint8_t*>(k_cache_base + cur_block_id * k_quan_blk_stride));
+			b2dK.set_block_y(kv_pos_in_block);
+
+			for (int k = REG_K * wg_local_id; k < head_size; k += REG_K * (local_size / 2)) {
+				cm_load<lsc::Normal>(packedK.format<uint8_t>(), b2dK.set_block_x(k / 2));
+
+				#pragma unroll
+				for (int r = 0; r < kv_step; r++) {
+					#pragma unroll
+					for (int c = 0; c < REG_K/2; c++) {
+						uint8_t pv = packedK[r][c];
+						half c0 = centroid_lut[(int)(pv & 0x0f)];
+						half c1 = centroid_lut[(int)(pv >> 4)];
+						kmat[r][2*c] = cm_mul<half>(c0, dscale[r]);
+						kmat[r][2*c + 1] = cm_mul<half>(c1, dscale[r]);
+					}
+				}
+
+				for (int r = kv_step - 1; r >= kv_left; r--) kmat[r] = 0;
+
+				cm_slm_block_write(slm_K, slm_offset + k * kv_step * sizeof(half), kmat.format<half>());
+			}
+		} else {
+			cm_svm_block_read(reinterpret_cast<svmptr_t>(v_cache_base + v_dscale_offset), dscale);
+			cm_svm_block_read(reinterpret_cast<svmptr_t>(v_cache_base + v_dscale_offset + CMPA_BLOCK_SZ * sizeof(half)), zp);
+
+			matrix<half, REG_K / 2, REG_N * 2> VmatVNNI;
+			matrix<half, REG_K, REG_N> Vmat;
+			auto quanVmat =
+				Vmat.format<half, 2, REG_K * REG_N / 2>().row(1).format<uint8_t, REG_K, REG_N>();
+			b2dV.set_base_ptr(reinterpret_cast<uint8_t*>(v_cache_base + cur_block_id * v_quan_blk_stride));
+			b2dV.set_block_y(kv_pos_in_block);
+
+			#pragma unroll
+			for (int k = REG_N * (wg_local_id - (local_size / 2));
+				 k < head_size;
+				 k += REG_N * (local_size / 2)) {
+
+				cm_load<lsc::Normal>(quanVmat.format<uint8_t>(), b2dV.set_block_x(k));
+
+				#pragma unroll
+				for (int r = 0; r < kv_step; r++) {
+					Vmat[r] = quanVmat[r] - zp[r];
+					Vmat[r] = cm_mul<half>(Vmat[r], dscale[r]);
+				}
+
+				for (int r = kv_step - 1; r >= kv_left; r--) Vmat[r] = 0;
+
+				prepackAsVNNIWidth2(Vmat, VmatVNNI);
+				cm_slm_block_write(slm_V, slm_offset + k * REG_K * sizeof(half), VmatVNNI.format<half>());
+			}
+		}
+	};
+
+	load_slm_KV(0);
+	load_slm_KV(kv_step);
+	cm_slm_fence(CM_LOCAL_BARRIER);
+	cm_sbarrier(1);
+
+	for (int kv_pos = 0; kv_pos < kv_stop; kv_pos += kv_step, slm_buff_id_read++) {
+		cm_fence(CM_LOCAL_BARRIER);
+		cm_sbarrier(0);
+
+		if (kv_pos + kv_step < kv_stop)
+			cm_sbarrier(1);
+		load_slm_KV(kv_pos + kv_step * 2);
+
+		{
+			uint slm_offset = (slm_buff_id_read & 3) * slm_buff_size;
+
+			matrix<float, kv_step, q_step> St = ugemm_KQ(slm_K, rQ, slm_offset);
+
+			if constexpr (use_causal_mask) {
+				if (causal_left == 0) {
+					apply_causal_mask<1>(St);
+				} else if (causal_left < 0) {
+					St = -3.4e38f;
+				}
+				causal_left -= kv_step;
+			} else {
+				int kv_tokens = kv_stop - kv_pos;
+				for (int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
+			}
+
+			auto max_comp = online_softmax_update(St, cur_max, cur_sum);
+
+			matrix<half, REG_N, REG_K> P;
+			Transpose2DMatrix(St, P);
+
+			if (first_active) {
+				ugemm_PV0(slm_V, P, rO, slm_offset);
+				first_active = false;
+			} else {
+				ugemm_PV1(slm_V, P, max_comp, rO, slm_offset);
+			}
+		}
+	}
+
+	if (q_tokens_left == 0) return;
+
+	matrix<half, num_P_tiles * REG_M, REG_N> cur_O_f16;
+	cur_sum = cm_inv(cur_sum);
+
+	lsc::block_2d_desc<half, 1, REG_M, REG_N> b2dO(
+		o_base,
+		q_tokens_left - 1,
+		head_size * sizeof(half) - 1,
+		o_pitch - 1,
+		0, 0);
+
+	#pragma unroll
+	for (int k = 0, ri = 0; k < head_size; k += REG_N, ri += num_P_tiles) {
+
+		#pragma unroll
+		for (int p = 0; p < num_P_tiles; p++) {
+			auto cO = rO[ri + p].format<float, REG_M, REG_N>();
+
+			#pragma unroll
+			for (int r = 0; r < cO.n_rows(); r++) {
+				cur_O_f16[r + p * REG_M] = cm_mul<float>(cO.row(r), cur_sum[r + p * REG_M]);
+			}
+		}
+
+		b2dO.set_block_x(k);
+		cm_store(b2dO.set_block_y(0),
+				 cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(0));
+		cm_store(b2dO.set_block_y(REG_M),
+				 cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(1));
+	}
+}
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(
+	//query [q_len, num_heads, S]
+	half* query [[type("svmptr_t")]],
+	int8_t* k_cache [[type("svmptr_t")]],
+	int8_t* v_cache [[type("svmptr_t")]],
+	int32_t* past_lens [[type("svmptr_t")]],
+	int32_t* block_indices [[type("svmptr_t")]],
+	int32_t* block_indices_begins [[type("svmptr_t")]],
+	int32_t* subsequence_begins [[type("svmptr_t")]],
+	half* output [[type("svmptr_t")]],
+	const half* tq_q_t [[type("svmptr_t")]],
+	const half* tq_centroids [[type("svmptr_t")]],
+	int q_len
+	) {
+	constexpr int is_causal = CMFLA_IS_CAUSAL;
+	constexpr int num_heads = CMFLA_NUM_HEADS;
+	constexpr int head_size = CMFLA_HEAD_SIZE;
+	constexpr int num_kv_heads = CMFLA_NUM_KV_HEADS;
+	constexpr int pa_block_sz = CMPA_BLOCK_SZ;
+	//# query [q_len, num_heads, S]
+	//# k_cache [kv_len, num_heads, S]
+	//# v_cache [kv_len, num_heads, S]
+	constexpr uint K_SLM_SIZE = (4*kv_step * head_size * sizeof(half));
+	constexpr uint V_SLM_SIZE = (4*kv_step * head_size * sizeof(half));
+	constexpr uint Q_SLM_SIZE = 0;
+
+	cm_slm_init(K_SLM_SIZE + V_SLM_SIZE + Q_SLM_SIZE);
+
+	auto slm_K = cm_slm_alloc(K_SLM_SIZE);
+	auto slm_V = cm_slm_alloc(V_SLM_SIZE);
+
+	auto batch = cm_group_id(0);
+	auto h = cm_group_id(1);
+	auto hkv = h / (num_heads/num_kv_heads);
+	auto wg_id = cm_group_id(2); // each work-group handles a sequence
+	auto wg_local_id = cm_local_id(2);
+	int local_size = cm_local_size(2);
+
+	int q_start_sg, kv_start, kv_seq_len, q_len_sg;
+
+	// multiple work-groups are required to split a sequence,
+	// need to figure out which part of query-tokens to process
+#if defined(CMPA_WG_SEQ_LEN)
+	constexpr int wg_seq_len = CMPA_WG_SEQ_LEN;
+#else
+	int wg_seq_len = local_size * q_step;
+#endif
+	int past_q_lens = past_lens[0];
+	kv_start = 0;
+	kv_seq_len = q_len + past_q_lens;
+	q_start_sg = (wg_id * local_size + wg_local_id) * q_step;
+	q_len_sg = q_step;
+	if (q_start_sg + q_len_sg > q_len) {
+		q_len_sg = q_len - q_start_sg;
+	}
+
+	// qkv is fused
+	int kv_stop = kv_seq_len;
+	if constexpr (is_causal) {
+		kv_stop = (wg_id + 1) * wg_seq_len + past_q_lens;
+		if (kv_stop > kv_seq_len) kv_stop = kv_seq_len;
+	}
+
+	//Q/O[B, L, H, S]
+	uint q_offset = (q_start_sg*num_heads + h)*head_size;
+
+	uint kv_offset = hkv*(head_size+4)*pa_block_sz;
+	pa_lsc_u8_tq<is_causal, num_heads, num_kv_heads, head_size, 0>(
+							slm_K,
+							slm_V,
+							wg_local_id,
+							local_size,
+							q_start_sg, //q_start for SG,
+							kv_stop,
+							q_len_sg, //q_step,
+							kv_seq_len, //kv_len,
+							reinterpret_cast<svmptr_t>(query + q_offset),
+							tq_q_t,
+							tq_centroids,
+							reinterpret_cast<svmptr_t>(k_cache + kv_offset),
+							reinterpret_cast<svmptr_t>(v_cache + kv_offset),
+							reinterpret_cast<svmptr_t>(output + q_offset),
+							past_q_lens,
+							block_indices);
+}
+
+} // namespace KERNEL_NAME
