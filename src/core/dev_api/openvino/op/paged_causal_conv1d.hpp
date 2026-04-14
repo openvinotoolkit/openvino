@@ -25,18 +25,18 @@ public:
     /// \param conv_weight Convolution weight [out_channels, hidden_size/group_size, conv_kernel_size].
     /// \param conv_bias Convolution bias [out_channels].
     /// \param subsequence_begins Start indices of tokens from current sequences [batch_size_in_sequences+1].
-    /// \param block_indices Block index along 0-th dim in conv_state table [num_blocks].
-    /// \param block_indices_begins Defines how block indices are split among sequences [batch_size_in_sequences+1].
-    /// \param past_lens Number of tokens already handled per sequence [batch_size_in_sequences].
+    /// \param la_block_indices Block index along 0-th dim in conv_state table [num_blocks].
+    /// \param la_block_indices_begins Defines how block indices are split among sequences [batch_size_in_sequences+1].
+    /// \param processed_tokens Number of tokens already handled per sequence [batch_size_in_sequences].
     /// \param cache_interval Interval between tokens to cache conv_state [batch_size_in_sequences].
     PagedCausalConv1D(const Output<Node>& input_embeds,
                       const Output<Node>& conv_state_table,
                       const Output<Node>& conv_weight,
                       const Output<Node>& conv_bias,
                       const Output<Node>& subsequence_begins,
-                      const Output<Node>& block_indices,
-                      const Output<Node>& block_indices_begins,
-                      const Output<Node>& past_lens,
+                      const Output<Node>& la_block_indices,
+                      const Output<Node>& la_block_indices_begins,
+                      const Output<Node>& processed_tokens,
                       const Output<Node>& cache_interval);
 
     /// \brief Constructs a PagedCausalConv1D operation from input vector.

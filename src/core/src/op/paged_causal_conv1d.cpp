@@ -26,12 +26,12 @@ inline void input_check(const ov::Node* node,
     const auto& tp = node->get_input_element_type(idx);
 
     auto rank_check = [&](const Rank& rank) {
-        return !rank.is_dynamic() && is_rank_compatible_any_of(rank.get_length(), allowed_ranks);
+        return rank.is_dynamic() || is_rank_compatible_any_of(rank.get_length(), allowed_ranks);
     };
 
     auto type_check = [&](const Type& type) {
-        auto it = std::find(allowed_types.begin(), allowed_types.end(), tp);
-        return !type.is_dynamic() && (allowed_types.empty() || it != allowed_types.end());
+        auto it = std::find(allowed_types.begin(), allowed_types.end(), type);
+        return type.is_dynamic() || allowed_types.empty() || it != allowed_types.end();
     };
 
     NODE_VALIDATION_CHECK(node,
@@ -63,18 +63,18 @@ PagedCausalConv1D::PagedCausalConv1D(const Output<Node>& input_embeds,
                                      const Output<Node>& conv_weight,
                                      const Output<Node>& conv_bias,
                                      const Output<Node>& subsequence_begins,
-                                     const Output<Node>& block_indices,
-                                     const Output<Node>& block_indices_begins,
-                                     const Output<Node>& past_lens,
+                                     const Output<Node>& la_block_indices,
+                                     const Output<Node>& la_block_indices_begins,
+                                     const Output<Node>& processed_tokens,
                                      const Output<Node>& cache_interval)
     : Op({input_embeds,
           conv_state_table,
           conv_weight,
           conv_bias,
           subsequence_begins,
-          block_indices,
-          block_indices_begins,
-          past_lens,
+          la_block_indices,
+          la_block_indices_begins,
+          processed_tokens,
           cache_interval}) {
     constructor_validate_and_infer_types();
 }
@@ -98,9 +98,9 @@ void PagedCausalConv1D::validate_and_infer_types() {
     input_check(this, 2, "conv_weight", {3}, float_types);
     input_check(this, 3, "conv_bias", {1}, float_types);
     input_check(this, 4, "subsequence_begins", {1}, {ov::element::i32});
-    input_check(this, 5, "block_indices", {1}, {ov::element::i32});
-    input_check(this, 6, "block_indices_begins", {1}, {ov::element::i32});
-    input_check(this, 7, "past_lens", {1}, {ov::element::i32});
+    input_check(this, 5, "la_block_indices", {1}, {ov::element::i32});
+    input_check(this, 6, "la_block_indices_begins", {1}, {ov::element::i32});
+    input_check(this, 7, "processed_tokens", {1}, {ov::element::i32});
     input_check(this, 8, "cache_interval", {1}, {ov::element::i32});
 
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
