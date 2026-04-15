@@ -19,6 +19,7 @@
 #include "include/batch_headers/tile_ops.cl"
 #define DECORATOR moe
 #include "expert_gemm_common.cl"
+#include "expert_gemm_compute.cl"
 
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
@@ -64,11 +65,31 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
 #ifdef POST_PROC_SILU_MUL
     post_op_input += input_offset * OUTPUT_STRIDE;
 #endif
-    INPUT2_TYPE expert_id = sub_group_broadcast(experts_ids[batch], 0);
+    int expert_id = sub_group_broadcast(experts_ids[batch], 0);
     int cur_n_tokens = sub_group_broadcast(n_array[batch], 0);
 
-    // --- Shared GEMM computation (sets c_tile_half, sg_i0, sg_j0) ---
-#include "expert_gemm_compute.cl"
+    // --- Shared GEMM computation ---
+    UGEMM_C_TYPE_HALF c_tile_half;
+    uint sg_i0, sg_j0;
+    if (!expert_gemm_compute(input_ptr, weight_ptr,
+#ifdef WEIGHT_COMPRESSED_INT4
+                             weight_scales,
+#    ifdef WEIGHT_ZP_DT
+                             weight_zps,
+#    endif
+#endif
+#ifdef BIAS_DT
+                             bias_ptr,
+#endif
+#ifdef POST_PROC_SILU_MUL
+                             post_op_input,
+#endif
+#ifdef USE_SLM
+                             slm,
+#endif
+                             expert_id, cur_n_tokens, m, k,
+                             &c_tile_half, &sg_i0, &sg_j0))
+        return;
 
     // --- Contiguous tile store ---
     tile_store(c_tile_half, out_ptr, m, cur_n_tokens, sg_i0, sg_j0);

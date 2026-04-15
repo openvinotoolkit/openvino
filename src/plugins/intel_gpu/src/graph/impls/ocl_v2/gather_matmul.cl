@@ -19,6 +19,7 @@
 #include "include/batch_headers/tile_ops.cl"
 #define DECORATOR gm
 #include "expert_gemm_common.cl"
+#include "expert_gemm_compute.cl"
 
 // BatchGatherMatmul kernel — per-token dispatch
 //
@@ -74,20 +75,37 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(batch_gather_ma
     uint expert_slot = flat_idx % top_k;
     int n_tokens = N_TOKENS;
 
-    INPUT2_TYPE expert_id = sub_group_broadcast(indices[token_idx * top_k + expert_slot], 0);
+    int expert_id = sub_group_broadcast(indices[token_idx * top_k + expert_slot], 0);
 
     uint n_act = N_ACTIVATED_EXPERTS;
     uint a_slot = min(expert_slot, n_act - 1);
     input_ptr += a_slot * n_tokens * INPUT_STRIDE + token_idx * INPUT_STRIDE;
     out_ptr += expert_slot * n_tokens * OUTPUT_STRIDE + token_idx * OUTPUT_STRIDE;
 
-    // @todo n=1 per dispatch — each workgroup processes a single token.
-    // This is correct but not optimal for prefill. Future optimization: sort tokens
-    // by expert within each slot and batch tokens that share the same expert.
+    // n=1 per dispatch — each workgroup processes a single token. Used for the
+    // decode path; prefill uses gather_matmul_batched.cl, which groups tokens by
+    // expert so each workgroup amortizes one weight load across many tokens.
     int cur_n_tokens = 1;
 
-    // --- Shared GEMM computation (sets c_tile_half, sg_i0, sg_j0) ---
-#include "expert_gemm_compute.cl"
+    // --- Shared GEMM computation ---
+    UGEMM_C_TYPE_HALF c_tile_half;
+    uint sg_i0, sg_j0;
+    if (!expert_gemm_compute(input_ptr, weight_ptr,
+#ifdef WEIGHT_COMPRESSED_INT4
+                             weight_scales,
+#    ifdef WEIGHT_ZP_DT
+                             weight_zps,
+#    endif
+#endif
+#ifdef BIAS_DT
+                             bias_ptr,
+#endif
+#ifdef USE_SLM
+                             slm,
+#endif
+                             expert_id, cur_n_tokens, m, k,
+                             &c_tile_half, &sg_i0, &sg_j0))
+        return;
 
     // --- Contiguous tile store ---
     tile_store(c_tile_half, out_ptr, m, cur_n_tokens, sg_i0, sg_j0);

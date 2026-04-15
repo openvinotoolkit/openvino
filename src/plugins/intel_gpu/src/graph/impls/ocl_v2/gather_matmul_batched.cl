@@ -19,6 +19,7 @@
 #include "include/batch_headers/tile_ops.cl"
 #define DECORATOR gm
 #include "expert_gemm_common.cl"
+#include "expert_gemm_compute.cl"
 
 // Batched GatherMatmul kernel — grouped GEMM with scattered output.
 //
@@ -83,8 +84,25 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(gather_matmul_b
 
     const global half* input_ptr = gathered_input_ptr + offset * k;
 
-    // --- Shared GEMM computation (sets c_tile_half, sg_i0, sg_j0) ---
-#include "expert_gemm_compute.cl"
+    // --- Shared GEMM computation ---
+    UGEMM_C_TYPE_HALF c_tile_half;
+    uint sg_i0, sg_j0;
+    if (!expert_gemm_compute(input_ptr, weight_ptr,
+#ifdef WEIGHT_COMPRESSED_INT4
+                             weight_scales,
+#    ifdef WEIGHT_ZP_DT
+                             weight_zps,
+#    endif
+#endif
+#ifdef BIAS_DT
+                             bias_ptr,
+#endif
+#ifdef USE_SLM
+                             slm,
+#endif
+                             expert_id, cur_n_tokens, m, k,
+                             &c_tile_half, &sg_i0, &sg_j0))
+        return;
 
     // --- Scattered store: write each row to original token position ---
     {

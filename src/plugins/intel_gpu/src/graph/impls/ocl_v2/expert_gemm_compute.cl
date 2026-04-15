@@ -14,36 +14,53 @@
  * limitations under the License.
  */
 
-// Shared expert GEMM computation body (GatherMatmul + MOE).
-// #include this inside a kernel function after the dispatch preamble.
+// Shared expert GEMM computation function (GatherMatmul + MOE).
 //
-// Preamble must set before #include:
-//   expert_id    — expert index for weight/scale/zp/bias lookup
-//   input_ptr    — already offset to this dispatch's input activations
-//   cur_n_tokens — number of tokens in this dispatch unit
-//   m, k         — output features and input features (kernel params)
-//   weight_ptr   — raw kernel param (offset by expert here)
-//   weight_scales, weight_zps — raw kernel params (offset by expert here, if quantized)
-//   bias_ptr     — raw kernel param (if BIAS_DT defined)
-//   post_op_input — already offset (if POST_PROC_SILU_MUL defined)
-//   slm          — shared local memory (if USE_SLM defined)
+// Requires expert_gemm_common.cl included beforehand (for UG(), UGEMM_* tiles, unroll_for).
 //
-// After this block:
-//   c_tile_half — result tile in half precision, ready for store
-//   sg_i0, sg_j0 — subgroup tile coordinates for store
+// Call from a kernel body after the dispatch preamble has set:
+//   expert_id, input_ptr (offset), cur_n_tokens, plus raw weight/scale/zp/bias/post_op pointers.
 //
-// When SWIGLU_FUSED is defined:
-//   m = N (output features after SwiGLU)
-//   SWIGLU_LENGTH = N, SWIGLU_GATE_IDX, SWISH_BETA
-//   GEMM runs twice (gate at wg_i0, value at wg_i0 + N), SwiGLU in-register
+// Returns true  -> this thread must store *out_tile at (*out_sg_i0, *out_sg_j0).
+// Returns false -> this thread must skip the store (out-of-bounds WG, or non-primary sg_k).
+//
+// When SWIGLU_FUSED is defined the GEMM runs twice (gate + value) and SwiGLU is
+// folded in-register so callers always see a single output tile of width m.
 
+inline bool expert_gemm_compute(
+    const global INPUT0_TYPE* input_ptr,
+#ifdef WEIGHT_COMPRESSED_INT4
+    const global uchar* weight_ptr,
+    const global WEIGHT_SCALE_DT* weight_scales,
+#    ifdef WEIGHT_ZP_DT
+    const global WEIGHT_ZP_DT* weight_zps,
+#    endif
+#else
+    const global INPUT1_TYPE* weight_ptr,
+#endif
+#ifdef BIAS_DT
+    const global BIAS_DT* bias_ptr,
+#endif
+#ifdef POST_PROC_SILU_MUL
+    const global OUTPUT_TYPE* post_op_input,
+#endif
+#ifdef USE_SLM
+    local int* slm,
+#endif
+    int expert_id,
+    int cur_n_tokens,
+    int m,
+    int k,
+    UGEMM_C_TYPE_HALF* out_tile,
+    uint* out_sg_i0,
+    uint* out_sg_j0) {
     // --- GEMM dimension: m is output size, m_gemm is full weight dimension ---
 #ifdef SWIGLU_FUSED
     int m_gemm = m + SWIGLU_LENGTH;
-#define OUTER_OFM 2
+#    define OUTER_OFM 2
 #else
     int m_gemm = m;
-#define OUTER_OFM 1
+#    define OUTER_OFM 1
 #endif
 
     // --- Weight / scale / zero-point offset by expert ---
@@ -81,7 +98,7 @@
 #endif
 
     if (wg_j0 >= cur_n_tokens)
-        return;
+        return false;
 
     // --- Micro-kernel GEMM calls (OUTER_OFM=1 normal, =2 for SwiGLU) ---
     UGEMM_C_TYPE_HALF tiles[OUTER_OFM];
@@ -123,7 +140,7 @@
 
     // kparallel: non-primary subgroups exit after all GEMM calls complete
     if (sg_k > 0)
-        return;
+        return false;
 
     UGEMM_C_TYPE_HALF c_tile_half = tiles[0];
 
@@ -212,4 +229,10 @@
         }
     }
 #endif
+
+    *out_tile = c_tile_half;
+    *out_sg_i0 = sg_i0;
+    *out_sg_j0 = sg_j0;
+    return true;
+}
 #undef OUTER_OFM
