@@ -360,4 +360,92 @@ TEST(sdpa_gpu_custom, single_token_cond_attn_mask_clamp) {
         ASSERT_NEAR(static_cast<float>(ref_ptr[hs]), static_cast<float>(output_ptr[hs]), 1e-2f);
     }
 }
+
+TEST(sdpa_gpu_custom, scalar_placeholder_mask_matches_scale_only) {
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    const int batch = 1;
+    const int seq_length_q = 4;
+    const int seq_length_kv = 6;
+    const int num_heads = 2;
+    const int head_size = 32;
+    const float scale_val = 0.35f;
+
+    const layout q_layout({batch, seq_length_q, num_heads, head_size}, data_types::f16, format::bfyx);
+    const layout k_layout({batch, seq_length_kv, num_heads, head_size}, data_types::f16, format::bfyx);
+    const layout v_layout({batch, seq_length_kv, num_heads, head_size}, data_types::f16, format::bfyx);
+    const layout scalar_mask_layout({ov::PartialShape{}, data_types::f16, format::bfyx});
+
+    auto q_mem = engine.allocate_memory(q_layout);
+    auto k_mem = engine.allocate_memory(k_layout);
+    auto v_mem = engine.allocate_memory(v_layout);
+    auto scalar_mask_mem = engine.allocate_memory(scalar_mask_layout);
+
+    auto fill_random = [&](const memory::ptr& mem) {
+        const auto shape = mem->get_layout().get_shape();
+        const size_t elements_num = ov::shape_size(shape);
+        auto data = rg.generate_random_1d<ov::float16>(elements_num, -1.0f, 1.0f);
+        set_values(mem, data);
+    };
+
+    fill_random(q_mem);
+    fill_random(k_mem);
+    fill_random(v_mem);
+    set_values(scalar_mask_mem, {ov::float16(1.0f)});
+
+    auto run_sdpa = [&](bool use_placeholder_mask) {
+        topology topo;
+        topo.add(input_layout("q", q_layout));
+        topo.add(input_layout("k", k_layout));
+        topo.add(input_layout("v", v_layout));
+        std::vector<input_info> inputs = {input_info("q"), input_info("k"), input_info("v")};
+        if (use_placeholder_mask) {
+            topo.add(input_layout("mask", scalar_mask_layout));
+            inputs.push_back(input_info("mask"));
+        }
+
+        auto sdpa_prim = scaled_dot_product_attention("sdpa",
+                                                      inputs,
+                                                      false,
+                                                      -1,
+                                                      {0, 2, 1, 3},
+                                                      {0, 2, 1, 3},
+                                                      {0, 2, 1, 3},
+                                                      {0, 1, 2, 3},
+                                                      {},
+                                                      false);
+        sdpa_prim.scale_val = scale_val;
+
+        topo.add(sdpa_prim);
+        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+
+        ExecutionConfig cfg = get_test_default_config(engine);
+        cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_opt"}}}));
+
+        auto network = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
+        network->set_input_data("q", q_mem);
+        network->set_input_data("k", k_mem);
+        network->set_input_data("v", v_mem);
+        if (use_placeholder_mask) {
+            network->set_input_data("mask", scalar_mask_mem);
+        }
+
+        return network->execute().at("result").get_memory();
+    };
+
+    auto output_without_mask = run_sdpa(false);
+    auto output_with_placeholder_mask = run_sdpa(true);
+
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> without_mask_ptr(output_without_mask, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> with_placeholder_mask_ptr(output_with_placeholder_mask, get_test_stream());
+
+    ASSERT_EQ(without_mask_ptr.size(), with_placeholder_mask_ptr.size());
+    for (size_t i = 0; i < without_mask_ptr.size(); ++i) {
+        ASSERT_NEAR(static_cast<float>(without_mask_ptr[i]), static_cast<float>(with_placeholder_mask_ptr[i]), 1e-3f)
+            << "Mismatch at index " << i;
+    }
+}
 } // namespace

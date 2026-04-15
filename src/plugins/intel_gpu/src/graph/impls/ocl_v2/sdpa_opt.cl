@@ -908,10 +908,14 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
     }
 #endif
 
-#if HAS_SCALE_INPUT
-    const OUTPUT_TYPE scale_val = OUTPUT_VAL_ONE / *scale;
+#if APPLY_SCALES_TO_QUERY
+    const INPUT0_TYPE scale_val = INPUT0_VAL_ONE;
 #else
-    const INPUT0_TYPE scale_val = TO_INPUT0_TYPE(STATIC_SCALE_VALUE_INV);
+    #if HAS_SCALE_INPUT
+        const OUTPUT_TYPE scale_val = OUTPUT_VAL_ONE / *scale;
+    #else
+        const INPUT0_TYPE scale_val = TO_INPUT0_TYPE(STATIC_SCALE_VALUE_INV);
+    #endif
 #endif
 
     // Apply scale to attn_mask
