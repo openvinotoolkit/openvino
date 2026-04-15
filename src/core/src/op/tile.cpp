@@ -6,7 +6,6 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "openvino/core/shape_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/reference/tile.hpp"
