@@ -358,13 +358,15 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    if (name == ov::runtime_requirements.name()) {
+    if (name == ov::runtime_requirements_met.name()) {
         if (arguments.empty()) {
             // TODO is this good?
             return true;
         }
 
-        std::string decodedString = utils::decode_compatibility_string(arguments.at("TODO"));
+        ov::Tensor encodedTensor = arguments.at(ov::runtime_requirements.name()).as<ov::Tensor>();
+        const std::string encodedString(reinterpret_cast<char*>(encodedTensor.data()), encodedTensor.get_byte_size());
+        std::string decodedString = utils::decode_compatibility_string(encodedString);
         const ov::Tensor viewTensor =
             ov::Tensor(ov::element::Type_t::u8, ov::Shape(decodedString.length()), decodedString.data());
 
