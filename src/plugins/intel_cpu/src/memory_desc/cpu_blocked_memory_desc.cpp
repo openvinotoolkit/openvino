@@ -173,28 +173,20 @@ size_t CpuBlockedMemoryDesc::getCurrentMemSizeImp() const {
     }
 
     size_t byte_size = 0;
-    OPENVINO_ASSERT(!ov::util::mul_overflow(e_size,
-                                            static_cast<size_t>(prc.bitwidth()),
-                                            byte_size),
+    OPENVINO_ASSERT(!ov::util::mul_overflow(e_size, static_cast<size_t>(prc.bitwidth()), byte_size),
                     "CpuBlockedMemoryDesc::getCurrentMemSizeImp overflow while converting elements to bit size");
 
     if (any_of(prc, ov::element::u3, ov::element::u6)) {
         constexpr size_t storage_unit_size = 24;
-        OPENVINO_ASSERT(!ov::util::add_overflow(byte_size,
-                                                storage_unit_size - 1,
-                                                byte_size),
+        OPENVINO_ASSERT(!ov::util::add_overflow(byte_size, storage_unit_size - 1, byte_size),
                         "CpuBlockedMemoryDesc::getCurrentMemSizeImp overflow while rounding packed bit size");
         byte_size /= storage_unit_size;
-        OPENVINO_ASSERT(!ov::util::mul_overflow(byte_size,
-                                                static_cast<size_t>(3),
-                                                byte_size),
+        OPENVINO_ASSERT(!ov::util::mul_overflow(byte_size, static_cast<size_t>(3), byte_size),
                         "CpuBlockedMemoryDesc::getCurrentMemSizeImp overflow while converting packed storage to "
                         "bytes");
     } else {
         constexpr size_t storage_unit_size = 8;
-        OPENVINO_ASSERT(!ov::util::add_overflow(byte_size,
-                                                storage_unit_size - 1,
-                                                byte_size),
+        OPENVINO_ASSERT(!ov::util::add_overflow(byte_size, storage_unit_size - 1, byte_size),
                         "CpuBlockedMemoryDesc::getCurrentMemSizeImp overflow while rounding bit size");
         byte_size /= storage_unit_size;
     }
