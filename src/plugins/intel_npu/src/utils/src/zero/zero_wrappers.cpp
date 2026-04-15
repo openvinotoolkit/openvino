@@ -89,7 +89,7 @@ EventPool::EventPool(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
         zeEventPoolCreate(_init_structs->getContext(), &event_pool_desc, 1, &device_handle, &_handle));
 }
 EventPool::~EventPool() {
-    if (_init_structs == nullptr || _init_structs->getContext() == nullptr || _handle == nullptr) {
+    if (_init_structs->getContext() == nullptr || _handle == nullptr) {
         _log.warning("Context or EventPool handle is null during destruction. EventPool might be already destroyed.");
         return;
     }
@@ -129,7 +129,7 @@ void Event::reset() const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeEventHostReset", zeEventHostReset(_handle));
 }
 Event::~Event() {
-    if (_init_structs == nullptr || _init_structs->getContext() == nullptr || _handle == nullptr) {
+    if (_init_structs->getContext() == nullptr || _handle == nullptr) {
         _log.warning("Context or Event handle is null during destruction. Event might be already destroyed.");
         return;
     }
@@ -218,7 +218,7 @@ void CommandList::close() const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListClose", zeCommandListClose(_handle));
 }
 CommandList::~CommandList() {
-    if (_init_structs == nullptr || _init_structs->getContext() == nullptr || _handle == nullptr) {
+    if (_init_structs->getContext() == nullptr || _handle == nullptr) {
         _log.warning(
             "Context or CommandList handle is null during destruction. CommandList might be already destroyed.");
         return;
@@ -349,7 +349,7 @@ void CommandQueue::executeCommandList(CommandList& command_list, Fence& fence) c
                                 zeCommandQueueExecuteCommandLists(_handle, 1, &command_list._handle, fence.handle()));
 }
 CommandQueue::~CommandQueue() {
-    if (_init_structs == nullptr || _init_structs->getContext() == nullptr || _handle == nullptr) {
+    if (_init_structs->getContext() == nullptr || _handle == nullptr) {
         _log.warning(
             "Context or CommandQueue handle is null during destruction. CommandQueue might be already destroyed.");
         return;
@@ -377,7 +377,7 @@ void Fence::hostSynchronize() const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeFenceHostSynchronize", zeFenceHostSynchronize(_handle, UINT64_MAX));
 }
 Fence::~Fence() {
-    if (_init_structs == nullptr || _init_structs->getContext() == nullptr || _handle == nullptr) {
+    if (_init_structs->getContext() == nullptr || _handle == nullptr) {
         _log.warning("Context or Fence handle is null during destruction. Fence might be already destroyed.");
         return;
     }
