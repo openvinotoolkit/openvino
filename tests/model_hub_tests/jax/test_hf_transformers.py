@@ -23,7 +23,10 @@ from jax_utils import TestJaxConvertModel
 class TestTransformersModel(TestJaxConvertModel):
     @retry(3, exceptions=(OSError,), delay=1)
     def load_model(self, model_name, _):
-        model_cached = snapshot_download(model_name)  # required to avoid HF rate limits
+        try:
+            model_cached = snapshot_download(model_name, local_files_only=True)
+        except Exception:
+            model_cached = snapshot_download(model_name)  # fallback: download if not cached
         model = FlaxAutoModel.from_pretrained(model_cached)
         if model_name in ['google/vit-base-patch16-224-in21k']:
             url = "http://images.cocodataset.org/val2017/000000039769.jpg"

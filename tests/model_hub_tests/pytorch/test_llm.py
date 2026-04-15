@@ -152,7 +152,10 @@ class TestLLMModel(TestTorchConvertModel):
 
         model = None
         example = None
-        model_cached = snapshot_download(name)  # required to avoid HF rate limits
+        try:
+            model_cached = snapshot_download(name, local_files_only=True)
+        except Exception:
+            model_cached = snapshot_download(name)  # fallback: download if not cached
         try:
             config = AutoConfig.from_pretrained(model_cached, trust_remote_code=True)
         except Exception:
@@ -170,7 +173,10 @@ class TestLLMModel(TestTorchConvertModel):
             model_kwargs["torch_dtype"] = torch.float16
         else:
             model_kwargs["torch_dtype"] = "auto"
-        model_cached = snapshot_download(name)  # required to avoid HF rate limits
+        try:
+            model_cached = snapshot_download(name, local_files_only=True)
+        except Exception:
+            model_cached = snapshot_download(name)  # fallback: download if not cached
         t = AutoTokenizer.from_pretrained(model_cached, trust_remote_code=True)
         self.model = AutoModelForCausalLM.from_pretrained(model_cached, **model_kwargs)
         if is_quant:

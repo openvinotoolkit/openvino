@@ -92,7 +92,10 @@ def run_test(model_id, ie_device, ts_names, expected_layer_types):
         except (ImportError, AttributeError):
             pytest.skip("OVModelForCausalLM unavailable with installed package versions")
 
-    model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
+    try:
+        model_cached = snapshot_download(model_id, local_files_only=True)
+    except Exception:
+        model_cached = snapshot_download(model_id)  # fallback: download if not cached
     try:
         model = OVModelForCausalLM.from_pretrained(model_cached, export=True, trust_remote_code=True)
     except (ValueError, ImportError) as e:
@@ -104,7 +107,10 @@ def run_test(model_id, ie_device, ts_names, expected_layer_types):
 def run_flux_test(model_id, ie_device, ts_names, expected_layer_types):
     from diffusers import FluxTransformer2DModel
 
-    model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
+    try:
+        model_cached = snapshot_download(model_id, local_files_only=True)
+    except Exception:
+        model_cached = snapshot_download(model_id)  # fallback: download if not cached
     try:
         transformer = FluxTransformer2DModel.from_pretrained(
             model_cached, subfolder="transformer")

@@ -63,7 +63,10 @@ class TestTransformersModel(TestTorchConvertModel):
 
         name, _, name_suffix = name.partition(':')
 
-        model_cached = snapshot_download(name)  # required to avoid HF rate limits
+        try:
+            model_cached = snapshot_download(name, local_files_only=True)
+        except Exception:
+            model_cached = snapshot_download(name)  # fallback: download if not cached
         mi = model_info(name)
         auto_processor = None
         model = None
@@ -526,7 +529,10 @@ class TestTransformersModel(TestTorchConvertModel):
         from huggingface_hub import model_info, snapshot_download
         from transformers import AutoModel
 
-        model_cached = snapshot_download(name)  # required to avoid HF rate limits
+        try:
+            model_cached = snapshot_download(name, local_files_only=True)
+        except Exception:
+            model_cached = snapshot_download(name)  # fallback: download if not cached
         try:
             mi = model_info(name)
             assert len({"owlv2", "owlvit", "vit_mae"}.intersection(

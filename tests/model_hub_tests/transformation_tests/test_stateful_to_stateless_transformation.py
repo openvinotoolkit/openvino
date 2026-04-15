@@ -53,7 +53,10 @@ def check_result_desc_tensors(expected_tensors, tensors):
 
 @retry(3, exceptions=(OSError,), delay=1)
 def run_stateful_to_stateless_in_runtime(tmp_path, model_id, model_link):
-    model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
+    try:
+        model_cached = snapshot_download(model_id, local_files_only=True)
+    except Exception:
+        model_cached = snapshot_download(model_id)  # fallback: download if not cached
     model = OVModelForCausalLM.from_pretrained(model_cached, export=True, stateful=True, compile=False)
     assert len(model.model.get_sinks()), f"Input model is not in the expected stateful form because it doesn't have any sinks."
     assert len(get_read_value_ops(model.model)), f"Input model is not in the expected stateful form because it doesn't have any ReadValue operations."
