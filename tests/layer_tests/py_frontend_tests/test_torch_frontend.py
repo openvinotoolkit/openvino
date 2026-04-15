@@ -1817,14 +1817,14 @@ def test_ov_ext_ops_meta_dispatch():
         torch.empty(64, device="meta"), None)
     assert r.shape == (2, 3, 64) and r.dtype == torch.bfloat16
 
-    # gptq_gemm
+    # gptq_gemm  — qweight is [in_features/8, out_features]
     r = torch.ops.ov_ext.gptq_gemm(
         torch.empty(2, 64, dtype=torch.float16, device="meta"),
         torch.empty(8, 16, device="meta"),
         torch.empty(2, 2, device="meta"),
         torch.empty(2, 16, device="meta"),
         32, 4, False, None)
-    assert r.shape == (2, 128) and r.dtype == torch.float16
+    assert r.shape == (2, 16) and r.dtype == torch.float16
 
 
 def test_ov_ext_awq_gemm_output_shape():
@@ -1857,19 +1857,21 @@ def test_ov_ext_gptq_gemm_output_shape():
     import openvino.frontend.pytorch.ov_custom_ops  # noqa: F401
     batch, in_f, w_bit, group_size = 2, 64, 4, 32
     pack_num = 32 // w_bit
-    packed_out = 16  # out_features = packed_out * pack_num = 128
+    out_features = 64
     data = torch.randn(batch, in_f)
-    qweight = torch.randint(0, 255, (in_f // pack_num, packed_out), dtype=torch.int32)
-    qzeros = torch.randint(0, 255, (in_f // group_size, packed_out // pack_num), dtype=torch.int32)
-    scales = torch.randn(in_f // group_size, packed_out)
+    # GPTQ packs along input dim: qweight = [in_features/pack_num, out_features]
+    qweight = torch.randint(0, 255, (in_f // pack_num, out_features), dtype=torch.int32)
+    # qzeros packs along output dim: qzeros = [n_groups, out_features/pack_num]
+    qzeros = torch.randint(0, 255, (in_f // group_size, out_features // pack_num), dtype=torch.int32)
+    scales = torch.randn(in_f // group_size, out_features)
     # Asymmetric
     result = torch.ops.ov_ext.gptq_gemm(data, qweight, qzeros, scales,
                                          group_size, w_bit, False, None)
-    assert result.shape == (batch, packed_out * pack_num)
+    assert result.shape == (batch, out_features)
     # Symmetric
     result_sym = torch.ops.ov_ext.gptq_gemm(data, qweight, qzeros, scales,
                                              group_size, w_bit, True, None)
-    assert result_sym.shape == (batch, packed_out * pack_num)
+    assert result_sym.shape == (batch, out_features)
 
 
 @pytest.mark.skipif(sys.platform.lower().startswith("win"), reason="CVS-174725")

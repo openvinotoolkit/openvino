@@ -119,8 +119,9 @@ def _gptq_gemm_meta(
     _scales: torch.Tensor, _group_size: int, w_bit: int, _sym: bool,
     _bias: torch.Tensor | None,
 ) -> torch.Tensor:
-    pack_num = 32 // w_bit
-    out_features = qweight.shape[1] * pack_num
+    # qweight is [in_features / pack_num, out_features] — dim 1 is the raw
+    # output width (packing is along the input dimension only).
+    out_features = qweight.shape[1]
     return torch.empty(
         *data.shape[:-1], out_features,
         dtype=data.dtype, device="meta")
@@ -133,8 +134,9 @@ def _gptq_gemm_cpu(
     bias: torch.Tensor | None,
 ) -> torch.Tensor:
     # Placeholder – actual dequantisation happens in the C++ OV translator.
-    pack_num = 32 // w_bit
-    out_features = qweight.shape[1] * pack_num
+    # qweight is [in_features / pack_num, out_features] — dim 1 is the raw
+    # output width (packing is along the input dimension only).
+    out_features = qweight.shape[1]
     out = torch.zeros(
         *data.shape[:-1], out_features,
         dtype=torch.float32, device=data.device)

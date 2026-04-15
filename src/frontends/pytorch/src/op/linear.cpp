@@ -113,6 +113,8 @@ uint32_t rearrange_awq_bits(uint32_t num) {
 Output<Node> rearrange_constant(const Output<Node>& c, uint32_t groups) {
     auto constant = ov::as_type_ptr<v0::Constant>(c.get_node_shared_ptr());
     FRONT_END_OP_CONVERSION_CHECK(constant, "weight must be Constant.");
+    FRONT_END_OP_CONVERSION_CHECK(constant->get_byte_size() == shape_size(constant->get_shape()) * sizeof(uint32_t),
+                                  "AWQ constant storage size does not match expected int32 packing.");
     auto src = constant->get_data_ptr<uint32_t>();
     auto initial_shape = constant->get_shape();
     FRONT_END_OP_CONVERSION_CHECK(initial_shape.size() == 2, "Only 2D constants are supported.");
@@ -139,6 +141,8 @@ Output<Node> rearrange_constant(const Output<Node>& c, uint32_t groups) {
 Output<Node> unpack_gptq_qweight(const Output<Node>& c, int64_t group_size) {
     auto constant = ov::as_type_ptr<v0::Constant>(c.get_node_shared_ptr());
     FRONT_END_OP_CONVERSION_CHECK(constant, "qweight must be Constant.");
+    FRONT_END_OP_CONVERSION_CHECK(constant->get_byte_size() == shape_size(constant->get_shape()) * sizeof(uint32_t),
+                                  "GPTQ qweight storage size does not match expected int32 packing.");
     auto src = constant->get_data_ptr<uint32_t>();
     auto initial_shape = constant->get_shape();
     FRONT_END_OP_CONVERSION_CHECK(initial_shape.size() == 2, "Only 2D qweight constants are supported.");
@@ -171,6 +175,8 @@ Output<Node> unpack_gptq_qweight(const Output<Node>& c, int64_t group_size) {
 Output<Node> unpack_gptq_qzeros(const Output<Node>& c) {
     auto constant = ov::as_type_ptr<v0::Constant>(c.get_node_shared_ptr());
     FRONT_END_OP_CONVERSION_CHECK(constant, "qzeros must be Constant.");
+    FRONT_END_OP_CONVERSION_CHECK(constant->get_byte_size() == shape_size(constant->get_shape()) * sizeof(uint32_t),
+                                  "GPTQ qzeros storage size does not match expected int32 packing.");
     auto src = reinterpret_cast<const uint8_t*>(constant->get_data_ptr());
     auto initial_shape = constant->get_shape();
     FRONT_END_OP_CONVERSION_CHECK(initial_shape.size() == 2, "Only 2D qzeros constants are supported.");
