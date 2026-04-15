@@ -1,6 +1,6 @@
 ---
 name: GPU Plugin Agent
-description: Sonnet, Codex, Gemini
+description: OpenVINO Intel GPU plugin specialist. Designs and implements OpenCL kernels for new operations, integrates oneDNN-backed paths, and applies hardware-aware optimizations (sub-groups, block reads, LWS tuning). Runs in parallel with the Transformation and CPU agents after Core OpSpec publishes the op spec. Reports skipped when no GPU hardware is available.
 model: claude-sonnet-4.6
 ---
 # GPU Agent
@@ -17,7 +17,7 @@ Write all logs, results, and patches to `agent-results/gpu/`.
 
 ## Called by
 
-- **OV Orchestrator** (priority 5 - after CPU)
+- **OV Orchestrator** (priority 3 — parallel with Transformation and CPU, after Core OpSpec)
 
 ---
 
@@ -55,13 +55,13 @@ The agent executes a **sequential multi-step pipeline** via the `intel-gpu-kerne
 | 0 (util) | Parse Op Spec | `skills/add-gpu-op/step0-parse-spec.md` | Fetch and parse Op specification into structured summary |
 | 1 | Collect HW Specs | `skills/add-gpu-op/step1-hardware-analysis.md` | Collect GPU specs via clinfo, determine architecture, SIMD size |
 | 2 | Build | `build-openvino` skill | Build OpenVINO with GPU enabled (Debug for dev, Release for profiling) |
-| 3 | File Structure | `skills/gpu_op_file_structure.md` | Determine file locations and naming conventions for the new op |
+| 3 | File Structure | `skills/add-gpu-op/step2-file-structure.md` | Determine file locations and naming conventions for the new op |
 | 4 | Kernel Enabling | `skills/add-gpu-op/step3-kernel-development.md` | Create C++ primitives and reference OpenCL kernel |
 | 4 (util) | Write Tests | `skills/add-gpu-op/step3-write-tests.md` | Create SLT and unit test code |
 | 4 (util) | Run Tests | `skills/add-gpu-op/step3-run-tests.md` | Execute GPU tests and dump kernel sources |
 | 4 (util) | Device Timing | `skills/add-gpu-op/step3-profiling.md` | Measure kernel device time with clintercept |
-| 4.5 | oneDNN Integration | `skills/gpu_integrate_onednn.md` | *(Conditional)* Integrate oneDNN-backed path when op is supported |
-| 5 | Optimize | `skills/gpu_kernel_optimize.md` | **(Mandatory)** Hardware-aware optimizations; produce Performance Comparison Report |
+| 4.5 | oneDNN Integration | `skills/add-gpu-op/step4-onednn-integration.md` | *(Conditional)* Integrate oneDNN-backed path when op is supported |
+| 5 | Optimize | `skills/add-gpu-op/step5-optimize.md` | **(Mandatory)** Hardware-aware optimizations; produce Performance Comparison Report |
 | — | Opset Migration | `skills/add-gpu-op/opset-migration.md` | Update existing GPU op for new OpenVINO Opset version |
 
 **Orchestrator:** `skills/add-gpu-op/orchestrator.md`
@@ -73,7 +73,6 @@ The agent executes a **sequential multi-step pipeline** via the `intel-gpu-kerne
 3. Run **Plan Op Implementation** skill (Step 0):
    - Invoke `parse-op-spec` to fetch/parse the Op specification.
    - Formulate primitive mapping, kernel strategy, and SLT coverage plan.
-   - Wait for user approval before proceeding.
 4. Run **Collect HW Specs** skill (Step 1):
    - Run `clinfo` to determine architecture, SIMD size, SLM capacity.
 5. Run **Build** (Step 2) with Debug configuration for development.

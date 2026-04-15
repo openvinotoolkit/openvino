@@ -1,6 +1,6 @@
 ---
 name: CPU Plugin Agent
-description: Sonnet, Codex, Gemini
+description: OpenVINO Intel CPU plugin specialist. Implements ISA-aware CPU kernels for new operations: node registration, JIT executors (AVX2/AVX-512/AMX), oneDNN-backed paths, and functional tests. Runs in parallel with the Transformation and GPU agents after Core OpSpec publishes the op spec.
 model: claude-sonnet-4.6
 ---
 # CPU Agent
@@ -17,7 +17,7 @@ Write all logs, results, and patches to `agent-results/cpu/`.
 
 ## Called by
 
-- **OV Orchestrator** (priority 4 - after Transformation)
+- **OV Orchestrator** (priority 3 — parallel with Transformation and GPU, after Core OpSpec)
 
 ---
 
