@@ -369,7 +369,9 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
 
     // Create context - share between the compiler and the backend
     ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, 0, 0};
-    THROW_ON_FAIL_FOR_LEVELZERO("zeContextCreate", zeContextCreate(_driver_handle, &context_desc, &_context));
+    ze_context_handle_t ctx = nullptr;
+    THROW_ON_FAIL_FOR_LEVELZERO("zeContextCreate", zeContextCreate(_driver_handle, &context_desc, &ctx));
+    _context.store(ctx);
     _log.debug("ZeroInitStructsHolder initialize complete");
 
     // Discover if standard allocation is supported
@@ -496,7 +498,7 @@ void ZeroInitStructsHolder::setContextProperties() {
     ze_context_properties_npu_ext_t context_properties_npu_ext = {ZE_STRUCTURE_TYPE_CONTEXT_PROPERTIES_NPU_EXT,
                                                                   nullptr,
                                                                   _context_options};
-    _context_npu_dditable_ext_decorator->pfnSetProperties(_context, &context_properties_npu_ext);
+    _context_npu_dditable_ext_decorator->pfnSetProperties(_context.load(), &context_properties_npu_ext);
 }
 
 void ZeroInitStructsHolder::clearContextOptions(const uint32_t options) {
@@ -512,13 +514,13 @@ void ZeroInitStructsHolder::setContextOptions(const uint32_t options) {
 }
 
 void ZeroInitStructsHolder::destroyContextLocked() {
-    if (!_context) {
+    if (!_context.load()) {
         return;
     }
 
     _log.debug("ZeroInitStructsHolder - performing zeContextDestroy");
-    auto result = zeContextDestroy(_context);
-    _context = nullptr;
+    auto result = zeContextDestroy(_context.load());
+    _context.store(nullptr);
     if (result != ZE_RESULT_SUCCESS) {
         if (result == ZE_RESULT_ERROR_UNINITIALIZED) {
             _log.warning("zeContextDestroy failed to destroy the context; Level zero context was already destroyed");
