@@ -196,7 +196,9 @@ static void recurrent_linear_attn_paged_impl(const ov::intel_cpu::PlainTensor& q
         const int32_t block_begin = block_indices_begins.at<int32_t>({seq});
         const int32_t block_end = block_indices_begins.at<int32_t>({seq + 1});
         const int32_t seq_blocks = std::max(block_end - block_begin, 0);
+        const int32_t seq_past_len = past_lens.at<int32_t>({seq});
         const int32_t seq_interval = cache_interval.at<int32_t>({seq});
+        const int32_t prev_nums = (seq_interval > 0) ? (seq_past_len % seq_interval) : 0;
         OPENVINO_ASSERT(seq_blocks > 0, "[CPU] paged_gdn: each sequence must have at least one cache block");
 
         const int32_t block_id = block_indices.at<int32_t>({static_cast<size_t>(block_begin)});
@@ -236,16 +238,18 @@ static void recurrent_linear_attn_paged_impl(const ov::intel_cpu::PlainTensor& q
             const float b_output = dot_product(init_state, b_q, k_head_dims, nullptr, nullptr, nullptr, 0);
             output_attn.at<T>({token_u, i_h, i_v}) = static_cast<T>(b_output);
 
-            const int32_t local_token_idx = token - token_begin;
-            const int32_t processed_tokens = local_token_idx + 1;
-            const bool interval_hit = (seq_interval > 0) && ((processed_tokens % seq_interval) == 0);
+            const int32_t processed_tokens = (token - token_begin) + 1;
+            const int32_t cached_tokens = prev_nums + processed_tokens;
+            const bool interval_hit = (seq_interval > 0) && ((cached_tokens % seq_interval) == 0);
             const bool is_last_token = (token == token_end - 1);
             const bool should_store = interval_hit || is_last_token;
             if (should_store) {
-                const int32_t slot = (seq_interval > 0) ? ((processed_tokens + seq_interval - 1) / seq_interval) : 1;
-                const int32_t block_id = block_indices.at<int32_t>({static_cast<size_t>(block_begin + slot)});
-                auto* updated_state_dst = recurrent_state_table.ptr<T>(static_cast<size_t>(block_id), i_h, i_v);
-                cvt_copy(updated_state_dst, init_state, 1, k_head_dims, 0, 0);
+                const int32_t slot = (seq_interval > 0) ? (1 + (cached_tokens - 1) / seq_interval) : 1;
+                if (slot < seq_blocks) {
+                    const int32_t block_id = block_indices.at<int32_t>({static_cast<size_t>(block_begin + slot)});
+                    auto* updated_state_dst = recurrent_state_table.ptr<T>(static_cast<size_t>(block_id), i_h, i_v);
+                    cvt_copy(updated_state_dst, init_state, 1, k_head_dims, 0, 0);
+                }
             }
         }
     });

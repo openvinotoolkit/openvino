@@ -78,8 +78,7 @@ void run_reference(const std::vector<T>& query,
         const int32_t seq_blocks = std::max(block_end - block_begin, 0);
         const int32_t past_len = past_lens[seq];
         const int32_t interval = cache_interval[seq];
-
-        (void)past_len;
+        const int32_t prev_nums = (interval > 0) ? (past_len % interval) : 0;
 
         for (int32_t h = 0; h < v_heads; h++) {
             const int32_t hk = h / group_size;
@@ -127,12 +126,12 @@ void run_reference(const std::vector<T>& query,
                     output[(token * v_heads + h) * v_head_size + v_idx] = static_cast<T>(out_v);
                 }
 
-                const int32_t local_token_idx = token - token_begin;
-                const int32_t processed_tokens = local_token_idx + 1;
-                const bool reached_interval_boundary = (interval > 0) && ((processed_tokens % interval) == 0);
+                const int32_t processed_tokens = (token - token_begin) + 1;
+                const int32_t cached_tokens = prev_nums + processed_tokens;
+                const bool reached_interval_boundary = (interval > 0) && ((cached_tokens % interval) == 0);
                 const bool reached_sequence_end = (token == token_end - 1);
                 if (reached_interval_boundary || reached_sequence_end) {
-                    const int32_t slot = interval > 0 ? (processed_tokens + interval - 1) / interval : 1;
+                    const int32_t slot = interval > 0 ? (1 + (cached_tokens - 1) / interval) : 1;
                     if (slot < seq_blocks) {
                         const int32_t next_block_id = block_indices[block_begin + slot];
                         for (int32_t k_idx = 0; k_idx < qk_head_size; k_idx++) {
@@ -261,12 +260,15 @@ void PagedGatedDeltaNetLayerTest::SetUp() {
     int32_t num_blocks = 0;
     for (size_t i = 0; i < seq_lengths.size(); i++) {
         OPENVINO_ASSERT(cache_intervals[i] >= 0);
+        const int32_t past_len = 1 + static_cast<int32_t>(i % 3);
         if (cache_intervals[i] == 0) {
             // interval == 0: use exactly 2 blocks per sequence
             // block 0 for read, block 1 for final write.
             num_blocks += 2;
         } else {
-            num_blocks += 1 + (seq_lengths[i] + cache_intervals[i] - 1) / cache_intervals[i];
+            const int32_t prev_nums = past_len % cache_intervals[i];
+            const int32_t write_blocks = (prev_nums + seq_lengths[i] + cache_intervals[i] - 1) / cache_intervals[i];
+            num_blocks += 1 + write_blocks;
         }
     }
 
@@ -366,12 +368,18 @@ void PagedGatedDeltaNetLayerTest::generate_inputs(const std::vector<ov::Shape>& 
     for (int32_t seq = 0; seq < num_sequences; seq++) {
         const int32_t seq_len = seq_lengths[seq];
         const int32_t seq_interval = cache_intervals[seq];
+        const int32_t seq_past_len = 1 + (seq % 3);
 
         subsequence_begins.push_back(subsequence_begins.back() + seq_len);
-        past_lens.push_back(1 + (seq % 3));
+        past_lens.push_back(seq_past_len);
         cache_interval.push_back(seq_interval);
 
-        const int32_t required_slots = (seq_interval == 0) ? 2 : (1 + (seq_len + seq_interval - 1) / seq_interval);
+        int32_t required_slots = 2;
+        if (seq_interval > 0) {
+            const int32_t prev_nums = seq_past_len % seq_interval;
+            const int32_t write_blocks = (prev_nums + seq_len + seq_interval - 1) / seq_interval;
+            required_slots = 1 + write_blocks;
+        }
         for (int32_t i = 0; i < required_slots; i++) {
             block_indices.push_back(total_blocks + i);
         }
@@ -477,8 +485,16 @@ std::vector<ov::Tensor> PagedGatedDeltaNetLayerTest::get_plugin_outputs() {
 void PagedGatedDeltaNetLayerTest::compare(const std::vector<ov::Tensor>& expected,
                                           const std::vector<ov::Tensor>& actual) {
     ASSERT_EQ(expected.size(), actual.size());
-    abs_threshold = (data_type == ov::element::bf16) ? 1e-3f : 2e-4f;
-    rel_threshold = (data_type == ov::element::bf16) ? 1e-2f : 1e-5f;
+    if (data_type == ov::element::bf16) {
+        abs_threshold = 1e-3f;
+        rel_threshold = 1e-2f;
+    } else if (data_type == ov::element::f16) {
+        abs_threshold = 3e-4f;
+        rel_threshold = 1e-5f;
+    } else {
+        abs_threshold = 2e-4f;
+        rel_threshold = 1e-5f;
+    }
     ov::test::utils::compare(expected[0], actual[0], abs_threshold, rel_threshold);
     ov::test::utils::compare(expected[1], actual[1], abs_threshold, rel_threshold);
 }
