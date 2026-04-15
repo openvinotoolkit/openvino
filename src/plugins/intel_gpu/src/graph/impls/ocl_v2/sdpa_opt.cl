@@ -124,6 +124,13 @@ inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uin
 #else
     #define GET_COMPRESSION_INDEX(INPUT, b, f, y, x) GET_DATA_INDEX(INPUT, (b), (0), (y), (0));
 #endif
+    #define HAS_KV_CACHE_ZP_INPUT (USE_ASYMMETRIC_QUANTIZATION && !COMBINE_SCALES_AND_ZP)
+    #define GET_SCALE(zp, scale, comp_offset) ((scale)[(comp_offset)])
+#if HAS_KV_CACHE_ZP_INPUT
+    #define GET_ZP(zp, scale, comp_offset) ((zp)[(comp_offset)])
+#else
+    #define GET_ZP(zp, scale, comp_offset) ((scale)[(comp_offset) + 1])
+#endif
 #endif
 
 #ifdef SDPA_STAGE_0
@@ -159,6 +166,10 @@ KERNEL(sdpa_opt)(
 #if IS_KV_COMPRESSED
     const __global KEY_COMPRESSION_SCALE_TYPE* key_scale,
     const __global VALUE_COMPRESSION_SCALE_TYPE* val_scale,
+#if HAS_KV_CACHE_ZP_INPUT
+    const __global KEY_COMPRESSION_ZP_TYPE* key_zp,
+    const __global VALUE_COMPRESSION_ZP_TYPE* val_zp,
+#endif
 #endif
 #ifdef BEAM_TABLE_TYPE
     const __global BEAM_TABLE_TYPE* beam_table,
@@ -182,9 +193,6 @@ KERNEL(sdpa_opt)(
     #error "sdpa_opt.cl: Unsupported scale factor"
 #endif
 
-#if SUBGROUPS_PER_WG > SUBGROUP_SIZE
-    #error "sdpa_opt.cl: Number of subgroups per work group should be no more than subgroup_size"
-#endif
     const uint sgid = get_sub_group_id();
     const uint sglid = get_sub_group_local_id();
 
@@ -280,9 +288,9 @@ KERNEL(sdpa_opt)(
 
 #if IS_KV_COMPRESSED
                 const uint comp_offset = GET_COMPRESSION_INDEX(KEY_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + seq_len, 0);
-                KEY_COMPRESSION_SCALE_TYPE comp_scale = key_scale[comp_offset];
+                KEY_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(key_zp, key_scale, comp_offset);
 #if USE_ASYMMETRIC_QUANTIZATION
-                KEY_COMPRESSION_SCALE_TYPE comp_zp = key_scale[comp_offset + 1];
+                KEY_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(key_zp, key_scale, comp_offset);
 #endif
 #endif
                 uint head_idx_index = 0;
@@ -473,6 +481,8 @@ KERNEL(sdpa_opt)(
 
             barrier(CLK_LOCAL_MEM_FENCE);
 
+#if SUBGROUPS_PER_WG <= SUBGROUP_SIZE
+            // Fast path: original single-subgroup reduction (when SUBGROUPS_PER_WG <= SUBGROUP_SIZE)
             for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                 qk_max[seq_idx] = SOFTMAX_ACCUMULATOR_VAL_MIN;
 
@@ -485,6 +495,40 @@ KERNEL(sdpa_opt)(
                 qk_max[seq_idx] = qk_max[seq_idx] > sink_ptr[b1_idx] ? qk_max[seq_idx] : sink_ptr[b1_idx];
             #endif
             }
+#else
+            // Slow path: hierarchical reduction for large head sizes (when SUBGROUPS_PER_WG > SUBGROUP_SIZE)
+            // Use parallel SIMD reduction within first subgroup to reduce across all subgroups
+            if (sgid == 0) {
+                for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
+                    SOFTMAX_ACCUMULATOR_TYPE wg_max = SOFTMAX_ACCUMULATOR_VAL_MIN;
+                    
+                    // Parallel reduction: each lane processes SUBGROUPS_PER_WG/SUBGROUP_SIZE elements
+                    const uint num_sg_per_lane = CEIL_DIV(SUBGROUPS_PER_WG, SUBGROUP_SIZE);
+                    for (uint i = 0; i < num_sg_per_lane; i++) {
+                        uint sg_idx = sglid + i * SUBGROUP_SIZE;
+                        if (sg_idx < SUBGROUPS_PER_WG) {
+                            wg_max = SOFTMAX_ACCUMULATOR_MAX_FUNC(wg_max, qk_max_vals[seq_idx * SUBGROUPS_PER_WG + sg_idx]);
+                        }
+                    }
+                    
+                    // Horizontal reduction across subgroup lanes
+                    wg_max = sub_group_reduce_max(wg_max);
+                    
+                    if (sglid == 0) {
+                        qk_max_vals[seq_idx * SUBGROUPS_PER_WG] = wg_max;
+                    }
+                }
+            }
+
+            barrier(CLK_LOCAL_MEM_FENCE);
+
+            for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
+                qk_max[seq_idx] = qk_max_vals[seq_idx * SUBGROUPS_PER_WG];
+            #ifdef HAS_SINK_INPUT
+                qk_max[seq_idx] = qk_max[seq_idx] > sink_ptr[b1_idx] ? qk_max[seq_idx] : sink_ptr[b1_idx];
+            #endif
+            }
+#endif
 
             SOFTMAX_ACCUMULATOR_TYPE exp_sum[TARGET_SEQ_LEN_BLOCK_SIZE] = {SOFTMAX_ACCUMULATOR_VAL_ZERO};
             const uint qk_num_per_wi = CEIL_DIV(partition_seq_len, SUBGROUPS_PER_WG * SUBGROUP_SIZE);
@@ -509,6 +553,8 @@ KERNEL(sdpa_opt)(
 
             barrier(CLK_LOCAL_MEM_FENCE);
 
+#if SUBGROUPS_PER_WG <= SUBGROUP_SIZE
+            // Fast path: original single-subgroup reduction (when SUBGROUPS_PER_WG <= SUBGROUP_SIZE)
             unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                 exp_sum[seq_idx] = SOFTMAX_ACCUMULATOR_VAL_ZERO;
 
@@ -521,6 +567,40 @@ KERNEL(sdpa_opt)(
                 exp_sum[seq_idx] += (native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(sink_ptr[b1_idx] - qk_max[seq_idx])));
                 #endif
             }
+#else
+            // Slow path: hierarchical reduction for large head sizes (when SUBGROUPS_PER_WG > SUBGROUP_SIZE)
+            // Use parallel SIMD reduction within first subgroup to reduce across all subgroups
+            if (sgid == 0) {
+                for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
+                    SOFTMAX_ACCUMULATOR_TYPE wg_sum = SOFTMAX_ACCUMULATOR_VAL_ZERO;
+                    
+                    // Parallel reduction: each lane processes SUBGROUPS_PER_WG/SUBGROUP_SIZE elements
+                    const uint num_sg_per_lane = CEIL_DIV(SUBGROUPS_PER_WG, SUBGROUP_SIZE);
+                    for (uint i = 0; i < num_sg_per_lane; i++) {
+                        uint sg_idx = sglid + i * SUBGROUP_SIZE;
+                        if (sg_idx < SUBGROUPS_PER_WG) {
+                            wg_sum += qk_sum_vals[seq_idx * SUBGROUPS_PER_WG + sg_idx];
+                        }
+                    }
+                    
+                    // Horizontal reduction across subgroup lanes
+                    wg_sum = sub_group_reduce_add(wg_sum);
+                    
+                    if (sglid == 0) {
+                        qk_sum_vals[seq_idx * SUBGROUPS_PER_WG] = wg_sum;
+                    }
+                }
+            }
+
+            barrier(CLK_LOCAL_MEM_FENCE);
+
+            unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
+                exp_sum[seq_idx] = qk_sum_vals[seq_idx * SUBGROUPS_PER_WG];
+                #ifdef HAS_SINK_INPUT
+                exp_sum[seq_idx] += (native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(sink_ptr[b1_idx] - qk_max[seq_idx])));
+                #endif
+            }
+#endif
 
             // const SOFTMAX_ACCUMULATOR_TYPE inv_exp_sum = SOFTMAX_ACCUMULATOR_VAL_ONE / exp_sum[seq_idx];
             for (uint qk_idx = 0; qk_idx < qk_num_per_wi; qk_idx++) {
@@ -590,9 +670,9 @@ KERNEL(sdpa_opt)(
 
 #if IS_KV_COMPRESSED
             const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, 0);
-            VALUE_COMPRESSION_SCALE_TYPE comp_scale = val_scale[comp_offset];
+            VALUE_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(val_zp, val_scale, comp_offset);
 #if USE_ASYMMETRIC_QUANTIZATION
-            VALUE_COMPRESSION_SCALE_TYPE comp_zp = val_scale[comp_offset + 1];
+            VALUE_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(val_zp, val_scale, comp_offset);
 #endif
 #endif
 
@@ -645,9 +725,9 @@ KERNEL(sdpa_opt)(
 
 #if IS_KV_COMPRESSED
             const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + seq_len, 0);
-            VALUE_COMPRESSION_SCALE_TYPE comp_scale = val_scale[comp_offset];
+            VALUE_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(val_zp, val_scale, comp_offset);
 #if USE_ASYMMETRIC_QUANTIZATION
-            VALUE_COMPRESSION_SCALE_TYPE comp_zp = val_scale[comp_offset + 1];
+            VALUE_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(val_zp, val_scale, comp_offset);
 #endif
 #endif
 
@@ -872,6 +952,10 @@ KERNEL(sdpa_opt)(
 #if IS_KV_COMPRESSED
     const __global KEY_COMPRESSION_SCALE_TYPE* key_scale,
     const __global VALUE_COMPRESSION_SCALE_TYPE* val_scale,
+#if HAS_KV_CACHE_ZP_INPUT
+    const __global KEY_COMPRESSION_ZP_TYPE* key_zp,
+    const __global VALUE_COMPRESSION_ZP_TYPE* val_zp,
+#endif
 #endif
 #ifdef BEAM_TABLE_TYPE
     const __global BEAM_TABLE_TYPE* beam_table,
@@ -1162,9 +1246,9 @@ KERNEL(sdpa_opt)(
             if (seq_len_calc_size >= SUBGROUP_SIZE) {
 #if IS_KV_COMPRESSED
                 const uint comp_offset = GET_COMPRESSION_INDEX(KEY_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, seq_len + sglid, 0);
-                KEY_COMPRESSION_SCALE_TYPE comp_scale = key_scale[comp_offset];
+                KEY_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(key_zp, key_scale, comp_offset);
 #if USE_ASYMMETRIC_QUANTIZATION
-                KEY_COMPRESSION_SCALE_TYPE comp_zp = key_scale[comp_offset + 1];
+                KEY_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(key_zp, key_scale, comp_offset);
 #endif
 #endif
                 uint head_idx_index = 0;
@@ -1229,9 +1313,9 @@ KERNEL(sdpa_opt)(
 #if IS_KV_COMPRESSED
                 const uint comp_offset = GET_COMPRESSION_INDEX(KEY_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, seq_len + min(sglid, (uint)seq_len_calc_size - 1), 0);
                 // const uint comp_offset = GET_COMPRESSION_INDEX(KEY_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, seq_len + sglid, 0);
-                KEY_COMPRESSION_SCALE_TYPE comp_scale = key_scale[comp_offset];
+                KEY_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(key_zp, key_scale, comp_offset);
 #if USE_ASYMMETRIC_QUANTIZATION
-                KEY_COMPRESSION_SCALE_TYPE comp_zp = key_scale[comp_offset + 1];
+                KEY_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(key_zp, key_scale, comp_offset);
 #endif
 #endif
                 uint head_idx_index = 0;
@@ -1629,9 +1713,9 @@ KERNEL(sdpa_opt)(
                     }
 #if IS_KV_COMPRESSED
                     const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + seq_len + sglid, 0);
-                    VALUE_COMPRESSION_SCALE_TYPE comp_scale = val_scale[comp_offset];
+                    VALUE_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(val_zp, val_scale, comp_offset);
 #if USE_ASYMMETRIC_QUANTIZATION
-                    VALUE_COMPRESSION_SCALE_TYPE comp_zp = val_scale[comp_offset + 1];
+                    VALUE_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(val_zp, val_scale, comp_offset);
 #endif
 #endif
                     #ifdef V_HEAD_SIZE_LEFTOVER
@@ -1719,9 +1803,9 @@ KERNEL(sdpa_opt)(
 
 #if IS_KV_COMPRESSED
                     const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, 0);
-                    VALUE_COMPRESSION_SCALE_TYPE comp_scale = val_scale[comp_offset];
+                    VALUE_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(val_zp, val_scale, comp_offset);
 #if USE_ASYMMETRIC_QUANTIZATION
-                    VALUE_COMPRESSION_SCALE_TYPE comp_zp = val_scale[comp_offset + 1];
+                    VALUE_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(val_zp, val_scale, comp_offset);
 #endif
 #endif // IS_KV_COMPRESSED
 
@@ -1818,9 +1902,9 @@ KERNEL(sdpa_opt)(
 #if IS_KV_COMPRESSED
                     const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + min(seq_len_leftovers_start + sglid, seq_len_end - 1), 0);
                     // const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + seq_len_leftovers_start + sglid, 0);
-                    VALUE_COMPRESSION_SCALE_TYPE comp_scale = val_scale[comp_offset];
+                    VALUE_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(val_zp, val_scale, comp_offset);
 #if USE_ASYMMETRIC_QUANTIZATION
-                    VALUE_COMPRESSION_SCALE_TYPE comp_zp = val_scale[comp_offset + 1];
+                    VALUE_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(val_zp, val_scale, comp_offset);
 #endif
 #endif
 
@@ -1828,7 +1912,7 @@ KERNEL(sdpa_opt)(
                     #ifdef V_HEAD_SIZE_LEFTOVER
                         #ifdef BEAM_TABLE_TYPE
                         const uint value_offset_seq = sub_group_broadcast(value_offset, seq_len_idx);
-                        const INPUT2_TYPE value_packed = (head_size_idx <= V_HEAD_SIZE) ? value_input[value_offset_seq] : INPUT2_VAL_ZERO;
+                        const INPUT2_TYPE value_packed = (head_size_idx < V_HEAD_SIZE) ? value_input[value_offset_seq] : INPUT2_VAL_ZERO;
                         #else // !BEAM_TABLE_TYPE
                         INPUT2_TYPE value_packed;
                         if (sgid < SUBGROUPS_PER_WG - 1)
@@ -1943,7 +2027,8 @@ KERNEL(sdpa_opt)(
 #if IS_FLASHATTEN_V2
                     output_acc[seq_idx] /= slm_exp_sum_prev[seq_idx];
 #endif
-                    OUTPUT_BLOCK_WRITE(output, output_offset, output_acc[seq_idx]);
+                    // Use scalar writes since block writes require alignment, but we process leftovers here
+                    output[output_offset + sglid] = output_acc[seq_idx];
                     output_offset += output_pitch;
                 }
             } else if (sglid < V_HEAD_SIZE_LEFTOVER) {
@@ -1961,7 +2046,8 @@ KERNEL(sdpa_opt)(
 #if IS_FLASHATTEN_V2
                     output_acc[seq_idx] /= slm_exp_sum_prev[seq_idx];
 #endif
-                    OUTPUT_BLOCK_WRITE(output, output_offset, output_acc[seq_idx]);
+                    // Use scalar writes since block writes require alignment, but we process leftovers here
+                    output[output_offset + sglid] = output_acc[seq_idx];
                     output_offset += output_pitch;
                 }
             } else if (sglid < V_HEAD_SIZE_LEFTOVER) {

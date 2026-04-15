@@ -427,13 +427,6 @@ std::tuple<ov::element::Type, ov::element::Type> Convolution::getDstAndSumPrecis
         }
     };
 
-// ACL requires dst precision matches src precision for int8
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    if (canBeExecutedInInt8()) {
-        return {getOriginalInputPrecisionAtPort(0), ov::element::dynamic};
-    }
-#endif
-
     auto dstType = getOriginalOutputPrecisionAtPort(0);
 
     // make sure dst type is equal to the output type of the last fused node
@@ -574,6 +567,16 @@ bool Convolution::canFuse(const NodePtr& node) const {
 #if defined(OV_CPU_WITH_ACL)
     if (!fusedWith.empty()) {
         return false;
+    }
+
+    // Keep signed/unsigned low-precision domains consistent for already-quantized activations.
+    // For fp32 activation path, allow FQ fusion so ACL int8/u8 convolution can still be selected.
+    if (node->getType() == Type::FakeQuantize) {
+        const auto fqOutPrc = node->getOriginalOutputPrecisionAtPort(0);
+        const auto convInPrc = getOriginalInputPrecisionAtPort(0);
+        if (any_of(convInPrc, ov::element::u8, ov::element::i8) && fqOutPrc != convInPrc) {
+            return false;
+        }
     }
 #endif
     return canFuseSimpleOperation(node);

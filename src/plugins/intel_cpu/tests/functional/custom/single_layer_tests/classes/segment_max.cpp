@@ -108,7 +108,7 @@ void SegmentMaxLayerCPUTest::SetUp() {
                 segmentMax = std::make_shared<ov::op::v16::SegmentMax>(dataParameter, segmentIdsParameter, fillMode);
             }
         }
-        function = makeNgraphFunction(inputPrecision, params, segmentMax, "SegmentMax");
+        function = create_ov_model(inputPrecision, params, segmentMax, "SegmentMax");
 }
 
 TEST_P(SegmentMaxLayerCPUTest, CompareWithRefs) {

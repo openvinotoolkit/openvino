@@ -27,6 +27,9 @@
 #include <tuple>
 
 #include "convolution_inst.h"
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include "graph/impls/onednn/utils.hpp"
+#endif
 
 using namespace cldnn;
 using namespace ::tests;
@@ -11332,6 +11335,55 @@ TEST(convolution_gpu_onednn, dyn_conv4d_reshape6d_pattern) {
                     ASSERT_TRUE(equal);
                 }
 }
+
+TEST(convolution_gpu_onednn, alloc_intermediate_when_concat_optimized) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    auto input_pshape = ov::PartialShape{ov::Dimension::dynamic(), 32,
+                                         ov::Dimension::dynamic(), ov::Dimension::dynamic()};
+    auto in_layout = layout{input_pshape, data_types::f16, format::bfyx};
+    auto weights_layout = layout{{32, 32, 3, 3}, data_types::f16, format::bfyx};
+
+    auto input_mem1 = engine.allocate_memory({ov::PartialShape{1, 32, 320, 320}, data_types::f16, format::bfyx});
+    auto input_mem2 = engine.allocate_memory({ov::PartialShape{1, 32, 320, 320}, data_types::f16, format::bfyx});
+    set_values<ov::float16>(input_mem1, std::vector<ov::float16>(input_mem1->get_layout().count(), ov::float16(0.5f)));
+    set_values<ov::float16>(input_mem2, std::vector<ov::float16>(input_mem2->get_layout().count(), ov::float16(0.25f)));
+
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    set_values<ov::float16>(weights_mem, std::vector<ov::float16>(weights_layout.count(), ov::float16(0.1f)));
+
+    topology topology(
+        input_layout("input1", in_layout),
+        input_layout("input2", in_layout),
+        data("weights1", weights_mem),
+        data("weights2", weights_mem),
+        convolution("conv1", input_info("input1"), "weights1", "", 1,
+                    {1, 1}, {1, 1}, {1, 1}, {1, 1}, false),
+        convolution("conv2", input_info("input2"), "weights2", "", 1,
+                    {1, 1}, {1, 1}, {1, 1}, {1, 1}, false),
+        concatenation("concat", { input_info("conv1"), input_info("conv2") }, 1),
+        reorder("reorder", input_info("concat"), format::bfyx, data_types::f16)
+    );
+
+    ExecutionConfig onednn_config = get_test_default_config(engine);
+    onednn_config.set_property(ov::intel_gpu::optimize_data(true));
+    onednn_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplementationDesc onednn_impl_desc = {format::bfyx, "", impl_types::onednn};
+    onednn_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"conv1", onednn_impl_desc},
+        {"conv2", onednn_impl_desc},
+        {"concat", onednn_impl_desc},
+    }));
+
+    network network(engine, topology, onednn_config);
+    network.set_input_data("input1", input_mem1);
+    network.set_input_data("input2", input_mem2);
+
+    auto outputs = network.execute();
+}
+
 #endif   // ENABLE_ONEDNN_FOR_GPU
 
 template <typename T>
@@ -11451,6 +11503,104 @@ TEST(export_import_convolution_f32_gpu, convolution_gpu_bfyx_f16_depthwise_x_blo
     test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_block_size_1<ov::float16>(true);
 }
 
+TEST(convolution_f32_fw_gpu, convolution_gpu_f32_convolution_gpu_bfyx_f16_depthwise) {
+    auto& engine = get_test_engine();
+
+    if (engine.get_device_info().supports_immad) {
+        return;
+    }
+
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    // Tail case for X-blocked path (8 + tail)
+    constexpr int b = 1;
+    constexpr int f = 16;
+    constexpr int y = 1;
+    constexpr int x = 9;
+    constexpr int filter_size = 3;
+
+    auto input_data = rg.generate_random_4d<float>(b, f, y, x, -1, 1);
+    auto weights_data = rg.generate_random_4d<float>(f, 1, filter_size, filter_size, -1, 1);
+
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{b, f, x, y}});
+    auto weights = engine.allocate_memory({
+        data_types::f32,
+        format::goiyx,
+        tensor{group(f), batch(1), feature(1), spatial(filter_size, filter_size)}
+    });
+
+    set_values(input, flatten_4d<float>(format::bfyx, input_data));
+    set_values(weights, flatten_4d<float>(format::bfyx, weights_data));
+
+    auto run_depthwise = [&]() -> std::vector<float> {
+        topology topology(
+            input_layout("input", input->get_layout()),
+            reorder("input_fsv16", input_info("input"), {data_types::f32, format::b_fs_yx_fsv16, tensor{b, f, x, y}}),
+            data("weights", weights),
+            convolution("conv",
+                        input_info("input_fsv16"),
+                        "weights",
+                        no_bias,
+                        f,        // groups
+                        {1, 1},   // stride
+                        {1, 1},   // dilation
+                        {1, 1},   // pad begin
+                        {1, 1},   // pad end
+                        true),    // grouped
+            reorder("out", input_info("conv"), {data_types::f32, format::bfyx, tensor{b, f, x, y}})
+        );
+
+        ExecutionConfig cfg = get_test_default_config(engine);
+        cfg.set_property(ov::intel_gpu::optimize_data(true));
+        cfg.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{
+                {"conv", {format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_depthwise", impl_types::ocl}}
+            }));
+
+        network net(engine, topology, cfg);
+        net.set_input_data("input", input);
+
+        auto outputs = net.execute();
+        auto out_mem = outputs.at("out").get_memory();
+        cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+
+        std::vector<float> out(out_mem->count());
+        for (size_t i = 0; i < out.size(); ++i) {
+            out[i] = out_ptr[i];
+        }
+        return out;
+    };
+
+    auto run_ref = [&]() -> std::vector<float> {
+        VVVVF<float> ref(b, VVVF<float>(f));
+        for (int bi = 0; bi < b; ++bi) {
+            for (int ofi = 0; ofi < f; ++ofi) {
+                ref[bi][ofi] = reference_convolve<float, float, float>(
+                    input_data[bi],        // [ifm][y][x]
+                    weights_data[ofi],     // [1][ky][kx] for depthwise
+                    1, 1,                  // stride y, x
+                    0.0f,                  // bias
+                    1, 1,                  // dilation y, x
+                    1, 1,                  // input padding y, x
+                    0, 0,                  // output padding y, x
+                    ofi, ofi + 1,          // f_begin, f_end
+                    true,                  // depthwise
+                    false                  // grouped
+                );
+            }
+        }
+        return flatten_4d<float>(format::bfyx, ref);
+    };
+
+    std::vector<float> out_depthwise, out_ref;
+    ASSERT_NO_THROW(out_depthwise = run_depthwise());
+    ASSERT_NO_THROW(out_ref = run_ref());
+
+    ASSERT_EQ(out_depthwise.size(), out_ref.size());
+    for (size_t i = 0; i < out_depthwise.size(); ++i) {
+        ASSERT_EQ(out_depthwise[i], out_ref[i]);
+    }
+}
 
 TEST(convolution_f32_fw_gpu, basic_convolution_no_bias_swap_xy) {
     //  Filter : 2x2x1x3
@@ -12602,3 +12752,38 @@ TEST_P(conv_3d_test_mmad, convolution_gpu_b_fs_zyx_mmad) {
         ASSERT_EQ(output_ptr[i], output_ptr_ref[i]);
     }
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+TEST(convolution_gpu, onednn_custom_format_3d_weights) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    ov::PartialShape weights_shape{192, 1, 1};
+
+    format_traits custom_traits;
+    custom_traits.str = "custom";
+    custom_traits.order = "oiy";
+    custom_traits.internal_order = "oixyz";
+    custom_traits.batch_num = 0;
+    custom_traits.feature_num = 1;
+    custom_traits.spatial_num = 1;
+    custom_traits.group_num = 0;
+    custom_traits._order = {0, 1, 2};
+    custom_traits.block_sizes = {};
+    custom_traits.logic_block_sizes = {};
+
+    cldnn::format custom_fmt(format::custom);
+    custom_fmt.custom_traits = custom_traits;
+    layout custom_layout(weights_shape, data_types::f16, custom_fmt);
+
+    ASSERT_NO_THROW({
+        auto md = onednn::layout_to_memory_desc(custom_layout, dnnl::memory::format_tag::undef);
+        ASSERT_EQ(md.get_ndims(), 3);
+        ASSERT_EQ(md.get_dims()[0], 192);
+        ASSERT_EQ(md.get_dims()[1], 1);
+        ASSERT_EQ(md.get_dims()[2], 1);
+    });
+}
+#endif  // ENABLE_ONEDNN_FOR_GPU

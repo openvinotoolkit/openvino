@@ -7,18 +7,20 @@
 #include <string>
 #include <vector>
 
-std::vector<std::string> disabledTestPatterns() {
-    return {
+const std::vector<std::regex>& disabled_test_patterns() {
+    const static std::vector<std::regex> patterns{
 #ifdef OPENVINO_STATIC_LIBRARY
         // Disable tests for static libraries
-        ".*FrontendLibCloseTest.*",
+        std::regex(".*FrontendLibCloseTest.*"),
 #endif
-        ".*testUnloadLibBeforeDeletingDependentObject.*",
+        std::regex(".*testUnloadLibBeforeDeletingDependentObject.*"),
         // CVS-130605, CVS-170348
-        ".*paddle_yolo_box_uneven_wh_yolo_box_uneven_wh_pdmodel.*",
-        ".*paddle_loop_dyn_loop_dyn_pdmodel.*",
-        ".*paddle_scatter_test_1_scatter_test_1_pdmodel.*",
-        ".*paddle_top_k_.*",
-        ".*generate_proposals.*",
+        std::regex(".*paddle_yolo_box_uneven_wh_yolo_box_uneven_wh_pdmodel.*"),
+        std::regex(".*paddle_loop_dyn_loop_dyn_pdmodel.*"),
+        std::regex(".*paddle_scatter_test_1_scatter_test_1_pdmodel.*"),
+        std::regex(".*paddle_top_k_.*"),
+        std::regex(".*generate_proposals.*"),
     };
+
+    return patterns;
 }
