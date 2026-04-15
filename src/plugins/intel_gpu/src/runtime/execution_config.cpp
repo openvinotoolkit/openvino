@@ -18,6 +18,7 @@
 #include "openvino/op/istft.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/search_sorted.hpp"
@@ -236,8 +237,27 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         }
     };
 
+    bool has_4bit_weights = false;
     for (const auto& op : ops) {
         process_op(op);
+
+        // Detect 4-bit compressed weights by tracing MatMul weight input
+        // through the decompression subgraph (Convert→Subtract→Multiply→Reshape→Convert→Constant)
+        if (!has_4bit_weights && ov::is_type<ov::op::v0::MatMul>(op)) {
+            auto weight = op->get_input_node_shared_ptr(1);
+            // Follow input 0 through the decompression chain to reach the leaf Constant
+            for (int depth = 0; depth < 8 && weight->get_input_size() > 0; ++depth) {
+                if (ov::is_type<ov::op::v0::Constant>(weight))
+                    break;
+                weight = weight->get_input_node_shared_ptr(0);
+            }
+            if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(weight)) {
+                auto et = constant->get_element_type();
+                if (et == ov::element::i4 || et == ov::element::u4) {
+                    has_4bit_weights = true;
+                }
+            }
+        }
     }
 
     const auto& info = dynamic_cast<const RemoteContextImpl*>(context)->get_engine().get_device_info();
@@ -248,7 +268,11 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         return false;
     };
     if (!is_set_by_user(ov::hint::kv_cache_precision) || get_kv_cache_precision() == ov::element::dynamic) {
-        if (is_paged_attention_model || !info.supports_immad || is_auxiliary_kv_update_model(model)) {
+        if (is_paged_attention_model && has_4bit_weights) {
+            // Enable 4-bit KV-cache compression for PA models with 4-bit compressed weights
+            m_kv_cache_precision = ov::element::u4;
+            GPU_DEBUG_COUT << "[Info] 4-bit weights detected. Setting KV-cache precision to u4." << std::endl;
+        } else if (is_paged_attention_model || !info.supports_immad || is_auxiliary_kv_update_model(model) ) {
             // Enable KV-cache compression by default for:
             // 1) Non-systolic platforms in case of SDPA-based models
             // 2) For any platforms in case of PagedAttention-based model
