@@ -462,8 +462,9 @@ void ZeroInitStructsHolder::initCompilerPropertiesLocked() {
     // Keep optional disengaged unless driver query succeeds.
     ze_device_graph_properties_t compiler_properties = {};
     compiler_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
-    auto result = _graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(_device_handle, &compiler_properties);
-    THROW_ON_FAIL_FOR_LEVELZERO("pfnDeviceGetGraphProperties", result);
+    THROW_ON_FAIL_FOR_LEVELZERO(
+        "pfnDeviceGetGraphProperties",
+        _graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(_device_handle, &compiler_properties));
 
     _compiler_properties = compiler_properties;
 }
@@ -498,7 +499,9 @@ void ZeroInitStructsHolder::setContextProperties() {
     ze_context_properties_npu_ext_t context_properties_npu_ext = {ZE_STRUCTURE_TYPE_CONTEXT_PROPERTIES_NPU_EXT,
                                                                   nullptr,
                                                                   _context_options};
-    _context_npu_dditable_ext_decorator->pfnSetProperties(_context.load(), &context_properties_npu_ext);
+    THROW_ON_FAIL_FOR_LEVELZERO(
+        "pfnSetProperties",
+        _context_npu_dditable_ext_decorator->pfnSetProperties(_context.load(), &context_properties_npu_ext));
 }
 
 void ZeroInitStructsHolder::clearContextOptions(const uint32_t options) {
@@ -520,13 +523,14 @@ void ZeroInitStructsHolder::destroyContextLocked() {
 
     _log.debug("ZeroInitStructsHolder - performing zeContextDestroy");
     auto result = zeContextDestroy(_context.load());
-    _context.store(nullptr);
-    if (result != ZE_RESULT_SUCCESS) {
-        if (result == ZE_RESULT_ERROR_UNINITIALIZED) {
-            _log.warning("zeContextDestroy failed to destroy the context; Level zero context was already destroyed");
-        } else {
-            _log.error("zeContextDestroy failed %#X", uint64_t(result));
-        }
+    if (result == ZE_RESULT_SUCCESS) {
+        _context.store(nullptr);
+        _log.debug("ZeroInitStructsHolder - zeContextDestroy succeeded");
+    } else if (result == ZE_RESULT_ERROR_UNINITIALIZED) {
+        _context.store(nullptr);
+        _log.warning("zeContextDestroy failed to destroy the context; Level zero context was already destroyed");
+    } else {
+        _log.error("zeContextDestroy failed %#X", uint64_t(result));
     }
 }
 

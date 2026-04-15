@@ -113,7 +113,8 @@ uint64_t ZeroMem::id() {
 ZeroMem::~ZeroMem() {
     auto ze_context = _init_structs->getContext();
     if (ze_context == nullptr) {
-        _logger.warning("Context is null while trying to free memory with id %lu. Memory might be already freed.", _id);
+        _logger.warning("Context is null while trying to free memory with id %llu. Memory might be already freed.",
+                        _id);
         return;
     }
 

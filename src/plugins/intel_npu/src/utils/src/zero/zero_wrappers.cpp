@@ -91,12 +91,14 @@ EventPool::EventPool(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
 EventPool::~EventPool() {
     if (_init_structs->getContext() == nullptr || _handle == nullptr) {
         _log.warning("Context or EventPool handle is null during destruction. EventPool might be already destroyed.");
+        _handle = nullptr;
         return;
     }
 
     auto result = zeEventPoolDestroy(_handle);
-    _handle = nullptr;
-    if (ZE_RESULT_SUCCESS != result) {
+    if (ZE_RESULT_SUCCESS == result) {
+        _handle = nullptr;
+    } else {
         _log.error("zeEventPoolDestroy failed %#X", uint64_t(result));
     }
 }
@@ -135,8 +137,9 @@ Event::~Event() {
     }
 
     auto result = zeEventDestroy(_handle);
-    _handle = nullptr;
-    if (ZE_RESULT_SUCCESS != result) {
+    if (ZE_RESULT_SUCCESS == result) {
+        _handle = nullptr;
+    } else {
         _log.error("zeEventDestroy failed %#X", uint64_t(result));
     }
 }
@@ -221,12 +224,14 @@ CommandList::~CommandList() {
     if (_init_structs->getContext() == nullptr || _handle == nullptr) {
         _log.warning(
             "Context or CommandList handle is null during destruction. CommandList might be already destroyed.");
+        _handle = nullptr;
         return;
     }
 
     auto result = zeCommandListDestroy(_handle);
-    _handle = nullptr;
-    if (ZE_RESULT_SUCCESS != result) {
+    if (ZE_RESULT_SUCCESS == result) {
+        _handle = nullptr;
+    } else {
         _log.error("zeCommandListDestroy failed %#X", uint64_t(result));
     }
 }
@@ -352,12 +357,14 @@ CommandQueue::~CommandQueue() {
     if (_init_structs->getContext() == nullptr || _handle == nullptr) {
         _log.warning(
             "Context or CommandQueue handle is null during destruction. CommandQueue might be already destroyed.");
+        _handle = nullptr;
         return;
     }
 
     auto result = zeCommandQueueDestroy(_handle);
-    _handle = nullptr;
-    if (ZE_RESULT_SUCCESS != result) {
+    if (ZE_RESULT_SUCCESS == result) {
+        _handle = nullptr;
+    } else {
         _log.error("zeCommandQueueDestroy failed %#X", uint64_t(result));
     }
 }
@@ -379,12 +386,14 @@ void Fence::hostSynchronize() const {
 Fence::~Fence() {
     if (_init_structs->getContext() == nullptr || _handle == nullptr) {
         _log.warning("Context or Fence handle is null during destruction. Fence might be already destroyed.");
+        _handle = nullptr;
         return;
     }
 
     auto result = zeFenceDestroy(_handle);
-    _handle = nullptr;
-    if (ZE_RESULT_SUCCESS != result) {
+    if (ZE_RESULT_SUCCESS == result) {
+        _handle = nullptr;
+    } else {
         _log.error("zeFenceDestroy failed %#X", uint64_t(result));
     }
 }
