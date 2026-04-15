@@ -296,6 +296,7 @@ static std::shared_ptr<ov::Model> makeSharedKVModel(const ov::PartialShape& inpu
 
 TEST_F(TransformationTestsF, StateConcatSDPASharedKVCache) {
 #if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
+    test_skipped = true;
     GTEST_SKIP() << "Skipping StateConcatSDPASharedKVCache test on Android X64";
 #endif
     // When KV-cache is shared between multiple SDPA blocks, StatefulSDPAFusion must NOT apply:
@@ -396,6 +397,7 @@ static std::shared_ptr<ov::Model> makeMixedSharedAndExclusiveKVModel(const ov::P
 
 TEST_F(TransformationTestsF, StateConcatSDPAMixedSharedAndExclusive) {
 #if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
+    test_skipped = true;
     GTEST_SKIP() << "Skipping StateConcatSDPAMixedSharedAndExclusive test on Android X64";
 #endif
     // Exclusive-cache SDPA must still be fused; shared-cache SDPAs must be left alone.
