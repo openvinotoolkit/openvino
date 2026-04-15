@@ -52,15 +52,6 @@ std::pair<std::string, std::unordered_map<CRE::Token, std::shared_ptr<ICapabilit
 
 using WriterReaderParams = std::tuple<std::vector<CRE::Token>, std::vector<uint16_t>>;
 
-/*
-    TODO (probably) tests with:
-    - get_roi_tensor
-    - interpret_data_from_source
-    - get_cursor_relative_position
-    - move_cursor_to_relative_position
-
-*/
-
 // should we randomize the order of serialized sections?
 class WriterReaderUnitTests : public ::testing::TestWithParam<WriterReaderParams> {
 protected:
@@ -117,6 +108,24 @@ using IncompatibleCRE = WriterReaderUnitTests;
 
 TEST_P(IncompatibleCRE, ReadThrows) {
     ASSERT_ANY_THROW(reader->read(capabilities));
+}
+
+using Reader = ::testing::Test;
+
+TEST_F(Reader, GetROITensor) {
+    std::vector<uint8_t> data = {0xDE, 0xAD, 0xBE, 0xEF, 0xF0, 0x0D, 0xFA, 0xCE};
+    ov::Tensor source(ov::element::u8, ov::Shape{data.size()}, data.data());
+    BlobReader reader(source);
+
+    // skip first 2 bytes
+    reader.move_cursor_to_relative_position(2);
+
+    auto roi = reader.get_roi_tensor(4);
+
+    EXPECT_EQ(roi.data<uint8_t>(), source.data<uint8_t>() + 2);
+    EXPECT_EQ(roi.get_byte_size(), 4);
+
+    EXPECT_EQ(reader.get_cursor_relative_position(), 6);
 }
 
 using WriterReaderEdgeCases = ::testing::Test;

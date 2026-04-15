@@ -118,22 +118,57 @@ TEST(MockSection3, WriteRead) {
     EXPECT_EQ(values, VALUES);
 }
 
-// clang-format off
-//
-// ┌───────────────────────────────────────────────┐
+TEST(MockSections, GetROITensors) {
+    BlobWriter writer;
+    writer.register_section(std::make_shared<MockSection_1>(VALUE));
+    writer.register_section(std::make_shared<MockSection_2>(VALUES));
+    std::stringstream stream;
+    writer.write(stream);
+    const std::string buffer = stream.str();
+
+    std::vector<uint8_t> data(buffer.begin(), buffer.end());
+    ov::Tensor tensor(ov::element::u8, ov::Shape{data.size()}, data.data());
+    BlobReader reader(tensor);
+    reader.register_reader(MockTypes::MOCK_1, MockSection_1::read);
+    reader.register_reader(MockTypes::MOCK_2, MockSection_2::read);
+    reader.read(make_caps());
+
+    auto offsets_section = std::dynamic_pointer_cast<OffsetsTableSection>(
+        reader.retrieve_first_section(PredefinedSectionType::OFFSETS_TABLE));
+    ASSERT_TRUE(offsets_section);
+    auto table = offsets_section->get_table();
+
+    auto offset_1 = table.lookup_offset(SectionID(MockTypes::MOCK_1, 0)).value();
+    auto length_1 = table.lookup_length(SectionID(MockTypes::MOCK_1, 0)).value();
+    auto offset_2 = table.lookup_offset(SectionID(MockTypes::MOCK_2, 0)).value();
+    auto length_2 = table.lookup_length(SectionID(MockTypes::MOCK_2, 0)).value();
+    ASSERT_TRUE(offset_1 && length_1 && offset_2 && length_2);
+
+    reader.move_cursor_to_relative_position(offset_1);
+    auto roi_1 = reader.get_roi_tensor(length_1);
+
+    reader.move_cursor_to_relative_position(offset_2);
+    auto roi_2 = reader.get_roi_tensor(length_2);
+
+    EXPECT_EQ(roi_1.data<uint8_t>(), tensor.data<uint8_t>() + offset_1);
+    EXPECT_EQ(roi_1.get_byte_size(), length_1);
+    EXPECT_EQ(roi_2.data<uint8_t>(), tensor.data<uint8_t>() + offset_2);
+    EXPECT_EQ(roi_2.get_byte_size(), length_2);
+}
+
+//  _______________________________________________
 // │ header                                        │
-// ├───────────────────────────────────────────────┤
+// |_______________________________________________|
 // │ MockSection_3                                 │
-// ├───────────────────────────────────────────────┤
+// |_______________________________________________|
 // │ MockSectionWithTable                          │
-// │   ├─ embedded table  (MOCK_3x1, MOCK_2x2)     │
-// │   ├─ reachable[0]:  MockSection_3             │
-// │   ├─ reachable[1]:  MockSection_2             │
-// │   |─ reachable[2]:  MockSection_2             │
-// ├───────────────────────────────────────────────┤
+// │   - embedded table (MOCK_3x1, MOCK_2x2)       │
+// │   - reachable[0]: MockSection_3               │
+// │   - reachable[1]: MockSection_2               │
+// │   - reachable[2]: MockSection_2               │
+// |_______________________________________________|
 // │ MockSection_2                                 │
-// └───────────────────────────────────────────────┘
-// clang-format on
+// |_______________________________________________|
 TEST(MockSectionWithTable, WriteRead) {
     constexpr double REACHABLE_VALUE_A = 0x7327AC3D;
     const std::vector<double> VALUES_B = {0xC00FFEEE, 0xFEEDBEEF};
