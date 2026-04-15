@@ -868,15 +868,19 @@ jobs:
 
       - name: Resolve selected lanes
         id: lanes
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_CPU_TESTS: ${{ github.event.inputs.run-cpu-tests || '' }}
+          RUN_GPU_TESTS: ${{ github.event.inputs.run-gpu-tests || '' }}
         run: |
           selected_lanes='none'
-          if [[ "${{ github.event_name }}" == 'schedule' ]]; then
+          if [[ "$EVENT_NAME" == 'schedule' ]]; then
             selected_lanes='cpu,igpu,igpu-unit,igpu-func,dgpu,dgpu-unit,dgpu-func'
-          elif [[ "${{ github.event.inputs.run-cpu-tests }}" == 'true' && "${{ github.event.inputs.run-gpu-tests }}" == 'true' ]]; then
+          elif [[ "$RUN_CPU_TESTS" == 'true' && "$RUN_GPU_TESTS" == 'true' ]]; then
             selected_lanes='cpu,igpu,igpu-unit,igpu-func,dgpu,dgpu-unit,dgpu-func'
-          elif [[ "${{ github.event.inputs.run-cpu-tests }}" == 'true' ]]; then
+          elif [[ "$RUN_CPU_TESTS" == 'true' ]]; then
             selected_lanes='cpu'
-          elif [[ "${{ github.event.inputs.run-gpu-tests }}" == 'true' ]]; then
+          elif [[ "$RUN_GPU_TESTS" == 'true' ]]; then
             selected_lanes='igpu,igpu-unit,igpu-func,dgpu,dgpu-unit,dgpu-func'
           fi
           echo "selected_lanes=${selected_lanes}" >> "$GITHUB_OUTPUT"
