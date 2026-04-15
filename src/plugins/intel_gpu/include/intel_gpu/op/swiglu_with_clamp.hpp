@@ -83,10 +83,10 @@ public:
         m_gate_idx = gate_idx;
     }
     void set_clamp_min(int64_t min) {
-        m_clamp_min = min;
+        m_clamp_min = static_cast<float>(min);
     }
     void set_clamp_max(int64_t max) {
-        m_clamp_max = max;
+        m_clamp_max = static_cast<float>(max);
     }
     void set_swiglu_beta(float beta) {
         m_swiglu_beta = beta;
