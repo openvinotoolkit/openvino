@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <ze_api.h>
+#include <level_zero/ze_api.h>
 #include <ze_command_queue_npu_ext.h>
 #include <ze_context_npu_ext.h>
 #include <ze_driver_npu_ext.h>
@@ -43,6 +43,10 @@ private:
     }
 
 public:
+    ze_graph_dditable_ext_t* const getImpl() {
+        return _impl;
+    }
+
     ze_graph_dditable_ext_decorator(ze_graph_dditable_ext_t* impl, uint32_t driverExtVersion)
         : _impl(impl),
           _driverExtVersion(driverExtVersion),

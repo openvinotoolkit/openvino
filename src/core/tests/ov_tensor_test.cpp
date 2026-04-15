@@ -5,7 +5,10 @@
 #include <gmock/gmock.h>
 
 #include <cstdint>
+#include <filesystem>
+#include <fstream>
 
+#include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/partial_shape.hpp"
@@ -16,6 +19,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
@@ -1245,4 +1249,98 @@ INSTANTIATE_TEST_SUITE_P(copy_tests_strings,
                                                               }
                                            )));
 // clang-format on
+
+TEST_F(OVTensorTest, sourceIdSetGet) {
+    float data[6] = {};
+    ov::Tensor tensor{ov::element::f32, ov::Shape{2, 3}, data};
+    EXPECT_EQ(ov::get_tensor_source_id(tensor), std::nullopt);
+    ov::set_tensor_source_id(tensor, 42u);
+    EXPECT_EQ(ov::get_tensor_source_id(tensor), std::optional<uint64_t>{42u});
+}
+
+TEST_F(OVTensorTest, sourceIdViewTensor) {
+    float data[6] = {};
+    ov::Tensor tensor{ov::element::f32, ov::Shape{2, 3}, data};
+    EXPECT_EQ(ov::get_tensor_source_id(tensor), std::nullopt);
+    ov::set_tensor_source_id(tensor, 99u);
+    EXPECT_EQ(ov::get_tensor_source_id(tensor), std::optional<uint64_t>{99u});
+}
+
+TEST_F(OVTensorTest, sourceIdRoiTensorHasNoSourceId) {
+    float data[16] = {};
+    ov::Tensor parent{ov::element::f32, ov::Shape{4, 4}, data};
+    ov::set_tensor_source_id(parent, 7u);
+    EXPECT_EQ(ov::get_tensor_source_id(parent), std::optional<uint64_t>{7u});
+
+    // ROI tensor does not expose source_id (only ViewTensor does)
+    ov::Tensor roi{parent, {1, 0}, {3, 4}};
+    EXPECT_EQ(ov::get_tensor_source_id(roi), std::nullopt);
+
+    // Setting source_id on ROI is a no-op — parent is unchanged
+    ov::set_tensor_source_id(roi, 11u);
+    EXPECT_EQ(ov::get_tensor_source_id(parent), std::optional<uint64_t>{7u});
+}
+
+TEST_F(OVTensorTest, sourceIdCopyToDoesNotCopyId) {
+    float src_data[6] = {}, dst_data[6] = {};
+    ov::Tensor src{ov::element::f32, ov::Shape{2, 3}, src_data};
+    ov::set_tensor_source_id(src, 42u);
+
+    ov::Tensor dst{ov::element::f32, ov::Shape{2, 3}, dst_data};
+    EXPECT_EQ(ov::get_tensor_source_id(dst), std::nullopt);
+
+    src.copy_to(dst);
+    EXPECT_EQ(ov::get_tensor_source_id(dst), std::nullopt);
+}
+
+TEST_F(OVTensorTest, sourceIdFreeHelpers) {
+    float data[6] = {};
+    ov::Tensor tensor{ov::element::f32, ov::Shape{2, 3}, data};
+    EXPECT_EQ(ov::get_tensor_source_id(tensor), std::nullopt);
+    ov::set_tensor_source_id(tensor, 55u);
+    EXPECT_EQ(ov::get_tensor_source_id(tensor), std::optional<uint64_t>{55u});
+}
+
+TEST_F(OVTensorTest, sourceIdMmapTensorHasNonZeroId) {
+    // Create a temporary file with some data
+    auto tmp_path = ov::test::utils::generateTestFilePrefix() + "_ov_source_id_test.bin";
+    {
+        std::ofstream f(tmp_path, std::ios::binary);
+        float data[6] = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f};
+        f.write(reinterpret_cast<const char*>(data), sizeof(data));
+    }
+
+    {
+        auto tensor = ov::read_tensor_data(tmp_path, ov::element::f32, ov::PartialShape{2, 3}, 0, true);
+        auto source_id = ov::get_tensor_source_id(tensor);
+        ASSERT_TRUE(source_id.has_value());
+        EXPECT_NE(source_id.value(), 0u);
+    }
+    std::filesystem::remove(tmp_path);
+}
+
+TEST_F(OVTensorTest, sourceIdIfstreamTensorHasNonZeroId) {
+    auto tmp_path = ov::test::utils::generateTestFilePrefix() + "_ov_source_id_ifstream_test.bin";
+    {
+        std::ofstream f(tmp_path, std::ios::binary);
+        float data[6] = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f};
+        f.write(reinterpret_cast<const char*>(data), sizeof(data));
+    }
+
+    {
+        auto tensor = ov::read_tensor_data(tmp_path, ov::element::f32, ov::PartialShape{2, 3}, 0, false);
+        auto source_id = ov::get_tensor_source_id(tensor);
+        ASSERT_TRUE(source_id.has_value());
+        EXPECT_NE(source_id.value(), 0u);
+    }
+    std::filesystem::remove(tmp_path);
+}
+
+TEST_F(OVTensorTest, sourceIdAllocatedTensorHasNoSourceId) {
+    // Allocated tensors (without external data pointer) are not ViewTensors
+    // and therefore do not have a source_id
+    ov::Tensor tensor{ov::element::f32, ov::Shape{2, 3}};
+    EXPECT_EQ(ov::get_tensor_source_id(tensor), std::nullopt);
+}
+
 }  // namespace ov::test

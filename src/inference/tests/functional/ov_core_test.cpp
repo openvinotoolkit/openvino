@@ -187,7 +187,27 @@ TEST_F(CoreBaseTest, read_model_with_std_fs_path_unicode) {
         }
     }
 }
+
+TEST_F(CoreBaseTest, read_model_with_const_wchar_path) {
+    generate_test_model_files("test-model");
+
+    ov::Core core;
+    const std::wstring model_path_w = ov::util::string_to_wstring(model_file_name);
+    const wchar_t* model_path = model_path_w.c_str();
+    const auto model = core.read_model(model_path);
+    EXPECT_NE(model, nullptr);
+}
 #endif
+
+TEST_F(CoreBaseTest, read_model_with_const_char_path) {
+    generate_test_model_files("test-model");
+
+    ov::Core core;
+    const char* model_path = model_file_name.c_str();
+    const auto model = core.read_model(model_path);
+    EXPECT_NE(model, nullptr);
+}
+
 namespace ov::test {
 TEST_F(CoreBaseTest, read_model_with_std_fs_path) {
     generate_test_model_files("test-model");
@@ -204,6 +224,43 @@ TEST_F(CoreBaseTest, read_model_with_std_fs_path) {
         const auto model = core.read_model(model_path, weight_path);
         EXPECT_NE(model, nullptr);
     }
+}
+
+TEST_F(CoreBaseTest, read_model_variadic_properties_std_string) {
+    generate_test_model_files("test-model-variadic");
+
+    ov::Core core;
+    const auto model = core.read_model(model_file_name,
+                                       weight_file_name,
+                                       std::pair<std::string, std::string>("prop1", "val1"),
+                                       std::pair<std::string, std::string>("prop2", "val2"));
+    EXPECT_NE(model, nullptr);
+}
+
+TEST_F(CoreBaseTest, read_model_variadic_properties_fs_path) {
+    generate_test_model_files("test-model-variadic");
+
+    const auto model_path = std::filesystem::path(model_file_name);
+    const auto weight_path = std::filesystem::path(weight_file_name);
+
+    ov::Core core;
+    const auto model = core.read_model(model_path,
+                                       weight_path,
+                                       std::pair<std::string, std::string>("prop1", "val1"),
+                                       std::pair<std::string, std::string>("prop2", "val2"));
+    EXPECT_NE(model, nullptr);
+}
+
+TEST_F(CoreBaseTest, read_model_rvalue_anymap_fs_path) {
+    generate_test_model_files("test-model-anymap");
+
+    const auto model_path = std::filesystem::path(model_file_name);
+    const auto weight_path = std::filesystem::path(weight_file_name);
+
+    ov::Core core;
+    ov::AnyMap properties = {{"prop1", "val1"}, {"prop2", "val2"}};
+    const auto model = core.read_model(model_path, weight_path, std::move(properties));
+    EXPECT_NE(model, nullptr);
 }
 
 TEST_F(CoreBaseTest, compile_model_with_std_fs_path) {
@@ -239,4 +296,31 @@ TEST_F(CoreBaseTest, compile_model_with_std_fs_path) {
     }
 #endif
 }
+
+TEST_P(UnicodePathTest, read_compile_model) {
+    const std::string model_name = "test-model.xml";
+    const auto prefix_dir = utils::generateTestFilePrefix();
+
+    const auto model_path =
+        std::filesystem::path(prefix_dir) / utils::to_fs_path(GetParam()) / std::filesystem::path(model_name);
+    ov::test::utils::generate_test_model(model_path, "");
+
+    ov::Core core;
+    const auto visitor = [&](const auto& param) {
+        using ParamT = std::decay_t<decltype(param)>;
+
+        const auto sep = ov::test::utils::FileTraits<typename ParamT::value_type>::file_separator;
+        const auto model_path = ParamT(prefix_dir.begin(), prefix_dir.end()) + sep + param + sep +
+                                ParamT(model_name.begin(), model_name.end());
+
+        const auto model = core.read_model(model_path);
+        EXPECT_NE(model, nullptr);
+
+        const auto compiled_model = core.compile_model(model_path);
+        EXPECT_TRUE(compiled_model);
+    };
+    run_test_visitor(visitor);
+    std::filesystem::remove_all(prefix_dir);
+}
+
 }  // namespace ov::test

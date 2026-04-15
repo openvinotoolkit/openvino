@@ -112,5 +112,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_RoPETestGPTOSS,
                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          RoPETestGPTOSS::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_RoPETestLtxVideo,
+                         RoPETestLtxVideo,
+                         ::testing::Combine(
+                            ::testing::Values(ov::element::f16, ov::element::f32),
+                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         RoPETestLtxVideo::getTestCaseName);
+
 }  // namespace test
 }  // namespace ov
