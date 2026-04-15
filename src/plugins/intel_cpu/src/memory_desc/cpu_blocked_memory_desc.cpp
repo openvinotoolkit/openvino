@@ -16,9 +16,9 @@
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "openvino/core/except.hpp"
-#include "openvino/core/memory_util.hpp"
 #include "openvino/core/shape_util.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/util/common_util.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
