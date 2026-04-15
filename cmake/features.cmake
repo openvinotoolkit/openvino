@@ -208,7 +208,7 @@ ov_dependent_option (ENABLE_SYSTEM_SNAPPY "Enables use of system version of Snap
     "ENABLE_SNAPPY_COMPRESSION" OFF)
 # the option is turned off by default, because we are not sure that system version of ZE loader is fresh enough
 ov_dependent_option (ENABLE_SYSTEM_LEVEL_ZERO "Enables use of system version of Level Zero" OFF
-    "ENABLE_INTEL_NPU" OFF)
+    "ENABLE_INTEL_NPU OR ENABLE_INTEL_GPU" OFF)
 
 ov_dependent_option(ENABLE_JS "Enables JS API building" ${ENABLE_JS_DEFAULT} "NOT ANDROID;NOT EMSCRIPTEN" OFF)
 
