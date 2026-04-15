@@ -1,6 +1,6 @@
 ---
 name: NPU Plugin Agent
-description: Sonnet, Codex, Gemini
+description: OpenVINO NPU plugin agent. Validates and fixes NPU-specific compilation and inference issues, benchmarks performance with benchmark_app, and reports latency results to the OV Orchestrator. Runs in parallel with Transformation, CPU, and GPU agents; its result is non-blocking. Reports skipped when no NPU hardware is available.
 model: claude-sonnet-4.6
 ---
 # NPU Agent
@@ -16,7 +16,7 @@ Write all logs, results, and patches to `agent-results/npu/`.
 
 ## Called by
 
-- **OV Orchestrator** (priority 6 - after GPU)
+- **OV Orchestrator** (priority 3 — parallel with Transformation, CPU, and GPU, after Core OpSpec; non-blocking)
 
 ---
 

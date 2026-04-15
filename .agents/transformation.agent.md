@@ -70,9 +70,9 @@ no new Copilot agent slot is consumed.**
 
 | Skill file | Purpose |
 |---|---|
-| `openvino_transformation_analysis.md` | Analyse the target sub-graph, identify fusion pattern, classify transformation type |
-| `openvino_transformation_implementation.md` | Write `MatcherPass` / `FunctionPass`, register in pass pipeline |
-| `openvino_add_fusion_transformation.md` | End-to-end workflow: design → implement → register → test (PR #40 pattern) |
+| `skills/add-fusion-transformation/step1-analysis.md` | Analyse the target sub-graph, identify fusion pattern, classify transformation type |
+| `skills/add-fusion-transformation/step2-implementation.md` | Write `MatcherPass` / `FunctionPass`, register in pass pipeline |
+| `skills/add-fusion-transformation/workflow.md` | End-to-end workflow: design → implement → register → test (PR #40 pattern) |
 
 > **Upstream skill spec:** `skills/add-fusion-transformation/SKILL.md`
 > The skill files above are the agent-executable versions of that specification.
@@ -104,7 +104,7 @@ Verify it compiles before proceeding.
 
 ### Step 1: Analyse Target Sub-Graph
 
-Use **`openvino_transformation_analysis`** skill:
+Use **`skills/add-fusion-transformation/step1-analysis.md`** skill:
 
 1. Read the op spec to understand the target op and its graph context.
 2. Identify the **sub-graph pattern** to fuse/rewrite:
@@ -126,7 +126,7 @@ Use **`openvino_transformation_analysis`** skill:
 
 ### Step 2: Implement the Transformation
 
-Use **`openvino_transformation_implementation`** skill.
+Use **`skills/add-fusion-transformation/step2-implementation.md`** skill.
 
 #### File layout
 ```

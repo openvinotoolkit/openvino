@@ -1,5 +1,6 @@
 ---
 name: Deployer Agent
+description: First-attempt deployment specialist. Installs stable OpenVINO release packages, exports HuggingFace models to OpenVINO IR via optimum-cli, validates the IR, runs inference sanity checks, and performs LLM-assisted error classification to route failures to the appropriate specialist agent.
 model: claude-sonnet-4.6
 ---
 # Deployer Agent
