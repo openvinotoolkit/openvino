@@ -77,6 +77,17 @@ static std::shared_ptr<v0::Parameter> create_or_get_named_parameter(const std::s
     return param;
 }
 
+std::optional<size_t> parse_layer_index_from_name(const std::string& name, const std::string& prefix) {
+    if (name.rfind(prefix, 0) != 0 || name.size() <= prefix.size()) {
+        return std::nullopt;
+    }
+    const std::string index_str = name.substr(prefix.size());
+    if (!std::all_of(index_str.begin(), index_str.end(), ::isdigit)) {
+        return std::nullopt;
+    }
+    return static_cast<size_t>(std::stoul(index_str));
+}
+
 static constexpr const char* marked_for_paged_extensions_cleanup = "marked_for_paged_extensions_cleanup";
 static constexpr const char* paged_conv_cache_source = "paged_conv_cache_source";
 
@@ -414,7 +425,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     model->add_parameters(kv_parameters);
     PagedCausalConv1DFusion().run_on_model(model);
-    // GatedDeltaNetFusion().run_on_model(model);
+    GatedDeltaNetFusion().run_on_model(model);
     PagedGatedDeltaNetFusion().run_on_model(model);
     model->validate_nodes_and_infer_types();
 
@@ -430,7 +441,59 @@ ov::pass::PagedExtensionsPostCleanup::PagedExtensionsPostCleanup() {
 bool ov::pass::PagedExtensionsPostCleanup::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(PagedExtensionsPostCleanup);
 
+    static constexpr const char* conv_state_table_prefix = "conv_state_table.";
+    static constexpr const char* cache_params_present_conv_prefix = "cache_params.present.conv.";
+
+    std::set<size_t> fused_layer_indices;
+    for (const auto& parameter : model->get_parameters()) {
+        for (const auto& name : parameter->output(0).get_names()) {
+            if (const auto layer_index = parse_layer_index_from_name(name, conv_state_table_prefix)) {
+                fused_layer_indices.insert(*layer_index);
+            }
+        }
+
+        if (const auto layer_index =
+                parse_layer_index_from_name(parameter->get_friendly_name(), conv_state_table_prefix)) {
+            fused_layer_indices.insert(*layer_index);
+        }
+    }
+
+    for (const auto& result : model->get_results()) {
+        for (const auto& name : result->input_value(0).get_names()) {
+            if (const auto layer_index = parse_layer_index_from_name(name, cache_params_present_conv_prefix)) {
+                fused_layer_indices.insert(*layer_index);
+            }
+        }
+    }
+
     bool changed = false;
+
+    if (!fused_layer_indices.empty()) {
+        ov::ResultVector results_to_remove;
+        for (const auto& result : model->get_results()) {
+            bool remove_result = false;
+            for (const auto& name : result->input_value(0).get_names()) {
+                for (const auto layer_index : fused_layer_indices) {
+                    const std::string present_name =
+                        std::string(cache_params_present_conv_prefix) + std::to_string(layer_index);
+                    if (name == present_name) {
+                        remove_result = true;
+                        break;
+                    }
+                }
+                if (remove_result) {
+                    break;
+                }
+            }
+            if (remove_result) {
+                results_to_remove.push_back(result);
+            }
+        }
+        for (const auto& result : results_to_remove) {
+            model->remove_result(result);
+            changed = true;
+        }
+    }
 
     ov::ResultVector marked_results_to_remove;
     for (const auto& result : model->get_results()) {
