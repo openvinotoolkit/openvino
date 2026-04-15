@@ -930,15 +930,19 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 #endif
 
-typedef struct seq_range {
+typedef struct __attribute__((__packed__)) {
     int min;
     int max;
     int subgroup_max;
-} seq_range;
+} FUNC(seq_range);
+
+// This is needed, because this file can be included multiple times with different macro definitions
+// and error of redefinition of struct can happen.
+#define SEQ_RANGE FUNC(seq_range)
 
 #if SLIDING_WINDOW_SIZE != 0
-inline seq_range FUNC(calc_sliding_window_seq_range)(const seq_range default_seq_range) {
-    seq_range range = default_seq_range;
+inline SEQ_RANGE FUNC(calc_sliding_window_seq_range)(const SEQ_RANGE default_seq_range) {
+    SEQ_RANGE range = default_seq_range;
     range.min = default_seq_range.max - SLIDING_WINDOW_SIZE + 1;
     return range;
 }
@@ -948,10 +952,10 @@ inline seq_range FUNC(calc_sliding_window_seq_range)(const seq_range default_seq
     // Bidirectional attention for image token groups (e.g. Gemma3 VLM):
     // Compute per-lane effective causal limit to extend the visible range for image tokens
     // This is a REFERENCE implementation.
-    inline seq_range FUNC(calc_bi_dir_seq_range)(
+    inline SEQ_RANGE FUNC(calc_bi_dir_seq_range)(
                             const __global int* token_type_ids, 
                             const int seq_len, 
-                            const seq_range default_seq_range) {
+                            const SEQ_RANGE default_seq_range) {
         int token_group_end = default_seq_range.max;
         int token_group_begin = default_seq_range.max;
 
@@ -968,7 +972,7 @@ inline seq_range FUNC(calc_sliding_window_seq_range)(const seq_range default_seq
             }
             token_group_begin = new_group_begin + 1;
         }
-        seq_range range;
+        SEQ_RANGE range;
         range.min = token_group_begin;
         range.max = token_group_end;
         range.subgroup_max = sub_group_reduce_max(token_group_end) + 1;
@@ -1089,19 +1093,19 @@ KERNEL(sdpa_opt)(
 #endif
 
 #if IS_CAUSAL
-    const seq_range default_this_work_item_seq_range = {0, target_seq_idx + sglid, target_seq_idx + seq_idx_end};
-    seq_range this_work_item_seq_range_temp = default_this_work_item_seq_range;
+    const SEQ_RANGE default_this_work_item_seq_range = {0, target_seq_idx + sglid, target_seq_idx + seq_idx_end};
+    SEQ_RANGE this_work_item_seq_range_temp = default_this_work_item_seq_range;
     
     #if IS_PAGED_ATTENTION
         #if HAS_TOKEN_TYPE_IDS
-            const seq_range bi_dir_range = FUNC_CALL(calc_bi_dir_seq_range)(token_type_ids, 
+            const SEQ_RANGE bi_dir_range = FUNC_CALL(calc_bi_dir_seq_range)(token_type_ids, 
                                                                             SOURCE_SEQ_LEN, 
                                                                             default_this_work_item_seq_range);
             this_work_item_seq_range_temp = bi_dir_range;
         #endif //< HAS_TOKEN_TYPE_IDS   
 
         #if SLIDING_WINDOW_SIZE != 0
-            const seq_range sliding_window_range = FUNC_CALL(calc_sliding_window_seq_range)(default_this_work_item_seq_range);
+            const SEQ_RANGE sliding_window_range = FUNC_CALL(calc_sliding_window_seq_range)(default_this_work_item_seq_range);
             this_work_item_seq_range_temp = sliding_window_range;
         #else
             // If sliding window is not present, use the default causal start range.
@@ -1116,7 +1120,7 @@ KERNEL(sdpa_opt)(
         #endif //< HAS_TOKEN_TYPE_IDS && SLIDING_WINDOW_SIZE
     #endif //< IS_PAGED_ATTENTION
 
-    const seq_range this_work_item_seq_range = this_work_item_seq_range_temp;
+    const SEQ_RANGE this_work_item_seq_range = this_work_item_seq_range_temp;
 #endif //< IS_CAUSAL
 
     const uint num_read_blocks = K_HEAD_SIZE == V_HEAD_SIZE ? 1 :  CEIL_DIV(K_HEAD_SIZE, V_HEAD_SIZE);
