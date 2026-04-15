@@ -301,6 +301,35 @@ constexpr bool mul_overflow(T x, T y, T& result) {
 }
 
 /**
+ * @brief This function attempts to parse the input string view `sv` into a number of type `T`.
+ *
+ * @tparam T The type of the number to convert to. Must be an arithmetic type.
+ * @param sv The string view to convert.
+ * @return std::optional<T> The parsed number if successful, or `std::nullopt` if the conversion fails.
+ */
+template <class T>
+std::optional<T> view_to_number(std::string_view sv) noexcept {
+    static_assert(std::is_arithmetic_v<T>, "T must be an arithmetic type");
+    T value{};
+    if constexpr (std::is_integral_v<T>) {
+        const auto ec = std::from_chars(sv.begin(), sv.end(), value).ec;
+        return ec == std::errc() ? std::make_optional(value) : std::nullopt;
+    } else {
+        try {
+            if constexpr (std::string str{sv}; std::is_same_v<float, T>) {
+                return std::make_optional<T>(std::strtof(str.c_str(), nullptr));
+            } else if constexpr (std::is_same_v<double, T>) {
+                return std::make_optional<T>(std::strtod(str.c_str(), nullptr));
+            } else if constexpr (std::is_same_v<long double, T>) {
+                return std::make_optional<T>(std::strtold(str.c_str(), nullptr));
+            }
+        } catch (const std::exception&) {
+        }
+        return std::nullopt;
+    }
+}
+
+/**
  * @brief Parses a string view into a container, optionally validating each field.
  *
  * This function splits the input string view `sv` using the specified separator `sep` and inserts the parsed values
@@ -309,9 +338,9 @@ constexpr bool mul_overflow(T x, T y, T& result) {
  *
  * @tparam Container The type of the container to store the parsed values.
  * @tparam FieldValidator A callable type used to validate each field.
- * @param sv The input string view to parse.
- * @param result The container to store the parsed values.
- * @param sep The separator used to split the string view.
+ * @param sv              The input string view to parse.
+ * @param result          The container to store the parsed values.
+ * @param sep             The separator used to split the string view.
  * @param field_validator The callable used to validate each field.
  */
 template <class Container, class FieldValidator = bool>
@@ -329,9 +358,7 @@ void parse_view_into_container(std::string_view sv,
         }
 
         if constexpr (std::is_arithmetic_v<V>) {
-            V value{};
-            const auto ec = std::from_chars(field.begin(), field.end(), value).ec;
-            result.insert(result.end(), (ec == std::errc() ? value : V{}));
+            result.insert(result.end(), view_to_number<V>(field).value_or(V{}));
         } else {
             result.insert(result.end(), V{field});
         }
@@ -345,24 +372,6 @@ void parse_view_into_container(std::string_view sv,
 }
 
 /**
- * @brief Splits a string view into a container of string views.
- *
- * This function splits the input string view `sv` using the specified separator `sep` and inserts the parsed values
- * into the provided `result` container.
- *
- * @tparam Container The type of the container to store the parsed values.
- * @param sv The input string view to parse.
- * @param sep The separator used to split the string view.
- * @return Container The container with the parsed string views.
- */
-template <class Container>
-Container split_to_views(std::string_view sv, std::string_view sep = ",") {
-    Container result{};
-    parse_view_into_container(sv, result, sep);
-    return result;
-}
-
-/**
  * @brief Splits a string view into a container of string views, optionally validating each field.
  *
  * This function splits the input string view `sv` using the specified separator `sep` and inserts the parsed values
@@ -371,12 +380,12 @@ Container split_to_views(std::string_view sv, std::string_view sep = ",") {
  *
  * @tparam Container The type of the container to store the parsed values.
  * @tparam FieldValidator A callable type used to validate each field.
- * @param sv The input string view to parse.
- * @param sep The separator used to split the string view.
+ * @param sv              The input string view to parse.
+ * @param sep             The separator used to split the string view.
  * @param field_validator The callable used to validate each field.
  * @return Container The container with the parsed string views.
  */
-template <class Container, class FieldValidator>
+template <class Container = std::vector<std::string_view>, class FieldValidator = std::nullptr_t>
 Container split_to_views(std::string_view sv, std::string_view sep = ",", FieldValidator field_validator = {}) {
     Container result{};
     parse_view_into_container(sv, result, sep, field_validator);

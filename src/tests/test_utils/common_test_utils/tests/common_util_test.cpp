@@ -77,7 +77,7 @@ TEST_F(CommonUtilsTest, parse_views_into_container_arithmetic_custom_check_fail)
 }
 
 TEST_F(CommonUtilsTest, split_to_views_default_separator) {
-    EXPECT_EQ((std::vector<std::string>{"1", "2", "3"}), util::split_to_views<std::vector<std::string>>("1,2,3"));
+    EXPECT_EQ((std::vector<std::string_view>{"1", "2", "3"}), util::split_to_views("1,2,3"));
 }
 
 TEST_F(CommonUtilsTest, split_to_views_custom_separator) {
@@ -99,6 +99,21 @@ TEST_F(CommonUtilsTest, split_to_views_custom_check_fail) {
                          OPENVINO_ASSERT(!field.empty(), "Cannot get vector of fields! \" 1;;3 \" is incorrect");
                      }),
                  ov::AssertFailure);
+}
+
+TEST_F(CommonUtilsTest, view_to_integral_number){
+    EXPECT_EQ(123, util::view_to_number<int>("123").value_or(0));
+    EXPECT_EQ(-123, util::view_to_number<int>("-123").value_or(0));
+    EXPECT_EQ(0, util::view_to_number<int>("abc").value_or(0));
+    EXPECT_EQ(0, util::view_to_number<int>("").value_or(0));
+}
+
+TEST_F(CommonUtilsTest, view_to_floating_point_number){
+    EXPECT_FLOAT_EQ(123.456f, util::view_to_number<float>("123.456").value_or(0));
+    EXPECT_DOUBLE_EQ(123.456, util::view_to_number<double>("123.456").value_or(0));
+    EXPECT_DOUBLE_EQ(-123.456, util::view_to_number<double>("-123.456").value_or(0));
+    EXPECT_DOUBLE_EQ(0, util::view_to_number<double>("abc").value_or(0));
+    EXPECT_DOUBLE_EQ(0, util::view_to_number<double>("").value_or(0));
 }
 
 }  // namespace ov::test
