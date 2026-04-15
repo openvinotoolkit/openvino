@@ -205,7 +205,9 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
                                            std::nullopt,
                                            std::nullopt)
             .write(requirementsString);
-        return utils::encode_compatibility_string(requirementsString.str());
+        const std::string encodedString = utils::encode_compatibility_string(requirementsString.str());
+        // TODO check this tensor is constructed properly
+        return ov::Tensor(ov::element::Type_t::string, ov::Shape(encodedString.length()), encodedString.data());
     }
 
     // default behaviour
