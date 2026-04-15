@@ -24,7 +24,7 @@ class TestTransformersModel(TestJaxConvertModel):
     @retry(3, exceptions=(OSError,), delay=1)
     def load_model(self, model_name, _):
         try:
-            model_cached = snapshot_download(model_name, local_files_only=True)
+            model_cached = snapshot_download(model_name)
         except LocalEntryNotFoundError:
             model_cached = snapshot_download(model_name)  # fallback: download if not cached
         model = FlaxAutoModel.from_pretrained(model_cached)

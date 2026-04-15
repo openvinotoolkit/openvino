@@ -95,7 +95,7 @@ def main():
             # wrapping in try/catch block to continue printing models even if one has failed
             try:
                 try:
-                    model_cached = snapshot_download(model_id, local_files_only=True)
+                    model_cached = snapshot_download(model_id)
                 except LocalEntryNotFoundError:
                     model_cached = snapshot_download(model_id)  # fallback: download if not cached
                 model = cls.from_pretrained(model_cached, export=True, trust_remote_code=True)

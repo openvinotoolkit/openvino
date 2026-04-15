@@ -43,7 +43,7 @@ def patch_gptq(config):
 
 def run_gptq_torchfx(tmp_path, model_id, model_link, prompt_result_pair):
     try:
-        model_cached = snapshot_download(model_id, local_files_only=True)
+        model_cached = snapshot_download(model_id)
     except LocalEntryNotFoundError:
         model_cached = snapshot_download(model_id)  # fallback: download if not cached
     config = AutoConfig.from_pretrained(model_cached, trust_remote_code=True, torch_dtype=torch.float32)

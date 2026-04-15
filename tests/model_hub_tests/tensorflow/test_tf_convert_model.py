@@ -46,7 +46,7 @@ class TestTFHubConvertModel(TestConvertModel):
     def load_model(self, model_name, model_link: str):
         if is_hf_link(model_link):
             try:
-                model_cached = snapshot_download(model_name, local_files_only=True)
+                model_cached = snapshot_download(model_name)
             except LocalEntryNotFoundError:
                 model_cached = snapshot_download(model_name)  # fallback: download if not cached
             library_type = model_link[3:]

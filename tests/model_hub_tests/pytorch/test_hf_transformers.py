@@ -64,7 +64,7 @@ class TestTransformersModel(TestTorchConvertModel):
         name, _, name_suffix = name.partition(':')
 
         try:
-            model_cached = snapshot_download(name, local_files_only=True)
+            model_cached = snapshot_download(name)
         except LocalEntryNotFoundError:
             model_cached = snapshot_download(name)  # fallback: download if not cached
         mi = model_info(name)
@@ -530,7 +530,7 @@ class TestTransformersModel(TestTorchConvertModel):
         from transformers import AutoModel
 
         try:
-            model_cached = snapshot_download(name, local_files_only=True)
+            model_cached = snapshot_download(name)
         except LocalEntryNotFoundError:
             model_cached = snapshot_download(name)  # fallback: download if not cached
         try:

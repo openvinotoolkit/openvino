@@ -104,7 +104,7 @@ def create_synthetic_moe_model(tmp_path, num_layers, num_experts, dtype="float32
     """
     # Load config from cache to avoid HuggingFace rate limits
     try:
-        config_cache = snapshot_download("optimum-internal-testing/tiny-random-qwen3_moe", local_files_only=True)
+        config_cache = snapshot_download("optimum-internal-testing/tiny-random-qwen3_moe")
     except LocalEntryNotFoundError:
         config_cache = snapshot_download("optimum-internal-testing/tiny-random-qwen3_moe")  # fallback: download if not cached
     config = AutoConfig.from_pretrained(config_cache)
@@ -141,7 +141,7 @@ def run_moe(tmp_path,
         batch_size: Number of sequences to process in parallel (default: 1)
     """
     try:
-        model_cached = snapshot_download(model_id, local_files_only=True)
+        model_cached = snapshot_download(model_id)
     except LocalEntryNotFoundError:
         model_cached = snapshot_download(model_id)  # fallback: download if not cached
 
@@ -217,7 +217,7 @@ def run_moe_synthetic(tmp_path,
     pt_model = AutoModelForCausalLM.from_pretrained(model_path, trust_remote_code=True)
     # Load tokenizer from cache to avoid HuggingFace rate limits
     try:
-        tokenizer_cache = snapshot_download("optimum-internal-testing/tiny-random-qwen3_moe", local_files_only=True)
+        tokenizer_cache = snapshot_download("optimum-internal-testing/tiny-random-qwen3_moe")
     except LocalEntryNotFoundError:
         tokenizer_cache = snapshot_download("optimum-internal-testing/tiny-random-qwen3_moe")  # fallback: download if not cached
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_cache, trust_remote_code=True)

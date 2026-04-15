@@ -54,7 +54,7 @@ def check_result_desc_tensors(expected_tensors, tensors):
 @retry(3, exceptions=(OSError,), delay=1)
 def run_stateful_to_stateless_in_runtime(tmp_path, model_id, model_link):
     try:
-        model_cached = snapshot_download(model_id, local_files_only=True)
+        model_cached = snapshot_download(model_id)
     except LocalEntryNotFoundError:
         model_cached = snapshot_download(model_id)  # fallback: download if not cached
     model = OVModelForCausalLM.from_pretrained(model_cached, export=True, stateful=True, compile=False)

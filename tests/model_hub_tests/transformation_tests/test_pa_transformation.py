@@ -158,7 +158,7 @@ def run_pa(tmp_path,
            allow_qq_bias,
            ie_device):
     try:
-        model_cached = snapshot_download(model_id, local_files_only=True)
+        model_cached = snapshot_download(model_id)
     except LocalEntryNotFoundError:
         model_cached = snapshot_download(model_id)  # fallback: download if not cached
     model = cls.from_pretrained(model_cached, export=True, trust_remote_code=True)

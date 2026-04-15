@@ -153,7 +153,7 @@ class TestLLMModel(TestTorchConvertModel):
         model = None
         example = None
         try:
-            model_cached = snapshot_download(name, local_files_only=True)
+            model_cached = snapshot_download(name)
         except LocalEntryNotFoundError:
             model_cached = snapshot_download(name)  # fallback: download if not cached
         try:
@@ -174,7 +174,7 @@ class TestLLMModel(TestTorchConvertModel):
         else:
             model_kwargs["torch_dtype"] = "auto"
         try:
-            model_cached = snapshot_download(name, local_files_only=True)
+            model_cached = snapshot_download(name)
         except LocalEntryNotFoundError:
             model_cached = snapshot_download(name)  # fallback: download if not cached
         t = AutoTokenizer.from_pretrained(model_cached, trust_remote_code=True)

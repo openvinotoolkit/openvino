@@ -93,7 +93,7 @@ def run_test(model_id, ie_device, ts_names, expected_layer_types):
             pytest.skip("OVModelForCausalLM unavailable with installed package versions")
 
     try:
-        model_cached = snapshot_download(model_id, local_files_only=True)
+        model_cached = snapshot_download(model_id)
     except LocalEntryNotFoundError:
         model_cached = snapshot_download(model_id)  # fallback: download if not cached
     try:
@@ -108,7 +108,7 @@ def run_flux_test(model_id, ie_device, ts_names, expected_layer_types):
     from diffusers import FluxTransformer2DModel
 
     try:
-        model_cached = snapshot_download(model_id, local_files_only=True)
+        model_cached = snapshot_download(model_id)
     except LocalEntryNotFoundError:
         model_cached = snapshot_download(model_id)  # fallback: download if not cached
     try:
