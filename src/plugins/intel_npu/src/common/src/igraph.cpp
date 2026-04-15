@@ -24,8 +24,18 @@ void IGraph::set_argument_value_with_strides(uint32_t, const void*, const std::v
     OPENVINO_THROW("set_argument_value_with_strides not implemented");
 }
 
-void IGraph::initialize(const FilteredConfig&) {
-    OPENVINO_THROW("initialize not implemented");
+void IGraph::initialize(const FilteredConfig& config) {
+    std::lock_guard<std::mutex> lock(_initialize_mutex);
+
+    if (_init_completed.load(std::memory_order_acquire)) {
+        return;
+    }
+
+    initialize_impl(config);
+}
+
+void IGraph::initialize_impl(const FilteredConfig&) {
+    OPENVINO_THROW("initialize_impl not implemented");
 }
 
 const NetworkMetadata& IGraph::get_metadata() const {
@@ -40,16 +50,16 @@ void IGraph::update_network_name(std::string_view) {
     OPENVINO_THROW("update_network_name not implemented");
 }
 
-const std::shared_ptr<CommandQueue>& IGraph::get_command_queue() const {
-    OPENVINO_THROW("get_command_queue not implemented");
+CommandQueueDesc IGraph::get_command_queue_desc() const {
+    OPENVINO_THROW("get_command_queue_desc not implemented");
 }
 
-uint32_t IGraph::get_command_queue_group_ordinal() const {
-    OPENVINO_THROW("get_command_queue_group_ordinal not implemented");
-}
-
-void IGraph::set_workload_type(const ov::WorkloadType) const {
+void IGraph::set_workload_type(const ov::WorkloadType) {
     OPENVINO_THROW("set_workload_type not implemented");
+}
+
+void IGraph::set_model_priority(const ov::hint::Priority) {
+    OPENVINO_THROW("set_model_priority not implemented");
 }
 
 void IGraph::set_last_submitted_event(const std::shared_ptr<Event>&, size_t) {
@@ -83,5 +93,7 @@ void IGraph::set_last_submitted_id(uint32_t) {
 uint32_t IGraph::get_last_submitted_id() const {
     OPENVINO_THROW("get_last_submitted_id not implemented");
 }
+
+void IGraph::evict_memory() {}
 
 }  // namespace intel_npu

@@ -4,7 +4,7 @@
 
 #include "intel_npu/utils/zero/zero_result.hpp"
 
-#include <ze_api.h>
+#include <level_zero/ze_api.h>
 
 #include <string>
 
