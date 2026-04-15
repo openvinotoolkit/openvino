@@ -46,7 +46,8 @@ function(download_npu_plugin_compiler_libs
         get_filename_component(archive_name_no_ext "${archive_name}" NAME_WE)
         set(download_archive_path "${parent_dir}/${archive_name}")
 
-        message(STATUS "[Attempt #${index}] Downloading prebuilt Plugin Compiler libraries from ${url}")
+        math(EXPR attempt_number "${index} + 1")
+        message(STATUS "[Attempt #${attempt_number}] Downloading prebuilt Plugin Compiler libraries from ${url}")
         file(DOWNLOAD "${url}" "${download_archive_path}"
             TIMEOUT 3600
             LOG log_output
@@ -56,7 +57,7 @@ function(download_npu_plugin_compiler_libs
         list(GET download_status 0 download_result)
         if(NOT download_result EQUAL 0)
             message(STATUS "Download failed from ${url}\nStatus: ${download_status}\nLog: ${log_output}")
-            file(REMOVE_RECURSE "${parent_dir}")
+            file(REMOVE "${download_archive_path}")
             continue()
         endif()
 
@@ -64,7 +65,7 @@ function(download_npu_plugin_compiler_libs
         file(SHA256 "${download_archive_path}" actual_checksum)
         if(NOT "${actual_checksum}" STREQUAL "${checksum}")
             message(STATUS "Checksum mismatch for ${download_archive_path}\n\tExpected: ${checksum}\n\tActual:   ${actual_checksum}")
-            file(REMOVE_RECURSE "${parent_dir}")
+            file(REMOVE "${download_archive_path}")
             continue()
         endif()
 
@@ -251,7 +252,7 @@ if(ENABLE_INTEL_NPU_COMPILER)
     print_build_manifest("${PLUGIN_COMPILER_ARCHIVE_EXTRACTED_DIR}/build_manifest.json")
 
     #
-    # Ranaming and copying the prebuilt Plugin Compiler libraries to the destination folder for NPU plugin
+    # Renaming and copying the prebuilt Plugin Compiler libraries to the destination folder for NPU plugin
     #
 
     set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_ARCHIVE_EXTRACTED_DIR}/lib")
