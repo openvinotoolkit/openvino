@@ -1262,7 +1262,8 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     jit.add(unit_parameters("VAL"));
     jit.add(unit_parameters("DST"));
 
-    if (!config.is_paged_attention && has_runtime_attn_mask_input(params, *params.typed_desc<scaled_dot_product_attention>())) {
+    if (data_inputs_num > 3 && !config.is_paged_attention &&
+        has_runtime_attn_mask_input(params, *params.typed_desc<scaled_dot_product_attention>())) {
         jit.add(convert_strides("MSK", "INPUT3", {0, 1, 2, 3}));
         jit.add(unit_parameters("MSK"));
     }
