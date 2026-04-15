@@ -930,14 +930,17 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 #endif
 
+typedef struct seq_range {
+    int min;
+    int max;
+    int subgroup_max;
+} seq_range;
+
 #if SLIDING_WINDOW_SIZE != 0
-inline void FUNC(apply_sliding_window_seq_range)(int* in_out_this_work_item_min_seq_idx_curr, const int default_this_work_item_max_seq_idx) {
-    const int default_this_work_item_min_seq_idx_sliding_window = default_this_work_item_max_seq_idx - SLIDING_WINDOW_SIZE + 1;
-    if(*in_out_this_work_item_min_seq_idx_curr == 0) {
-        *in_out_this_work_item_min_seq_idx_curr = default_this_work_item_min_seq_idx_sliding_window;
-    } else {
-        *in_out_this_work_item_min_seq_idx_curr = min(*in_out_this_work_item_min_seq_idx_curr, default_this_work_item_min_seq_idx_sliding_window);
-    }
+inline seq_range FUNC(calc_sliding_window_seq_range)(const seq_range default_seq_range) {
+    seq_range range = default_seq_range;
+    range.min = default_seq_range.max - SLIDING_WINDOW_SIZE + 1;
+    return range;
 }
 #endif
 
@@ -945,15 +948,12 @@ inline void FUNC(apply_sliding_window_seq_range)(int* in_out_this_work_item_min_
     // Bidirectional attention for image token groups (e.g. Gemma3 VLM):
     // Compute per-lane effective causal limit to extend the visible range for image tokens
     // This is a REFERENCE implementation.
-    inline void FUNC(apply_bi_dir_seq_range)(
+    inline seq_range FUNC(calc_bi_dir_seq_range)(
                             const __global int* token_type_ids, 
                             const int seq_len, 
-                            int* out_this_work_item_max_seq_idx, 
-                            int* out_this_work_item_min_seq_idx, 
-                            int* out_this_work_subgroup_max_seq_idx, 
-                            const int default_this_work_item_max_seq_idx) {
-        int token_group_end = default_this_work_item_max_seq_idx;
-        int token_group_begin = default_this_work_item_max_seq_idx;
+                            const seq_range default_seq_range) {
+        int token_group_end = default_seq_range.max;
+        int token_group_begin = default_seq_range.max;
 
         if (token_type_ids[token_group_end] == 1) {
             int new_group_end = token_group_end + 1;
@@ -968,9 +968,11 @@ inline void FUNC(apply_sliding_window_seq_range)(int* in_out_this_work_item_min_
             }
             token_group_begin = new_group_begin + 1;
         }
-        *out_this_work_item_max_seq_idx = token_group_end;
-        *out_this_work_item_min_seq_idx = token_group_begin;
-        *out_this_work_subgroup_max_seq_idx = sub_group_reduce_max(token_group_end) + 1;
+        seq_range range;
+        range.min = token_group_begin;
+        range.max = token_group_end;
+        range.subgroup_max = sub_group_reduce_max(token_group_end) + 1;
+        return range;
     }
 #endif
 
@@ -1087,34 +1089,34 @@ KERNEL(sdpa_opt)(
 #endif
 
 #if IS_CAUSAL
-    const int default_this_work_item_max_seq_idx = target_seq_idx + sglid;
-    const int default_this_work_item_min_seq_idx = 0;
-    const int default_this_work_subgroup_max_seq_idx = target_seq_idx + seq_idx_end;   
-
-    int this_work_item_max_seq_idx_temp = default_this_work_item_max_seq_idx;
-    int this_work_item_min_seq_idx_temp = default_this_work_item_min_seq_idx;
-    int this_work_subgroup_max_seq_idx_temp = default_this_work_subgroup_max_seq_idx;
+    const seq_range default_this_work_item_seq_range = {0, target_seq_idx + sglid, target_seq_idx + seq_idx_end};
+    seq_range this_work_item_seq_range_temp = default_this_work_item_seq_range;
+    
     #if IS_PAGED_ATTENTION
         #if HAS_TOKEN_TYPE_IDS
-            FUNC_CALL(apply_bi_dir_seq_range)(token_type_ids, 
-                                              SOURCE_SEQ_LEN, 
-                                              &this_work_item_max_seq_idx_temp, 
-                                              &this_work_item_min_seq_idx_temp, 
-                                              &this_work_subgroup_max_seq_idx_temp, 
-                                              default_this_work_item_max_seq_idx);
-        #endif
+            const seq_range bi_dir_range = FUNC_CALL(calc_bi_dir_seq_range)(token_type_ids, 
+                                                                            SOURCE_SEQ_LEN, 
+                                                                            default_this_work_item_seq_range);
+            this_work_item_seq_range_temp = bi_dir_range;
+        #endif //< HAS_TOKEN_TYPE_IDS   
 
         #if SLIDING_WINDOW_SIZE != 0
-            FUNC_CALL(apply_sliding_window_seq_range)(&this_work_item_min_seq_idx_temp, 
-                                                      default_this_work_item_max_seq_idx);
+            const seq_range sliding_window_range = FUNC_CALL(calc_sliding_window_seq_range)(default_this_work_item_seq_range);
+            this_work_item_seq_range_temp = sliding_window_range;
         #else
-            this_work_item_min_seq_idx_temp = default_this_work_item_min_seq_idx;
+            // If sliding window is not present, use the default causal start range.
+            this_work_item_seq_range_temp.min = default_this_work_item_seq_range.min;
         #endif //< SLIDING_WINDOW_SIZE
+
+        #if HAS_TOKEN_TYPE_IDS && SLIDING_WINDOW_SIZE != 0
+            // If both token type ids and sliding window are present, take the intersection of the two ranges
+            this_work_item_seq_range_temp.min = min(bi_dir_range.min, sliding_window_range.min);
+            this_work_item_seq_range_temp.max = max(bi_dir_range.max, sliding_window_range.max);
+            this_work_item_seq_range_temp.subgroup_max = max(bi_dir_range.subgroup_max, sliding_window_range.subgroup_max);
+        #endif //< HAS_TOKEN_TYPE_IDS && SLIDING_WINDOW_SIZE
     #endif //< IS_PAGED_ATTENTION
 
-    const int this_work_item_min_seq_idx = this_work_item_min_seq_idx_temp;
-    const int this_work_item_max_seq_idx = this_work_item_max_seq_idx_temp;
-    const int this_work_subgroup_max_seq_idx = this_work_subgroup_max_seq_idx_temp;
+    const seq_range this_work_item_seq_range = this_work_item_seq_range_temp;
 #endif //< IS_CAUSAL
 
     const uint num_read_blocks = K_HEAD_SIZE == V_HEAD_SIZE ? 1 :  CEIL_DIV(K_HEAD_SIZE, V_HEAD_SIZE);
@@ -1272,14 +1274,14 @@ KERNEL(sdpa_opt)(
     for (uint start_partition_idx = 0; start_partition_idx < SOURCE_SEQ_LEN; start_partition_idx += SEQ_LEN_PARTITION_SIZE) {
         const uint seq_len = start_partition_idx + sgid * SUBGROUP_SIZE;
 #if IS_CAUSAL
-        const uint partition_seq_len = min((uint)SEQ_LEN_PARTITION_SIZE, (uint)max(0, (int)(this_work_subgroup_max_seq_idx) - (int)start_partition_idx));
+        const uint partition_seq_len = min((uint)SEQ_LEN_PARTITION_SIZE, (uint)max(0, (int)(this_work_item_seq_range_temp.subgroup_max) - (int)start_partition_idx));
 #else
         const uint partition_seq_len = min((uint)SOURCE_SEQ_LEN - start_partition_idx, (uint)SEQ_LEN_PARTITION_SIZE);
 #endif
 
         MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = INPUT0_VAL_ZERO;
 #if IS_CAUSAL
-        if (seq_len <= this_work_subgroup_max_seq_idx) { // keep tril i.e. m >= n
+        if (seq_len <= this_work_item_seq_range_temp.subgroup_max) { // keep tril i.e. m >= n
 #endif
 #if IS_PAGED_ATTENTION
 #ifdef BROADCAST_GROUP_SIZE
@@ -1493,8 +1495,8 @@ KERNEL(sdpa_opt)(
 #if IS_CAUSAL
                     // causal mask: valid only if m >= n
                     const int curr_seq_idx = seq_len + i;
-                    if ((curr_seq_idx <= this_work_item_max_seq_idx) 
-                        && (curr_seq_idx >= this_work_item_min_seq_idx)) {
+                    if ((curr_seq_idx <= this_work_item_seq_range.max) 
+                        && (curr_seq_idx >= this_work_item_seq_range.min)) {
 #endif  // IS_CAUSAL
 
 #if !APPLY_SCALES_TO_QUERY
@@ -1654,8 +1656,8 @@ KERNEL(sdpa_opt)(
             for (int i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {    
 #if IS_CAUSAL
                 const int curr_seq_idx = seq_len + i;
-                if ((curr_seq_idx <= this_work_item_max_seq_idx)
-                    && (curr_seq_idx >= this_work_item_min_seq_idx)) {
+                if ((curr_seq_idx <= this_work_item_seq_range.max)
+                    && (curr_seq_idx >= this_work_item_seq_range.min)) {
                     qk_acc[i] = native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(qk_acc[i]) - qk_max_new);
                     exp_sum_new += qk_acc[i];
                 } else {
