@@ -31,11 +31,6 @@ void Tile::validate_and_infer_types() {
                           "Tile repeats must have any integer element type, but has ",
                           repeats_et);
     auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
-    if (output_shapes[0].is_static()) {
-        NODE_VALIDATION_CHECK(this,
-                              ov::util::shape_size_safe(output_shapes[0].to_shape()).has_value(),
-                              "Tile output shape is too large and overflows size_t element count");
-    }
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 
     set_input_is_relevant_to_shape(0);
