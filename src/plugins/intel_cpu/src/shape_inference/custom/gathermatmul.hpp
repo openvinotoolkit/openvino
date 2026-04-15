@@ -41,7 +41,7 @@ public:
     explicit GatherMatmulShapeInferFactory(const std::shared_ptr<ov::Node>& op) : m_op(op) {}
 
     [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
-        // BatchGatherMatmul has fixed transpose settings: transpose_a=false, transpose_b=true
+        // GatherMatmul has fixed transpose settings: transpose_a=false, transpose_b=true
         OPENVINO_DEBUG_ASSERT(m_op->get_output_partial_shape(0).rank().get_length() == 3,
                               "GatherMatmul output must be 3D, got rank: ",
                               m_op->get_output_partial_shape(0).rank().get_length());
