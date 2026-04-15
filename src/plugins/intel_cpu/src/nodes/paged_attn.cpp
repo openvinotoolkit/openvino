@@ -26,11 +26,14 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/general_utils.h"
+
+#if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64))
+#    include "openvino/runtime/internal_properties.hpp"
+#endif
 
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "openvino/core/shape.hpp"

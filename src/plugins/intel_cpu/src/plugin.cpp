@@ -601,9 +601,6 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
                                                    RW_property(ov::hint::kv_cache_precision.name()),
                                                    RW_property(ov::key_cache_precision.name()),
                                                    RW_property(ov::value_cache_precision.name()),
-                                                   RW_property(ov::internal::kv_cache_codec.name()),
-                                                   RW_property(ov::internal::key_cache_codec.name()),
-                                                   RW_property(ov::internal::value_cache_codec.name()),
                                                    RW_property(ov::key_cache_group_size.name()),
                                                    RW_property(ov::value_cache_group_size.name()),
                                                    RW_property(ov::enable_weightless.name())};
@@ -628,7 +625,10 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
             ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(),
-                             ov::PropertyMutability::RO}};
+                             ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::kv_cache_codec.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::internal::key_cache_codec.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::internal::value_cache_codec.name(), ov::PropertyMutability::RW}};
     }
     if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type(deviceFullName);
