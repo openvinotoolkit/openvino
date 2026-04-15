@@ -4,10 +4,8 @@
 
 #pragma once
 
+#include <filesystem>
 #include <fstream>
-#if defined(__MINGW32__) || defined(__MINGW64__)
-#    include <filesystem>
-#endif
 #include <vector>
 
 #include "checkpoint_v1_reader.hpp"
@@ -59,9 +57,8 @@ protected:
         }
     }
 
-    template <typename T>
-    void initialize_v1_checkpoints(const std::basic_string<T>& checkpoint_directory) {
-        m_checkpoint_v1_reader = std::make_shared<CheckpointV1Reader>(checkpoint_directory);
+    void initialize_v1_checkpoints(const std::filesystem::path& checkpoint_directory) {
+        m_checkpoint_v1_reader = std::make_shared<CheckpointV1Reader>(ov::util::path_to_string(checkpoint_directory)); // todo CheckpointV1Reader should be refactored to use std::filesystem::path
         m_checkpoint_v1_reader->initialize();
     }
 
@@ -107,16 +104,11 @@ public:
     }
 
     /// \brief Construct GraphIterator for the frozen model without v1 checkpoints
-    template <typename T>
-    GraphIteratorProto(const std::basic_string<T>& model_path)
+    GraphIteratorProto(const std::filesystem::path& model_path)
         : m_graph_def(std::make_shared<::tensorflow::GraphDef>()),
           m_func_def(nullptr),
           m_checkpoint_v1_reader(nullptr) {
-#if defined(__MINGW32__) || defined(__MINGW64__)
-        std::ifstream pb_stream(std::filesystem::path(model_path), std::ios::in | std::ifstream::binary);
-#else
         std::ifstream pb_stream(model_path, std::ios::in | std::ifstream::binary);
-#endif
 
         FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file does not exist");
         FRONT_END_GENERAL_CHECK(m_graph_def->ParseFromIstream(&pb_stream), "Model cannot be parsed");
@@ -125,8 +117,7 @@ public:
     }
 
     /// \brief Construct GraphIterator for the frozen model with v1 checkpoints
-    template <typename T>
-    GraphIteratorProto(const std::basic_string<T>& model_path, const std::basic_string<T>& checkpoint_directory)
+    GraphIteratorProto(const std::filesystem::path& model_path, const std::filesystem::path& checkpoint_directory)
         : m_graph_def(std::make_shared<::tensorflow::GraphDef>()),
           m_func_def(nullptr),
           m_checkpoint_v1_reader(nullptr) {
@@ -140,18 +131,12 @@ public:
     }
 
     /// \brief Check if the input file is supported
-    template <typename T>
-    static bool is_supported(const std::basic_string<T>& path) {
+    static bool is_supported(const std::filesystem::path& path) {
         FRONT_END_GENERAL_CHECK(util::directory_exists(path) || util::file_exists(path),
-                                "Could not open the file: \"",
-                                util::path_to_string(path),
-                                '"');
+                                "Could not open the file: ",
+                                path);
         try {
-#if defined(__MINGW32__) || defined(__MINGW64__)
-            std::ifstream pb_stream(std::filesystem::path(path), std::ios::in | std::ifstream::binary);
-#else
             std::ifstream pb_stream(path, std::ios::in | std::ifstream::binary);
-#endif
             auto graph_def = std::make_shared<::tensorflow::GraphDef>();
             return pb_stream && pb_stream.is_open() && graph_def->ParsePartialFromIstream(&pb_stream) &&
                    graph_def->node_size() > 0;

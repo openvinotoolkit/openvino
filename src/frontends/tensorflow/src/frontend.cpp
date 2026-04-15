@@ -156,7 +156,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     // it is sufficient to check only the input model format
     // avoid parsing of checkpoints here
     if (!model_fs_path.empty() && checkpoints_dir.empty()) {
-        auto model_path = model_fs_path.native();
+        auto model_path = model_fs_path;
         if (GraphIteratorProto::is_supported(model_path)) {
             // handle binary protobuf format
             // for automatic deduction of the frontend to convert the model
@@ -171,7 +171,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
             return true;
         }
     } else if (!model_fs_path.empty() && !checkpoints_dir.empty()) {
-        auto model_path = model_fs_path.native();
+        auto model_path = model_fs_path;
         // here, we assume to get the input model path and checkpoints directory
         if (GraphIteratorProto::is_supported(model_path)) {
             // binary protobuf format with checkpoints
@@ -212,7 +212,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
     }
 
     if (!model_fs_path.empty() && checkpoints_fs_dir.empty()) {
-        const auto model_path = model_fs_path.native();
+        const auto model_path = model_fs_path;
         if (GraphIteratorProto::is_supported(model_path)) {
             // handle binary protobuf format
             return std::make_shared<InputModel>(std::make_shared<GraphIteratorProto>(model_path), m_telemetry);
@@ -245,8 +245,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         }
     } else if (!model_fs_path.empty() && !checkpoints_fs_dir.empty()) {
         // here, we assume to get the input model path and checkpoints directory
-        const auto model_path = ov::util::path_to_string(model_fs_path);
-        const auto checkpoints_dir = ov::util::path_to_string(checkpoints_fs_dir);
+        const auto model_path = model_fs_path;
+        const auto checkpoints_dir = checkpoints_fs_dir;
         if (GraphIteratorProto::is_supported(model_path)) {
             auto graph_iterator = std::make_shared<GraphIteratorProto>(model_path, checkpoints_dir);
             // handle binary protobuf format with checkpoints
