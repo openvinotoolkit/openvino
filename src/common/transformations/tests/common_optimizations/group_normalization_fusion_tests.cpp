@@ -708,7 +708,8 @@ protected:
             if (i == 1) {
                 const auto channels = static_cast<int64_t>(static_shape[i]);
                 if (channels % num_groups != 0) {
-                    throw std::runtime_error("Channel dimension must be divisible by num_groups for concrete values test!");
+                    throw std::runtime_error(
+                        "Channel dimension must be divisible by num_groups for concrete values test!");
                 }
                 merged_spatial = channels / num_groups;
             } else {
