@@ -97,7 +97,7 @@ def main():
                 try:
                     model_cached = snapshot_download(model_id, local_files_only=True)
                 except Exception:
-                    model_cached = snapshot_download(model_id)  # fallback: download if not cached
+                    model_cached = snapshot_download(model_id)  # fallback: download if not cached #
                 model = cls.from_pretrained(model_cached, export=True, trust_remote_code=True)
             except:
                 print(f"Couldn't read {model_id}.")
