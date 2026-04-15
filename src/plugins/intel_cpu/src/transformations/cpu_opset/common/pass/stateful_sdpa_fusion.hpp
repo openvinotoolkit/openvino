@@ -5,8 +5,6 @@
 #pragma once
 
 #include <memory>
-#include <string>
-#include <unordered_set>
 
 #include "openvino/core/model.hpp"
 #include "openvino/pass/matcher_pass.hpp"
@@ -16,7 +14,7 @@ namespace ov::intel_cpu {
 class StatefulSDPAFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("StatefulSDPAFusion");
-    explicit StatefulSDPAFusion(std::unordered_set<std::string> shared_kv_variable_ids = {});
+    StatefulSDPAFusion();
 };
 
 class SDPASubgraphFusion : public ov::pass::ModelPass {
