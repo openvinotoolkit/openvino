@@ -37,21 +37,21 @@ ov::element::Type get_accumulator_type(const RuntimeParams& params) {
     }
 }
 
-// Check if a fused kernel can be used
 bool allow_fused_kernel(const program_node& node) {
     const auto& in0_layout = node.get_input_layout(0);
     const auto& out_layout = node.get_output_layout(0);
 
-    // padding is not supported
     if (in0_layout.data_padding != padding() || out_layout.data_padding != padding()) {
         return false;
     }
 
-    if (extract_dim(ChannelName::FEATURE, in0_layout).is_dynamic())
+    auto feature_dim = extract_dim(ChannelName::FEATURE, in0_layout);
+    if (feature_dim.is_dynamic() || feature_dim.get_length() % fsv != 0) {
         return false;
-    if (in0_layout.feature() % fsv != 0)
-        return false;
-    const auto group_size = in0_layout.feature() / std::static_pointer_cast<const group_normalization>(node.get_primitive())->num_groups;
+    }
+
+    int64_t num_groups = node.as<group_normalization>().get_primitive()->num_groups;
+    int64_t group_size = feature_dim.get_length() / num_groups;
     return fsv % group_size == 0;
 }
 
