@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <numeric>
 
@@ -86,10 +87,8 @@ CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(ov::element::Type prc,
         } else {
             this->strides.resize(order.size(), 1);
             for (size_t i = 2; i <= order.size(); i++) {
-                const auto stride_value = ov::util::shape_size_safe(
-                    ov::Shape{this->strides[order.size() - (i - 1)], this->blockedDims[blockedDims.size() - (i - 1)]});
-                OPENVINO_ASSERT(stride_value.has_value(), "CpuBlockedMemoryDesc strides overflow");
-                this->strides[order.size() - i] = *stride_value;
+                this->strides[order.size() - i] =
+                    this->strides[order.size() - (i - 1)] * this->blockedDims[blockedDims.size() - (i - 1)];
             }
         }
     } else {
@@ -155,18 +154,24 @@ bool CpuBlockedMemoryDesc::canComputeMemSizeZeroDims() const {
 }
 
 size_t CpuBlockedMemoryDesc::getCurrentMemSizeImp() const {
+    const auto checked_add = [](size_t a, size_t b, const char* err_msg) -> size_t {
+        OPENVINO_ASSERT(a <= std::numeric_limits<size_t>::max() - b, err_msg);
+        return a + b;
+    };
+
     size_t e_size = getOffsetPadding();  // elements from begin of data to the last addressed element
     if (!getShape().hasZeroDims()) {
-        OPENVINO_ASSERT(e_size < std::numeric_limits<size_t>::max(),
-                        "CpuBlockedMemoryDesc::getCurrentMemSizeImp overflow while adding tail element");
-        e_size += 1;
+        e_size = checked_add(e_size,
+                             static_cast<size_t>(1),
+                             "CpuBlockedMemoryDesc::getCurrentMemSizeImp overflow while adding tail element");
         for (size_t j = 0; j < getBlockDims().size(); j++) {
             const auto dim_stride = ov::util::shape_size_safe(ov::Shape{getBlockDims()[j] - 1, getStrides()[j]});
             OPENVINO_ASSERT(dim_stride.has_value(),
                             "CpuBlockedMemoryDesc::getCurrentMemSizeImp overflow while multiplying dim and stride");
-            OPENVINO_ASSERT(e_size <= std::numeric_limits<size_t>::max() - *dim_stride,
-                            "CpuBlockedMemoryDesc::getCurrentMemSizeImp overflow while accumulating element count");
-            e_size += *dim_stride;
+            e_size = checked_add(e_size,
+                                 *dim_stride,
+                                 "CpuBlockedMemoryDesc::getCurrentMemSizeImp overflow while accumulating element "
+                                 "count");
         }
     }
 
@@ -176,20 +181,10 @@ size_t CpuBlockedMemoryDesc::getCurrentMemSizeImp() const {
         return e_size;
     }
 
-    auto byte_size = e_size * prc.bitwidth();
-
-    if (any_of(prc, ov::element::u3, ov::element::u6)) {
-        constexpr size_t storage_unit_size = 24;
-        byte_size += storage_unit_size - 1;
-        byte_size /= storage_unit_size;
-        byte_size *= 3;
-    } else {
-        constexpr size_t storage_unit_size = 8;
-        byte_size += storage_unit_size - 1;
-        byte_size /= storage_unit_size;
-    }
-
-    return byte_size;
+    const auto byte_size = ov::util::get_memory_size_safe(prc, e_size);
+    OPENVINO_ASSERT(byte_size.has_value(),
+                    "CpuBlockedMemoryDesc::getCurrentMemSizeImp overflow while converting elements to bytes");
+    return *byte_size;
 }
 
 size_t CpuBlockedMemoryDesc::getMaxMemSize() const {

@@ -32,9 +32,6 @@
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/reorder.h"
 #include "openvino/core/except.hpp"
-#include "openvino/core/memory_util.hpp"
-#include "openvino/core/shape.hpp"
-#include "openvino/core/shape_util.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/system_conf.hpp"
@@ -163,16 +160,6 @@ void Memory::create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
     if (!m_pMemDesc->isDefined()) {
         return;
     }
-
-    if (m_pMemDesc->getShape().isStatic()) {
-        const auto& static_dims = m_pMemDesc->getShape().getStaticDims();
-        const ov::Shape ov_static_shape{static_dims.begin(), static_dims.end()};
-        OPENVINO_ASSERT(ov::util::shape_size_safe(ov_static_shape).has_value(),
-                        "CPU plugin memory allocation failed: tensor element count overflow");
-        OPENVINO_ASSERT(ov::util::get_memory_size_safe(m_pMemDesc->getPrecision(), ov_static_shape).has_value(),
-                        "CPU plugin memory allocation failed: tensor byte size overflow");
-    }
-
     auto memSize = m_pMemDesc->getCurrentMemSize();
     if (nullptr != data) {
         m_blockHandle->setExtBuff(const_cast<void*>(data), memSize);

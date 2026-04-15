@@ -59,8 +59,6 @@ bool Tile::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 
     const std::vector<ov::PartialShape> input_shapes{d.get_shape(), r.get_shape()};
     const auto output_shape = shape_infer(this, input_shapes, make_tensor_accessor(inputs)).front().to_shape();
-    OPENVINO_ASSERT(ov::util::shape_size_safe(output_shape).has_value(),
-                    "Tile output shape is too large and overflows size_t element count");
     outputs[0].set_shape(output_shape);
     repeats.insert(repeats.begin(), output_shape.size() - repeats.size(), 1);
     reference::tile(static_cast<const char*>(d.data()),

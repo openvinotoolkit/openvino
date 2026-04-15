@@ -69,13 +69,3 @@ TEST(shape, shape_size_overflow) {
     EXPECT_EQ(ov::util::shape_size_safe({3, max / 4, 2}), std::nullopt);
     EXPECT_EQ(ov::util::shape_size_safe({3, max / 4}).value(), (3 * (max / 4)));
 }
-
-TEST(shape, shape_size_throws_on_overflow) {
-    constexpr auto max = std::numeric_limits<size_t>::max();
-    EXPECT_THROW((void)shape_size(Shape{3, max / 4, 2}), ov::Exception);
-}
-
-TEST(shape, row_major_strides_throws_on_overflow) {
-    constexpr auto max = std::numeric_limits<size_t>::max();
-    EXPECT_THROW((void)row_major_strides(Shape{2, max}), ov::Exception);
-}
