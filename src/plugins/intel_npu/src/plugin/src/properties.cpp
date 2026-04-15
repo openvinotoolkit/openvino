@@ -551,6 +551,37 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::batch_compiler_mode_settings, BATCH_COMPILER_MODE_SETTINGS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::workload_type, WORKLOAD_TYPE);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::runtime_requirements, RUNTIME_REQUIREMENTS);
+    TRY_REGISTER_CUSTOMFUNC_PROPERTY(
+        ov::intel_npu::runtime_requirements_check,
+        RUNTIME_REQUIREMENTS_CHECK,
+        [&](const Config& config) {
+            auto val = config.get<RUNTIME_REQUIREMENTS_CHECK>();
+            if (!val.empty()) {
+                std::unique_ptr<ICompilerAdapter> compiler = nullptr;
+                CompilerAdapterFactory factory;
+
+                auto compilerType = config.get<COMPILER_TYPE>();
+                auto deviceId = config.get<DEVICE_ID>();
+                auto device = utils::getDeviceById(_backend, deviceId);
+                auto compilationPlatform = utils::getCompilationPlatform(
+                    config.get<PLATFORM>(),
+                    device == nullptr ? deviceId : device->getName(),
+                    _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+                try {
+                    compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+                } catch (...) {
+                    _logger.warning("Failed to create compiler for validating RUNTIME_REQUIREMENTS_CHECK.");
+                }
+                if (compiler != nullptr) {
+                    if (!compiler->is_option_supported(ov::intel_npu::runtime_requirements_check.name(), val)) {
+                        OPENVINO_THROW("Unsupported configuration value for key: ",
+                                       ov::intel_npu::runtime_requirements_check.name());
+                    }
+                }
+            }
+            return val;
+        });
     TRY_REGISTER_SIMPLE_PROPERTY(ov::enable_weightless, ENABLE_WEIGHTLESS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::separate_weights_version, SEPARATE_WEIGHTS_VERSION);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::model_serializer_version, MODEL_SERIALIZER_VERSION);

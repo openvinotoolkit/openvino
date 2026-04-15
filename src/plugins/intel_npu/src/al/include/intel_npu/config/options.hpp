@@ -1371,6 +1371,16 @@ struct ENABLE_WEIGHTLESS final : OptionBase<ENABLE_WEIGHTLESS, bool> {
     }
 };
 
+struct RUNTIME_REQUIREMENTS final : OptionBase<RUNTIME_REQUIREMENTS, std::string> {
+    static std::string_view key() {
+        return ov::intel_npu::runtime_requirements.name();
+    }
+
+    static std::string defaultValue() {
+        return "";
+    }
+};
+
 struct RUNTIME_REQUIREMENTS_CHECK final : OptionBase<RUNTIME_REQUIREMENTS_CHECK, std::string> {
     static std::string_view key() {
         return ov::intel_npu::runtime_requirements_check.name();

@@ -308,13 +308,35 @@ ov::Tensor VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& mode
 
     if (usedVersion.Major >= 7 && usedVersion.Minor >= 4) {
         // support the lastest vcl api
-        // For VCL 7.4 and later, we can use vclAllocatedExecutableCreate2
-        _logger.debug("Using vclAllocatedExecutableCreate2 for 7.4 <= VCL");
         vcl_allocator allocator;
         uint8_t* blob = nullptr;
         size_t size = 0;
+        vcl_result_t result = VCL_RESULT_SUCCESS;
 
-        auto result = vclAllocatedExecutableCreate2(_compilerHandle, exeDesc, &allocator, &blob, &size);
+        if (intel_npu::VCLApi::getInstance()->vclAllocatedExecutableCreate3 != nullptr) {
+            _logger.debug("Using vclAllocatedExecutableCreate3");
+            uint8_t* compatStr = nullptr;
+            uint64_t compatSize = 0;
+            result = vclAllocatedExecutableCreate3(_compilerHandle,
+                                                   exeDesc,
+                                                   &allocator,
+                                                   &blob,
+                                                   &size,
+                                                   &compatStr,
+                                                   &compatSize);
+            if (result == VCL_RESULT_SUCCESS && compatStr != nullptr) {
+                // If we got the compatibility string, we can do something with it.
+                // Currently OpenVINO expects this to be handled at the Blob level or stored in Config.
+                _logger.debug(
+                    "Successfully generated RUNTIME_REQUIREMENTS via vclAllocatedExecutableCreate3: %zu bytes",
+                    compatSize);
+                allocator.deallocate(&allocator, compatStr);
+            }
+        } else {
+            _logger.debug("Using vclAllocatedExecutableCreate2 for 7.4 <= VCL");
+            result = vclAllocatedExecutableCreate2(_compilerHandle, exeDesc, &allocator, &blob, &size);
+        }
+
         if (result != VCL_RESULT_SUCCESS) {
             OPENVINO_THROW("Compilation failed. vclAllocatedExecutableCreate2 result: 0x",
                            std::hex,

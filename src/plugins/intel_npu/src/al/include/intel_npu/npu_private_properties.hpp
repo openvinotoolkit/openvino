@@ -359,6 +359,14 @@ static constexpr ov::Property<std::string> runtime_requirements_check{"RUNTIME_R
 
 /**
  * @brief [Only for NPU Plugin]
+ * Type: string. Default is "".
+ *
+ * This option is used to retrieve the compiled model's runtime requirements.
+ */
+static constexpr ov::Property<std::string> runtime_requirements{"RUNTIME_REQUIREMENTS"};
+
+/**
+ * @brief [Only for NPU Plugin]
  * Type: enum. Default is "AUTO".
  *
  * This config option concerns the algorithm used for serializing the "ov::Model" at compilation time in order to be
