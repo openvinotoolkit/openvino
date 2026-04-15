@@ -8,8 +8,6 @@ import numpy as np
 import platform
 import pytest
 import torch
-from huggingface_hub import snapshot_download
-from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
 
 from models_hub_common.utils import retry
 from openvino.frontend.pytorch.patch_model import __make_16bit_traceable as patch
@@ -35,23 +33,30 @@ def patch_gptq():
     torch.cuda.get_device_capability = lambda n: (9, 1)
 
     try:
-        from optimum.gptq import GPTQQuantizer
+        # Patch at the transformers level to avoid GPU-only post_init_model
+        # from optimum.gptq.  transformers' GptqHfQuantizer delegates to
+        # optimum_quantizer.post_init_model() which calls gptq_post_init
+        # (requires GPU).  Replace with a CPU-safe stub.
+        from transformers.quantizers.quantizer_gptq import GptqHfQuantizer
 
-        orig_post_init_model = GPTQQuantizer.post_init_model
+        orig_post_init_model = GptqHfQuantizer._process_model_after_weight_loading
 
-        def post_init_model(self, model):
-            from auto_gptq import exllama_set_max_input_length
-
-            class StoreAttr(object):
-                pass
-
-            model.quantize_config = StoreAttr()
-            model.quantize_config.desc_act = self.desc_act
-            if self.desc_act and not self.disable_exllama and self.max_input_length is not None:
-                model = exllama_set_max_input_length(model, self.max_input_length)
+        def _process_model_after_weight_loading_cpu(self, model, **kwargs):
+            if self.pre_quantized:
+                class StoreAttr(object):
+                    pass
+                model.quantize_config = StoreAttr()
+                oq = self.optimum_quantizer
+                model.quantize_config.desc_act = oq.desc_act
+                if oq.desc_act and not oq.disable_exllama and oq.max_input_length is not None:
+                    try:
+                        from auto_gptq import exllama_set_max_input_length
+                        model = exllama_set_max_input_length(model, oq.max_input_length)
+                    except ImportError:
+                        pass
             return model
 
-        GPTQQuantizer.post_init_model = post_init_model
+        GptqHfQuantizer._process_model_after_weight_loading = _process_model_after_weight_loading_cpu
     except ImportError:
         pass
 
@@ -96,8 +101,8 @@ def patch_gptq():
 def unpatch_gptq(orig_cuda_check, orig_post_init_model, orig_gemm_forward):
     torch.cuda.is_available, torch.cuda.is_bf16_supported, torch.cuda.get_device_capability = orig_cuda_check
     try:
-        from optimum.gptq import GPTQQuantizer
-        GPTQQuantizer.post_init_model = orig_post_init_model
+        from transformers.quantizers.quantizer_gptq import GptqHfQuantizer
+        GptqHfQuantizer._process_model_after_weight_loading = orig_post_init_model
     except ImportError:
         pass
     try:
@@ -142,6 +147,9 @@ class TestLLMModel(TestTorchConvertModel):
 
     @retry(3, exceptions=(OSError,), delay=1)
     def load_model(self, name, type):
+        from huggingface_hub import snapshot_download
+        from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
+
         model = None
         example = None
         model_cached = snapshot_download(name)  # required to avoid HF rate limits
