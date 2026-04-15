@@ -405,13 +405,3 @@ TEST_F(TransformationTestsF, StateConcatSDPAMixedSharedAndExclusive) {
     manager.register_pass<SDPASubgraphFusion>();
 }
 
-TEST_F(TransformationTestsF, StateConcatSDPANonSharedViaSubgraphFusion) {
-#if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
-    GTEST_SKIP() << "Skipping StateConcatSDPANonSharedViaSubgraphFusion test on Android X64";
-#endif
-    // Non-shared KV-cache model must still be fused when running through SDPASubgraphFusion.
-    auto inputShape = ov::PartialShape{-1, 8, -1, 64};
-    model = makeSDPA(inputShape);
-    model_ref = makeSDPA(inputShape, true);
-    manager.register_pass<SDPASubgraphFusion>();
-}

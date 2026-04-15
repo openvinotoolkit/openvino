@@ -167,20 +167,19 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         // direct input node pointers) is robust to intermediate Transpose/Reshape/
         // Convert/Gather/Broadcast ops between the cache source and the SDPA blocks.
         auto count_reachable_sdpas = [](ov::Node* start) {
+            size_t cnt = 0;
             std::unordered_set<ov::Node*> visited;
             ov::op::util::visit_path_forward(
                 start,
                 visited,
                 [](ov::Node*) {},
-                [](ov::Node* n) {
-                    return ov::is_type<ov::op::v13::ScaledDotProductAttention>(n);
+                [&](ov::Node* n) {
+                    if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(n)) {
+                        ++cnt;
+                        return true;
+                    }
+                    return false;
                 });
-            size_t cnt = 0;
-            for (auto* n : visited) {
-                if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(n) && ++cnt > 1) {
-                    break;
-                }
-            }
             return cnt;
         };
         if (count_reachable_sdpas(past_k_node.get()) > 1 || count_reachable_sdpas(past_v_node.get()) > 1) {
