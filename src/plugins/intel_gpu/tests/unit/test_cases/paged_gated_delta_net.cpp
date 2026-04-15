@@ -61,18 +61,28 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
                               const std::vector<int32_t>& cache_interval,
                               int32_t qk_heads,
                               int32_t v_heads,
-                              int32_t head_size,
+                              int32_t qk_head_size,
+                              int32_t v_head_size,
                               std::vector<T>& output) {
-        const int32_t tokens = static_cast<int32_t>(query.size()) / (qk_heads * head_size);
-        output.resize(static_cast<size_t>(tokens) * v_heads * head_size);
+        const int32_t tokens = static_cast<int32_t>(query.size()) / (qk_heads * qk_head_size);
+
+        OPENVINO_ASSERT(static_cast<int32_t>(key.size()) == tokens * qk_heads * qk_head_size, "Key tensor size does not match inferred qk head size");
+        OPENVINO_ASSERT(static_cast<int32_t>(value.size()) == tokens * v_heads * v_head_size, "Value tensor size does not match provided v head size");
+        OPENVINO_ASSERT(static_cast<int32_t>(gate.size()) == tokens * v_heads, "Gate tensor size does not match inferred token/head dimensions");
+        OPENVINO_ASSERT(static_cast<int32_t>(beta.size()) == tokens * v_heads, "Beta tensor size does not match inferred token/head dimensions");
+
+        output.resize(static_cast<size_t>(tokens) * v_heads * v_head_size);
 
         const auto state_off = [=](int32_t block, int32_t h, int32_t k_idx, int32_t v_idx) {
-            return ((block * v_heads + h) * head_size + v_idx) * head_size + k_idx;
+            return ((block * v_heads + h) * v_head_size + v_idx) * qk_head_size + k_idx;
         };
 
-        const float attn_scale = 1.0f / std::sqrt(static_cast<float>(head_size));
+        const float attn_scale = 1.0f / std::sqrt(static_cast<float>(qk_head_size));
         const int32_t num_sequences = static_cast<int32_t>(subsequence_begins.size()) - 1;
         const int32_t group_size = v_heads / qk_heads;
+
+        OPENVINO_ASSERT(static_cast<int32_t>(recurrent_state_table.size()) % (v_heads * qk_head_size * v_head_size) == 0,
+                        "State table size is inconsistent with inferred qk/v head sizes");
 
         for (int32_t seq = 0; seq < num_sequences; seq++) {
             const int32_t token_begin = subsequence_begins[seq];
@@ -82,64 +92,64 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
             const int32_t seq_blocks = std::max(block_end - block_begin, 0);
             const int32_t past_len = past_lens[seq];
             const int32_t interval = cache_interval[seq];
+            const int32_t prev_nums = (interval > 0) ? (past_len % interval) : 0;
 
             for (int32_t h = 0; h < v_heads; h++) {
                 const int32_t hk = h / group_size;
-                std::vector<float> state(static_cast<size_t>(head_size) * head_size, 0.0f);
+                std::vector<float> state(static_cast<size_t>(qk_head_size) * v_head_size, 0.0f);
 
                 const int32_t block_id = block_indices[block_begin];
 
-                for (int32_t k_idx = 0; k_idx < head_size; k_idx++) {
-                    for (int32_t v_idx = 0; v_idx < head_size; v_idx++) {
-                        state[k_idx * head_size + v_idx] = static_cast<float>(recurrent_state_table[state_off(block_id, h, k_idx, v_idx)]);
+                for (int32_t k_idx = 0; k_idx < qk_head_size; k_idx++) {
+                    for (int32_t v_idx = 0; v_idx < v_head_size; v_idx++) {
+                        state[k_idx * v_head_size + v_idx] = static_cast<float>(recurrent_state_table[state_off(block_id, h, k_idx, v_idx)]);
                     }
                 }
 
                 for (int32_t token = token_begin; token < token_end; token++) {
-                    const auto q_ptr = query.data() + (token * qk_heads + hk) * head_size;
-                    const auto k_ptr = key.data() + (token * qk_heads + hk) * head_size;
+                    const auto q_ptr = query.data() + (token * qk_heads + hk) * qk_head_size;
+                    const auto k_ptr = key.data() + (token * qk_heads + hk) * qk_head_size;
 
                     std::vector<float> q_norm;
                     std::vector<float> k_norm;
-                    normalize_and_scale(q_ptr, head_size, attn_scale, q_norm);
-                    normalize_and_scale(k_ptr, head_size, 1.0f, k_norm);
+                    normalize_and_scale(q_ptr, qk_head_size, attn_scale, q_norm);
+                    normalize_and_scale(k_ptr, qk_head_size, 1.0f, k_norm);
 
                     const float b_g = std::exp(static_cast<float>(gate[token * v_heads + h]));
                     const float b_beta = static_cast<float>(beta[token * v_heads + h]);
 
-                    for (int32_t v_idx = 0; v_idx < head_size; v_idx++) {
-                        const float b_v = static_cast<float>(value[(token * v_heads + h) * head_size + v_idx]);
+                    for (int32_t v_idx = 0; v_idx < v_head_size; v_idx++) {
+                        const float b_v = static_cast<float>(value[(token * v_heads + h) * v_head_size + v_idx]);
 
                         float h_k = 0.0f;
-                        for (int32_t k_idx = 0; k_idx < head_size; k_idx++) {
-                            auto& s = state[k_idx * head_size + v_idx];
+                        for (int32_t k_idx = 0; k_idx < qk_head_size; k_idx++) {
+                            auto& s = state[k_idx * v_head_size + v_idx];
                             s *= b_g;
                             h_k += s * k_norm[k_idx];
                         }
 
                         const float update = (b_v - h_k) * b_beta;
                         float out_v = 0.0f;
-                        for (int32_t k_idx = 0; k_idx < head_size; k_idx++) {
-                            auto& s = state[k_idx * head_size + v_idx];
+                        for (int32_t k_idx = 0; k_idx < qk_head_size; k_idx++) {
+                            auto& s = state[k_idx * v_head_size + v_idx];
                             s += k_norm[k_idx] * update;
                             out_v += s * q_norm[k_idx];
                         }
 
-                        output[(token * v_heads + h) * head_size + v_idx] = static_cast<T>(out_v);
+                        output[(token * v_heads + h) * v_head_size + v_idx] = static_cast<T>(out_v);
                     }
 
-                    if (interval > 0) {
-                        const int32_t local_token_idx = token - token_begin;
-                        const int32_t processed_tokens = local_token_idx + 1;
-                        const bool should_store = ((processed_tokens % interval) == 0) || (token == token_end - 1);
-                        if (should_store) {
-                            const int32_t slot = (processed_tokens + interval - 1) / interval;
-                            if (slot < seq_blocks) {
-                                const int32_t block_id = block_indices[block_begin + slot];
-                                for (int32_t k_idx = 0; k_idx < head_size; k_idx++) {
-                                    for (int32_t v_idx = 0; v_idx < head_size; v_idx++) {
-                                        recurrent_state_table[state_off(block_id, h, k_idx, v_idx)] = static_cast<T>(state[k_idx * head_size + v_idx]);
-                                    }
+                    const int32_t processed_tokens = (token - token_begin) + 1;
+                    const int32_t cached_tokens = prev_nums + processed_tokens;
+                    const bool reached_interval_boundary = (interval > 0) && ((cached_tokens % interval) == 0);
+                    const bool reached_sequence_end = (token == token_end - 1);
+                    if (reached_interval_boundary || reached_sequence_end) {
+                        const int32_t slot = interval > 0 ? (1 + (cached_tokens - 1) / interval) : 1;
+                        if (slot < seq_blocks) {
+                            const int32_t block_id = block_indices[block_begin + slot];
+                            for (int32_t k_idx = 0; k_idx < qk_head_size; k_idx++) {
+                                for (int32_t v_idx = 0; v_idx < v_head_size; v_idx++) {
+                                    recurrent_state_table[state_off(block_id, h, k_idx, v_idx)] = static_cast<T>(state[k_idx * v_head_size + v_idx]);
                                 }
                             }
                         }
@@ -192,11 +202,19 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
             const int32_t seq_past_len = param_past_lens[seq];
             const int32_t seq_interval = param_cache_intervals[seq];
             OPENVINO_ASSERT(seq_past_len >= 0, "past_len must be non-negative");
-            OPENVINO_ASSERT(seq_interval > 0, "cache_interval must be > 0");
+            OPENVINO_ASSERT(seq_interval >= 0, "cache_interval must be >= 0");
             past_lens.push_back(seq_past_len);
             cache_interval.push_back(seq_interval);
 
-            const int32_t required_slots = 1 + (seq_tokens + seq_interval - 1) / seq_interval;
+            const int32_t required_slots = [&]() {
+                if (seq_interval == 0) {
+                    return 2;
+                }
+
+                const int32_t prev_nums = seq_past_len % seq_interval;
+                const int32_t write_blocks = (prev_nums + seq_tokens + seq_interval - 1) / seq_interval;
+                return 1 + write_blocks;
+            }();
             for (int32_t i = 0; i < required_slots; i++) {
                 block_indices.push_back(total_blocks + i);
             }
@@ -307,6 +325,7 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
                       qk_heads,
                       v_heads,
                       head_size,
+                      head_size,
                       ref_output);
 
         const float tol = std::is_same<T, ov::float16>::value ? 4e-2f : 1e-3f;
@@ -364,9 +383,9 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
             cache_intervals_str += std::to_string(info.param.cache_intervals[i]);
         }
 
-        std::string result = "paged_gated_delta_net_gpu_test_" + info.param.precision.to_string() + "_" + subseq_tokens_str + "_" +
-                             past_lens_str + "_" + cache_intervals_str + "_" + std::to_string(info.param.qk_heads) + "_" +
-                             std::to_string(info.param.v_heads) + "_" + std::to_string(info.param.head_size);
+        std::string result = "paged_gated_delta_net_gpu_test_" + info.param.precision.to_string() + "_" + subseq_tokens_str + "_" + past_lens_str + "_" +
+                             cache_intervals_str + "_" + std::to_string(info.param.qk_heads) + "_" + std::to_string(info.param.v_heads) + "_" +
+                             std::to_string(info.param.head_size);
         return result;
     }
 };

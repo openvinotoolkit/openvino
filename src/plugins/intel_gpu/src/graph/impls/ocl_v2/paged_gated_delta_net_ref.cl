@@ -32,33 +32,33 @@ inline void FUNC(normalize_kq_128)(float8* b_k, float8* b_q) {
 #define K_SLICE_SIZE ((K_HEAD_DIM + SUBGROUP_SIZE - 1) / SUBGROUP_SIZE)
 
 #ifndef K_VEC_SIZE
-#define K_VEC_SIZE 1
+#    define K_VEC_SIZE 1
 #endif
 
 #if ((K_HEAD_DIM % 16) == 0) && ((V_HEAD_DIM % 16) == 0) && (K_VEC_SIZE > 1) && ((K_HEAD_DIM % (SUBGROUP_SIZE * K_VEC_SIZE)) == 0)
-#define KV_OPT_VEC_PATH 1
-#define K_LANE_ELEMS (K_HEAD_DIM / SUBGROUP_SIZE)
+#    define KV_OPT_VEC_PATH 1
+#    define K_LANE_ELEMS    (K_HEAD_DIM / SUBGROUP_SIZE)
 
 typedef MAKE_VECTOR_TYPE(float, K_VEC_SIZE) K_VEC_TYPE;
-#define K_VEC_ZERO ((K_VEC_TYPE)(0.0f))
-#define K_VEC_LOAD_Q(ptr, idx) CAT(convert_float, K_VEC_SIZE)(BLOCK_READN(INPUT0_TYPE, K_VEC_SIZE, (ptr), (idx)))
-#define K_VEC_LOAD_K(ptr, idx) CAT(convert_float, K_VEC_SIZE)(BLOCK_READN(INPUT1_TYPE, K_VEC_SIZE, (ptr), (idx)))
-#define K_VEC_LOAD_STATE(ptr, idx) CAT(convert_float, K_VEC_SIZE)(BLOCK_READN(INPUT3_TYPE, K_VEC_SIZE, (ptr), (idx)))
-#define K_VEC_TO_STATE(vec) CAT(convert_, CAT(INPUT3_TYPE, K_VEC_SIZE))(vec)
-#define K_VEC_FROM_TMP(tmp) CAT(vload, K_VEC_SIZE)(0, (tmp))
-#define K_VEC_TO_TMP(vec, tmp) CAT(vstore, K_VEC_SIZE)((vec), 0, (tmp))
+#    define K_VEC_ZERO                 ((K_VEC_TYPE)(0.0f))
+#    define K_VEC_LOAD_Q(ptr, idx)     CAT(convert_float, K_VEC_SIZE)(BLOCK_READN(INPUT0_TYPE, K_VEC_SIZE, (ptr), (idx)))
+#    define K_VEC_LOAD_K(ptr, idx)     CAT(convert_float, K_VEC_SIZE)(BLOCK_READN(INPUT1_TYPE, K_VEC_SIZE, (ptr), (idx)))
+#    define K_VEC_LOAD_STATE(ptr, idx) CAT(convert_float, K_VEC_SIZE)(BLOCK_READN(INPUT3_TYPE, K_VEC_SIZE, (ptr), (idx)))
+#    define K_VEC_TO_STATE(vec)        CAT(convert_, CAT(INPUT3_TYPE, K_VEC_SIZE))(vec)
+#    define K_VEC_FROM_TMP(tmp)        CAT(vload, K_VEC_SIZE)(0, (tmp))
+#    define K_VEC_TO_TMP(vec, tmp)     CAT(vstore, K_VEC_SIZE)((vec), 0, (tmp))
 
-#if (K_VEC_SIZE == 8)
-#define K_VEC_DOT(a, b) FUNC(sum8)((a) * (b))
-#define K_VEC_SUM_SQ(a) FUNC(sum8)((a) * (a))
-#else
-#define K_VEC_DOT(a, b) dot((a), (b))
-#define K_VEC_SUM_SQ(a) dot((a), (a))
-#endif
+#    if (K_VEC_SIZE == 8)
+#        define K_VEC_DOT(a, b) FUNC(sum8)((a) * (b))
+#        define K_VEC_SUM_SQ(a) FUNC(sum8)((a) * (a))
+#    else
+#        define K_VEC_DOT(a, b) dot((a), (b))
+#        define K_VEC_SUM_SQ(a) dot((a), (a))
+#    endif
 
-#define K_VEC_COUNT (K_LANE_ELEMS / K_VEC_SIZE)
+#    define K_VEC_COUNT (K_LANE_ELEMS / K_VEC_SIZE)
 #else
-#define KV_OPT_VEC_PATH 0
+#    define KV_OPT_VEC_PATH 0
 #endif
 
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
@@ -94,7 +94,9 @@ KERNEL(paged_gated_delta_net_ref)
     const int token_begin = subsequence_begins[seq];
     const int token_end = subsequence_begins[seq + 1];
     const int block_begin = block_indices_begins[seq];
+    const int past_len = past_lens[seq];
     const int interval = cache_interval[seq];
+    const int prev_nums = interval > 0 ? past_len % interval : 0;
 
     const int group_size = V_HEAD_NUM / K_HEAD_NUM;
     const int hk = h / group_size;
@@ -135,7 +137,7 @@ KERNEL(paged_gated_delta_net_ref)
 #if KV_OPT_VEC_PATH && (K_VEC_SIZE == 8) && (K_VEC_COUNT == 1)
             state[v_idx][0] = K_VEC_LOAD_STATE(recurrent_state_table, base);
 #elif KV_OPT_VEC_PATH
-#pragma unroll
+#    pragma unroll
             for (int kc = 0; kc < K_VEC_COUNT; kc++) {
                 const int k_base = kc * K_VEC_SIZE * SUBGROUP_SIZE;
                 state[v_idx][kc] = K_VEC_LOAD_STATE(recurrent_state_table, base + k_base);
@@ -153,9 +155,10 @@ KERNEL(paged_gated_delta_net_ref)
 
     int token = token_begin;
     int slot = 1;
+    int tokens_to_next_boundary = interval > 0 ? (prev_nums > 0 ? (interval - prev_nums) : interval) : (token_end - token_begin);
     while (token < token_end) {
         // Process one cache chunk, then spill the updated recurrent tile to the next cache block.
-        const int chunk_end = interval > 0 ? min(token + interval, token_end) : token_end;
+        const int chunk_end = min(token + tokens_to_next_boundary, token_end);
 
         int q_base = token * q_token_stride + q_head_base;
         int k_base = token * k_token_stride + k_head_base;
@@ -173,7 +176,7 @@ KERNEL(paged_gated_delta_net_ref)
             k_norm[0] = K_VEC_LOAD_K(key, k_base);
             FUNC(normalize_kq_128)(&k_norm[0], &q_norm[0]);
 #elif KV_OPT_VEC_PATH
-#pragma unroll
+#    pragma unroll
             for (int kc = 0; kc < K_VEC_COUNT; kc++) {
                 const int offset = kc * K_VEC_SIZE * SUBGROUP_SIZE;
                 q_norm[kc] = K_VEC_LOAD_Q(query, q_base + offset);
@@ -207,18 +210,18 @@ KERNEL(paged_gated_delta_net_ref)
 
             const float q_scale = FUNC(l2norm_scale)(q_sum, SCALE_FACTOR, 1e-6f);
             const float k_scale = FUNC(l2norm_scale)(k_sum, 1.0f, 1e-6f);
-#if KV_OPT_VEC_PATH
-#pragma unroll
+#    if KV_OPT_VEC_PATH
+#        pragma unroll
             for (int kc = 0; kc < K_VEC_COUNT; kc++) {
                 q_norm[kc] *= q_scale;
                 k_norm[kc] *= k_scale;
             }
-#else
+#    else
             for (int ks = 0; ks < K_SLICE_SIZE; ks++) {
                 q_norm[ks] *= q_scale;
                 k_norm[ks] *= k_scale;
             }
-#endif
+#    endif
 #endif
 
             // `gate` decays the previous recurrent state, while `beta` scales the new token update.
@@ -236,7 +239,7 @@ KERNEL(paged_gated_delta_net_ref)
             float h_k_block[V_BLOCK_SIZE];
             float update_block[V_BLOCK_SIZE];
             float out_block[V_BLOCK_SIZE];
-#pragma unroll
+#    pragma unroll
             for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
                 const int curr_iv = start_iv + v_idx;
                 const int v_base_aligned = v_base + (curr_iv & ~(SUBGROUP_SIZE - 1));
@@ -246,42 +249,42 @@ KERNEL(paged_gated_delta_net_ref)
             }
 
             // Decay the recurrent state, then compute h_k = <state, k_norm> for each V lane.
-#pragma unroll
+#    pragma unroll
             for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
                 float h_k_local = 0.0f;
-#if KV_OPT_VEC_PATH && (K_VEC_SIZE == 8) && (K_VEC_COUNT == 1)
+#    if KV_OPT_VEC_PATH && (K_VEC_SIZE == 8) && (K_VEC_COUNT == 1)
                 state[v_idx][0] *= b_g;
                 h_k_local = FUNC(sum8)(state[v_idx][0] * k_norm[0]);
-#else
-#pragma unroll
+#    else
+#        pragma unroll
                 for (int kc = 0; kc < K_VEC_COUNT; kc++) {
                     state[v_idx][kc] *= b_g;
                     h_k_local += K_VEC_DOT(state[v_idx][kc], k_norm[kc]);
                 }
-#endif
+#    endif
                 h_k_block[v_idx] = sub_group_reduce_add(h_k_local);
             }
 
             // Convert the residual `(v - h_k)` into the per-lane update magnitude.
-#pragma unroll
+#    pragma unroll
             for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
                 update_block[v_idx] = (b_v_block[v_idx] - h_k_block[v_idx]) * b_beta;
             }
 
             // Inject the key-aligned update into state, then compute output = <state, q_norm>.
-#pragma unroll
+#    pragma unroll
             for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
                 float out_val_local = 0.0f;
-#if KV_OPT_VEC_PATH && (K_VEC_SIZE == 8) && (K_VEC_COUNT == 1)
+#    if KV_OPT_VEC_PATH && (K_VEC_SIZE == 8) && (K_VEC_COUNT == 1)
                 state[v_idx][0] = fma(k_norm[0], update_block[v_idx], state[v_idx][0]);
                 out_val_local = FUNC(sum8)(state[v_idx][0] * q_norm[0]);
-#else
-#pragma unroll
+#    else
+#        pragma unroll
                 for (int kc = 0; kc < K_VEC_COUNT; kc++) {
                     state[v_idx][kc] = fma(k_norm[kc], update_block[v_idx], state[v_idx][kc]);
                     out_val_local += K_VEC_DOT(state[v_idx][kc], q_norm[kc]);
                 }
-#endif
+#    endif
                 out_block[v_idx] = sub_group_reduce_add(out_val_local);
             }
 #endif
@@ -342,7 +345,7 @@ KERNEL(paged_gated_delta_net_ref)
 #if KV_OPT_VEC_PATH && (K_VEC_SIZE == 8) && (K_VEC_COUNT == 1)
             BLOCK_WRITEN(INPUT3_TYPE, K_VEC_SIZE, recurrent_state_table, base, K_VEC_TO_STATE(state[v_idx][0]));
 #elif KV_OPT_VEC_PATH
-#pragma unroll
+#    pragma unroll
             for (int kc = 0; kc < K_VEC_COUNT; kc++) {
                 const int k_base = kc * K_VEC_SIZE * SUBGROUP_SIZE;
                 BLOCK_WRITEN(INPUT3_TYPE, K_VEC_SIZE, recurrent_state_table, base + k_base, K_VEC_TO_STATE(state[v_idx][kc]));
@@ -356,5 +359,8 @@ KERNEL(paged_gated_delta_net_ref)
             }
 #endif
         }
+
+        if (interval > 0)
+            tokens_to_next_boundary = interval;
     }
 }
