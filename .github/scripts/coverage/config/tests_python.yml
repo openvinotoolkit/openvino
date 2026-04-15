@@ -8,11 +8,9 @@ tests:
     env:
       cpu: ""
       gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
-      default: ""
     args:
       cpu: "-sv -k 'not cuda' --ignore=${TESTS_DIR}/pyopenvino/tests/test_utils/test_utils.py"
       gpu: "-sv -k 'not cuda and not npu' --ignore=${TESTS_DIR}/pyopenvino/tests/test_utils/test_utils.py --ignore=${TESTS_DIR}/pyopenvino/tests/test_runtime/test_remote_api.py"
-      default: "-sv -k 'not cuda' --ignore=${TESTS_DIR}/pyopenvino/tests/test_utils/test_utils.py"
 
   - name: onnx_python
     kind: pytest
@@ -21,19 +19,19 @@ tests:
     env:
       cpu: ""
       gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
-      default: ""
     args:
       cpu: "-sv -k 'not cuda' --ignore=${TESTS_DIR}/onnx/test_python/test_zoo_models.py"
       gpu: "-sv --backend=GPU -k 'not cuda and not npu and not zoo' --ignore=${TESTS_DIR}/onnx/tests/tests_python/test_zoo_models.py"
-      default: "-sv -k 'not cuda' --ignore=${TESTS_DIR}/onnx/test_python/test_zoo_models.py"
 
   - name: ovc_unit
     kind: pytest
+    profiles: [cpu]
     target: "${TESTS_DIR}/ovc/unit_tests"
     args: "-sv -k 'not cuda'"
 
   - name: py_frontend
     kind: pytest_if_dir
+    profiles: [cpu]
     target: "${TESTS_DIR}/layer_tests/py_frontend_tests"
     args: "-sv -v"
 
@@ -44,11 +42,9 @@ tests:
     env:
       cpu: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
       gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
-      default: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
     args:
       cpu: "-sv -v"
       gpu: "-sv -k 'not cuda and not npu' -v"
-      default: "-sv -v"
 
   - name: tensorflow_layers
     kind: pytest_if_dir
@@ -57,11 +53,9 @@ tests:
     env:
       cpu: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
       gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
-      default: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
     args:
       cpu: "-sv -m precommit -v"
       gpu: "-sv -m precommit -k 'not cuda and not npu' -v"
-      default: "-sv -m precommit -v"
 
   - name: tensorflow2_keras_layers
     kind: pytest_if_dir
@@ -70,26 +64,20 @@ tests:
     env:
       cpu: "TEST_DEVICE=CPU"
       gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
-      default: "TEST_DEVICE=CPU"
     args:
       cpu: "-sv -m precommit -v"
       gpu: "-sv -m precommit -k 'not cuda and not npu' -v"
-      default: "-sv -m precommit -v"
 
   - name: onnx_layers
     kind: pytest_if_dir
-    profiles: [cpu, gpu, npu]
+    profiles: [cpu, gpu]
     target: "${TESTS_DIR}/layer_tests/onnx_tests"
     env:
       cpu: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
       gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
-      npu: "TEST_DEVICE=NPU TEST_PRECISION=FP16"
-      default: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
     args:
       cpu: "-sv -k 'not gpu and not cuda and not npu'"
       gpu: "-sv -k 'not cuda and not npu'"
-      npu: "-sv -k 'not cuda and not gpu'"
-      default: "-sv -k 'not gpu and not cuda and not npu'"
 
   - name: pytorch_layers
     kind: pytest_if_dir
@@ -98,11 +86,9 @@ tests:
     env:
       cpu: "TEST_DEVICE=CPU TEST_PRECISION=FP32"
       gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP32"
-      default: "TEST_DEVICE=CPU TEST_PRECISION=FP32"
     args:
       cpu: "-sv -m precommit -v"
       gpu: "-sv -m precommit -k 'not cuda and not npu' -v"
-      default: "-sv -m precommit -v"
 
   - name: pytorch_layers_export
     kind: pytest_if_dir
@@ -111,11 +97,9 @@ tests:
     env:
       cpu: "TEST_DEVICE=CPU TEST_PRECISION=FP32 PYTORCH_TRACING_MODE=EXPORT"
       gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP32 PYTORCH_TRACING_MODE=EXPORT"
-      default: "TEST_DEVICE=CPU TEST_PRECISION=FP32 PYTORCH_TRACING_MODE=EXPORT"
     args:
       cpu: "-sv -m precommit_torch_export -v"
       gpu: "-sv -m precommit_torch_export -k 'not cuda and not npu' -v"
-      default: "-sv -m precommit_torch_export -v"
 
   - name: pytorch_layers_fx_backend
     kind: pytest_if_dir
@@ -124,11 +108,9 @@ tests:
     env:
       cpu: "TEST_DEVICE=CPU TEST_PRECISION=FP32 PYTORCH_TRACING_MODE=TORCHFX"
       gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP32 PYTORCH_TRACING_MODE=TORCHFX"
-      default: "TEST_DEVICE=CPU TEST_PRECISION=FP32 PYTORCH_TRACING_MODE=TORCHFX"
     args:
       cpu: "-sv -m precommit_fx_backend -v"
       gpu: "-sv -m precommit_fx_backend -k 'not cuda and not npu' -v"
-      default: "-sv -m precommit_fx_backend -v"
 
   - name: jax_layers_precommit
     kind: pytest_if_dir
@@ -137,11 +119,9 @@ tests:
     env:
       cpu: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
       gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16 JAX_TRACE_MODE=JAXPR"
-      default: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
     args:
       cpu: "-sv -m precommit_jax_fe -k 'not cuda'"
       gpu: "-sv -m precommit_jax_fe -k 'not cuda and not npu' -v"
-      default: "-sv -m precommit_jax_fe -k 'not cuda'"
 
   - name: src_py_runtime
     kind: pytest_if_dir
@@ -150,11 +130,9 @@ tests:
     env:
       cpu: ""
       gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
-      default: ""
     args:
       cpu: "-sv -k 'not gpu and not cuda and not npu'"
       gpu: "-sv -k 'not cuda and not npu' --ignore=${SRC_PY_TESTS_DIR}/test_runtime/test_remote_api.py"
-      default: "-sv -k 'not gpu and not cuda and not npu'"
 
   - name: src_py_graph
     kind: pytest_if_dir
@@ -163,14 +141,13 @@ tests:
     env:
       cpu: ""
       gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
-      default: ""
     args:
       cpu: "-sv -k 'not gpu and not cuda and not npu'"
       gpu: "-sv -k 'not cuda and not npu'"
-      default: "-sv -k 'not gpu and not cuda and not npu'"
 
   - name: src_py_transformations
     kind: pytest_if_dir
+    profiles: [cpu]
     target: "${SRC_PY_TESTS_DIR}/test_transformations"
     args: "-sv -k 'not gpu and not cuda and not npu'"
 
@@ -181,11 +158,9 @@ tests:
     env:
       cpu: ""
       gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
-      default: ""
     args:
       cpu: "-sv -k 'not gpu and not cuda and not npu and not zoo' --ignore=${ONNX_PY_TESTS_DIR}/test_zoo_models.py"
       gpu: "-sv --backend=GPU -k 'not cuda and not npu and not zoo' --ignore=${ONNX_PY_TESTS_DIR}/test_zoo_models.py"
-      default: "-sv -k 'not gpu and not cuda and not npu and not zoo' --ignore=${ONNX_PY_TESTS_DIR}/test_zoo_models.py"
 
   - name: src_py_runtime_strict
     kind: pytest_if_dir
@@ -194,11 +169,9 @@ tests:
     env:
       cpu: ""
       gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
-      default: ""
     args:
       cpu: "-q --maxfail=1 -k 'not gpu and not cuda and not npu'"
       gpu: "-q --maxfail=1 -k 'not cuda and not npu' --ignore=${SRC_PY_TESTS_DIR}/test_runtime/test_remote_api.py"
-      default: "-q --maxfail=1 -k 'not gpu and not cuda and not npu'"
 
   - name: src_py_utils
     kind: pytest_if_dir
@@ -207,27 +180,26 @@ tests:
     env:
       cpu: ""
       gpu: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
-      default: ""
     args:
       cpu: "-sv -k 'not gpu and not cuda and not npu'"
       gpu: "-sv -k 'not cuda and not npu'"
-      default: "-sv -k 'not gpu and not cuda and not npu'"
 
   - name: src_py_package_versions
     kind: pytest
+    profiles: [cpu]
     target: "${SRC_PY_TESTS_DIR}/test_package_versions.py"
     args: "-sv -k 'not cuda'"
 
   - name: src_py_runtime_remote_api_gpu
     kind: pytest
     profiles: [gpu]
-    profile_skip_reason: "GPU profile is OFF"
     target: "${SRC_PY_TESTS_DIR}/test_runtime/test_remote_api.py"
     env: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
     args: "-sv -k 'not cuda and not npu'"
 
   - name: tf_api_precommit_subset
     kind: pytest_if_dir
+    profiles: [cpu]
     target: "${WORKSPACE_LAYER_TESTS_DIR}/ovc_python_api_tests"
     env: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
     args: "-sv -m precommit_tf_fe -k 'test_tf and not cuda' -v"
@@ -235,17 +207,18 @@ tests:
   - name: ovc_python_api_precommit_gpu
     kind: pytest_if_dir
     profiles: [gpu]
-    profile_skip_reason: "GPU profile is OFF"
     target: "${WORKSPACE_LAYER_TESTS_DIR}/ovc_python_api_tests"
     env: "TEST_DEVICE=GPU TEST_PRECISION=FP16"
     args: "-sv -m precommit -k 'not cuda and not npu' -v"
 
   - name: ovc_python_api_paddle_precommit
     kind: pytest
+    profiles: [cpu]
     target: "${WORKSPACE_LAYER_TESTS_DIR}/ovc_python_api_tests/test_paddle.py"
     env: "TEST_DEVICE=CPU TEST_PRECISION=FP16"
     args: "-sv -m precommit -k 'not cuda'"
 
   - name: ovc_cli_help
     kind: command
+    profiles: [cpu]
     command: "python3 -m coverage run -a -m openvino.tools.ovc --help"

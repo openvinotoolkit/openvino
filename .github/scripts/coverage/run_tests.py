@@ -661,7 +661,6 @@ def run_cpp(ctx: CoverageContext) -> None:
         extra_lines=[
             f"Test profile: {ctx.test_profile}",
             f"GPU mode: {'true' if ctx.run_gpu_tests else 'false'}",
-            f"NPU mode: {'true' if ctx.run_npu_tests else 'false'}",
             "",
         ],
         no_execution_warning=(

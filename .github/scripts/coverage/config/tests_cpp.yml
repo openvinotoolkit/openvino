@@ -4,33 +4,40 @@ tests:
   - name: ov_api_conformance_tests
     binary: ov_api_conformance_tests
     mode: gtest_single
+    profiles: [cpu]
     args: "*mandatory*"
 
   - name: ov_auto_batch_func_tests
     binary: ov_auto_batch_func_tests
     mode: gtest_single
+    profiles: [cpu]
     args: "*smoke*"
 
   - name: ov_auto_batch_unit_tests
     binary: ov_auto_batch_unit_tests
     mode: gtest_single
+    profiles: [cpu]
 
   - name: ov_auto_func_tests
     binary: ov_auto_func_tests
     mode: gtest_single
+    profiles: [cpu]
     args: "*smoke*"
 
   - name: ov_auto_unit_tests
     binary: ov_auto_unit_tests
     mode: gtest_single
+    profiles: [cpu]
 
   - name: ov_capi_test
     binary: ov_capi_test
     mode: gtest_single
+    profiles: [cpu]
 
   - name: ov_conditional_compilation_tests
     binary: ov_conditional_compilation_tests
     mode: gtest_single
+    profiles: [cpu]
 
   - name: ov_core_unit_tests
     binary: ov_core_unit_tests
@@ -39,45 +46,53 @@ tests:
     args:
       cpu: "-*IE_GPU*"
       gpu: "*IE_GPU*"
-      default: ""
 
   - name: ov_cpu_func_tests
     binary: ov_cpu_func_tests
     mode: gtest_single
+    profiles: [cpu]
     args: "*smoke*"
 
   - name: ov_cpu_unit_tests
     binary: ov_cpu_unit_tests
     mode: gtest_single
+    profiles: [cpu]
 
   - name: ov_cpu_unit_tests_vectorized
     binary: ov_cpu_unit_tests_vectorized
     mode: gtest_single
+    profiles: [cpu]
 
   - name: ov_hetero_func_tests
     binary: ov_hetero_func_tests
     mode: gtest_single
+    profiles: [cpu]
     args: "*smoke*:-nightly*"
 
   - name: ov_hetero_unit_tests
     binary: ov_hetero_unit_tests
     mode: gtest_single
+    profiles: [cpu]
 
   - name: ov_inference_functional_tests
     binary: ov_inference_functional_tests
     mode: gtest_single
+    profiles: [cpu]
 
   - name: ov_inference_unit_tests
     binary: ov_inference_unit_tests
     mode: gtest_single
+    profiles: [cpu]
 
   - name: ov_ir_frontend_tests
     binary: ov_ir_frontend_tests
     mode: gtest_single
+    profiles: [cpu]
 
   - name: ov_lp_transformations_tests
     binary: ov_lp_transformations_tests
     mode: gtest_single
+    profiles: [cpu]
 
   - name: ov_onnx_frontend_tests
     binary: ov_onnx_frontend_tests
@@ -86,7 +101,6 @@ tests:
     args:
       cpu: "-*IE_GPU*"
       gpu: "*IE_GPU*"
-      default: ""
 
   - name: ov_onnx_frontend_tests (ONNX_ITERATOR=0)
     binary: ov_onnx_frontend_tests
@@ -96,33 +110,38 @@ tests:
     args:
       cpu: "-*IE_GPU*"
       gpu: "*IE_GPU*"
-      default: ""
 
   - name: ov_op_conformance_tests
     binary: ov_op_conformance_tests
     mode: raw
+    profiles: [cpu]
     args: "--device=TEMPLATE --gtest_filter=*OpImpl*"
 
   - name: ov_proxy_plugin_tests
     binary: ov_proxy_plugin_tests
     mode: gtest_single
+    profiles: [cpu]
 
   - name: ov_snippets_func_tests
     binary: ov_snippets_func_tests
     mode: gtest_single
+    profiles: [cpu]
 
   - name: ov_subgraphs_dumper_tests
     binary: ov_subgraphs_dumper_tests
     mode: gtest_single
+    profiles: [cpu]
 
   - name: ov_template_func_tests
     binary: ov_template_func_tests
     mode: gtest_single
+    profiles: [cpu]
     args: "*smoke*"
 
   - name: ov_tensorflow_common_tests
     binary: ov_tensorflow_common_tests
     mode: gtest_single
+    profiles: [cpu]
 
   - name: ov_tensorflow_frontend_tests
     binary: ov_tensorflow_frontend_tests
@@ -131,69 +150,50 @@ tests:
     args:
       cpu: "-*IE_GPU*"
       gpu: "*IE_GPU*"
-      default: ""
 
   - name: ov_tensorflow_lite_frontend_tests
     binary: ov_tensorflow_lite_frontend_tests
     mode: gtest_single
+    profiles: [cpu]
 
   - name: ov_transformations_tests
     binary: ov_transformations_tests
     mode: gtest_single
+    profiles: [cpu]
 
   - name: ov_util_tests
     binary: ov_util_tests
     mode: gtest_single
+    profiles: [cpu]
 
   - name: ov_paddle_tests
     binary: ov_paddle_tests
     mode: gtest_single
-
-  - name: ov_npu_unit_tests
-    binary: ov_npu_unit_tests
-    mode: gtest_single
-    profiles: [npu]
-    profile_skip_reason: "NPU profile is OFF"
-
-  - name: ov_npu_func_tests
-    binary: ov_npu_func_tests
-    mode: gtest_single
-    args: "*smoke*"
-    profiles: [npu]
-    profile_skip_reason: "NPU profile is OFF"
-
-  - name: ov_nvidia_func_tests
-    binary: ov_nvidia_func_tests
-    mode: gtest_single
-    skip_reason: "unsupported in coverage workflow"
+    profiles: [cpu]
 
   - name: ov_gpu_unit_tests
     binary: ov_gpu_unit_tests
     mode: gtest_single
     profiles: [gpu]
-    profile_skip_reason: "GPU profile is OFF"
 
   - name: ov_gpu_func_tests
     binary: ov_gpu_func_tests
     mode: gtest_single
     args: "*smoke*"
     profiles: [gpu]
-    profile_skip_reason: "GPU profile is OFF"
 
   - name: test_inference_async
     binary: memory_tests/test_inference_async
     mode: raw
-    profiles: [cpu, gpu, npu]
+    profiles: [cpu, gpu]
     args:
+      cpu: "__MODEL_PATH__ CPU"
       gpu: "__MODEL_PATH__ GPU"
-      npu: "__MODEL_PATH__ NPU"
-      default: "__MODEL_PATH__ CPU"
 
   - name: test_inference_sync
     binary: memory_tests/test_inference_sync
     mode: raw
-    profiles: [cpu, gpu, npu]
+    profiles: [cpu, gpu]
     args:
+      cpu: "__MODEL_PATH__ CPU"
       gpu: "__MODEL_PATH__ GPU"
-      npu: "__MODEL_PATH__ NPU"
-      default: "__MODEL_PATH__ CPU"
