@@ -256,14 +256,17 @@ public:
     typedef void (*fn_t)(const args_t*);
 
     template <typename src_t, typename dst_t, bool clamp = false>
-    static std::shared_ptr<jit_convert_array> make_generator() {
+    static fn_t get() {
         if (is_x64() && mayiuse(jit::avx) && mayiuse(jit::avx2) && mayiuse(jit::fp16)) {
             static const jit_convert_array::context_t context{{sizeof(src_t), &jit::Generator::copy<src_t>},
                                                               {sizeof(dst_t), &jit::Generator::copy<dst_t>},
                                                               jit_convert_vec<src_t, dst_t, clamp>,
                                                               jit_convert_vec_prepare<src_t, dst_t, clamp>};
 
-            return std::shared_ptr<jit_convert_array>(new jit_convert_array(context));
+            static jit_convert_array generator(context);
+
+            generator.setProtectModeRE(false);
+            return (fn_t)generator.getCode();
         }
         return nullptr;
     }
@@ -458,7 +461,7 @@ public:
     typedef void (*fn_t)(const args_t*);
 
     template <typename data_t, typename range_t>
-    static std::shared_ptr<jit_count_out_of_range> make_generator() {
+    static fn_t get() {
         if (is_x64() && mayiuse(jit::avx2)) {
             static const jit_count_out_of_range::context_t context{
                 {sizeof(data_t), &jit::Generator::copy<data_t>},
@@ -466,7 +469,10 @@ public:
                 jit_count_out_of_range_vec<data_t, range_t>,
                 jit_count_out_of_range_vec_finalize<data_t, range_t>};
 
-            return std::shared_ptr<jit_count_out_of_range>(new jit_count_out_of_range(context));
+            static jit_count_out_of_range generator(context);
+
+            generator.setProtectModeRE(false);
+            return (fn_t)generator.getCode();
         }
         return nullptr;
     }
@@ -478,13 +484,9 @@ template <class Clamp, typename TI, typename TO>
 void convert_impl(const TI* arg, TO* out, size_t count) {
 #ifdef OV_CORE_USE_XBYAK_JIT
     if (util::may_i_use_dynamic_code()) {
-        auto generator = jit_convert_array::template make_generator<TI, TO, Clamp::enabled>();
-        if (generator) {
+        if (auto converter = jit_convert_array::get<TI, TO, Clamp::enabled>()) {
             jit_convert_array::args_t args = {arg, out, count};
-            auto converter = (jit_convert_array::fn_t)generator->getCode();
-            if (converter) {
-                converter(&args);
-            }
+            converter(&args);
             return;
         }
     }
@@ -547,14 +549,10 @@ void convert_from_bf16_to_f16_with_clamp(const bfloat16* arg, float16* out, size
 size_t count_out_of_f16_range(const float* arg, size_t count) {
 #ifdef OV_CORE_USE_XBYAK_JIT
     if (util::may_i_use_dynamic_code()) {
-        auto generator = jit_count_out_of_range::template make_generator<float, float16>();
-        if (generator) {
+        if (auto converter = jit_count_out_of_range::get<float, float16>()) {
             size_t num_out_of_range = 0;
             jit_count_out_of_range::args_t args = {arg, &num_out_of_range, count};
-            auto converter = (jit_count_out_of_range::fn_t)generator->getCode();
-            if (converter) {
-                converter(&args);
-            }
+            converter(&args);
             return num_out_of_range;
         }
     }
