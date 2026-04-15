@@ -13,7 +13,6 @@ on:
         type: boolean
         required: false
         default: true
-  pull_request:
 
 concurrency:
   group: ${{ github.event_name == 'pull_request' && github.run_id || format('{0}-{1}', github.workflow, github.ref) }}
@@ -27,7 +26,7 @@ env:
   LCOV_CAPTURE_TIMEOUT_SECONDS: '3600'
   NODE_VERSION: '21'
   NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
-  IGPU_RUNTIME_PACKAGES: |-
+  IGPU_DRIVER_PACKAGES: |-
     https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-core_1.0.15985.7_amd64.deb
     https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-opencl_1.0.15985.7_amd64.deb
     https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu-dbgsym_1.3.28454.6_amd64.ddeb
@@ -35,7 +34,7 @@ env:
     https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd-dbgsym_24.05.28454.6_amd64.ddeb
     https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd_24.05.28454.6_amd64.deb
     https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/libigdgmm12_22.3.11_amd64.deb
-  DGPU_RUNTIME_PACKAGES: |-
+  DGPU_DRIVER_PACKAGES: |-
     https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.17791.9/intel-igc-core_1.0.17791.9_amd64.deb
     https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.17791.9/intel-igc-opencl_1.0.17791.9_amd64.deb
     https://github.com/intel/compute-runtime/releases/download/24.39.31294.12/intel-level-zero-gpu-dbgsym_1.6.31294.12_amd64.ddeb
@@ -304,17 +303,17 @@ jobs:
           pigz -dc openvino_tests.tar.gz | tar -xf - -C "${INSTALL_DIR}"
         working-directory: ${{ env.INSTALL_DIR }}
 
-      - name: Install GPU runtime dependencies
+      - name: Install GPU driver dependencies
         run: |
           set -euo pipefail
           "${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh" -c=core -c=dev -c=gpu -y
 
           case "${{ matrix.gpu.id }}" in
             igpu)
-              runtime_packages="${IGPU_RUNTIME_PACKAGES}"
+              driver_packages="${IGPU_DRIVER_PACKAGES}"
               ;;
             dgpu)
-              runtime_packages="${DGPU_RUNTIME_PACKAGES}"
+              driver_packages="${DGPU_DRIVER_PACKAGES}"
               ;;
             *)
               echo "Unsupported GPU device '${{ matrix.gpu.id }}'"
@@ -328,7 +327,7 @@ jobs:
           while IFS= read -r package_url; do
             [[ -n "${package_url}" ]] || continue
             wget "${package_url}"
-          done <<< "${runtime_packages}"
+          done <<< "${driver_packages}"
           dpkg -i *.deb
           popd
 
@@ -595,17 +594,17 @@ jobs:
           pigz -dc openvino_tests.tar.gz | tar -xf - -C "${INSTALL_DIR}"
         working-directory: ${{ env.INSTALL_DIR }}
 
-      - name: Install GPU runtime dependencies
+      - name: Install GPU driver dependencies
         run: |
           set -euo pipefail
           "${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh" -c=core -c=dev -c=gpu -y
 
           case "${{ matrix.gpu.id }}" in
             igpu)
-              runtime_packages="${IGPU_RUNTIME_PACKAGES}"
+              driver_packages="${IGPU_DRIVER_PACKAGES}"
               ;;
             dgpu)
-              runtime_packages="${DGPU_RUNTIME_PACKAGES}"
+              driver_packages="${DGPU_DRIVER_PACKAGES}"
               ;;
             *)
               echo "Unsupported GPU device '${{ matrix.gpu.id }}'"
@@ -619,7 +618,7 @@ jobs:
           while IFS= read -r package_url; do
             [[ -n "${package_url}" ]] || continue
             wget "${package_url}"
-          done <<< "${runtime_packages}"
+          done <<< "${driver_packages}"
           dpkg -i *.deb
           popd
 
@@ -845,21 +844,21 @@ jobs:
           submodules: 'false'
 
       - name: Download C++ artifacts
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           pattern: coverage-cpp-*
           path: ${{ github.workspace }}/artifacts/cpp
 
       - name: Download Python artifacts
         if: ${{ github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' || github.event.inputs.run-gpu-tests == 'true' }}
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           pattern: coverage-python-*
           path: ${{ github.workspace }}/artifacts/python
 
       - name: Download JS artifacts
         if: ${{ github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' }}
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           pattern: coverage-js-*
           path: ${{ github.workspace }}/artifacts/js
