@@ -72,7 +72,7 @@ endif()
 # LevelZero
 #
 
-if(ENABLE_INTEL_NPU)
+if(ENABLE_OV_ZERO_LOADER)
     if(ENABLE_SYSTEM_LEVEL_ZERO)
         pkg_search_module(level_zero QUIET
                           IMPORTED_TARGET
@@ -87,7 +87,20 @@ if(ENABLE_INTEL_NPU)
     if(NOT level_zero_FOUND)
         add_subdirectory(thirdparty/level_zero EXCLUDE_FROM_ALL)
         add_library(LevelZero::LevelZero ALIAS ze_loader)
+        ov_developer_package_export_targets(
+            TARGET ze_loader
+            INSTALL_INCLUDE_DIRECTORIES
+                $<TARGET_PROPERTY:ze_loader,INTERFACE_INCLUDE_DIRECTORIES>/ze_api.h
+                $<TARGET_PROPERTY:ze_loader,INTERFACE_INCLUDE_DIRECTORIES>/loader)
+        ov_install_static_lib(ze_loader ${OV_CPACK_COMP_CORE})
     endif()
+    add_library(level_zero_headers INTERFACE)
+    add_library(LevelZero::Headers ALIAS level_zero_headers)
+    if (TARGET prepare_ze_headers)
+        add_dependencies(level_zero_headers prepare_ze_headers)
+    endif()
+    get_target_property(ZE_INCLUDE_DIRS LevelZero::LevelZero INTERFACE_INCLUDE_DIRECTORIES)
+    target_include_directories(level_zero_headers INTERFACE ${ZE_INCLUDE_DIRS})
 endif()
 
 #

@@ -21,10 +21,12 @@
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
 #include "transformations/common_optimizations/ric_fusion.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
+#include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
+#include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -95,6 +97,12 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
         Manager manager("pre_post_processing");
         manager.set_per_pass_validation(false);
 
+        // To avoid extra memory allocations and ensure behavior consistent with plugin
+        // expectations, Transpose on MatMul inputs (optionally via Convert)
+        // must be fused into MatMul rather than constant-folded.
+        // Therefore, TransposeMatMul should run before the first ConstantFolding pass.
+        REGISTER_PASS(manager, TransposeConvert)
+        REGISTER_PASS(manager, TransposeMatMul)
         // prerequisite: the model structure optimization before applying of the markup
         REGISTER_PASS(manager, SharedOpOptimization)
 
@@ -111,7 +119,7 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
         REGISTER_PASS(manager, DisableShapeOfConstantFolding, false);
         REGISTER_PASS(manager, DisableRandomUniformConstantFolding)
         // Mark quantized and f16/bf16 compressed constants to prevent CF for them,
-        // so that not extra memory is used for intermediate decompressed constants.
+        // so that no extra memory is used for intermediate decompressed constants.
         REGISTER_PASS(manager, MarkCompressedFloatConstants);
         REGISTER_PASS(manager, DisableDecompressionConvertConstantFolding);
 
@@ -132,7 +140,7 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
 
         return manager;
     };
-    static Manager manager = get_manager();
+    static thread_local Manager manager = get_manager();
 
     manager.run_passes(model);
 
