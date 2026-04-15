@@ -89,7 +89,16 @@ const ov::npuw::MemAccessSim::ReadList& ov::npuw::MemAccessSim::read_list(std::s
 }
 
 std::size_t ov::npuw::MemAccessSim::remaining_reads(const LinkFrom& from) {
-    return m_remaining_reads.at(from);
+    auto it = m_remaining_reads.find(from);
+    if (it == m_remaining_reads.end()) {
+        // No cross-subgraph consumers for this output. This can legitimately happen
+        // when a prototype output is unused by some call instances (e.g. in KV-sharing
+        // models like Gemma4, non-head layers receive shared K/V directly and never
+        // consume the layernorm output that head layers forward to K/V projection).
+        // Return 0 so the tensor slot is immediately available for reuse.
+        return 0u;
+    }
+    return it->second;
 }
 
 void ov::npuw::MemAccessSim::register_read(const LinkFrom& from) {
