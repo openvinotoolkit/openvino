@@ -13,6 +13,8 @@
 #include "compiled_model.hpp"
 #include "llm_compiled_model.hpp"
 #include "model_builder.hpp"
+#include "openvino/op/fake_convert.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "serialization.hpp"
 #include "weights_bank.hpp"
@@ -34,6 +36,34 @@ inline Config make_test_model_config() {
 inline std::shared_ptr<ov::Model> build_llm_test_model() {
     ModelBuilder mb;
     return mb.build_llm(make_test_model_config());
+}
+
+inline std::shared_ptr<ov::Model> build_llm_test_model_with_kv_fake_convert(const ov::element::Type fake_convert_type) {
+    auto model = build_llm_test_model();
+    auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
+
+    for (const auto& op : model->get_ordered_ops()) {
+        auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(op);
+        if (!sdpa) {
+            continue;
+        }
+
+        auto inject_fake_convert = [&](size_t input_idx, const std::string& suffix) {
+            auto fake_convert_1 =
+                std::make_shared<ov::op::v13::FakeConvert>(sdpa->input_value(input_idx), scale, fake_convert_type);
+            auto fake_convert_2 =
+                std::make_shared<ov::op::v13::FakeConvert>(fake_convert_1, scale, fake_convert_type);
+            fake_convert_1->set_friendly_name(sdpa->get_friendly_name() + "/" + suffix + "_1");
+            fake_convert_2->set_friendly_name(sdpa->get_friendly_name() + "/" + suffix + "_2");
+            sdpa->input(input_idx).replace_source_output(fake_convert_2);
+        };
+
+        inject_fake_convert(1, "key_fake_convert");
+        inject_fake_convert(2, "value_fake_convert");
+    }
+
+    model->validate_nodes_and_infer_types();
+    return model;
 }
 
 inline std::shared_ptr<ov::Model> build_whisper_decoder_test_model() {
