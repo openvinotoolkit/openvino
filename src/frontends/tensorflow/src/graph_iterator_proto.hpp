@@ -58,7 +58,7 @@ protected:
     }
 
     void initialize_v1_checkpoints(const std::filesystem::path& checkpoint_directory) {
-        m_checkpoint_v1_reader = std::make_shared<CheckpointV1Reader>(ov::util::path_to_string(checkpoint_directory)); // todo CheckpointV1Reader should be refactored to use std::filesystem::path
+        m_checkpoint_v1_reader = std::make_shared<CheckpointV1Reader>(checkpoint_directory);
         m_checkpoint_v1_reader->initialize();
     }
 
