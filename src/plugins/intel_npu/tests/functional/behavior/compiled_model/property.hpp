@@ -551,6 +551,21 @@ TEST_P(CheckCompilerTypeProperty, GetCompilerVersion) {
 
 using CheckCompilerPropertyWhenImporting = ClassExecutableNetworkGetPropertiesTestNPU;
 
+using CheckCompilerVersionProperty = ClassExecutableNetworkGetPropertiesTestNPU;
+
+TEST_P(CheckCompilerVersionProperty, GetCompilerVersionFromCompiledModel) {
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, deviceName));
+
+    uint32_t compiled_model_version = 0;
+    OV_ASSERT_NO_THROW(compiled_model_version = compiled_model.get_property(ov::intel_npu::compiler_version));
+
+    uint32_t plugin_version = 0;
+    OV_ASSERT_NO_THROW(plugin_version = core.get_property(deviceName, ov::intel_npu::compiler_version));
+    ASSERT_EQ(compiled_model_version, plugin_version);
+}
+
 TEST_P(CheckCompilerPropertyWhenImporting, ExpectedThrowFromImportWithUnsupportedProperty) {
     ov::Core core_compile, core_import;
     ov::CompiledModel compiled_model;
