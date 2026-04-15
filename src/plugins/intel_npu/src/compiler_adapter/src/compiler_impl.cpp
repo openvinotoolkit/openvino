@@ -602,7 +602,7 @@ bool VCLCompilerImpl::is_option_supported(std::string option, std::optional<std:
 }
 
 bool VCLCompilerImpl::validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const {
-    // TODO use is_option_supported
+    return is_option_supported(ov::runtime_requirements_met.name(), compatibilityDescriptor);
 }
 
 }  // namespace intel_npu
