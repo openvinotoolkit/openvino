@@ -49,7 +49,7 @@ env:
 jobs:
   Docker:
     name: Coverage Docker Images
-    if: ${{ github.event.inputs.run-cpu-tests == 'true' || github.event.inputs.run-gpu-tests == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.run-cpu-tests == 'true' || github.event.inputs.run-gpu-tests == 'true' }}
     runs-on: aks-linux-4-cores-16gb-docker-build
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
@@ -75,7 +75,7 @@ jobs:
   Build:
     name: Coverage Build Artifacts
     needs: Docker
-    if: ${{ github.event.inputs.run-cpu-tests == 'true' || github.event.inputs.run-gpu-tests == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.run-cpu-tests == 'true' || github.event.inputs.run-gpu-tests == 'true' }}
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
@@ -106,13 +106,13 @@ jobs:
         -DENABLE_OV_TF_FRONTEND=ON
         -DENABLE_OV_TF_LITE_FRONTEND=ON
         -DENABLE_INTEL_NPU=OFF
-        ${{ (github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true') && '-DENABLE_INTEL_GPU=ON' || '-DENABLE_INTEL_GPU=OFF' }}
-        ${{ (github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true') && '-DENABLE_ONEDNN_FOR_GPU=ON' || '-DENABLE_ONEDNN_FOR_GPU=OFF' }}
+        ${{ (github.event_name == 'schedule' || github.event.inputs.run-gpu-tests == 'true') && '-DENABLE_INTEL_GPU=ON' || '-DENABLE_INTEL_GPU=OFF' }}
+        ${{ (github.event_name == 'schedule' || github.event.inputs.run-gpu-tests == 'true') && '-DENABLE_ONEDNN_FOR_GPU=ON' || '-DENABLE_ONEDNN_FOR_GPU=OFF' }}
 
   CoverageCpp:
     name: Coverage C++ (CPU)
     needs: [Docker, Build]
-    if: ${{ github.event.inputs.run-cpu-tests == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.run-cpu-tests == 'true' }}
     runs-on: aks-linux-16-cores-32gb
     container:
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
@@ -224,7 +224,7 @@ jobs:
   CoverageCppGpu:
     name: Coverage C++ (${{ matrix.gpu.name }}, ${{ matrix.lane.name }})
     needs: Build
-    if: ${{ github.event.inputs.run-gpu-tests == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.run-gpu-tests == 'true' }}
     runs-on: ${{ fromJSON(matrix.gpu.runs_on) }}
     container:
       image: ubuntu:22.04
@@ -385,7 +385,7 @@ jobs:
   CoveragePython:
     name: Coverage Python (CPU)
     needs: [Docker, Build]
-    if: ${{ github.event.inputs.run-cpu-tests == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.run-cpu-tests == 'true' }}
     runs-on: aks-linux-16-cores-32gb
     container:
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
@@ -518,7 +518,7 @@ jobs:
   CoveragePythonGpu:
     name: Coverage Python (${{ matrix.gpu.name }})
     needs: Build
-    if: ${{ github.event.inputs.run-gpu-tests == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.run-gpu-tests == 'true' }}
     runs-on: ${{ fromJSON(matrix.gpu.runs_on) }}
     container:
       image: ubuntu:22.04
@@ -703,7 +703,7 @@ jobs:
   CoverageJS:
     name: Coverage JS (CPU)
     needs: [Docker, Build]
-    if: ${{ github.event.inputs.run-cpu-tests == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.run-cpu-tests == 'true' }}
     runs-on: aks-linux-4-cores-16gb
     container:
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
@@ -853,14 +853,14 @@ jobs:
           path: ${{ github.workspace }}/artifacts/cpp
 
       - name: Download Python artifacts
-        if: ${{ github.event.inputs.run-cpu-tests == 'true' || github.event.inputs.run-gpu-tests == 'true' }}
+        if: ${{ github.event_name == 'schedule' || github.event.inputs.run-cpu-tests == 'true' || github.event.inputs.run-gpu-tests == 'true' }}
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           pattern: coverage-python-*
           path: ${{ github.workspace }}/artifacts/python
 
       - name: Download JS artifacts
-        if: ${{ github.event.inputs.run-cpu-tests == 'true' }}
+        if: ${{ github.event_name == 'schedule' || github.event.inputs.run-cpu-tests == 'true' }}
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           pattern: coverage-js-*
@@ -870,7 +870,9 @@ jobs:
         id: lanes
         run: |
           selected_lanes='none'
-          if [[ "${{ github.event.inputs.run-cpu-tests }}" == 'true' && "${{ github.event.inputs.run-gpu-tests }}" == 'true' ]]; then
+          if [[ "${{ github.event_name }}" == 'schedule' ]]; then
+            selected_lanes='cpu,igpu,igpu-unit,igpu-func,dgpu,dgpu-unit,dgpu-func'
+          elif [[ "${{ github.event.inputs.run-cpu-tests }}" == 'true' && "${{ github.event.inputs.run-gpu-tests }}" == 'true' ]]; then
             selected_lanes='cpu,igpu,igpu-unit,igpu-func,dgpu,dgpu-unit,dgpu-func'
           elif [[ "${{ github.event.inputs.run-cpu-tests }}" == 'true' ]]; then
             selected_lanes='cpu'
