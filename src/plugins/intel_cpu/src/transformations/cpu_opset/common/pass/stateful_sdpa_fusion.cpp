@@ -183,8 +183,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
             }
             return cnt;
         };
-        if (count_reachable_sdpas(past_k_node.get()) > 1 ||
-            count_reachable_sdpas(past_v_node.get()) > 1) {
+        if (count_reachable_sdpas(past_k_node.get()) > 1 || count_reachable_sdpas(past_v_node.get()) > 1) {
             return false;
         }
         if (!check_valid_children_type(past_k_node) || !check_valid_children_type(past_v_node)) {
