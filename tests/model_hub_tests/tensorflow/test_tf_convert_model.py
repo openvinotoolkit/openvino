@@ -13,7 +13,7 @@ import tensorflow.compat.v1 as tf_v1
 import tensorflow_hub as hub
 # noinspection PyUnresolvedReferences
 #import tensorflow_text  # do not delete, needed for text models. Commended due to ticket 179327
-from huggingface_hub import snapshot_download, LocalEntryNotFoundError
+from huggingface_hub import snapshot_download
 from models_hub_common.test_convert_model import TestConvertModel
 from models_hub_common.utils import get_models_list
 from openvino import Core
@@ -45,10 +45,7 @@ class TestTFHubConvertModel(TestConvertModel):
 
     def load_model(self, model_name, model_link: str):
         if is_hf_link(model_link):
-            try:
-                model_cached = snapshot_download(model_name)
-            except LocalEntryNotFoundError:
-                model_cached = snapshot_download(model_name)  # fallback: download if not cached
+            model_cached = snapshot_download(model_name)  # required to avoid HF rate limits
             library_type = model_link[3:]
             if library_type == "transformers":
                 from transformers import TFAutoModel

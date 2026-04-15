@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from huggingface_hub import snapshot_download, LocalEntryNotFoundError
+from huggingface_hub import snapshot_download
 from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM, pipeline
 import torch
 import hashlib
@@ -42,10 +42,7 @@ def patch_gptq(config):
     return orig_cuda_check, orig_post_init_model
 
 def run_gptq_torchfx(tmp_path, model_id, model_link, prompt_result_pair):
-    try:
-        model_cached = snapshot_download(model_id)
-    except LocalEntryNotFoundError:
-        model_cached = snapshot_download(model_id)  # fallback: download if not cached
+    model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
     config = AutoConfig.from_pretrained(model_cached, trust_remote_code=True, torch_dtype=torch.float32)
     cuda, post_init = patch_gptq(config)
     tokenizer = AutoTokenizer.from_pretrained(model_cached, trust_remote_code=True, torch_dtype=torch.float32)
