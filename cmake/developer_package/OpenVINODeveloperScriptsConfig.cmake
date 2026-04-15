@@ -254,7 +254,7 @@ if(ENABLE_LTO)
 
     if(NOT IPO_SUPPORTED)
         set(ENABLE_LTO OFF CACHE BOOL "Enable link-time optimization" FORCE)
-        message(FATAL_ERROR "ENABLE_LTO=ON was requested, but IPO / LTO is not supported: ${OUTPUT_MESSAGE}")
+        message(WARNING "ENABLE_LTO=ON was requested, but IPO / LTO is not supported: ${OUTPUT_MESSAGE}")
     endif()
 endif()
 
