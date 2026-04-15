@@ -340,6 +340,14 @@ KERNEL(pa_sdpa_opt)(
     #else
                 KEY_BLOCK_UNCOMPRESSED k_vals;
                 uint init_index = key_block_offset + 0 * hidden_stride * KEY_VEC_SIZE;
+        #ifdef IS_KEY_BY_CHANNEL
+                // Per-channel scale/zp for i8 BY_CHANNEL: each column has PAGED_ATTENTION_BLOCK_SIZE data bytes + scale(fp16) + zp(fp16)
+                const uint comp_head_dim = qk_idx * KEY_VEC_SIZE + sglid;
+                const uint comp_col_base = key_block_offset + comp_head_dim * hidden_stride;
+                INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*)(key_cache + comp_col_base + PAGED_ATTENTION_BLOCK_SIZE);
+                INPUT0_TYPE comp_scale = comp_ptr[0];
+                INPUT0_TYPE comp_zp = comp_ptr[1];
+        #endif
                 unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
                     k_vals[i] = BLOCK_READN(INPUT1_TYPE, 1, key_cache, key_block_offset + qk_idx * hidden_stride * KEY_VEC_SIZE + i * hidden_stride);
                 #ifdef IS_KEY_BY_CHANNEL
