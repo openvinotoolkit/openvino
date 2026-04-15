@@ -155,13 +155,15 @@ ZeGraphExtWrappers::~ZeGraphExtWrappers() {
 void ZeGraphExtWrappers::destroyGraph(GraphDescriptor& graphDescriptor) {
     if (_zeroInitStruct == nullptr || _zeroInitStruct->getContext() == nullptr || graphDescriptor._handle == nullptr) {
         _logger.warning("Context or graph is null while trying to destroy graph. Graph might be already destroyed.");
+        graphDescriptor._handle = nullptr;
         return;
     }
 
     _logger.debug("destroyGraph - perform pfnDestroy");
     auto result = _zeroInitStruct->getGraphDdiTable().pfnDestroy(graphDescriptor._handle);
-    graphDescriptor._handle = nullptr;
-    if (ZE_RESULT_SUCCESS != result) {
+    if (ZE_RESULT_SUCCESS == result) {
+        graphDescriptor._handle = nullptr;
+    } else {
         _logger.error("failed to destroy graph handle. L0 pfnDestroy result: %s, code %#X",
                       ze_result_to_string(result).c_str(),
                       uint64_t(result));
