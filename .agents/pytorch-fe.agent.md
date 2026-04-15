@@ -32,12 +32,9 @@ The GHA job pre-clones the target repository on the runner before triggering thi
 
 | Item | Path / Notes |
 |---|---|
-| **Target repo** (`openvinotoolkit/openvino`) | `/tmp/openvino` — already cloned at HEAD, use directly |
+| **OpenVINO repository** | Current working directory — the `openvinotoolkit/openvino` repository root |
 | **HEAD SHA** | Provided in the trigger prompt as `REPO_HEAD` |
-| **MEAT workspace** | `$GITHUB_WORKSPACE` — this repository (read-only; do not modify) |
-| **Skills** | `$GITHUB_WORKSPACE/skills/` |
-
-> Use `/tmp/openvino` directly — **do not re-clone** `openvinotoolkit/openvino`.
+| **Skills** | `.agents/skills/` — relative to the OpenVINO repository root |
 
 ### Python Package Bootstrap
 
@@ -62,7 +59,7 @@ skill file. Original monolithic reference: `skills/add-fe-op/SKILL.md`
 | 1 | Analysis | `skills/add-fe-op/step1-analysis.md` | Check current support state, framework, registration gaps |
 | 2 | Translation | `skills/add-fe-op/step2-translation.md` | Write C++ translator logic for the FE |
 | 3 | Registration | `skills/add-fe-op/step3-registration.md` | Register op in `op_table.cpp` / `ONNX_OP` macro / TF unary path |
-| 4 | Testing | `skills/add-fe-op/step4-testing.md` | Layer tests, conversion validation, git patch, GitHub issue comment |
+| 4 | Testing | `skills/add-fe-op/step4-testing.md` | Layer tests, conversion validation, git patch, results written to agent-results/ |
 
 ## Supported Frontends
 
@@ -97,7 +94,7 @@ skill file. Original monolithic reference: `skills/add-fe-op/SKILL.md`
 5. Run **Testing** skill (`fe_op_testing`):
    - Write framework layer test + frontend smoke test where supported.
    - Run conversion check against installed OV (if it includes the FE change).
-   - Generate `git format-patch` and post to the tracking GitHub issue comment.
+   - Generate `git format-patch` and save to `agent-results/pytorch-fe/patches/`.
 
 6. Report outcome to OV Orchestrator.
 
@@ -113,7 +110,7 @@ These steps can and should be automated by scripts:
 | Check op registration | `grep -n 'aten::<op>'` in `op_table.cpp` | Confirms TorchScript + FX keys |
 | Run conversion check | `openvino.convert_model(model, example_input=...)` | Validates the FE patch works |
 | Generate git patch | `git format-patch HEAD~1 --stdout` | Creates the distributable patch file |
-| Post patch to issue | `python scripts/post_issue_comment.py` | Publishes patch on GitHub issue |
+| Save patch to results | `cp patches/fe_*.patch agent-results/pytorch-fe/patches/` | Saves patch for orchestrator pickup |
 
 All C++ translator logic and test authoring remains **agent-autonomous** — it
 requires framework semantics knowledge and OV op mapping expertise that cannot
@@ -173,11 +170,10 @@ crash), which helps downstream debugging while the Core op is being built.
 ## Constraints
 
 - Reports only to OV Orchestrator — does not call other agents directly.
-- Source repository: `/tmp/openvino` (pre-cloned by the GHA job — read + patch;
-  **do NOT build** — compilation takes too long on GHA nodes).
+- Source repository: current working directory — the OpenVINO repository (**do NOT build**)
 - Never report `success` when a fallback stub was used — report `partial`.
 - Always produce a `git format-patch` for any code change, including stubs.
-- Post every patch as a comment on the tracking GitHub issue.
+- Save every patch to `agent-results/pytorch-fe/patches/` for orchestrator pickup.
 - Do not mark an operation as supported unless FE conversion produces real OV
   graph nodes (not framework fallback nodes).
 
@@ -190,10 +186,18 @@ and `gh` CLI is available, attempt to open a **draft PR** to the upstream repo a
 completing your implementation:
 
 ```bash
-python scripts/create_draft_pr.py \
-  --repo-dir "<source_path>" \
-  --branch   "fix/<descriptive-name>" \
-  --title    "<one-line description>" \
+cd <source_path>
+BRANCH="fix/<descriptive-name>"
+git checkout -b "$BRANCH"
+git add -A
+git commit -m "<one-line description>"
+gh repo fork openvinotoolkit/openvino --clone=false 2>/dev/null || true
+git remote add fork "$(gh repo view "$(gh api user -q .login)/openvino" --json sshUrl -q .sshUrl)" 2>/dev/null || true
+git push fork "$BRANCH"
+gh pr create --draft \
+  --repo openvinotoolkit/openvino \
+  --head "$(gh api user -q .login):$BRANCH" \
+  --title "<one-line description>" \
   --body-file agent-results/pytorch-fe/agent_report.md
 ```
 

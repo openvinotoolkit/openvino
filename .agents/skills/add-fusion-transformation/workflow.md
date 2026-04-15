@@ -272,17 +272,9 @@ Refs: #<issue_number>"
 
 git format-patch HEAD~1 --stdout > \
   transformation-fuse-my-op-${GITHUB_RUN_ID}.patch
-
-python scripts/collect_artifacts.py add \
-  --agent transformation-agent --pass 1 \
-  --type patch --component openvino \
-  --artifact-name "transformation-patch-${GITHUB_RUN_ID}" \
-  --branch "feature/add-fuse-my-op" \
-  --install-cmd "pip install git+https://github.com/openvinotoolkit/openvino@feature/add-fuse-my-op" \
-  --description "Added FuseMyOp MatcherPass in common_optimizations"
 ```
 
-Post the `.patch` file as a GitHub issue comment.
+The patch is available in `agent-results/transformation/` for collection by the orchestrator.
 
 ---
 
@@ -308,7 +300,7 @@ Post the `.patch` file as a GitHub issue comment.
 - [ ] Pass registered at the correct position in the pipeline
 - [ ] Both header and source files added to CMakeLists.txt
 - [ ] At least 3 unit tests written (positive, negative, type-preservation)
-- [ ] Patch generated and uploaded to manifest
+- [ ] Patch generated and saved to agent-results/transformation/
 
 ---
 

@@ -35,12 +35,9 @@ before triggering this agent.
 
 | Item | Path / Notes |
 |---|---|
-| **Target repo** (`openvinotoolkit/openvino`) | `/tmp/openvino` — already cloned at HEAD, use directly |
+| **OpenVINO repository** | Current working directory — the `openvinotoolkit/openvino` repository root |
 | **HEAD SHA** | Provided in the trigger prompt as `REPO_HEAD` |
-| **MEAT workspace** | `$GITHUB_WORKSPACE` — this repository (read-only; do not modify) |
-| **Skills** | `$GITHUB_WORKSPACE/skills/` |
-
-> Use `/tmp/openvino` directly — **do not re-clone** `openvinotoolkit/openvino`.
+| **Skills** | `.agents/skills/` — relative to the OpenVINO repository root |
 
 ### Python Package Bootstrap
 
@@ -87,13 +84,15 @@ no new Copilot agent slot is consumed.**
 ### Step 0: Bootstrap Manifest
 
 ```bash
-python scripts/collect_artifacts.py bootstrap --manifest meat_manifest.json | bash
+# Read op spec from Core OpSpec Agent output
+OP_SPEC_PATH=$(python3 -c "import json; d=json.load(open('agent-results/pipeline_state.json')); print(d.get('ov_orchestrator', {}).get('op_spec_path', ''))")
 ```
 
-Download the op spec comment posted by Core OpSpec Agent:
+Download the op spec produced by Core OpSpec Agent:
 ```bash
-python scripts/collect_artifacts.py get \
-  --manifest meat_manifest.json --type op_spec --field artifact_url
+# Op spec is written to agent-results/core-opspec/ by the Core OpSpec Agent
+OP_SPEC_PATH=$(python3 -c "import json; d=json.load(open('agent-results/core-opspec/core_opspec_result.json')); print(d.get('op_spec_path', ''))")
+cat "$OP_SPEC_PATH"
 ```
 
 If `custom_op_patch_found=true` and `patch_type=transformation` in manifest
@@ -224,16 +223,11 @@ TEST_F(TransformationTestsF, FuseMyOpNegative_DynamicWeights) {
 ```bash
 git format-patch HEAD~<N> --stdout > transformation-<pass_name>-${GITHUB_RUN_ID}.patch
 
-python scripts/collect_artifacts.py add \
-  --agent transformation-agent --pass 1 \
-  --type patch --component openvino \
-  --artifact-name "transformation-patch-${GITHUB_RUN_ID}" \
-  --branch "feature/add-<pass_name>-transformation" \
-  --install-cmd "pip install git+https://github.com/openvinotoolkit/openvino@feature/add-<pass_name>-transformation" \
-  --description "Added <PassName> fusion transformation in common_optimizations"
+# Patch is already in agent-results/transformation/ and will be picked up by OV Orchestrator
+echo "Patch saved: transformation-<pass_name>-${GITHUB_RUN_ID:-local}.patch"
 ```
 
-Post the `.patch` file as a GitHub issue comment.
+The patch is available in `agent-results/transformation/` for the OV Orchestrator to collect.
 
 ---
 
@@ -250,7 +244,7 @@ Post the `.patch` file as a GitHub issue comment.
 | `pipeline_registration` | string | File and line where the pass is registered |
 | `test_results` | string | Unit test outcome (pass/fail count) |
 | `accuracy_ok` | `true` \| `false` | Post-transformation accuracy validation result |
-| `agent_report` | Markdown file | Run `python scripts/generate_agent_report.py --agent-name "Transformation Agent" --model-id <id> --status <status> --error-context <ctx> --output agent_report.md` |
+| `agent_report` | Markdown file | Write the agent report directly to `agent-results/transformation/agent_report.md` |
 
 ---
 
@@ -261,10 +255,18 @@ and `gh` CLI is available, attempt to open a **draft PR** to the upstream repo a
 completing your implementation:
 
 ```bash
-python scripts/create_draft_pr.py \
-  --repo-dir "<source_path>" \
-  --branch   "fix/<descriptive-name>" \
-  --title    "<one-line description>" \
+cd <source_path>
+BRANCH="fix/<descriptive-name>"
+git checkout -b "$BRANCH"
+git add -A
+git commit -m "<one-line description>"
+gh repo fork openvinotoolkit/openvino --clone=false 2>/dev/null || true
+git remote add fork "$(gh repo view "$(gh api user -q .login)/openvino" --json sshUrl -q .sshUrl)" 2>/dev/null || true
+git push fork "$BRANCH"
+gh pr create --draft \
+  --repo openvinotoolkit/openvino \
+  --head "$(gh api user -q .login):$BRANCH" \
+  --title "<one-line description>" \
   --body-file agent-results/transformation/agent_report.md
 ```
 

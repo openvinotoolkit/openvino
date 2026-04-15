@@ -28,12 +28,9 @@ The GHA job pre-clones the target repository on the runner before invoking the a
 
 | Item | Path / Notes |
 |---|---|
-| **Target repo** (`openvinotoolkit/openvino`) | `/tmp/openvino` — already cloned at HEAD, use directly |
+| **OpenVINO repository** | Current working directory — the `openvinotoolkit/openvino` repository root |
 | **HEAD SHA** | Provided in the trigger prompt as `REPO_HEAD` |
-| **MEAT workspace** | `$GITHUB_WORKSPACE` — this repository (read-only; do not modify) |
-| **Skills** | `$GITHUB_WORKSPACE/skills/` |
-
-> Use `/tmp/openvino` directly — **do not re-clone** `openvinotoolkit/openvino`.
+| **Skills** | `.agents/skills/` — relative to the OpenVINO repository root |
 
 ### Python Package Bootstrap
 
@@ -182,10 +179,18 @@ and `gh` CLI is available, attempt to open a **draft PR** to the upstream repo a
 completing your implementation:
 
 ```bash
-python scripts/create_draft_pr.py \
-  --repo-dir "<source_path>" \
-  --branch   "fix/<descriptive-name>" \
-  --title    "<one-line description>" \
+cd <source_path>
+BRANCH="fix/<descriptive-name>"
+git checkout -b "$BRANCH"
+git add -A
+git commit -m "<one-line description>"
+gh repo fork openvinotoolkit/openvino --clone=false 2>/dev/null || true
+git remote add fork "$(gh repo view "$(gh api user -q .login)/openvino" --json sshUrl -q .sshUrl)" 2>/dev/null || true
+git push fork "$BRANCH"
+gh pr create --draft \
+  --repo openvinotoolkit/openvino \
+  --head "$(gh api user -q .login):$BRANCH" \
+  --title "<one-line description>" \
   --body-file agent-results/cpu/agent_report.md
 ```
 

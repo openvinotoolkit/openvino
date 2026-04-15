@@ -141,23 +141,21 @@ Place final patch in: `patches/fe_<op_name>_<frontend>.patch`
 
 ---
 
-## Post Patch as GitHub Issue Comment
+## Save Patch and Report
 
-Use the existing script:
+Write the patch path and validation status to the FE Agent output file:
 
 ```bash
-python scripts/post_issue_comment.py \
-  --issue "$TICKET_NUMBER" \
-  --title "FE patch: <op_name> (<frontend>)" \
-  --body "$(cat patches/fe_<op_name>_<frontend>.patch)"
+# Patch is already in agent-results/pytorch-fe/patches/
+echo "Patch: patches/fe_<op_name>_<frontend>.patch  validation: <pass|fail|blocked>" \
+  >> agent-results/pytorch-fe/fe_result.json
 ```
 
-Include in the comment body:
-
-- Patch header (files changed, lines added/removed)
-- Validation status: `pass | fail | blocked`
-- If `blocked`: explicit reason (e.g. installed OV does not include FE patch)
-- If `partial` (fallback stub used): clear note that real OV op is still needed
+Optionally post as PR comment if `gh` is available and `GITHUB_TOKEN` is set:
+```bash
+gh pr comment --body "$(printf '**FE patch: %s (%s)**\n\nValidation: %s\n\n```patch\n%s\n```' \
+  '<op_name>' '<frontend>' '<status>' "$(cat patches/fe_<op_name>_<frontend>.patch)")" 2>/dev/null || true
+```
 
 ---
 
@@ -176,5 +174,5 @@ Include in the comment body:
 
 - Test files created and ready for commit.
 - Git patch file: `patches/fe_<op_name>_<frontend>.patch`
-- Patch posted to the tracking GitHub issue as a comment.
+- Patch available in `agent-results/pytorch-fe/patches/`.
 - Validation status reported back to FE Agent.

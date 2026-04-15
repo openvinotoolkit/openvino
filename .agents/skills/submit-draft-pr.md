@@ -48,25 +48,23 @@ fix/<model-id>-export             # optimum-intel / tokenizers
 fix/<component>-<short-desc>      # general
 ```
 
-### 3. Run the helper script
+### 3. Create branch, commit, and open draft PR
 
 ```bash
-python scripts/create_draft_pr.py \
-  --repo-dir "${SOURCE_PATH}" \
-  --branch   "<branch-name>" \
-  --title    "<one-line description of the fix>" \
-  --body-file agent-results/<agent>/agent_report.md \
-  [--upstream <org/repo>]          # only if auto-detection might fail
+cd <source_path>
+BRANCH="fix/<descriptive-name>"
+git checkout -b "$BRANCH"
+git add -A
+git commit -m "<one-line description>"
+gh repo fork openvinotoolkit/openvino --clone=false 2>/dev/null || true
+git remote add fork "$(gh repo view "$(gh api user -q .login)/openvino" --json sshUrl -q .sshUrl)" 2>/dev/null || true
+git push fork "$BRANCH"
+gh pr create --draft \
+  --repo openvinotoolkit/openvino \
+  --head "$(gh api user -q .login):$BRANCH" \
+  --title "<one-line description>" \
+  --body-file agent-results/<agent>/agent_report.md
 ```
-
-The script will:
-1. Detect whether `origin` is a fork or the upstream directly
-2. Ensure a personal fork exists (creates one via `gh repo fork` if needed)
-3. Create the feature branch (or reuse an existing one with the same name)
-4. `git add -A && git commit` any staged/unstaged changes
-5. Push to the fork (`git remote add fork <fork-url>`)
-6. Open a **draft PR** to the upstream repo via `gh pr create --draft`
-7. Print the PR URL on success
 
 ### 4. Log the result
 

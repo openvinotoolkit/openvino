@@ -121,7 +121,7 @@ Always execute, regardless of outcome.
 
 Invoke `skills/analyze-and-convert/build-report.md`.
 
-Produces: `conversion_report.md`, posts to GitHub issue, emits `agent-complete` marker.
+Produces: `conversion_report.md`, saves to `agent-results/`, emits `agent-complete` marker.
 
 ---
 
