@@ -346,7 +346,13 @@ Constant::Constant(const element::Type& type, const Shape& shape, const void* da
                                                                     ov::util::get_memory_size(type, shape_size(shape)),
                                                                     so)) {}
 
-Constant::~Constant() = default;
+Constant::~Constant() {
+    if (m_data) {
+        if (m_data->get_descriptor()) {
+            m_data->hint_release();
+        }
+    }
+}
 
 struct ValueToString : ov::element::NotSupported<std::string> {
     using ov::element::NotSupported<std::string>::visit;

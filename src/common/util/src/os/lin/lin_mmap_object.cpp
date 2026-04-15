@@ -22,6 +22,33 @@ int64_t get_system_page_size() {
     static auto page_size = static_cast<int64_t>(sysconf(_SC_PAGE_SIZE));
     return page_size;
 }
+
+struct PageAlignedRegion {
+    uintptr_t m_address = 0;
+    size_t m_length = 0;
+    size_t m_gap = 0;
+    bool m_valid = false;
+};
+
+constexpr PageAlignedRegion align_to_page(uintptr_t base, size_t raw_len, size_t page_size) {
+    const auto aligned = (base / page_size) * page_size;
+    const auto gap = base - aligned;
+    return {aligned, raw_len + gap, gap, true};
+}
+
+inline PageAlignedRegion make_mmap_region(size_t file_offset, size_t size) {
+    const auto page_size = static_cast<size_t>(util::get_system_page_size());
+    return align_to_page(static_cast<uintptr_t>(file_offset), size, page_size);
+}
+
+inline PageAlignedRegion make_madvise_region(const void* data, size_t mapping_size, size_t offset, size_t size) {
+    if (data == nullptr || mapping_size == 0 || offset >= mapping_size)
+        return {};
+    const auto available = mapping_size - offset;
+    const auto raw_len = (size == auto_size) ? available : std::min(size, available);
+    const auto page_size = static_cast<size_t>(util::get_system_page_size());
+    return align_to_page(reinterpret_cast<uintptr_t>(data) + offset, raw_len, page_size);
+}
 }  // namespace util
 
 class HandleHolder {
@@ -98,15 +125,14 @@ public:
         }
 
         if (m_size > 0) {
-            const auto page_size = util::get_system_page_size();
-            const auto aligned_offset = (offset / page_size) * page_size;
-            m_mapped_view_size = offset + m_size - aligned_offset;
-            m_mapped_view = mmap(nullptr, m_mapped_view_size, PROT_READ, MAP_SHARED, fd, aligned_offset);
+            const auto view = util::make_mmap_region(offset, m_size);
+            m_mapped_view_size = view.m_length;
+            m_mapped_view = mmap(nullptr, view.m_length, PROT_READ, MAP_SHARED, fd, view.m_address);
             if (m_mapped_view == MAP_FAILED) {
                 throw std::runtime_error("Can not create file mapping for " + std::to_string(fd) +
                                          ", err=" + std::strerror(errno));
             }
-            m_data = static_cast<char*>(m_mapped_view) + (offset - aligned_offset);
+            m_data = static_cast<char*>(m_mapped_view) + view.m_gap;
         }
         m_id =
             util::u64_hash_combine(static_cast<uint64_t>(sb.st_ino), {static_cast<uint64_t>(sb.st_dev), offset, size});
@@ -128,6 +154,15 @@ public:
 
     size_t size() const noexcept override {
         return m_size;
+    }
+
+    void hint_release(size_t offset, size_t size) override {
+        if (m_mapped_view == MAP_FAILED)
+            return;
+
+        if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_valid) {
+            std::ignore = madvise(reinterpret_cast<void*>(region.m_address), region.m_length, MADV_DONTNEED);
+        }
     }
 };
 

@@ -27,6 +27,10 @@ using FileHandle = void*;
 // Linux/Unix uses int for file descriptors
 using FileHandle = int;
 #endif
+/**
+ * @brief Generic constant to indicate automatic size calculation is required.
+ */
+inline constexpr auto auto_size = std::numeric_limits<size_t>::max();
 
 /**
  * @brief This class represents a mapped memory.
@@ -39,12 +43,8 @@ public:
     virtual size_t size() const noexcept = 0;
     virtual uint64_t get_id() const noexcept = 0;
     virtual ~MappedMemory() = default;
+    virtual void hint_release(size_t offset = 0, size_t size = auto_size) = 0;
 };
-
-/**
- * @brief Generic constant to indicate automatic size calculation is required.
- */
-inline constexpr auto auto_size = std::numeric_limits<size_t>::max();
 
 /**
  * @brief Returns mapped memory for a file from provided path.

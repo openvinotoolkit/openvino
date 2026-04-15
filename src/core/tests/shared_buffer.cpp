@@ -2,16 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/runtime/shared_buffer.hpp"
+#include <gmock/gmock.h>
 
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <vector>
 
 #include "common_test_utils/common_utils.hpp"
-#include "gtest/gtest.h"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
 
+namespace ov::test {
 using ov::SharedStreamBuffer;
 
 TEST(shared_stream_buffer, basic_read) {
@@ -514,3 +516,85 @@ TEST_F(SharedBufferTest, specialization_overload_resolution) {
         }
     }
 }
+
+class MockMappedMemory : public ov::MappedMemory {
+public:
+    explicit MockMappedMemory(size_t size) : m_data(size, '\0'), m_id(1) {}
+
+    char* data() noexcept override {
+        return m_data.data();
+    }
+    size_t size() const noexcept override {
+        return m_data.size();
+    }
+    uint64_t get_id() const noexcept override {
+        return m_id;
+    }
+
+    MOCK_METHOD(void, hint_release, (size_t offset, size_t size), (override));
+
+private:
+    std::vector<char> m_data;
+    uint64_t m_id;
+};
+
+TEST_F(SharedBufferTest, mmap_shared_buffer_calls_hint_release_with_own_region) {
+    constexpr size_t mmap_size = 1024;
+    constexpr size_t buf_offset = 128;
+    constexpr size_t buf_size = 256;
+
+    auto mock = std::make_shared<MockMappedMemory>(mmap_size);
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mock->data() + buf_offset,
+                                                                                        buf_size,
+                                                                                        mock);
+
+    EXPECT_CALL(*mock, hint_release(buf_offset, buf_size)).Times(1);
+    buffer->hint_release();
+}
+
+TEST_F(SharedBufferTest, mmap_shared_buffer_full_mapping) {
+    constexpr size_t mmap_size = 512;
+
+    auto mock = std::make_shared<MockMappedMemory>(mmap_size);
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mock->data(), mmap_size, mock);
+
+    EXPECT_CALL(*mock, hint_release(0u, mmap_size)).Times(1);
+    buffer->hint_release();
+}
+
+TEST_F(SharedBufferTest, aligned_shared_buffer_propagates_to_mmap) {
+    constexpr size_t mmap_size = 2048;
+    constexpr size_t parent_offset = 64;
+    constexpr size_t child_offset = 32;  // relative to parent data ptr
+    constexpr size_t child_size = 128;
+
+    auto mock = std::make_shared<MockMappedMemory>(mmap_size);
+
+    auto parent = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mock->data() + parent_offset,
+                                                                                        mmap_size - parent_offset,
+                                                                                        mock);
+
+    auto child = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+        parent->get_ptr<char>() + child_offset,
+        child_size,
+        std::static_pointer_cast<ov::AlignedBuffer>(parent));
+
+    // child lives at parent_offset + child_offset inside the mmap
+    EXPECT_CALL(*mock, hint_release(parent_offset + child_offset, child_size)).Times(1);
+    child->hint_release();
+}
+
+TEST_F(SharedBufferTest, no_call_when_mmap_object_is_null) {
+    constexpr size_t buf_size = 64;
+    std::vector<char> storage(buf_size);
+
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
+        storage.data(),
+        buf_size,
+        std::shared_ptr<ov::MappedMemory>{} /*null*/);
+
+    EXPECT_CALL(*static_cast<MockMappedMemory*>(nullptr), hint_release(testing::_, testing::_)).Times(0);
+    EXPECT_NO_THROW(buffer->hint_release());
+}
+
+}  // namespace ov::test

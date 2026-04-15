@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 
 #include "openvino/core/attribute_adapter.hpp"
@@ -11,7 +12,23 @@
 
 namespace ov {
 
+template <typename T>
+class SharedBufferBase;
 class AlignedBuffer;
+
+/// \brief Passkey granting any SharedBufferBase<T> (all specializations) the ability
+/// to call AlignedBuffer::hint_release(key, offset, size).
+class AlignedBufferRangeKey {
+    uint8_t _pad = 0;  // non-empty: suppresses GCC -Werror=abi on empty-class parameters
+
+    template <typename T>
+    friend class SharedBufferBase;
+    constexpr AlignedBufferRangeKey() = default;
+
+public:
+    AlignedBufferRangeKey(const AlignedBufferRangeKey&) = default;
+};
+
 class OPENVINO_API IBufferDescriptor {
 public:
     virtual size_t get_id() const = 0;
@@ -67,6 +84,9 @@ public:
 
     AlignedBuffer(const AlignedBuffer&) = delete;
     AlignedBuffer& operator=(const AlignedBuffer&) = delete;
+
+    virtual void hint_release();
+    virtual void hint_release(AlignedBufferRangeKey, size_t offset, size_t size);
 
 protected:
     char* m_allocated_buffer;
