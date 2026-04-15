@@ -21,6 +21,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              const GraphDescriptor& graphDesc,
              NetworkMetadata metadata,
              std::optional<ov::Tensor> blob,
+             const std::optional<std::string>& compatibilityDescriptor,
              const FilteredConfig& config,
              const bool blobIsPersistent,
              const bool calledFromWeightlessGraph)
@@ -30,6 +31,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
       _graphDesc(graphDesc),
       _metadata(std::move(metadata)),
       _blob(std::move(blob)),
+      _compiler_compatibility_descriptor(compatibilityDescriptor),
       _blobIsPersistent(blobIsPersistent),
       _logger("Graph", config.get<LOG_LEVEL>()) {
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
@@ -267,6 +269,10 @@ void Graph::set_last_submitted_id(uint32_t id_index) {
 
 uint32_t Graph::get_last_submitted_id() const {
     return _lastSubmittedId;
+}
+
+std::optional<std::string> Graph::get_compiler_compatibility_descriptor() const {
+    return _compiler_compatibility_descriptor;
 }
 
 std::optional<bool> Graph::is_profiling_blob() const {

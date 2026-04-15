@@ -179,7 +179,19 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
         return _graph->get_metadata().name;
     } else if (name == ov::runtime_requirements.name()) {
-        std::vector<uint8_t> compilerDescriptor = _propertiesManager->getCompiledModelCompatibilityDescriptor(_graph);
+        // The weights-separation case is not supported for now
+        OPENVINO_ASSERT(_graph->get_init_sizes() == 0);
+
+        std::string compilerDescriptor;
+        if (_compilerCompatibilityDescriptor.has_value()) {
+            // The compiler-in-plugin was used during compilation. The compiler part of the compatibility descriptor is
+            // stored within the CompiledModel
+            compilerDescriptor = _graph->get_compiler_compatibility_descriptor().value();
+        } else {
+            // The compiler-in-driver was used during compilation. The compiler part of the compatibility descriptor
+            // is being held by the driver
+            compilerDescriptor = _propertiesManager->getCompiledModelCompatibilityDescriptor(_graph);
+        }
 
         std::ostringstream requirementsString;
         requirementsString.write(reinterpret_cast<const char*>(compilerDescriptor.data()),
