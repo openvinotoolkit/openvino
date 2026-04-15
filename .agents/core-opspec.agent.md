@@ -31,12 +31,9 @@ The GHA job pre-clones the target repository on the runner before triggering thi
 
 | Item | Path / Notes |
 |---|---|
-| **Target repo** (`openvinotoolkit/openvino`) | `/tmp/openvino` — already cloned at HEAD, use directly |
+| **OpenVINO repository** | Current working directory — the `openvinotoolkit/openvino` repository root |
 | **HEAD SHA** | Provided in the trigger prompt as `REPO_HEAD` |
-| **MEAT workspace** | `$GITHUB_WORKSPACE` — this repository (read-only; do not modify) |
-| **Skills** | `$GITHUB_WORKSPACE/skills/` |
-
-> Use `/tmp/openvino` directly — **do not re-clone** `openvinotoolkit/openvino`.
+| **Skills** | `.agents/skills/` — relative to the OpenVINO repository root |
 
 ### Python Package Bootstrap
 
@@ -68,7 +65,7 @@ skill file. The original monolithic skill is preserved as reference.
 
 > **Step 0 guard:** Before Step 1, check whether the target opset exists:
 > ```bash
-> ls /tmp/openvino/src/core/include/openvino/opsets/opsetX.hpp 2>/dev/null \
+> ls ./src/core/include/openvino/opsets/opsetX.hpp 2>/dev/null \
 >   && echo "opset exists — skip step 0" \
 >   || echo "opset missing — run step0-opset-init first"
 > ```
@@ -97,7 +94,7 @@ The agent can be triggered in two ways:
 
 1.5. **(Conditional) Run Opset Init** skill (`core-opset-initialization`):
    - Check whether the target opset (e.g. `opset17`) already has
-     `opsetX.hpp` in `/tmp/openvino/src/core/include/openvino/opsets/`.
+     `opsetX.hpp` in `./src/core/include/openvino/opsets/`.
    - If the file is **absent** → run `skills/add-core-op/step0-opset-init.md`
      to create all scaffolding files before proceeding.
    - If the file is **present** → skip this step entirely.
@@ -121,17 +118,29 @@ The agent can be triggered in two ways:
 5. Run **Specification** skill (`core_op_specification`):
    - Create `.rst` documentation following OV op spec conventions.
 
-6. **Publish op spec as GitHub issue comment** (artifact for parallel agents):
+6. **Write op spec to agent-results/** (artifact for parallel agents):
    ```bash
-   python scripts/post_issue_comment.py \
-     --issue "$TICKET_NUMBER" \
-     --title "Core op spec ready: <op_name>" \
-     --body "$(cat op_spec_<op_name>.json)"
+   mkdir -p agent-results/core-opspec
+   cp op_spec_<op_name>.json agent-results/core-opspec/
+   python3 -c "
+   import json, os
+   state = {}
+   try:
+       with open('agent-results/pipeline_state.json') as f:
+           state = json.load(f)
+   except FileNotFoundError:
+       pass
+   state.setdefault('ov_orchestrator', {})['op_spec_path'] = 'agent-results/core-opspec/op_spec_<op_name>.json'
+   state['ov_orchestrator']['op_spec_ready'] = True
+   os.makedirs('agent-results', exist_ok=True)
+   with open('agent-results/pipeline_state.json', 'w') as f:
+       json.dump(state, f, indent=2)
+   "
    ```
-   This comment is the trigger signal for Transformation, CPU, and GPU agents
-   to start their parallel work.
+   Writing to `agent-results/` is the trigger signal — Transformation, CPU, and GPU agents
+   read from `agent-results/core-opspec/` and `agent-results/pipeline_state.json`.
 
-7. Generate `git format-patch` for all core changes and post to GitHub issue.
+7. Generate `git format-patch` for all core changes and save to `agent-results/core-opspec/`.
 
 8. Report `success` + patch to OV Orchestrator with `op_spec_ready=true`.
 
@@ -148,7 +157,7 @@ spec comment, the following agents are **unblocked to run in parallel**:
 | **CPU Agent** | Op signature + reference kernel from `.hpp` for CPU implementation |
 | **GPU Agent** | Op signature + math semantics for OpenCL kernel sketch |
 
-These agents consume the spec artifact via the GitHub issue comment — they do
+These agents consume the spec artifact from `agent-results/core-opspec/` — they do
 not need to wait for Core implementation tests to pass; the spec document alone
 is sufficient for them to begin.
 
@@ -156,9 +165,9 @@ is sufficient for them to begin.
 
 ## Source Repository
 
-- Reference code: `/tmp/openvino` (pre-cloned by the GHA job — use directly)
+- Reference code: current working directory (the OpenVINO repository root)
 - **Do NOT build OpenVINO** — compilation takes too long on GHA nodes.
-- Produce `git format-patch` files; post patches as GitHub issue comments.
+- Produce `git format-patch` files; save to `agent-results/core-opspec/`.
 
 ## Key References
 
@@ -171,7 +180,7 @@ is sufficient for them to begin.
 - Op specs must follow the OpenVINO operation set conventions exactly.
 - Register new ops only in the **latest** opset — never modify older opset tables.
 - Do not break compatibility of existing ops.
-- Always post the op spec as a GitHub issue comment before reporting `success`
+- Always write the op spec to `agent-results/core-opspec/` before reporting `success`
   so parallel agents can start without delay.
 
 ---
@@ -183,10 +192,18 @@ and `gh` CLI is available, attempt to open a **draft PR** to the upstream repo a
 completing your implementation:
 
 ```bash
-python scripts/create_draft_pr.py \
-  --repo-dir "<source_path>" \
-  --branch   "fix/<descriptive-name>" \
-  --title    "<one-line description>" \
+cd <source_path>
+BRANCH="fix/<descriptive-name>"
+git checkout -b "$BRANCH"
+git add -A
+git commit -m "<one-line description>"
+gh repo fork openvinotoolkit/openvino --clone=false 2>/dev/null || true
+git remote add fork "$(gh repo view "$(gh api user -q .login)/openvino" --json sshUrl -q .sshUrl)" 2>/dev/null || true
+git push fork "$BRANCH"
+gh pr create --draft \
+  --repo openvinotoolkit/openvino \
+  --head "$(gh api user -q .login):$BRANCH" \
+  --title "<one-line description>" \
   --body-file agent-results/core-opspec/agent_report.md
 ```
 
@@ -207,7 +224,7 @@ This allows:
 
 ### Checkpoint comment format
 
-Post a GitHub issue comment with this structure after every step:
+Write a checkpoint to `agent-results/core-opspec/checkpoints.md` with this structure after every step:
 
 ```markdown
 ## ⏱ Checkpoint — Step <N> complete (<model_id>)

@@ -17,10 +17,18 @@ transformation type before any implementation work begins. Produces a structured
 
 ### Step 1: Load Op Spec and Existing Graph
 
-Obtain the op spec from the manifest or issue comment:
+Obtain the op spec from agent-results:
 ```bash
-python scripts/collect_artifacts.py get \
-  --manifest meat_manifest.json --type op_spec --field artifact_url
+# Op spec is written by Core OpSpec Agent to agent-results/core-opspec/
+OP_SPEC_PATH=$(python3 -c "
+import json
+try:
+    d = json.load(open('agent-results/core-opspec/core_opspec_result.json'))
+    print(d.get('op_spec_path', ''))
+except Exception:
+    print('')
+")
+[ -n "$OP_SPEC_PATH" ] && cat "$OP_SPEC_PATH" || echo "[WARN] Op spec not found in agent-results/core-opspec/"
 ```
 
 Export the model to IR (using cached IR if available) and visualise the target

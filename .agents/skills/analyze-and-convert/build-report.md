@@ -194,38 +194,30 @@ print("Written: conversion_report.md")
 ## Step 3 — Post to GitHub Issue (if GITHUB_TOKEN available)
 
 ```python
-import os, subprocess, sys
-
-issue_number = os.environ.get("ISSUE_NUMBER")
-github_token = os.environ.get("GITHUB_TOKEN")
-repo         = os.environ.get("GITHUB_REPOSITORY")
-
-if issue_number and github_token and repo:
-    # Post via scripts/post_issue_comment.py
+# Optionally post as PR comment if gh CLI is available
+import shutil
+if shutil.which("gh") and github_token:
+    import subprocess
     result = subprocess.run(
-        [sys.executable, "scripts/post_issue_comment.py",
-         "--issue", issue_number,
-         "--body-file", "conversion_report.md"],
+        ["gh", "pr", "comment", "--body-file", "conversion_report.md"],
         capture_output=True, text=True
     )
     if result.returncode == 0:
-        print("Posted conversion_report.md to GitHub issue.")
+        print("Posted conversion_report.md as PR comment.")
     else:
-        print(f"GitHub post failed: {result.stderr}")
+        print(f"gh pr comment failed (non-fatal): {result.stderr}")
 else:
-    print("GITHUB_TOKEN / ISSUE_NUMBER not set — skipping GitHub post.")
+    print("gh not available or GITHUB_TOKEN not set — skipping PR comment (report saved to file).")
 ```
 
 ---
 
-## Step 4 — Write Manifest Entry
+## Step 4 — Record Result
 
 ```python
-import os, subprocess, sys
+import json
 
 agent_name = "analyze-and-convert"
-run_id = os.environ.get("GITHUB_RUN_ID", "local")
-pass_num = os.environ.get("PASS_NUM", "1")
 
 entry_type = "model_ir" if SUCCEEDED else "analysis"
 description = (
@@ -233,15 +225,18 @@ description = (
     else f"{signals.get('error_class')} — target: {signals.get('target_agent')}"
 )
 
-subprocess.run([
-    sys.executable, "scripts/collect_artifacts.py", "add",
-    "--agent", agent_name,
-    "--pass", pass_num,
-    "--type", entry_type,
-    "--component", "openvino",
-    "--artifact-name", f"conversion-report-{run_id}",
-    "--description", description,
-], check=False)
+# Record result summary in agent-results/ for orchestrator pickup
+result_summary = {
+    "agent": agent_name,
+    "status": status,
+    "model_id": MODEL_ID,
+    "entry_type": entry_type,
+    "description": description,
+    "report_path": "conversion_report.md",
+}
+with open("analyze_and_convert_result.json", "w") as f:
+    json.dump(result_summary, f, indent=2)
+print("Written: analyze_and_convert_result.json")
 ```
 
 ---
@@ -281,5 +276,5 @@ print("-->")
 
 | File | Contents |
 |------|----------|
-| `conversion_report.md` | Full human-readable report — posted to GitHub issue |
+| `conversion_report.md` | Full human-readable report — saved to agent-results/ |
 | `agent-complete` marker (stdout) | Machine-readable routing block for `dispatcher.yml` |

@@ -38,14 +38,34 @@ OPTIMUM_SUPPORTED = profile["optimum_supported"]
 ## Step 1 — Determine Task
 
 ```python
-# Use scripts/detect_task.py to resolve pipeline_tag → optimum task string
-import subprocess, sys
+# Resolve pipeline_tag → optimum-cli export task
+from transformers import AutoConfig
 
-result = subprocess.run(
-    [sys.executable, "scripts/detect_task.py", MODEL_ID],
-    capture_output=True, text=True
-)
-task = result.stdout.strip() or "text-generation-with-past"
+PIPELINE_TAG_MAP = {
+    "text-generation": "text-generation-with-past",
+    "text2text-generation": "text2text-generation-with-past",
+    "image-text-to-text": "image-text-to-text",
+    "text-classification": "text-classification",
+    "token-classification": "token-classification",
+    "question-answering": "question-answering",
+    "feature-extraction": "feature-extraction",
+    "fill-mask": "fill-mask",
+    "text-to-image": "text-to-image",
+    "image-to-text": "image-to-text",
+    "automatic-speech-recognition": "automatic-speech-recognition",
+    "audio-classification": "audio-classification",
+    "zero-shot-image-classification": "zero-shot-image-classification",
+}
+try:
+    cfg = AutoConfig.from_pretrained(MODEL_ID, trust_remote_code=True)
+    pipeline_tag = getattr(cfg, "pipeline_tag", None)
+    if pipeline_tag is None:
+        model_type = getattr(cfg, "model_type", "")
+        task = "text2text-generation-with-past" if model_type in ("t5", "mt5", "bart", "mbart") else "text-generation-with-past"
+    else:
+        task = PIPELINE_TAG_MAP.get(pipeline_tag, pipeline_tag)
+except Exception:
+    task = "text-generation-with-past"
 print(f"Resolved task: {task}")
 ```
 

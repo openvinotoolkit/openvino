@@ -28,7 +28,20 @@ validates the IR, and runs a quick inference sanity check.
    - `optimum-intel` (latest main: `pip install git+https://github.com/huggingface/optimum-intel.git`)
    - `openvino-genai` (stable release)
    - `openvino-tokenizers` (stable release)
-2. Detect task via `scripts/detect_task.py` (`text-generation` -> `text-generation-with-past`).
+2. Detect task from model config:
+   ```python
+   from transformers import AutoConfig
+   PIPELINE_TAG_MAP = {
+       "text-generation": "text-generation-with-past",
+       "text2text-generation": "text2text-generation-with-past",
+       "image-text-to-text": "image-text-to-text",
+   }
+   try:
+       cfg = AutoConfig.from_pretrained(model_id, trust_remote_code=True)
+       task = PIPELINE_TAG_MAP.get(getattr(cfg, "pipeline_tag", ""), "text-generation-with-past")
+   except Exception:
+       task = "text-generation-with-past"
+   ```
 3. Export:
    ```bash
    optimum-cli export openvino --model <model_id> --task <task> --weight-format fp16 ov_model
@@ -54,36 +67,17 @@ validates the IR, and runs a quick inference sanity check.
 | `analysis_report` | `error_analysis.md` — full Markdown report with LLM root-cause analysis, listing **all** identified errors with log excerpts; uploaded as artifact `error-analysis-<run_id>` and posted directly to the tracking issue |
 | `ir_artifact` | Path to exported IR (if success) |
 
-## Artifact Manifest
+## Record Result
 
-After each run the Deployer records its results in the run-scoped manifest
-(`meat_manifest.json`, uploaded as GHA artifact `meat-manifest-<run_id>`).
+Record result in `agent-results/deployer/result.json`:
 
-**Before installing packages** — if the orchestrator supplies a manifest from a
-previous pass, bootstrap from it first:
-```bash
-# Download meat-manifest-<run_id>, then:
-python scripts/collect_artifacts.py bootstrap --manifest meat_manifest.json \
-  | bash   # installs all patches/wheels from earlier agents
-```
-
-**On success** — add a `model_ir` entry:
-```bash
-python scripts/collect_artifacts.py add \
-  --agent deployer --pass "$PASS_NUM" \
-  --type model_ir --component openvino \
-  --artifact-name "openvino-ir-${GITHUB_RUN_ID}" \
-  --artifact-url  "$IR_ARTIFACT_URL" \
-  --description   "OV IR for $MODEL_ID (export succeeded)"
-```
-
-**On failure** — add an `analysis` entry:
-```bash
-python scripts/collect_artifacts.py add \
-  --agent deployer --pass "$PASS_NUM" \
-  --type analysis --component openvino \
-  --artifact-name "error-analysis-${GITHUB_RUN_ID}" \
-  --description   "$ERROR_CLASS — $ERROR_DETAIL"
+```json
+{
+  "status": "<success|failed>",
+  "error_log": "<full traceback if failed, empty string if success>",
+  "error_class": "<one of the 9 error classes>",
+  "target_agent": "<routing target derived from error_class>"
+}
 ```
 
 ## Constraints
@@ -92,7 +86,7 @@ python scripts/collect_artifacts.py add \
 - Does not call other agents directly.
 - Always uses stable release packages unless overridden by orchestrator.
 - When a manifest exists from Pass 1, bootstrap package overrides from it before exporting in Pass 2.
-- Error analysis uses `scripts/analyze_error.py` (LLM via GitHub Models API, `GITHUB_TOKEN` automatically available). Falls back to `scripts/classify_error.py` (regex) if the API call fails — routing is never blocked.
+- Error analysis: use LLM reasoning to classify the error log into one of the 9 error classes listed in the Outputs table. Regex fallback: scan for key patterns (`NotImplementedError`, `Cannot create`, `aten::`, etc.) to determine `error_class`. Routing is never blocked.
 
 ## Creating Pull Requests
 
