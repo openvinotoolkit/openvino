@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <ze_api.h>
+#include "ze_common.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/stream.hpp"

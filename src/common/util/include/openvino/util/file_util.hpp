@@ -5,12 +5,14 @@
 #pragma once
 
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <functional>
 #include <initializer_list>
 #include <string>
 #include <vector>
 
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/file_path.hpp"
 #include "openvino/util/util.hpp"
 #include "openvino/util/wstring_convert_util.hpp"
@@ -274,4 +276,7 @@ void save_binary(const std::filesystem::path& path, const void* binary, size_t b
  */
 const char* trim_file_name(const char* const fname);
 
+inline uint64_t get_id_for_file(const std::filesystem::path& path, size_t offset, size_t size) {
+    return util::u64_hash_combine(std::filesystem::hash_value(path), {offset, size});
+}
 }  // namespace ov::util

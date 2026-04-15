@@ -4,7 +4,6 @@
 
 #include "zero_variable_state.hpp"
 
-#include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_host_tensor.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
@@ -16,15 +15,13 @@ ZeroVariableState::ZeroVariableState(const std::shared_ptr<ZeroInitStructsHolder
                                      const std::string& name,
                                      const std::shared_ptr<ZeroTensor>& zero_tensor,
                                      size_t tensor_index,
-                                     size_t related_tensor_index,
-                                     const Config& config)
+                                     size_t related_tensor_index)
     : ov::IVariableState(name),
       _init_structs(init_structs),
       _tensor_index(tensor_index),
       _related_tensor_index(related_tensor_index),
       _zero_state(zero_tensor),
-      _config(config),
-      _logger("ZeroVariableState", _config.get<LOG_LEVEL>()) {
+      _logger("ZeroVariableState", Logger::global().level()) {
     m_state = _zero_state;
 }
 
@@ -42,18 +39,15 @@ void ZeroVariableState::set_state(const ov::SoPtr<ov::ITensor>& new_state) {
         _logger.debug("ZeroVariableState::set_state - create zero tensor");
         // Try to use the user tensor directly if its underlying data is already allocated in the same Level Zero
         // context.
-        _zero_state = std::make_shared<ZeroTensor>(_init_structs, _config, m_state);
+        _zero_state = std::make_shared<ZeroTensor>(_init_structs, m_state);
         _is_zero_state_update_needed = true;
     } catch (const ZeroMemException&) {
         // Check if the current Level Zero tensor was previously shared with the user. If so, it cannot be reused;
         // allocate a new tensor to back up the user tensor (which cannot be imported or used directly).
         if (_zero_state == nullptr || !_zero_state->can_be_reused()) {
             _logger.debug("ZeroVariableState::set_state - allocate locally L0 tensor");
-            _zero_state = std::make_shared<ZeroTensor>(_init_structs,
-                                                       _config,
-                                                       m_state->get_element_type(),
-                                                       m_state->get_shape(),
-                                                       false);
+            _zero_state =
+                std::make_shared<ZeroTensor>(_init_structs, m_state->get_element_type(), m_state->get_shape(), false);
             _is_zero_state_update_needed = true;
         } else {
             _logger.debug("ZeroVariableState::set_state - reusing the level zero tensor since it is not shared "

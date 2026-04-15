@@ -56,6 +56,16 @@ public:
     ShapeOfParameter();
 };
 
+class RegularizeSDPA : public ov::pass::ModelPass {
+    bool m_run_broadcast_pattern = false;
+
+public:
+    OPENVINO_MODEL_PASS_RTTI("ov::npuw::RegularizeSDPA");
+    explicit RegularizeSDPA(bool run_broadcast_pattern) : m_run_broadcast_pattern(run_broadcast_pattern) {};
+
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+};
+
 }  // namespace regularize
 
 }  // namespace patterns

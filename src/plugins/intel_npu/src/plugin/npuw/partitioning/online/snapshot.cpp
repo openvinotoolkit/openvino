@@ -172,28 +172,39 @@ bool isRegularParameterCase(const std::unordered_map<std::shared_ptr<Repeated>, 
             continue;
         }
 
-        auto firstGroup = *(gset.begin());
-        for (auto input_layer : firstGroup->getInputs()) {
-            // this is the reference mask expected from all other matched layers
-            // in the remaining groups of the repeated block
-            auto expected_producers_mask = getProducersMask(input_layer);
+        // Iterate over ALL groups' input layers instead of only the first group's.
+        // A group whose boundary node reads exclusively from ov::Parameters (e.g.
+        // the first transformer layer reading inputs_embeds) may not expose that
+        // node via getInputs() — getInputs() filters out nodes whose only external
+        // producers satisfy !isOp() (Parameter/Constant). Any sibling group in the
+        // repeated set will have the corresponding boundary node in its getInputs()
+        // (its producer is a computation node from the preceding group). That node's
+        // match bank also contains the first-layer node, which will show a different
+        // producers mask — exactly the mismatch we need to detect.
+        for (const auto& gptr : gset) {
+            for (auto input_layer : gptr->getInputs()) {
+                // this is the reference mask expected from all other matched layers
+                // in the remaining groups of the repeated block
+                auto expected_producers_mask = getProducersMask(input_layer);
 
-            auto this_layer_name = input_layer->get_friendly_name();
-            auto layer_bank_iter = std::find_if(matches.begin(), matches.end(), [&](const std::set<std::string>& lrs) {
-                return lrs.count(this_layer_name) > 0;
-            });
+                auto this_layer_name = input_layer->get_friendly_name();
+                auto layer_bank_iter =
+                    std::find_if(matches.begin(), matches.end(), [&](const std::set<std::string>& lrs) {
+                        return lrs.count(this_layer_name) > 0;
+                    });
 
-            NPUW_ASSERT(layer_bank_iter != matches.end());
+                NPUW_ASSERT(layer_bank_iter != matches.end());
 
-            // match input layers across all groups in the repeated block
-            // and compare their producers mask
-            for (const auto& layer_name : *layer_bank_iter) {
-                auto layer_ptr = node_id_cache.at(layer_name);
-                auto actual_producers_mask = getProducersMask(layer_ptr);
-                if (actual_producers_mask != expected_producers_mask) {
-                    LOG_INFO("This is NOT a regular parameter case. Producers mask mismatch found for "
-                             << layer_name << " and " << this_layer_name << " input layers.");
-                    return false;
+                // match input layers across all groups in the repeated block
+                // and compare their producers mask
+                for (const auto& layer_name : *layer_bank_iter) {
+                    auto layer_ptr = node_id_cache.at(layer_name);
+                    auto actual_producers_mask = getProducersMask(layer_ptr);
+                    if (actual_producers_mask != expected_producers_mask) {
+                        LOG_INFO("This is NOT a regular parameter case. Producers mask mismatch found for "
+                                 << layer_name << " and " << this_layer_name << " input layers.");
+                        return false;
+                    }
                 }
             }
         }

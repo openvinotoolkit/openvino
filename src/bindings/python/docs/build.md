@@ -77,7 +77,7 @@ For details please refer to [Python requirements and version constraints managem
 
 ## Run tests to verify OpenVINO™ Python API
 
-Follow instructions in [How to test OpenVINO™ Python API?](./test_examples.md#Running_OpenVINO™_Python_API_tests) to verify the build.
+Follow instructions in [How to test OpenVINO™ Python API?](./test_examples.md#run-openvino-python-api-tests) to verify the build.
 
 ## See also
  * [Debugging OpenVINO™ Python API with C++ breakpoints](./debugging_python_api.md)

@@ -72,7 +72,17 @@ public:
         if (axis == 0 && !input_pshape[0].is_dynamic()) {
             if (prim->output_pattern.empty())
                 return false;
-            return input_pshape[0].get_length() == 1;
+            if (input_pshape[0].get_length() != 1)
+                return false;
+            // Reject if the reshape preserves the batch=1 dim (spatial flatten, not batch squeeze).
+            // output_pattern[0] == -1 means the first dim is inferred (batch absorbed/squeezed).
+            // output_pattern[0] == 0 or 1 means batch=1 is explicitly kept.
+            // e.g. [1,C,H,W] -> [1,C,H*W] has pattern [1,-1] => reject
+            //      [1,N,H,W,C] -> [N,H,W,C] has pattern [-1,H,W,C] => allow
+            auto first_out_pattern = prim->output_pattern[0];
+            if (first_out_pattern == 0 || first_out_pattern == 1)
+                return false;
+            return true;
         }
 
         auto input_rank = input_pshape.size();

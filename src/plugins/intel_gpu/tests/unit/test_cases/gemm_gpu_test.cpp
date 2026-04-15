@@ -2547,6 +2547,11 @@ struct gemm_base_test_params {
 #define CASE_GEMM_FP32_TILED_NN_BROADCAST_4 64, 1, 2, 1, 1, 2, 2, 2, 2, 2, 2, false, false, \
 1.0f, 4.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
 
+// Reduced shape from real model MatMul_147904 (M=128, K=1025, N=199, f_num=32)
+// Key OOB conditions preserved: N%16=7, K%16=1; M and batch reduced to keep CPU ref cost low
+#define CASE_GEMM_FP32_TILED_NN_UNALIGNED_1 32, 199, 17, 1, 4, 1, 4, 1, 1, 1, 4, false, false, \
+1.0f, 0.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -10, 10, 8 }, { -10, 10, 8 }, { -10, 10, 8 }
+
 #define CASE_GEMM_FP16_TILED_NN_1 64, 32, 32, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
 1.5f, 2.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
 #define CASE_GEMM_FP16_TILED_NN_2 128, 64, 64, 1, 1, 1, 1, 1, 1, 1, 1, false, false, \
@@ -3662,6 +3667,13 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_tiled_nn_broadcast_tests, ::testing
     gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_BROADCAST_4, "gemm_tiled_opt" },
 }));
 
+class gemm_fp32_tiled_nn_unaligned_tests : public ::GemmBaseTest<gemm_base_test_params, float, float, float, float, float> {};
+TEST_P(gemm_fp32_tiled_nn_unaligned_tests, basic) { auto p = GetParam(); execute(p); }
+
+INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_tiled_nn_unaligned_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
+    gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_UNALIGNED_1, "gemm_tiled_opt" },
+}));
+
 class gemm_fp16_tiled_nn_tests : public ::GemmBaseTest<gemm_base_test_params, ov::float16, ov::float16, ov::float16, ov::float16, ov::float16> {};
 TEST_P(gemm_fp16_tiled_nn_tests, basic) { auto p = GetParam(); execute(p); }
 
@@ -3749,6 +3761,7 @@ TEST_P(gemm_fp32_tiled_nt_tests, basic_cached) { auto p = GetParam(); execute(p,
 TEST_P(gemm_fp32_tiled_tn_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp32_tiled_tt_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp32_tiled_nn_broadcast_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_fp32_tiled_nn_unaligned_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp16_tiled_nn_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp16_tiled_nt_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp16_tiled_tn_tests, basic_cached) { auto p = GetParam(); execute(p, true); }

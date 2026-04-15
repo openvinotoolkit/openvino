@@ -328,7 +328,7 @@ public:
     void EnableSurfaceInputSupport() { key.restrict.val.dedicated.reorder.surface_input = 1; }
     void EnableSoftmaxDim(SoftmaxDim d);
     void EnableConcatAxis(ConcatAxis a);
-    void EnableReampleType(ResampleType a);
+    void EnableResampleType(ResampleType a);
     void EnableEltwiseStride();
     void EnableEltwiseBroadcast() { key.restrict.val.dedicated.eltwise.broadcast = 1; }
 
@@ -366,6 +366,9 @@ enum class gpu_arch {
     xe_hpc = 6,
     xe2 = 7,
     xe3 = 8,
+    xe3p_35_10 = 9,
+    xe3p_35_11 = 10,
+    xe3p_unknown = 11,
 };
 
 

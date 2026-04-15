@@ -38,6 +38,10 @@ on:
       - 'src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/instances/common/logical.*'
       - 'src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/instances/riscv64/**'
       - 'src/plugins/intel_cpu/thirdparty/xbyak_riscv/**'
+  push:
+    branches:
+      - master
+      - 'releases/**'
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -78,7 +82,7 @@ jobs:
           ref_name: ${{ github.ref_name }}
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          skip_when_only_listed_labels_set: 'docs'
+          skip_when_only_listed_labels_set: 'docs,GPU,NPU'
           skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
 
       - name: Get target branch

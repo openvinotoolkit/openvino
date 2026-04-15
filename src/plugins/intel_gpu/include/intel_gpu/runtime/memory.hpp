@@ -124,6 +124,10 @@ struct memory {
     virtual dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */, int64_t offset = 0) const {
         throw std::runtime_error("[CLDNN] Can't convert memory object to onednn");
     }
+
+    virtual dnnl::memory get_onednn_grouped_memory(dnnl::memory::desc /* desc */, const memory& offsets) const {
+        throw std::runtime_error("[CLDNN] Can't convert memory object to onednn");
+    }
 #endif
 
     std::shared_ptr<MemoryTracker> get_mem_tracker() const { return m_mem_tracker; }

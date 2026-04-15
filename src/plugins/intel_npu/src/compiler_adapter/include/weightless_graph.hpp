@@ -7,7 +7,7 @@
 #pragma once
 
 #include "graph.hpp"
-#include "intel_npu/utils/zero/zero_host_tensor.hpp"
+#include "intel_npu/utils/zero/zero_tensor.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 
@@ -39,20 +39,21 @@ public:
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
     /**
-     * @brief The same operations performed within "Graph::initialize", but for all handles. In addition to this, the
-     * init schedules are run and the result of this is set as inputs to the main compiled model.
+     * @brief Implementation hook for "IGraph::initialize" that initializes all underlying graph handles.
+     * In addition to this, the init schedules are run and the result of this is set as inputs to the main
+     * compiled model.
      */
-    void initialize(const FilteredConfig& config) override;
+    void initialize_impl(const FilteredConfig& config) override;
 
     // TODO: public for multi-threaded execution
     struct InputData {
         std::vector<std::shared_ptr<ov::ITensor>> tensors;
-        ov::SoPtr<ZeroHostTensor> hostTensor;
+        std::shared_ptr<ZeroTensor> hostTensor;
     };
 
     struct OutputData {
         std::vector<std::shared_ptr<ov::ITensor>> tensors;
-        ov::SoPtr<ZeroHostTensor> hostTensor;
+        std::shared_ptr<ZeroTensor> hostTensor;
         std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> tensorsMap;
     };
 
@@ -107,18 +108,16 @@ private:
     std::vector<NetworkMetadata> _initsMetadata;
     std::shared_ptr<const ov::Model> _model;
 
-    std::vector<uint32_t> _initsCommandQueueOrdinals;
     std::vector<std::unique_ptr<CommandList>> _initsCommandLists;
     std::vector<std::unique_ptr<Fence>> _initsFences;
     std::shared_ptr<CommandQueue> _initsCommandQueue;
-    uint32_t _initsCommandQueueGroupOrdinal = 0;
 
     /**
      * @brief Tensors holding the L0 buffers corresponding to the inputs of the main schedule.
      * @details Each vector entry corresponds to the output of one init schedule. The allocations have been performed
      * per init compiled model and not per init schedule output for performance reasons.
      */
-    mutable std::vector<ov::SoPtr<ZeroHostTensor>> _mainInputsAllocatedTensors;
+    mutable std::vector<std::shared_ptr<ZeroTensor>> _mainInputsAllocatedTensors;
     /**
      * @brief Tensors pointing towards the buffers found in "_mainInputsAllocatedTensors".
      * @details Each map entry corresponds to one input of the main schedule.

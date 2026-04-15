@@ -85,6 +85,7 @@ PSROIPooling::PSROIPooling(const std::shared_ptr<ov::Node>& op, const GraphConte
     const auto defPsroi = ov::as_type_ptr<const ov::op::v1::DeformablePSROIPooling>(op);
 
     noTrans = op->get_input_size() == 2;
+    inBatchNum = op->get_input_shape(0)[0];
     CPU_NODE_ASSERT(op->get_input_shape(0).size() == 4,
                     "has first input with incorrect rank: " + std::to_string(op->get_input_shape(0).size()));
     CPU_NODE_ASSERT(op->get_input_shape(1).size() == 2,
@@ -619,6 +620,7 @@ void PSROIPooling::executeSpecified() {
     cpu_parallel->parallel_for(realRois, [&](int currentRoi) {
         const float* bottomRois = bottomRoisBeginning + currentRoi * 5;
         auto roiBatchInd = static_cast<int>(bottomRois[0]);
+        OPENVINO_ASSERT(roiBatchInd <= inBatchNum, "required batch index > batch amount");
         if (getAlgorithm() == Algorithm::PSROIPoolingAverage) {
             executeAverage(srcData, dstData, bottomRois, currentRoi, roiBatchInd, *srcDesc, *dstDesc);
         } else if (getAlgorithm() == Algorithm::PSROIPoolingBilinear) {

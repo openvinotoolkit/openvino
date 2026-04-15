@@ -33,12 +33,10 @@ NPUVMRuntimeApi::NPUVMRuntimeApi(std::string_view libName) {
     } catch (const std::runtime_error&) {                                                         \
         this->symbol = nullptr;                                                                   \
     }
-    nmr_weak_symbols_list();
 #undef nmr_symbol_statement
 
 #define nmr_symbol_statement(symbol) symbol = this->symbol;
     nmr_symbols_list();
-    nmr_weak_symbols_list();
 #undef nmr_symbol_statement
 }
 

@@ -17,6 +17,7 @@
 #    include <windows.h>
 #else
 #    include <dlfcn.h>
+#    include <fcntl.h>
 #    include <limits.h>
 #    include <unistd.h>
 #endif
@@ -246,5 +247,19 @@ std::filesystem::path to_fs_path(const StringPathVariant& param) {
                               return std::filesystem::path(p);
                           }},
                       param);
+}
+
+FileHandle open_ro_file(const std::filesystem::path& path) {
+#ifdef _WIN32
+    return ::CreateFileW(path.c_str(),
+                         GENERIC_READ,
+                         FILE_SHARE_READ,
+                         nullptr,
+                         OPEN_EXISTING,
+                         FILE_ATTRIBUTE_NORMAL,
+                         nullptr);
+#else
+    return ::open(path.c_str(), O_RDONLY);
+#endif
 }
 }  // namespace ov::test::utils

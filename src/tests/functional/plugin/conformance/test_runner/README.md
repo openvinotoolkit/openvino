@@ -193,9 +193,9 @@ The target is able to take the following command-line arguments:
 
 The `run_conformace.py` script has an optional `--expected_failures` argument which accepts a path to a csv file with a list of tests that should not be run. 
 
-You can find the files with the most up-to-date expected failures for different devices and conformance types [here](./../../../../../tests/test_utils/functional_test_utils/layer_tests_summary/skip_configs).
+You can find the files with the most up-to-date expected failures for different devices and conformance types [here](/src/tests/test_utils/functional_test_utils/layer_tests_summary/github/skip_configs).
 
-These files are used in [the Linux GitHub workflow](./../../../../../../.github/workflows/ubuntu_22.yml) for test skip. 
+These files are used in [the Linux GitHub workflow](/.github/workflows/ubuntu_22.yml) for test skip. 
 
 You can update the file(s) you need with either new passing tests, i.e., when something is fixed, or with new failing tests to skip them. The changes will be reflected in the GitHub actions pipeline, in the `Conformance_Tests` job.
 

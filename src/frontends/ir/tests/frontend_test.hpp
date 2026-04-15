@@ -17,34 +17,30 @@ protected:
     ov::Core core;
     ov::frontend::FrontEndManager manager;
 
-    std::string xmlFileName{};
-    std::string binFileName{};
+    std::filesystem::path prefix = ov::test::utils::generateTestFilePrefix();
+    std::filesystem::path xmlFileName = std::filesystem::path(prefix).concat("_IrFrontendTestModel.xml");
+    std::filesystem::path binFileName = std::filesystem::path(prefix).concat("_IrFrontendTestModel.bin");
 
     void createTemporalModelFile(std::string xmlFileContent,
                                  std::vector<unsigned char> binFileContent = std::vector<unsigned char>()) {
         ASSERT_TRUE(xmlFileContent.size() > 0);
-        auto filePrefix = ov::test::utils::generateTestFilePrefix();
-        xmlFileName = filePrefix + "_IrFrontendTestModel.xml";
-        binFileName = filePrefix + "_IrFrontendTestModel.bin";
 
-        {
-            std::ofstream xmlFile;
-            xmlFile.open(xmlFileName);
-            xmlFile << xmlFileContent;
-            xmlFile.close();
+        if (std::ofstream xml_file(xmlFileName); xml_file.is_open()) {
+            xml_file << xmlFileContent;
         }
 
-        if (binFileContent.size() > 0) {
-            std::ofstream binFile;
-            binFile.open(binFileName, std::ios::binary);
-            binFile.write((const char*)binFileContent.data(), binFileContent.size());
-            binFile.close();
+        if (std::ofstream bin_file(binFileName, std::ios::binary); bin_file.is_open()) {
+            bin_file.write(reinterpret_cast<const char*>(binFileContent.data()), binFileContent.size());
         }
     }
 
     void RemoveTemporalFiles() {
-        std::remove(xmlFileName.c_str());
-        std::remove(binFileName.c_str());
+        if (std::filesystem::exists(xmlFileName)) {
+            std::filesystem::remove(xmlFileName);
+        }
+        if (std::filesystem::exists(binFileName)) {
+            std::filesystem::remove(binFileName);
+        }
     }
 
     std::shared_ptr<ov::Model> getWithIRFrontend(const std::string& model) {

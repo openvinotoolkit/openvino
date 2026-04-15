@@ -3,7 +3,7 @@
 
 import pytest
 
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 class TestCopy(PytorchLayerTest):
@@ -28,6 +28,7 @@ class TestCopy(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("value", [1, [2.5], range(224)])
     def test_copy_(self, value, ie_device, precision, ir_version):
         self._test(*self.create_model(value), ie_device, precision, ir_version)
@@ -61,6 +62,7 @@ class TestAliasCopy(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
-    @pytest.mark.parametrize("out", [True, False])
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("out", [skip_if_export(True), False])
     def test_copy_(self, out, ie_device, precision, ir_version):
         self._test(*self.create_model(out), ie_device, precision, ir_version, kwargs_to_prepare_input={"out": out})

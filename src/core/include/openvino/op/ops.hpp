@@ -59,6 +59,7 @@
 #include "openvino/op/embeddingbag_packedsum.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/erf.hpp"
+#include "openvino/op/erfinv.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/experimental_detectron_detection_output.hpp"
 #include "openvino/op/experimental_detectron_generate_proposals.hpp"

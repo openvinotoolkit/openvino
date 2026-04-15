@@ -78,11 +78,11 @@ const std::shared_ptr<ov::threading::ExecutorManager>& ov::IPlugin::get_executor
     return m_executor_manager;
 }
 
-std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::string& model_path,
+std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::filesystem::path& model_path,
                                                                const ov::AnyMap& properties) const {
     auto core = get_core();
     OPENVINO_ASSERT(core);
-    const auto model = core->read_model(util::make_path(model_path), {}, properties);
+    const auto model = core->read_model(model_path, {}, properties);
     auto local_properties = properties;
     if (!ov::is_virtual_device(get_device_name())) {
         CoreConfig::remove_core(local_properties);
