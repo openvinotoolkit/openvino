@@ -22,7 +22,7 @@ list(APPEND OPTIONAL_FUNC_TESTS_INCLUDES
       "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/include"
 )
 
-list(APPEND OPTIONAL_FUNC_TESTS_LIBS openvino_npu_common openvino_npu_driver_compiler_adapter
+list(APPEND OPTIONAL_FUNC_TESTS_LIBS openvino_npu_common openvino_npu_compiler_adapter
       openvino_npu_level_zero_backend openvino_npu_zero_utils openvino_npu_logger_utils)
 
 ov_add_test_target(
@@ -68,7 +68,7 @@ if(WIN32)
 endif()
 
 set_target_properties(
-  ${TARGET_NAME} PROPERTIES FOLDER ${CMAKE_CURRENT_SOURCE_DIR} CXX_STANDARD 17)
+  ${TARGET_NAME} PROPERTIES CXX_STANDARD 17)
 
 if(MSVC)
   # Enforce standards conformance on MSVC

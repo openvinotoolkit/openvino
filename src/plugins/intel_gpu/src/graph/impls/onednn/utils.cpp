@@ -351,12 +351,22 @@ private:
         dnnl::memory::dims dims;
         auto fmt_tag = _target_fmt;
 
+        auto count_except = [this](size_t skip_idx) -> int64_t {
+            const auto& raw = _layout.get_tensor().raw;
+            int64_t result = 1;
+            for (size_t i = 0; i < raw.size(); ++i) {
+                if (i != skip_idx)
+                    result *= static_cast<int64_t>(raw[i]);
+            }
+            return result;
+        };
+
         if (fmt_tag == dnnl::memory::format_tag::ab && _flatten) {
             dims = flatten_tensor(_layout.get_tensor());
             dims.insert(dims.begin(), 1);
         } else if (fmt_tag == dnnl::memory::format_tag::ab) {
             dims.push_back(_layout.batch());
-            dims.push_back(_layout.get_tensor().count() / _layout.batch());
+            dims.push_back(count_except(0));
         } else if (fmt_tag == dnnl::memory::format_tag::abc) {
             dims.push_back(_layout.batch());
             dims.push_back(_layout.feature());
@@ -385,7 +395,7 @@ private:
             dims.push_back(_layout.spatial(1));
         } else if (fmt_tag == dnnl::memory::format_tag::ba) {
             dims.push_back(_layout.feature());
-            dims.push_back(_layout.get_tensor().count() / _layout.feature());
+            dims.push_back(count_except(1));
         } else if (_flatten) {
             dims = flatten_tensor(_layout.get_tensor());
         } else {
@@ -964,5 +974,17 @@ int get_prelu_mask_from_layouts(const std::function<layout()>& get_output_layout
     else
         return (1 << 1);
 }
+std::string dnnl_status_to_string(dnnl_status_t status) {
+    switch (status) {
+        case dnnl_success: return "dnnl_success";
+        case dnnl_out_of_memory: return "dnnl_out_of_memory";
+        case dnnl_invalid_arguments: return "dnnl_invalid_arguments";
+        case dnnl_unimplemented: return "dnnl_unimplemented";
+        case dnnl_runtime_error: return "dnnl_runtime_error";
+        case dnnl_not_required: return "dnnl_not_required";
+        default: return "dnnl_status_unknown";
+    }
+}
+
 }  // namespace onednn
 }  // namespace cldnn

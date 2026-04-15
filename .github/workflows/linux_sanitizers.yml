@@ -351,7 +351,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/paddle_tests --gtest_print_time=1 \
+          ${INSTALL_TEST_DIR}/ov_paddle_tests --gtest_print_time=1 \
                 ${{ matrix.SANITIZER != '' && '--gtest_filter=-PaddleFuzzyOpTest/FrontEndFuzzyOpTest.testOpFuzzy/paddle_greater_equal_big_int64_greater_equal_big_int64_pdmodel' || '' }} \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-PaddleTests.xml
 

@@ -30,11 +30,14 @@ from openvino.opset13.ops import bitwise_and
 from openvino.opset13.ops import bitwise_not
 from openvino.opset13.ops import bitwise_or
 from openvino.opset13.ops import bitwise_xor
+from openvino.opset15.ops import bitwise_left_shift
+from openvino.opset15.ops import bitwise_right_shift
 from openvino.opset3.ops import broadcast
 from openvino.opset3.ops import bucketize
 from openvino.opset1.ops import ceiling
 from openvino.opset1.ops import ceiling as ceil
 from openvino.opset1.ops import clamp
+from openvino.opset15.ops import col2im
 from openvino.opset1.ops import concat
 from openvino.opset13.ops import constant
 from openvino.opset1.ops import convert
@@ -57,7 +60,9 @@ from openvino.opset7.ops import dft
 from openvino.opset1.ops import divide
 from openvino.opset7.ops import einsum
 from openvino.opset1.ops import elu
+from openvino.opset15.ops import embedding_bag_offsets
 from openvino.opset3.ops import embedding_bag_offsets_sum
+from openvino.opset15.ops import embedding_bag_packed
 from openvino.opset3.ops import embedding_bag_packed_sum
 from openvino.opset3.ops import embedding_segments_sum
 from openvino.opset3.ops import extract_image_patches
@@ -158,11 +163,13 @@ from openvino.opset1.ops import reverse_sequence
 from openvino.opset3.ops import rnn_cell
 from openvino.opset5.ops import rnn_sequence
 from openvino.opset9.ops import roi_align
+from openvino.opset15.ops import roi_align_rotated
 from openvino.opset2.ops import roi_pooling
 from openvino.opset7.ops import roll
 from openvino.opset5.ops import round
 from openvino.opset13.ops import scaled_dot_product_attention
 from openvino.opset12.ops import scatter_elements_update
+from openvino.opset15.ops import scatter_nd_update
 from openvino.opset3.ops import scatter_update
 from openvino.opset15.ops import search_sorted
 from openvino.opset1.ops import select
@@ -174,6 +181,7 @@ from openvino.opset1.ops import sign
 from openvino.opset1.ops import sin
 from openvino.opset1.ops import sinh
 from openvino.opset8.ops import slice
+from openvino.opset15.ops import slice_scatter
 from openvino.opset8.ops import softmax
 from openvino.opset4.ops import softplus
 from openvino.opset9.ops import softsign
@@ -185,6 +193,8 @@ from openvino.opset1.ops import squared_difference
 from openvino.opset15.ops import squeeze
 from openvino.opset15.ops import stft
 from openvino.opset1.ops import strided_slice
+from openvino.opset15.ops import string_tensor_pack
+from openvino.opset15.ops import string_tensor_unpack
 from openvino.opset1.ops import subtract
 from openvino.opset4.ops import swish
 from openvino.opset1.ops import tan

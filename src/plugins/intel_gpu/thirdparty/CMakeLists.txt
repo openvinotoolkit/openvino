@@ -14,8 +14,8 @@ if(ENABLE_ONEDNN_FOR_GPU)
         set(ONEDNN_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_build")
         set(ONEDNN_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_install" CACHE PATH "Installation path for oneDNN GPU library")
         set(ONEDNN_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_root")
-        set(ONEDNN_ENABLED_PRIMITIVES "CONCAT;CONVOLUTION;DECONVOLUTION;INNER_PRODUCT;MATMUL;REORDER;POOLING;REDUCTION;SDPA;RNN")
-        set(ONEDNN_ENABLED_ISA "XELP;XEHP;XEHPG;XEHPC;XE2;XE3")
+        set(ONEDNN_ENABLED_PRIMITIVES "CONCAT;CONVOLUTION;DECONVOLUTION;GATED_MLP;INNER_PRODUCT;MATMUL;REORDER;POOLING;REDUCTION;SDPA;RNN")
+        set(ONEDNN_ENABLED_ISA "ALL")
         set(DNNL_GPU_LIBRARY_NAME "openvino_onednn_gpu" CACHE STRING "Name of oneDNN library for Intel GPU Plugin")
 
         if(X86_64)
@@ -101,7 +101,6 @@ if(ENABLE_ONEDNN_FOR_GPU)
         set(ONEDNN_GPU_LIB_PATH ${ONEDNN_INSTALL_DIR}/lib/${onednn_gpu_lib} CACHE FILEPATH "Path to oneDNN GPU library")
         set(ONEDNN_GPU_DIR ${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu CACHE FILEPATH "Path to oneDNN GPU repository")
         if(GPU_RUNTIME STREQUAL "L0")
-            message(FATAL_ERROR "Current OneDNN version does not support Level Zero")
             set(ONEDNN_GPU_RT "ZE")
         elseif(GPU_RUNTIME STREQUAL "OCL")
             set(ONEDNN_GPU_RT "OCL")
@@ -134,6 +133,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DDNNL_LIBRARY_TYPE=STATIC"
                 "-DDNNL_EXPERIMENTAL_PROFILING=ON"
                 "-DONEDNN_BUILD_GRAPH=OFF"
+                "-DDNNL_EXPERIMENTAL_GROUPED_MEMORY=ON"
                 # specifically for Conan, because it overrides CMAKE_PREFIX_PATH and oneDNN's FindOpenCL.cmake is ignored
                 # Conan's FindOpenCL.cmake module does not set OpenCL_INCLUDE_DIRS, so we need to set it manually
                 "-DOpenCL_INCLUDE_DIRS=$<TARGET_PROPERTY:OpenCL::OpenCL,INTERFACE_INCLUDE_DIRECTORIES>"

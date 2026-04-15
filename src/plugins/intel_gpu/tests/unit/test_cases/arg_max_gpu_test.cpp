@@ -1314,3 +1314,32 @@ TEST(arg_max_gpu_topk_radix, f16_max_duplicates_n70_k5_indices_tiebreak) {
         }
     }
 }
+
+// Verify that arg_max_min_axis is selected over radix for small sort_size and k=1
+TEST(arg_max_gpu_topk_radix, fallback_to_axis_for_small_sort_size_and_topk1) {
+    auto& engine = get_test_engine();
+
+    // sort_size=8 (< 256) + topK=1 → both conditions trigger axis fallback
+    auto input = engine.allocate_memory({data_types::f16, format::bfyx, {1, 8, 1, 1}});
+    set_values(input, {ov::float16(1.f), ov::float16(5.f), ov::float16(3.f), ov::float16(9.f),
+                       ov::float16(2.f), ov::float16(7.f), ov::float16(4.f), ov::float16(8.f)});
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(arg_max_min("arg_max", {input_info("input")},
+                             ov::op::TopKMode::MAX, 1, 1,
+                             ov::op::TopKSortType::SORT_VALUES, true, false, data_types::f16, 2));
+
+    auto config = get_test_default_config(engine);
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto info = network.get_primitive_info("arg_max");
+    ASSERT_TRUE(info.find("arg_max_min_axis") != std::string::npos)
+        << "Expected arg_max_min_axis, got: " << info;
+
+    auto output = outputs.at("arg_max").get_memory();
+    cldnn::mem_lock<ov::float16> out_ptr(output, get_test_stream());
+    ASSERT_NEAR(static_cast<float>(out_ptr[0]), 9.0f, 0.01f);
+}

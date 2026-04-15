@@ -44,7 +44,7 @@
 #ifndef NOMINMAX
 # define NOMINMAX
 #endif
-#include "gpu/intel/microkernels/fuser.hpp"
+#include "gpu/intel/gemm/jit/include/gemmstone/microkernel/fuser.hpp"
 #endif
 
 namespace {
@@ -149,35 +149,10 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                 current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_headers, kernel_string->language));
             }
 
-            // This is a temporary walk-around to avoid severe performance drop.
-            // It will be removed after OpenCL compiler is updated.
-            auto need_separate_batch = [&](std::string& unique_kernel_name) -> bool {
-                const std::vector<std::string> special_kernels = {"gemm_tiled_opt"};
-
-                if (current_bucket.back().kernels_counter > 0) {
-                    // check if the current kernel name is in special_kernels
-                    for (auto& special_kernel : special_kernels) {
-                        if (entry_point.find(special_kernel) != std::string::npos)
-                            return true;
-                    }
-                }
-
-                // check if the current_batch has one of special_kernels
-                if (current_bucket.back().kernels_counter == 1) {
-                    auto& kernel_in_current_batch = current_bucket.back().entry_point_to_id.begin()->first;
-                    for (auto& special_kernel : special_kernels) {
-                        if (kernel_in_current_batch.find(special_kernel) != std::string::npos)
-                            return true;
-                    }
-                }
-                return false;
-            };
-
             // Create new kernels batch when the limit is reached
             // and current kernel's entry_point is duplicated in this kernels batch
             if (current_bucket.back().kernels_counter >= _config.get_max_kernels_per_batch()
-                || current_bucket.back().entry_point_to_id.find(entry_point) != current_bucket.back().entry_point_to_id.end()
-                || need_separate_batch(entry_point)) {
+                || current_bucket.back().entry_point_to_id.find(entry_point) != current_bucket.back().entry_point_to_id.end()) {
                 const auto& batch_id = static_cast<int32_t>(current_bucket.size());
                 current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_headers, kernel_string->language));
             }
@@ -350,8 +325,7 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
             std::vector<uint8_t> binary = kernels[0]->get_binary();
             kernels.clear();
             // Update binary and rebuild kernel
-            using namespace dnnl::impl::gpu::intel;
-            micro::fuseMicrokernels(binary, combined_source.c_str());
+            gemmstone::microkernel::fuse(binary, combined_source.c_str());
             _builder->build_kernels(binary.data(), binary.size(), KernelFormat::NATIVE_BIN, "", kernels);
 #else  // ENABLE_ONEDNN_FOR_GPU
             OPENVINO_THROW("[GPU] Can't compile kernel w/ microkernels as onednn is not available");

@@ -11,7 +11,7 @@ Explore other resources to learn more about OpenVINO:
  * [OpenVINO core components](../../src/README.md)
  * [OpenVINO contributing guidelines](../../CONTRIBUTING.md)
  * [OpenVINO conditional compilation](./conditional_compilation.md)
- * [OpenVINO Tutorials](../../README.md#tutorials)
+ * [OpenVINO Tutorials and Examples](../../README.md#tutorials-and-examples)
  * [Public OpenVINO CI](./public_ci.md)
 
 ## See also

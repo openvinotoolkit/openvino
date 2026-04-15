@@ -184,6 +184,14 @@ protected:
 
     // MoE executor (encapsulates MoE inference logic and profiling)
     std::unique_ptr<ov::npuw::moe::MoEExecutor> m_moe_executor;
+
+    // Anchor tensors that keep pyramid shared buffers alive.
+    // The pyramid infer requests share memory via raw pointers wrapped in ov::Tensor.
+    // Without these anchors the original tensor SoPtr can drop to zero when
+    // bind_pyramid_attention_inputs calls set_tensor on m_subrequests for the last chunk,
+    // freeing the buffer while pyramid requests still hold raw pointers into it.
+    // Each entry is {real_idx, tensor} so recreate can selectively remove by submodel.
+    std::vector<std::pair<std::size_t, ov::SoPtr<ov::ITensor>>> m_pyramid_anchor_tensors;
 };
 
 }  // namespace npuw

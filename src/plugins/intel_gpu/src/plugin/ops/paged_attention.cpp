@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
-#include "openvino/op/constant.hpp"
 #include "openvino/op/paged_attention.hpp"
 
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace op {
@@ -21,7 +20,7 @@ using PagedAttentionExtension = ov::op::PagedAttentionExtension;
 namespace ov::intel_gpu {
 
 static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared_ptr<ov::op::PagedAttentionExtension>& op) {
-    validate_inputs_count(op, {25});
+    validate_inputs_count(op, {28});
     auto inputs = p.GetInputInfo(op);
     auto prim = cldnn::paged_attention(layer_type_name_ID(op), inputs);
 
@@ -29,9 +28,8 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     const auto k_head_size_id = "k_head_size";
     const auto v_head_size_id = "v_head_size";
     const auto num_k_heads_id = "num_k_heads";
-    const auto has_rt_params = rt_info.find(k_head_size_id) != rt_info.end() &&
-                               rt_info.find(v_head_size_id) != rt_info.end() &&
-                               rt_info.find(num_k_heads_id) != rt_info.end();
+    const auto has_rt_params =
+        rt_info.find(k_head_size_id) != rt_info.end() && rt_info.find(v_head_size_id) != rt_info.end() && rt_info.find(num_k_heads_id) != rt_info.end();
 
     auto query_ps = op->get_input_partial_shape(0);
     auto key_cache_ps = op->get_input_partial_shape(3);
@@ -118,18 +116,23 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     OPENVINO_ASSERT(sinks_const != nullptr);
     prim.has_sink_input = ov::shape_size(sinks_const->get_output_shape(0)) > 0;
 
+    const size_t qq_bias_idx = cldnn::paged_attention::PagedAttentionInputIdx::QQ_BIAS;
+    auto qq_bias_input = ov::as_type_ptr<ov::op::v0::Parameter>(op->get_input_node_shared_ptr(qq_bias_idx));
+    if (qq_bias_input && qq_bias_input->get_output_partial_shape(0).is_dynamic()) {
+        prim.has_qq_bias = true;
+    }
     prim.is_key_by_channel = p.get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL;
     prim.num_outputs = 1;
 
     if (op->get_output_size() > 1) {
         if (!op->get_output_target_inputs(1).empty()) {
-            prim.num_outputs++; // Add scores output
+            prim.num_outputs++;  // Add scores output
         } else {
             prim.has_score_aggregation = false;
         }
 
         if (!op->get_output_target_inputs(2).empty()) {
-            prim.num_outputs++; // Add diversity outut
+            prim.num_outputs++;  // Add diversity outut
         } else {
             prim.has_adaptive_rkv = false;
         }

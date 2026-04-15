@@ -57,6 +57,13 @@ TYPE_PRINTER(std::size_t)
 #ifndef ONEAPI_MAKE_VERSION
 /// @brief Generates generic 'oneAPI' API versions
 #    define ONEAPI_MAKE_VERSION(_major, _minor) ((_major << 16) | (_minor & 0x0000ffff))
+
+/// @brief extract 'oneAPI' API major version
+#    define ONEAPI_VERSION_MAJOR(_version) ((_version) >> 16)
+
+/// @brief extract 'oneAPI' API minor version
+#    define ONEAPI_VERSION_MINOR(_version) ((_version) & 0x0000ffff)
+
 #endif  // ONEAPI_MAKE_VERSION
 
 //

@@ -66,6 +66,7 @@ enum class KernelType {
     SDPA,
     SHUFFLE_CHANNELS,
     SLICE,
+    SLICE_SCATTER,
     STRIDED_SLICE,
     REVERSE_SEQUENCE,
     QUANTIZE,

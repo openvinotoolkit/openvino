@@ -4,7 +4,12 @@
 
 #include <signal.h>
 
+#include <openvino/runtime/intel_npu/properties.hpp>
 #include <sstream>
+
+#include "intel_npu/utils/zero/zero_api.hpp"
+#include "openvino/util/file_util.hpp"
+#include "openvino/util/shared_object.hpp"
 #ifdef WIN32
 #    include <process.h>
 #endif
@@ -20,6 +25,16 @@ void sigsegv_handler(int errCode) {
 int main(int argc, char** argv, char** envp) {
     // register crashHandler for SIGSEGV signal
     signal(SIGSEGV, sigsegv_handler);
+
+    std::shared_ptr<intel_npu::ZeroApi> zeroApi;
+    try {
+        zeroApi = intel_npu::ZeroApi::get_instance();
+        if (zeroApi) {
+            zeroApi->zelSetDriverTeardown();
+        }
+    } catch (...) {
+        // ze_loader not present on the system, probably it is not an NPU host
+    }
 
     std::ostringstream oss;
     oss << "Command line args (" << argc << "): ";

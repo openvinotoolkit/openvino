@@ -152,7 +152,7 @@ ZeroInitStructsMock::ZeroInitStructsMock(uint32_t zeDriverNpuExtVersion,
                                          uint32_t zeContextNpuExtVersion,
                                          uint32_t zeMutableCommandListExtVersion,
                                          uint32_t zeExternalMemMapSysMemExtVersion)
-    : _zero_api(ZeroApi::getInstance()),
+    : _zero_api(ZeroApi::get_instance()),
       _log("NPUZeroInitStructsHolder", Logger::global().level()) {
     _log.debug("ZeroInitStructsHolder - initialize NPU Driver");
     initNpuDriver();
@@ -360,6 +360,9 @@ ZeroInitStructsMock::ZeroInitStructsMock(uint32_t zeDriverNpuExtVersion,
     if (external_memory_mapping_ext_version > 0) {
         _external_memory_standard_allocation_supported = true;
     }
+
+    _command_queue_group_ordinal =
+        zeroUtils::findCommandQueueGroupOrdinal(_device_handle, ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
 }
 
 void ZeroInitStructsMock::getExtensionFunctionAddress(const std::string& name,
