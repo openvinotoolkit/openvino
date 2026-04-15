@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from huggingface_hub import snapshot_download
+from huggingface_hub import snapshot_download, LocalEntryNotFoundError
 from openvino._offline_transformations import paged_attention_transformation
 from openvino._pyopenvino.op import _PagedAttentionExtension
 from openvino._pyopenvino import Type as OVType
@@ -159,7 +159,7 @@ def run_pa(tmp_path,
            ie_device):
     try:
         model_cached = snapshot_download(model_id, local_files_only=True)
-    except Exception:
+    except LocalEntryNotFoundError:
         model_cached = snapshot_download(model_id)  # fallback: download if not cached
     model = cls.from_pretrained(model_cached, export=True, trust_remote_code=True)
 

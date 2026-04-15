@@ -38,7 +38,7 @@ for generating the same map, but utilizing cache-eviction.
 
 import os
 import sys
-from huggingface_hub import snapshot_download
+from huggingface_hub import snapshot_download, LocalEntryNotFoundError
 from pathlib import Path
 import models_hub_common.utils as utils
 from openvino._offline_transformations import paged_attention_transformation
@@ -96,7 +96,7 @@ def main():
             try:
                 try:
                     model_cached = snapshot_download(model_id, local_files_only=True)
-                except Exception:
+                except LocalEntryNotFoundError:
                     model_cached = snapshot_download(model_id)  # fallback: download if not cached
                 model = cls.from_pretrained(model_cached, export=True, trust_remote_code=True)
             except:

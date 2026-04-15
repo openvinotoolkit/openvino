@@ -5,7 +5,7 @@ import openvino as ov
 import os
 import pytest
 import requests
-from huggingface_hub import snapshot_download
+from huggingface_hub import snapshot_download, LocalEntryNotFoundError
 from PIL import Image
 from models_hub_common.constants import hf_cache_dir, clean_hf_cache_dir
 from models_hub_common.utils import cleanup_dir, get_models_list, retry
@@ -25,7 +25,7 @@ class TestTransformersModel(TestJaxConvertModel):
     def load_model(self, model_name, _):
         try:
             model_cached = snapshot_download(model_name, local_files_only=True)
-        except Exception:
+        except LocalEntryNotFoundError:
             model_cached = snapshot_download(model_name)  # fallback: download if not cached
         model = FlaxAutoModel.from_pretrained(model_cached)
         if model_name in ['google/vit-base-patch16-224-in21k']:

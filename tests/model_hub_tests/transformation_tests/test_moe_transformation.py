@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from huggingface_hub import snapshot_download
+from huggingface_hub import snapshot_download, LocalEntryNotFoundError
 from optimum.intel import OVModelForCausalLM
 import openvino as ov
 from models_hub_common.utils import retry
@@ -105,7 +105,7 @@ def create_synthetic_moe_model(tmp_path, num_layers, num_experts, dtype="float32
     # Load config from cache to avoid HuggingFace rate limits
     try:
         config_cache = snapshot_download("optimum-internal-testing/tiny-random-qwen3_moe", local_files_only=True)
-    except Exception:
+    except LocalEntryNotFoundError:
         config_cache = snapshot_download("optimum-internal-testing/tiny-random-qwen3_moe")  # fallback: download if not cached
     config = AutoConfig.from_pretrained(config_cache)
     config.num_hidden_layers = num_layers
@@ -142,7 +142,7 @@ def run_moe(tmp_path,
     """
     try:
         model_cached = snapshot_download(model_id, local_files_only=True)
-    except Exception:
+    except LocalEntryNotFoundError:
         model_cached = snapshot_download(model_id)  # fallback: download if not cached
 
     # Load original PyTorch model and tokenizer for comparison (from cache to avoid rate limits)
@@ -218,7 +218,7 @@ def run_moe_synthetic(tmp_path,
     # Load tokenizer from cache to avoid HuggingFace rate limits
     try:
         tokenizer_cache = snapshot_download("optimum-internal-testing/tiny-random-qwen3_moe", local_files_only=True)
-    except Exception:
+    except LocalEntryNotFoundError:
         tokenizer_cache = snapshot_download("optimum-internal-testing/tiny-random-qwen3_moe")  # fallback: download if not cached
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_cache, trust_remote_code=True)
 

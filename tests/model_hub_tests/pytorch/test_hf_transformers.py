@@ -49,7 +49,7 @@ class TestTransformersModel(TestTorchConvertModel):
     @retry(10, exceptions=(OSError,), delay=5, exponential_backoff=True, backoff_multiplier=2, max_delay=300)
     def load_model(self, name, type):
         from datasets import Audio, load_dataset
-        from huggingface_hub import hf_hub_download, model_info, snapshot_download
+        from huggingface_hub import hf_hub_download, model_info, snapshot_download, LocalEntryNotFoundError
         import transformers
         from transformers import (
             AutoConfig, AutoFeatureExtractor, AutoImageProcessor, AutoModel,
@@ -65,7 +65,7 @@ class TestTransformersModel(TestTorchConvertModel):
 
         try:
             model_cached = snapshot_download(name, local_files_only=True)
-        except Exception:
+        except LocalEntryNotFoundError:
             model_cached = snapshot_download(name)  # fallback: download if not cached
         mi = model_info(name)
         auto_processor = None
@@ -526,12 +526,12 @@ class TestTransformersModel(TestTorchConvertModel):
     @staticmethod
     def load_model_with_default_class(name, **kwargs):
         import transformers
-        from huggingface_hub import model_info, snapshot_download
+        from huggingface_hub import model_info, snapshot_download, LocalEntryNotFoundError
         from transformers import AutoModel
 
         try:
             model_cached = snapshot_download(name, local_files_only=True)
-        except Exception:
+        except LocalEntryNotFoundError:
             model_cached = snapshot_download(name)  # fallback: download if not cached
         try:
             mi = model_info(name)

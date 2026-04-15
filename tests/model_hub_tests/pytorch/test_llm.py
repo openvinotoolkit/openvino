@@ -147,14 +147,14 @@ class TestLLMModel(TestTorchConvertModel):
 
     @retry(3, exceptions=(OSError,), delay=1)
     def load_model(self, name, type):
-        from huggingface_hub import snapshot_download
+        from huggingface_hub import snapshot_download, LocalEntryNotFoundError
         from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
 
         model = None
         example = None
         try:
             model_cached = snapshot_download(name, local_files_only=True)
-        except Exception:
+        except LocalEntryNotFoundError:
             model_cached = snapshot_download(name)  # fallback: download if not cached
         try:
             config = AutoConfig.from_pretrained(model_cached, trust_remote_code=True)
@@ -175,7 +175,7 @@ class TestLLMModel(TestTorchConvertModel):
             model_kwargs["torch_dtype"] = "auto"
         try:
             model_cached = snapshot_download(name, local_files_only=True)
-        except Exception:
+        except LocalEntryNotFoundError:
             model_cached = snapshot_download(name)  # fallback: download if not cached
         t = AutoTokenizer.from_pretrained(model_cached, trust_remote_code=True)
         self.model = AutoModelForCausalLM.from_pretrained(model_cached, **model_kwargs)
