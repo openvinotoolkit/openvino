@@ -9,6 +9,7 @@
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "internal_properties.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/reference/adaptive_rkv_diversity.hpp"
@@ -92,6 +93,16 @@ public:
         kKVCachePrecision = p.kv_cache_precision;
         kForceByToken = p.force_by_token;
         kQuantByChannel = kKVCachePrecision.is_integral() && !kForceByToken && kKVCachePrecision != ov::element::i8;
+
+        if (kKVCachePrecision == ov::element::i8) {
+    #if defined(OPENVINO_ARCH_X86_64)
+            if (!ov::with_cpu_x86_avx512_core_amx_int8()) {
+                GTEST_SKIP() << "i8 KV-cache diversity requires SageAttn support (AMX_INT8 or AVX2 VNNI2).";
+            }
+    #else
+            GTEST_SKIP() << "i8 KV-cache diversity requires x64 SageAttn support.";
+    #endif
+        }
 
         targetDevice = utils::DEVICE_CPU;
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;
