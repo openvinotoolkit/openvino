@@ -96,7 +96,8 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
          *  for example: [2, 32, 64] [3, 64, 64] it will raise an exception.
          */
 
-        auto get_aligned_shapes = [&shape_a, &shape_b, &rank_a, &rank_b, &matmul, &supports_immad](const bool is_compressed_weight)
+        auto get_aligned_shapes = [&shape_a, &shape_b, &rank_a, &rank_b, &matmul, &supports_immad](const bool is_compressed_weight,
+                                                                                                    const bool is_parameter_weight)
             -> std::tuple<bool, ov::PartialShape, ov::PartialShape> {
             ov::PartialShape shape_a_aligned(shape_a);
             ov::PartialShape shape_b_aligned(shape_b);
@@ -119,7 +120,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
             for (size_t i = 0; i < max_size - 2; ++i) {
                 if (shape_b_aligned[i] == 1) {
                     shape_b_aligned[i] = shape_a_aligned[i];
-                } else if (!is_compressed_weight || !supports_immad) {
+                } else if (!is_compressed_weight || is_parameter_weight || !supports_immad) {
                     return std::make_tuple(false, std::move(shape_a_aligned), std::move(shape_b_aligned));
                 }
             }
@@ -153,11 +154,13 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
         };
 
         bool is_compressed_weight = ((pattern_map.find(compressed_weights_input_m) != pattern_map.end())
-                                    && (pattern_map.at(compressed_weights_input_m).get_node_shared_ptr() != nullptr));
+                        && (pattern_map.at(compressed_weights_input_m).get_node_shared_ptr() != nullptr));
+        bool is_parameter_weight = ((pattern_map.find(weights_param_m) != pattern_map.end())
+                        && (pattern_map.at(weights_param_m).get_node_shared_ptr() != nullptr));
         bool success = true;
         ov::PartialShape shape_a_aligned;
         ov::PartialShape shape_b_aligned;
-        std::tie(success, shape_a_aligned, shape_b_aligned) = get_aligned_shapes(is_compressed_weight);
+        std::tie(success, shape_a_aligned, shape_b_aligned) = get_aligned_shapes(is_compressed_weight, is_parameter_weight);
         if (!success) {
             return false;
         }
