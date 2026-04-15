@@ -193,9 +193,7 @@ TEST_F(CoreBaseTest, read_model_with_const_wchar_path) {
 
     ov::Core core;
     ASSERT_FALSE(model_files_name_w.empty());
-    const std::wstring model_path_w = model_files_name_w.front();
-    const wchar_t* model_path = model_path_w.c_str();
-    const auto model = core.read_model(model_path);
+const auto model = core.read_model(model_files_name_w.front().c_str());
     EXPECT_NE(model, nullptr);
 }
 #endif
