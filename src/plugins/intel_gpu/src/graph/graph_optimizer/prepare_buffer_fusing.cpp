@@ -141,7 +141,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         // which would affect a form of its output (unless debug flag is set),
         // we also need to restrict input types to those which support padding on all axis
         if (!pred.first->is_dynamic() || is_runtime) {
-            if (!pred.first->is_padding_supported(static_cast<int>(concat_axis), lower_padd_in_axis))
+            if (!pred.first->is_padding_supported(static_cast<int>(concat_axis), static_cast<int>(lower_padd_in_axis)))
                 return false;
         }
         // TODO: handle optimized reshape
@@ -714,7 +714,7 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                         if (reshape_ps[i - 1].is_dynamic() || mul == crop_dim_val)
                             break;
 
-                        mul *= reshape_ps[i - 1].get_length();
+                        mul *= static_cast<int>(reshape_ps[i - 1].get_length());
                         reshape_axis = i - 1;
                     }
                 }
@@ -785,7 +785,7 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                         if (divider * dim_value == crop_dim_val)
                             break;
 
-                        divider *= dim_value;
+                        divider *= static_cast<int>(dim_value);
                         reshape_axis = i - 1;
                     }
                     reshape_axis -= 1;

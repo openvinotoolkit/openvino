@@ -224,9 +224,9 @@ static void add_layout_to_jit(kernel_selector::jit_constants& mem_consts, const 
 
     // Offset (in elements)
     // #define INPUT0_OFFSET 0
-    int32_t offset =
+    int32_t offset = static_cast<int32_t>(
         (pitches[0] * l.data_padding._lower_size[0]) + (pitches[1] * l.data_padding._lower_size[1]) +
-        (pitches[2] * l.data_padding._lower_size[3]) + (pitches[3] * l.data_padding._lower_size[2]);
+        (pitches[2] * l.data_padding._lower_size[3]) + (pitches[3] * l.data_padding._lower_size[2]));
     mem_consts.AddConstant(kernel_selector::MakeJitConstant(name + "_OFFSET", std::to_string(offset)));
 }
 
