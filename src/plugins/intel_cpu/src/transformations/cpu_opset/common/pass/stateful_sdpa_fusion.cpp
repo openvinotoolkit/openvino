@@ -161,7 +161,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         const auto past_v_node = ov::as_type_ptr<ov::op::v6::ReadValue>(pattern_map.at(past_v).get_node_shared_ptr());
         // Skip SDPAs whose KV-cache Variable is shared with another SDPA: the fused
         // ScaledDotProductAttentionWithKVCache kernel does not support shared KV-cache and
-        // partial fusion leaves the model in an inconsistent state (see CVS-183493).
+        // partial fusion leaves the model in an inconsistent state.
         // Walk forward from past_k / past_v, stopping at SDPA boundaries, and count
         // how many SDPAs are reachable. Anchoring on the ReadValue (rather than on
         // direct input node pointers) is robust to intermediate Transpose/Reshape/
