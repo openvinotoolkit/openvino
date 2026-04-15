@@ -144,6 +144,7 @@
 // CPU specific transformations
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/ngram_fusion.hpp"
+#include "transformations/cpu_opset/common/pass/pa_kv_reorder_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/permute_slice_n_interpolation.hpp"
 #include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
@@ -625,6 +626,18 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         }
     };
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPagedAttnInputs, cacheConfig, update_paged_attention_shape_func);
+    // Fuse Gather+ScatterUpdate pattern for KV cache reordering for paged attention
+    // Use the same KV cache configuration as the main paged attention
+    // This ensures data type and dimension order consistency between main model and reorder subgraph
+    CPU_REGISTER_PASS_COMMON(manager,
+                             PaKVReorderFusion,
+                             cacheConfig.keyCacheQuantBychannel,    // key_cache_quant_by_channel
+                             cacheConfig.keyCacheDimOrder,          // key_cache_dim_order
+                             cacheConfig.valueCacheDimOrder,        // value_cache_dim_order
+                             cacheConfig.keyCachePrecision,         // key_cache_precision
+                             cacheConfig.valueCachePrecision,       // value_cache_precision
+                             cacheConfig.inferencePrecision);       // inference_precision
+
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
     CPU_SET_CALLBACK_COMMON(

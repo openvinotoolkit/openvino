@@ -834,6 +834,7 @@ struct MHAHelper {
         constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
         constexpr bool q_cache_is_same = precision_of<DATA_TYPE>::value == VALUE_PREC;
         auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
+        const size_t past_len = cur_kv_len - (q_blk * _block_size + q_cnt);
         [[maybe_unused]] size_t sparse_scale = 1;
         [[maybe_unused]] std::function<std::pair<size_t, size_t>(size_t, size_t)> map_to_mask_idx =
             [](size_t q_blk_rt, size_t k_blk_rt) {
@@ -909,10 +910,9 @@ struct MHAHelper {
                 auto ncausal = get_ncausal(q_token_start + m, cur_kv_len - q_cnt + (m - q_start) + 1, cur_kv_len);
                 auto* score = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
                 if (_has_qq_bias) {
-                    const auto past_len = cur_kv_len - q_len;
                     for (size_t key_idx = past_len; key_idx < cur_kv_len; key_idx++) {
                         if (!qq_bias_is_allowed(batch_in_seq, m, key_idx, past_len)) {
-                            score[key_idx] = std::numeric_limits<float>::lowest();
+                            score[key_idx] = -FLT_MAX;
                         }
                     }
                 }
