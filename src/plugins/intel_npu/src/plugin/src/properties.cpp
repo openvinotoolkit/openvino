@@ -1175,6 +1175,8 @@ std::vector<uint8_t> Properties::getCompiledModelCompatibilityDescriptor(const s
     // TODO check the type - should it be string?
     std::unique_ptr<ICompilerAdapter> compiler = nullptr;
     auto compilerType = _config.get<COMPILER_TYPE>();
+    // No driver query should be required, the descriptor should be stored within the CompiledModel
+    OPENVINO_ASSERT(compilerType != ov::intel_npu::CompilerType::PLUGIN);
     auto deviceId = _config.get<DEVICE_ID>();
     auto device = utils::getDeviceById(_backend, deviceId);
 
