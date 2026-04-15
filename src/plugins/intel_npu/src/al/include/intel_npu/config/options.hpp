@@ -863,32 +863,6 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
     }
 };
 
-struct COMPILER_VERSION final : OptionBase<COMPILER_VERSION, uint32_t> {
-    static std::string_view key() {
-        return ov::intel_npu::compiler_version.name();
-    }
-
-    static constexpr std::string_view getTypeName() {
-        return "uint32_t";
-    }
-
-    static uint32_t defaultValue() {
-        return 0;
-    }
-
-    static OptionMode mode() {
-        return OptionMode::RunTime;
-    }
-
-    static bool isPublic() {
-        return true;
-    }
-
-    static ov::PropertyMutability mutability() {
-        return ov::PropertyMutability::RO;
-    }
-};
-
 struct COMPILATION_MODE final : OptionBase<COMPILATION_MODE, std::string> {
     static std::string_view key() {
         return ov::intel_npu::compilation_mode.name();
