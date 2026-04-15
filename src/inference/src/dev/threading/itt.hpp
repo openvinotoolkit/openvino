@@ -17,7 +17,7 @@ namespace ov {
 namespace tbbbind {
 namespace itt {
 namespace domains {
-OV_ITT_DOMAIN(tbb_bind);
+OV_ITT_DOMAIN(tbb_bind, "ov::tbb_bind");
 }  // namespace domains
 }  // namespace itt
 }  // namespace tbbbind

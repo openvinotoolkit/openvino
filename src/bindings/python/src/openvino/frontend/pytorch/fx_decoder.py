@@ -263,7 +263,9 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                     self.input_types.append(BaseFXDecoder.get_type_for_value(arg))
 
     @classmethod
-    def from_exported_program(cls, exported_program: torch.export.ExportedProgram) -> "TorchFXPythonDecoder":
+    def from_exported_program(
+        cls, exported_program: torch.export.ExportedProgram, dynamic_shapes=True
+    ) -> "TorchFXPythonDecoder":
         """Create a TorchFXPythonDecoder instance from an exported PyTorch program."""
         from packaging import version
         if version.parse(torch.__version__) >= version.parse("2.6"):
@@ -284,7 +286,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             exported_program = exported_program.run_decompositions(decomp_table=decomp)
         gm = exported_program.module()
         logger.debug(gm.code)
-        return cls(gm, dynamic_shapes=True)
+        return cls(gm, dynamic_shapes=dynamic_shapes)
 
     @staticmethod
     def get_found_shape(value) -> str:
@@ -363,6 +365,11 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             meta = raw_input.meta
             if "tensor_meta" in meta and hasattr(meta["tensor_meta"], "stride"):
                 strides = list(meta["tensor_meta"].stride)
+                if strides:
+                    return strides
+            # Fallback for Edge dialect nodes where tensor_meta is absent but val is present
+            if "val" in meta and hasattr(meta["val"], "stride"):
+                strides = list(meta["val"].stride())
                 if strides:
                     return strides
         return []

@@ -6,17 +6,19 @@
 
 #include <ze_graph_ext.h>
 
+#include <mutex>
+
 #include "intel_npu/common/idynamic_graph.hpp"
-#include "intel_npu/network_metadata.hpp"
+#include "intel_npu/common/network_metadata.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "npu_mlir_runtime_api.hpp"
+#include "npu_vm_runtime_api.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
 class DynamicGraph final : public IDynamicGraph {
 public:
     struct MemRefTypeImpl {
-        npu_mlir_runtime_mem_ref_handle_t _memRef;
+        npu_vm_runtime_mem_ref_handle_t _memRef;
 
         MemRefTypeImpl() : _memRef(nullptr) {}
 
@@ -29,14 +31,14 @@ public:
             if (_memRef == nullptr) {
                 createMemRef(memref._dimsCount);
             }
-            auto result = npuMLIRRuntimeSetMemRef(_memRef,
-                                                  memref._basePtr,
-                                                  memref._data,
-                                                  memref._offset,
-                                                  memref._sizes.data(),
-                                                  memref._strides.data(),
-                                                  memref._dimsCount);
-            if (result != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
+            auto result = npuVMRuntimeSetMemRef(_memRef,
+                                                memref._basePtr,
+                                                memref._data,
+                                                memref._offset,
+                                                memref._sizes.data(),
+                                                memref._strides.data(),
+                                                memref._dimsCount);
+            if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
                 throw std::runtime_error("Failed to update MemRef handle");
             }
         }
@@ -46,13 +48,13 @@ public:
                 return;
             }
 
-            if (npuMLIRRuntimeParseMemRef(_memRef,
-                                          &memref._basePtr,
-                                          &memref._data,
-                                          &memref._offset,
-                                          memref._sizes.data(),
-                                          memref._strides.data(),
-                                          &memref._dimsCount) != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
+            if (npuVMRuntimeParseMemRef(_memRef,
+                                        &memref._basePtr,
+                                        &memref._data,
+                                        &memref._offset,
+                                        memref._sizes.data(),
+                                        memref._strides.data(),
+                                        &memref._dimsCount) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
                 throw std::runtime_error("Failed to parse MemRef handle");
             }
         }
@@ -60,8 +62,8 @@ public:
     private:
         void createMemRef(int64_t dimsCount) {
             if (_memRef == nullptr) {
-                auto result = npuMLIRRuntimeCreateMemRef(dimsCount, &_memRef);
-                if (result != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
+                auto result = npuVMRuntimeCreateMemRef(dimsCount, &_memRef);
+                if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
                     OPENVINO_THROW("Failed to create MemRef handle");
                 }
             }
@@ -69,16 +71,16 @@ public:
 
         void destroyMemRef() {
             if (_memRef != nullptr) {
-                npuMLIRRuntimeDestroyMemRef(_memRef);
+                npuVMRuntimeDestroyMemRef(_memRef);
                 _memRef = nullptr;
             }
         }
     };
 
     struct GraphArgumentsImpl : public GraphArguments {
-        std::vector<npu_mlir_runtime_mem_ref_handle_t> _inputMemRefs;
-        std::vector<npu_mlir_runtime_mem_ref_handle_t> _outputMemRefs;
-        npu_mlir_runtime_execute_params_t _executeParams = {};
+        std::vector<npu_vm_runtime_mem_ref_handle_t> _inputMemRefs;
+        std::vector<npu_vm_runtime_mem_ref_handle_t> _outputMemRefs;
+        npu_vm_runtime_execute_params_t _executeParams = {};
     };
 
     class Impl {
@@ -105,13 +107,11 @@ public:
     };
 
     DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                 std::optional<ov::Tensor> blob,
+                 ov::Tensor blob,
                  bool blobAllocatedByPlugin,
                  const FilteredConfig& config);
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
-
-    std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData) const override;
 
     void set_argument_value(uint32_t argi, const void* argv) const override;
 
@@ -121,18 +121,15 @@ public:
 
     ze_graph_handle_t get_handle() const override;
 
-    void initialize(const FilteredConfig& config) override;
-
     ~DynamicGraph() override;
 
     const NetworkMetadata& get_metadata() const override;
 
     void update_network_name(std::string_view name) override;
 
-    const std::shared_ptr<CommandQueue>& get_command_queue() const override;
-    uint32_t get_command_queue_group_ordinal() const override;
-
-    void set_workload_type(const ov::WorkloadType workloadType) const override;
+    CommandQueueDesc get_command_queue_desc() const override;
+    void set_workload_type(const ov::WorkloadType workloadType) override;
+    void set_model_priority(const ov::hint::Priority modelPriority) override;
 
     void set_batch_size(std::size_t batch) override;
 
@@ -160,6 +157,8 @@ public:
     std::optional<bool> is_profiling_blob() const override;
 
 private:
+    void initialize_impl(const FilteredConfig& config) override;
+
     bool release_blob(const FilteredConfig& config);
     std::optional<size_t> determine_batch_size();
 
@@ -173,8 +172,8 @@ private:
      */
     uint64_t _num_of_subgraphs = 1;
 
-    std::shared_ptr<CommandQueue> _commandQueue;
-    uint32_t _commandQueueGroupOrdinal = 0;
+    mutable std::mutex _commandQueueDescMutex;
+    CommandQueueDesc _commandQueueDesc;
     std::vector<std::shared_ptr<Event>> _lastSubmittedEvent;
 
     std::optional<ov::Tensor> _blob;
@@ -182,7 +181,6 @@ private:
     // In the case of the import path, the blob is released after graph initialization so it can not be any longer
     // exported
     bool _blobIsReleased = false;
-    bool _blobAllocatedByPlugin = false;
 
     uint32_t _uniqueId = 0;
     uint32_t _lastSubmittedId = 0;
