@@ -51,7 +51,7 @@ static size_t get_pa_sg_number_scale_factor(const device_info& info, size_t head
     if (is_kv_compressed) {
         const size_t optimal_scale_factor = 2;
         if (kernel_type == SDPAStage::SINGLE_TOKEN || kernel_type == SDPAStage::MULTI_TOKENS) {
-            if (head_size * optimal_scale_factor <= info.max_work_group_size) {
+            if (head_size * optimal_scale_factor < info.max_work_group_size) {
                 return optimal_scale_factor;
             }
         }
