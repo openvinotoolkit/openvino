@@ -58,7 +58,7 @@ inline std::ostream& operator<<(std::ostream& os, const MoEType& type) {
     }
 }
 
-using MoEMatMulsFusionParams = std::tuple<MoEType,  // moe_type
+using ConvertTiledMoeBlockToGatherMatmulsParams = std::tuple<MoEType,  // moe_type
                                           bool,     // use_scatter_v12
                                           bool,     // use_broadcast_v3
                                           bool,     // skip_unsqueeze
