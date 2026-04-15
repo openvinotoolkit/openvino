@@ -187,6 +187,7 @@ def test_conflicting_enum(proxy_enums, expected_values):
         (props.range_for_async_infer_requests, "RANGE_FOR_ASYNC_INFER_REQUESTS"),
         (props.execution_devices, "EXECUTION_DEVICES"),
         (props.loaded_from_cache, "LOADED_FROM_CACHE"),
+        (props.runtime_requirements_met, "RUNTIME_REQUIREMENTS_MET"),
         (device.full_name, "FULL_DEVICE_NAME"),
         (device.architecture, "DEVICE_ARCHITECTURE"),
         (device.type, "DEVICE_TYPE"),
@@ -551,6 +552,17 @@ def test_compiled_blob_property():
     assert compiled_blob[0] == "COMPILED_BLOB"
     assert compiled_blob[1].value.element_type == Type.u8
     assert compiled_blob[1].value.shape == [2, 5]
+
+
+def test_runtime_requirements_property():
+    assert props.runtime_requirements == "RUNTIME_REQUIREMENTS"
+    assert props.runtime_requirements() == "RUNTIME_REQUIREMENTS"
+
+    tensor = ov.Tensor(Type.u8, [16])
+    prop = props.runtime_requirements(tensor)
+    assert prop[0] == "RUNTIME_REQUIREMENTS"
+    assert prop[1].value.element_type == Type.u8
+    assert prop[1].value.shape == [16]
 
 
 def test_properties_device_priorities():
