@@ -125,8 +125,10 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
     {
         uint pair_lane = 2 * (sglid % 8);
         uchar q_lo = intel_sub_group_shuffle(qval[NUM_SUBGROUP_CHUNKS - 1], pair_lane);
-        char packed = cvt_uint8x2_to_uint4x2((uchar2)(q_lo, 0));
-        output[output_offset + NUM_OUTPUT_ITERS * SUBGROUP_SIZE + sglid] = packed;
+        uchar q_hi = intel_sub_group_shuffle(qval[NUM_SUBGROUP_CHUNKS - 1], pair_lane + 1);
+        char packed = cvt_uint8x2_to_uint4x2((uchar2)(q_lo, q_hi));
+        if (sglid < SUBGROUP_SIZE / 2)
+            output[output_offset + NUM_OUTPUT_ITERS * SUBGROUP_SIZE + sglid] = packed;
     }
 #endif
 #undef NUM_SUBGROUP_CHUNKS
