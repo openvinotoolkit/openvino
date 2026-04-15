@@ -257,6 +257,10 @@ OutputVector translate_linear_gptq(const NodeContext& context) {
 
     FRONT_END_OP_CONVERSION_CHECK(scales.get_partial_shape().is_static(), "Scales must be constant.");
     auto scales_shape = scales.get_shape();
+    FRONT_END_OP_CONVERSION_CHECK(scales_shape.size() == 2,
+                                  "GPTQ scales input is expected to be 2D, but got rank ",
+                                  scales_shape.size(),
+                                  ".");
     auto new_scales_shape =
         v0::Constant::create(element::i32, {3}, std::vector<uint64_t>{scales_shape[0], 1, scales_shape[1]});
     auto new_scales = context.mark_node(std::make_shared<v1::Reshape>(scales, new_scales_shape, false));

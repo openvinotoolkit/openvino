@@ -23,7 +23,7 @@ import torch
 log = logging.getLogger(__name__)
 
 # ──────────────────────────────────────────────────────────────────────
-#  Library handle – one per process, idempotent on reload
+#  Module-level library handle for ov_ext operator schema registration
 # ──────────────────────────────────────────────────────────────────────
 _ov_ext_lib = torch.library.Library("ov_ext", "DEF")
 
