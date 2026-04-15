@@ -11,19 +11,19 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/gated_delta_net.hpp"
-#include "openvino/op/paged_gated_delta_net.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
-#include "openvino/op/convert.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/op/slice.hpp"
+#include "openvino/op/paged_gated_delta_net.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/assign_base.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
@@ -102,10 +102,10 @@ std::shared_ptr<ov::Node> find_upstream_gdn_state_source(const std::shared_ptr<o
         if (ov::as_type_ptr<ov::op::util::ReadValueBase>(cur) || ov::as_type_ptr<v0::Parameter>(cur)) {
             return cur;
         }
-          // Only traverse single-input, shape-only ops that do not change tensor semantics.
-          if ((ov::as_type_ptr<ov::op::v1::Reshape>(cur) || ov::as_type_ptr<ov::op::v0::Unsqueeze>(cur) ||
-               ov::as_type_ptr<ov::op::v1::Transpose>(cur) || ov::as_type_ptr<ov::op::v8::Slice>(cur) ||
-               ov::as_type_ptr<ov::op::v0::Convert>(cur)) &&
+        // Only traverse single-input, shape-only ops that do not change tensor semantics.
+        if ((ov::as_type_ptr<ov::op::v1::Reshape>(cur) || ov::as_type_ptr<ov::op::v0::Unsqueeze>(cur) ||
+             ov::as_type_ptr<ov::op::v1::Transpose>(cur) || ov::as_type_ptr<ov::op::v8::Slice>(cur) ||
+             ov::as_type_ptr<ov::op::v0::Convert>(cur)) &&
             cur->get_input_size() > 0) {
             cur = cur->get_input_node_shared_ptr(0);
         } else {
@@ -185,7 +185,10 @@ void collect_state_writeback_sinks(const std::shared_ptr<ov::Node>& node,
     }
     for (const auto& output : node->outputs()) {
         for (const auto& target_input : output.get_target_inputs()) {
-            collect_state_writeback_sinks(target_input.get_node()->shared_from_this(), visited, sinks_to_mark, depth + 1);
+            collect_state_writeback_sinks(target_input.get_node()->shared_from_this(),
+                                          visited,
+                                          sinks_to_mark,
+                                          depth + 1);
         }
     }
 }
@@ -229,12 +232,11 @@ public:
             }
 
             if (!m_state_to_state_table.count(state_table_source)) {
-                const auto state_table = create_or_get_named_parameter(m_model,
-                                                                       make_gated_delta_state_table_name(
-                                                                           m_state_to_state_table.size()),
-                                                                       state_table_source->get_output_element_type(0),
-                                                                       make_gated_delta_state_table_shape(
-                                                                           state_table_source->get_output_partial_shape(0)));
+                const auto state_table = create_or_get_named_parameter(
+                    m_model,
+                    make_gated_delta_state_table_name(m_state_to_state_table.size()),
+                    state_table_source->get_output_element_type(0),
+                    make_gated_delta_state_table_shape(state_table_source->get_output_partial_shape(0)));
                 m_state_to_state_table[state_table_source] = state_table.parameter;
             }
 
@@ -249,20 +251,21 @@ public:
             const auto beta_flat = flatten_blh_to_th(pm.at(beta), reshape_nodes);
 
             // Inputs 0-5 are flattened from matched GatedDeltaNet [B,L,H,*] to PagedGDN [B*L,H,*].
-            const auto paged_gdn = std::make_shared<ov::op::internal::PagedGatedDeltaNet>(query_flat,
-                                                                                            key_flat,
-                                                                                            value_flat,
-                                                                                            state_table,
-                                                                                            gate_flat,
-                                                                                            beta_flat,
-                                                                                            m_shared_inputs.subsequence_begins,
-                                                                                            m_shared_inputs.block_indices,
-                                                                                            m_shared_inputs.block_indices_begins,
-                                                                                            m_shared_inputs.past_lens,
-                                                                                            m_shared_inputs.cache_interval,
-                                                                                            gdn_node->get_fuse_qk_l2norm(),
-                                                                                            gdn_node->get_q_l2_norm_eps(),
-                                                                                            gdn_node->get_k_l2_norm_eps());
+            const auto paged_gdn =
+                std::make_shared<ov::op::internal::PagedGatedDeltaNet>(query_flat,
+                                                                       key_flat,
+                                                                       value_flat,
+                                                                       state_table,
+                                                                       gate_flat,
+                                                                       beta_flat,
+                                                                       m_shared_inputs.subsequence_begins,
+                                                                       m_shared_inputs.block_indices,
+                                                                       m_shared_inputs.block_indices_begins,
+                                                                       m_shared_inputs.past_lens,
+                                                                       m_shared_inputs.cache_interval,
+                                                                       gdn_node->get_fuse_qk_l2norm(),
+                                                                       gdn_node->get_q_l2_norm_eps(),
+                                                                       gdn_node->get_k_l2_norm_eps());
 
             paged_gdn->set_friendly_name(gdn_node->get_friendly_name() + "/PagedGatedDeltaNet");
             const auto query_shape = std::make_shared<ov::op::v3::ShapeOf>(pm.at(query), ov::element::i64);
@@ -330,20 +333,11 @@ PagedGatedDeltaNetFusion::PagedGatedDeltaNetFusion() {
 bool PagedGatedDeltaNetFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     SharedRuntimeInputs shared_inputs{
         create_or_get_named_parameter(model, "subsequence_begins", ov::element::i32, ov::PartialShape{-1}).parameter,
-        create_or_get_named_parameter(model, "la.block_indices", ov::element::i32, ov::PartialShape{-1})
+        create_or_get_named_parameter(model, "la.block_indices", ov::element::i32, ov::PartialShape{-1}).parameter,
+        create_or_get_named_parameter(model, "la.block_indices_begins", ov::element::i32, ov::PartialShape{-1})
             .parameter,
-        create_or_get_named_parameter(model,
-                                      "la.block_indices_begins",
-                                      ov::element::i32,
-                                      ov::PartialShape{-1})
-            .parameter,
-        create_or_get_named_parameter(model, "la.past_lens", ov::element::i32, ov::PartialShape{-1})
-            .parameter,
-        create_or_get_named_parameter(model,
-                                      "la.cache_interval",
-                                      ov::element::i32,
-                                      ov::PartialShape{-1})
-            .parameter};
+        create_or_get_named_parameter(model, "la.past_lens", ov::element::i32, ov::PartialShape{-1}).parameter,
+        create_or_get_named_parameter(model, "la.cache_interval", ov::element::i32, ov::PartialShape{-1}).parameter};
 
     ov::pass::Manager manager(get_pass_config(), "PagedGatedDeltaNetFusion");
     manager.set_per_pass_validation(false);

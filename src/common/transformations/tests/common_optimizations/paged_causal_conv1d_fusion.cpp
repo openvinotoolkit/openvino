@@ -123,12 +123,10 @@ std::shared_ptr<ov::Model> build_model_ref(bool add_present_state_result) {
     auto transpose_order = v0::Constant::create(element::i64, Shape{3}, {0, 2, 1});
     auto token_transpose = std::make_shared<v1::Transpose>(token_concat, transpose_order);
 
-    auto input_embeds_shape =
-        v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{-1, 3});
+    auto input_embeds_shape = v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{-1, 3});
     auto input_embeds_reshape = std::make_shared<v1::Reshape>(token_transpose, input_embeds_shape, false);
 
-    auto weight_reshape_shape =
-        v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{3, 1, 4});
+    auto weight_reshape_shape = v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{3, 1, 4});
     auto weights = v0::Constant::create(element::f32, Shape{3, 1, 1, 4}, std::vector<float>(12, 0.25f));
     auto weight_reshape = std::make_shared<v1::Reshape>(weights, weight_reshape_shape, false);
 
@@ -144,16 +142,15 @@ std::shared_ptr<ov::Model> build_model_ref(bool add_present_state_result) {
     auto past_lens = make_i32_param("past_lens", Shape{2});
     auto cache_interval = make_i32_param("cache_interval", Shape{2});
 
-    const auto paged_conv =
-        std::make_shared<ov::op::internal::PagedCausalConv1D>(input_embeds_reshape,
-                                                              conv_state_table,
-                                                              weight_reshape,
-                                                              bias_node,
-                                                              subsequence_begins,
-                                                              block_indices,
-                                                              block_indices_begins,
-                                                              past_lens,
-                                                              cache_interval);
+    const auto paged_conv = std::make_shared<ov::op::internal::PagedCausalConv1D>(input_embeds_reshape,
+                                                                                  conv_state_table,
+                                                                                  weight_reshape,
+                                                                                  bias_node,
+                                                                                  subsequence_begins,
+                                                                                  block_indices,
+                                                                                  block_indices_begins,
+                                                                                  past_lens,
+                                                                                  cache_interval);
 
     const auto unsqueeze_axis = v0::Constant::create(element::i64, Shape{1}, {2});
     const auto unsqueeze = std::make_shared<v0::Unsqueeze>(paged_conv, unsqueeze_axis);
