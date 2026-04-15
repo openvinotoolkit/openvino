@@ -351,7 +351,8 @@ bool ov::pass::low_precision::LowPrecision::doesModelContainMXFPPatterns(
 
     auto m = std::make_shared<Matcher>(mult_pattern, "doesModelContainMXFPPatterns");
 
-    for (const auto& n : model->get_ordered_ops()) {
+    const auto ops = model->get_ops();
+    for (const auto& n : ops) {
         if (m->match(n)) {
             return true;
         }
