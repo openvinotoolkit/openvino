@@ -24,6 +24,7 @@ public:
           const GraphDescriptor& graphDesc,
           NetworkMetadata metadata,
           std::optional<ov::Tensor> blob,
+          const std::optional<std::string>& compatibilityDescriptor,
           const FilteredConfig& config,
           const bool blobIsPersistent = false,
           const bool calledFromWeightlessGraph = false);
@@ -61,6 +62,8 @@ public:
 
     void evict_memory() override;
 
+    std::optional<std::string> get_compiler_compatibility_descriptor() const override;
+
     ~Graph() override;
 
 protected:
@@ -95,6 +98,9 @@ protected:
      * @details The attribute contains a value only if the plugin performs the batches splitting operation.
      */
     std::optional<std::size_t> _batchSize = std::nullopt;
+
+    // Available here only if the model was compiled using the compiler-in-plugin
+    std::optional<std::string> _compiler_compatibility_descriptor;
 
     Logger _logger;
 };

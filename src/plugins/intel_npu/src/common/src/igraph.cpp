@@ -28,6 +28,10 @@ std::vector<size_t> IGraph::get_init_sizes() const {
     OPENVINO_THROW("get_init_sizes called on a weightful IGraph object");
 }
 
+std::optional<std::string> IGraph::get_compiler_compatibility_descriptor() const {
+    OPENVINO_THROW("get_compiler_compatibility_descriptor not implemented");
+}
+
 void IGraph::initialize(const FilteredConfig& config) {
     std::lock_guard<std::mutex> lock(_initialize_mutex);
 
