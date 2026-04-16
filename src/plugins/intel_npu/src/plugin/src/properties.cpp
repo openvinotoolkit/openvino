@@ -1182,9 +1182,12 @@ bool Properties::checkCompiledModelCompatibilityDescriptor(const std::string& co
     // Create a compiler to get the type and fetch version and supported options if needed
     CompilerAdapterFactory factory;
     try {
+        // TODO compilationPlatform should not iunfluence result
+        // TODO consider using backend directly
         compiler = factory.getCompiler(_backend, ov::intel_npu::CompilerType::DRIVER, compilationPlatform);
     } catch (const std::exception& ex) {
         // No compiler, no support
+        // Populate in ctor the device descriptor
         compiler = factory.getCompiler(_backend, ov::intel_npu::CompilerType::PLUGIN, compilationPlatform);
     }
     OPENVINO_ASSERT(compiler != nullptr);
