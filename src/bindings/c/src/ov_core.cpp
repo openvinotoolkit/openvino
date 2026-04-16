@@ -362,8 +362,8 @@ ov_status_e ov_core_create_with_config_unicode(const wchar_t* xml_config_file_ws
     }
 
     try {
-        std::unique_ptr<ov_core_t> _core(new ov_core_t);
-        _core->object = std::make_shared<ov::Core>(xml_config_file_ws);
+        auto _core = std::make_unique<ov_core_t>();
+        _core->object = std::make_shared<ov::Core>(ov::util::make_path(xml_config_file_ws));
         *core = _core.release();
     }
     CATCH_OV_EXCEPTIONS
