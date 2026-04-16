@@ -625,7 +625,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
       m_compiled_model_factory(std::move(factory)) {
     LOG_DEBUG("Creating LLMCompiledModel");
     LOG_BLOCK();
-
     ::intel_npu::registerNPUWLLMOptions(*m_options_desc);
 
     ov::AnyMap npuw_llm_props;
@@ -636,14 +635,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto whisper_eos_token = pop_option(other_props, std::string("NPUW_WHISPER_EOS_TOKEN"));
     auto use_eagle_key = pop_option(other_props, std::string("NPUW_EAGLE"));
 
-    auto kv_kache_storage_type = choose_kv_cache_storage_type(model, m_cfg, other_props);
-
-    // Solely used for serialization at the moment
-    m_non_llm_props = other_props;
-
-    // Remove "NPUW_LLM_PREFILL_CONFIG", "NPUW_LLM_GENERATE_CONFIG" from map,
-    // to not pass them into ::intel_npu::Config object, as we don't need to
-    // preserve them somewhere.
+    // Remove map-valued section configs before m_cfg.update(any_copy(...)), since Config expects string options.
     auto prefill_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_PREFILL_CONFIG"));
     auto generate_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_GENERATE_CONFIG"));
     auto prefill_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_PREFILL_CONFIG"));
@@ -651,6 +643,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Also make these maps for third: lm head model, in case it will be created:
     auto lm_head_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_SHARED_HEAD_CONFIG"));
     auto lm_head_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_SHARED_HEAD_CONFIG"));
+
+    m_cfg.update(any_copy(npuw_llm_props));
+
+    // m_cfg should be updated before checking for optimize_fp8, because affect the decision on kv-cache storage type
+    auto kv_kache_storage_type = choose_kv_cache_storage_type(model, m_cfg, other_props);
+
+    // Solely used for serialization at the moment
+    m_non_llm_props = other_props;
+
     refine_dynamic_props(npuw_llm_props, npudesc);
     m_cfg.update(any_copy(npuw_llm_props));
 
@@ -891,9 +892,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     } else {
         LOG_DEBUG("Check and apply opt layout --- SKIPPED");
     }
-
     if (!m_is_embedding) {
         if (!m_use_chunk_prefill) {
+            LOG_DEBUG("Removing EmptyKVInputs");
             NPUW_ASSERT(ov::npuw::RemoveEmptyKVInputs().run_on_model(prefill_model));
         } else {
             LOG_DEBUG("Don't remove input key/values from prefill model.");
@@ -906,12 +907,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             ov::npuw::RedirectNewKvToOutput().run_on_model(generate_model_variants[i]);
         }
     }
-
-    LOG_DEBUG("Converting KV-cache in generate model to FP16.");
+    LOG_DEBUG("Converting KV-cache in generate model to" << kv_kache_storage_type);
     for (size_t i = 0; i < generate_model_variants.size(); ++i) {
         ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type).run_on_model(generate_model_variants[i]);
     }
-    LOG_DEBUG("Converting KV-cache in prefill model to FP16.");
+    LOG_DEBUG("Converting KV-cache in prefill model to" << kv_kache_storage_type);
     ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type).run_on_model(prefill_model);
 
     auto prefill_config =
@@ -963,7 +963,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (generate_needs_attn_isolation) {
         merge_config_with(generate_config, dyn_attn_opts);
     }
-
     if (is_moe) {
         // Apply MoE configuration for prefill stage
         const auto prefill_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>();
@@ -982,7 +981,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             LOG_INFO("DEVICE_ROUTED MoE transformations completed");
         }
     }
-
     // Note: with dynamic attention in EITHER STAGE, we have to
     // explicitly disable the run-time fallback to so extra ov::Model
     // references won't be held by the npuw::CompiledModel, resulting

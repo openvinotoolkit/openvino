@@ -145,7 +145,7 @@ struct convert<std::vector<T>> {
             return false;
         }
 
-        for (auto& child : node) {
+        for (const auto& child : node) {
             vec.push_back(child.as<T>());
         }
         return true;
