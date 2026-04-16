@@ -30,6 +30,7 @@ def patch_gptq():
     orig_post_init_model = None
     orig_awq_post_init = None
     orig_gemm_forward = None
+    orig_default_dtype = torch.get_default_dtype()
     torch.set_default_dtype(torch.float32)
 
     # Import GPTQ-related modules BEFORE faking CUDA availability.
@@ -151,14 +152,15 @@ def patch_gptq():
     # module-level CUDA init has already completed safely on CPU.
     torch.cuda.is_available = lambda: True
     torch.cuda.is_bf16_supported = lambda: False
-    torch.cuda.get_device_capability = lambda n: (9, 1)
+    torch.cuda.get_device_capability = lambda *args, **kwargs: (9, 1)
     torch.cuda.device_count = lambda: 1
 
-    return (orig_cuda_is_available, orig_cuda_is_bf16_supported, orig_cuda_get_device_capability, orig_cuda_device_count), orig_post_init_model, orig_awq_post_init, orig_gemm_forward
+    return (orig_cuda_is_available, orig_cuda_is_bf16_supported, orig_cuda_get_device_capability, orig_cuda_device_count), orig_post_init_model, orig_awq_post_init, orig_gemm_forward, orig_default_dtype
 
 
-def unpatch_gptq(orig_cuda_check, orig_post_init_model, orig_awq_post_init, orig_gemm_forward):
+def unpatch_gptq(orig_cuda_check, orig_post_init_model, orig_awq_post_init, orig_gemm_forward, orig_default_dtype):
     torch.cuda.is_available, torch.cuda.is_bf16_supported, torch.cuda.get_device_capability, torch.cuda.device_count = orig_cuda_check
+    torch.set_default_dtype(orig_default_dtype)
     try:
         from transformers.quantizers.quantizer_gptq import GptqHfQuantizer
         GptqHfQuantizer._process_model_after_weight_loading = orig_post_init_model
@@ -370,7 +372,7 @@ torch.manual_seed(0)
 class TestLLMModel(TestTorchConvertModel):
     def setup_class(self):
         self.infer_timeout = 1800
-        self.cuda_available, self.gptq_postinit, self.awq_postinit, self.orig_gemm_forward = None, None, None, None
+        self.cuda_available, self.gptq_postinit, self.awq_postinit, self.orig_gemm_forward, self.orig_default_dtype = None, None, None, None, None
 
     @retry(3, exceptions=(OSError,), delay=1)
     def load_model(self, name, type):
@@ -386,7 +388,7 @@ class TestLLMModel(TestTorchConvertModel):
         is_quant = is_quantized_model(config)
 
         if is_quant:
-            self.cuda_available, self.gptq_postinit, self.awq_postinit, self.orig_gemm_forward = patch_gptq()
+            self.cuda_available, self.gptq_postinit, self.awq_postinit, self.orig_gemm_forward, self.orig_default_dtype = patch_gptq()
             model_kwargs["dtype"] = torch.float32
             self.ov_config = {"DYNAMIC_QUANTIZATION_GROUP_SIZE": "0"}
         else:
@@ -477,8 +479,8 @@ class TestLLMModel(TestTorchConvertModel):
     def teardown_method(self):
         # restore after gptq patching
         if self.cuda_available is not None:
-            unpatch_gptq(self.cuda_available, self.gptq_postinit, self.awq_postinit, self.orig_gemm_forward)
-            self.cuda_available, self.gptq_postinit, self.awq_postinit, self.orig_gemm_forward = None, None, None, None
+            unpatch_gptq(self.cuda_available, self.gptq_postinit, self.awq_postinit, self.orig_gemm_forward, self.orig_default_dtype)
+            self.cuda_available, self.gptq_postinit, self.awq_postinit, self.orig_gemm_forward, self.orig_default_dtype = None, None, None, None, None
         super().teardown_method()
 
     @staticmethod
