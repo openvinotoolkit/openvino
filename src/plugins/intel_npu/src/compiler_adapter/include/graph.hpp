@@ -24,8 +24,8 @@ public:
           const GraphDescriptor& graphDesc,
           NetworkMetadata metadata,
           std::optional<ov::Tensor> blob,
-          const std::optional<std::string>& compatibilityDescriptor,
           const FilteredConfig& config,
+          const std::optional<std::string>& compatibilityDescriptor = std::nullopt,
           const bool blobIsPersistent = false,
           const bool calledFromWeightlessGraph = false);
 

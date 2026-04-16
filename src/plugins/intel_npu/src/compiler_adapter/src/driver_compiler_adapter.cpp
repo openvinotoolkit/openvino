@@ -89,12 +89,18 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     auto networkMeta = _zeGraphExt->getNetworkMeta(graphDesc);
     networkMeta.name = model->get_friendly_name();
 
+    std::optional<std::string> compatibilityDescriptor;
+    if (_zeGraphExt->isCompatibilityDescriptorSupported()) {
+        compatibilityDescriptor = _zeGraphExt->getCompatibilityDescriptor(graph->get_handle());
+    }
+
     return std::make_shared<Graph>(_zeGraphExt,
                                    _zeroInitStruct,
                                    graphDesc,
                                    std::move(networkMeta),
                                    /* blob = */ std::nullopt,
-                                   updatedConfig);
+                                   updatedConfig,
+                                   compatibilityDescriptor);
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
@@ -309,14 +315,6 @@ bool DriverCompilerAdapter::isCompilerOptionSupported(const FilteredConfig& conf
     return (compilerVersion.major > majorCompilerOptSupportValue) ||
            ((compilerVersion.major == majorCompilerOptSupportValue) &&
             (compilerVersion.minor >= minorCompilerOptSupportValue));
-}
-
-std::vector<uint8_t> DriverCompilerAdapter::get_compiled_model_compatibility_descriptor(
-    const std::shared_ptr<IGraph>& graph) const {
-    if (!_zeGraphExt->isCompatibilityDescriptorSupported()) {
-        OPENVINO_THROW("");
-    }
-    return _zeGraphExt->getCompatibilityDescriptor(graph->get_handle());
 }
 
 bool DriverCompilerAdapter::validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const {

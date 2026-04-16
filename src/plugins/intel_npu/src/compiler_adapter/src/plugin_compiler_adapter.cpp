@@ -98,8 +98,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         graphDesc,
         std::move(networkMeta),
         std::move(tensor),
-        compatibilityDescriptor,
         config,
+        compatibilityDescriptor,
         /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
 }
 
@@ -292,12 +292,6 @@ bool PluginCompilerAdapter::is_option_supported(std::string optname, std::option
                       optvalue_ch ? optvalue_ch : "null");
         return false;
     }
-}
-
-std::vector<uint8_t> PluginCompilerAdapter::get_compiled_model_compatibility_descriptor(
-    const std::shared_ptr<IGraph>& /*graph*/) const {
-    // The string should have been extracted during compilation
-    OPENVINO_THROW("");
 }
 
 bool PluginCompilerAdapter::validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const {

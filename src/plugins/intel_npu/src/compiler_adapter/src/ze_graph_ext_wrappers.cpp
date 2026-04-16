@@ -645,7 +645,7 @@ bool ZeGraphExtWrappers::isCompatibilityDescriptorSupported() const {
     return _graphExtVersion > ZE_MAKE_VERSION(1, 16);
 }
 
-std::vector<uint8_t> ZeGraphExtWrappers::getCompatibilityDescriptor(const ze_graph_handle_t handle) const {
+std::string ZeGraphExtWrappers::getCompatibilityDescriptor(const ze_graph_handle_t handle) const {
     char key[256];  // TODO do we really need this?
     ze_runtime_requirements_desc_t desc = {ZE_STRUCTURE_TYPE_RUNTIME_REQUIREMENTS_DESC,
                                            nullptr,
@@ -660,7 +660,7 @@ std::vector<uint8_t> ZeGraphExtWrappers::getCompatibilityDescriptor(const ze_gra
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnDeviceRequirementsQuery", result, _zeroInitStruct->getGraphDdiTable());
 }
 
-std::vector<uint8_t> validateCompatibilityDescriptor(const std::string& descriptor) const {
+bool validateCompatibilityDescriptor(const std::string& descriptor) const {
     char key[256];  // TODO do we really need this?
     ze_runtime_requirements_desc_t desc = {ZE_STRUCTURE_TYPE_RUNTIME_REQUIREMENTS_DESC,
                                            nullptr,
