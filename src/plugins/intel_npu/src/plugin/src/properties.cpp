@@ -1204,7 +1204,6 @@ bool Properties::checkCompiledModelCompatibilityDescriptor(const std::string& co
     // TODO rename, this is just the compiler part of the descriptor
     // TODO check the type - should it be string?
     std::unique_ptr<ICompilerAdapter> compiler = nullptr;
-    auto compilerType = _config.get<COMPILER_TYPE>();
     auto deviceId = _config.get<DEVICE_ID>();
     auto device = utils::getDeviceById(_backend, deviceId);
 
@@ -1216,26 +1215,13 @@ bool Properties::checkCompiledModelCompatibilityDescriptor(const std::string& co
     // Create a compiler to get the type and fetch version and supported options if needed
     CompilerAdapterFactory factory;
     try {
-        compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+        compiler = factory.getCompiler(_backend, ov::intel_npu::CompilerType::DRIVER, compilationPlatform);
     } catch (const std::exception& ex) {
         // No compiler, no support
-        OPENVINO_THROW("");
-    }
-
-    OPENVINO_ASSERT(compiler != nullptr);
-
-    try {
-        return compiler->validate_compatibility_descriptor(compatibilityString);
-    } catch (const std::exception& ex) {
-        // TODO we can't do this, can we? Maybe instead we shoud add an ID in IGraph, representing the type
-        if (std::dynamic_pointer_cast<PluginCompilerAdapter>(compiler) != nullptr) {
-            OPENVINO_THROW("");
-        }
-
-        // Fallback to CiP
         compiler = factory.getCompiler(_backend, ov::intel_npu::CompilerType::PLUGIN, compilationPlatform);
-        return compiler->validate_compatibility_descriptor(compatibilityString);
     }
+    OPENVINO_ASSERT(compiler != nullptr);
+    return compiler->validate_compatibility_descriptor(compatibilityString);
 }
 
 }  // namespace intel_npu
