@@ -22,7 +22,7 @@ list(APPEND OPTIONAL_FUNC_TESTS_INCLUDES
       "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/include"
 )
 
-list(APPEND OPTIONAL_FUNC_TESTS_LIBS openvino_npu_common openvino_npu_driver_compiler_adapter
+list(APPEND OPTIONAL_FUNC_TESTS_LIBS openvino_npu_common openvino_npu_compiler_adapter
       openvino_npu_level_zero_backend openvino_npu_zero_utils openvino_npu_logger_utils)
 
 ov_add_test_target(

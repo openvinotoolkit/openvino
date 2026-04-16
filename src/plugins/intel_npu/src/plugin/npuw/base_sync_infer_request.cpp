@@ -5,6 +5,8 @@
 
 #include "base_sync_infer_request.hpp"
 
+#include <sstream>
+
 #include "compiled_model.hpp"
 #include "infer_request_utils.hpp"  // to utilize copy_tensor_by_dim
 #include "intel_npu/config/npuw.hpp"
@@ -31,6 +33,20 @@ ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::C
 
     m_footprint.report_on_die = ov::npuw::profiling_enabled();
     m_footprint.area = m_npuw_model->m_name + "/memory";
+
+    // Cache device check and strided ports for hot-path lookups in set_tensor
+    m_is_npu_global_mem = (m_npuw_model->global_mem_device() == "NPU");
+    auto it = m_npuw_model->m_non_npuw_props.find(ov::intel_npu::enable_strides_for.name());
+    if (it != m_npuw_model->m_non_npuw_props.end()) {
+        const auto& strides_csv = it->second.as<std::string>();
+        std::istringstream ss(strides_csv);
+        std::string token;
+        while (std::getline(ss, token, ',')) {
+            if (!token.empty()) {
+                m_strided_ports.insert(std::move(token));
+            }
+        }
+    }
 }
 
 ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_requests(std::size_t id,
@@ -202,21 +218,33 @@ void ov::npuw::IBaseInferRequest::handle_set_remote_input(const ov::Output<const
             // Later in runtime we rely on m_input_allocated to check if the memory is
             // allocated internally to prevent the copy. Here we need to check if the memory
             // is properly allocated externally, to prevent runtime copy as well.
-            // Also we can get a strided remote tensor. In this case the copy cannot be avoided for now.
-            if (m_npuw_model->global_mem_device() == "NPU") {
+            // Also we can get a strided remote tensor. The copy can be avoided only if the port
+            // is listed among "strided" in the compilation parameters (NPU_ENABLE_STRIDES_FOR).
+            if (m_is_npu_global_mem) {
                 auto remote_ctx =
                     m_npuw_model->get_plugin()->get_core()->get_default_context(m_npuw_model->global_mem_device())._ptr;
                 auto zrh = remote_ctx->get_property().at(ov::intel_npu::l0_context.name());
                 if (::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(
                         static_cast<ze_context_handle_t>(zrh.as<void*>()),
                         tensor->data()) > 0) {
-                    if (tensor->is_continuous()) {
+                    // Check if strided I/O is supported for this port
+                    bool supports_strides = false;
+                    if (!tensor->is_continuous() && !m_strided_ports.empty()) {
+                        for (const auto& name : port.get_names()) {
+                            if (m_strided_ports.count(name)) {
+                                supports_strides = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (tensor->is_continuous() || supports_strides) {
                         // Note: no need for locking as it's internal method that should
                         // only be called from set_tensor()
                         m_input_allocated.insert(tensor->data());
                     } else {
-                        LOG_WARN("Strided remote tensor is not supported on the device! Expect worse performance due "
-                                 "to CPU runtime copy.");
+                        LOG_WARN("Strided remote tensor is not supported for this port! "
+                                 "Use NPU_ENABLE_STRIDES_FOR property to enable strided I/O. "
+                                 "Expect worse performance due to CPU runtime copy.");
                     }
                 }
             }
