@@ -678,7 +678,7 @@ void Properties::registerPluginProperties() {
 
             auto compilationPlatform = utils::getCompilationPlatform(
                 config.get<PLATFORM>(),
-                device == nullptr ? deviceId : device->getName(),
+                device == nullptr ? std::move(deviceId) : device->getName(),
                 _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
             CompilerAdapterFactory factory;
@@ -837,7 +837,7 @@ ov::Any Properties::getProperty(const std::string& name) {
 
             auto compilationPlatform = utils::getCompilationPlatform(
                 _config.get<PLATFORM>(),
-                device == nullptr ? deviceId : device->getName(),
+                device == nullptr ? std::move(deviceId) : device->getName(),
                 _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
             // Create a compiler to get the type and fetch version and supported options if needed
@@ -917,7 +917,7 @@ void Properties::setProperty(const ov::AnyMap& properties) {
 
             auto compilationPlatform = utils::getCompilationPlatform(
                 determinePlatform(properties),
-                device == nullptr ? deviceId : device->getName(),
+                device == nullptr ? std::move(deviceId) : device->getName(),
                 _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
             // Create a compiler to get the type and fetch version and supported options if needed
@@ -1001,7 +1001,7 @@ bool Properties::isPropertySupported(const std::string& name) {
 
         auto compilationPlatform = utils::getCompilationPlatform(
             _config.get<PLATFORM>(),
-            device == nullptr ? deviceId : device->getName(),
+            device == nullptr ? std::move(deviceId) : device->getName(),
             _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
         // Create a compiler to get the type and fetch version and supported options if needed
@@ -1029,7 +1029,7 @@ bool Properties::isPropertySupported(const std::string& name) {
             registerProperties();
             _compilerConfigsFilteredByCompiler = true;
             _currentlyUsedCompiler = compilerType;
-            _currentlyUsedPlatform = compilationPlatform;
+            _currentlyUsedPlatform = std::move(compilationPlatform);
         }
     }
 
@@ -1109,7 +1109,7 @@ FilteredConfig Properties::getConfigWithCompilerPropertiesDisabled(const ov::Any
     }
 
     if (properties.empty()) {
-        return updatedConfig;
+        return std::move(updatedConfig);
     }
 
     const std::map<std::string, std::string> rawConfig = any_copy(properties);
@@ -1137,7 +1137,7 @@ FilteredConfig Properties::getConfigWithCompilerPropertiesDisabled(const ov::Any
 
     updatedConfig.update(cfgsToSet);
 
-    return updatedConfig;
+    return std::move(updatedConfig);
 }
 
 ov::intel_npu::CompilerType Properties::determineCompilerType(const ov::AnyMap& properties) const {

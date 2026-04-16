@@ -53,7 +53,7 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_consta
                                 "This may indicate a bug in OV model compression.");
                 continue;
             }
-            constant = constantNode;
+            constant = std::move(constantNode);
         }
     }
 
@@ -411,7 +411,7 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
         constants.erase(id);
     }
 
-    return {initInputsViewTensors, initInputsAllocatedTensor};
+    return {std::move(initInputsViewTensors), initInputsAllocatedTensor};
 }
 
 WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initIndex) {
@@ -441,7 +441,7 @@ WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initI
         offset += ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
     }
 
-    return {initOutputsViewTensorsVector, initOutputsAllocatedTensor, initOutputsViewTensorsMap};
+    return {std::move(initOutputsViewTensorsVector), initOutputsAllocatedTensor, std::move(initOutputsViewTensorsMap)};
 }
 
 void WeightlessGraph::run_init_single_threaded() {

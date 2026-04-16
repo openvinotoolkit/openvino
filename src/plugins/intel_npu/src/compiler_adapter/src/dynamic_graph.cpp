@@ -230,10 +230,10 @@ void DynamicGraphImpl::prepareMetadata(NetworkMetadata& metadata) {
         ioDesc.supportsStridedLayout = true;
         switch (arg.type) {
         case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
-            metadata.inputs.push_back(ioDesc);
+            metadata.inputs.push_back(std::move(ioDesc));
         } break;
         case ZE_GRAPH_ARGUMENT_TYPE_OUTPUT: {
-            metadata.outputs.push_back(ioDesc);
+            metadata.outputs.push_back(std::move(ioDesc));
         } break;
         default: {
             OPENVINO_THROW("Invalid ze_graph_argument_type_t found in ze_graph_argument_properties_3_t object: ",
