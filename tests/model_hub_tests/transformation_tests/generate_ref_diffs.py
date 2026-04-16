@@ -94,7 +94,10 @@ def main():
         for model_id, _, _, _, cls in model_list:
             # wrapping in try/catch block to continue printing models even if one has failed
             try:
-                model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
+                try:
+                    model_cached = snapshot_download(model_id, local_files_only=True)
+                except Exception:
+                    model_cached = snapshot_download(model_id)  # fallback: download if not cached
                 model = cls.from_pretrained(model_cached, export=True, trust_remote_code=True)
             except:
                 print(f"Couldn't read {model_id}.")
