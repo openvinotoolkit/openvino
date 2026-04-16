@@ -376,7 +376,7 @@ TEST(sdpa_gpu_custom, scalar_placeholder_mask_matches_scale_only) {
     const layout q_layout({batch, seq_length_q, num_heads, head_size}, data_types::f16, format::bfyx);
     const layout k_layout({batch, seq_length_kv, num_heads, head_size}, data_types::f16, format::bfyx);
     const layout v_layout({batch, seq_length_kv, num_heads, head_size}, data_types::f16, format::bfyx);
-    const layout scalar_mask_layout({ov::PartialShape{}, data_types::f16, format::bfyx});
+    const layout scalar_mask_layout{ov::PartialShape{}, data_types::f16, format::bfyx};
 
     auto q_mem = engine.allocate_memory(q_layout);
     auto k_mem = engine.allocate_memory(k_layout);
