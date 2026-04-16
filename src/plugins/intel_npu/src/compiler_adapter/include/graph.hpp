@@ -24,6 +24,7 @@ public:
           const GraphDescriptor& graphDesc,
           NetworkMetadata metadata,
           std::optional<ov::Tensor> blob,
+          const std::optional<std::string>& runtimeRequirements,
           const FilteredConfig& config,
           const bool blobIsPersistent = false,
           const bool calledFromWeightlessGraph = false);
@@ -41,6 +42,8 @@ public:
     ze_graph_handle_t get_handle() const override;
 
     void update_network_name(std::string_view name) override;
+
+    std::optional<std::string> get_runtime_requirements() const override;
 
     CommandQueueDesc get_command_queue_desc() const override;
     void set_workload_type(const ov::WorkloadType workloadType) override;
@@ -95,6 +98,8 @@ protected:
      * @details The attribute contains a value only if the plugin performs the batches splitting operation.
      */
     std::optional<std::size_t> _batchSize = std::nullopt;
+
+    std::optional<std::string> _runtimeRequirements;
 
     Logger _logger;
 };

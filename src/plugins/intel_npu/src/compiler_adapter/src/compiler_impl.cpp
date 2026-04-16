@@ -251,13 +251,16 @@ std::shared_ptr<void> VCLCompilerImpl::getLinkedLibrary() const {
     return VCLApi::getInstance()->getLibrary();
 }
 
-ov::Tensor VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model, const FilteredConfig& config) const {
+std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
+    const std::shared_ptr<const ov::Model>& model,
+    const FilteredConfig& config) const {
     return compile(model, config, false);
 }
 
-ov::Tensor VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model,
-                                    const FilteredConfig& config,
-                                    const bool storeWeightlessCacheAttributeFlag) const {
+std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
+    const std::shared_ptr<const ov::Model>& model,
+    const FilteredConfig& config,
+    const bool storeWeightlessCacheAttributeFlag) const {
     _logger.debug("compile start");
 
     /// Check the linked vcl version whether supported in plugin
@@ -306,37 +309,58 @@ ov::Tensor VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& mode
                                      buildFlags.c_str(),
                                      buildFlags.size()};
 
-    if (usedVersion.Major >= 7 && usedVersion.Minor >= 4) {
+    if (usedVersion.Major >= 7 && usedVersion.Minor >= 7) {
+        // support the latest vcl api for vclAllocatedExecutableCreate3
+        _logger.debug("Using vclAllocatedExecutableCreate3 for 7.7 <= VCL");
+        vcl_allocator_2 allocator;
+        uint8_t* blob = nullptr;
+        size_t size = 0;
+        uint8_t* compatStr = nullptr;
+        uint64_t compatSize = 0;
+
+        auto result =
+            vclAllocatedExecutableCreate3(_compilerHandle, exeDesc, &allocator, &blob, &size, &compatStr, &compatSize);
+
+        if (result != VCL_RESULT_SUCCESS) {
+            OPENVINO_THROW("Compilation failed. vclAllocatedExecutableCreate3 result: 0x",
+                           std::hex,
+                           uint64_t(result),
+                           " - ",
+                           getLatestVCLLog(_logHandle));
+        }
+
+        if (size == 0 || blob == nullptr) {
+            OPENVINO_THROW("Failed to create VCL executable, size is zero or blob is null");
+        }
+        // The allocated size from VCL will be equal or smaller than the allocated size in allocator
+        _logger.debug("Blob size from VCL: %zu ptr %p", size, static_cast<void*>(blob));
+        _logger.debug("Allocated vector size: %zu ptr: %p",
+                      allocator.m_info[0].second,
+                      static_cast<void*>(allocator.m_info[0].first));
+
+        ov::Tensor alignedBlob = make_tensor_from_aligned_addr(allocator.m_info[0].first, allocator.m_info[0].second);
+        std::optional<std::string> compatibilityString;
+
+        if (!storeWeightlessCacheAttributeFlag) {
+            // Non-weights separation call. The compatibility string is expected
+            OPENVINO_ASSERT(compatStr != nullptr && compatSize != 0,
+                            "Failed to create VCL executable, the compatibility descriptor size is zero or the "
+                            "compatibility descriptor is null");
+            compatibilityString = std::string(reinterpret_cast<const char*>(compatStr), compatSize);
+            allocator.deallocate(&allocator, compatStr);
+        }
+
+        _logger.debug("compile end, blob size:%d", allocator.m_info[0].second);
+        return {alignedBlob, compatibilityString};
+    } else if (usedVersion.Major >= 7 && usedVersion.Minor >= 4) {
         // support the lastest vcl api
+        // For VCL 7.4 and later, we can use vclAllocatedExecutableCreate2
+        _logger.debug("Using vclAllocatedExecutableCreate2 for 7.4 <= VCL");
         vcl_allocator allocator;
         uint8_t* blob = nullptr;
         size_t size = 0;
-        vcl_result_t result = VCL_RESULT_SUCCESS;
 
-        if (intel_npu::VCLApi::getInstance()->vclAllocatedExecutableCreate3 != nullptr) {
-            _logger.debug("Using vclAllocatedExecutableCreate3");
-            uint8_t* compatStr = nullptr;
-            uint64_t compatSize = 0;
-            result = vclAllocatedExecutableCreate3(_compilerHandle,
-                                                   exeDesc,
-                                                   &allocator,
-                                                   &blob,
-                                                   &size,
-                                                   &compatStr,
-                                                   &compatSize);
-            if (result == VCL_RESULT_SUCCESS && compatStr != nullptr) {
-                // If we got the compatibility string, we can do something with it.
-                // Currently OpenVINO expects this to be handled at the Blob level or stored in Config.
-                _logger.debug(
-                    "Successfully generated RUNTIME_REQUIREMENTS via vclAllocatedExecutableCreate3: %zu bytes",
-                    compatSize);
-                allocator.deallocate(&allocator, compatStr);
-            }
-        } else {
-            _logger.debug("Using vclAllocatedExecutableCreate2 for 7.4 <= VCL");
-            result = vclAllocatedExecutableCreate2(_compilerHandle, exeDesc, &allocator, &blob, &size);
-        }
-
+        auto result = vclAllocatedExecutableCreate2(_compilerHandle, exeDesc, &allocator, &blob, &size);
         if (result != VCL_RESULT_SUCCESS) {
             OPENVINO_THROW("Compilation failed. vclAllocatedExecutableCreate2 result: 0x",
                            std::hex,
@@ -355,7 +379,7 @@ ov::Tensor VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& mode
                       static_cast<void*>(allocator.m_allocated));
 
         _logger.debug("compile end, blob size:%d", allocator.m_size);
-        return make_tensor_from_aligned_addr(allocator.m_allocated, allocator.m_size);
+        return {make_tensor_from_aligned_addr(allocator.m_allocated, allocator.m_size), std::nullopt};
     } else {
         OPENVINO_THROW("Not supported VCL version: %d.%d, please use VCL 6.1 or later",
                        _vclVersion.major,

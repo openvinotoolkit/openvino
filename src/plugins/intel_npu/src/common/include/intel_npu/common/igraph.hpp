@@ -75,6 +75,8 @@ public:
 
     virtual std::optional<bool> is_profiling_blob() const = 0;
 
+    virtual std::optional<std::string> get_runtime_requirements() const;
+
 protected:
     virtual void initialize_impl(const FilteredConfig& config);
 

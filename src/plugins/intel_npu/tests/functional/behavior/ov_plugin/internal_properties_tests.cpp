@@ -141,12 +141,10 @@ const std::vector<ov::AnyMap> compat_CorrectPluginMutableProperties = {
     {{ov::internal::exclusive_async_requests.name(), true}},
     {{ov::intel_npu::dma_engines.name(), 1}},
     {{ov::intel_npu::compilation_mode.name(), "DefaultHW"}},
-    {{ov::intel_npu::runtime_requirements_check.name(), "dummy_value"}},
     {{ov::intel_npu::profiling_type.name(), ov::intel_npu::ProfilingType::INFER}}};
 
 const std::vector<ov::AnyMap> compat_IncorrectMutablePropertiesWrongValueTypes = {
     {{ov::intel_npu::compilation_mode.name(), -3.6}},
-    {{ov::intel_npu::runtime_requirements_check.name(), 123}},
     {{ov::intel_npu::profiling_type.name(), 10}},
     {{ov::intel_npu::dma_engines.name(), false}},
 };

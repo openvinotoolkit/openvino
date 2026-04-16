@@ -104,15 +104,6 @@ typedef enum __vcl_result_t {
 } vcl_result_t;
 
 ///////////////////////////////////////////////////////////////////////////////
-/// @brief Defines result values for compilation compatibility check
-typedef enum __vcl_compiler_compatibility_t {
-    VCL_COMPATIBILITY_OK = 0,                ///< The compiled model is compatible with the current environment
-    VCL_COMPATIBILITY_HW_MISMATCH = 1,       ///< The hardware (device/architecture) is not compatible
-    VCL_COMPATIBILITY_VERSION_MISMATCH = 2,  ///< The compiler or driver version is not compatible
-    VCL_COMPATIBILITY_OTHER_MISMATCH = 3     ///< Other compatibility mismatch
-} vcl_compiler_compatibility_t;
-
-///////////////////////////////////////////////////////////////////////////////
 /// @brief Defines compiler properties
 typedef struct __vcl_compiler_properties_t {
     const char* id;

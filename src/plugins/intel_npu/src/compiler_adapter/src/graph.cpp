@@ -21,6 +21,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              const GraphDescriptor& graphDesc,
              NetworkMetadata metadata,
              std::optional<ov::Tensor> blob,
+             const std::optional<std::string>& runtimeRequirements,
              const FilteredConfig& config,
              const bool blobIsPersistent,
              const bool calledFromWeightlessGraph)
@@ -31,6 +32,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
       _metadata(std::move(metadata)),
       _blob(std::move(blob)),
       _blobIsPersistent(blobIsPersistent),
+      _runtimeRequirements(runtimeRequirements),
       _logger("Graph", config.get<LOG_LEVEL>()) {
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
         _logger.info("Graph initialize is deferred from the \"Graph\" constructor");
@@ -45,6 +47,10 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
 
 const NetworkMetadata& Graph::get_metadata() const {
     return _metadata;
+}
+
+std::optional<std::string> Graph::get_runtime_requirements() const {
+    return _runtimeRequirements;
 }
 
 void Graph::update_network_name(std::string_view name) {
