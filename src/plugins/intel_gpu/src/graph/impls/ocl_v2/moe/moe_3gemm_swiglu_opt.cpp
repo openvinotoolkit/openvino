@@ -1853,6 +1853,9 @@ public:
         auto& cur_net = instance.get_network();
         auto& stream = cur_net.get_stream();
         if (_lru_expert_num) {
+            // Full pipeline sync required: the routing kernel writes expert IDs
+            // to GPU memory that we read on the CPU below (buffer_ptr()).
+            // TODO: replace with event-based wait on the routing kernel only.
             stream.finish();
         }
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();

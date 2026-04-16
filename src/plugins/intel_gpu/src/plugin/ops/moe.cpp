@@ -93,8 +93,14 @@ static void CreateMOE3GemmFusedCompressedOp(ProgramBuilder& p, const std::shared
             }
 
             XmlConstEntry entry;
-            entry.offset = static_cast<size_t>(std::stoull(offset_attr.value()));
-            entry.size = static_cast<size_t>(std::stoull(size_attr.value()));
+            try {
+                entry.offset = static_cast<size_t>(std::stoull(offset_attr.value()));
+                entry.size = static_cast<size_t>(std::stoull(size_attr.value()));
+            } catch (const std::exception& e) {
+                OPENVINO_THROW("Failed to parse MOE weight offset/size from XML attribute: ", e.what(),
+                               " (name=", name_attr.value(), ", offset='", offset_attr.value(),
+                               "', size='", size_attr.value(), "')");
+            }
             xml_const_entries_by_name[name_attr.value()].push_back(entry);
         }
 
