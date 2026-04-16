@@ -952,6 +952,7 @@ public:
     int _gate_up_group_size;
     int _down_group_size;
     size_t _lru_expert_num = 0;
+    std::shared_ptr<LRUCache> _lru_cache;
 
     bool _has_shared_expert = false;
     // Shared expert primitives
@@ -1004,6 +1005,9 @@ public:
 
         // OTD relies on runtime weight streaming in oneDNN path.
         _lru_expert_num = params.typed_desc<moe_3gemm_fused_compressed>()->_lru_expert_num;
+        if (_lru_expert_num > 0) {
+            _lru_cache = std::make_shared<LRUCache>(_lru_expert_num);
+        }
         if (_lru_expert_num > 0 && use_micro_gemm_prefill) {
             use_micro_gemm_prefill = false;
             GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): force disable micro_gemm prefill in OTD mode, lru_expert_num=" << _lru_expert_num
@@ -1248,6 +1252,7 @@ public:
         cur_moe->_gate_up_group_size = _gate_up_group_size;
         cur_moe->_down_group_size = _down_group_size;
         cur_moe->_lru_expert_num = _lru_expert_num;
+        cur_moe->_lru_cache = _lru_cache;  // shared across clones within the same network
         return cur_moe;
     }
 
@@ -2526,10 +2531,13 @@ public:
         const auto& config = cur_moe->_config;
         auto& cur_net = instance.get_network();
         auto& stream = cur_net.get_stream();
-        static std::map<cldnn::primitive_id, LRUCache> multi_layer_caches;
-        auto [it, _] = multi_layer_caches.try_emplace(cur_moe->id, _lru_expert_num);
 
-        auto& cache = it->second;
+        OPENVINO_ASSERT(!_lru_expert_num || _lru_cache, "LRU cache not initialized for OTD mode");
+        // When OTD is disabled (_lru_expert_num == 0) the cache reference is
+        // never dereferenced — every use site is guarded by `if (_lru_expert_num)`.
+        // Provide a stack-local dummy so that the reference is always valid.
+        LRUCache dummy_cache(0);
+        auto& cache = _lru_cache ? *_lru_cache : dummy_cache;
 
         cldnn::event::ptr ret_env = nullptr;
         _has_shared_expert = (config.num_shared_expert > 0);
