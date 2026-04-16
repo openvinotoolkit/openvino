@@ -342,9 +342,9 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
     if (get_kv_cache_precision() == ov::element::u8) {
         m_kv_cache_precision = ov::element::i8;
     }
-    // Replace U4/I4 KV-cache compression data type with corresponding i4 for internal use
-    if (get_kv_cache_precision() == ov::element::u4) {
-        m_kv_cache_precision = ov::element::i4;
+    // Replace INT4 KV-cache compression data type with UINT4, as plugin is supposed to work with UINT4 internally
+    if (get_kv_cache_precision() == ov::element::i4) {
+        m_kv_cache_precision = ov::element::u4;
     }
 
 #ifdef ENABLE_DEBUG_CAPS
