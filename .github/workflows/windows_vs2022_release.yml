@@ -658,12 +658,12 @@ jobs:
       test_type: ${{ matrix.TEST_TYPE }}
       runner: "[ 'self-hosted', 'Windows', 'ov-dmz-18' ]"
       runner-group: 'Intel-GPU'
-    # if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
+    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
 
   iGPU-UHD-750:
     name: iGPU OpenCL Tests - UHD 750
     needs: [ Build, Smart_CI ]
-    uses: ./.github/workflows/job_gpu_opencl_tests.yml
+    uses: ./.github/workflows/job_gpu_tests.yml
     strategy:
       max-parallel: 2
       fail-fast: false
@@ -674,7 +674,7 @@ jobs:
       test_type: ${{ matrix.TEST_TYPE }}
       runner: "[ 'self-hosted', 'Windows', 'ov-dmz-20' ]"
       runner-group: 'Intel-GPU'
-    # if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
+    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
 
   Overall_Status:
     name: ci/gha_overall_status_windows
