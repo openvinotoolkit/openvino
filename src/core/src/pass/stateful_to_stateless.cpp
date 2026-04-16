@@ -67,14 +67,16 @@ struct Variable {
             auto create_name = [](const std::string& type,
                                   const std::string& idx,
                                   const std::string& original_prefix,
-                                  const std::string& replace_for_prefix) {
-                if (type == "conv" || type == "ssm") {
-                    return original_prefix + "." + type + "." + idx;
-                }
-                return replace_for_prefix + "." + idx + "." + type;
+                                  const std::string& past_or_present) {
+                if (type == "key" || type == "value") {
+                    std::string prefix =  past_or_present == "past" ? "past_key_values" : "present";
+                    return prefix + "." + idx + "." + type;
+                } else if (type == "conv" || type == "ssm") {
+                    return original_prefix + "." + past_or_present + "." + type + "." + idx;
+                } 
             };
 
-            input_name = create_name(past_type, past_idx, prefix, "past_key_values");
+            input_name = create_name(past_type, past_idx, prefix, "past");
             output_name = create_name(present_type, present_idx, prefix, "present");
 
             if (past_idx == present_idx && past_idx.length() <= std::numeric_limits<int>::digits10 &&

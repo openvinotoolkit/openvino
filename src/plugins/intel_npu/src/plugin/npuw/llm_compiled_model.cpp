@@ -767,8 +767,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Text-embedding model rebuild");
         ov::npuw::util::PrepareTextEmbeddingModel(seq_len_dim).run_on_model(kvcache_model);
     } else {
-        LOG_DEBUG("Transform kvcache model from stateful to stateless.");
+        LOG_DEBUG("Adding position_ids input in case it doesn't exist in model: LFM-2 case.");
         ov::npuw::AddPositionIdsParam().run_on_model(kvcache_model);
+        LOG_DEBUG("Transform kvcache model from stateful to stateless.");
         ov::pass::StatefulToStateless().run_on_model(kvcache_model);
     }
 
