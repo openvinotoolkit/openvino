@@ -15,6 +15,8 @@ class TRANSFORMATIONS_API MOECompressed : public ov::op::internal::MOE {
 public:
     OPENVINO_OP("MOECompressed", "", ov::op::internal::MOE);
 
+    MOECompressed() = default;
+
     enum class RoutingType { SOFTMAX, SIGMOID_BIAS };
 
     struct Config : public MOE::Config {
@@ -28,7 +30,7 @@ public:
         size_t group_size = 0;
         // In CB, intermediate shapes are expanded to {SeqLen, 1, HiddenSize}
         // In Non-CB, intermediate shapes are expanded to {Batch, SeqLen, HiddenSize}
-        size_t has_batch_dim = 0;
+        bool has_batch_dim = false;
         bool has_zp = false;
         ov::element::Type out_type = ov::element::dynamic;
         RoutingType routing_type = RoutingType::SOFTMAX;
@@ -68,9 +70,6 @@ public:
 
     const Config& get_config() const {
         return m_config;
-    }
-    void set_config(const Config& config) {
-        m_config = config;
     }
 
     bool visit_attributes(AttributeVisitor& visitor) override;

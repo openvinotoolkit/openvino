@@ -29,8 +29,7 @@ std::vector<layout> gather_matmul_inst::calc_output_layouts(const gather_matmul_
     auto indices_layout = impl_param.get_input_layout(gather_matmul::BGMInputIdx::INDICES);
 
     size_t input_rank = input_layout.get_partial_shape().size();
-    if (input_rank != 3)
-        OPENVINO_THROW("gather_matmul input rank should be 3, got ", input_rank);
+    OPENVINO_ASSERT(input_rank == 3, "gather_matmul input rank should be 3, got ", input_rank);
 
     auto a_shape = input_layout.get_partial_shape();
     auto weight_shape = weight_layout.get_partial_shape();

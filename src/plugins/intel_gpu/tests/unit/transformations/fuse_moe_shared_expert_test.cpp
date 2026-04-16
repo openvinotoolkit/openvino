@@ -355,7 +355,6 @@ TEST_F(TransformationTestsF, FuseMOECompressedSharedExpertWithSigmoidGating) {
         config.num_expert = 128;
         config.group_size = 128;
         config.top_k = 8;
-        config.out_type = ov::element::f16;
         config.out_type = ov::element::f32;
         auto moe = std::make_shared<ov::op::internal::MOECompressed>(
             ov::OutputVector{hidden_states, routing_weights, routing_idx,

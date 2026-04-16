@@ -481,12 +481,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>();
 
             manager.register_pass<ov::pass::ConvertGatherMatmulToGatherMatmulCompressed>(
-                std::vector<ov::element::Type>{ov::element::f32, ov::element::f16, ov::element::i8, ov::element::u8},
-                std::vector<ov::element::Type>{ov::element::f16, ov::element::u4, ov::element::i4,
+                std::vector<ov::element::Type>{ov::element::f32, ov::element::f16},
+                std::vector<ov::element::Type>{ov::element::u4, ov::element::i4,
                                                ov::element::i8, ov::element::u8});
 
             if (!disable_moe_opt) {
-                const size_t has_batch_dim = is_pa ? 0 : 1;
+                // Non-PA models have a batch dimension in intermediate shapes; PA models do not.
+                const bool has_batch_dim = !is_pa;
                 manager.register_pass<ov::pass::MoeOpFusion>(has_batch_dim);
                 manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
                 manager.register_pass<ov::intel_gpu::FuseMOE3GemmCompressed>();

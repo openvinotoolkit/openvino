@@ -8,14 +8,6 @@
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "ov_ops/gather_matmul_compressed.hpp"
 
-namespace ov {
-namespace op {
-namespace internal {
-using GatherMatmulCompressed = ov::op::internal::GatherMatmulCompressed;
-}  // namespace internal
-}  // namespace op
-}  // namespace ov
-
 namespace ov::intel_gpu {
 using namespace cldnn;
 
@@ -36,20 +28,10 @@ static void CreateGatherMatmulCompressedOp(ProgramBuilder& p, const std::shared_
                     a_shape);
     const int32_t n_activated_experts = static_cast<int32_t>(a_shape[0].get_length());
 
-    // A non-placeholder tensor has rank > 0 and at least one dimension that is either dynamic
-    // or greater than 1. Shapes like {}, {1}, {1,1,1} are treated as scalar placeholders.
-    auto is_real_tensor = [](const ov::PartialShape& shape) {
-        if (shape.rank().is_dynamic() || shape.rank().get_length() == 0)
-            return false;
-        for (int64_t i = 0; i < shape.rank().get_length(); i++) {
-            if (shape[i].is_dynamic() || shape[i].get_length() > 1)
-                return true;
-        }
-        return false;
-    };
-
-    const bool has_bias = is_real_tensor(op->get_input_partial_shape(3));
-    const bool has_zp = is_real_tensor(op->get_input_partial_shape(5));
+    // Only constant decompression is supported, so shapes are always static.
+    // Placeholder inputs have shape_size <= 1 (scalar 0 or empty).
+    const bool has_bias = ov::shape_size(op->get_input_shape(3)) > 1;
+    const bool has_zp = ov::shape_size(op->get_input_shape(5)) > 1;
 
     const std::string layerName = layer_type_name_ID(op);
     const cldnn::gather_matmul bgm(layerName, inputs, has_bias, has_zp, n_activated_experts);

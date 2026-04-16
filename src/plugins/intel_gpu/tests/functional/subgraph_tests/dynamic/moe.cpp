@@ -4,6 +4,7 @@
 
 #include "common_test_utils/node_builders/moe_builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -147,5 +148,47 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedFusion,
                                             ::testing::Values(true),  // reshape_on_decompression
                                             ::testing::Values(128)),
                          MoE3GemmCompressedFusionTest::getTestCaseName);
+
+// Same MOE IR but with MOE fusion disabled (GPU_DISABLE_MOE_OPT=true).
+// The model stays at GatherMatmulCompressed stage, validating GatherMatmul
+// numerical correctness against CPU reference on the original untransformed model.
+class MoEGatherMatmulTest : public MoE3GemmCompressedFusionTest {
+protected:
+    void SetUp() override {
+        MoE3GemmCompressedFusionTest::SetUp();
+        configuration.insert(ov::intel_gpu::disable_moe_opt(true));
+    }
+
+    void validate() override {
+        ov::test::SubgraphBaseTest::validate();
+        auto runtime_model = compiledModel.get_runtime_model();
+        ASSERT_TRUE(runtime_model != nullptr) << "Runtime model should not be null";
+        bool gather_matmul_found = false;
+        for (const auto& op : runtime_model->get_ordered_ops()) {
+            auto layer_type = op->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
+            if (layer_type == "gather_matmul") {
+                gather_matmul_found = true;
+            }
+        }
+        ASSERT_TRUE(gather_matmul_found) << "gather_matmul op is not found (MOE fusion should be disabled)";
+    }
+};
+
+TEST_P(MoEGatherMatmulTest, Inference) {
+    run();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoEGatherMatmul,
+                         MoEGatherMatmulTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
+                                            ::testing::ValuesIn(routing_types),
+                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::Values(ov::element::f16),  // decompression_precision
+                                            ::testing::Values(ov::element::f16),  // scale_precision
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(true),  // reshape_on_decompression
+                                            ::testing::Values(128)),
+                         MoEGatherMatmulTest::getTestCaseName);
 
 }  // namespace

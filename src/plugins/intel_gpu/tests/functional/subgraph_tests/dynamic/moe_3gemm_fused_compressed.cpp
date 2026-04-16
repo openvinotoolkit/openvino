@@ -286,32 +286,31 @@ protected:
     }
 
     void check_results() {
-        // const auto& [p, fusion_level] = GetParam();
-        // auto runtime_model = compiledModel.get_runtime_model();
+        const auto& [p, fusion_level] = GetParam();
+        auto runtime_model = compiledModel.get_runtime_model();
 
-        // int moe_fused_count = 0;
-        // int gather_matmul_count = 0;
-        // for (const auto& n : runtime_model->get_ordered_ops()) {
-        //     auto layer_type = n->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
-        //     if (layer_type == "moe_3gemm_fused_compressed")
-        //         moe_fused_count++;
-        //     if (layer_type == "gather_matmul_compressed")
-        //         gather_matmul_count++;
-        // }
+        int moe_fused_count = 0;
+        int gather_matmul_count = 0;
+        for (const auto& n : runtime_model->get_ordered_ops()) {
+            auto layer_type = n->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
+            if (layer_type == "moe_3gemm_fused_compressed")
+                moe_fused_count++;
+            if (layer_type == "gather_matmul_compressed")
+                gather_matmul_count++;
+        }
 
-        // switch (fusion_level) {
-        // case FusionLevel::MOE_3GEMM_FUSED_COMPRESSED:
-        //     ASSERT_EQ(moe_fused_count, 1) << "Expected exactly one moe_3gemm_fused_compressed node";
-        //     ASSERT_EQ(gather_matmul_count, 0) << "Expected no gather_matmul_compressed nodes";
-        //     break;
-        // case FusionLevel::GATHER_MATMUL_COMPRESSED:
-        //     ASSERT_GE(gather_matmul_count, 1) << "Expected at least one gather_matmul_compressed node";
-        //     ASSERT_EQ(moe_fused_count, 0) << "Expected no moe_3gemm_fused_compressed nodes";
-        //     break;
-        // case FusionLevel::MOE_COMPRESSED:
-        //     // @todo claude: add runtime checks once MOECompressed has a GPU implementation
-        //     break;
-        // }
+        switch (fusion_level) {
+        case FusionLevel::MOE_3GEMM_FUSED_COMPRESSED:
+            ASSERT_EQ(moe_fused_count, 1) << "Expected exactly one moe_3gemm_fused_compressed node";
+            ASSERT_EQ(gather_matmul_count, 0) << "Expected no gather_matmul_compressed nodes";
+            break;
+        case FusionLevel::GATHER_MATMUL_COMPRESSED:
+            ASSERT_GE(gather_matmul_count, 1) << "Expected at least one gather_matmul_compressed node";
+            ASSERT_EQ(moe_fused_count, 0) << "Expected no moe_3gemm_fused_compressed nodes";
+            break;
+        case FusionLevel::MOE_COMPRESSED:
+            break;
+        }
     }
 };
 
@@ -319,8 +318,6 @@ TEST_P(MOE3GemmFusedCompressed, Inference) {
     run();
     check_results();
 }
-
-// @todo claude: consider adding Inference_cached test once basic inference is validated
 
 // Small config with grouped 4D decompression: 4 experts, top-2, hidden=128, inter=128, group_size=32
 const std::vector<MOEModelParams> small_grouped_params = {
@@ -396,10 +393,8 @@ const std::vector<MOEModelParams> small_per_channel_params = {
         /*group_size=*/0,
         /*decompression_style=*/DecompressionStyle::PER_CHANNEL_3D,
     },
-    // @todo claude: add model-realistic dims (experts=128, hidden=2048, inter=768, top_k=8) once small tests pass
 };
 
-// @todo claude: add FusionLevel::MOE_COMPRESSED once GPU implementation exists
 const std::vector<FusionLevel> fusion_levels = {
     FusionLevel::MOE_3GEMM_FUSED_COMPRESSED,
     // FusionLevel::GATHER_MATMUL_COMPRESSED,

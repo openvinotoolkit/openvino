@@ -13,7 +13,7 @@ class MOE3GemmFusedCompressed : public ov::op::internal::MOECompressed {
 public:
     OPENVINO_OP("MOE3GemmFusedCompressed", "gpu_opset", ov::op::internal::MOECompressed);
 
-    MOE3GemmFusedCompressed();
+    MOE3GemmFusedCompressed() = default;
 
     /// \brief Constructs a MOE3GemmFusedCompressed operation with config only
     /// \param args The input tensors, in the following order:

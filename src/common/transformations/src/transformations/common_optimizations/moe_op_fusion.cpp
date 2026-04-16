@@ -41,7 +41,7 @@ namespace v1 = ov::op::v1;
 namespace v4 = ov::op::v4;
 namespace v8 = ov::op::v8;
 
-Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(size_t has_batch_dim) {
+Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool has_batch_dim) {
     MATCHER_SCOPE(Convert3GatherMatmulMoeBlockToMoeOp);
 
     auto experts_reshape_m = pattern::any_input();
@@ -203,7 +203,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(size_t 
     this->register_matcher(matcher, callback);
 }
 
-Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(size_t has_batch_dim) {
+Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool has_batch_dim) {
     MATCHER_SCOPE(Convert2GatherMatmulMoeBlockToMoeOp);
 
     auto experts_reshape_m = pattern::any_input();

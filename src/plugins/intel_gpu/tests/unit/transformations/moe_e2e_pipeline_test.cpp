@@ -84,7 +84,7 @@ TEST_P(MOE_E2E_PipelineTest, IRToMOE3GemmFusedCompressed) {
             std::vector<ov::element::Type>{ov::element::f32, ov::element::f16, ov::element::i8, ov::element::u8},
             std::vector<ov::element::Type>{ov::element::f16, ov::element::u4, ov::element::i4, ov::element::i8, ov::element::u8});
         // Step 3: GatherMatmul/GatherMatmulCompressed → MOE/MOECompressed
-        manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>(/*has_batch_dim=*/1);
+        manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>(/*has_batch_dim=*/true);
         // Step 4: MOECompressed → MOE3GemmFusedCompressed
         manager.register_pass<FuseMOE3GemmCompressed>();
     }
@@ -135,7 +135,7 @@ TEST_P(MOE_E2E_PipelineTopologyTest, ProducesMOE3GemmFusedCompressed) {
     manager.register_pass<ov::pass::ConvertGatherMatmulToGatherMatmulCompressed>(
         std::vector<ov::element::Type>{ov::element::f32, ov::element::f16, ov::element::i8, ov::element::u8},
         std::vector<ov::element::Type>{ov::element::f16, ov::element::u4, ov::element::i4, ov::element::i8, ov::element::u8});
-    manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>(/*has_batch_dim=*/1);
+    manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>(/*has_batch_dim=*/true);
     manager.register_pass<ov::intel_gpu::FuseMOE3GemmCompressed>();
     manager.run_passes(model);
 

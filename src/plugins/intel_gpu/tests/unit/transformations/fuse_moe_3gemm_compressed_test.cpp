@@ -131,7 +131,7 @@ TEST_P(FuseMOE3GemmCompressedTest, CompareFunctions) {
         auto zp_gate = op::v0::Constant::create(element::u4, Shape{128, 16, 768}, {0});
         auto wei_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
         auto scale_up = op::v0::Constant::create(element::f16, Shape{128, 16, 768}, {0.01f});
-        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 16, 768, 16}, {0});
+        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 16, 768}, {0});
         auto wei_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6, 128}, {1});
         auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 6, 2048}, {0.01f});
         auto zp_down = op::v0::Constant::create(element::u4, Shape{128, 6, 2048}, {0});
@@ -168,7 +168,7 @@ TEST_P(FuseMOE3GemmCompressedTest, CompareFunctions) {
         auto zp_gate = op::v0::Constant::create(element::u4, Shape{128, 16, 768}, {0});
         auto wei_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
         auto scale_up = op::v0::Constant::create(element::f16, Shape{128, 16, 768}, {0.01f});
-        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 16, 768, 16}, {0});
+        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 16, 768}, {0});
         auto wei_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6, 128}, {1});
         auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 6, 2048}, {0.01f});
         auto zp_down = op::v0::Constant::create(element::u4, Shape{128, 6, 2048}, {0});
@@ -232,7 +232,7 @@ TEST_F(TransformationTestsF, FuseMOE3GemmSharedExpertCompressedTest) {
         auto zp_gate = op::v0::Constant::create(element::u4, Shape{128, 16, 768}, {0});
         auto wei_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
         auto scale_up = op::v0::Constant::create(element::f16, Shape{128, 16, 768}, {0.01f});
-        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 16, 768, 16}, {0});
+        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 16, 768}, {0});
         auto wei_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6, 128}, {1});
         auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 6, 2048}, {0.01f});
         auto zp_down = op::v0::Constant::create(element::u4, Shape{128, 6, 2048}, {0});
@@ -243,7 +243,7 @@ TEST_F(TransformationTestsF, FuseMOE3GemmSharedExpertCompressedTest) {
         auto sh_zp_gate = op::v0::Constant::create(element::u4, Shape{1, 16, 768}, {0});
         auto sh_wei_up = op::v0::Constant::create(element::u4, Shape{1, 768, 16, 128}, {2});
         auto sh_scale_up = op::v0::Constant::create(element::f16, Shape{1, 16, 768}, {0.02f});
-        auto sh_zp_up = op::v0::Constant::create(element::u4, Shape{1, 16, 768, 16}, {0});
+        auto sh_zp_up = op::v0::Constant::create(element::u4, Shape{1, 16, 768}, {0});
         auto sh_wei_down = op::v0::Constant::create(element::u4, Shape{1, 2048, 6, 128}, {2});
         auto sh_scale_down = op::v0::Constant::create(element::f16, Shape{1, 6, 2048}, {0.02f});
         auto sh_zp_down = op::v0::Constant::create(element::u4, Shape{1, 6, 2048}, {0});
@@ -277,7 +277,7 @@ TEST_F(TransformationTestsF, FuseMOE3GemmSharedExpertCompressedTest) {
         auto zp_gate = op::v0::Constant::create(element::u4, Shape{128, 16, 768}, {0});
         auto wei_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
         auto scale_up = op::v0::Constant::create(element::f16, Shape{128, 16, 768}, {0.01f});
-        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 16, 768, 16}, {0});
+        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 16, 768}, {0});
         auto wei_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6, 128}, {1});
         auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 6, 2048}, {0.01f});
         auto zp_down = op::v0::Constant::create(element::u4, Shape{128, 6, 2048}, {0});
@@ -288,7 +288,7 @@ TEST_F(TransformationTestsF, FuseMOE3GemmSharedExpertCompressedTest) {
         auto sh_zp_gate = op::v0::Constant::create(element::u4, Shape{1, 16, 768}, {0});
         auto sh_wei_up = op::v0::Constant::create(element::u4, Shape{1, 768, 16, 128}, {2});
         auto sh_scale_up = op::v0::Constant::create(element::f16, Shape{1, 16, 768}, {0.02f});
-        auto sh_zp_up = op::v0::Constant::create(element::u4, Shape{1, 16, 768, 16}, {0});
+        auto sh_zp_up = op::v0::Constant::create(element::u4, Shape{1, 16, 768}, {0});
         auto sh_wei_down = op::v0::Constant::create(element::u4, Shape{1, 2048, 6, 128}, {2});
         auto sh_scale_down = op::v0::Constant::create(element::f16, Shape{1, 6, 2048}, {0.02f});
         auto sh_zp_down = op::v0::Constant::create(element::u4, Shape{1, 6, 2048}, {0});
@@ -332,7 +332,7 @@ TEST_F(TransformationTestsF, FuseMOE3GemmSharedExpertCompressedSigmoidTest) {
         auto zp_gate = op::v0::Constant::create(element::u4, Shape{128, 16, 768}, {0});
         auto wei_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
         auto scale_up = op::v0::Constant::create(element::f16, Shape{128, 16, 768}, {0.01f});
-        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 16, 768, 16}, {0});
+        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 16, 768}, {0});
         auto wei_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6, 128}, {1});
         auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 6, 2048}, {0.01f});
         auto zp_down = op::v0::Constant::create(element::u4, Shape{128, 6, 2048}, {0});
@@ -343,7 +343,7 @@ TEST_F(TransformationTestsF, FuseMOE3GemmSharedExpertCompressedSigmoidTest) {
         auto sh_zp_gate = op::v0::Constant::create(element::u4, Shape{1, 16, 768}, {0});
         auto sh_wei_up = op::v0::Constant::create(element::u4, Shape{1, 768, 16, 128}, {2});
         auto sh_scale_up = op::v0::Constant::create(element::f16, Shape{1, 16, 768}, {0.02f});
-        auto sh_zp_up = op::v0::Constant::create(element::u4, Shape{1, 16, 768, 16}, {0});
+        auto sh_zp_up = op::v0::Constant::create(element::u4, Shape{1, 16, 768}, {0});
         auto sh_wei_down = op::v0::Constant::create(element::u4, Shape{1, 2048, 6, 128}, {2});
         auto sh_scale_down = op::v0::Constant::create(element::f16, Shape{1, 6, 2048}, {0.02f});
         auto sh_zp_down = op::v0::Constant::create(element::u4, Shape{1, 6, 2048}, {0});
@@ -377,7 +377,7 @@ TEST_F(TransformationTestsF, FuseMOE3GemmSharedExpertCompressedSigmoidTest) {
         auto zp_gate = op::v0::Constant::create(element::u4, Shape{128, 16, 768}, {0});
         auto wei_up = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});
         auto scale_up = op::v0::Constant::create(element::f16, Shape{128, 16, 768}, {0.01f});
-        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 16, 768, 16}, {0});
+        auto zp_up = op::v0::Constant::create(element::u4, Shape{128, 16, 768}, {0});
         auto wei_down = op::v0::Constant::create(element::u4, Shape{128, 2048, 6, 128}, {1});
         auto scale_down = op::v0::Constant::create(element::f16, Shape{128, 6, 2048}, {0.01f});
         auto zp_down = op::v0::Constant::create(element::u4, Shape{128, 6, 2048}, {0});
@@ -388,7 +388,7 @@ TEST_F(TransformationTestsF, FuseMOE3GemmSharedExpertCompressedSigmoidTest) {
         auto sh_zp_gate = op::v0::Constant::create(element::u4, Shape{1, 16, 768}, {0});
         auto sh_wei_up = op::v0::Constant::create(element::u4, Shape{1, 768, 16, 128}, {2});
         auto sh_scale_up = op::v0::Constant::create(element::f16, Shape{1, 16, 768}, {0.02f});
-        auto sh_zp_up = op::v0::Constant::create(element::u4, Shape{1, 16, 768, 16}, {0});
+        auto sh_zp_up = op::v0::Constant::create(element::u4, Shape{1, 16, 768}, {0});
         auto sh_wei_down = op::v0::Constant::create(element::u4, Shape{1, 2048, 6, 128}, {2});
         auto sh_scale_down = op::v0::Constant::create(element::f16, Shape{1, 6, 2048}, {0.02f});
         auto sh_zp_down = op::v0::Constant::create(element::u4, Shape{1, 6, 2048}, {0});
