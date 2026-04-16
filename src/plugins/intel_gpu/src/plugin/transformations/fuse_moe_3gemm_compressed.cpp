@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
-#include "intel_gpu/op/moe_compressed.hpp"
+#include "ov_ops/moe_compressed.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/rt_info.hpp"

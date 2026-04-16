@@ -66,15 +66,16 @@ gathermatmul_config GatherMatmulMicroGenerator::get_config(const kernel_impl_par
         auto k = (weight_shape.size() == 4) ? weight_shape[2] * weight_shape[3] : weight_shape[2];
         // Scale shape is [E, N, G] or [E, N, G, 1] — num groups is always at index 2
         const auto& scale_shape_for_groups = params.input_layouts[cfg.weight_scale_idx].get_shape();
+        OPENVINO_ASSERT(scale_shape_for_groups.size() > 2 && scale_shape_for_groups[2] > 0,
+                        "GatherMatmul: weight scale shape must have a positive group dim at index 2, got ",
+                        scale_shape_for_groups);
         auto num_scale_groups = scale_shape_for_groups[2];
+        OPENVINO_ASSERT(k % num_scale_groups == 0,
+                        "GatherMatmul: K (", k, ") must be divisible by num_scale_groups (", num_scale_groups, ")");
         cfg.weight_group_size = k / num_scale_groups;
-        // GatherMatmulCompressed always has 6 inputs (including ZP placeholder).
-        // Check if ZP is a real input (non-empty) to determine symmetric quantization.
-        if (static_cast<int32_t>(params.input_layouts.size()) > cfg.weight_zp_idx && params.input_layouts[cfg.weight_zp_idx].count() > 0) {
-            cfg.is_weight_symmetric_quantized = false;
-        } else {
-            cfg.is_weight_symmetric_quantized = true;
-        }
+        // desc->has_zp is authoritative (set by the plugin op). The ZP input is always present
+        // at weight_zp_idx, but is a placeholder when has_zp is false.
+        cfg.is_weight_symmetric_quantized = !desc->has_zp;
     }
     return cfg;
 }

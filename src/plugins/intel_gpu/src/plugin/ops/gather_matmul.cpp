@@ -31,41 +31,25 @@ static void CreateGatherMatmulCompressedOp(ProgramBuilder& p, const std::shared_
     validate_inputs_count(op, {6});
 
     const auto& a_shape = op->get_input_partial_shape(0);
-    int32_t n_activated_experts = a_shape[0].is_static() ? static_cast<int32_t>(a_shape[0].get_length()) : 0;
+    OPENVINO_ASSERT(a_shape.rank().is_static() && a_shape.size() >= 1 && a_shape[0].is_static(),
+                    "GatherMatmulCompressed requires static n_activated_experts (input A dim[0]), got shape ",
+                    a_shape);
+    const int32_t n_activated_experts = static_cast<int32_t>(a_shape[0].get_length());
 
-    // Detect if zero points are present by checking if input 5 has actual data
-    // (not a scalar constant 0)
-    bool has_zp = false;
-    if (op->get_input_size() > 5) {
-        const auto& zp_shape = op->get_input_partial_shape(5);
-        // If ZP shape has more than 1 element, it's real ZP data
-        if (zp_shape.rank().is_static() && zp_shape.rank().get_length() > 0) {
-            bool is_scalar = true;
-            for (int64_t i = 0; i < zp_shape.rank().get_length(); i++) {
-                if (zp_shape[i].is_dynamic() || zp_shape[i].get_length() > 1) {
-                    is_scalar = false;
-                    break;
-                }
-            }
-            has_zp = !is_scalar;
+    // A non-placeholder tensor has rank > 0 and at least one dimension that is either dynamic
+    // or greater than 1. Shapes like {}, {1}, {1,1,1} are treated as scalar placeholders.
+    auto is_real_tensor = [](const ov::PartialShape& shape) {
+        if (shape.rank().is_dynamic() || shape.rank().get_length() == 0)
+            return false;
+        for (int64_t i = 0; i < shape.rank().get_length(); i++) {
+            if (shape[i].is_dynamic() || shape[i].get_length() > 1)
+                return true;
         }
-    }
+        return false;
+    };
 
-    // Check if bias is present (not a scalar constant 0)
-    bool has_bias = false;
-    if (op->get_input_size() > 3) {
-        const auto& bias_shape = op->get_input_partial_shape(3);
-        if (bias_shape.rank().is_static() && bias_shape.rank().get_length() > 0) {
-            bool is_scalar = true;
-            for (int64_t i = 0; i < bias_shape.rank().get_length(); i++) {
-                if (bias_shape[i].is_dynamic() || bias_shape[i].get_length() > 1) {
-                    is_scalar = false;
-                    break;
-                }
-            }
-            has_bias = !is_scalar;
-        }
-    }
+    const bool has_bias = is_real_tensor(op->get_input_partial_shape(3));
+    const bool has_zp = is_real_tensor(op->get_input_partial_shape(5));
 
     const std::string layerName = layer_type_name_ID(op);
     const cldnn::gather_matmul bgm(layerName, inputs, has_bias, has_zp, n_activated_experts);
