@@ -91,12 +91,36 @@ KERNEL(reorder_weights_opt)(const __global INPUT0_TYPE* input, __global OUTPUT_T
     const bool valid_lane = true;
 #endif
 
+    // For blocked formats with IFM padding (e.g., isv16 with IFM=3), skip input reads
+    // for padding positions and write zero. This prevents NaN in weight padding from
+    // propagating through convolution (NaN * 0 = NaN in IEEE 754).
+#if defined(IFM_PADDING) && OSV_FIRST
+    const bool ifm_valid = (i < ACTUAL_IFM_NUM);
+#else
+    const bool ifm_valid = true;
+#endif
+
 #if SECOND_BLOCK_SIZE == 1
-    const OUTPUT_TYPE val = valid_lane ? TO_OUTPUT_TYPE(input[input_idx]) : (OUTPUT_TYPE)0;
+    OUTPUT_TYPE val;
+#if defined(IFM_PADDING) && OSV_FIRST
+    if (ifm_valid && valid_lane) {
+        val = TO_OUTPUT_TYPE(input[input_idx]);
+    } else {
+        val = (OUTPUT_TYPE)0;
+    }
+#else
+    val = valid_lane ? TO_OUTPUT_TYPE(input[input_idx]) : (OUTPUT_TYPE)0;
+#endif
 #else
     OUTPUT_VEC_TYPE val = 0;
     unroll_for (int b = 0; b < SECOND_BLOCK_SIZE; b++) {
+#if defined(IFM_PADDING) && OSV_FIRST
+        if (valid_lane && (i + b) < ACTUAL_IFM_NUM) {
+            val[b] = TO_OUTPUT_TYPE(input[input_idx]);
+        }
+#else
         val[b] = valid_lane ? TO_OUTPUT_TYPE(input[input_idx]) : (OUTPUT_TYPE)0;
+#endif
         input_idx += PITCH;
     }
 #endif  // SECOND_BLOCK_SIZE == 1

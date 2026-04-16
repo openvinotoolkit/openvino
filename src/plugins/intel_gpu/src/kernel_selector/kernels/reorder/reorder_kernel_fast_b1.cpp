@@ -58,6 +58,20 @@ bool ReorderKernelFastBatch1::Validate(const Params& p) const {
     return true;
 }
 
+// Returns the feature sub-vector size for blocked output formats, or 0 for non-blocked formats.
+static size_t GetOutputFeatureBlockSize(DataLayout layout) {
+    switch (layout) {
+    case DataLayout::b_fs_yx_fsv16:
+    case DataLayout::b_fs_zyx_fsv16:
+        return 16;
+    case DataLayout::b_fs_yx_fsv32:
+    case DataLayout::b_fs_zyx_fsv32:
+        return 32;
+    default:
+        return 0;
+    }
+}
+
 JitConstants ReorderKernelFastBatch1::GetJitConstants(const reorder_params& params) const {
     auto jit = ReorderKernelBase::GetJitConstants(params);
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.inputs[0]));
@@ -66,9 +80,24 @@ JitConstants ReorderKernelFastBatch1::GetJitConstants(const reorder_params& para
     reorder_params& newParams = *static_cast<reorder_params*>(kd.params.get());
 
     const auto& input = newParams.inputs[0];
-    jit.AddConstant(MakeJitConstant("ELEMENTS_COUNT", input.LogicalSize()));
-
     const auto& output = newParams.outputs[0];
+
+    // For blocked output formats (e.g., b_fs_yx_fsv16), when the feature count is not
+    // aligned to the block size, we must zero-fill the padding positions. Otherwise,
+    // uninitialized memory (potentially containing NaN) in padding positions can corrupt
+    // subsequent computations (since NaN * 0 = NaN in IEEE 754).
+    size_t fsv = GetOutputFeatureBlockSize(output.GetLayout());
+    size_t feature_count = output.Feature().v;
+    if (fsv > 0 && (feature_count % fsv) != 0) {
+        size_t padded_features = Align(feature_count, fsv);
+        size_t spatial_size = output.LogicalSize() / (output.Batch().v * feature_count);
+        size_t padded_count = output.Batch().v * padded_features * spatial_size;
+        jit.AddConstant(MakeJitConstant("ELEMENTS_COUNT", padded_count));
+        jit.AddConstant(MakeJitConstant("PADDED_FEATURE_NUM", padded_features));
+        jit.AddConstant(MakeJitConstant("FILL_FEATURE_PADDING", 1));
+    } else {
+        jit.AddConstant(MakeJitConstant("ELEMENTS_COUNT", input.LogicalSize()));
+    }
 
     if (input.GetLayout() == output.GetLayout() && input.SameDimsSizes(output) &&
         !input.PitchesDifferFromLogicalDims() && !output.PitchesDifferFromLogicalDims() &&
@@ -86,6 +115,15 @@ ReorderKernelFastBatch1::DispatchData ReorderKernelFastBatch1::SetDefault(const 
     const auto& output = params.outputs[0];
 
     unsigned int gws = (unsigned int)output.LogicalSize();
+
+    // For blocked output formats with unaligned features, expand GWS to cover padding positions
+    size_t fsv = GetOutputFeatureBlockSize(output.GetLayout());
+    size_t feature_count = output.Feature().v;
+    if (fsv > 0 && (feature_count % fsv) != 0) {
+        size_t padded_features = Align(feature_count, fsv);
+        size_t spatial_size = output.LogicalSize() / (output.Batch().v * feature_count);
+        gws = (unsigned int)(output.Batch().v * padded_features * spatial_size);
+    }
 
     dispatchData.gws[0] = Align(gws, 32);
     dispatchData.gws[1] = 1;
