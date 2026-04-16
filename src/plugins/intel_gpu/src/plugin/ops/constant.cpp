@@ -94,9 +94,7 @@ static bool is_moe_related_constant(const std::shared_ptr<ov::op::v0::Constant>&
     const auto users = op->get_output_target_inputs(0);
     for (const auto& input : users) {
         const auto* node = input.get_node();
-        if (ov::is_type<ov::op::internal::MOE>(node) ||
-            ov::is_type<ov::intel_gpu::op::MOECompressed>(node) ||
-            ov::is_type<ov::intel_gpu::op::MOE3GemmFusedCompressed>(node)) {
+        if (ov::is_type<ov::intel_gpu::op::MOE3GemmFusedCompressed>(node)) {
             return true;
         }
     }
