@@ -15,7 +15,7 @@ import tensorflow_hub as hub
 #import tensorflow_text  # do not delete, needed for text models. Commended due to ticket 179327
 from huggingface_hub import snapshot_download
 from models_hub_common.test_convert_model import TestConvertModel
-from models_hub_common.utils import get_models_list
+from models_hub_common.utils import cached_snapshot_download, get_models_list
 from openvino import Core
 
 from utils import load_graph, get_input_signature, get_output_signature, unpack_tf_result, \
@@ -45,10 +45,7 @@ class TestTFHubConvertModel(TestConvertModel):
 
     def load_model(self, model_name, model_link: str):
         if is_hf_link(model_link):
-            try:
-                model_cached = snapshot_download(model_name, local_files_only=True)
-            except Exception:
-                model_cached = snapshot_download(model_name)  # fallback: download if not cached
+            model_cached = cached_snapshot_download(model_name)
             library_type = model_link[3:]
             if library_type == "transformers":
                 from transformers import TFAutoModel

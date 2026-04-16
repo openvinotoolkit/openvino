@@ -9,7 +9,7 @@ import platform
 import pytest
 import torch
 
-from models_hub_common.utils import retry
+from models_hub_common.utils import cached_snapshot_download, retry
 from openvino.frontend.pytorch.patch_model import __make_16bit_traceable as patch
 from openvino.frontend.pytorch.patch_model import unpatch_model as unpatch
 from torch_utils import TestTorchConvertModel
@@ -152,10 +152,7 @@ class TestLLMModel(TestTorchConvertModel):
 
         model = None
         example = None
-        try:
-            model_cached = snapshot_download(name, local_files_only=True)
-        except Exception:
-            model_cached = snapshot_download(name)  # fallback: download if not cached
+        model_cached = cached_snapshot_download(name)
         try:
             config = AutoConfig.from_pretrained(model_cached, trust_remote_code=True)
         except Exception:
@@ -173,10 +170,7 @@ class TestLLMModel(TestTorchConvertModel):
             model_kwargs["torch_dtype"] = torch.float16
         else:
             model_kwargs["torch_dtype"] = "auto"
-        try:
-            model_cached = snapshot_download(name, local_files_only=True)
-        except Exception:
-            model_cached = snapshot_download(name)  # fallback: download if not cached
+        model_cached = cached_snapshot_download(name)
         t = AutoTokenizer.from_pretrained(model_cached, trust_remote_code=True)
         self.model = AutoModelForCausalLM.from_pretrained(model_cached, **model_kwargs)
         if is_quant:

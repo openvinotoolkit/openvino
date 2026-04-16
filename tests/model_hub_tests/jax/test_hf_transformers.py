@@ -8,7 +8,7 @@ import requests
 from huggingface_hub import snapshot_download
 from PIL import Image
 from models_hub_common.constants import hf_cache_dir, clean_hf_cache_dir
-from models_hub_common.utils import cleanup_dir, get_models_list, retry
+from models_hub_common.utils import cached_snapshot_download, cleanup_dir, get_models_list, retry
 from transformers import (
     AutoProcessor,
     AutoTokenizer,
@@ -23,10 +23,7 @@ from jax_utils import TestJaxConvertModel
 class TestTransformersModel(TestJaxConvertModel):
     @retry(3, exceptions=(OSError,), delay=1)
     def load_model(self, model_name, _):
-        try:
-            model_cached = snapshot_download(model_name, local_files_only=True)
-        except Exception:
-            model_cached = snapshot_download(model_name)  # fallback: download if not cached
+        model_cached = cached_snapshot_download(model_name)
         model = FlaxAutoModel.from_pretrained(model_cached)
         if model_name in ['google/vit-base-patch16-224-in21k']:
             url = "http://images.cocodataset.org/val2017/000000039769.jpg"

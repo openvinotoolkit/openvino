@@ -9,7 +9,7 @@ import pytest
 import torch
 
 from models_hub_common.constants import hf_cache_dir, clean_hf_cache_dir
-from models_hub_common.utils import cleanup_dir, get_models_list, retry
+from models_hub_common.utils import cached_snapshot_download, cleanup_dir, get_models_list, retry
 from torch_utils import TestTorchConvertModel
 
 
@@ -63,10 +63,7 @@ class TestTransformersModel(TestTorchConvertModel):
 
         name, _, name_suffix = name.partition(':')
 
-        try:
-            model_cached = snapshot_download(name, local_files_only=True)
-        except Exception:
-            model_cached = snapshot_download(name)  # fallback: download if not cached
+        model_cached = cached_snapshot_download(name)
         mi = model_info(name)
         auto_processor = None
         model = None
@@ -529,10 +526,7 @@ class TestTransformersModel(TestTorchConvertModel):
         from huggingface_hub import model_info, snapshot_download
         from transformers import AutoModel
 
-        try:
-            model_cached = snapshot_download(name, local_files_only=True)
-        except Exception:
-            model_cached = snapshot_download(name)  # fallback: download if not cached
+        model_cached = cached_snapshot_download(name)
         try:
             mi = model_info(name)
             assert len({"owlv2", "owlvit", "vit_mae"}.intersection(
