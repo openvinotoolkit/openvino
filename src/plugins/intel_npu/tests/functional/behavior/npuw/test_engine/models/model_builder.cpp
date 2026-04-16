@@ -246,12 +246,15 @@ ov::Output<ov::Node> CompressedWeight::operator()(const std::string& name,
     // --- Scale: per-group or per-channel, with optional batch dim ---
     // Magnitude kept small (scale_range ≈ 1/hi) so decompressed values stay moderate
     // (roughly ±1), preventing hidden state overflow.
-    // Scale shape: always 2D [rows, 1] (or [rows, num_groups, 1] for group quant).
-    // For 3D batched weights (MoE), a 2D scale broadcasts across the batch dimension.
-    // This is required because NPUW's MoE executor slices weights per-expert but not scales.
+    // 3D batched weights (MoE) use 3D scale [batch, rows, 1] so DEVICE_ROUTED transform
+    // can identify the expert dimension (shape[0] == num_experts).
     ov::Shape scale_shape;
-    scale_shape = has_groups ? ov::Shape{rows, num_groups, 1} : ov::Shape{rows, 1};
-    const size_t scale_count = has_groups ? rows * num_groups : rows;
+    if (is_3d) {
+        scale_shape = has_groups ? ov::Shape{batch, rows, num_groups, 1} : ov::Shape{batch, rows, 1};
+    } else {
+        scale_shape = has_groups ? ov::Shape{rows, num_groups, 1} : ov::Shape{rows, 1};
+    }
+    const size_t scale_count = batch * (has_groups ? rows * num_groups : rows);
     const float scale_range = 1.0f / static_cast<float>(hi);
     uint32_t s_state = seed_from_name(name + "_scale");
     std::vector<float> scale_data(scale_count);
@@ -862,83 +865,86 @@ MoEFFN::MoEFFN(size_t hs, size_t is, size_t ne, size_t k,
         weight_fn = CompressedWeight{ov::element::i4, 0, DCOffPattern::SYMM_NO_ZP};
     }
     using C = ov::opset11::Constant;
-    int64_t is_i = static_cast<int64_t>(is);
-    int64_t ne_i = static_cast<int64_t>(ne);
-    int64_t k_i = static_cast<int64_t>(k);
+    int32_t is_i = static_cast<int32_t>(is);
+    int32_t ne_i = static_cast<int32_t>(ne);
+    int32_t k_i = static_cast<int32_t>(k);
 
-    tile_repeats = C::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{ne_i, 1});
-    slice_step = C::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1});
-    slice_axis2 = C::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2});
-    slice_start_0 = C::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
-    slice_stop_is = C::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{is_i});
-    slice_start_is = C::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{is_i});
-    slice_stop_2is = C::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2 * is_i});
+    // Use i32 for shape/axis/step constants matching real GPT-OSS HuggingFace export.
+    tile_repeats = C::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{ne_i, 1});
+    slice_step = C::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{1});
+    slice_axis2 = C::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{2});
+    slice_start_0 = C::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{0});
+    slice_stop_is = C::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{is_i});
+    slice_start_is = C::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{is_i});
+    slice_stop_2is = C::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{static_cast<int32_t>(2 * is_i)});
     min_const = C::create(prec, ov::Shape{1}, std::vector<float>{20.0f});
     swish_beta = C::create(prec, ov::Shape{}, std::vector<float>{1.0f});
     clamp_add_zero = C::create(prec, ov::Shape{1}, std::vector<float>{0.0f});
-    topk_k_const = C::create(ov::element::i64, ov::Shape{}, std::vector<int64_t>{k_i});
-    sl_start = C::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{0, 0});
-    sl_step_r = C::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{1, 1});
-    sl_axes = C::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{0, 1});
-    scatter_axis = C::create(ov::element::i64, ov::Shape{}, std::vector<int64_t>{1});
-    tp_order = C::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{1, 0});
-    unsq_axis = C::create(ov::element::i64, ov::Shape{}, std::vector<int64_t>{3});
-    reduce_axis = C::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+    topk_k_const = C::create(ov::element::i32, ov::Shape{}, std::vector<int32_t>{k_i});
+    sl_start = C::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{0, 0});
+    sl_step_r = C::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{1, 1});
+    sl_axes = C::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{0, 1});
+    scatter_axis = C::create(ov::element::i32, ov::Shape{}, std::vector<int32_t>{1});
+    tp_order = C::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{1, 0});
+    unsq_axis = C::create(ov::element::i32, ov::Shape{}, std::vector<int32_t>{3});
+    reduce_axis = C::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{0});
 }
 
 ov::Output<ov::Node> MoEFFN::operator()(const ov::Output<ov::Node>& input,
                                                       const std::string& name) const {
     using C = ov::opset11::Constant;
     const auto prec = precision;
-    const int64_t ne_i = static_cast<int64_t>(num_experts);
-    const int64_t hs_i = static_cast<int64_t>(hidden_size);
-    auto mk = [](std::vector<int64_t> v) {
+    const int32_t ne_i = static_cast<int32_t>(num_experts);
+    const int32_t hs_i = static_cast<int32_t>(hidden_size);
+    auto mk = [](std::vector<int32_t> v) {
         ov::OutputVector p;
         for (auto x : v)
-            p.push_back(C::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{x})->output(0));
+            p.push_back(C::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{x})->output(0));
         return std::make_shared<ov::opset11::Concat>(p, 0);
     };
 
-    auto original_shape = std::make_shared<ov::opset11::ShapeOf>(input, ov::element::i64);
+    auto original_shape = std::make_shared<ov::opset11::ShapeOf>(input, ov::element::i32);
     original_shape->set_friendly_name(name + ".original_shape");
 
     auto input_2d = std::make_shared<ov::opset11::Reshape>(input, mk({-1, hs_i}), false);
     input_2d->set_friendly_name(name + ".input_2d");
 
-    // Router + expert weights use the configured weight_fn
-    auto rw = weight_fn(name + ".router.weight", ov::Shape{num_experts, hidden_size}, prec);
+    // Router uses i8 weights matching real GPT-OSS two-pass quantization
+    // (router excluded from 4-bit, gets 8-bit instead).
+    static const CompressedWeight router_wt{ov::element::i8, 0, DCOffPattern::SYMM_NO_ZP};
+    auto rw = router_wt(name + ".expert.router.weight", ov::Shape{num_experts, hidden_size}, prec);
     auto r_mm = std::make_shared<ov::opset11::MatMul>(input_2d, rw, false, true);
-    r_mm->set_friendly_name(name + ".router.matmul");
+    r_mm->set_friendly_name(name + ".expert.router.matmul");
     auto r_bias = C::create(prec, ov::Shape{1, num_experts}, std::vector<float>(num_experts, 0.0f));
-    r_bias->set_friendly_name(name + ".router.bias");
+    r_bias->set_friendly_name(name + ".expert.router.bias");
     auto r_add = std::make_shared<ov::opset11::Add>(r_mm, r_bias);
-    r_add->set_friendly_name(name + ".router.add");
+    r_add->set_friendly_name(name + ".expert.router.add");
 
     auto topk = std::make_shared<ov::opset11::TopK>(r_add, topk_k_const, 1, "max", "value", ov::element::i64);
-    topk->set_friendly_name(name + ".router.topk");
+    topk->set_friendly_name(name + ".expert.router.topk");
     auto softmax = std::make_shared<ov::op::v8::Softmax>(topk->output(0), 1);
-    softmax->set_friendly_name(name + ".router.softmax");
+    softmax->set_friendly_name(name + ".expert.router.softmax");
     auto topk_cvt = std::make_shared<ov::opset11::Convert>(topk->output(1), ov::element::i32);
-    topk_cvt->set_friendly_name(name + ".router.topk_convert");
-    auto topk_shape = std::make_shared<ov::op::v3::ShapeOf>(topk_cvt, ov::element::i64);
-    topk_shape->set_friendly_name(name + ".router.topk_shapeof");
+    topk_cvt->set_friendly_name(name + ".expert.router.topk_convert");
+    auto topk_shape = std::make_shared<ov::op::v3::ShapeOf>(topk_cvt, ov::element::i32);
+    topk_shape->set_friendly_name(name + ".expert.router.topk_shapeof");
 
     auto r_slice = std::make_shared<ov::op::v8::Slice>(softmax, sl_start, topk_shape, sl_step_r, sl_axes);
-    r_slice->set_friendly_name(name + ".router.slice");
-    auto add_shape = std::make_shared<ov::op::v3::ShapeOf>(r_add, ov::element::i64);
-    add_shape->set_friendly_name(name + ".router.add_shapeof");
+    r_slice->set_friendly_name(name + ".expert.router.slice");
+    auto add_shape = std::make_shared<ov::op::v3::ShapeOf>(r_add, ov::element::i32);
+    add_shape->set_friendly_name(name + ".expert.router.add_shapeof");
     auto zeros = std::make_shared<ov::op::v3::Broadcast>(
         C::create(prec, ov::Shape{}, std::vector<float>{0.0f}), add_shape, ov::op::BroadcastType::NUMPY);
-    zeros->set_friendly_name(name + ".router.zeros");
+    zeros->set_friendly_name(name + ".expert.router.zeros");
     auto scatter = std::make_shared<ov::op::v3::ScatterElementsUpdate>(zeros, topk_cvt, r_slice, scatter_axis);
-    scatter->set_friendly_name(name + ".router.scatter");
+    scatter->set_friendly_name(name + ".expert.router.scatter");
 
     auto r_tp = std::make_shared<ov::opset11::Transpose>(scatter, tp_order);
-    r_tp->set_friendly_name(name + ".router.transpose");
+    r_tp->set_friendly_name(name + ".expert.router.transpose");
     auto r_reshape = std::make_shared<ov::opset11::Reshape>(r_tp, mk({ne_i, 1, -1}), false);
-    r_reshape->set_friendly_name(name + ".router.reshape");
+    r_reshape->set_friendly_name(name + ".expert.router.reshape");
     auto router_scores = std::make_shared<ov::opset11::Unsqueeze>(r_reshape, unsq_axis);
-    router_scores->set_friendly_name(name + ".router.unsqueeze");
+    router_scores->set_friendly_name(name + ".expert.router.unsqueeze");
 
     // Expert: Tile → Reshape → MatMul → Add → dual-branch → MatMul → Add → Reshape → Multiply → ReduceSum
     auto tiled = std::make_shared<ov::op::v0::Tile>(input_2d, tile_repeats);
