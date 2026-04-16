@@ -14,12 +14,12 @@ on:
       link:
          description: "Link to a workflow to investigate (for manual testing across repositories)"
          required: false
-  workflow_run:
-    workflows:
-      - "Linux (Ubuntu 22.04, Python 3.11)"
-      - "Windows (VS 2022, Python 3.11, Release)"
-    types:
-      - completed
+  # workflow_run:
+  #   workflows:
+  #     - "Linux (Ubuntu 22.04, Python 3.11)"
+  #     - "Windows (VS 2022, Python 3.11, Release)"
+  #   types:
+  #     - completed
 
 rate-limit:
   max: 5 # Maximum runs per window
