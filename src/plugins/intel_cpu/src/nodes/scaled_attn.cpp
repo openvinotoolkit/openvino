@@ -79,36 +79,6 @@ using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu::node {
 
-// Raw per-tensor copy into cache with optional f32 -> f16/bf16 conversion.
-static void raw_copy(const PlainTensor& cur, PlainTensor& dst, size_t L0, const CpuParallelPtr& cpu_parallel) {
-    auto B = cur.size(0);
-    auto H = cur.size(1);
-    auto L1 = cur.size(2);
-    auto S = cur.size(3);
-    auto dst_slice = dst.slice(2, L0, L0 + L1);
-    auto elem_size = dst_slice.get_precision().size();
-    cpu_parallel->parallel_for2d(B, H, [&](size_t b, size_t h) {
-        for (size_t l = 0; l < L1; l++) {
-            if (cur.get_precision() == dst_slice.get_precision()) {
-                memcpy(dst_slice.ptr_v(b, h, l), cur.ptr_v(b, h, l), S * elem_size);
-            } else {
-                const auto* s = cur.ptr<float>(b, h, l);
-                if (dst_slice.get_precision() == ov::element::f16) {
-                    auto* d = dst_slice.ptr<ov::float16>(b, h, l);
-                    for (size_t i = 0; i < S; i++) {
-                        d[i] = static_cast<ov::float16>(s[i]);
-                    }
-                } else if (dst_slice.get_precision() == ov::element::bf16) {
-                    auto* d = dst_slice.ptr<ov::bfloat16>(b, h, l);
-                    for (size_t i = 0; i < S; i++) {
-                        d[i] = static_cast<ov::bfloat16>(s[i]);
-                    }
-                }
-            }
-        }
-    });
-}
-
 // Compress and write cur tensor into the KV cache (dst) at position L0.
 // Handles u8 quant (per-group or by-channel) and raw precision-matching copy.
 static void compress_cache(const PlainTensor& cur,
@@ -126,7 +96,7 @@ static void compress_cache(const PlainTensor& cur,
             attn_quant_by_token(cur, dst, scale_zp, L0, group_size, cpu_parallel);
         }
     } else {
-        raw_copy(cur, dst, L0, cpu_parallel);
+        attn_memcpy2d(cur, dst, L0, cpu_parallel);
     }
 }
 
