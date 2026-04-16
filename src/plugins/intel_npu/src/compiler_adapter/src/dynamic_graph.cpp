@@ -24,7 +24,7 @@ public:
     using MemRefType = DynamicGraph::MemRefType;
 
 public:
-    DynamicGraphImpl() : _logger("DynamicGraphImpl", Logger::global().level()) {}
+    DynamicGraphImpl() : _engineProperties{}, _logger("DynamicGraphImpl", Logger::global().level()) {}
     void initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata) override;
     void createExecutionEngine(std::optional<ov::Tensor>& blob);
     void prepareMetadata(NetworkMetadata& metadata);

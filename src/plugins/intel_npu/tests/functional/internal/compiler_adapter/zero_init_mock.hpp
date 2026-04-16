@@ -74,6 +74,8 @@ private:
     bool _external_memory_standard_allocation_supported = false;
     bool _external_memory_fd_win32_supported = false;
 
+    uint32_t _context_options = 0;
+
     uint32_t _command_queue_group_ordinal = 0;
 
     ZeroMemPool _zero_mem_pool;
