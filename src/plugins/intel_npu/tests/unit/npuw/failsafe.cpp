@@ -408,11 +408,11 @@ TEST(FailsafeCompiledModelTest, CreateInferRequestFailureWithoutFallbackPropagat
     auto so = ov::npuw::failsafe::CompiledModel::create(
         model, plugin, {"NPU"},
         make_factory(model, plugin, {{"NPU", first}}));
-    auto compiled = std::dynamic_pointer_cast<TestCompiledModel>(so._ptr);
+    auto compiled = so._ptr;
     ASSERT_NE(compiled, nullptr);
 
     try {
-        (void)compiled->create_sync_infer_request();
+        (void)compiled->create_infer_request();
         FAIL() << "Expected infer-request creation failure";
     } catch (const ov::Exception& ex) {
         EXPECT_NE(error_message(ex).find("create request failed for NPU"), std::string::npos);
@@ -427,9 +427,9 @@ TEST(FailsafeCompiledModelTest, InferFailureWithoutFallbackPropagatesError) {
     auto so = ov::npuw::failsafe::CompiledModel::create(
         model, plugin, {"NPU"},
         make_factory(model, plugin, {{"NPU", first}}));
-    auto compiled = std::dynamic_pointer_cast<TestCompiledModel>(so._ptr);
+    auto compiled = so._ptr;
     ASSERT_NE(compiled, nullptr);
-    auto request = compiled->create_sync_infer_request();
+    auto request = compiled->create_infer_request();
 
     try {
         request->infer();
@@ -437,6 +437,22 @@ TEST(FailsafeCompiledModelTest, InferFailureWithoutFallbackPropagatesError) {
     } catch (const ov::Exception& ex) {
         EXPECT_NE(error_message(ex).find("infer failed for NPU"), std::string::npos);
     }
+}
+
+TEST(FailsafeCompiledModelTest, SingleDeviceReturnsRawCompiledModel) {
+    auto model = make_test_model();
+    auto plugin = std::make_shared<NullPlugin>();
+    auto first = std::make_shared<CandidateState>(CandidateState{"CPU"});
+
+    auto so = ov::npuw::failsafe::CompiledModel::create(
+        model, plugin, {"CPU"},
+        make_factory(model, plugin, {{"CPU", first}}));
+
+    EXPECT_EQ(std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(so._ptr), nullptr);
+    ASSERT_NE(so._ptr, nullptr);
+    EXPECT_EQ(so->get_property(kCandidateProperty).as<std::string>(), "CPU");
+    auto devices = so->get_property(ov::execution_devices.name()).as<std::vector<std::string>>();
+    EXPECT_EQ(devices, (std::vector<std::string>{"CPU"}));
 }
 
 TEST(FailsafeCompiledModelTest, ExecutionDevicesReturnsActiveDevice) {

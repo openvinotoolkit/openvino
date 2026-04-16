@@ -1269,7 +1269,13 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
     if (!plugin->get_core()) {
         return std::nullopt;
     }
-    const auto all_devices = plugin->get_core()->get_property("NPU", ov::available_devices);
+    std::vector<std::string> all_devices;
+    try {
+        all_devices = plugin->get_core()->get_property("NPU", ov::available_devices);
+    } catch (const ov::Exception& ex) {
+        LOG_WARN("Failed to query NPU capabilities, defaulting LLM config to backend-agnostic path: " << ex.what());
+        return std::nullopt;
+    }
     if (all_devices.empty()) {
         return std::nullopt;
     }

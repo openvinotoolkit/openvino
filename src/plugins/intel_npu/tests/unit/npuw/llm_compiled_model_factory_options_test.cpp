@@ -16,6 +16,7 @@
 #include "llm_test_helpers.hpp"
 #include "llm_compiled_model_utils.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
+#include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 
 namespace {
 using ov::test::npuw::CompileCall;
@@ -325,7 +326,7 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, CommonRuntimeAndDebugOptionsForwardTo
     }
 }
 
-TEST_F(LLMCompiledModelFactoryOptionsTest, FastCompileGenerateHintKeepsUnfoldedGenerateDefaults) {
+TEST_F(LLMCompiledModelFactoryOptionsTest, FastCompileGenerateHintKeepsCurrentGenerateDefaults) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -336,7 +337,30 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, FastCompileGenerateHintKeepsUnfoldedG
     ASSERT_NE(compiled, nullptr);
     const auto& generate = require_call_containing(recorder, "_kv");
     expect_prop(generate.props, "NPUW_UNFOLD_IREQS", "YES");
+    expect_prop(generate.props, "NPUW_DQ", "YES");
     expect_missing_prop(generate.props, "NPUW_SLICE_OUT");
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, MissingNpuBackendKeepsCurrentGenerateDefaults) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    auto core = std::make_shared<testing::NiceMock<ov::MockICore>>();
+    m_plugin->set_core(core);
+    ON_CALL(*core, get_property(testing::StrEq("NPU"), testing::StrEq(ov::available_devices.name()), testing::_))
+        .WillByDefault([](const std::string&, const std::string&, const ov::AnyMap&) -> ov::Any {
+            OPENVINO_THROW("No available backend");
+        });
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(),
+                                                     {{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                                      {"NPUW_LLM_GENERATE_HINT", "FAST_COMPILE"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& generate = require_call_containing(recorder, "_kv");
+    expect_prop(generate.props, "NPUW_UNFOLD_IREQS", "YES");
+    expect_prop(generate.props, "NPUW_DQ", "YES");
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, BestPerfGenerateHintForcesStandaloneGeneratePartitioning) {
