@@ -265,6 +265,8 @@ public:
 
             static jit_convert_array generator(context);
 
+            // Since the JIT code always resides in memory, and ASAN's memory management may remove executable
+            // permissions, we need to restore executable permissions for the generated code.
             generator.setProtectModeRE(false);
             return (fn_t)generator.getCode();
         }
@@ -471,6 +473,8 @@ public:
 
             static jit_count_out_of_range generator(context);
 
+            // Since the JIT code always resides in memory, and ASAN's memory management may remove executable
+            // permissions, we need to restore executable permissions for the generated code.
             generator.setProtectModeRE(false);
             return (fn_t)generator.getCode();
         }
