@@ -61,5 +61,5 @@ jobs:
       - name: Sleep for 5 minute
         run: |
           echo "Starting 5 minute sleep... - 5 minutes"
-          sleep 360
+          sleep 60
           echo "✓ Sleep completed"      
