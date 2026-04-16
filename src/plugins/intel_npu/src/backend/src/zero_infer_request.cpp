@@ -117,6 +117,10 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
             continue;
         }
 
+        if (inputDescriptor.isShapeTensor) {
+            _isShapeTensorPresent = true;
+        }
+
         get_level_zero_input(ioIndex) = allocate_tensor(ioIndex, INPUT);
 
         if (inputDescriptor.isStateInput) {
@@ -147,6 +151,10 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
             ++ioIndex;
             continue;
+        }
+
+        if (outputDescriptor.isShapeTensor) {
+            _isShapeTensorPresent = true;
         }
 
         _levelZeroOutputTensors.at(ioIndex) = allocate_tensor(ioIndex, OUTPUT);
@@ -470,7 +478,7 @@ void ZeroInferRequest::sync_zero_tensor_with_graph(const ZeroInferRequest::Found
     auto& levelZeroTensor =
         foundPort.is_input() ? get_level_zero_input(foundPort.idx) : _levelZeroOutputTensors.at(foundPort.idx);
 
-    if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
+    if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0) && !_isShapeTensorPresent) {
         bool updateCommandListArg = false;
         try {
             _logger.debug("sync_zero_tensor_with_graph - create zero tensor");
@@ -586,7 +594,7 @@ void ZeroInferRequest::sync_zero_tensors_with_graph(const ZeroInferRequest::Foun
                       "ZeroInferRequest",
                       "sync_zero_tensors_with_graph");
 
-    if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
+    if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0) && !_isShapeTensorPresent) {
         if (batchSize.has_value()) {
             get_level_zero_inputs(foundPort.idx).resize(tensors.size());
             for (size_t i = 0; i < tensors.size(); i++) {
@@ -903,6 +911,11 @@ void ZeroInferRequest::prepare_inputs() {
         OPENVINO_ASSERT(!inputDescriptor.isInitInputWeights,
                         "This path should not be used for running inferences for the \"init\" model");
 
+        if (inputDescriptor.isMainInputWeights) {
+            // These values were set while running the "WeightlessGraph::init" method
+            continue;
+        }
+
         if (inputDescriptor.isShapeTensor) {
             OPENVINO_ASSERT(inputDescriptor.relatedDescriptorIndex.has_value(),
                             "The link between the dynamic tensor and its shape tensor is missing, entry name: ",
@@ -978,11 +991,6 @@ void ZeroInferRequest::prepare_inputs() {
             continue;
         }
 
-        if (inputDescriptor.isMainInputWeights) {
-            // These values were set while running the "WeightlessGraph::init" method
-            continue;
-        }
-
         const auto& levelZeroTensor = get_level_zero_input(inputIndex);
         OPENVINO_ASSERT(levelZeroTensor, "Input zero tensor is not allocated.");
 
@@ -1000,7 +1008,14 @@ void ZeroInferRequest::prepare_inputs() {
 
             _logger.info("prepare_inputs - tensor is not allocated in the current Level Zero context");
             OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
-            userTensor.at(SINGLE_TENSOR)->copy_to(levelZeroTensor);
+            if (_isShapeTensorPresent) {
+                auto viewTensor = ov::make_tensor(levelZeroTensor->get_element_type(),
+                                                  userTensor.at(SINGLE_TENSOR)->get_shape(),
+                                                  static_cast<unsigned char*>(levelZeroTensor->data()));
+                userTensor.at(SINGLE_TENSOR)->copy_to(viewTensor);
+            } else {
+                userTensor.at(SINGLE_TENSOR)->copy_to(levelZeroTensor);
+            }
         }
 
         ++inputIndex;
@@ -1057,7 +1072,14 @@ void ZeroInferRequest::get_result() {
             _logger.info("get_result - output tensor by index: %zu is not allocated in the current Level Zero context",
                          outputIndex);
             OV_ITT_TASK_NEXT(ZERO_RESULT, "memcpy");
-            levelZeroTensor->copy_to(userTensor._ptr);
+            if (_isShapeTensorPresent) {
+                auto viewTensor = ov::make_tensor(levelZeroTensor->get_element_type(),
+                                                  userTensor->get_shape(),
+                                                  static_cast<unsigned char*>(levelZeroTensor->data()));
+                viewTensor->copy_to(userTensor._ptr);
+            } else {
+                levelZeroTensor->copy_to(userTensor._ptr);
+            }
         }
 
         levelZeroTensor->detach_imported_allocation_for_custom_tensor();
