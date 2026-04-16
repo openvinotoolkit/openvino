@@ -41,13 +41,13 @@ tests:
     args: "-sv -k 'not gpu and not cuda and not npu_'"
 
   - name: py_frontend
-    kind: pytest_if_dir
+    kind: pytest
     profiles: [cpu]
     target: "${TESTS_DIR}/layer_tests/py_frontend_tests"
     args: "-sv -k 'not gpu and not cuda and not npu_'"
 
   - name: tensorflow_lite_layers
-    kind: pytest_if_dir
+    kind: pytest
     profiles: [cpu, gpu]
     target: "${TESTS_DIR}/layer_tests/tensorflow_lite_tests"
     env:
@@ -58,7 +58,7 @@ tests:
       gpu: "-sv -k 'not cuda and not npu_'"
 
   - name: tensorflow_layers
-    kind: pytest_if_dir
+    kind: pytest
     profiles: [cpu, gpu]
     target: "${TESTS_DIR}/layer_tests/tensorflow_tests"
     env:
@@ -69,7 +69,7 @@ tests:
       gpu: "-sv -m precommit -k 'not cuda and not npu_'"
 
   - name: tensorflow2_keras_layers
-    kind: pytest_if_dir
+    kind: pytest
     profiles: [cpu, gpu]
     target: "${TESTS_DIR}/layer_tests/tensorflow2_keras_tests"
     env:
@@ -80,7 +80,7 @@ tests:
       gpu: "-sv -m precommit -k 'not cuda and not npu_'"
 
   - name: onnx_layers
-    kind: pytest_if_dir
+    kind: pytest
     profiles: [cpu, gpu]
     target: "${TESTS_DIR}/layer_tests/onnx_tests"
     env:
@@ -91,7 +91,7 @@ tests:
       gpu: "-sv -k 'not cuda and not npu_'"
 
   - name: pytorch_layers
-    kind: pytest_if_dir
+    kind: pytest
     profiles: [cpu, gpu]
     target: "${TESTS_DIR}/layer_tests/pytorch_tests"
     env:
@@ -102,7 +102,7 @@ tests:
       gpu: "-sv -m precommit -k 'not cuda and not npu_'"
 
   - name: pytorch_layers_export
-    kind: pytest_if_dir
+    kind: pytest
     profiles: [cpu, gpu]
     target: "${TESTS_DIR}/layer_tests/pytorch_tests"
     env:
@@ -113,7 +113,7 @@ tests:
       gpu: "-sv -m precommit_torch_export -k 'not cuda and not npu_'"
 
   - name: pytorch_layers_fx_backend
-    kind: pytest_if_dir
+    kind: pytest
     profiles: [cpu, gpu]
     target: "${TESTS_DIR}/layer_tests/pytorch_tests"
     env:
@@ -124,7 +124,7 @@ tests:
       gpu: "-sv -m precommit_fx_backend -k 'not cuda and not npu_'"
 
   - name: jax_layers_precommit
-    kind: pytest_if_dir
+    kind: pytest
     profiles: [cpu, gpu]
     target: "${TESTS_DIR}/layer_tests/jax_tests"
     env:
@@ -135,7 +135,7 @@ tests:
       gpu: "-sv -m precommit_jax_fe -k 'not cuda and not npu_'"
 
   - name: ovc_python_api
-    kind: pytest_if_dir
+    kind: pytest
     profiles: [cpu, gpu]
     target: "${WORKSPACE_LAYER_TESTS_DIR}/ovc_python_api_tests"
     env:

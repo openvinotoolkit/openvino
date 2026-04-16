@@ -222,7 +222,7 @@ def _append_summary(
         lines.extend(extra_lines)
     lines.extend(
         [
-            f"{suite.label} test selection: {', '.join(selected_names) if selected_names else 'all enabled tests'}",
+            f"{suite.label} test selection: {', '.join(selected_names) if selected_names else 'all configured tests'}",
             f"{suite.label} tests executed: {executed}",
             f"{suite.label} tests passed: {passed}",
             f"{suite.label} tests failed: {len(failed)}",
@@ -639,16 +639,11 @@ def run_cpp(ctx: CoverageContext) -> None:
     shutil.rmtree(ctx.paths.build_dir / "gcov", ignore_errors=True)
 
     results_by_name: dict[str, _TestRunResult] = {}
-    enabled_tests: list[tuple[CppTestCase, str]] = []
-    for test in tests:
-        if not test.enabled:
-            results_by_name[test.name] = _TestRunResult(test.name, "skipped", f"{test.name} ({test.skip_reason})")
-            continue
-        enabled_tests.append((test, test.args.replace("__MODEL_PATH__", str(ctx.paths.model_path))))
+    configured_tests = [(test, test.args.replace("__MODEL_PATH__", str(ctx.paths.model_path))) for test in tests]
 
-    if enabled_tests:
+    if configured_tests:
         runtime_ld_library_path = _runtime_ld_library_path(ctx)
-        for result in _run_cpp_tests_serial(ctx, enabled_tests, runtime_ld_library_path=runtime_ld_library_path):
+        for result in _run_cpp_tests_serial(ctx, configured_tests, runtime_ld_library_path=runtime_ld_library_path):
             results_by_name[result.name] = result
 
     results = [results_by_name[test.name] for test in tests if test.name in results_by_name]
@@ -664,7 +659,7 @@ def run_cpp(ctx: CoverageContext) -> None:
             "",
         ],
         no_execution_warning=(
-            f"No C++ tests were executed (all skipped). Check restored binaries under: {ctx.paths.bin_dir}"
+            f"No C++ tests were executed. Check restored binaries under: {ctx.paths.bin_dir}"
             if results
             else None
         ),
@@ -679,16 +674,13 @@ def run_python(ctx: CoverageContext) -> None:
     tests = _filter_selected_tests(load_python_tests(config, ctx.test_profile), selected_names, suite_label=PYTHON_SUITE.label)
 
     results: list[_TestRunResult] = []
-    if not any(test.enabled for test in tests):
-        for test in tests:
-            if not test.enabled:
-                results.append(_TestRunResult(test.name, "skipped", f"{test.name} ({test.skip_reason})"))
+    if not tests:
         _finalize_suite(
             ctx,
             PYTHON_SUITE,
             selected_names=selected_names,
             results=results,
-            no_execution_warning=f"No Python tests are enabled for TEST_PROFILE={ctx.test_profile}; skipping Python suite.",
+            no_execution_warning=f"No Python tests are configured for TEST_PROFILE={ctx.test_profile}; skipping Python suite.",
         )
         return
 
@@ -741,23 +733,12 @@ def run_python(ctx: CoverageContext) -> None:
     run_cmd(["python3", "-m", "coverage", "erase"])
 
     for test in tests:
-        if not test.enabled:
-            results.append(_TestRunResult(test.name, "skipped", f"{test.name} ({test.skip_reason})"))
-            continue
-
         target = _expand(test.target)
         args = _expand(test.args)
         command = _expand(test.command)
         env = env_from_assignments(_expand(test.env))
 
         if test.kind == "pytest":
-            cmd = _python_pytest_command(target, args, py_cov_source=py_cov_source, py_cov_config=py_cov_config)
-            rc, duration_seconds = _timed_run(f"Python test: {test.name}", cmd, env=env)
-        elif test.kind == "pytest_if_dir":
-            if not Path(target).is_dir():
-                LOGGER.warning("Skipping Python test group '%s' (missing: %s)", test.name, target)
-                results.append(_TestRunResult(test.name, "skipped", f"{test.name} (missing path)"))
-                continue
             cmd = _python_pytest_command(target, args, py_cov_source=py_cov_source, py_cov_config=py_cov_config)
             rc, duration_seconds = _timed_run(f"Python test: {test.name}", cmd, env=env)
         elif test.kind == "command":
@@ -839,16 +820,13 @@ def run_js(ctx: CoverageContext) -> None:
     tests = _filter_selected_tests(load_js_tests(config, ctx.test_profile), selected_names, suite_label=JS_SUITE.label)
 
     results: list[_TestRunResult] = []
-    if not any(test.enabled for test in tests):
-        for test in tests:
-            if not test.enabled:
-                results.append(_TestRunResult(test.name, "skipped", f"{test.name} ({test.skip_reason})"))
+    if not tests:
         _finalize_suite(
             ctx,
             JS_SUITE,
             selected_names=selected_names,
             results=results,
-            no_execution_warning=f"No JS tests are enabled for TEST_PROFILE={ctx.test_profile}; skipping JS suite.",
+            no_execution_warning=f"No JS tests are configured for TEST_PROFILE={ctx.test_profile}; skipping JS suite.",
         )
         return
 
@@ -858,9 +836,6 @@ def run_js(ctx: CoverageContext) -> None:
     ).rstrip(":")
 
     for test in tests:
-        if not test.enabled:
-            results.append(_TestRunResult(test.name, "skipped", f"{test.name} ({test.skip_reason})"))
-            continue
         if test.kind != "command":
             results.append(_TestRunResult(test.name, "skipped", f"{test.name} (unknown kind: {test.kind})"))
             continue
