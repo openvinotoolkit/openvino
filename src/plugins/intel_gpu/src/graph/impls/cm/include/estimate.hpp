@@ -385,7 +385,7 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
     matrix<half, REG_N, KEY_LINES_PER_LOAD * 2> scales, zps;
     matrix<half, REG_N, KEY_LINES_PER_LOAD*STRIDE> scales_block, zps_block;
     #else
-    matrix<half, 2, 16 * 16> scales_block, zps_block;
+    matrix<half, REG_N, BLOCK_REG_B> scales_block, zps_block;
     #endif
 #else
     uint offset = block_indices_p[block_idx] * (HK * KV_BLOCK_SIZE * HEAD_SIZE * (uint)sizeof(half));
@@ -561,23 +561,24 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
         }
     };
     #else
-    auto dec = [&](vector<int, 64> B0_i8, vector<int, 64> B1_i8, matrix_ref<half, REG_N, BLOCK_REG_B> B0) {
+    #ifdef CM_HAS_LSC_UNTYPED_2D
+    auto dec = [&](vector<int, KEY_LINES_PER_LOAD * 4> B0_i8, vector<int, KEY_LINES_PER_LOAD * 4> B1_i8, matrix_ref<half, REG_N, BLOCK_REG_B> B0) {
 #pragma unroll
         for (int n = 0; n < REG_N; n++) {
-            auto b = B0[n].format<half, 8, 32>();
+            auto b = B0[n].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
 #pragma unroll
-            for (int m = 0; m < 8; m++) {
+            for (int m = 0; m < BLOCK_REG_K / 2; m++) {
                 auto b_row = b[m];
-                vector<ushort, 16> d0;
+                vector<ushort, BLOCK_REG_N> d0;
                 if (n == 0)
-                    d0 = B0_i8.format<ushort, 4, 32>()[m / 2].select<16, 2>(m % 2);
+                    d0 = B0_i8.format<ushort, 4, BLOCK_REG_N * 2>()[m / 2].select<BLOCK_REG_N, 2>(m % 2);
                 else
-                    d0 = B1_i8.format<ushort, 4, 32>()[m / 2].select<16, 2>(m % 2);
+                    d0 = B1_i8.format<ushort, 4, BLOCK_REG_N * 2>()[m / 2].select<BLOCK_REG_N, 2>(m % 2);
                 b_row.format<ushort>() = d0.format<uchar>();
                 b_row *= half{32768.0};
                 b_row *= half{512.0};
-                auto scale_mat = scales_block[n].format<half, 8, 32>();
-                auto zp_mat = zps_block[n].format<half, 8, 32>();
+                auto scale_mat = scales_block[n].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
+                auto zp_mat = zps_block[n].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
                 b_row = (b_row - zp_mat.row(m)) * scale_mat.row(m);
             }
         }
@@ -586,24 +587,74 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
     uint zp_offset0 = scale_offset0 + 16 * HEAD_SIZE * sizeof(half);
     uint zp_offset1 = scale_offset1 + 16 * HEAD_SIZE * sizeof(half);
     auto load_scale_zp = [&](uint channel_base) {
-        lsc::block_2d_desc<int, 1, 16, 16 / 2> desc_scale{ key_cache + scale_offset0 + channel_base * sizeof(half),
-            16 * 2 - 1, (uint)(16 * sizeof(half) - 1), (uint)(HEAD_SIZE * sizeof(half) - 1), 0, 0 };
-        matrix<half, 16, 16> tmp_scale, tmp_zp;
+        uint scale_base0 = scale_offset0 + channel_base * sizeof(half);
+        lsc::block_2d_desc<int, 1, BLOCK_REG_K / 2, BLOCK_REG_N> desc_scale{ key_cache + scale_base0,
+            BLOCK_REG_K - 1, (uint)(BLOCK_REG_N * sizeof(half) - 1), (uint)(HEAD_SIZE * sizeof(half) - 1), 0, 0 };
+        matrix<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2> tmp_scale, tmp_zp;
 
         cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 0>(tmp_scale.format<int>(), desc_scale);
-        scales_block[0].format<half, 8, 32>() = tmp_scale.format<half, 8, 32>();
+        scales_block[0].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>() = tmp_scale.format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
 
-        desc_scale.set_base(key_cache + zp_offset0 + channel_base * sizeof(half));
+        uint zp_base0 = zp_offset0 + channel_base * sizeof(half);
+        desc_scale.set_base(key_cache + zp_base0);
         cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 0>(tmp_zp.format<int>(), desc_scale);
-        zps_block[0].format<half, 8, 32>() = tmp_zp.format<half, 8, 32>();
+        zps_block[0].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>() = tmp_zp.format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
 
-        desc_scale.set_base(key_cache + scale_offset1 + channel_base * sizeof(half));
+        uint scale_base1 = scale_offset1 + channel_base * sizeof(half);
+        desc_scale.set_base(key_cache + scale_base1);
         cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 0>(tmp_scale.format<int>(), desc_scale);
-        scales_block[1].format<half, 8, 32>() = tmp_scale.format<half, 8, 32>();
-        desc_scale.set_base(key_cache + zp_offset1 + channel_base * sizeof(half));
+        scales_block[1].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>() = tmp_scale.format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
+        uint zp_base1 = zp_offset1 + channel_base * sizeof(half);
+        desc_scale.set_base(key_cache + zp_base1);
         cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 0>(tmp_zp.format<int>(), desc_scale);
-        zps_block[1].format<half, 8, 32>() = tmp_zp.format<half, 8, 32>();
+        zps_block[1].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>() = tmp_zp.format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
     };
+    #else
+    auto dec = [&](vector<int, KEY_LINES_PER_LOAD * 4> B0_i8, vector<int, KEY_LINES_PER_LOAD * 4> B1_i8, matrix_ref<half, REG_N, BLOCK_REG_B> B0) {
+#pragma unroll
+        for (int n = 0; n < REG_N; n++) {
+            auto b = B0[n].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
+#pragma unroll
+            for (int m = 0; m < BLOCK_REG_K / 2; m++) {
+                auto b_row = b[m];
+                vector<ushort, BLOCK_REG_N> d0;
+                if (n == 0)
+                    d0 = B0_i8.format<ushort, 4, BLOCK_REG_N * 2>()[m / 2].select<BLOCK_REG_N, 2>(m % 2);
+                else
+                    d0 = B1_i8.format<ushort, 4, BLOCK_REG_N * 2>()[m / 2].select<BLOCK_REG_N, 2>(m % 2);
+                b_row.format<ushort>() = d0.format<uchar>();
+                b_row *= half{32768.0};
+                b_row *= half{512.0};
+                auto scale_mat = scales_block[n].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
+                auto zp_mat = zps_block[n].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
+                b_row = (b_row - zp_mat.row(m)) * scale_mat.row(m);
+            }
+        }
+    };
+
+    uint zp_offset0 = scale_offset0 + 16 * HEAD_SIZE * sizeof(half);
+    uint zp_offset1 = scale_offset1 + 16 * HEAD_SIZE * sizeof(half);
+    auto load_scale_zp = [&](uint channel_base) {
+        matrix<half, KEY_LINES_PER_LOAD, BLOCK_REG_K> tmp_scale, tmp_zp;
+        uint channel_base_bytes = channel_base * (uint)sizeof(half);
+
+        vector<uint, KEY_LINES_PER_LOAD> offsets_scale0_ch = offsets_scale0 + channel_base_bytes;
+        tmp_scale.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_scale0_ch);
+        scales_block[0].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>() = tmp_scale.format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
+
+        vector<uint, KEY_LINES_PER_LOAD> offsets_zp0_ch = offsets_scale0_ch + (zp_offset0 - scale_offset0);
+        tmp_zp.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_zp0_ch);
+        zps_block[0].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>() = tmp_zp.format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
+
+        vector<uint, KEY_LINES_PER_LOAD> offsets_scale1_ch = offsets_scale1 + channel_base_bytes;
+        tmp_scale.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_scale1_ch);
+        scales_block[1].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>() = tmp_scale.format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
+
+        vector<uint, KEY_LINES_PER_LOAD> offsets_zp1_ch = offsets_scale1_ch + (zp_offset1 - scale_offset1);
+        tmp_zp.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_zp1_ch);
+        zps_block[1].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>() = tmp_zp.format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
+    };
+    #endif
     #endif
 #endif
 
@@ -686,7 +737,7 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
                 dot(a0, b0);
                 #else
                 load_scale_zp(channel_base);
-                dec(b0_up_s8.format<int>().select<64, 1>(), b0_down_s8.format<int>().select<64, 1>(), b0);
+                dec(b0_up_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(), b0_down_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(), b0);
                 channel_base += BLOCK_REG_K;
                 dot(a0, b0);
                 #endif
@@ -728,7 +779,7 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
                 dot(a0, b0);
                 #else
                 load_scale_zp(channel_base);
-                dec(b0_up_s8.format<int>().select<64, 1>(64), b0_down_s8.format<int>().select<64, 1>(64), b0);
+                dec(b0_up_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(KEY_LINES_PER_LOAD * 4), b0_down_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(KEY_LINES_PER_LOAD * 4), b0);
                 dot(a0, b0);
                 channel_base += BLOCK_REG_K;
                 #endif
@@ -789,7 +840,7 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
                 dot(a0, b0);
                 #else
                 load_scale_zp(channel_base);
-                dec(b1_up_s8.format<int>().select<64, 1>(), b1_down_s8.format<int>().select<64, 1>(), b0);
+                dec(b1_up_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(), b1_down_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(), b0);
                 dot(a0, b0);
                 channel_base += BLOCK_REG_K;
                 #endif
@@ -838,7 +889,7 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
                 dot(a0, b0);
                 #else
                 load_scale_zp(channel_base);
-                dec(b1_up_s8.format<int>().select<64, 1>(64), b1_down_s8.format<int>().select<64, 1>(64), b0);
+                dec(b1_up_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(KEY_LINES_PER_LOAD * 4), b1_down_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(KEY_LINES_PER_LOAD * 4), b0);
                 dot(a0, b0);
                 channel_base += BLOCK_REG_K;
                 #endif
@@ -880,7 +931,7 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
                 dot(a0, b0);
                 #else
                 load_scale_zp(channel_base);
-                dec(b0_up_s8.format<int>().select<64, 1>(), b0_down_s8.format<int>().select<64, 1>(), b0);
+                    dec(b0_up_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(), b0_down_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(), b0);
                 dot(a0, b0);
                 channel_base += BLOCK_REG_K;
                 #endif
@@ -918,7 +969,7 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
                 dot(a0, b0);
                 #else
                 load_scale_zp(channel_base);
-                dec(b0_up_s8.format<int>().select<64, 1>(64), b0_down_s8.format<int>().select<64, 1>(64), b0);
+                    dec(b0_up_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(KEY_LINES_PER_LOAD * 4), b0_down_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(KEY_LINES_PER_LOAD * 4), b0);
                 dot(a0, b0);
                 channel_base += BLOCK_REG_K;
                 #endif
@@ -951,7 +1002,7 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
                 dot(a0, b0);
                 #else
                 load_scale_zp(channel_base);
-                dec(b0_up_s8.format<int>().select<64, 1>(), b0_down_s8.format<int>().select<64, 1>(), b0);
+                    dec(b0_up_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(), b0_down_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(), b0);
                 dot(a0, b0);
                 channel_base += BLOCK_REG_K;
                 #endif
@@ -989,7 +1040,7 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
                 dot(a0, b0);
                 #else
                 load_scale_zp(channel_base);
-                dec(b0_up_s8.format<int>().select<64, 1>(64), b0_down_s8.format<int>().select<64, 1>(64), b0);
+                    dec(b0_up_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(KEY_LINES_PER_LOAD * 4), b0_down_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(KEY_LINES_PER_LOAD * 4), b0);
                 dot(a0, b0);
                 channel_base += BLOCK_REG_K;
                 #endif
