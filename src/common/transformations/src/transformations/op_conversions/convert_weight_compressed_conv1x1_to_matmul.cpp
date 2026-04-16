@@ -236,13 +236,14 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
         // If the activation has a static leading dimension of 1, squeeze it.
         // This is done to allow pre-selection of OCL implementations for non-IMMAD devices, reducing memory pressure.
         bool squeeze_activation = false;
-        if (activation->get_output_partial_shape(0)[0].is_static() && activation->get_output_partial_shape(0)[0] == 1) {
+        auto act_pshape = activation->get_output_partial_shape(0);
+        if (act_pshape.rank().is_static() && act_pshape.rank().get_length() >= 4 && act_pshape[0].is_static() &&
+            act_pshape[0] == 1) {
             squeeze_activation = true;
-            auto shape_out = activation->get_output_partial_shape(0);
             auto squeeze_const =
                 std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                        ov::Shape{3},
-                                                       std::vector<int64_t>{1, -1, shape_out[-1].get_length()});
+                                                       std::vector<int64_t>{1, -1, act_pshape[-1].get_length()});
             auto squeeze = std::make_shared<ov::op::v1::Reshape>(activation, squeeze_const, false);
             ov::copy_runtime_info(activation, squeeze);
             squeeze->set_friendly_name(activation->get_friendly_name() + "_squeeze");
