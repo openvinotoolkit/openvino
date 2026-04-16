@@ -695,8 +695,6 @@ def run_python(ctx: CoverageContext) -> None:
     tests_dir = ctx.paths.install_pkg_dir / "tests"
     py_source_root = ctx.workspace / "src" / "bindings" / "python" / "src"
     py_source_dir = py_source_root / "openvino"
-    src_py_tests = ctx.workspace / "src" / "bindings" / "python" / "tests"
-    onnx_py_tests = ctx.workspace / "src" / "frontends" / "onnx" / "tests" / "tests_python"
     layer_tests = ctx.workspace / "tests" / "layer_tests"
     py_cov_config = ctx.workspace / ".python_coverage_ci.rc"
     python_coverage_debug_dir = ctx.workspace / ".tmp" / "python-coverage"
@@ -726,8 +724,6 @@ def run_python(ctx: CoverageContext) -> None:
     os.environ["PYTHONPATH"] = ":".join(entry for entry in python_path_entries if entry).rstrip(":")
     os.environ["PYTHONSAFEPATH"] = "1"
     os.environ["TESTS_DIR"] = str(tests_dir)
-    os.environ["SRC_PY_TESTS_DIR"] = str(src_py_tests)
-    os.environ["ONNX_PY_TESTS_DIR"] = str(onnx_py_tests)
     os.environ["WORKSPACE_LAYER_TESTS_DIR"] = str(layer_tests)
     os.environ["PY_COV_CONFIG"] = str(py_cov_config)
 
