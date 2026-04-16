@@ -327,7 +327,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                                                     &compatibilityString,
                                                     &compatibilityStringSize);
         if (result != VCL_RESULT_SUCCESS) {
-            OPENVINO_THROW("Compilation failed. vclAllocatedExecutableCreate2 result: 0x",
+            OPENVINO_THROW("Compilation failed. vclAllocatedExecutableCreate3 result: 0x",
                            std::hex,
                            uint64_t(result),
                            " - ",
