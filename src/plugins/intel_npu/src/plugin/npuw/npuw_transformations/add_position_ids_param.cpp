@@ -54,14 +54,14 @@ public:
             auto& pattern_to_output = m.at(cos).front();
 
             auto range_node = pattern_to_output.at(range).get_node_shared_ptr();
-
-            auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
+            auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1,-1});
             set_node_name(position_ids, "position_ids");
+            auto position_ids_squeezed = std::make_shared<ov::op::v0::Squeeze>(position_ids, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
 
             OPENVINO_ASSERT(range_node->get_output_size() == 1, "Range node should have exactly one output");
-            auto range_inputs = range_node->get_output_target_inputs(0);
-            for (auto&& input : range_inputs) {
-                input.replace_source_output(position_ids->output(0));
+            auto range_consumers = range_node->get_output_target_inputs(0);
+            for (auto&& consumer : range_consumers) {
+                consumer.replace_source_output(position_ids_squeezed->output(0));
             }
 
             new_params.push_back(position_ids);
@@ -79,8 +79,8 @@ public:
 
 bool ov::npuw::AddPositionIdsParam::run_on_model(const std::shared_ptr<ov::Model>& model) {
     ov::ParameterVector new_parameters;
-
     ov::pass::Manager manager("add-position-ids-param");
+    manager.set_per_pass_validation(false);
     manager.register_pass<PositionIdsMatcher>(new_parameters);
     OPENVINO_ASSERT(manager.run_passes(model), "Failed to find position_ids subgraph in the model");
 
