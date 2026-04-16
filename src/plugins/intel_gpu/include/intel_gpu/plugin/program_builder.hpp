@@ -139,11 +139,11 @@ public:
 
     bool use_new_shape_infer() const { return m_config.get_allow_new_shape_infer(); }
     bool is_inner_program() const { return m_is_inner_program; }
-    bool is_query_mode() { return queryMode; }
+    bool is_query_mode() const { return queryMode; }
 
     std::shared_ptr<ov::threading::IStreamsExecutor> get_task_executor() const { return m_task_executor; }
     std::shared_ptr<cldnn::ICompilationContext> get_compilation_context() const { return m_compilation_context; }
-    std::shared_ptr<ov::Model> get_model() { return m_model; }
+    std::shared_ptr<ov::Model> get_model() const { return m_model; }
 
 private:
     static factories_map_t factories_map;
