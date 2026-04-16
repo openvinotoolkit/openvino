@@ -48,10 +48,10 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
-      - name: Install git
-        run: |
-          apt-get update
-          apt-get install --assume-yes --no-install-recommends git ca-certificates
+#      - name: Install git
+#        run: |
+#          apt-get update
+#          apt-get install --assume-yes --no-install-recommends git ca-certificates
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
