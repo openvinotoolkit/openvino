@@ -78,6 +78,22 @@ protected:
     virtual bool append_node_attributes(ov::Node& node);
     virtual util::ConstantWriter& get_constant_write_handler();
 
+private:
+    class PostponedConstantWriter {
+        std::vector<std::tuple<std::reference_wrapper<util::ConstantWriter>,
+                               std::vector<std::string_view>,
+                               std::shared_ptr<uint8_t>>>
+            constants_to_write;
+
+    public:
+        void insert(pugi::xml_node& xml_node,
+                    std::reference_wrapper<util::ConstantWriter> writer,
+                    std::vector<std::string_view> chunks,
+                    std::shared_ptr<uint8_t> header);
+        void write_all(pugi::xml_node&);
+    };
+    std::shared_ptr<PostponedConstantWriter> m_postponed_constant_writer;
+
 public:
     XmlSerializer(pugi::xml_node& data,
                   const std::string& node_type_name,
