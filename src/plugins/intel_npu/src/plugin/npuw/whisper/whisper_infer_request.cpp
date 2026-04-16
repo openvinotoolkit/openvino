@@ -61,7 +61,7 @@ void ov::npuw::WhisperInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_i
     // for word-level timestamps
     auto decomposed_sdpa_size = m_npuw_llm_compiled_model->m_decomposed_sdpa_size;
     for (size_t idx = 0; idx < decomposed_sdpa_size; idx++) {
-        auto name = "cross_attention_qk_scaled_scores_" + std::to_string(idx);
+        auto name = whisper_layer_names::qk_scores_ + std::to_string(idx);
         m_alignment_tensors.insert({name, m_prefill_request->get_tensor(m_prefill_out_ports.at(name))});
     }
 
@@ -224,9 +224,9 @@ void ov::npuw::WhisperInferRequest::infer() {
 ov::SoPtr<ov::ITensor> ov::npuw::WhisperInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
     const auto& port_names = port.get_names();
 
-    if (port_names.count("cross_attention_qk_scaled_scores") > 0) {
+    if (port_names.count(whisper_layer_names::qk_scores) > 0) {
         for (auto name : port_names) {
-            if (name.find("cross_attention_qk_scaled_scores_") != std::string::npos) {
+            if (name.find(whisper_layer_names::qk_scores_) != std::string::npos) {
                 auto alignment_tensor = m_alignment_tensors.at(name);
                 if (!alignment_tensor) {
                     OPENVINO_THROW(

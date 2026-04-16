@@ -823,7 +823,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                 auto fake_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{});
                 auto fake_result = std::make_shared<ov::op::v0::Result>(fake_param);
                 fake_result->output(0).get_tensor().add_names(
-                    {"cross_attention_qk_scaled_scores", "cross_attention_qk_scaled_scores_" + std::to_string(idx)});
+                    {WhisperInferRequest::whisper_layer_names::qk_scores,
+                     WhisperInferRequest::whisper_layer_names::qk_scores_ + std::to_string(idx)});
 
                 mutable_outputs.emplace_back(fake_result->output(0));
             }

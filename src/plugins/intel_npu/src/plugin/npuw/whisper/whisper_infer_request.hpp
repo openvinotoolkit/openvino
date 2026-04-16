@@ -11,6 +11,11 @@ namespace npuw {
 
 class WhisperInferRequest final : public LLMInferRequest {
 public:
+    struct whisper_layer_names {
+        static constexpr const char* qk_scores = "cross_attention_qk_scaled_scores";
+        static constexpr const char* qk_scores_ = "cross_attention_qk_scaled_scores_";
+    };
+
     explicit WhisperInferRequest(const std::shared_ptr<LLMCompiledModel>& compiled_model)
         : LLMInferRequest(compiled_model) {}
 
