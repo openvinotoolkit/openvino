@@ -577,7 +577,7 @@ TEST_F(MoETransformationTest, BuildMoELLM_HasExpertAndRouterNodes) {
             has_reduce_sum = true;
         if (auto topk = std::dynamic_pointer_cast<ov::op::v11::TopK>(op)) {
             has_topk = true;
-            if (topk->get_friendly_name().find(".mlp.router") != std::string::npos) {
+            if (topk->get_friendly_name().find("router") != std::string::npos) {
                 EXPECT_EQ(topk->get_mode(), ov::op::v11::TopK::Mode::MAX);
                 topk_router_count++;
             }
