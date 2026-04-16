@@ -235,6 +235,7 @@ static PARepresentationContext prepare_sdpa_to_pa_representation(const std::shar
     manager.register_pass<TotalSequenceLengthPatternCodeGen2>(context.max_context_len);
     manager.register_pass<PositionIDsReplacer>(context.unsqueezed_position_ids);
     manager.register_pass<PositionIDsReplacerQwen>(context.unsqueezed_position_ids);
+    manager.register_pass<PositionIDsReplacerLFM2>(context.position_ids);
     manager.register_pass<PositionIDsReplacerCodeGen2>(context.position_ids);
     manager.run_passes(model);
 
