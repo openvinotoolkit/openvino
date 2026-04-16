@@ -37,6 +37,9 @@ jobs:
       - name: Switch Ubuntu APT sources to Azure mirrors
         if: runner.os == 'Linux'
         run: |
+          # compatible with both Ubuntu 22.04 and 24.04, which have different formats of sources.list files
+          touch /etc/apt/sources.list.d/ubuntu.sources
+          sed -i -E 's|http://(archive\|security).ubuntu.com/ubuntu|http://azure.archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list
           sed -i -E 's|http://(archive\|security).ubuntu.com/ubuntu|http://azure.archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
 
       - name: Download OpenVINO debian packages
