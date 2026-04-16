@@ -326,6 +326,62 @@ enum + switch — not the allocator, not the IR, not the lowering loop.
 
 ~100 lines.
 
+## Current implementation status
+
+The current implementation is intentionally narrower than the earlier
+"minimum" sketched above. The shipped pieces today are:
+
+- A nested-region IR (`IR` + `Op.body`) rather than an explicit block CFG.
+- `compute_intervals()` over the nested op tree, with loop-body interval
+  extension for values defined before a loop and used inside it.
+- A **separate pressure-repair pass**:
+  `rematerialize_for_pressure(IR&, intervals, pool_size)`.
+- A **plain linear-scan allocator**:
+  `linear_scan(IR&, intervals, pool_size)`, with no in-scan IR mutation.
+- Mechanical lowering in `jit_kernel::end_ir()`:
+  1. compute intervals
+  2. run zero or more pressure-repair rewrites
+  3. recompute intervals after each rewrite
+  4. run final allocation
+  5. lower mechanically
+
+This is an explicit design choice. LLVM-style integrated remat/spill is
+powerful, but it depends on heavier backend infrastructure
+(CFG/dominance/liveness repair/live-range splitting/incremental interval
+updates). The current `jit_kernel` IR does not yet have that machinery,
+so the implementation favors **whole-pass recomputation** after each IR
+rewrite instead of incremental repair inside the allocator.
+
+### Current rematerialization policy
+
+The current rematerialization pass is intentionally conservative:
+
+- Candidates are only trivially rematerializable defs — currently ops
+  whose defining `Op` has empty `reads` (constants, broadcasts, zero-like
+  defs).
+- The pass rewrites **one victim per invocation**.
+- The remat clone is inserted immediately before the first later use.
+- Rewriting is limited to a **same-list suffix**:
+  only later ops in the exact same `std::list<Op>` as that first use are
+  rewritten to the clone.
+- No rewrite crosses:
+  - sibling branch bodies
+  - parent lists
+  - nested child-region bodies
+  - loop wraparound / cross-iteration uses
+
+This is weaker than the earlier range-based remat prototype, but it is
+substantially easier to reason about. It avoids the original class of
+miscompilations where a flat op-index rewrite range tried to model
+future uses across loops and regions.
+
+The tradeoff is explicit:
+
+- **Old aggressive remat**: enough pressure relief for some kernels, but
+  semantically unsafe.
+- **Current same-list remat**: semantically safer, but may still be too
+  weak to make the heaviest kernels fit.
+
 ### Line count total
 
 ~500 lines for the core: recording (~100), liveness (~80), intervals
@@ -392,6 +448,71 @@ future extensions are additive rather than rewrites.
 
 5. **Lowering is mechanical substitution only.** Walk IR, call
    `emit(regs)`. No allocator state reads in this pass.
+
+## Remat expansion plan
+
+The current same-list suffix policy is the correctness baseline. Planned
+expansion should proceed in increasing order of semantic difficulty:
+
+1. **Sibling branches via separate per-branch remats**
+   - What it means:
+     If a value is first needed in multiple sibling branch bodies, insert
+     separate remats in each branch rather than trying to share one clone.
+   - Why this is the next step:
+     It preserves path locality and avoids cross-branch dominance
+     reasoning.
+   - Main risk:
+     code-size growth, not correctness.
+
+2. **Local child-region remat when first used there**
+   - What it means:
+     If a later use occurs inside a nested child region, remat inside
+     that child at the first use there instead of trying to rewrite from
+     the parent.
+   - Why this is still relatively safe:
+     the clone remains local to one region body.
+   - Main risk:
+     duplicated remats across many child regions.
+
+3. **Careful parent-list hoisting on one straight-line path**
+   - What it means:
+     If uses occur in a parent list after a nested region, allow remat
+     placement in the parent list when the rewritten uses stay on one
+     straight-line path dominated by that insertion point.
+   - Why it is harder:
+     remat placement and rewritten uses are no longer in the same list.
+   - Main risk:
+     accidentally lengthening the clone so much that the pressure win
+     disappears.
+
+4. **Nested cross-region shared remat**
+   - What it means:
+     One clone serves uses across multiple nested regions / structured
+     paths.
+   - Why it is much harder:
+     now real dominance/path reasoning is needed.
+   - Main risk:
+     the transformation becomes CFG-sensitive and starts resembling true
+     live-range splitting rather than local repair.
+
+5. **Loop wraparound / cross-iteration remat**
+   - What it means:
+     Use a clone inserted at one loop-body position to serve uses that
+     are only "later" in runtime because they occur in the next
+     iteration.
+   - Why it is the hardest case:
+     flat body op indices do not encode iteration number. "Earlier in the
+     loop body" and "later in the next iteration" are distinct runtime
+     concepts that the current IR does not model.
+   - Main risk:
+     this is exactly the class of bug that caused the original wrong
+     answers. Do not reintroduce it without explicit loop/backedge
+     semantics.
+
+In practice, implementation should likely stop at steps 1-3 unless a
+measured kernel clearly requires more. Step 5 in particular should be
+treated as "requires new IR/analysis machinery", not as a small policy
+tweak.
 
 ## Extensibility — what lands incrementally
 

@@ -32,6 +32,17 @@ namespace {
 template <typename RegType>
 using registers = std::array<std::reference_wrapper<const RegType>, 16>;
 
+bool ir_trace_enabled() {
+    return std::getenv("OV_JIT_IR_TRACE") != nullptr;
+}
+
+void ir_trace(const std::string& msg) {
+    if (!ir_trace_enabled()) {
+        return;
+    }
+    std::cout << "[jit_kernel_ir] " << msg << "\n";
+}
+
 bool isRegAllocable(int id) {
     return id != abi_param1.getIdx()     // function argument
            && id != Operand::Code::RSP;  // stack pointer
@@ -551,29 +562,35 @@ void jit_kernel::begin_ir() {
 void jit_kernel::end_ir() {
     if (!_ir_mode) return;
 
-    // Allocate: compute_intervals walks the tree recursively.
-    auto intervals = jit_kernel_ir::compute_intervals(*_ir);
+    // Allocate: compute_live_ranges walks the tree recursively.
+    auto ranges = jit_kernel_ir::compute_live_ranges(*_ir);
     const auto pool_size = static_cast<std::uint32_t>(_free_rmmregs.size());
 
     if (std::getenv("OV_JIT_IR_DUMP")) {
         std::ostringstream os;
         os << "=== IR before allocation: pool_size=" << pool_size
-           << " values=" << intervals.size() << " ===\n";
+           << " values=" << ranges.size() << " ===\n";
         jit_kernel_ir::dump_ops(os, *_ir);
-        os << "--- intervals ---\n";
-        jit_kernel_ir::dump_assignment(os, intervals, jit_kernel_ir::Assignment{});
+        os << "--- live ranges ---\n";
+        jit_kernel_ir::dump_assignment(os, ranges, jit_kernel_ir::Assignment{});
         std::cout << os.str();
     }
 
-    const auto assignment = jit_kernel_ir::linear_scan(*_ir, intervals, pool_size);
+    if (std::getenv("OV_JIT_IR_DISABLE_REMAT") == nullptr) {
+        while (jit_kernel_ir::rematerialize_for_pressure(*_ir, ranges, pool_size)) {
+            ranges = jit_kernel_ir::compute_live_ranges(*_ir);
+        }
+    }
+
+    const auto assignment = jit_kernel_ir::linear_scan(*_ir, ranges, pool_size);
 
     if (std::getenv("OV_JIT_IR_DUMP")) {
         std::ostringstream os;
         os << "=== IR allocation: pool_size=" << pool_size
            << " peak_live=" << assignment.peak_live
-           << " values=" << intervals.size() << " ===\n";
+           << " values=" << ranges.size() << " ===\n";
         jit_kernel_ir::dump_ops(os, *_ir);
-        jit_kernel_ir::dump_assignment(os, intervals, assignment);
+        jit_kernel_ir::dump_assignment(os, ranges, assignment);
         std::cout << os.str();
     }
 
@@ -584,10 +601,12 @@ void jit_kernel::end_ir() {
         for (const auto& op : ops) {
             if (op.body) {
                 // Loop op: emit header, lower body (footer is last body op)
+                ir_trace(std::string("lower ") + (op.is_loop ? "loop" : "region") + " enter");
                 std::vector<jit_kernel_ir::PhysReg> no_reads;
                 const jit_kernel_ir::EmitContext ctx{std::nullopt, no_reads};
                 op.emit(ctx);
                 lower(op.body->ops());
+                ir_trace(std::string("lower ") + (op.is_loop ? "loop" : "region") + " exit");
             } else {
                 std::vector<jit_kernel_ir::PhysReg> read_regs;
                 read_regs.reserve(op.reads.size());
@@ -597,6 +616,27 @@ void jit_kernel::end_ir() {
                 std::optional<jit_kernel_ir::PhysReg> def_reg;
                 if (op.def != jit_kernel_ir::invalid_value) {
                     def_reg = assignment.reg.at(op.def);
+                }
+                if (ir_trace_enabled()) {
+                    std::ostringstream os;
+                    os << "lower op";
+                    if (op.name[0]) {
+                        os << " name=" << op.name;
+                    }
+                    if (op.def != jit_kernel_ir::invalid_value) {
+                        os << " def=%" << op.def << "->p" << def_reg->idx;
+                    } else {
+                        os << " def=-";
+                    }
+                    os << " reads=[";
+                    for (std::size_t i = 0; i < op.reads.size(); ++i) {
+                        if (i != 0) {
+                            os << ", ";
+                        }
+                        os << "%" << op.reads[i] << "->p" << read_regs[i].idx;
+                    }
+                    os << "]";
+                    ir_trace(os.str());
                 }
                 const jit_kernel_ir::EmitContext ctx{def_reg, read_regs};
                 op.emit(ctx);

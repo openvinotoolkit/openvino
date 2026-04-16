@@ -135,25 +135,41 @@ private:
     value_id _next_value = 0;
 };
 
-// Live interval for a single value id. Half-open convention: the value is
-// live at op indices [start, end] inclusive.
-//   - start = op index where the value is defined.
-//   - end   = op index of the last read, or start if the value is never read.
-struct Interval {
-    value_id id = invalid_value;
+// A contiguous [start, end] range within a LiveRange. LLVM naming.
+struct Segment {
     std::uint32_t start = 0;
     std::uint32_t end = 0;
-    value_id copy_of = invalid_value;  // source value if this is a copy op
-
-    [[nodiscard]] bool covers(std::uint32_t op_index) const noexcept {
-        return op_index >= start && op_index <= end;
-    }
 };
 
-// Interval construction. Walks the op tree recursively — loop bodies are
-// traversed inline and intervals of values live inside a loop are extended
-// to cover the full loop body.
-std::vector<Interval> compute_intervals(const IR& ir);
+// Live range for a single value id — a sorted list of non-overlapping
+// Segments. Replaces the old flat Interval. LLVM naming.
+//
+// For straight-line code each value has one segment. Sibling branch bodies
+// (then/else) produce separate segments for the same value, preserving
+// per-branch liveness information.
+struct LiveRange {
+    value_id id = invalid_value;
+    std::vector<Segment> segments;  // sorted by start, non-overlapping
+    value_id copy_of = invalid_value;  // source value if this is a copy op
+
+    // First segment's start. Returns max uint32 if empty (not yet defined).
+    [[nodiscard]] std::uint32_t beginIndex() const noexcept;
+    // Last segment's end. Returns 0 if empty.
+    [[nodiscard]] std::uint32_t endIndex() const noexcept;
+    // True if `index` falls within any segment.
+    [[nodiscard]] bool liveAt(std::uint32_t index) const noexcept;
+    // Insert a segment, maintaining sorted order. Merges overlapping
+    // segments but NOT merely adjacent ones (preserves branch boundaries).
+    void addSegment(Segment s);
+    // True if no segments exist.
+    [[nodiscard]] bool empty() const noexcept;
+};
+
+// Live range construction. Walks the op tree recursively — loop bodies are
+// traversed inline and ranges of values live inside a loop are extended
+// to cover the full loop body. Sibling branch bodies produce separate
+// segments for values used in different branches.
+std::vector<LiveRange> compute_live_ranges(const IR& ir);
 
 // Result of linear scan.
 struct Assignment {
@@ -169,24 +185,29 @@ public:
     using std::runtime_error::runtime_error;
 };
 
-// Pass 3: linear scan (Poletto & Sarkar 1999) with trivial coalescing
-// and rematerialization. When the pool overflows, evicts a rematerializable
-// value (empty reads) and clones its def op before the next use.
-// Mutates `ir` to insert remat ops.
+// Pressure-repair pass: rewrites the IR by inserting one local single-use
+// rematerialization when peak pressure exceeds `pool_size`.
+// Returns true iff the IR was rewritten.
+bool rematerialize_for_pressure(IR& ir,
+                                const std::vector<LiveRange>& ranges,
+                                std::uint32_t pool_size);
+
+// Pass 3: plain linear scan (Poletto & Sarkar 1999) with trivial coalescing.
+// Assumes any optional pressure-repair pass already ran.
 Assignment linear_scan(IR& ir,
-                       std::vector<Interval>& intervals,
+                       std::vector<LiveRange>& ranges,
                        std::uint32_t pool_size);
 
 // Debug helper: text dump of the op stream. Used by IR::dump and by tests
 // to eyeball what was recorded.
 void dump_ops(std::ostream& os, const IR& ir);
 
-// Debug helper: dump intervals and their assigned physical registers.
-// Prints "id: [start, end] -> pN" per value. If a value is missing from the
-// assignment map (e.g. because allocation failed before it was processed),
+// Debug helper: dump live ranges and their assigned physical registers.
+// Prints "id: [start, end] ... -> pN" per value. If a value is missing from
+// the assignment map (e.g. because allocation failed before it was processed),
 // prints "unassigned".
 void dump_assignment(std::ostream& os,
-                     const std::vector<Interval>& intervals,
+                     const std::vector<LiveRange>& ranges,
                      const Assignment& assignment);
 
 }  // namespace ov::intel_cpu::jit_kernel_ir

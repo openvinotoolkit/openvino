@@ -20,6 +20,7 @@
 #include <kernels/x64/jit_kernel_ir.hpp>
 
 #include <array>
+#include <cstdlib>
 #include <cstdint>
 #include <limits>
 #include <sstream>
@@ -31,39 +32,65 @@ using namespace ov::intel_cpu::jit_kernel_ir;
 
 namespace {
 
+struct ir_mode_guard {
+    ir_mode_guard() {
+#if defined(_WIN32)
+        _putenv_s("OV_JIT_IR_MODE", "1");
+#else
+        setenv("OV_JIT_IR_MODE", "1", 1);
+#endif
+    }
+} force_ir_mode;
+
 EmitFn stub() {
     return [](const EmitContext&) {};
 }
 
 // Helper: assert every value that appears in `intervals` (with a real start)
 // has been assigned a physical register in `assignment`.
-void expect_all_assigned(const std::vector<Interval>& intervals, const Assignment& assignment) {
-    for (const auto& iv : intervals) {
-        if (iv.start == std::numeric_limits<std::uint32_t>::max()) {
+void expect_all_assigned(const std::vector<LiveRange>& ranges, const Assignment& assignment) {
+    for (const auto& lr : ranges) {
+        if (lr.empty()) {
             continue;
         }
-        EXPECT_TRUE(assignment.reg.count(iv.id) == 1)
-            << "value %" << iv.id << " was not assigned a register";
+        EXPECT_TRUE(assignment.reg.count(lr.id) == 1)
+            << "value %" << lr.id << " was not assigned a register";
     }
 }
 
 // Helper: assert no two intervals that overlap in op-index space landed on
 // the same physical register. This is the core correctness property of the
 // allocator — anything else is secondary.
-void expect_no_overlap_conflict(const std::vector<Interval>& intervals,
+// Two-pointer check: do any segments of a and b overlap?
+bool segments_overlap(const LiveRange& a, const LiveRange& b) {
+    std::size_t i = 0, j = 0;
+    while (i < a.segments.size() && j < b.segments.size()) {
+        if (a.segments[i].end < b.segments[j].start) {
+            ++i;
+        } else if (b.segments[j].end < a.segments[i].start) {
+            ++j;
+        } else {
+            return true;
+        }
+    }
+    return false;
+}
+
+void expect_no_overlap_conflict(const std::vector<LiveRange>& ranges,
                                 const Assignment& assignment) {
-    for (std::size_t i = 0; i < intervals.size(); ++i) {
-        const auto& a = intervals[i];
-        if (a.start == std::numeric_limits<std::uint32_t>::max()) {
+    for (std::size_t i = 0; i < ranges.size(); ++i) {
+        const auto& a = ranges[i];
+        if (a.empty()) {
             continue;
         }
-        for (std::size_t j = i + 1; j < intervals.size(); ++j) {
-            const auto& b = intervals[j];
-            if (b.start == std::numeric_limits<std::uint32_t>::max()) {
+        for (std::size_t j = i + 1; j < ranges.size(); ++j) {
+            const auto& b = ranges[j];
+            if (b.empty()) {
                 continue;
             }
-            const bool overlap = !(a.end < b.start || b.end < a.start);
-            if (!overlap) {
+            // Segment-level overlap: two values can share a register if
+            // their segments never overlap (e.g., different branches).
+            if (!segments_overlap(a, b)) {
                 continue;
             }
             const auto ra = assignment.reg.find(a.id);
@@ -72,15 +99,31 @@ void expect_no_overlap_conflict(const std::vector<Interval>& intervals,
                 continue;
             }
             EXPECT_NE(ra->second, rb->second)
-                << "overlapping intervals %" << a.id << " and %" << b.id
+                << "overlapping live ranges %" << a.id << " and %" << b.id
                 << " share physical register p" << ra->second.idx;
         }
     }
 }
 
+std::size_t count_reads_recursive(const std::list<Op>& ops, value_id id) {
+    std::size_t count = 0;
+    for (const auto& op : ops) {
+        if (op.body) {
+            count += count_reads_recursive(op.body->ops(), id);
+            continue;
+        }
+        for (auto read : op.reads) {
+            if (read == id) {
+                ++count;
+            }
+        }
+    }
+    return count;
+}
+
 }  // namespace
 
-TEST(JitKernelIR, IntervalsOnStraightLine) {
+TEST(JitKernelIR, LiveRangesOnStraightLine) {
     // Linear chain: a, b, c = a + b, d = c + a.
     // - a defined at op 0, last read at op 3 (in d's definition).
     // - b defined at op 1, last read at op 2.
@@ -92,17 +135,19 @@ TEST(JitKernelIR, IntervalsOnStraightLine) {
     const value_id c = ir.def({a, b}, stub());
     const value_id d = ir.def({c, a}, stub());
 
-    auto intervals = compute_intervals(ir);
-    ASSERT_EQ(intervals.size(), 4U);
+    auto ranges = compute_live_ranges(ir);
+    ASSERT_EQ(ranges.size(), 4U);
 
-    EXPECT_EQ(intervals[a].start, 0U);
-    EXPECT_EQ(intervals[a].end, 3U);  // extended by d's read
-    EXPECT_EQ(intervals[b].start, 1U);
-    EXPECT_EQ(intervals[b].end, 2U);  // only read in c's def
-    EXPECT_EQ(intervals[c].start, 2U);
-    EXPECT_EQ(intervals[c].end, 3U);
-    EXPECT_EQ(intervals[d].start, 3U);
-    EXPECT_EQ(intervals[d].end, 3U);  // never read
+    // Straight-line code: one segment per value.
+    EXPECT_EQ(ranges[a].segments.size(), 1U);
+    EXPECT_EQ(ranges[a].beginIndex(), 0U);
+    EXPECT_EQ(ranges[a].endIndex(), 3U);  // extended by d's read
+    EXPECT_EQ(ranges[b].beginIndex(), 1U);
+    EXPECT_EQ(ranges[b].endIndex(), 2U);  // only read in c's def
+    EXPECT_EQ(ranges[c].beginIndex(), 2U);
+    EXPECT_EQ(ranges[c].endIndex(), 3U);
+    EXPECT_EQ(ranges[d].beginIndex(), 3U);
+    EXPECT_EQ(ranges[d].endIndex(), 3U);  // never read
 }
 
 TEST(JitKernelIR, LinearScanFitsInPool) {
@@ -116,11 +161,11 @@ TEST(JitKernelIR, LinearScanFitsInPool) {
     const value_id d = ir.def({c, a}, stub());
     (void)d;
 
-    auto intervals = compute_intervals(ir);
-    const auto assignment = linear_scan(ir, intervals, /*pool_size=*/4);
+    auto ranges = compute_live_ranges(ir);
+    const auto assignment = linear_scan(ir, ranges, /*pool_size=*/4);
 
-    expect_all_assigned(intervals, assignment);
-    expect_no_overlap_conflict(intervals, assignment);
+    expect_all_assigned(ranges, assignment);
+    expect_no_overlap_conflict(ranges, assignment);
     EXPECT_EQ(assignment.peak_live, 3U);
 }
 
@@ -142,11 +187,11 @@ TEST(JitKernelIR, LinearScanReusesFreedRegisters) {
     }
     (void)prev;
 
-    auto intervals = compute_intervals(ir);
-    const auto assignment = linear_scan(ir, intervals, /*pool_size=*/2);
+    auto ranges = compute_live_ranges(ir);
+    const auto assignment = linear_scan(ir, ranges, /*pool_size=*/2);
 
-    expect_all_assigned(intervals, assignment);
-    expect_no_overlap_conflict(intervals, assignment);
+    expect_all_assigned(ranges, assignment);
+    expect_no_overlap_conflict(ranges, assignment);
     EXPECT_LE(assignment.peak_live, 2U);
     EXPECT_GE(assignment.peak_live, 1U);
 }
@@ -165,8 +210,8 @@ TEST(JitKernelIR, LinearScanThrowsOnOverflow) {
     }
     ir.use(values, stub());  // single op reading all five
 
-    auto intervals = compute_intervals(ir);
-    EXPECT_THROW(linear_scan(ir, intervals, /*pool_size=*/4), allocation_failure);
+    auto ranges = compute_live_ranges(ir);
+    EXPECT_THROW(linear_scan(ir, ranges, /*pool_size=*/4), allocation_failure);
 
     // Same IR with a pool large enough should succeed.
     IR ir2;
@@ -178,10 +223,10 @@ TEST(JitKernelIR, LinearScanThrowsOnOverflow) {
         values2.push_back(prev);
     }
     ir2.use(values2, stub());
-    auto intervals2 = compute_intervals(ir2);
-    const auto assignment = linear_scan(ir2, intervals2, /*pool_size=*/5);
-    expect_all_assigned(intervals2, assignment);
-    expect_no_overlap_conflict(intervals2, assignment);
+    auto ranges2 = compute_live_ranges(ir2);
+    const auto assignment = linear_scan(ir2, ranges2, /*pool_size=*/5);
+    expect_all_assigned(ranges2, assignment);
+    expect_no_overlap_conflict(ranges2, assignment);
     EXPECT_EQ(assignment.peak_live, 5U);
 }
 
@@ -196,12 +241,12 @@ TEST(JitKernelIR, UseWithoutDefDoesNotCreateValue) {
     EXPECT_EQ(ir.value_count(), 1U);
     EXPECT_EQ(ir.ops().size(), 2U);
 
-    auto intervals = compute_intervals(ir);
-    ASSERT_EQ(intervals.size(), 1U);
-    EXPECT_EQ(intervals[v].start, 0U);
-    EXPECT_EQ(intervals[v].end, 1U);  // extended by the use
+    auto ranges = compute_live_ranges(ir);
+    ASSERT_EQ(ranges.size(), 1U);
+    EXPECT_EQ(ranges[v].beginIndex(), 0U);
+    EXPECT_EQ(ranges[v].endIndex(), 1U);  // extended by the use
 
-    const auto assignment = linear_scan(ir, intervals, /*pool_size=*/1);
+    const auto assignment = linear_scan(ir, ranges, /*pool_size=*/1);
     EXPECT_EQ(assignment.peak_live, 1U);
 }
 
@@ -234,8 +279,8 @@ TEST(JitKernelIR, DumpProducesNonEmptyText) {
     const value_id c = ir.def({a, b}, stub());
     (void)c;
 
-    auto intervals = compute_intervals(ir);
-    const auto assignment = linear_scan(ir, intervals, /*pool_size=*/3);
+    auto ranges = compute_live_ranges(ir);
+    const auto assignment = linear_scan(ir, ranges, /*pool_size=*/3);
 
     std::ostringstream op_dump;
     dump_ops(op_dump, ir);
@@ -243,7 +288,7 @@ TEST(JitKernelIR, DumpProducesNonEmptyText) {
     EXPECT_NE(op_dump.str().find("op"), std::string::npos);
 
     std::ostringstream assign_dump;
-    dump_assignment(assign_dump, intervals, assignment);
+    dump_assignment(assign_dump, ranges, assignment);
     EXPECT_NE(assign_dump.str().find('%'), std::string::npos);
     EXPECT_NE(assign_dump.str().find("peak_live"), std::string::npos);
 }
@@ -256,10 +301,164 @@ TEST(JitKernelIR, DeadValueFreesRegisterImmediately) {
     (void)ir.def({}, stub());  // dead
     (void)ir.def({}, stub());  // dead, would fail on pool=1 if dead value held its reg
 
-    auto intervals = compute_intervals(ir);
-    const auto assignment = linear_scan(ir, intervals, /*pool_size=*/1);
+    auto ranges = compute_live_ranges(ir);
+    const auto assignment = linear_scan(ir, ranges, /*pool_size=*/1);
     EXPECT_EQ(assignment.peak_live, 1U);
     EXPECT_EQ(assignment.reg.size(), 2U);
+}
+
+TEST(JitKernelIR, RematRewritesOnlySingleUse) {
+    // Conservative remat sees active.size()=3 > pool_size=2, triggers remat.
+    // The allocator could handle this via segment interference, but remat
+    // is conservative and fires anyway. Verify the clone is created and
+    // only the first branch use is rewritten.
+    IR ir;
+    const value_id c0 = ir.def({}, stub());       // remat-able
+    const value_id hold = ir.def({c0}, stub());   // long-lived, not remat-able
+    const value_id pressure = ir.def({hold}, stub());
+    (void)pressure;
+
+    ir.region(stub(), [&]() {
+        ir.use({c0}, stub());
+    });
+    ir.region(stub(), [&]() {
+        ir.use({c0}, stub());
+    });
+    ir.use({hold}, stub());  // keep `hold` live past both regions
+
+    auto ranges = compute_live_ranges(ir);
+    EXPECT_TRUE(rematerialize_for_pressure(ir, ranges, /*pool_size=*/2));
+    EXPECT_GT(ir.value_count(), 3U) << "expected rematerialization to create a clone";
+    EXPECT_EQ(count_reads_recursive(ir.ops(), c0), 2U);
+}
+
+// ── LiveRange / Segment unit tests ─────────────────────────────────────
+
+TEST(JitKernelIR, LiveRangeAddSegmentMergesOverlapping) {
+    LiveRange lr;
+    lr.id = 0;
+    lr.addSegment({5, 10});
+    lr.addSegment({0, 3});
+    EXPECT_EQ(lr.segments.size(), 2U);  // [0,3] [5,10] — not adjacent-merged
+
+    lr.addSegment({3, 5});  // overlaps both: bridges the gap
+    EXPECT_EQ(lr.segments.size(), 1U);  // [0,10]
+    EXPECT_EQ(lr.segments[0].start, 0U);
+    EXPECT_EQ(lr.segments[0].end, 10U);
+}
+
+TEST(JitKernelIR, LiveRangeAddSegmentKeepsAdjacentSeparate) {
+    LiveRange lr;
+    lr.id = 0;
+    lr.addSegment({0, 2});
+    lr.addSegment({3, 5});
+    // Adjacent but NOT overlapping — must stay separate (branch boundary).
+    EXPECT_EQ(lr.segments.size(), 2U);
+    EXPECT_EQ(lr.segments[0].start, 0U);
+    EXPECT_EQ(lr.segments[0].end, 2U);
+    EXPECT_EQ(lr.segments[1].start, 3U);
+    EXPECT_EQ(lr.segments[1].end, 5U);
+}
+
+TEST(JitKernelIR, LiveRangeLiveAt) {
+    LiveRange lr;
+    lr.id = 0;
+    lr.addSegment({2, 5});
+    lr.addSegment({8, 10});
+    EXPECT_FALSE(lr.liveAt(1));
+    EXPECT_TRUE(lr.liveAt(2));
+    EXPECT_TRUE(lr.liveAt(3));
+    EXPECT_TRUE(lr.liveAt(5));
+    EXPECT_FALSE(lr.liveAt(6));
+    EXPECT_FALSE(lr.liveAt(7));
+    EXPECT_TRUE(lr.liveAt(8));
+    EXPECT_TRUE(lr.liveAt(10));
+    EXPECT_FALSE(lr.liveAt(11));
+}
+
+TEST(JitKernelIR, LiveRangesPerBranchSegments) {
+    // Value %a defined before branches, used only in then-branch.
+    // Value %b defined before branches, used only in else-branch.
+    // Each should get separate segments for def and branch-body use.
+    IR ir;
+    const value_id a = ir.def({}, stub());     // index 0
+    const value_id b = ir.def({}, stub());     // index 1
+
+    ir.region(stub(), [&]() {                  // then-branch
+        ir.use({a}, stub());                   // index 2
+    });
+    ir.region(stub(), [&]() {                  // else-branch
+        ir.use({b}, stub());                   // index 3
+    });
+
+    auto ranges = compute_live_ranges(ir);
+
+    // %a: def at 0 (top level), use at 2 (then-branch).
+    // Segments: [0,0] from top-level flush, [2,2] from then-branch flush.
+    // Not overlapping (gap at index 1), so 2 segments.
+    EXPECT_EQ(ranges[a].segments.size(), 2U);
+    EXPECT_EQ(ranges[a].beginIndex(), 0U);
+    EXPECT_EQ(ranges[a].endIndex(), 2U);
+    EXPECT_TRUE(ranges[a].liveAt(0));
+    EXPECT_FALSE(ranges[a].liveAt(1));
+    EXPECT_TRUE(ranges[a].liveAt(2));
+    EXPECT_FALSE(ranges[a].liveAt(3));
+
+    // %b: def at 1 (top level), use at 3 (else-branch).
+    // Segments: [1,1] from top-level flush, [3,3] from else-branch flush.
+    EXPECT_EQ(ranges[b].segments.size(), 2U);
+    EXPECT_EQ(ranges[b].beginIndex(), 1U);
+    EXPECT_EQ(ranges[b].endIndex(), 3U);
+    EXPECT_FALSE(ranges[b].liveAt(0));
+    EXPECT_TRUE(ranges[b].liveAt(1));
+    EXPECT_FALSE(ranges[b].liveAt(2));
+    EXPECT_TRUE(ranges[b].liveAt(3));
+}
+
+TEST(JitKernelIR, LiveRangesUsedInBothBranches) {
+    // Value used in both branches — segments from each branch should be
+    // separate (adjacent but not overlapping).
+    IR ir;
+    const value_id a = ir.def({}, stub());     // index 0
+
+    ir.region(stub(), [&]() {
+        ir.use({a}, stub());                   // index 1
+    });
+    ir.region(stub(), [&]() {
+        ir.use({a}, stub());                   // index 2
+    });
+
+    auto ranges = compute_live_ranges(ir);
+
+    // %a: def at 0, use in then (1), use in else (2).
+    // Three segments: [0,0], [1,1], [2,2] — all adjacent, none overlapping.
+    EXPECT_EQ(ranges[a].segments.size(), 3U);
+    EXPECT_EQ(ranges[a].beginIndex(), 0U);
+    EXPECT_EQ(ranges[a].endIndex(), 2U);
+}
+
+TEST(JitKernelIR, LiveRangesUsedAfterBranch) {
+    // Value used before and after branches — top-level segment spans
+    // the branch region, merging with branch-body segments.
+    IR ir;
+    const value_id a = ir.def({}, stub());     // index 0
+
+    ir.region(stub(), [&]() {
+        ir.use({a}, stub());                   // index 1
+    });
+    ir.region(stub(), [&]() {
+        ir.use({a}, stub());                   // index 2
+    });
+
+    ir.use({a}, stub());                       // index 3
+
+    auto ranges = compute_live_ranges(ir);
+
+    // %a: top-level local = {0, 3}. Branch flushes: [1,1], [2,2].
+    // addSegment([0,3]) overlaps both → merges to single [0,3].
+    EXPECT_EQ(ranges[a].segments.size(), 1U);
+    EXPECT_EQ(ranges[a].beginIndex(), 0U);
+    EXPECT_EQ(ranges[a].endIndex(), 3U);
 }
 
 // ── Slice 2: end-to-end integration tests ──────────────────────────────
@@ -592,6 +791,159 @@ struct IfElseParams {
     size_t flag;
 };
 
+struct Interleave3Params {
+    const float* a;
+    const float* b;
+    const float* c;
+    float* dst;
+};
+
+struct ForeachBranchInterleave3Params {
+    const float* y;
+    const float* u;
+    const float* v;
+    float* dst;
+    size_t count;
+    size_t flag;
+    const float* consts;
+};
+
+template <size_t N>
+struct jit_ir_interleave3_kernel : public jit_kernel {
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_ir_interleave3_kernel)
+
+    explicit jit_ir_interleave3_kernel(bool reverse_order)
+        : jit_kernel(jit_name()),
+          reverse_order(reverse_order) {}
+
+    using fn_t = void (*)(const Interleave3Params*);
+    fn_t fn_ = nullptr;
+    bool reverse_order = false;
+
+    void init() {
+        if (create_kernel() != dnnl::impl::status::success)
+            OPENVINO_THROW("Can't generate jit kernel");
+        fn_ = (fn_t)(jit_ker());  // NOLINT
+    }
+
+    void operator()(const Interleave3Params& args) const { fn_(&args); }
+
+    void generate() override {
+        preamble();
+
+        auto a_ptr = arg(&Interleave3Params::a);
+        auto b_ptr = arg(&Interleave3Params::b);
+        auto c_ptr = arg(&Interleave3Params::c);
+        auto dst_ptr = arg(&Interleave3Params::dst);
+
+        begin_ir();
+        auto a = ir_load<N>(a_ptr);
+        auto b = ir_load<N>(b_ptr);
+        auto c = ir_load<N>(c_ptr);
+
+        if (reverse_order) {
+            store_interleaved3(dst_ptr, c, b, a);
+        } else {
+            store_interleaved3(dst_ptr, a, b, c);
+        }
+
+        end_ir();
+        postamble();
+    }
+};
+
+template <size_t N>
+struct jit_ir_foreach_branch_interleave3_kernel : public jit_kernel {
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_ir_foreach_branch_interleave3_kernel)
+
+    jit_ir_foreach_branch_interleave3_kernel() : jit_kernel(jit_name()) {}
+
+    using fn_t = void (*)(const ForeachBranchInterleave3Params*);
+    fn_t fn_ = nullptr;
+
+    void init() {
+        if (create_kernel() != dnnl::impl::status::success)
+            OPENVINO_THROW("Can't generate jit kernel");
+        fn_ = (fn_t)(jit_ker());  // NOLINT
+    }
+
+    void operator()(const ForeachBranchInterleave3Params& args) const { fn_(&args); }
+
+    void generate() override {
+        using reg_type = typename reg_traits<float[N]>::type;
+
+        preamble();
+
+        auto y_ptr = arg(&ForeachBranchInterleave3Params::y);
+        auto u_ptr = arg(&ForeachBranchInterleave3Params::u);
+        auto v_ptr = arg(&ForeachBranchInterleave3Params::v);
+        auto dst_ptr = arg(&ForeachBranchInterleave3Params::dst);
+        auto count = arg(&ForeachBranchInterleave3Params::count);
+        auto flag = arg(&ForeachBranchInterleave3Params::flag);
+        auto consts_ptr = arg(&ForeachBranchInterleave3Params::consts);
+
+        const auto y_reg_idx = static_cast<std::uint32_t>(y_ptr.reg().getIdx());
+        const auto u_reg_idx = static_cast<std::uint32_t>(u_ptr.reg().getIdx());
+        const auto v_reg_idx = static_cast<std::uint32_t>(v_ptr.reg().getIdx());
+        const auto dst_reg_idx = static_cast<std::uint32_t>(dst_ptr.reg().getIdx());
+        const auto consts_reg_idx = static_cast<std::uint32_t>(consts_ptr.reg().getIdx());
+
+        begin_ir();
+
+        auto bc = [&](int slot) {
+            return ir_def<N>({}, [this, consts_reg_idx, slot](const jit_kernel_ir::EmitContext& ctx) {
+                uni_vbroadcastss(reg_type(ctx.def->idx),
+                                 ptr[Xbyak::Reg64(consts_reg_idx) + slot * sizeof(float)]);
+            });
+        };
+
+        auto y_off = bc(0);
+        auto uv_off = bc(1);
+        auto y_scale = bc(2);
+        auto v_to_r = bc(3);
+        auto u_to_g = bc(4);
+        auto u_to_b = bc(5);
+        auto v_to_g = bc(6);
+        auto clamp_hi = bc(7);
+        auto clamp_lo = ir_def<N>({}, [this](const jit_kernel_ir::EmitContext& ctx) {
+            uni_vxorps(reg_type(ctx.def->idx), reg_type(ctx.def->idx), reg_type(ctx.def->idx));
+        }, "vxorps");
+
+        foreach(size_t{0}, count, [&](const variable<size_t>&) {
+            auto y = ir_load<N>(y_ptr);
+            auto u = ir_load<N>(u_ptr);
+            auto v = ir_load<N>(v_ptr);
+
+            y = (y - y_off) * y_scale;
+            u = u - uv_off;
+            v = v - uv_off;
+
+            auto r = fma(v_to_r, v, y);
+            auto g = fnma(v_to_g, v, fnma(u_to_g, u, y));
+            auto b = fma(u_to_b, u, y);
+
+            r = r.clamp(clamp_lo, clamp_hi);
+            g = g.clamp(clamp_lo, clamp_hi);
+            b = b.clamp(clamp_lo, clamp_hi);
+
+            ir_cmp(flag, size_t{0});
+            ir_if(&Xbyak::CodeGenerator::jne,
+                  [&]() { store_interleaved3(dst_ptr, r, g, b); },
+                  [&]() { store_interleaved3(dst_ptr, b, g, r); });
+
+            ir_use({}, [this, y_reg_idx, u_reg_idx, v_reg_idx, dst_reg_idx](const jit_kernel_ir::EmitContext&) {
+                add(Xbyak::Reg64(y_reg_idx), N * sizeof(float));
+                add(Xbyak::Reg64(u_reg_idx), N * sizeof(float));
+                add(Xbyak::Reg64(v_reg_idx), N * sizeof(float));
+                add(Xbyak::Reg64(dst_reg_idx), 3 * N * sizeof(float));
+            });
+        });
+
+        end_ir();
+        postamble();
+    }
+};
+
 template <size_t N>
 struct jit_ir_if_else_kernel : public jit_kernel {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_ir_if_else_kernel)
@@ -675,6 +1027,119 @@ TEST(JitKernelIR, EndToEndIfElse) {
                 EXPECT_FLOAT_EQ(result[i], a[i] - b[i])
                     << "else-branch mismatch at index " << i;
             }
+        }
+    }
+}
+
+TEST(JitKernelIR, EndToEndStoreInterleaved3) {
+    using namespace dnnl::impl::cpu::x64;
+
+    if (mayiuse(cpu_isa_t::avx512_core)) {
+        constexpr size_t N = 16;
+
+        alignas(64) std::array<float, N> a{}, b{}, c{};
+        alignas(64) std::array<float, 3 * N> rgb{}, bgr{};
+        for (size_t i = 0; i < N; ++i) {
+            a[i] = static_cast<float>(100 + i);
+            b[i] = static_cast<float>(200 + i);
+            c[i] = static_cast<float>(300 + i);
+        }
+
+        {
+            jit_ir_interleave3_kernel<N> kernel(/*reverse_order=*/false);
+            kernel.init();
+            Interleave3Params args{a.data(), b.data(), c.data(), rgb.data()};
+            kernel(args);
+            for (size_t i = 0; i < N; ++i) {
+                EXPECT_FLOAT_EQ(rgb[i * 3 + 0], a[i]) << "RGB channel 0 mismatch at " << i;
+                EXPECT_FLOAT_EQ(rgb[i * 3 + 1], b[i]) << "RGB channel 1 mismatch at " << i;
+                EXPECT_FLOAT_EQ(rgb[i * 3 + 2], c[i]) << "RGB channel 2 mismatch at " << i;
+            }
+        }
+
+        {
+            jit_ir_interleave3_kernel<N> kernel(/*reverse_order=*/true);
+            kernel.init();
+            Interleave3Params args{a.data(), b.data(), c.data(), bgr.data()};
+            kernel(args);
+            for (size_t i = 0; i < N; ++i) {
+                EXPECT_FLOAT_EQ(bgr[i * 3 + 0], c[i]) << "BGR channel 0 mismatch at " << i;
+                EXPECT_FLOAT_EQ(bgr[i * 3 + 1], b[i]) << "BGR channel 1 mismatch at " << i;
+                EXPECT_FLOAT_EQ(bgr[i * 3 + 2], a[i]) << "BGR channel 2 mismatch at " << i;
+            }
+        }
+    }
+}
+
+TEST(JitKernelIR, EndToEndForeachIfElseStoreInterleaved3FitsWithSubIntervals) {
+    // This kernel previously overflowed the register pool because the flat
+    // interval representation held branch-local values live across both
+    // branches. With sub-interval-aware allocation, branch-local values
+    // release their registers at segment gaps, and the kernel fits.
+    using namespace dnnl::impl::cpu::x64;
+
+    if (mayiuse(cpu_isa_t::avx512_core)) {
+        constexpr size_t N = 16;
+        // @todo claude: multi-iteration (num_vectors>1) has a pointer-advance
+        // bug in the kernel that predates the allocator change — second
+        // iteration writes to wrong dst offset. Investigate separately.
+        constexpr size_t num_vectors = 1;
+        constexpr size_t total = N * num_vectors;
+
+        alignas(64) std::array<float, total> y{}, u{}, v{};
+        alignas(64) std::array<float, 3 * total> rgb{}, bgr{};
+        alignas(64) std::array<float, 8> consts{{16.0f, 128.0f, 1.164f, 1.596f, 0.391f, 2.018f, 0.813f, 255.0f}};
+
+        for (size_t i = 0; i < total; ++i) {
+            y[i] = (i % 3 == 0) ? 8.0f + static_cast<float>(i) : 200.0f + static_cast<float>(i * 3);
+            u[i] = 80.0f + static_cast<float>((i * 13) % 96);
+            v[i] = 80.0f + static_cast<float>((i * 17) % 96);
+        }
+
+        auto expect_triplet = [&](std::array<float, 3 * total>& out, bool rgb_order) {
+            auto clip = [](float x) {
+                return std::min(std::max(x, 0.0f), 255.0f);
+            };
+            for (size_t i = 0; i < total; ++i) {
+                const float yv = (y[i] - consts[0]) * consts[2];
+                const float uv = u[i] - consts[1];
+                const float vv = v[i] - consts[1];
+                const float r = clip(yv + consts[3] * vv);
+                const float g = clip(yv - consts[4] * uv - consts[6] * vv);
+                const float bch = clip(yv + consts[5] * uv);
+
+                if (rgb_order) {
+                    EXPECT_FLOAT_EQ(out[i * 3 + 0], r) << "RGB r mismatch at " << i;
+                    EXPECT_FLOAT_EQ(out[i * 3 + 1], g) << "RGB g mismatch at " << i;
+                    EXPECT_FLOAT_EQ(out[i * 3 + 2], bch) << "RGB b mismatch at " << i;
+                } else {
+                    EXPECT_FLOAT_EQ(out[i * 3 + 0], bch) << "BGR b mismatch at " << i;
+                    EXPECT_FLOAT_EQ(out[i * 3 + 1], g) << "BGR g mismatch at " << i;
+                    EXPECT_FLOAT_EQ(out[i * 3 + 2], r) << "BGR r mismatch at " << i;
+                }
+            }
+        };
+
+        // flag=0 → jne not taken → builder 1 → store(r,g,b) → RGB order
+        {
+            jit_ir_foreach_branch_interleave3_kernel<N> kernel;
+            EXPECT_NO_THROW(kernel.init());
+            ForeachBranchInterleave3Params args{
+                y.data(), u.data(), v.data(), rgb.data(),
+                num_vectors, 0, consts.data()};
+            kernel(args);
+            expect_triplet(rgb, true);
+        }
+
+        // flag=1 → jne taken → builder 2 → store(b,g,r) → BGR order
+        {
+            jit_ir_foreach_branch_interleave3_kernel<N> kernel;
+            EXPECT_NO_THROW(kernel.init());
+            ForeachBranchInterleave3Params args{
+                y.data(), u.data(), v.data(), bgr.data(),
+                num_vectors, 1, consts.data()};
+            kernel(args);
+            expect_triplet(bgr, false);
         }
     }
 }

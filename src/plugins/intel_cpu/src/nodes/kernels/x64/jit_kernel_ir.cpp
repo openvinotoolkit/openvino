@@ -10,6 +10,7 @@
 #include <deque>
 #include <iostream>
 #include <ostream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -17,74 +18,262 @@ namespace ov::intel_cpu::jit_kernel_ir {
 
 namespace {
 
-// Recursive tree walk for interval computation. Processes ops in order,
-// assigning sequential indices. When a loop body is encountered, its ops
-// are walked inline and all intervals overlapping the loop range are
-// extended to cover the full body.
-void compute_intervals_impl(const std::list<Op>& ops,
-                            std::vector<Interval>& intervals,
-                            std::uint32_t& index) {
+bool env_enabled(const char* name) {
+    return std::getenv(name) != nullptr;
+}
+
+struct remat_debug_config {
+    bool disable_remat = env_enabled("OV_JIT_IR_DISABLE_REMAT");
+    bool disable_remat_in_regions = env_enabled("OV_JIT_IR_DISABLE_REMAT_IN_REGIONS");
+    bool disable_remat_wraparound = env_enabled("OV_JIT_IR_DISABLE_REMAT_WRAPAROUND");
+    bool remat_single_use = env_enabled("OV_JIT_IR_REMAT_SINGLE_USE");
+    bool trace_remat = env_enabled("OV_JIT_IR_TRACE_REMAT");
+    bool trace_all = env_enabled("OV_JIT_IR_TRACE");
+};
+
+const remat_debug_config& get_remat_debug_config() {
+    static const remat_debug_config cfg{};
+    return cfg;
+}
+
+void trace_ir(const std::string& msg) {
+    if (!get_remat_debug_config().trace_all) {
+        return;
+    }
+    std::cout << "[jit_kernel_ir] " << msg << "\n";
+}
+
+std::string format_reads(const std::vector<value_id>& reads) {
+    std::ostringstream os;
+    os << "[";
+    for (std::size_t i = 0; i < reads.size(); ++i) {
+        if (i != 0) {
+            os << ", ";
+        }
+        os << "%" << reads[i];
+    }
+    os << "]";
+    return os.str();
+}
+
+void trace_remat_event(const char* phase,
+                       value_id victim_id,
+                       value_id clone_id,
+                       std::uint32_t evict_at,
+                       std::uint32_t insert_at,
+                       std::uint32_t rewrite_begin,
+                       std::uint32_t rewrite_end,
+                       bool wrapped,
+                       bool in_region) {
+    if (!get_remat_debug_config().trace_remat) {
+        return;
+    }
+    std::cout << "[jit_kernel_ir] remat " << phase
+              << " victim=%" << victim_id
+              << " clone=%" << clone_id
+              << " evict_at=" << evict_at
+              << " insert_at=" << insert_at
+              << " rewrite_begin=" << rewrite_begin
+              << " rewrite_end=";
+    if (rewrite_end == std::numeric_limits<std::uint32_t>::max()) {
+        std::cout << "end";
+    } else {
+        std::cout << rewrite_end;
+    }
+    std::cout << " wrapped=" << wrapped
+              << " in_region=" << in_region
+              << "\n";
+}
+
+// Per-recursion-level local segment tracking for a single value.
+struct LocalSeg {
+    std::uint32_t first;
+    std::uint32_t last;
+};
+
+// Recursive tree walk for live range computation. Each recursion level
+// tracks its own local segments. On return, local segments are flushed
+// into the LiveRange via addSegment(). Sibling branch bodies (separate
+// recursive calls) naturally produce separate segments.
+void compute_live_ranges_impl(const std::list<Op>& ops,
+                              std::vector<LiveRange>& ranges,
+                              std::uint32_t& index) {
+    std::unordered_map<value_id, LocalSeg> local;
+
     for (const auto& op : ops) {
         if (op.body) {
-            // Region op: walk body. For loops, extend intervals.
             auto region_begin = index;
-            compute_intervals_impl(op.body->ops(), intervals, index);
+            trace_ir(std::string("ranges enter ") + (op.is_loop ? "loop" : "region") +
+                     " begin=" + std::to_string(region_begin));
+            compute_live_ranges_impl(op.body->ops(), ranges, index);
             auto region_end = (index > 0) ? index - 1 : 0u;
+            trace_ir(std::string("ranges exit ") + (op.is_loop ? "loop" : "region") +
+                     " begin=" + std::to_string(region_begin) +
+                     " end=" + std::to_string(region_end));
 
             if (op.is_loop) {
                 // Loop: values defined BEFORE the loop but used INSIDE
-                // must stay live through the entire body (the loop iterates
-                // and each iteration re-reads the value). Values defined
-                // inside the loop are SSA-fresh each iteration — they keep
-                // their natural intra-iteration lifetime.
-                for (auto& iv : intervals) {
-                    if (iv.start == std::numeric_limits<std::uint32_t>::max()) continue;
-                    if (iv.start < region_begin && iv.end >= region_begin &&
-                        iv.end < region_end) {
-                        iv.end = region_end;
+                // must stay live through the entire body.
+
+                // Extend committed segments from child recursions.
+                for (auto& lr : ranges) {
+                    if (lr.empty()) continue;
+                    if (lr.beginIndex() >= region_begin) continue;
+                    for (auto& seg : lr.segments) {
+                        if (seg.end >= region_begin && seg.end < region_end) {
+                            trace_ir("extend %" + std::to_string(lr.id) +
+                                     " loop_end " + std::to_string(seg.end) +
+                                     " -> " + std::to_string(region_end));
+                            seg.end = region_end;
+                        }
+                    }
+                }
+
+                // Extend local tracking for values defined at this level
+                // and used inside the loop body.
+                for (auto& [vid, seg] : local) {
+                    if (seg.first < region_begin) {
+                        for (const auto& committed : ranges[vid].segments) {
+                            if (committed.start >= region_begin &&
+                                committed.start <= region_end) {
+                                seg.last = std::max(seg.last, region_end);
+                                break;
+                            }
+                        }
                     }
                 }
             }
-            // Branches: no extension — each branch executes once,
-            // sequential indexing handles interval computation naturally.
         } else {
-            // Regular op
+            trace_ir("visit op@" + std::to_string(index) +
+                     " def=" + (op.def == invalid_value ? std::string("-") : "%" + std::to_string(op.def)) +
+                     " reads=" + format_reads(op.reads) +
+                     (op.name[0] ? " name=" + std::string(op.name) : ""));
             for (value_id read : op.reads) {
-                if (intervals[read].end < index) {
-                    intervals[read].end = index;
+                auto it = local.find(read);
+                if (it != local.end()) {
+                    if (index > it->second.last) {
+                        trace_ir("  last_use %" + std::to_string(read) +
+                                 " " + std::to_string(it->second.last) +
+                                 " -> " + std::to_string(index));
+                        it->second.last = index;
+                    }
+                } else {
+                    trace_ir("  first_use %" + std::to_string(read) +
+                             " at " + std::to_string(index));
+                    local[read] = {index, index};
                 }
             }
             if (op.def != invalid_value) {
-                intervals[op.def].start = index;
-                if (intervals[op.def].end < index) {
-                    intervals[op.def].end = index;
-                }
+                local[op.def] = {index, index};
                 if (op.is_copy && op.reads.size() == 1) {
-                    intervals[op.def].copy_of = op.reads[0];
+                    ranges[op.def].copy_of = op.reads[0];
                 }
             }
             ++index;
         }
     }
+
+    // Flush local segments into LiveRanges.
+    for (const auto& [vid, seg] : local) {
+        ranges[vid].addSegment({seg.first, seg.last});
+    }
 }
 
 }  // namespace
 
-std::vector<Interval> compute_intervals(const IR& ir) {
-    std::vector<Interval> intervals(ir.value_count());
+// ── LiveRange methods ─────────────────────────────────────────────────
+
+std::uint32_t LiveRange::beginIndex() const noexcept {
+    return segments.empty() ? std::numeric_limits<std::uint32_t>::max()
+                            : segments.front().start;
+}
+
+std::uint32_t LiveRange::endIndex() const noexcept {
+    return segments.empty() ? 0u : segments.back().end;
+}
+
+bool LiveRange::empty() const noexcept {
+    return segments.empty();
+}
+
+bool LiveRange::liveAt(std::uint32_t index) const noexcept {
+    if (segments.empty()) return false;
+    // Binary search: find last segment with start <= index.
+    auto it = std::upper_bound(segments.begin(), segments.end(), index,
+                               [](std::uint32_t val, const Segment& seg) {
+                                   return val < seg.start;
+                               });
+    if (it == segments.begin()) return false;
+    --it;
+    return index <= it->end;
+}
+
+void LiveRange::addSegment(Segment s) {
+    if (segments.empty()) {
+        segments.push_back(s);
+        return;
+    }
+
+    // Find insertion point: first segment whose start > s.start.
+    auto it = std::upper_bound(segments.begin(), segments.end(), s.start,
+                               [](std::uint32_t val, const Segment& seg) {
+                                   return val < seg.start;
+                               });
+    it = segments.insert(it, s);
+
+    // Merge with predecessor if overlapping (NOT merely adjacent).
+    if (it != segments.begin()) {
+        auto prev = std::prev(it);
+        if (prev->end >= it->start) {
+            prev->end = std::max(prev->end, it->end);
+            it = segments.erase(it);
+            it = prev;
+        }
+    }
+
+    // Merge with successors if overlapping.
+    while (std::next(it) != segments.end()) {
+        auto next_it = std::next(it);
+        if (it->end >= next_it->start) {
+            it->end = std::max(it->end, next_it->end);
+            segments.erase(next_it);
+        } else {
+            break;
+        }
+    }
+}
+
+// ── compute_live_ranges ───────────────────────────────────────────────
+
+std::vector<LiveRange> compute_live_ranges(const IR& ir) {
+    std::vector<LiveRange> ranges(ir.value_count());
 
     for (value_id v = 0; v < ir.value_count(); ++v) {
-        intervals[v].id = v;
-        intervals[v].start = std::numeric_limits<std::uint32_t>::max();
-        intervals[v].end = 0;
+        ranges[v].id = v;
     }
 
     std::uint32_t index = 0;
-    compute_intervals_impl(ir.ops(), intervals, index);
-    return intervals;
+    compute_live_ranges_impl(ir.ops(), ranges, index);
+    return ranges;
 }
 
 namespace {
+
+struct PressureEntry {
+    std::size_t lr_idx = 0;
+};
+
+template <typename Entry>
+void insert_by_end(std::vector<Entry>& active,
+                   const std::vector<LiveRange>& ranges,
+                   std::size_t lr_idx) {
+    auto end = ranges[lr_idx].endIndex();
+    auto pos = std::upper_bound(active.begin(), active.end(), end,
+                                [&](std::uint32_t e, const Entry& ae) {
+                                    return e < ranges[ae.lr_idx].endIndex();
+                                });
+    active.insert(pos, Entry{lr_idx});
+}
 
 // Build a map: value_id → Op* (the defining op) by walking the IR tree.
 // Also collects which ops are rematerializable (empty reads, not a region).
@@ -108,18 +297,21 @@ struct UseLocation {
     std::uint32_t index = 0;
 };
 
-bool find_next_use(std::list<Op>& ops, value_id vid, std::uint32_t after,
-                   std::uint32_t& index, UseLocation& result) {
+bool find_next_use_impl(std::list<Op>& ops, value_id vid, std::uint32_t after,
+                        std::uint32_t& index, UseLocation& result) {
     for (auto it = ops.begin(); it != ops.end(); ++it) {
         auto& op = *it;
         if (op.body) {
-            if (find_next_use(op.body->ops(), vid, after, index, result))
+            if (find_next_use_impl(op.body->ops(), vid, after, index, result)) {
                 return true;
+            }
         } else {
             if (index >= after) {
                 for (auto read : op.reads) {
                     if (read == vid) {
-                        result = {&ops, it, index};
+                        result.parent_list = &ops;
+                        result.it = it;
+                        result.index = index;
                         return true;
                     }
                 }
@@ -130,71 +322,81 @@ bool find_next_use(std::list<Op>& ops, value_id vid, std::uint32_t after,
     return false;
 }
 
-// Recursively rewrite all reads of `old_id` → `new_id` in an op list,
-// including nested REGION bodies. Returns the highest op index where
-// a rewrite occurred, or `last_read` unchanged if no rewrites happen.
-void rewrite_reads_recursive(std::list<Op>& ops, value_id old_id,
-                             value_id new_id, std::uint32_t& scan_idx,
-                             std::uint32_t& last_read) {
-    for (auto& op : ops) {
+bool find_next_use(std::list<Op>& ops, value_id vid, std::uint32_t after,
+                   std::uint32_t& index, UseLocation& result) {
+    return find_next_use_impl(ops, vid, after, index, result);
+}
+
+std::uint32_t count_linear_ops(const std::list<Op>& ops) {
+    std::uint32_t count = 0;
+    for (const auto& op : ops) {
         if (op.body) {
-            rewrite_reads_recursive(op.body->ops(), old_id, new_id,
-                                    scan_idx, last_read);
+            count += count_linear_ops(op.body->ops());
         } else {
-            for (auto& read : op.reads) {
-                if (read == old_id) {
-                    read = new_id;
-                    last_read = scan_idx;
-                }
-            }
-            ++scan_idx;
+            ++count;
         }
     }
+    return count;
+}
+
+std::uint32_t rewrite_reads_same_list_suffix(std::list<Op>& ops,
+                                             std::list<Op>::iterator first,
+                                             std::uint32_t first_index,
+                                             value_id old_id,
+                                             value_id new_id) {
+    std::uint32_t current_index = first_index;
+    std::uint32_t last_read = first_index;
+    for (auto it = first; it != ops.end(); ++it) {
+        if (it->body) {
+            current_index += count_linear_ops(it->body->ops());
+            continue;
+        }
+        bool rewritten = false;
+        for (auto& read : it->reads) {
+            if (read == old_id) {
+                read = new_id;
+                rewritten = true;
+            }
+        }
+        if (rewritten) {
+            last_read = current_index;
+        }
+        ++current_index;
+    }
+    return last_read;
 }
 
 }  // namespace
 
-Assignment linear_scan(IR& ir,
-                       std::vector<Interval>& intervals,
-                       std::uint32_t pool_size) {
-    // Build def map for rematerialization lookup
+bool rematerialize_for_pressure(IR& ir,
+                                const std::vector<LiveRange>& ranges,
+                                std::uint32_t pool_size) {
+    if (get_remat_debug_config().disable_remat) {
+        return false;
+    }
+
     std::unordered_map<value_id, Op*> def_map;
     collect_def_ops(ir.ops(), def_map);
 
-    // Use indices into intervals[] — safe across push_back/reallocation.
     std::vector<std::size_t> order;
-    order.reserve(intervals.size());
-    for (std::size_t idx = 0; idx < intervals.size(); ++idx) {
-        if (intervals[idx].start != std::numeric_limits<std::uint32_t>::max()) {
+    order.reserve(ranges.size());
+    for (std::size_t idx = 0; idx < ranges.size(); ++idx) {
+        if (!ranges[idx].empty()) {
             order.push_back(idx);
         }
     }
     std::sort(order.begin(), order.end(), [&](std::size_t a, std::size_t b) {
-        if (intervals[a].start != intervals[b].start) {
-            return intervals[a].start < intervals[b].start;
+        if (ranges[a].beginIndex() != ranges[b].beginIndex()) {
+            return ranges[a].beginIndex() < ranges[b].beginIndex();
         }
-        return intervals[a].id < intervals[b].id;
+        return ranges[a].id < ranges[b].id;
     });
 
-    std::deque<std::uint32_t> free_list;
-    for (std::uint32_t r = 0; r < pool_size; ++r) {
-        free_list.push_back(r);
-    }
-
-    struct ActiveEntry {
-        std::size_t iv_idx = 0;   // index into intervals[]
-        PhysReg reg{};
-    };
-    std::vector<ActiveEntry> active;
-
-    Assignment result;
-    result.reg.reserve(order.size());
-
+    std::vector<PressureEntry> active;
     auto expire = [&](std::uint32_t current_start) {
         auto it = active.begin();
         while (it != active.end()) {
-            if (intervals[it->iv_idx].end < current_start) {
-                free_list.push_back(it->reg.idx);
+            if (ranges[it->lr_idx].endIndex() < current_start) {
                 it = active.erase(it);
             } else {
                 ++it;
@@ -202,161 +404,206 @@ Assignment linear_scan(IR& ir,
         }
     };
 
-    auto insert_active = [&](std::size_t iv_idx, PhysReg reg) {
-        auto end = intervals[iv_idx].end;
-        auto pos = std::upper_bound(active.begin(), active.end(), end,
-                                    [&](std::uint32_t e, const ActiveEntry& ae) {
-                                        return e < intervals[ae.iv_idx].end;
-                                    });
-        active.insert(pos, ActiveEntry{iv_idx, reg});
-    };
-
-    for (std::size_t i = 0; i < order.size(); ++i) {
-        auto iv_idx = order[i];
-        // Note: do NOT hold a reference to intervals[iv_idx] across
-        // the remat block — push_back can reallocate the vector.
-        expire(intervals[iv_idx].start);
-
-        // Trivial coalescing
-        if (intervals[iv_idx].copy_of != invalid_value) {
-            auto src_it = result.reg.find(intervals[iv_idx].copy_of);
-            if (src_it != result.reg.end()) {
-                auto fl_it = std::find(free_list.begin(), free_list.end(), src_it->second.idx);
-                if (fl_it != free_list.end()) {
-                    free_list.erase(fl_it);
-                    result.reg.emplace(intervals[iv_idx].id, src_it->second);
-                    insert_active(iv_idx, src_it->second);
-                    continue;
-                }
-            }
+    for (auto lr_idx : order) {
+        expire(ranges[lr_idx].beginIndex());
+        if (active.size() < pool_size) {
+            insert_by_end(active, ranges, lr_idx);
+            continue;
         }
 
-        // Rematerialization: if pool exhausted, evict a remat-able victim
-        if (free_list.empty()) {
-            // Collect rematerializable candidates sorted by furthest end
-            std::vector<std::size_t> candidates;
-            for (std::size_t a = 0; a < active.size(); ++a) {
-                auto vid = intervals[active[a].iv_idx].id;
-                auto def_it = def_map.find(vid);
-                if (def_it == def_map.end()) continue;
-                if (!def_it->second->reads.empty()) continue;
-                candidates.push_back(a);
+        std::vector<std::size_t> candidates;
+        for (std::size_t pos = 0; pos < active.size(); ++pos) {
+            const auto vid = ranges[active[pos].lr_idx].id;
+            auto def_it = def_map.find(vid);
+            if (def_it == def_map.end()) continue;
+            if (!def_it->second->reads.empty()) continue;
+            candidates.push_back(pos);
+        }
+        std::sort(candidates.begin(), candidates.end(),
+                  [&](std::size_t a, std::size_t b) {
+                      return ranges[active[a].lr_idx].endIndex() > ranges[active[b].lr_idx].endIndex();
+                  });
+
+        for (auto victim_pos : candidates) {
+            const auto victim_lr_idx = active[victim_pos].lr_idx;
+            const auto victim_id = ranges[victim_lr_idx].id;
+            auto* victim_def = def_map[victim_id];
+
+            UseLocation use_loc{};
+            std::uint32_t search_idx = 0;
+            find_next_use(ir.ops(), victim_id, ranges[lr_idx].beginIndex(), search_idx, use_loc);
+            if (!use_loc.parent_list) {
+                continue;
             }
-            std::sort(candidates.begin(), candidates.end(),
-                      [&](std::size_t a, std::size_t b) {
-                          return intervals[active[a].iv_idx].end > intervals[active[b].iv_idx].end;
-                      });
 
-            bool evicted = false;
-            for (auto victim_pos : candidates) {
-                auto& victim = active[victim_pos];
-                auto victim_id = intervals[victim.iv_idx].id;
-                auto* victim_def = def_map[victim_id];
+            const auto new_id = static_cast<value_id>(ir.value_count());
+            ir.set_value_count(new_id + 1);
 
-                // Find victim's next use after eviction point.
-                // If no forward use, retry from the beginning — the value
-                // may be used earlier in a loop body that wraps around.
-                UseLocation use_loc{};
-                std::uint32_t search_idx = 0;
-                find_next_use(ir.ops(), victim_id, intervals[iv_idx].start, search_idx, use_loc);
+            Op remat_op;
+            remat_op.def = new_id;
+            remat_op.emit = victim_def->emit;
+            remat_op.name = "remat";
+            use_loc.parent_list->insert(use_loc.it, std::move(remat_op));
 
-                if (!use_loc.parent_list) {
-                    search_idx = 0;
-                    find_next_use(ir.ops(), victim_id, 0, search_idx, use_loc);
-                }
-
-                if (!use_loc.parent_list) {
-                    // No use found at all — value is dead, skip.
-                    continue;
-                }
-
-                auto victim_reg = victim.reg;
-
-                // Truncate victim's interval at the eviction point
-                intervals[victim.iv_idx].end = intervals[iv_idx].start;
-
-                // Clone: insert a remat op before the use site
-                auto new_id = static_cast<value_id>(intervals.size());
-                ir.set_value_count(new_id + 1);
-
-                Op remat_op;
-                remat_op.def = new_id;
-                remat_op.emit = victim_def->emit;
-                remat_op.name = "remat";
-
-                use_loc.parent_list->insert(use_loc.it, std::move(remat_op));
-
-                // Rewrite reads: victim_id → new_id from use_loc onward,
-                // including inside nested REGION bodies (if/else branches).
-                // Track the last read index to compute the clone's actual end.
-                // The remat op was inserted before use_loc.it, so use_loc.it
-                // is now at index use_loc.index + 1.
-                std::uint32_t clone_last_read = use_loc.index;
-                {
-                    std::uint32_t scan_idx = use_loc.index + 1;
-                    for (auto it = use_loc.it; it != use_loc.parent_list->end(); ++it) {
-                        if (it->body) {
-                            rewrite_reads_recursive(it->body->ops(), victim_id,
-                                                    new_id, scan_idx,
-                                                    clone_last_read);
-                        } else {
-                            for (auto& read : it->reads) {
-                                if (read == victim_id) {
-                                    read = new_id;
-                                    clone_last_read = scan_idx;
-                                }
-                            }
-                            ++scan_idx;
-                        }
+            const auto rewrite_end = get_remat_debug_config().remat_single_use
+                ? use_loc.index
+                : rewrite_reads_same_list_suffix(*use_loc.parent_list,
+                                                 use_loc.it,
+                                                 use_loc.index,
+                                                 victim_id,
+                                                 new_id);
+            if (get_remat_debug_config().remat_single_use) {
+                for (auto& read : use_loc.it->reads) {
+                    if (read == victim_id) {
+                        read = new_id;
                     }
                 }
-
-                // Create interval for the clone — use actual last read,
-                // not the original's end. This keeps the clone short-lived
-                // (especially inside loops where the original was extended).
-                Interval remat_iv;
-                remat_iv.id = new_id;
-                remat_iv.start = use_loc.index;
-                remat_iv.end = clone_last_read;
-                intervals.push_back(remat_iv);
-                auto new_iv_idx = intervals.size() - 1;
-
-                // Insert into sorted order for later processing
-                auto insert_pos = std::upper_bound(
-                    order.begin() + static_cast<long>(i) + 1, order.end(),
-                    new_iv_idx,
-                    [&](std::size_t a, std::size_t b) {
-                        return intervals[a].start < intervals[b].start ||
-                               (intervals[a].start == intervals[b].start &&
-                                intervals[a].id < intervals[b].id);
-                    });
-                order.insert(insert_pos, new_iv_idx);
-
-                // Remove victim from active, free its register
-                active.erase(active.begin() + static_cast<long>(victim_pos));
-                free_list.push_back(victim_reg.idx);
-                evicted = true;
-                break;
             }
 
-            if (!evicted) {
-                throw allocation_failure(
-                    "jit_kernel_ir::linear_scan: pool of " + std::to_string(pool_size) +
-                    " registers exhausted at op index " + std::to_string(intervals[iv_idx].start) +
-                    " (value id " + std::to_string(intervals[iv_idx].id) +
-                    "); no rematerializable victim found");
+            trace_remat_event("repair",
+                              victim_id,
+                              new_id,
+                              ranges[lr_idx].beginIndex(),
+                              use_loc.index,
+                              use_loc.index,
+                              rewrite_end,
+                              false,
+                              false);
+            return true;
+        }
+
+        return false;
+    }
+
+    return false;
+}
+
+Assignment linear_scan(IR& /*ir*/,
+                       std::vector<LiveRange>& ranges,
+                       std::uint32_t pool_size) {
+    // LLVM-style per-register interference allocation. Each physical
+    // register maintains a segment union — the merged list of all segments
+    // assigned to it. A LiveRange can use a register iff none of its
+    // segments overlap any segment already on that register. Two values
+    // with non-overlapping segments (e.g., branch-local values) naturally
+    // share a register.
+    //
+    // No expire, no temp_free, no re-acquisition. One register per value,
+    // assigned once, correct by construction.
+
+    // Sort LiveRanges by beginIndex (standard linear-scan order).
+    std::vector<std::size_t> order;
+    order.reserve(ranges.size());
+    for (std::size_t idx = 0; idx < ranges.size(); ++idx) {
+        if (!ranges[idx].empty()) {
+            order.push_back(idx);
+        }
+    }
+    std::sort(order.begin(), order.end(), [&](std::size_t a, std::size_t b) {
+        if (ranges[a].beginIndex() != ranges[b].beginIndex()) {
+            return ranges[a].beginIndex() < ranges[b].beginIndex();
+        }
+        return ranges[a].id < ranges[b].id;
+    });
+
+    // Per-register segment union: all segments assigned to each physical reg.
+    std::vector<std::vector<Segment>> reg_segments(pool_size);
+
+    // Check if any segment of `lr` overlaps any segment on register `r`.
+    auto interferes = [&](const LiveRange& lr, std::uint32_t r) -> bool {
+        for (const auto& s : lr.segments) {
+            for (const auto& e : reg_segments[r]) {
+                if (s.start <= e.end && e.start <= s.end) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+
+    // Add all segments of `lr` to register `r`'s union.
+    auto add_to_reg = [&](const LiveRange& lr, std::uint32_t r) {
+        for (const auto& s : lr.segments) {
+            reg_segments[r].push_back(s);
+        }
+    };
+
+    Assignment result;
+    result.reg.reserve(order.size());
+
+    for (auto lr_idx : order) {
+        const auto& lr = ranges[lr_idx];
+        auto vid = lr.id;
+
+        trace_ir("alloc %" + std::to_string(vid) +
+                 " segs=" + std::to_string(lr.segments.size()) +
+                 " [" + std::to_string(lr.beginIndex()) +
+                 "," + std::to_string(lr.endIndex()) + "]");
+
+        // Trivial coalescing: prefer the source's register if compatible.
+        if (lr.copy_of != invalid_value) {
+            auto src_it = result.reg.find(lr.copy_of);
+            if (src_it != result.reg.end() && !interferes(lr, src_it->second.idx)) {
+                trace_ir("  coalesce %" + std::to_string(vid) +
+                         " with %" + std::to_string(lr.copy_of) +
+                         " on p" + std::to_string(src_it->second.idx));
+                result.reg.emplace(vid, src_it->second);
+                add_to_reg(lr, src_it->second.idx);
+                continue;
             }
         }
 
-        PhysReg reg{free_list.front()};
-        free_list.pop_front();
-        // Re-fetch from intervals[] — remat may have push_back'd,
-        // invalidating the earlier `iv` reference.
-        result.reg.emplace(intervals[iv_idx].id, reg);
-        insert_active(iv_idx, reg);
+        // Find first non-interfering register.
+        bool assigned = false;
+        for (std::uint32_t r = 0; r < pool_size; ++r) {
+            if (!interferes(lr, r)) {
+                trace_ir("  assign %" + std::to_string(vid) +
+                         " -> p" + std::to_string(r));
+                result.reg.emplace(vid, PhysReg{r});
+                add_to_reg(lr, r);
+                assigned = true;
+                break;
+            }
+        }
 
-        if (active.size() > result.peak_live) {
-            result.peak_live = static_cast<std::uint32_t>(active.size());
+        if (!assigned) {
+            throw allocation_failure(
+                "jit_kernel_ir::linear_scan: pool of " + std::to_string(pool_size) +
+                " registers exhausted for value %" + std::to_string(vid) +
+                " at op index " + std::to_string(lr.beginIndex()));
+        }
+    }
+
+    // Compute peak_live: max number of registers simultaneously in use.
+    // Walk all op indices and count how many values are live at each.
+    std::uint32_t max_idx = 0;
+    for (const auto& lr : ranges) {
+        if (!lr.empty() && lr.endIndex() > max_idx) {
+            max_idx = lr.endIndex();
+        }
+    }
+    // Use segment unions on registers to find peak occupancy.
+    // Count assigned registers whose segment union covers each point.
+    // Optimization: only check at segment start/end boundaries.
+    std::vector<std::uint32_t> events;
+    for (const auto& lr : ranges) {
+        for (const auto& seg : lr.segments) {
+            events.push_back(seg.start);
+            events.push_back(seg.end);
+        }
+    }
+    std::sort(events.begin(), events.end());
+    events.erase(std::unique(events.begin(), events.end()), events.end());
+
+    for (auto idx : events) {
+        std::uint32_t live = 0;
+        for (const auto& lr : ranges) {
+            if (lr.liveAt(idx) && result.reg.count(lr.id)) {
+                ++live;
+            }
+        }
+        if (live > result.peak_live) {
+            result.peak_live = live;
         }
     }
 
@@ -401,14 +648,19 @@ void dump_ops(std::ostream& os, const IR& ir) {
 }
 
 void dump_assignment(std::ostream& os,
-                     const std::vector<Interval>& intervals,
+                     const std::vector<LiveRange>& ranges,
                      const Assignment& assignment) {
-    for (const auto& iv : intervals) {
-        if (iv.start == std::numeric_limits<std::uint32_t>::max()) {
+    for (const auto& lr : ranges) {
+        if (lr.empty()) {
             continue;
         }
-        os << "  %" << iv.id << ": [" << iv.start << ", " << iv.end << "] -> ";
-        auto it = assignment.reg.find(iv.id);
+        os << "  %" << lr.id << ": ";
+        for (std::size_t i = 0; i < lr.segments.size(); ++i) {
+            if (i > 0) os << " ";
+            os << "[" << lr.segments[i].start << ", " << lr.segments[i].end << "]";
+        }
+        os << " -> ";
+        auto it = assignment.reg.find(lr.id);
         if (it == assignment.reg.end()) {
             os << "unassigned";
         } else {
