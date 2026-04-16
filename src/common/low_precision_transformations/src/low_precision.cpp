@@ -304,6 +304,7 @@ bool LowPrecision::run_on_model(const std::shared_ptr<ov::Model>& m) {
 
     REGISTER_PASS(manager, FoldFakeQuantizeTransformation, params)
     REGISTER_PASS(manager, ConstantFolding)
+    REGISTER_PASS(manager, Validate)
 
     manager.run_passes(m);
     return false;

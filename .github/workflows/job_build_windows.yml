@@ -63,14 +63,14 @@ jobs:
       PRODUCT_TYPE: 'public_windows_vs2022_${{ inputs.build-type }}'
     steps:
       - name: Clone OpenVINO
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           path: 'openvino'
           submodules: 'true'
 
       - name: Clone OpenVINO Contrib
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           repository: 'openvinotoolkit/openvino_contrib'
@@ -87,7 +87,7 @@ jobs:
 
       - name: Setup NodeJS
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: ${{ env.NODEJS_VERSION }}
 
@@ -216,7 +216,7 @@ jobs:
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
-        
+
       # Setup additional Python versions for wheels building
       - name: Setup Python 3.14
         if: ${{ inputs.build-additional-python-wheels }}
@@ -273,7 +273,7 @@ jobs:
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
           allow-prereleases: 'true'
-      
+
       - name: Build additional Python wheels - Python 3.14t
         if: ${{ inputs.build-additional-python-wheels }}
         run: |

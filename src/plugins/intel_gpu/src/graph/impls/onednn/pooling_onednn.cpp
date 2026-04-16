@@ -54,8 +54,8 @@ protected:
         dnnl::memory::dims pad_r(pads_end_shape.begin(), pads_end_shape.end());
         dnnl::memory::dims dilation(dilation_shape.begin(), dilation_shape.end());
 
-        auto input_md = onednn::layout_to_memory_desc(input_layout);
-        auto output_md = onednn::layout_to_memory_desc(output_layout);
+        auto input_md = onednn::layout_to_memory_desc(input_layout, false, format::is_blocked(input_layout.format));
+        auto output_md = onednn::layout_to_memory_desc(output_layout, false, format::is_blocked(output_layout.format));
 
         if (auto_pad == ov::op::PadType::SAME_UPPER || auto_pad == ov::op::PadType::SAME_LOWER) {
             ov::op::v8::MaxPool op;
