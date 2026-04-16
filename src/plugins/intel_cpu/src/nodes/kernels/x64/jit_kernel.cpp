@@ -563,8 +563,12 @@ void jit_kernel::end_ir() {
     if (!_ir_mode) return;
 
     // Allocate: compute_live_ranges walks the tree recursively.
-    auto ranges = jit_kernel_ir::compute_live_ranges(*_ir);
+    // The allocator integrates remat — when it can't find a register, it
+    // rematerializes a victim (clones at each use) and signals retry via
+    // std::nullopt. We recompute live ranges and retry until allocation
+    // succeeds or throws allocation_failure.
     const auto pool_size = static_cast<std::uint32_t>(_free_rmmregs.size());
+    auto ranges = jit_kernel_ir::compute_live_ranges(*_ir);
 
     if (std::getenv("OV_JIT_IR_DUMP")) {
         std::ostringstream os;
@@ -576,13 +580,18 @@ void jit_kernel::end_ir() {
         std::cout << os.str();
     }
 
-    if (std::getenv("OV_JIT_IR_DISABLE_REMAT") == nullptr) {
-        while (jit_kernel_ir::rematerialize_for_pressure(*_ir, ranges, pool_size)) {
-            ranges = jit_kernel_ir::compute_live_ranges(*_ir);
-        }
+    std::optional<jit_kernel_ir::Assignment> alloc_result;
+    // Each remat round rematerializes one victim. Limit retries to the
+    // number of values — beyond that, no progress is being made.
+    for (std::size_t attempt = 0, limit = ranges.size(); attempt < limit; ++attempt) {
+        alloc_result = jit_kernel_ir::linear_scan(*_ir, ranges, pool_size);
+        if (alloc_result) break;
+        ranges = jit_kernel_ir::compute_live_ranges(*_ir);
     }
-
-    const auto assignment = jit_kernel_ir::linear_scan(*_ir, ranges, pool_size);
+    if (!alloc_result) {
+        OPENVINO_THROW("jit_kernel IR allocation failed after remat exhaustion");
+    }
+    const auto& assignment = *alloc_result;
 
     if (std::getenv("OV_JIT_IR_DUMP")) {
         std::ostringstream os;

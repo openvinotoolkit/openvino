@@ -111,11 +111,34 @@ void compute_live_ranges_impl(const std::list<Op>& ops,
                      " begin=" + std::to_string(region_begin) +
                      " end=" + std::to_string(region_end));
 
-            if (op.is_loop) {
-                // Loop: values defined BEFORE the loop but used INSIDE
-                // must stay live through the entire body.
+            // For ANY region (loop or branch): values defined BEFORE
+            // the region but used INSIDE must have their parent-level
+            // segment extended to cover through the child's uses.
+            // Without this, the parent's segment (just the def point)
+            // would be disconnected from the child's segment (the use
+            // point), creating a hole in straight-line code where the
+            // register could be incorrectly reused.
+            //
+            // For loops specifically, also extend committed child
+            // segments to cover the full loop body (the loop re-reads
+            // the value each iteration).
+            for (auto& [vid, seg] : local) {
+                if (seg.first < region_begin) {
+                    for (const auto& committed : ranges[vid].segments) {
+                        if (committed.start >= region_begin &&
+                            committed.start <= region_end) {
+                            auto extend_to = op.is_loop ? region_end
+                                                        : committed.end;
+                            seg.last = std::max(seg.last, extend_to);
+                            break;
+                        }
+                    }
+                }
+            }
 
-                // Extend committed segments from child recursions.
+            if (op.is_loop) {
+                // Loop: also extend committed child segments to cover
+                // the full loop body.
                 for (auto& lr : ranges) {
                     if (lr.empty()) continue;
                     if (lr.beginIndex() >= region_begin) continue;
@@ -125,20 +148,6 @@ void compute_live_ranges_impl(const std::list<Op>& ops,
                                      " loop_end " + std::to_string(seg.end) +
                                      " -> " + std::to_string(region_end));
                             seg.end = region_end;
-                        }
-                    }
-                }
-
-                // Extend local tracking for values defined at this level
-                // and used inside the loop body.
-                for (auto& [vid, seg] : local) {
-                    if (seg.first < region_begin) {
-                        for (const auto& committed : ranges[vid].segments) {
-                            if (committed.start >= region_begin &&
-                                committed.start <= region_end) {
-                                seg.last = std::max(seg.last, region_end);
-                                break;
-                            }
                         }
                     }
                 }
@@ -366,6 +375,41 @@ std::uint32_t rewrite_reads_same_list_suffix(std::list<Op>& ops,
     return last_read;
 }
 
+// Remat all uses of `vid` in the op tree: for each op that reads `vid`,
+// insert a clone op (with the same emit closure) immediately before it
+// and rewrite that op's reads to the clone's value_id.
+// Returns true if the IR was actually modified.
+bool remat_all_uses_impl(std::list<Op>& ops, IR& ir, value_id vid, const Op& victim_def) {
+    bool modified = false;
+    for (auto it = ops.begin(); it != ops.end(); ++it) {
+        if (it->body) {
+            modified |= remat_all_uses_impl(it->body->ops(), ir, vid, victim_def);
+            continue;
+        }
+        bool reads_victim = false;
+        for (auto read : it->reads) {
+            if (read == vid) { reads_victim = true; break; }
+        }
+        if (!reads_victim) continue;
+
+        auto new_id = static_cast<value_id>(ir.value_count());
+        ir.set_value_count(new_id + 1);
+
+        Op clone;
+        clone.reads = victim_def.reads;  // preserve input dependencies
+        clone.def = new_id;
+        clone.emit = victim_def.emit;
+        clone.name = "remat";
+        ops.insert(it, std::move(clone));
+
+        for (auto& read : it->reads) {
+            if (read == vid) read = new_id;
+        }
+        modified = true;
+    }
+    return modified;
+}
+
 }  // namespace
 
 bool rematerialize_for_pressure(IR& ir,
@@ -478,9 +522,9 @@ bool rematerialize_for_pressure(IR& ir,
     return false;
 }
 
-Assignment linear_scan(IR& /*ir*/,
-                       std::vector<LiveRange>& ranges,
-                       std::uint32_t pool_size) {
+std::optional<Assignment> linear_scan(IR& ir,
+                                      std::vector<LiveRange>& ranges,
+                                      std::uint32_t pool_size) {
     // LLVM-style per-register interference allocation. Each physical
     // register maintains a segment union — the merged list of all segments
     // assigned to it. A LiveRange can use a register iff none of its
@@ -567,6 +611,75 @@ Assignment linear_scan(IR& /*ir*/,
         }
 
         if (!assigned) {
+            // All registers interfere. Try to remat a victim: find the
+            // rematerializable value (empty reads) with the longest range
+            // among all already-assigned values. Remat replaces all its
+            // uses with local clones, making the original dead and freeing
+            // its register pressure.
+            std::unordered_map<value_id, Op*> def_map;
+            collect_def_ops(ir.ops(), def_map);
+
+            // Only consider victims whose segments INTERFERE with the
+            // failing value — only those contribute to the pressure at
+            // this specific point. This prevents infinite remat loops
+            // where short-lived clones far from the pressure point keep
+            // getting picked without reducing peak pressure.
+            auto interferes_with_lr = [&](const LiveRange& victim_lr) -> bool {
+                for (const auto& vs : victim_lr.segments) {
+                    for (const auto& ls : lr.segments) {
+                        if (vs.start <= ls.end && ls.start <= vs.end)
+                            return true;
+                    }
+                }
+                return false;
+            };
+
+            // A value is rematerializable if:
+            //  (a) its def op has no reads (constant/broadcast), OR
+            //  (b) all of its def op's inputs have ranges that span the
+            //      victim's entire lifetime — so the clone's reads are
+            //      already live at every use site, adding no pressure.
+            auto is_rematerializable = [&](value_id v) -> bool {
+                auto dit = def_map.find(v);
+                if (dit == def_map.end()) return false;
+                const auto& reads = dit->second->reads;
+                if (reads.empty()) return true;
+                for (auto input : reads) {
+                    if (input >= ranges.size()) return false;
+                    if (ranges[input].beginIndex() > ranges[v].beginIndex()) return false;
+                    if (ranges[input].endIndex() < ranges[v].endIndex()) return false;
+                }
+                return true;
+            };
+
+            value_id best_victim = invalid_value;
+            std::uint32_t best_range = 0;
+            for (const auto& [v, _reg] : result.reg) {
+                if (!is_rematerializable(v)) continue;
+                if (!interferes_with_lr(ranges[v])) continue;
+                auto range = ranges[v].endIndex() - ranges[v].beginIndex();
+                if (range > best_range) {
+                    best_range = range;
+                    best_victim = v;
+                }
+            }
+            // Also consider the current unassigned value.
+            if (is_rematerializable(vid)) {
+                auto range = lr.endIndex() - lr.beginIndex();
+                if (range > best_range) {
+                    best_victim = vid;
+                }
+            }
+
+            if (best_victim != invalid_value) {
+                auto* vdef = def_map[best_victim];
+                if (remat_all_uses_impl(ir.ops(), ir, best_victim, *vdef)) {
+                    trace_ir("remat %" + std::to_string(best_victim) +
+                             " (all uses) — retry allocation");
+                    return std::nullopt;  // IR modified, caller retries
+                }
+            }
+
             throw allocation_failure(
                 "jit_kernel_ir::linear_scan: pool of " + std::to_string(pool_size) +
                 " registers exhausted for value %" + std::to_string(vid) +

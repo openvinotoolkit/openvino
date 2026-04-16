@@ -192,11 +192,14 @@ bool rematerialize_for_pressure(IR& ir,
                                 const std::vector<LiveRange>& ranges,
                                 std::uint32_t pool_size);
 
-// Pass 3: plain linear scan (Poletto & Sarkar 1999) with trivial coalescing.
-// Assumes any optional pressure-repair pass already ran.
-Assignment linear_scan(IR& ir,
-                       std::vector<LiveRange>& ranges,
-                       std::uint32_t pool_size);
+// LLVM-style interference-based allocator with integrated remat.
+// Returns Assignment on success. Returns std::nullopt when the IR was
+// modified (a rematerializable value was cloned at each use site) — the
+// caller should recompute live ranges and retry. Throws allocation_failure
+// when no register is available and no rematerializable victim exists.
+std::optional<Assignment> linear_scan(IR& ir,
+                                      std::vector<LiveRange>& ranges,
+                                      std::uint32_t pool_size);
 
 // Debug helper: text dump of the op stream. Used by IR::dump and by tests
 // to eyeball what was recorded.
