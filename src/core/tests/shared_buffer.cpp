@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/runtime/shared_buffer.hpp"
+
 #include <gmock/gmock.h>
 
 #include <filesystem>
@@ -10,7 +12,7 @@
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
-#include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/util/mmap_object.hpp"
 
 namespace ov::test {
@@ -592,9 +594,19 @@ TEST_F(SharedBufferTest, no_call_when_mmap_object_is_null) {
         storage.data(),
         buf_size,
         std::shared_ptr<ov::MappedMemory>{} /*null*/);
-
-    EXPECT_CALL(*static_cast<MockMappedMemory*>(nullptr), hint_release(testing::_, testing::_)).Times(0);
     EXPECT_NO_THROW(buffer->hint_release());
+}
+
+TEST_F(SharedBufferTest, call_when_constant_node_destroyed) {
+    constexpr size_t mmap_size = 1024;
+    auto mock = std::make_shared<MockMappedMemory>(mmap_size);
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mock->data(), mmap_size, mock);
+
+    EXPECT_CALL(*mock, hint_release(0u, mmap_size)).Times(1);
+    {
+        auto constant = op::v0::Constant(element::u8, Shape{mmap_size}, buffer);
+        EXPECT_EQ(constant.get_data_ptr(), buffer->get_ptr());
+    }
 }
 
 }  // namespace ov::test

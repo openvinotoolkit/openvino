@@ -77,10 +77,9 @@ void SharedBufferBase<std::shared_ptr<ov::MappedMemory>>::hint_release() {
 }
 
 template <>
-void SharedBufferBase<std::shared_ptr<ov::MappedMemory>>::hint_release(
-    AlignedBufferRangeKey,
-    size_t offset,
-    size_t size) {
+void SharedBufferBase<std::shared_ptr<ov::MappedMemory>>::hint_release(AlignedBufferRangeKey,
+                                                                       size_t offset,
+                                                                       size_t size) {
     if (m_shared_object) {
         m_shared_object->hint_release(offset, size);
     }
@@ -89,9 +88,7 @@ void SharedBufferBase<std::shared_ptr<ov::MappedMemory>>::hint_release(
 template <>
 void SharedBufferBase<std::shared_ptr<ov::AlignedBuffer>>::hint_release() {
     if (m_shared_object) {
-        m_shared_object->hint_release(AlignedBufferRangeKey{},
-                                            get_offset(),
-                                            m_byte_size);
+        m_shared_object->hint_release(AlignedBufferRangeKey{}, get_offset(), m_byte_size);
     }
 }
 }  // namespace ov
