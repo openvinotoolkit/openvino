@@ -373,6 +373,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         // The plugin cares only about the string size and the metadata version check for now. Additional checks based
         // on other metadata fields can be done following this line.
         const std::unique_ptr<MetadataBase> metadata = read_metadata_from(viewTensor);
+        // return false if failed TODO
 
         const size_t compilerStringSize = metadata->get_blob_size();
         // Discard everything else but the compiler section
