@@ -177,9 +177,9 @@ bool evaluate_interpolate(const std::shared_ptr<ov::op::v4::Interpolate>& op,
     using namespace ov;
 
     constexpr size_t data_port = 0;
-    constexpr size_t sizes_scales_port = 1;
-    constexpr size_t axes_port = 2;
-    constexpr size_t max_num_of_ports = 3;
+    constexpr size_t scales_port = 2;
+    constexpr size_t axes_port = 3;
+    constexpr size_t max_num_of_ports = 4;
 
     element::Type input_et = inputs[0].get_element_type();
     size_t type_size = input_et.size();
@@ -203,7 +203,7 @@ bool evaluate_interpolate(const std::shared_ptr<ov::op::v4::Interpolate>& op,
     }
 
     auto axes = get_axes_vector(inputs, inputs[data_port].get_shape().size(), axes_port, max_num_of_ports);
-    auto scales = get_scales_vector(inputs, padded_input_shape, m_attrs, axes, sizes_scales_port);
+    auto scales = get_scales_vector(inputs, padded_input_shape, m_attrs, axes, scales_port);
 
     Shape out_shape = output_shape.to_shape();
     outputs[0].set_shape(out_shape);
