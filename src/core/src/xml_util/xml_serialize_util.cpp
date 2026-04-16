@@ -625,6 +625,50 @@ XmlSerializer::XmlSerializer(pugi::xml_node& data,
       m_data_is_temporary(data_is_temporary),
       m_custom_rt_info_append{} {}
 
+#define POSTPONED_CONSTANT_DATA_WRITE
+#ifdef POSTPONED_CONSTANT_DATA_WRITE
+namespace {
+using postponed_const =
+    std::tuple<std::reference_wrapper<util::ConstantWriter>, std::vector<std::string_view>, std::shared_ptr<uint8_t>>;
+std::vector<postponed_const> gathered_consts;
+void append_const(pugi::xml_node& xml_node,
+                  std::reference_wrapper<util::ConstantWriter> writer,
+                  std::vector<std::string_view> chunks,
+                  std::shared_ptr<uint8_t> header) {
+    const auto idx = gathered_consts.size();
+    gathered_consts.emplace_back(std::move(writer), std::move(chunks), std::move(header));
+    xml_node.append_attribute("__offset_size_placeholder").set_value(idx);
+}
+void write_gathered_consts(pugi::xml_node& layers) {
+    std::vector<pugi::xml_node> const_nodes(gathered_consts.size());
+    for (pugi::xml_node layer : layers.children("layer")) {
+        auto data = layer.child("data");
+        if (!data) {
+            continue;
+        }
+        const auto placeholder = data.attribute("__offset_size_placeholder");
+        if (!placeholder) {
+            continue;
+        }
+        const auto idx = static_cast<size_t>(placeholder.as_ullong());
+        data.remove_attribute(placeholder);
+        const_nodes[idx] = std::move(data);
+    }
+
+    for (size_t idx = 0; idx < gathered_consts.size(); ++idx) {
+        auto& [constant_write_handler, chunks, _] = gathered_consts[idx];
+        size_t size = 0;
+        const auto offset = constant_write_handler.get().write(chunks, size);
+        auto& data = const_nodes[idx];
+        OPENVINO_ASSERT(data, "Internal error: Const node was not found for gathered constant with idx=", idx);
+        data.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
+        data.append_attribute("size").set_value(static_cast<unsigned long long>(size));
+    }
+    gathered_consts.clear();
+}
+}  // namespace
+#endif
+
 void XmlSerializer::on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) {
     using BodyTargetNames = std::tuple<std::string, std::string, std::vector<std::string>>;
 
@@ -738,11 +782,15 @@ void XmlSerializer::on_adapter(const std::string& name, ov::ValueAccessor<void>&
                 chunks.emplace_back(raw_string_ptr, raw_string_size);
             }
 
+#ifdef POSTPONED_CONSTANT_DATA_WRITE
+            append_const(m_xml_node, get_constant_write_handler(), std::move(chunks), std::move(header_ptr));
+#else
             size_t new_size = 0;
             const auto offset = get_constant_write_handler().write(chunks, new_size);
 
             m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
             m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
+#endif
         }
     } else if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
         if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
@@ -1139,6 +1187,11 @@ void XmlSerializer::serialize(pugi::xml_node& net_xml, const ov::Model& model) {
             }
         }
     }
+
+#ifdef POSTPONED_CONSTANT_DATA_WRITE
+    write_gathered_consts(layers);
+#endif
+
     // <edges>
     const std::vector<Edge> edge_mapping = create_edge_mapping(layer_ids, sorted_ops);
     pugi::xml_node edges = net_xml.append_child("edges");

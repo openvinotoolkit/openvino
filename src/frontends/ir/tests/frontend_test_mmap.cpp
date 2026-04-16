@@ -14,12 +14,11 @@ protected:
     size_t binsize, REF_RSS;
 
     void SetUp() override {
-        size_t SIZE_MB = 32;
-        size_t CONST_SIZE = SIZE_MB * 1024 * 1024 / sizeof(ov::element::f32);
-        auto parameter = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{CONST_SIZE});
-        auto constant = std::make_shared<ov::opset1::Constant>(ov::element::f32,
-                                                               ov::Shape{CONST_SIZE},
-                                                               std::vector<float>(CONST_SIZE, 0));
+        constexpr size_t const_size = 32 * 1024 * 1024;
+        auto parameter = std::make_shared<ov::opset1::Parameter>(ov::element::i8, ov::Shape{const_size});
+        auto constant = std::make_shared<ov::opset1::Constant>(ov::element::i8,
+                                                               ov::Shape{const_size},
+                                                               std::vector<int8_t>(const_size, 0));
         auto add = std::make_shared<ov::opset1::Add>(parameter, constant);
         auto result = std::make_shared<ov::opset1::Result>(add);
         auto model = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{parameter});
