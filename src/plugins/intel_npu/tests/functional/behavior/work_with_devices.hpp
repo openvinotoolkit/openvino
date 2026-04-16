@@ -19,28 +19,21 @@ using CompilerType = ov::intel_npu::CompilerType;
 namespace {
 
 class TestCompiledModelNPU : public ov::test::behavior::OVPluginTestBase,
-                             public testing::WithParamInterface<std::tuple<std::string, ov::AnyMap>> {
+                             public testing::WithParamInterface<std::string> {
 public:
     void SetUp() override {
-        std::tie(target_device, configuration) = GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        target_device = GetParam();
+        configuration = {};
         OVPluginTestBase::SetUp();
     }
 
-    static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<std::string, ov::AnyMap>>& obj) {
-        std::string targetDevice;
-        ov::AnyMap configuration;
-        std::tie(targetDevice, configuration) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<std::string>& obj) {
+        std::string targetDevice = obj.param;
         std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
         std::ostringstream result;
         result << "targetDevice=" << targetDevice << "_";
-        result << "targetPlatform=" << ov::test::utils::getTestsPlatformFromEnvironmentOr(targetDevice) << "_";
-        if (!configuration.empty()) {
-            using namespace ov::test::utils;
-            for (auto& configItem : configuration) {
-                result << "configItem=" << configItem.first << "_";
-                configItem.second.print(result);
-            }
-        }
+        result << "targetPlatform=" << ov::test::utils::getTestsPlatformFromEnvironmentOr(targetDevice);
         return result.str();
     }
 
@@ -50,53 +43,57 @@ protected:
 };
 
 TEST_P(TestCompiledModelNPU, samePlatformProduceTheSameBlob) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED() {
-        configuration[ov::intel_npu::defer_weights_load.name()] = true;
-        auto configuration1 = configuration;
-        const auto& ov_model1 = buildSingleLayerSoftMaxNetwork();
-        auto compiled_model1 = core->compile_model(ov_model1, target_device, configuration1);
-        std::stringstream blobStream1;
-        compiled_model1.export_model(blobStream1);
+    configuration[ov::intel_npu::bypass_umd_caching.name()] = true;
+    configuration[ov::intel_npu::defer_weights_load.name()] = true;
+    auto configuration1 = configuration;
+    const auto& ov_model1 = buildSingleLayerSoftMaxNetwork();
+    auto compiled_model1 = core->compile_model(ov_model1, target_device, configuration1);
+    std::stringstream blobStream1;
+    compiled_model1.export_model(blobStream1);
 
-        auto configuration2 = configuration;
-        const auto& ov_model2 = buildSingleLayerSoftMaxNetwork();
-        auto compiled_model2 = core->compile_model(ov_model2, target_device, configuration2);
-        std::stringstream blobStream2;
-        compiled_model2.export_model(blobStream2);
+    auto configuration2 = configuration;
+    const auto& ov_model2 = buildSingleLayerSoftMaxNetwork();
+    auto compiled_model2 = core->compile_model(ov_model2, target_device, configuration2);
+    std::stringstream blobStream2;
+    compiled_model2.export_model(blobStream2);
 
-        ASSERT_NE(0, blobStream1.str().size());
-        ASSERT_EQ(0, std::memcmp(blobStream1.str().c_str(), blobStream2.str().c_str(), blobStream1.str().size()));
-    }
+    ASSERT_NE(0, blobStream1.str().size());
+    ASSERT_EQ(0, std::memcmp(blobStream1.str().c_str(), blobStream2.str().c_str(), blobStream1.str().size()));
 }
 
 TEST_P(TestCompiledModelNPU, samePlatformProduceTheSameBlobCacheEnabled) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED() {
-        // compiled model (uncached)
-        configuration[ov::intel_npu::defer_weights_load.name()] = true;
-        auto configuration1 = configuration;
-        const auto& ov_model1 = buildSingleLayerSoftMaxNetwork();
-        auto compiled_model1 = core->compile_model(ov_model1, target_device, configuration1);
-        std::stringstream blobStream1;
-        compiled_model1.export_model(blobStream1);
+    configuration[ov::intel_npu::bypass_umd_caching.name()] = true;
+    configuration[ov::intel_npu::defer_weights_load.name()] = true;
+    auto configuration1 = configuration;
+    const auto& ov_model1 = buildSingleLayerSoftMaxNetwork();
+    // First compile bypasses cache
+    auto compiled_model1 = core->compile_model(ov_model1, target_device, configuration1);
+    std::stringstream blobStream1;
+    compiled_model1.export_model(blobStream1);
 
-        // cached blobs
-        auto configuration2 = configuration;
-        configuration2[ov::intel_npu::bypass_umd_caching.name()] = false;
-        const auto& ov_model2 = buildSingleLayerSoftMaxNetwork();
-        // call compile_model() twice to make sure compiled model is cached
-        auto compiled_model2 = core->compile_model(ov_model2, target_device, configuration2);
-        auto compiled_model3 = core->compile_model(ov_model2, target_device, configuration2);
-        std::stringstream blobStream3;
-        compiled_model3.export_model(blobStream3);
+    // cached blobs
+    auto configuration2 = configuration;
+    configuration2[ov::intel_npu::bypass_umd_caching.name()] = false;
+    const auto& ov_model2 = buildSingleLayerSoftMaxNetwork();
+    // Second compile saves blob to cache
+    auto compiled_model2 = core->compile_model(ov_model2, target_device, configuration2);
+    // Workaround: destroy graph to force driver to close file descriptor to cache file
+    compiled_model2 = {};
 
-        ASSERT_NE(0, blobStream1.str().size());
-        ASSERT_EQ(0, std::memcmp(blobStream1.str().c_str(), blobStream3.str().c_str(), blobStream1.str().size()));
-    }
+    // Third compile loads model from cache
+    auto compiled_model3 = core->compile_model(ov_model2, target_device, configuration2);
+    std::stringstream blobStream3;
+    compiled_model3.export_model(blobStream3);
+
+    // Check if cache bypassed blob is the same as the cache retrieved blob
+    ASSERT_NE(0, blobStream1.str().size());
+    ASSERT_EQ(0, std::memcmp(blobStream1.str().c_str(), blobStream3.str().c_str(), blobStream1.str().size()));
 }
 
 class TestCompileModelWithoutDeviceNPU : public TestCompiledModelNPU {
 protected:
     void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         const auto devices = core->get_available_devices();
         const auto isNPUDeviceAvailable =
             std::find_if(devices.cbegin(), devices.cend(), [this](const std::string& device) {
@@ -109,19 +106,15 @@ protected:
 };
 
 TEST_P(TestCompileModelWithoutDeviceNPU, ThrowIfNoDeviceAndNoPlatform) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED() {
-        const auto& ov_model = buildSingleLayerSoftMaxNetwork();
-        ASSERT_THROW(auto compiled_model = core->compile_model(ov_model, target_device, configuration), ov::Exception);
-    }
+    const auto& ov_model = buildSingleLayerSoftMaxNetwork();
+    ASSERT_THROW(auto compiled_model = core->compile_model(ov_model, target_device, configuration), ov::Exception);
 }
 
 TEST_P(TestCompileModelWithoutDeviceNPU, NoThrowIfNoDeviceAndButPlatformPassed) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED() {
-        auto netConfiguration = configuration;
-        netConfiguration[ov::intel_npu::platform.name()] = ov::test::utils::getTestsPlatformFromEnvironmentOr("3720");
-        const auto& ov_model = buildSingleLayerSoftMaxNetwork();
-        OV_ASSERT_NO_THROW(auto compiled_model = core->compile_model(ov_model, target_device, netConfiguration));
-    }
+    auto netConfiguration = configuration;
+    netConfiguration[ov::intel_npu::platform.name()] = ov::test::utils::getTestsPlatformFromEnvironmentOr("3720");
+    const auto& ov_model = buildSingleLayerSoftMaxNetwork();
+    OV_ASSERT_NO_THROW(auto compiled_model = core->compile_model(ov_model, target_device, netConfiguration));
 }
 
 const std::map<std::string_view, std::array<std::string_view, 2>> wrongDevice = {
@@ -153,25 +146,23 @@ std::string getValidDevice(const std::string_view platform, const CompilerType&)
 }
 
 TEST_P(TestCompileModelWithoutDeviceNPU, CheckDeviceInBlob) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED() {
-        // Compile model to target plugins, wrong platform specified -> expect an exception
-        auto netConfigurationPLUGIN_wrong = configuration;
-        netConfigurationPLUGIN_wrong[ov::intel_npu::platform.name()] =
-            getWrongDevice(PlatformEnvironment::PLATFORM, CompilerType::PLUGIN);
-        netConfigurationPLUGIN_wrong[ov::intel_npu::compiler_type.name()] = "PLUGIN";
-        const auto& ov_model1 = buildSingleLayerSoftMaxNetwork();
-        EXPECT_ANY_THROW(auto compiled_model =
-                             core->compile_model(ov_model1, target_device, netConfigurationPLUGIN_wrong));
+    // Compile model to target plugins, wrong platform specified -> expect an exception
+    auto netConfigurationPLUGIN_wrong = configuration;
+    netConfigurationPLUGIN_wrong[ov::intel_npu::platform.name()] =
+        getWrongDevice(PlatformEnvironment::PLATFORM, CompilerType::PLUGIN);
+    netConfigurationPLUGIN_wrong[ov::intel_npu::compiler_type.name()] = "PLUGIN";
+    const auto& ov_model1 = buildSingleLayerSoftMaxNetwork();
+    EXPECT_ANY_THROW(auto compiled_model =
+                            core->compile_model(ov_model1, target_device, netConfigurationPLUGIN_wrong));
 
-        // Compile model to target plugins, valid platform specified -> expect no exception
-        auto netConfigurationPLUGIN_valid = configuration;
-        netConfigurationPLUGIN_valid[ov::intel_npu::platform.name()] =
-            getValidDevice(PlatformEnvironment::PLATFORM, CompilerType::PLUGIN);
-        netConfigurationPLUGIN_valid[ov::intel_npu::compiler_type.name()] = "PLUGIN";
-        const auto& ov_model2 = buildSingleLayerSoftMaxNetwork();
-        EXPECT_NO_THROW(auto compiled_model =
-                            core->compile_model(ov_model2, target_device, netConfigurationPLUGIN_valid));
-    }
+    // Compile model to target plugins, valid platform specified -> expect no exception
+    auto netConfigurationPLUGIN_valid = configuration;
+    netConfigurationPLUGIN_valid[ov::intel_npu::platform.name()] =
+        getValidDevice(PlatformEnvironment::PLATFORM, CompilerType::PLUGIN);
+    netConfigurationPLUGIN_valid[ov::intel_npu::compiler_type.name()] = "PLUGIN";
+    const auto& ov_model2 = buildSingleLayerSoftMaxNetwork();
+    EXPECT_NO_THROW(auto compiled_model =
+                        core->compile_model(ov_model2, target_device, netConfigurationPLUGIN_valid));
 }
 
 }  // namespace
