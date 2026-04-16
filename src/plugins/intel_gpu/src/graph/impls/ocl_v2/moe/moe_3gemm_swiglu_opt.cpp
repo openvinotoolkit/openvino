@@ -1657,15 +1657,11 @@ public:
         OPENVINO_ASSERT(weight_bin_offsets.size() == cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count,
                         "Unexpected number of MOE weight offsets");
 
-        static std::once_flag file_size_flag;
-        static size_t weight_file_size = 0;
-        std::call_once(file_size_flag, [&] {
-            std::ifstream size_file(weights_path.c_str(), std::ios::in | std::ios::binary | std::ios::ate);
-            OPENVINO_ASSERT(size_file.is_open(), "Failed to open weight file to query size: ", weights_path);
-            auto end_pos = size_file.tellg();
-            OPENVINO_ASSERT(end_pos >= 0, "Failed to query weight file size: ", weights_path);
-            weight_file_size = static_cast<size_t>(end_pos);
-        });
+        std::ifstream size_file(weights_path.c_str(), std::ios::in | std::ios::binary | std::ios::ate);
+        OPENVINO_ASSERT(size_file.is_open(), "Failed to open weight file to query size: ", weights_path);
+        auto end_pos = size_file.tellg();
+        OPENVINO_ASSERT(end_pos >= 0, "Failed to query weight file size: ", weights_path);
+        const size_t weight_file_size = static_cast<size_t>(end_pos);
 
         static const std::array<const char*, cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count> tensor_names = {
             {"gate_w", "up_w", "down_w", "gate_s", "up_s", "down_s", "gate_z", "up_z", "down_z"}};
