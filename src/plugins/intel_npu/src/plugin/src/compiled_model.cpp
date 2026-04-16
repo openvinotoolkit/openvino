@@ -188,16 +188,8 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         // The weights-separation case is not supported for now
         OPENVINO_ASSERT(_graph->get_init_sizes() == 0);
 
-        std::string compilerDescriptor;
-        if (_compilerCompatibilityDescriptor.has_value()) {
-            // The compiler-in-plugin was used during compilation. The compiler part of the compatibility descriptor is
-            // stored within the CompiledModel
-            compilerDescriptor = _graph->get_compiler_compatibility_descriptor().value();
-        } else {
-            // The compiler-in-driver was used during compilation. The compiler part of the compatibility descriptor
-            // is being held by the driver
-            compilerDescriptor = _propertiesManager->getCompiledModelCompatibilityDescriptor(_graph);
-        }
+        OPENVINO_ASSERT(_compilerCompatibilityDescriptor.has_value());
+        std::string compilerDescriptor = _graph->get_compiler_compatibility_descriptor().value();
 
         std::ostringstream requirementsString;
         requirementsString.write(reinterpret_cast<const char*>(compilerDescriptor.data()),
