@@ -13,6 +13,7 @@
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/slice_scatter.hpp"
 #include "primitive_inst.h"
 
 #include "runtime/ocl/ocl_event.hpp"
@@ -248,6 +249,47 @@ TEST(network_test, scratchpad_test) {
         ASSERT_TRUE(fc1->get_intermediates_memories()[0]->buffer_ptr() !=
                     fc2->get_intermediates_memories()[0]->buffer_ptr());
     }
+}
+
+// this test verifies the case where an example primitive - in this case it's slice_scatter
+// calls update_output_memory before buid_deps is called, in this case we expect
+// that build_deps will be called from update_output_memory before accessing calling things like input_memory_ptr
+TEST(network_test, update_output_memory_calls_build_deps) {
+    auto& engine = get_test_engine();
+
+    auto data_mem = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 2, 3}});
+    auto updates_mem = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 2, 3}});
+    auto start_mem = engine.allocate_memory(layout{ov::PartialShape{4}, data_types::i64, format::bfyx});
+    auto stop_mem = engine.allocate_memory(layout{ov::PartialShape{4}, data_types::i64, format::bfyx});
+    auto step_mem = engine.allocate_memory(layout{ov::PartialShape{4}, data_types::i64, format::bfyx});
+
+    set_values<float>(data_mem, {0.f, 1.f, 2.f, 3.f, 4.f, 5.f});
+    set_values<float>(updates_mem, {10.f, 20.f, 30.f, 40.f, 50.f, 60.f});
+    set_values<int64_t>(start_mem, {0, 0, 0, 0});
+    set_values<int64_t>(stop_mem, {1, 1, 2, 3});
+    set_values<int64_t>(step_mem, {1, 1, 1, 1});
+
+    topology topo;
+    topo.add(input_layout("data", data_mem->get_layout()));
+    topo.add(input_layout("updates", updates_mem->get_layout()));
+    topo.add(data("start", start_mem));
+    topo.add(data("stop", stop_mem));
+    topo.add(data("step", step_mem));
+    // slice scatter is used here, but there are other primitives that have similar logic: gather, scatter_update, etc...
+    topo.add(slice_scatter("slice_scatter", {input_info("data"), input_info("updates"), input_info("start"), input_info("stop"), input_info("step")}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    auto prog = program::build_program(engine, topo, config);
+    auto& slice_scatter_node = prog->get_node("slice_scatter");
+    // force the flag to be true, so that it can pass the early return at the top of slice_scatter_inst::update_output_memory
+    slice_scatter_node.can_be_optimized(true);
+    ASSERT_TRUE(slice_scatter_node.can_be_optimized());
+
+    cldnn::network::ptr network;
+    ASSERT_NO_THROW(network = network::allocate_network(engine, prog));
+    ASSERT_NE(network, nullptr);
 }
 
 #endif
