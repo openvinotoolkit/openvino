@@ -57,6 +57,7 @@
 #include "arg_max_min_inst.h"
 #include "dft_inst.h"
 #include "multiclass_nms_inst.h"
+#include "moe_3gemm_fused_inst.h"
 #include "mutable_data_inst.h"
 #include "pooling_inst.h"
 #include "border_inst.h"
@@ -729,7 +730,7 @@ void program::transfer_memory_to_device() {
             auto& data_node = node->as<data>();
             auto data_node_layout = data_node.get_output_layout();
             auto prim = data_node.get_primitive();
-            if (otd) {
+            if (otd && node->have_user_with_type<moe_3gemm_fused_compressed>()) {
                 continue;
             }
             auto& mem = data_node.get_attached_memory();

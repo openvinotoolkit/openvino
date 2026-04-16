@@ -30,6 +30,7 @@
 #include "paged_attention_inst.h"
 #include "convolution_inst.h"
 #include "deconvolution_inst.h"
+#include "moe_3gemm_fused_inst.h"
 #include "mutable_data_inst.h"
 #include "condition_inst.h"
 #include "read_value_inst.h"
@@ -1066,7 +1067,7 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
         && users.front()->is_type<reshape>()
         && users.front()->is_dynamic())
             return;
-    if (get_config().get_moe_offload_max_experts() > 0) {
+    if (get_config().get_moe_offload_max_experts() > 0 && node.have_user_with_type<moe_3gemm_fused_compressed>()) {
         return;
     }
     // Do not transfer memory if a user requires lockable memory.
