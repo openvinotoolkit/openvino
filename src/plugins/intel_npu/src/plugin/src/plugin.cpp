@@ -230,6 +230,7 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(TILES);
     REGISTER_OPTION(COMPILATION_MODE);
     REGISTER_OPTION(COMPILER_TYPE);
+    REGISTER_OPTION(COMPILER_VERSION);
     REGISTER_OPTION(PLATFORM);
     REGISTER_OPTION(CREATE_EXECUTOR);
     REGISTER_OPTION(DYNAMIC_SHAPE_TO_STATIC);
@@ -453,6 +454,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
     FilteredConfig localConfig = _propertiesManager->getConfigForSpecificCompiler(localProperties, compiler.get());
+    localConfig.update({{ov::intel_npu::compiler_version.name(), std::to_string(compiler->get_version())}});
 
     auto updateBatchMode = [&](ov::intel_npu::BatchMode mode) {
         std::stringstream strStream;
@@ -848,6 +850,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
                        ? metadata->get_blob_size() - std::accumulate(initSizes->begin(), initSizes->end(), accumulator)
                        : metadata->get_blob_size();
         batchSize = metadata->get_batch_size();
+
+        std::optional<uint64_t> compiler_version = metadata->get_compiler_version();
+        if (compiler_version.has_value()) {
+            localConfig.update({{ov::intel_npu::compiler_version.name(), std::to_string(compiler_version.value())}});
+        }
     } else {
         _logger.info("Blob compatibility check skipped.");
     }

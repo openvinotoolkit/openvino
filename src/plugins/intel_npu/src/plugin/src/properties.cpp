@@ -728,6 +728,7 @@ void Properties::registerCompiledModelProperties() {
 
     // Properties we shall only enable if they were set prior-to-compilation
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::compiler_type, COMPILER_TYPE);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::compiler_version, COMPILER_VERSION);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::weights_path, WEIGHTS_PATH);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::cache_dir, CACHE_DIR);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::enable_profiling, PERF_COUNT);
@@ -802,21 +803,6 @@ void Properties::registerCompiledModelProperties() {
         // this property is implemented in compiled model directly
         // this implementation here servers only to publish it in supported_properties
         return std::string("NPU");
-    });
-    REGISTER_CUSTOM_METRIC(ov::intel_npu::compiler_version, true, [&](const Config& config) {
-        auto compilerType = config.get<COMPILER_TYPE>();
-        auto deviceId = config.get<DEVICE_ID>();
-        auto device = utils::getDeviceById(_backend, deviceId);
-
-        auto compilationPlatform = utils::getCompilationPlatform(
-            config.get<PLATFORM>(),
-            device == nullptr ? deviceId : device->getName(),
-            _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
-
-        CompilerAdapterFactory factory;
-        auto compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
-
-        return compiler->get_version();
     });
 }
 
