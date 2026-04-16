@@ -47,24 +47,22 @@ inline void reorder_kv_cache_token(ov::intel_cpu::PlainTensor& cache,
                                    std::vector<float>& block_float_buffer,
                                    std::vector<float>& row_float_buffer,
                                    bool by_channel) {
-    const size_t hidden = cache.size(3);
     const size_t elem_size = cache.get_precision().size();
     const size_t sub_byte = get_sub_byte_multiplier(cache.get_precision());
+    const size_t hidden = cache.size(3);
     const size_t params_offset = 2 * sizeof(float) * hidden;
 
-    // For by-channel quantization, cache.size(2) includes space for scale/zp params
-    // Reference: attn_quant.cpp line 76
-    // block_size = dst.m_dims[2] - 2 * sizeof(float) * get_sub_byte_multiplier(DST_PREC)
     const size_t block_size = by_channel
         ? (cache.size(2) - 2 * sizeof(float) * sub_byte)
         : cache.size(2);
 
     const size_t token_bytes = hidden * elem_size / sub_byte;
-    // CRITICAL: Use cache.stride_bytes(2) to match paged attention's stride calculation
-    // This accounts for the actual memory layout including any alignment
+
     const size_t data_stride_bytes = cache.stride_bytes(2);
 
-    if constexpr (ov::intel_cpu::any_of(PREC, ov::element::i8, ov::element::u8, ov::element::u4)) {
+    constexpr bool is_quantized = ov::intel_cpu::any_of(PREC, ov::element::i8, ov::element::u8, ov::element::u4);
+
+    if constexpr (is_quantized) {
         if (by_channel) {
             // By-channel quantization: need to requantize the destination block
 
@@ -231,18 +229,15 @@ inline void reorder_kv_cache(ov::intel_cpu::PlainTensor& key_cache,
         thread_local std::vector<float> local_value_block_float;
         thread_local std::vector<float> local_value_row_float;
 
-        // Allocate buffers only if quantization is used
+        // Allocate/resize buffers if quantization is used
+        // CRITICAL: Always resize to exact size to avoid stale data from previous calls
         if (key_by_channel) {
-            if (local_key_block_float.size() != block_size * key_hidden) {
-                local_key_block_float.resize(block_size * key_hidden);
-                local_key_row_float.resize(key_hidden);
-            }
+            local_key_block_float.resize(block_size * key_hidden);
+            local_key_row_float.resize(key_hidden);
         }
         if (value_by_channel) {
-            if (local_value_block_float.size() != block_size * value_hidden) {
-                local_value_block_float.resize(block_size * value_hidden);
-                local_value_row_float.resize(value_hidden);
-            }
+            local_value_block_float.resize(block_size * value_hidden);
+            local_value_row_float.resize(value_hidden);
         }
 
         const int32_t op_begin = update_begins_ptr[seq];
