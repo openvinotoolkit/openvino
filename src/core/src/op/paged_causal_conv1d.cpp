@@ -4,12 +4,15 @@
 
 #include "openvino/op/paged_causal_conv1d.hpp"
 
+#include "dimension_util.hpp"
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/op.hpp"
 #include "paged_causal_conv1d_shape_inference.hpp"
 
 namespace {
 
+// Validates input rank and type for a node input.
 inline void input_check(const ov::Node* node,
                         size_t idx,
                         const std::string_view input_name,
@@ -22,20 +25,22 @@ inline void input_check(const ov::Node* node,
     const auto& rank = node->get_input_partial_shape(idx).rank();
     const auto& tp = node->get_input_element_type(idx);
 
-    auto rank_check = [&](const Rank& rank_val) {
-        return !rank_val.is_dynamic() && is_rank_compatible_any_of(rank_val.get_length(), allowed_ranks);
+    auto rank_check = [&](const Rank& rank) {
+        return !rank.is_dynamic() && is_rank_compatible_any_of(rank.get_length(), allowed_ranks);
     };
 
-    auto type_check = [&](const Type& type_val) {
-        const auto it = std::find(allowed_types.begin(), allowed_types.end(), tp);
-        return !type_val.is_dynamic() && (allowed_types.empty() || it != allowed_types.end());
+    auto type_check = [&](const Type& type) {
+        auto it = std::find(allowed_types.begin(), allowed_types.end(), tp);
+        return !type.is_dynamic() && (allowed_types.empty() || it != allowed_types.end());
     };
 
     NODE_VALIDATION_CHECK(node,
                           rank_check(rank),
                           "Rank of `",
                           input_name,
-                          "` input is not supported. Actual rank: ",
+                          "` input should be in [",
+                          join(allowed_ranks),
+                          "] list, but it is ",
                           rank,
                           ".");
 
@@ -43,7 +48,9 @@ inline void input_check(const ov::Node* node,
                           type_check(tp),
                           "Element type of `",
                           input_name,
-                          "` input is not supported. Actual type: ",
+                          "` input should be in [",
+                          join(allowed_types),
+                          "] list, but it is ",
                           tp,
                           ".");
 }

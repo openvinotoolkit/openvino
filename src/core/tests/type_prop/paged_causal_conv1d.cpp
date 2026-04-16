@@ -96,7 +96,7 @@ TEST(type_prop, paged_causal_conv1d_partial_shape_infer) {
 
 TEST(type_prop, paged_causal_conv1d_invalid_input_embeds_rank) {
     OV_EXPECT_THROW(std::ignore = make_pcc(element::f32,
-                                           Shape{10, 256, 1},
+                                           Shape{10, 256, 1},  // rank 3 - invalid
                                            Shape{5, 256, 4},
                                            Shape{256, 256, 4},
                                            Shape{256},
@@ -112,7 +112,7 @@ TEST(type_prop, paged_causal_conv1d_invalid_input_embeds_rank) {
 TEST(type_prop, paged_causal_conv1d_invalid_conv_state_table_rank) {
     OV_EXPECT_THROW(std::ignore = make_pcc(element::f32,
                                            Shape{10, 256},
-                                           Shape{5, 256},
+                                           Shape{5, 256},  // rank 2 - invalid
                                            Shape{256, 256, 4},
                                            Shape{256},
                                            Shape{3},
@@ -142,7 +142,7 @@ TEST(type_prop, paged_causal_conv1d_invalid_type) {
 TEST(type_prop, paged_causal_conv1d_hidden_size_mismatch) {
     OV_EXPECT_THROW(std::ignore = make_pcc(element::f32,
                                            Shape{10, 256},
-                                           Shape{5, 128, 4},
+                                           Shape{5, 128, 4},  // hidden_size 128 != 256
                                            Shape{256, 256, 4},
                                            Shape{256},
                                            Shape{3},
@@ -159,7 +159,7 @@ TEST(type_prop, paged_causal_conv1d_kernel_size_mismatch) {
     OV_EXPECT_THROW(std::ignore = make_pcc(element::f32,
                                            Shape{10, 256},
                                            Shape{5, 256, 4},
-                                           Shape{256, 256, 8},
+                                           Shape{256, 256, 8},  // kernel_size 8 != 4
                                            Shape{256},
                                            Shape{3},
                                            Shape{5},
