@@ -62,6 +62,8 @@ std::shared_ptr<ov::Model> create_xattention_paged_attention_model() {
     auto adaptive_rkv_diversity_block_set_indices = v0::Constant::create(element::i32, Shape{0}, {});
     auto adaptive_rkv_diversity_block_set_indices_begins = v0::Constant::create(element::i32, Shape{2}, {0, 0});
     auto token_type_ids = v0::Constant::create(element::i32, Shape{0}, {});
+    auto qq_bias = v0::Constant::create(element::u8, Shape{0}, {});
+    auto qq_bias_begins = v0::Constant::create(element::i32, Shape{0}, {});
 
     key_cache->set_friendly_name("key_cache");
     value_cache->set_friendly_name("value_cache");
@@ -92,7 +94,9 @@ std::shared_ptr<ov::Model> create_xattention_paged_attention_model() {
                                                                          adaptive_rkv_evictable_sizes,
                                                                          adaptive_rkv_diversity_block_set_indices,
                                                                          adaptive_rkv_diversity_block_set_indices_begins,
-                                                                         token_type_ids});
+                                                                         token_type_ids,
+                                                                         qq_bias,
+                                                                         qq_bias_begins});
     pa->get_rt_info()["num_k_heads"] = num_heads;
     pa->get_rt_info()["k_head_size"] = head_size;
     pa->get_rt_info()["num_v_heads"] = num_heads;
