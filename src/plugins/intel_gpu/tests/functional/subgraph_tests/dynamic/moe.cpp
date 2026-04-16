@@ -82,6 +82,20 @@ protected:
                                                   routing_type);
     }
 
+    void assert_runtime_model_has_op(const std::string& expected_layer_type) {
+        auto runtime_model = compiledModel.get_runtime_model();
+        ASSERT_TRUE(runtime_model != nullptr) << "Runtime model should not be null";
+        bool found = false;
+        for (const auto& op : runtime_model->get_ordered_ops()) {
+            auto layer_type = op->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
+            if (layer_type == expected_layer_type) {
+                found = true;
+                break;
+            }
+        }
+        ASSERT_TRUE(found) << expected_layer_type << " op is not found in runtime model";
+    }
+
     void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
         inputs.clear();
         const auto& params = function->get_parameters();
@@ -94,16 +108,7 @@ protected:
 
     void validate() override {
         ov::test::SubgraphBaseTest::validate();
-        auto runtime_model = compiledModel.get_runtime_model();
-        ASSERT_TRUE(runtime_model != nullptr) << "Runtime model should not be null";
-        bool moe_found = false;
-        for (const auto& op : runtime_model->get_ordered_ops()) {
-            auto layer_type = op->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
-            if (layer_type == std::string("moe_3gemm_fused_compressed")) {
-                moe_found = true;
-            }
-        }
-        ASSERT_TRUE(moe_found) << "moe_3gemm_fused_compressed op is not found";
+        assert_runtime_model_has_op("moe_3gemm_fused_compressed");
     }
 };
 
@@ -161,16 +166,7 @@ protected:
 
     void validate() override {
         ov::test::SubgraphBaseTest::validate();
-        auto runtime_model = compiledModel.get_runtime_model();
-        ASSERT_TRUE(runtime_model != nullptr) << "Runtime model should not be null";
-        bool gather_matmul_found = false;
-        for (const auto& op : runtime_model->get_ordered_ops()) {
-            auto layer_type = op->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
-            if (layer_type == "gather_matmul") {
-                gather_matmul_found = true;
-            }
-        }
-        ASSERT_TRUE(gather_matmul_found) << "gather_matmul op is not found (MOE fusion should be disabled)";
+        assert_runtime_model_has_op("gather_matmul");
     }
 };
 
