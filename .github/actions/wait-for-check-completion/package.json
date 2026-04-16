@@ -24,7 +24,7 @@
     "license": "Apache-2.0",
     "dependencies": {
         "@actions/core": "^3.0.0",
-        "@actions/github": "^6.0.0"
+        "@actions/github": "^9.1.0"
     },
     "devDependencies": {
         "@vercel/ncc": "^0.38.1",
