@@ -37,7 +37,11 @@ public:
     }
 
     [[nodiscard]] void* getRawPtr() const noexcept override {
-        return static_cast<uint8_t*>(m_pBlock->getRawPtr()) + m_offset;
+        void* base = m_pBlock->getRawPtr();
+        if (base == nullptr) {
+            return nullptr;
+        }
+        return static_cast<uint8_t*>(base) + m_offset;
     }
     void setExtBuff([[maybe_unused]] void* ptr, [[maybe_unused]] size_t size) override {
         OPENVINO_THROW("Unexpected setExtBuff call to StaticPartitionMemoryBlock");
