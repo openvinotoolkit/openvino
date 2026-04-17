@@ -313,10 +313,10 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
         // support the lastest vcl api
         // For VCL 7.7 and later, we can use vclAllocatedExecutableCreate3
         _logger.debug("Using vclAllocatedExecutableCreate3 for 7.7 <= VCL");
-        vcl_allocator allocator;
+        vcl_allocator_2 allocator;
         uint8_t* blob = nullptr;
         size_t blobSize = 0;
-        uint8_t* compatibilityString = nullptr;
+        uint8_t* compatibilityStringBuffer = nullptr;
         size_t compatibilityStringSize = 0;
 
         auto result = vclAllocatedExecutableCreate3(_compilerHandle,
@@ -324,7 +324,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                                                     &allocator,
                                                     &blob,
                                                     &blobSize,
-                                                    &compatibilityString,
+                                                    &compatibilityStringBuffer,
                                                     &compatibilityStringSize);
         if (result != VCL_RESULT_SUCCESS) {
             OPENVINO_THROW("Compilation failed. vclAllocatedExecutableCreate3 result: 0x",
@@ -336,24 +336,34 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
 
         OPENVINO_ASSERT(blobSize != 0 && blob != nullptr,
                         "Failed to create VCL executable, the blob size is zero or the blob is null");
+
+        std::optional<size_t> alignedBlobSize;
+        for (auto [buffer, size] : allocator.m_info) {
+            if (buffer == blob) {
+                alignedBlobSize = size;
+                break;
+            }
+        }
+
+        OPENVINO_ASSERT(alignedBlobSize.has_value());
+
         // The allocated size from VCL will be equal or smaller than the allocated size in allocator
         _logger.debug("Blob size from VCL: %zu ptr %p", blobSize, static_cast<void*>(blob));
-        _logger.debug("Allocated vector size: %zu ptr: %p",
-                      allocator.m_size,
-                      static_cast<void*>(allocator.m_allocated));
+        _logger.debug("Allocated vector size: %zu ptr: %p", *alignedBlobSize, static_cast<void*>(blob));
 
-        ov::Tensor alignedBlob = make_tensor_from_aligned_addr(allocator.m_allocated, allocator.m_size);
+        ov::Tensor alignedBlob = make_tensor_from_aligned_addr(blob, *alignedBlobSize);
         std::optional<std::string> compatibilityString;
 
         if (!storeWeightlessCacheAttributeFlag) {
             // Non-weights separation call. The compatibility string is expected
-            OPENVINO_ASSERT(compatibilityString != nullptr && compatibilityStringSize != 0,
+            OPENVINO_ASSERT(compatibilityStringBuffer != nullptr && compatibilityStringSize != 0,
                             "Failed to create VCL executable, the compatibility descriptor size is zero or the "
                             "compatibility descriptor is null");
-            compatibilityString = std::string(compatibilityString, compatibilityStringSize);
+            compatibilityString =
+                std::string(reinterpret_cast<char*>(compatibilityStringBuffer), compatibilityStringSize);
         }
 
-        _logger.debug("compile end, blob size:%d", allocator.m_size);
+        _logger.debug("compile end, blob size:%d", alignedBlobSize);
         return std::make_pair<ov::Tensor, std::optional<std::string>>(alignedBlob, compatibilityString);
     } else {
         OPENVINO_THROW("Not supported VCL version: %d.%d, please use VCL 6.1 or later",
