@@ -386,7 +386,18 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         const size_t compilerStringSize = metadata->get_blob_size();
         // Discard everything else but the compiler section
         decodedString = decodedString.substr(0, compilerStringSize);
-        return _propertiesManager->checkCompiledModelCompatibilityDescriptor(decodedString);
+
+        // Create a compiler to get the type and fetch version and supported options if needed
+        std::unique_ptr<ICompilerAdapter> compiler = nullptr;
+        CompilerAdapterFactory factory;
+        try {
+            // TODO consider using backend directly
+            compiler = factory.getCompiler(_backend, ov::intel_npu::CompilerType::DRIVER);
+        } catch (const std::exception& ex) {
+            compiler = factory.getCompiler(_backend, ov::intel_npu::CompilerType::PLUGIN);
+        }
+        OPENVINO_ASSERT(compiler != nullptr);
+        return compiler->validate_compatibility_descriptor(decodedString);
     }
 
     if (!arguments.empty()) {
