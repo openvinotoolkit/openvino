@@ -55,6 +55,19 @@ def test_properties_rw_base():
             ),
         ),
         (
+            props.BlobCompatibility,
+            (
+                (props.BlobCompatibility.NOT_APPLICABLE, "BlobCompatibility.NOT_APPLICABLE", 0),
+                (props.BlobCompatibility.OPTIMAL, "BlobCompatibility.OPTIMAL", 1),
+                (
+                    props.BlobCompatibility.PREFER_RECOMPILATION,
+                    "BlobCompatibility.PREFER_RECOMPILATION",
+                    2,
+                ),
+                (props.BlobCompatibility.UNSUPPORTED, "BlobCompatibility.UNSUPPORTED", 3),
+            ),
+        ),
+        (
             props.WorkloadType,
             (
                 (props.WorkloadType.DEFAULT, "WorkloadType.DEFAULT", 0),
@@ -88,9 +101,7 @@ def test_properties_rw_base():
         ),
         (
             hints.ModelDistributionPolicy,
-            (
-                (hints.ModelDistributionPolicy.TENSOR_PARALLEL, "ModelDistributionPolicy.TENSOR_PARALLEL", 0),
-            ),
+            ((hints.ModelDistributionPolicy.TENSOR_PARALLEL, "ModelDistributionPolicy.TENSOR_PARALLEL", 0),),
         ),
         (
             hints.ExecutionMode,
@@ -187,7 +198,7 @@ def test_conflicting_enum(proxy_enums, expected_values):
         (props.range_for_async_infer_requests, "RANGE_FOR_ASYNC_INFER_REQUESTS"),
         (props.execution_devices, "EXECUTION_DEVICES"),
         (props.loaded_from_cache, "LOADED_FROM_CACHE"),
-        (props.runtime_requirements_met, "RUNTIME_REQUIREMENTS_MET"),
+        (props.blob_compatibility, "BLOB_COMPATIBILITY"),
         (device.full_name, "FULL_DEVICE_NAME"),
         (device.architecture, "DEVICE_ARCHITECTURE"),
         (device.type, "DEVICE_TYPE"),

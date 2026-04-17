@@ -26,6 +26,12 @@ void regmodule_properties(py::module m) {
         .value("OPTIMIZE_SIZE", ov::CacheMode::OPTIMIZE_SIZE)
         .value("OPTIMIZE_SPEED", ov::CacheMode::OPTIMIZE_SPEED);
 
+    py::enum_<ov::BlobCompatibility>(m_properties, "BlobCompatibility", py::arithmetic())
+        .value("NOT_APPLICABLE", ov::BlobCompatibility::NOT_APPLICABLE)
+        .value("OPTIMAL", ov::BlobCompatibility::OPTIMAL)
+        .value("PREFER_RECOMPILATION", ov::BlobCompatibility::PREFER_RECOMPILATION)
+        .value("UNSUPPORTED", ov::BlobCompatibility::UNSUPPORTED);
+
     // Submodule properties - properties
     wrap_property_RW(m_properties, ov::enable_profiling, "enable_profiling");
     wrap_property_RW(m_properties, ov::cache_dir, "cache_dir");
@@ -55,7 +61,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RO(m_properties, ov::range_for_async_infer_requests, "range_for_async_infer_requests");
     wrap_property_RO(m_properties, ov::execution_devices, "execution_devices");
     wrap_property_RO(m_properties, ov::loaded_from_cache, "loaded_from_cache");
-    wrap_property_RO(m_properties, ov::runtime_requirements_met, "runtime_requirements_met");
+    wrap_property_RO(m_properties, ov::blob_compatibility, "blob_compatibility");
 
     wrap_property_WO(m_properties, ov::cache_encryption_callbacks, "cache_encryption_callbacks");
 

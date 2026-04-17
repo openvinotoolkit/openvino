@@ -132,7 +132,8 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
                                                     ov::supported_properties,
                                                     ov::execution_devices,
                                                     ov::loaded_from_cache,
-                                                    ov::optimal_number_of_infer_requests};
+                                                    ov::optimal_number_of_infer_requests,
+                                                    ov::runtime_requirements};
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
@@ -150,6 +151,11 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
     } else if (ov::optimal_number_of_infer_requests == name) {
         unsigned int value = m_cfg.streams;
         return decltype(ov::optimal_number_of_infer_requests)::value_type(value);
+    } else if (ov::runtime_requirements == name) {
+        // A real plugin would encode compilation capabilities.
+        ov::Tensor requirements(element::string, {});
+        *requirements.data<std::string>() = get_template_plugin()->get_compile_requirements();
+        return requirements;
     } else if (ov::supported_properties == name) {
         auto ro_properties = default_ro_properties();
         auto rw_properties = default_rw_properties();
