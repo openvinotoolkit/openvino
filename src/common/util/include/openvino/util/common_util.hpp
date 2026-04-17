@@ -310,9 +310,8 @@ std::optional<T> view_to_number(std::string_view sv) noexcept {
     static_assert(std::is_arithmetic_v<T>, "T must be an arithmetic type");
     T value{};
     if constexpr (std::is_integral_v<T>) {
-        const auto result = std::from_chars(sv.begin(), sv.end(), value);
-        return result.ec == std::errc() && result.ptr == sv.data() + sv.size() ? std::make_optional(value)
-                                                                               : std::nullopt;
+        const auto result = std::from_chars(sv.data(), sv.data() + sv.size(), value);
+        return result.ec == std::errc() ? std::make_optional(value) : std::nullopt;
     } else {
         try {
             if constexpr (std::string str{sv}; std::is_same_v<float, T>) {

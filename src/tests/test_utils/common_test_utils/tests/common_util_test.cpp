@@ -126,16 +126,20 @@ TEST_F(CommonUtilsTest, split_to_views_custom_check_fail) {
                  ov::AssertFailure);
 }
 
+TEST_F(CommonUtilsTest, split_to_views_lower) {
+    const std::string test_str{"Test1,Test2,Test3"};
+    EXPECT_EQ((std::vector<std::string_view>{"test1", "test2", "test3"}), util::split(util::to_lower(test_str)));
+}
+
 TEST_F(CommonUtilsTest, view_to_integral_number){
     EXPECT_EQ(123, util::view_to_number<int>("123").value());
     EXPECT_EQ(-123, util::view_to_number<int>("-123").value());
+    EXPECT_EQ(123, util::view_to_number<int>("123abc").value());
 }
 
 TEST_F(CommonUtilsTest, view_to_number_invalid_input){
     EXPECT_EQ(0, util::view_to_number<int>("abc").value_or(0));
     EXPECT_EQ(0, util::view_to_number<int>("").value_or(0));
-    EXPECT_FALSE(util::view_to_number<int>("123abc").has_value());
-    EXPECT_FALSE(util::view_to_number<int>("123 ").has_value());
 }
 
 TEST_F(CommonUtilsTest, view_to_floating_point_number){

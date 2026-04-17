@@ -32,7 +32,7 @@ void DebugCapsConfig::readProperties() {
 }
 
 void DebugCapsConfig::PropertyGroup::parseAndSet(const std::string& str) {
-    const auto& options = ov::util::split(str, ' ');
+    const auto& options = ov::util::split(str, " ");
     const auto& propertySetters = getPropertySetters();
     bool failed = false;
     auto getHelp = [propertySetters]() {
@@ -47,7 +47,7 @@ void DebugCapsConfig::PropertyGroup::parseAndSet(const std::string& str) {
         if (option.empty()) {
             continue;
         }
-        const auto& parts = ov::util::split(option, '=');
+        const auto& parts = ov::util::split(option, "=");
         if (parts.size() > 2) {
             failed = true;
             break;

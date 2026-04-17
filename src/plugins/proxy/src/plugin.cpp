@@ -197,8 +197,7 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
             OPENVINO_ASSERT(dev_prior.size() == 2,
                             "Cannot set ov::proxy::device_priorities property. Format is incorrect.");
             const auto priority_opt = util::view_to_number<size_t>(dev_prior[1]);
-            OPENVINO_ASSERT(priority_opt.has_value(),
-                            "Cannot set ov::proxy::device_priorities property. Priority value is incorrect.");
+            OPENVINO_ASSERT(priority_opt, "Cannot parse  ov::proxy::device_priorities value from: ", dev_prior[1]);
             const auto priority = *priority_opt;
             if (priority > min_priority)
                 min_priority = priority;
