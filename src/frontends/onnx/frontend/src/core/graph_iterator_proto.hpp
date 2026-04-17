@@ -67,6 +67,7 @@ public:
     ~GraphIteratorProto() = default;
 
     void initialize(const std::filesystem::path& path);
+    void initialize(std::shared_ptr<ModelProto> model);
 
     /// Verifies file is supported
     template <typename T>
