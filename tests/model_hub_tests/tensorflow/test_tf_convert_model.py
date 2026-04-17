@@ -45,10 +45,7 @@ class TestTFHubConvertModel(TestConvertModel):
 
     def load_model(self, model_name, model_link: str):
         if is_hf_link(model_link):
-            try:
-                model_cached = snapshot_download(model_name, local_files_only=True)
-            except Exception:
-                model_cached = snapshot_download(model_name)  # fallback: download if not cached
+            model_cached = snapshot_download(model_name)  # required to avoid HF rate limits
             library_type = model_link[3:]
             if library_type == "transformers":
                 from transformers import TFAutoModel

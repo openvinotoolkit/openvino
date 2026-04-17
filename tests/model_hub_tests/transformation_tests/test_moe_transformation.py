@@ -103,11 +103,7 @@ def create_synthetic_moe_model(tmp_path, num_layers, num_experts, dtype="float32
         str: Path to the saved model
     """
     # Load config from cache to avoid HuggingFace rate limits
-    try:
-        config_cache = snapshot_download("optimum-internal-testing/tiny-random-qwen3_moe", local_files_only=True)
-    except Exception:
-        config_cache = snapshot_download("optimum-internal-testing/tiny-random-qwen3_moe")  # fallback: download if not cached
-    config = AutoConfig.from_pretrained(config_cache)
+    config_cache = snapshot_download("optimum-internal-testing/tiny-random-qwen3_moe")config = AutoConfig.from_pretrained(config_cache)
     config.num_hidden_layers = num_layers
     config.decoder_sparse_step = 1
     config.num_experts = num_experts
@@ -140,10 +136,7 @@ def run_moe(tmp_path,
     Args:
         batch_size: Number of sequences to process in parallel (default: 1)
     """
-    try:
-        model_cached = snapshot_download(model_id, local_files_only=True)
-    except Exception:
-        model_cached = snapshot_download(model_id)  # fallback: download if not cached
+    model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
 
     # Load original PyTorch model and tokenizer for comparison (from cache to avoid rate limits)
     pt_model = AutoModelForCausalLM.from_pretrained(model_cached, trust_remote_code=True)
@@ -216,12 +209,8 @@ def run_moe_synthetic(tmp_path,
     # Load original PyTorch model for comparison (from local path)
     pt_model = AutoModelForCausalLM.from_pretrained(model_path, trust_remote_code=True)
     # Load tokenizer from cache to avoid HuggingFace rate limits
-    try:
-        tokenizer_cache = snapshot_download("optimum-internal-testing/tiny-random-qwen3_moe", local_files_only=True)
-    except Exception:
-        tokenizer_cache = snapshot_download("optimum-internal-testing/tiny-random-qwen3_moe")  # fallback: download if not cached
+    tokenizer_cache = snapshot_download("optimum-internal-testing/tiny-random-qwen3_moe")
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_cache, trust_remote_code=True)
-
     # Prepare test input with specified batch size
     if batch_size == 1:
         test_text = "Test input for synthetic MoE model"
