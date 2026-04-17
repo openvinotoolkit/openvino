@@ -88,7 +88,7 @@ void jit_rotary_kernel_ir::rotary_half_ir() {
 
     auto count = var<size_t>(half_rotary_ndims);
 
-    begin_ir(true);
+    begin_ir();
 
     auto src_idx = src.reg().getIdx();
     auto dst_idx = dst.reg().getIdx();
@@ -141,7 +141,7 @@ void jit_rotary_kernel_ir::rotary_interleave_ir() {
 
     const auto half_rotary_ndims = m_jcp.rotary_ndims / 2;
 
-    begin_ir(true);
+    begin_ir();
 
     for (size_t i = 0; i < half_rotary_ndims / N; i++) {
         // Load two consecutive vectors of interleaved data

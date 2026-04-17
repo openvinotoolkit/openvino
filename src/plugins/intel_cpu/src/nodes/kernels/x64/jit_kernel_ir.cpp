@@ -92,6 +92,7 @@ void trace_remat_event(const char* phase,
 struct LocalSeg {
     std::uint32_t first;
     std::uint32_t last;
+    std::uint32_t valno;  // index into LiveRange::valnos
 };
 
 // Recursive tree walk for live range computation. Each recursion level
@@ -189,15 +190,31 @@ void compute_live_ranges_impl(const std::list<Op>& ops,
                 } else {
                     trace_ir("  first_use %" + std::to_string(read) +
                              " at " + std::to_string(early));
-                    local[read] = {early, early};
+                    // Use the latest VNInfo for this value (defined in outer scope).
+                    auto& lr = ranges[read];
+                    auto vn = lr.valnos.empty() ? lr.getNextValue(0) : lr.valnos.back().id;
+                    local[read] = {early, early, vn};
                 }
             }
             if (op.def != invalid_value) {
-                local[op.def] = {late, late};
-                if (op.is_copy && op.reads.size() == 1) {
-                    ranges[op.def].copy_of = op.reads[0];
+                auto& lr = ranges[op.def];
+                auto dit = local.find(op.def);
+                if (dit != local.end()) {
+                    // Re-def (post-SSA, e.g. COPY then FMA for same value_id).
+                    // Flush the current segment for the previous def, then
+                    // start a new segment with a new VNInfo for this def.
+                    lr.addSegment({dit->second.first, late, dit->second.valno});
+                    auto vn = lr.getNextValue(late);
+                    dit->second = {late, late, vn};
+                } else {
+                    // First def of this value_id.
+                    auto vn = lr.getNextValue(late);
+                    local[op.def] = {late, late, vn};
+                }
+                if (op.is_copy && !op.reads.empty()) {
+                    lr.copy_of = op.reads[0];
                 } else if (op.tied_to >= 0 && op.tied_to < static_cast<int>(op.reads.size())) {
-                    ranges[op.def].copy_of = op.reads[op.tied_to];
+                    lr.copy_of = op.reads[op.tied_to];
                 }
             }
             ++index;
@@ -206,7 +223,7 @@ void compute_live_ranges_impl(const std::list<Op>& ops,
 
     // Flush local segments into LiveRanges (half-open: end = last + 1).
     for (const auto& [vid, seg] : local) {
-        ranges[vid].addSegment({seg.first, seg.last + 1});
+        ranges[vid].addSegment({seg.first, seg.last + 1, seg.valno});
     }
 }
 
@@ -236,7 +253,32 @@ bool LiveRange::liveAt(std::uint32_t index) const noexcept {
                                });
     if (it == segments.begin()) return false;
     --it;
-    return index < it->end;  // half-open: [start, end)
+    return it->contains(index);
+}
+
+bool LiveRange::overlaps(const LiveRange& other) const noexcept {
+    // Two-pointer merge scan — both segment lists are sorted by start.
+    auto i = segments.begin(), ie = segments.end();
+    auto j = other.segments.begin(), je = other.segments.end();
+    while (i != ie && j != je) {
+        if (i->overlaps(*j)) return true;
+        if (i->start < j->start) ++i; else ++j;
+    }
+    return false;
+}
+
+bool LiveRange::overlaps(std::uint32_t start, std::uint32_t end) const noexcept {
+    for (const auto& s : segments) {
+        if (s.overlaps(start, end)) return true;
+        if (s.start >= end) break;  // remaining segments are past the query
+    }
+    return false;
+}
+
+std::uint32_t LiveRange::getNextValue(std::uint32_t def) {
+    auto idx = static_cast<std::uint32_t>(valnos.size());
+    valnos.push_back(VNInfo{idx, def});
+    return idx;
 }
 
 void LiveRange::addSegment(Segment s) {
@@ -726,9 +768,7 @@ std::optional<Assignment> linear_scan(IR& ir,
     auto interferes = [&](const LiveRange& lr, std::uint32_t r) -> bool {
         for (const auto& s : lr.segments) {
             for (const auto& e : reg_segments[r]) {
-                if (s.start < e.end && e.start < s.end) {
-                    return true;
-                }
+                if (s.overlaps(e)) return true;
             }
         }
         return false;
@@ -794,13 +834,7 @@ std::optional<Assignment> linear_scan(IR& ir,
             // where short-lived clones far from the pressure point keep
             // getting picked without reducing peak pressure.
             auto interferes_with_lr = [&](const LiveRange& victim_lr) -> bool {
-                for (const auto& vs : victim_lr.segments) {
-                    for (const auto& ls : lr.segments) {
-                        if (vs.start < ls.end && ls.start < vs.end)
-                            return true;
-                    }
-                }
-                return false;
+                return victim_lr.overlaps(lr);
             };
 
             // A value is rematerializable if:
@@ -963,6 +997,51 @@ void dump_assignment(std::ostream& os,
 
 // ── Pass implementations ────────────────────────────────────────────
 
+// Recursive helper for TwoAddressPass.
+static bool two_address_rewrite(std::list<Op>& ops, IR& ir) {
+    bool modified = false;
+    for (auto it = ops.begin(); it != ops.end(); ++it) {
+        // Recurse into nested regions.
+        if (it->body) {
+            if (two_address_rewrite(it->body->ops(), ir)) {
+                modified = true;
+            }
+            continue;
+        }
+        if (it->tied_to < 0 || it->tied_to >= static_cast<int>(it->reads.size())) {
+            continue;
+        }
+        // Found a tied-operand op. Insert a COPY before it.
+        // LLVM approach: break SSA — the COPY and the FMA both use
+        // the FMA's def value_id. The COPY defines it (from the seed),
+        // the FMA redefines it (in-place). One live range, one register.
+        auto tied_idx = static_cast<std::size_t>(it->tied_to);
+        auto seed_vid = it->reads[tied_idx];
+        auto def_vid = it->def;  // reuse FMA's def for the COPY
+
+        Op copy_op;
+        copy_op.reads = {seed_vid};
+        copy_op.def = def_vid;       // same value_id as the FMA's def
+        copy_op.is_copy = true;
+        copy_op.name = "two_addr_copy";
+        copy_op.emit = [](const EmitContext&) {};  // lowering handles is_copy
+
+        // Rewrite the FMA: reads[tied_idx] = def_vid (reads itself).
+        // The FMA now reads and writes the same value_id, matching LLVM's
+        // post-TwoAddressPass representation.
+        it->reads[tied_idx] = def_vid;
+        it->tied_to = -1;  // constraint satisfied by construction
+
+        ops.insert(it, std::move(copy_op));
+        modified = true;
+    }
+    return modified;
+}
+
+bool TwoAddressPass::run(IR& ir, PassContext& ctx) {
+    return two_address_rewrite(ir.ops(), ir);
+}
+
 bool LiveRangeAnalysis::run(IR& ir, PassContext& ctx) {
     ctx.ranges = compute_live_ranges(ir);
     return false;  // analysis, no IR modification
@@ -973,6 +1052,11 @@ bool LoopUnrollPass::run(IR& ir, PassContext& ctx) {
 }
 
 bool RegisterAllocator::run(IR& ir, PassContext& ctx) {
+    // No values to allocate — nothing to do.
+    if (ctx.ranges.empty()) {
+        ctx.assignment = Assignment{};
+        return false;
+    }
     // Remat loop: linear_scan may modify the IR and return nullopt,
     // requiring recomputation of live ranges.
     for (std::size_t attempt = 0, limit = ctx.ranges.size();
@@ -1015,6 +1099,7 @@ bool LoweringPass::run(IR& ir, PassContext& ctx) {
 PassManager build_default_pipeline(UnrollStrategy unroll) {
     PassManager pm;
     pm.add<LoopUnrollPass>(unroll);
+    pm.add<TwoAddressPass>();
     pm.add<LiveRangeAnalysis>();
     pm.add<DumpPass>("IR before allocation");
     pm.add<RegisterAllocator>();

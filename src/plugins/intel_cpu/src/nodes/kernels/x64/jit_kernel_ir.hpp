@@ -147,32 +147,63 @@ private:
     value_id _next_value = 0;
 };
 
+// Value number info — tracks one definition point within a LiveRange.
+// Post-SSA (after TwoAddressPass), a single value_id may have multiple
+// defs (COPY + FMA). Each def gets its own VNInfo.
+// Mirrors llvm::VNInfo.
+struct VNInfo {
+    std::uint32_t id = 0;    // unique within the LiveRange
+    std::uint32_t def = 0;   // slot index of the defining op
+};
+
 // A half-open [start, end) range within a LiveRange. LLVM naming.
-// `start` is the def or first-use index; `end` is one past the last use.
+// Each segment is tagged with the VNInfo that produced its value.
+// Mirrors llvm::LiveRange::Segment.
 struct Segment {
     std::uint32_t start = 0;
     std::uint32_t end = 0;
+    std::uint32_t valno = 0;  // index into LiveRange::valnos
+
+    [[nodiscard]] bool contains(std::uint32_t index) const noexcept {
+        return start <= index && index < end;
+    }
+
+    [[nodiscard]] bool overlaps(std::uint32_t s, std::uint32_t e) const noexcept {
+        return start < e && s < end;
+    }
+
+    [[nodiscard]] bool overlaps(const Segment& other) const noexcept {
+        return start < other.end && other.start < end;
+    }
 };
 
 // Live range for a single value id — a sorted list of non-overlapping
-// Segments. Replaces the old flat Interval. LLVM naming.
+// segments, each tagged with a VNInfo. Mirrors llvm::LiveRange.
 //
-// For straight-line code each value has one segment. Sibling branch bodies
-// (then/else) produce separate segments for the same value, preserving
-// per-branch liveness information.
+// In SSA form: one VNInfo, one or more segments (branches produce
+// multiple segments for one def). Post-SSA (after TwoAddressPass):
+// multiple VNInfos, one per def of the same value_id.
 struct LiveRange {
     value_id id = invalid_value;
-    std::vector<Segment> segments;  // sorted by start, non-overlapping
-    value_id copy_of = invalid_value;  // source value if this is a copy op
+    std::vector<Segment> segments;   // sorted by start, non-overlapping
+    std::vector<VNInfo> valnos;      // value numbers, one per def
+    value_id copy_of = invalid_value;  // coalescing hint
 
-    // First segment's start. Returns max uint32 if empty (not yet defined).
+    // First segment's start. Returns max uint32 if empty.
     [[nodiscard]] std::uint32_t beginIndex() const noexcept;
-    // Last segment's end. Returns 0 if empty.
+    // Last segment's end (half-open). Returns 0 if empty.
     [[nodiscard]] std::uint32_t endIndex() const noexcept;
-    // True if `index` falls within any segment.
+    // True if `index` falls within any segment. Mirrors LLVM LiveRange::liveAt.
     [[nodiscard]] bool liveAt(std::uint32_t index) const noexcept;
+    // True if any segment overlaps with any segment of `other`.
+    // Mirrors LLVM LiveRange::overlaps(const LiveRange&).
+    [[nodiscard]] bool overlaps(const LiveRange& other) const noexcept;
+    // True if any segment overlaps [start, end).
+    [[nodiscard]] bool overlaps(std::uint32_t start, std::uint32_t end) const noexcept;
+    // Allocate a new VNInfo for a def at the given slot. Returns its index.
+    std::uint32_t getNextValue(std::uint32_t def);
     // Insert a segment, maintaining sorted order. Merges overlapping
-    // segments but NOT merely adjacent ones (preserves branch boundaries).
+    // or adjacent segments (half-open: [0,2) + [2,4) → [0,4)).
     void addSegment(Segment s);
     // True if no segments exist.
     [[nodiscard]] bool empty() const noexcept;
@@ -301,6 +332,18 @@ struct LoopUnrollPass : IRPass {
     explicit LoopUnrollPass(UnrollStrategy s = UnrollStrategy::none) : strategy(s) {}
     bool run(IR& ir, PassContext& ctx) override;
     const char* name() const override { return "LoopUnroll"; }
+};
+
+// Transform: insert explicit COPY ops before tied-operand instructions.
+// LLVM's TwoAddressInstructionPass equivalent. Rewrites:
+//   %result = FMA(%seed, %a, %b)  [tied_to=0]
+// into:
+//   %copy   = COPY(%seed)
+//   %result = FMA(%copy, %a, %b)  [tied_to removed, emit assumes def==reads[0]]
+// The coalescer (in RegisterAllocator) eliminates the COPY when possible.
+struct TwoAddressPass : IRPass {
+    bool run(IR& ir, PassContext& ctx) override;
+    const char* name() const override { return "TwoAddress"; }
 };
 
 // Allocation: interference-based linear scan with integrated remat.

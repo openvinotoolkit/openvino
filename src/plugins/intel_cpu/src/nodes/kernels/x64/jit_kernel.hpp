@@ -609,20 +609,15 @@ public:
     // see "Value-transforming operations are by value" in jit_kernel.md.
     variable blend(const variable& rhs, uint16_t mask) const {
         static_assert(std::is_same_v<T, float>, "vector blend requires float element type");
-        if (base::_kernel.ir_mode()) {
-            using reg_type = typename reg_traits<type>::type;
-            return base::_kernel.template ir_def<N>(
-                {base::vid(), rhs.vid()},
-                [&k = base::_kernel, mask](const jit_kernel_ir::EmitContext& ctx) {
-                    k.uni_vblendps(reg_type(ctx.def->idx),
-                                   reg_type(ctx.reads[0].idx),
-                                   reg_type(ctx.reads[1].idx), mask);
-                },
-                "blend");
-        }
-        variable res(base::_kernel);
-        base::_kernel.uni_vblendps(res, base::reg(), rhs, mask);
-        return res;
+        using reg_type = typename reg_traits<type>::type;
+        return base::_kernel.template ir_def<N>(
+            {base::vid(), rhs.vid()},
+            [&k = base::_kernel, mask](const jit_kernel_ir::EmitContext& ctx) {
+                k.uni_vblendps(reg_type(ctx.def->idx),
+                               reg_type(ctx.reads[0].idx),
+                               reg_type(ctx.reads[1].idx), mask);
+            },
+            "blend");
     }
 
     // Lane permutation (vpermps). Returns a fresh variable holding the
@@ -650,20 +645,15 @@ public:
 
     variable shuffle(const variable& other, uint8_t imm) const {
         static_assert(std::is_same_v<T, float>, "vector shuffle requires float element type");
-        if (base::_kernel.ir_mode()) {
-            using reg_type = typename reg_traits<type>::type;
-            return base::_kernel.template ir_def<N>(
-                {base::vid(), other.vid()},
-                [&k = base::_kernel, imm](const jit_kernel_ir::EmitContext& ctx) {
-                    k.uni_vshufps(reg_type(ctx.def->idx),
-                                  reg_type(ctx.reads[0].idx),
-                                  reg_type(ctx.reads[1].idx), imm);
-                },
-                "shufps");
-        }
-        variable res(base::_kernel);
-        base::_kernel.uni_vshufps(res, base::reg(), other, imm);
-        return res;
+        using reg_type = typename reg_traits<type>::type;
+        return base::_kernel.template ir_def<N>(
+            {base::vid(), other.vid()},
+            [&k = base::_kernel, imm](const jit_kernel_ir::EmitContext& ctx) {
+                k.uni_vshufps(reg_type(ctx.def->idx),
+                              reg_type(ctx.reads[0].idx),
+                              reg_type(ctx.reads[1].idx), imm);
+            },
+            "shufps");
     }
 
     // Elementwise clamp to [lo, hi]. Mirrors std::datapar::clamp — returns
@@ -1002,8 +992,9 @@ public:
     // Opt-in recording mode. DSL calls record into IR instead of emitting
     // xbyak immediately. end_ir() runs allocation + lowering.
 
-    [[nodiscard]] bool ir_mode() const noexcept { return _ir_mode; }
-    void begin_ir(bool force = false);
+    // IR mode is always active between begin_ir() and end_ir().
+    [[nodiscard]] bool ir_mode() const noexcept { return _ir != nullptr; }
+    void begin_ir();
     void end_ir();
 
     // Generic dispatch: binary vector op. Handles IR/eager branching,
@@ -1129,8 +1120,7 @@ private:
     internal::consts_table _consts;
     std::unordered_map<size_t, std::unique_ptr<jit_emitter>> _emitters;
 
-    // IR mode state
-    bool _ir_mode = false;
+    // IR state — non-null between begin_ir() and end_ir().
     std::unique_ptr<jit_kernel_ir::IR> _ir;
 
     // Predicated loop state: when active, ir_load/ir_store automatically
@@ -1142,29 +1132,47 @@ private:
 template <>
 const Xbyak::Reg64& jit_kernel::reserve<Xbyak::Reg64>();
 
+// Raw xbyak scalar copy loop — no DSL, no IR, no foreach.
+// Used by store_interleaved3 tail and runtime-length load/store.
 template <typename T>
 void jit_kernel::copy(const Xbyak::Reg64& dst, const Xbyak::Reg64& src, const Xbyak::Reg64& size) {
+    using namespace Xbyak;
     const auto& addr_frame = address_frame(sizeof(T));
     auto p = reserve<typename reg_traits_by_size<sizeof(T)>::type>();
-    foreach (0, size, [&](const Xbyak::Reg64& idx) {
-        mov(p, addr_frame[src + idx * sizeof(T)]);
-        mov(addr_frame[dst + idx * sizeof(T)], p);
-    })
-        ;
+    auto idx = reserve<Reg64>();
+    Label loop, exit;
+    xor_(idx, idx);
+    L(loop);
+    cmp(idx, size);
+    jge(exit, CodeGenerator::T_NEAR);
+    mov(p, addr_frame[src + idx * sizeof(T)]);
+    mov(addr_frame[dst + idx * sizeof(T)], p);
+    inc(idx);
+    jmp(loop, CodeGenerator::T_NEAR);
+    L(exit);
+    free(idx);
     free(p);
 }
 
 template <typename T>
 void jit_kernel::copy(const Xbyak::Address& dst, const Xbyak::Reg64& src, const Xbyak::Reg64& size) {
+    using namespace Xbyak;
     const auto& addr_frame = address_frame(sizeof(T));
     auto p = reserve<typename reg_traits_by_size<sizeof(T)>::type>();
-    auto d = reserve<Xbyak::Reg64>();
+    auto d = reserve<Reg64>();
+    auto idx = reserve<Reg64>();
     lea(d, dst);
-    foreach (0, size, [&](const Xbyak::Reg64& idx) {
-        mov(p, addr_frame[src + idx * sizeof(T)]);
-        mov(addr_frame[d + idx * sizeof(T)], p);
-    })
-        ;
+    Label loop, exit;
+    xor_(idx, idx);
+    L(loop);
+    cmp(idx, size);
+    jge(exit, CodeGenerator::T_NEAR);
+    mov(p, addr_frame[src + idx * sizeof(T)]);
+    mov(addr_frame[d + idx * sizeof(T)], p);
+    inc(idx);
+    jmp(loop, CodeGenerator::T_NEAR);
+    L(exit);
+    free(idx);
     free(d);
     free(p);
 }
@@ -1213,35 +1221,8 @@ template <typename DstT, typename SrcT, size_t N>
 void jit_kernel::store(const variable<DstT>& dst, const variable<SrcT[N]>& src, size_t length) {
     static_assert(std::is_same_v<typename variable<DstT>::reg_type, const Xbyak::Reg64>,
                   "Destination register must be Reg64");
-
-    using src_type = std::remove_cv_t<std::remove_pointer_t<SrcT>>;
-    using dst_type = std::remove_cv_t<std::remove_pointer_t<DstT>>;
-
-    if (_ir_mode) {
-        // @todo claude: IR mode only supports same-type full-width stores.
-        // Type-converting stores (f32→u8) need the barrier mechanism.
-        OPENVINO_ASSERT((std::is_same_v<src_type, dst_type>),
-                        "IR mode store: type conversion not yet supported");
-        OPENVINO_ASSERT(length == N, "IR mode store: partial stores not yet supported");
-        ir_store(dst, src);
-        return;
-    }
-
-    const std::vector<size_t> pool_vec_idxs(_free_rmmregs.begin(), _free_rmmregs.end());
-    const std::vector<size_t> pool_gpr_idxs(_free_x64regs.begin(), _free_x64regs.end());
-
-    const auto src_prc = internal::type2precision<src_type>();
-    const auto dst_prc = internal::type2precision<dst_type>();
-
-    const auto key = store_emitter_params(src_prc, dst_prc, length).hash();
-    if (!_emitters[key]) {
-        _emitters[key] =
-            std::make_unique<jit_store_emitter>(this, internal::get_current_isa(), src_prc, dst_prc, length);
-    }
-    _emitters[key]->emit_code({static_cast<size_t>(static_cast<const Xbyak::Operand&>(src).getIdx())},
-                              {static_cast<size_t>(static_cast<const Xbyak::Operand&>(dst).getIdx())},
-                              pool_vec_idxs,
-                              pool_gpr_idxs);
+    OPENVINO_ASSERT(length == N, "store: partial stores not supported, use ir_store with masking");
+    ir_store(dst, src);
 }
 
 template <typename DstT, typename SrcT, size_t N>
@@ -1265,22 +1246,7 @@ void jit_kernel::foreach (const B& begin,
                           const S& step) {
     using namespace Xbyak;
 
-    if (!_ir_mode) {
-        // Eager path: emit loop control flow immediately
-        Label loop, exit;
-        auto idx = var<size_t>();
-        idx = begin;
-        L(loop);
-        cmp(idx, end);
-        jge(exit, T_NEAR);
-        fn(idx);
-        add(idx, step);
-        jmp(loop, T_NEAR);
-        L(exit);
-        return;
-    }
-
-    // IR path: loop counter lives in eager mode (GPR, not IR-managed).
+    // Loop counter lives in eager mode (GPR, not IR-managed).
     // Body ops record into a nested IR via _ir->loop().
     auto idx = var<size_t>();
     idx = begin;
@@ -1417,26 +1383,15 @@ jit_kernel::variable<float[N]> jit_kernel::vec_op(Insn2 insn,
                                                    const variable<float[N]>& a,
                                                    const variable<float[N]>& b) {
     using reg_type = typename reg_traits<float[N]>::type;
-
-    if (_ir_mode) {
-        auto vid = _ir->def({a.vid(), b.vid()},
-            [this, insn](const jit_kernel_ir::EmitContext& ctx) {
-                lower(insn,
-                      reg_type(ctx.def->idx),
-                      reg_type(ctx.reads[0].idx),
-                      reg_type(ctx.reads[1].idx));
-            },
-            "vec_op");
-        return variable<float[N]>(*this, vid);
-    }
-
-    // Eager path: allocate register, emit immediately
-    variable<float[N]> res(*this);
-    lower(insn,
-          static_cast<const reg_type&>(res.reg()),
-          static_cast<const reg_type&>(a.reg()),
-          static_cast<const reg_type&>(b.reg()));
-    return res;
+    auto vid = _ir->def({a.vid(), b.vid()},
+        [this, insn](const jit_kernel_ir::EmitContext& ctx) {
+            lower(insn,
+                  reg_type(ctx.def->idx),
+                  reg_type(ctx.reads[0].idx),
+                  reg_type(ctx.reads[1].idx));
+        },
+        "vec_op");
+    return variable<float[N]>(*this, vid);
 }
 
 template <typename Reg>
@@ -1459,50 +1414,30 @@ jit_kernel::variable<float[N]> jit_kernel::vec_op(Insn3 insn,
                                                    const variable<float[N]>& b) {
     using reg_type = typename reg_traits<float[N]>::type;
 
-    if (_ir_mode) {
-        // Destructive FMA: reads[0] = seed (tied to def), reads[1] = a, reads[2] = b.
-        // tied_to=0 tells the allocator to coalesce def with reads[0].
-        // If coalesced, vmovups is a self-move. If not, it's the necessary copy.
-        auto vid = _ir->def_tied({seed.vid(), a.vid(), b.vid()}, /*tied_to=*/0,
-            [this, insn](const jit_kernel_ir::EmitContext& ctx) {
-                if (ctx.def->idx != ctx.reads[0].idx) {
-                    uni_vmovups(reg_type(ctx.def->idx), reg_type(ctx.reads[0].idx));
-                }
-                lower(insn,
-                      reg_type(ctx.def->idx),
-                      reg_type(ctx.reads[1].idx),
-                      reg_type(ctx.reads[2].idx));
-            },
-            "fma");
-        return variable<float[N]>(*this, vid);
-    }
-
-    // Eager path: copy seed into a fresh register, then FMA in-place.
-    auto result = vec_copy(seed);
-    lower(insn,
-          static_cast<const reg_type&>(result.reg()),
-          static_cast<const reg_type&>(a.reg()),
-          static_cast<const reg_type&>(b.reg()));
-    return result;
+    // Destructive FMA: tied_to=0 marks reads[0] as the seed.
+    // TwoAddressPass inserts a COPY before this op and removes the tie.
+    // After allocation, def is guaranteed to hold the seed value
+    // (either coalesced or the COPY placed it there).
+    auto vid = _ir->def_tied({seed.vid(), a.vid(), b.vid()}, /*tied_to=*/0,
+        [this, insn](const jit_kernel_ir::EmitContext& ctx) {
+            lower(insn,
+                  reg_type(ctx.def->idx),
+                  reg_type(ctx.reads[1].idx),
+                  reg_type(ctx.reads[2].idx));
+        },
+        "fma");
+    return variable<float[N]>(*this, vid);
 }
 
 template <size_t N>
 jit_kernel::variable<float[N]> jit_kernel::vec_copy(const variable<float[N]>& src) {
     using reg_type = typename reg_traits<float[N]>::type;
-
-    if (_ir_mode) {
-        auto vid = _ir->copy(src.vid(),
-            [this](const jit_kernel_ir::EmitContext& ctx) {
-                uni_vmovups(reg_type(ctx.def->idx), reg_type(ctx.reads[0].idx));
-            },
-            "copy");
-        return variable<float[N]>(*this, vid);
-    }
-
-    variable<float[N]> res(*this);
-    uni_vmovups(static_cast<const reg_type&>(res.reg()),
-                static_cast<const reg_type&>(src.reg()));
-    return res;
+    auto vid = _ir->copy(src.vid(),
+        [this](const jit_kernel_ir::EmitContext& ctx) {
+            uni_vmovups(reg_type(ctx.def->idx), reg_type(ctx.reads[0].idx));
+        },
+        "copy");
+    return variable<float[N]>(*this, vid);
 }
 
 template <size_t N>
@@ -1510,58 +1445,44 @@ jit_kernel::variable<float[N]> jit_kernel::vec_permute(const variable<float[N]>&
                                                         const uint8_t* order) {
     using reg_type = typename reg_traits<float[N]>::type;
 
-    if (_ir_mode) {
-        if constexpr (N <= 4) {
-            // SSE: shufps with imm8 — no extra register needed
-            uint8_t imm8 = 0;
-            for (std::size_t i = 0; i < 4; ++i)
-                imm8 |= order[i] << (i * 2);
-            return ir_def<N>({src.vid()},
-                [this, imm8](const jit_kernel_ir::EmitContext& ctx) {
-                    Xbyak::Xmm def(ctx.def->idx), s(ctx.reads[0].idx);
-                    if (def.getIdx() != s.getIdx())
-                        movdqu(def, s);
-                    shufps(def, s, imm8);
-                },
-                "shufps");
-        } else {
-            // AVX2/AVX-512: load permute table into def, then vpermps
-            // in-place. Single IR value — no separate scratch register
-            // for the table, keeping register pressure minimal.
-            int data[N];
-            for (std::size_t i = 0; i < N; ++i)
-                data[i] = order[i];
-            const int* cref = constant(data, N);
-            auto addr = reinterpret_cast<std::uintptr_t>(cref);
+    if constexpr (N <= 4) {
+        // SSE: shufps with imm8 — no extra register needed
+        uint8_t imm8 = 0;
+        for (std::size_t i = 0; i < 4; ++i)
+            imm8 |= order[i] << (i * 2);
+        return ir_def<N>({src.vid()},
+            [this, imm8](const jit_kernel_ir::EmitContext& ctx) {
+                Xbyak::Xmm def(ctx.def->idx), s(ctx.reads[0].idx);
+                if (def.getIdx() != s.getIdx())
+                    movdqu(def, s);
+                shufps(def, s, imm8);
+            },
+            "shufps");
+    } else {
+        int data[N];
+        for (std::size_t i = 0; i < N; ++i)
+            data[i] = order[i];
+        const int* cref = constant(data, N);
+        auto addr = reinterpret_cast<std::uintptr_t>(cref);
 
-            // Two IR ops: load permute table, then vpermps.
-            // Split so the allocator sees both inputs and assigns
-            // distinct registers (the table and source can't share).
-            auto table_vid = _ir->def({},
-                [this, addr](const jit_kernel_ir::EmitContext& ctx) {
-                    reg_type def(ctx.def->idx);
-                    push(param1);
-                    mov(param1, addr);
-                    uni_vmovdqu(def, address_frame(sizeof(reg_type))[param1]);
-                    pop(param1);
-                },
-                "perm_table");
-            return ir_def<N>({table_vid, src.vid()},
-                [this](const jit_kernel_ir::EmitContext& ctx) {
-                    reg_type def(ctx.def->idx);
-                    reg_type table(ctx.reads[0].idx);
-                    reg_type s(ctx.reads[1].idx);
-                    vpermps(def, table, s);
-                },
-                "vpermps");
-        }
+        auto table_vid = _ir->def({},
+            [this, addr](const jit_kernel_ir::EmitContext& ctx) {
+                reg_type def(ctx.def->idx);
+                push(param1);
+                mov(param1, addr);
+                uni_vmovdqu(def, address_frame(sizeof(reg_type))[param1]);
+                pop(param1);
+            },
+            "perm_table");
+        return ir_def<N>({table_vid, src.vid()},
+            [this](const jit_kernel_ir::EmitContext& ctx) {
+                reg_type def(ctx.def->idx);
+                reg_type table(ctx.reads[0].idx);
+                reg_type s(ctx.reads[1].idx);
+                vpermps(def, table, s);
+            },
+            "vpermps");
     }
-
-    // Eager path: uni_vpermps handles ISA dispatch + scratch internally
-    variable<float[N]> res(*this);
-    uni_vpermps(static_cast<const reg_type&>(res.reg()), order,
-                static_cast<const reg_type&>(src.reg()));
-    return res;
 }
 
 template <size_t N, typename PtrT>
@@ -1627,72 +1548,48 @@ void jit_kernel::ir_store(const variable<PtrT>& dst_ptr, size_t byte_offset,
     auto mask_idx = _active_mask.getIdx();
 
     if constexpr (std::is_same_v<dst_elem, uint8_t>) {
-        if (_ir_mode) {
-            ir_use({val.vid()}, [this, ptr_idx, byte_offset, masked, mask_idx](const jit_kernel_ir::EmitContext& ctx) {
-                auto src = reg_type(ctx.reads[0].idx);
-                uni_vcvtps2dq(src, src);
-                auto addr = address_frame(N)[Xbyak::Reg64(ptr_idx) + byte_offset];
-                if (masked) {
-                    vpmovusdb(addr | Xbyak::Opmask(mask_idx), src);
-                } else {
-                    vpmovusdb(addr, src);
-                }
-            }, masked ? "store_u8_masked" : "store_u8");
-        } else {
-            uni_vcvtps2dq(static_cast<const reg_type&>(val.reg()),
-                          static_cast<const reg_type&>(val.reg()));
-            vpmovusdb(address_frame(N)[Xbyak::Reg64(ptr_idx) + byte_offset],
-                      static_cast<const reg_type&>(val.reg()));
-        }
+        ir_use({val.vid()}, [this, ptr_idx, byte_offset, masked, mask_idx](const jit_kernel_ir::EmitContext& ctx) {
+            auto src = reg_type(ctx.reads[0].idx);
+            uni_vcvtps2dq(src, src);
+            auto addr = address_frame(N)[Xbyak::Reg64(ptr_idx) + byte_offset];
+            if (masked) {
+                vpmovusdb(addr | Xbyak::Opmask(mask_idx), src);
+            } else {
+                vpmovusdb(addr, src);
+            }
+        }, masked ? "store_u8_masked" : "store_u8");
     } else if constexpr (std::is_same_v<dst_elem, ov::float16>) {
-        if (_ir_mode) {
-            ir_use({val.vid()}, [this, ptr_idx, byte_offset, masked, mask_idx](const jit_kernel_ir::EmitContext& ctx) {
-                auto src = reg_type(ctx.reads[0].idx);
-                auto addr = address_frame(N * sizeof(ov::float16))[Xbyak::Reg64(ptr_idx) + byte_offset];
-                if (masked) {
-                    vcvtps2ph(addr | Xbyak::Opmask(mask_idx), src, 0x4);
-                } else {
-                    vcvtps2ph(addr, src, 0x4);
-                }
-            }, masked ? "store_f16_masked" : "store_f16");
-        } else {
-            vcvtps2ph(address_frame(N * sizeof(ov::float16))[Xbyak::Reg64(ptr_idx) + byte_offset],
-                      static_cast<const reg_type&>(val.reg()), 0x4);
-        }
+        ir_use({val.vid()}, [this, ptr_idx, byte_offset, masked, mask_idx](const jit_kernel_ir::EmitContext& ctx) {
+            auto src = reg_type(ctx.reads[0].idx);
+            auto addr = address_frame(N * sizeof(ov::float16))[Xbyak::Reg64(ptr_idx) + byte_offset];
+            if (masked) {
+                vcvtps2ph(addr | Xbyak::Opmask(mask_idx), src, 0x4);
+            } else {
+                vcvtps2ph(addr, src, 0x4);
+            }
+        }, masked ? "store_f16_masked" : "store_f16");
     } else if constexpr (std::is_same_v<dst_elem, ov::bfloat16>) {
         // @todo claude: consider vcvtneps2bf16 when available (proper rounding)
-        if (_ir_mode) {
-            ir_use({val.vid()}, [this, ptr_idx, byte_offset, masked, mask_idx](const jit_kernel_ir::EmitContext& ctx) {
-                auto src = reg_type(ctx.reads[0].idx);
-                vpsrld(src, src, 16);
-                auto addr = address_frame(N * sizeof(ov::bfloat16))[Xbyak::Reg64(ptr_idx) + byte_offset];
-                if (masked) {
-                    vpmovdw(addr | Xbyak::Opmask(mask_idx), src);
-                } else {
-                    vpmovdw(addr, src);
-                }
-            }, masked ? "store_bf16_masked" : "store_bf16");
-        } else {
-            vpsrld(static_cast<const reg_type&>(val.reg()),
-                   static_cast<const reg_type&>(val.reg()), 16);
-            vpmovdw(address_frame(N * sizeof(ov::bfloat16))[Xbyak::Reg64(ptr_idx) + byte_offset],
-                    static_cast<const reg_type&>(val.reg()));
-        }
+        ir_use({val.vid()}, [this, ptr_idx, byte_offset, masked, mask_idx](const jit_kernel_ir::EmitContext& ctx) {
+            auto src = reg_type(ctx.reads[0].idx);
+            vpsrld(src, src, 16);
+            auto addr = address_frame(N * sizeof(ov::bfloat16))[Xbyak::Reg64(ptr_idx) + byte_offset];
+            if (masked) {
+                vpmovdw(addr | Xbyak::Opmask(mask_idx), src);
+            } else {
+                vpmovdw(addr, src);
+            }
+        }, masked ? "store_bf16_masked" : "store_bf16");
     } else {
-        if (_ir_mode) {
-            ir_use({val.vid()}, [this, ptr_idx, byte_offset, masked, mask_idx](const jit_kernel_ir::EmitContext& ctx) {
-                auto src = reg_type(ctx.reads[0].idx);
-                auto addr = address_frame(sizeof(reg_type))[Xbyak::Reg64(ptr_idx) + byte_offset];
-                if (masked) {
-                    vmovups(addr | Xbyak::Opmask(mask_idx), src);
-                } else {
-                    uni_vmovups(addr, src);
-                }
-            }, masked ? "store_masked" : "store");
-        } else {
-            uni_vmovups(address_frame(sizeof(reg_type))[Xbyak::Reg64(ptr_idx) + byte_offset],
-                        static_cast<const reg_type&>(val.reg()));
-        }
+        ir_use({val.vid()}, [this, ptr_idx, byte_offset, masked, mask_idx](const jit_kernel_ir::EmitContext& ctx) {
+            auto src = reg_type(ctx.reads[0].idx);
+            auto addr = address_frame(sizeof(reg_type))[Xbyak::Reg64(ptr_idx) + byte_offset];
+            if (masked) {
+                vmovups(addr | Xbyak::Opmask(mask_idx), src);
+            } else {
+                uni_vmovups(addr, src);
+            }
+        }, masked ? "store_masked" : "store");
     }
 }
 
@@ -1768,51 +1665,33 @@ template <size_t N>
 jit_kernel::variable<float[N]> jit_kernel::ir_def(std::vector<jit_kernel_ir::value_id> reads,
                                                    jit_kernel_ir::EmitFn emit,
                                                    const char* name) {
-    if (_ir_mode) {
-        auto vid = _ir->def(std::move(reads), std::move(emit), name);
-        return variable<float[N]>(*this, vid);
-    }
-    // Eager: call the emit closure immediately with a fresh register.
-    variable<float[N]> res(*this);
-    std::vector<jit_kernel_ir::PhysReg> no_reads;
-    jit_kernel_ir::EmitContext ctx{jit_kernel_ir::PhysReg{static_cast<std::uint32_t>(res.reg().getIdx())}, no_reads};
-    emit(ctx);
-    return res;
+    auto vid = _ir->def(std::move(reads), std::move(emit), name);
+    return variable<float[N]>(*this, vid);
 }
 
 template <size_t N>
 jit_kernel::variable<float[N]> jit_kernel::ir_broadcast(const Xbyak::Address& addr) {
     using reg_type = typename reg_traits<float[N]>::type;
-    if (_ir_mode) {
-        return ir_def<N>({}, [this, addr](const jit_kernel_ir::EmitContext& ctx) {
-            uni_vbroadcastss(reg_type(ctx.def->idx), addr);
-        }, "broadcast");
-    }
-    variable<float[N]> res(*this);
-    uni_vbroadcastss(res, addr);
-    return res;
+    return ir_def<N>({}, [this, addr](const jit_kernel_ir::EmitContext& ctx) {
+        uni_vbroadcastss(reg_type(ctx.def->idx), addr);
+    }, "broadcast");
 }
 
 template <typename A, typename B>
 void jit_kernel::ir_cmp(const A& a, const B& b) {
-    // x86 cmp: first operand is always a register.
     static_assert(!std::is_integral_v<std::decay_t<A>>,
                   "ir_cmp: first operand must be a register, not an immediate");
     auto a_idx = a.reg().getIdx();
-    if (_ir_mode) {
-        if constexpr (std::is_integral_v<std::decay_t<B>>) {
-            auto b_val = static_cast<size_t>(b);
-            _ir->use({}, [this, a_idx, b_val](const jit_kernel_ir::EmitContext&) {
-                cmp(Xbyak::Reg64(a_idx), b_val);
-            }, "cmp");
-        } else {
-            auto b_idx = b.reg().getIdx();
-            _ir->use({}, [this, a_idx, b_idx](const jit_kernel_ir::EmitContext&) {
-                cmp(Xbyak::Reg64(a_idx), Xbyak::Reg64(b_idx));
-            }, "cmp");
-        }
+    if constexpr (std::is_integral_v<std::decay_t<B>>) {
+        auto b_val = static_cast<size_t>(b);
+        _ir->use({}, [this, a_idx, b_val](const jit_kernel_ir::EmitContext&) {
+            cmp(Xbyak::Reg64(a_idx), b_val);
+        }, "cmp");
     } else {
-        cmp(a, b);
+        auto b_idx = b.reg().getIdx();
+        _ir->use({}, [this, a_idx, b_idx](const jit_kernel_ir::EmitContext&) {
+            cmp(Xbyak::Reg64(a_idx), Xbyak::Reg64(b_idx));
+        }, "cmp");
     }
 }
 
@@ -1820,59 +1699,42 @@ template <typename ThenFn, typename ElseFn>
 void jit_kernel::ir_if(
         void (Xbyak::CodeGenerator::*jcc)(const Xbyak::Label&, Xbyak::CodeGenerator::LabelType),
         ThenFn&& then_fn, ElseFn&& else_fn) {
-    if (_ir_mode) {
-        auto else_label = std::make_shared<Xbyak::Label>();
-        auto exit_label = std::make_shared<Xbyak::Label>();
+    auto else_label = std::make_shared<Xbyak::Label>();
+    auto exit_label = std::make_shared<Xbyak::Label>();
 
-        _ir->region(
-            [this, jcc, else_label](const jit_kernel_ir::EmitContext&) {
-                (this->*jcc)(*else_label, Xbyak::CodeGenerator::T_NEAR);
-            },
-            [&]() { then_fn(); });
+    _ir->region(
+        [this, jcc, else_label](const jit_kernel_ir::EmitContext&) {
+            (this->*jcc)(*else_label, Xbyak::CodeGenerator::T_NEAR);
+        },
+        [&]() { then_fn(); });
 
-        _ir->region(
-            [this, else_label, exit_label](const jit_kernel_ir::EmitContext&) {
-                jmp(*exit_label, Xbyak::CodeGenerator::T_NEAR);
-                L(*else_label);
-            },
-            [&]() { else_fn(); });
+    _ir->region(
+        [this, else_label, exit_label](const jit_kernel_ir::EmitContext&) {
+            jmp(*exit_label, Xbyak::CodeGenerator::T_NEAR);
+            L(*else_label);
+        },
+        [&]() { else_fn(); });
 
-        _ir->use({}, [this, exit_label](const jit_kernel_ir::EmitContext&) {
-            L(*exit_label);
-        }, "label");
-    } else {
-        Xbyak::Label else_label, exit_label;
-        (this->*jcc)(else_label, Xbyak::CodeGenerator::T_NEAR);
-        then_fn();
-        jmp(exit_label, Xbyak::CodeGenerator::T_NEAR);
-        L(else_label);
-        else_fn();
-        L(exit_label);
-    }
+    _ir->use({}, [this, exit_label](const jit_kernel_ir::EmitContext&) {
+        L(*exit_label);
+    }, "label");
 }
 
 template <typename ThenFn>
 void jit_kernel::ir_if(
         void (Xbyak::CodeGenerator::*jcc)(const Xbyak::Label&, Xbyak::CodeGenerator::LabelType),
         ThenFn&& then_fn) {
-    if (_ir_mode) {
-        auto exit_label = std::make_shared<Xbyak::Label>();
+    auto exit_label = std::make_shared<Xbyak::Label>();
 
-        _ir->region(
-            [this, jcc, exit_label](const jit_kernel_ir::EmitContext&) {
-                (this->*jcc)(*exit_label, Xbyak::CodeGenerator::T_NEAR);
-            },
-            [&]() { then_fn(); });
+    _ir->region(
+        [this, jcc, exit_label](const jit_kernel_ir::EmitContext&) {
+            (this->*jcc)(*exit_label, Xbyak::CodeGenerator::T_NEAR);
+        },
+        [&]() { then_fn(); });
 
-        _ir->use({}, [this, exit_label](const jit_kernel_ir::EmitContext&) {
-            L(*exit_label);
-        }, "label");
-    } else {
-        Xbyak::Label exit_label;
-        (this->*jcc)(exit_label, Xbyak::CodeGenerator::T_NEAR);
-        then_fn();
-        L(exit_label);
-    }
+    _ir->use({}, [this, exit_label](const jit_kernel_ir::EmitContext&) {
+        L(*exit_label);
+    }, "label");
 }
 
 // ── 2-way deinterleave / interleave ────────────────────────────────────

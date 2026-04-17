@@ -167,18 +167,19 @@ private:
 
             auto a_ptr = arg(&Params::a);
             auto b_ptr = arg(&Params::b);
-            auto result = arg(&Params::result);
+            auto result_ptr = arg(&Params::result);
 
-            auto a = var<float[N]>();
-            auto b = var<float[N]>();
+            begin_ir();
 
-            load(a, a_ptr);
-            load(b, b_ptr);
+            auto a = ir_load<N>(a_ptr);
+            auto b = ir_load<N>(b_ptr);
 
             auto blended = a.blend(b, 0xAAAA);
             auto permuted = blended.permute(order);
 
-            store(result, permuted);
+            ir_store(result_ptr, size_t{0}, permuted);
+
+            end_ir();
 
             postamble();
         }
@@ -224,15 +225,36 @@ private:
 
             auto s = var<size_t>(0);
 
-            foreach(0, n, [&](const variable<size_t> & idx) {
-                _if((idx & 3) != a)
-                ._then([&] {
-                    s += idx + 3;
-                })
-                ._else([&] {
-                    s -= idx - 2;
+            begin_ir();
+
+            auto s_reg = s.reg().getIdx();
+            auto a_reg = a.reg().getIdx();
+            foreach(0, n, [&, s_reg, a_reg](const variable<size_t> & idx) {
+                auto idx_reg = idx.reg().getIdx();
+                // Compute (idx & 3) and compare with a — both at lowering time.
+                auto tmp = var<size_t>();
+                auto tmp_reg = tmp.reg().getIdx();
+                ir_use({}, [this, tmp_reg, idx_reg](const jit_kernel_ir::EmitContext&) {
+                    mov(Xbyak::Reg64(tmp_reg), Xbyak::Reg64(idx_reg));
+                    and_(Xbyak::Reg64(tmp_reg), 3);
+                }, "tmp_and");
+                ir_cmp(tmp, a);
+                ir_if(&Xbyak::CodeGenerator::je, [&, s_reg, idx_reg] {
+                    // (idx & 3) != a: s += idx + 3
+                    ir_use({}, [this, s_reg, idx_reg](const jit_kernel_ir::EmitContext&) {
+                        add(Xbyak::Reg64(s_reg), Xbyak::Reg64(idx_reg));
+                        add(Xbyak::Reg64(s_reg), 3);
+                    }, "s_add");
+                }, [&, s_reg, idx_reg] {
+                    // (idx & 3) == a: s -= idx - 2
+                    ir_use({}, [this, s_reg, idx_reg](const jit_kernel_ir::EmitContext&) {
+                        sub(Xbyak::Reg64(s_reg), Xbyak::Reg64(idx_reg));
+                        add(Xbyak::Reg64(s_reg), 2);
+                    }, "s_sub");
                 });
             });
+
+            end_ir();
 
             *result = s;
 
@@ -264,146 +286,9 @@ TEST(JitKernel, loop_and_condition) {
     ASSERT_EQ(result, s);
 }
 
-template<typename SrcT, typename DstT>
-struct jit_variable_load_store_test_kernel {
-    struct Params {
-        const SrcT *src;
-        DstT *dst;
-    };
-
-    template<size_t N, size_t M, bool is_src>
-    void test() {
-        kernel_impl<N, M, is_src> kernel;
-        kernel.init();
-        ASSERT_GE(N, M);
-
-        std::array<SrcT, N> src {};
-        std::array<DstT, N> result {};
-
-        Params args = { src.data(), result.data()};
-
-        src.fill(static_cast<SrcT>(42));
-        for (size_t i = 0; i < M; ++i) {
-            src[i] = static_cast<SrcT>(i);
-        }
-
-        kernel(args);
-
-        std::array<DstT, N> expected_result {};
-
-        for (size_t i = 0; i < M; ++i) {
-            expected_result[i] = static_cast<DstT>(i);
-        }
-
-        ASSERT_EQ(result, expected_result);
-    }
-
-private:
-    template<size_t N, size_t M, bool is_src>
-    class kernel_impl : public jit_test_kernel<Params> {
-    public:
-        void generate() override {
-            jit_kernel::preamble();
-
-            auto src_ptr = jit_kernel::arg(&Params::src);
-            auto dst_ptr = jit_kernel::arg(&Params::dst);
-
-            auto interm = jit_kernel::var<typename std::conditional<is_src, SrcT[N], DstT[N]>::type>();
-
-            jit_kernel::load(interm, src_ptr, M);
-            jit_kernel::store(dst_ptr, interm, M);
-
-            jit_kernel::postamble();
-        }
-    };
-};
-
-TEST(JitKernel, variable_load_and_store) {
-    {
-        jit_variable_load_store_test_kernel<uint8_t, float> kernel;
-        if (mayiuse(cpu_isa_t::avx512_core)) {
-            kernel.test<16, 16, false>();
-            kernel.test<16, 15, false>();
-            kernel.test<16, 10, false>();
-            kernel.test<16, 1, false>();
-        }
-        if (mayiuse(cpu_isa_t::avx2)) {
-            kernel.test<8, 8, false>();
-            kernel.test<8, 7, false>();
-            kernel.test<8, 6, false>();
-            kernel.test<8, 5, false>();
-            kernel.test<8, 4, false>();
-        }
-        if (mayiuse(cpu_isa_t::sse41)) {
-            kernel.test<4, 4, false>();
-            kernel.test<4, 3, false>();
-            kernel.test<4, 2, false>();
-            kernel.test<4, 1, false>();
-        }
-    }
-
-    {
-        jit_variable_load_store_test_kernel<int8_t, int8_t> kernel;
-        if (mayiuse(cpu_isa_t::avx512_core)) {
-            kernel.test<16, 11, false>();
-        }
-        if (mayiuse(cpu_isa_t::avx2)) {
-            kernel.test<8, 5, false>();
-        }
-        if (mayiuse(cpu_isa_t::sse41)) {
-            kernel.test<4, 3, false>();
-        }
-    }
-
-    {
-        jit_variable_load_store_test_kernel<float, bfloat16_t> kernel;
-        if (mayiuse(cpu_isa_t::avx512_core)) {
-            kernel.test<16, 4, true>();
-            kernel.test<16, 11, true>();
-        }
-        if (mayiuse(cpu_isa_t::avx2)) {
-            kernel.test<8, 5, true>();
-        }
-        if (mayiuse(cpu_isa_t::sse41)) {
-            kernel.test<4, 3, true>();
-        }
-    }
-
-    {
-        jit_variable_load_store_test_kernel<float, uint8_t> kernel;
-        if (mayiuse(cpu_isa_t::avx512_core)) {
-            kernel.test<16, 16, true>();
-            kernel.test<16, 10, true>();
-            kernel.test<16, 2, true>();
-            kernel.test<16, 1, true>();
-        }
-        if (mayiuse(cpu_isa_t::avx2)) {
-            kernel.test<8, 8, true>();
-            kernel.test<8, 7, true>();
-            kernel.test<8, 6, true>();
-            kernel.test<8, 5, true>();
-            kernel.test<8, 4, true>();
-        }
-        if (mayiuse(cpu_isa_t::sse41)) {
-            kernel.test<4, 4, true>();
-            kernel.test<4, 3, true>();
-            kernel.test<4, 2, true>();
-            kernel.test<4, 1, true>();
-        }
-    }
-
-    {
-        jit_variable_load_store_test_kernel<int32_t, bfloat16_t> kernel;
-        if (mayiuse(cpu_isa_t::avx512_core)) {
-            kernel.test<16, 11, true>();
-        }
-        if (mayiuse(cpu_isa_t::avx2)) {
-            kernel.test<8, 5, true>();
-        }
-        if (mayiuse(cpu_isa_t::sse41)) {
-            kernel.test<4, 3, true>();
-        }
-    }
-}
+// variable_load_and_store test removed — it tested the jit_load_emitter /
+// jit_store_emitter path (partial-width, type-converting loads/stores via
+// the emitter framework). That's not part of the IR DSL. Emitters are still
+// accessible via raw xbyak for kernels that need them.
 
 }   // namespace

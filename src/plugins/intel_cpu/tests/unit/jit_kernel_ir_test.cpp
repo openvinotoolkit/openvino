@@ -32,15 +32,7 @@ using namespace ov::intel_cpu::jit_kernel_ir;
 
 namespace {
 
-struct ir_mode_guard {
-    ir_mode_guard() {
-#if defined(_WIN32)
-        _putenv_s("OV_JIT_IR_MODE", "1");
-#else
-        setenv("OV_JIT_IR_MODE", "1", 1);
-#endif
-    }
-} force_ir_mode;
+// IR mode is always active — no env var needed.
 
 EmitFn stub() {
     return [](const EmitContext&) {};
@@ -61,19 +53,9 @@ void expect_all_assigned(const std::vector<LiveRange>& ranges, const Assignment&
 // Helper: assert no two intervals that overlap in op-index space landed on
 // the same physical register. This is the core correctness property of the
 // allocator — anything else is secondary.
-// Two-pointer check: do any segments of a and b overlap?
+// Use LiveRange::overlaps — LLVM-style method.
 bool segments_overlap(const LiveRange& a, const LiveRange& b) {
-    std::size_t i = 0, j = 0;
-    while (i < a.segments.size() && j < b.segments.size()) {
-        if (a.segments[i].end <= b.segments[j].start) {
-            ++i;
-        } else if (b.segments[j].end <= a.segments[i].start) {
-            ++j;
-        } else {
-            return true;
-        }
-    }
-    return false;
+    return a.overlaps(b);
 }
 
 void expect_no_overlap_conflict(const std::vector<LiveRange>& ranges,

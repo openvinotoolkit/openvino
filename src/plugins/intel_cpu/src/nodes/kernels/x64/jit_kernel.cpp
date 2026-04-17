@@ -541,28 +541,16 @@ void jit_kernel::uni_vblendps(const Xbyak::Zmm& dst,
 void jit_kernel::ir_use(std::vector<jit_kernel_ir::value_id> reads,
                         jit_kernel_ir::EmitFn emit,
                         const char* name) {
-    if (_ir_mode) {
-        _ir->use(std::move(reads), std::move(emit), name);
-        return;
-    }
-    // Eager: call the emit closure immediately.
-    std::vector<jit_kernel_ir::PhysReg> no_reads;
-    jit_kernel_ir::EmitContext ctx{std::nullopt, no_reads};
-    emit(ctx);
+    _ir->use(std::move(reads), std::move(emit), name);
 }
 
-void jit_kernel::begin_ir(bool force) {
-    OPENVINO_ASSERT(!_ir_mode, "begin_ir() called while already in IR mode");
-    if (!force) {
-        static const bool enabled = std::getenv("OV_JIT_IR_MODE") != nullptr;
-        if (!enabled) return;
-    }
-    _ir_mode = true;
+void jit_kernel::begin_ir() {
+    OPENVINO_ASSERT(!_ir, "begin_ir() called while already in IR mode");
     _ir = std::make_unique<jit_kernel_ir::IR>();
 }
 
 void jit_kernel::end_ir() {
-    if (!_ir_mode) return;
+    if (!_ir) return;
 
     const auto pool_size = static_cast<std::uint32_t>(_free_rmmregs.size());
 
@@ -622,7 +610,25 @@ void jit_kernel::end_ir() {
                         ir_trace(os.str());
                     }
                     const jit_kernel_ir::EmitContext ectx{def_reg, read_regs};
-                    op.emit(ectx);
+                    // TwoAddressPass COPY: emit vmovups if not coalesced.
+                    if (op.is_copy && def_reg && !read_regs.empty()
+                        && def_reg->idx != read_regs[0].idx) {
+                        // Determine register width from the pool.
+                        // All IR-managed values are vector regs (zmm/ymm/xmm).
+                        // Use uni_vmovups which dispatches by register type.
+                        // The pool indices map to the register file — use
+                        // the widest available (Zmm for avx512, Ymm for avx2).
+                        using namespace dnnl::impl::cpu::x64;
+                        if (mayiuse(avx512_core)) {
+                            uni_vmovups(Xbyak::Zmm(def_reg->idx),
+                                        Xbyak::Zmm(read_regs[0].idx));
+                        } else {
+                            uni_vmovups(Xbyak::Ymm(def_reg->idx),
+                                        Xbyak::Ymm(read_regs[0].idx));
+                        }
+                    } else {
+                        op.emit(ectx);
+                    }
                 }
             }
         };
@@ -633,7 +639,6 @@ void jit_kernel::end_ir() {
     pm.run(*_ir, ctx);
 
     _ir.reset();
-    _ir_mode = false;
 }
 
 }  // namespace ov::intel_cpu
