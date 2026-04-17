@@ -118,6 +118,11 @@ void ov::npuw::LLMInferRequest::init_lora_states() {
 }
 
 ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model)
+    : LLMInferRequest(compiled_model, std::map<ov::Output<const ov::Node>, std::size_t>{}) {}
+
+ov::npuw::LLMInferRequest::LLMInferRequest(
+    const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model,
+    const std::map<ov::Output<const ov::Node>, std::size_t>& prefill_other_outs_to_seqdims)
     : ov::npuw::LLMInferBaseRequest(compiled_model) {
     init_ports();
 
@@ -178,6 +183,18 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
             const auto& variant_out_ports = m_generate_variant_out_ports.at(generate_req);
             generate_req->set_tensor(variant_out_ports.at(layer_names::output_embeds),
                                      m_lm_head_request->get_tensor(lm_head_embed_port));
+        }
+    }
+
+    if (use_chunk_prefill) {
+        m_prefill_other_out_seqdims = prefill_other_outs_to_seqdims;
+        for (auto&& [out_port, out_dim] : m_prefill_other_out_seqdims) {
+            const auto& chunked_shape = out_port.get_partial_shape();
+            auto full_max_len_shape = chunked_shape;
+            full_max_len_shape[out_dim] = m_npuw_llm_compiled_model->m_kvcache_desc.max_prompt_size;
+            m_prefill_other_accumulated_outs.emplace(
+                out_port,
+                ov::get_tensor_impl(ov::Tensor(out_port.get_element_type(), full_max_len_shape.get_shape())));
         }
     }
 
@@ -623,6 +640,56 @@ void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
     }
 }
 
+void LLMInferRequest::accumulate_other_chunked_outputs(uint32_t start_offset,
+                                                       uint32_t chunk_token_count,
+                                                       uint32_t stored_token_count,
+                                                       uint32_t max_seq_len) {
+    LOG_INFO("Accumulating other chunked outputs into full ones, chunk_token_count:"
+             << chunk_token_count << ", stored_token_count:" << stored_token_count << ", max_seq_len:" << max_seq_len);
+    OPENVINO_ASSERT(chunk_token_count + stored_token_count <= max_seq_len,
+                    "Sanity check for input parameters: chunk_token_count + stored_token_count must be <= max_seq_len");
+
+    for (auto&& [port, dim] : m_prefill_other_out_seqdims) {
+        LOG_BLOCK();
+        LOG_VERB("Processing chunked output tensor at index " << port << " with sequence dimension " << dim);
+        auto chunk_tensor = m_prefill_request->get_tensor(port);
+        const auto& chunk_shape = chunk_tensor->get_shape();
+
+        auto full_tensor = m_prefill_other_accumulated_outs[port];
+        const auto& full_shape = full_tensor->get_shape();
+        LOG_VERB("Its full counterpart has shape: " << full_shape);
+
+        OPENVINO_ASSERT(chunk_shape[dim] <= full_shape[dim],
+                        "Sequence length of chunk tensor must be <= sequence length of full tensor.");
+
+        // The chunk_tensor is right-aligned with padding on the left.
+        const uint32_t chunk_seq_len = static_cast<uint32_t>(chunk_shape[dim]);
+        const uint32_t chunk_start_offset = chunk_seq_len - chunk_token_count;
+        auto chunk_tensor_slice =
+            util::make_tensor_slice(chunk_tensor, static_cast<uint32_t>(dim), chunk_start_offset, chunk_seq_len);
+
+        // Accumulating the full tensor preserving the left padding.
+        // Starting with the offset that is the max_seq_len - real input_prompt_len,
+        // accumulation is performed from the left to right.
+        const uint32_t full_seq_len = static_cast<uint32_t>(full_shape[dim]);
+        OPENVINO_ASSERT(full_seq_len == max_seq_len,
+                        "Pre-allocated tensor size (" + std::to_string(full_seq_len) +
+                            ") must match max sequence length (" + std::to_string(max_seq_len) + ")");
+        const auto full_tensor_slice_begin = start_offset + stored_token_count;
+        const auto full_tensor_slice_end = full_tensor_slice_begin + chunk_token_count;
+        auto full_tensor_slice = util::make_tensor_slice(full_tensor,
+                                                         static_cast<uint32_t>(dim),
+                                                         full_tensor_slice_begin,
+                                                         full_tensor_slice_end);
+
+        chunk_tensor_slice->copy_to(full_tensor_slice._ptr);
+
+        LOG_VERB("Copied chunk [" << chunk_start_offset << ":" << chunk_seq_len << "] to position ["
+                                  << full_tensor_slice_begin << ":" << full_tensor_slice_end << "], "
+                                  << chunk_token_count << " tokens");
+    }
+}
+
 void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                                       ov::SoPtr<ov::ITensor> attention_mask,
                                                       ov::SoPtr<ov::ITensor> position_ids) {
@@ -654,10 +721,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         remaining_prompts = cache_context.remaining_prompts;
     }
 
-    if (m_eagle3_ext.is_eagle3_model()) {
-        m_eagle3_ext.reset_chunked_prefill_state();
-    }
-
+    const uint32_t start_offset = kvcache_desc.max_prompt_size - static_cast<uint32_t>(remaining_prompts);
     while (remaining_prompts > 0) {
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
         // The last chunk may not be completely filled if the actual length of the prompts is not evenly divisible by
@@ -736,13 +800,10 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         });
 
         m_llm_profile["1/prefill:3c.post_chunk"].record([&]() {
-            // Accumulate Eagle3 last_hidden_state from this chunk
-            if (m_eagle3_ext.is_eagle3_model()) {
-                m_eagle3_ext.accumulate_chunk_last_hidden_state(m_prefill_request,
-                                                                m_prefill_out_ports,
-                                                                static_cast<uint32_t>(current_prompts_len),
-                                                                static_cast<uint32_t>(input_prompt_len));
-            }
+            accumulate_other_chunked_outputs(start_offset,
+                                             static_cast<uint32_t>(current_prompts_len),
+                                             static_cast<uint32_t>(kvcache_desc.num_stored_tokens),
+                                             static_cast<uint32_t>(kvcache_desc.max_prompt_size));
 
             if (enable_prefix_caching) {
                 m_prefix_caching_helper->store_computed_blocks(current_prompts_len,
@@ -877,10 +938,16 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
             m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at(layer_names::logits));
         }
 
-        // Update last_hidden_state only for non-chunked prefill
-        // For chunked prefill, accumulate_chunk_last_hidden_state() already set the tensor
-        if (m_eagle3_ext.is_eagle3_model() && !use_chunk_prefill) {
-            m_eagle3_ext.update_last_hidden_state(m_prefill_request, m_prefill_out_ports);
+        for (auto&& [name, port] : m_prefill_out_ports) {
+            if (name == layer_names::logits) {
+                continue;
+            }
+            if (!m_prefill_other_accumulated_outs.empty() &&
+                m_prefill_other_accumulated_outs.find(port) != m_prefill_other_accumulated_outs.end()) {
+                m_other_outputs[name] = m_prefill_other_accumulated_outs[port];
+            } else {
+                m_other_outputs[name] = m_prefill_request->get_tensor(port);
+            }
         }
     });
 
@@ -1012,8 +1079,11 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at(layer_names::logits));
     }
 
-    if (m_eagle3_ext.is_eagle3_model()) {
-        m_eagle3_ext.update_last_hidden_state(m_kvcache_request, m_kvcache_out_ports);
+    for (auto&& [name, port] : m_kvcache_out_ports) {
+        if (name == layer_names::logits) {
+            continue;
+        }
+        m_other_outputs[name] = m_kvcache_request->get_tensor(port);
     }
 
     LOG_DEBUG("Done");
@@ -1098,15 +1168,14 @@ ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<co
             OPENVINO_THROW("Logits tensor is not available. Please run inference first.");
         }
         return m_logits;
-    }
-
-    if (m_eagle3_ext.is_eagle3_model()) {
-        if (port_names.count(Eagle3LayerNames::last_hidden_state) > 0) {
-            auto last_hidden_state = m_eagle3_ext.get_last_hidden_state();
-            if (!last_hidden_state) {
-                OPENVINO_THROW("Last hidden state tensor is not available. Please run inference first.");
+    } else {
+        for (auto&& [name, tensor] : m_other_outputs) {
+            if (port_names.count(name) > 0) {
+                if (!tensor) {
+                    OPENVINO_THROW("Output tensor \"", name, "\" is not available. Please run inference first.");
+                }
+                return tensor;
             }
-            return last_hidden_state;
         }
     }
 

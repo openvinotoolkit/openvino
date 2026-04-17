@@ -124,7 +124,7 @@ TEST_F(LLMCompiledModelGraphOptionsTest, SharedHeadAddsHeadModelAndSlicesPrefill
     ASSERT_NE(prefill, nullptr);
     ASSERT_NE(lm_head, nullptr);
 
-    const auto embeds = find_output(prefill->model, ov::npuw::LLMCompiledModel::output_embeds);
+    const auto embeds = find_output(prefill->model, ov::npuw::LLMCompiledModel::layer_names::output_embeds);
     ASSERT_TRUE(embeds.has_value());
     ASSERT_TRUE(embeds->get_partial_shape().is_static());
     EXPECT_EQ(embeds->get_shape(), (ov::Shape{1, 8, 64}));

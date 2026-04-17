@@ -403,6 +403,10 @@ struct LLMConfig : public BaseModelConfig {
     bool use_inputs_embeds = false;
     bool internal_position_ids = false;  ///< embedding model
     bool pre_norm = true;
+    bool add_hidden_states_output = false;
+    std::string hidden_states_output_name = "hidden_states";
+    bool add_pooled_output = false;
+    std::string pooled_output_name = "pooled_hidden_state";
 };
 
 struct WhisperConfig : public BaseModelConfig {

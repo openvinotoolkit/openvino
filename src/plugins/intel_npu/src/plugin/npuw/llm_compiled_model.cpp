@@ -106,11 +106,20 @@ public:
             auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
             auto matched_result = std::static_pointer_cast<ov::op::v0::Result>(matched_node_result);
 
-            // Some LLMs add intermediate hidden state outputs that can interfere with LM head detection.
-            // Skip Result nodes that were manually added (marked with "manually_added_output" in RT_INFO).
-            // For example, Eagle-3 target/draft models add "last_hidden_state" output which should be skipped.
-            const auto& rt_info = matched_result->get_rt_info();
-            if (rt_info.count("manually_added_output")) {
+            // Skip Result nodes that are not logits.
+            // Note: We can check that Result's output name is "logits" and it will be a
+            //       sufficiently reliable check for finding exatly logits output, because:
+            //       1. LLMInferRequest always rely on "logits" name to get logits from
+            ///         prefill/kvcache models.
+            //       2. - Following Exporter configs: OnnxConfig, OnnxConfigWithPast,
+            //            TextDecoderOnnxConfig and TextDecoderWithPositionIdsOnnxConfig
+            //            from optimum-onnx name LLM output with "logits".
+            //          - Most of optimum-intel OpenVINO Exporter configs are derived
+            //            from the configs above.
+            //          - optimum-intel `export()` function set names for output tensors
+            //            from Exporter config:
+            //            https://github.com/huggingface/optimum-intel/blob/main/optimum/exporters/openvino/convert.py#L442-L445
+            if (matched_result->output(0).get_names().count(ov::npuw::LLMCompiledModel::layer_names::logits) == 0) {
                 return false;
             }
 
@@ -123,14 +132,14 @@ public:
             //        ICompiledModel::ICompiledModel().
             //        As a WA, setting the same name to output from MatMul
             //        avoids the issue.
-            matmul_first_source.set_names({ov::npuw::LLMCompiledModel::output_embeds});
-            matched_result->output(0).set_names({ov::npuw::LLMCompiledModel::output_embeds});
+            matmul_first_source.set_names({ov::npuw::LLMCompiledModel::layer_names::output_embeds});
+            matched_result->output(0).set_names({ov::npuw::LLMCompiledModel::layer_names::output_embeds});
             matched_result->validate_and_infer_types();
 
             // Create an additional model after cut point:
             auto new_param = std::make_shared<ov::op::v0::Parameter>(matmul_first_source.get_element_type(),
                                                                      matmul_first_source.get_partial_shape());
-            new_param->output(0).add_names({ov::npuw::LLMCompiledModel::output_embeds});
+            new_param->output(0).add_names({ov::npuw::LLMCompiledModel::layer_names::output_embeds});
             matched_matmul->input(0).replace_source_output(new_param);
             auto new_result = std::make_shared<ov::op::v0::Result>(matched_node_last_op);
             lm_head_model =
@@ -513,7 +522,83 @@ std::shared_ptr<ov::Model> check_and_cut_lm_head(const std::shared_ptr<ov::Model
 
 }  // namespace
 
-// Apply DEVICE_ROUTED MoE transformations to models
+std::map<std::string, std::vector<std::size_t>> find_other_dynamic_outputs(const std::shared_ptr<ov::Model>& model) {
+    std::map<std::string, std::vector<std::size_t>> other_dynamic_outputs;
+    for (const auto& output : model->outputs()) {
+        // Filter logits, as we are collecting only "other" than logits outputs.
+        if (output.get_names().count(ov::npuw::LLMCompiledModel::layer_names::logits)) {
+            LOG_VERB("Skipping output port " << output.get_index() << " as it is identified as logits." << std::endl);
+            continue;
+        }
+
+        const auto& shape = output.get_partial_shape();
+        if (!shape.is_dynamic()) {
+            continue;
+        }
+
+        std::vector<std::size_t> dynamic_dims_ids;
+        for (auto dim_it = shape.begin(); dim_it != shape.end(); ++dim_it) {
+            if (dim_it->is_dynamic()) {
+                dynamic_dims_ids.push_back(std::distance(shape.begin(), dim_it));
+            }
+        }
+        OPENVINO_ASSERT(!dynamic_dims_ids.empty() && "Dynamic output should have at least one dynamic dimension");
+        const auto& output_name = output.get_any_name();
+        other_dynamic_outputs[output_name] = dynamic_dims_ids;
+        LOG_VERB("Find other dynamic output with name \"" << output_name << "\" at port: " << output << " with shape: "
+                                                          << shape << " with dynamic dimension indices: ");
+        if ((ov::npuw::get_log_level() >= ov::npuw::LogLevel::Verbose)) {
+            for (const auto& dim_id : dynamic_dims_ids) {
+                LOG_VERB("    - " << dim_id);
+            }
+        }
+    }
+    return other_dynamic_outputs;
+}
+
+std::map<ov::Output<const ov::Node>, std::size_t> find_other_outputs_with_seqdim(
+    const std::shared_ptr<ov::npuw::ICompiledModel_v0>& compiled_model,
+    const std::map<std::string, std::vector<std::size_t>>& other_dynamic_outputs,
+    const std::size_t static_seqdim_value) {
+    std::map<ov::Output<const ov::Node>, std::size_t> other_outputs_with_seqdim;
+    for (const auto& [name, dynamic_dims] : other_dynamic_outputs) {
+        const auto& cm_outs = compiled_model->outputs();
+        if (auto it = std::find_if(cm_outs.begin(),
+                                   cm_outs.end(),
+                                   [&name](const ov::Output<const ov::Node>& output) {
+                                       return output.get_names().count(name) > 0;
+                                   });
+            it != cm_outs.end()) {
+            const auto& port = *it;
+            const auto& static_shape = port.get_partial_shape();
+            OPENVINO_ASSERT(static_shape.is_static() && "Model should have static shape at this point");
+
+            auto matched_dyn_dim = dynamic_dims.front();
+            std::size_t match_count = 0;
+            // NB: Only one previous dynamic dimension will be reshaped to the stated sequence length.
+            //     Batch size has been also a dynamic dimension prevously, but it is expected to be
+            //     reshaped to 1, so it won't be equal to the max sequence length in the prefill model.
+            for (const auto& dim : dynamic_dims) {
+                if (static_shape[dim] == static_seqdim_value) {
+                    matched_dyn_dim = dim;
+                    ++match_count;
+                }
+            }
+            // Assert that only one match is found:
+            OPENVINO_ASSERT(match_count == 1,
+                            "Only one dynamic dimension is expected to be reshaped to the max sequence length, but "
+                            "found " +
+                                std::to_string(match_count) + " matches for output port: " + port.get_any_name());
+            other_outputs_with_seqdim.emplace(port, matched_dyn_dim);
+        } else {
+            LOG_VERB("[WARN] Output port with name: " << name
+                                                      << " was marked as dynamic additional output to the \"logits\","
+                                                         "but it wasn't found in outputs of prefill model!");
+        }
+    }
+    return other_outputs_with_seqdim;
+}
+
 std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_generate_model_variants(
     const std::shared_ptr<ov::Model>& generate_model,
     const KVAxesPosition& axes,
@@ -757,6 +842,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
     KVAxesPosition axes{batch_dim, seq_len_dim};
 
+    std::map<std::string, std::vector<std::size_t>> other_dynamic_outputs;
+    if (m_use_chunk_prefill) {
+        LOG_VERB("Find all models outputs besides logits that also have dynamic shapes to handle in chunked prefill.");
+        other_dynamic_outputs = find_other_dynamic_outputs(model);
+    }
+
     LOG_DEBUG("Creating kvcache model as clone of passed one.");
     auto kvcache_model = model->clone();
 
@@ -933,6 +1024,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(prefill_config, other_props);
     merge_config_with(generate_config, other_props);
     merge_config_with(prefill_config, prefill_config_addition_value);
+    // If model has multiple outputs, only logits will be extracted to a separate model.
+    // Prefill will have all other outputs. It might be a wrong assumption that all of
+    // them need to be sliced for, for instance, 1 token.
+    if (lm_head_model) {
+        prefill_config.erase("NPUW_SLICE_OUT");
+    }
     merge_config_with(generate_config, generate_config_addition_value);
 
     // Convert LLM-specific attention hints to NPUW_ATTN
@@ -1050,6 +1147,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_prefill_compiled = m_compiled_model_factory(prefill_model, plugin, prefill_config);
     NPUW_ASSERT(m_prefill_compiled && "Can't create ov::npuw::CompiledModel for passed prefill "
                                       "model and its config, please check passed config.");
+    if (m_use_chunk_prefill) {
+        LOG_VERB("Find all models outputs besides logits that have sequence dimension to handle in chunked prefill.");
+        m_prefill_other_outs_to_seqdims =
+            find_other_outputs_with_seqdim(m_prefill_compiled, other_dynamic_outputs, m_prefill_chunk_size);
+    }
     if (lm_head_model) {
         auto lm_head_config = get_default_lm_head_config(npudesc);
         merge_config_with(lm_head_config, other_props);
@@ -1490,7 +1592,7 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_sync_i
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_llm_infer_request() {
     auto this_sptr = std::static_pointer_cast<ov::npuw::LLMCompiledModel>(shared_from_this());
-    return std::make_shared<ov::npuw::LLMInferRequest>(this_sptr);
+    return std::make_shared<ov::npuw::LLMInferRequest>(this_sptr, m_prefill_other_outs_to_seqdims);
 }
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_whisper_infer_request() {

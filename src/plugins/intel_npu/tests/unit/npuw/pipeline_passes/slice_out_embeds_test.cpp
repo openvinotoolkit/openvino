@@ -21,7 +21,7 @@ protected:
     static bool output_embeds_has_slice_producer(const std::shared_ptr<ov::Model>& model) {
         for (const auto& output : model->outputs()) {
             for (const auto& name : output.get_names()) {
-                if (name.find(ov::npuw::LLMCompiledModel::output_embeds) != std::string::npos) {
+                if (name.find(ov::npuw::LLMCompiledModel::layer_names::output_embeds) != std::string::npos) {
                     // output is an Output<const Node> over the Result node
                     auto result_node = output.get_node_shared_ptr();
                     if (!result_node || result_node->inputs().empty())
@@ -52,7 +52,7 @@ TEST_F(SliceOutEmbedsPassTest, SliceIsInsertedWhenGenerationTokenLenIsLessThanPr
     (void)lm_head;  // asserted to exist; contents checked by reshape_sliced_head tests
 
     // output_embeds must exist on the prefill model
-    const auto embeds = find_output(prefill.model, ov::npuw::LLMCompiledModel::output_embeds);
+    const auto embeds = find_output(prefill.model, ov::npuw::LLMCompiledModel::layer_names::output_embeds);
     ASSERT_TRUE(embeds.has_value()) << "output_embeds output not found on prefill model";
 
     // Shape must be static and trimmed to generation token length
@@ -81,7 +81,7 @@ TEST_F(SliceOutEmbedsPassTest, SliceIsNotInsertedWhenGenerationTokenLenEqualsPro
     const auto& prefill = require_sub_model(recorder, "_prefill");
 
     // output_embeds must still be exported
-    const auto embeds = find_output(prefill.model, ov::npuw::LLMCompiledModel::output_embeds);
+    const auto embeds = find_output(prefill.model, ov::npuw::LLMCompiledModel::layer_names::output_embeds);
     ASSERT_TRUE(embeds.has_value()) << "output_embeds output not found on prefill model";
 
     // Shape should be the full prompt-length shape, unmodified
@@ -113,7 +113,7 @@ TEST_F(SliceOutEmbedsPassTest, SliceNotAppliedWhenNoSharedHead) {
     // prefill model must not export output_embeds
     const auto& prefill = require_sub_model(recorder, "_prefill");
 
-    const auto embeds = find_output(prefill.model, ov::npuw::LLMCompiledModel::output_embeds);
+    const auto embeds = find_output(prefill.model, ov::npuw::LLMCompiledModel::layer_names::output_embeds);
     EXPECT_FALSE(embeds.has_value())
         << "output_embeds output should not exist in the prefill model when SHARED_HEAD=NO";
 }
