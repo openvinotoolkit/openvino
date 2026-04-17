@@ -186,9 +186,9 @@ KERNEL(ref)
             output[OUTPUT_GET_INDEX(1, i, 0, 0)] = VARIANCE[0];
         }
     #elif VARIANCE_SIZE == 4
-        for (uint i = start_out_index; i < out_index; ++i) {
+        for (uint i = start_out_index; i < out_index; i += 4) {
             for (uint j = 0; j < 4; ++j) {
-                output[OUTPUT_GET_INDEX(1, i * 4 + j, 0, 0)] = VARIANCE[j];
+                output[OUTPUT_GET_INDEX(1, i + j, 0, 0)] = VARIANCE[j];
             }
         }
     #else
