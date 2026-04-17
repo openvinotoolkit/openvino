@@ -411,7 +411,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     if (variants.size() == 1 + extra_variants_num) {
         // The case when folder with __model__ and weight files is provided or .pdmodel file
         if (const auto path = ov::frontend::get_path_from_any(variants[0])) {
-            return std::make_shared<InputModel>(path.value().native(), m_telemetry);
+            return std::make_shared<InputModel>(path.value(), m_telemetry);
         }
         // The case with only model stream provided and no weights. This means model has
         // no learnable weights
