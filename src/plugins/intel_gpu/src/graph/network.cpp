@@ -332,10 +332,18 @@ event::ptr network::set_input_data(const primitive_id& id, memory::ptr data, boo
         // The initial set_arguments() skipped nodes whose dep buffer was null —
         // force a fresh rebind now that the buffer is available.
         _reset_arguments = true;
-        // Record the shared mem type now that the lazy input has a buffer.
-        // Non-lazy inputs are recorded at allocate_primitive_instance() time.
-        if (input->output_memory_ptr())
-            _in_out_shared_mem_types.push_back(input->output_memory_ptr()->get_internal_params().mem_type);
+    }
+
+    // Update the shared mem type hint for the surfaces lock fast-path in execute().
+    // We deduplicate by type value to prevent unbounded growth across inferences.
+    // Note: this vector is a conservative hint - false positives (stale surface types
+    // after input memory switches back to non-surface) are harmless since execute()
+    // re-checks live memory state when building in_out_mem.
+    // TODO: possibly remove or redesign _in_out_shared_mem_types solution
+    if (input->output_memory_ptr()) {
+        const auto in_mem_type = input->output_memory_ptr()->get_internal_params().mem_type;
+        if (std::find(_in_out_shared_mem_types.begin(), _in_out_shared_mem_types.end(), in_mem_type) == _in_out_shared_mem_types.end())
+            _in_out_shared_mem_types.push_back(in_mem_type);
     }
 
     return ev;
