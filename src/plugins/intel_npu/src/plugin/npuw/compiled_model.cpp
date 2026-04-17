@@ -1522,7 +1522,6 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
         }
 
         const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-        auto& func_desc = m_compiled_submodels[real_idx];
         auto& desc_closure = comp_model_desc.closure.get();
 
         for (std::size_t cidx = 0; cidx < desc_closure.closure.size(); ++cidx) {
@@ -1562,7 +1561,6 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             }
 
             const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-            auto& func_desc = m_compiled_submodels[real_idx];
 
             for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
                 if (comp_model_desc.closure.unsafe_get().closure[tidx]) {
@@ -1586,7 +1584,6 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             }
 
             const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-            auto& func_desc = m_compiled_submodels[real_idx];
             auto& desc_closure = comp_model_desc.closure.unsafe_get();
 
             for (std::size_t tidx = 0; tidx < desc_closure.closure.size(); ++tidx) {
