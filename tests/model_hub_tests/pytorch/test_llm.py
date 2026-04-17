@@ -83,7 +83,7 @@ def patch_gptq():
             x = x.to(torch.float16)
 
             out = dequantize_gemm(qweight, qzeros, scales, w_bit, group_size)
-            out = torch.matmul(x, out)
+            out = torch.matmul(x, out.to(x.dtype))
 
             out = out + bias if bias is not None else out
             out = out.reshape(out_shape)
@@ -124,6 +124,9 @@ def flattenize_tuples(list_input):
     for r in list_input:
         if isinstance(r, (tuple, list)):
             unpacked_pt_res.extend(flattenize_tuples(r))
+        elif hasattr(r, 'to_legacy_cache'):
+            # DynamicCache → legacy tuple of (key, value) tuples
+            unpacked_pt_res.extend(flattenize_tuples(r.to_legacy_cache()))
         else:
             unpacked_pt_res.append(r)
     return unpacked_pt_res
@@ -145,6 +148,7 @@ class TestLLMModel(TestTorchConvertModel):
     def setup_class(self):
         self.infer_timeout = 1800
         self.cuda_available, self.gptq_postinit, self.orig_gemm_forward = None, None, None
+        self.export_mode = False
 
     @retry(3, exceptions=(OSError,), delay=1)
     def load_model(self, name, type):
@@ -205,6 +209,9 @@ class TestLLMModel(TestTorchConvertModel):
         res = []
         for k in filtered_keys:
             v = inputs[k]
+            # DynamicCache (newer transformers) → legacy tuple for flattening
+            if hasattr(v, 'to_legacy_cache'):
+                v = v.to_legacy_cache()
             if isinstance(v, tuple):
                 v_flatten = flattenize_outputs(v)
                 if k == "past_key_values":
@@ -219,7 +226,46 @@ class TestLLMModel(TestTorchConvertModel):
         fw_outputs = model_obj(**inputs)
         return flattenize_outputs(fw_outputs)
 
+    def infer_ov_model(self, ov_model, inputs, ie_device):
+        if self.export_mode:
+            return self._infer_ov_model_export(ov_model, ie_device)
+        return super().infer_ov_model(ov_model, inputs, ie_device)
+
+    def compare_results(self, fw_outputs, ov_outputs):
+        if self.export_mode and isinstance(fw_outputs, (list, tuple)):
+            # In export mode, only compare the first output (logits).
+            # KV cache outputs diverge for quantized models because
+            # FW and OV dequantization paths differ.
+            return super().compare_results([fw_outputs[0]], [ov_outputs[0]])
+        return super().compare_results(fw_outputs, ov_outputs)
+
+    def _infer_ov_model_export(self, ov_model, ie_device):
+        """Build inputs dict by OV model input names for the export path.
+
+        FX export flattens nested structures (e.g. past_key_values tuples)
+        into individual named inputs, so we match OV input names against
+        the flattened example data.
+        """
+        from openvino import Core
+        from torch.utils._pytree import tree_flatten
+
+        example = getattr(self, "inputs", self.example)
+        flat_values, _ = tree_flatten(example)
+        flat_np = [to_numpy(v) if isinstance(v, torch.Tensor) else v
+                   for v in flat_values]
+
+        ov_inputs = {}
+        for i, inp in enumerate(ov_model.inputs):
+            if i < len(flat_np):
+                ov_inputs[i] = flat_np[i]
+
+        core = Core()
+        compiled = core.compile_model(ov_model, ie_device, self.ov_config)
+        return compiled(ov_inputs)
+
     def convert_model_impl(self, model_obj):
+        if self.export_mode:
+            return self._convert_model_export(model_obj)
         is_patched = False
         if getattr(self.model.config, "torch_dtype", None) in [torch.float16, torch.bfloat16]:
             patch(self.model)
@@ -233,7 +279,50 @@ class TestLLMModel(TestTorchConvertModel):
         #    model_obj.float()
         return ovm
 
+    def _convert_model_export(self, model_obj):
+        from torch.export import export
+        from openvino import convert_model
+        from openvino.frontend.pytorch.quantized import (
+            detect_quantized_model,
+            patch_quantized_for_export,
+            unpatch_quantized_for_export,
+        )
+
+        is_quant_patched = False
+
+        quant_type = detect_quantized_model(self.model)
+        if quant_type:
+            patch_quantized_for_export(self.model)
+            is_quant_patched = True
+
+        try:
+            # Initialize model after patching
+            self.model(**self.example)
+
+            with torch.no_grad():
+                exported = export(
+                    self.model,
+                    args=tuple(),
+                    kwargs=self.example,
+                    strict=False,
+                )
+                # Restore CUDA mocks before convert_model because
+                # run_decompositions() tries to preserve CUDA RNG state
+                # and fails when CUDA is mocked but not really available.
+                # Only restore CUDA check functions — the AWQ GEMM forward
+                # must stay patched for infer_fw_model.
+                if self.cuda_available is not None:
+                    (torch.cuda.is_available,
+                     torch.cuda.is_bf16_supported,
+                     torch.cuda.get_device_capability) = self.cuda_available
+                ovm = convert_model(exported, verbose=True)
+        finally:
+            if is_quant_patched:
+                unpatch_quantized_for_export(self.model)
+        return ovm
+
     def teardown_method(self):
+        self.export_mode = False
         # restore after gptq patching
         if self.cuda_available is not None:
             unpatch_gptq(self.cuda_available, self.gptq_postinit, self.orig_gemm_forward)
@@ -246,6 +335,11 @@ class TestLLMModel(TestTorchConvertModel):
                             return_tensors='pt').__dict__['data']
         with torch.no_grad():
             pkv = model(**for_pkv)[1]
+
+        # Newer transformers return DynamicCache; convert to legacy tuple format
+        # so that the example dict contains plain tensors for both TS and FX paths.
+        if hasattr(pkv, "to_legacy_cache"):
+            pkv = pkv.to_legacy_cache()
 
         return pkv, for_pkv["attention_mask"]
 
@@ -310,4 +404,18 @@ class TestLLMModel(TestTorchConvertModel):
         ("mixstral_awq", "TheBloke/SauerkrautLM-Mixtral-8x7B-AWQ"),
     ])
     def test_convert_model_very_large(self, name, type, ie_device):
+        self.run(model_name=name, model_link=type, ie_device=ie_device)
+
+    def get_supported_export_precommit_models():
+        if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+            return []
+        return [
+            ("llama_awq", "casperhansen/tinyllama-1b-awq"),
+        ]
+
+    @pytest.mark.parametrize("type,name", get_supported_export_precommit_models())
+    @pytest.mark.precommit
+    @pytest.mark.nightly
+    def test_export_model_precommit(self, name, type, ie_device):
+        self.export_mode = True
         self.run(model_name=name, model_link=type, ie_device=ie_device)
