@@ -787,6 +787,7 @@ TEST_F(SubgraphCollectorTest, two_independent_paths_no_split) {
     auto add1 = std::make_shared<ov::op::v1::Add>(param1, c1);
     add1->set_friendly_name("add1");
     auto add2 = std::make_shared<ov::op::v1::Add>(param2, c2);
+    add2->set_friendly_name("add2");
 
     auto result1 = std::make_shared<ov::op::v0::Result>(add1);
     result1->set_friendly_name("res1");
