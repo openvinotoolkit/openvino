@@ -11,20 +11,10 @@
 #include "op/device_subgraph.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/ops.hpp"
-#include "openvino/op/util/op_types.hpp"
 
 using namespace ov::hetero;
 
 namespace {
-std::set<std::string> collect_subgraph_node_names(const Subgraph& subgraph) {
-    std::set<std::string> node_names;
-    auto sub_model = std::make_shared<ov::Model>(subgraph._results, subgraph._sinks, subgraph._parameters);
-    for (const auto& node : sub_model->get_ordered_ops()) {
-        node_names.insert(node->get_friendly_name());
-    }
-    return node_names;
-}
-
 std::shared_ptr<ov::Model> create_test_model() {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 3, 2, 2});
     param->set_friendly_name("input");
