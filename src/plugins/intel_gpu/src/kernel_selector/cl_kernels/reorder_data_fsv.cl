@@ -7,14 +7,19 @@
 
 #include "include/batch_headers/fetch_data.cl"
 
+#ifdef FSV_VECTORIZED
+    #define INPUT_VEC_TYPE  MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE)
+    #define OUTPUT_VEC_TYPE MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE)
+    #define CONVERT_OUT_VEC CAT(convert_, OUTPUT_VEC_TYPE)
+    #define VLOAD_VEC       CAT(vload, VEC_SIZE)
+    #define VSTORE_VEC      CAT(vstore, VEC_SIZE)
+#endif
+
 KERNEL (reorder_data_fsv)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output)
 {
-    // GWS[0] = x
-    // GWS[1] = y * z
-    // GWS[2] = b * OUT_FEATURE_SLICE_NUM
     const uint x = (uint)get_global_id(0);
     const uint yz = (uint)get_global_id(1);
     const uint b_fs = (uint)get_global_id(2);
@@ -30,12 +35,7 @@ KERNEL (reorder_data_fsv)(
     const uint z = 0;
 #endif
 
-    // Base feature index for this output slice
     const uint f_base = fs_out * OUT_FSV;
-
-    // Input layout pitches: [..., x, fsv_in]
-    // Physical offset in input:  b * in_b_pitch + fs_in * in_fs_pitch + z * in_z_pitch + y * in_y_pitch + x * IN_FSV + fsv_in
-    // Physical offset in output: b * out_b_pitch + fs_out * out_fs_pitch + z * out_z_pitch + y * out_y_pitch + x * OUT_FSV + fsv_out
 
     const uint in_x_pitch = IN_FSV;
     const uint in_y_pitch = in_x_pitch * INPUT0_SIZE_X;
@@ -65,6 +65,36 @@ KERNEL (reorder_data_fsv)(
     const uint in_spatial_base = b * in_b_pitch + y * in_y_pitch + x * IN_FSV;
 #endif
 
+#ifdef FSV_VECTORIZED
+    // Vectorized path: read/write VEC_SIZE elements at a time.
+    // RATIO = max(IN_FSV, OUT_FSV) / min(IN_FSV, OUT_FSV)
+    #if (OUT_FSV > IN_FSV)
+        // Upscale: e.g. fsv16 -> fsv32. Read RATIO input slices into one output slice.
+        unroll_for (uint r = 0; r < RATIO; ++r) {
+            const uint fs_in = fs_out * RATIO + r;
+            const uint f_chunk = f_base + r * VEC_SIZE;
+            if (f_chunk < INPUT0_FEATURE_NUM) {
+                INPUT_VEC_TYPE v = VLOAD_VEC(0, input + in_spatial_base + fs_in * in_fs_pitch);
+                VSTORE_VEC(CONVERT_OUT_VEC(v), 0, output + out_offset_base + r * VEC_SIZE);
+            } else {
+                OUTPUT_VEC_TYPE zero = (OUTPUT_VEC_TYPE)(0);
+                VSTORE_VEC(zero, 0, output + out_offset_base + r * VEC_SIZE);
+            }
+        }
+    #else
+        // Downscale: e.g. fsv32 -> fsv16. Read one chunk from a larger input slice.
+        const uint fs_in = fs_out / RATIO;
+        const uint sub = fs_out % RATIO;
+        if (f_base < INPUT0_FEATURE_NUM) {
+            INPUT_VEC_TYPE v = VLOAD_VEC(0, input + in_spatial_base + fs_in * in_fs_pitch + sub * VEC_SIZE);
+            VSTORE_VEC(CONVERT_OUT_VEC(v), 0, output + out_offset_base);
+        } else {
+            OUTPUT_VEC_TYPE zero = (OUTPUT_VEC_TYPE)(0);
+            VSTORE_VEC(zero, 0, output + out_offset_base);
+        }
+    #endif
+#else
+    // Scalar fallback for small fsv sizes (fsv4, fsv8) or non-power-of-2 ratios.
     for (uint i = 0; i < OUT_FSV; ++i) {
         const uint f = f_base + i;
         if (f < INPUT0_FEATURE_NUM) {
@@ -76,4 +106,5 @@ KERNEL (reorder_data_fsv)(
             output[out_offset_base + i] = TO_OUTPUT_TYPE(0);
         }
     }
+#endif
 }
