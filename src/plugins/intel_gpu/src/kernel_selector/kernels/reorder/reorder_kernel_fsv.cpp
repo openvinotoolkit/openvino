@@ -142,6 +142,15 @@ JitConstants ReorderKernel_fsv::GetJitConstants(const reorder_params& params) co
         jit.AddConstant(MakeJitConstant("INPUT0_DIMS_5", 1));
     }
 
+    // Vectorized path: when both fsv sizes are >= 16 and one is a multiple of the other
+    const size_t min_fsv = std::min(in_fsv, out_fsv);
+    const size_t max_fsv = std::max(in_fsv, out_fsv);
+    if (min_fsv >= 16 && max_fsv % min_fsv == 0) {
+        jit.AddConstant(MakeJitConstant("FSV_VECTORIZED", 1));
+        jit.AddConstant(MakeJitConstant("VEC_SIZE", min_fsv));
+        jit.AddConstant(MakeJitConstant("RATIO", max_fsv / min_fsv));
+    }
+
     if (params.is_shape_agnostic) {
         jit.AddConstant(MakeJitConstant("IN_FEATURE_SLICE_NUM",
             "((INPUT0_FEATURE_NUM + " + std::to_string(in_fsv) + " - 1) / " + std::to_string(in_fsv) + ")"));
