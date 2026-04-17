@@ -1167,28 +1167,15 @@ std::string Properties::determineDeviceId(const ov::AnyMap& properties) const {
 }
 
 bool Properties::checkCompiledModelCompatibilityDescriptor(const std::string& compatibilityString) const {
-    // Copy-pasted code, TODO refactor
-    // TODO rename, this is just the compiler part of the descriptor
-    // TODO check the type - should it be string?
     std::unique_ptr<ICompilerAdapter> compiler = nullptr;
-    auto deviceId = _config.get<DEVICE_ID>();
-    auto device = utils::getDeviceById(_backend, deviceId);
-
-    auto compilationPlatform =
-        utils::getCompilationPlatform(_config.get<PLATFORM>(),
-                                      device == nullptr ? deviceId : device->getName(),
-                                      _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
     // Create a compiler to get the type and fetch version and supported options if needed
     CompilerAdapterFactory factory;
     try {
-        // TODO compilationPlatform should not iunfluence result
         // TODO consider using backend directly
-        compiler = factory.getCompiler(_backend, ov::intel_npu::CompilerType::DRIVER, compilationPlatform);
+        compiler = factory.getCompiler(_backend, ov::intel_npu::CompilerType::DRIVER);
     } catch (const std::exception& ex) {
-        // No compiler, no support
-        // Populate in ctor the device descriptor
-        compiler = factory.getCompiler(_backend, ov::intel_npu::CompilerType::PLUGIN, compilationPlatform);
+        compiler = factory.getCompiler(_backend, ov::intel_npu::CompilerType::PLUGIN);
     }
     OPENVINO_ASSERT(compiler != nullptr);
     return compiler->validate_compatibility_descriptor(compatibilityString);
