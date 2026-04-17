@@ -66,7 +66,10 @@ struct Op {
     std::vector<value_id> reads;
     value_id def = invalid_value;        // invalid_value = no def (e.g. store)
     EmitFn emit;                         // called by lowering with allocated regs
-    bool is_copy = false;                // trivial coalescing hint (unused in Slice 1)
+    bool is_copy = false;                // trivial coalescing hint for pure copies
+    int tied_to = -1;                    // LLVM-style tied operand: index into reads[]
+                                         // that def must share a register with. -1 = none.
+                                         // The allocator coalesces or inserts a copy.
     std::unique_ptr<IR> body;            // non-null = region op (loop, branch)
     bool is_loop = false;                // true = extend intervals across body (repeats)
     const char* name = "";               // debug tag for dump (not used by allocator)
@@ -80,20 +83,29 @@ public:
     // Record an op that defines a fresh value. Returns the new value id.
     value_id def(std::vector<value_id> reads, EmitFn emit, const char* name = "") {
         const value_id id = _next_value++;
-        target().push_back(Op{std::move(reads), id, std::move(emit), /*is_copy=*/false, /*body=*/nullptr, /*is_loop=*/false, name});
+        target().push_back(Op{std::move(reads), id, std::move(emit), /*is_copy=*/false, /*tied_to=*/-1, /*body=*/nullptr, /*is_loop=*/false, name});
+        return id;
+    }
+
+    // Record an op with a tied-operand constraint: def must share a
+    // register with reads[tied_to]. The allocator coalesces if possible,
+    // otherwise the emit closure must handle the mismatch (e.g. vmovups).
+    value_id def_tied(std::vector<value_id> reads, int tied_to, EmitFn emit, const char* name = "") {
+        const value_id id = _next_value++;
+        target().push_back(Op{std::move(reads), id, std::move(emit), /*is_copy=*/false, tied_to, /*body=*/nullptr, /*is_loop=*/false, name});
         return id;
     }
 
     // Record an op that reads values but defines none (e.g. a store).
     void use(std::vector<value_id> reads, EmitFn emit, const char* name = "") {
-        target().push_back(Op{std::move(reads), invalid_value, std::move(emit), /*is_copy=*/false, /*body=*/nullptr, /*is_loop=*/false, name});
+        target().push_back(Op{std::move(reads), invalid_value, std::move(emit), /*is_copy=*/false, /*tied_to=*/-1, /*body=*/nullptr, /*is_loop=*/false, name});
     }
 
     // Record a copy-like op: defines a fresh value whose contents come from a
     // single source. Flagged for the allocator's trivial coalescing pass.
     value_id copy(value_id src, EmitFn emit, const char* name = "") {
         const value_id id = _next_value++;
-        target().push_back(Op{std::vector<value_id>{src}, id, std::move(emit), /*is_copy=*/true, /*body=*/nullptr, /*is_loop=*/false, name});
+        target().push_back(Op{std::vector<value_id>{src}, id, std::move(emit), /*is_copy=*/true, /*tied_to=*/-1, /*body=*/nullptr, /*is_loop=*/false, name});
         return id;
     }
 
@@ -110,8 +122,8 @@ public:
         body_builder();
         _cursor = saved_cursor;
 
-        target().push_back(Op{{}, invalid_value, std::move(emit), false,
-                              std::move(body), is_loop});
+        target().push_back(Op{{}, invalid_value, std::move(emit), /*is_copy=*/false,
+                              /*tied_to=*/-1, std::move(body), is_loop});
     }
 
     // Convenience: record a loop region (intervals extended across body).
@@ -135,7 +147,8 @@ private:
     value_id _next_value = 0;
 };
 
-// A contiguous [start, end] range within a LiveRange. LLVM naming.
+// A half-open [start, end) range within a LiveRange. LLVM naming.
+// `start` is the def or first-use index; `end` is one past the last use.
 struct Segment {
     std::uint32_t start = 0;
     std::uint32_t end = 0;

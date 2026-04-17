@@ -77,7 +77,6 @@ void jit_rotary_kernel_ir::generate() {
 
 template <typename T, size_t N>
 void jit_rotary_kernel_ir::rotary_half_ir() {
-    // Load pointers from call args
     auto src = arg<T*>(&Params::src);
     auto cos = arg<const float*>(&Params::cos);
     auto sin = arg<const float*>(&Params::sin);
@@ -87,13 +86,18 @@ void jit_rotary_kernel_ir::rotary_half_ir() {
     const auto half_byte_offset = half_rotary_ndims * sizeof(T);
     const bool shift_cos_sin = (m_jcp.cos_sin_ndims != half_rotary_ndims);
 
+    auto count = var<size_t>(half_rotary_ndims);
+
     begin_ir(true);
 
-    for (size_t i = 0; i < half_rotary_ndims / N; i++) {
-        // src0 = src[i], src1 = src[i + half]
+    auto src_idx = src.reg().getIdx();
+    auto dst_idx = dst.reg().getIdx();
+    auto cos_idx = cos.reg().getIdx();
+    auto sin_idx = sin.reg().getIdx();
+
+    foreach_predicated<N>(count, [&](const Xbyak::Opmask&) {
         auto v_src0 = ir_load<N>(src);
         auto v_src1 = ir_load<N>(src, half_byte_offset);
-        // cos[i], sin[i]
         auto v_cos = ir_load<N>(cos);
         auto v_sin = ir_load<N>(sin);
 
@@ -113,23 +117,14 @@ void jit_rotary_kernel_ir::rotary_half_ir() {
         auto v_dst1 = fma(v_sin, v_src0, v_tmp2);
         ir_store(dst, half_byte_offset, v_dst1);
 
-        // Advance pointers (inside IR so they execute at lowering time)
-        if (i + 1 < half_rotary_ndims / N) {
-            auto src_idx = src.reg().getIdx();
-            auto dst_idx = dst.reg().getIdx();
-            auto cos_idx = cos.reg().getIdx();
-            auto sin_idx = sin.reg().getIdx();
-            constexpr size_t src_step = N * sizeof(T);
-            constexpr size_t cos_step = N * sizeof(float);
-            ir_use({}, [this, src_idx, dst_idx, cos_idx, sin_idx,
-                        src_step, cos_step](const jit_kernel_ir::EmitContext&) {
-                add(Xbyak::Reg64(src_idx), src_step);
-                add(Xbyak::Reg64(dst_idx), src_step);
-                add(Xbyak::Reg64(cos_idx), cos_step);
-                add(Xbyak::Reg64(sin_idx), cos_step);
-            }, "ptr_advance");
-        }
-    }
+        // Advance pointers
+        ir_use({}, [this, src_idx, dst_idx, cos_idx, sin_idx](const jit_kernel_ir::EmitContext&) {
+            add(Xbyak::Reg64(src_idx), N * sizeof(T));
+            add(Xbyak::Reg64(dst_idx), N * sizeof(T));
+            add(Xbyak::Reg64(cos_idx), N * sizeof(float));
+            add(Xbyak::Reg64(sin_idx), N * sizeof(float));
+        }, "ptr_advance");
+    });
 
     end_ir();
 }

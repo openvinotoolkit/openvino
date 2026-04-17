@@ -106,7 +106,7 @@ void compute_live_ranges_impl(const std::list<Op>& ops,
             trace_ir(std::string("ranges enter ") + (op.is_loop ? "loop" : "region") +
                      " begin=" + std::to_string(region_begin));
             compute_live_ranges_impl(op.body->ops(), ranges, index);
-            auto region_end = (index > 0) ? index - 1 : 0u;
+            auto region_end = index;  // half-open: one past last op in region
             trace_ir(std::string("ranges exit ") + (op.is_loop ? "loop" : "region") +
                      " begin=" + std::to_string(region_begin) +
                      " end=" + std::to_string(region_end));
@@ -122,13 +122,21 @@ void compute_live_ranges_impl(const std::list<Op>& ops,
             // For loops specifically, also extend committed child
             // segments to cover the full loop body (the loop re-reads
             // the value each iteration).
+            // Half-open: region is [region_begin, region_end).
+            // A committed segment starts in the region if start >= region_begin
+            // and start < region_end. For extension, use region_end directly
+            // since local seg.last will be flushed as seg.last + 1.
             for (auto& [vid, seg] : local) {
                 if (seg.first < region_begin) {
                     for (const auto& committed : ranges[vid].segments) {
                         if (committed.start >= region_begin &&
-                            committed.start <= region_end) {
-                            auto extend_to = op.is_loop ? region_end
-                                                        : committed.end;
+                            committed.start < region_end) {
+                            // For loops, extend to cover the full body.
+                            // For branches, extend to cover through the child's end.
+                            // committed.end is already half-open, so subtract 1
+                            // for local tracking (flushed as +1 later).
+                            auto extend_to = op.is_loop ? region_end - 1
+                                                        : committed.end - 1;
                             seg.last = std::max(seg.last, extend_to);
                             break;
                         }
@@ -143,7 +151,9 @@ void compute_live_ranges_impl(const std::list<Op>& ops,
                     if (lr.empty()) continue;
                     if (lr.beginIndex() >= region_begin) continue;
                     for (auto& seg : lr.segments) {
-                        if (seg.end >= region_begin && seg.end < region_end) {
+                        // Half-open: seg.end is one past last use.
+                        // Extend if it ends inside the region but before the end.
+                        if (seg.end > region_begin && seg.end < region_end) {
                             trace_ir("extend %" + std::to_string(lr.id) +
                                      " loop_end " + std::to_string(seg.end) +
                                      " -> " + std::to_string(region_end));
@@ -176,15 +186,17 @@ void compute_live_ranges_impl(const std::list<Op>& ops,
                 local[op.def] = {index, index};
                 if (op.is_copy && op.reads.size() == 1) {
                     ranges[op.def].copy_of = op.reads[0];
+                } else if (op.tied_to >= 0 && op.tied_to < static_cast<int>(op.reads.size())) {
+                    ranges[op.def].copy_of = op.reads[op.tied_to];
                 }
             }
             ++index;
         }
     }
 
-    // Flush local segments into LiveRanges.
+    // Flush local segments into LiveRanges (half-open: end = last + 1).
     for (const auto& [vid, seg] : local) {
-        ranges[vid].addSegment({seg.first, seg.last});
+        ranges[vid].addSegment({seg.first, seg.last + 1});
     }
 }
 
@@ -214,7 +226,7 @@ bool LiveRange::liveAt(std::uint32_t index) const noexcept {
                                });
     if (it == segments.begin()) return false;
     --it;
-    return index <= it->end;
+    return index < it->end;  // half-open: [start, end)
 }
 
 void LiveRange::addSegment(Segment s) {
@@ -230,7 +242,7 @@ void LiveRange::addSegment(Segment s) {
                                });
     it = segments.insert(it, s);
 
-    // Merge with predecessor if overlapping (NOT merely adjacent).
+    // Half-open: merge if overlapping or adjacent ([0,2) + [2,4) → [0,4)).
     if (it != segments.begin()) {
         auto prev = std::prev(it);
         if (prev->end >= it->start) {
@@ -240,7 +252,7 @@ void LiveRange::addSegment(Segment s) {
         }
     }
 
-    // Merge with successors if overlapping.
+    // Merge with successors if overlapping or adjacent.
     while (std::next(it) != segments.end()) {
         auto next_it = std::next(it);
         if (it->end >= next_it->start) {
@@ -554,10 +566,11 @@ std::optional<Assignment> linear_scan(IR& ir,
     std::vector<std::vector<Segment>> reg_segments(pool_size);
 
     // Check if any segment of `lr` overlaps any segment on register `r`.
+    // Half-open intervals: [a, b) and [c, d) overlap iff a < d && c < b.
     auto interferes = [&](const LiveRange& lr, std::uint32_t r) -> bool {
         for (const auto& s : lr.segments) {
             for (const auto& e : reg_segments[r]) {
-                if (s.start <= e.end && e.start <= s.end) {
+                if (s.start < e.end && e.start < s.end) {
                     return true;
                 }
             }
@@ -584,16 +597,43 @@ std::optional<Assignment> linear_scan(IR& ir,
                  " [" + std::to_string(lr.beginIndex()) +
                  "," + std::to_string(lr.endIndex()) + "]");
 
-        // Trivial coalescing: prefer the source's register if compatible.
+        // Coalescing: prefer the source's register if compatible.
+        // The source's live range may touch the def's start (the read
+        // happens at the same index as the def). This single-point
+        // overlap is safe — the value is consumed then redefined.
+        // Temporarily shrink the source's segments on the register
+        // to exclude the overlap, check interference, then restore.
         if (lr.copy_of != invalid_value) {
             auto src_it = result.reg.find(lr.copy_of);
-            if (src_it != result.reg.end() && !interferes(lr, src_it->second.idx)) {
-                trace_ir("  coalesce %" + std::to_string(vid) +
-                         " with %" + std::to_string(lr.copy_of) +
-                         " on p" + std::to_string(src_it->second.idx));
-                result.reg.emplace(vid, src_it->second);
-                add_to_reg(lr, src_it->second.idx);
-                continue;
+            if (src_it != result.reg.end()) {
+                auto r = src_it->second.idx;
+                auto def_start = lr.beginIndex();
+                // Trim source segments that end at def_start + 1
+                // (half-open: source [x, def_start+1) touches def [def_start, ...))
+                auto& rsegs = reg_segments[r];
+                std::vector<Segment> saved;
+                for (auto& rs : rsegs) {
+                    if (rs.end == def_start + 1) {
+                        saved.push_back(rs);
+                        rs.end = def_start;  // shrink past the touch point
+                    }
+                }
+                bool ok = !interferes(lr, r);
+                // Restore
+                for (size_t si = 0, ri = 0; ri < rsegs.size() && si < saved.size(); ++ri) {
+                    if (rsegs[ri].start == saved[si].start) {
+                        rsegs[ri].end = saved[si].end;
+                        ++si;
+                    }
+                }
+                if (ok) {
+                    trace_ir("  coalesce %" + std::to_string(vid) +
+                             " with %" + std::to_string(lr.copy_of) +
+                             " on p" + std::to_string(r));
+                    result.reg.emplace(vid, PhysReg{r});
+                    add_to_reg(lr, r);
+                    continue;
+                }
             }
         }
 
@@ -627,7 +667,7 @@ std::optional<Assignment> linear_scan(IR& ir,
             auto interferes_with_lr = [&](const LiveRange& victim_lr) -> bool {
                 for (const auto& vs : victim_lr.segments) {
                     for (const auto& ls : lr.segments) {
-                        if (vs.start <= ls.end && ls.start <= vs.end)
+                        if (vs.start < ls.end && ls.start < vs.end)
                             return true;
                     }
                 }

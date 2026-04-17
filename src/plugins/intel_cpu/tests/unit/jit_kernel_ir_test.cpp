@@ -65,9 +65,9 @@ void expect_all_assigned(const std::vector<LiveRange>& ranges, const Assignment&
 bool segments_overlap(const LiveRange& a, const LiveRange& b) {
     std::size_t i = 0, j = 0;
     while (i < a.segments.size() && j < b.segments.size()) {
-        if (a.segments[i].end < b.segments[j].start) {
+        if (a.segments[i].end <= b.segments[j].start) {
             ++i;
-        } else if (b.segments[j].end < a.segments[i].start) {
+        } else if (b.segments[j].end <= a.segments[i].start) {
             ++j;
         } else {
             return true;
@@ -141,13 +141,13 @@ TEST(JitKernelIR, LiveRangesOnStraightLine) {
     // Straight-line code: one segment per value.
     EXPECT_EQ(ranges[a].segments.size(), 1U);
     EXPECT_EQ(ranges[a].beginIndex(), 0U);
-    EXPECT_EQ(ranges[a].endIndex(), 3U);  // extended by d's read
+    EXPECT_EQ(ranges[a].endIndex(), 4U);  // extended by d's read (half-open)
     EXPECT_EQ(ranges[b].beginIndex(), 1U);
-    EXPECT_EQ(ranges[b].endIndex(), 2U);  // only read in c's def
+    EXPECT_EQ(ranges[b].endIndex(), 3U);  // only read in c's def (half-open)
     EXPECT_EQ(ranges[c].beginIndex(), 2U);
-    EXPECT_EQ(ranges[c].endIndex(), 3U);
+    EXPECT_EQ(ranges[c].endIndex(), 4U);  // half-open
     EXPECT_EQ(ranges[d].beginIndex(), 3U);
-    EXPECT_EQ(ranges[d].endIndex(), 3U);  // never read
+    EXPECT_EQ(ranges[d].endIndex(), 4U);  // never read (half-open: def at 3, end at 4)
 }
 
 TEST(JitKernelIR, LinearScanFitsInPool) {
@@ -252,7 +252,7 @@ TEST(JitKernelIR, UseWithoutDefDoesNotCreateValue) {
     auto ranges = compute_live_ranges(ir);
     ASSERT_EQ(ranges.size(), 1U);
     EXPECT_EQ(ranges[v].beginIndex(), 0U);
-    EXPECT_EQ(ranges[v].endIndex(), 1U);  // extended by the use
+    EXPECT_EQ(ranges[v].endIndex(), 2U);  // extended by the use (half-open)
 
     const auto assignment = *linear_scan(ir, ranges, /*pool_size=*/1);
     EXPECT_EQ(assignment.peak_live, 1U);
@@ -463,11 +463,11 @@ TEST(JitKernelIR, LiveRangeLiveAt) {
     EXPECT_FALSE(lr.liveAt(1));
     EXPECT_TRUE(lr.liveAt(2));
     EXPECT_TRUE(lr.liveAt(3));
-    EXPECT_TRUE(lr.liveAt(5));
+    EXPECT_FALSE(lr.liveAt(5));   // half-open: [2,5) excludes 5
     EXPECT_FALSE(lr.liveAt(6));
     EXPECT_FALSE(lr.liveAt(7));
     EXPECT_TRUE(lr.liveAt(8));
-    EXPECT_TRUE(lr.liveAt(10));
+    EXPECT_FALSE(lr.liveAt(10));  // half-open: [8,10) excludes 10
     EXPECT_FALSE(lr.liveAt(11));
 }
 
@@ -489,19 +489,19 @@ TEST(JitKernelIR, LiveRangesPerBranchSegments) {
 
     auto ranges = compute_live_ranges(ir);
 
-    // %a: def at 0, use at 2. Parent extends to cover child use → [0, 2].
+    // %a: def at 0, use at 2. Parent extends to cover child use → [0, 3) half-open.
     EXPECT_EQ(ranges[a].segments.size(), 1U);
     EXPECT_EQ(ranges[a].beginIndex(), 0U);
-    EXPECT_EQ(ranges[a].endIndex(), 2U);
+    EXPECT_EQ(ranges[a].endIndex(), 3U);  // half-open
     EXPECT_TRUE(ranges[a].liveAt(0));
     EXPECT_TRUE(ranges[a].liveAt(1));   // live: still in register between def and use
     EXPECT_TRUE(ranges[a].liveAt(2));
-    EXPECT_FALSE(ranges[a].liveAt(3));  // NOT live in else-branch
+    EXPECT_FALSE(ranges[a].liveAt(3));  // NOT live in else-branch (half-open end)
 
-    // %b: def at 1, use at 3. Parent extends → [1, 3].
+    // %b: def at 1, use at 3. Parent extends → [1, 4) half-open.
     EXPECT_EQ(ranges[b].segments.size(), 1U);
     EXPECT_EQ(ranges[b].beginIndex(), 1U);
-    EXPECT_EQ(ranges[b].endIndex(), 3U);
+    EXPECT_EQ(ranges[b].endIndex(), 4U);  // half-open
     EXPECT_FALSE(ranges[b].liveAt(0));
     EXPECT_TRUE(ranges[b].liveAt(1));
     EXPECT_TRUE(ranges[b].liveAt(2));   // live: still in register
@@ -524,10 +524,10 @@ TEST(JitKernelIR, LiveRangesUsedInBothBranches) {
     auto ranges = compute_live_ranges(ir);
 
     // %a: def at 0, use in then (1), use in else (2).
-    // Parent extends through both → single segment [0, 2].
+    // Parent extends through both → single segment [0, 3) half-open.
     EXPECT_EQ(ranges[a].segments.size(), 1U);
     EXPECT_EQ(ranges[a].beginIndex(), 0U);
-    EXPECT_EQ(ranges[a].endIndex(), 2U);
+    EXPECT_EQ(ranges[a].endIndex(), 3U);  // half-open
 }
 
 TEST(JitKernelIR, LiveRangesUsedAfterBranch) {
@@ -547,11 +547,11 @@ TEST(JitKernelIR, LiveRangesUsedAfterBranch) {
 
     auto ranges = compute_live_ranges(ir);
 
-    // %a: top-level local = {0, 3}. Branch flushes: [1,1], [2,2].
-    // addSegment([0,3]) overlaps both → merges to single [0,3].
+    // %a: top-level local = {0, 4}. Branch flushes merged.
+    // addSegment overlaps → merges to single [0, 4) half-open.
     EXPECT_EQ(ranges[a].segments.size(), 1U);
     EXPECT_EQ(ranges[a].beginIndex(), 0U);
-    EXPECT_EQ(ranges[a].endIndex(), 3U);
+    EXPECT_EQ(ranges[a].endIndex(), 4U);  // half-open
 }
 
 // ── Slice 2: end-to-end integration tests ──────────────────────────────

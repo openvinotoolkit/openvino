@@ -1455,10 +1455,10 @@ jit_kernel::variable<float[N]> jit_kernel::vec_op(Insn3 insn,
     using reg_type = typename reg_traits<float[N]>::type;
 
     if (_ir_mode) {
-        // Destructive FMA: reads[0] = seed (tied operand), reads[1] = a, reads[2] = b.
-        // The emit closure copies seed→def before the FMA. If the allocator
-        // assigns the same register (coalescing), this is a self-move (zero cost).
-        auto vid = _ir->def({seed.vid(), a.vid(), b.vid()},
+        // Destructive FMA: reads[0] = seed (tied to def), reads[1] = a, reads[2] = b.
+        // tied_to=0 tells the allocator to coalesce def with reads[0].
+        // If coalesced, vmovups is a self-move. If not, it's the necessary copy.
+        auto vid = _ir->def_tied({seed.vid(), a.vid(), b.vid()}, /*tied_to=*/0,
             [this, insn](const jit_kernel_ir::EmitContext& ctx) {
                 uni_vmovups(reg_type(ctx.def->idx), reg_type(ctx.reads[0].idx));
                 lower(insn,
@@ -1566,8 +1566,7 @@ jit_kernel::variable<float[N]> jit_kernel::ir_load(const variable<PtrT>& src_ptr
             auto dst = reg_type(ctx.def->idx);
             auto addr = address_frame(N)[Xbyak::Reg64(ptr_idx) + byte_offset];
             if (masked) {
-                vpxord(dst, dst, dst);
-                vpmovzxbd(dst | Xbyak::Opmask(mask_idx), addr);
+                vpmovzxbd(dst | Xbyak::Opmask(mask_idx) | T_z, addr);
             } else {
                 uni_vpmovzxbd(dst, addr);
             }
@@ -1578,8 +1577,7 @@ jit_kernel::variable<float[N]> jit_kernel::ir_load(const variable<PtrT>& src_ptr
             auto dst = reg_type(ctx.def->idx);
             auto addr = address_frame(N * sizeof(ov::float16))[Xbyak::Reg64(ptr_idx) + byte_offset];
             if (masked) {
-                vpxord(dst, dst, dst);
-                vcvtph2ps(dst | Xbyak::Opmask(mask_idx), addr);
+                vcvtph2ps(dst | Xbyak::Opmask(mask_idx) | T_z, addr);
             } else {
                 vcvtph2ps(dst, addr);
             }
@@ -1589,8 +1587,7 @@ jit_kernel::variable<float[N]> jit_kernel::ir_load(const variable<PtrT>& src_ptr
             auto dst = reg_type(ctx.def->idx);
             auto addr = address_frame(N * sizeof(ov::bfloat16))[Xbyak::Reg64(ptr_idx) + byte_offset];
             if (masked) {
-                vpxord(dst, dst, dst);
-                vpmovzxwd(dst | Xbyak::Opmask(mask_idx), addr);
+                vpmovzxwd(dst | Xbyak::Opmask(mask_idx) | T_z, addr);
             } else {
                 vpmovzxwd(dst, addr);
             }
@@ -1601,8 +1598,7 @@ jit_kernel::variable<float[N]> jit_kernel::ir_load(const variable<PtrT>& src_ptr
             auto dst = reg_type(ctx.def->idx);
             auto addr = address_frame(sizeof(reg_type))[Xbyak::Reg64(ptr_idx) + byte_offset];
             if (masked) {
-                vpxord(dst, dst, dst);
-                vmovups(dst | Xbyak::Opmask(mask_idx), addr);
+                vmovups(dst | Xbyak::Opmask(mask_idx) | T_z, addr);
             } else {
                 uni_vmovups(dst, addr);
             }
