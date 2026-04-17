@@ -15,6 +15,7 @@
 #include "cpu_parallel.hpp"
 #include "graph_context.h"
 #include "kernels/x64/rope_kernel.hpp"
+#include "kernels/x64/rope_kernel_ir.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "nodes/kernels/x64/jit_kernel_base.hpp"
@@ -46,6 +47,14 @@ RoPE::RoPE(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
 
     const auto node = ov::as_type_ptr<const op::internal::RoPE>(op);
     m_config = node->get_config();
+}
+
+static bool use_ir_rope() {
+    static bool val = [] {
+        const char* env = std::getenv("OV_JIT_IR_ROPE");
+        return env && std::string(env) == "1";
+    }();
+    return val;
 }
 
 static std::shared_ptr<kernel::JitKernelBase> createJitKernel([[maybe_unused]] const jit_rotary_compile_params& param,
@@ -100,10 +109,23 @@ static void execJitKernel([[maybe_unused]] const std::shared_ptr<kernel::JitKern
 #endif  // OPENVINO_ARCH_X86_64
 }
 
+static std::shared_ptr<kernel::jit_rotary_kernel_ir> createIrKernel(
+        [[maybe_unused]] const jit_rotary_compile_params& param) {
+#if defined(OPENVINO_ARCH_X86_64)
+    if (use_ir_rope()) {
+        auto ker = std::make_shared<jit_rotary_kernel_ir>(param);
+        ker->init();
+        return ker;
+    }
+#endif
+    return nullptr;
+}
+
 template <typename T>
 struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
     const op::internal::RoPE::Config& m_config;
     std::shared_ptr<kernel::JitKernelBase> m_rotaryKernel;
+    std::shared_ptr<kernel::jit_rotary_kernel_ir> m_irKernel;
 
     explicit RoPEExecutorRotateHalf(const op::internal::RoPE::Config& config) : m_config(config) {
         jit_rotary_compile_params jcp;
@@ -113,6 +135,7 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
         jcp.interleave = false;
         jcp.cos_sin_ndims = config.cos_sin_ndims;
         m_rotaryKernel = createJitKernel(jcp);
+        m_irKernel = createIrKernel(jcp);
     }
 
     void execute([[maybe_unused]] const dnnl::stream& strm,
@@ -175,7 +198,10 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
             auto* sin = &t_sin.at<float>({b, h, cos_pos, 0}, true);
             auto* dst = t_dst.ptr<T>(b, h, p, 0);
 
-            if (m_rotaryKernel) {
+            if (use_ir_rope() && m_irKernel) {
+                jit_rotary_call_args call_args{src, cos, sin, dst};
+                (*m_irKernel)(&call_args);
+            } else if (m_rotaryKernel) {
                 execJitKernel(m_rotaryKernel, src, dst, cos, sin);
             } else {
                 size_t i = 0;

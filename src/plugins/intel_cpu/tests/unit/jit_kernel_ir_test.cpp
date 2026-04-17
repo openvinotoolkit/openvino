@@ -340,6 +340,93 @@ TEST(JitKernelIR, RematRewritesOnlySingleUse) {
     EXPECT_EQ(count_reads_recursive(ir.ops(), c0), 2U);
 }
 
+TEST(JitKernelIR, InputAwareRematClonesWithReads) {
+    // Verify that remat of a value with inputs produces clones that
+    // carry the victim's reads (not empty). This is critical: the emit
+    // closure reads physical registers from EmitContext.reads, so the
+    // clone Op must list the same value_id reads as the original def.
+    //
+    //   %c0 = def()              — constant
+    //   %c1 = def()              — constant
+    //   %derived = def({c0, c1}) — two-input op
+    //   use({derived})           — single use
+    //   use({c0, c1})            — keeps constants alive
+
+    IR ir;
+    const auto c0 = ir.def({}, stub());
+    const auto c1 = ir.def({}, stub());
+    const auto derived = ir.def({c0, c1}, stub());
+    ir.use({derived}, stub());
+    ir.use({c0, c1}, stub());
+
+    // Force remat of "derived" and verify the clone's reads.
+    EXPECT_TRUE(unit_test_api_remat_value(ir, derived));
+
+    // The original use of "derived" was rewritten to read a clone.
+    // Find the clone and verify it has reads = {c0, c1}.
+    bool found_clone_with_reads = false;
+    for (const auto& op : ir.ops()) {
+        if (std::string(op.name) == "remat") {
+            EXPECT_EQ(op.reads.size(), 2U)
+                << "remat clone must carry the victim's input reads";
+            if (op.reads.size() == 2U) {
+                EXPECT_EQ(op.reads[0], c0);
+                EXPECT_EQ(op.reads[1], c1);
+            }
+            found_clone_with_reads = true;
+        }
+    }
+    EXPECT_TRUE(found_clone_with_reads)
+        << "remat should have inserted a clone";
+
+    // After remat, allocation should succeed with a tight pool.
+    // "derived" is now dead (range = [def, def]). The clone is
+    // short-lived (right before the use). Pool = 3 should suffice
+    // for c0, c1, and the clone (derived is dead).
+    auto ranges = compute_live_ranges(ir);
+    auto result = linear_scan(ir, ranges, /*pool_size=*/3);
+    ASSERT_TRUE(result.has_value());
+    expect_all_assigned(ranges, *result);
+    expect_no_overlap_conflict(ranges, *result);
+}
+
+TEST(JitKernelIR, InputAwareRematReducesPressure) {
+    // Verify that rematerializing a derived value whose inputs are
+    // already live reduces pressure in the middle of the IR.
+    //
+    //   %c0 = def()              [0, 6]
+    //   %c1 = def()              [1, 6]
+    //   %derived = def({c0,c1})  [2, 5]  — holds register across pressure window
+    //   %t0 = def()              [3, 4]
+    //   %t1 = def({t0})          [4, 5]
+    //   use({derived, t1})       [5]
+    //   use({c0, c1})            [6]     — keeps constants alive
+    //
+    // Peak at 4: c0, c1, derived, t0, t1 = 5. Pool = 4.
+    // After remat of derived: clone at use site, derived dead.
+    // Peak at 4: c0, c1, t0, t1 = 4. Fits.
+
+    IR ir;
+    const auto c0 = ir.def({}, stub());
+    const auto c1 = ir.def({}, stub());
+    const auto derived = ir.def({c0, c1}, stub());
+    const auto t0 = ir.def({}, stub());
+    const auto t1 = ir.def({t0}, stub());
+    ir.use({derived, t1}, stub());
+    ir.use({c0, c1}, stub());
+
+    // Directly remat "derived" (input-aware: c0, c1 outlive it).
+    EXPECT_TRUE(unit_test_api_remat_value(ir, derived));
+
+    // Allocation should now succeed with pool=4.
+    auto ranges = compute_live_ranges(ir);
+    auto result = linear_scan(ir, ranges, /*pool_size=*/4);
+    ASSERT_TRUE(result.has_value()) << "allocation should succeed after remat";
+    expect_all_assigned(ranges, *result);
+    expect_no_overlap_conflict(ranges, *result);
+    EXPECT_LE(result->peak_live, 4U);
+}
+
 // ── LiveRange / Segment unit tests ─────────────────────────────────────
 
 TEST(JitKernelIR, LiveRangeAddSegmentMergesOverlapping) {
@@ -1151,6 +1238,110 @@ TEST(JitKernelIR, EndToEndForeachIfElseStoreInterleaved3WithSubIntervals) {
                 num_vectors, 1, consts.data()};
             kernel(args);
             expect_triplet(bgr, false);
+        }
+    }
+}
+
+// ── foreach_predicated: masked load/store ──────────────────────────────
+
+// Kernel: dst[i] = src[i] * 2.0f, using predicated foreach.
+// Tests that the tail (count % N) is handled by the mask, producing
+// correct results without a separate eager-mode tail path.
+struct PredicatedScaleParams {
+    const float* src;
+    float* dst;
+    size_t count;   // total elements (may not be a multiple of N)
+    float scale;
+};
+
+template <size_t N>
+struct jit_ir_predicated_scale_kernel : public jit_kernel {
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_ir_predicated_scale_kernel)
+
+    jit_ir_predicated_scale_kernel() : jit_kernel(jit_name()) {}
+
+    using fn_t = void (*)(const PredicatedScaleParams*);
+    fn_t fn_ = nullptr;
+
+    void init() {
+        if (create_kernel() != dnnl::impl::status::success)
+            OPENVINO_THROW("Can't generate jit kernel");
+        fn_ = (fn_t)(jit_ker());  // NOLINT
+    }
+
+    void operator()(const PredicatedScaleParams& args) const { fn_(&args); }
+
+    void generate() override {
+        using reg_type = typename reg_traits<float[N]>::type;
+        preamble();
+
+        auto src_ptr = arg(&PredicatedScaleParams::src);
+        auto dst_ptr = arg(&PredicatedScaleParams::dst);
+        auto count   = arg(&PredicatedScaleParams::count);
+        auto src_reg_idx = static_cast<std::uint32_t>(src_ptr.reg().getIdx());
+        auto dst_reg_idx = static_cast<std::uint32_t>(dst_ptr.reg().getIdx());
+
+        auto scale_addr = argPtr(&PredicatedScaleParams::scale);
+
+        begin_ir();
+
+        auto scale = ir_def<N>({}, [this, scale_addr](const jit_kernel_ir::EmitContext& ctx) {
+            uni_vbroadcastss(reg_type(ctx.def->idx), scale_addr);
+        });
+
+        foreach_predicated<N>(count, [&](const Xbyak::Opmask&) {
+            auto x = ir_load<N>(src_ptr);        // automatically masked
+            auto result = vmulps(x, scale);
+            ir_store<N>(dst_ptr, result);         // automatically masked
+
+            // Advance pointers.
+            ir_use({}, [this, src_reg_idx, dst_reg_idx](const jit_kernel_ir::EmitContext&) {
+                add(Xbyak::Reg64(src_reg_idx), N * sizeof(float));
+                add(Xbyak::Reg64(dst_reg_idx), N * sizeof(float));
+            });
+        });
+
+        end_ir();
+        postamble();
+    }
+};
+
+TEST(JitKernelIR, EndToEndForeachPredicated) {
+    using namespace dnnl::impl::cpu::x64;
+
+    if (mayiuse(cpu_isa_t::avx512_core)) {
+        constexpr size_t N = 16;
+
+        // Test with count that is NOT a multiple of N.
+        // 25 elements = 1 full iteration (16) + 1 tail iteration (9).
+        constexpr size_t count = 25;
+
+        alignas(64) std::array<float, count + N> src{};  // pad to avoid overread
+        alignas(64) std::array<float, count + N> dst{};
+        for (size_t i = 0; i < count; ++i) {
+            src[i] = static_cast<float>(i + 1);
+        }
+        // Fill padding with sentinel to detect overwrite.
+        for (size_t i = count; i < count + N; ++i) {
+            src[i] = -999.0f;
+            dst[i] = -999.0f;
+        }
+
+        jit_ir_predicated_scale_kernel<N> kernel;
+        kernel.init();
+
+        PredicatedScaleParams args{src.data(), dst.data(), count, 2.0f};
+        kernel(args);
+
+        for (size_t i = 0; i < count; ++i) {
+            EXPECT_FLOAT_EQ(dst[i], src[i] * 2.0f)
+                << "mismatch at index " << i;
+        }
+
+        // Verify no overwrite past count.
+        for (size_t i = count; i < count + N; ++i) {
+            EXPECT_FLOAT_EQ(dst[i], -999.0f)
+                << "masked store overwrote past count at index " << i;
         }
     }
 }

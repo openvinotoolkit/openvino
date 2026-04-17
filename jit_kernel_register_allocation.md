@@ -328,71 +328,142 @@ enum + switch — not the allocator, not the IR, not the lowering loop.
 
 ## Current implementation status
 
-The current implementation is intentionally narrower than the earlier
-"minimum" sketched above. The shipped pieces today are:
+The implementation has evolved significantly from the initial
+"minimum" sketch. The architecture now follows LLVM conventions
+where practical.
 
-- A nested-region IR (`IR` + `Op.body`) rather than an explicit block CFG.
-- `compute_intervals()` over the nested op tree, with loop-body interval
-  extension for values defined before a loop and used inside it.
-- A **separate pressure-repair pass**:
-  `rematerialize_for_pressure(IR&, intervals, pool_size)`.
-- A **plain linear-scan allocator**:
-  `linear_scan(IR&, intervals, pool_size)`, with no in-scan IR mutation.
-- Mechanical lowering in `jit_kernel::end_ir()`:
-  1. compute intervals
-  2. run zero or more pressure-repair rewrites
-  3. recompute intervals after each rewrite
-  4. run final allocation
-  5. lower mechanically
+### Live ranges (LLVM naming)
 
-This is an explicit design choice. LLVM-style integrated remat/spill is
-powerful, but it depends on heavier backend infrastructure
-(CFG/dominance/liveness repair/live-range splitting/incremental interval
-updates). The current `jit_kernel` IR does not yet have that machinery,
-so the implementation favors **whole-pass recomputation** after each IR
-rewrite instead of incremental repair inside the allocator.
+The old flat `Interval` (`[start, end]` pair per value) has been
+replaced with **`Segment` + `LiveRange`** (LLVM naming):
 
-### Current rematerialization policy
+```cpp
+struct Segment { uint32_t start, end; };
+struct LiveRange {
+    value_id id;
+    std::vector<Segment> segments;  // sorted, non-overlapping
+    // ...
+    bool liveAt(uint32_t index) const;
+    void addSegment(Segment s);
+};
+```
 
-The current rematerialization pass is intentionally conservative:
+`compute_live_ranges()` uses a **per-recursion-level local map**:
+each call to the recursive walker tracks `value_id → {first, last}`
+for values seen at that nesting level. On return, local segments are
+flushed into the `LiveRange` via `addSegment()`. Sibling branch bodies
+(separate recursive calls) naturally produce separate segments.
 
-- Candidates are only trivially rematerializable defs — currently ops
-  whose defining `Op` has empty `reads` (constants, broadcasts, zero-like
-  defs).
-- The pass rewrites **one victim per invocation**.
-- The remat clone is inserted immediately before the first later use.
-- Rewriting is limited to a **same-list suffix**:
-  only later ops in the exact same `std::list<Op>` as that first use are
-  rewritten to the clone.
-- No rewrite crosses:
-  - sibling branch bodies
-  - parent lists
-  - nested child-region bodies
-  - loop wraparound / cross-iteration uses
+**Merge policy**: `addSegment()` merges overlapping segments but NOT
+merely adjacent ones — this preserves branch boundary information.
+`[0, 2]` and `[3, 5]` stay separate (branch gap), while `[0, 3]`
+and `[2, 5]` merge to `[0, 5]`.
 
-This is weaker than the earlier range-based remat prototype, but it is
-substantially easier to reason about. It avoids the original class of
-miscompilations where a flat op-index rewrite range tried to model
-future uses across loops and regions.
+**Parent extension**: when a value is defined before a region (loop
+or branch) and used inside, the parent's local segment is extended
+to cover through the child's committed segments. For loops, the
+segment is extended to the full loop body end. This prevents holes
+in straight-line code between a def and its branch-body use.
 
-The tradeoff is explicit:
+### Allocator: LLVM-style per-register interference
 
-- **Old aggressive remat**: enough pressure relief for some kernels, but
-  semantically unsafe.
-- **Current same-list remat**: semantically safer, but may still be too
-  weak to make the heaviest kernels fit.
+The allocator uses **per-register segment unions** (LLVM approach).
+Each physical register tracks a sorted list of all segments assigned
+to it. A LiveRange can use a register iff none of its segments
+overlap any segment already on that register.
 
-### Line count total
+```
+for each LiveRange (sorted by beginIndex):
+    for each PhysReg:
+        if no segment overlap → assign, done
+    if no register found → try remat, or throw
+```
 
-~500 lines for the core: recording (~100), liveness (~80), intervals
-(~60), linear scan + spill (~250), lowering (~100). Plus ~100 lines for
-IR dump / debug tooling. Call it **~600 lines end to end** for the
-minimum that handles color_convert's full pressure story.
+Two values with non-overlapping segments (e.g., intermediates in
+different branches of an `ir_if`) naturally share a register. No
+expire logic, no temp pools, no re-acquisition.
 
-This is half the earlier estimate in `jit_kernel.md`. The compression
-came from collapsing the op taxonomy into a generic closure-carrying
-struct and dropping speculative features (remat, priority spill
-heuristics, live range splitting beyond spill-and-reload).
+### Integrated rematerialization
+
+Remat is integrated into the allocator (LLVM approach), not a
+separate pre-pass. When the allocator cannot find a register for a
+LiveRange:
+
+1. Build a def map (`value_id → Op*`).
+2. Among all assigned values whose segments interfere with the
+   failing value, find the best rematerializable victim.
+3. A value is **rematerializable** if:
+   - its def Op has no reads (constant/broadcast), **OR**
+   - all of its def Op's reads have ranges that span the victim's
+     entire lifetime (input-aware remat — the clone's inputs are
+     already live, adding no pressure).
+4. Clone the victim at every use site via `remat_all_uses_impl()`.
+   Each clone carries the victim's `reads` and `emit` closure.
+5. Return `std::nullopt` — the caller recomputes live ranges and
+   retries allocation.
+6. If no rematerializable victim exists, throw `allocation_failure`.
+
+The retry loop in `end_ir()` is bounded by the initial value count
+to prevent infinite remat chains.
+
+### Mechanical lowering
+
+Unchanged: walk the IR tree, call `emit(EmitContext{def_reg, read_regs})`
+for each Op. Region ops emit their header closure, then recurse into
+the body.
+
+### Predicated loops (`foreach_predicated`)
+
+Tail handling is not a separate code path — it's part of the loop.
+`foreach_predicated<N>` emits a single loop that processes all elements
+including the remainder:
+
+1. Iteration count = `ceil(total / N)`.
+2. Per-iteration mask setup (via `ir_use` closure, emitted at lowering
+   time): `remaining >= N → kxnorw (all ones)`, else `(1 << remaining) - 1`.
+3. Body executes with the mask. `ir_load` / `ir_store` automatically
+   use it.
+4. `remaining -= N` at the end of each iteration.
+
+**Ambient predication**: `foreach_predicated` sets `_predicated = true`
+and `_active_mask = k1` on the kernel before calling the body builder.
+`ir_load` and `ir_store` check `_predicated` and delegate to masked
+variants when set. Wrappers like `store_interleaved3` — which call
+`ir_store` internally — gain masking for free with zero code changes.
+
+This matches the universal vectorization pattern across ISAs:
+- **AVX-512**: one loop, k-register mask. Zero overhead for full iterations.
+- **ARM SVE**: one loop, predicate register via `whilelt`.
+- **RISC-V V**: one loop, `vsetvl` configures element count.
+- **AVX2** (future): recording-time decision to emit main loop (unmasked)
+  + masked tail from the same body builder.
+
+### Type-converting load/store
+
+`ir_load` and `ir_store` dispatch on the pointer element type via
+`if constexpr`. Adding a new type conversion = one `if constexpr`
+branch in each function. No new API surface, no wrapper changes.
+
+| Source → Dest | Load instructions | Store instructions |
+|---|---|---|
+| `float*` → `float[N]` | `vmovups` | `vmovups` |
+| `uint8_t*` → `float[N]` | `vpmovzxbd` + `vcvtdq2ps` | `vcvtps2dq` + `vpmovusdb` |
+| `bfloat16*` → `float[N]` (future) | `vpmovzxwd` + `vpslld 16` | `vcvtneps2bf16` |
+| `float16*` → `float[N]` (future) | `vcvtph2ps` | `vcvtps2ph` |
+
+All variants support k-register masking natively on AVX-512. The masked
+paths follow the same `if constexpr` dispatch — no separate `_masked`
+overloads in the public API.
+
+This eliminates the need for `jit_load_emitter` / `jit_store_emitter`
+for these types. Two direct instructions vs the general-purpose emitter
+infrastructure.
+
+### Legacy pre-pass
+
+The old `rematerialize_for_pressure()` function remains available for
+backward compatibility and tests, but is no longer called from
+`end_ir()`. The allocator handles all remat decisions.
 
 ## The one ugly corner: escape-hatch barriers
 

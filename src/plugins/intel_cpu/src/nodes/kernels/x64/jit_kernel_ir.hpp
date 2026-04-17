@@ -201,6 +201,11 @@ std::optional<Assignment> linear_scan(IR& ir,
                                       std::vector<LiveRange>& ranges,
                                       std::uint32_t pool_size);
 
+// Test-only: remat a specific value — insert a clone (with reads
+// preserved) before each use and rewrite reads.
+// Returns true if the IR was modified.
+bool unit_test_api_remat_value(IR& ir, value_id vid);
+
 // Debug helper: text dump of the op stream. Used by IR::dump and by tests
 // to eyeball what was recorded.
 void dump_ops(std::ostream& os, const IR& ir);

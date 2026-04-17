@@ -755,6 +755,14 @@ void dump_ops_impl(std::ostream& os, const std::list<Op>& ops, std::uint32_t& i,
 }
 }  // namespace
 
+bool unit_test_api_remat_value(IR& ir, value_id vid) {
+    std::unordered_map<value_id, Op*> def_map;
+    collect_def_ops(ir.ops(), def_map);
+    auto it = def_map.find(vid);
+    if (it == def_map.end()) return false;
+    return remat_all_uses_impl(ir.ops(), ir, vid, *it->second);
+}
+
 void dump_ops(std::ostream& os, const IR& ir) {
     std::uint32_t i = 0;
     dump_ops_impl(os, ir.ops(), i, 0);

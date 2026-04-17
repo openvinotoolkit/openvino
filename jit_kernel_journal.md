@@ -1,6 +1,6 @@
 # JIT kernel IR mode — implementation journal
 
-Status snapshot as of 2026-04-12.
+Status snapshot as of 2026-04-17.
 
 ## What's implemented
 
@@ -9,16 +9,22 @@ Status snapshot as of 2026-04-12.
 - **Op tree with nested regions.** `Op` has an optional `body` (unique_ptr<IR>)
   for loops and branches. `region()` and `loop()` record nested bodies with
   cursor save/restore.
-- **Linear-scan allocator** with trivial coalescing (copy ops) and
-  rematerialization (evict + clone cheap ops like broadcasts).
-- **Interval computation** walks the op tree recursively. Loop bodies extend
-  intervals of values defined before the loop and used inside it. Branch
-  bodies (non-loop regions) use sequential indexing — no extension.
-- **Rematerialization** handles wrap-around search (retry from index 0 for
-  loop-carried values), clone interval based on actual last read (not
-  original end), and recursive rewrite through nested REGION bodies.
-- **Debug dump** shows op names, nesting, intervals, and register assignments
-  via `OV_JIT_IR_DUMP=1`.
+- **Sub-interval live ranges (LLVM naming).** `Interval` replaced with
+  `Segment` + `LiveRange`. `compute_live_ranges()` uses per-recursion-level
+  local maps — sibling branch bodies produce separate segments. `addSegment()`
+  merges overlapping (not adjacent) segments. `liveAt()` provides O(log n)
+  point queries via binary search.
+- **LLVM-style interference-based allocator.** Each physical register tracks
+  a segment union. Two values share a register iff their segments never
+  overlap. Branch-local values (e.g., store_interleaved3 intermediates)
+  naturally share registers across branches.
+- **Integrated rematerialization.** When the allocator can't find a register,
+  it rematerializes the longest-range interfering victim by cloning it at
+  every use site. Supports both zero-input (broadcasts, constants) and
+  **input-aware** remat (ops whose inputs all outlive the victim). Clones
+  carry the victim's `reads` for correct lowering.
+- **Debug dump** shows op names, nesting, live ranges (with segments), and
+  register assignments via `OV_JIT_IR_DUMP=1`.
 
 ### DSL integration (`jit_kernel.hpp`)
 
@@ -32,13 +38,44 @@ Status snapshot as of 2026-04-12.
 - `variable::operator=(variable&&)` transfers both `_reg` and `_vid`.
 - `_vid` is mutable (same rationale as `_reg`).
 
-### color_convert f32 path (`color_convert.cpp`)
+### Predicated loops (`foreach_predicated`)
 
-- Full BT.601 NV12→RGB/BGR conversion in IR mode: 8 broadcast coefficients +
-  1 xor zero, FMA chain, clamp, conditional store via `ir_if`.
-- Tail handling: eager-mode masked load/store for `width % N` remaining pixels.
-- Broadcasts use `_consts.reg()` directly (raw RegExp) to avoid dangling GPR
-  addresses from temporary variables.
+- **Single-loop tail handling.** `foreach_predicated<N>` computes a
+  k-register mask per iteration from the remaining element count. Full
+  iterations use all-ones mask (zero overhead). The last iteration uses a
+  partial mask. No separate tail code path.
+- **Ambient predication.** `_predicated` flag + `_active_mask` on the kernel.
+  When set by `foreach_predicated`, `ir_load` and `ir_store` automatically
+  emit masked instructions. Wrappers like `store_interleaved3` need no
+  `_masked` variants — they call `ir_store` which picks up the mask.
+- **Mask setup emitted at lowering time** via `ir_use` closure (not at
+  recording time). Correctly runs inside each loop iteration.
+
+### Type-converting load/store
+
+- **`ir_load` / `ir_store` dispatch on pointer element type** via
+  `if constexpr`. One function, multiple behaviors:
+  - `float*` → `vmovups` (direct)
+  - `uint8_t*` load → `vpmovzxbd` + `vcvtdq2ps` (zero-extend + int→float)
+  - `uint8_t*` store → `vcvtps2dq` + `vpmovusdb` (float→int + saturate+pack)
+- **Masked variants** follow the same dispatch. AVX-512 `vpmovzxbd` and
+  `vpmovusdb` natively support k-register masking.
+- **No `jit_load_emitter` / `jit_store_emitter` needed** for these types.
+  The DSL emits 2 instructions directly — simpler and faster than the
+  general-purpose emitter infrastructure.
+
+### color_convert (`color_convert.cpp`)
+
+- **Unified f32 and u8 path.** The `if constexpr` split between f32 and u8
+  is eliminated. One loop body handles both types — `T` flows through
+  `ir_load`/`ir_store` dispatch. The BT.601 math (broadcasts, subtract,
+  multiply, FMA, clamp) is pure `float[N]` regardless of `T`.
+- **No tail code.** `foreach_predicated` handles all pixels including the
+  remainder. The eager-mode tail (`_if(width != 0)._then(...)`) is removed
+  for f32. For u8, the entire eager path (main loop + tail) is replaced by
+  a single `foreach_predicated` with type-converting load/store.
+- Full BT.601 NV12→RGB/BGR: 8 broadcast coefficients + 1 xor zero, FMA
+  chain, clamp, conditional store via `ir_if`.
 
 ## Bugs found and fixed (10 total)
 
@@ -60,49 +97,50 @@ See `analysis_nv12_f32.md` for detailed analysis of bugs #1–9.
 ## Current test results
 
 ### Passing
-- All 13 `JitKernelIR.*` unit tests.
-- All width=10 f32 smoke tests (4/4) — but these exercise only the eager tail
-  on AVX-512 (N=16, `10 >> 4 = 0` loop iterations).
-- 1Plain/RGB width=32 (1/1) — exercises the IR loop (2 iterations).
-- All width=10 u8 smoke tests (4/4).
+- All 29 `JitKernelIR.*` unit tests, including:
+  - Sub-interval live range computation (per-branch segments, addSegment
+    merge policy, liveAt binary search)
+  - LLVM-style interference-based allocation
+  - Integrated remat (zero-input and input-aware)
+  - `EndToEndForeachPredicated` — predicated loop with tail (25 elements,
+    N=16: 1 full + 1 partial iteration, no overwrite past count)
+  - End-to-end kernels: vec_add, vec_expr, fma, foreach, if/else,
+    store_interleaved3, foreach+if/else+interleave3
+- All 4 `JitKernel.*` unit tests.
+- All 8 `smoke_TestsConvertColorI420*` functional tests — both f32 and u8
+  now use IR mode + `foreach_predicated`. No tail. No eager fallback.
 
-### Failing
-- 3 of 4 width=32 f32 tests fail: 1Plain/BGR, 3Plains/RGB, 3Plains/BGR.
-  - 1Plain/RGB passes → the then-branch (store r,g,b order) works.
-  - BGR failures → the else-branch or the second loop iteration has a bug.
-  - Error values are large but clamped (e.g. "Expected: 0 Actual: 255"),
-    suggesting register assignment confusion, not uninitialized memory.
-- Pre-existing u8 accuracy crash (`munmap_chunk(): invalid pointer` on 144×16),
-  reproduces without IR mode. Unrelated.
-
-### Root cause of remaining width=32 failures
-
-Not yet diagnosed. The `param1` fix resolved the `rax` clobbering but didn't
-fix all cases. Likely candidates:
-
-1. **Register conflict in the else-branch.** The allocator treats then/else as
-   sequential code. Values computed before the if/else must survive into both
-   branches. If the allocator frees a register too early (because the then-branch
-   "consumed" its last indexed use), the else-branch reads stale data.
-2. **Remat interaction with branches.** A rematerialized coefficient's clone
-   may land inside one branch but not the other, leaving the original (with
-   truncated interval and freed register) as the source in the other branch.
-3. **vpermps constant table** loading — the `push(param1)/pop(param1)` pattern
-   is correct in isolation but may interact poorly with nested regions.
+### Known limitations
+- The `EndToEndForeachIfElseStoreInterleaved3` unit test kernel still
+  overflows the register pool: 9 constants + 3 clamped values exceed 16
+  registers even after integrated remat.
+- Multi-iteration foreach+branches has a pointer-advance bug (second
+  iteration outputs zeros). Pre-existing, not caused by allocator changes.
+- Pre-existing u8 accuracy crash (`munmap_chunk(): invalid pointer` on
+  144×16), reproduces without IR mode. Unrelated.
 
 ## Open work
 
-### Immediate (blocking correctness)
-- Diagnose and fix the 3 remaining width=32 f32 failures.
+### Immediate
+- Diagnose the foreach+branches multi-iteration pointer-advance bug.
+- Investigate whether the color_convert kernel fits with `OV_JIT_IR_MODE=1`
+  for width=32 (2 iterations). Currently width=10 (1 iteration) passes.
 
 ### Hardening
-- Unit tests for: loop interval extension, cursor save/restore, move-assignment
-  `_vid`, remat wrap-around, recursive rewrite through nested bodies.
+- Unit tests for: loop interval extension edge cases, cursor save/restore,
+  move-assignment `_vid`.
 - Replace `push(param1)/pop(param1)` in vpermps with a cleaner solution
   (GPR IR pool, RIP-relative, or pre-loaded loop-invariant tables).
 
+### Next kernels
+- **RoPE kernel** (`rope_kernel.cpp`): needs bf16/f16 type-converting
+  load/store (same `if constexpr` pattern as u8), `ir_load` with byte
+  offset, and custom deinterleave/re-interleave shuffle DSL ops.
+- **I420 converter**: same structure as NV12 but separate U/V planes.
+
 ### Future
-- u8 path port to IR mode.
-- I420 converter.
-- Tail handling inside IR (masked IR loads/stores) instead of eager fallback.
-- Pre-existing u8 accuracy crash investigation.
+- Chained rematerialization (remat an op by first rematerializing its
+  inputs recursively).
+- Spill/reload for non-rematerializable values under extreme pressure.
+- AVX2 `foreach_predicated` variant: main loop (unmasked) + masked tail,
+  decided at recording time (same IR body, different loop structure).

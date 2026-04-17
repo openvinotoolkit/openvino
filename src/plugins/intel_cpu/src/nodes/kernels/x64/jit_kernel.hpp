@@ -21,7 +21,9 @@
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include "jit_kernel_ir.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 
 namespace ov::intel_cpu {
 
@@ -29,7 +31,7 @@ namespace ov::intel_cpu {
 // Each enum value maps to a single xbyak instruction in jit_kernel::lower().
 // Adding a new instruction: add enum value here + one case in lower().
 enum class Insn2 : uint8_t { vaddps, vsubps, vmulps, vmaxps, vminps, COUNT };
-enum class Insn3 : uint8_t { fmadd231ps, fnmadd231ps, COUNT };
+enum class Insn3 : uint8_t { fmadd231ps, fnmadd231ps, fmsub231ps, COUNT };
 
 struct jit_kernel;
 
@@ -826,6 +828,10 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator_t {
                            const variable<float[N]>& b,
                            const variable<float[N]>& c);
     template <size_t N>
+    variable<float[N]> fmsub(const variable<float[N]>& a,
+                             const variable<float[N]>& b,
+                             const variable<float[N]>& c);
+    template <size_t N>
     variable<float[N]> fnma(const variable<float[N]>& a,
                             const variable<float[N]>& b,
                             const variable<float[N]>& c);
@@ -874,6 +880,32 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator_t {
                             const variable<float[N]>& c,
                             const variable<size_t>& count);
 
+    // 2-way deinterleave: separates even/odd elements across two vectors.
+    //   in:  a = [x0 x1 x2 x3 ...], b = [xN xN+1 xN+2 xN+3 ...]
+    //   out: evens = [x0 x2 x4 ...], odds = [x1 x3 x5 ...]
+    //
+    // Portable semantic op. Lowering:
+    //   ARM NEON/SVE: UZP1 / UZP2 (single instruction each)
+    //   AVX2:         vperm2i128 + vshufps
+    //   AVX-512:      vshuff32x4 + vshufps
+    template <size_t N>
+    std::pair<variable<float[N]>, variable<float[N]>> deinterleave2(
+        const variable<float[N]>& a,
+        const variable<float[N]>& b);
+
+    // 2-way interleave: merges even/odd streams back into sequential order.
+    //   in:  evens = [e0 e1 e2 ...], odds = [o0 o1 o2 ...]
+    //   out: lo = [e0 o0 e1 o1 ...], hi = [eN/2 oN/2 eN/2+1 oN/2+1 ...]
+    //
+    // Portable semantic op. Lowering:
+    //   ARM NEON/SVE: ZIP1 / ZIP2 (single instruction each)
+    //   AVX2:         vunpcklps + vunpckhps + vperm2i128
+    //   AVX-512:      vpermq + vunpcklps + vunpckhps
+    template <size_t N>
+    std::pair<variable<float[N]>, variable<float[N]>> interleave2(
+        const variable<float[N]>& evens,
+        const variable<float[N]>& odds);
+
 private:
     // Internal reg-only 3-way interleave helper. Building block for
     // store_interleaved3's x86 lowering; not part of the public DSL because
@@ -900,6 +932,19 @@ public:
                   const E& end,
                   const std::function<void(const variable<size_t>&)>& fn,
                   const S& step = 1);
+
+    // Predicated foreach: single loop processing all elements including
+    // the tail. The body receives a k-register mask (AVX-512) that is
+    // all-ones for full iterations and partial for the last iteration.
+    // Use ir_load_masked / ir_store_masked inside the body.
+    //
+    // On AVX-512: one loop, mask computed per iteration, zero overhead
+    //             for full iterations.
+    // On AVX2:    main loop (unmasked, body called with no_mask) +
+    //             tail (body called with partial mask outside the loop).
+    template <size_t N>
+    void foreach_predicated(const variable<size_t>& total_count,
+                            const std::function<void(const Xbyak::Opmask&)>& fn);
 
     template <typename T>
     variable<T> var();
@@ -953,7 +998,7 @@ public:
     // xbyak immediately. end_ir() runs allocation + lowering.
 
     [[nodiscard]] bool ir_mode() const noexcept { return _ir_mode; }
-    void begin_ir();
+    void begin_ir(bool force = false);
     void end_ir();
 
     // Generic dispatch: binary vector op. Handles IR/eager branching,
@@ -980,15 +1025,17 @@ public:
     // These emit vmovups — no type conversion. Type-converting loads
     // (u8→f32 etc.) require the barrier mechanism (not yet implemented).
     template <size_t N, typename PtrT>
-    variable<float[N]> ir_load(const variable<PtrT>& ptr);
+    variable<float[N]> ir_load(const variable<PtrT>& ptr, size_t byte_offset = 0);
 
-    template <size_t N, typename PtrT, typename ElemT>
-    void ir_store(const variable<PtrT>& ptr, const variable<ElemT[N]>& val);
-
-    // ir_store with byte offset from pointer base.
     template <size_t N, typename PtrT, typename ElemT>
     void ir_store(const variable<PtrT>& ptr, size_t byte_offset,
                   const variable<ElemT[N]>& val);
+
+    // Convenience: ir_store without offset.
+    template <size_t N, typename PtrT, typename ElemT>
+    void ir_store(const variable<PtrT>& ptr, const variable<ElemT[N]>& val) {
+        ir_store<N>(ptr, size_t{0}, val);
+    }
 
     // Low-level bridge helpers for IR mode: record a def/use op with a
     // custom emit closure. Used by ir_load/ir_store internally and
@@ -1007,13 +1054,10 @@ public:
     template <typename Reg>
     void lower(Insn2 insn, const Reg& d, const Reg& s1, const Reg& s2);
 
-    // Ternary dispatch: result = f(a, b, c). FMA instructions are
-    // destructive (overwrite first operand), so lower() emits a vmovups
-    // seed + the FMA. The allocator's coalescing pass can eliminate the
-    // seed when the source interval ends at the FMA.
     // Destructive ternary dispatch: result = seed ± a * b.
-    // The seed is consumed (moved in eager, read in IR). Caller provides
-    // the seed via vec_copy().
+    // The emit closure handles the tied-operand constraint: vmovups(def, seed)
+    // before the FMA. If the allocator assigns the same register for def
+    // and seed, the vmovups is a self-move (zero cost on modern x86).
     template <size_t N>
     variable<float[N]> vec_op(Insn3 insn,
                               const variable<float[N]>& seed,
@@ -1056,6 +1100,7 @@ public:
     Op2 vminps{this, Insn2::vminps};
     Op3 vfmadd231ps{this, Insn3::fmadd231ps};
     Op3 vfnmadd231ps{this, Insn3::fnmadd231ps};
+    Op3 vfmsub231ps{this, Insn3::fmsub231ps};
 
     // Broadcast a scalar from memory into an IR vector variable.
     template <size_t N>
@@ -1082,6 +1127,11 @@ private:
     // IR mode state
     bool _ir_mode = false;
     std::unique_ptr<jit_kernel_ir::IR> _ir;
+
+    // Predicated loop state: when active, ir_load/ir_store automatically
+    // use the mask. Set by foreach_predicated, cleared on exit.
+    bool _predicated = false;
+    Xbyak::Opmask _active_mask{0};
 };
 
 template <>
@@ -1321,9 +1371,18 @@ jit_kernel::variable<float[N]> jit_kernel::fma(const variable<float[N]>& a,
                                                 const variable<float[N]>& b,
                                                 const variable<float[N]>& c) {
     // fma(a, b, c) = a * b + c.
-    // vec_copy seeds the accumulator; allocator may coalesce if c is dead.
-    auto seed = vec_copy(c);
-    return vec_op(Insn3::fmadd231ps, seed, a, b);
+    // c is the tied operand (seed for destructive FMA). The emit closure
+    // handles the constraint: vmovups(def, c_reg) before the FMA. If the
+    // allocator assigns def == c's register, it's a self-move (zero cost).
+    return vec_op(Insn3::fmadd231ps, c, a, b);
+}
+
+template <size_t N>
+jit_kernel::variable<float[N]> jit_kernel::fmsub(const variable<float[N]>& a,
+                                                  const variable<float[N]>& b,
+                                                  const variable<float[N]>& c) {
+    // fmsub(a, b, c) = a * b - c.
+    return vec_op(Insn3::fmsub231ps, c, a, b);
 }
 
 template <size_t N>
@@ -1331,8 +1390,7 @@ jit_kernel::variable<float[N]> jit_kernel::fnma(const variable<float[N]>& a,
                                                  const variable<float[N]>& b,
                                                  const variable<float[N]>& c) {
     // fnma(a, b, c) = c - a * b.
-    auto seed = vec_copy(c);
-    return vec_op(Insn3::fnmadd231ps, seed, a, b);
+    return vec_op(Insn3::fnmadd231ps, c, a, b);
 }
 
 // ── IR mode: instructions as data ──────────────────────────────────────
@@ -1384,6 +1442,7 @@ void jit_kernel::lower(Insn3 insn, const Reg& d, const Reg& s1, const Reg& s2) {
     switch (insn) {
     case Insn3::fmadd231ps:  uni_vfmadd231ps(d, s1, s2);  break;
     case Insn3::fnmadd231ps: uni_vfnmadd231ps(d, s1, s2); break;
+    case Insn3::fmsub231ps:  Xbyak::CodeGenerator::vfmsub231ps(d, s1, s2); break;
     default: OPENVINO_THROW("jit_kernel::lower: unknown Insn3 value ", static_cast<int>(insn));
     }
 }
@@ -1396,12 +1455,9 @@ jit_kernel::variable<float[N]> jit_kernel::vec_op(Insn3 insn,
     using reg_type = typename reg_traits<float[N]>::type;
 
     if (_ir_mode) {
-        // Destructive FMA: the seed was already copied by vec_copy().
-        // reads[0] = seed (coalesced or copied), reads[1] = a, reads[2] = b.
-        // The seed's register should ideally BE the def register (via coalescing).
-        // If not coalesced, we need a mov — but that means vec_copy already
-        // emitted one, and we'd double-move. To avoid that, always mov seed→def
-        // and rely on coalescing to make it a self-move (eliminated by CPU).
+        // Destructive FMA: reads[0] = seed (tied operand), reads[1] = a, reads[2] = b.
+        // The emit closure copies seed→def before the FMA. If the allocator
+        // assigns the same register (coalescing), this is a self-move (zero cost).
         auto vid = _ir->def({seed.vid(), a.vid(), b.vid()},
             [this, insn](const jit_kernel_ir::EmitContext& ctx) {
                 uni_vmovups(reg_type(ctx.def->idx), reg_type(ctx.reads[0].idx));
@@ -1414,13 +1470,13 @@ jit_kernel::variable<float[N]> jit_kernel::vec_op(Insn3 insn,
         return variable<float[N]>(*this, vid);
     }
 
-    // Eager path: seed already copied by fma()/fnma() via vec_copy().
-    // Destructive FMA into the seed's register, return by move.
+    // Eager path: copy seed into a fresh register, then FMA in-place.
+    auto result = vec_copy(seed);
     lower(insn,
-          static_cast<const reg_type&>(seed.reg()),
+          static_cast<const reg_type&>(result.reg()),
           static_cast<const reg_type&>(a.reg()),
           static_cast<const reg_type&>(b.reg()));
-    return std::move(const_cast<variable<float[N]>&>(seed));
+    return result;
 }
 
 template <size_t N>
@@ -1498,34 +1554,202 @@ jit_kernel::variable<float[N]> jit_kernel::vec_permute(const variable<float[N]>&
 }
 
 template <size_t N, typename PtrT>
-jit_kernel::variable<float[N]> jit_kernel::ir_load(const variable<PtrT>& src_ptr) {
+jit_kernel::variable<float[N]> jit_kernel::ir_load(const variable<PtrT>& src_ptr, size_t byte_offset) {
     using reg_type = typename reg_traits<float[N]>::type;
+    using elem_type = std::remove_cv_t<std::remove_pointer_t<PtrT>>;
     auto ptr_idx = static_cast<std::uint32_t>(src_ptr.reg().getIdx());
-    return ir_def<N>({}, [this, ptr_idx](const jit_kernel_ir::EmitContext& ctx) {
-        uni_vmovups(reg_type(ctx.def->idx),
-                    address_frame(sizeof(reg_type))[Xbyak::Reg64(ptr_idx)]);
-    }, "load");
-}
+    bool masked = _predicated;
+    auto mask_idx = _active_mask.getIdx();
 
-template <size_t N, typename PtrT, typename ElemT>
-void jit_kernel::ir_store(const variable<PtrT>& dst_ptr, const variable<ElemT[N]>& val) {
-    ir_store(dst_ptr, size_t{0}, val);
+    if constexpr (std::is_same_v<elem_type, uint8_t>) {
+        return ir_def<N>({}, [this, ptr_idx, byte_offset, masked, mask_idx](const jit_kernel_ir::EmitContext& ctx) {
+            auto dst = reg_type(ctx.def->idx);
+            auto addr = address_frame(N)[Xbyak::Reg64(ptr_idx) + byte_offset];
+            if (masked) {
+                vpxord(dst, dst, dst);
+                vpmovzxbd(dst | Xbyak::Opmask(mask_idx), addr);
+            } else {
+                uni_vpmovzxbd(dst, addr);
+            }
+            uni_vcvtdq2ps(dst, dst);
+        }, masked ? "load_u8_masked" : "load_u8");
+    } else if constexpr (std::is_same_v<elem_type, ov::float16>) {
+        return ir_def<N>({}, [this, ptr_idx, byte_offset, masked, mask_idx](const jit_kernel_ir::EmitContext& ctx) {
+            auto dst = reg_type(ctx.def->idx);
+            auto addr = address_frame(N * sizeof(ov::float16))[Xbyak::Reg64(ptr_idx) + byte_offset];
+            if (masked) {
+                vpxord(dst, dst, dst);
+                vcvtph2ps(dst | Xbyak::Opmask(mask_idx), addr);
+            } else {
+                vcvtph2ps(dst, addr);
+            }
+        }, masked ? "load_f16_masked" : "load_f16");
+    } else if constexpr (std::is_same_v<elem_type, ov::bfloat16>) {
+        return ir_def<N>({}, [this, ptr_idx, byte_offset, masked, mask_idx](const jit_kernel_ir::EmitContext& ctx) {
+            auto dst = reg_type(ctx.def->idx);
+            auto addr = address_frame(N * sizeof(ov::bfloat16))[Xbyak::Reg64(ptr_idx) + byte_offset];
+            if (masked) {
+                vpxord(dst, dst, dst);
+                vpmovzxwd(dst | Xbyak::Opmask(mask_idx), addr);
+            } else {
+                vpmovzxwd(dst, addr);
+            }
+            vpslld(dst, dst, 16);
+        }, masked ? "load_bf16_masked" : "load_bf16");
+    } else {
+        return ir_def<N>({}, [this, ptr_idx, byte_offset, masked, mask_idx](const jit_kernel_ir::EmitContext& ctx) {
+            auto dst = reg_type(ctx.def->idx);
+            auto addr = address_frame(sizeof(reg_type))[Xbyak::Reg64(ptr_idx) + byte_offset];
+            if (masked) {
+                vpxord(dst, dst, dst);
+                vmovups(dst | Xbyak::Opmask(mask_idx), addr);
+            } else {
+                uni_vmovups(dst, addr);
+            }
+        }, masked ? "load_masked" : "load");
+    }
 }
 
 template <size_t N, typename PtrT, typename ElemT>
 void jit_kernel::ir_store(const variable<PtrT>& dst_ptr, size_t byte_offset,
                           const variable<ElemT[N]>& val) {
     using reg_type = typename reg_traits<ElemT[N]>::type;
+    using dst_elem = std::remove_cv_t<std::remove_pointer_t<PtrT>>;
     auto ptr_idx = static_cast<std::uint32_t>(dst_ptr.reg().getIdx());
-    if (_ir_mode) {
-        ir_use({val.vid()}, [this, ptr_idx, byte_offset](const jit_kernel_ir::EmitContext& ctx) {
-            uni_vmovups(address_frame(sizeof(reg_type))[Xbyak::Reg64(ptr_idx) + byte_offset],
-                        reg_type(ctx.reads[0].idx));
-        }, "store");
-    } else {
-        uni_vmovups(address_frame(sizeof(reg_type))[Xbyak::Reg64(ptr_idx) + byte_offset],
+    bool masked = _predicated;
+    auto mask_idx = _active_mask.getIdx();
+
+    if constexpr (std::is_same_v<dst_elem, uint8_t>) {
+        if (_ir_mode) {
+            ir_use({val.vid()}, [this, ptr_idx, byte_offset, masked, mask_idx](const jit_kernel_ir::EmitContext& ctx) {
+                auto src = reg_type(ctx.reads[0].idx);
+                uni_vcvtps2dq(src, src);
+                auto addr = address_frame(N)[Xbyak::Reg64(ptr_idx) + byte_offset];
+                if (masked) {
+                    vpmovusdb(addr | Xbyak::Opmask(mask_idx), src);
+                } else {
+                    vpmovusdb(addr, src);
+                }
+            }, masked ? "store_u8_masked" : "store_u8");
+        } else {
+            uni_vcvtps2dq(static_cast<const reg_type&>(val.reg()),
+                          static_cast<const reg_type&>(val.reg()));
+            vpmovusdb(address_frame(N)[Xbyak::Reg64(ptr_idx) + byte_offset],
+                      static_cast<const reg_type&>(val.reg()));
+        }
+    } else if constexpr (std::is_same_v<dst_elem, ov::float16>) {
+        if (_ir_mode) {
+            ir_use({val.vid()}, [this, ptr_idx, byte_offset, masked, mask_idx](const jit_kernel_ir::EmitContext& ctx) {
+                auto src = reg_type(ctx.reads[0].idx);
+                auto addr = address_frame(N * sizeof(ov::float16))[Xbyak::Reg64(ptr_idx) + byte_offset];
+                if (masked) {
+                    vcvtps2ph(addr | Xbyak::Opmask(mask_idx), src, 0x4);
+                } else {
+                    vcvtps2ph(addr, src, 0x4);
+                }
+            }, masked ? "store_f16_masked" : "store_f16");
+        } else {
+            vcvtps2ph(address_frame(N * sizeof(ov::float16))[Xbyak::Reg64(ptr_idx) + byte_offset],
+                      static_cast<const reg_type&>(val.reg()), 0x4);
+        }
+    } else if constexpr (std::is_same_v<dst_elem, ov::bfloat16>) {
+        // @todo claude: consider vcvtneps2bf16 when available (proper rounding)
+        if (_ir_mode) {
+            ir_use({val.vid()}, [this, ptr_idx, byte_offset, masked, mask_idx](const jit_kernel_ir::EmitContext& ctx) {
+                auto src = reg_type(ctx.reads[0].idx);
+                vpsrld(src, src, 16);
+                auto addr = address_frame(N * sizeof(ov::bfloat16))[Xbyak::Reg64(ptr_idx) + byte_offset];
+                if (masked) {
+                    vpmovdw(addr | Xbyak::Opmask(mask_idx), src);
+                } else {
+                    vpmovdw(addr, src);
+                }
+            }, masked ? "store_bf16_masked" : "store_bf16");
+        } else {
+            vpsrld(static_cast<const reg_type&>(val.reg()),
+                   static_cast<const reg_type&>(val.reg()), 16);
+            vpmovdw(address_frame(N * sizeof(ov::bfloat16))[Xbyak::Reg64(ptr_idx) + byte_offset],
                     static_cast<const reg_type&>(val.reg()));
+        }
+    } else {
+        if (_ir_mode) {
+            ir_use({val.vid()}, [this, ptr_idx, byte_offset, masked, mask_idx](const jit_kernel_ir::EmitContext& ctx) {
+                auto src = reg_type(ctx.reads[0].idx);
+                auto addr = address_frame(sizeof(reg_type))[Xbyak::Reg64(ptr_idx) + byte_offset];
+                if (masked) {
+                    vmovups(addr | Xbyak::Opmask(mask_idx), src);
+                } else {
+                    uni_vmovups(addr, src);
+                }
+            }, masked ? "store_masked" : "store");
+        } else {
+            uni_vmovups(address_frame(sizeof(reg_type))[Xbyak::Reg64(ptr_idx) + byte_offset],
+                        static_cast<const reg_type&>(val.reg()));
+        }
     }
+}
+
+// ── foreach_predicated ─────────────────────────────────────────────────
+
+template <size_t N>
+void jit_kernel::foreach_predicated(const variable<size_t>& total_count,
+                                    const std::function<void(const Xbyak::Opmask&)>& fn) {
+    using namespace Xbyak;
+    using namespace dnnl::impl::cpu::x64;
+
+    // Mask register for predication. k1 is used (k0 is the implicit all-ones).
+    const auto mask = Opmask(1);
+
+    // Set ambient predication state — ir_load/ir_store will pick it up.
+    _predicated = true;
+    _active_mask = mask;
+
+    // Remaining element count — decremented each iteration.
+    auto remaining = var<size_t>();
+    remaining = total_count;
+    auto remaining_reg_idx = remaining.reg().getIdx();
+
+    // Number of elements per full vector.
+    const size_t elems = N;
+
+    // Iteration count = ceil(total / N).
+    auto iter_count = var<size_t>();
+    iter_count = total_count;
+    iter_count += static_cast<size_t>(N - 1);
+    // @todo claude: no shr in variable API; use raw shift
+    shr(iter_count.reg(), static_cast<int>(std::log2(N)));
+
+    foreach(size_t{0}, iter_count, [&](const variable<size_t>&) {
+        // Mask computation runs at lowering time (each iteration).
+        ir_use({}, [this, remaining_reg_idx, elems, mask](
+                       const jit_kernel_ir::EmitContext&) {
+            Label full_mask, mask_done;
+            cmp(Reg64(remaining_reg_idx), elems);
+            jge(full_mask, T_NEAR);
+
+            // Partial mask: (1 << remaining) - 1
+            mov(rax, 1);
+            mov(rcx, Reg64(remaining_reg_idx));
+            shl(rax, cl);
+            dec(rax);
+            kmovw(mask, eax);
+            jmp(mask_done, T_NEAR);
+
+            L(full_mask);
+            kxnorw(mask, mask, mask);
+
+            L(mask_done);
+        }, "mask_setup");
+
+        fn(mask);
+
+        ir_use({}, [this, remaining_reg_idx, elems](
+                       const jit_kernel_ir::EmitContext&) {
+            sub(Reg64(remaining_reg_idx), elems);
+        }, "remaining_dec");
+    });
+
+    _predicated = false;
 }
 
 template <size_t N>
@@ -1636,6 +1860,110 @@ void jit_kernel::ir_if(
         (this->*jcc)(exit_label, Xbyak::CodeGenerator::T_NEAR);
         then_fn();
         L(exit_label);
+    }
+}
+
+// ── 2-way deinterleave / interleave ────────────────────────────────────
+//
+// ISA-specific lowering for the portable deinterleave2 / interleave2 ops.
+// On ARM these would be UZP1/UZP2 and ZIP1/ZIP2 respectively.
+
+template <size_t N>
+std::pair<jit_kernel::variable<float[N]>, jit_kernel::variable<float[N]>>
+jit_kernel::deinterleave2(const variable<float[N]>& a,
+                          const variable<float[N]>& b) {
+    // Separate even-indexed and odd-indexed elements across two vectors.
+    //   a = [x0 x1 x2 x3 ...], b = [xN xN+1 ...]
+    //   → evens = [x0 x2 x4 ...], odds = [x1 x3 x5 ...]
+    //
+    // x86 lowering (both AVX2 and AVX-512):
+    //   Step 1: cross-lane permute to group 128-bit blocks
+    //   Step 2: in-lane vshufps to separate even/odd within blocks
+    using reg_type = typename reg_traits<float[N]>::type;
+
+    // Step 1: cross-lane
+    auto emit_cross_lane = [this](uint8_t imm) {
+        return [this, imm](const jit_kernel_ir::EmitContext& ctx) {
+            if constexpr (N == 8) {
+                vperm2i128(reg_type(ctx.def->idx),
+                           reg_type(ctx.reads[0].idx),
+                           reg_type(ctx.reads[1].idx), imm);
+            } else {
+                vshuff32x4(reg_type(ctx.def->idx),
+                           reg_type(ctx.reads[0].idx),
+                           reg_type(ctx.reads[1].idx), imm);
+            }
+        };
+    };
+    auto tmp0 = ir_def<N>({a.vid(), b.vid()}, emit_cross_lane(N == 8 ? 0x20 : 0x88),
+                          N == 8 ? "perm2x128" : "shuff32x4");
+    auto tmp1 = ir_def<N>({a.vid(), b.vid()}, emit_cross_lane(N == 8 ? 0x31 : 0xdd),
+                          N == 8 ? "perm2x128" : "shuff32x4");
+
+    // Step 2: in-lane shuffle
+    auto evens = tmp0.shuffle(tmp1, 0x88);
+    auto odds  = tmp0.shuffle(tmp1, 0xdd);
+    return {std::move(evens), std::move(odds)};
+}
+
+template <size_t N>
+std::pair<jit_kernel::variable<float[N]>, jit_kernel::variable<float[N]>>
+jit_kernel::interleave2(const variable<float[N]>& evens,
+                        const variable<float[N]>& odds) {
+    // Merge even/odd streams back into sequential interleaved order.
+    //   evens = [e0 e1 e2 ...], odds = [o0 o1 o2 ...]
+    //   → lo = [e0 o0 e1 o1 ...], hi = [eN/2 oN/2 ...]
+    using reg_type = typename reg_traits<float[N]>::type;
+
+    auto emit_unpacklo = [this](const jit_kernel_ir::EmitContext& ctx) {
+        vunpcklps(reg_type(ctx.def->idx),
+                  reg_type(ctx.reads[0].idx),
+                  reg_type(ctx.reads[1].idx));
+    };
+    auto emit_unpackhi = [this](const jit_kernel_ir::EmitContext& ctx) {
+        vunpckhps(reg_type(ctx.def->idx),
+                  reg_type(ctx.reads[0].idx),
+                  reg_type(ctx.reads[1].idx));
+    };
+
+    if constexpr (N == 8) {
+        // AVX2: vunpcklps + vunpckhps + vperm2i128
+        auto lo_mixed = ir_def<N>({evens.vid(), odds.vid()}, emit_unpacklo, "unpacklo");
+        auto hi_mixed = ir_def<N>({evens.vid(), odds.vid()}, emit_unpackhi, "unpackhi");
+        auto lo = ir_def<N>({lo_mixed.vid(), hi_mixed.vid()},
+            [this](const jit_kernel_ir::EmitContext& ctx) {
+                vperm2i128(reg_type(ctx.def->idx),
+                           reg_type(ctx.reads[0].idx),
+                           reg_type(ctx.reads[1].idx), 0x20);
+            }, "perm2x128");
+        auto hi = ir_def<N>({lo_mixed.vid(), hi_mixed.vid()},
+            [this](const jit_kernel_ir::EmitContext& ctx) {
+                vperm2i128(reg_type(ctx.def->idx),
+                           reg_type(ctx.reads[0].idx),
+                           reg_type(ctx.reads[1].idx), 0x31);
+            }, "perm2x128");
+        return {std::move(lo), std::move(hi)};
+    } else if constexpr (N == 16) {
+        // AVX-512: vpermq + vunpcklps + vunpckhps
+        static const uint64_t perm_idx[] = {0, 4, 1, 5, 2, 6, 3, 7};
+        auto idx = ir_broadcast<N>(ptr[constant(perm_idx, sizeof(perm_idx))]);
+        auto evens_perm = ir_def<N>({idx.vid(), evens.vid()},
+            [this](const jit_kernel_ir::EmitContext& ctx) {
+                vpermq(reg_type(ctx.def->idx),
+                       reg_type(ctx.reads[0].idx),
+                       reg_type(ctx.reads[1].idx));
+            }, "permq");
+        auto odds_perm = ir_def<N>({idx.vid(), odds.vid()},
+            [this](const jit_kernel_ir::EmitContext& ctx) {
+                vpermq(reg_type(ctx.def->idx),
+                       reg_type(ctx.reads[0].idx),
+                       reg_type(ctx.reads[1].idx));
+            }, "permq");
+        auto lo = ir_def<N>({evens_perm.vid(), odds_perm.vid()}, emit_unpacklo, "unpacklo");
+        auto hi = ir_def<N>({evens_perm.vid(), odds_perm.vid()}, emit_unpackhi, "unpackhi");
+        return {std::move(lo), std::move(hi)};
+    } else {
+        OPENVINO_THROW("interleave2: unsupported vector width N=", N);
     }
 }
 

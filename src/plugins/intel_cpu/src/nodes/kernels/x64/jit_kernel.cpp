@@ -551,10 +551,12 @@ void jit_kernel::ir_use(std::vector<jit_kernel_ir::value_id> reads,
     emit(ctx);
 }
 
-void jit_kernel::begin_ir() {
+void jit_kernel::begin_ir(bool force) {
     OPENVINO_ASSERT(!_ir_mode, "begin_ir() called while already in IR mode");
-    static const bool enabled = std::getenv("OV_JIT_IR_MODE") != nullptr;
-    if (!enabled) return;
+    if (!force) {
+        static const bool enabled = std::getenv("OV_JIT_IR_MODE") != nullptr;
+        if (!enabled) return;
+    }
     _ir_mode = true;
     _ir = std::make_unique<jit_kernel_ir::IR>();
 }
