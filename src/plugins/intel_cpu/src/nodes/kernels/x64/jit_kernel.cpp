@@ -564,110 +564,73 @@ void jit_kernel::begin_ir(bool force) {
 void jit_kernel::end_ir() {
     if (!_ir_mode) return;
 
-    // Allocate: compute_live_ranges walks the tree recursively.
-    // The allocator integrates remat — when it can't find a register, it
-    // rematerializes a victim (clones at each use) and signals retry via
-    // std::nullopt. We recompute live ranges and retry until allocation
-    // succeeds or throws allocation_failure.
     const auto pool_size = static_cast<std::uint32_t>(_free_rmmregs.size());
 
-    // Loop unrolling pass (before allocation).
-    {
-        static const char* unroll_env = std::getenv("OV_JIT_IR_UNROLL");
-        auto strategy = jit_kernel_ir::UnrollStrategy::none;
-        if (unroll_env) {
-            std::string val(unroll_env);
-            if (val == "heuristic") strategy = jit_kernel_ir::UnrollStrategy::heuristic;
-            else if (val == "feedback") strategy = jit_kernel_ir::UnrollStrategy::feedback;
-        }
-        jit_kernel_ir::unroll_loops(*_ir, pool_size, strategy);
+    // Unroll strategy from env var.
+    static const char* unroll_env = std::getenv("OV_JIT_IR_UNROLL");
+    auto unroll_strategy = jit_kernel_ir::UnrollStrategy::none;
+    if (unroll_env) {
+        std::string val(unroll_env);
+        if (val == "heuristic") unroll_strategy = jit_kernel_ir::UnrollStrategy::heuristic;
+        else if (val == "feedback") unroll_strategy = jit_kernel_ir::UnrollStrategy::feedback;
     }
 
-    auto ranges = jit_kernel_ir::compute_live_ranges(*_ir);
+    // Build pass pipeline.
+    auto pm = jit_kernel_ir::build_default_pipeline(unroll_strategy);
 
-    if (std::getenv("OV_JIT_IR_DUMP")) {
-        std::ostringstream os;
-        os << "=== IR before allocation: pool_size=" << pool_size
-           << " values=" << ranges.size() << " ===\n";
-        jit_kernel_ir::dump_ops(os, *_ir);
-        os << "--- live ranges ---\n";
-        jit_kernel_ir::dump_assignment(os, ranges, jit_kernel_ir::Assignment{});
-        std::cout << os.str();
-    }
+    // Set up pass context.
+    jit_kernel_ir::PassContext ctx;
+    ctx.pool_size = pool_size;
+    ctx.dump = std::getenv("OV_JIT_IR_DUMP") != nullptr;
+    ctx.trace = std::getenv("OV_JIT_IR_TRACE") != nullptr;
 
-    std::optional<jit_kernel_ir::Assignment> alloc_result;
-    // Each remat round rematerializes one victim. Limit retries to the
-    // number of values — beyond that, no progress is being made.
-    for (std::size_t attempt = 0, limit = ranges.size(); attempt < limit; ++attempt) {
-        alloc_result = jit_kernel_ir::linear_scan(*_ir, ranges, pool_size);
-        if (alloc_result) break;
-        ranges = jit_kernel_ir::compute_live_ranges(*_ir);
-    }
-    if (!alloc_result) {
-        OPENVINO_THROW("jit_kernel IR allocation failed after remat exhaustion");
-    }
-    const auto& assignment = *alloc_result;
-
-    if (std::getenv("OV_JIT_IR_DUMP")) {
-        std::ostringstream os;
-        os << "=== IR allocation: pool_size=" << pool_size
-           << " peak_live=" << assignment.peak_live
-           << " values=" << ranges.size() << " ===\n";
-        jit_kernel_ir::dump_ops(os, *_ir);
-        jit_kernel_ir::dump_assignment(os, ranges, assignment);
-        std::cout << os.str();
-    }
-
-    // Lower: walk the tree, emit xbyak. Loop ops emit header, recurse
-    // into body, body's last op emits footer (set up by foreach).
-    std::function<void(const std::list<jit_kernel_ir::Op>&)> lower;
-    lower = [&](const std::list<jit_kernel_ir::Op>& ops) {
-        for (const auto& op : ops) {
-            if (op.body) {
-                // Loop op: emit header, lower body (footer is last body op)
-                ir_trace(std::string("lower ") + (op.is_loop ? "loop" : "region") + " enter");
-                std::vector<jit_kernel_ir::PhysReg> no_reads;
-                const jit_kernel_ir::EmitContext ctx{std::nullopt, no_reads};
-                op.emit(ctx);
-                lower(op.body->ops());
-                ir_trace(std::string("lower ") + (op.is_loop ? "loop" : "region") + " exit");
-            } else {
-                std::vector<jit_kernel_ir::PhysReg> read_regs;
-                read_regs.reserve(op.reads.size());
-                for (auto vid : op.reads) {
-                    read_regs.push_back(assignment.reg.at(vid));
-                }
-                std::optional<jit_kernel_ir::PhysReg> def_reg;
-                if (op.def != jit_kernel_ir::invalid_value) {
-                    def_reg = assignment.reg.at(op.def);
-                }
-                if (ir_trace_enabled()) {
-                    std::ostringstream os;
-                    os << "lower op";
-                    if (op.name[0]) {
-                        os << " name=" << op.name;
+    // Lowering callback — walks the IR tree and emits xbyak instructions.
+    ctx.lower_fn = [this](const jit_kernel_ir::IR& ir,
+                          const jit_kernel_ir::Assignment& assignment) {
+        std::function<void(const std::list<jit_kernel_ir::Op>&)> lower;
+        lower = [&](const std::list<jit_kernel_ir::Op>& ops) {
+            for (const auto& op : ops) {
+                if (op.body) {
+                    ir_trace(std::string("lower ") + (op.is_loop ? "loop" : "region") + " enter");
+                    std::vector<jit_kernel_ir::PhysReg> no_reads;
+                    const jit_kernel_ir::EmitContext ectx{std::nullopt, no_reads};
+                    op.emit(ectx);
+                    lower(op.body->ops());
+                    ir_trace(std::string("lower ") + (op.is_loop ? "loop" : "region") + " exit");
+                } else {
+                    std::vector<jit_kernel_ir::PhysReg> read_regs;
+                    read_regs.reserve(op.reads.size());
+                    for (auto vid : op.reads) {
+                        read_regs.push_back(assignment.reg.at(vid));
                     }
+                    std::optional<jit_kernel_ir::PhysReg> def_reg;
                     if (op.def != jit_kernel_ir::invalid_value) {
-                        os << " def=%" << op.def << "->p" << def_reg->idx;
-                    } else {
-                        os << " def=-";
+                        def_reg = assignment.reg.at(op.def);
                     }
-                    os << " reads=[";
-                    for (std::size_t i = 0; i < op.reads.size(); ++i) {
-                        if (i != 0) {
-                            os << ", ";
+                    if (ir_trace_enabled()) {
+                        std::ostringstream os;
+                        os << "lower op";
+                        if (op.name[0]) os << " name=" << op.name;
+                        if (def_reg) os << " def=%" << op.def << "->p" << def_reg->idx;
+                        else os << " def=-";
+                        os << " reads=[";
+                        for (std::size_t i = 0; i < op.reads.size(); ++i) {
+                            if (i) os << ", ";
+                            os << "%" << op.reads[i] << "->p" << read_regs[i].idx;
                         }
-                        os << "%" << op.reads[i] << "->p" << read_regs[i].idx;
+                        os << "]";
+                        ir_trace(os.str());
                     }
-                    os << "]";
-                    ir_trace(os.str());
+                    const jit_kernel_ir::EmitContext ectx{def_reg, read_regs};
+                    op.emit(ectx);
                 }
-                const jit_kernel_ir::EmitContext ctx{def_reg, read_regs};
-                op.emit(ctx);
             }
-        }
+        };
+        lower(ir.ops());
     };
-    lower(_ir->ops());
+
+    // Run the pipeline.
+    pm.run(*_ir, ctx);
 
     _ir.reset();
     _ir_mode = false;

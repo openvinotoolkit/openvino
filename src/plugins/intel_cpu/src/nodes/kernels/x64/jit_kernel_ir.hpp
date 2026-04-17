@@ -236,11 +236,95 @@ bool unit_test_api_remat_value(IR& ir, value_id vid);
 void dump_ops(std::ostream& os, const IR& ir);
 
 // Debug helper: dump live ranges and their assigned physical registers.
-// Prints "id: [start, end] ... -> pN" per value. If a value is missing from
-// the assignment map (e.g. because allocation failed before it was processed),
-// prints "unassigned".
 void dump_assignment(std::ostream& os,
                      const std::vector<LiveRange>& ranges,
                      const Assignment& assignment);
+
+// ── Pass infrastructure ─────────────────────────────────────────────
+// LLVM-style pass pipeline. Each pass transforms or analyzes the IR.
+// PassContext carries shared state (analysis results, config) between passes.
+
+struct PassContext {
+    std::uint32_t pool_size = 0;
+
+    // Analysis results — populated by analysis passes, consumed by later passes.
+    std::vector<LiveRange> ranges;
+    std::optional<Assignment> assignment;
+
+    // Lowering callback — set by jit_kernel before running the pipeline.
+    // Called by the lowering pass to emit xbyak instructions.
+    using LowerFn = std::function<void(const IR&, const Assignment&)>;
+    LowerFn lower_fn;
+
+    // Config
+    bool dump = false;     // OV_JIT_IR_DUMP
+    bool trace = false;    // OV_JIT_IR_TRACE
+};
+
+// Base class for all IR passes.
+struct IRPass {
+    virtual ~IRPass() = default;
+    // Returns true if the IR was modified.
+    virtual bool run(IR& ir, PassContext& ctx) = 0;
+    virtual const char* name() const = 0;
+};
+
+// Pass manager — runs passes in order.
+class PassManager {
+public:
+    template <typename PassT, typename... Args>
+    void add(Args&&... args) {
+        _passes.push_back(std::make_unique<PassT>(std::forward<Args>(args)...));
+    }
+
+    void run(IR& ir, PassContext& ctx) {
+        for (auto& pass : _passes) {
+            pass->run(ir, ctx);
+        }
+    }
+
+private:
+    std::vector<std::unique_ptr<IRPass>> _passes;
+};
+
+// ── Built-in passes ─────────────────────────────────────────────────
+
+// Analysis: compute live ranges from the IR.
+struct LiveRangeAnalysis : IRPass {
+    bool run(IR& ir, PassContext& ctx) override;
+    const char* name() const override { return "LiveRangeAnalysis"; }
+};
+
+// Transform: loop unrolling (IR rewrite).
+struct LoopUnrollPass : IRPass {
+    UnrollStrategy strategy;
+    explicit LoopUnrollPass(UnrollStrategy s = UnrollStrategy::none) : strategy(s) {}
+    bool run(IR& ir, PassContext& ctx) override;
+    const char* name() const override { return "LoopUnroll"; }
+};
+
+// Allocation: interference-based linear scan with integrated remat.
+// May modify the IR (remat) and re-run LiveRangeAnalysis internally.
+struct RegisterAllocator : IRPass {
+    bool run(IR& ir, PassContext& ctx) override;
+    const char* name() const override { return "RegisterAllocator"; }
+};
+
+// Debug: dump IR and allocation state.
+struct DumpPass : IRPass {
+    const char* label;
+    explicit DumpPass(const char* l) : label(l) {}
+    bool run(IR& ir, PassContext& ctx) override;
+    const char* name() const override { return "Dump"; }
+};
+
+// Lowering: emit xbyak instructions using the assignment.
+struct LoweringPass : IRPass {
+    bool run(IR& ir, PassContext& ctx) override;
+    const char* name() const override { return "Lowering"; }
+};
+
+// Build the default pass pipeline.
+PassManager build_default_pipeline(UnrollStrategy unroll = UnrollStrategy::none);
 
 }  // namespace ov::intel_cpu::jit_kernel_ir

@@ -4,6 +4,8 @@
 
 #include "jit_kernel_ir.hpp"
 
+#include "openvino/core/except.hpp"
+
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
@@ -957,6 +959,68 @@ void dump_assignment(std::ostream& os,
         os << "\n";
     }
     os << "  peak_live = " << assignment.peak_live << "\n";
+}
+
+// ── Pass implementations ────────────────────────────────────────────
+
+bool LiveRangeAnalysis::run(IR& ir, PassContext& ctx) {
+    ctx.ranges = compute_live_ranges(ir);
+    return false;  // analysis, no IR modification
+}
+
+bool LoopUnrollPass::run(IR& ir, PassContext& ctx) {
+    return unroll_loops(ir, ctx.pool_size, strategy);
+}
+
+bool RegisterAllocator::run(IR& ir, PassContext& ctx) {
+    // Remat loop: linear_scan may modify the IR and return nullopt,
+    // requiring recomputation of live ranges.
+    for (std::size_t attempt = 0, limit = ctx.ranges.size();
+         attempt < limit; ++attempt) {
+        auto result = linear_scan(ir, ctx.ranges, ctx.pool_size);
+        if (result) {
+            ctx.assignment = std::move(*result);
+            return false;
+        }
+        // Remat modified the IR — recompute live ranges and retry.
+        ctx.ranges = compute_live_ranges(ir);
+    }
+    OPENVINO_THROW("RegisterAllocator: allocation failed after remat exhaustion");
+}
+
+bool DumpPass::run(IR& ir, PassContext& ctx) {
+    if (!ctx.dump) return false;
+    std::ostringstream os;
+    os << "=== " << label << ": pool_size=" << ctx.pool_size
+       << " values=" << ctx.ranges.size() << " ===\n";
+    dump_ops(os, ir);
+    if (ctx.assignment) {
+        os << "--- assignment ---\n";
+        dump_assignment(os, ctx.ranges, *ctx.assignment);
+    } else {
+        os << "--- live ranges ---\n";
+        dump_assignment(os, ctx.ranges, Assignment{});
+    }
+    std::cout << os.str();
+    return false;
+}
+
+bool LoweringPass::run(IR& ir, PassContext& ctx) {
+    OPENVINO_ASSERT(ctx.assignment, "LoweringPass: no assignment available");
+    OPENVINO_ASSERT(ctx.lower_fn, "LoweringPass: no lowering callback set");
+    ctx.lower_fn(ir, *ctx.assignment);
+    return false;
+}
+
+PassManager build_default_pipeline(UnrollStrategy unroll) {
+    PassManager pm;
+    pm.add<LoopUnrollPass>(unroll);
+    pm.add<LiveRangeAnalysis>();
+    pm.add<DumpPass>("IR before allocation");
+    pm.add<RegisterAllocator>();
+    pm.add<DumpPass>("IR after allocation");
+    pm.add<LoweringPass>();
+    return pm;
 }
 
 }  // namespace ov::intel_cpu::jit_kernel_ir

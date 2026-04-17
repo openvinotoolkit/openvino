@@ -94,53 +94,104 @@ See `analysis_nv12_f32.md` for detailed analysis of bugs #1–9.
     so it can be the loop counter or any other variable. Fixed by using `param1`
     (rdi on Linux), which is excluded from the pool.
 
+## RoPE kernel IR port
+
+### New files
+- `rope_kernel_ir.hpp` / `rope_kernel_ir.cpp` — IR-mode RoPE kernel
+  using `jit_kernel` DSL. Drop-in replacement for `jit_rotary_kernel`.
+- Selected at runtime via `OV_JIT_IR_ROPE=1` env var in `rope.cpp`.
+
+### Generated code comparison (Llama2, rotary_ndims=128, f32, AVX-512)
+
+| | Legacy | IR (no unroll) | IR (unroll=4) | Clang -O3 |
+|---|--------|---------------|--------------|-----------|
+| Code size | 1088 bytes | 227 bytes | 711 bytes | ~280 bytes |
+| Data tables | 640 bytes | 0 | 0 | 0 |
+| Vector insns/iter | 12 | 12 | 12 | 10* |
+| Registers | 5 (zmm0-4) | 4 (zmm0-3) | 4 | 3 |
+| Tail handling | none | predicated | predicated | predicated |
+| FMA copies | 0 | 0 | 0 | 0 |
+
+\* Clang folds loads into FMA memory operands (2 fewer instructions).
+
+### New IR primitives added
+- `ir_load<N>(ptr, byte_offset=0)` — type-converting (f32/u8/f16/bf16),
+  masked/unmasked via ambient `_predicated` flag, zero-masking `{k1}{z}`.
+- `ir_store(ptr, byte_offset, val)` — same type dispatch and masking.
+- `Insn3::fmsub231ps` + `fmsub(a, b, c)` DSL wrapper.
+- `deinterleave2(a, b)` → `(evens, odds)` — portable semantic op.
+  x86: vperm2i128+vshufps (AVX2) or vshuff32x4+vshufps (AVX-512).
+  ARM would lower to UZP1/UZP2.
+- `interleave2(evens, odds)` → `(lo, hi)` — inverse.
+  ARM would lower to ZIP1/ZIP2.
+- `begin_ir(force=true)` — bypasses `OV_JIT_IR_MODE` env var check.
+- `foreach_predicated<N>(count, body, unroll=1)` — manual unroll factor.
+
+### Allocator improvements
+- **Half-open intervals** `[start, end)` — LLVM convention. Enables
+  correct coalescing without special-case overlap logic.
+- **LLVM early/late slot model** — each op N occupies slots 2N (reads)
+  and 2N+1 (defs). Reads end before defs start at the same instruction.
+- **Tied operands** — `Op::tied_to` field (LLVM-style operand constraint).
+  `def_tied()` IR builder. Allocator coalesces via `copy_of` mechanism.
+- **FMA coalescing** — `fma`/`fnma`/`fmsub` no longer emit `vec_copy`.
+  The emit closure skips vmovups when `def == reads[0]` (coalesced).
+- **vpermps split** — separated into two IR ops (table load + permute)
+  so the allocator sees both inputs and assigns distinct registers.
+
+### Bugs found and fixed (session)
+11. **Pointer advance outside IR** — eager `src += ...` executed at
+    recording time, not lowering time. All iterations loaded from the
+    final pointer position. Fix: wrap in `ir_use` closures.
+12. **Tail not handled** — `for (i < half/N)` skipped remainder elements
+    (QwenVL: half=40, N=16, 8 elements lost). Fix: replaced manual loop
+    with `foreach_predicated`.
+13. **begin_ir() gated by env var** — IR RoPE kernel ran in eager mode
+    when `OV_JIT_IR_MODE` not set, producing correct results by accident.
+    Fix: `begin_ir(true)` forces IR mode.
+
 ## Current test results
 
 ### Passing
 - All 29 `JitKernelIR.*` unit tests, including:
-  - Sub-interval live range computation (per-branch segments, addSegment
-    merge policy, liveAt binary search)
-  - LLVM-style interference-based allocation
+  - LLVM-style half-open intervals with early/late slots
+  - Tied-operand coalescing for FMA
+  - Sub-interval live range computation
   - Integrated remat (zero-input and input-aware)
-  - `EndToEndForeachPredicated` — predicated loop with tail (25 elements,
-    N=16: 1 full + 1 partial iteration, no overwrite past count)
   - End-to-end kernels: vec_add, vec_expr, fma, foreach, if/else,
-    store_interleaved3, foreach+if/else+interleave3
+    store_interleaved3, foreach+if/else+interleave3, foreach_predicated
 - All 4 `JitKernel.*` unit tests.
-- All 8 `smoke_TestsConvertColorI420*` functional tests — both f32 and u8
-  now use IR mode + `foreach_predicated`. No tail. No eager fallback.
+- All 19 `smoke_RoPETest*` functional tests with `OV_JIT_IR_ROPE=1`.
+- All 8 `smoke_TestsConvertColorI420*` functional tests with IR mode.
 
 ### Known limitations
-- The `EndToEndForeachIfElseStoreInterleaved3` unit test kernel still
-  overflows the register pool: 9 constants + 3 clamped values exceed 16
-  registers even after integrated remat.
-- Multi-iteration foreach+branches has a pointer-advance bug (second
-  iteration outputs zeros). Pre-existing, not caused by allocator changes.
-- Pre-existing u8 accuracy crash (`munmap_chunk(): invalid pointer` on
-  144×16), reproduces without IR mode. Unrelated.
+- Pre-existing u8 accuracy failure (144×16 single test). Unrelated.
+- IR-level loop unrolling pass (option B) implemented but loop counter
+  adjustment incomplete. Manual unrolling via `foreach_predicated` unroll
+  parameter works correctly.
+- Memory-operand folding (load into FMA) not implemented. Clang achieves
+  10 insns/iter vs our 12 by folding cos/sin loads into FMA operands.
 
 ## Open work
 
 ### Immediate
-- Diagnose the foreach+branches multi-iteration pointer-advance bug.
-- Investigate whether the color_convert kernel fits with `OV_JIT_IR_MODE=1`
-  for width=32 (2 iterations). Currently width=10 (1 iteration) passes.
+- Port `rotary_interleave_ir` to use `foreach_predicated` with unrolling
+  (currently uses manual unrolled loop).
+- Add bf16/f16 functional test coverage for RoPE IR kernel.
 
-### Hardening
-- Unit tests for: loop interval extension edge cases, cursor save/restore,
-  move-assignment `_vid`.
-- Replace `push(param1)/pop(param1)` in vpermps with a cleaner solution
-  (GPR IR pool, RIP-relative, or pre-loaded loop-invariant tables).
+### Allocator
+- Memory-operand folding — model instructions explicitly so lowering can
+  fold single-use loads into consuming instructions.
+- IR-level loop unrolling pass — needs loop counter adjustment
+  infrastructure (iteration count as modifiable GPR).
 
 ### Next kernels
-- **RoPE kernel** (`rope_kernel.cpp`): needs bf16/f16 type-converting
-  load/store (same `if constexpr` pattern as u8), `ir_load` with byte
-  offset, and custom deinterleave/re-interleave shuffle DSL ops.
 - **I420 converter**: same structure as NV12 but separate U/V planes.
+- **RoPE interleaved**: already has `deinterleave2`/`interleave2` ops.
 
 ### Future
-- Chained rematerialization (remat an op by first rematerializing its
-  inputs recursively).
-- Spill/reload for non-rematerializable values under extreme pressure.
-- AVX2 `foreach_predicated` variant: main loop (unmasked) + masked tail,
-  decided at recording time (same IR body, different loop structure).
+- Chained rematerialization.
+- Spill/reload for non-rematerializable values.
+- AVX2 `foreach_predicated` variant.
+- TwoAddressInstructionPass equivalent (explicit COPY insertion before
+  tied ops, removed by coalescer — full LLVM alignment).
