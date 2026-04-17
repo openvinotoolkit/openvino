@@ -80,16 +80,23 @@ protected:
 
 private:
     class PostponedConstantWriter {
-        std::vector<std::tuple<std::reference_wrapper<util::ConstantWriter>,
-                               std::vector<std::string_view>,
-                               std::shared_ptr<uint8_t>>>
-            constants_to_write;
+        using StringConstantPack =
+            std::tuple<std::reference_wrapper<ConstantWriter>, std::vector<std::string_view>, std::shared_ptr<uint8_t>>;
+        using RawConstantPack = std::
+            tuple<std::reference_wrapper<ConstantWriter>, std::shared_ptr<AlignedBuffer>, bool, element::Type, bool>;
+        std::vector<std::variant<StringConstantPack, RawConstantPack>> constants_to_write;
 
     public:
         void insert(pugi::xml_node& xml_node,
-                    std::reference_wrapper<util::ConstantWriter> writer,
+                    std::reference_wrapper<ConstantWriter> writer,
                     std::vector<std::string_view> chunks,
                     std::shared_ptr<uint8_t> header);
+        void insert(pugi::xml_node& xml_node,
+                    std::reference_wrapper<ConstantWriter> writer,
+                    std::shared_ptr<AlignedBuffer> buffer,
+                    bool compress_to_fp16,
+                    element::Type output_element_type,
+                    bool data_is_temporary);
         void write_all(pugi::xml_node&);
     };
     std::shared_ptr<PostponedConstantWriter> m_postponed_constant_writer;
@@ -97,11 +104,11 @@ private:
 public:
     XmlSerializer(pugi::xml_node& data,
                   const std::string& node_type_name,
-                  ov::util::ConstantWriter& constant_write_handler,
+                  ConstantWriter& constant_write_handler,
                   int64_t version,
                   bool deterministic = false,
                   bool compress_to_fp16 = false,
-                  ov::element::Type output_element_type = ov::element::dynamic,
+                  element::Type output_element_type = element::dynamic,
                   bool data_is_temporary = false);
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override;

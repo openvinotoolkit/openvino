@@ -754,17 +754,26 @@ void XmlSerializer::on_adapter(const std::string& name, ov::ValueAccessor<void>&
         }
     } else if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
         if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
-            const auto size = a->get()->size();
-            size_t new_size = 0lu;
-            int64_t offset = get_constant_write_handler().write(static_cast<const char*>(a->get()->get_ptr()),
-                                                                size,
-                                                                new_size,
-                                                                m_compress_to_fp16,
-                                                                m_output_element_type,
-                                                                m_data_is_temporary);
+            if (m_postponed_constant_writer) {
+                m_postponed_constant_writer->insert(m_xml_node,
+                                                    get_constant_write_handler(),
+                                                    a->get(),
+                                                    m_compress_to_fp16,
+                                                    m_output_element_type,
+                                                    m_data_is_temporary);
+            } else {
+                const auto size = a->get()->size();
+                size_t new_size = 0lu;
+                int64_t offset = get_constant_write_handler().write(a->get()->get_ptr<const char>(),
+                                                                    size,
+                                                                    new_size,
+                                                                    m_compress_to_fp16,
+                                                                    m_output_element_type,
+                                                                    m_data_is_temporary);
 
-            m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
-            m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
+                m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
+                m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
+            }
         }
     } else if (const auto& a = ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
         const auto& attrs = a->get();
@@ -1209,11 +1218,26 @@ util::ConstantWriter& XmlSerializer::get_constant_write_handler() {
 }
 
 void XmlSerializer::PostponedConstantWriter::insert(pugi::xml_node& xml_node,
-                                                    std::reference_wrapper<util::ConstantWriter> writer,
+                                                    std::reference_wrapper<ConstantWriter> writer,
                                                     std::vector<std::string_view> chunks,
                                                     std::shared_ptr<uint8_t> header) {
     const auto idx = constants_to_write.size();
-    constants_to_write.emplace_back(std::move(writer), std::move(chunks), std::move(header));
+    constants_to_write.emplace_back(StringConstantPack{std::move(writer), std::move(chunks), std::move(header)});
+    xml_node.append_attribute("__offset_size_placeholder").set_value(idx);
+}
+
+void XmlSerializer::PostponedConstantWriter::insert(pugi::xml_node& xml_node,
+                                                    std::reference_wrapper<ConstantWriter> writer,
+                                                    std::shared_ptr<AlignedBuffer> buffer,
+                                                    bool compress_to_fp16,
+                                                    element::Type output_element_type,
+                                                    bool data_is_temporary) {
+    const auto idx = constants_to_write.size();
+    constants_to_write.emplace_back(RawConstantPack{std::move(writer),
+                                                    std::move(buffer),
+                                                    compress_to_fp16,
+                                                    output_element_type,
+                                                    data_is_temporary});
     xml_node.append_attribute("__offset_size_placeholder").set_value(idx);
 }
 
@@ -1234,11 +1258,24 @@ void XmlSerializer::PostponedConstantWriter::write_all(pugi::xml_node& layers) {
     }
 
     for (size_t idx = 0; idx < constants_to_write.size(); ++idx) {
-        auto& [constant_write_handler, chunks, _] = constants_to_write[idx];
+        auto& pack = constants_to_write[idx];
         size_t size = 0;
-        const auto offset = constant_write_handler.get().write(chunks, size);
+        ConstantWriter::FilePosition offset = 0;
+        if (std::holds_alternative<StringConstantPack>(pack)) {
+            auto& [constant_write_handler, chunks, _] = std::get<StringConstantPack>(pack);
+            offset = constant_write_handler.get().write(chunks, size);
+        } else if (std::holds_alternative<RawConstantPack>(pack)) {
+            auto& [constant_write_handler, buffer, compress_to_fp16, output_element_type, data_is_temporary] =
+                std::get<RawConstantPack>(pack);
+            offset = constant_write_handler.get().write(buffer->get_ptr<const char>(),
+                                                        buffer->size(),
+                                                        size,
+                                                        compress_to_fp16,
+                                                        output_element_type,
+                                                        data_is_temporary);
+        }
         auto& data = const_nodes[idx];
-        OPENVINO_ASSERT(data, "Internal error: Const node was not found for gathered constant with idx=", idx);
+        assert(data);
         data.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
         data.append_attribute("size").set_value(static_cast<unsigned long long>(size));
     }
