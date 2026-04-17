@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <numeric>
 
@@ -16,6 +17,7 @@
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "openvino/core/except.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/shape_util.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/util/common_util.hpp"
@@ -172,26 +174,14 @@ size_t CpuBlockedMemoryDesc::getCurrentMemSizeImp() const {
         return e_size;
     }
 
-    size_t byte_size = 0;
-    OPENVINO_ASSERT(!ov::util::mul_overflow(e_size, static_cast<size_t>(prc.bitwidth()), byte_size),
-                    "CpuBlockedMemoryDesc::getCurrentMemSizeImp overflow while converting elements to bit size");
-
-    if (any_of(prc, ov::element::u3, ov::element::u6)) {
-        constexpr size_t storage_unit_size = 24;
-        OPENVINO_ASSERT(!ov::util::add_overflow(byte_size, storage_unit_size - 1, byte_size),
-                        "CpuBlockedMemoryDesc::getCurrentMemSizeImp overflow while rounding packed bit size");
-        byte_size /= storage_unit_size;
-        OPENVINO_ASSERT(!ov::util::mul_overflow(byte_size, static_cast<size_t>(3), byte_size),
-                        "CpuBlockedMemoryDesc::getCurrentMemSizeImp overflow while converting packed storage to "
-                        "bytes");
-    } else {
-        constexpr size_t storage_unit_size = 8;
-        OPENVINO_ASSERT(!ov::util::add_overflow(byte_size, storage_unit_size - 1, byte_size),
-                        "CpuBlockedMemoryDesc::getCurrentMemSizeImp overflow while rounding bit size");
-        byte_size /= storage_unit_size;
-    }
-
-    return byte_size;
+    const auto byte_size = ov::util::get_memory_size_safe(prc, e_size);
+    OPENVINO_ASSERT(byte_size.has_value(),
+                    "CpuBlockedMemoryDesc::getCurrentMemSizeImp overflow while converting elements to byte size");
+    OPENVINO_ASSERT(*byte_size <= static_cast<size_t>(std::numeric_limits<ptrdiff_t>::max()),
+                    "CpuBlockedMemoryDesc::getCurrentMemSizeImp requested allocation size { ",
+                    *byte_size,
+                    " } exceeds PTRDIFF_MAX");
+    return *byte_size;
 }
 
 size_t CpuBlockedMemoryDesc::getMaxMemSize() const {
