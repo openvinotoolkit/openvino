@@ -12,6 +12,7 @@
 #include <ostream>
 #include <sstream>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace ov::intel_cpu::jit_kernel_ir {
@@ -429,7 +430,153 @@ bool remat_all_uses_impl(std::list<Op>& ops, IR& ir, value_id vid, const Op& vic
     return modified;
 }
 
+// ── Loop unrolling pass ──────────────────────────────────────────────
+
+// Clone a range of ops [begin, end) from a body, remapping value_ids.
+// `remap` maps old value_id → new value_id. Values not in the map
+// (defined outside the body) are kept as-is. Fresh value_ids are
+// allocated from `ir`.
+void clone_ops(const std::list<Op>& src_ops,
+               std::list<Op>& dst_ops,
+               std::list<Op>::const_iterator begin,
+               std::list<Op>::const_iterator end,
+               IR& ir,
+               std::unordered_map<value_id, value_id>& remap) {
+    for (auto it = begin; it != end; ++it) {
+        const auto& op = *it;
+        Op clone;
+        // Remap reads
+        clone.reads.reserve(op.reads.size());
+        for (auto r : op.reads) {
+            auto rit = remap.find(r);
+            clone.reads.push_back(rit != remap.end() ? rit->second : r);
+        }
+        // Allocate fresh def if the op defines a value
+        if (op.def != invalid_value) {
+            value_id new_id = ir.value_count();
+            ir.set_value_count(new_id + 1);
+            remap[op.def] = new_id;
+            clone.def = new_id;
+        }
+        clone.emit = op.emit;  // share the emit closure
+        clone.is_copy = op.is_copy;
+        clone.tied_to = op.tied_to;
+        clone.is_loop = op.is_loop;
+        clone.name = op.name;
+        // Note: nested body (regions) not cloned — unrolling only applies
+        // to flat loop bodies, not nested structures.
+        dst_ops.push_back(std::move(clone));
+    }
+}
+
+// Estimate peak register pressure in one loop iteration.
+// Walks the body ops, tracking live value count at each point.
+std::uint32_t estimate_body_pressure(const std::list<Op>& ops) {
+    // Track which values are live (defined but not yet last-used).
+    // For each value, find its last use index, then count live at each op.
+    std::unordered_map<value_id, std::uint32_t> last_use;
+    std::uint32_t idx = 0;
+    for (const auto& op : ops) {
+        for (auto r : op.reads) {
+            last_use[r] = idx;
+        }
+        ++idx;
+    }
+
+    std::unordered_set<value_id> live;
+    std::uint32_t peak = 0;
+    idx = 0;
+    for (const auto& op : ops) {
+        if (op.def != invalid_value) {
+            live.insert(op.def);
+        }
+        peak = std::max(peak, static_cast<std::uint32_t>(live.size()));
+        // Expire values whose last use is this op.
+        for (auto r : op.reads) {
+            if (last_use[r] == idx) {
+                live.erase(r);
+            }
+        }
+        ++idx;
+    }
+    return peak;
+}
+
+// Unroll a single loop body by factor K. Clones all body ops (except
+// the loop_footer) K-1 times before the footer.
+bool unroll_loop_body(Op& loop_op, IR& ir, std::uint32_t factor) {
+    if (factor <= 1 || !loop_op.body) return false;
+
+    auto& body_ops = loop_op.body->ops();
+    if (body_ops.empty()) return false;
+
+    // Find the loop_footer — it's the last op with name "loop_footer".
+    auto footer_it = body_ops.end();
+    for (auto it = body_ops.begin(); it != body_ops.end(); ++it) {
+        if (std::string(it->name) == "loop_footer") {
+            footer_it = it;
+        }
+    }
+
+    // Clone everything before the footer, K-1 times, inserting before footer.
+    for (std::uint32_t k = 1; k < factor; ++k) {
+        std::unordered_map<value_id, value_id> remap;
+        clone_ops(body_ops, body_ops, body_ops.begin(), footer_it, ir, remap);
+    }
+
+    trace_ir("unroll loop by " + std::to_string(factor) +
+             " (" + std::to_string(body_ops.size()) + " ops in body)");
+    return true;
+}
+
 }  // namespace
+
+// ── Public unroll_loops pass ────────────────────────────────────────
+
+bool unroll_loops(IR& ir, std::uint32_t pool_size, UnrollStrategy strategy) {
+    if (strategy == UnrollStrategy::none) return false;
+
+    bool modified = false;
+
+    for (auto& op : ir.ops()) {
+        if (!op.body || !op.is_loop) continue;
+
+        auto& body_ops = op.body->ops();
+        auto pressure = estimate_body_pressure(body_ops);
+        trace_ir("unroll: found loop, body_ops=" + std::to_string(body_ops.size()) +
+                 " pressure=" + std::to_string(pressure) +
+                 " pool=" + std::to_string(pool_size));
+        if (pressure == 0) continue;
+
+        std::uint32_t factor = 1;
+
+        if (strategy == UnrollStrategy::heuristic) {
+            // LLVM-style: unroll as much as register pressure allows.
+            factor = pool_size / pressure;
+            if (factor < 2) continue;
+            // Cap at 8 to avoid code bloat.
+            factor = std::min(factor, 8u);
+        } else if (strategy == UnrollStrategy::feedback) {
+            // Feedback-directed: try increasing factors until allocation fails.
+            for (std::uint32_t try_factor = pool_size / pressure;
+                 try_factor >= 2; try_factor /= 2) {
+                // Build a trial IR copy — expensive but optimal.
+                // For now, use the heuristic as a starting point.
+                // @todo claude: implement trial allocation for feedback mode
+                factor = try_factor;
+                break;
+            }
+            if (factor < 2) continue;
+            factor = std::min(factor, 8u);
+        }
+
+        if (unroll_loop_body(op, ir, factor)) {
+            modified = true;
+        }
+    }
+
+    return modified;
+}
 
 bool rematerialize_for_pressure(IR& ir,
                                 const std::vector<LiveRange>& ranges,

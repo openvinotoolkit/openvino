@@ -570,6 +570,19 @@ void jit_kernel::end_ir() {
     // std::nullopt. We recompute live ranges and retry until allocation
     // succeeds or throws allocation_failure.
     const auto pool_size = static_cast<std::uint32_t>(_free_rmmregs.size());
+
+    // Loop unrolling pass (before allocation).
+    {
+        static const char* unroll_env = std::getenv("OV_JIT_IR_UNROLL");
+        auto strategy = jit_kernel_ir::UnrollStrategy::none;
+        if (unroll_env) {
+            std::string val(unroll_env);
+            if (val == "heuristic") strategy = jit_kernel_ir::UnrollStrategy::heuristic;
+            else if (val == "feedback") strategy = jit_kernel_ir::UnrollStrategy::feedback;
+        }
+        jit_kernel_ir::unroll_loops(*_ir, pool_size, strategy);
+    }
+
     auto ranges = jit_kernel_ir::compute_live_ranges(*_ir);
 
     if (std::getenv("OV_JIT_IR_DUMP")) {

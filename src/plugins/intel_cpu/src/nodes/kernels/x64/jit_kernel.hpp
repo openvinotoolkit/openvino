@@ -942,9 +942,14 @@ public:
     //             for full iterations.
     // On AVX2:    main loop (unmasked, body called with no_mask) +
     //             tail (body called with partial mask outside the loop).
+    // unroll=1: single body per loop iteration (default).
+    // unroll>1: body recorded N times per iteration, each with its own
+    //           mask setup. Loop iterates ceil(total/(N*unroll)) times.
+    //           Equivalent to legacy manual unrolling.
     template <size_t N>
     void foreach_predicated(const variable<size_t>& total_count,
-                            const std::function<void(const Xbyak::Opmask&)>& fn);
+                            const std::function<void(const Xbyak::Opmask&)>& fn,
+                            size_t unroll = 1);
 
     template <typename T>
     variable<T> var();
@@ -1695,60 +1700,65 @@ void jit_kernel::ir_store(const variable<PtrT>& dst_ptr, size_t byte_offset,
 
 template <size_t N>
 void jit_kernel::foreach_predicated(const variable<size_t>& total_count,
-                                    const std::function<void(const Xbyak::Opmask&)>& fn) {
+                                    const std::function<void(const Xbyak::Opmask&)>& fn,
+                                    size_t unroll) {
     using namespace Xbyak;
     using namespace dnnl::impl::cpu::x64;
 
-    // Mask register for predication. k1 is used (k0 is the implicit all-ones).
     const auto mask = Opmask(1);
-
-    // Set ambient predication state — ir_load/ir_store will pick it up.
     _predicated = true;
     _active_mask = mask;
 
-    // Remaining element count — decremented each iteration.
     auto remaining = var<size_t>();
     remaining = total_count;
     auto remaining_reg_idx = remaining.reg().getIdx();
 
-    // Number of elements per full vector.
     const size_t elems = N;
 
-    // Iteration count = ceil(total / N).
+    // Iteration count = ceil(total / (N * unroll)).
     auto iter_count = var<size_t>();
     iter_count = total_count;
-    iter_count += static_cast<size_t>(N - 1);
-    // @todo claude: no shr in variable API; use raw shift
-    shr(iter_count.reg(), static_cast<int>(std::log2(N)));
+    iter_count += static_cast<size_t>(N * unroll - 1);
+    shr(iter_count.reg(), static_cast<int>(std::log2(N * unroll)));
 
     foreach(size_t{0}, iter_count, [&](const variable<size_t>&) {
-        // Mask computation runs at lowering time (each iteration).
-        ir_use({}, [this, remaining_reg_idx, elems, mask](
-                       const jit_kernel_ir::EmitContext&) {
-            Label full_mask, mask_done;
-            cmp(Reg64(remaining_reg_idx), elems);
-            jge(full_mask, T_NEAR);
+        for (size_t u = 0; u < unroll; ++u) {
+            // Mask computation — handles tail: when remaining <= 0,
+            // mask is zero and loads/stores are no-ops.
+            ir_use({}, [this, remaining_reg_idx, elems, mask](
+                           const jit_kernel_ir::EmitContext&) {
+                Label full_mask, mask_done, zero_mask;
+                // Guard: remaining <= 0 → zero mask (skip this block).
+                cmp(Reg64(remaining_reg_idx), 0);
+                jle(zero_mask, T_NEAR);
+                cmp(Reg64(remaining_reg_idx), elems);
+                jge(full_mask, T_NEAR);
 
-            // Partial mask: (1 << remaining) - 1
-            mov(rax, 1);
-            mov(rcx, Reg64(remaining_reg_idx));
-            shl(rax, cl);
-            dec(rax);
-            kmovw(mask, eax);
-            jmp(mask_done, T_NEAR);
+                // Partial mask: (1 << remaining) - 1
+                mov(rax, 1);
+                mov(rcx, Reg64(remaining_reg_idx));
+                shl(rax, cl);
+                dec(rax);
+                kmovw(mask, eax);
+                jmp(mask_done, T_NEAR);
 
-            L(full_mask);
-            kxnorw(mask, mask, mask);
+                L(zero_mask);
+                kxorw(mask, mask, mask);
+                jmp(mask_done, T_NEAR);
 
-            L(mask_done);
-        }, "mask_setup");
+                L(full_mask);
+                kxnorw(mask, mask, mask);
 
-        fn(mask);
+                L(mask_done);
+            }, "mask_setup");
 
-        ir_use({}, [this, remaining_reg_idx, elems](
-                       const jit_kernel_ir::EmitContext&) {
-            sub(Reg64(remaining_reg_idx), elems);
-        }, "remaining_dec");
+            fn(mask);
+
+            ir_use({}, [this, remaining_reg_idx, elems](
+                           const jit_kernel_ir::EmitContext&) {
+                sub(Reg64(remaining_reg_idx), elems);
+            }, "remaining_dec");
+        }  // end unroll loop
     });
 
     _predicated = false;

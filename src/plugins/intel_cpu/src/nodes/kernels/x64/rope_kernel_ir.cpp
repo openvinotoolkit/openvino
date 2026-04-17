@@ -95,6 +95,9 @@ void jit_rotary_kernel_ir::rotary_half_ir() {
     auto cos_idx = cos.reg().getIdx();
     auto sin_idx = sin.reg().getIdx();
 
+    // Unroll by 4 to match legacy kernel's manual unrolling.
+    const size_t unroll = std::min<size_t>(4, half_rotary_ndims / N);
+
     foreach_predicated<N>(count, [&](const Xbyak::Opmask&) {
         auto v_src0 = ir_load<N>(src);
         auto v_src1 = ir_load<N>(src, half_byte_offset);
@@ -124,7 +127,7 @@ void jit_rotary_kernel_ir::rotary_half_ir() {
             add(Xbyak::Reg64(cos_idx), N * sizeof(float));
             add(Xbyak::Reg64(sin_idx), N * sizeof(float));
         }, "ptr_advance");
-    });
+    }, unroll);
 
     end_ir();
 }

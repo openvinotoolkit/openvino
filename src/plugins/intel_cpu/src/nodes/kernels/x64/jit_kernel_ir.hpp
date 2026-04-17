@@ -214,6 +214,18 @@ std::optional<Assignment> linear_scan(IR& ir,
                                       std::vector<LiveRange>& ranges,
                                       std::uint32_t pool_size);
 
+// Loop unrolling strategies.
+enum class UnrollStrategy {
+    none,       // no unrolling
+    heuristic,  // LLVM-style: unroll_factor = min(trip_count, pool_size / body_pressure)
+    feedback    // feedback-directed: trial allocation to find optimal factor
+};
+
+// IR transform pass: unroll loops in the IR.
+// Clones loop body ops, remaps value_ids. Runs before allocation.
+// Returns true if any loop was unrolled.
+bool unroll_loops(IR& ir, std::uint32_t pool_size, UnrollStrategy strategy = UnrollStrategy::heuristic);
+
 // Test-only: remat a specific value — insert a clone (with reads
 // preserved) before each use and rewrite reads.
 // Returns true if the IR was modified.
