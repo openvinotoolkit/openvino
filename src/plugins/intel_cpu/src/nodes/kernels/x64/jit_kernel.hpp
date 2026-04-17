@@ -1460,7 +1460,9 @@ jit_kernel::variable<float[N]> jit_kernel::vec_op(Insn3 insn,
         // If coalesced, vmovups is a self-move. If not, it's the necessary copy.
         auto vid = _ir->def_tied({seed.vid(), a.vid(), b.vid()}, /*tied_to=*/0,
             [this, insn](const jit_kernel_ir::EmitContext& ctx) {
-                uni_vmovups(reg_type(ctx.def->idx), reg_type(ctx.reads[0].idx));
+                if (ctx.def->idx != ctx.reads[0].idx) {
+                    uni_vmovups(reg_type(ctx.def->idx), reg_type(ctx.reads[0].idx));
+                }
                 lower(insn,
                       reg_type(ctx.def->idx),
                       reg_type(ctx.reads[1].idx),
@@ -1527,20 +1529,24 @@ jit_kernel::variable<float[N]> jit_kernel::vec_permute(const variable<float[N]>&
             const int* cref = constant(data, N);
             auto addr = reinterpret_cast<std::uintptr_t>(cref);
 
-            return ir_def<N>({src.vid()},
+            // Two IR ops: load permute table, then vpermps.
+            // Split so the allocator sees both inputs and assigns
+            // distinct registers (the table and source can't share).
+            auto table_vid = _ir->def({},
                 [this, addr](const jit_kernel_ir::EmitContext& ctx) {
                     reg_type def(ctx.def->idx);
-                    reg_type src(ctx.reads[0].idx);
-                    // Use param1 (rdi on Linux) as scratch GPR for the
-                    // constant address. It's excluded from the GPR pool
-                    // (isRegAllocable returns false) so no kernel variable
-                    // occupies it. Save/restore for the post-IR tail's
-                    // argPtr() which reads params through it.
                     push(param1);
                     mov(param1, addr);
                     uni_vmovdqu(def, address_frame(sizeof(reg_type))[param1]);
                     pop(param1);
-                    vpermps(def, def, src);
+                },
+                "perm_table");
+            return ir_def<N>({table_vid, src.vid()},
+                [this](const jit_kernel_ir::EmitContext& ctx) {
+                    reg_type def(ctx.def->idx);
+                    reg_type table(ctx.reads[0].idx);
+                    reg_type s(ctx.reads[1].idx);
+                    vpermps(def, table, s);
                 },
                 "vpermps");
         }

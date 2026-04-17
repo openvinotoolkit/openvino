@@ -102,11 +102,11 @@ void compute_live_ranges_impl(const std::list<Op>& ops,
 
     for (const auto& op : ops) {
         if (op.body) {
-            auto region_begin = index;
+            auto region_begin = 2 * index;  // early slot of first op in region
             trace_ir(std::string("ranges enter ") + (op.is_loop ? "loop" : "region") +
                      " begin=" + std::to_string(region_begin));
             compute_live_ranges_impl(op.body->ops(), ranges, index);
-            auto region_end = index;  // half-open: one past last op in region
+            auto region_end = 2 * index;  // half-open: past last late slot
             trace_ir(std::string("ranges exit ") + (op.is_loop ? "loop" : "region") +
                      " begin=" + std::to_string(region_begin) +
                      " end=" + std::to_string(region_end));
@@ -122,10 +122,8 @@ void compute_live_ranges_impl(const std::list<Op>& ops,
             // For loops specifically, also extend committed child
             // segments to cover the full loop body (the loop re-reads
             // the value each iteration).
-            // Half-open: region is [region_begin, region_end).
-            // A committed segment starts in the region if start >= region_begin
-            // and start < region_end. For extension, use region_end directly
-            // since local seg.last will be flushed as seg.last + 1.
+            // All indices are in slot space (2*op_index for reads, 2*op_index+1 for defs).
+            // Region is [region_begin, region_end) in slot space.
             for (auto& [vid, seg] : local) {
                 if (seg.first < region_begin) {
                     for (const auto& committed : ranges[vid].segments) {
@@ -133,8 +131,8 @@ void compute_live_ranges_impl(const std::list<Op>& ops,
                             committed.start < region_end) {
                             // For loops, extend to cover the full body.
                             // For branches, extend to cover through the child's end.
-                            // committed.end is already half-open, so subtract 1
-                            // for local tracking (flushed as +1 later).
+                            // committed.end is half-open; subtract 1 for local
+                            // tracking (flushed as +1 later).
                             auto extend_to = op.is_loop ? region_end - 1
                                                         : committed.end - 1;
                             seg.last = std::max(seg.last, extend_to);
@@ -163,6 +161,15 @@ void compute_live_ranges_impl(const std::list<Op>& ops,
                 }
             }
         } else {
+            // LLVM-style early/late slot model:
+            //   early = 2*index     (reads happen here)
+            //   late  = 2*index + 1 (defs happen here)
+            // A read extends the range to cover the early slot.
+            // A def starts at the late slot. With half-open intervals,
+            // [.., early+1) and [late, ..) don't overlap when early+1 == late,
+            // enabling coalescing for tied operands and copies.
+            auto early = 2 * index;
+            auto late  = 2 * index + 1;
             trace_ir("visit op@" + std::to_string(index) +
                      " def=" + (op.def == invalid_value ? std::string("-") : "%" + std::to_string(op.def)) +
                      " reads=" + format_reads(op.reads) +
@@ -170,20 +177,20 @@ void compute_live_ranges_impl(const std::list<Op>& ops,
             for (value_id read : op.reads) {
                 auto it = local.find(read);
                 if (it != local.end()) {
-                    if (index > it->second.last) {
+                    if (early > it->second.last) {
                         trace_ir("  last_use %" + std::to_string(read) +
                                  " " + std::to_string(it->second.last) +
-                                 " -> " + std::to_string(index));
-                        it->second.last = index;
+                                 " -> " + std::to_string(early));
+                        it->second.last = early;
                     }
                 } else {
                     trace_ir("  first_use %" + std::to_string(read) +
-                             " at " + std::to_string(index));
-                    local[read] = {index, index};
+                             " at " + std::to_string(early));
+                    local[read] = {early, early};
                 }
             }
             if (op.def != invalid_value) {
-                local[op.def] = {index, index};
+                local[op.def] = {late, late};
                 if (op.is_copy && op.reads.size() == 1) {
                     ranges[op.def].copy_of = op.reads[0];
                 } else if (op.tied_to >= 0 && op.tied_to < static_cast<int>(op.reads.size())) {
@@ -597,43 +604,16 @@ std::optional<Assignment> linear_scan(IR& ir,
                  " [" + std::to_string(lr.beginIndex()) +
                  "," + std::to_string(lr.endIndex()) + "]");
 
-        // Coalescing: prefer the source's register if compatible.
-        // The source's live range may touch the def's start (the read
-        // happens at the same index as the def). This single-point
-        // overlap is safe — the value is consumed then redefined.
-        // Temporarily shrink the source's segments on the register
-        // to exclude the overlap, check interference, then restore.
+        // Trivial coalescing: prefer the source's register if compatible.
         if (lr.copy_of != invalid_value) {
             auto src_it = result.reg.find(lr.copy_of);
-            if (src_it != result.reg.end()) {
-                auto r = src_it->second.idx;
-                auto def_start = lr.beginIndex();
-                // Trim source segments that end at def_start + 1
-                // (half-open: source [x, def_start+1) touches def [def_start, ...))
-                auto& rsegs = reg_segments[r];
-                std::vector<Segment> saved;
-                for (auto& rs : rsegs) {
-                    if (rs.end == def_start + 1) {
-                        saved.push_back(rs);
-                        rs.end = def_start;  // shrink past the touch point
-                    }
-                }
-                bool ok = !interferes(lr, r);
-                // Restore
-                for (size_t si = 0, ri = 0; ri < rsegs.size() && si < saved.size(); ++ri) {
-                    if (rsegs[ri].start == saved[si].start) {
-                        rsegs[ri].end = saved[si].end;
-                        ++si;
-                    }
-                }
-                if (ok) {
-                    trace_ir("  coalesce %" + std::to_string(vid) +
-                             " with %" + std::to_string(lr.copy_of) +
-                             " on p" + std::to_string(r));
-                    result.reg.emplace(vid, PhysReg{r});
-                    add_to_reg(lr, r);
-                    continue;
-                }
+            if (src_it != result.reg.end() && !interferes(lr, src_it->second.idx)) {
+                trace_ir("  coalesce %" + std::to_string(vid) +
+                         " with %" + std::to_string(lr.copy_of) +
+                         " on p" + std::to_string(src_it->second.idx));
+                result.reg.emplace(vid, src_it->second);
+                add_to_reg(lr, src_it->second.idx);
+                continue;
             }
         }
 

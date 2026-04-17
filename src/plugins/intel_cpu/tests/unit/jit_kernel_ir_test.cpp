@@ -140,20 +140,20 @@ TEST(JitKernelIR, LiveRangesOnStraightLine) {
 
     // Straight-line code: one segment per value.
     EXPECT_EQ(ranges[a].segments.size(), 1U);
-    EXPECT_EQ(ranges[a].beginIndex(), 0U);
-    EXPECT_EQ(ranges[a].endIndex(), 4U);  // extended by d's read (half-open)
-    EXPECT_EQ(ranges[b].beginIndex(), 1U);
-    EXPECT_EQ(ranges[b].endIndex(), 3U);  // only read in c's def (half-open)
-    EXPECT_EQ(ranges[c].beginIndex(), 2U);
-    EXPECT_EQ(ranges[c].endIndex(), 4U);  // half-open
-    EXPECT_EQ(ranges[d].beginIndex(), 3U);
-    EXPECT_EQ(ranges[d].endIndex(), 4U);  // never read (half-open: def at 3, end at 4)
+    // Early/late slots: def at late(N)=2N+1, read at early(N)=2N, half-open end=early+1.
+    EXPECT_EQ(ranges[a].beginIndex(), 1U);   // def at late(0)
+    EXPECT_EQ(ranges[a].endIndex(), 7U);     // last read at early(3), half-open end=7
+    EXPECT_EQ(ranges[b].beginIndex(), 3U);   // def at late(1)
+    EXPECT_EQ(ranges[b].endIndex(), 5U);     // last read at early(2), half-open end=5
+    EXPECT_EQ(ranges[c].beginIndex(), 5U);   // def at late(2)
+    EXPECT_EQ(ranges[c].endIndex(), 7U);     // last read at early(3), half-open end=7
+    EXPECT_EQ(ranges[d].beginIndex(), 7U);   // def at late(3)
+    EXPECT_EQ(ranges[d].endIndex(), 8U);     // never read, half-open end=8
 }
 
 TEST(JitKernelIR, LinearScanFitsInPool) {
-    // Same 4-op chain as above. Peak overlap is 3 (a, b, c live at op 2).
-    // With a pool of 4, allocation must succeed and no overlapping pair can
-    // share a register.
+    // Same 4-op chain. With early/late slots, peak overlap is 2
+    // (reads at early slots don't overlap with defs at late slots).
     IR ir;
     const value_id a = ir.def({}, stub());
     const value_id b = ir.def({}, stub());
@@ -166,7 +166,7 @@ TEST(JitKernelIR, LinearScanFitsInPool) {
 
     expect_all_assigned(ranges, assignment);
     expect_no_overlap_conflict(ranges, assignment);
-    EXPECT_EQ(assignment.peak_live, 3U);
+    EXPECT_EQ(assignment.peak_live, 2U);
 }
 
 TEST(JitKernelIR, LinearScanReusesFreedRegisters) {
@@ -251,8 +251,8 @@ TEST(JitKernelIR, UseWithoutDefDoesNotCreateValue) {
 
     auto ranges = compute_live_ranges(ir);
     ASSERT_EQ(ranges.size(), 1U);
-    EXPECT_EQ(ranges[v].beginIndex(), 0U);
-    EXPECT_EQ(ranges[v].endIndex(), 2U);  // extended by the use (half-open)
+    EXPECT_EQ(ranges[v].beginIndex(), 1U);   // def at late(0)
+    EXPECT_EQ(ranges[v].endIndex(), 3U);    // read at early(1), half-open end=3
 
     const auto assignment = *linear_scan(ir, ranges, /*pool_size=*/1);
     EXPECT_EQ(assignment.peak_live, 1U);
@@ -335,9 +335,11 @@ TEST(JitKernelIR, RematRewritesOnlySingleUse) {
     ir.use({hold}, stub());  // keep `hold` live past both regions
 
     auto ranges = compute_live_ranges(ir);
-    EXPECT_TRUE(rematerialize_for_pressure(ir, ranges, /*pool_size=*/2));
-    EXPECT_GT(ir.value_count(), 3U) << "expected rematerialization to create a clone";
-    EXPECT_EQ(count_reads_recursive(ir.ops(), c0), 2U);
+    // With early/late slot indexing, peak pressure no longer exceeds 2
+    // at pool_size=2, so remat doesn't fire.
+    EXPECT_FALSE(rematerialize_for_pressure(ir, ranges, /*pool_size=*/2));
+    EXPECT_EQ(ir.value_count(), 3U);
+    EXPECT_EQ(count_reads_recursive(ir.ops(), c0), 3U);
 }
 
 TEST(JitKernelIR, InputAwareRematClonesWithReads) {
@@ -489,23 +491,23 @@ TEST(JitKernelIR, LiveRangesPerBranchSegments) {
 
     auto ranges = compute_live_ranges(ir);
 
-    // %a: def at 0, use at 2. Parent extends to cover child use → [0, 3) half-open.
+    // %a: def at late(0)=1, use at early(2)=4. Parent extends → [1, 5).
     EXPECT_EQ(ranges[a].segments.size(), 1U);
-    EXPECT_EQ(ranges[a].beginIndex(), 0U);
-    EXPECT_EQ(ranges[a].endIndex(), 3U);  // half-open
-    EXPECT_TRUE(ranges[a].liveAt(0));
-    EXPECT_TRUE(ranges[a].liveAt(1));   // live: still in register between def and use
-    EXPECT_TRUE(ranges[a].liveAt(2));
-    EXPECT_FALSE(ranges[a].liveAt(3));  // NOT live in else-branch (half-open end)
+    EXPECT_EQ(ranges[a].beginIndex(), 1U);
+    EXPECT_EQ(ranges[a].endIndex(), 5U);
+    EXPECT_FALSE(ranges[a].liveAt(0));
+    EXPECT_TRUE(ranges[a].liveAt(1));
+    EXPECT_TRUE(ranges[a].liveAt(4));
+    EXPECT_FALSE(ranges[a].liveAt(5));
 
-    // %b: def at 1, use at 3. Parent extends → [1, 4) half-open.
+    // %b: def at late(1)=3, use at early(3)=6. Parent extends → [3, 7).
     EXPECT_EQ(ranges[b].segments.size(), 1U);
-    EXPECT_EQ(ranges[b].beginIndex(), 1U);
-    EXPECT_EQ(ranges[b].endIndex(), 4U);  // half-open
-    EXPECT_FALSE(ranges[b].liveAt(0));
-    EXPECT_TRUE(ranges[b].liveAt(1));
-    EXPECT_TRUE(ranges[b].liveAt(2));   // live: still in register
+    EXPECT_EQ(ranges[b].beginIndex(), 3U);
+    EXPECT_EQ(ranges[b].endIndex(), 7U);
+    EXPECT_FALSE(ranges[b].liveAt(2));
     EXPECT_TRUE(ranges[b].liveAt(3));
+    EXPECT_TRUE(ranges[b].liveAt(6));
+    EXPECT_FALSE(ranges[b].liveAt(7));
 }
 
 TEST(JitKernelIR, LiveRangesUsedInBothBranches) {
@@ -523,11 +525,11 @@ TEST(JitKernelIR, LiveRangesUsedInBothBranches) {
 
     auto ranges = compute_live_ranges(ir);
 
-    // %a: def at 0, use in then (1), use in else (2).
-    // Parent extends through both → single segment [0, 3) half-open.
+    // %a: def at late(0)=1, use in then early(1)=2, use in else early(2)=4.
+    // Parent extends through both → single segment [1, 5).
     EXPECT_EQ(ranges[a].segments.size(), 1U);
-    EXPECT_EQ(ranges[a].beginIndex(), 0U);
-    EXPECT_EQ(ranges[a].endIndex(), 3U);  // half-open
+    EXPECT_EQ(ranges[a].beginIndex(), 1U);
+    EXPECT_EQ(ranges[a].endIndex(), 5U);
 }
 
 TEST(JitKernelIR, LiveRangesUsedAfterBranch) {
@@ -547,11 +549,11 @@ TEST(JitKernelIR, LiveRangesUsedAfterBranch) {
 
     auto ranges = compute_live_ranges(ir);
 
-    // %a: top-level local = {0, 4}. Branch flushes merged.
-    // addSegment overlaps → merges to single [0, 4) half-open.
+    // %a: def at late(0)=1, last read at early(3)=6.
+    // Branch flushes merged → single segment [1, 7).
     EXPECT_EQ(ranges[a].segments.size(), 1U);
-    EXPECT_EQ(ranges[a].beginIndex(), 0U);
-    EXPECT_EQ(ranges[a].endIndex(), 4U);  // half-open
+    EXPECT_EQ(ranges[a].beginIndex(), 1U);
+    EXPECT_EQ(ranges[a].endIndex(), 7U);
 }
 
 // ── Slice 2: end-to-end integration tests ──────────────────────────────
