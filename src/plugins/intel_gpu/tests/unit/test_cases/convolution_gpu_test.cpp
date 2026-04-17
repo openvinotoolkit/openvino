@@ -12341,9 +12341,21 @@ TEST_P(conv_dyn_3d_test, convolution_gpu_b_fs_zyx_fsv16_imad_quantized) {
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
 
-    ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
-    for (size_t i = 0; i < output_ptr.size(); i++) {
-        ASSERT_EQ(output_ptr[i], output_ptr_ref[i]);
+    // Compare only valid output elements using coordinate-based indexing to skip
+    // FSV16 padding positions which may differ between dynamic and static networks
+    {
+        auto out_lay = outputs.at("conv").get_layout();
+        ASSERT_EQ(out_lay, output_memory_ref->get_layout());
+        for (int bi = 0; bi < out_lay.batch(); ++bi)
+            for (int fi = 0; fi < out_lay.feature(); ++fi)
+                for (int zi = 0; zi < out_lay.spatial(2); ++zi)
+                    for (int yi = 0; yi < out_lay.spatial(1); ++yi)
+                        for (int xi = 0; xi < out_lay.spatial(0); ++xi) {
+                            tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, 0));
+                            auto offset = out_lay.get_linear_offset(coords);
+                            ASSERT_EQ(output_ptr[offset], output_ptr_ref[offset])
+                                << "Mismatch at b=" << bi << " f=" << fi << " z=" << zi << " y=" << yi << " x=" << xi;
+                        }
     }
 
     {
@@ -12365,9 +12377,19 @@ TEST_P(conv_dyn_3d_test, convolution_gpu_b_fs_zyx_fsv16_imad_quantized) {
         cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
         cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
 
-        ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
-        for (size_t i = 0; i < output_ptr.size(); i++) {
-            ASSERT_EQ(output_ptr[i], output_ptr_ref[i]);
+        {
+            auto out_lay = outputs.at("conv").get_layout();
+            ASSERT_EQ(out_lay, output_memory_ref->get_layout());
+            for (int bi = 0; bi < out_lay.batch(); ++bi)
+                for (int fi = 0; fi < out_lay.feature(); ++fi)
+                    for (int zi = 0; zi < out_lay.spatial(2); ++zi)
+                        for (int yi = 0; yi < out_lay.spatial(1); ++yi)
+                            for (int xi = 0; xi < out_lay.spatial(0); ++xi) {
+                                tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, 0));
+                                auto offset = out_lay.get_linear_offset(coords);
+                                ASSERT_EQ(output_ptr[offset], output_ptr_ref[offset])
+                                    << "Mismatch at b=" << bi << " f=" << fi << " z=" << zi << " y=" << yi << " x=" << xi;
+                            }
         }
     }
 }

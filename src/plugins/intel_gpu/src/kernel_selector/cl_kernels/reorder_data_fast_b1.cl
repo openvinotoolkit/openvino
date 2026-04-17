@@ -194,8 +194,16 @@ KERNEL (reorder_data_fast_b1)(
     // For blocked output formats with unaligned features, zero-fill padding positions.
     // This prevents NaN propagation when pooled/reused memory contains NaN values,
     // since NaN * 0 = NaN in IEEE 754.
+    // Cannot use get_output_index(b,f,...) because OUTPUT_GET_INDEX may be JIT-optimized
+    // to a constant when the tensor is scalar (LogicalSize()==1), or use clamping that
+    // wraps out-of-range feature values. Use OUTPUT_GET_INDEX_RAW which always calls the
+    // actual layout-specific index function.
     if (f >= OUTPUT_FEATURE_NUM) {
-        const uint output_idx = FUNC_CALL(get_output_index)(b, f, 0, 0, w, z, y, x);
+#if defined OUTPUT_LAYOUT_B_FS_ZYX_FSV16
+        const uint output_idx = OUTPUT_GET_INDEX_RAW(b, f, z, y, x);
+#else
+        const uint output_idx = OUTPUT_GET_INDEX_RAW(b, f, y, x);
+#endif
         output[output_idx] = TO_OUTPUT_REORDER_TYPE(0);
         return;
     }
