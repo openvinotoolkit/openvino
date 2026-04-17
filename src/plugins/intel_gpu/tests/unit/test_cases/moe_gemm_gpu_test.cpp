@@ -415,6 +415,7 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         config.set_property(ov::intel_gpu::optimize_data(true));
         cldnn::network::ptr network = get_network(engine, topo, config, get_test_stream_ptr(), p.is_caching_test);
+        OPENVINO_ASSERT(network != nullptr, "Failed to create network");
 
         auto get_input_data = [] (size_t M, size_t K, random_generator& rg) {
             std::vector<ov::float16> input_data(M * K);
