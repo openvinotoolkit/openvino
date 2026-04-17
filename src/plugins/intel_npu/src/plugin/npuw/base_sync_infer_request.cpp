@@ -860,6 +860,12 @@ void ov::npuw::IBaseInferRequest::bind_pyramid_attention_inputs(std::size_t idx,
 
     using namespace ov::npuw::runtime;
 
+    // Strided I/O is available for non-last pyramid models compiled with enable_strides_for.
+    // The last model reuses the main compiled subgraph (compiled without enable_strides_for),
+    // so it always falls back to the copy path.
+    const bool use_tensor_view =
+        pyramid_attention._can_use_tensor_view && (pyramid_id < pyramid_attention.num_models() - 1);
+
     // Process each KV parameter based on inference case
     if (infer_case == pyramid_attention::Selector::Case::PREFILL) {
         // PREFILL: Set or copy past KV to destination tensors
@@ -877,18 +883,27 @@ void ov::npuw::IBaseInferRequest::bind_pyramid_attention_inputs(std::size_t idx,
                 continue;
             }
 
-            // Create view of past KV data
-            const auto& view = ov::npuw::util::view(input, param.dim, 0, past_len);
-            const auto& shape = view->get_shape();
-
-            // Handle empty shape case (first chunk)
-            if (ov::shape_size(shape) == 0) {
-                request->get_tensor(iport)->set_shape(shape);
+            // Handle empty KV case (first prefill chunk, no past tokens yet)
+            if (past_len == 0) {
+                const auto& empty_view = ov::npuw::util::view(input, param.dim, 0, 0);
+                request->get_tensor(iport)->set_shape(empty_view->get_shape());
                 continue;
             }
 
-            // Copy past KV to full destination tensor
-            LOG_DEBUG("Do copy: " << shape << "...");
+            // Strided I/O: pass a view sized to the model's expected KV length.
+            // Tokens [0, past_len) are valid; [past_len, model_past_len) are masked out
+            // by the attention mask, so their values do not affect the result.
+            if (use_tensor_view) {
+                const auto model_past_len = static_cast<int64_t>(attention_info.context_length) -
+                                            static_cast<int64_t>(attention_info.query_size);
+                LOG_DEBUG("Use tensor view: past_len=" << past_len << " model_past_len=" << model_past_len);
+                request->set_tensor(iport, ov::npuw::util::view(input, param.dim, 0, model_past_len));
+                continue;
+            }
+
+            // Fallback: copy past KV into model's pre-allocated destination buffer
+            const auto& view = ov::npuw::util::view(input, param.dim, 0, past_len);
+            LOG_DEBUG("Do copy: " << view->get_shape() << "...");
             const auto& dst = request->get_tensor(iport);
             ov::npuw::util::copy_tensor_by_dim(view,
                                                dst,
@@ -919,12 +934,20 @@ void ov::npuw::IBaseInferRequest::bind_pyramid_attention_inputs(std::size_t idx,
                 continue;
             }
 
+            // Strided I/O: pass a view sized to the model's expected KV length.
+            // Tokens [0, past_len) are valid; [past_len, model_past_len) are masked out.
+            if (use_tensor_view) {
+                const auto model_past_len = static_cast<int64_t>(attention_info.context_length) -
+                                            static_cast<int64_t>(attention_info.query_size);
+                LOG_DEBUG("Use tensor view: past_len=" << past_len << " model_past_len=" << model_past_len);
+                request->set_tensor(iport, ov::npuw::util::view(input, param.dim, 0, model_past_len));
+                continue;
+            }
+
             // FIXME: No need to copy whole past KV, just the new part
 
-            // Create view of past KV data
+            // Fallback: copy past KV into sliced destination (preserve space for new token)
             const auto& view = ov::npuw::util::view(input, param.dim, 0, past_len);
-
-            // Copy past KV to sliced destination (preserve space for new tokens)
             LOG_DEBUG("Do copy: " << view->get_shape() << "...");
             const auto& dst_slice = ov::npuw::util::view(dst, param.dim, 0, past_len);
             ov::npuw::util::copy_tensor_by_dim(view,

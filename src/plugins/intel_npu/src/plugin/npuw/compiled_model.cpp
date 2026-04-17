@@ -1916,6 +1916,34 @@ void ov::npuw::CompiledModel::compile_pyramid_attention_models(std::size_t id, c
     // The last model will reuse the already compiled original model
     const size_t models_to_compile = total_models > 0 ? total_models - 1 : 0;
 
+    // Check if device supports strided I/O for non-last pyramid models.
+    // The last model reuses the already-compiled main subgraph model (compiled without
+    // enable_strides_for), so strided I/O only applies to the explicitly compiled models.
+    if (ov::npuw::util::starts_with(device, "NPU") && models_to_compile > 0 &&
+        !pyramid_attn._attention_infos.empty()) {
+        const auto supported_properties =
+            get_npuw_plugin()->get_core()->get_property(device, ov::supported_properties);
+        const auto support_strides_for =
+            std::find(supported_properties.begin(),
+                      supported_properties.end(),
+                      ov::intel_npu::enable_strides_for.name()) != supported_properties.end();
+        if (support_strides_for) {
+            pyramid_attn._can_use_tensor_view = true;
+            const auto& first_model = pyramid_attn_models[0];
+            const auto& first_info = pyramid_attn._attention_infos[0];
+            std::string strided_inputs_name;
+            for (const auto& param : first_info.params) {
+                if (!strided_inputs_name.empty()) {
+                    strided_inputs_name += ",";
+                }
+                strided_inputs_name += first_model->inputs()[param.idx].get_any_name();
+            }
+            m_meta_devices[device][ov::intel_npu::enable_strides_for.name()] = strided_inputs_name;
+            LOG_INFO("Enabled using tensor view for device: " << device << " for pyramid inputs: "
+                                                              << strided_inputs_name);
+        }
+    }
+
     if (models_to_compile > 0) {
         LOG_INFO("Compiling " << models_to_compile << " pyramid models in parallel...");
 
@@ -1946,6 +1974,9 @@ void ov::npuw::CompiledModel::compile_pyramid_attention_models(std::size_t id, c
             }
         }
     }
+
+    // Clear enable_strides_for so it doesn't affect unrelated compilations on this device.
+    m_meta_devices[device].erase(ov::intel_npu::enable_strides_for.name());
 
     // Handle the last model: reuse the already compiled original model
     if (total_models > 0) {
@@ -2019,6 +2050,9 @@ void ov::npuw::CompiledModel::compile_host_flash_attention_model(std::size_t id,
     // Store the already-compiled final tile model reference
     // The final tile model was compiled at line ~1676 and stored in compiled_model
     hfa.set_compiled_final_tile_model(m_compiled_submodels[id].compiled_model);
+
+    // Clear enable_strides_for so it doesn't affect unrelated compilations on this device.
+    m_meta_devices[device].erase(ov::intel_npu::enable_strides_for.name());
 
     LOG_INFO("Host flash attention compilation complete for Subgraph[" << id << "]");
 

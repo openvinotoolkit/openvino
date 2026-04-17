@@ -109,6 +109,12 @@ struct PyramidAttention {
     std::size_t query_size = 0u;
     std::size_t full_context_size = 0u;
 
+    /// Whether non-last pyramid models were compiled with strided-input support.
+    /// When true, KV inputs can be passed as strided tensor views (avoiding copies).
+    /// The last pyramid model reuses the already-compiled main subgraph model and
+    /// therefore never participates in strided I/O.
+    bool _can_use_tensor_view = false;
+
     // Store models temporarily for compilation - cleared after compilation completes in set_compiled_models()
     std::vector<std::shared_ptr<ov::Model>> _models_to_compile;
 
