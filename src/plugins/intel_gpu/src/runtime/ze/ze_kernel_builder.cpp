@@ -65,6 +65,8 @@ std::shared_ptr<ze_module_holder> ze_kernel_builder::build_module_l0(const void 
         };
     switch (src_format) {
         case KernelFormat::SOURCE: {
+            // Account for NULL terminator in source format
+            module_desc.inputSize += 1;
             module_desc.format = ze_module_format_oclc;
             break;
         }
