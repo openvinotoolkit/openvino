@@ -38,10 +38,10 @@ The KV cache is organized into non-contiguous pages (blocks). Each physical bloc
 For each update operation ``(src_token_idx, dst_token_idx)``:
 
 1. Convert logical token indices to ``(block_idx, token_in_block)`` pairs.
-2. **copy operations** (``src_block == dst_block``):
+2. copy operations:
 
    - **By-channel quantized**: Dequantize entire block → move tokens in float space → requantize with new statistics.
-   - **By-token quantized**: Direct data copy within the block. Parameters been copied based on how they are stored (interleaved or separate).
+   - **By-token quantized or non-quantized**: Direct data copy within the block. Parameters, if any, should be copied based on how they are stored (interleaved or separate).
 
 .. code-block:: py
     :force:
@@ -141,37 +141,3 @@ For each update operation ``(src_token_idx, dst_token_idx)``:
 
 * **T_IND**: ``int32``.
   Index type for all index tensors.
-
-
-**Example: Speculative decoding token acceptance**
-
-.. code-block:: py
-    :force:
-
-    # Scenario: 3 draft tokens proposed, 2 accepted (tokens 47, 48), 1 rejected (token 49)
-    # Need to remove token 49 and keep tokens 47, 48
-
-    num_sequences = 1
-    block_size = 32
-
-    # Token 47, 48, 49 are in logical block 1 (positions 15, 16, 17 within block)
-    # After rejection, token 49's position should be filled by shifting or left empty
-
-    # Option 1: Compact by moving token 48 to position of token 49 (not used here)
-    # Option 2: Simply mark positions as valid/invalid (GenAI tracks valid length)
-
-    # For this example, we reorder to move accepted tokens together:
-    block_indices = [5, 8]  # Sequence 0 uses physical blocks 5, 8
-    block_indices_begins = [0, 2]
-
-    # No reordering needed if we just adjust the sequence length
-    # But if we want to compact: move token 48 (logical 48) to fill gaps
-    block_update_indices = []  # Empty if no compaction
-    block_update_indices_begins = [0, 0]
-
-    # Run PaKVReorder
-    output = PaKVReorder(
-        key_cache, value_cache,
-        block_indices, block_indices_begins,
-        block_update_indices, block_update_indices_begins
-    )
