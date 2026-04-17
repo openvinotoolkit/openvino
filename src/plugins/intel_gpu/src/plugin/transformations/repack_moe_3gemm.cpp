@@ -77,7 +77,7 @@ RepackMoE3Gemm::RepackMoE3Gemm() {
         // example: gate[512, 512, 2048] up[512, 512, 2048] down[512, 2048, 512] -> fused[512, 3, 512, 2048]
         auto w0_shape = w0.get_shape();
         const auto rank = w0_shape.size();
-        auto w0_reshaped = w1.get_node_shared_ptr();
+        auto w0_reshaped = w0.get_node_shared_ptr();
         auto w1_reshaped = w1.get_node_shared_ptr();
         if (rank == 4) {
             // [E, I, HG, HGS] -> [E, I, H], where HG*HGS = H
