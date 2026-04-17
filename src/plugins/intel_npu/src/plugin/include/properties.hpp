@@ -73,7 +73,6 @@ public:
     std::string determinePlatform(const ov::AnyMap& properties) const;
     std::string determineDeviceId(const ov::AnyMap& properties) const;
     ov::intel_npu::CompilerType determineCompilerType(const ov::AnyMap& properties) const;
-    bool checkCompiledModelCompatibilityDescriptor(const std::string& compatibilityString) const;
 
 private:
     struct CopyState {

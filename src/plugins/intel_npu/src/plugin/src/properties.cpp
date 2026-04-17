@@ -1169,19 +1169,4 @@ std::string Properties::determineDeviceId(const ov::AnyMap& properties) const {
     return _config.get<DEVICE_ID>();
 }
 
-bool Properties::checkCompiledModelCompatibilityDescriptor(const std::string& compatibilityString) const {
-    std::unique_ptr<ICompilerAdapter> compiler = nullptr;
-
-    // Create a compiler to get the type and fetch version and supported options if needed
-    CompilerAdapterFactory factory;
-    try {
-        // TODO consider using backend directly
-        compiler = factory.getCompiler(_backend, ov::intel_npu::CompilerType::DRIVER);
-    } catch (const std::exception& ex) {
-        compiler = factory.getCompiler(_backend, ov::intel_npu::CompilerType::PLUGIN);
-    }
-    OPENVINO_ASSERT(compiler != nullptr);
-    return compiler->validate_compatibility_descriptor(compatibilityString);
-}
-
 }  // namespace intel_npu

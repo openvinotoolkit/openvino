@@ -646,33 +646,35 @@ bool ZeGraphExtWrappers::isCompatibilityDescriptorSupported() const {
 }
 
 std::string ZeGraphExtWrappers::getCompatibilityDescriptor(const ze_graph_handle_t handle) const {
-    char key[256];  // TODO do we really need this?
-    ze_runtime_requirements_desc_t desc = {ZE_STRUCTURE_TYPE_RUNTIME_REQUIREMENTS_DESC,
-                                           nullptr,
-                                           nullptr,
-                                           &key[0],
-                                           handle,
-                                           handle_type};  // TODO what's this?
+    // char key[256];  // TODO do we really need this?
+    // ze_runtime_requirements_desc_t desc = {ZE_STRUCTURE_TYPE_RUNTIME_REQUIREMENTS_DESC,
+    //                                        nullptr,
+    //                                        nullptr,
+    //                                        &key[0],
+    //                                        handle,
+    //                                        handle_type};  // TODO what's this?
 
-    auto result = _zeroInitStruct->getGraphDdiTable().pfnDeviceRequirementsQuery(_zeroInitStruct->getContext(),
-                                                                                 _zeroInitStruct->getDevice(),
-                                                                                 &desc);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnDeviceRequirementsQuery", result, _zeroInitStruct->getGraphDdiTable());
+    // auto result = _zeroInitStruct->getGraphDdiTable().pfnDeviceRequirementsQuery(_zeroInitStruct->getContext(),
+    //                                                                              _zeroInitStruct->getDevice(),
+    //                                                                              &desc);
+    // THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnDeviceRequirementsQuery", result, _zeroInitStruct->getGraphDdiTable());
+    OPENVINO_THROW("WIP");
 }
 
 bool validateCompatibilityDescriptor(const std::string& descriptor) const {
-    char key[256];  // TODO do we really need this?
-    ze_runtime_requirements_desc_t desc = {ZE_STRUCTURE_TYPE_RUNTIME_REQUIREMENTS_DESC,
-                                           nullptr,
-                                           descriptor.data(),  // TODO there should be a size field too
-                                           &key[0],
-                                           handle,        // TODO we shouldn't need a handle, right?
-                                           handle_type};  // TODO what's this?
+    // char key[256];  // TODO do we really need this?
+    // ze_runtime_requirements_desc_t desc = {ZE_STRUCTURE_TYPE_RUNTIME_REQUIREMENTS_DESC,
+    //                                        nullptr,
+    //                                        descriptor.data(),  // TODO there should be a size field too
+    //                                        &key[0],
+    //                                        handle,        // TODO we shouldn't need a handle, right?
+    //                                        handle_type};  // TODO what's this?
 
-    auto result = _zeroInitStruct->getGraphDdiTable().pfnDeviceRequirementsQuery(_zeroInitStruct->getContext(),
-                                                                                 _zeroInitStruct->getDevice(),
-                                                                                 &desc);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnDeviceRequirementsQuery", result, _zeroInitStruct->getGraphDdiTable());
+    // auto result = _zeroInitStruct->getGraphDdiTable().pfnDeviceRequirementsQuery(_zeroInitStruct->getContext(),
+    //                                                                              _zeroInitStruct->getDevice(),
+    //                                                                              &desc);
+    // THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnDeviceRequirementsQuery", result, _zeroInitStruct->getGraphDdiTable());
+    OPENVINO_THROW("WIP");
 }
 
 void ZeGraphExtWrappers::evict_memory(const GraphDescriptor& graphDescriptor) const {
