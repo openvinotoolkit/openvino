@@ -580,7 +580,7 @@ TEST(FrontEndGraphIteratorTest, loads_programmatic_empty_shape_initializer_graph
     ASSERT_EQ(iter->get_stream_cache()->size(), 0);  // no external files opened
     ASSERT_EQ(model->get_ordered_ops().size(), 4);   // Parameter, Constant(shape), Expand, Result
     for (const auto& op : model->get_ordered_ops()) {
-        if(ov::is_type<ov::op::v0::Constant>(op)) {
+        if (ov::is_type<ov::op::v0::Constant>(op)) {
             auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op);
             EXPECT_EQ(const_node->get_element_type(), ov::element::i64);
             EXPECT_EQ(const_node->get_shape(), ov::Shape{1});
