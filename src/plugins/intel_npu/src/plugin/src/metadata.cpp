@@ -493,7 +493,7 @@ size_t Metadata<METADATA_VERSION_2_3>::get_metadata_size() const {
 }
 
 size_t Metadata<METADATA_VERSION_2_4>::get_metadata_size() const {
-    return Metadata<METADATA_VERSION_2_3>::get_metadata_size() + sizeof(_compilerVersion);
+    return Metadata<METADATA_VERSION_2_3>::get_metadata_size() + sizeof(_compilerVersion.value());
 }
 
 }  // namespace intel_npu
