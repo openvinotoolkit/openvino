@@ -1522,7 +1522,6 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
         }
 
         const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-        auto& func_desc = m_compiled_submodels[real_idx];
         auto& desc_closure = comp_model_desc.closure.get();
 
         for (std::size_t cidx = 0; cidx < desc_closure.closure.size(); ++cidx) {
@@ -1562,7 +1561,6 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             }
 
             const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-            auto& func_desc = m_compiled_submodels[real_idx];
 
             for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
                 if (comp_model_desc.closure.unsafe_get().closure[tidx]) {
@@ -1586,7 +1584,6 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             }
 
             const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-            auto& func_desc = m_compiled_submodels[real_idx];
             auto& desc_closure = comp_model_desc.closure.unsafe_get();
 
             for (std::size_t tidx = 0; tidx < desc_closure.closure.size(); ++tidx) {
@@ -1785,16 +1782,14 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
     }
 
     auto& desc = m_compiled_submodels[id];
-
-    const std::vector<std::string>& candidates = devices;
-    if (candidates.empty()) {
+    if (devices.empty()) {
         return false;
     }
 
     // Apply NPU workarounds: pre-filter devices that would trigger unrecoverable failures.
     // These checks apply only to the main model compilation (not MoE/pyramid/HFA sub-models).
     std::vector<std::string> main_candidates;
-    for (const auto& device : candidates) {
+    for (const auto& device : devices) {
         if (npuw::util::starts_with(device, "NPU")) {
             if (desc.model->inputs().empty()) {
                 LOG_INFO("Avoid compilation for " << device << " as the model should be constant-folded");
@@ -1824,12 +1819,12 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
 
     // Factory builder: returns a failsafe::CompiledModel::Factory for the given model+suffix.
     // Captures the model as weak_ptr so that detach_memory() can truly release it when
-    // no runtime fallback is expected.  If the model has been cleared and failover fires
+    // no runtime fallback is expected. If the model has been cleared and failover fires
     // anyway, the lock() fails and the factory throws, which failsafe propagates correctly.
-    auto make_factory = [this, id](const std::shared_ptr<ov::Model>& model,
-                                   const std::string& profile_suffix) -> ov::npuw::failsafe::CompiledModel::Factory {
+    auto make_factory = [this](const std::shared_ptr<ov::Model>& model,
+                               const std::string& profile_suffix) -> ov::npuw::failsafe::CompiledModel::Factory {
         std::weak_ptr<ov::Model> weak_model = model;
-        return [this, id, weak_model, profile_suffix](const std::string& device) -> ov::SoPtr<ov::ICompiledModel> {
+        return [this, weak_model, profile_suffix](const std::string& device) -> ov::SoPtr<ov::ICompiledModel> {
             auto locked_model = weak_model.lock();
             OPENVINO_ASSERT(locked_model, "Failsafe factory: ov::Model was released before recompilation");
             ov::SoPtr<ov::ICompiledModel> compiled;
@@ -1841,7 +1836,6 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
         };
     };
 
-    // make_wrapped: compiles a model with device fallback via failsafe.
     auto make_wrapped = [&](const std::shared_ptr<ov::Model>& model,
                             const std::string& profile_suffix,
                             const std::vector<std::string>& devs) -> ov::SoPtr<ov::ICompiledModel> {
@@ -1851,7 +1845,6 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                                                          make_factory(model, profile_suffix));
     };
 
-    // Compile main or MoE expert models
     if (auto& moe_experts_opt = desc.moe_experts; moe_experts_opt.has_value()) {
         LOG_INFO("Compiling MoE expert models for Subgraph[" << id << "]...");
         LOG_BLOCK();
@@ -1863,7 +1856,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
             LOG_INFO("Compiling MoE expert model for chunk_size=" << entry.first);
             moe_experts.set_compiled_model(
                 entry.first,
-                make_wrapped(entry.second, "/moe_chunk_" + std::to_string(entry.first), candidates));
+                make_wrapped(entry.second, "/moe_chunk_" + std::to_string(entry.first), devices));
             LOG_INFO("Successfully compiled MoE expert model for chunk_size=" << entry.first);
         }
 
@@ -1875,14 +1868,13 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
         desc.compiled_model = make_wrapped(desc.model, "", main_candidates);
     }
 
-    // MoE downstream: the downstream holder takes ownership of the compiled main/expert model
     if (auto& moe_downstream_opt = desc.moe_experts_downstream; moe_downstream_opt.has_value()) {
         LOG_INFO("Wrapping compiled model into MoE downstream for Subgraph[" << id << "]...");
+        OPENVINO_ASSERT(desc.compiled_model, "Expected compiled model before wrapping MoE downstream");
         moe_downstream_opt->set_compiled_model(std::move(desc.compiled_model));
         desc.compiled_model = moe_downstream_opt->_compiled_model;
     }
 
-    // Pyramid attention: compile N-1 sub-models (optionally in parallel); last one reuses desc.compiled_model
     if (desc.pyramid_attention.has_value()) {
         LOG_INFO("Compiling pyramid attention submodels for Subgraph[" << id << "]...");
         LOG_BLOCK();
@@ -1896,7 +1888,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
 
         auto compile_one = [&](size_t model_id) {
             compiled_models[model_id] =
-                make_wrapped(pyramid_attn_models[model_id], "/pyramid_" + std::to_string(model_id), candidates);
+                make_wrapped(pyramid_attn_models[model_id], "/pyramid_" + std::to_string(model_id), devices);
         };
 
         const bool par_opt = m_cfg.get<::intel_npu::NPUW_PARALLEL_COMPILE>();
@@ -1917,7 +1909,6 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
         LOG_INFO("Pyramid attention compilation complete for Subgraph[" << id << "]");
     }
 
-    // Host flash attention: compile tile model; final tile reuses desc.compiled_model
     if (desc.host_flash_attention.has_value()) {
         LOG_INFO("Compiling host flash attention tile models for Subgraph[" << id << "]...");
         LOG_BLOCK();
@@ -1926,7 +1917,29 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
         if (!hfa._tile_model_to_compile) {
             LOG_WARN("Host flash attention tile model is null, skipping compilation");
         } else {
-            hfa.set_compiled_tile_model(make_wrapped(hfa._tile_model_to_compile, "/hfa_tile", candidates));
+            for (const auto& device : devices) {
+                if (!ov::npuw::util::starts_with(device, "NPU")) {
+                    continue;
+                }
+
+                const auto supported_properties =
+                    get_npuw_plugin()->get_core()->get_property(device, ov::supported_properties);
+                const auto support_strides_for =
+                    std::find(supported_properties.begin(),
+                              supported_properties.end(),
+                              ov::intel_npu::enable_strides_for.name()) != supported_properties.end();
+                if (!support_strides_for) {
+                    continue;
+                }
+
+                hfa._can_use_tensor_view = true;
+                auto strided_inputs_name = std::string(hfa_tile_input_id_to_string(HFATileInputId::K_TILE)) + "," +
+                                           std::string(hfa_tile_input_id_to_string(HFATileInputId::V_TILE));
+                m_meta_devices[device][ov::intel_npu::enable_strides_for.name()] = strided_inputs_name;
+                LOG_INFO("Enabled using tensor view for device: " << device << " for inputs: " << strided_inputs_name);
+            }
+
+            hfa.set_compiled_tile_model(make_wrapped(hfa._tile_model_to_compile, "/hfa_tile", devices));
             hfa.set_compiled_final_tile_model(desc.compiled_model);
             LOG_INFO("Host flash attention compilation complete for Subgraph[" << id << "]");
         }
@@ -2074,7 +2087,7 @@ void ov::npuw::CompiledModel::dump_subgraph_composition(const std::vector<ov::np
     LOG_BLOCK();
 
     const std::string dump_dir = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS_DIR>();
-    const std::string sg_file = "npuw_" + m_name + ".sg";
+    const std::string sg_file = "npuw_" + m_name + ".xml.sg";
     const std::string sg_path = ov::util::path_join({dump_dir, sg_file}).string();
 
     // Collect unique subgraphs via replaced_by()

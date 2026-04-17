@@ -138,13 +138,10 @@ protected:
     void connect_subrequests();
 
     // Helper function to setup pyramid attention infer requests
-    void setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate);
+    void setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped);
 
     // Helper function to setup host flash attention tile infer requests
-    void setup_hfa_infer_requests(std::size_t real_idx,
-                                  bool is_piped,
-                                  bool is_recreate,
-                                  bool enable_hfa_optimizations = true);
+    void setup_hfa_infer_requests(std::size_t real_idx, bool is_piped, bool enable_hfa_optimizations = true);
 
     // Helper function to initialize/reinitialize MoE executor
     void initialize_moe_executor();

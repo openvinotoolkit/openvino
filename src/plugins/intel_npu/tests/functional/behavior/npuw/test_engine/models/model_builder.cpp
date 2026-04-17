@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <unordered_map>
 
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/read_value.hpp"
@@ -14,7 +15,6 @@
 #include "openvino/op/util/variable.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset11.hpp"
-#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 
 namespace ov {
 namespace test {
@@ -1199,6 +1199,126 @@ std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks_and_para
     m_nodes.push_back(result);
 
     return std::make_shared<ov::Model>(ov::OutputVector{result->output(0)});
+}
+
+// Builds a model with N identical repeated blocks (using get_block(), same structure as
+// get_model_with_repeated_blocks_and_results) where "head" blocks additionally expose
+// their output via a MatMul to a separate Parameter-weighted projection group, mimicking
+// Gemma4's KV-sharing pattern:
+//   - Non-head blocks: block_output → next_block (only internal consumer)
+//   - Head blocks:     block_output → next_block  (internal)
+// Builds a model with N identical repeated blocks where "head" blocks additionally
+// expose their interior Relu via a cross-group MatMul, reproducing the Gemma4
+// KV-sharing asymmetry pattern.
+//
+// Block structure: Add(bias) → Relu(interior/TAP) → Multiply(scale) → Relu(boundary)
+//
+// Both Relu nodes have identical metadescs (same op type, same f32{1,1,8} I/O shape).
+// When a "head" block's interior Relu gains an external MatMul consumer, it becomes
+// an additional output_layer — but its metadesc ("Relu…") is already present in
+// output_ometa via the boundary Relu.  Therefore ALL blocks retain the same
+// MetaInterconnectIO and remain in one repeated-block family, allowing
+// isRegularCrossGroupConsumerCase to observe the per-bank inconsistency:
+//   - non-head: interior Relu bank → has_external=false (only internal Multiply consumer)
+//   - head:     interior Relu bank → has_external=true  (Multiply + external MatMul)
+// The mask mismatch causes isRegularCrossGroupConsumerCase to return false →
+// irregular_io=true, disabling F16IC for this model.
+std::shared_ptr<ov::Model> ModelBuilder::get_model_with_kv_sharing_repeated_blocks(
+    std::size_t repetitions,
+    const std::vector<std::size_t>& head_block_indices) {
+    clear();
+    if (repetitions == 0)
+        repetitions = 1;
+
+    const std::unordered_set<std::size_t> head_set(head_block_indices.begin(), head_block_indices.end());
+
+    auto input = std::make_shared<ov::opset11::Parameter>(ov::element::f32, ov::Shape{1, 1, 8});
+    auto kv_weight = std::make_shared<ov::opset11::Parameter>(ov::element::f32, ov::Shape{8, 4});
+    m_nodes.push_back(input);
+    m_nodes.push_back(kv_weight);
+    set_name(input);
+    set_name(kv_weight);
+
+    // Shared constants — same pointer → same Constant node used by all blocks,
+    // ensuring identical metadescs for the Add and Multiply ops in every block.
+    auto bias_const = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, 1, 8}, std::vector<float>(8, 0.1f));
+    auto scale_const = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1}, std::vector<float>{0.5f});
+    m_nodes.push_back(bias_const);
+    m_nodes.push_back(scale_const);
+    set_name(bias_const);
+    set_name(scale_const);
+
+    // Non-repeated prefix — distinct structure prevents it from joining the repetitions.
+    auto head_const = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, 1, 8}, std::vector<float>(8, 1.f));
+    auto head_add = std::make_shared<ov::opset11::Add>(input, head_const);
+    auto head_relu = std::make_shared<ov::opset11::Relu>(head_add);
+    m_nodes.push_back(head_const);
+    m_nodes.push_back(head_add);
+    m_nodes.push_back(head_relu);
+    set_name(head_const);
+    set_name(head_add);
+    set_name(head_relu);
+
+    ov::Output<ov::Node> current = head_relu;
+    ov::OutputVector kv_outputs;
+
+    for (std::size_t i = 0; i < repetitions; ++i) {
+        auto add_i = std::make_shared<ov::opset11::Add>(current, bias_const);
+        auto relu_interior_i = std::make_shared<ov::opset11::Relu>(add_i);  // TAP POINT
+        auto mul_i = std::make_shared<ov::opset11::Multiply>(relu_interior_i, scale_const);
+        auto relu_boundary_i = std::make_shared<ov::opset11::Relu>(mul_i);  // boundary output
+        m_nodes.push_back(add_i);
+        m_nodes.push_back(relu_interior_i);
+        m_nodes.push_back(mul_i);
+        m_nodes.push_back(relu_boundary_i);
+        set_name(add_i);
+        set_name(relu_interior_i);
+        set_name(mul_i);
+        set_name(relu_boundary_i);
+
+        if (head_set.count(i)) {
+            // Cross-group edge from the interior Relu, mirroring Gemma4's
+            // Multiply_1 → k/v_proj pattern.  Because relu_interior_i and
+            // relu_boundary_i share the same metadesc, adding relu_interior_i
+            // as a second output_layer leaves output_ometa = {"Relu…"} unchanged.
+            auto kv_mm_i = std::make_shared<ov::opset11::MatMul>(relu_interior_i, kv_weight, false, false);
+            m_nodes.push_back(kv_mm_i);
+            set_name(kv_mm_i);
+            kv_outputs.push_back(kv_mm_i->output(0));
+        }
+
+        current = relu_boundary_i;
+    }
+
+    // Non-repeated tail suffix.
+    auto tail_const = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, 1, 8}, std::vector<float>(8, 2.f));
+    auto tail_mul = std::make_shared<ov::opset11::Multiply>(current, tail_const);
+    auto tail_add = std::make_shared<ov::opset11::Add>(tail_mul, tail_const);
+    m_nodes.push_back(tail_const);
+    m_nodes.push_back(tail_mul);
+    m_nodes.push_back(tail_add);
+    set_name(tail_const);
+    set_name(tail_mul);
+    set_name(tail_add);
+
+    auto main_result = std::make_shared<ov::opset11::Result>(tail_add);
+    m_nodes.push_back(main_result);
+    set_name(main_result);
+    ov::OutputVector outputs{main_result->output(0)};
+
+    // Each head block's KV MatMul connects to an independent Result to avoid
+    // creating asymmetric ov::Result consumer patterns across the repeated family.
+    // If we accumulated kv_outputs into a single Result, only the last block would
+    // indirectly connect to that Result via the accumulation chain, causing
+    // isRegularResultCase to fail.
+    for (auto&& kv_out : kv_outputs) {
+        auto kv_result = std::make_shared<ov::opset11::Result>(kv_out);
+        m_nodes.push_back(kv_result);
+        set_name(kv_result);
+        outputs.push_back(kv_result->output(0));
+    }
+
+    return std::make_shared<ov::Model>(outputs, ov::ParameterVector{input, kv_weight});
 }
 
 std::shared_ptr<ov::Model> ModelBuilder::get_model_with_multi_output_repeating_blocks(
