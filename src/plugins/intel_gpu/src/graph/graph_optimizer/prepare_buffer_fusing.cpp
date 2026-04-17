@@ -953,6 +953,12 @@ void prepare_buffer_fusing::run(program& p) {
                 node.adjust_output_padding();
 
             node.can_be_optimized(can_reshape_be_optimized(node));
+            // If reshape is optimized out (acts as a shortcut to its input's buffer),
+            // mark the input dependency as non-shareable to prevent the memory pool from
+            // recycling the input's buffer while the reshape's users still need it.
+            if (node.can_be_optimized()) {
+                node.get_dependency(0).can_share_buffer(false);  // pins only the data input
+            }
             GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << node.id() << " can be optimized" << std::endl;
         });
         program_helpers::do_for_types<kv_cache>(*node, [](kv_cache_node& node) {
