@@ -23,6 +23,8 @@ public:
         static constexpr const char* logits = "logits";
         static constexpr const char* token_type_ids = "token_type_ids";
         static constexpr const char* longrope_input = "npuw_longrope_input";
+        static constexpr const char* past_lin_conv_cache = "cache_params.past.conv";
+        static constexpr const char* past_lin_ssm_cache = "cache_params.past.ssm";
     };
 
     struct layer_ids {
@@ -45,11 +47,11 @@ public:
     }
 
 protected:
-    void update_kvcache_for(std::shared_ptr<ov::IAsyncInferRequest> request,
-                            const PortsMap& in_ports,
-                            const PortsMap& out_ports,
-                            uint32_t num_tokens,
-                            bool v_transposed);
+    virtual void update_kvcache_for(std::shared_ptr<ov::IAsyncInferRequest> request,
+                                    const PortsMap& in_ports,
+                                    const PortsMap& out_ports,
+                                    uint32_t num_tokens,
+                                    bool v_transposed);
     void init_tensor(const ov::Output<const ov::Node>& port);
     void init_ports();
 

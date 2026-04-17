@@ -33,7 +33,15 @@ protected:
     void apply_lora();
     void clear_chunk_prefill_kv_cache();
     void copy_kvcache();
-
+    void update_kvcache_for(std::shared_ptr<ov::IAsyncInferRequest> request,
+                            const PortsMap& in_ports,
+                            const PortsMap& out_ports,
+                            uint32_t num_tokens,
+                            bool v_transposed) override;
+    void copy_lincache(std::shared_ptr<ov::IAsyncInferRequest> from_request,
+                       std::shared_ptr<ov::IAsyncInferRequest> to_request,
+                       const std::unordered_map<std::string, ov::Output<const ov::Node>>& from_ports,
+                       const std::unordered_map<std::string, ov::Output<const ov::Node>>& to_ports);
     // Create and initialize generate variant requests with memory sharing
     void create_generate_request_variants(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
 
@@ -93,8 +101,12 @@ protected:
 
     ov::Output<const ov::Node> m_lm_head_logits_port;
 
+    std::vector<ov::Output<const ov::Node>> m_generate_kvcache_past_ports;
+    std::vector<ov::Output<const ov::Node>> m_generate_lincache_past_ports;
+
     // Cache past_key_values ports for efficient clearing in prepare_for_new_conversation
     std::vector<ov::Output<const ov::Node>> m_prefill_past_kv_ports;
+    std::vector<ov::Output<const ov::Node>> m_prefill_past_lin_cache_ports;
 
     // NB: It can be either input_ids(LLM) or inputs_embeds(VLM)
     std::string m_input_ids_name;
