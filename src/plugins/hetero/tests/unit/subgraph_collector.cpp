@@ -632,7 +632,7 @@ TEST_F(SubgraphCollectorTest, init_all_same_affinity) {
 }
 
 // Each computational node on a different device: init() should create separate subgraphs
-// param → add(MOCK.0) → sub(MOCK.1) → reshape(MOCK.3) → res(MOCK.3)
+// param → add(MOCK.1) → sub(MOCK.2) → reshape(MOCK.3) → res(MOCK.3)
 TEST_F(SubgraphCollectorTest, init_all_different_affinities) {
     const std::map<std::string, std::string> affinity_map = {
         {"input", "MOCK.0"},
@@ -645,7 +645,12 @@ TEST_F(SubgraphCollectorTest, init_all_different_affinities) {
     };
     SubgraphCollector::AffinitiesMap affinities;
     for (const auto& node : m_model->get_ordered_ops()) {
-        affinities[node] = affinity_map.at(node->get_friendly_name());
+        const auto& node_name = node->get_friendly_name();
+        OPENVINO_ASSERT(affinity_map.count(node_name),
+                        "Missing affinity for node with friendly name '",
+                        node_name,
+                        "'");
+        affinities[node] = affinity_map.at(node_name);
     }
 
     SubgraphCollector collector(m_model, affinities);
@@ -662,6 +667,10 @@ TEST_F(SubgraphCollectorTest, init_all_different_affinities) {
         if (node->get_friendly_name() == "res")
             res_node = node;
     }
+    ASSERT_NE(nullptr, add_node);
+    ASSERT_NE(nullptr, sub_node);
+    ASSERT_NE(nullptr, reshape_node);
+    ASSERT_NE(nullptr, res_node);
     ASSERT_NE(ids.at(add_node), ids.at(sub_node));
     ASSERT_NE(ids.at(sub_node), ids.at(reshape_node));
     ASSERT_EQ(ids.at(reshape_node), ids.at(res_node));
@@ -669,7 +678,8 @@ TEST_F(SubgraphCollectorTest, init_all_different_affinities) {
 
 // Result node should inherit affinity from its input (init overrides res to match reshape)
 // param → add(MOCK.0) → sub(MOCK.0) → reshape(MOCK.0) → res(MOCK.1)
-// Even though res has different affinity, reshape and res should be in the same subgraph because res inherits affinity from reshape
+// Even though res has different affinity, reshape and res should be in the same subgraph because res inherits affinity
+// from reshape
 TEST_F(SubgraphCollectorTest, init_result_inherits_input_affinity) {
     const std::map<std::string, std::string> affinity_map = {
         {"input", "MOCK.0"},
@@ -682,7 +692,12 @@ TEST_F(SubgraphCollectorTest, init_result_inherits_input_affinity) {
     };
     SubgraphCollector::AffinitiesMap affinities;
     for (const auto& node : m_model->get_ordered_ops()) {
-        affinities[node] = affinity_map.at(node->get_friendly_name());
+        const auto& node_name = node->get_friendly_name();
+        OPENVINO_ASSERT(affinity_map.count(node_name),
+                        "Missing affinity for node with friendly name '",
+                        node_name,
+                        "'");
+        affinities[node] = affinity_map.at(node_name);
     }
 
     SubgraphCollector collector(m_model, affinities);
@@ -695,6 +710,8 @@ TEST_F(SubgraphCollectorTest, init_result_inherits_input_affinity) {
         if (node->get_friendly_name() == "res")
             res_node = node;
     }
+    ASSERT_NE(nullptr, reshape_node);
+    ASSERT_NE(nullptr, res_node);
     ASSERT_EQ(ids.at(reshape_node), ids.at(res_node));
 }
 
@@ -731,7 +748,12 @@ TEST_F(SubgraphCollectorTest, alternating_devices_no_cycles) {
     };
     SubgraphCollector::AffinitiesMap affinities;
     for (const auto& node : model->get_ordered_ops()) {
-        affinities[node] = affinity_map.at(node->get_friendly_name());
+        const auto& node_name = node->get_friendly_name();
+        OPENVINO_ASSERT(affinity_map.count(node_name),
+                        "Missing affinity for node with friendly name '",
+                        node_name,
+                        "'");
+        affinities[node] = affinity_map.at(node_name);
     }
 
     SubgraphCollector collector(model, affinities);
@@ -768,8 +790,7 @@ TEST_F(SubgraphCollectorTest, two_independent_paths_no_split) {
     auto result2 = std::make_shared<ov::op::v0::Result>(add2);
     result2->set_friendly_name("res2");
 
-    auto model =
-        std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{param1, param2});
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{param1, param2});
 
     SubgraphCollector::AffinitiesMap affinities;
     for (const auto& node : model->get_ordered_ops()) {
@@ -777,7 +798,8 @@ TEST_F(SubgraphCollectorTest, two_independent_paths_no_split) {
     }
 
     SubgraphCollector collector(model, affinities);
-    const auto& [subgraphs, mapping] = collector.run();
+    const auto& run_result = collector.run();
+    const auto& subgraphs = run_result.first;
 
     ASSERT_EQ(1, subgraphs.size());
     ASSERT_EQ("MOCK.0", subgraphs[0]._affinity);
