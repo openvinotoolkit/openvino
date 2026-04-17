@@ -379,6 +379,8 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
     }
     kd.internalBufferDataType = Datatype::F32;
 
+    GetUpdateDispatchDataFunc(kd);
+
     return {kd};
 }
 
