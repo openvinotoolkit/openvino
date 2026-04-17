@@ -58,8 +58,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         return false;
 
     if (const auto path = ov::frontend::get_path_from_any(variants[0])) {
-        const auto model_path = path.value().native();
-        if (GraphIteratorFlatBuffer::is_supported(model_path)) {
+        if (GraphIteratorFlatBuffer::is_supported(path.value())) {
             return true;
         }
     } else if (variants[0].is<GraphIterator::Ptr>()) {
@@ -73,10 +72,9 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
     size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
     if (variants.size() == 1 + extra_variants_num) {
         if (const auto path = ov::frontend::get_path_from_any(variants[0])) {
-            const auto model_path = path.value().native();
-            if (GraphIteratorFlatBuffer::is_supported(model_path)) {
+            if (GraphIteratorFlatBuffer::is_supported(path.value())) {
                 return std::make_shared<tensorflow_lite::InputModel>(
-                    std::make_shared<GraphIteratorFlatBuffer>(model_path),
+                    std::make_shared<GraphIteratorFlatBuffer>(path.value()),
                     m_telemetry);
             }
         } else if (variants[0].is<GraphIterator::Ptr>()) {
