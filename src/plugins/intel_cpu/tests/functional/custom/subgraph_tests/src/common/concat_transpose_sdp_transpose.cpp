@@ -386,6 +386,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeByChannelTest,
                                             ::testing::Values(true),
                                             ::testing::Values(8)),
                          ConcatSDPTransposeTest::getTestCaseName);
+
 }  //  namespace
 
 class ConcatSDPTransposeTestSetState : public ConcatSDPTransposeTestBase {

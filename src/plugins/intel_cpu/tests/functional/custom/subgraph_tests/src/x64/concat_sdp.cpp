@@ -39,13 +39,43 @@ const std::vector<std::vector<InputShape>> inputShapes = {
     },
 };
 
+// @todo claude: enable asymmetric K/V cache precision combinations in a separate PR;
+// for now restrict to symmetric pairs so the SDPA assertion at scaled_attn.cpp:1823 holds.
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTest,
         ConcatSDPTest,
         ::testing::Combine(::testing::Values(ElementType::bf16, ElementType::f16),
                            ::testing::ValuesIn(inputShapes),
-                           ::testing::Values(true, false),
+                           ::testing::Values("none"),
+                           ::testing::Values("none"),
                            ::testing::Values(true, false),
                            ::testing::Values(true, false)),
+        ConcatSDPTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTest_U8,
+        ConcatSDPTest,
+        ::testing::Combine(::testing::Values(ElementType::bf16, ElementType::f16),
+                           ::testing::ValuesIn(inputShapes),
+                           ::testing::Values("u8"),
+                           ::testing::Values("u8"),
+                           ::testing::Values(true, false),
+                           ::testing::Values(true, false)),
+        ConcatSDPTest::getTestCaseName);
+
+// u4 test shapes: first iteration must be single-token (L1=1) because the
+// multi-token kernel doesn't support sub-byte cache dequant.
+const std::vector<std::vector<InputShape>> u4Shapes = {{
+    {{1, 8, -1, 64}, {{1, 8, 1, 64}, {1, 8, 1, 64}, {1, 8, 1, 64}, {1, 8, 1, 64}, {1, 8, 1, 64}}},
+    {{1, 8, -1, 64}, {{1, 8, 0, 64}, {1, 8, 1, 64}, {1, 8, 2, 64}, {1, 8, 3, 64}, {1, 8, 4, 64}}},
+}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPU4Test,
+        ConcatSDPTest,
+        ::testing::Combine(::testing::Values(ElementType::f32),
+                           ::testing::ValuesIn(u4Shapes),
+                           ::testing::Values("u4"),
+                           ::testing::Values("u4"),
+                           ::testing::Values(false),
+                           ::testing::Values(false)),
         ConcatSDPTest::getTestCaseName);
 
 }  // namespace
