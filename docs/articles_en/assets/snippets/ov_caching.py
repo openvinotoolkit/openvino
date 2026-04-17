@@ -87,3 +87,30 @@ if any("GPU" in device for device in core.available_devices):
     config_cache["CACHE_MODE"] = "OPTIMIZE_SIZE"
     compiled_model = core.compile_model(model=model_path, device_name='GPU', config=config_cache)
 # ! [ov:caching:part6]
+
+# ! [ov:caching:part7]
+import openvino.properties as props
+
+core = ov.Core()
+core.set_property({props.cache_dir: path_to_cache_dir})
+# Explicitly enable weightless caching using the ENABLE_WEIGHTLESS property.
+# This is supported on NPU, GPU, and CPU devices.
+config_weightless = {"ENABLE_WEIGHTLESS": True}
+compiled_model = core.compile_model(model=model_path, device_name="NPU", config=config_weightless)
+# ! [ov:caching:part7]
+
+# ! [ov:caching:part8]
+core = ov.Core()
+core.set_property({props.cache_dir: path_to_cache_dir})
+model = core.read_model(model=model_path)
+
+# When loading a weightless cached model, provide the weights
+# using WEIGHTS_PATH or MODEL_PTR.
+
+# Option 1: Provide weights via file path
+config_weights = {
+    "ENABLE_WEIGHTLESS": True,
+    "WEIGHTS_PATH": "/path/to/model.bin",
+}
+compiled_model = core.compile_model(model=model, device_name="NPU", config=config_weights)
+# ! [ov:caching:part8]
