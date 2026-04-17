@@ -342,9 +342,17 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                     KtNormal = KtNormal - temp_zp;
                     KtNormal = cm_mul<half>(KtNormal, temp_scale);
                     #else
+                    uint group_idx = (kv_pos / SUB_GROUP_SIZE);
                     vector<half, REG_K> temp_scale, temp_zp;
-                    temp_scale.select<REG_K, 1>(0) = scale_vec.select<REG_K, 1>(k * 4);
-                    temp_zp.select<REG_K, 1>(0) = zp_vec.select<REG_K, 1>(k * 4);
+                    svmptr_t scale_ptr = (svmptr_t)(key + k_scale_zp_offset
+                                        + group_idx * HEAD_SIZE * sizeof(half)
+                                        + k * 4 * sizeof(half));
+                    svmptr_t zp_ptr = (svmptr_t)(key + k_scale_zp_offset
+                                        + GROUPS_PER_BLOCK * HEAD_SIZE * sizeof(half)
+                                        + group_idx * HEAD_SIZE * sizeof(half)
+                                        + k * 4 * sizeof(half));
+                    cm_svm_block_read<half, REG_K>(scale_ptr, temp_scale);
+                    cm_svm_block_read<half, REG_K>(zp_ptr, temp_zp);
                     matrix<half, REG_N, REG_K> KtNormal;
                     #pragma unroll
                     for(int kk = 0; kk < REG_N; kk++) {
