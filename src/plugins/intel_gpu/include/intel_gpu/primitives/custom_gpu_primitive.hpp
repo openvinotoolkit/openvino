@@ -68,10 +68,10 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
             featureDim = dims.size() > 2 ? static_cast<int>(GetDim(inputDims[inputDims.size() - 3])) : 0;
             batchDim = dims.size() > 3 ? static_cast<int>(GetDim(inputDims[inputDims.size() - 4])) : 0;
         } else {
-            batchDim = (dims.size() > 0) ? static_cast<int>(GetDim(dims[0])) : 1;
-            featureDim = (dims.size() > 1) ? static_cast<int>(GetDim(dims[1])) : 1;
-            yDim = (dims.size() > 2) ? static_cast<int>(GetDim(dims[2])) : 1;
-            xDim = (dims.size() > 3) ? static_cast<int>(GetDim(dims[3])) : 1;
+            batchDim = (dims.size() > 0) ? GetDim(dims[0]) : 1;
+            featureDim = (dims.size() > 1) ? GetDim(dims[1]) : 1;
+            yDim = (dims.size() > 2) ? GetDim(dims[2]) : 1;
+            xDim = (dims.size() > 3) ? GetDim(dims[3]) : 1;
         }
         const std::map<char, int> vars = {
             {'b', batchDim},    {'B', batchDim},

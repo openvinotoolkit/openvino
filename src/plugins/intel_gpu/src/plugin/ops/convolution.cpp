@@ -34,7 +34,7 @@ static void CreateConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::int
     auto outDims = op->get_output_partial_shape(0);
 
     cldnn::primitive_id weights = inputs[op::Convolution::Args::WEIGHTS].pid;
-    const uint32_t groups = static_cast<uint32_t>(std::max<int64_t>(op->get_groups(), 1));
+    const uint32_t groups = std::max<int64_t>(op->get_groups(), 1);
     const bool weights_have_group_dim = op->get_groups() > 0;
 
     auto strides = op->get_strides();
@@ -288,8 +288,8 @@ static void DeformableConvolutionImpl(ProgramBuilder& p,
                                        weights,
                                        "",
                                        true,
-                                       static_cast<uint32_t>(groups),
-                                       static_cast<uint32_t>(deformable_groups_num),
+                                       groups,
+                                       deformable_groups_num,
                                        strides,
                                        dilations,
                                        padding,
