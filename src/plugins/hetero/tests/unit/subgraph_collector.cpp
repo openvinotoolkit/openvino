@@ -766,6 +766,8 @@ TEST_F(SubgraphCollectorTest, alternating_devices_no_cycles) {
     }
     OV_ASSERT_NO_THROW(ov::hetero::merge_submodels(submodels, mapping._submodels_input_to_prev_output));
     ASSERT_EQ(1, submodels.size());
+    auto res = compare_functions(model, submodels[0]);
+    ASSERT_TRUE(res.first) << res.second;
 }
 
 // Two independent paths, all same device — should merge into one subgraph
@@ -779,11 +781,12 @@ TEST_F(SubgraphCollectorTest, two_independent_paths_no_split) {
     param2->set_friendly_name("input2");
     auto c1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
     c1->set_friendly_name("c1");
+    auto c2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
+    c2->set_friendly_name("c2");
 
     auto add1 = std::make_shared<ov::op::v1::Add>(param1, c1);
     add1->set_friendly_name("add1");
-    auto add2 = std::make_shared<ov::op::v1::Add>(param2, c1);
-    add2->set_friendly_name("add2");
+    auto add2 = std::make_shared<ov::op::v1::Add>(param2, c2);
 
     auto result1 = std::make_shared<ov::op::v0::Result>(add1);
     result1->set_friendly_name("res1");
