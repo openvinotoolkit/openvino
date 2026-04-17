@@ -279,16 +279,17 @@ std::optional<std::vector<std::string>> PluginCompilerAdapter::get_supported_opt
 }
 
 bool PluginCompilerAdapter::is_option_supported(std::string optname, std::optional<std::string> optValue) const {
-    const char* optvalue_ch = optValue.has_value() ? optValue.value().c_str() : nullptr;
+    const bool hasValue = optValue.has_value();
+    const std::string value = hasValue ? optValue.value() : "";
     if (_compiler->is_option_supported(optname, std::move(optValue))) {
         _logger.debug("Option %s is supported `%s` by VCLCompilerImpl",
                       optname.c_str(),
-                      optvalue_ch ? optvalue_ch : "null");
+                      hasValue ? value.c_str() : "null");
         return true;
     } else {
         _logger.debug("Option %s is not supported `%s` by VCLCompilerImpl",
                       optname.c_str(),
-                      optvalue_ch ? optvalue_ch : "null");
+                      hasValue ? value.c_str() : "null");
         return false;
     }
 }
