@@ -19,10 +19,10 @@ TEST_F(StringCompatibilityEncodingTests, sameStringAfterEncodeDecode) {
                              static_cast<std::streamsize>(input_sequence.size()));
 
     const std::string input_string = input_stringstream.str();
-    const std::string encoded_string = utils::encode_compatibility_string(input_string);
+    const std::string encoded_string = encode_compatibility_string(input_string);
     const std::string reference = "616200010263";
     ASSERT_EQ(encoded_string, reference);
 
-    const std::string decoded_string = utils::decode_compatibility_string(encoded_string);
+    const std::string decoded_string = decode_compatibility_string(encoded_string);
     ASSERT_EQ(decoded_string, input_string);
 }

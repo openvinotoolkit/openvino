@@ -70,8 +70,9 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(const ov::
     }
 }
 
-std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(const ov::SoPtr<IEngineBackend>& engineBackend,
-                                                                      ov::intel_npu::CompilerType& compilerType) const {
+std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
+    const ov::SoPtr<IEngineBackend>& engineBackend,
+    const ov::intel_npu::CompilerType& compilerType) const {
     switch (compilerType) {
     case ov::intel_npu::CompilerType::PREFER_PLUGIN:
     case ov::intel_npu::CompilerType::PLUGIN:
