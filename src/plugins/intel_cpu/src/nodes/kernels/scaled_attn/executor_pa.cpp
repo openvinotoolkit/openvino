@@ -1084,10 +1084,12 @@ struct MHAHelper {
                                   float* score_output,
                                   size_t q_start_idx_score,
                                   const ScoreAggregationInfo* score_info_ptr,
-                                  size_t q_token_start = 0) {
+                                  size_t q_token_start = 0,
+                                  size_t batch_in_seq = 0) {
         auto q_start = q_blk * _block_size;
         auto q_end = std::min(q_start + _block_size, q_len);
         auto q_cnt = q_end - q_start;
+        const size_t past_len = cur_kv_len - (q_blk * _block_size + q_cnt);
         constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
         auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
         auto _score_stride = _weight.stride_bytes(2) / 2;
@@ -1126,6 +1128,15 @@ struct MHAHelper {
                 auto ncausal = get_ncausal(q_token_start + m, cur_kv_len - q_cnt + (m - q_start) + 1, cur_kv_len);
                 auto soft_in = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
                 auto score = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
+
+                // Apply qq_bias mask
+                if (_has_qq_bias) {
+                    for (size_t key_idx = past_len; key_idx < cur_kv_len; key_idx++) {
+                        if (!qq_bias_is_allowed(batch_in_seq, m, key_idx, past_len)) {
+                            score[key_idx] = -FLT_MAX;
+                        }
+                    }
+                }
                 PlainTensor f32_cvt;
                 if (q_is_xf16) {
                     f32_cvt.resize<float>({size_t{rnd_up(cur_kv_len, _block_size)}});
@@ -1228,7 +1239,8 @@ struct MHAHelper {
                             const PlainTensor& alibi_slopes,
                             float* score_output,
                             const PlainTensor& sinks,
-                            size_t q_token_start = 0) {
+                            size_t q_token_start = 0,
+                            size_t batch_in_seq = 0) {
 #    if defined(OPENVINO_ARCH_X86_64)
         if (any_of(_fastpath_valid_prec, ov::element::bf16, ov::element::f16)) {
             _gemv->tile_config();
@@ -1282,6 +1294,16 @@ struct MHAHelper {
                 auto ncausal = get_ncausal(q_token_start + pq, cur_kv_len, cur_kv_len);
                 float* score = _weight.ptr<float>(ithr, h - hq_beg, pq);
                 OPENVINO_DEBUG_ASSERT(score != nullptr, "PagedAttention: _weight buffer must be allocated");
+
+                // Apply qq_bias mask
+                if (_has_qq_bias) {
+                    const auto past_len = cur_kv_len - q_len;
+                    for (size_t key_idx = past_len; key_idx < cur_kv_len; key_idx++) {
+                        if (!qq_bias_is_allowed(batch_in_seq, pq, key_idx, past_len)) {
+                            score[key_idx] = std::numeric_limits<float>::lowest();
+                        }
+                    }
+                }
                 float* alibi_lookup = nullptr;
                 float alibi_slope = 0.F;
                 if (alibi_slopes) {
@@ -1821,7 +1843,8 @@ struct MHA {
                     alibi_slopes,
                     score_output,
                     sinks,
-                    static_cast<size_t>(batch_in_token));
+                    static_cast<size_t>(batch_in_token),
+                    batch_in_seq);
             } else {
                 const auto batch_in_reorder = item.batch_in_reorder;
                 const auto q_blk = item.q_block_id;
@@ -1874,7 +1897,8 @@ struct MHA {
                         score_output,
                         q_start_idx_score,
                         score_info_ptr,
-                        static_cast<size_t>(batch_in_token));
+                        static_cast<size_t>(batch_in_token),
+                        batch_in_seq);
                 } else {
                     _helper.exec_kernel_multiple(
                         sub_query,
