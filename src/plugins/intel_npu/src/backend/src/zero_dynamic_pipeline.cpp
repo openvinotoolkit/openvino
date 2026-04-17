@@ -216,9 +216,6 @@ void DynamicPipeline::push() {
             }
         }
 
-        // L0 wrapper handle closed command list
-        command_lists->resetCommandList();
-
         dynamicGraph->execute(_init_structs,
                               graphArguments,
                               command_lists->getHandles(),
@@ -259,7 +256,6 @@ void DynamicPipeline::reset() const {
             _events.at(i)->reset();
         }
     }
-
     _logger.debug("reset - completed");
 }
 
@@ -267,7 +263,7 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
                                              const std::shared_ptr<ZeroTensor>& zeroTensor,
                                              const std::shared_ptr<ov::ITensor>& userTensor) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "DynamicPipeline", "updateCommandList");
-    _logger.debug("update_graph_arguments - update command list");
+    _logger.debug("update_graph_arguments - started");
     // This is the tensor with right shape and strides
     // The required check is alredy done in inferRequest
     const std::shared_ptr<ov::ITensor>& tensor = userTensor ? userTensor : zeroTensor;
@@ -289,6 +285,7 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
                 tensor->get_shape());
         }
     }
+    _logger.debug("update_graph_arguments - completed");
 }
 
 void DynamicPipeline::update_graph_arguments(uint32_t index,
