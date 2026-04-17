@@ -372,10 +372,16 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         const ov::Tensor viewTensor =
             ov::Tensor(ov::element::Type_t::u8, ov::Shape(decodedString.length()), decodedString.data());
 
-        // The plugin cares only about the string size and the metadata version check for now. Additional checks based
-        // on other metadata fields can be done following this line.
-        const std::unique_ptr<MetadataBase> metadata = read_metadata_from(viewTensor);
-        // return false if failed TODO
+        try {
+            // The plugin cares only about the string size and the metadata version check for now. Additional checks
+            // based
+            // on other metadata fields can be done following this line.
+            const std::unique_ptr<MetadataBase> metadata = read_metadata_from(viewTensor);
+        } catch (const std::exception& ex) {
+            // Unsupported version, could not read the metadata or an unknown error has occured. Report that the
+            // requirements are not met.
+            return false;
+        }
 
         const size_t compilerStringSize = metadata->get_blob_size();
         // Discard everything else but the compiler section
