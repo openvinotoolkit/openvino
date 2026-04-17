@@ -3,9 +3,11 @@ suite: cpp
 tests:
   - name: ov_api_conformance_tests
     binary: ov_api_conformance_tests
-    mode: gtest_single
-    profiles: [cpu]
-    args: "*mandatory*"
+    mode: raw
+    profiles: [cpu, gpu]
+    args:
+      cpu: "--device=CPU --gtest_filter=*mandatory*"
+      gpu: "--device=GPU --gtest_filter=*mandatory*"
 
   - name: ov_auto_batch_func_tests
     binary: ov_auto_batch_func_tests
@@ -34,7 +36,10 @@ tests:
   - name: ov_capi_test
     binary: ov_capi_test
     mode: gtest_single
-    profiles: [cpu]
+    profiles: [cpu, gpu]
+    args:
+      cpu: "-*ov_core_gpu*:*intel_gpu*"
+      gpu: "*ov_core_gpu*:*intel_gpu*"
 
   - name: ov_conditional_compilation_tests
     binary: ov_conditional_compilation_tests
@@ -118,8 +123,10 @@ tests:
   - name: ov_op_conformance_tests
     binary: ov_op_conformance_tests
     mode: raw
-    profiles: [cpu]
-    args: "--device=TEMPLATE --gtest_filter=*OpImpl*"
+    profiles: [cpu, gpu]
+    args:
+      cpu: "--device=TEMPLATE --gtest_filter=*OpImpl*"
+      gpu: "--device=GPU --gtest_filter=*OpImpl*"
 
   - name: ov_proxy_plugin_tests
     binary: ov_proxy_plugin_tests
