@@ -2399,7 +2399,6 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
                                                                       _network.get_engine().get_preferred_memory_allocation_type(), 
                                                                       /*reset*/false);
                 eltw_inst->set_output_memory(eltw_mem, /*check*/false);
-                std::cout << "Reusing buffer from " << eltw_inst->id() << " for " << id() << " primitive." << std::endl;
             }
             auto& eltw_mem = eltw_inst->output_memory();
             auto new_mem = eltw_mem.get_engine()->reinterpret_buffer(eltw_mem, node.get_output_layout());
