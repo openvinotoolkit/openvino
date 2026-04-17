@@ -26,12 +26,14 @@ public:
 
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
+    void reset_state() override;
 
 protected:
     virtual void prepare_for_new_conversation();
     void prepare_for_new_conversation(int64_t prompt_length);
     void apply_lora();
     void clear_chunk_prefill_kv_cache();
+    void clear_prefill_lincache();
     void copy_kvcache();
     void update_kvcache_for(std::shared_ptr<ov::IAsyncInferRequest> request,
                             const PortsMap& in_ports,
