@@ -166,8 +166,12 @@ struct FCCompressedGenerateOpt : public ImplementationManager {
         if (num_groups == 0 || K % num_groups != 0)
             return false;
         const size_t group_size = K / num_groups;
-        constexpr size_t VEC_SIZE_CHECK = 8;  // matches global VEC_SIZE constant
+        // N-parallel approach iterates K in VEC_SIZE=8 steps within each group.
+        // GROUP_SIZE must be a multiple of VEC_SIZE, and K must be divisible by GROUP_SIZE.
+        constexpr size_t VEC_SIZE_CHECK = 8;
         if (group_size % VEC_SIZE_CHECK != 0)
+            return false;
+        if (K % group_size != 0)
             return false;
 
         return true;

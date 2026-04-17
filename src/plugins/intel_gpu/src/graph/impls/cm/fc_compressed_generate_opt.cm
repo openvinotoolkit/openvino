@@ -1,0 +1,266 @@
+/*******************************************************************************
+ * Copyright (c) 2018-2026 Intel Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *******************************************************************************/
+
+// CM GEMV kernel for W4A16 / W4A8 weight-only-quantised fully-connected.
+//
+// Optimised with cm_svm_block_read for vectorised memory access.
+// N-parallel dispatch: each work-item owns 1 output channel, iterates full K.
+//   global = [N_padded, B, 1],  local = [WG_SIZE, 1, 1]
+//
+// Inner loop processes VEC_SIZE=8 K-elements per iteration (low register pressure):
+//   - cm_svm_block_read<uint, 4> loads 16 bytes = 8 f16 activation values
+//   - cm_svm_block_read<uint, 1> loads 4 bytes = 8 u4 weight nibbles
+//   - CM vector ops for unpack + dot product
+//
+// JIT constants expected (set by host generator):
+//   K_SIZE, N_SIZE, B_SIZE, GROUP_SIZE, NUM_GROUPS,
+//   WG_SIZE, VEC_SIZE (=8),
+//   WEIGHT_IS_SIGNED (0 or 1),
+//   HAS_ZP (0 or 1), ZP_IS_U8 (0 or 1),
+//   IS_ACT_INT8 (0 or 1),
+//   KERNEL_NAME (entry point name)
+
+#define K_HALF (K_SIZE / 2)
+#define ITERS_PER_GROUP (GROUP_SIZE / VEC_SIZE)
+
+// ============================================================
+// W4A16: f16 activation + u4/i4 weight
+// ============================================================
+#if !defined(IS_ACT_INT8) || (IS_ACT_INT8 == 0)
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(
+    half*           A       [[type("svmptr_t")]],   // f16 activation [B, K]
+    unsigned char*  W       [[type("svmptr_t")]],   // u4/i4 packed weight [N, K/2]
+    half*           Scale   [[type("svmptr_t")]],   // f16 scale fbyx [NUM_GROUPS, N]
+#if HAS_ZP
+    unsigned char*  ZP      [[type("svmptr_t")]],   // ZP fbyx
+#endif
+    half*           C       [[type("svmptr_t")]]    // f16 output [B, N]
+)
+{
+    const uint n = cm_local_id(0) + cm_group_id(0) * WG_SIZE;
+    const uint b = cm_group_id(1);
+
+    if (n >= N_SIZE)
+        return;
+
+    // Base SVM pointers for this work-item.
+    svmptr_t A_base = (svmptr_t)(A + b * K_SIZE);
+    svmptr_t W_base = (svmptr_t)(W + n * K_HALF);
+
+    float acc = 0.0f;
+
+    // Iterate K in GROUP_SIZE chunks, hoisting scale/ZP per group.
+    #pragma unroll 1
+    for (int g = 0; g < NUM_GROUPS; g++) {
+        // Load scale for this group and output channel.
+        float s = (float)Scale[g * N_SIZE + n];
+
+        float z = 0.0f;
+#if HAS_ZP
+#if ZP_IS_U8
+        z = (float)ZP[g * N_SIZE + n];
+#else
+        {
+            unsigned char zp_byte = ZP[(g / 2) * N_SIZE + n];
+            z = (g % 2 == 0) ? (float)(zp_byte & 0xF) : (float)(zp_byte >> 4);
+        }
+#endif
+#endif
+
+        float group_sum = 0.0f;
+#if HAS_ZP
+        float a_group_sum = 0.0f;
+#endif
+
+        int k_start = g * GROUP_SIZE;
+
+        // Process VEC_SIZE=8 K-elements per iteration.
+        #pragma unroll 4
+        for (int i = 0; i < ITERS_PER_GROUP; i++) {
+            int k = k_start + i * VEC_SIZE;
+
+            // ---- Vectorised activation load: 8 f16 values = 16 bytes = 4 uints ----
+            vector<uint, 4> a_raw;
+            cm_svm_block_read<uint, 4>(A_base + k * sizeof(half), a_raw);
+            vector<float, 8> af = a_raw.format<half, 1, 8>();
+
+            // ---- Vectorised weight load: 4 bytes = 8 nibbles = 1 uint ----
+            vector<uint, 1> w_raw;
+            cm_svm_block_read<uint, 1>(W_base + (k / 2), w_raw);
+            uint packed = w_raw[0];
+
+            // Unpack 8 nibbles into float vector.
+            vector<float, 8> wf;
+#if WEIGHT_IS_SIGNED
+            wf[0] = (float)((int)((packed)       & 0xFu) - (((packed)       & 0x8u) ? 16 : 0));
+            wf[1] = (float)((int)((packed >> 4)  & 0xFu) - (((packed >> 4)  & 0x8u) ? 16 : 0));
+            wf[2] = (float)((int)((packed >> 8)  & 0xFu) - (((packed >> 8)  & 0x8u) ? 16 : 0));
+            wf[3] = (float)((int)((packed >> 12) & 0xFu) - (((packed >> 12) & 0x8u) ? 16 : 0));
+            wf[4] = (float)((int)((packed >> 16) & 0xFu) - (((packed >> 16) & 0x8u) ? 16 : 0));
+            wf[5] = (float)((int)((packed >> 20) & 0xFu) - (((packed >> 20) & 0x8u) ? 16 : 0));
+            wf[6] = (float)((int)((packed >> 24) & 0xFu) - (((packed >> 24) & 0x8u) ? 16 : 0));
+            wf[7] = (float)((int)((packed >> 28) & 0xFu) - (((packed >> 28) & 0x8u) ? 16 : 0));
+#else
+            wf[0] = (float)((packed)       & 0xFu);
+            wf[1] = (float)((packed >> 4)  & 0xFu);
+            wf[2] = (float)((packed >> 8)  & 0xFu);
+            wf[3] = (float)((packed >> 12) & 0xFu);
+            wf[4] = (float)((packed >> 16) & 0xFu);
+            wf[5] = (float)((packed >> 20) & 0xFu);
+            wf[6] = (float)((packed >> 24) & 0xFu);
+            wf[7] = (float)((packed >> 28) & 0xFu);
+#endif
+
+            // Dot product: vector multiply + reduce.
+            vector<float, 8> prod = af * wf;
+            vector<float, 4> s4 = prod.select<4,1>(0) + prod.select<4,1>(4);
+            vector<float, 2> s2 = s4.select<2,1>(0) + s4.select<2,1>(2);
+            group_sum += s2[0] + s2[1];
+
+#if HAS_ZP
+            vector<float, 4> as4 = af.select<4,1>(0) + af.select<4,1>(4);
+            vector<float, 2> as2 = as4.select<2,1>(0) + as4.select<2,1>(2);
+            a_group_sum += as2[0] + as2[1];
+#endif
+        }
+
+        // Accumulate with dequant.
+#if HAS_ZP
+        acc += (group_sum - a_group_sum * z) * s;
+#else
+        acc += group_sum * s;
+#endif
+    }
+
+    // Output store.
+    C[b * N_SIZE + n] = (half)acc;
+}
+
+// ============================================================
+// W4A8: i8 activation + u4/i4 weight + per-token activation scale
+// ============================================================
+#else  // IS_ACT_INT8 == 1
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(
+    char*           A        [[type("svmptr_t")]],   // i8 activation [B, K]
+    unsigned char*  W        [[type("svmptr_t")]],   // u4/i4 packed weight [N, K/2]
+    half*           Scale    [[type("svmptr_t")]],   // f16 weight scale fbyx [NUM_GROUPS, N]
+#if HAS_ZP
+    unsigned char*  ZP       [[type("svmptr_t")]],   // ZP fbyx
+#endif
+    half*           ActScale [[type("svmptr_t")]],   // f16 per-token activation scale [B]
+    half*           C        [[type("svmptr_t")]]    // f16 output [B, N]
+)
+{
+    const uint n = cm_local_id(0) + cm_group_id(0) * WG_SIZE;
+    const uint b = cm_group_id(1);
+
+    if (n >= N_SIZE)
+        return;
+
+    svmptr_t A_base = (svmptr_t)(A + b * K_SIZE);
+    svmptr_t W_base = (svmptr_t)(W + n * K_HALF);
+
+    float acc = 0.0f;
+
+    #pragma unroll 1
+    for (int g = 0; g < NUM_GROUPS; g++) {
+        float s = (float)Scale[g * N_SIZE + n];
+
+        float z = 0.0f;
+#if HAS_ZP
+#if ZP_IS_U8
+        z = (float)ZP[g * N_SIZE + n];
+#else
+        {
+            unsigned char zp_byte = ZP[(g / 2) * N_SIZE + n];
+            z = (g % 2 == 0) ? (float)(zp_byte & 0xF) : (float)(zp_byte >> 4);
+        }
+#endif
+#endif
+
+        float group_sum = 0.0f;
+#if HAS_ZP
+        float a_group_sum = 0.0f;
+#endif
+
+        int k_start = g * GROUP_SIZE;
+
+        #pragma unroll 4
+        for (int i = 0; i < ITERS_PER_GROUP; i++) {
+            int k = k_start + i * VEC_SIZE;
+
+            // ---- Vectorised i8 activation load: 8 bytes = 2 uints ----
+            vector<uint, 2> a_raw;
+            cm_svm_block_read<uint, 2>(A_base + k, a_raw);
+            vector<char, 8> a_i8 = a_raw.format<char>();
+            vector<float, 8> af;
+            #pragma unroll
+            for (int j = 0; j < 8; j++)
+                af[j] = (float)a_i8[j];
+
+            // ---- Vectorised weight load: 4 bytes = 1 uint ----
+            vector<uint, 1> w_raw;
+            cm_svm_block_read<uint, 1>(W_base + (k / 2), w_raw);
+            uint packed = w_raw[0];
+
+            vector<float, 8> wf;
+#if WEIGHT_IS_SIGNED
+            wf[0] = (float)((int)((packed)       & 0xFu) - (((packed)       & 0x8u) ? 16 : 0));
+            wf[1] = (float)((int)((packed >> 4)  & 0xFu) - (((packed >> 4)  & 0x8u) ? 16 : 0));
+            wf[2] = (float)((int)((packed >> 8)  & 0xFu) - (((packed >> 8)  & 0x8u) ? 16 : 0));
+            wf[3] = (float)((int)((packed >> 12) & 0xFu) - (((packed >> 12) & 0x8u) ? 16 : 0));
+            wf[4] = (float)((int)((packed >> 16) & 0xFu) - (((packed >> 16) & 0x8u) ? 16 : 0));
+            wf[5] = (float)((int)((packed >> 20) & 0xFu) - (((packed >> 20) & 0x8u) ? 16 : 0));
+            wf[6] = (float)((int)((packed >> 24) & 0xFu) - (((packed >> 24) & 0x8u) ? 16 : 0));
+            wf[7] = (float)((int)((packed >> 28) & 0xFu) - (((packed >> 28) & 0x8u) ? 16 : 0));
+#else
+            wf[0] = (float)((packed)       & 0xFu);
+            wf[1] = (float)((packed >> 4)  & 0xFu);
+            wf[2] = (float)((packed >> 8)  & 0xFu);
+            wf[3] = (float)((packed >> 12) & 0xFu);
+            wf[4] = (float)((packed >> 16) & 0xFu);
+            wf[5] = (float)((packed >> 20) & 0xFu);
+            wf[6] = (float)((packed >> 24) & 0xFu);
+            wf[7] = (float)((packed >> 28) & 0xFu);
+#endif
+
+            vector<float, 8> prod = af * wf;
+            vector<float, 4> s4 = prod.select<4,1>(0) + prod.select<4,1>(4);
+            vector<float, 2> s2 = s4.select<2,1>(0) + s4.select<2,1>(2);
+            group_sum += s2[0] + s2[1];
+
+#if HAS_ZP
+            vector<float, 4> as4 = af.select<4,1>(0) + af.select<4,1>(4);
+            vector<float, 2> as2 = as4.select<2,1>(0) + as4.select<2,1>(2);
+            a_group_sum += as2[0] + as2[1];
+#endif
+        }
+
+#if HAS_ZP
+        acc += (group_sum - a_group_sum * z) * s;
+#else
+        acc += group_sum * s;
+#endif
+    }
+
+    // Multiply by per-token activation scale and store.
+    float act_s = (float)ActScale[b];
+    C[b * N_SIZE + n] = (half)(acc * act_s);
+}
+
+#endif  // IS_ACT_INT8

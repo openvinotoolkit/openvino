@@ -68,6 +68,8 @@
 #include <chrono>
 #include <cctype>
 #include <limits>
+#include <atomic>
+#include <mutex>
 #include "utils.hpp"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -75,6 +77,41 @@
 #endif
 
 namespace cldnn {
+
+// --- FC impl execution counters (instrumentation) ---
+namespace fc_counters {
+// Forward declarations (satisfy -Werror=missing-declarations)
+extern std::atomic<uint64_t> fc_onednn_count;
+extern std::atomic<uint64_t> fc_ocl_count;
+extern std::atomic<uint64_t> fc_other_count;
+extern std::atomic<uint64_t> fc_switch_count;
+void reset();
+void print_summary(const char* tag);
+
+std::atomic<uint64_t> fc_onednn_count{0};
+std::atomic<uint64_t> fc_ocl_count{0};
+std::atomic<uint64_t> fc_other_count{0};
+std::atomic<uint64_t> fc_switch_count{0};
+
+void reset() {
+    fc_onednn_count = 0;
+    fc_ocl_count = 0;
+    fc_other_count = 0;
+    fc_switch_count = 0;
+}
+
+void print_summary(const char* tag) {
+    const uint64_t total = fc_onednn_count + fc_ocl_count + fc_other_count;
+    fprintf(stderr, "[FC-COUNTER][%s] onednn=%lu  ocl=%lu  other=%lu  total=%lu  switches=%lu\n",
+            tag,
+            static_cast<unsigned long>(fc_onednn_count.load()),
+            static_cast<unsigned long>(fc_ocl_count.load()),
+            static_cast<unsigned long>(fc_other_count.load()),
+            static_cast<unsigned long>(total),
+            static_cast<unsigned long>(fc_switch_count.load()));
+}
+}  // namespace fc_counters
+
 namespace {
 
 template <typename T>
@@ -2352,6 +2389,19 @@ void primitive_inst::execute() {
         }
     }
 
+    // --- FC impl execution counter instrumentation ---
+    if (get_node().is_type<fully_connected>()) {
+        if (_impl->is_onednn()) {
+            fc_counters::fc_onednn_count.fetch_add(1, std::memory_order_relaxed);
+        } else if (_impl_pool && _impl_pool->active_impl_type == impl_types::ocl) {
+            fc_counters::fc_ocl_count.fetch_add(1, std::memory_order_relaxed);
+        } else if (!_impl->is_onednn()) {
+            fc_counters::fc_ocl_count.fetch_add(1, std::memory_order_relaxed);
+        } else {
+            fc_counters::fc_other_count.fetch_add(1, std::memory_order_relaxed);
+        }
+    }
+
     // Only time the kernel and collect stats when the switching policy needs it.
     // AUTO_HEURISTIC uses threshold rules (no stats needed), so skip entirely.
     // PROFILING needs stats during its warm-up phase to pick the faster impl.
@@ -3870,6 +3920,11 @@ bool primitive_inst::switch_impl_to(impl_types target_type) {
     const auto prev_type = _impl_pool->active_impl_type;
     _impl = it->second;
     _impl_pool->active_impl_type = target_type;
+
+    // --- FC switch counter instrumentation ---
+    if (get_node().is_type<fully_connected>()) {
+        fc_counters::fc_switch_count.fetch_add(1, std::memory_order_relaxed);
+    }
 
     // Ensure the weight reorder cache matches the newly active impl's requirements.
     // Without this, if the previous impl (e.g. OneDNN) had reordered weights into its

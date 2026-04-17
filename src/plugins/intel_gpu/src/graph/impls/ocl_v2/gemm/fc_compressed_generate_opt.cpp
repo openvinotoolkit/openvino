@@ -11,14 +11,16 @@
 namespace ov::intel_gpu::ocl {
 namespace {
 
-// Sub-group / vectorisation constants — must match gemm_generate_opt.cl definitions.
+// Vectorisation / dispatch constants — must match gemm_generate_opt.cl definitions.
 static constexpr int SG_SIZE  = 16;   // Intel GPU sub-group width for f16
-static constexpr int VEC_SIZE = 8;    // half8 / u4-nibble-vec per lane
-// Work-group size for the SLM-optimised int4 GEMV kernel.
-// WG_SIZE work-items share one SLM tile of cached activations.
+static constexpr int VEC_SIZE = 8;    // half8 / u4-nibble-vec per iteration
+// N-parallel high-occupancy dispatch: each work-item owns 1 output channel.
+// WG_SIZE controls how many N-channels share a work-group (for EU occupancy).
 static constexpr int WG_SIZE  = 256;
-// Each work-item computes TILE_N output channels.
-static constexpr int TILE_N   = 1;
+// Legacy constants still emitted for JIT but unused in N-parallel W4A16 path.
+// W4A8 path still references TILE_N and FAKE_GROUP_SIZE for compat.
+static constexpr int TILE_N   = 2;
+static constexpr int FAKE_GROUP_SIZE = 128;
 
 // -----------------------------------------------------------------------
 // Helper: derive the packed-layout input index ordering from kernel_impl_params.
@@ -126,15 +128,16 @@ protected:
         // Detect W4A8 mode.
         const bool act_is_i8 = (in0.data_type == data_types::i8);
 
-        // Dispatch/size constants (mirrors GemmGenerateOptGenerator).
+        // Dispatch/size constants for K-parallel sub-group approach.
         jit.add({
-            make_jit_constant("K_SIZE",        static_cast<int>(K)),
-            make_jit_constant("N_SIZE",        static_cast<int>(N)),
-            make_jit_constant("B_SIZE",        static_cast<int>(B)),
-            make_jit_constant("SG_SIZE",       SG_SIZE),
-            make_jit_constant("VEC_SIZE",      VEC_SIZE),
-            make_jit_constant("WG_SIZE",       WG_SIZE),
-            make_jit_constant("TILE_N",        TILE_N),
+            make_jit_constant("K_SIZE",           static_cast<int>(K)),
+            make_jit_constant("N_SIZE",           static_cast<int>(N)),
+            make_jit_constant("B_SIZE",           static_cast<int>(B)),
+            make_jit_constant("SG_SIZE",          SG_SIZE),
+            make_jit_constant("VEC_SIZE",         VEC_SIZE),
+            make_jit_constant("WG_SIZE",          WG_SIZE),
+            make_jit_constant("TILE_N",           TILE_N),
+            make_jit_constant("FAKE_GROUP_SIZE",  FAKE_GROUP_SIZE),
         });
 
         // WOQ-specific constants.
@@ -205,12 +208,16 @@ protected:
             for (size_t i = 0; i + 1 < rank; ++i)
                 B *= shape_a[i];
 
-            // N-parallel: each work-item computes TILE_N outputs;
-            // WG_SIZE work-items per work-group share SLM-cached activations.
-            const size_t n_items = (N + TILE_N - 1) / TILE_N;  // total work-items needed
+            // SLM-based sub-group cooperative dispatch:
+            //   Each work-group has WG_SIZE work-items = num_subgroups subgroups.
+            //   Each subgroup handles TILE_N=2 output channels (N-block tiling).
+            //   N_BLOCK_WG = num_subgroups * TILE_N = (WG_SIZE / SG_SIZE) * 2
+            //   dim0 = num_work_groups * WG_SIZE, dim1 = B
+            const size_t num_subgroups = WG_SIZE / SG_SIZE;
+            const size_t n_block_wg = num_subgroups * TILE_N;
+            const size_t num_wg = (N + n_block_wg - 1) / n_block_wg;
             auto& wgs = kd.params.workGroups;
-            const size_t n_padded = (n_items + WG_SIZE - 1) / WG_SIZE * WG_SIZE;
-            wgs.global = {n_padded, B, 1};
+            wgs.global = {num_wg * WG_SIZE, B, 1};
             wgs.local  = {static_cast<size_t>(WG_SIZE), 1, 1};
         }};
     }
