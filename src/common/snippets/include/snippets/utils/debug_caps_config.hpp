@@ -1,6 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
-//#include <cstddef>
+//
 #include <cstdint>
 #ifdef SNIPPETS_DEBUG_CAPS
 
