@@ -243,6 +243,12 @@ std::vector<ov::SoPtr<ov::IVariableState>> ZeroInferRequest::query_state() const
     return _variableStates;
 }
 
+void ZeroInferRequest::reset_state() {
+    for (auto&& state : query_state()) {
+        state->reset();
+    }
+}
+
 void ZeroInferRequest::setup_pipeline() {
     _logger.debug("setup_pipeline - started");
     auto batchSize = _graph->get_batch_size();

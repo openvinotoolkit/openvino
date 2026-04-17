@@ -159,7 +159,11 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
             m_generate_lincache_past_ports.push_back(input_port);
         }
     }
-    std::cout << "and here" << std::endl;
+
+    for (const auto& lincache_port : m_generate_lincache_past_ports) {
+        std::cout << "Found linear cache port: " << lincache_port.get_any_name() << " with shape "
+                  << lincache_port.get_partial_shape() << std::endl;
+    }
 
     init_pre_alloc_device();
     init_lora_states();
@@ -170,7 +174,9 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     if (use_chunk_prefill) {
         // FIXME: enable w/o chunking as well. Although need to align the paddings beforehand
         bind_past_kv();
+        // FIXME: Why do we need this if the same is done in prepare_for_new_conversation() before each prefill inference? Can we do it only once?
         clear_chunk_prefill_kv_cache();
+        clear_prefill_lincache();
     }
 
     if (m_npuw_llm_compiled_model->m_enable_prefix_caching) {
@@ -224,6 +230,13 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
             //       ports by names additionally.
             auto kvcache_in_tensor = largest_kvcache_req->get_tensor(generate_port);
             ov::npuw::util::fill_tensor<ov::float16>(kvcache_in_tensor, 0);
+        }
+        for (const auto& generate_port : m_generate_lincache_past_ports) {
+            // NOTE: m_generate_lincache_past_ports already contains ports of largest variant, so no need to map
+            //       ports by names additionally.
+            // FIXME: Linear cache isn't shared between variants yet. Need to either forbid PYRAMID mode or share linear cache as well.
+            auto lincache_in_tensor = largest_kvcache_req->get_tensor(generate_port);
+            ov::npuw::util::fill_tensor<ov::float16>(lincache_in_tensor, 0);
             // TODO: WA for Linear Cache?
         }
     }
@@ -495,7 +508,6 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_leng
         uu::fill_tensor_bytes(m_prefill_request->get_tensor(prefill_past_port), 0u);
     }
 
-
     m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens = 0u;
 
     // Select the appropriate generate inference request variant based on prompt length
@@ -696,7 +708,19 @@ void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
     }
 }
 
-// TODO: clear_chunk_prefill_lincache()?
+void ov::npuw::LLMInferRequest::clear_prefill_lincache() {
+    const auto& prefill_compiled = m_prefill_request->get_compiled_model();
+
+    for (const auto& generate_past_port: m_generate_lincache_past_ports) {
+        const auto& input_name = generate_past_port.get_any_name();
+        OPENVINO_ASSERT(m_prefill_in_ports.find(input_name) != m_prefill_in_ports.end(),
+            "Incosistent input/output naming for Linear cache: ", input_name, " not found in prefill model inputs.");
+
+        auto chunk_prefill_lincache_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
+
+        ov::npuw::util::fill_tensor<ov::float16>(chunk_prefill_lincache_in_tensor, 0);
+    }
+}
 
 void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                                       ov::SoPtr<ov::ITensor> attention_mask,
@@ -1213,4 +1237,10 @@ ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<co
 
 std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::LLMInferRequest::query_state() const {
     return m_variableStates;
+}
+
+void ov::npuw::LLMInferRequest::reset_state() {
+    std::cout << "reset_state() called." << std::endl;
+    auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
+    kvcache_desc.num_stored_tokens = 0;
 }

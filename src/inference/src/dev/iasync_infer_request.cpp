@@ -115,6 +115,11 @@ std::vector<ov::SoPtr<ov::IVariableState>> ov::IAsyncInferRequest::query_state()
     return m_sync_request->query_state();
 }
 
+void ov::IAsyncInferRequest::reset_state() {
+    check_state();
+    return m_sync_request->reset_state();
+}
+
 void ov::IAsyncInferRequest::infer_thread_unsafe() {
     run_first_stage(m_sync_pipeline.begin(), m_sync_pipeline.end(), m_sync_callback_executor);
 }

@@ -116,6 +116,18 @@ const std::vector<ov::Output<const ov::Node>>& ov::ISyncInferRequest::get_inputs
 const std::vector<ov::Output<const ov::Node>>& ov::ISyncInferRequest::get_outputs() const {
     return m_compiled_model->outputs();
 }
+
+std::vector<ov::SoPtr<ov::IVariableState>> ov::ISyncInferRequest::query_state() const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+// FIXME: `query_state()` isn't implemented for ISyncInferRequest!
+void ov::ISyncInferRequest::reset_state() {
+    for (auto&& state : query_state()) {
+        state->reset();
+    }
+}
+
 const std::shared_ptr<const ov::ICompiledModel>& ov::ISyncInferRequest::get_compiled_model() const {
     return m_compiled_model;
 }

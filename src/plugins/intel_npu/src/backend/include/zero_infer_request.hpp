@@ -47,6 +47,7 @@ public:
     const std::shared_ptr<const ov::ICompiledModel>& get_compiled_model() const override;
 
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
+    void reset_state() override;
 
 protected:
     /**

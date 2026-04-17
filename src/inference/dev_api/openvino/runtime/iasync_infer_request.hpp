@@ -134,6 +134,12 @@ public:
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
 
     /**
+     * @brief Resets all internal variable states for relevant infer request to a value specified as
+     * default for the corresponding `ReadValue` node
+     */
+    void reset_state() override;
+
+    /**
      * @brief Gets pointer to compiled model (usually synchronous request holds the compiled model)
      *
      * @return Pointer to the compiled model
