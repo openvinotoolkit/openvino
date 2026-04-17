@@ -84,6 +84,7 @@ protected:
     std::vector<std::shared_ptr<Event>> _lastSubmittedEvent;
 
     std::optional<ov::Tensor> _blob;
+    std::optional<std::string> _compiler_compatibility_descriptor;
 
     // In the case of the import path, the blob is released after graph initialization so it can not be any longer
     // exported
@@ -98,9 +99,6 @@ protected:
      * @details The attribute contains a value only if the plugin performs the batches splitting operation.
      */
     std::optional<std::size_t> _batchSize = std::nullopt;
-
-    // Available here only if the model was compiled using the compiler-in-plugin
-    std::optional<std::string> _compiler_compatibility_descriptor;
 
     Logger _logger;
 };

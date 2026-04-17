@@ -16,9 +16,8 @@ constexpr size_t HEX_BYTE_LENGTH = 2;
 
 namespace intel_npu {
 
-namespace utils {
-
-std::string encode_compatibility_string(const std::string& decoded_string) {
+// TODO place these in source files?
+static inline std::string encode_compatibility_string(const std::string& decoded_string) {
     std::ostringstream encoded_stringstream;
     for (const auto unit : decoded_string) {
         // setw + setfill will make sure the values within the range 0-F are padded (e.g. a->0a)
@@ -27,14 +26,12 @@ std::string encode_compatibility_string(const std::string& decoded_string) {
     return encoded_stringstream.str();
 }
 
-std::string decode_compatibility_string(const std::string& encoded_string) {
+static inline std::string decode_compatibility_string(const std::string& encoded_string) {
     std::string decoded_string;
-    for (auto unit_index = 0; unit_index < encoded_string.length(); unit_index += HEX_BYTE_LENGTH) {
+    for (size_t unit_index = 0; unit_index < encoded_string.length(); unit_index += HEX_BYTE_LENGTH) {
         decoded_string += std::stoi(encoded_string.substr(unit_index, HEX_BYTE_LENGTH), nullptr, HEX_BASE);
     }
     return decoded_string;
 }
-
-}  // namespace utils
 
 }  // namespace intel_npu

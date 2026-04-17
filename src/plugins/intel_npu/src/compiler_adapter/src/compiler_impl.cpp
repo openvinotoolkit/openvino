@@ -364,7 +364,8 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
         }
 
         _logger.debug("compile end, blob size:%d", alignedBlobSize);
-        return std::make_pair<ov::Tensor, std::optional<std::string>>(alignedBlob, compatibilityString);
+        return std::make_pair<ov::Tensor, std::optional<std::string>>(std::move(alignedBlob),
+                                                                      std::move(compatibilityString));
     } else {
         OPENVINO_THROW("Not supported VCL version: %d.%d, please use VCL 6.1 or later",
                        _vclVersion.major,
