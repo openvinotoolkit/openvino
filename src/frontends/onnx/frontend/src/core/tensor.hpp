@@ -89,7 +89,7 @@ public:
                     const ov::Any& data_any,
                     std::shared_ptr<std::string> data_location,
                     const bool is_raw,
-                    const bool resuse_const_data = false)
+                    const bool reuse_const_data = false)
         : ov::frontend::onnx::TensorPlace(input_model, pshape, type, names),
           m_input_model(input_model),
           m_data(data),
@@ -97,7 +97,7 @@ public:
           m_data_size(data_size),
           m_data_location(data_location),
           m_is_raw(is_raw),
-          m_resuse_const_data(resuse_const_data) {};
+          m_reuse_const_data(reuse_const_data) {};
 
     void translate(ov::Output<ov::Node>& output);
 
@@ -143,7 +143,7 @@ public:
     }
 
     bool is_const_data_reusable() const {
-        return m_resuse_const_data;
+        return m_reuse_const_data;
     }
 
     detail::MappedMemoryHandles get_mmap_cache();
@@ -158,7 +158,7 @@ protected:
     size_t m_data_size;
     std::shared_ptr<std::string> m_data_location;
     bool m_is_raw;
-    bool m_resuse_const_data;
+    bool m_reuse_const_data;
 };
 
 class Tensor {

@@ -216,14 +216,14 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
 
     if (variants[0].is<GraphIterator::Ptr>()) {
         auto graph_iterator = variants[0].as<GraphIterator::Ptr>();
-        bool resuse_const_data = false;
+        bool reuse_const_data = false;
 
-        if (variants.size() > 2 && variants[1].is<bool>())
-            resuse_const_data = variants[2].as<bool>();
+        if (variants.size() > 2 && variants[2].is<bool>())
+            reuse_const_data = variants[2].as<bool>();
 
         // enable_mmap is a hint for a fallback in case external GraphIterator cannot work with external data
         auto inputModel =
-            std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, m_extensions.telemetry, resuse_const_data);
+            std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, m_extensions.telemetry, reuse_const_data);
 
         return inputModel;
     }
