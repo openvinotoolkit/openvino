@@ -670,6 +670,13 @@ INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusion4DPositiveTests_f16,
                                                                                                          true))),
                          GroupNormalizationFusion4DTestsF::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusion4DPositiveTests_bf16,
+                         GroupNormalizationFusion4DTestsF,
+                         ValuesIn(expand_vals(valid_vals_4d,
+                                              GroupNormalizationFusionTransformationTestAdditionalValues(element::bf16,
+                                                                                                         true))),
+                         GroupNormalizationFusion4DTestsF::getTestCaseName);
+
 // 4D InstanceNorm pattern with concrete shape values (vs special markers like {0, G, -1, 1})
 // Some frameworks resolve shapes during optimization and emit concrete dimension values.
 class GroupNormalizationFusion4DConcreteValuesTestsF
@@ -782,6 +789,13 @@ INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusion4DConcreteValuesPositiveTests_f
                                                                                                          true))),
                          GroupNormalizationFusion4DConcreteValuesTestsF::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusion4DConcreteValuesPositiveTests_bf16,
+                         GroupNormalizationFusion4DConcreteValuesTestsF,
+                         ValuesIn(expand_vals(valid_vals_4d_concrete,
+                                              GroupNormalizationFusionTransformationTestAdditionalValues(element::bf16,
+                                                                                                         true))),
+                         GroupNormalizationFusion4DConcreteValuesTestsF::getTestCaseName);
+
 // Standalone negative tests for 4D-specific edge cases that require custom model construction.
 // When model_ref is not set, TransformationTestsF::TearDown clones the model, runs the pass,
 // and verifies the model is unchanged — confirming the fusion does NOT fire.
@@ -887,6 +901,47 @@ TEST_F(GroupNormalizationFusion4DNegativeEdgeCasesF, ThreeMVNAxes) {
                                    /*mvn_axes_vals=*/{1, 2, 3},
                                    /*trailing_dim=*/1);
     manager.register_pass<pass::GroupNormalizationFusion>();
+}
+
+// 3D pattern with concrete (non -1) third dimension.
+// Input {1, 320, 2, 4} with 32 groups → merged spatial = (320/32)*2*4 = 80
+// Reshape uses {1, 32, 80} instead of {0, 32, -1}.
+TEST(GroupNormalizationFusion3DAdditionalTests, ConcreteSpatialDim) {
+    const PartialShape data_shape{1, 320, 2, 4};
+    const int64_t num_groups = 32;
+    const int64_t num_channels = 320;
+    // (320 / 32) * 2 * 4 = 80
+    const int64_t merged_spatial = (num_channels / num_groups) * 2 * 4;
+
+    auto input = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+    auto pre_mvn_shape_const =
+        op::v0::Constant::create<long long>(element::i64, Shape{3}, {1, num_groups, merged_spatial});
+    auto pre_mvn_reshape = std::make_shared<op::v1::Reshape>(input, pre_mvn_shape_const, false);
+
+    auto mvn_axes_const = op::v0::Constant::create<long long>(element::i64, Shape{1}, {2});
+    auto mvn = std::make_shared<op::v6::MVN>(pre_mvn_reshape, mvn_axes_const, true, 1e-5f, op::MVNEpsMode::INSIDE_SQRT);
+
+    auto post_shape = std::make_shared<op::v0::ShapeOf>(input);
+    auto post_reshape = std::make_shared<op::v1::Reshape>(mvn, post_shape, true);
+
+    auto gamma_const = op::v0::Constant::create(element::f32,
+                                                Shape{static_cast<size_t>(num_channels), 1, 1},
+                                                std::vector<float>(num_channels, 1.0f));
+    auto gamma_mul = std::make_shared<op::v1::Multiply>(post_reshape, gamma_const);
+    auto beta_const = op::v0::Constant::create(element::f32,
+                                               Shape{1, static_cast<size_t>(num_channels), 1, 1},
+                                               std::vector<float>(num_channels, 0.0f));
+    auto beta_add = std::make_shared<op::v1::Add>(gamma_mul, beta_const);
+
+    auto model = std::make_shared<Model>(OutputVector{beta_add}, ParameterVector{input});
+
+    ASSERT_EQ(count_ops_of_type<op::v12::GroupNormalization>(model), 0);
+
+    pass::Manager m;
+    m.register_pass<pass::GroupNormalizationFusion>();
+    OV_ASSERT_NO_THROW(m.run_passes(model));
+
+    ASSERT_EQ(count_ops_of_type<op::v12::GroupNormalization>(model), 1);
 }
 
 }  // namespace test
