@@ -594,10 +594,16 @@ void ov::npuw::LLMInferRequest::trim_kvcache_for_speculative_decoding(ov::SoPtr<
     // FIXME: It won't work with Qwen2.5-VL/Omni for now.
     OPENVINO_ASSERT((position_ids->get_shape().size() == 2) && (position_ids->get_shape().back() >= 1));
     auto position_id = position_ids->data<int64_t>()[0];
-    auto dirty_num = kvcache_desc.num_stored_tokens - static_cast<uint32_t>(position_id);
+    const uint32_t position_id_u32 = static_cast<uint32_t>(position_id);
+    if (kvcache_desc.num_stored_tokens < position_id_u32) {
+        LOG_WARN("Position id " << position_id_u32 << " is larger than current stored tokens "
+                                << kvcache_desc.num_stored_tokens << ". Skipping trimming kv cache.");
+        return;
+    }
+    auto dirty_num = kvcache_desc.num_stored_tokens - position_id_u32;
     if (dirty_num > 0) {
         LOG_DEBUG("Trim kv cache from " << kvcache_desc.num_stored_tokens << " length"
-                                        << " to " << position_id << " length");
+                                        << " to " << position_id_u32 << " length");
     }
     kvcache_desc.num_stored_tokens -= dirty_num;
 }
