@@ -10,8 +10,10 @@ tests:
   - name: ov_auto_batch_func_tests
     binary: ov_auto_batch_func_tests
     mode: gtest_single
-    profiles: [cpu]
-    args: "*smoke*"
+    profiles: [cpu, gpu]
+    args:
+      cpu: "*smoke*"
+      gpu: "*GPU*:*nightly_OVClassCompiledModelGetPropertyTest*:*nightly_OVClassCompiledModelGetIncorrectPropertyTest*:*nightly_Auto_Batch_OVClassCompileModelWithCorrectPropertiesAutoBatchingTest*"
 
   - name: ov_auto_batch_unit_tests
     binary: ov_auto_batch_unit_tests
@@ -66,8 +68,10 @@ tests:
   - name: ov_hetero_func_tests
     binary: ov_hetero_func_tests
     mode: gtest_single
-    profiles: [cpu]
-    args: "*smoke*:-nightly*"
+    profiles: [cpu, gpu]
+    args:
+      cpu: "*smoke*:-nightly*"
+      gpu: "*GPU*:*nightly_HETERO_OVClassCompileModelWithCorrectPropertiesTest*/*/2:*nightly_HETERO_OVClassCompileModelWithCorrectPropertiesTest*/*/4:*nightly_HETERO_OVClassCompileModelWithCorrectSecondaryPropertiesTest*:*nightly_OVClassCompiledModelGetPropertyTest*:*nightly_OVClassCompiledModelGetIncorrectPropertyTest*"
 
   - name: ov_hetero_unit_tests
     binary: ov_hetero_unit_tests
