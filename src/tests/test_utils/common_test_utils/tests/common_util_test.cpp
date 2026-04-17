@@ -44,6 +44,18 @@ TEST_F(CommonUtilsTest, parse_views_into_container_empty_fields) {
     EXPECT_EQ((std::vector<std::string_view>{" 1"," ", " 2", " 3"}), res);
 }
 
+TEST_F(CommonUtilsTest, parse_views_into_container_trailing_separator) {
+    std::vector<std::string_view> res;
+    util::view_transform("1,2,", std::back_inserter(res), ",");
+    EXPECT_EQ((std::vector<std::string_view>{"1", "2", ""}), res);
+}
+
+TEST_F(CommonUtilsTest, parse_views_into_container_empty_input) {
+    std::vector<std::string_view> res;
+    util::view_transform("", std::back_inserter(res), ",");
+    EXPECT_TRUE(res.empty());
+}
+
 TEST_F(CommonUtilsTest, parse_views_into_container_custom_check) {
     std::vector<std::string_view> res;
     util::view_transform_if(" 1,;2,; 3,; ", std::back_inserter(res), ",;", [](auto&& field) {
@@ -115,10 +127,15 @@ TEST_F(CommonUtilsTest, split_to_views_custom_check_fail) {
 }
 
 TEST_F(CommonUtilsTest, view_to_integral_number){
-    EXPECT_EQ(123, util::view_to_number<int>("123").value_or(0));
-    EXPECT_EQ(-123, util::view_to_number<int>("-123").value_or(0));
+    EXPECT_EQ(123, util::view_to_number<int>("123").value());
+    EXPECT_EQ(-123, util::view_to_number<int>("-123").value());
+}
+
+TEST_F(CommonUtilsTest, view_to_number_invalid_input){
     EXPECT_EQ(0, util::view_to_number<int>("abc").value_or(0));
     EXPECT_EQ(0, util::view_to_number<int>("").value_or(0));
+    EXPECT_FALSE(util::view_to_number<int>("123abc").has_value());
+    EXPECT_FALSE(util::view_to_number<int>("123 ").has_value());
 }
 
 TEST_F(CommonUtilsTest, view_to_floating_point_number){
@@ -136,6 +153,6 @@ TEST_F(CommonUtilsTest, ends_with) {
     EXPECT_FALSE(util::ends_with("test.cpp", ".h"));
     EXPECT_FALSE(util::ends_with("test.cpp", "cpp "));
     EXPECT_FALSE(util::ends_with("d", ".cpp"));
+    EXPECT_FALSE(util::ends_with("test.bin.bak", ".bin"));
 }
-
 }  // namespace ov::test

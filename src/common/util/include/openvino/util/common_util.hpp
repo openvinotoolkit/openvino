@@ -141,12 +141,12 @@ constexpr std::string_view trim(std::string_view s) {
  * @{
  */
 constexpr bool ends_with(std::string_view src, std::string_view with) {
-    return src.rfind(with) != std::string_view::npos;
+    return src.size() >= with.size() && src.substr(src.size() - with.size()) == with;
 }
 
 template <typename T>
 constexpr bool ends_with(std::basic_string_view<T> src, std::basic_string_view<T> with) {
-    return src.rfind(with) != std::basic_string_view<T>::npos;
+    return src.size() >= with.size() && src.substr(src.size() - with.size()) == with;
 }
 /** @} */
 
@@ -310,8 +310,9 @@ std::optional<T> view_to_number(std::string_view sv) noexcept {
     static_assert(std::is_arithmetic_v<T>, "T must be an arithmetic type");
     T value{};
     if constexpr (std::is_integral_v<T>) {
-        const auto ec = std::from_chars(sv.begin(), sv.end(), value).ec;
-        return ec == std::errc() ? std::make_optional(value) : std::nullopt;
+        const auto result = std::from_chars(sv.begin(), sv.end(), value);
+        return result.ec == std::errc() && result.ptr == sv.data() + sv.size() ? std::make_optional(value)
+                                                                               : std::nullopt;
     } else {
         try {
             if constexpr (std::string str{sv}; std::is_same_v<float, T>) {
@@ -342,7 +343,9 @@ std::optional<T> view_to_number(std::string_view sv) noexcept {
  */
 template <typename Iterator, typename UnaryOp = std::nullptr_t>
 constexpr Iterator view_transform(std::string_view sv, Iterator output_it, std::string_view sep, UnaryOp unary = {}) {
-    while (!sv.empty()) {
+    if (sv.empty())
+        return output_it;
+    while (true) {
         const auto sep_pos = sv.find(sep);
         const auto field = sv.substr(0, sep_pos);
 
@@ -382,7 +385,9 @@ constexpr Iterator view_transform_if(std::string_view sv,
                                      std::string_view sep,
                                      Predicate predicate,
                                      UnaryOp unary = {}) {
-    while (!sv.empty()) {
+    if (sv.empty())
+        return output_it;
+    while (true) {
         const auto sep_pos = sv.find(sep);
         if (const auto field = sv.substr(0, sep_pos); predicate(field)) {
             if constexpr (std::is_same_v<UnaryOp, std::nullptr_t>) {

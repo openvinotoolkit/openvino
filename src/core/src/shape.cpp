@@ -27,7 +27,7 @@ ov::Shape::Shape(size_t n, size_t initial_value) : std::vector<size_t>(n, initia
 
 ov::Shape::Shape(const std::string& value) {
     auto val = ov::util::trim(value);
-    if (val[0] == '[' && val[val.size() - 1] == ']') {
+    if (!val.empty() && val[0] == '[' && val[val.size() - 1] == ']') {
         val.remove_prefix(1);
         val.remove_suffix(1);
         val = ov::util::trim(val);
