@@ -18,6 +18,7 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "utils/plain_tensor.hpp"
 
@@ -68,8 +69,10 @@ public:
         ov::element::Type precision = ov::element::dynamic;
         size_t groupSize = 0;
         bool isByChannel = false;
+        ov::internal::CacheCodecMode codec = ov::internal::CacheCodecMode::NONE;
     };
     ov::element::Type getKVCachePrecision();
+    ov::element::Type getCachePrecision(bool is_key);
     const SDPAQuantParam& getKeyQuantParam();
     const SDPAQuantParam& getValueQuantParam();
 

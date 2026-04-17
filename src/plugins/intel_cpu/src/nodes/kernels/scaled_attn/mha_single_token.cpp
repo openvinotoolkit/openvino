@@ -31,21 +31,6 @@ namespace ov::Extensions::Cpu::XARCH {
 
 using namespace ov;
 
-#if defined(HAVE_AVX2)
-
-#    define prefetch_bytes(bytes, sel, advance, src) \
-        {                                            \
-            auto* p = reinterpret_cast<char*>(src);  \
-            for (size_t i = 0; i < bytes; i += 64)   \
-                _mm_prefetch(p + i + advance, sel);  \
-        }
-
-#else
-
-#    define prefetch_bytes(bytes, sel, advance, src)
-
-#endif
-
 template <typename TA, typename TB>
 static void cvt_copy(TA* dst, TB* src, size_t n) {
     size_t i = 0;
@@ -1227,63 +1212,29 @@ static void attn_reduce(ov::float16* dst, ov::float16* temp, size_t M, size_t S,
 }
 #endif
 
-template <typename T, typename T2, typename T3>
-static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
-                                    const ov::intel_cpu::PlainTensor& present_key,
-                                    const ov::intel_cpu::PlainTensor& present_value,
-                                    const ov::intel_cpu::PlainTensor& alibi_mask,
-                                    const ov::intel_cpu::PlainTensor& attention_mask,
-                                    const ov::intel_cpu::PlainTensor& beams,
-                                    ov::intel_cpu::PlainTensor& output_emb,
-                                    ov::intel_cpu::PlainTensor& buf_attn_w,
-                                    ov::intel_cpu::PlainTensor& buf_attn_score,
-                                    bool has_out_transpose,
-                                    bool auto_causal,
-                                    float d_scale,
-                                    const ov::intel_cpu::PlainTensor& past_k_scale_zp,
-                                    const ov::intel_cpu::PlainTensor& past_v_scale_zp,
-                                    ov::intel_cpu::PlainTensor& head_sum,
-                                    size_t key_group_size,
-                                    size_t value_group_size,
-                                    bool quant_key_by_channel,
-                                    const ov::intel_cpu::PlainTensor& sink_input,
-                                    const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
-    ov::intel_cpu::PlainTensor causal_mask;
-    bool select_nfltmax_at_0 = false;
-    auto B = query.size(0);
-    auto H = query.size(1);
-    auto q_len = query.size(2);
-    auto S = query.size(3);
-    auto SV = present_value.size(3);
-    auto h_group_num = present_value.size(1);
-    auto precision = ov::element::f32;
-    if (std::is_same_v<T3, ov::float16>) {
-        precision = ov::element::f16;
-    }
-    size_t h_each_group_len = 1;
-    if (h_group_num != H) {
-        h_each_group_len = H / h_group_num;
-    }
-    if (d_scale == 0.0F) {
-        d_scale = 1.0F / sqrt(S);
-    }
-    auto nthr = parallel_get_max_threads();
-    auto kv_len = present_key.size(2);
-    bool pastkv_is_int8 = static_cast<bool>(past_k_scale_zp);
-#if defined(HAVE_AVX2) && !defined(HAVE_AVX512F)
-    // avx2 will pre-compute the zero point and try to save the sub instruction in the dot_product,
-    //  but it seems not necessary for avx512. Possible reason may be that for avx2 the cost of dot_product
-    //  is larger than the memory access time, but for avx512 is not and the cost of pre-compute is a pure increase.
-    if (pastkv_is_int8 && !quant_key_by_channel) {
-        // be sure no false sharing
-        size_t group_num = S / key_group_size;
-        head_sum.resize<float>({B, H, q_len, group_num + 16});
-        cpu_parallel->parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
-            sum_q_head(query.ptr<T>(b, h, pq), S, key_group_size, head_sum.ptr<float>(b, h, pq));
-        });
-    }
-#endif
+// ---------------------------------------------------------------------------
+// u8 attention phases — named functions for per-phase VTune attribution.
+// Comparable to TBQ phases: Phase 1 ↔ turboq_phase1_qk_scores, etc.
+// ---------------------------------------------------------------------------
 
+template <typename T, typename T2, typename T3>
+static void qk_scores(const ov::intel_cpu::PlainTensor& query,
+                      const ov::intel_cpu::PlainTensor& present_key,
+                      const ov::intel_cpu::PlainTensor& beams,
+                      ov::intel_cpu::PlainTensor& buf_attn_w,
+                      const ov::intel_cpu::PlainTensor& past_k_scale_zp,
+                      ov::intel_cpu::PlainTensor& head_sum,
+                      size_t B,
+                      size_t H,
+                      size_t q_len,
+                      size_t S,
+                      size_t h_group_num,
+                      size_t h_each_group_len,
+                      size_t kv_len,
+                      size_t key_group_size,
+                      bool quant_key_by_channel,
+                      bool pastkv_is_int8,
+                      int nthr) {
     parallel_nt_static(nthr, [&](const size_t ithr, const size_t nthr) {
         size_t start{0};
         size_t end{0};
@@ -1458,11 +1409,26 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
             }
         }
     });
+}
 
+template <typename T, typename T2, typename T3>
+static void softmax(ov::intel_cpu::PlainTensor& buf_attn_w,
+                    const ov::intel_cpu::PlainTensor& alibi_mask,
+                    const ov::intel_cpu::PlainTensor& attention_mask,
+                    const ov::intel_cpu::PlainTensor& sink_input,
+                    size_t B,
+                    size_t H,
+                    size_t q_len,
+                    size_t kv_len,
+                    bool auto_causal,
+                    float d_scale,
+                    ov::element::Type precision,
+                    const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
+    ov::intel_cpu::PlainTensor causal_mask;
+    bool select_nfltmax_at_0 = false;
     cpu_parallel->parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
         auto cur_kv_len = kv_len;
         auto ncausal = auto_causal ? (cur_kv_len - q_len + pq + 1) : cur_kv_len;
-        // apply attention mask & sofmax
         T3* alibi_ptr = alibi_mask ? &alibi_mask.at<T3>({b, h, pq, 0}, true) : nullptr;
         uint8_t* attn_mask_ptr = nullptr;
         auto attn_mask_prec = attention_mask.get_precision();
@@ -1487,8 +1453,26 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                                 precision,
                                 sink);
     });
+}
 
-    // attn_w * V
+template <typename T, typename T2, typename T3>
+static void v_accum(const ov::intel_cpu::PlainTensor& present_value,
+                    const ov::intel_cpu::PlainTensor& beams,
+                    const ov::intel_cpu::PlainTensor& buf_attn_w,
+                    const ov::intel_cpu::PlainTensor& past_v_scale_zp,
+                    ov::intel_cpu::PlainTensor& buf_attn_score,
+                    ov::intel_cpu::PlainTensor& output_emb,
+                    size_t B,
+                    size_t H,
+                    size_t q_len,
+                    size_t SV,
+                    size_t h_group_num,
+                    size_t h_each_group_len,
+                    size_t kv_len,
+                    size_t value_group_size,
+                    bool has_out_transpose,
+                    int nthr,
+                    const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     // Fast Path if there are enough works for each thread
     if (B >= static_cast<size_t>(nthr)) {
         buf_attn_score.resize<T3>({static_cast<size_t>(nthr), q_len, h_each_group_len, SV});
@@ -1584,6 +1568,113 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
     parallel_nt_static(nthr, [&](const int ithr, const int nthr) {
         for_3d(ithr, nthr, B, H, q_len, bhl_loop);
     });
+}
+
+// ---------------------------------------------------------------------------
+// Orchestrator — calls the 3 phases.
+// ---------------------------------------------------------------------------
+template <typename T, typename T2, typename T3>
+static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
+                                    const ov::intel_cpu::PlainTensor& present_key,
+                                    const ov::intel_cpu::PlainTensor& present_value,
+                                    const ov::intel_cpu::PlainTensor& alibi_mask,
+                                    const ov::intel_cpu::PlainTensor& attention_mask,
+                                    const ov::intel_cpu::PlainTensor& beams,
+                                    ov::intel_cpu::PlainTensor& output_emb,
+                                    ov::intel_cpu::PlainTensor& buf_attn_w,
+                                    ov::intel_cpu::PlainTensor& buf_attn_score,
+                                    bool has_out_transpose,
+                                    bool auto_causal,
+                                    float d_scale,
+                                    const ov::intel_cpu::PlainTensor& past_k_scale_zp,
+                                    const ov::intel_cpu::PlainTensor& past_v_scale_zp,
+                                    ov::intel_cpu::PlainTensor& head_sum,
+                                    size_t key_group_size,
+                                    size_t value_group_size,
+                                    bool quant_key_by_channel,
+                                    const ov::intel_cpu::PlainTensor& sink_input,
+                                    const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
+    auto B = query.size(0);
+    auto H = query.size(1);
+    auto q_len = query.size(2);
+    auto S = query.size(3);
+    auto SV = present_value.size(3);
+    auto h_group_num = present_value.size(1);
+    auto precision = ov::element::f32;
+    if (std::is_same_v<T3, ov::float16>) {
+        precision = ov::element::f16;
+    }
+    size_t h_each_group_len = 1;
+    if (h_group_num != H) {
+        h_each_group_len = H / h_group_num;
+    }
+    if (d_scale == 0.0F) {
+        d_scale = 1.0F / sqrt(S);
+    }
+    auto nthr = parallel_get_max_threads();
+    auto kv_len = present_key.size(2);
+    bool pastkv_is_int8 = static_cast<bool>(past_k_scale_zp);
+
+#if defined(HAVE_AVX2) && !defined(HAVE_AVX512F)
+    if (pastkv_is_int8 && !quant_key_by_channel) {
+        size_t group_num = S / key_group_size;
+        head_sum.resize<float>({B, H, q_len, group_num + 16});
+        cpu_parallel->parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
+            sum_q_head(query.ptr<T>(b, h, pq), S, key_group_size, head_sum.ptr<float>(b, h, pq));
+        });
+    }
+#endif
+
+    buf_attn_w.resize<float>({B, H, q_len, kv_len});
+
+    qk_scores<T, T2, T3>(query,
+                         present_key,
+                         beams,
+                         buf_attn_w,
+                         past_k_scale_zp,
+                         head_sum,
+                         B,
+                         H,
+                         q_len,
+                         S,
+                         h_group_num,
+                         h_each_group_len,
+                         kv_len,
+                         key_group_size,
+                         quant_key_by_channel,
+                         pastkv_is_int8,
+                         nthr);
+
+    softmax<T, T2, T3>(buf_attn_w,
+                       alibi_mask,
+                       attention_mask,
+                       sink_input,
+                       B,
+                       H,
+                       q_len,
+                       kv_len,
+                       auto_causal,
+                       d_scale,
+                       precision,
+                       cpu_parallel);
+
+    v_accum<T, T2, T3>(present_value,
+                       beams,
+                       buf_attn_w,
+                       past_v_scale_zp,
+                       buf_attn_score,
+                       output_emb,
+                       B,
+                       H,
+                       q_len,
+                       SV,
+                       h_group_num,
+                       h_each_group_len,
+                       kv_len,
+                       value_group_size,
+                       has_out_transpose,
+                       nthr,
+                       cpu_parallel);
 }
 
 void mha_single_token(const ov::intel_cpu::PlainTensor& query,

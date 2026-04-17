@@ -588,6 +588,39 @@ void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
 void attn_quant_u8(const float* src, uint8_t* dst, size_t n, float& scale, float& zp) {
     quant_u8(src, dst, n, scale, zp);
 }
+void attn_quant_u4(const float* src, void* dst, size_t n, float& scale, float& zp) {
+    quant_u4(src, dst, n, scale, zp);
+}
+
+void attn_quant_u8_typed(const void* src,
+                         uint8_t* dst,
+                         size_t n,
+                         float& scale,
+                         float& zp,
+                         ov::element::Type src_precision) {
+    if (src_precision == ov::element::bf16) {
+        quant_u8(static_cast<const ov::bfloat16*>(src), dst, n, scale, zp);
+    } else if (src_precision == ov::element::f16) {
+        quant_u8(static_cast<const ov::float16*>(src), dst, n, scale, zp);
+    } else {
+        quant_u8(static_cast<const float*>(src), dst, n, scale, zp);
+    }
+}
+
+void attn_quant_u4_typed(const void* src,
+                         void* dst,
+                         size_t n,
+                         float& scale,
+                         float& zp,
+                         ov::element::Type src_precision) {
+    if (src_precision == ov::element::bf16) {
+        quant_u4(static_cast<const ov::bfloat16*>(src), dst, n, scale, zp);
+    } else if (src_precision == ov::element::f16) {
+        quant_u4(static_cast<const ov::float16*>(src), dst, n, scale, zp);
+    } else {
+        quant_u4(static_cast<const float*>(src), dst, n, scale, zp);
+    }
+}
 // u8 dequant needs scale + zp, params points to float[2]
 void attn_dequant_u8(const uint8_t* src, float* dst, size_t n, float* params) {
     attn_dequant_kernel<float, ov::element::u8>(src, dst, n, params);

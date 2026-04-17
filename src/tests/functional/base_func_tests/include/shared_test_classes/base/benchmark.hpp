@@ -71,23 +71,48 @@ class BenchmarkLayerTest : public BaseLayerTest {
     static constexpr int kDefaultNumberOfAttempts = 100;
     static constexpr double kMaxAllowedBenchmarkDifference = 0.05;
 
+    // Warmup by time (original API).
     void run_benchmark(const std::initializer_list<std::string>& nodeTypeNames,
-                       const std::chrono::milliseconds warmupTime = std::chrono::milliseconds(2000),
+                       const std::chrono::milliseconds warmupTime,
                        const int numAttempts = kDefaultNumberOfAttempts) {
         bench_node_type_names_ = nodeTypeNames;
         warmup_time_ = warmupTime;
+        warmup_iters_ = 0;
+        num_attempts_ = numAttempts;
+        this->configuration.insert({"PERF_COUNT", "YES"});
+        this->run();
+    }
+
+    // Warmup by iteration count — gives precise control over context size
+    // for stateful models where each infer() appends one token to the KV cache.
+    void run_benchmark(const std::initializer_list<std::string>& nodeTypeNames,
+                       const int warmupIters,
+                       const int numAttempts = kDefaultNumberOfAttempts) {
+        bench_node_type_names_ = nodeTypeNames;
+        warmup_time_ = std::chrono::milliseconds(0);
+        warmup_iters_ = warmupIters;
         num_attempts_ = numAttempts;
         this->configuration.insert({"PERF_COUNT", "YES"});
         this->run();
     }
 
     void run_benchmark(const std::string& nodeTypeName,
-                       const std::chrono::milliseconds warmupTime = std::chrono::milliseconds(2000),
+                       const std::chrono::milliseconds warmupTime,
                        const int numAttempts = kDefaultNumberOfAttempts) {
         if (!nodeTypeName.empty()) {
             run_benchmark({nodeTypeName}, warmupTime, numAttempts);
         } else {
             run_benchmark({}, warmupTime, numAttempts);
+        }
+    }
+
+    void run_benchmark(const std::string& nodeTypeName,
+                       const int warmupIters,
+                       const int numAttempts = kDefaultNumberOfAttempts) {
+        if (!nodeTypeName.empty()) {
+            run_benchmark({nodeTypeName}, warmupIters, numAttempts);
+        } else {
+            run_benchmark({}, warmupIters, numAttempts);
         }
     }
 
@@ -136,12 +161,18 @@ class BenchmarkLayerTest : public BaseLayerTest {
             results_us[node_type_name] = {};
         }
 
-        // Warmup
-        auto warm_current = std::chrono::steady_clock::now();
-        const auto warm_end = warm_current + warmup_time_;
-        while (warm_current < warm_end) {
-            this->inferRequest.infer();
-            warm_current = std::chrono::steady_clock::now();
+        // Warmup: by iteration count (deterministic context size) or by time.
+        if (warmup_iters_ > 0) {
+            for (int i = 0; i < warmup_iters_; ++i) {
+                this->inferRequest.infer();
+            }
+        } else {
+            auto warm_current = std::chrono::steady_clock::now();
+            const auto warm_end = warm_current + warmup_time_;
+            while (warm_current < warm_end) {
+                this->inferRequest.infer();
+                warm_current = std::chrono::steady_clock::now();
+            }
         }
 
         // Benchmark
@@ -185,6 +216,7 @@ class BenchmarkLayerTest : public BaseLayerTest {
     std::unordered_map<std::string, uint64_t> curr_bench_results_;
     std::vector<std::string> bench_node_type_names_;
     std::chrono::milliseconds warmup_time_;
+    int warmup_iters_ = 0;
     int num_attempts_;
 };
 
