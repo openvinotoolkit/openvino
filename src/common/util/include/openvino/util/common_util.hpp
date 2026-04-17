@@ -17,9 +17,7 @@
 #include <string>
 #include <vector>
 
-namespace ov {
-namespace util {
-
+namespace ov::util {
 /**
  * @brief Join container's elements to string using user string as separator.
  *
@@ -58,9 +56,9 @@ std::string vector_to_string(const std::vector<T, A>& v) {
     return "[ " + ov::util::join(v) + " ]";
 }
 
-std::string to_lower(const std::string_view s);
+std::string to_lower(std::string_view s);
 
-std::string to_upper(const std::string_view s);
+std::string to_upper(std::string_view s);
 
 inline size_t hash_combine(size_t val, const size_t seed) {
     return seed ^ (val + 0x9e3779b9 + (seed << 6) + (seed >> 2));
@@ -111,7 +109,7 @@ constexpr uint64_t u64_hash_combine(uint64_t seed, std::initializer_list<uint64_
  * @param s A string view to trim.
  * @return A string view with leading whitespace removed.
  */
-constexpr std::string_view ltrim(const std::string_view s) {
+constexpr std::string_view ltrim(std::string_view s) {
     const auto not_ws_pos = s.find_first_not_of(" \t\n\r\f\v");
     return not_ws_pos == std::string_view::npos ? std::string_view() : s.substr(not_ws_pos);
 }
@@ -121,7 +119,7 @@ constexpr std::string_view ltrim(const std::string_view s) {
  * @param s A string view to trim.
  * @return A string view with trailing whitespace removed.
  */
-constexpr std::string_view rtrim(const std::string_view s) {
+constexpr std::string_view rtrim(std::string_view s) {
     const auto not_ws_pos = s.find_last_not_of(" \t\n\r\f\v");
     return not_ws_pos == std::string_view::npos ? std::string_view() : s.substr(0, not_ws_pos + 1);
 }
@@ -131,7 +129,7 @@ constexpr std::string_view rtrim(const std::string_view s) {
  * @param s A string view to trim.
  * @return A string view with leading and trailing whitespace removed.
  */
-constexpr std::string_view trim(const std::string_view s) {
+constexpr std::string_view trim(std::string_view s) {
     return ltrim(rtrim(s));
 }
 
@@ -140,30 +138,20 @@ constexpr std::string_view trim(const std::string_view s) {
  * @param src - string to check
  * @param with - given substring
  * @return true if string end with given substring
+ * @{
  */
-inline bool ends_with(const std::string& src, const char* with) {
-    int wl = static_cast<int>(strlen(with));
-    int so = static_cast<int>(src.length()) - wl;
-    if (so < 0)
-        return false;
-    return 0 == strncmp(with, &src[so], wl);
+constexpr bool ends_with(std::string_view src, std::string_view with) {
+    return src.rfind(with) != std::string_view::npos;
 }
 
-/**
- * @brief check string/wstring end with given substring
- * @param src - string/wstring to check
- * @param with - given substring
- * @return true if string end with given substring
- */
 template <typename T>
-inline bool ends_with(const std::basic_string<T>& str, const std::basic_string<T>& suffix) {
-    return str.length() >= suffix.length() && 0 == str.compare(str.length() - suffix.length(), suffix.length(), suffix);
+constexpr bool ends_with(std::basic_string_view<T> src, std::basic_string_view<T> with) {
+    return src.rfind(with) != std::basic_string_view<T>::npos;
 }
-
-std::vector<std::string> split(const std::string& s, char delimiter, bool trim = false);
+/** @} */
 
 template <typename T>
-T ceil_div(const T& x, const T& y) {
+constexpr T ceil_div(const T& x, const T& y) {
     return (x == 0 ? 0 : (1 + (x - 1) / y));
 }
 
@@ -175,7 +163,7 @@ T ceil_div(const T& x, const T& y) {
  * @return True if value found in the container, false otherwise.
  */
 template <typename R, typename V>
-bool contains(const R& container, const V& value) {
+constexpr bool contains(const R& container, const V& value) {
     return std::find(std::begin(container), std::end(container), value) != std::end(container);
 }
 
@@ -184,17 +172,17 @@ bool contains(const R& container, const V& value) {
  * @param vec - vector with values
  * @return result of multiplication
  */
-template <typename T, typename A>
-T product(const std::vector<T, A>& vec) {
-    return vec.empty() ? T{0} : std::accumulate(vec.begin(), vec.end(), T{1}, std::multiplies<T>());
+template <typename Container>
+auto product(const Container& container) {
+    using T = typename Container::value_type;
+    return container.empty() ? T{0} : std::accumulate(container.begin(), container.end(), T{1}, std::multiplies<T>());
 }
 
 /**
- * @brief Associative containers doesnt work with remove_if algorithm
- * @tparam ContainerT
- * @tparam PredicateT
- * @param data An associative container
- * @param predicate A predicate to remove values conditionally
+ * @brief Removes elements from the container that satisfy the given predicate.
+ *
+ * @param data      The container from which to remove elements.
+ * @param predicate A callable that check element and return true if the element should be removed, or false otherwise.
  */
 template <typename Container, typename PredicateT>
 inline void erase_if(Container& data, const PredicateT& predicate) {
@@ -207,7 +195,17 @@ inline void erase_if(Container& data, const PredicateT& predicate) {
     }
 }
 
-std::string filter_lines_by_prefix(const std::string& str, const std::string& prefix);
+/**
+ * @brief Filters lines in a string view based on a given prefix.
+ *
+ * This function iterates through each line in the input string view and returns a string containing
+ * only the lines that start with the specified `prefix`.
+ *
+ * @param sv     The input string view containing multiple lines.
+ * @param prefix The prefix to filter lines by.
+ * @return A string containing only the lines that start with the given prefix.
+ */
+std::string filter_lines_by_prefix(std::string_view sv, std::string_view prefix);
 
 template <class T = void, class... Args>
 constexpr std::array<std::conditional_t<std::is_void_v<T>, std::common_type_t<Args...>, T>, sizeof...(Args)> make_array(
@@ -330,37 +328,69 @@ std::optional<T> view_to_number(std::string_view sv) noexcept {
 }
 
 /**
- * @brief Parses a string view into a container, optionally validating each field.
+ * @brief Transforms a string view into a container.
  *
  * This function splits the input string view `sv` using the specified separator `sep` and inserts the parsed values
  * into the provided `result` container.
- * An optional `field_validator` can be provided to validate each field before insertion.
+ * An optional unary transformation can be applied to the field before insertion.
  *
- * @tparam Container The type of the container to store the parsed values.
- * @tparam FieldValidator A callable type used to validate each field.
- * @param sv              The input string view to parse.
- * @param result          The container to store the parsed values.
- * @param sep             The separator used to split the string view.
- * @param field_validator The callable used to validate each field.
+ * @param sv        The input string view to parse.
+ * @param output_it The iterator to store the parsed values.
+ * @param sep       The separator used to split the string view.
+ * @param unary     The callable used to transform each field. Defaults to no transformation.
+ * @return Iterator The output iterator after inserting the parsed values.
  */
-template <class Container, class FieldValidator = bool>
-void parse_view_into_container(std::string_view sv,
-                               Container& result,
-                               std::string_view sep = ",",
-                               FieldValidator field_validator = {}) {
+template <typename Iterator, typename UnaryOp = std::nullptr_t>
+constexpr Iterator view_transform(std::string_view sv, Iterator output_it, std::string_view sep, UnaryOp unary = {}) {
     while (!sv.empty()) {
-        using V = typename Container::value_type;
-
         const auto sep_pos = sv.find(sep);
         const auto field = sv.substr(0, sep_pos);
-        if constexpr (std::is_invocable_v<FieldValidator, std::string_view>) {
-            field_validator(field);
-        }
 
-        if constexpr (std::is_arithmetic_v<V>) {
-            result.insert(result.end(), view_to_number<V>(field).value_or(V{}));
+        if constexpr (std::is_same_v<UnaryOp, std::nullptr_t>) {
+            *output_it = field;
         } else {
-            result.insert(result.end(), V{field});
+            *output_it = unary(field);
+        }
+        ++output_it;
+
+        if (sep_pos == std::string_view::npos) {
+            break;
+        } else {
+            sv = sv.substr(sep_pos + sep.size());
+        }
+    }
+    return output_it;
+}
+
+/**
+ * @brief Transforms a string view into a container.
+ *
+ * This function splits the input string view `sv` using the specified separator `sep` and inserts the parsed values
+ * into the provided `result` container if predicate returns true for the field.
+ * An optional unary transformation can be applied to the field before insertion.
+ *
+ * @param sv        The input string view to parse.
+ * @param output_it The iterator to store the parsed values.
+ * @param sep       The separator used to split the string view.
+ * @param predicate The callable used to validate each field.
+ * @param unary     The callable used to transform each field. Defaults to no transformation.
+ * @return Iterator The output iterator after inserting the parsed values.
+ */
+template <typename Iterator, typename Predicate, typename UnaryOp = std::nullptr_t>
+constexpr Iterator view_transform_if(std::string_view sv,
+                                     Iterator output_it,
+                                     std::string_view sep,
+                                     Predicate predicate,
+                                     UnaryOp unary = {}) {
+    while (!sv.empty()) {
+        const auto sep_pos = sv.find(sep);
+        if (const auto field = sv.substr(0, sep_pos); predicate(field)) {
+            if constexpr (std::is_same_v<UnaryOp, std::nullptr_t>) {
+                *output_it = field;
+            } else {
+                *output_it = unary(field);
+            }
+            ++output_it;
         }
 
         if (sep_pos == std::string_view::npos) {
@@ -369,28 +399,30 @@ void parse_view_into_container(std::string_view sv,
             sv = sv.substr(sep_pos + sep.size());
         }
     }
+    return output_it;
 }
 
 /**
- * @brief Splits a string view into a container of string views, optionally validating each field.
+ * @brief Splits a string view into a vector of string views, optionally validating each field.
  *
  * This function splits the input string view `sv` using the specified separator `sep` and inserts the parsed values
  * into the provided `result` container.
- * An optional `field_validator` can be provided to validate each field before insertion.
+ * An optional `predicate` can be provided to validate each field before insertion.
  *
- * @tparam Container The type of the container to store the parsed values.
- * @tparam FieldValidator A callable type used to validate each field.
- * @param sv              The input string view to parse.
- * @param sep             The separator used to split the string view.
- * @param field_validator The callable used to validate each field.
+ * @tparam Predicate A callable type used to validate each field. Defaults to `std::nullptr_t`, no validation.
+ * @param sv        The input string view to parse.
+ * @param sep       The separator used to split the string view. Defaults to ",".
+ * @param predicate The callable used to validate each field. Defaults to no validation.
  * @return Container The container with the parsed string views.
  */
-template <class Container = std::vector<std::string_view>, class FieldValidator = std::nullptr_t>
-Container split_to_views(std::string_view sv, std::string_view sep = ",", FieldValidator field_validator = {}) {
-    Container result{};
-    parse_view_into_container(sv, result, sep, field_validator);
+template <typename Predicate = std::nullptr_t>
+std::vector<std::string_view> split(std::string_view sv, std::string_view sep = ",", Predicate predicate = {}) {
+    std::vector<std::string_view> result{};
+    if constexpr (std::is_same_v<Predicate, std::nullptr_t>) {
+        view_transform(sv, std::back_inserter(result), sep);
+    } else {
+        view_transform_if(sv, std::back_inserter(result), sep, predicate);
+    }
     return result;
 }
-
-}  // namespace util
-}  // namespace ov
+}  // namespace ov::util

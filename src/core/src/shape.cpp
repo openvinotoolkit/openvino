@@ -33,9 +33,17 @@ ov::Shape::Shape(const std::string& value) {
         val = ov::util::trim(val);
     }
 
-    util::parse_view_into_container(val, *this, ",", [](auto&& dim_field) {
-        OPENVINO_ASSERT(!dim_field.empty(), "Cannot get vector of dimensions! \"", dim_field, "\" is incorrect");
-    });
+    util::view_transform_if(
+        val,
+        std::back_inserter(*this),
+        ",",
+        [](auto&& dim_field) {
+            OPENVINO_ASSERT(!dim_field.empty(), "Cannot get vector of dimensions! \"", dim_field, "\" is incorrect");
+            return true;
+        },
+        [](auto&& dim_field) {
+            return util::view_to_number<size_t>(dim_field).value_or(0);
+        });
 }
 
 ov::Shape::~Shape() = default;

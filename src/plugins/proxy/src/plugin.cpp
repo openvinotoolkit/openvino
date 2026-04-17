@@ -51,13 +51,6 @@ bool compare_containers(const std::unordered_set<std::string>& c1, const std::un
     return true;
 }
 
-size_t string_to_size_t(const std::string& s) {
-    std::stringstream sstream(s);
-    size_t idx;
-    sstream >> idx;
-    return idx;
-}
-
 bool is_device_in_config(const ov::AnyMap& config) {
     return config.find(ov::device::id.name()) != config.end();
 }
@@ -200,10 +193,10 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
         // Biggest number means minimum priority
         size_t min_priority(0);
         for (auto&& dev_priority : it->second.as<std::vector<std::string>>()) {
-            auto dev_prior = ov::util::split(dev_priority, ':');
+            auto dev_prior = ov::util::split(dev_priority, ":");
             OPENVINO_ASSERT(dev_prior.size() == 2,
                             "Cannot set ov::proxy::device_priorities property. Format is incorrect.");
-            auto priority = string_to_size_t(dev_prior[1]);
+            auto priority = util::view_to_number<size_t>(dev_prior[1]).value_or(0);
             if (priority > min_priority)
                 min_priority = priority;
             priority_order.push_back(std::pair<std::string, size_t>{dev_prior[0], priority});
@@ -587,7 +580,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
             // Add fallback devices use device_id for individual fallback property
             auto fallback = get_internal_property(ov::device::priorities.name(), device_id).as<std::string>();
             if (!fallback.empty()) {
-                for (const auto& fallback_dev : ov::util::split(fallback, ' ')) {
+                for (const auto& fallback_dev : ov::util::split(fallback, " ")) {
                     if (fallback_dev != device)
                         devices.emplace_back(fallback_dev);
                     else

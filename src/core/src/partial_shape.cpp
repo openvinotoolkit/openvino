@@ -35,9 +35,17 @@ ov::PartialShape::PartialShape(const std::string& value) {
     }
 
     if (m_rank_is_static = (val != "..."); m_rank_is_static) {
-        util::parse_view_into_container(val, m_dimensions, ",", [&value](auto&& dim_field) {
-            OPENVINO_ASSERT(!dim_field.empty(), "Cannot get vector of dimensions! \"", value, "\" is incorrect");
-        });
+        util::view_transform_if(
+            val,
+            std::back_inserter(m_dimensions),
+            ",",
+            [&value](auto&& dim_field) {
+                OPENVINO_ASSERT(!dim_field.empty(), "Cannot get vector of dimensions! \"", value, "\" is incorrect");
+                return true;
+            },
+            [](auto&& dim_field) {
+                return Dimension{dim_field};
+            });
     }
 }
 
