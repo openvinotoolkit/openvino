@@ -233,9 +233,35 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                     #ifdef SHOULD_USE_DATA_ZP
                                         INPUT0_TYPE* input_zp_int8_arr = (INPUT0_TYPE*) &data_zp_val;
                                     #endif
-                                    __attribute__((opencl_unroll_hint(FSV)))
-                                    for (uint v = 0; v < FSV; v++) {
-                                        if (v < FILTER_IFM_NUM % FSV || (in_f_start + (k + 1) * FSV < ALIGN(FILTER_IFM_NUM, FSV))) {
+                                    const bool is_tail_fblock = (in_f_start + (k + 1) * FSV >= ALIGN(FILTER_IFM_NUM, FSV));
+                                    if (is_tail_fblock) {
+                                        __attribute__((opencl_unroll_hint(FSV)))
+                                        for (uint v = 0; v < FSV; v++) {
+                                            if (v < FILTER_IFM_NUM % FSV) {
+                                            #ifdef SHOULD_USE_DATA_ZP
+                                                if (input_on_padding) {
+                                                    input_int8_arr[v] = input_zp_int8_arr[v];
+                                                } else {
+                                            #endif
+                                                    if (v + in_f_offset < FSV) {
+                                                        input_int8_arr[v] = conv_input[input_idx + get_sub_group_local_id() * FSV + v];
+                                                    } else {
+                                                        const uint addr = input_idx + get_sub_group_local_id() * FSV + v +
+                                                                    ((INPUT0_SIZE_X + INPUT0_PAD_BEFORE_SIZE_X + INPUT0_PAD_AFTER_SIZE_X) *
+                                                                     (INPUT0_SIZE_Y + INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y) *
+                                                                     (INPUT0_SIZE_Z + INPUT0_PAD_BEFORE_SIZE_Z + INPUT0_PAD_AFTER_SIZE_Z) - 1) * FSV;
+                                                        input_int8_arr[v] = conv_input[addr];
+                                                    }
+                                            #ifdef SHOULD_USE_DATA_ZP
+                                                }
+                                            #endif
+                                            } else {
+                                                input_int8_arr[v] = 0;
+                                            }
+                                        }
+                                    } else {
+                                        __attribute__((opencl_unroll_hint(FSV)))
+                                        for (uint v = 0; v < FSV; v++) {
                                         #ifdef SHOULD_USE_DATA_ZP
                                             if (input_on_padding) {
                                                 input_int8_arr[v] = input_zp_int8_arr[v];
@@ -253,8 +279,6 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                         #ifdef SHOULD_USE_DATA_ZP
                                             }
                                         #endif
-                                        } else {
-                                            input_int8_arr[v] = 0;
                                         }
                                     }
                                 }
@@ -294,9 +318,35 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                     #ifdef SHOULD_USE_DATA_ZP
                                         INPUT0_TYPE* input_zp_int8_arr = (INPUT0_TYPE*) &data_zp_val;
                                     #endif
-                                    __attribute__((opencl_unroll_hint(FSV)))
-                                    for (uint v = 0; v < FSV; v++) {
-                                        if (v < FILTER_IFM_NUM % FSV || (in_f_start + (k + 1) * FSV < ALIGN(FILTER_IFM_NUM, FSV))) {
+                                    const bool is_tail_fblock = (in_f_start + (k + 1) * FSV >= ALIGN(FILTER_IFM_NUM, FSV));
+                                    if (is_tail_fblock) {
+                                        __attribute__((opencl_unroll_hint(FSV)))
+                                        for (uint v = 0; v < FSV; v++) {
+                                            if (v < FILTER_IFM_NUM % FSV) {
+                                            #ifdef SHOULD_USE_DATA_ZP
+                                                if (input_on_padding) {
+                                                    input_int8_arr[v] = input_zp_int8_arr[v];
+                                                } else {
+                                                #endif
+                                                    if (v + in_f_offset < FSV) {
+                                                        input_int8_arr[v] = conv_input[input_idx + tmp * FSV + v];
+                                                    } else {
+                                                        const uint addr = input_idx + tmp * FSV + v +
+                                                                    ((INPUT0_SIZE_X + INPUT0_PAD_BEFORE_SIZE_X + INPUT0_PAD_AFTER_SIZE_X) *
+                                                                        (INPUT0_SIZE_Y + INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y) *
+                                                                        (INPUT0_SIZE_Z + INPUT0_PAD_BEFORE_SIZE_Z + INPUT0_PAD_AFTER_SIZE_Z) - 1) * FSV;
+                                                        input_int8_arr[v] = conv_input[addr];
+                                                    }
+                                            #ifdef SHOULD_USE_DATA_ZP
+                                                }
+                                            #endif
+                                            } else {
+                                                input_int8_arr[v] = 0;
+                                            }
+                                        }
+                                    } else {
+                                        __attribute__((opencl_unroll_hint(FSV)))
+                                        for (uint v = 0; v < FSV; v++) {
                                         #ifdef SHOULD_USE_DATA_ZP
                                             if (input_on_padding) {
                                                 input_int8_arr[v] = input_zp_int8_arr[v];
@@ -314,8 +364,6 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                         #ifdef SHOULD_USE_DATA_ZP
                                             }
                                         #endif
-                                        } else {
-                                            input_int8_arr[v] = 0;
                                         }
                                     }
                                 }
