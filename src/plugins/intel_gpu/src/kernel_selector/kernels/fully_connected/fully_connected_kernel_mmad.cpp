@@ -212,6 +212,18 @@ JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_par
 
     jit.AddConstant(MakeJitConstant("HAS_FEATURE_LEFTOVERS", has_feature_leftovers));
     jit.AddConstant(MakeJitConstant("FEATURE_BLOCKS_COUNT", tuning_data.feature_blocks_count));
+
+    // For SUB_GROUP_SIZE==16 with feature leftovers, check if the second ISA8 block
+    // (the .hi half of the BLOCK_READ_8 pair) exists in the weight buffer.
+    // Weight layout is os_is_yx_isa8_osv16_isv4: each IS block = ISA8 * OSV16 * ISV4 = 512 bytes.
+    // One "fblock" in the kernel = 2 IS blocks = 1024 bytes (.lo + .hi).
+    // The .hi read is valid only if there are at least 2 IS blocks remaining after the main loop.
+    if (has_feature_leftovers && tuning_data.sub_group_size == 16) {
+        auto input_feature = output.GetLayout() == DataLayout::bfyx ? input.Y().v : input.Feature().v;
+        size_t is_blocks = CeilDiv(input_feature, (size_t)32);
+        bool hi_valid = (is_blocks - tuning_data.feature_blocks_count * 2) >= 2;
+        jit.AddConstant(MakeJitConstant("MMAD_FILTER_LEFTOVER_HI", hi_valid ? 1 : 0));
+    }
     jit.AddConstant(MakeJitConstant("SLM_DIV_FACTOR", tuning_data.slm_div_factor));
     jit.AddConstant(MakeJitConstant("UNROLL_FACTOR", tuning_data.unroll_factor));
     jit.AddConstant(MakeJitConstant("FULL_UNROLL_FACTOR", tuning_data.full_unroll_factor));
