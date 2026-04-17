@@ -4,6 +4,7 @@
 
 #include "registry.hpp"
 #include "intel_gpu/primitives/pooling.hpp"
+#include "intel_gpu/runtime/device_info.hpp"
 #include "primitive_inst.h"
 
 #if OV_GPU_WITH_ONEDNN
@@ -26,11 +27,14 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<pooli
             // issue: 12579
             if (in_layout.format == format::byxf && out_layout.format == format::bfyx)
                 return false;
-            // Disable oneDNN JIT pooling for int8/uint8 with b_fs_yx_fsv16 blocked format.
-            // The oneDNN JIT kernel (jit:ir) has out-of-bounds memory accesses with this
-            // format that cause CL_OUT_OF_RESOURCES crashes on Xe2+ hardware (which enforces
-            // strict OOB checking). Fall back to the OCL pooling implementation.
-            if ((in_layout.format == format::b_fs_yx_fsv16 || in_layout.format == format::b_fs_zyx_fsv16) &&
+            // Disable oneDNN JIT pooling for int8/uint8 with b_fs_yx_fsv16 blocked format
+            // on Xe2+ hardware. The oneDNN JIT kernel (jit:ir) has out-of-bounds memory
+            // accesses with this format that cause CL_OUT_OF_RESOURCES crashes on Xe2+
+            // (which enforces strict OOB checking). Pre-Xe2 hardware silently returns
+            // zero for OOB reads, so the issue is benign there.
+            // Fall back to the OCL pooling implementation on affected architectures.
+            if (node.get_program().get_engine().get_device_info().arch >= gpu_arch::xe2 &&
+                (in_layout.format == format::b_fs_yx_fsv16 || in_layout.format == format::b_fs_zyx_fsv16) &&
                 (in_layout.data_type == data_types::i8 || in_layout.data_type == data_types::u8)) {
                 return false;
             }
