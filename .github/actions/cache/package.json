@@ -53,22 +53,22 @@
     ]
   },
   "dependencies": {
-    "@actions/core": "^1.10.1",
+    "@actions/core": "^3.0.0",
     "fs": "^0.0.1-security",
     "tar": "^7.5.13"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",
     "@babel/eslint-parser": "^7.23.10",
-    "@babel/preset-env": "^7.24.0",
+    "@babel/preset-env": "^7.29.2",
     "@vercel/ncc": "^0.38.1",
-    "babel-preset-jest": "^29.6.3",
+    "babel-preset-jest": "^30.3.0",
     "eslint": "^8.57.0",
-    "eslint-plugin-github": "^4.10.2",
+    "eslint-plugin-github": "^6.0.0",
     "eslint-plugin-jest": "^27.9.0",
     "fs": "0.0.1-security",
     "jest": "^29.7.0",
-    "prettier": "^3.2.5"
+    "prettier": "^3.8.3"
   },
   "license": "Apache-2.0"
 }

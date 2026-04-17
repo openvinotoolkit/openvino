@@ -3973,6 +3973,124 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
                       << ", avg_diff: " << (count > 0 ? avg / count : 0.f) << std::endl;
         ASSERT_LT(max_diff, 512) << "max_diff = " << max_diff;
     }
+
+    void test_compressed_int4_dyn_quan_large_activation_no_overflow(bool is_dynamic, long int batch_num) {
+        tests::random_generator rg(GET_SUITE_NAME);
+        auto& engine = get_test_engine();
+
+        if (engine.get_device_info().dev_type == device_type::discrete_gpu)
+            GTEST_SKIP();
+
+        long int ifm_num = 256;
+        long int ofm_num = 64;
+        long int scales_group_size = 128;
+
+        auto input_ps = ov::PartialShape{ batch_num, 1, ifm_num };
+        auto dyn_input_ps = ov::PartialShape{ -1, 1, ifm_num };
+        auto input_mem = engine.allocate_memory({ input_ps, data_types::f16, format::bfyx });
+        auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u4, format::bfyx });
+        auto scale_mem = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx });
+
+        // Large activation values [-20, 20] to simulate gate_proj-like outputs.
+        // After dynamic quantization (dq_scale = max_abs/127 ~ 0.16),
+        // INT8 values span [-127, 127]. Accumulating 128 products: |acc_tmp| up to ~4000.
+        // convert_half(4000) * ds(30) = 120,000 > 65,504 -> INF in old code.
+        auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -20.0f, 20.0f);
+        set_values(input_mem, input_data);
+
+        auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 15);
+        set_values(weights_mem, weigths_data);
+
+        // Moderate decompression scales. Combined with large activations, intermediate overflows.
+        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -30.0f, 30.0f);
+        set_values(scale_mem, scale_data);
+
+        auto in_layout = is_dynamic ? layout{ dyn_input_ps, data_types::f16, format::bfyx }
+                                    : layout{ input_ps, data_types::f16, format::bfyx };
+
+        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, 3, 2);
+        fc_prim.decompression_zero_point_scalar = 0;
+
+        auto get_ref_results = [&]() {
+            topology topology(
+                input_layout("input", in_layout),
+                data("weights", weights_mem),
+                data("scale", scale_mem),
+                fc_prim
+            );
+
+            auto config = get_test_default_config(engine);
+            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+            ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl };
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl_desc} }));
+
+            network network(engine, topology, config);
+            network.set_input_data("input", input_mem);
+
+            auto outputs = network.execute();
+            OPENVINO_ASSERT(outputs.size() == 1);
+            OPENVINO_ASSERT(outputs.begin()->first == "fc_prim");
+
+            auto output_layout = outputs.begin()->second.get_layout();
+            auto output_mem = outputs.begin()->second.get_memory();
+
+            return engine.reinterpret_buffer(*output_mem, output_layout);
+        };
+
+        topology topology(
+            input_layout("input", in_layout),
+            data("weights", weights_mem),
+            data("scale", scale_mem),
+            fc_prim
+        );
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_user_property(ov::hint::dynamic_quantization_group_size(32));
+
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+
+        network->set_input_data("input", input_mem);
+
+        auto outputs = network->execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "fc_prim");
+
+        auto output_mem = outputs.begin()->second.get_memory();
+        auto ref_output_mem = get_ref_results();
+
+        cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+        cldnn::mem_lock<ov::float16> ref_ptr(ref_output_mem, get_test_stream());
+
+        size_t test_inf = 0, test_nan = 0, ref_inf = 0;
+        for (size_t i = 0; i < output_ptr.size(); i++) {
+            if (std::isinf(static_cast<float>(output_ptr[i]))) test_inf++;
+            if (std::isnan(static_cast<float>(output_ptr[i]))) test_nan++;
+            if (std::isinf(static_cast<float>(ref_ptr[i]))) ref_inf++;
+        }
+        ASSERT_EQ(test_nan, 0u) << "Output contains " << test_nan << " NaN values";
+        ASSERT_LE(test_inf, ref_inf) << "Dyn_quan output has " << test_inf
+            << " INF values vs reference " << ref_inf << " (intermediate FP16 overflow)";
+
+        size_t count = 0;
+        float max_diff = 0.f;
+        float avg = 0.f;
+        for (size_t i = 0; i < ref_ptr.size(); ++i) {
+            float ref_val = static_cast<float>(ref_ptr[i]);
+            float test_val = static_cast<float>(output_ptr[i]);
+            if (std::isinf(ref_val) || std::isinf(test_val))
+                continue;
+            auto abs_diff = std::abs(ref_val - test_val);
+            if (max_diff < abs_diff)
+                max_diff = abs_diff;
+            avg += abs_diff;
+            count++;
+        }
+        GPU_DEBUG_LOG << "---> count: " << count << ", max_diff:" << max_diff
+                      << ", avg_diff: " << (count > 0 ? avg / count : 0.f) << std::endl;
+        ASSERT_LT(max_diff, 512) << "max_diff = " << max_diff;
+    }
 };
 
 using shared_dims = std::tuple<size_t, size_t, size_t>;
@@ -5003,6 +5121,14 @@ TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dyn_quan_dynamic_f_input
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_dyn_quan_large_scale_no_overflow_unaligned) {
     this->test_compressed_int4_dyn_quan_large_scale_no_overflow(false, 566);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_dyn_quan_large_activation_no_overflow) {
+    this->test_compressed_int4_dyn_quan_large_activation_no_overflow(false, 512);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_dyn_quan_large_activation_no_overflow_dynamic) {
+    this->test_compressed_int4_dyn_quan_large_activation_no_overflow(true, 512);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_batch_1) {
