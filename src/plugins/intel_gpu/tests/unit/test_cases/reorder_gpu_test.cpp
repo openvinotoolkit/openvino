@@ -756,9 +756,8 @@ TEST(reorder_gpu_f16, basic_subtract_value) {
     //
 
     auto& engine = get_test_engine();
-    if (!engine.get_device_info().supports_fp16)
-    {
-        GTEST_SKIP() << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported).";
+    if (!engine.get_device_info().supports_fp16) {
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     auto input = engine.allocate_memory({ data_types::f16, format::yxfb, { 2, 2, 2, 2 } });
