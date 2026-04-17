@@ -283,7 +283,13 @@ bool convert_function_precision(ov::pass::PassBase& pass,
     // Register internal constants only after fixing input type that could lead to nodes
     // replacement
     register_constants(ops);
-    for (auto& node : ops) {
+    // Move each shared_ptr out of `ops` as we iterate so that an old constant
+    // is destroyed as soon as fuse_type_to_constant has rewired its consumers
+    // to the freshly allocated replacement. Without the std::move the original
+    // constants stay alive until the loop ends, doubling the peak memory of
+    // the pass on constant-heavy models.
+    for (size_t i = 0; i < ops.size(); ++i) {
+        auto node = std::move(ops[i]);
         // skip precision sensitive nodes
         if (skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression)
             continue;
@@ -323,8 +329,12 @@ bool convert_function_precision(ov::pass::PassBase& pass,
                                       is_output_precision_changed;
     }
 
+    // The constant-replacement loop above moved every shared_ptr out of `ops`,
+    // so the vector is now full of nullptrs. Always refresh it before the
+    // downstream Convert-cleanup loop, otherwise that loop would silently skip
+    // every node and miss freshly inserted Convert ops.
+    ops = f->get_ordered_ops();
     if (is_output_precision_changed) {
-        ops = f->get_ordered_ops();
         is_changed = true;
     }
 
