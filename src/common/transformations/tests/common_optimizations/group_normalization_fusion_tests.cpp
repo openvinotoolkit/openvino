@@ -796,11 +796,6 @@ INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusion4DConcreteValuesPositiveTests_b
                                                                                                          true))),
                          GroupNormalizationFusion4DConcreteValuesTestsF::getTestCaseName);
 
-// Standalone negative tests for 4D-specific edge cases that require custom model construction.
-// When model_ref is not set, TransformationTestsF::TearDown clones the model, runs the pass,
-// and verifies the model is unchanged — confirming the fusion does NOT fire.
-class GroupNormalizationFusion4DNegativeEdgeCasesF : public TransformationTestsF {};
-
 // Helper: builds a 4D InstanceNorm-style pattern with customizable MVN axes and 4D trailing dimension.
 // Returns a Model whose output is the final Add node (beta_add).
 static std::shared_ptr<Model> build_4d_pattern_model(const PartialShape& data_shape,
@@ -859,48 +854,63 @@ TEST(GroupNormalizationFusion4DAdditionalTests, NegativeMVNAxesNormalizedToPosit
 }
 
 // 4D pattern with wrong MVN axes: {1, 2} instead of {2, 3}
-TEST_F(GroupNormalizationFusion4DNegativeEdgeCasesF, WrongMVNAxes) {
-    model = build_4d_pattern_model(PartialShape{1, 320, 64, 64},
-                                   /*num_groups=*/32,
-                                   /*mvn_axes_vals=*/{1, 2},
-                                   /*trailing_dim=*/1);
-    manager.register_pass<pass::GroupNormalizationFusion>();
+TEST(GroupNormalizationFusion4DNegativeEdgeCases, WrongMVNAxes) {
+    auto model = build_4d_pattern_model(PartialShape{1, 320, 64, 64},
+                                        /*num_groups=*/32,
+                                        /*mvn_axes_vals=*/{1, 2},
+                                        /*trailing_dim=*/1);
+    pass::Manager m;
+    m.register_pass<pass::GroupNormalizationFusion>();
+    m.run_passes(model);
+    ASSERT_EQ(count_ops_of_type<op::v12::GroupNormalization>(model), 0);
 }
 
 // 4D pattern with single MVN axis {2} — requires {2, 3} for 4D pattern
-TEST_F(GroupNormalizationFusion4DNegativeEdgeCasesF, SingleMVNAxisWith4DReshape) {
-    model = build_4d_pattern_model(PartialShape{1, 320, 64, 64},
-                                   /*num_groups=*/32,
-                                   /*mvn_axes_vals=*/{2},
-                                   /*trailing_dim=*/1);
-    manager.register_pass<pass::GroupNormalizationFusion>();
+TEST(GroupNormalizationFusion4DNegativeEdgeCases, SingleMVNAxisWith4DReshape) {
+    auto model = build_4d_pattern_model(PartialShape{1, 320, 64, 64},
+                                        /*num_groups=*/32,
+                                        /*mvn_axes_vals=*/{2},
+                                        /*trailing_dim=*/1);
+    pass::Manager m;
+    m.register_pass<pass::GroupNormalizationFusion>();
+    m.run_passes(model);
+    ASSERT_EQ(count_ops_of_type<op::v12::GroupNormalization>(model), 0);
 }
 
 // 4D pattern with trailing dimension != 1 (e.g., 2)
-TEST_F(GroupNormalizationFusion4DNegativeEdgeCasesF, TrailingDimNotOne) {
-    model = build_4d_pattern_model(PartialShape{1, 320, 64, 64},
-                                   /*num_groups=*/32,
-                                   /*mvn_axes_vals=*/{2, 3},
-                                   /*trailing_dim=*/2);
-    manager.register_pass<pass::GroupNormalizationFusion>();
+TEST(GroupNormalizationFusion4DNegativeEdgeCases, TrailingDimNotOne) {
+    auto model = build_4d_pattern_model(PartialShape{1, 320, 64, 64},
+                                        /*num_groups=*/32,
+                                        /*mvn_axes_vals=*/{2, 3},
+                                        /*trailing_dim=*/2);
+    pass::Manager m;
+    m.register_pass<pass::GroupNormalizationFusion>();
+    m.run_passes(model);
+    ASSERT_EQ(count_ops_of_type<op::v12::GroupNormalization>(model), 0);
 }
 
 // 4D pattern with MVN axes {0, 1} — normalizing over wrong dimensions
-TEST_F(GroupNormalizationFusion4DNegativeEdgeCasesF, MVNAxesOverBatchAndGroups) {
-    model = build_4d_pattern_model(PartialShape{1, 320, 64, 64},
-                                   /*num_groups=*/32,
-                                   /*mvn_axes_vals=*/{0, 1},
-                                   /*trailing_dim=*/1);
-    manager.register_pass<pass::GroupNormalizationFusion>();
+TEST(GroupNormalizationFusion4DNegativeEdgeCases, MVNAxesOverBatchAndGroups) {
+    auto model = build_4d_pattern_model(PartialShape{1, 320, 64, 64},
+                                        /*num_groups=*/32,
+                                        /*mvn_axes_vals=*/{0, 1},
+                                        /*trailing_dim=*/1);
+    pass::Manager m;
+    m.register_pass<pass::GroupNormalizationFusion>();
+    m.run_passes(model);
+    ASSERT_EQ(count_ops_of_type<op::v12::GroupNormalization>(model), 0);
 }
 
 // 4D pattern with three MVN axes {1, 2, 3} — too many axes for 4D pattern
-TEST_F(GroupNormalizationFusion4DNegativeEdgeCasesF, ThreeMVNAxes) {
-    model = build_4d_pattern_model(PartialShape{1, 320, 64, 64},
-                                   /*num_groups=*/32,
-                                   /*mvn_axes_vals=*/{1, 2, 3},
-                                   /*trailing_dim=*/1);
-    manager.register_pass<pass::GroupNormalizationFusion>();
+TEST(GroupNormalizationFusion4DNegativeEdgeCases, ThreeMVNAxes) {
+    auto model = build_4d_pattern_model(PartialShape{1, 320, 64, 64},
+                                        /*num_groups=*/32,
+                                        /*mvn_axes_vals=*/{1, 2, 3},
+                                        /*trailing_dim=*/1);
+    pass::Manager m;
+    m.register_pass<pass::GroupNormalizationFusion>();
+    m.run_passes(model);
+    ASSERT_EQ(count_ops_of_type<op::v12::GroupNormalization>(model), 0);
 }
 
 // 3D pattern with concrete (non -1) third dimension.
