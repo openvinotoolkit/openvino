@@ -12,8 +12,10 @@
 #include <string>
 #include <sstream>
 #include <iomanip>
+#include <exception>
 
 // Expect success of level zero command, throw runtime error otherwise.
+// if already handling an exception (stack unwinding), logging a warning instead to avoid termination.
 #define OV_ZE_EXPECT(f)                                                         \
     do {                                                                        \
         ze_result_t res_ = (f);                                                 \

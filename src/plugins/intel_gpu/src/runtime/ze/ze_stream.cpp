@@ -400,7 +400,7 @@ void ze_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output)
     }
 }
 
-ze_context_handle_t ze_stream::get_context() {
+ze_context_handle_t ze_stream::get_context() const {
     return _engine.get_context();
 }
 
