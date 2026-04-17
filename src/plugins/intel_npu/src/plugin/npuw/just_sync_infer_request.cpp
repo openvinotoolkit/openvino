@@ -376,13 +376,12 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             const auto real_idx = comp_model_desc.replaced_by.value();
             auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
             if (proto_comp_model_desc.pyramid_attention) {
-                setup_pyramid_infer_requests(real_idx, is_piped, false);
+                setup_pyramid_infer_requests(real_idx, is_piped);
             }
             // Create HFA tile infer requests if this function has host flash attention
             if (proto_comp_model_desc.host_flash_attention) {
                 setup_hfa_infer_requests(real_idx,
                                          is_piped,
-                                         /* is_recreate */ false,
                                          /* enable_hfa_optimizations */ true);
             }
         }
@@ -1050,30 +1049,17 @@ void ov::npuw::JustInferRequest::initialize_moe_executor() {
     LOG_INFO("MoE executor initialized successfully");
 }
 
-void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate) {
+void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped) {
     auto& submodel_desc = m_npuw_model->m_compiled_submodels[real_idx];
     if (!submodel_desc.pyramid_attention.has_value()) {
         return;
     }
 
-    LOG_INFO((is_recreate ? "Recreating" : "Creating") << " pyramid infer requests...");
+    LOG_INFO("Creating pyramid infer requests...");
     LOG_BLOCK();
 
     const auto& pyramid_models = submodel_desc.pyramid_attention.value()._compiled_models;
     const size_t num_pyramid_models = pyramid_models.size();
-
-    // Clear existing requests if recreating
-    if (is_recreate) {
-        submodel_desc.pyramid_infer_requests.clear();
-        submodel_desc.pyramid_pipeline_requests.clear();
-        // Also release anchor tensors for this submodel so stale buffers are not retained
-        m_pyramid_anchor_tensors.erase(std::remove_if(m_pyramid_anchor_tensors.begin(),
-                                                      m_pyramid_anchor_tensors.end(),
-                                                      [real_idx](const auto& e) {
-                                                          return e.first == real_idx;
-                                                      }),
-                                       m_pyramid_anchor_tensors.end());
-    }
 
     // Allocate storage for infer requests
     submodel_desc.pyramid_infer_requests.resize(num_pyramid_models);
@@ -1116,8 +1102,7 @@ void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_i
     // For the last pyramid model, reuse the original model's infer requests
     if (num_pyramid_models > 0) {
         const size_t last_model_idx = num_pyramid_models - 1;
-        LOG_INFO("Reusing " << (is_recreate ? "recreated " : "") << "original infer requests for last pyramid model["
-                            << last_model_idx << "]");
+        LOG_INFO("Reusing original infer requests for last pyramid model[" << last_model_idx << "]");
         submodel_desc.pyramid_infer_requests[last_model_idx] = m_subrequests[real_idx];
         if (is_piped) {
             submodel_desc.pyramid_pipeline_requests[last_model_idx] = m_funcall_pipeline[real_idx].subrequest;
@@ -1135,7 +1120,7 @@ void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_i
         }
     }
 
-    if (!is_recreate && num_pyramid_models > 0) {
+    if (num_pyramid_models > 0) {
         LOG_INFO("Successfully created " << (num_pyramid_models - 1)
                                          << " new pyramid infer requests and reused 1 original request");
     }
@@ -1143,23 +1128,16 @@ void ov::npuw::JustInferRequest::setup_pyramid_infer_requests(std::size_t real_i
 
 void ov::npuw::JustInferRequest::setup_hfa_infer_requests(std::size_t real_idx,
                                                           bool is_piped,
-                                                          bool is_recreate,
                                                           bool enable_hfa_optimizations) {
     auto& submodel_desc = m_npuw_model->m_compiled_submodels[real_idx];
     if (!submodel_desc.host_flash_attention.has_value()) {
         return;
     }
 
-    LOG_INFO((is_recreate ? "Recreating" : "Creating") << " HFA tile infer requests...");
+    LOG_INFO("Creating HFA tile infer requests...");
     LOG_BLOCK();
 
     const auto& hfa = submodel_desc.host_flash_attention.value();
-
-    // Clear existing requests if recreating
-    if (is_recreate) {
-        submodel_desc.hfa_infer_requests.clear();
-        submodel_desc.hfa_pipeline_requests.clear();
-    }
 
     // Allocate storage for infer requests: [REGULAR_TILE] and [FINAL_TILE]
     submodel_desc.hfa_infer_requests.resize(CompiledModel::CompiledModelDesc::HFATileIdx::COUNT);
@@ -1177,7 +1155,7 @@ void ov::npuw::JustInferRequest::setup_hfa_infer_requests(std::size_t real_idx,
 
     // For final tile model, reuse the main compiled_model's infer request
     // because compiled_model points to _compiled_final_tile_model for HFA
-    LOG_INFO("Reusing " << (is_recreate ? "recreated " : "") << "main infer request for HFA final tile model");
+    LOG_INFO("Reusing main infer request for HFA final tile model");
     submodel_desc.hfa_infer_requests[CompiledModel::CompiledModelDesc::HFATileIdx::FINAL_TILE] =
         m_subrequests[real_idx];
     if (is_piped) {
@@ -1207,8 +1185,7 @@ void ov::npuw::JustInferRequest::setup_hfa_infer_requests(std::size_t real_idx,
         }
     }
 
-    LOG_INFO("Successfully " << (is_recreate ? "recreated" : "created")
-                             << " HFA tile infer requests with shared input tensors");
+    LOG_INFO("Successfully created HFA tile infer requests with shared input tensors");
 
     // Initialize HFA optimizations (mask cache + state double-buffering) if enabled
     if (enable_hfa_optimizations) {
@@ -1217,10 +1194,6 @@ void ov::npuw::JustInferRequest::setup_hfa_infer_requests(std::size_t real_idx,
         // Initialize runtime context if needed
         if (!m_hfa_runtime_ctx) {
             m_hfa_runtime_ctx.emplace();
-        }
-
-        if (is_recreate) {
-            m_hfa_runtime_ctx->reset();
         }
 
         LOG_INFO("Pre-allocating HFA mask tile buffers...");
