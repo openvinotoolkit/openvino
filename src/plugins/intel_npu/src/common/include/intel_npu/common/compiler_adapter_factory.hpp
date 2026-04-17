@@ -24,7 +24,7 @@ public:
                                                   std::string_view platform) const;
 
     std::unique_ptr<ICompilerAdapter> getCompiler(const ov::SoPtr<IEngineBackend>& engineBackend,
-                                                  ov::intel_npu::CompilerType& compilerType) const;
+                                                  const ov::intel_npu::CompilerType& compilerType) const;
 
 private:
     inline static std::atomic<bool> _pluginCompilerIsPresent{true};

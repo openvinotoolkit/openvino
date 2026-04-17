@@ -176,6 +176,7 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
             std::move(mainMetadata),
             std::move(mainBlob),
             config,
+            std::nullopt,
             blobIsPersistent,
             true),
       _initsGraphDesc(initGraphDesc),
@@ -589,7 +590,7 @@ std::vector<size_t> WeightlessGraph::get_init_sizes() const {
             _zeGraphExt->getGraphBinary(_graphDesc, blob, blobRawPtr, blobSize);
         } else {
             // in all other cases, the blob is handled by the plugin
-            blobSize = _initBlobs->at(initIndex)->get_byte_size();
+            blobSize = _initBlobs->at(initIndex).get_byte_size();
         }
 
         initSizes.push_back(blobSize);

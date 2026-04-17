@@ -661,7 +661,7 @@ std::string ZeGraphExtWrappers::getCompatibilityDescriptor(const ze_graph_handle
     OPENVINO_THROW("WIP");
 }
 
-bool validateCompatibilityDescriptor(const std::string& descriptor) const {
+bool ZeGraphExtWrappers::validateCompatibilityDescriptor(const std::string& descriptor) const {
     // char key[256];  // TODO do we really need this?
     // ze_runtime_requirements_desc_t desc = {ZE_STRUCTURE_TYPE_RUNTIME_REQUIREMENTS_DESC,
     //                                        nullptr,

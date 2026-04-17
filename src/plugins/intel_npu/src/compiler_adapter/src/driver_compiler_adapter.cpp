@@ -91,7 +91,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
 
     std::optional<std::string> compatibilityDescriptor;
     if (_zeGraphExt->isCompatibilityDescriptorSupported()) {
-        compatibilityDescriptor = _zeGraphExt->getCompatibilityDescriptor(graph->get_handle());
+        compatibilityDescriptor = _zeGraphExt->getCompatibilityDescriptor(graphDesc._handle);
     }
 
     return std::make_shared<Graph>(_zeGraphExt,
