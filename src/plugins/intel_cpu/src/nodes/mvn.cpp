@@ -2797,6 +2797,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
     aux_buffer_size += blk_size;
     std::vector<float> mean_buffer(aux_buffer_size * threads_num);
     std::vector<float> variance_buffer(aux_buffer_size * threads_num);
+    const size_t overflow_thread_id = std::numeric_limits<size_t>::max() / aux_buffer_size;
 
     for (size_t b = 0LU; b < N; b++) {
         size_t b_offset = b * C3;
@@ -2824,7 +2825,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                     thread_idx < threads_num,
                     "parallel_get_thread_num() returns value greater than or equal to max threads in MVNJitExecutor");
                 // Prevent overflow in aux_buffer_size * thread_idx (for static analyzers and safety)
-                OPENVINO_ASSERT(thread_idx <= std::numeric_limits<size_t>::max() / aux_buffer_size,
+                OPENVINO_ASSERT(thread_idx <= overflow_thread_id,
                                 "Calculated offset for mean_buffer is too large in MVNJitExecutor");
                 const size_t offset = aux_buffer_size * thread_idx;
                 OPENVINO_ASSERT(offset <= mean_buffer.size(),
@@ -2867,7 +2868,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                                         "parallel_get_thread_num() returns value greater than or equal to max threads "
                                         "in MVNJitExecutor");
                         // Prevent overflow in aux_buffer_size * thread_idx (for static analyzers and safety)
-                        OPENVINO_ASSERT(thread_idx <= std::numeric_limits<size_t>::max() / aux_buffer_size,
+                        OPENVINO_ASSERT(thread_idx <= overflow_thread_id,
                                         "Calculated offset for mean_buffer is too large in MVNJitExecutor");
                         const size_t offset = aux_buffer_size * thread_idx;
                         OPENVINO_ASSERT(offset <= variance_buffer.size(),
