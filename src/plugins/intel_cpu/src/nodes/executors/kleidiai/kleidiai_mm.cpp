@@ -311,14 +311,15 @@ void MatMulKleidiAIExecutor::setKaiExecutorImplAsGatherMatmul() {
     KaiExecutorImpl = IMPL_TYPE::GatherMatmul;
 }
 
-void MatMulKleidiAIExecutor::set_gather_idx(std::vector<std::pair<int32_t, int32_t>> idxMap) {
+void MatMulKleidiAIExecutor::set_gather_idx(const std::vector<std::pair<int32_t, int32_t>>& idxMap) {
     OPENVINO_ASSERT(KaiExecutorImpl == IMPL_TYPE::GatherMatmul,
                     "gather_idx is supported only for GatherMatmul Implementation");
-    gather_idx = std::move(idxMap);
+    gather_idx = idxMap;
 }
 
 bool MatMulKleidiAIExecutor::update(const MemoryArgs& memory) {
     const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();
+    const auto& srcDesc = memory.at(ARG_SRC)->getDescPtr();
     const auto& dstDesc = memory.at(ARG_DST)->getDescPtr();
     const auto& wgtDims = weiDesc->getShape().getStaticDims();
     // Weights are transposed by MatMulConstTransposesExtraction
@@ -343,9 +344,10 @@ bool MatMulKleidiAIExecutor::update(const MemoryArgs& memory) {
         lhsPackedSize = packedlhs_block_in_bytes * _m_blocks;
         if (KaiExecutorImpl == IMPL_TYPE::GatherMatmul) {
             const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-            const auto srcPrc = dstDesc->getPrecision();
+            const auto srcPrc = srcDesc->getPrecision();
+            const auto dstPrc = dstDesc->getPrecision();
             m_tmpInputDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({M, K}));
-            m_tmpOutputDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({M, N}));
+            m_tmpOutputDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(dstPrc, Shape({M, N}));
             lhsPackedSize = rnd_up(lhsPackedSize, 64);
             auto srcSize = rnd_up(m_tmpInputDesc->getCurrentMemSize(), 64);  // 64 bytes is the cache line size
             auto dstSize = rnd_up(m_tmpOutputDesc->getCurrentMemSize(), 64);

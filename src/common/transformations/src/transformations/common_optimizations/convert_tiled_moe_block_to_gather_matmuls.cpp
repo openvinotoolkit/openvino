@@ -266,14 +266,14 @@ ConvertTiledMoeBlockTo2GatherMatmuls::ConvertTiledMoeBlockTo2GatherMatmuls() {
             new_reduce_sum =
                 squeeze_node->clone_with_new_inputs({new_reduce_node->output(0), squeeze_node->input_value(1)});
             ov::copy_runtime_info(squeeze_node, new_reduce_sum);
+            new_reduce_sum->set_friendly_name(squeeze_node->get_friendly_name());
         } else {
             const auto reduce_node = pm.at(p.reduceSum_noKeepDims).get_node_shared_ptr();
             new_reduce_sum =
                 reduce_node->clone_with_new_inputs({new_final_mul->output(0), reduce_node->input_value(1)});
             ov::copy_runtime_info(reduce_node, new_reduce_sum);
+            new_reduce_sum->set_friendly_name(reduce_node->get_friendly_name());
         }
-
-        new_reduce_sum->set_friendly_name(p.reduce_sum->get_friendly_name());
 
         const auto& end_reshape_out = pm.at(p.end_reshape);
         const auto end_reshape_rank = end_reshape_out.get_partial_shape().rank();
@@ -366,14 +366,14 @@ ConvertTiledMoeBlockTo3GatherMatmuls::ConvertTiledMoeBlockTo3GatherMatmuls() {
             new_reduce_sum =
                 squeeze_node->clone_with_new_inputs({new_reduce_node->output(0), squeeze_node->input_value(1)});
             ov::copy_runtime_info(squeeze_node, new_reduce_sum);
+            new_reduce_sum->set_friendly_name(squeeze_node->get_friendly_name());
         } else {
             const auto reduce_node = pm.at(p.reduceSum_noKeepDims).get_node_shared_ptr();
             new_reduce_sum =
                 reduce_node->clone_with_new_inputs({new_final_mul->output(0), reduce_node->input_value(1)});
             ov::copy_runtime_info(reduce_node, new_reduce_sum);
+            new_reduce_sum->set_friendly_name(reduce_node->get_friendly_name());
         }
-
-        new_reduce_sum->set_friendly_name(p.reduce_sum->get_friendly_name());
 
         const auto& end_reshape_out = pm.at(p.end_reshape);
         const auto end_reshape_rank = end_reshape_out.get_partial_shape().rank();

@@ -49,7 +49,7 @@ public:
     void moveMemToNumaNode(int numaNodeID) override;
 
     void setKaiExecutorImplAsGatherMatmul();
-    void set_gather_idx(std::vector<std::pair<int32_t, int32_t>> idxMap);
+    void set_gather_idx(const std::vector<std::pair<int32_t, int32_t>>& idxMap);
 
 private:
     static constexpr kai_matmul_clamp_f32_f32_f32p_ukernel ukernel_f32{
