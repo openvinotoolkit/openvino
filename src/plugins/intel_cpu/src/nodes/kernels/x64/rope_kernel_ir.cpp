@@ -77,86 +77,76 @@ void jit_rotary_kernel_ir::generate() {
 
 template <typename T, size_t N>
 void jit_rotary_kernel_ir::rotary_half_ir() {
-    auto src = arg<T*>(&Params::src);
-    auto cos = arg<const float*>(&Params::cos);
-    auto sin = arg<const float*>(&Params::sin);
-    auto dst = arg<T*>(&Params::dst);
-
     const auto half_rotary_ndims = m_jcp.rotary_ndims / 2;
     const auto half_byte_offset = half_rotary_ndims * sizeof(T);
     const bool shift_cos_sin = (m_jcp.cos_sin_ndims != half_rotary_ndims);
 
-    auto count = var<size_t>(half_rotary_ndims);
+    auto loop_count = var<size_t>(half_rotary_ndims / N);
 
     begin_ir();
 
-    auto src_idx = src.reg().getIdx();
-    auto dst_idx = dst.reg().getIdx();
-    auto cos_idx = cos.reg().getIdx();
-    auto sin_idx = sin.reg().getIdx();
+    auto src = make_ir_ptr(arg<T*>(&Params::src), N);
+    auto cos = make_ir_ptr(arg<const float*>(&Params::cos), N);
+    auto sin = make_ir_ptr(arg<const float*>(&Params::sin), N);
+    auto dst = make_ir_ptr(arg<T*>(&Params::dst), N);
 
-    // Unroll by 4 to match legacy kernel's manual unrolling.
-    const size_t unroll = std::min<size_t>(4, half_rotary_ndims / N);
+    // @todo claude: foreach_with_epilogue generates an epilogue even when
+    // half_rotary_ndims is a multiple of N (tail never executes). The
+    // epilogue's ir_load_partial creates ~20 GPR values that exhaust the
+    // pool. Use plain foreach when no tail is needed.
+    if (half_rotary_ndims % N != 0) {
+        OPENVINO_THROW("rotary_half_ir: half_rotary_ndims must be a multiple of N");
+    }
 
-    foreach_predicated<N>(count, [&](const Xbyak::Opmask&) {
+    foreach(size_t{0}, loop_count, [&](const variable<size_t>&) {
         auto v_src0 = ir_load<N>(src);
-        auto v_src1 = ir_load<N>(src, half_byte_offset);
+        auto v_src1 = ir_load<N>(src.ptr, half_byte_offset);
         auto v_cos = ir_load<N>(cos);
         auto v_sin = ir_load<N>(sin);
 
-        // dst[i] = cos * src0 - sin * src1
-        auto v_tmp = v_sin * v_src1;
-        auto v_dst0 = fmsub(v_cos, v_src0, v_tmp);
-        ir_store(dst, size_t{0}, v_dst0);
+        auto v_dst0 = fmsub(v_cos, v_src0, v_sin * v_src1);
+        ir_store(dst.ptr, size_t{0}, v_dst0);
 
-        // Reload cos/sin with offset if table is full-sized
         if (shift_cos_sin) {
-            v_cos = ir_load<N>(cos, half_rotary_ndims * sizeof(float));
-            v_sin = ir_load<N>(sin, half_rotary_ndims * sizeof(float));
+            v_cos = ir_load<N>(cos.ptr, half_rotary_ndims * sizeof(float));
+            v_sin = ir_load<N>(sin.ptr, half_rotary_ndims * sizeof(float));
         }
 
-        // dst[i + half] = cos * src1 + sin * src0
-        auto v_tmp2 = v_cos * v_src1;
-        auto v_dst1 = fma(v_sin, v_src0, v_tmp2);
-        ir_store(dst, half_byte_offset, v_dst1);
+        auto v_dst1 = fma(v_sin, v_src0, v_cos * v_src1);
+        ir_store(dst.ptr, half_byte_offset, v_dst1);
 
-        // Advance pointers
-        ir_use({}, [this, src_idx, dst_idx, cos_idx, sin_idx](const jit_kernel_ir::EmitContext&) {
-            add(Xbyak::Reg64(src_idx), N * sizeof(T));
-            add(Xbyak::Reg64(dst_idx), N * sizeof(T));
-            add(Xbyak::Reg64(cos_idx), N * sizeof(float));
-            add(Xbyak::Reg64(sin_idx), N * sizeof(float));
-        }, "ptr_advance");
-    }, unroll);
+        ir_advance(src);
+        ir_advance(cos);
+        ir_advance(sin);
+        ir_advance(dst);
+    });
 
     end_ir();
 }
 
 template <typename T, size_t N>
 void jit_rotary_kernel_ir::rotary_interleave_ir() {
+    const auto half_rotary_ndims = m_jcp.rotary_ndims / 2;
+    constexpr size_t src_step = 2 * N * sizeof(T);
+    const size_t cos_step = m_jcp.mix_cos_sin ? 2 * N * sizeof(float) : N * sizeof(float);
+
+    begin_ir();
+
     auto src = arg<T*>(&Params::src);
     auto cos = arg<const float*>(&Params::cos);
     auto sin = arg<const float*>(&Params::sin);
     auto dst = arg<T*>(&Params::dst);
 
-    const auto half_rotary_ndims = m_jcp.rotary_ndims / 2;
-
-    begin_ir();
-
     for (size_t i = 0; i < half_rotary_ndims / N; i++) {
-        // Load two consecutive vectors of interleaved data
         auto v_src0 = ir_load<N>(src);
         auto v_src1 = ir_load<N>(src, N * sizeof(T));
 
-        // Deinterleave: separate even (x[i]) and odd (x[i+1]) elements
         auto [v_even, v_odd] = deinterleave2(v_src0, v_src1);
 
-        // Load cos/sin
         auto v_cos = ir_load<N>(cos);
         variable<float[N]> v_sin(*this, jit_kernel_ir::invalid_value);
         if (m_jcp.mix_cos_sin) {
             auto v_sin_raw = ir_load<N>(cos, N * sizeof(float));
-            // cos and sin are interleaved too — deinterleave them
             auto [v_cos_d, v_sin_d] = deinterleave2(v_cos, v_sin_raw);
             v_cos = std::move(v_cos_d);
             v_sin = std::move(v_sin_d);
@@ -164,39 +154,21 @@ void jit_rotary_kernel_ir::rotary_interleave_ir() {
             v_sin = ir_load<N>(sin);
         }
 
-        // dst[i]   = cos * x[i] - sin * x[i+1]
-        auto tmp0 = v_sin * v_odd;
-        auto v_dst0 = fmsub(v_cos, v_even, tmp0);
+        auto v_dst0 = fmsub(v_cos, v_even, v_sin * v_odd);
+        auto v_dst1 = fma(v_sin, v_even, v_cos * v_odd);
 
-        // dst[i+1] = cos * x[i+1] + sin * x[i]
-        auto tmp1 = v_cos * v_odd;
-        auto v_dst1 = fma(v_sin, v_even, tmp1);
-
-        // Re-interleave results
         auto [v_out0, v_out1] = interleave2(v_dst0, v_dst1);
 
-        // Store two vectors
         ir_store(dst, size_t{0}, v_out0);
         ir_store(dst, N * sizeof(T), v_out1);
 
-        // Advance pointers (inside IR so they execute at lowering time)
         if (i + 1 < half_rotary_ndims / N) {
-            auto src_idx = src.reg().getIdx();
-            auto dst_idx = dst.reg().getIdx();
-            auto cos_idx = cos.reg().getIdx();
-            auto sin_idx = sin.reg().getIdx();
-            constexpr size_t src_step = 2 * N * sizeof(T);
-            const size_t cos_step = m_jcp.mix_cos_sin ? 2 * N * sizeof(float) : N * sizeof(float);
-            bool advance_sin = !m_jcp.mix_cos_sin;
-            ir_use({}, [this, src_idx, dst_idx, cos_idx, sin_idx,
-                        src_step, cos_step, advance_sin](const jit_kernel_ir::EmitContext&) {
-                add(Xbyak::Reg64(src_idx), src_step);
-                add(Xbyak::Reg64(dst_idx), src_step);
-                add(Xbyak::Reg64(cos_idx), cos_step);
-                if (advance_sin) {
-                    add(Xbyak::Reg64(sin_idx), cos_step);
-                }
-            }, "ptr_advance");
+            ir_advance(src, src_step);
+            ir_advance(dst, src_step);
+            ir_advance(cos, cos_step);
+            if (!m_jcp.mix_cos_sin) {
+                ir_advance(sin, cos_step);
+            }
         }
     }
 
