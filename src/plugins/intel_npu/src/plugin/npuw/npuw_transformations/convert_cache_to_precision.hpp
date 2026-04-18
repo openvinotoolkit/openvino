@@ -21,4 +21,13 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
+class ConvertLinCacheToPrecision : public ov::pass::ModelPass {
+    ov::element::Type m_lp_type;
+
+public:
+    OPENVINO_MODEL_PASS_RTTI("ov::npuw::ConvertLinCacheToPrecision");
+    explicit ConvertLinCacheToPrecision(const ov::element::Type lptype);
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+};
+
 }  // namespace ov::npuw
