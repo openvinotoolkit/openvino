@@ -3795,6 +3795,15 @@ void primitive_inst::enable_multi_impl_mode(ImplSwitchingPolicy policy) {
                 const auto* m1_node = _impls_factory->m_node;
                 auto& kc = get_network().get_program()->get_kernels_cache();
 
+                // Kernel compilation cache for GEMV M=1 impls.
+                // Multiple FC layers with identical {K, N, GROUP_SIZE, data types} produce
+                // identical kernel source.  Cache compiled kernels by source hash to avoid
+                // redundant JIT compilation (each clBuildProgram takes ~1s on LNL).
+                // Qwen3-8b has 72 FC layers using OCL GEMV, but typically only 3-4 distinct
+                // kernel configurations — this cache reduces first-token latency by ~60-70s.
+                static std::mutex s_gemv_cache_mutex;
+                static std::unordered_map<size_t, std::vector<kernel::ptr>> s_gemv_compiled_cache;
+
                 for (const auto& mgr : _impls_factory->m_available_impls) {
                     if (mgr->get_impl_type() != t)
                         continue;
@@ -3817,9 +3826,52 @@ void primitive_inst::enable_multi_impl_mode(ImplSwitchingPolicy policy) {
 
                     m1_impl->set_node_params(*m1_node);
                     if (!can_be_optimized()) {
-                        auto kernels = kc.compile(m1_params, m1_impl->get_kernels_source());
-                        m1_impl->set_kernels(std::move(kernels));
+                        auto kernel_sources = m1_impl->get_kernels_source();
+                        // Compute a combined hash of all kernel source strings.
+                        size_t combined_hash = 0;
+                        for (const auto& ks : kernel_sources) {
+                            combined_hash ^= ks->get_hash() + 0x9e3779b9 + (combined_hash << 6) + (combined_hash >> 2);
+                        }
+
+                        bool cache_hit = false;
+                        {
+                            std::lock_guard<std::mutex> lock(s_gemv_cache_mutex);
+                            auto it = s_gemv_compiled_cache.find(combined_hash);
+                            if (it != s_gemv_compiled_cache.end()) {
+                                // Cache hit: clone existing compiled kernels for this impl.
+                                // Must use clone(false) to create independent cl_kernel objects
+                                // with separate argument state.  clone(true) shares the underlying
+                                // cl_kernel handle via clRetainKernel, so concurrent FC layers
+                                // would overwrite each other's kernel arguments.
+                                kernels_cache::compiled_kernels cached_kernels;
+                                std::vector<std::pair<kernel::ptr, size_t>> kv;
+                                for (size_t ki = 0; ki < it->second.size(); ++ki) {
+                                    kv.emplace_back(it->second[ki]->clone(false), ki);
+                                }
+                                cached_kernels[m1_params] = std::move(kv);
+                                m1_impl->set_kernels(std::move(cached_kernels));
+                                cache_hit = true;
+                            }
+                        }
+                        if (!cache_hit) {
+                            auto kernels = kc.compile(m1_params, kernel_sources);
+                            // Store compiled kernels in cache before moving to impl.
+                            {
+                                std::lock_guard<std::mutex> lock(s_gemv_cache_mutex);
+                                auto& kv_vec = kernels.begin()->second;
+                                std::vector<kernel::ptr> to_cache;
+                                for (const auto& [k, idx] : kv_vec) {
+                                    to_cache.push_back(k);
+                                }
+                                s_gemv_compiled_cache[combined_hash] = std::move(to_cache);
+                            }
+                            m1_impl->set_kernels(std::move(kernels));
+                        }
                     }
+                    // if (get_node().is_type<fully_connected>()) {
+                    //     fprintf(stderr, "[FC-POOL] %s: M=1 retry found GEMV impl: %s\n",
+                    //             id().c_str(), m1_impl->get_kernel_name().c_str());
+                    // }
                     alt_impl = std::move(m1_impl);
                     break;
                 }
@@ -3879,6 +3931,11 @@ void primitive_inst::enable_multi_impl_mode(ImplSwitchingPolicy policy) {
         }
 
         if (reject_reason) {
+            // if (get_node().is_type<fully_connected>()) {
+            //     fprintf(stderr, "[FC-POOL] %s: alt impl type=%d REJECTED: %s  kernel=%s\n",
+            //             id().c_str(), static_cast<int>(t), reject_reason,
+            //             alt_impl->get_kernel_name().c_str());
+            // }
             continue;
         }
 

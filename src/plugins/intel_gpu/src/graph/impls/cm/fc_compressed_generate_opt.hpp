@@ -36,6 +36,11 @@ struct FCCompressedGenerateOptCM : public ImplementationManager {
     bool raw_sub_byte_weight_compatible() const noexcept override { return true; }
 
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
+        // Temporarily disabled: OCL SLM-cooperative GEMV kernel is being actively optimised.
+        // CM registers as impl_types::ocl and steals the OCL slot in the multi-impl pool
+        // (seen-set dedup in primitive_inst.cpp ~line 3614), preventing OCL from being selected.
+        return false;
+
         assert(node.is_type<fully_connected>());
 
         // CM requires CM JIT support, IMMAD (systolic), and use_cm flag.
