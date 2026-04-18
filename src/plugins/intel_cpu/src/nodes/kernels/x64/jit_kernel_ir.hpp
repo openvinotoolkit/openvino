@@ -34,9 +34,18 @@ namespace ov::intel_cpu::jit_kernel_ir {
 using value_id = std::uint32_t;
 inline constexpr value_id invalid_value = std::numeric_limits<value_id>::max();
 
-// A lightweight physical register handle. In Slice 1 this is just an index
-// into a generic pool; later slices will specialize per-pool (vector / GPR /
-// mask). The allocator is pool-agnostic.
+// LLVM-style register class. The allocator handles all classes in a single
+// unified priority queue, picking from the correct physical pool per value.
+// Class is stored per virtual register (on Op::def_rc / LiveRange::rc),
+// NOT on PhysReg — matching LLVM's MachineRegisterInfo design.
+enum class RegisterClass : std::uint8_t {
+    Vec,   // Ymm/Zmm — SIMD register file
+    GPR,   // Reg64 — general-purpose register file
+};
+
+// A lightweight physical register handle — just an index into the hardware
+// register file. The register class is determined by the virtual register
+// (value_id), not by the PhysReg itself.
 struct PhysReg {
     std::uint32_t idx = 0;
 
@@ -60,8 +69,17 @@ using EmitFn = std::function<void(const EmitContext&)>;
 
 class IR;  // forward declaration for Op::body
 
-// The one and only op type. No taxonomy. The allocator never inspects the
-// emit closure — it only reads the dependency shape.
+// LLVM-style semantic opcode. The allocator ignores this — it only matters
+// for IR transform passes (e.g., epilogue generation needs to distinguish
+// loads/stores from pure math to replace them with partial variants).
+enum class OpKind : std::uint8_t {
+    Generic,  // math, constants, control flow — clone as-is in transforms
+    Load,     // memory read  — epilogue replaces with partial/masked load
+    Store,    // memory write — epilogue replaces with partial/masked store
+};
+
+// The one and only op type. The allocator reads only the dependency shape
+// (reads/def/tied_to). OpKind is for transform passes.
 struct Op {
     std::vector<value_id> reads;
     value_id def = invalid_value;        // invalid_value = no def (e.g. store)
@@ -70,6 +88,8 @@ struct Op {
     int tied_to = -1;                    // LLVM-style tied operand: index into reads[]
                                          // that def must share a register with. -1 = none.
                                          // The allocator coalesces or inserts a copy.
+    RegisterClass def_rc = RegisterClass::Vec;  // register class for the def value
+    OpKind kind = OpKind::Generic;       // semantic tag for transform passes
     std::unique_ptr<IR> body;            // non-null = region op (loop, branch)
     bool is_loop = false;                // true = extend intervals across body (repeats)
     const char* name = "";               // debug tag for dump (not used by allocator)
@@ -81,39 +101,76 @@ struct Op {
 class IR {
 public:
     // Record an op that defines a fresh value. Returns the new value id.
-    value_id def(std::vector<value_id> reads, EmitFn emit, const char* name = "") {
+    // RegisterClass specifies which register file (Vec or GPR).
+    // OpKind tags the op for transform passes (epilogue generation etc.).
+    value_id def(std::vector<value_id> reads, EmitFn emit, const char* name = "",
+                 RegisterClass rc = RegisterClass::Vec,
+                 OpKind kind = OpKind::Generic) {
         const value_id id = _next_value++;
-        target().push_back(Op{std::move(reads), id, std::move(emit), /*is_copy=*/false, /*tied_to=*/-1, /*body=*/nullptr, /*is_loop=*/false, name});
+        Op op;
+        op.reads = std::move(reads);
+        op.def = id;
+        op.emit = std::move(emit);
+        op.def_rc = rc;
+        op.kind = kind;
+        op.name = name;
+        target().push_back(std::move(op));
         return id;
     }
 
     // Record an op with a tied-operand constraint: def must share a
     // register with reads[tied_to]. The allocator coalesces if possible,
     // otherwise the emit closure must handle the mismatch (e.g. vmovups).
-    value_id def_tied(std::vector<value_id> reads, int tied_to, EmitFn emit, const char* name = "") {
+    value_id def_tied(std::vector<value_id> reads, int tied_to, EmitFn emit, const char* name = "",
+                      RegisterClass rc = RegisterClass::Vec) {
         const value_id id = _next_value++;
-        target().push_back(Op{std::move(reads), id, std::move(emit), /*is_copy=*/false, tied_to, /*body=*/nullptr, /*is_loop=*/false, name});
+        Op op;
+        op.reads = std::move(reads);
+        op.def = id;
+        op.emit = std::move(emit);
+        op.tied_to = tied_to;
+        op.def_rc = rc;
+        op.name = name;
+        target().push_back(std::move(op));
         return id;
     }
 
     // Record an op that reads values but defines none (e.g. a store).
-    void use(std::vector<value_id> reads, EmitFn emit, const char* name = "") {
-        target().push_back(Op{std::move(reads), invalid_value, std::move(emit), /*is_copy=*/false, /*tied_to=*/-1, /*body=*/nullptr, /*is_loop=*/false, name});
+    void use(std::vector<value_id> reads, EmitFn emit, const char* name = "",
+             OpKind kind = OpKind::Generic) {
+        Op op;
+        op.reads = std::move(reads);
+        op.emit = std::move(emit);
+        op.kind = kind;
+        op.name = name;
+        target().push_back(std::move(op));
     }
 
     // Record a copy-like op: defines a fresh value whose contents come from a
     // single source. Flagged for the allocator's trivial coalescing pass.
-    value_id copy(value_id src, EmitFn emit, const char* name = "") {
+    value_id copy(value_id src, EmitFn emit, const char* name = "",
+                  RegisterClass rc = RegisterClass::Vec) {
         const value_id id = _next_value++;
-        target().push_back(Op{std::vector<value_id>{src}, id, std::move(emit), /*is_copy=*/true, /*tied_to=*/-1, /*body=*/nullptr, /*is_loop=*/false, name});
+        Op op;
+        op.reads = {src};
+        op.def = id;
+        op.emit = std::move(emit);
+        op.is_copy = true;
+        op.def_rc = rc;
+        op.name = name;
+        target().push_back(std::move(op));
         return id;
     }
 
     // Record a region op — a nested body of ops. The emit closure is
     // called at lowering time before the body ops are lowered.
     // `is_loop` controls whether intervals are extended across the body.
+    // `reads` are values consumed by the region header (e.g. loop counter
+    // and end value for the cmp/jge). Resolved at lowering time via
+    // EmitContext::reads, same as regular ops. LLVM-style: the loop
+    // header is part of the region op, not a separate instruction.
     template <typename BodyBuilder>
-    void region(EmitFn emit, BodyBuilder&& body_builder, bool is_loop = false) {
+    void region(std::vector<value_id> reads, EmitFn emit, BodyBuilder&& body_builder, bool is_loop = false) {
         auto body = std::make_unique<IR>();
         // Save/restore cursor so nested regions (e.g. ir_if inside a loop)
         // don't clobber the outer cursor.
@@ -122,14 +179,30 @@ public:
         body_builder();
         _cursor = saved_cursor;
 
-        target().push_back(Op{{}, invalid_value, std::move(emit), /*is_copy=*/false,
-                              /*tied_to=*/-1, std::move(body), is_loop});
+        Op op;
+        op.reads = std::move(reads);
+        op.emit = std::move(emit);
+        op.body = std::move(body);
+        op.is_loop = is_loop;
+        target().push_back(std::move(op));
     }
 
-    // Convenience: record a loop region (intervals extended across body).
+    // No-reads overload for backward compatibility (ir_if, branches).
+    template <typename BodyBuilder>
+    void region(EmitFn emit, BodyBuilder&& body_builder, bool is_loop = false) {
+        region({}, std::move(emit), std::forward<BodyBuilder>(body_builder), is_loop);
+    }
+
+    // Record a loop region with reads (e.g. loop counter + end value).
+    template <typename BodyBuilder>
+    void loop(std::vector<value_id> reads, EmitFn emit, BodyBuilder&& body_builder) {
+        region(std::move(reads), std::move(emit), std::forward<BodyBuilder>(body_builder), /*is_loop=*/true);
+    }
+
+    // No-reads loop overload for backward compatibility.
     template <typename BodyBuilder>
     void loop(EmitFn emit, BodyBuilder&& body_builder) {
-        region(std::move(emit), std::forward<BodyBuilder>(body_builder), /*is_loop=*/true);
+        region({}, std::move(emit), std::forward<BodyBuilder>(body_builder), /*is_loop=*/true);
     }
 
     [[nodiscard]] const std::list<Op>& ops() const noexcept { return _ops; }
@@ -188,6 +261,7 @@ struct LiveRange {
     std::vector<Segment> segments;   // sorted by start, non-overlapping
     std::vector<VNInfo> valnos;      // value numbers, one per def
     value_id copy_of = invalid_value;  // coalescing hint
+    RegisterClass rc = RegisterClass::Vec;  // register class (from defining Op)
 
     // First segment's start. Returns max uint32 if empty.
     [[nodiscard]] std::uint32_t beginIndex() const noexcept;
@@ -230,20 +304,24 @@ public:
 };
 
 // Pressure-repair pass: rewrites the IR by inserting one local single-use
-// rematerialization when peak pressure exceeds `pool_size`.
+// rematerialization when peak pressure exceeds the pool size for the value's
+// register class.
 // Returns true iff the IR was rewritten.
 bool rematerialize_for_pressure(IR& ir,
                                 const std::vector<LiveRange>& ranges,
-                                std::uint32_t pool_size);
+                                std::uint32_t vec_pool_size,
+                                std::uint32_t gpr_pool_size = 0);
 
 // LLVM-style interference-based allocator with integrated remat.
 // Returns Assignment on success. Returns std::nullopt when the IR was
 // modified (a rematerializable value was cloned at each use site) — the
 // caller should recompute live ranges and retry. Throws allocation_failure
 // when no register is available and no rematerializable victim exists.
+// gpr_pool_indices maps pool slots to physical GPR register indices.
 std::optional<Assignment> linear_scan(IR& ir,
                                       std::vector<LiveRange>& ranges,
-                                      std::uint32_t pool_size);
+                                      std::uint32_t vec_pool_size,
+                                      const std::vector<std::uint32_t>& gpr_pool_indices = {});
 
 // Loop unrolling strategies.
 enum class UnrollStrategy {
@@ -255,7 +333,7 @@ enum class UnrollStrategy {
 // IR transform pass: unroll loops in the IR.
 // Clones loop body ops, remaps value_ids. Runs before allocation.
 // Returns true if any loop was unrolled.
-bool unroll_loops(IR& ir, std::uint32_t pool_size, UnrollStrategy strategy = UnrollStrategy::heuristic);
+bool unroll_loops(IR& ir, std::uint32_t vec_pool_size, UnrollStrategy strategy = UnrollStrategy::heuristic);
 
 // Test-only: remat a specific value — insert a clone (with reads
 // preserved) before each use and rewrite reads.
@@ -276,7 +354,13 @@ void dump_assignment(std::ostream& os,
 // PassContext carries shared state (analysis results, config) between passes.
 
 struct PassContext {
-    std::uint32_t pool_size = 0;
+    // Per-class register pools. LLVM-style: one allocator, class-specific pools.
+    // Vec pool is contiguous 0..vec_pool_size-1 (physical index == pool slot).
+    // GPR pool uses an indirection table (gpr_pool_indices) because allocable
+    // GPR indices are non-contiguous (rsp, rbp, abi_param excluded).
+    // Mirrors LLVM's AllocationOrder (RegisterClassInfo::getOrder).
+    std::uint32_t vec_pool_size = 0;
+    std::vector<std::uint32_t> gpr_pool_indices;  // allocable GPR register indices
 
     // Analysis results — populated by analysis passes, consumed by later passes.
     std::vector<LiveRange> ranges;

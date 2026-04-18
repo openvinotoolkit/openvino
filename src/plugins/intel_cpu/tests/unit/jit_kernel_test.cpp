@@ -229,26 +229,27 @@ private:
 
             auto s_reg = s.reg().getIdx();
             auto a_reg = a.reg().getIdx();
-            foreach(0, n, [&, s_reg, a_reg](const variable<size_t> & idx) {
-                auto idx_reg = idx.reg().getIdx();
+            foreach(0, n, [&, s_reg, a_reg](const variable<size_t>& idx) {
+                // idx is now an IR GPR value — use vid(), not reg().
+                auto idx_vid = idx.vid();
                 // Compute (idx & 3) and compare with a — both at lowering time.
                 auto tmp = var<size_t>();
                 auto tmp_reg = tmp.reg().getIdx();
-                ir_use({}, [this, tmp_reg, idx_reg](const jit_kernel_ir::EmitContext&) {
-                    mov(Xbyak::Reg64(tmp_reg), Xbyak::Reg64(idx_reg));
+                ir_use({idx_vid}, [this, tmp_reg](const jit_kernel_ir::EmitContext& ctx) {
+                    mov(Xbyak::Reg64(tmp_reg), Xbyak::Reg64(ctx.reads[0].idx));
                     and_(Xbyak::Reg64(tmp_reg), 3);
                 }, "tmp_and");
                 ir_cmp(tmp, a);
-                ir_if(&Xbyak::CodeGenerator::je, [&, s_reg, idx_reg] {
+                ir_if(&Xbyak::CodeGenerator::je, [&, s_reg, idx_vid] {
                     // (idx & 3) != a: s += idx + 3
-                    ir_use({}, [this, s_reg, idx_reg](const jit_kernel_ir::EmitContext&) {
-                        add(Xbyak::Reg64(s_reg), Xbyak::Reg64(idx_reg));
+                    ir_use({idx_vid}, [this, s_reg](const jit_kernel_ir::EmitContext& ctx) {
+                        add(Xbyak::Reg64(s_reg), Xbyak::Reg64(ctx.reads[0].idx));
                         add(Xbyak::Reg64(s_reg), 3);
                     }, "s_add");
-                }, [&, s_reg, idx_reg] {
+                }, [&, s_reg, idx_vid] {
                     // (idx & 3) == a: s -= idx - 2
-                    ir_use({}, [this, s_reg, idx_reg](const jit_kernel_ir::EmitContext&) {
-                        sub(Xbyak::Reg64(s_reg), Xbyak::Reg64(idx_reg));
+                    ir_use({idx_vid}, [this, s_reg](const jit_kernel_ir::EmitContext& ctx) {
+                        sub(Xbyak::Reg64(s_reg), Xbyak::Reg64(ctx.reads[0].idx));
                         add(Xbyak::Reg64(s_reg), 2);
                     }, "s_sub");
                 });

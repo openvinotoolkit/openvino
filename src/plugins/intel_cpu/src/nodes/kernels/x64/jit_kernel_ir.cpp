@@ -107,6 +107,19 @@ void compute_live_ranges_impl(const std::list<Op>& ops,
     for (const auto& op : ops) {
         if (op.body) {
             auto region_begin = 2 * index;  // early slot of first op in region
+
+            // Commit segments for region reads (e.g., loop header's cmp reads
+            // idx and end). LLVM-style: every use creates a segment at its
+            // position. The existing loop extension logic (backedge handling)
+            // will extend these to cover the full loop body.
+            for (value_id read : op.reads) {
+                auto& lr = ranges[read];
+                auto vn = lr.valnos.empty() ? lr.getNextValue(region_begin) : lr.valnos.back().id;
+                lr.addSegment({region_begin, region_begin + 1, vn});
+                trace_ir("  region_read %" + std::to_string(read) +
+                         " commit [" + std::to_string(region_begin) +
+                         ", " + std::to_string(region_begin + 1) + ")");
+            }
             trace_ir(std::string("ranges enter ") + (op.is_loop ? "loop" : "region") +
                      " begin=" + std::to_string(region_begin));
             compute_live_ranges_impl(op.body->ops(), ranges, index);
@@ -198,6 +211,7 @@ void compute_live_ranges_impl(const std::list<Op>& ops,
             }
             if (op.def != invalid_value) {
                 auto& lr = ranges[op.def];
+                lr.rc = op.def_rc;  // propagate register class from Op to LiveRange
                 auto dit = local.find(op.def);
                 if (dit != local.end()) {
                     // Re-def (post-SSA, e.g. COPY then FMA for same value_id).
@@ -463,6 +477,7 @@ bool remat_all_uses_impl(std::list<Op>& ops, IR& ir, value_id vid, const Op& vic
         clone.reads = victim_def.reads;  // preserve input dependencies
         clone.def = new_id;
         clone.emit = victim_def.emit;
+        clone.def_rc = victim_def.def_rc;  // preserve register class
         clone.name = "remat";
         ops.insert(it, std::move(clone));
 
@@ -505,6 +520,8 @@ void clone_ops(const std::list<Op>& src_ops,
         clone.emit = op.emit;  // share the emit closure
         clone.is_copy = op.is_copy;
         clone.tied_to = op.tied_to;
+        clone.def_rc = op.def_rc;
+        clone.kind = op.kind;
         clone.is_loop = op.is_loop;
         clone.name = op.name;
         // Note: nested body (regions) not cloned — unrolling only applies
@@ -577,7 +594,7 @@ bool unroll_loop_body(Op& loop_op, IR& ir, std::uint32_t factor) {
 
 // ── Public unroll_loops pass ────────────────────────────────────────
 
-bool unroll_loops(IR& ir, std::uint32_t pool_size, UnrollStrategy strategy) {
+bool unroll_loops(IR& ir, std::uint32_t vec_pool_size, UnrollStrategy strategy) {
     if (strategy == UnrollStrategy::none) return false;
 
     bool modified = false;
@@ -589,20 +606,20 @@ bool unroll_loops(IR& ir, std::uint32_t pool_size, UnrollStrategy strategy) {
         auto pressure = estimate_body_pressure(body_ops);
         trace_ir("unroll: found loop, body_ops=" + std::to_string(body_ops.size()) +
                  " pressure=" + std::to_string(pressure) +
-                 " pool=" + std::to_string(pool_size));
+                 " pool=" + std::to_string(vec_pool_size));
         if (pressure == 0) continue;
 
         std::uint32_t factor = 1;
 
         if (strategy == UnrollStrategy::heuristic) {
             // LLVM-style: unroll as much as register pressure allows.
-            factor = pool_size / pressure;
+            factor = vec_pool_size / pressure;
             if (factor < 2) continue;
             // Cap at 8 to avoid code bloat.
             factor = std::min(factor, 8u);
         } else if (strategy == UnrollStrategy::feedback) {
             // Feedback-directed: try increasing factors until allocation fails.
-            for (std::uint32_t try_factor = pool_size / pressure;
+            for (std::uint32_t try_factor = vec_pool_size / pressure;
                  try_factor >= 2; try_factor /= 2) {
                 // Build a trial IR copy — expensive but optimal.
                 // For now, use the heuristic as a starting point.
@@ -624,7 +641,8 @@ bool unroll_loops(IR& ir, std::uint32_t pool_size, UnrollStrategy strategy) {
 
 bool rematerialize_for_pressure(IR& ir,
                                 const std::vector<LiveRange>& ranges,
-                                std::uint32_t pool_size) {
+                                std::uint32_t vec_pool_size,
+                                std::uint32_t gpr_pool_size) {
     if (get_remat_debug_config().disable_remat) {
         return false;
     }
@@ -660,7 +678,14 @@ bool rematerialize_for_pressure(IR& ir,
 
     for (auto lr_idx : order) {
         expire(ranges[lr_idx].beginIndex());
-        if (active.size() < pool_size) {
+        // Per-class pressure check: count active values of the same register class.
+        auto current_rc = ranges[lr_idx].rc;
+        auto current_pool_size = (current_rc == RegisterClass::GPR) ? gpr_pool_size : vec_pool_size;
+        std::uint32_t class_active = 0;
+        for (const auto& ae : active) {
+            if (ranges[ae.lr_idx].rc == current_rc) ++class_active;
+        }
+        if (class_active < current_pool_size) {
             insert_by_end(active, ranges, lr_idx);
             continue;
         }
@@ -696,6 +721,7 @@ bool rematerialize_for_pressure(IR& ir,
             Op remat_op;
             remat_op.def = new_id;
             remat_op.emit = victim_def->emit;
+            remat_op.def_rc = victim_def->def_rc;  // preserve register class
             remat_op.name = "remat";
             use_loc.parent_list->insert(use_loc.it, std::move(remat_op));
 
@@ -734,18 +760,20 @@ bool rematerialize_for_pressure(IR& ir,
 
 std::optional<Assignment> linear_scan(IR& ir,
                                       std::vector<LiveRange>& ranges,
-                                      std::uint32_t pool_size) {
-    // LLVM-style per-register interference allocation. Each physical
-    // register maintains a segment union — the merged list of all segments
-    // assigned to it. A LiveRange can use a register iff none of its
-    // segments overlap any segment already on that register. Two values
-    // with non-overlapping segments (e.g., branch-local values) naturally
-    // share a register.
+                                      std::uint32_t vec_pool_size,
+                                      const std::vector<std::uint32_t>& gpr_pool_indices) {
+    // LLVM-style per-register interference allocation with dual register pools.
+    // One unified priority queue (sorted by beginIndex), per-class physical pools.
+    // GPR and Vec never interfere — separate hardware register files.
     //
-    // No expire, no temp_free, no re-acquisition. One register per value,
-    // assigned once, correct by construction.
+    // Vec pool: contiguous 0..vec_pool_size-1 (phys index == pool slot).
+    // GPR pool: gpr_pool_indices maps pool slot → physical register index.
+    // Mirrors LLVM's AllocationOrder (RegisterClassInfo::getOrder).
+
+    const auto gpr_pool_size = static_cast<std::uint32_t>(gpr_pool_indices.size());
 
     // Sort LiveRanges by beginIndex (standard linear-scan order).
+    // Single unified queue across all register classes — LLVM-style.
     std::vector<std::size_t> order;
     order.reserve(ranges.size());
     for (std::size_t idx = 0; idx < ranges.size(); ++idx) {
@@ -760,24 +788,50 @@ std::optional<Assignment> linear_scan(IR& ir,
         return ranges[a].id < ranges[b].id;
     });
 
-    // Per-register segment union: all segments assigned to each physical reg.
-    std::vector<std::vector<Segment>> reg_segments(pool_size);
+    // Per-class segment unions keyed by physical register index.
+    // GPR and Vec are separate hardware — no cross-class interference.
+    std::vector<std::vector<Segment>> vec_reg_segments(vec_pool_size);
+    std::vector<std::vector<Segment>> gpr_reg_segments(gpr_pool_size);
 
-    // Check if any segment of `lr` overlaps any segment on register `r`.
-    // Half-open intervals: [a, b) and [c, d) overlap iff a < d && c < b.
-    auto interferes = [&](const LiveRange& lr, std::uint32_t r) -> bool {
+    // Select the correct segment array for a register class + pool slot.
+    auto segs_for = [&](RegisterClass rc, std::uint32_t slot) -> std::vector<Segment>& {
+        return (rc == RegisterClass::GPR) ? gpr_reg_segments[slot] : vec_reg_segments[slot];
+    };
+
+    auto pool_size_for = [&](RegisterClass rc) -> std::uint32_t {
+        return (rc == RegisterClass::GPR) ? gpr_pool_size : vec_pool_size;
+    };
+
+    // Map pool slot → physical register index.
+    auto phys_idx = [&](RegisterClass rc, std::uint32_t slot) -> std::uint32_t {
+        return (rc == RegisterClass::GPR) ? gpr_pool_indices[slot] : slot;
+    };
+
+    // Reverse map: physical register index → pool slot (for coalescing lookups).
+    auto slot_of = [&](RegisterClass rc, std::uint32_t phys) -> std::uint32_t {
+        if (rc == RegisterClass::Vec) return phys;
+        for (std::uint32_t i = 0; i < gpr_pool_size; ++i) {
+            if (gpr_pool_indices[i] == phys) return i;
+        }
+        return gpr_pool_size;  // not found
+    };
+
+    // Check if any segment of `lr` overlaps any segment on pool slot `slot`.
+    auto interferes = [&](const LiveRange& lr, std::uint32_t slot) -> bool {
+        auto& seg_union = segs_for(lr.rc, slot);
         for (const auto& s : lr.segments) {
-            for (const auto& e : reg_segments[r]) {
+            for (const auto& e : seg_union) {
                 if (s.overlaps(e)) return true;
             }
         }
         return false;
     };
 
-    // Add all segments of `lr` to register `r`'s union.
-    auto add_to_reg = [&](const LiveRange& lr, std::uint32_t r) {
+    // Add all segments of `lr` to pool slot `slot`.
+    auto add_to_reg = [&](const LiveRange& lr, std::uint32_t slot) {
+        auto& seg_union = segs_for(lr.rc, slot);
         for (const auto& s : lr.segments) {
-            reg_segments[r].push_back(s);
+            seg_union.push_back(s);
         }
     };
 
@@ -787,61 +841,64 @@ std::optional<Assignment> linear_scan(IR& ir,
     for (auto lr_idx : order) {
         const auto& lr = ranges[lr_idx];
         auto vid = lr.id;
+        auto rc = lr.rc;
+        auto ps = pool_size_for(rc);
+        const char* rc_tag = (rc == RegisterClass::GPR) ? "gpr" : "vec";
 
-        trace_ir("alloc %" + std::to_string(vid) +
+        trace_ir("alloc %" + std::to_string(vid) + " " + rc_tag +
                  " segs=" + std::to_string(lr.segments.size()) +
                  " [" + std::to_string(lr.beginIndex()) +
-                 "," + std::to_string(lr.endIndex()) + "]");
+                 "," + std::to_string(lr.endIndex()) + ")");
+
+        if (ps == 0) {
+            throw allocation_failure(
+                "jit_kernel_ir::linear_scan: no " + std::string(rc_tag) +
+                " registers available for value %" + std::to_string(vid));
+        }
 
         // Trivial coalescing: prefer the source's register if compatible.
+        // Only coalesce within the same register class.
         if (lr.copy_of != invalid_value) {
             auto src_it = result.reg.find(lr.copy_of);
-            if (src_it != result.reg.end() && !interferes(lr, src_it->second.idx)) {
-                trace_ir("  coalesce %" + std::to_string(vid) +
-                         " with %" + std::to_string(lr.copy_of) +
-                         " on p" + std::to_string(src_it->second.idx));
-                result.reg.emplace(vid, src_it->second);
-                add_to_reg(lr, src_it->second.idx);
-                continue;
+            if (src_it != result.reg.end()) {
+                auto src_rc = (lr.copy_of < ranges.size()) ? ranges[lr.copy_of].rc : rc;
+                if (src_rc == rc) {
+                    auto src_slot = slot_of(rc, src_it->second.idx);
+                    if (src_slot < ps && !interferes(lr, src_slot)) {
+                        trace_ir("  coalesce %" + std::to_string(vid) +
+                                 " with %" + std::to_string(lr.copy_of) +
+                                 " on p" + std::to_string(src_it->second.idx));
+                        result.reg.emplace(vid, src_it->second);
+                        add_to_reg(lr, src_slot);
+                        continue;
+                    }
+                }
             }
         }
 
-        // Find first non-interfering register.
+        // Find first non-interfering register in this class's pool.
         bool assigned = false;
-        for (std::uint32_t r = 0; r < pool_size; ++r) {
-            if (!interferes(lr, r)) {
+        for (std::uint32_t slot = 0; slot < ps; ++slot) {
+            if (!interferes(lr, slot)) {
+                auto pidx = phys_idx(rc, slot);
                 trace_ir("  assign %" + std::to_string(vid) +
-                         " -> p" + std::to_string(r));
-                result.reg.emplace(vid, PhysReg{r});
-                add_to_reg(lr, r);
+                         " -> p" + std::to_string(pidx));
+                result.reg.emplace(vid, PhysReg{pidx});
+                add_to_reg(lr, slot);
                 assigned = true;
                 break;
             }
         }
 
         if (!assigned) {
-            // All registers interfere. Try to remat a victim: find the
-            // rematerializable value (empty reads) with the longest range
-            // among all already-assigned values. Remat replaces all its
-            // uses with local clones, making the original dead and freeing
-            // its register pressure.
+            // All registers interfere. Try to remat a victim.
             std::unordered_map<value_id, Op*> def_map;
             collect_def_ops(ir.ops(), def_map);
 
-            // Only consider victims whose segments INTERFERE with the
-            // failing value — only those contribute to the pressure at
-            // this specific point. This prevents infinite remat loops
-            // where short-lived clones far from the pressure point keep
-            // getting picked without reducing peak pressure.
             auto interferes_with_lr = [&](const LiveRange& victim_lr) -> bool {
                 return victim_lr.overlaps(lr);
             };
 
-            // A value is rematerializable if:
-            //  (a) its def op has no reads (constant/broadcast), OR
-            //  (b) all of its def op's inputs have ranges that span the
-            //      victim's entire lifetime — so the clone's reads are
-            //      already live at every use site, adding no pressure.
             auto is_rematerializable = [&](value_id v) -> bool {
                 auto dit = def_map.find(v);
                 if (dit == def_map.end()) return false;
@@ -855,9 +912,11 @@ std::optional<Assignment> linear_scan(IR& ir,
                 return true;
             };
 
+            // Only remat victims of the same register class.
             value_id best_victim = invalid_value;
             std::uint32_t best_range = 0;
             for (const auto& [v, _reg] : result.reg) {
+                if (v < ranges.size() && ranges[v].rc != rc) continue;
                 if (!is_rematerializable(v)) continue;
                 if (!interferes_with_lr(ranges[v])) continue;
                 auto range = ranges[v].endIndex() - ranges[v].beginIndex();
@@ -866,7 +925,6 @@ std::optional<Assignment> linear_scan(IR& ir,
                     best_victim = v;
                 }
             }
-            // Also consider the current unassigned value.
             if (is_rematerializable(vid)) {
                 auto range = lr.endIndex() - lr.beginIndex();
                 if (range > best_range) {
@@ -879,28 +937,18 @@ std::optional<Assignment> linear_scan(IR& ir,
                 if (remat_all_uses_impl(ir.ops(), ir, best_victim, *vdef)) {
                     trace_ir("remat %" + std::to_string(best_victim) +
                              " (all uses) — retry allocation");
-                    return std::nullopt;  // IR modified, caller retries
+                    return std::nullopt;
                 }
             }
 
             throw allocation_failure(
-                "jit_kernel_ir::linear_scan: pool of " + std::to_string(pool_size) +
-                " registers exhausted for value %" + std::to_string(vid) +
-                " at op index " + std::to_string(lr.beginIndex()));
+                "jit_kernel_ir::linear_scan: " + std::string(rc_tag) + " pool of " +
+                std::to_string(ps) + " registers exhausted for value %" +
+                std::to_string(vid) + " at op index " + std::to_string(lr.beginIndex()));
         }
     }
 
-    // Compute peak_live: max number of registers simultaneously in use.
-    // Walk all op indices and count how many values are live at each.
-    std::uint32_t max_idx = 0;
-    for (const auto& lr : ranges) {
-        if (!lr.empty() && lr.endIndex() > max_idx) {
-            max_idx = lr.endIndex();
-        }
-    }
-    // Use segment unions on registers to find peak occupancy.
-    // Count assigned registers whose segment union covers each point.
-    // Optimization: only check at segment start/end boundaries.
+    // Compute peak_live (vec only — for diagnostics).
     std::vector<std::uint32_t> events;
     for (const auto& lr : ranges) {
         for (const auto& seg : lr.segments) {
@@ -1023,6 +1071,7 @@ static bool two_address_rewrite(std::list<Op>& ops, IR& ir) {
         copy_op.reads = {seed_vid};
         copy_op.def = def_vid;       // same value_id as the FMA's def
         copy_op.is_copy = true;
+        copy_op.def_rc = it->def_rc; // inherit register class from the tied op
         copy_op.name = "two_addr_copy";
         copy_op.emit = [](const EmitContext&) {};  // lowering handles is_copy
 
@@ -1048,7 +1097,7 @@ bool LiveRangeAnalysis::run(IR& ir, PassContext& ctx) {
 }
 
 bool LoopUnrollPass::run(IR& ir, PassContext& ctx) {
-    return unroll_loops(ir, ctx.pool_size, strategy);
+    return unroll_loops(ir, ctx.vec_pool_size, strategy);
 }
 
 bool RegisterAllocator::run(IR& ir, PassContext& ctx) {
@@ -1061,7 +1110,7 @@ bool RegisterAllocator::run(IR& ir, PassContext& ctx) {
     // requiring recomputation of live ranges.
     for (std::size_t attempt = 0, limit = ctx.ranges.size();
          attempt < limit; ++attempt) {
-        auto result = linear_scan(ir, ctx.ranges, ctx.pool_size);
+        auto result = linear_scan(ir, ctx.ranges, ctx.vec_pool_size, ctx.gpr_pool_indices);
         if (result) {
             ctx.assignment = std::move(*result);
             return false;
@@ -1075,7 +1124,8 @@ bool RegisterAllocator::run(IR& ir, PassContext& ctx) {
 bool DumpPass::run(IR& ir, PassContext& ctx) {
     if (!ctx.dump) return false;
     std::ostringstream os;
-    os << "=== " << label << ": pool_size=" << ctx.pool_size
+    os << "=== " << label << ": vec_pool=" << ctx.vec_pool_size
+       << " gpr_pool=" << ctx.gpr_pool_indices.size()
        << " values=" << ctx.ranges.size() << " ===\n";
     dump_ops(os, ir);
     if (ctx.assignment) {

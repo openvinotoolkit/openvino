@@ -45,7 +45,8 @@ void ir_trace(const std::string& msg) {
 
 bool isRegAllocable(int id) {
     return id != abi_param1.getIdx()     // function argument
-           && id != Operand::Code::RSP;  // stack pointer
+           && id != Operand::Code::RSP   // stack pointer
+           && id != Operand::Code::RBP;  // frame pointer (used by preamble/postamble)
 }
 
 template <typename RegType>
@@ -540,8 +541,25 @@ void jit_kernel::uni_vblendps(const Xbyak::Zmm& dst,
 
 void jit_kernel::ir_use(std::vector<jit_kernel_ir::value_id> reads,
                         jit_kernel_ir::EmitFn emit,
-                        const char* name) {
-    _ir->use(std::move(reads), std::move(emit), name);
+                        const char* name,
+                        jit_kernel_ir::OpKind kind) {
+    _ir->use(std::move(reads), std::move(emit), name, kind);
+}
+
+jit_kernel_ir::value_id jit_kernel::ir_def_gpr(std::vector<jit_kernel_ir::value_id> reads,
+                                                 jit_kernel_ir::EmitFn emit,
+                                                 const char* name) {
+    return _ir->def(std::move(reads), std::move(emit), name, jit_kernel_ir::RegisterClass::GPR);
+}
+
+jit_kernel_ir::value_id jit_kernel::ir_alloca(size_t size, size_t alignment) {
+    auto alloca_idx = _alloca_requests.size();
+    _alloca_requests.push_back({size, alignment, 0});
+
+    return _ir->def({}, [this, alloca_idx](const jit_kernel_ir::EmitContext& ctx) {
+        lea(Xbyak::Reg64(ctx.def->idx),
+            ptr[rsp + _alloca_requests[alloca_idx].offset]);
+    }, "alloca", jit_kernel_ir::RegisterClass::GPR);
 }
 
 void jit_kernel::begin_ir() {
@@ -551,8 +569,6 @@ void jit_kernel::begin_ir() {
 
 void jit_kernel::end_ir() {
     if (!_ir) return;
-
-    const auto pool_size = static_cast<std::uint32_t>(_free_rmmregs.size());
 
     // Unroll strategy from env var.
     static const char* unroll_env = std::getenv("OV_JIT_IR_UNROLL");
@@ -566,9 +582,12 @@ void jit_kernel::end_ir() {
     // Build pass pipeline.
     auto pm = jit_kernel_ir::build_default_pipeline(unroll_strategy);
 
-    // Set up pass context.
+    // Set up pass context with dual register pools.
     jit_kernel_ir::PassContext ctx;
-    ctx.pool_size = pool_size;
+    ctx.vec_pool_size = static_cast<std::uint32_t>(_free_rmmregs.size());
+    // GPR pool: actual register indices (non-contiguous after arg() reserves).
+    // Mirrors LLVM's AllocationOrder — the allocator picks from this list.
+    ctx.gpr_pool_indices.assign(_free_x64regs.begin(), _free_x64regs.end());
     ctx.dump = std::getenv("OV_JIT_IR_DUMP") != nullptr;
     ctx.trace = std::getenv("OV_JIT_IR_TRACE") != nullptr;
 
@@ -580,8 +599,13 @@ void jit_kernel::end_ir() {
             for (const auto& op : ops) {
                 if (op.body) {
                     ir_trace(std::string("lower ") + (op.is_loop ? "loop" : "region") + " enter");
-                    std::vector<jit_kernel_ir::PhysReg> no_reads;
-                    const jit_kernel_ir::EmitContext ectx{std::nullopt, no_reads};
+                    // Resolve reads for region ops (loop header idx/end etc.)
+                    std::vector<jit_kernel_ir::PhysReg> read_regs;
+                    read_regs.reserve(op.reads.size());
+                    for (auto vid : op.reads) {
+                        read_regs.push_back(assignment.reg.at(vid));
+                    }
+                    const jit_kernel_ir::EmitContext ectx{std::nullopt, read_regs};
                     op.emit(ectx);
                     lower(op.body->ops());
                     ir_trace(std::string("lower ") + (op.is_loop ? "loop" : "region") + " exit");
@@ -610,21 +634,24 @@ void jit_kernel::end_ir() {
                         ir_trace(os.str());
                     }
                     const jit_kernel_ir::EmitContext ectx{def_reg, read_regs};
-                    // TwoAddressPass COPY: emit vmovups if not coalesced.
+                    // TwoAddressPass COPY: dispatch by register class.
+                    // LLVM-style: X86InstrInfo::copyPhysReg checks class.
                     if (op.is_copy && def_reg && !read_regs.empty()
                         && def_reg->idx != read_regs[0].idx) {
-                        // Determine register width from the pool.
-                        // All IR-managed values are vector regs (zmm/ymm/xmm).
-                        // Use uni_vmovups which dispatches by register type.
-                        // The pool indices map to the register file — use
-                        // the widest available (Zmm for avx512, Ymm for avx2).
-                        using namespace dnnl::impl::cpu::x64;
-                        if (mayiuse(avx512_core)) {
-                            uni_vmovups(Xbyak::Zmm(def_reg->idx),
-                                        Xbyak::Zmm(read_regs[0].idx));
+                        if (op.def_rc == jit_kernel_ir::RegisterClass::GPR) {
+                            // GPR copy: mov reg64, reg64
+                            mov(Xbyak::Reg64(def_reg->idx),
+                                Xbyak::Reg64(read_regs[0].idx));
                         } else {
-                            uni_vmovups(Xbyak::Ymm(def_reg->idx),
-                                        Xbyak::Ymm(read_regs[0].idx));
+                            // Vec copy: vmovups
+                            using namespace dnnl::impl::cpu::x64;
+                            if (mayiuse(avx512_core)) {
+                                uni_vmovups(Xbyak::Zmm(def_reg->idx),
+                                            Xbyak::Zmm(read_regs[0].idx));
+                            } else {
+                                uni_vmovups(Xbyak::Ymm(def_reg->idx),
+                                            Xbyak::Ymm(read_regs[0].idx));
+                            }
                         }
                     } else {
                         op.emit(ectx);
@@ -635,9 +662,28 @@ void jit_kernel::end_ir() {
         lower(ir.ops());
     };
 
+    // Compute alloca offsets. One contiguous stack frame for all ir_alloca calls.
+    size_t total_alloca = 0;
+    for (auto& req : _alloca_requests) {
+        total_alloca = (total_alloca + req.alignment - 1) & ~(req.alignment - 1);
+        req.offset = total_alloca;
+        total_alloca += req.size;
+    }
+    // Align total to 16 bytes (ABI requirement for stack alignment).
+    total_alloca = (total_alloca + 15) & ~static_cast<size_t>(15);
+
+    if (total_alloca > 0) {
+        sub(rsp, total_alloca);
+    }
+
     // Run the pipeline.
     pm.run(*_ir, ctx);
 
+    if (total_alloca > 0) {
+        add(rsp, total_alloca);
+    }
+
+    _alloca_requests.clear();
     _ir.reset();
 }
 

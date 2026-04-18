@@ -322,6 +322,7 @@ public:
     variable(variable&&) noexcept = default;
     explicit variable(jit_kernel& krnl);
     variable(jit_kernel& krnl, const shared_reg<reg_type>& reg);
+    variable(jit_kernel& krnl, jit_kernel_ir::value_id vid) : base(krnl, vid) {}
 
     std::conditional_t<std::is_pointer_v<T> && !std::is_pointer_v<std::remove_pointer_t<T>>,
                        variable<std::remove_pointer_t<T>, memory_tag>,
@@ -610,14 +611,31 @@ public:
     variable blend(const variable& rhs, uint16_t mask) const {
         static_assert(std::is_same_v<T, float>, "vector blend requires float element type");
         using reg_type = typename reg_traits<type>::type;
-        return base::_kernel.template ir_def<N>(
-            {base::vid(), rhs.vid()},
-            [&k = base::_kernel, mask](const jit_kernel_ir::EmitContext& ctx) {
-                k.uni_vblendps(reg_type(ctx.def->idx),
-                               reg_type(ctx.reads[0].idx),
-                               reg_type(ctx.reads[1].idx), mask);
-            },
-            "blend");
+        if constexpr (std::is_same_v<reg_type, Xbyak::Zmm>) {
+            // AVX-512: vblendmps requires k-register. The mask constant
+            // is an IR GPR value so the allocator assigns a non-conflicting
+            // register. LLVM-style: every scratch is a virtual register.
+            auto mask_vid = base::_kernel.ir_def_gpr({},
+                [&k = base::_kernel, mask](const jit_kernel_ir::EmitContext& ctx) {
+                    k.mov(Xbyak::Reg32(ctx.def->idx), mask);
+                }, "blend_mask");
+            return base::_kernel.template ir_def<N>(
+                {base::vid(), rhs.vid(), mask_vid},
+                [&k = base::_kernel](const jit_kernel_ir::EmitContext& ctx) {
+                    k.kmovw(Xbyak::Opmask(1), Xbyak::Reg32(ctx.reads[2].idx));
+                    k.vblendmps(reg_type(ctx.def->idx) | Xbyak::Opmask(1),
+                                reg_type(ctx.reads[0].idx),
+                                reg_type(ctx.reads[1].idx));
+                }, "blend");
+        } else {
+            return base::_kernel.template ir_def<N>(
+                {base::vid(), rhs.vid()},
+                [&k = base::_kernel, mask](const jit_kernel_ir::EmitContext& ctx) {
+                    k.uni_vblendps(reg_type(ctx.def->idx),
+                                   reg_type(ctx.reads[0].idx),
+                                   reg_type(ctx.reads[1].idx), mask);
+                }, "blend");
+        }
     }
 
     // Lane permutation (vpermps). Returns a fresh variable holding the
@@ -754,8 +772,23 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator_t {
         return address_frame(sizeof(U))[param1 + offs];
     }
 
+    // Load a kernel argument. In IR mode (LLVM-style): creates a GPR IR value
+    // loaded from the params struct at lowering time. In eager mode: allocates
+    // a physical register immediately.
     template <typename T, typename U>
     variable<U> arg(U T::*member) {
+        if (_ir) {
+            auto offs = member_offset(member);
+            auto vid = _ir->def({}, [this, offs](const jit_kernel_ir::EmitContext& ctx) {
+                auto dst = Xbyak::Reg64(ctx.def->idx);
+                if (sizeof(U) < sizeof(size_t)) {
+                    movzx(dst, address_frame(sizeof(U))[param1 + offs]);
+                } else {
+                    mov(dst, address_frame(sizeof(U))[param1 + offs]);
+                }
+            }, "arg", jit_kernel_ir::RegisterClass::GPR);
+            return variable<U>(*this, vid);
+        }
         using traits = internal::reg_traits<U>;
         using reg_type = typename traits::type;
         const auto& res = reserve<reg_type>();
@@ -769,6 +802,18 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator_t {
 
     template <typename CastU, typename T, typename U>
     variable<CastU> arg(U T::*member) {
+        if (_ir) {
+            auto offs = member_offset(member);
+            auto vid = _ir->def({}, [this, offs](const jit_kernel_ir::EmitContext& ctx) {
+                auto dst = Xbyak::Reg64(ctx.def->idx);
+                if (sizeof(U) < sizeof(size_t)) {
+                    movzx(dst, address_frame(sizeof(U))[param1 + offs]);
+                } else {
+                    mov(dst, address_frame(sizeof(U))[param1 + offs]);
+                }
+            }, "arg", jit_kernel_ir::RegisterClass::GPR);
+            return variable<CastU>(*this, vid);
+        }
         using traits = internal::reg_traits<U>;
         using reg_type = typename traits::type;
         const auto& res = reserve<reg_type>();
@@ -779,6 +824,15 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator_t {
         }
         return {*this, internal::make_shared(res, *this)};
     }
+
+private:
+    template <typename T, typename U>
+    static size_t member_offset(U T::*member) {
+        auto memPtr = &(reinterpret_cast<const T*>(0)->*member);
+        return reinterpret_cast<const char*>(memPtr) - reinterpret_cast<const char*>(0);
+    }
+
+public:
 
     explicit jit_kernel(const char* name);
 
@@ -1042,7 +1096,22 @@ public:
                               const char* name = "");
     void ir_use(std::vector<jit_kernel_ir::value_id> reads,
                 jit_kernel_ir::EmitFn emit,
-                const char* name = "");
+                const char* name = "",
+                jit_kernel_ir::OpKind kind = jit_kernel_ir::OpKind::Generic);
+
+    // Define a GPR IR value. The allocator assigns a physical GPR register.
+    // At lowering time, ctx.def->idx is the physical Reg64 index.
+    jit_kernel_ir::value_id ir_def_gpr(std::vector<jit_kernel_ir::value_id> reads,
+                                        jit_kernel_ir::EmitFn emit,
+                                        const char* name = "");
+
+    // Runtime-count partial load. Loads `count` elements from `src_ptr`
+    // into a float[N] vector, zeroing elements beyond `count`.
+    // Safe for any count in [0, N] — no reads past the buffer.
+    // Internally: clear stack slot → scalar copy → full-width vector load.
+    template <size_t N, typename PtrT>
+    variable<float[N]> ir_load_partial(const variable<PtrT>& src_ptr,
+                                       const variable<size_t>& count);
 
     // Lowering: maps instruction enum to xbyak call. The only code that
     // names specific xbyak instructions. Templated on register type so
@@ -1123,10 +1192,37 @@ private:
     // IR state — non-null between begin_ir() and end_ir().
     std::unique_ptr<jit_kernel_ir::IR> _ir;
 
+    // Stack allocations requested by ir_alloca(). Offsets computed in end_ir()
+    // before lowering. One sub/add rsp pair for the total.
+    struct AllocaRequest {
+        size_t size;
+        size_t alignment;
+        size_t offset = 0;  // filled before lowering
+    };
+    std::vector<AllocaRequest> _alloca_requests;
+
     // Predicated loop state: when active, ir_load/ir_store automatically
     // use the mask. Set by foreach_predicated, cleared on exit.
     bool _predicated = false;
     Xbyak::Opmask _active_mask{0};
+
+public:
+    // ── IR-managed stack and memory ops (LLVM-style) ──────────
+
+    // Allocate `size` bytes on the stack, aligned to `alignment`.
+    // Returns a GPR value_id holding the stack address at lowering time.
+    // All allocas are coalesced into one sub/add rsp pair in end_ir().
+    // Mirrors LLVM's alloca instruction.
+    jit_kernel_ir::value_id ir_alloca(size_t size, size_t alignment = 1);
+
+    // Scalar copy: copy `count` elements of `elem_size` bytes from src to dst.
+    // All three operands are GPR value_ids (IR-managed). The loop index and
+    // temp register are also IR-managed — no reserve<Reg64>() inside closures.
+    // Mirrors LLVM's llvm.memcpy intrinsic.
+    template <typename T>
+    void ir_memcpy(jit_kernel_ir::value_id dst,
+                   jit_kernel_ir::value_id src,
+                   jit_kernel_ir::value_id count);
 };
 
 template <>
@@ -1246,54 +1342,79 @@ void jit_kernel::foreach (const B& begin,
                           const S& step) {
     using namespace Xbyak;
 
-    // Loop counter lives in eager mode (GPR, not IR-managed).
-    // Body ops record into a nested IR via _ir->loop().
-    auto idx = var<size_t>();
-    idx = begin;
-    auto idx_reg_idx = idx.reg().getIdx();
+    // LLVM-style: loop counter is an IR GPR value. No .reg() at recording time.
+    // Physical registers resolved at lowering time via EmitContext::reads.
+    jit_kernel_ir::value_id idx_vid;
+    if constexpr (std::is_integral_v<std::decay_t<B>>) {
+        auto begin_val = static_cast<size_t>(begin);
+        idx_vid = ir_def_gpr({}, [this, begin_val](const jit_kernel_ir::EmitContext& ctx) {
+            mov(Reg64(ctx.def->idx), begin_val);
+        }, "loop_idx");
+    } else {
+        auto bvid = begin.vid();
+        if (bvid != jit_kernel_ir::invalid_value) {
+            idx_vid = ir_def_gpr({bvid}, [this](const jit_kernel_ir::EmitContext& ctx) {
+                mov(Reg64(ctx.def->idx), Reg64(ctx.reads[0].idx));
+            }, "loop_idx");
+        } else {
+            auto bi = static_cast<std::uint32_t>(begin.reg().getIdx());
+            idx_vid = ir_def_gpr({}, [this, bi](const jit_kernel_ir::EmitContext& ctx) {
+                mov(Reg64(ctx.def->idx), Reg64(bi));
+            }, "loop_idx");
+        }
+    }
 
-    // Build a compare closure, handling immediate, Reg64, and variable end values.
-    std::function<void()> cmp_fn;
+    // Header reads: always idx. End added if IR-managed or captured.
+    std::vector<jit_kernel_ir::value_id> header_reads = {idx_vid};
+
+    // Build compare closure. ctx.reads[0] = idx, ctx.reads[1] = end (if IR).
+    std::function<void(const jit_kernel_ir::EmitContext&)> cmp_fn;
     if constexpr (std::is_integral_v<std::decay_t<E>>) {
         auto end_val = static_cast<size_t>(end);
-        cmp_fn = [this, idx_reg_idx, end_val]() {
-            cmp(Xbyak::Reg64(idx_reg_idx), end_val);
+        cmp_fn = [this, end_val](const jit_kernel_ir::EmitContext& ctx) {
+            cmp(Reg64(ctx.reads[0].idx), end_val);
         };
     } else if constexpr (std::is_base_of_v<Xbyak::Reg, std::decay_t<E>>) {
         auto end_reg_idx = end.getIdx();
-        cmp_fn = [this, idx_reg_idx, end_reg_idx]() {
-            cmp(Xbyak::Reg64(idx_reg_idx), Xbyak::Reg64(end_reg_idx));
+        cmp_fn = [this, end_reg_idx](const jit_kernel_ir::EmitContext& ctx) {
+            cmp(Reg64(ctx.reads[0].idx), Reg64(end_reg_idx));
         };
     } else {
-        auto end_reg_idx = end.reg().getIdx();
-        cmp_fn = [this, idx_reg_idx, end_reg_idx]() {
-            cmp(Xbyak::Reg64(idx_reg_idx), Xbyak::Reg64(end_reg_idx));
-        };
+        auto evid = end.vid();
+        if (evid != jit_kernel_ir::invalid_value) {
+            header_reads.push_back(evid);
+            cmp_fn = [this](const jit_kernel_ir::EmitContext& ctx) {
+                cmp(Reg64(ctx.reads[0].idx), Reg64(ctx.reads[1].idx));
+            };
+        } else {
+            auto end_reg_idx = static_cast<std::uint32_t>(end.reg().getIdx());
+            cmp_fn = [this, end_reg_idx](const jit_kernel_ir::EmitContext& ctx) {
+                cmp(Reg64(ctx.reads[0].idx), Reg64(end_reg_idx));
+            };
+        }
     }
 
     auto loop_label = std::make_shared<Xbyak::Label>();
     auto exit_label = std::make_shared<Xbyak::Label>();
     auto step_val = static_cast<size_t>(step);
+    auto idx_var = variable<size_t>(*this, idx_vid);
 
-    // The loop op's emit closure emits: header, then the body is lowered
-    // by the lowering pass, then the footer (recorded as last op in body).
     _ir->loop(
-        // Header emit: L(loop); cmp(idx, end); jge(exit)
-        [this, loop_label, exit_label, cmp_fn](const jit_kernel_ir::EmitContext&) {
+        std::move(header_reads),
+        // Header: L(loop); cmp(idx, end); jge(exit)
+        [this, loop_label, exit_label, cmp_fn](const jit_kernel_ir::EmitContext& ctx) {
             L(*loop_label);
-            cmp_fn();
+            cmp_fn(ctx);
             jge(*exit_label, Xbyak::CodeGenerator::T_NEAR);
         },
-        // Body builder: records ops into nested IR
+        // Body builder
         [&]() {
-            fn(idx);
+            fn(idx_var);
 
             // Footer: add(idx, step); jmp(loop); L(exit)
-            // Recorded as the last use() in the body so lowering emits it
-            // after all body ops.
-            _ir->use({}, [this, loop_label, exit_label, idx_reg_idx, step_val](
-                             const jit_kernel_ir::EmitContext&) {
-                add(Xbyak::Reg64(idx_reg_idx), step_val);
+            _ir->use({idx_vid}, [this, loop_label, exit_label, step_val](
+                                    const jit_kernel_ir::EmitContext& ctx) {
+                add(Reg64(ctx.reads[0].idx), step_val);
                 jmp(*loop_label, Xbyak::CodeGenerator::T_NEAR);
                 L(*exit_label);
             }, "loop_footer");
@@ -1489,53 +1610,146 @@ template <size_t N, typename PtrT>
 jit_kernel::variable<float[N]> jit_kernel::ir_load(const variable<PtrT>& src_ptr, size_t byte_offset) {
     using reg_type = typename reg_traits<float[N]>::type;
     using elem_type = std::remove_cv_t<std::remove_pointer_t<PtrT>>;
-    auto ptr_idx = static_cast<std::uint32_t>(src_ptr.reg().getIdx());
     bool masked = _predicated;
     auto mask_idx = _active_mask.getIdx();
 
-    if constexpr (std::is_same_v<elem_type, uint8_t>) {
-        return ir_def<N>({}, [this, ptr_idx, byte_offset, masked, mask_idx](const jit_kernel_ir::EmitContext& ctx) {
-            auto dst = reg_type(ctx.def->idx);
-            auto addr = address_frame(N)[Xbyak::Reg64(ptr_idx) + byte_offset];
+    // Pointer: IR-managed (value_id in reads[0]) or pre-allocated (captured index).
+    auto ptr_vid = src_ptr.vid();
+    bool ptr_in_ir = (ptr_vid != jit_kernel_ir::invalid_value);
+    auto ptr_idx = ptr_in_ir ? 0u : static_cast<std::uint32_t>(src_ptr.reg().getIdx());
+
+    std::vector<jit_kernel_ir::value_id> reads;
+    if (ptr_in_ir) reads.push_back(ptr_vid);
+
+    // Common emit helper: resolves pointer register from either ctx.reads[0] or captured index.
+    auto emit = [this, ptr_in_ir, ptr_idx, byte_offset, masked, mask_idx]
+                (const jit_kernel_ir::EmitContext& ctx) {
+        auto ptr_reg = ptr_in_ir ? Xbyak::Reg64(ctx.reads[0].idx) : Xbyak::Reg64(ptr_idx);
+        auto dst = reg_type(ctx.def->idx);
+
+        if constexpr (std::is_same_v<elem_type, uint8_t>) {
+            auto addr = address_frame(N)[ptr_reg + byte_offset];
             if (masked) {
                 vpmovzxbd(dst | Xbyak::Opmask(mask_idx) | T_z, addr);
             } else {
                 uni_vpmovzxbd(dst, addr);
             }
             uni_vcvtdq2ps(dst, dst);
-        }, masked ? "load_u8_masked" : "load_u8");
-    } else if constexpr (std::is_same_v<elem_type, ov::float16>) {
-        return ir_def<N>({}, [this, ptr_idx, byte_offset, masked, mask_idx](const jit_kernel_ir::EmitContext& ctx) {
-            auto dst = reg_type(ctx.def->idx);
-            auto addr = address_frame(N * sizeof(ov::float16))[Xbyak::Reg64(ptr_idx) + byte_offset];
+        } else if constexpr (std::is_same_v<elem_type, ov::float16>) {
+            auto addr = address_frame(N * sizeof(ov::float16))[ptr_reg + byte_offset];
             if (masked) {
                 vcvtph2ps(dst | Xbyak::Opmask(mask_idx) | T_z, addr);
             } else {
                 vcvtph2ps(dst, addr);
             }
-        }, masked ? "load_f16_masked" : "load_f16");
-    } else if constexpr (std::is_same_v<elem_type, ov::bfloat16>) {
-        return ir_def<N>({}, [this, ptr_idx, byte_offset, masked, mask_idx](const jit_kernel_ir::EmitContext& ctx) {
-            auto dst = reg_type(ctx.def->idx);
-            auto addr = address_frame(N * sizeof(ov::bfloat16))[Xbyak::Reg64(ptr_idx) + byte_offset];
+        } else if constexpr (std::is_same_v<elem_type, ov::bfloat16>) {
+            auto addr = address_frame(N * sizeof(ov::bfloat16))[ptr_reg + byte_offset];
             if (masked) {
                 vpmovzxwd(dst | Xbyak::Opmask(mask_idx) | T_z, addr);
             } else {
                 vpmovzxwd(dst, addr);
             }
             vpslld(dst, dst, 16);
-        }, masked ? "load_bf16_masked" : "load_bf16");
-    } else {
-        return ir_def<N>({}, [this, ptr_idx, byte_offset, masked, mask_idx](const jit_kernel_ir::EmitContext& ctx) {
-            auto dst = reg_type(ctx.def->idx);
-            auto addr = address_frame(sizeof(reg_type))[Xbyak::Reg64(ptr_idx) + byte_offset];
+        } else {
+            auto addr = address_frame(sizeof(reg_type))[ptr_reg + byte_offset];
             if (masked) {
                 vmovups(dst | Xbyak::Opmask(mask_idx) | T_z, addr);
             } else {
                 uni_vmovups(dst, addr);
             }
-        }, masked ? "load_masked" : "load");
-    }
+        }
+    };
+
+    const char* name = masked ? "load_masked" : "load";
+    auto vid = _ir->def(std::move(reads), std::move(emit), name,
+                        jit_kernel_ir::RegisterClass::Vec, jit_kernel_ir::OpKind::Load);
+    return variable<float[N]>(*this, vid);
+}
+
+template <size_t N, typename PtrT>
+jit_kernel::variable<float[N]> jit_kernel::ir_load_partial(const variable<PtrT>& src_ptr,
+                                                            const variable<size_t>& count) {
+    using elem_type = std::remove_cv_t<std::remove_pointer_t<PtrT>>;
+
+    // Allocate a zeroed stack slot, memcpy count elements into it, then
+    // full-width ir_load from the slot. All IR ops — no raw xbyak.
+    // Slot must be at least as wide as a full vector store (N * sizeof(float)):
+    // the zero loop uses uni_vmovups which writes N floats (the hardware
+    // register width), not sizeof(elem_type) * N.
+    constexpr size_t elem_slot = N * sizeof(elem_type);
+    constexpr size_t vec_width = N * sizeof(float);  // hardware register width in bytes
+    constexpr size_t slot_bytes = elem_slot > vec_width ? elem_slot : vec_width;
+    auto stack = ir_alloca(slot_bytes);
+    auto stack_ptr = variable<PtrT>(*this, stack);
+
+    // Zero the stack slot (ensures elements beyond count are zero).
+    // Use an IR vec value for the zero to avoid clobbering live registers.
+    auto zero = ir_def<N>({}, [this](const jit_kernel_ir::EmitContext& ctx) {
+        using reg_type = typename reg_traits<float[N]>::type;
+        uni_vxorps(reg_type(ctx.def->idx), reg_type(ctx.def->idx), reg_type(ctx.def->idx));
+    }, "zero");
+
+    ir_use({stack, zero.vid()}, [this, slot_bytes](const jit_kernel_ir::EmitContext& ctx) {
+        using reg_type = typename reg_traits<float[N]>::type;
+        auto ptr_reg = Xbyak::Reg64(ctx.reads[0].idx);
+        auto zero_reg = reg_type(ctx.reads[1].idx);
+        for (size_t off = 0; off < slot_bytes; off += sizeof(reg_type)) {
+            uni_vmovups(ptr[ptr_reg + off], zero_reg);
+        }
+    }, "zero_slot");
+
+    // Scalar copy count elements from src to stack
+    ir_memcpy<elem_type>(stack, src_ptr.vid(), count.vid());
+
+    // Full-width type-converting load from the stack (always safe — slot is N-wide)
+    return ir_load<N>(stack_ptr);
+}
+
+template <typename T>
+void jit_kernel::ir_memcpy(jit_kernel_ir::value_id dst_vid,
+                            jit_kernel_ir::value_id src_vid,
+                            jit_kernel_ir::value_id count_vid) {
+    // Two IR-managed GPR temporaries for the copy loop.
+    // No reserve<Reg64>() — everything through the allocator.
+    auto idx_vid = _ir->def({}, [this](const jit_kernel_ir::EmitContext& ctx) {
+        xor_(Xbyak::Reg64(ctx.def->idx), Xbyak::Reg64(ctx.def->idx));
+    }, "memcpy_idx", jit_kernel_ir::RegisterClass::GPR);
+
+    auto tmp_vid = _ir->def({}, [](const jit_kernel_ir::EmitContext&) {},
+        "memcpy_tmp", jit_kernel_ir::RegisterClass::GPR);
+
+    _ir->use({dst_vid, src_vid, count_vid, idx_vid, tmp_vid},
+        [this](const jit_kernel_ir::EmitContext& ctx) {
+            using namespace Xbyak;
+            auto dst_reg = Reg64(ctx.reads[0].idx);
+            auto src_reg = Reg64(ctx.reads[1].idx);
+            auto cnt_reg = Reg64(ctx.reads[2].idx);
+            auto idx_reg = Reg64(ctx.reads[3].idx);
+            // Use the sub-register width matching T
+            constexpr size_t elem_sz = sizeof(T);
+
+            Label loop, exit;
+            L(loop);
+            cmp(idx_reg, cnt_reg);
+            jge(exit, CodeGenerator::T_NEAR);
+            if constexpr (elem_sz == 1) {
+                // Force ext8bit=true for indices 4-7 to encode spl/bpl/sil/dil
+                // instead of legacy ah/ch/dh/bh. Without REX, Reg8(6) = dh
+                // (high byte of rdx), which clobbers the destination pointer.
+                auto idx = ctx.reads[4].idx;
+                auto tmp = Reg8(static_cast<int>(idx), idx >= 4 && idx <= 7);
+                mov(tmp, ptr[src_reg + idx_reg]);
+                mov(ptr[dst_reg + idx_reg], tmp);
+            } else {
+                auto tmp = Reg32(ctx.reads[4].idx);
+                const auto& af = address_frame(elem_sz);
+                mov(tmp, af[src_reg + idx_reg * elem_sz]);
+                mov(af[dst_reg + idx_reg * elem_sz], tmp);
+            }
+            inc(idx_reg);
+            jmp(loop, CodeGenerator::T_NEAR);
+            L(exit);
+        }, "memcpy_loop");
 }
 
 template <size_t N, typename PtrT, typename ElemT>
@@ -1543,54 +1757,60 @@ void jit_kernel::ir_store(const variable<PtrT>& dst_ptr, size_t byte_offset,
                           const variable<ElemT[N]>& val) {
     using reg_type = typename reg_traits<ElemT[N]>::type;
     using dst_elem = std::remove_cv_t<std::remove_pointer_t<PtrT>>;
-    auto ptr_idx = static_cast<std::uint32_t>(dst_ptr.reg().getIdx());
     bool masked = _predicated;
     auto mask_idx = _active_mask.getIdx();
 
-    if constexpr (std::is_same_v<dst_elem, uint8_t>) {
-        ir_use({val.vid()}, [this, ptr_idx, byte_offset, masked, mask_idx](const jit_kernel_ir::EmitContext& ctx) {
-            auto src = reg_type(ctx.reads[0].idx);
-            uni_vcvtps2dq(src, src);
-            auto addr = address_frame(N)[Xbyak::Reg64(ptr_idx) + byte_offset];
-            if (masked) {
-                vpmovusdb(addr | Xbyak::Opmask(mask_idx), src);
+    // Pointer: IR-managed (value_id in reads[0]) or pre-allocated (captured index).
+    // Val is always the last read.
+    auto ptr_vid = dst_ptr.vid();
+    bool ptr_in_ir = (ptr_vid != jit_kernel_ir::invalid_value);
+    auto ptr_idx = ptr_in_ir ? 0u : static_cast<std::uint32_t>(dst_ptr.reg().getIdx());
+
+    std::vector<jit_kernel_ir::value_id> reads;
+    if (ptr_in_ir) reads.push_back(ptr_vid);
+    reads.push_back(val.vid());
+    // val_read_idx: position of the vec value in ctx.reads[]
+    auto val_read_idx = ptr_in_ir ? 1u : 0u;
+
+    ir_use(std::move(reads),
+        [this, ptr_in_ir, ptr_idx, val_read_idx, byte_offset, masked, mask_idx]
+        (const jit_kernel_ir::EmitContext& ctx) {
+            auto ptr_reg = ptr_in_ir ? Xbyak::Reg64(ctx.reads[0].idx) : Xbyak::Reg64(ptr_idx);
+            auto src = reg_type(ctx.reads[val_read_idx].idx);
+
+            if constexpr (std::is_same_v<dst_elem, uint8_t>) {
+                uni_vcvtps2dq(src, src);
+                auto addr = address_frame(N)[ptr_reg + byte_offset];
+                if (masked) {
+                    vpmovusdb(addr | Xbyak::Opmask(mask_idx), src);
+                } else {
+                    vpmovusdb(addr, src);
+                }
+            } else if constexpr (std::is_same_v<dst_elem, ov::float16>) {
+                auto addr = address_frame(N * sizeof(ov::float16))[ptr_reg + byte_offset];
+                if (masked) {
+                    vcvtps2ph(addr | Xbyak::Opmask(mask_idx), src, 0x4);
+                } else {
+                    vcvtps2ph(addr, src, 0x4);
+                }
+            } else if constexpr (std::is_same_v<dst_elem, ov::bfloat16>) {
+                // @todo claude: consider vcvtneps2bf16 when available (proper rounding)
+                vpsrld(src, src, 16);
+                auto addr = address_frame(N * sizeof(ov::bfloat16))[ptr_reg + byte_offset];
+                if (masked) {
+                    vpmovdw(addr | Xbyak::Opmask(mask_idx), src);
+                } else {
+                    vpmovdw(addr, src);
+                }
             } else {
-                vpmovusdb(addr, src);
+                auto addr = address_frame(sizeof(reg_type))[ptr_reg + byte_offset];
+                if (masked) {
+                    vmovups(addr | Xbyak::Opmask(mask_idx), src);
+                } else {
+                    uni_vmovups(addr, src);
+                }
             }
-        }, masked ? "store_u8_masked" : "store_u8");
-    } else if constexpr (std::is_same_v<dst_elem, ov::float16>) {
-        ir_use({val.vid()}, [this, ptr_idx, byte_offset, masked, mask_idx](const jit_kernel_ir::EmitContext& ctx) {
-            auto src = reg_type(ctx.reads[0].idx);
-            auto addr = address_frame(N * sizeof(ov::float16))[Xbyak::Reg64(ptr_idx) + byte_offset];
-            if (masked) {
-                vcvtps2ph(addr | Xbyak::Opmask(mask_idx), src, 0x4);
-            } else {
-                vcvtps2ph(addr, src, 0x4);
-            }
-        }, masked ? "store_f16_masked" : "store_f16");
-    } else if constexpr (std::is_same_v<dst_elem, ov::bfloat16>) {
-        // @todo claude: consider vcvtneps2bf16 when available (proper rounding)
-        ir_use({val.vid()}, [this, ptr_idx, byte_offset, masked, mask_idx](const jit_kernel_ir::EmitContext& ctx) {
-            auto src = reg_type(ctx.reads[0].idx);
-            vpsrld(src, src, 16);
-            auto addr = address_frame(N * sizeof(ov::bfloat16))[Xbyak::Reg64(ptr_idx) + byte_offset];
-            if (masked) {
-                vpmovdw(addr | Xbyak::Opmask(mask_idx), src);
-            } else {
-                vpmovdw(addr, src);
-            }
-        }, masked ? "store_bf16_masked" : "store_bf16");
-    } else {
-        ir_use({val.vid()}, [this, ptr_idx, byte_offset, masked, mask_idx](const jit_kernel_ir::EmitContext& ctx) {
-            auto src = reg_type(ctx.reads[0].idx);
-            auto addr = address_frame(sizeof(reg_type))[Xbyak::Reg64(ptr_idx) + byte_offset];
-            if (masked) {
-                vmovups(addr | Xbyak::Opmask(mask_idx), src);
-            } else {
-                uni_vmovups(addr, src);
-            }
-        }, masked ? "store_masked" : "store");
-    }
+        }, masked ? "store_masked" : "store", jit_kernel_ir::OpKind::Store);
 }
 
 // ── foreach_predicated ─────────────────────────────────────────────────
@@ -1606,37 +1826,69 @@ void jit_kernel::foreach_predicated(const variable<size_t>& total_count,
     _predicated = true;
     _active_mask = mask;
 
-    auto remaining = var<size_t>();
-    remaining = total_count;
-    auto remaining_reg_idx = remaining.reg().getIdx();
+    // LLVM-style: remaining and iter_count are IR GPR values.
+    // Handles both IR-managed and eagerly-allocated total_count.
+    auto tc_vid = total_count.vid();
+    bool tc_in_ir = (tc_vid != jit_kernel_ir::invalid_value);
+
+    jit_kernel_ir::value_id remaining_vid;
+    if (tc_in_ir) {
+        remaining_vid = ir_def_gpr({tc_vid}, [this](const jit_kernel_ir::EmitContext& ctx) {
+            mov(Reg64(ctx.def->idx), Reg64(ctx.reads[0].idx));
+        }, "remaining");
+    } else {
+        auto tc_idx = static_cast<std::uint32_t>(total_count.reg().getIdx());
+        remaining_vid = ir_def_gpr({}, [this, tc_idx](const jit_kernel_ir::EmitContext& ctx) {
+            mov(Reg64(ctx.def->idx), Reg64(tc_idx));
+        }, "remaining");
+    }
 
     const size_t elems = N;
+    auto shift = static_cast<int>(std::log2(N * unroll));
+    auto round_up = static_cast<size_t>(N * unroll - 1);
 
-    // Iteration count = ceil(total / (N * unroll)).
-    auto iter_count = var<size_t>();
-    iter_count = total_count;
-    iter_count += static_cast<size_t>(N * unroll - 1);
-    shr(iter_count.reg(), static_cast<int>(std::log2(N * unroll)));
+    jit_kernel_ir::value_id iter_count_vid;
+    if (tc_in_ir) {
+        iter_count_vid = ir_def_gpr({tc_vid}, [this, round_up, shift](const jit_kernel_ir::EmitContext& ctx) {
+            mov(Reg64(ctx.def->idx), Reg64(ctx.reads[0].idx));
+            add(Reg64(ctx.def->idx), round_up);
+            shr(Reg64(ctx.def->idx), shift);
+        }, "iter_count");
+    } else {
+        auto tc_idx = static_cast<std::uint32_t>(total_count.reg().getIdx());
+        iter_count_vid = ir_def_gpr({}, [this, tc_idx, round_up, shift](const jit_kernel_ir::EmitContext& ctx) {
+            mov(Reg64(ctx.def->idx), Reg64(tc_idx));
+            add(Reg64(ctx.def->idx), round_up);
+            shr(Reg64(ctx.def->idx), shift);
+        }, "iter_count");
+    }
 
-    foreach(size_t{0}, iter_count, [&](const variable<size_t>&) {
+    auto iter_count_var = variable<size_t>(*this, iter_count_vid);
+
+    foreach(size_t{0}, iter_count_var, [&](const variable<size_t>&) {
         for (size_t u = 0; u < unroll; ++u) {
-            // Mask computation — handles tail: when remaining <= 0,
-            // mask is zero and loads/stores are no-ops.
-            ir_use({}, [this, remaining_reg_idx, elems, mask](
-                           const jit_kernel_ir::EmitContext&) {
+            // Mask setup reads remaining_vid — resolved at lowering time.
+            // Partial mask uses push/pop for scratch to avoid clobbering
+            // IR-allocated registers (rax/rcx are in the GPR pool).
+            ir_use({remaining_vid}, [this, elems, mask](
+                                        const jit_kernel_ir::EmitContext& ctx) {
+                auto rem = Reg64(ctx.reads[0].idx);
+                auto rem32 = Reg32(ctx.reads[0].idx);
                 Label full_mask, mask_done, zero_mask;
-                // Guard: remaining <= 0 → zero mask (skip this block).
-                cmp(Reg64(remaining_reg_idx), 0);
+                cmp(rem, 0);
                 jle(zero_mask, T_NEAR);
-                cmp(Reg64(remaining_reg_idx), elems);
+                cmp(rem, elems);
                 jge(full_mask, T_NEAR);
 
-                // Partial mask: (1 << remaining) - 1
-                mov(rax, 1);
-                mov(rcx, Reg64(remaining_reg_idx));
-                shl(rax, cl);
-                dec(rax);
-                kmovw(mask, eax);
+                // Partial mask: (1 << remaining) - 1 via bts.
+                // Pick a scratch register that isn't the remaining register.
+                auto scratch_idx = (ctx.reads[0].idx == 0) ? 1U : 0U;
+                push(Reg64(scratch_idx));
+                xor_(Reg32(scratch_idx), Reg32(scratch_idx));
+                bts(Reg32(scratch_idx), rem32);
+                dec(Reg32(scratch_idx));
+                kmovw(mask, Reg32(scratch_idx));
+                pop(Reg64(scratch_idx));
                 jmp(mask_done, T_NEAR);
 
                 L(zero_mask);
@@ -1651,9 +1903,9 @@ void jit_kernel::foreach_predicated(const variable<size_t>& total_count,
 
             fn(mask);
 
-            ir_use({}, [this, remaining_reg_idx, elems](
-                           const jit_kernel_ir::EmitContext&) {
-                sub(Reg64(remaining_reg_idx), elems);
+            ir_use({remaining_vid}, [this, elems](
+                                        const jit_kernel_ir::EmitContext& ctx) {
+                sub(Reg64(ctx.reads[0].idx), elems);
             }, "remaining_dec");
         }  // end unroll loop
     });
@@ -1681,16 +1933,34 @@ template <typename A, typename B>
 void jit_kernel::ir_cmp(const A& a, const B& b) {
     static_assert(!std::is_integral_v<std::decay_t<A>>,
                   "ir_cmp: first operand must be a register, not an immediate");
-    auto a_idx = a.reg().getIdx();
+
+    // Support both IR-managed and eagerly-allocated operands.
+    // Same dual-mode pattern as ir_load/ir_store.
+    auto a_vid = a.vid();
+    bool a_in_ir = (a_vid != jit_kernel_ir::invalid_value);
+    auto a_idx = a_in_ir ? 0U : static_cast<std::uint32_t>(a.reg().getIdx());
+
+    std::vector<jit_kernel_ir::value_id> reads;
+    if (a_in_ir) reads.push_back(a_vid);
+
     if constexpr (std::is_integral_v<std::decay_t<B>>) {
         auto b_val = static_cast<size_t>(b);
-        _ir->use({}, [this, a_idx, b_val](const jit_kernel_ir::EmitContext&) {
-            cmp(Xbyak::Reg64(a_idx), b_val);
+        _ir->use(std::move(reads), [this, a_in_ir, a_idx, b_val](const jit_kernel_ir::EmitContext& ctx) {
+            auto ar = a_in_ir ? Xbyak::Reg64(ctx.reads[0].idx) : Xbyak::Reg64(a_idx);
+            cmp(ar, b_val);
         }, "cmp");
     } else {
-        auto b_idx = b.reg().getIdx();
-        _ir->use({}, [this, a_idx, b_idx](const jit_kernel_ir::EmitContext&) {
-            cmp(Xbyak::Reg64(a_idx), Xbyak::Reg64(b_idx));
+        auto b_vid = b.vid();
+        bool b_in_ir = (b_vid != jit_kernel_ir::invalid_value);
+        auto b_idx = b_in_ir ? 0U : static_cast<std::uint32_t>(b.reg().getIdx());
+        if (b_in_ir) reads.push_back(b_vid);
+        auto b_pos = a_in_ir ? 1U : 0U;
+
+        _ir->use(std::move(reads), [this, a_in_ir, a_idx, b_in_ir, b_idx, b_pos](
+                     const jit_kernel_ir::EmitContext& ctx) {
+            auto ar = a_in_ir ? Xbyak::Reg64(ctx.reads[0].idx) : Xbyak::Reg64(a_idx);
+            auto br = b_in_ir ? Xbyak::Reg64(ctx.reads[b_pos].idx) : Xbyak::Reg64(b_idx);
+            cmp(ar, br);
         }, "cmp");
     }
 }
@@ -1894,27 +2164,27 @@ void jit_kernel::store_interleaved3(const variable<T*>& dst,
                                     const variable<float[N]>& b,
                                     const variable<float[N]>& c,
                                     const variable<size_t>& count) {
-    // Portable tail lowering: full-width interleave into a stack slot, then
-    // byte-copy `count * 3` elements out. No ISA (except RVV via vl) has a
-    // masked variable-length interleaved store, so this is the fallback every
-    // non-RVV backend can reuse. A NEON port keeps the shape — just emits
-    // VST3 into the slot instead of the shuffle chain. An RVV port would
-    // override to `vsetvl count; vsseg3e<bits>.v v0, (dst)` and skip the slot.
-    const size_t step = N * sizeof(T);
-    auto slot = stack(3 * step);
-
+    // @todo claude: add ir_if(count >= N) fast-path for direct stores
+    // when nested ir_if register pressure is resolved.
     auto [o0, o1, o2] = interleave_regs(a, b, c);
 
-    auto sp = var<T*>();
-    sp = slot.pointer();
-    store(sp, o0);
-    sp += step;
-    store(sp, o1);
-    sp += step;
-    store(sp, o2);
+    constexpr size_t t_step = N * sizeof(T);
+    auto stack = ir_alloca(3 * t_step);
+    auto stack_ptr = variable<T*>(*this, stack);
 
-    auto bytes = count * static_cast<size_t>(3U);
-    copy<T>(ptr[dst], slot.pointer(), bytes);
+    ir_store(stack_ptr, size_t{0}, o0);
+    ir_store(stack_ptr, t_step, o1);
+    ir_store(stack_ptr, 2 * t_step, o2);
+
+    auto total_vid = ir_def_gpr({count.vid()},
+        [this](const jit_kernel_ir::EmitContext& ctx) {
+            auto dst_r = Xbyak::Reg64(ctx.def->idx);
+            auto cnt_r = Xbyak::Reg64(ctx.reads[0].idx);
+            mov(dst_r, cnt_r);
+            imul(dst_r, dst_r, 3);
+        }, "count_times_3");
+
+    ir_memcpy<T>(dst.vid(), stack, total_vid);
 }
 
 template <typename T>

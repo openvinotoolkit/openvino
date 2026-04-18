@@ -1329,3 +1329,100 @@ TEST(JitKernelIR, EndToEndForeachPredicated) {
         }
     }
 }
+
+// ── GPR register class tests ─────────────────────────────────────────
+
+TEST(JitKernelIR, GprAllocation) {
+    // GPR-only IR: two GPR defs, allocated from GPR pool.
+    jit_kernel_ir::IR ir;
+    auto v0 = ir.def({}, [](const auto&){}, "gpr_a", jit_kernel_ir::RegisterClass::GPR);
+    auto v1 = ir.def({}, [](const auto&){}, "gpr_b", jit_kernel_ir::RegisterClass::GPR);
+    ir.use({v0, v1}, [](const auto&){}, "use_both");
+
+    auto ranges = jit_kernel_ir::compute_live_ranges(ir);
+    ASSERT_EQ(ranges[v0].rc, jit_kernel_ir::RegisterClass::GPR);
+    ASSERT_EQ(ranges[v1].rc, jit_kernel_ir::RegisterClass::GPR);
+
+    // Allocate with no vec pool, 4-entry GPR pool (indices 3, 6, 8, 10).
+    std::vector<std::uint32_t> gpr_pool = {3, 6, 8, 10};
+    auto result = jit_kernel_ir::linear_scan(ir, ranges, /*vec_pool_size=*/0, gpr_pool);
+    ASSERT_TRUE(result.has_value());
+
+    // Both values should be assigned physical GPR indices from the pool.
+    auto p0 = result->reg.at(v0).idx;
+    auto p1 = result->reg.at(v1).idx;
+    EXPECT_NE(p0, p1);
+    // Both must be in the GPR pool.
+    auto in_pool = [&](std::uint32_t idx) {
+        return std::find(gpr_pool.begin(), gpr_pool.end(), idx) != gpr_pool.end();
+    };
+    EXPECT_TRUE(in_pool(p0)) << "p0=" << p0 << " not in GPR pool";
+    EXPECT_TRUE(in_pool(p1)) << "p1=" << p1 << " not in GPR pool";
+}
+
+TEST(JitKernelIR, MixedVecGprAllocation) {
+    // Mix of Vec and GPR values — separate pools, no cross-class interference.
+    jit_kernel_ir::IR ir;
+    auto vec0 = ir.def({}, [](const auto&){}, "vec0");  // default = Vec
+    auto gpr0 = ir.def({}, [](const auto&){}, "gpr0", jit_kernel_ir::RegisterClass::GPR);
+    auto vec1 = ir.def({vec0}, [](const auto&){}, "vec1");
+    auto gpr1 = ir.def({gpr0}, [](const auto&){}, "gpr1", jit_kernel_ir::RegisterClass::GPR);
+    ir.use({vec0, vec1, gpr0, gpr1}, [](const auto&){}, "use_all");
+
+    auto ranges = jit_kernel_ir::compute_live_ranges(ir);
+    EXPECT_EQ(ranges[vec0].rc, jit_kernel_ir::RegisterClass::Vec);
+    EXPECT_EQ(ranges[gpr0].rc, jit_kernel_ir::RegisterClass::GPR);
+
+    // Vec pool size = 2, GPR pool = {5, 9}
+    std::vector<std::uint32_t> gpr_pool = {5, 9};
+    auto result = jit_kernel_ir::linear_scan(ir, ranges, /*vec_pool_size=*/2, gpr_pool);
+    ASSERT_TRUE(result.has_value());
+
+    // Vec values get indices 0..1, GPR values get indices from {5, 9}.
+    auto pv0 = result->reg.at(vec0).idx;
+    auto pv1 = result->reg.at(vec1).idx;
+    auto pg0 = result->reg.at(gpr0).idx;
+    auto pg1 = result->reg.at(gpr1).idx;
+
+    EXPECT_LT(pv0, 2u);
+    EXPECT_LT(pv1, 2u);
+    EXPECT_TRUE(pg0 == 5 || pg0 == 9) << "pg0=" << pg0;
+    EXPECT_TRUE(pg1 == 5 || pg1 == 9) << "pg1=" << pg1;
+
+    // Vec idx 0 and GPR idx 0 can coexist — different register files.
+    // No cross-class conflict even if indices overlap.
+}
+
+TEST(JitKernelIR, GprCoalescing) {
+    // GPR copy should coalesce to the same physical register.
+    jit_kernel_ir::IR ir;
+    auto src = ir.def({}, [](const auto&){}, "gpr_src", jit_kernel_ir::RegisterClass::GPR);
+    auto cpy = ir.copy(src, [](const auto&){}, "gpr_copy", jit_kernel_ir::RegisterClass::GPR);
+    ir.use({cpy}, [](const auto&){}, "use_copy");
+
+    auto ranges = jit_kernel_ir::compute_live_ranges(ir);
+    std::vector<std::uint32_t> gpr_pool = {3, 7};
+    auto result = jit_kernel_ir::linear_scan(ir, ranges, /*vec_pool_size=*/0, gpr_pool);
+    ASSERT_TRUE(result.has_value());
+
+    // Copy should be coalesced — same physical register.
+    EXPECT_EQ(result->reg.at(src).idx, result->reg.at(cpy).idx);
+}
+
+TEST(JitKernelIR, GprPoolOverflow) {
+    // GPR pool of 1 with 2 simultaneously live GPR values.
+    // Vec pool has plenty of room — only GPR is constrained.
+    // With remat, the allocator may return nullopt (IR modified) instead of
+    // throwing. Either outcome indicates the GPR pool is too small for a
+    // single-pass allocation.
+    jit_kernel_ir::IR ir;
+    auto v0 = ir.def({}, [](const auto&){}, "gpr0", jit_kernel_ir::RegisterClass::GPR);
+    auto v1 = ir.def({v0}, [](const auto&){}, "gpr1", jit_kernel_ir::RegisterClass::GPR);
+    ir.use({v0, v1}, [](const auto&){}, "use_both");
+
+    auto ranges = jit_kernel_ir::compute_live_ranges(ir);
+    std::vector<std::uint32_t> gpr_pool = {8};  // only 1 register
+    auto result = jit_kernel_ir::linear_scan(ir, ranges, /*vec_pool_size=*/4, gpr_pool);
+    // Remat modifies the IR and returns nullopt — the pool was too small.
+    EXPECT_FALSE(result.has_value()) << "expected remat (nullopt), not a successful assignment";
+}

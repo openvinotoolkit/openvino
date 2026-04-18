@@ -58,7 +58,7 @@ void SubgraphBaseTest::run() {
         GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
 
     // in case of crash jump will be made and work will be continued
-    auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
+    // auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
 
     // place to jump in case of a crash
     int jmpRes = 0;
@@ -68,7 +68,7 @@ void SubgraphBaseTest::run() {
     jmpRes = sigsetjmp(ov::test::utils::env, 1);
 #endif
     if (jmpRes == ov::test::utils::JMP_STATUS::ok) {
-        crashHandler->StartTimer();
+        // crashHandler->StartTimer();
 
         ASSERT_FALSE(targetStaticShapes.empty() && !function->get_parameters().empty()) << "Target Static Shape is empty!!!";
         std::string errorMessage;
