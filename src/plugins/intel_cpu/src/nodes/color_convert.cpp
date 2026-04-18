@@ -357,25 +357,22 @@ private:
 template <typename T, size_t N>
 void JitConverter<T[N]>::generate() {
     using namespace Xbyak;
-    using reg_type = typename reg_traits<float[N]>::type;
-
     preamble();
 
     static const float data[8] = {16.F, 128.F, 1.164F, 1.596F, 0.391F, 2.018F, 0.813F, 255.F};
     _consts = data;
-
-    const size_t step = N * sizeof(T);
 
     // LLVM-style: begin_ir before arg — args are IR GPR values.
     // Required for ir_load_partial in the tail path (ir_memcpy needs
     // pointer vids as IR reads).
     begin_ir();
 
-    auto src_y = arg<const T*>(&Params::y);
-    auto src_uv = arg<const T*>(&Params::u);
-    auto dst = arg<T*>(&Params::dst);
     auto width = arg(&Params::width);
     auto colorFormat = arg(&Params::colorFormat);
+
+    auto y   = make_ir_ptr(arg<const T*>(&Params::y), N);
+    auto uv  = make_ir_ptr(arg<const T*>(&Params::u), N);
+    auto dst = make_ir_ptr(arg<T*>(&Params::dst), 3 * N);
 
     auto consts_idx = static_cast<std::uint32_t>(_consts.reg().getIdx());
 
@@ -393,34 +390,29 @@ void JitConverter<T[N]>::generate() {
     auto v_to_g   = bc(6);
     auto clamp_hi = bc(7);
 
-    auto clamp_lo = ir_def<N>({}, [this](const jit_kernel_ir::EmitContext& ctx) {
-        uni_vxorps(reg_type(ctx.def->idx), reg_type(ctx.def->idx), reg_type(ctx.def->idx));
-    }, "vxorps");
+    auto clamp_lo = ir_zero<N>();
 
     constexpr uint8_t even_mask = 0xA0;
     constexpr uint8_t odd_mask  = 0xF5;
 
-    // Single body — foreach_with_epilogue invokes it twice:
-    // Full mode (main loop): ir_load → vmovups, store_interleaved3 → direct
-    // Partial mode (tail):   ir_load → ir_load_partial, store_interleaved3 → stack+memcpy
     foreach_with_epilogue<N>(width, [&]() {
-        auto y_raw = ir_load<N>(src_y);
-        auto uv    = ir_load<N>(src_uv);
-        auto u = vsubps(uv.shuffle(even_mask), uv_off);
-        auto v = vsubps(uv.shuffle(odd_mask), uv_off);
-        auto y = vmulps(vsubps(y_raw, y_off), y_scale);
-        auto r = fma(v_to_r, v, y).clamp(clamp_lo, clamp_hi);
-        auto g = fnma(v_to_g, v, fnma(u_to_g, u, y)).clamp(clamp_lo, clamp_hi);
-        auto b = fma(u_to_b, u, y).clamp(clamp_lo, clamp_hi);
+        auto y_raw = ir_load<N>(y);
+        auto uv_raw = ir_load<N>(uv);
+        auto u = vsubps(uv_raw.shuffle(even_mask), uv_off);
+        auto v = vsubps(uv_raw.shuffle(odd_mask), uv_off);
+        auto yy = vmulps(vsubps(y_raw, y_off), y_scale);
+        auto r = fma(v_to_r, v, yy).clamp(clamp_lo, clamp_hi);
+        auto g = fnma(v_to_g, v, fnma(u_to_g, u, yy)).clamp(clamp_lo, clamp_hi);
+        auto b = fma(u_to_b, u, yy).clamp(clamp_lo, clamp_hi);
 
         ir_cmp(colorFormat, size_t{0});
         ir_if(&Xbyak::CodeGenerator::jne,
             [&]() { store_interleaved3(dst, r, g, b); },
             [&]() { store_interleaved3(dst, b, g, r); });
 
-        ir_advance(src_y, step);
-        ir_advance(src_uv, step);
-        ir_advance(dst, 3 * step);
+        ir_advance(y);
+        ir_advance(uv);
+        ir_advance(dst);
     });
 
     end_ir();
@@ -697,16 +689,10 @@ private:
 template <typename T, size_t N>
 void JitConverter<T[N]>::generate() {
     using namespace Xbyak;
-    using reg_type = typename reg_traits<float[N]>::type;
-
     preamble();
 
     static const float data[8] = {16.F, 128.F, 1.164F, 1.596F, 0.391F, 2.018F, 0.813F, 255.F};
     _consts = data;
-
-    const auto reg_capacity_log = static_cast<int>(std::logb(N));
-    const size_t step = N * sizeof(T);
-    constexpr size_t uv_step = N * sizeof(T) / 2;
 
     // UV duplication permute order: [0,0,1,1,2,2,...] — each chroma
     // sample covers 2 luma samples in 4:2:0 subsampling.
@@ -714,21 +700,18 @@ void JitConverter<T[N]>::generate() {
 
     begin_ir();
 
-    // LLVM-style: args are IR GPR values, loaded at lowering time.
-    auto src_y = arg<const T*>(&Params::y);
-    auto src_u = arg<const T*>(&Params::u);
-    auto src_v = arg<const T*>(&Params::v);
-    auto dst = arg<T*>(&Params::dst);
     auto width = arg(&Params::width);
     auto colorFormat = arg(&Params::colorFormat);
 
-    auto main_count = ir_shr(width, reg_capacity_log);
-    auto tail_count = ir_and(width, N - 1);
-    auto uv_tail = ir_shr(tail_count, 1);
+    // Pointers with strides — ir_ptr carries elements-per-iteration.
+    // Y: N per iter, U/V: N/2 (4:2:0 subsampling), dst: 3N (interleaved RGB).
+    auto y  = make_ir_ptr(arg<const T*>(&Params::y), N);
+    auto u  = make_ir_ptr(arg<const T*>(&Params::u), N / 2);
+    auto v  = make_ir_ptr(arg<const T*>(&Params::v), N / 2);
+    auto dst = make_ir_ptr(arg<T*>(&Params::dst), 3 * N);
 
     auto consts_idx = static_cast<std::uint32_t>(_consts.reg().getIdx());
 
-    // ── Hoist BT.601 constants (same as NV12 kernel) ───────────
     auto bc = [&](int slot) {
         return ir_broadcast<N>(
             address_frame(sizeof(float))[Xbyak::Reg64(consts_idx) + slot * sizeof(float)]);
@@ -742,104 +725,34 @@ void JitConverter<T[N]>::generate() {
     auto v_to_g   = bc(6);
     auto clamp_hi = bc(7);
 
-    auto clamp_lo = ir_def<N>({}, [this](const jit_kernel_ir::EmitContext& ctx) {
-        uni_vxorps(reg_type(ctx.def->idx), reg_type(ctx.def->idx), reg_type(ctx.def->idx));
-    }, "vxorps");
+    auto clamp_lo = ir_zero<N>();
 
-    // ── Main loop: full-width iterations ───────────────────────
-    foreach(size_t{0}, main_count, [&](const variable<size_t>&) {
-        // Load Y (full width) — ir_load sees src_y.vid(), uses it as GPR read
-        auto y_raw = ir_load<N>(src_y);
+    // Single body — foreach_with_epilogue handles main loop + tail.
+    // ir_load(ir_ptr) uses stride for per-pointer partial counts.
+    // Full mode: Y loads N, U/V load N/2 (via ir_load_partial with constant count).
+    // Partial mode: Y loads tail_count, U/V load tail_count/2.
+    foreach_with_epilogue<N>(width, [&]() {
+        auto y_raw = ir_load<N>(y);
+        auto u_raw = ir_load<N>(u).permute(uv_unpack_order);
+        auto v_raw = ir_load<N>(v).permute(uv_unpack_order);
 
-        // Load U/V (half width N/2 into lower half of N-wide register)
-        // Pointer is an IR GPR read — resolved at lowering time.
-        auto u_raw = ir_def<N>({src_u.vid()}, [this](const jit_kernel_ir::EmitContext& ctx) {
-            auto ptr = Xbyak::Reg64(ctx.reads[0].idx);
-            if constexpr (std::is_same_v<T, uint8_t>) {
-                uni_vpmovzxbd(reg_type(ctx.def->idx), address_frame(N / 2)[ptr]);
-                uni_vcvtdq2ps(reg_type(ctx.def->idx), reg_type(ctx.def->idx));
-            } else {
-                uni_vmovups(reg_type(ctx.def->idx),
-                            address_frame(N / 2 * sizeof(T))[ptr]);
-            }
-        }, "load_u_half");
+        auto yy = vmulps(vsubps(y_raw, y_off), y_scale);
+        auto uu = vsubps(u_raw, uv_off);
+        auto vv = vsubps(v_raw, uv_off);
 
-        auto v_raw = ir_def<N>({src_v.vid()}, [this](const jit_kernel_ir::EmitContext& ctx) {
-            auto ptr = Xbyak::Reg64(ctx.reads[0].idx);
-            if constexpr (std::is_same_v<T, uint8_t>) {
-                uni_vpmovzxbd(reg_type(ctx.def->idx), address_frame(N / 2)[ptr]);
-                uni_vcvtdq2ps(reg_type(ctx.def->idx), reg_type(ctx.def->idx));
-            } else {
-                uni_vmovups(reg_type(ctx.def->idx),
-                            address_frame(N / 2 * sizeof(T))[ptr]);
-            }
-        }, "load_v_half");
+        auto r = fma(v_to_r, vv, yy).clamp(clamp_lo, clamp_hi);
+        auto g = fnma(v_to_g, vv, fnma(u_to_g, uu, yy)).clamp(clamp_lo, clamp_hi);
+        auto b = fma(u_to_b, uu, yy).clamp(clamp_lo, clamp_hi);
 
-        // Unpack UV: duplicate each chroma sample [u0,u0,u1,u1,...]
-        auto u = u_raw.permute(uv_unpack_order);
-        auto v = v_raw.permute(uv_unpack_order);
-
-        // BT.601 conversion (inlined, same math as yuv_to_rgb)
-        auto y = vmulps(vsubps(y_raw, y_off), y_scale);
-        auto uu = vsubps(u, uv_off);
-        auto vv = vsubps(v, uv_off);
-
-        auto r = fma(v_to_r, vv, y);
-        auto g = fnma(v_to_g, vv, fnma(u_to_g, uu, y));
-        auto b = fma(u_to_b, uu, y);
-
-        // Clamp required for all types: vpmovusdb saturates unsigned
-        // (negative → 255, not 0), so clamp before conversion.
-        r = r.clamp(clamp_lo, clamp_hi);
-        g = g.clamp(clamp_lo, clamp_hi);
-        b = b.clamp(clamp_lo, clamp_hi);
-
-        // Color format dispatch
         ir_cmp(colorFormat, size_t{0});
         ir_if(&Xbyak::CodeGenerator::jne,
             [&]() { store_interleaved3(dst, r, g, b); },
             [&]() { store_interleaved3(dst, b, g, r); });
 
-        // Advance pointers — reads all four pointer vids, emits add for each
-        ir_use({src_y.vid(), src_u.vid(), src_v.vid(), dst.vid()},
-            [this](const jit_kernel_ir::EmitContext& ctx) {
-                add(Xbyak::Reg64(ctx.reads[0].idx), step);
-                add(Xbyak::Reg64(ctx.reads[1].idx), uv_step);
-                add(Xbyak::Reg64(ctx.reads[2].idx), uv_step);
-                add(Xbyak::Reg64(ctx.reads[3].idx), 3 * step);
-            }, "ptr_advance");
-    });
-
-    // ── Tail: partial loads + same IR math ──────────────────
-    // ir_load_partial handles runtime-count loads safely (stack+copy).
-    // Same BT.601 math as the main loop, reusing the hoisted constants.
-    ir_cmp(tail_count, size_t{0});
-    ir_if(&Xbyak::CodeGenerator::je, [&]() {
-        auto y_raw = ir_load_partial<N>(src_y, tail_count);
-        auto u_raw = ir_load_partial<N>(src_u, uv_tail);
-        auto v_raw = ir_load_partial<N>(src_v, uv_tail);
-
-        auto u = u_raw.permute(uv_unpack_order);
-        auto v = v_raw.permute(uv_unpack_order);
-
-        auto y = vmulps(vsubps(y_raw, y_off), y_scale);
-        auto uu = vsubps(u, uv_off);
-        auto vv = vsubps(v, uv_off);
-
-        auto r = fma(v_to_r, vv, y);
-        auto g = fnma(v_to_g, vv, fnma(u_to_g, uu, y));
-        auto b = fma(u_to_b, uu, y);
-
-        // Clamp required for all types: vpmovusdb saturates unsigned
-        // (negative → 255, not 0), so clamp before conversion.
-        r = r.clamp(clamp_lo, clamp_hi);
-        g = g.clamp(clamp_lo, clamp_hi);
-        b = b.clamp(clamp_lo, clamp_hi);
-
-        ir_cmp(colorFormat, size_t{0});
-        ir_if(&Xbyak::CodeGenerator::jne,
-            [&]() { store_interleaved3(dst, r, g, b, tail_count); },
-            [&]() { store_interleaved3(dst, b, g, r, tail_count); });
+        ir_advance(y);
+        ir_advance(u);
+        ir_advance(v);
+        ir_advance(dst);
     });
 
     end_ir();

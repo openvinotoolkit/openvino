@@ -1178,6 +1178,10 @@ public:
     template <size_t N>
     variable<float[N]> ir_broadcast(const Xbyak::Address& addr);
 
+    // Zero vector — vxorps into a fresh register.
+    template <size_t N>
+    variable<float[N]> ir_zero();
+
     // GPR compare — sets flags, no result. In IR mode records a deferred
     // cmp; in eager mode emits immediately. Operands are scalar variables
     // or immediates (not IR-managed vector values).
@@ -1220,6 +1224,23 @@ private:
     jit_kernel_ir::value_id _partial_count = jit_kernel_ir::invalid_value;
 
 public:
+    // Pointer with stride — carries the number of elements accessed per
+    // vector iteration. foreach_with_epilogue uses the stride to compute
+    // per-pointer partial counts and auto-advance.
+    // Mirrors RVV's element group size — the stride IS the per-pointer vsetvli.
+    template <typename T>
+    struct ir_ptr {
+        variable<T*> ptr;
+        size_t stride;  // elements per iteration (N for full, N/2 for subsampled, etc.)
+
+        jit_kernel_ir::value_id vid() const { return ptr.vid(); }
+    };
+
+    template <typename T>
+    ir_ptr<T> make_ir_ptr(variable<T*>&& ptr, size_t stride) {
+        return {std::move(ptr), stride};
+    }
+
     // Single-body loop with automatic epilogue. The body builder is
     // invoked twice: once for the main loop (Full mode, full-width ops)
     // and once for the tail (Partial mode, partial loads/stores).
@@ -1228,8 +1249,25 @@ public:
     void foreach_with_epilogue(const variable<size_t>& width,
                                const std::function<void()>& body);
 
-    // Pointer advance — emits add(ptr, bytes) in Full mode, skipped in
-    // Partial mode (tail runs once, no advance needed).
+    // ir_load from ir_ptr — uses stride for partial count dispatch.
+    // Full mode + stride==N: direct load. Full mode + stride<N: partial load
+    // with constant count. Partial mode: partial load with scaled count.
+    template <size_t N, typename T>
+    variable<float[N]> ir_load(const ir_ptr<T>& src);
+
+    // store_interleaved3 from ir_ptr — auto-dispatches in Partial mode.
+    template <typename T, size_t N>
+    void store_interleaved3(const ir_ptr<T>& dst,
+                            const variable<float[N]>& a,
+                            const variable<float[N]>& b,
+                            const variable<float[N]>& c);
+
+    // Pointer advance — uses ir_ptr stride for auto-advance in Full mode,
+    // skipped in Partial mode.
+    template <typename T>
+    void ir_advance(const ir_ptr<T>& ptr);
+
+    // Raw pointer advance (backward compat — manual stride).
     template <typename PtrT>
     void ir_advance(const variable<PtrT>& ptr, size_t bytes);
 
@@ -1980,6 +2018,53 @@ void jit_kernel::ir_advance(const variable<PtrT>& ptr, size_t bytes) {
     }
 }
 
+// ── ir_ptr overloads ──────────────────────────────────────────────────
+
+template <size_t N, typename T>
+jit_kernel::variable<float[N]> jit_kernel::ir_load(const ir_ptr<T>& src) {
+    // Full mode + full stride: direct load (fastest path).
+    if (_loop_mode == LoopMode::Full && src.stride >= N) {
+        return ir_load<N>(src.ptr);
+    }
+    // All other cases: partial load with per-pointer count.
+    // Full mode + stride<N: constant count = stride.
+    // Partial mode + stride==N: count = _partial_count.
+    // Partial mode + stride<N: count = _partial_count * stride / N.
+    auto count_vid = [&]() -> jit_kernel_ir::value_id {
+        if (_loop_mode == LoopMode::Full) {
+            // Constant count = stride
+            return ir_def_gpr({}, [this, s = src.stride](const jit_kernel_ir::EmitContext& ctx) {
+                mov(Xbyak::Reg64(ctx.def->idx), s);
+            }, "load_count");
+        }
+        if (src.stride == N) {
+            return _partial_count;
+        }
+        // Scale: partial_count >> log2(N/stride)
+        return ir_shr(variable<size_t>(*this, _partial_count),
+                      static_cast<int>(std::log2(N / src.stride))).vid();
+    }();
+    return ir_load_partial<N>(src.ptr, variable<size_t>(*this, count_vid));
+}
+
+template <typename T>
+void jit_kernel::ir_advance(const ir_ptr<T>& ptr) {
+    ir_advance(ptr.ptr, ptr.stride * sizeof(T));
+}
+
+template <typename T, size_t N>
+void jit_kernel::store_interleaved3(const ir_ptr<T>& dst,
+                                    const variable<float[N]>& a,
+                                    const variable<float[N]>& b,
+                                    const variable<float[N]>& c) {
+    if (_loop_mode == LoopMode::Partial) {
+        auto count = variable<size_t>(*this, _partial_count);
+        store_interleaved3(dst.ptr, a, b, c, count);
+    } else {
+        store_interleaved3(dst.ptr, a, b, c);
+    }
+}
+
 template <size_t N>
 jit_kernel::variable<float[N]> jit_kernel::ir_def(std::vector<jit_kernel_ir::value_id> reads,
                                                    jit_kernel_ir::EmitFn emit,
@@ -1994,6 +2079,14 @@ jit_kernel::variable<float[N]> jit_kernel::ir_broadcast(const Xbyak::Address& ad
     return ir_def<N>({}, [this, addr](const jit_kernel_ir::EmitContext& ctx) {
         uni_vbroadcastss(reg_type(ctx.def->idx), addr);
     }, "broadcast");
+}
+
+template <size_t N>
+jit_kernel::variable<float[N]> jit_kernel::ir_zero() {
+    using reg_type = typename reg_traits<float[N]>::type;
+    return ir_def<N>({}, [this](const jit_kernel_ir::EmitContext& ctx) {
+        uni_vxorps(reg_type(ctx.def->idx), reg_type(ctx.def->idx), reg_type(ctx.def->idx));
+    }, "zero");
 }
 
 template <typename A, typename B>
