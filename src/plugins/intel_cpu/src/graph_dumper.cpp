@@ -34,15 +34,18 @@
 #include "openvino/op/result.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/pass/visualize_tree.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/util/common_util.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 #include "utils/platform.h"
 
 namespace ov::intel_cpu {
 
 void serializeToCout(const Graph& graph);
 void serializeToXML(const Graph& graph, const std::filesystem::path& path);
+void serializeToDot(const Graph& graph, const std::filesystem::path& path);
 
 namespace {
 
@@ -236,14 +239,35 @@ void serialize(const Graph& graph) {
 
     if (pathStr == "cout") {
         serializeToCout(graph);
-    } else if (std::filesystem::path p{pathStr}; p.extension() == ".xml") {
-        static int g_idx = 0;
-        const auto xmlPath =
-            p.parent_path() / (p.stem().string() + "_" + std::to_string(g_idx++) + p.extension().string());
-        serializeToXML(graph, xmlPath);
-    } else {
-        OPENVINO_THROW("Unknown serialize format. Should be either 'cout' or '*.xml'. Got ", pathStr);
+        return;
     }
+
+    std::filesystem::path p{pathStr};
+    const auto ext = p.extension();
+
+    if (none_of(ext, ".xml", ".dot")) {
+        OPENVINO_THROW("Unknown serialize format. Should be either 'cout', '*.xml' or '*.dot'. Got ", pathStr);
+    }
+
+    static int g_idx = 0;
+    const auto indexedFileName = p.stem().string() + "_" + std::to_string(g_idx++) + ext.string();
+    const auto indexedPath = p.parent_path() / indexedFileName;
+
+    if (ext == ".xml") {
+        serializeToXML(graph, indexedPath);
+    } else {
+        serializeToDot(graph, indexedPath);
+    }
+}
+
+void serializeToDot(const Graph& graph, const std::filesystem::path& path) {
+    if (path.empty()) {
+        return;
+    }
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::VisualizeTree>(path.string(), nullptr, true);
+    manager.run_passes(graph.dump());
 }
 
 void serializeToXML(const Graph& graph, const std::filesystem::path& path) {
