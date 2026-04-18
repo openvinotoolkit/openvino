@@ -17,8 +17,8 @@
 #include "partitioning/online/group.hpp"
 #include "partitioning/online/snapshot.hpp"
 
+using ov::test::npuw::LLMConfig;
 using ov::test::npuw::ModelBuilder;
-using ov::test::npuw::ModelConfig;
 
 namespace {
 
@@ -107,6 +107,8 @@ bool isEqualEns(ov::npuw::Ensemble& ens1, ov::npuw::Ensemble& ens2) {
 class IsRegularResultCaseParametrized : public ::testing::TestWithParam<std::tuple<std::vector<std::size_t>, bool>> {};
 class IsRegularParameterCaseParametrized : public ::testing::TestWithParam<std::tuple<std::vector<std::size_t>, bool>> {
 };
+class IsRegularCrossGroupConsumerCaseParametrized
+    : public ::testing::TestWithParam<std::tuple<std::vector<std::size_t>, bool>> {};
 
 };  // namespace
 
@@ -675,14 +677,14 @@ INSTANTIATE_TEST_SUITE_P(OnlinePartitioningTest,
 // always exposes its boundary Add in getInputs(), detects the mask mismatch, and
 // correctly sets irregular_io=true regardless of hash order.
 TEST(OnlinePartitioningTest, IsRegularParameterCase_PrefillModel_InputsEmbeds) {
-    ModelConfig config;
+    LLMConfig config;
     config.num_layers = 4;
     config.hidden_size = 64;
     config.use_inputs_embeds = true;  // layer 0's residual Add reads inputs_embeds (ov::Parameter)
     config.use_kv_cache = true;
 
     ModelBuilder mb;
-    auto model = mb.build_model(config);
+    auto model = mb.build_llm(config);
 
     // Partitioning requires a static-shape stateless model, matching the real
     // production path in LLMCompiledModel before getPartitioning() is called.
@@ -731,5 +733,84 @@ TEST(OnlinePartitioningTest, IsRegularParameterCase_PrefillModel_InputsEmbeds) {
     EXPECT_GE(ens.repeated.size(), 1u);  // sanity: transformer layers must form a repeated block
     // Layer 0 reads inputs_embeds (ov::Parameter); layers 1+ read from prior computation.
     // isRegularParameterCase must detect this structural asymmetry and set irregular_io=true.
+    EXPECT_TRUE(ens.irregular_io);
+}
+
+TEST_P(IsRegularCrossGroupConsumerCaseParametrized, CheckForDifferentCrossGroupConsumerConfigs) {
+    auto [head_block_indices, expected_result] = GetParam();
+
+    ModelBuilder mb;
+    // Uses the KV-sharing block structure (Add→Relu→Multiply→Relu) where both Relu
+    // nodes share an identical metadesc.  When a head block's interior Relu gains an
+    // external consumer, output_ometa remains {"Relu"} because the boundary Relu
+    // already contributes that metadesc.  All 10 blocks stay in one repeated family,
+    // so isRegularCrossGroupConsumerCase is the first check that can detect the
+    // per-bank connectivity asymmetry.
+    auto model = mb.get_model_with_kv_sharing_repeated_blocks(10, head_block_indices);
+
+    // keepBlockSize=4 matches the 4-op block structure (Add→Relu→Multiply→Relu)
+    auto cfg = createConfigWithKeepBlockSize(4);
+    auto ens = ov::npuw::online::buildPartitioning(model, cfg);
+
+    EXPECT_GE(ens.repeated.size(), 1u);  // sanity check that we have repeated blocks
+    EXPECT_EQ(ens.irregular_io, expected_result);
+}
+
+// isRegularCrossGroupConsumerCase checks that within each operation bank of a repeated
+// block family, the cross-group (non-Result) consumer pattern is symmetric across all
+// instances.  F16IC inserts a Convert on every cross-group edge; if some instances
+// have an external consumer for a given output port and others do not, the Convert
+// count differs, breaking the operation-bank invariant.
+//
+// The key model property required to trigger this check:
+//   - All blocks must remain in ONE repeated-block family (same MetaInterconnectIO).
+//   - Some blocks' interior node must have an extra external consumer.
+// get_model_with_kv_sharing_repeated_blocks() satisfies both conditions because the
+// interior Relu and the boundary Relu share the same metadesc ("Relu f32{1,1,8}").
+// Adding the interior Relu as an extra output_layer leaves output_ometa unchanged.
+INSTANTIATE_TEST_SUITE_P(OnlinePartitioningTest,
+                         IsRegularCrossGroupConsumerCaseParametrized,
+                         ::testing::Values(
+                             // All blocks have a cross-group consumer: symmetric, F16IC safe
+                             std::make_tuple(std::vector<std::size_t>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+                                             /*irregular_io=*/false),
+                             // Some blocks have a cross-group consumer: interior Relu bank is asymmetric
+                             // (some mask=[true], others mask=[false]) → isRegularCrossGroupConsumerCase
+                             // returns false → irregular_io=true
+                             std::make_tuple(std::vector<std::size_t>{2, 5, 8}, /*irregular_io=*/true),
+                             // Only one block has a cross-group consumer: same asymmetry detected
+                             std::make_tuple(std::vector<std::size_t>{9}, /*irregular_io=*/true),
+                             // No blocks have a cross-group consumer: symmetric, F16IC safe
+                             std::make_tuple(std::vector<std::size_t>{}, /*irregular_io=*/false)));
+
+// Regression test for isRegularCrossGroupConsumerCase, introduced to handle the
+// Gemma4 KV-sharing pattern.
+//
+// In Gemma4, ALL transformer layers belong to one repeated-block family.  However,
+// only the "head" layers additionally forward their interior Multiply_1 output to
+// k/v_proj (a different partition group), while non-head layers keep Multiply_1
+// purely internal.  Because Multiply_1's metadesc is already present in output_ometa
+// (via another boundary node of the same op type), gaining an extra output_layer for
+// Multiply_1 leaves output_ometa unchanged, so the family is NOT split by the scanner.
+// isRegularCrossGroupConsumerCase then detects the per-bank inconsistency:
+//   - non-head interior node bank → mask=[false] (no external consumer)
+//   - head interior node bank     → mask=[true]  (external MatMul consumer)
+// → returns false → irregular_io=true, disabling F16IC for this model.
+//
+// get_model_with_kv_sharing_repeated_blocks() reproduces this same condition by using
+// a block structure (Add→Relu(interior)→Multiply→Relu(boundary)) where both Relu
+// nodes share an identical metadesc.  Block 5's interior Relu gains an external
+// MatMul consumer but output_ometa stays {"Relu"}, so all 10 blocks remain in one
+// family and the function's return-false path is exercised.
+TEST(OnlinePartitioningTest, IsRegularCrossGroupConsumerCase_Gemma4KVSharingPattern) {
+    ModelBuilder mb;
+    auto model = mb.get_model_with_kv_sharing_repeated_blocks(10, {5});
+
+    auto cfg = createConfigWithKeepBlockSize(4);
+    auto ens = ov::npuw::online::buildPartitioning(model, cfg);
+
+    EXPECT_GE(ens.repeated.size(), 1u);
+    // isRegularCrossGroupConsumerCase detects the interior-Relu bank asymmetry
+    // (block 5 has external consumer, others do not) → irregular_io=true.
     EXPECT_TRUE(ens.irregular_io);
 }

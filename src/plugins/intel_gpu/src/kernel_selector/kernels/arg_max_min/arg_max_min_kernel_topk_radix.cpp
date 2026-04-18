@@ -188,7 +188,17 @@ KernelsData ArgMaxMinKernelTopKRadix::GetKernelsData(const Params& params) const
     return {kd};
 }
 
-KernelsPriority ArgMaxMinKernelTopKRadix::GetKernelsPriority(const Params&) const {
+KernelsPriority ArgMaxMinKernelTopKRadix::GetKernelsPriority(const Params& p) const {
+    const auto& params = static_cast<const arg_max_min_params&>(p);
+    const size_t sort_size = GetSortSize(params);
+
+    // Radix sort excels at large sort sizes with large k (e.g., N=8400+, k=300).
+    // For k=1 (pure argmax/argmin) or small sort sizes, the axis kernel's
+    // simple reduction is more efficient — especially when there are many
+    // independent operations that amplify per-WG overhead.
+    if (params.topK == 1 || sort_size < 256)
+        return FORCE_PRIORITY_5;
+
     return FORCE_PRIORITY_1;
 }
 

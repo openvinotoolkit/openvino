@@ -2799,6 +2799,48 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_matmul_vec_ten3d) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_activation_celu) {
+    auto model = convert_model("activation_celu.onnx");
+
+    // -1.0f, 0, 1.0f, 10.f,                    normal input values for activation
+    // 100.0f, -100.0f, 1000.0f, -1000.0f,      input values that leads to exp() overflow
+    // FLT_MIN, FLT_MIN / 16, -FLT_MIN / 16,    min, denorm, -denorm
+    // FLT_MAX, -FLT_MAX,                       max, -max;
+    Inputs inputs{std::vector<float>{-1.0f,
+                                     0,
+                                     1.0f,
+                                     10.f,
+                                     100.0f,
+                                     -100.0f,
+                                     1000.0f,
+                                     -1000.0f,
+                                     FLT_MIN,
+                                     FLT_MIN / 16,
+                                     -FLT_MIN / 16,
+                                     FLT_MAX,
+                                     -FLT_MAX}};
+
+    const auto inf = std::numeric_limits<float>::infinity();
+    std::vector<float> output{-3.194527864456177f,
+                              0.0f,
+                              1.f,
+                              10.f,
+                              100.0f,
+                              -inf,
+                              1000.0f,
+                              -inf,
+                              1.175494350822288e-38f,
+                              7.346839692639297e-40f,
+                              0.0f,
+                              inf,
+                              -inf};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(output);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softplus) {
     auto model = convert_model("softplus.onnx");
 
@@ -3283,6 +3325,23 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lp_norm_default_dynamic) {
         {0.18257418f, 0.36514837f, 0.5477225f, 0.73029673f, 0.37904903f, 0.45485884f, 0.5306686f,  0.60647845f,
          0.42616236f, 0.47351375f, 0.5208651f, 0.5682165f,  0.4469492f,  0.48132992f, 0.51571065f, 0.5500913f,
          0.45862272f, 0.48560053f, 0.5125783f, 0.53955615f, 0.46609157f, 0.4882864f,  0.51048124f, 0.5326761f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lp_norm_zero_norm) {
+    // Ref: https://onnx.ai/onnx/operators/onnx__LpNormalization.html
+    const auto model = convert_model("lp_norm_p2.onnx");
+
+    const Shape data_shape{2, 3, 4};
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(data_shape, {1.f,  2.f,  3.f,  4.f,  5.f,  6.f,  7.f,  8.f,  9.f,  10.f, 0.f, 0.f,
+                                            13.f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f, 20.f, 21.f, 22.f, 0.f, 0.f});
+    test_case.add_expected_output<float>(
+        data_shape,
+        {0.0766965f,  0.14142136f, 0.19611613f, 0.24253564f, 0.28216633f, 0.31622776f, 0.34570536f, 0.37139067f,
+         0.39391932f, 0.41380295f, 0.0f,        0.0f,        0.9970545f,  0.98994946f, 0.9805807f,  0.97014254f,
+         0.9593655f,  0.9486833f,  0.9383431f,  0.9284767f,  0.91914505f, 0.9103665f,  0.0f,        0.0f});
 
     test_case.run();
 }
@@ -5642,6 +5701,28 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_expand_failsafe_node) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_expand_scalar_failsafe_node) {
+    const auto model = convert_model("expand_scalar_failsafe_node.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    const auto input_data = std::vector<float>{1.0f};
+    test_case.add_input<float>(input_data);
+    // the target shape is an empty constant so the Expand operation should not modify the input shape
+    test_case.add_expected_output<float>(input_data);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_expand_scalar_failsafe_node_ort_mem) {
+    const auto model = convert_model("expand_scalar_failsafe_node_ort_mem.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    const auto input_data = std::vector<float>{1.0f};
+    test_case.add_input<float>(input_data);
+    // the target shape is an empty constant so the Expand operation should not modify the input shape
+    test_case.add_expected_output<float>(input_data);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_scan15_fib_like) {
     const auto model = convert_model("scan15_fib_like.onnx");
 
@@ -6897,6 +6978,47 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_group_normalization_2grp_custom_eps) {
         {1.694167f,   -0.51719165f, -0.21612573f, 0.71365166f, -0.86902285f, 1.4205441f, -1.0866947f, 3.3172996f,
          3.0944781f,  2.154863f,    2.5965219f,   1.0839586f,  -1.8562672f,  -3.540983f, 0.14745194f, -1.8816261f,
          -1.4463723f, -0.547642f,   -2.768998f,   1.3848708f,  0.97488886f,  2.5446892f, 1.4639623f,  -1.7954159f});
+
+    test_case.run_with_tolerance_as_fp(0.000001f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_group_normalization_21) {
+    auto model = convert_model("group_normalization_21.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(
+        {1.764052391052246f,    0.40015721321105957f, 0.978738009929657f,    2.2408931255340576f,
+         1.8675580024719238f,   -0.9772778749465942f, 0.9500884413719177f,   -0.15135720372200012f,
+         -0.10321885347366333f, 0.4105985164642334f,  0.14404356479644775f,  1.4542734622955322f,
+         0.7610377073287964f,   0.12167501449584961f, 0.44386324286460876f,  0.3336743414402008f,
+         1.4940791130065918f,   -0.2051582634449005f, 0.3130677044391632f,   -0.8540957570075989f,
+         -2.5529897212982178f,  0.653618574142456f,   0.8644362092018127f,   -0.7421650290489197f,
+         2.269754648208618f,    -1.4543657302856445f, 0.04575851559638977f,  -0.18718385696411133f,
+         1.5327792167663574f,   1.4693588018417358f,  0.154947429895401f,    0.37816253304481506f,
+         -0.8877857327461243f,  -1.980796456336975f,  -0.34791216254234314f, 0.15634897351264954f,
+         1.2302906513214111f,   1.202379822731018f,   -0.38732680678367615f, -0.302302747964859f,
+         -1.0485529899597168f,  -1.420017957687378f,  -1.7062702178955078f,  1.950775384902954f,
+         -0.5096521973609924f,  -0.4380742907524109f, -1.2527953386306763f,  0.7774903774261475f});
+    test_case.add_input<float>(
+        {-1.6138978004455566f, -0.21274028718471527f, -0.8954665660858154f, 0.38690251111984253f});
+    test_case.add_input<float>({-0.5108051300048828, -1.18063223361969f, -0.02818222902715206f, 0.4283318817615509f});
+
+    test_case.add_expected_output<float>(
+        Shape{3, 4, 2, 2},
+        {
+            -1.8928775787353516f, 0.24930185079574585f, -0.6594365239143372f,  -2.641819477081299f,
+            -1.384243369102478f,  -0.7952562570571899f, -1.1942929029464722f,  -0.9662526845932007f,
+            1.0357780456542969f,  0.03993310034275055f, 0.5565513372421265f,   -1.9828449487686157f,
+            0.6923606395721436f,  0.15695568919181824f, 0.42675745487213135f,  0.3344848155975342f,
+            -2.7151150703430176f, -0.4068778157234192f, -1.1108338832855225f,  0.4746362566947937f,
+            -0.7465286254882812f, -1.3207058906555176f, -1.3584550619125366f,  -1.0707759857177734f,
+            -1.4356461763381958f, 1.570522427558899f,   0.35959845781326294f,  0.5476332902908325f,
+            0.7794156074523926f,  0.7572963237762451f,  0.29886627197265625f,  0.3767174780368805f,
+            0.6620793342590332f,  2.4348504543304443f,  -0.21355000138282776f, -1.0314189195632935f,
+            -1.4788639545440674f, -1.4728968143463135f, -1.1330219507217407f,  -1.1511999368667603f,
+            0.4269883334636688f,  0.7122754454612732f,  0.9321187734603882f,   -1.876512050628662f,
+            0.4104909896850586f,  0.43424272537231445f, 0.16389334201812744f,  0.837604284286499f,
+        });
 
     test_case.run_with_tolerance_as_fp(0.000001f);
 }
