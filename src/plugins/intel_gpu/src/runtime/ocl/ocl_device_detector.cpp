@@ -9,6 +9,29 @@
 
 #include <string>
 #include <vector>
+#include <map>
+#include <mutex>
+
+// Per-device context cache to prevent duplicate OpenCL context creation.
+// The NEO driver (32.0.101.8314) crashes when multiple contexts exist
+// for the same device in multi-GPU HETERO configurations.
+static std::mutex g_ctx_cache_mutex;
+static std::map<cl_device_id, cl::Context> g_device_ctx_cache;
+
+cl::Context get_cached_context(const cl::Device& device) {
+    cl_device_id dev_id = device();
+    std::lock_guard<std::mutex> lock(g_ctx_cache_mutex);
+    auto it = g_device_ctx_cache.find(dev_id);
+    if (it != g_device_ctx_cache.end()) {
+        GPU_DEBUG_TRACE << "[CTX_CACHE] HIT for dev_id=" << (void*)dev_id << " (cache size=" << g_device_ctx_cache.size() << ")" << std::endl;
+        return it->second;
+    }
+    GPU_DEBUG_TRACE << "[CTX_CACHE] MISS for dev_id=" << (void*)dev_id << " - creating new context (cache size=" << g_device_ctx_cache.size() << ")" << std::endl;
+    cl::Context ctx(device);
+    g_device_ctx_cache[dev_id] = ctx;
+    GPU_DEBUG_TRACE << "[CTX_CACHE] Created context for dev_id=" << (void*)dev_id << " OK" << std::endl;
+    return ctx;
+}
 
 // NOTE: Due to buggy scope transition of warnings we need to disable warning in place of use/instantation
 //       of some types (even though we already disabled them in scope of definition of these types).
@@ -124,6 +147,7 @@ std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(vo
                                                                               int ctx_device_id,
                                                                               int target_tile_id,
                                                                               bool initialize_devices) const {
+    GPU_DEBUG_TRACE << "[GET_AVAIL] get_available_devices called: user_ctx=" << user_context << " user_dev=" << user_device << " init=" << initialize_devices << std::endl;
     std::vector<device::ptr> devices_list;
     if (user_context != nullptr) {
         devices_list = create_device_list_from_user_context(user_context, ctx_device_id);
@@ -189,18 +213,22 @@ std::vector<device::ptr> ocl_device_detector::create_device_list() const {
     OPENVINO_ASSERT(error_code == CL_SUCCESS, create_device_error_msg, "[GPU] clGetPlatformIDs error code: ", std::to_string(error_code));
 
     std::vector<device::ptr> supported_devices;
+    GPU_DEBUG_TRACE << "[CREATE_DEV_LIST] Enumerating " << num_platforms << " platforms" << std::endl;
     for (auto& id : platform_ids) {
         cl::Platform platform = cl::Platform(id);
+        GPU_DEBUG_TRACE << "[CREATE_DEV_LIST] Platform: " << platform.getInfo<CL_PLATFORM_NAME>() << std::endl;
 
         try {
             std::vector<cl::Device> devices;
             platform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
+            GPU_DEBUG_TRACE << "[CREATE_DEV_LIST] Found " << devices.size() << " devices on platform" << std::endl;
             for (auto& device : devices) {
                 if (!does_device_match_config(device))
                     continue;
 
+                GPU_DEBUG_TRACE << "[CREATE_DEV_LIST] Device: " << device.getInfo<CL_DEVICE_NAME>() << " dev_id=" << (void*)device() << " vendor=0x" << std::hex << device.getInfo<CL_DEVICE_VENDOR_ID>() << std::dec << std::endl;
                 if (device.getInfo<CL_DEVICE_VENDOR_ID>() == cldnn::INTEL_VENDOR_ID) {
-                    supported_devices.emplace_back(std::make_shared<ocl_device>(device, cl::Context(device), platform));
+                    supported_devices.emplace_back(std::make_shared<ocl_device>(device, get_cached_context(device), platform));
                 } else {
                     supported_devices.emplace_back(std::make_shared<ocl_device>(device, cl::Context(), platform, false));
                 }
@@ -211,6 +239,7 @@ std::vector<device::ptr> ocl_device_detector::create_device_list() const {
             continue;
         }
     }
+    GPU_DEBUG_TRACE << "[CREATE_DEV_LIST] Returning " << supported_devices.size() << " supported devices" << std::endl;
     return supported_devices;
 }
 
