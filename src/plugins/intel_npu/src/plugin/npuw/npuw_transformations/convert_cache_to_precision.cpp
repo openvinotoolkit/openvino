@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "convert_kvcache_to_precision.hpp"
+#include "convert_cache_to_precision.hpp"
 
 #include "../logging.hpp"
 #include "low_precision/concat.hpp"
@@ -69,13 +69,34 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov
     ov::preprocess::PrePostProcessor ppp(model);
 
     for (const auto& tensor : model->inputs()) {
-        if (tensor.get_any_name().find("past_key") != std::string::npos) {
+        if (tensor.get_any_name().rfind("past_key", 0) == 0) {
             ppp.input(tensor.get_any_name()).tensor().set_element_type(lptype);
         }
     }
 
     for (const auto& tensor : model->outputs()) {
-        if (tensor.get_any_name().find("present") != std::string::npos) {
+        if (tensor.get_any_name().rfind("present", 0) == 0) {
+            ppp.output(tensor.get_any_name()).tensor().set_element_type(lptype);
+        }
+    }
+
+    return ppp.build();
+}
+
+std::shared_ptr<ov::Model> cvt_lincache_to_low_precision(const std::shared_ptr<ov::Model>& model,
+                                                         const ov::element::Type lptype) {
+    ov::preprocess::PrePostProcessor ppp(model);
+
+    for (const auto& tensor : model->inputs()) {
+        if (tensor.get_any_name().rfind("cache_params.past.conv", 0) == 0 ||
+            tensor.get_any_name().rfind("cache_params.past.ssm", 0) == 0) {
+            ppp.input(tensor.get_any_name()).tensor().set_element_type(lptype);
+        }
+    }
+
+    for (const auto& tensor : model->outputs()) {
+        if (tensor.get_any_name().rfind("cache_params.present.conv", 0) == 0 ||
+            tensor.get_any_name().rfind("cache_params.present.ssm", 0) == 0) {
             ppp.output(tensor.get_any_name()).tensor().set_element_type(lptype);
         }
     }
@@ -142,4 +163,15 @@ bool ConvertKVCacheToPrecision::run_on_model(const std::shared_ptr<ov::Model>& m
     return true;
 }
 
+ConvertLinCacheToPrecision::ConvertLinCacheToPrecision(const ov::element::Type lptype) : m_lp_type(lptype) {}
+
+bool ConvertLinCacheToPrecision::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    auto ppp_result = cvt_lincache_to_low_precision(model, m_lp_type);
+    // PrePostProcessor currently always modifies the model in-place and returns the same model pointer, but let's
+    // be defensive here and check it just in case
+    OPENVINO_ASSERT(ppp_result == model,
+                    "PrePostProcessor should not create a new model, but returned a different one.");
+
+    return true;
+}
 }  // namespace ov::npuw

@@ -669,17 +669,8 @@ void ov::npuw::LLMInferRequest::copy_lincache(
     namespace uu = ov::npuw::util;
     LOG_DEBUG("Copying linear cache.");
     LOG_BLOCK();
-    for (const auto& port : from_ports) {
-        std::cout << "From port: " << port.second.get_any_name() << " with shape " << port.second.get_partial_shape()
-                  << std::endl;
-    }
-    for (const auto& port : to_ports) {
-        std::cout << "To port: " << port.second.get_any_name() << " with shape " << port.second.get_partial_shape()
-                  << std::endl;
-    }
     ov::parallel_for(m_generate_lincache_past_ports.size(), [&](size_t out_idx) {
         ov::Output<const ov::Node> generate_past_port = m_generate_lincache_past_ports[out_idx];
-        std::cout << "generate_past_port: " << generate_past_port.get_any_name() << std::endl;
         const auto& input_name = generate_past_port.get_any_name();
         OPENVINO_ASSERT(to_ports.find(input_name) != to_ports.end(),
             "Incosistent input/output naming for linear cache: ", input_name, " not found in model inputs.");
