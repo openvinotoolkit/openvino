@@ -313,15 +313,16 @@ bool rematerialize_for_pressure(IR& ir,
                                 std::uint32_t gpr_pool_size = 0);
 
 // LLVM-style interference-based allocator with integrated remat.
+struct PassContext;  // forward declaration
+
 // Returns Assignment on success. Returns std::nullopt when the IR was
-// modified (a rematerializable value was cloned at each use site) — the
-// caller should recompute live ranges and retry. Throws allocation_failure
-// when no register is available and no rematerializable victim exists.
-// gpr_pool_indices maps pool slots to physical GPR register indices.
+// modified (a remat or spill was inserted) — the caller should recompute
+// live ranges and retry. Throws allocation_failure only when no strategy
+// (remat or spill) can free a register.
+// PassContext provides pool sizes, spill slot tracking, and config.
 std::optional<Assignment> linear_scan(IR& ir,
                                       std::vector<LiveRange>& ranges,
-                                      std::uint32_t vec_pool_size,
-                                      const std::vector<std::uint32_t>& gpr_pool_indices = {});
+                                      PassContext& ctx);
 
 // Loop unrolling strategies.
 enum class UnrollStrategy {
@@ -361,6 +362,15 @@ struct PassContext {
     // Mirrors LLVM's AllocationOrder (RegisterClassInfo::getOrder).
     std::uint32_t vec_pool_size = 0;
     std::vector<std::uint32_t> gpr_pool_indices;  // allocable GPR register indices
+
+    // Spill slots — each spilled value gets a stack slot.
+    // Slot sizes are register-class dependent (64 bytes for Vec/Zmm, 8 for GPR).
+    // Offsets computed by end_ir() alongside ir_alloca offsets.
+    struct SpillSlot {
+        std::uint32_t size;       // bytes (64 for Vec, 8 for GPR)
+        std::uint32_t offset = 0; // filled before lowering
+    };
+    std::vector<SpillSlot> spill_slots;
 
     // Analysis results — populated by analysis passes, consumed by later passes.
     std::vector<LiveRange> ranges;

@@ -38,6 +38,16 @@ EmitFn stub() {
     return [](const EmitContext&) {};
 }
 
+// Helper: wrap old linear_scan API for tests that don't need spill.
+std::optional<Assignment> linear_scan_test(IR& ir, std::vector<LiveRange>& ranges,
+                                           std::uint32_t vec_pool_size,
+                                           const std::vector<std::uint32_t>& gpr_pool = {}) {
+    PassContext ctx;
+    ctx.vec_pool_size = vec_pool_size;
+    ctx.gpr_pool_indices = gpr_pool;
+    return linear_scan(ir, ranges, ctx);
+}
+
 // Helper: assert every value that appears in `intervals` (with a real start)
 // has been assigned a physical register in `assignment`.
 void expect_all_assigned(const std::vector<LiveRange>& ranges, const Assignment& assignment) {
@@ -144,7 +154,7 @@ TEST(JitKernelIR, LinearScanFitsInPool) {
     (void)d;
 
     auto ranges = compute_live_ranges(ir);
-    const auto assignment = *linear_scan(ir, ranges, /*pool_size=*/4);
+    const auto assignment = *linear_scan_test(ir, ranges, /*pool_size=*/4);
 
     expect_all_assigned(ranges, assignment);
     expect_no_overlap_conflict(ranges, assignment);
@@ -170,7 +180,7 @@ TEST(JitKernelIR, LinearScanReusesFreedRegisters) {
     (void)prev;
 
     auto ranges = compute_live_ranges(ir);
-    const auto assignment = *linear_scan(ir, ranges, /*pool_size=*/2);
+    const auto assignment = *linear_scan_test(ir, ranges, /*pool_size=*/2);
 
     expect_all_assigned(ranges, assignment);
     expect_no_overlap_conflict(ranges, assignment);
@@ -202,7 +212,7 @@ TEST(JitKernelIR, LinearScanThrowsOnOverflow) {
     auto ranges = compute_live_ranges(ir);
     EXPECT_THROW({
         for (std::size_t attempt = 0, limit = ranges.size(); attempt < limit; ++attempt) {
-            auto result = linear_scan(ir, ranges, /*pool_size=*/4);
+            auto result = linear_scan_test(ir, ranges, /*pool_size=*/4);
             if (result) break;
             ranges = compute_live_ranges(ir);
         }
@@ -213,7 +223,7 @@ TEST(JitKernelIR, LinearScanThrowsOnOverflow) {
     IR ir2;
     build_chain(ir2);
     auto ranges2 = compute_live_ranges(ir2);
-    auto result2 = linear_scan(ir2, ranges2, /*pool_size=*/5);
+    auto result2 = linear_scan_test(ir2, ranges2, /*pool_size=*/5);
     ASSERT_TRUE(result2.has_value());
     expect_all_assigned(ranges2, *result2);
     expect_no_overlap_conflict(ranges2, *result2);
@@ -236,7 +246,7 @@ TEST(JitKernelIR, UseWithoutDefDoesNotCreateValue) {
     EXPECT_EQ(ranges[v].beginIndex(), 1U);   // def at late(0)
     EXPECT_EQ(ranges[v].endIndex(), 3U);    // read at early(1), half-open end=3
 
-    const auto assignment = *linear_scan(ir, ranges, /*pool_size=*/1);
+    const auto assignment = *linear_scan_test(ir, ranges, /*pool_size=*/1);
     EXPECT_EQ(assignment.peak_live, 1U);
 }
 
@@ -270,7 +280,7 @@ TEST(JitKernelIR, DumpProducesNonEmptyText) {
     (void)c;
 
     auto ranges = compute_live_ranges(ir);
-    const auto assignment = *linear_scan(ir, ranges, /*pool_size=*/3);
+    const auto assignment = *linear_scan_test(ir, ranges, /*pool_size=*/3);
 
     std::ostringstream op_dump;
     dump_ops(op_dump, ir);
@@ -292,7 +302,7 @@ TEST(JitKernelIR, DeadValueFreesRegisterImmediately) {
     (void)ir.def({}, stub());  // dead, would fail on pool=1 if dead value held its reg
 
     auto ranges = compute_live_ranges(ir);
-    const auto assignment = *linear_scan(ir, ranges, /*pool_size=*/1);
+    const auto assignment = *linear_scan_test(ir, ranges, /*pool_size=*/1);
     EXPECT_EQ(assignment.peak_live, 1U);
     EXPECT_EQ(assignment.reg.size(), 2U);
 }
@@ -368,7 +378,7 @@ TEST(JitKernelIR, InputAwareRematClonesWithReads) {
     // short-lived (right before the use). Pool = 3 should suffice
     // for c0, c1, and the clone (derived is dead).
     auto ranges = compute_live_ranges(ir);
-    auto result = linear_scan(ir, ranges, /*pool_size=*/3);
+    auto result = linear_scan_test(ir, ranges, /*pool_size=*/3);
     ASSERT_TRUE(result.has_value());
     expect_all_assigned(ranges, *result);
     expect_no_overlap_conflict(ranges, *result);
@@ -404,7 +414,7 @@ TEST(JitKernelIR, InputAwareRematReducesPressure) {
 
     // Allocation should now succeed with pool=4.
     auto ranges = compute_live_ranges(ir);
-    auto result = linear_scan(ir, ranges, /*pool_size=*/4);
+    auto result = linear_scan_test(ir, ranges, /*pool_size=*/4);
     ASSERT_TRUE(result.has_value()) << "allocation should succeed after remat";
     expect_all_assigned(ranges, *result);
     expect_no_overlap_conflict(ranges, *result);
@@ -1345,7 +1355,7 @@ TEST(JitKernelIR, GprAllocation) {
 
     // Allocate with no vec pool, 4-entry GPR pool (indices 3, 6, 8, 10).
     std::vector<std::uint32_t> gpr_pool = {3, 6, 8, 10};
-    auto result = jit_kernel_ir::linear_scan(ir, ranges, /*vec_pool_size=*/0, gpr_pool);
+    auto result = linear_scan_test(ir, ranges, /*vec_pool_size=*/0, gpr_pool);
     ASSERT_TRUE(result.has_value());
 
     // Both values should be assigned physical GPR indices from the pool.
@@ -1375,7 +1385,7 @@ TEST(JitKernelIR, MixedVecGprAllocation) {
 
     // Vec pool size = 2, GPR pool = {5, 9}
     std::vector<std::uint32_t> gpr_pool = {5, 9};
-    auto result = jit_kernel_ir::linear_scan(ir, ranges, /*vec_pool_size=*/2, gpr_pool);
+    auto result = linear_scan_test(ir, ranges, /*vec_pool_size=*/2, gpr_pool);
     ASSERT_TRUE(result.has_value());
 
     // Vec values get indices 0..1, GPR values get indices from {5, 9}.
@@ -1402,7 +1412,7 @@ TEST(JitKernelIR, GprCoalescing) {
 
     auto ranges = jit_kernel_ir::compute_live_ranges(ir);
     std::vector<std::uint32_t> gpr_pool = {3, 7};
-    auto result = jit_kernel_ir::linear_scan(ir, ranges, /*vec_pool_size=*/0, gpr_pool);
+    auto result = linear_scan_test(ir, ranges, /*vec_pool_size=*/0, gpr_pool);
     ASSERT_TRUE(result.has_value());
 
     // Copy should be coalesced — same physical register.
@@ -1422,7 +1432,7 @@ TEST(JitKernelIR, GprPoolOverflow) {
 
     auto ranges = jit_kernel_ir::compute_live_ranges(ir);
     std::vector<std::uint32_t> gpr_pool = {8};  // only 1 register
-    auto result = jit_kernel_ir::linear_scan(ir, ranges, /*vec_pool_size=*/4, gpr_pool);
+    auto result = linear_scan_test(ir, ranges, /*vec_pool_size=*/4, gpr_pool);
     // Remat modifies the IR and returns nullopt — the pool was too small.
     EXPECT_FALSE(result.has_value()) << "expected remat (nullopt), not a successful assignment";
 }

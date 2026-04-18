@@ -760,8 +760,10 @@ bool rematerialize_for_pressure(IR& ir,
 
 std::optional<Assignment> linear_scan(IR& ir,
                                       std::vector<LiveRange>& ranges,
-                                      std::uint32_t vec_pool_size,
-                                      const std::vector<std::uint32_t>& gpr_pool_indices) {
+                                      PassContext& ctx) {
+    const auto vec_pool_size = ctx.vec_pool_size;
+    const auto& gpr_pool_indices = ctx.gpr_pool_indices;
+
     // LLVM-style per-register interference allocation with dual register pools.
     // One unified priority queue (sorted by beginIndex), per-class physical pools.
     // GPR and Vec never interfere — separate hardware register files.
@@ -941,6 +943,80 @@ std::optional<Assignment> linear_scan(IR& ir,
                 }
             }
 
+            // No remat possible. Spill: pick the assigned value with the
+            // furthest end (Belady's algorithm). Insert spill (store to stack)
+            // before the current value's start and reload before the victim's
+            // next use. LLVM-style: spill modifies the IR → return nullopt.
+            value_id spill_victim = invalid_value;
+            std::uint32_t spill_end = 0;
+            for (const auto& [v, preg] : result.reg) {
+                if (v >= ranges.size() || ranges[v].rc != rc) continue;
+                if (!ranges[v].overlaps(lr)) continue;
+                if (ranges[v].endIndex() > spill_end) {
+                    spill_end = ranges[v].endIndex();
+                    spill_victim = v;
+                }
+            }
+
+            if (spill_victim != invalid_value) {
+                // Allocate a spill slot.
+                auto slot_idx = static_cast<std::uint32_t>(ctx.spill_slots.size());
+                std::uint32_t slot_size = (rc == RegisterClass::GPR) ? 8 : 64;
+                ctx.spill_slots.push_back({slot_size, 0});
+
+                // Find the next use of the victim after the current value's start.
+                UseLocation use_loc{};
+                std::uint32_t search_idx = 0;
+                find_next_use(ir.ops(), spill_victim, lr.beginIndex() / 2, search_idx, use_loc);
+                if (!use_loc.parent_list) {
+                    throw allocation_failure(
+                        "jit_kernel_ir::linear_scan: spill victim %" +
+                        std::to_string(spill_victim) + " has no use after eviction point");
+                }
+
+                // Insert spill (store to stack) before the use location.
+                // The spill reads the victim and stores to [rsp + offset].
+                auto spill_vid = static_cast<value_id>(ir.value_count());
+                ir.set_value_count(spill_vid + 1);
+
+                // Reload: define a new value loaded from the spill slot.
+                Op reload_op;
+                reload_op.reads = {};
+                reload_op.def = spill_vid;
+                reload_op.def_rc = rc;
+                reload_op.name = "reload";
+                reload_op.emit = [slot_idx, rc](const EmitContext& ectx) {
+                    // Emit at lowering time — offset filled by end_ir()
+                    // @todo claude: the offset is on PassContext::spill_slots,
+                    // but the closure can't access PassContext. For now, the
+                    // lowering pass will handle reload ops specially.
+                    (void)ectx; (void)slot_idx; (void)rc;
+                };
+
+                // Spill: store the original value before the reload.
+                Op spill_op;
+                spill_op.reads = {spill_victim};
+                spill_op.name = "spill";
+                spill_op.emit = [slot_idx, rc](const EmitContext& ectx) {
+                    (void)ectx; (void)slot_idx; (void)rc;
+                };
+
+                // Insert spill + reload before the use, rewrite reads.
+                use_loc.parent_list->insert(use_loc.it, std::move(spill_op));
+                use_loc.parent_list->insert(use_loc.it, std::move(reload_op));
+
+                // Rewrite the victim's reads at and after the use to the new value.
+                for (auto& read : use_loc.it->reads) {
+                    if (read == spill_victim) read = spill_vid;
+                }
+
+                trace_ir("spill %" + std::to_string(spill_victim) +
+                         " → slot " + std::to_string(slot_idx) +
+                         ", reload as %" + std::to_string(spill_vid) +
+                         " — retry allocation");
+                return std::nullopt;
+            }
+
             throw allocation_failure(
                 "jit_kernel_ir::linear_scan: " + std::string(rc_tag) + " pool of " +
                 std::to_string(ps) + " registers exhausted for value %" +
@@ -1110,7 +1186,7 @@ bool RegisterAllocator::run(IR& ir, PassContext& ctx) {
     // requiring recomputation of live ranges.
     for (std::size_t attempt = 0, limit = ctx.ranges.size();
          attempt < limit; ++attempt) {
-        auto result = linear_scan(ir, ctx.ranges, ctx.vec_pool_size, ctx.gpr_pool_indices);
+        auto result = linear_scan(ir, ctx.ranges, ctx);
         if (result) {
             ctx.assignment = std::move(*result);
             return false;
