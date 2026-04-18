@@ -75,6 +75,13 @@ bool engine::use_unified_shared_memory() const {
     GPU_DEBUG_IF(ExecutionConfig::get_disable_usm()) {
         return false;
     }
+    // Workaround for NEO driver bug (GitHub openvinotoolkit/openvino#33012):
+    // USM kernel arguments cause CL_INVALID_KERNEL_ARGS on non-primary
+    // discrete GPUs with driver >= 32.0.101.8131. Disable USM to force
+    // cl_mem allocations which work correctly on all devices.
+    if (get_device_info().dev_type == device_type::discrete_gpu) {
+        return false;
+    }
     if (_device->get_mem_caps().supports_usm()) {
         return true;
     }
