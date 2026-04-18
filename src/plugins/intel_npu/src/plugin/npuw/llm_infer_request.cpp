@@ -149,17 +149,24 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         m_prefill_out_ports.emplace(output_port.get_any_name(), output_port);
     }
 
-    std::cout << "here" << std::endl;
     for (const auto& input_port : m_kvcache_request->get_compiled_model()->inputs()) {
         const auto& all_names = input_port.get_names();
-        if (all_names.count(layer_names::past_key_values) > 0) {
-            m_generate_kvcache_past_ports.push_back(input_port);
-        }
-        if (all_names.count(layer_names::past_lin_conv_cache) > 0 || all_names.count(layer_names::past_lin_ssm_cache) > 0) {
-            m_generate_lincache_past_ports.push_back(input_port);
+        for (const auto& name : all_names) {
+            if (name.rfind(layer_names::past_key_values, 0) == 0) {
+                m_generate_kvcache_past_ports.push_back(input_port);
+            }
+            if (name.rfind(layer_names::past_lin_conv_cache, 0) == 0 || name.rfind(layer_names::past_lin_ssm_cache, 0) == 0) {
+                m_generate_lincache_past_ports.push_back(input_port);
+            }
         }
     }
 
+    std::cout << "KV Cache ports:" << std::endl;
+    for (const auto& kvcache_port : m_generate_kvcache_past_ports) {
+        std::cout << "Found KV cache port: " << kvcache_port.get_any_name() << " with shape " << kvcache_port.get_partial_shape()
+                  << std::endl;
+    }
+    std::cout << "Linear Cache ports:" << std::endl;
     for (const auto& lincache_port : m_generate_lincache_past_ports) {
         std::cout << "Found linear cache port: " << lincache_port.get_any_name() << " with shape "
                   << lincache_port.get_partial_shape() << std::endl;
@@ -662,19 +669,26 @@ void ov::npuw::LLMInferRequest::copy_lincache(
     namespace uu = ov::npuw::util;
     LOG_DEBUG("Copying linear cache.");
     LOG_BLOCK();
+    for (const auto& port : from_ports) {
+        std::cout << "From port: " << port.second.get_any_name() << " with shape " << port.second.get_partial_shape()
+                  << std::endl;
+    }
+    for (const auto& port : to_ports) {
+        std::cout << "To port: " << port.second.get_any_name() << " with shape " << port.second.get_partial_shape()
+                  << std::endl;
+    }
     ov::parallel_for(m_generate_lincache_past_ports.size(), [&](size_t out_idx) {
         ov::Output<const ov::Node> generate_past_port = m_generate_lincache_past_ports[out_idx];
         std::cout << "generate_past_port: " << generate_past_port.get_any_name() << std::endl;
         const auto& input_name = generate_past_port.get_any_name();
-        std::cout << "Looking for input_name: " << input_name << " in from_ports and to_ports" << std::endl;
-        OPENVINO_ASSERT(from_ports.find(input_name) != from_ports.end(),
+        OPENVINO_ASSERT(to_ports.find(input_name) != to_ports.end(),
             "Incosistent input/output naming for linear cache: ", input_name, " not found in model inputs.");
-        auto from_tensor = from_request->get_tensor(from_ports.at(input_name));
-        
-        const auto& output_name = std::regex_replace(input_name, std::regex("present"), "past");
-        OPENVINO_ASSERT(to_ports.find(output_name) != to_ports.end(),
+        auto to_tensor = to_request->get_tensor(to_ports.at(input_name));
+
+        const auto& output_name = std::regex_replace(input_name, std::regex("past"), "present");
+        OPENVINO_ASSERT(from_ports.find(output_name) != from_ports.end(),
             "Incosistent input/output naming for linear cache: ", output_name, " not found in model outputs.");
-        auto to_tensor = to_request->get_tensor(to_ports.at(output_name));
+        auto from_tensor = from_request->get_tensor(from_ports.at(output_name));        
 
         from_tensor->copy_to(to_tensor._ptr);
     });
@@ -1132,7 +1146,6 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 }
 
 void ov::npuw::LLMInferRequest::infer() {
-    std::cout << "LLMInferRequest::infer() called." << std::endl;
     const auto& inputs = get_inputs();
 
     auto input_ids = get_tensor(ov::npuw::util::find_port_by_name(inputs, m_input_ids_name).value());
@@ -1243,4 +1256,5 @@ void ov::npuw::LLMInferRequest::reset_state() {
     std::cout << "reset_state() called." << std::endl;
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     kvcache_desc.num_stored_tokens = 0;
+    m_first_run = true;
 }
