@@ -18,7 +18,7 @@
 static std::mutex g_ctx_cache_mutex;
 static std::map<cl_device_id, cl::Context> g_device_ctx_cache;
 
-cl::Context get_cached_context(const cl::Device& device) {
+static cl::Context get_cached_context(const cl::Device& device) {
     cl_device_id dev_id = device();
     std::lock_guard<std::mutex> lock(g_ctx_cache_mutex);
     auto it = g_device_ctx_cache.find(dev_id);
