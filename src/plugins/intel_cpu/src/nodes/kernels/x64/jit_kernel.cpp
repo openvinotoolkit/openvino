@@ -552,6 +552,40 @@ jit_kernel_ir::value_id jit_kernel::ir_def_gpr(std::vector<jit_kernel_ir::value_
     return _ir->def(std::move(reads), std::move(emit), name, jit_kernel_ir::RegisterClass::GPR);
 }
 
+// GPR arithmetic helpers — LLVM-style: def_tied + TwoAddressPass.
+// The tied operand constraint lets the allocator coalesce the copy
+// when the source dies, producing mov-free code like hand-written asm.
+
+jit_kernel::variable<size_t> jit_kernel::ir_shr(const variable<size_t>& src, int shift) {
+    return variable<size_t>(*this, _ir->def_tied({src.vid()}, 0,
+        [this, shift](const jit_kernel_ir::EmitContext& ctx) {
+            shr(Xbyak::Reg64(ctx.def->idx), shift);
+        }, "shr", jit_kernel_ir::RegisterClass::GPR));
+}
+
+jit_kernel::variable<size_t> jit_kernel::ir_and(const variable<size_t>& src, size_t mask) {
+    return variable<size_t>(*this, _ir->def_tied({src.vid()}, 0,
+        [this, mask](const jit_kernel_ir::EmitContext& ctx) {
+            and_(Xbyak::Reg64(ctx.def->idx), mask);
+        }, "and", jit_kernel_ir::RegisterClass::GPR));
+}
+
+jit_kernel::variable<size_t> jit_kernel::ir_add(const variable<size_t>& src, size_t val) {
+    return variable<size_t>(*this, _ir->def_tied({src.vid()}, 0,
+        [this, val](const jit_kernel_ir::EmitContext& ctx) {
+            add(Xbyak::Reg64(ctx.def->idx), val);
+        }, "add", jit_kernel_ir::RegisterClass::GPR));
+}
+
+jit_kernel::variable<size_t> jit_kernel::ir_imul(const variable<size_t>& src, size_t val) {
+    // imul is 3-operand (non-destructive) — no tied constraint needed.
+    return variable<size_t>(*this, _ir->def({src.vid()},
+        [this, val](const jit_kernel_ir::EmitContext& ctx) {
+            imul(Xbyak::Reg64(ctx.def->idx), Xbyak::Reg64(ctx.reads[0].idx),
+                 static_cast<int>(val));
+        }, "imul", jit_kernel_ir::RegisterClass::GPR));
+}
+
 jit_kernel_ir::value_id jit_kernel::ir_alloca(size_t size, size_t alignment) {
     auto alloca_idx = _alloca_requests.size();
     _alloca_requests.push_back({size, alignment, 0});

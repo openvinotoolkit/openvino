@@ -377,20 +377,6 @@ void JitConverter<T[N]>::generate() {
     auto width = arg(&Params::width);
     auto colorFormat = arg(&Params::colorFormat);
 
-    const auto reg_capacity_log = static_cast<int>(std::logb(N));
-
-    auto main_count = variable<size_t>(*this, ir_def_gpr({width.vid()},
-        [this, reg_capacity_log](const jit_kernel_ir::EmitContext& ctx) {
-            mov(Reg64(ctx.def->idx), Reg64(ctx.reads[0].idx));
-            shr(Reg64(ctx.def->idx), reg_capacity_log);
-        }, "main_count"));
-
-    auto tail_count = variable<size_t>(*this, ir_def_gpr({width.vid()},
-        [this](const jit_kernel_ir::EmitContext& ctx) {
-            mov(Reg64(ctx.def->idx), Reg64(ctx.reads[0].idx));
-            and_(Reg64(ctx.def->idx), static_cast<size_t>(N - 1));
-        }, "tail_count"));
-
     auto consts_idx = static_cast<std::uint32_t>(_consts.reg().getIdx());
 
     auto bc = [&](int slot) {
@@ -414,8 +400,10 @@ void JitConverter<T[N]>::generate() {
     constexpr uint8_t even_mask = 0xA0;
     constexpr uint8_t odd_mask  = 0xF5;
 
-    // Shared BT.601 conversion: load Y + interleaved UV, math, clamp.
-    auto convert = [&]() {
+    // Single body — foreach_with_epilogue invokes it twice:
+    // Full mode (main loop): ir_load → vmovups, store_interleaved3 → direct
+    // Partial mode (tail):   ir_load → ir_load_partial, store_interleaved3 → stack+memcpy
+    foreach_with_epilogue<N>(width, [&]() {
         auto y_raw = ir_load<N>(src_y);
         auto uv    = ir_load<N>(src_uv);
         auto u = vsubps(uv.shuffle(even_mask), uv_off);
@@ -424,42 +412,15 @@ void JitConverter<T[N]>::generate() {
         auto r = fma(v_to_r, v, y).clamp(clamp_lo, clamp_hi);
         auto g = fnma(v_to_g, v, fnma(u_to_g, u, y)).clamp(clamp_lo, clamp_hi);
         auto b = fma(u_to_b, u, y).clamp(clamp_lo, clamp_hi);
-        return std::make_tuple(std::move(r), std::move(g), std::move(b));
-    };
 
-    // ── Main loop ─────────────────────────────────────────────
-    foreach(size_t{0}, main_count, [&](const variable<size_t>&) {
-        auto rgb = convert();
-        auto& r = std::get<0>(rgb);
-        auto& g = std::get<1>(rgb);
-        auto& b = std::get<2>(rgb);
         ir_cmp(colorFormat, size_t{0});
         ir_if(&Xbyak::CodeGenerator::jne,
             [&]() { store_interleaved3(dst, r, g, b); },
             [&]() { store_interleaved3(dst, b, g, r); });
-        ir_use({src_y.vid(), src_uv.vid(), dst.vid()},
-            [this](const jit_kernel_ir::EmitContext& ctx) {
-                add(Xbyak::Reg64(ctx.reads[0].idx), step);
-                add(Xbyak::Reg64(ctx.reads[1].idx), step);
-                add(Xbyak::Reg64(ctx.reads[2].idx), 3 * step);
-            }, "ptr_advance");
-    });
 
-    // ── Tail ──────────────────────────────────────────────────
-    ir_cmp(tail_count, size_t{0});
-    ir_if(&Xbyak::CodeGenerator::je, [&]() {
-        auto y_raw = ir_load_partial<N>(src_y, tail_count);
-        auto uv    = ir_load_partial<N>(src_uv, tail_count);
-        auto u = vsubps(uv.shuffle(even_mask), uv_off);
-        auto v = vsubps(uv.shuffle(odd_mask), uv_off);
-        auto y = vmulps(vsubps(y_raw, y_off), y_scale);
-        auto r = fma(v_to_r, v, y).clamp(clamp_lo, clamp_hi);
-        auto g = fnma(v_to_g, v, fnma(u_to_g, u, y)).clamp(clamp_lo, clamp_hi);
-        auto b = fma(u_to_b, u, y).clamp(clamp_lo, clamp_hi);
-        ir_cmp(colorFormat, size_t{0});
-        ir_if(&Xbyak::CodeGenerator::jne,
-            [&]() { store_interleaved3(dst, r, g, b, tail_count); },
-            [&]() { store_interleaved3(dst, b, g, r, tail_count); });
+        ir_advance(src_y, step);
+        ir_advance(src_uv, step);
+        ir_advance(dst, 3 * step);
     });
 
     end_ir();
@@ -761,24 +722,9 @@ void JitConverter<T[N]>::generate() {
     auto width = arg(&Params::width);
     auto colorFormat = arg(&Params::colorFormat);
 
-    // Pre-compute loop counts as IR GPR ops.
-    auto main_count = variable<size_t>(*this, ir_def_gpr({width.vid()},
-        [this, reg_capacity_log](const jit_kernel_ir::EmitContext& ctx) {
-            mov(Reg64(ctx.def->idx), Reg64(ctx.reads[0].idx));
-            shr(Reg64(ctx.def->idx), reg_capacity_log);
-        }, "main_count"));
-
-    auto tail_count = variable<size_t>(*this, ir_def_gpr({width.vid()},
-        [this](const jit_kernel_ir::EmitContext& ctx) {
-            mov(Reg64(ctx.def->idx), Reg64(ctx.reads[0].idx));
-            and_(Reg64(ctx.def->idx), static_cast<size_t>(N - 1));
-        }, "tail_count"));
-
-    auto uv_tail = variable<size_t>(*this, ir_def_gpr({tail_count.vid()},
-        [this](const jit_kernel_ir::EmitContext& ctx) {
-            mov(Reg64(ctx.def->idx), Reg64(ctx.reads[0].idx));
-            shr(Reg64(ctx.def->idx), 1);
-        }, "uv_tail"));
+    auto main_count = ir_shr(width, reg_capacity_log);
+    auto tail_count = ir_and(width, N - 1);
+    auto uv_tail = ir_shr(tail_count, 1);
 
     auto consts_idx = static_cast<std::uint32_t>(_consts.reg().getIdx());
 

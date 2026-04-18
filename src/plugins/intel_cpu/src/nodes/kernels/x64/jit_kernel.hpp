@@ -1105,6 +1105,13 @@ public:
                                         jit_kernel_ir::EmitFn emit,
                                         const char* name = "");
 
+    // GPR arithmetic helpers — IRBuilder-style wrappers over ir_def_gpr.
+    // Each creates a fresh IR GPR value = src OP imm.
+    variable<size_t> ir_shr(const variable<size_t>& src, int shift);
+    variable<size_t> ir_and(const variable<size_t>& src, size_t mask);
+    variable<size_t> ir_add(const variable<size_t>& src, size_t val);
+    variable<size_t> ir_imul(const variable<size_t>& src, size_t val);
+
     // Runtime-count partial load. Loads `count` elements from `src_ptr`
     // into a float[N] vector, zeroing elements beyond `count`.
     // Safe for any count in [0, N] — no reads past the buffer.
@@ -1206,7 +1213,26 @@ private:
     bool _predicated = false;
     Xbyak::Opmask _active_mask{0};
 
+    // Loop epilogue mode: controls how ir_load / store_interleaved3 /
+    // ir_advance dispatch. Set by foreach_with_epilogue.
+    enum class LoopMode { Full, Partial };
+    LoopMode _loop_mode = LoopMode::Full;
+    jit_kernel_ir::value_id _partial_count = jit_kernel_ir::invalid_value;
+
 public:
+    // Single-body loop with automatic epilogue. The body builder is
+    // invoked twice: once for the main loop (Full mode, full-width ops)
+    // and once for the tail (Partial mode, partial loads/stores).
+    // DSL methods dispatch based on _loop_mode — user writes one body.
+    template <size_t N>
+    void foreach_with_epilogue(const variable<size_t>& width,
+                               const std::function<void()>& body);
+
+    // Pointer advance — emits add(ptr, bytes) in Full mode, skipped in
+    // Partial mode (tail runs once, no advance needed).
+    template <typename PtrT>
+    void ir_advance(const variable<PtrT>& ptr, size_t bytes);
+
     // ── IR-managed stack and memory ops (LLVM-style) ──────────
 
     // Allocate `size` bytes on the stack, aligned to `alignment`.
@@ -1608,6 +1634,12 @@ jit_kernel::variable<float[N]> jit_kernel::vec_permute(const variable<float[N]>&
 
 template <size_t N, typename PtrT>
 jit_kernel::variable<float[N]> jit_kernel::ir_load(const variable<PtrT>& src_ptr, size_t byte_offset) {
+    // Partial mode: delegate to ir_load_partial (safe for tail iterations).
+    if (_loop_mode == LoopMode::Partial && byte_offset == 0) {
+        auto count = variable<size_t>(*this, _partial_count);
+        return ir_load_partial<N>(src_ptr, count);
+    }
+
     using reg_type = typename reg_traits<float[N]>::type;
     using elem_type = std::remove_cv_t<std::remove_pointer_t<PtrT>>;
     bool masked = _predicated;
@@ -1701,8 +1733,13 @@ jit_kernel::variable<float[N]> jit_kernel::ir_load_partial(const variable<PtrT>&
     // Scalar copy count elements from src to stack
     ir_memcpy<elem_type>(stack, src_ptr.vid(), count.vid());
 
-    // Full-width type-converting load from the stack (always safe — slot is N-wide)
-    return ir_load<N>(stack_ptr);
+    // Full-width type-converting load from the stack (always safe — slot is N-wide).
+    // Temporarily force Full mode to avoid recursive dispatch to ir_load_partial.
+    auto saved_mode = _loop_mode;
+    _loop_mode = LoopMode::Full;
+    auto result = ir_load<N>(stack_ptr);
+    _loop_mode = saved_mode;
+    return result;
 }
 
 template <typename T>
@@ -1844,26 +1881,10 @@ void jit_kernel::foreach_predicated(const variable<size_t>& total_count,
     }
 
     const size_t elems = N;
-    auto shift = static_cast<int>(std::log2(N * unroll));
-    auto round_up = static_cast<size_t>(N * unroll - 1);
 
-    jit_kernel_ir::value_id iter_count_vid;
-    if (tc_in_ir) {
-        iter_count_vid = ir_def_gpr({tc_vid}, [this, round_up, shift](const jit_kernel_ir::EmitContext& ctx) {
-            mov(Reg64(ctx.def->idx), Reg64(ctx.reads[0].idx));
-            add(Reg64(ctx.def->idx), round_up);
-            shr(Reg64(ctx.def->idx), shift);
-        }, "iter_count");
-    } else {
-        auto tc_idx = static_cast<std::uint32_t>(total_count.reg().getIdx());
-        iter_count_vid = ir_def_gpr({}, [this, tc_idx, round_up, shift](const jit_kernel_ir::EmitContext& ctx) {
-            mov(Reg64(ctx.def->idx), Reg64(tc_idx));
-            add(Reg64(ctx.def->idx), round_up);
-            shr(Reg64(ctx.def->idx), shift);
-        }, "iter_count");
-    }
-
-    auto iter_count_var = variable<size_t>(*this, iter_count_vid);
+    auto remaining_var = variable<size_t>(*this, remaining_vid);
+    auto iter_count_var = ir_shr(ir_add(remaining_var, N * unroll - 1),
+                                 static_cast<int>(std::log2(N * unroll)));
 
     foreach(size_t{0}, iter_count_var, [&](const variable<size_t>&) {
         for (size_t u = 0; u < unroll; ++u) {
@@ -1911,6 +1932,52 @@ void jit_kernel::foreach_predicated(const variable<size_t>& total_count,
     });
 
     _predicated = false;
+}
+
+// ── foreach_with_epilogue ─────────────────────────────────────────────
+// Single body, auto-generated main loop + tail. The body builder is
+// invoked twice with different _loop_mode. DSL methods (ir_load,
+// store_interleaved3, ir_advance) dispatch based on the mode.
+
+template <size_t N>
+void jit_kernel::foreach_with_epilogue(const variable<size_t>& width,
+                                       const std::function<void()>& body) {
+    using namespace Xbyak;
+
+    auto main_count = ir_shr(width, static_cast<int>(std::logb(N)));
+    auto tail_count = ir_and(width, N - 1);
+
+    // ── Main loop: Full mode ──────────────────────────────────
+    _loop_mode = LoopMode::Full;
+    foreach(size_t{0}, main_count, [&](const variable<size_t>&) {
+        body();
+    });
+
+    // ── Tail: Partial mode ────────────────────────────────────
+    ir_cmp(tail_count, size_t{0});
+    ir_if(&CodeGenerator::je, [&]() {
+        _loop_mode = LoopMode::Partial;
+        _partial_count = tail_count.vid();
+        body();
+        _loop_mode = LoopMode::Full;
+        _partial_count = jit_kernel_ir::invalid_value;
+    });
+}
+
+template <typename PtrT>
+void jit_kernel::ir_advance(const variable<PtrT>& ptr, size_t bytes) {
+    if (_loop_mode == LoopMode::Partial) return;  // tail runs once
+    auto pvid = ptr.vid();
+    if (pvid != jit_kernel_ir::invalid_value) {
+        ir_use({pvid}, [this, bytes](const jit_kernel_ir::EmitContext& ctx) {
+            add(Xbyak::Reg64(ctx.reads[0].idx), bytes);
+        }, "ptr_advance");
+    } else {
+        auto pidx = static_cast<std::uint32_t>(ptr.reg().getIdx());
+        ir_use({}, [this, pidx, bytes](const jit_kernel_ir::EmitContext&) {
+            add(Xbyak::Reg64(pidx), bytes);
+        }, "ptr_advance");
+    }
 }
 
 template <size_t N>
@@ -2150,6 +2217,13 @@ void jit_kernel::store_interleaved3(const variable<T*>& dst,
                                     const variable<float[N]>& a,
                                     const variable<float[N]>& b,
                                     const variable<float[N]>& c) {
+    // Partial mode: delegate to count variant (stack+memcpy).
+    if (_loop_mode == LoopMode::Partial) {
+        auto count = variable<size_t>(*this, _partial_count);
+        store_interleaved3(dst, a, b, c, count);
+        return;
+    }
+
     auto [o0, o1, o2] = interleave_regs(a, b, c);
 
     const size_t step = N * sizeof(T);
@@ -2176,15 +2250,9 @@ void jit_kernel::store_interleaved3(const variable<T*>& dst,
     ir_store(stack_ptr, t_step, o1);
     ir_store(stack_ptr, 2 * t_step, o2);
 
-    auto total_vid = ir_def_gpr({count.vid()},
-        [this](const jit_kernel_ir::EmitContext& ctx) {
-            auto dst_r = Xbyak::Reg64(ctx.def->idx);
-            auto cnt_r = Xbyak::Reg64(ctx.reads[0].idx);
-            mov(dst_r, cnt_r);
-            imul(dst_r, dst_r, 3);
-        }, "count_times_3");
+    auto total = ir_imul(count, 3);
 
-    ir_memcpy<T>(dst.vid(), stack, total_vid);
+    ir_memcpy<T>(dst.vid(), stack, total.vid());
 }
 
 template <typename T>
