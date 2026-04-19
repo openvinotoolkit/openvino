@@ -4,14 +4,14 @@
 
 # This script resolves the prebuilt NPU Plugin Compiler dependency by downloading and extracting the appropriate
 # archive based on the current platform. The expected location of the archive and naming convention is as follows:
-#     vcl version: 7.6.0
-#     release: releases/unified/2026/12_cip
+#     vcl version: 8.1.0
+#     release: releases/unified/2026/20
 #     storage location: https://storage.openvinotoolkit.org/dependencies/thirdparty
 #     WINDOWS: 
-#         windows2022: npu_compiler_vcl_windows_2022-7_6_0-da3cc32.zip
+#         windows2022: npu_compiler_vcl_windows_2022-8_1_0-727e603.zip
 #     LINUX:
-#         ubuntu22.04: npu_compiler_vcl_ubuntu_22_04-7_6_0-da3cc32.tar.gz
-#         ubuntu24.04: npu_compiler_vcl_ubuntu_24_04-7_6_0-da3cc32.tar.gz
+#         ubuntu22.04: npu_compiler_vcl_ubuntu_22_04-8_1_0-727e603.tar.gz
+#         ubuntu24.04: npu_compiler_vcl_ubuntu_24_04-8_1_0-727e603.tar.gz
 #
 # This script replicates cmake/dependencies.cmake common OV dependency resolution logic including:
 #     THIRDPARTY_SERVER_PATH environment variable or cmake options support that allows
@@ -30,9 +30,10 @@
 # The script expects the archive to contain:
 #     build_manifest.json file with build information about the prebuilt compiler.
 #         If the file is present, its content will be printed in cmake output.
-#     lib/npu_driver_compiler.dll for Windows or lib/libnpu_driver_compiler.so for Linux that will be copied to
-#         the output directory and renamed to openvino_intel_npu_compiler.dll
-#         or libopenvino_intel_npu_compiler.so respectively.
+#     lib folder with the following libraries that will be copied to the output directory
+#     and included in the installation package:
+#         WINDOWS: openvino_intel_npu_compiler.dll, openvino_intel_npu_compiler_loader.dll
+#         LINUX: libopenvino_intel_npu_compiler.so, libopenvino_intel_npu_compiler_loader.so
 
 function(print_build_manifest extracted_file)
     if(NOT EXISTS "${extracted_file}")
@@ -47,13 +48,13 @@ endfunction()
 if(ENABLE_INTEL_NPU_COMPILER)
     message(STATUS "Resolving prebuilt NPU Plugin Compiler dependencies...")
 
-    set(PLUGIN_COMPILER_VERSION_MAJOR 7)
-    set(PLUGIN_COMPILER_VERSION_MINOR 6)
+    set(PLUGIN_COMPILER_VERSION_MAJOR 8)
+    set(PLUGIN_COMPILER_VERSION_MINOR 1)
     set(PLUGIN_COMPILER_VERSION_PATCH 0)
-    set(PLUGIN_COMPILER_COMMIT_SHA da3cc32)
-    set(PLUGIN_COMPILER_WINDOWS_2022_CHECKSUM 265bda74dfe07260e9b30ca02ec011653a57aa2900b40fd1f5291352922c363c)
-    set(PLUGIN_COMPILER_UBUNTU_22_04_CHECKSUM db1a967d14ce47af64fcd8c66ced0ae8de68923bfd82fb02236fffa0fc625c0d)
-    set(PLUGIN_COMPILER_UBUNTU_24_04_CHECKSUM c7b6fd5798cfc256fa28e9a75f1e150b75fb34a8441a4fbc453315805073c5aa)
+    set(PLUGIN_COMPILER_COMMIT_SHA 727e603)
+    set(PLUGIN_COMPILER_WINDOWS_2022_CHECKSUM f7cb6501df6e38fc90e6591470069d3a705749113b39438e92391271bc6835c1)
+    set(PLUGIN_COMPILER_UBUNTU_22_04_CHECKSUM d50bf866a37a2d599709fb6a805de86fd9b052a67b588d2a83558a224aaf7e95)
+    set(PLUGIN_COMPILER_UBUNTU_24_04_CHECKSUM 3c9c5960c4a86577652cd9a96cb4630576ec398f126fd8b37979063b63929448)
 
     set(PLUGIN_COMPILER_VERSION_UNDERSCORE "${PLUGIN_COMPILER_VERSION_MAJOR}_${PLUGIN_COMPILER_VERSION_MINOR}_${PLUGIN_COMPILER_VERSION_PATCH}")
     message(STATUS "The prebuilt compiler version is ${PLUGIN_COMPILER_VERSION_MAJOR}.${PLUGIN_COMPILER_VERSION_MINOR}.${PLUGIN_COMPILER_VERSION_PATCH}.${PLUGIN_COMPILER_COMMIT_SHA}")
@@ -66,8 +67,8 @@ if(ENABLE_INTEL_NPU_COMPILER)
         set(PLUGIN_COMPILER_PACKAGE_PREFIX "npu_compiler_vcl_windows_${OS_VERSION_UNDERSCORE}")
         set(PLUGIN_COMPILER_PACKAGE_EXT "zip")
         set(PLUGIN_COMPILER_ARCHIVE_TYPE "ARCHIVE_WIN")
-        set(PLUGIN_COMPILER_LIB_OLD_NAME "npu_driver_compiler.dll")
-        set(PLUGIN_COMPILER_LIB_NEW_NAME "openvino_intel_npu_compiler.dll")
+        set(PLUGIN_COMPILER_LIB_NAME "openvino_intel_npu_compiler.dll")
+        set(PLUGIN_COMPILER_LOADER_LIB_NAME "openvino_intel_npu_compiler_loader.dll")
     elseif(UNIX AND NOT APPLE)
         # Get the OS name and OS version
         execute_process(COMMAND lsb_release -is OUTPUT_VARIABLE OS_NAME OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -81,8 +82,8 @@ if(ENABLE_INTEL_NPU_COMPILER)
             set(PLUGIN_COMPILER_PACKAGE_PREFIX "npu_compiler_vcl_ubuntu_${OS_VERSION_UNDERSCORE}")
             set(PLUGIN_COMPILER_PACKAGE_EXT "tar.gz")
             set(PLUGIN_COMPILER_ARCHIVE_TYPE "ARCHIVE_LIN")
-            set(PLUGIN_COMPILER_LIB_OLD_NAME "libnpu_driver_compiler.so")
-            set(PLUGIN_COMPILER_LIB_NEW_NAME "libopenvino_intel_npu_compiler.so")
+            set(PLUGIN_COMPILER_LIB_NAME "libopenvino_intel_npu_compiler.so")
+            set(PLUGIN_COMPILER_LOADER_LIB_NAME "libopenvino_intel_npu_compiler_loader.so")
         else()
             message(STATUS "${OS_NAME} ${OS_VERSION} Linux distribution is not supported, skip downloading prebuilt Plugin Compiler libraries. Can not use plugin compiler libraries!")
             return()
@@ -116,23 +117,21 @@ if(ENABLE_INTEL_NPU_COMPILER)
 
         set(PLUGIN_COMPILER_LIB_PATH "${NPU_PLUGIN_COMPILER}/lib")
 
-        configure_file(
-            "${PLUGIN_COMPILER_LIB_PATH}/${PLUGIN_COMPILER_LIB_OLD_NAME}"
-            "${PLUGIN_COMPILER_LIB_PATH}/${PLUGIN_COMPILER_LIB_NEW_NAME}"
-            COPYONLY
-        )
-
         if(USE_BUILD_TYPE_SUBFOLDER)
             set(PLUGIN_COMPILER_LIB_DESTINATION ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
         else()
             set(PLUGIN_COMPILER_LIB_DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_BUILD_TYPE}")
         endif()
 
-        set(PLUGIN_COMPILER_LIB "${PLUGIN_COMPILER_LIB_PATH}/${PLUGIN_COMPILER_LIB_NEW_NAME}")
+        set(PLUGIN_COMPILER_LIB "${PLUGIN_COMPILER_LIB_PATH}/${PLUGIN_COMPILER_LIB_NAME}")
+        set(PLUGIN_COMPILER_LOADER_LIB "${PLUGIN_COMPILER_LIB_PATH}/${PLUGIN_COMPILER_LOADER_LIB_NAME}")
         file(COPY "${PLUGIN_COMPILER_LIB}" DESTINATION "${PLUGIN_COMPILER_LIB_DESTINATION}")
-        message(STATUS "Copying prebuilt Plugin compiler library ${PLUGIN_COMPILER_LIB_PATH}/${PLUGIN_COMPILER_LIB_NEW_NAME} to ${PLUGIN_COMPILER_LIB_DESTINATION}")
+        file(COPY "${PLUGIN_COMPILER_LOADER_LIB}" DESTINATION "${PLUGIN_COMPILER_LIB_DESTINATION}")
+        message(STATUS "Copying prebuilt Plugin compiler library ${PLUGIN_COMPILER_LIB_PATH}/${PLUGIN_COMPILER_LIB_NAME} to ${PLUGIN_COMPILER_LIB_DESTINATION}")
+        message(STATUS "Copying prebuilt Plugin compiler loader library ${PLUGIN_COMPILER_LIB_PATH}/${PLUGIN_COMPILER_LOADER_LIB_NAME} to ${PLUGIN_COMPILER_LIB_DESTINATION}")
 
         install(FILES ${PLUGIN_COMPILER_LIB} DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT ${NPU_PLUGIN_COMPONENT})
+        install(FILES ${PLUGIN_COMPILER_LOADER_LIB} DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT ${NPU_PLUGIN_COMPONENT})
     else()
         message(FATAL_ERROR "Failed to download prebuilt NPU Plugin Compiler libraries. Can not use plugin compiler libraries!")
     endif()
