@@ -58,15 +58,28 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<v0::
             dst_data[i] = std::numeric_limits<ov::float16>::lowest();
             num_out_of_range++;
         } else {
-            dst_data[i] = static_cast<ov::float16>(src_data[i]);
+            constexpr double max_relative_error = ov::reference::f16_compression_max_rel_error;
+            constexpr double max_abs_error = ov::reference::f16_compression_max_abs_error;
+            const ov::float16 f16_val = static_cast<ov::float16>(src_data[i]);
+            const double src_val = static_cast<double>(src_data[i]);
+            const double roundtripped = static_cast<double>(static_cast<src_type>(f16_val));
+            const double abs_diff = std::abs(src_val - roundtripped);
+
+            if (abs_diff > max_abs_error) {
+                return nullptr;
+            }
+
+            if (src_val != 0.0 && abs_diff / std::abs(src_val) > max_relative_error) {
+                num_out_of_range++;
+            }
+            dst_data[i] = f16_val;
         }
     }
 
     // if more than 75% of a FP32 constant do not fit into FP16 keep in FP32
-    const float keep_threshold = 0.75f;
     const float out_of_range_proportion = static_cast<float>(num_out_of_range) / static_cast<float>(size);
 
-    if (out_of_range_proportion >= keep_threshold) {
+    if (out_of_range_proportion >= ov::reference::f16_compression_keep_threshold) {
         return nullptr;
     }
 
@@ -138,27 +151,6 @@ void compress_model_to_f16(const std::shared_ptr<Model>& model, bool postponed) 
     }
 }
 
-namespace {
-
-// Returns true if a scalar constant of type T loses significant precision when rounded to FP16.
-// Used to protect mathematical scale factors (e.g., log(16) in attention bucketing) from FP16
-// rounding errors that cascade through every computation referencing them.
-template <typename T>
-bool scalar_has_high_f16_error(const ov::op::v0::Constant& const_node) {
-    constexpr double max_relative_error = 1e-4;
-    static_assert(sizeof(T) >= 4);
-    const T src = *const_node.get_data_ptr<T>();
-    if (std::isfinite(src) && src != T{0}) {
-        const double src_val = static_cast<double>(src);
-        const ov::float16 f16_val = static_cast<ov::float16>(src);
-        const double roundtripped = static_cast<double>(static_cast<T>(f16_val));
-        return std::abs(src_val - roundtripped) / std::abs(src_val) > max_relative_error;
-    }
-    return false;
-}
-
-}  // namespace
-
 CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
     MATCHER_SCOPE(CompressFloatConstantsImpl);
     auto const_pattern = pattern::wrap_type<v0::Constant>();
@@ -176,16 +168,6 @@ CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
 
         auto c_type = const_node->get_element_type();
 
-        // Skip FP16 compression for scalar constants with significant rounding error.
-        // Scalar constants often serve as mathematical scale factors (e.g., log(16) in attention
-        // bucketing) where FP16 rounding error cascades through every computation that uses them.
-        if (ov::shape_size(const_node->get_shape()) == 1) {
-            if (c_type == ov::element::f32 && scalar_has_high_f16_error<float>(*const_node))
-                return false;
-            if (c_type == ov::element::f64 && scalar_has_high_f16_error<double>(*const_node))
-                return false;
-        }
-
         std::shared_ptr<ov::Node> new_const;
 
 #if !defined(OPENVINO_ARCH_X86) && !defined(OPENVINO_ARCH_X86_64)
@@ -201,13 +183,17 @@ CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
             auto size = shape_size(const_node->get_output_shape(0));
             if (size == 0)
                 return false;
-            auto num_out_of_range =
-                ov::reference::count_out_of_f16_range(const_node->get_data_ptr<ov::element::f32>(), size);
+            const auto* src_data = const_node->get_data_ptr<float>();
+
+            // Single-pass check: counts out-of-range and bails on any lossy element (JIT accelerated)
+            auto check = ov::reference::check_f16_compression(src_data, size);
+            if (check.has_lossy)
+                return false;
 
             // if more than 75% of a FP32 constant do not fit into FP16 keep in FP32
-            const float keep_threshold = 0.75f;
-            const float out_of_range_proportion = static_cast<float>(num_out_of_range) / static_cast<float>(size);
-            if (out_of_range_proportion >= keep_threshold)
+            const float out_of_range_proportion =
+                static_cast<float>(check.out_of_range_count) / static_cast<float>(size);
+            if (out_of_range_proportion >= ov::reference::f16_compression_keep_threshold)
                 return false;
 
             if (postponed) {

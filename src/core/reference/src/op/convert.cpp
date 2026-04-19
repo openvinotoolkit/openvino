@@ -283,107 +283,6 @@ void jit_count_out_of_range_vec(jit::Generator&, const Xbyak::RegExp&);
 template <typename data_t, typename range_t>
 void jit_count_out_of_range_vec_finalize(jit::Generator&, const Xbyak::RegExp&) {}
 
-template <>
-void jit_count_out_of_range_vec_prepare<float, float16>(jit::Generator& gen) {
-    auto accum_vec = gen.ymm4;
-    auto f16_max_pos_vec = gen.ymm5;
-    auto f16_max_neg_vec = gen.ymm6;
-    auto f16_min_pos_vec = gen.ymm7;
-    auto f16_min_neg_vec = gen.ymm8;
-    auto f16_zero_vec = gen.ymm9;
-    auto i32_ones_vec = gen.ymm10;
-    auto addr = gen.r15;
-
-    static const float f16_max_pos = std::numeric_limits<ov::float16>::max();
-    static const float f16_max_neg = std::numeric_limits<ov::float16>::lowest();
-    static const float f16_min_pos = ov::float16::from_bits(0x0001);
-    static const float f16_min_neg = -ov::float16::from_bits(0x0001);
-    static const int32_t i32_one = 1;
-
-    static const float max_pos_bounds[8] =
-        {f16_max_pos, f16_max_pos, f16_max_pos, f16_max_pos, f16_max_pos, f16_max_pos, f16_max_pos, f16_max_pos};
-    static const float max_neg_bounds[8] =
-        {f16_max_neg, f16_max_neg, f16_max_neg, f16_max_neg, f16_max_neg, f16_max_neg, f16_max_neg, f16_max_neg};
-    static const float min_pos_bounds[8] =
-        {f16_min_pos, f16_min_pos, f16_min_pos, f16_min_pos, f16_min_pos, f16_min_pos, f16_min_pos, f16_min_pos};
-    static const float min_neg_bounds[8] =
-        {f16_min_neg, f16_min_neg, f16_min_neg, f16_min_neg, f16_min_neg, f16_min_neg, f16_min_neg, f16_min_neg};
-    static const int32_t i32_ones[8] = {i32_one, i32_one, i32_one, i32_one, i32_one, i32_one, i32_one, i32_one};
-
-    auto load_vec = [&gen, &addr](Xbyak::Ymm vec, size_t ptr) {
-        gen.mov(addr, ptr);
-        gen.vmovdqu(vec, gen.yword[addr]);
-    };
-
-    load_vec(f16_max_pos_vec, (size_t)max_pos_bounds);
-    load_vec(f16_max_neg_vec, (size_t)max_neg_bounds);
-    load_vec(f16_min_pos_vec, (size_t)min_pos_bounds);
-    load_vec(f16_min_neg_vec, (size_t)min_neg_bounds);
-    load_vec(i32_ones_vec, (size_t)i32_ones);
-    gen.vxorps(f16_zero_vec, f16_zero_vec, f16_zero_vec);
-    gen.vxorps(accum_vec, accum_vec, accum_vec);
-}
-
-template <>
-void jit_count_out_of_range_vec<float, float16>(jit::Generator& gen, const Xbyak::RegExp& data) {
-    auto data_vec = gen.ymm1;
-    auto mask_vec = gen.ymm2;
-    auto mask_vec_xmm = gen.xmm2;
-    auto tmp_vec = gen.ymm3;
-    auto accum_vec = gen.ymm4;
-    auto f16_max_pos_vec = gen.ymm5;
-    auto f16_max_neg_vec = gen.ymm6;
-    auto f16_min_pos_vec = gen.ymm7;
-    auto f16_min_neg_vec = gen.ymm8;
-    auto f16_zero_vec = gen.ymm9;
-    auto i32_ones_vec = gen.ymm10;
-
-    const unsigned char _cmp_lt_os = 1;
-    const unsigned char _cmp_neq_uq = 4;
-    const unsigned char _cmp_gt_os = 6;
-
-    // std::abs(data) < ov::float16::from_bits(0x0001)
-    gen.vmovups(data_vec, gen.yword[data]);
-    gen.vcmpps(tmp_vec, data_vec, f16_min_pos_vec, _cmp_lt_os);
-    gen.vcmpps(mask_vec, data_vec, f16_min_neg_vec, _cmp_gt_os);
-    gen.vandps(mask_vec, mask_vec, tmp_vec);
-
-    // data != 0.0f
-    gen.vcmpps(tmp_vec, data_vec, f16_zero_vec, _cmp_neq_uq);
-    gen.vandps(mask_vec, mask_vec, tmp_vec);
-
-    // data > std::numeric_limits<ov::float16>::max()
-    gen.vcmpps(tmp_vec, data_vec, f16_max_pos_vec, _cmp_gt_os);
-    gen.vorps(mask_vec, mask_vec, tmp_vec);
-
-    // data < std::numeric_limits<ov::float16>::lowest()
-    gen.vcmpps(tmp_vec, data_vec, f16_max_neg_vec, _cmp_lt_os);
-    gen.vorps(mask_vec, mask_vec, tmp_vec);
-
-    // addition to i64 accumulator
-    gen.vandps(mask_vec, mask_vec, i32_ones_vec);
-    gen.vphaddd(mask_vec, mask_vec, mask_vec);
-    gen.vpermq(mask_vec, mask_vec, 0x08);
-    gen.vpmovsxdq(mask_vec, mask_vec_xmm);
-    gen.vpaddq(accum_vec, accum_vec, mask_vec);
-}
-
-template <>
-void jit_count_out_of_range_vec_finalize<float, float16>(jit::Generator& gen, const Xbyak::RegExp& dst) {
-    auto tmp_vec_xmm0 = gen.xmm2;  // reuse mask_vec
-    auto tmp_vec_xmm1 = gen.xmm3;  // reuse tmp_vec
-    auto accum_vec_ymm = gen.ymm4;
-    auto accum_vec_xmm = gen.xmm4;
-
-    // horizontal sum of four i64 values
-    gen.vextractf128(tmp_vec_xmm0, accum_vec_ymm, 0);
-    gen.vextractf128(tmp_vec_xmm1, accum_vec_ymm, 1);
-    gen.vpaddq(accum_vec_xmm, tmp_vec_xmm0, tmp_vec_xmm1);
-    gen.vpermilpd(tmp_vec_xmm0, accum_vec_xmm, 0x01);
-    gen.vpaddq(accum_vec_xmm, accum_vec_xmm, tmp_vec_xmm0);
-    gen.vmovq(gen.qword[dst], accum_vec_xmm);
-}
-
 class jit_count_out_of_range : public jit::Generator {
     typedef struct context {
         struct {
@@ -482,6 +381,447 @@ public:
     }
 };
 
+// Combined single-pass JIT kernel for AVX-512: counts out-of-range AND detects lossy f16 compression.
+// Processes 16 floats per iteration using zmm + opmask + F16C (vcvtps2ph/vcvtph2ps). Bails immediately
+// if any in-range element has significant precision loss (abs error > 1.0). Tail handled via masked load.
+class jit_check_f16_compression_avx512 : public jit::Generator {
+public:
+    typedef struct {
+        const void* src;
+        void* oor_dst;    // size_t* — output: out-of-range + relative-error count
+        void* lossy_dst;  // size_t* — output: lossy count (0 or non-zero)
+        const size_t count;
+    } args_t;
+
+    typedef void (*fn_t)(const args_t*);
+
+    static fn_t get() {
+        if (is_x64() && mayiuse(jit::avx512_core) && mayiuse(jit::fp16)) {
+            static jit_check_f16_compression_avx512 generator;
+            return (fn_t)generator.getCode();
+        }
+        return nullptr;
+    }
+
+private:
+    jit_check_f16_compression_avx512() : jit::Generator(jit::avx512_core) {
+        using namespace Xbyak;
+
+        const uint32_t vlen = 16u;  // 16 floats per zmm
+
+        // GP register allocation
+        const auto& reg_src = rax;
+        const auto& reg_oor_dst = rbx;       // callee-saved
+        const auto& reg_lossy_dst = r12;     // callee-saved
+        const auto& reg_count = rdx;
+        const auto& reg_oor_accum = r14;     // callee-saved — 64-bit OOR + RelErr accumulator
+        const auto& reg_main_iters = r8;
+        const auto& reg_idx = rsi;
+        const auto& reg_tmp = r9;
+        const auto& reg_addr = r15;          // callee-saved — used to load constants
+
+        // ZMM register allocation
+        const auto& data_vec = zmm0;         // chunk of 16 floats
+        const auto& rt_vec = zmm1;           // f32->f16->f32 roundtripped
+        const auto& rt_ymm = ymm1;           // low 256-bit alias for vcvtps2ph dest
+        const auto& diff_vec = zmm2;         // |data - roundtripped|
+        const auto& abs_data_vec = zmm3;     // |data|
+        const auto& rel_thresh_vec = zmm4;   // |data| * 1e-4
+        const auto& abs_mask_vec = zmm5;     // 0x7FFFFFFF broadcast
+        const auto& abs_err_vec = zmm6;      // 1.0f broadcast
+        const auto& rel_err_vec = zmm7;      // 1e-4f broadcast
+        const auto& f16_max_pos_vec = zmm8;
+        const auto& f16_max_neg_vec = zmm9;
+        const auto& f16_min_pos_vec = zmm10;
+        const auto& f16_min_neg_vec = zmm11;
+        const auto& zero_vec = zmm12;
+
+        // Opmasks (k0 reserved by ISA — represents "no mask")
+        const auto& k_oor = k1;     // OOR per chunk (subnormal | overflow), then |= relative-error
+        const auto& k_lossy = k2;   // (abs_diff > 1.0) AND NOT k_oor — early exit
+        const auto& k_rel = k3;     // (abs_diff > |data|*1e-4) AND NOT k_oor
+        const auto& k_tail = k4;    // tail mask (built once before tail iteration)
+        const auto& k_tmp1 = k5;
+        const auto& k_tmp2 = k6;
+
+        Label main_loop, tail_block, normal_exit, lossy_exit;
+
+        preamble();
+        xor_(reg_oor_accum, reg_oor_accum);
+
+        // --- Broadcast constants ---
+        static const float f16_max_pos = std::numeric_limits<ov::float16>::max();
+        static const float f16_max_neg = std::numeric_limits<ov::float16>::lowest();
+        static const float f16_min_pos = ov::float16::from_bits(0x0001);
+        static const float f16_min_neg = -ov::float16::from_bits(0x0001);
+        static const float abs_err_val = static_cast<float>(ov::reference::f16_compression_max_abs_error);
+        static const float rel_err_val = static_cast<float>(ov::reference::f16_compression_max_rel_error);
+        static const uint32_t abs_mask_val = 0x7FFFFFFF;
+
+        auto bcast = [&, this](const Xbyak::Zmm& vec, const void* p) {
+            mov(reg_addr, reinterpret_cast<size_t>(p));
+            vbroadcastss(vec, dword[reg_addr]);
+        };
+
+        bcast(f16_max_pos_vec, &f16_max_pos);
+        bcast(f16_max_neg_vec, &f16_max_neg);
+        bcast(f16_min_pos_vec, &f16_min_pos);
+        bcast(f16_min_neg_vec, &f16_min_neg);
+        bcast(abs_err_vec, &abs_err_val);
+        bcast(rel_err_vec, &rel_err_val);
+        bcast(abs_mask_vec, &abs_mask_val);
+        vpxorq(zero_vec, zero_vec, zero_vec);
+
+        // --- Load args ---
+        mov(reg_src, ptr[param + offsetof(args_t, src)]);
+        mov(reg_oor_dst, ptr[param + offsetof(args_t, oor_dst)]);
+        mov(reg_lossy_dst, ptr[param + offsetof(args_t, lossy_dst)]);
+        mov(reg_count, ptr[param + offsetof(args_t, count)]);
+
+        const unsigned char _cmp_lt_os = 1;
+        const unsigned char _cmp_neq_uq = 4;
+        const unsigned char _cmp_gt_os = 6;
+
+        // Per-chunk emission. If `masked` is true, all opmasks are AND-ed with k_tail
+        // to defensively clear out-of-tail lanes (masked load already zeroed them, but
+        // this guards against any non-zero residual from sign-bit operations on -0.0).
+        auto emit_chunk = [&, this](bool masked) {
+            // === Build OOR mask in k_oor ===
+            // subnormal-when-rounded: |data| < min_pos AND data != 0
+            vcmpps(k_tmp1, data_vec, f16_min_pos_vec, _cmp_lt_os);  // data < min_pos
+            vcmpps(k_tmp2, data_vec, f16_min_neg_vec, _cmp_gt_os);  // data > min_neg
+            kandw(k_oor, k_tmp1, k_tmp2);                            // in (-min_pos, min_pos)
+            vcmpps(k_tmp1, data_vec, zero_vec, _cmp_neq_uq);         // data != 0
+            kandw(k_oor, k_oor, k_tmp1);
+            // overflow: data > max_pos OR data < max_neg
+            vcmpps(k_tmp1, data_vec, f16_max_pos_vec, _cmp_gt_os);
+            korw(k_oor, k_oor, k_tmp1);
+            vcmpps(k_tmp1, data_vec, f16_max_neg_vec, _cmp_lt_os);
+            korw(k_oor, k_oor, k_tmp1);
+            if (masked) {
+                kandw(k_oor, k_oor, k_tail);
+            }
+
+            // === Roundtrip f32 -> f16 -> f32 ===
+            // imm=0x04 (RNE, ignore MXCSR) — matches static_cast<float16> in C++ fallback
+            vcvtps2ph(rt_ymm, data_vec, 0x04);
+            vcvtph2ps(rt_vec, rt_ymm);
+
+            // === abs_diff = |data - roundtripped| ===
+            vsubps(diff_vec, data_vec, rt_vec);
+            vpandd(diff_vec, diff_vec, abs_mask_vec);  // mask off sign bit
+
+            // === Lossy check: (abs_diff > 1.0) AND NOT k_oor -> early exit ===
+            vcmpps(k_lossy, diff_vec, abs_err_vec, _cmp_gt_os);
+            kandnw(k_lossy, k_oor, k_lossy);  // k_lossy = ~k_oor & k_lossy
+            if (masked) {
+                kandw(k_lossy, k_lossy, k_tail);
+            }
+            kortestw(k_lossy, k_lossy);
+            jnz(lossy_exit, T_NEAR);
+
+            // === Relative-error check: (abs_diff > |data| * 1e-4) AND NOT k_oor ===
+            vpandd(abs_data_vec, data_vec, abs_mask_vec);
+            vmulps(rel_thresh_vec, abs_data_vec, rel_err_vec);
+            vcmpps(k_rel, diff_vec, rel_thresh_vec, _cmp_gt_os);
+            kandnw(k_rel, k_oor, k_rel);
+            korw(k_oor, k_oor, k_rel);
+            if (masked) {
+                kandw(k_oor, k_oor, k_tail);
+            }
+
+            // === Accumulate popcount(k_oor) into reg_oor_accum ===
+            kmovw(reg_tmp.cvt32(), k_oor);
+            popcnt(reg_tmp, reg_tmp);
+            add(reg_oor_accum, reg_tmp);
+        };
+
+        // --- Main loop: 16 elements per iteration ---
+        mov(reg_main_iters, reg_count);
+        shr(reg_main_iters, 4);
+        xor_(reg_idx, reg_idx);
+
+        L(main_loop);
+        cmp(reg_idx, reg_main_iters);
+        jge(tail_block, T_NEAR);
+
+        vmovups(data_vec, zword[reg_src]);
+        emit_chunk(/*masked=*/false);
+        add(reg_src, vlen * sizeof(float));
+        inc(reg_idx);
+        jmp(main_loop, T_NEAR);
+
+        // --- Tail: count & 15 elements via opmask ---
+        L(tail_block);
+        and_(reg_count, 15);
+        jz(normal_exit, T_NEAR);
+
+        // k_tail = (1 << reg_count) - 1, via bzhi (BMI2 — always present with avx512_core)
+        mov(reg_tmp, static_cast<int>(-1));
+        bzhi(reg_tmp, reg_tmp, reg_count);
+        kmovw(k_tail, reg_tmp.cvt32());
+
+        // Masked zeroing-load: out-of-mask lanes read as +0.0 (benign — pass none of the predicates)
+        vmovups(data_vec | k_tail | T_z, zword[reg_src]);
+        emit_chunk(/*masked=*/true);
+
+        // --- Normal exit: write OOR accumulator and lossy=0 ---
+        L(normal_exit);
+        mov(qword[reg_oor_dst], reg_oor_accum);
+        xor_(reg_tmp, reg_tmp);
+        mov(qword[reg_lossy_dst], reg_tmp);
+        postamble();
+
+        // --- Lossy exit: partial OOR count is meaningless, write 0; lossy=1 ---
+        L(lossy_exit);
+        xor_(reg_tmp, reg_tmp);
+        mov(qword[reg_oor_dst], reg_tmp);
+        mov(reg_tmp, 1);
+        mov(qword[reg_lossy_dst], reg_tmp);
+        postamble();
+    }
+};
+
+// Combined single-pass JIT kernel: counts out-of-range AND detects lossy f16 compression.
+// Processes 8 floats per iteration using AVX2+F16C. Bails immediately if any in-range
+// element has significant precision loss (abs error > 1.0).
+class jit_check_f16_compression : public jit::Generator {
+public:
+    typedef struct {
+        const void* src;
+        void* oor_dst;    // size_t* — output: out-of-range count
+        void* lossy_dst;  // size_t* — output: lossy count (0 or non-zero)
+        const size_t count;
+    } args_t;
+
+    typedef void (*fn_t)(const args_t*);
+
+    static fn_t get() {
+        if (is_x64() && mayiuse(jit::avx2) && mayiuse(jit::fp16)) {
+            static jit_check_f16_compression generator;
+            return (fn_t)generator.getCode();
+        }
+        return nullptr;
+    }
+
+private:
+    jit_check_f16_compression() {
+        using namespace Xbyak;
+
+        const uint32_t vlen = 8u;
+
+        // GP register allocation
+        const auto& reg_src = rax;
+        const auto& reg_oor_dst = rbx;
+        const auto& reg_lossy_dst = r12;  // callee-saved, preserved by preamble
+        const auto& reg_sz = rdx;
+        const auto& reg_saved_rsp = r13;  // callee-saved, for stack cleanup on lossy exit
+
+        // YMM register allocation
+        // Range check constants (same as jit_count_out_of_range)
+        const auto& data_vec = ymm1;
+        const auto& mask_vec = ymm2;  // OOR mask per chunk
+        const auto& mask_vec_xmm = xmm2;
+        const auto& tmp_vec = ymm3;
+        const auto& oor_accum = ymm4;
+        const auto& oor_accum_xmm = xmm4;
+        const auto& f16_max_pos_vec = ymm5;
+        const auto& f16_max_neg_vec = ymm6;
+        const auto& f16_min_pos_vec = ymm7;
+        const auto& f16_min_neg_vec = ymm8;
+        const auto& f16_zero_vec = ymm9;
+        const auto& i32_ones_vec = ymm10;
+        // Lossy check constants
+        const auto& abs_err_vec = ymm11;  // 1.0f broadcast
+        const auto& abs_mask_vec = ymm0;  // 0x7FFFFFFF broadcast (for fabs)
+        const auto& rel_err_vec = ymm12;  // 1e-4f broadcast (for relative error threshold)
+        // Temps for lossy computation (reused per chunk)
+        const auto& diff_vec = ymm14;
+        const auto& rt_vec_xmm = xmm15;  // for f32->f16->f32 roundtrip
+
+        Label exit_lossy, exit_normal;
+
+        preamble();
+        mov(reg_saved_rsp, rsp);  // save rsp for lossy exit stack cleanup
+
+        // --- Load constants ---
+        static const float f16_max_pos = std::numeric_limits<ov::float16>::max();
+        static const float f16_max_neg = std::numeric_limits<ov::float16>::lowest();
+        static const float f16_min_pos = ov::float16::from_bits(0x0001);
+        static const float f16_min_neg = -ov::float16::from_bits(0x0001);
+        static const int32_t i32_one = 1;
+        static const float abs_err_val = static_cast<float>(ov::reference::f16_compression_max_abs_error);
+        static const float rel_err_val = static_cast<float>(ov::reference::f16_compression_max_rel_error);
+        static const uint32_t abs_mask_val = 0x7FFFFFFF;
+
+        static const float max_pos_bounds[8] =
+            {f16_max_pos, f16_max_pos, f16_max_pos, f16_max_pos, f16_max_pos, f16_max_pos, f16_max_pos, f16_max_pos};
+        static const float max_neg_bounds[8] =
+            {f16_max_neg, f16_max_neg, f16_max_neg, f16_max_neg, f16_max_neg, f16_max_neg, f16_max_neg, f16_max_neg};
+        static const float min_pos_bounds[8] =
+            {f16_min_pos, f16_min_pos, f16_min_pos, f16_min_pos, f16_min_pos, f16_min_pos, f16_min_pos, f16_min_pos};
+        static const float min_neg_bounds[8] =
+            {f16_min_neg, f16_min_neg, f16_min_neg, f16_min_neg, f16_min_neg, f16_min_neg, f16_min_neg, f16_min_neg};
+        static const int32_t i32_ones[8] = {i32_one, i32_one, i32_one, i32_one, i32_one, i32_one, i32_one, i32_one};
+        static const float abs_errs[8] =
+            {abs_err_val, abs_err_val, abs_err_val, abs_err_val, abs_err_val, abs_err_val, abs_err_val, abs_err_val};
+        static const float rel_errs[8] =
+            {rel_err_val, rel_err_val, rel_err_val, rel_err_val, rel_err_val, rel_err_val, rel_err_val, rel_err_val};
+        static const uint32_t abs_masks[8] = {abs_mask_val,
+                                              abs_mask_val,
+                                              abs_mask_val,
+                                              abs_mask_val,
+                                              abs_mask_val,
+                                              abs_mask_val,
+                                              abs_mask_val,
+                                              abs_mask_val};
+
+        auto load_vec = [this](Ymm vec, size_t ptr) {
+            mov(r15, ptr);
+            vmovdqu(vec, yword[r15]);
+        };
+
+        load_vec(f16_max_pos_vec, (size_t)max_pos_bounds);
+        load_vec(f16_max_neg_vec, (size_t)max_neg_bounds);
+        load_vec(f16_min_pos_vec, (size_t)min_pos_bounds);
+        load_vec(f16_min_neg_vec, (size_t)min_neg_bounds);
+        load_vec(i32_ones_vec, (size_t)i32_ones);
+        load_vec(abs_err_vec, (size_t)abs_errs);
+        load_vec(rel_err_vec, (size_t)rel_errs);
+        load_vec(abs_mask_vec, (size_t)abs_masks);
+        vxorps(f16_zero_vec, f16_zero_vec, f16_zero_vec);
+        vxorps(oor_accum, oor_accum, oor_accum);
+
+        // Load args
+        mov(reg_src, ptr[param + offsetof(args_t, src)]);
+        mov(reg_oor_dst, ptr[param + offsetof(args_t, oor_dst)]);
+        mov(reg_lossy_dst, ptr[param + offsetof(args_t, lossy_dst)]);
+        mov(reg_sz, ptr[param + offsetof(args_t, count)]);
+
+        const unsigned char _cmp_lt_os = 1;
+        const unsigned char _cmp_neq_uq = 4;
+        const unsigned char _cmp_gt_os = 6;
+
+        // Kernel lambda: emits the combined check code for 8 elements at src_ptr.
+        // Called twice (main loop + tail) — each call emits a copy of the instructions.
+        auto emit_kernel = [&](const RegExp& src_ptr) {
+            // Load 8 floats
+            vmovups(data_vec, yword[src_ptr]);
+
+            // === Out-of-range check (same algorithm as jit_count_out_of_range_vec) ===
+            // subnormal: data in (-f16_min_pos, f16_min_pos) and != 0
+            vcmpps(tmp_vec, data_vec, f16_min_pos_vec, _cmp_lt_os);
+            vcmpps(mask_vec, data_vec, f16_min_neg_vec, _cmp_gt_os);
+            vandps(mask_vec, mask_vec, tmp_vec);
+            vcmpps(tmp_vec, data_vec, f16_zero_vec, _cmp_neq_uq);
+            vandps(mask_vec, mask_vec, tmp_vec);
+            // overflow: data > f16_max or data < f16_lowest
+            vcmpps(tmp_vec, data_vec, f16_max_pos_vec, _cmp_gt_os);
+            vorps(mask_vec, mask_vec, tmp_vec);
+            vcmpps(tmp_vec, data_vec, f16_max_neg_vec, _cmp_lt_os);
+            vorps(mask_vec, mask_vec, tmp_vec);
+            // mask_vec now has per-element OOR mask (0xFFFFFFFF for OOR, 0 for in-range)
+
+            // === Lossy check for in-range elements ===
+            // Roundtrip: f32 -> f16 -> f32
+            // imm=0x04 (RNE, ignore MXCSR) — matches static_cast<float16> in C++ fallback
+            vcvtps2ph(rt_vec_xmm, data_vec, 0x04);  // f32 -> f16 (8 values)
+            vcvtph2ps(diff_vec, rt_vec_xmm);        // f16 -> f32 (roundtripped)
+
+            // abs_diff = |data - roundtripped|
+            vsubps(diff_vec, data_vec, diff_vec);
+            vandps(diff_vec, diff_vec, abs_mask_vec);  // diff_vec = |diff|
+
+            // lossy = |diff| > abs_error (1.0)
+            vcmpps(tmp_vec, diff_vec, abs_err_vec, _cmp_gt_os);  // |diff| > 1.0
+
+            // Exclude out-of-range elements: keep only in-range lossy
+            vandnps(tmp_vec, mask_vec, tmp_vec);  // tmp_vec = NOT(oor) AND lossy
+
+            // Early exit if ANY element is lossy
+            vtestps(tmp_vec, tmp_vec);  // ZF=1 if all zeros
+            jnz(exit_lossy, T_NEAR);    // bail if any lossy
+
+            // === Relative error check: count elements where |diff| > |value| * 1e-4 ===
+            // (equivalent to abs_diff / |value| > 1e-4, but avoids division)
+            vandps(tmp_vec, data_vec, abs_mask_vec);         // tmp_vec = |data|
+            vmulps(tmp_vec, tmp_vec, rel_err_vec);           // tmp_vec = |data| * 1e-4
+            vcmpps(tmp_vec, diff_vec, tmp_vec, _cmp_gt_os);  // 1 where |diff| > |data|*1e-4
+            vandnps(tmp_vec, mask_vec, tmp_vec);             // exclude OOR (avoid double-count)
+            vorps(mask_vec, mask_vec, tmp_vec);              // combine OOR + relative-error
+
+            // === Accumulate combined OOR + relative-error count ===
+            vandps(mask_vec, mask_vec, i32_ones_vec);
+            vphaddd(mask_vec, mask_vec, mask_vec);
+            vpermq(mask_vec, mask_vec, 0x08);
+            vpmovsxdq(mask_vec, mask_vec_xmm);
+            vpaddq(oor_accum, oor_accum, mask_vec);
+        };
+
+        // --- Main loop: 8 elements per iteration ---
+        Label main_loop, main_loop_exit;
+        xor_(rsi, rsi);
+        mov(r8, reg_sz);
+        shr(r8, 3);
+
+        L(main_loop);
+        cmp(rsi, r8);
+        jge(main_loop_exit, T_NEAR);
+
+        emit_kernel(reg_src);
+        add(reg_src, static_cast<uint32_t>(sizeof(float) * vlen));
+
+        add(rsi, 1);
+        jmp(main_loop, T_NEAR);
+        L(main_loop_exit);
+
+        // --- Tail: remaining elements (< 8), zero-padded ---
+        shl(rsi, 3);
+        sub(reg_sz, rsi);
+        test(reg_sz, reg_sz);
+        jz(exit_normal, T_NEAR);
+
+        sub(rsp, vlen * sizeof(float));
+        mov(r8, rsp);
+
+        vpxor(mask_vec, mask_vec, mask_vec);  // zero
+        vmovups(yword[r8], mask_vec);         // zero-pad buffer
+
+        copy<float>(r8, reg_src, reg_sz);  // copy remaining elements
+        emit_kernel(r8);                   // process (zeros won't trigger OOR or lossy)
+
+        add(rsp, vlen * sizeof(float));  // free stack (only reached if no lossy)
+
+        // --- Normal exit: no lossy elements found ---
+        L(exit_normal);
+        {
+            // Horizontal sum of oor_accum (4 x i64) -> single i64
+            const auto& tmp0 = xmm2;  // reuse mask_vec
+            const auto& tmp1 = xmm3;  // reuse tmp_vec
+            vextractf128(tmp0, oor_accum, 0);
+            vextractf128(tmp1, oor_accum, 1);
+            vpaddq(oor_accum_xmm, tmp0, tmp1);
+            vpermilpd(tmp0, oor_accum_xmm, 0x01);
+            vpaddq(oor_accum_xmm, oor_accum_xmm, tmp0);
+            vmovq(qword[reg_oor_dst], oor_accum_xmm);
+
+            // lossy = 0
+            xor_(rsi, rsi);
+            mov(qword[reg_lossy_dst], rsi);
+        }
+        postamble();
+
+        // --- Lossy exit: bail immediately (jumped from kernel via jnz) ---
+        L(exit_lossy);
+        mov(rsp, reg_saved_rsp);  // restore rsp (handles both main loop and tail cases)
+        xor_(rsi, rsi);
+        mov(qword[reg_oor_dst], rsi);  // oor_count = 0 (meaningless, caller checks lossy first)
+        mov(rsi, 1);
+        mov(qword[reg_lossy_dst], rsi);  // lossy = 1
+        postamble();
+    }
+};
+
 #endif  // OV_CORE_USE_XBYAK_JIT
 
 template <class Clamp, typename TI, typename TO>
@@ -550,23 +890,43 @@ void convert_from_bf16_to_f16_with_clamp(const bfloat16* arg, float16* out, size
     // CVS-125496: duplicate and stub for ARM, provide optimized solution
 }
 
-size_t count_out_of_f16_range(const float* arg, size_t count) {
+CompressionCheckResult check_f16_compression(const float* arg, size_t count) {
 #ifdef OV_CORE_USE_XBYAK_JIT
     if (util::may_i_use_dynamic_code()) {
-        if (auto converter = jit_count_out_of_range::get<float, float16>()) {
-            size_t num_out_of_range = 0;
-            jit_count_out_of_range::args_t args = {arg, &num_out_of_range, count};
-            converter(&args);
-            return num_out_of_range;
+        if (auto fn = jit_check_f16_compression_avx512::get()) {
+            size_t oor_count = 0;
+            size_t lossy_count = 0;
+            jit_check_f16_compression_avx512::args_t args = {arg, &oor_count, &lossy_count, count};
+            fn(&args);
+            return {oor_count, lossy_count > 0};
+        }
+        if (auto fn = jit_check_f16_compression::get()) {
+            size_t oor_count = 0;
+            size_t lossy_count = 0;
+            jit_check_f16_compression::args_t args = {arg, &oor_count, &lossy_count, count};
+            fn(&args);
+            return {oor_count, lossy_count > 0};
         }
     }
 #endif  // OV_CORE_USE_XBYAK_JIT
-    const auto is_out_of_f16_range = [](const float v) {
-        return (std::abs(v) < float16::from_bits(0x0001) && v != 0.0f) || (v > std::numeric_limits<float16>::max()) ||
-               (v < std::numeric_limits<float16>::lowest());
-    };
-
-    return std::count_if(arg, arg + count, is_out_of_f16_range);
+    size_t out_of_range = 0;
+    for (size_t i = 0; i < count; ++i) {
+        const float v = arg[i];
+        if ((std::abs(v) < float16::from_bits(0x0001) && v != 0.0f) || v > std::numeric_limits<float16>::max() ||
+            v < std::numeric_limits<float16>::lowest()) {
+            ++out_of_range;
+        } else {
+            const double roundtripped = static_cast<double>(static_cast<float>(static_cast<float16>(v)));
+            const double abs_diff = std::abs(v - roundtripped);
+            if (abs_diff > f16_compression_max_abs_error) {
+                return {0, true};
+            }
+            if (v != 0.0f && abs_diff / std::abs(v) > f16_compression_max_rel_error) {
+                ++out_of_range;
+            }
+        }
+    }
+    return {out_of_range, false};
 }
 
 }  // namespace reference
