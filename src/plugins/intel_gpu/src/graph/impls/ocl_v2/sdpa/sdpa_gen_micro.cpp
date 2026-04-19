@@ -1140,9 +1140,9 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
             //    physical: [blocks, heads, block_size, packed_head + scales] u8
             jit.make("IS_INT4_KV_CACHE", 1);
             jit.make("IS_KEY_BY_CHANNEL", 1);
-            jit.make("ADJUSTED_K_HEAD_SIZE", k_head_size);                                                           // 128 (K outer dim, not packed)
-            jit.make("ADJUSTED_V_HEAD_SIZE", v_head_size / 2 + scales_zp_size);                                      // 68  (V per-token packed)
-            jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size / 2 + scales_zp_size);  // 12  (K inner dim, packed block + scale)
+            jit.make("ADJUSTED_K_HEAD_SIZE", k_head_size);
+            jit.make("ADJUSTED_V_HEAD_SIZE", v_head_size / 2 + scales_zp_size);
+            jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size / 2 + scales_zp_size);
         } else if (pa_desc->is_key_by_channel) {
             jit.make("IS_KEY_BY_CHANNEL", 1);
             jit.make("ADJUSTED_K_HEAD_SIZE", k_head_size);
@@ -1535,9 +1535,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     problem.Tb_ext = convert_type(Q.data_type);
 
     // Detect INT4 KV cache: stored as u8 but logical precision is u4/i4
-    const auto kv_cache_precision = is_paged_attention
-        ? params.get_program().get_config().get_kv_cache_precision()
-        : ov::element::dynamic;
+    const auto kv_cache_precision = is_paged_attention ? params.get_program().get_config().get_kv_cache_precision() : ov::element::dynamic;
     const bool is_int4_kv_cache = data_type_traits::is_i4_u4(kv_cache_precision);
 
     // For INT4 PA generate: override Ta_ext to u4/i4 so micro-kernel handles u4 unpacking
@@ -1551,9 +1549,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     auto problem_kq = problem;
     // Both INT4 and INT8 K cache use dim order {0,1,3,2} (column-major / Layout::N).
-    problem_kq.A.layout = (is_paged_attention && !is_prefill)
-                              ? micro::MatrixLayout::N
-                              : micro::MatrixLayout::T;
+    problem_kq.A.layout = (is_paged_attention && !is_prefill) ? micro::MatrixLayout::N : micro::MatrixLayout::T;
 
     /* Set up microkernel options */
     micro::GEMMOptions opts_kq;
