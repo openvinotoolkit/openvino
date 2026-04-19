@@ -411,25 +411,25 @@ private:
 
         // GP register allocation
         const auto& reg_src = rax;
-        const auto& reg_oor_dst = rbx;       // callee-saved
-        const auto& reg_lossy_dst = r12;     // callee-saved
+        const auto& reg_oor_dst = rbx;    // callee-saved
+        const auto& reg_lossy_dst = r12;  // callee-saved
         const auto& reg_count = rdx;
-        const auto& reg_oor_accum = r14;     // callee-saved — 64-bit OOR + RelErr accumulator
+        const auto& reg_oor_accum = r14;  // callee-saved — 64-bit OOR + RelErr accumulator
         const auto& reg_main_iters = r8;
         const auto& reg_idx = rsi;
         const auto& reg_tmp = r9;
-        const auto& reg_addr = r15;          // callee-saved — used to load constants
+        const auto& reg_addr = r15;  // callee-saved — used to load constants
 
         // ZMM register allocation
-        const auto& data_vec = zmm0;         // chunk of 16 floats
-        const auto& rt_vec = zmm1;           // f32->f16->f32 roundtripped
-        const auto& rt_ymm = ymm1;           // low 256-bit alias for vcvtps2ph dest
-        const auto& diff_vec = zmm2;         // |data - roundtripped|
-        const auto& abs_data_vec = zmm3;     // |data|
-        const auto& rel_thresh_vec = zmm4;   // |data| * 1e-4
-        const auto& abs_mask_vec = zmm5;     // 0x7FFFFFFF broadcast
-        const auto& abs_err_vec = zmm6;      // 1.0f broadcast
-        const auto& rel_err_vec = zmm7;      // 1e-4f broadcast
+        const auto& data_vec = zmm0;        // chunk of 16 floats
+        const auto& rt_vec = zmm1;          // f32->f16->f32 roundtripped
+        const auto& rt_ymm = ymm1;          // low 256-bit alias for vcvtps2ph dest
+        const auto& diff_vec = zmm2;        // |data - roundtripped|
+        const auto& abs_data_vec = zmm3;    // |data|
+        const auto& rel_thresh_vec = zmm4;  // |data| * 1e-4
+        const auto& abs_mask_vec = zmm5;    // 0x7FFFFFFF broadcast
+        const auto& abs_err_vec = zmm6;     // 1.0f broadcast
+        const auto& rel_err_vec = zmm7;     // 1e-4f broadcast
         const auto& f16_max_pos_vec = zmm8;
         const auto& f16_max_neg_vec = zmm9;
         const auto& f16_min_pos_vec = zmm10;
@@ -437,10 +437,10 @@ private:
         const auto& zero_vec = zmm12;
 
         // Opmasks (k0 reserved by ISA — represents "no mask")
-        const auto& k_oor = k1;     // OOR per chunk (subnormal | overflow), then |= relative-error
-        const auto& k_lossy = k2;   // (abs_diff > 1.0) AND NOT k_oor — early exit
-        const auto& k_rel = k3;     // (abs_diff > |data|*1e-4) AND NOT k_oor
-        const auto& k_tail = k4;    // tail mask (built once before tail iteration)
+        const auto& k_oor = k1;    // OOR per chunk (subnormal | overflow), then |= relative-error
+        const auto& k_lossy = k2;  // (abs_diff > 1.0) AND NOT k_oor — early exit
+        const auto& k_rel = k3;    // (abs_diff > |data|*1e-4) AND NOT k_oor
+        const auto& k_tail = k4;   // tail mask (built once before tail iteration)
         const auto& k_tmp1 = k5;
         const auto& k_tmp2 = k6;
 
@@ -490,8 +490,8 @@ private:
             // subnormal-when-rounded: |data| < min_pos AND data != 0
             vcmpps(k_tmp1, data_vec, f16_min_pos_vec, _cmp_lt_os);  // data < min_pos
             vcmpps(k_tmp2, data_vec, f16_min_neg_vec, _cmp_gt_os);  // data > min_neg
-            kandw(k_oor, k_tmp1, k_tmp2);                            // in (-min_pos, min_pos)
-            vcmpps(k_tmp1, data_vec, zero_vec, _cmp_neq_uq);         // data != 0
+            kandw(k_oor, k_tmp1, k_tmp2);                           // in (-min_pos, min_pos)
+            vcmpps(k_tmp1, data_vec, zero_vec, _cmp_neq_uq);        // data != 0
             kandw(k_oor, k_oor, k_tmp1);
             // overflow: data > max_pos OR data < max_neg
             vcmpps(k_tmp1, data_vec, f16_max_pos_vec, _cmp_gt_os);
