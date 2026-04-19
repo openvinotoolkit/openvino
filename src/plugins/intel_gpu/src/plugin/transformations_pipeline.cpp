@@ -481,10 +481,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (!disable_moe_opt) {
             manager.register_pass<ov::pass::FuseVectorizedMOE2GEMM>();
             pass_config->set_callback<ov::pass::FuseVectorizedMOE2GEMM>([&](const_node_ptr& root) -> bool {
-                // Currently moe op is only supported by >= xe2
+                // Currently moe op is only supported by systolic-array architectures
                 auto& engine = m_context->get_engine();
                 const auto& info = engine.get_device_info();
-                return (info.arch != cldnn::gpu_arch::xe2) && (info.arch != cldnn::gpu_arch::xe3);
+                return (!info.supports_immad);
             });
 
             manager.register_pass<ov::pass::FuseVectorizedMOE3GEMM>();
@@ -662,7 +662,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // k: [num_blocks, num_kv_heads, block_size(256), head_size]
             // v: [num_blocks, num_kv_heads, block_size(256), head_size]
             ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
-            const auto kv_cache_precision = config.get_kv_cache_precision();
+            const auto key_cache_quant_mode = config.get_key_cache_quant_mode();
+            auto kv_cache_precision = config.get_kv_cache_precision();
+            // Plain PA already falls back to compressed KV cache for BY_TOKEN on GPU.
+            // XAttention builds its dedicated KV layout in this pass, so normalize the
+            // precision here before ConvertPagedAttnInputs materializes that layout.
+            if (use_xattention && key_cache_quant_mode == ov::internal::CacheQuantMode::BY_TOKEN) {
+                kv_cache_precision = ov::element::i8;
+            }
             kv_cache_config.keyCachePrecision = kv_cache_precision;
             kv_cache_config.valueCachePrecision = kv_cache_precision;
             kv_cache_config.inferencePrecision = infer_precision;
@@ -673,13 +680,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size;
                 kv_cache_config.keyCacheDimOrder = {0, 1, 3, 2};
             }
-            kv_cache_config.keyCacheQuantBychannel = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL);
-            kv_cache_config.keyCacheGroupSize = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
+            kv_cache_config.keyCacheQuantBychannel = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
+            kv_cache_config.keyCacheGroupSize = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
             if (use_xattention) {
-                if (kv_cache_config.keyCacheQuantBychannel &&
-                    ((kv_cache_precision == ov::element::i8 || kv_cache_precision == ov::element::u8)) )
-                    OPENVINO_THROW("[GPU] XAttention does not currently support per-channel quantized key cache.");
-
                 kv_cache_config.valueCacheBlockSize = cldnn::paged_attention::block_size_xattn;
                 kv_cache_config.valueCacheDimOrder = {0, 1, 2, 3};
             } else {
@@ -699,7 +702,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     if (bychannel) {
                         // TODO: need to handle group size != block size case
                         if (precision == ov::element::i8 || precision == ov::element::u8) {
-                            block_size += infer_precision.size() * 2;
+                            constexpr int64_t kv_sub_block_size = 16;
+                            OPENVINO_ASSERT(block_size % kv_sub_block_size == 0,
+                                            "[GPU] Invalid key cache block size for BY_CHANNEL quantization: ",
+                                            block_size);
+                            block_size += (block_size / kv_sub_block_size) * infer_precision.size() * 2;
                         } else if (precision == ov::element::i4 || precision == ov::element::u4) {
                             head_size = align_to(head_size / 2, 16);
                             block_size += infer_precision.size() * 4;

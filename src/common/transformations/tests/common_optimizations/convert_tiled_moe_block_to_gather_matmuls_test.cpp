@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/cpu_opset/common/pass/moe_matmuls_fusion.hpp"
+#include "transformations/common_optimizations/convert_tiled_moe_block_to_gather_matmuls.hpp"
 
 #include <gtest/gtest.h>
 
@@ -12,7 +12,6 @@
 
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
-#include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -20,7 +19,6 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
@@ -38,11 +36,11 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/cpu_opset/common/op/batch_gather_matmul.hpp"
+#include "ov_ops/gather_matmul.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace testing;
-using namespace ov::intel_cpu;
+using namespace ov::op::internal;
 
 namespace {
 
@@ -59,17 +57,17 @@ inline std::ostream& operator<<(std::ostream& os, const MoEType& type) {
     }
 }
 
-using MoEMatMulsFusionParams = std::tuple<MoEType,  // moe_type
-                                          bool,     // use_scatter_v12
-                                          bool,     // use_broadcast_v3
-                                          bool,     // skip_unsqueeze
-                                          bool,     // matmul_transpose_b
-                                          bool,     // additional_node_consumers
-                                          bool>;    // transformation_should_be_applied
+using ConvertTiledMoeBlockToGatherMatmulsParams = std::tuple<MoEType,  // moe_type
+                                                             bool,     // use_scatter_v12
+                                                             bool,     // use_broadcast_v3
+                                                             bool,     // skip_unsqueeze
+                                                             bool,     // matmul_transpose_b
+                                                             bool,     // additional_node_consumers
+                                                             bool>;    // transformation_should_be_applied
 
 inline std::shared_ptr<ov::Node> build_matmul_weights(const ov::Shape& weights_shape,
                                                       const ov::element::Type& weights_precision,
-                                                      size_t seed,
+                                                      int seed,
                                                       bool transpose_b) {
     // Note: builder takes planar weights shape, but it is transposed here
     // only if transpose_b=true (which is the default case for MoE matmuls)
@@ -123,7 +121,7 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(bool use_scatter_v12,
         false);
 
     // Note: we need to use different seed to avoid the exact weights generation for the MatMuls with the same shape
-    size_t seed = 1;
+    int seed = 1;
     auto gate_up_weights =
         build_matmul_weights(ov::Shape{number_of_experts, hidden_size, intermediate_size * fusion_factor},
                              weights_precision,
@@ -351,7 +349,7 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraphRef(bool use_scatter_v12,
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{0, 1}));
 
     // Note: we need to use different seed to avoid the exact weights generation for the MatMuls with the same shape
-    size_t seed = 1;
+    int seed = 1;
     auto gate_up_weights =
         build_matmul_weights(ov::Shape{number_of_experts, hidden_size, intermediate_size * fusion_factor},
                              weights_precision,
@@ -363,7 +361,7 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraphRef(bool use_scatter_v12,
                                        ov::Shape{number_of_experts, 1, intermediate_size * fusion_factor});
 
     auto gate_up_gathered_mm =
-        std::make_shared<BatchGatherMatmul>(unsqueeze_experts, gate_up_weights, router_topk_indices, gate_up_bias);
+        std::make_shared<GatherMatmul>(unsqueeze_experts, gate_up_weights, router_topk_indices, gate_up_bias);
 
     auto slice1 = std::make_shared<ov::op::v8::Slice>(
         gate_up_gathered_mm,
@@ -400,7 +398,7 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraphRef(bool use_scatter_v12,
     auto down_proj_bias = ov::test::utils::make_constant(data_precision, ov::Shape{number_of_experts, 1, hidden_size});
 
     auto down_gathered_mm =
-        std::make_shared<BatchGatherMatmul>(multiply2, down_proj_weights, router_topk_indices, down_proj_bias);
+        std::make_shared<GatherMatmul>(multiply2, down_proj_weights, router_topk_indices, down_proj_bias);
 
     auto router_transpose = std::make_shared<ov::op::v1::Transpose>(
         slice3,
@@ -479,7 +477,7 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(bool use_scatter_v12,
         false);
 
     // Note: we need to use different seed to avoid the exact weights generation for the MatMuls with the same shape
-    size_t seed = 1;
+    int seed = 1;
     auto gate_weights = build_matmul_weights(ov::Shape{number_of_experts, hidden_size, intermediate_size},
                                              weights_precision,
                                              seed++,
@@ -680,13 +678,13 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraphRef(bool use_scatter_v12,
     auto router_topk_indices = router_topk_values_and_indices->output(1);
 
     // Note: we need to use different seed to avoid the exact weights generation for the MatMuls with the same shape
-    size_t seed = 1;
+    int seed = 1;
     auto gate_weights = build_matmul_weights(ov::Shape{number_of_experts, hidden_size, intermediate_size},
                                              weights_precision,
                                              seed++,
                                              matmul_transpose_b);
 
-    auto gate_gathered_mm = std::make_shared<BatchGatherMatmul>(unsqueeze_experts, gate_weights, router_topk_indices);
+    auto gate_gathered_mm = std::make_shared<GatherMatmul>(unsqueeze_experts, gate_weights, router_topk_indices);
 
     auto swish = std::make_shared<ov::op::v4::Swish>(gate_gathered_mm);
 
@@ -695,7 +693,7 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraphRef(bool use_scatter_v12,
                                            seed++,
                                            matmul_transpose_b);
 
-    auto up_gathered_mm = std::make_shared<BatchGatherMatmul>(unsqueeze_experts, up_weights, router_topk_indices);
+    auto up_gathered_mm = std::make_shared<GatherMatmul>(unsqueeze_experts, up_weights, router_topk_indices);
 
     auto swiglu = std::make_shared<ov::op::v1::Multiply>(swish, up_gathered_mm);
 
@@ -704,7 +702,7 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraphRef(bool use_scatter_v12,
                                              seed++,
                                              matmul_transpose_b);
 
-    auto down_gathered_mm = std::make_shared<BatchGatherMatmul>(swiglu, down_weights, router_topk_indices);
+    auto down_gathered_mm = std::make_shared<GatherMatmul>(swiglu, down_weights, router_topk_indices);
 
     auto router_transpose = std::make_shared<ov::op::v1::Transpose>(
         router_topk_values_normalization,
@@ -749,9 +747,10 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraphRef(bool use_scatter_v12,
     return std::make_shared<ov::Model>(ov::OutputVector{original_final_reshape}, params);
 }
 
-class MoEMatMulsFusionTest : public TransformationTestsF, public WithParamInterface<MoEMatMulsFusionParams> {
+class ConvertTiledMoeBlockToGatherMatmulsTest : public TransformationTestsF,
+                                                public WithParamInterface<ConvertTiledMoeBlockToGatherMatmulsParams> {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<MoEMatMulsFusionParams>& obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ConvertTiledMoeBlockToGatherMatmulsParams>& obj) {
         const auto& [moe_type,
                      use_scatter_v12,
                      use_broadcast_v3,
@@ -798,7 +797,7 @@ protected:
             OPENVINO_THROW("Unexpected MoEType value");
         }
 
-        manager.register_pass<MoEMatMulsFusion>();
+        manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>();
 
         if (should_be_applied) {
             switch (moe_type) {
@@ -817,15 +816,15 @@ protected:
     }
 };
 
-TEST_P(MoEMatMulsFusionTest, CompareFunctions) {}
+TEST_P(ConvertTiledMoeBlockToGatherMatmulsTest, CompareFunctions) {}
 
 const std::vector<MoEType> moe_types = {MoEType::MoE2GeMM, MoEType::MoE3GeMM};
 const std::vector<bool> scatter_versions = {false, true};    // false = v3, true = v12
 const std::vector<bool> broadcast_versions = {false, true};  // false = v1, true = v3
 const std::vector<bool> skip_unsqueeze_versions = {false, true};
 
-INSTANTIATE_TEST_SUITE_P(MoEMatMulsFusionTest_positive_cases,
-                         MoEMatMulsFusionTest,
+INSTANTIATE_TEST_SUITE_P(ConvertTiledMoeBlockToGatherMatmulsTest_positive_cases,
+                         ConvertTiledMoeBlockToGatherMatmulsTest,
                          ::testing::Combine(::testing::ValuesIn(moe_types),
                                             ::testing::ValuesIn(scatter_versions),
                                             ::testing::ValuesIn(broadcast_versions),
@@ -833,10 +832,10 @@ INSTANTIATE_TEST_SUITE_P(MoEMatMulsFusionTest_positive_cases,
                                             ::testing::Values(true),
                                             ::testing::Values(false),
                                             ::testing::Values(true)),
-                         MoEMatMulsFusionTest::getTestCaseName);
+                         ConvertTiledMoeBlockToGatherMatmulsTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(MoEMatMulsFusionTest_negative_cases_no_transpose,
-                         MoEMatMulsFusionTest,
+INSTANTIATE_TEST_SUITE_P(ConvertTiledMoeBlockToGatherMatmulsTest_negative_cases_no_transpose,
+                         ConvertTiledMoeBlockToGatherMatmulsTest,
                          ::testing::Combine(::testing::ValuesIn(moe_types),
                                             ::testing::ValuesIn(scatter_versions),
                                             ::testing::ValuesIn(broadcast_versions),
@@ -844,10 +843,10 @@ INSTANTIATE_TEST_SUITE_P(MoEMatMulsFusionTest_negative_cases_no_transpose,
                                             ::testing::Values(false),
                                             ::testing::Values(false),
                                             ::testing::Values(false)),
-                         MoEMatMulsFusionTest::getTestCaseName);
+                         ConvertTiledMoeBlockToGatherMatmulsTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(MoEMatMulsFusionTest_negative_cases_additional_consumers,
-                         MoEMatMulsFusionTest,
+INSTANTIATE_TEST_SUITE_P(ConvertTiledMoeBlockToGatherMatmulsTest_negative_cases_additional_consumers,
+                         ConvertTiledMoeBlockToGatherMatmulsTest,
                          ::testing::Combine(::testing::ValuesIn(moe_types),
                                             ::testing::Values(false),
                                             ::testing::Values(false),
@@ -855,5 +854,5 @@ INSTANTIATE_TEST_SUITE_P(MoEMatMulsFusionTest_negative_cases_additional_consumer
                                             ::testing::Values(true),
                                             ::testing::Values(true),
                                             ::testing::Values(false)),
-                         MoEMatMulsFusionTest::getTestCaseName);
+                         ConvertTiledMoeBlockToGatherMatmulsTest::getTestCaseName);
 }  // namespace

@@ -117,6 +117,9 @@ public:
     virtual void generate() = 0;
 
     void operator()(const ComputeHashCallArgs* args) {
+        // Since the JIT code always resides in memory, and ASAN's memory management may remove executable
+        // permissions, we need to restore executable permissions for the generated code.
+        setProtectModeRE(false);
         ker_fn(args);
     }
 
