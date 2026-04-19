@@ -21,19 +21,6 @@ struct QuantizeParam {
 
 namespace ov::Extensions::Cpu::XARCH {
 
-void attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
-                  const ov::intel_cpu::PlainTensor& v_src,
-                  float* temp_buffer,
-                  const ov::intel_cpu::PlainTensor& k_dst,
-                  const ov::intel_cpu::PlainTensor& v_dst,
-                  const ov::intel_cpu::PlainTensor& k_scale_zp,
-                  const ov::intel_cpu::PlainTensor& v_scale_zp,
-                  size_t L0,
-                  bool quant_k_by_channel,
-                  size_t k_group_size,
-                  size_t v_group_size,
-                  const ov::intel_cpu::CpuParallelPtr& cpu_parallel);
-
 void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
                         const ov::intel_cpu::PlainTensor& v_src,
                         const ov::intel_cpu::PlainTensor& k_dst,
@@ -50,6 +37,27 @@ void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
 void attn_quant_u8(const float* src, uint8_t* dst, size_t n, float& scale, float& zp);
 
 void attn_dequant_u8(const uint8_t* src, float* dst, size_t n, float* params);
+
+// Per-tensor (K or V) u8 quantize into cache with per-group scale/zp.
+// Token-level loop replacement for the K/V branch of the removed batched
+// attn_quantkv.
+void attn_quant_by_token(const ov::intel_cpu::PlainTensor& cur,
+                         const ov::intel_cpu::PlainTensor& dst,
+                         const ov::intel_cpu::PlainTensor& scale_zp,
+                         size_t L0,
+                         size_t group_size,
+                         const ov::intel_cpu::CpuParallelPtr& cpu_parallel);
+
+// Per-tensor (K or V) by-channel u8 quantization for the concat-SDPA
+// compress_cache path. Mirrors the K-side of the removed batched attn_quantkv:
+// L0==0 performs fresh per-group quantize; L0>0 dequants the partial leading
+// group, appends new tokens, and requantizes.
+void attn_quant_by_channel(const ov::intel_cpu::PlainTensor& src,
+                           const ov::intel_cpu::PlainTensor& dst,
+                           const ov::intel_cpu::PlainTensor& scale_zp,
+                           size_t L0,
+                           size_t group_size,
+                           const ov::intel_cpu::CpuParallelPtr& cpu_parallel);
 
 void attn_quant_by_channel_u8(const float* src,
                               uint8_t* dst,
