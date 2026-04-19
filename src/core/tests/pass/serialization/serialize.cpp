@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/pass/serialize.hpp"
 
-#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 #include <fstream>
 #include <iterator>
@@ -13,6 +13,7 @@
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/version.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
@@ -93,7 +94,6 @@ TEST_P(SerializePassTestP, serialize_simple_model_with_constant) {
     const auto& [is_valid, error_msg] = model_comparator().compare(serialized_model, m_model);
     EXPECT_TRUE(is_valid) << error_msg;
 }
-}  // namespace ov::test
 
 using SerializationParams = std::tuple<std::string, std::string>;
 
@@ -208,6 +208,35 @@ INSTANTIATE_TEST_SUITE_P(ONNXSerialization,
                                          std::make_tuple("add_abc_initializers.onnx", "")));
 
 #endif
+
+TEST(SerializationManualTest, write_to_disk_full) {
+    // Create a small RAM disk (requires root or proper permissions)
+    // Alternative: use a small file-backed loopback device
+    const auto test_dir = std::filesystem::temp_directory_path() / "ov_small_disk";
+
+    if (!util::directory_exists(test_dir)) {
+        GTEST_SKIP()
+            << "Test requires a small disk at " << test_dir
+            << ". Please create it e.g. 'Mount small tmpfs: mount -t tmpfs -o size=1M tmpfs /tmp/ov_small_disk', "
+               "and rerun the test";
+    }
+
+    auto model = [] {
+        auto p1 = std::make_shared<Parameter>(element::u8, PartialShape{1});
+        auto c1 = std::make_shared<Constant>(element::u8, Shape{1, 1024, 1024}, std::vector<uint8_t>{10U});
+        auto add = std::make_shared<Add>(p1, c1);
+        return std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{p1}, "simple_model");
+    }();
+
+    OV_EXPECT_THROW(ov::pass::Serialize(test_dir / "test_file.xml", {}).run_on_model(model),
+                    std::ios_base::failure,
+                    testing::_);
+
+    // clean-up on assertion fail, files will be created.
+    std::error_code ec;
+    std::filesystem::remove(test_dir / "test_file.xml", ec);
+    std::filesystem::remove(test_dir / "test_file.bin", ec);
+}
 
 class MetaDataSerialize : public ov::test::TestsCommon {
 public:
@@ -591,6 +620,33 @@ TEST_F(MetaDataSerialize, set_complex_meta_information) {
     }
 }
 
+TEST_F(MetaDataSerialize, save_model_updates_runtime_version) {
+    auto model = ov::test::readModel(ir_with_meta);
+
+    std::string runtime_version;
+    ASSERT_NO_THROW(runtime_version = model->get_rt_info<std::string>("Runtime_version"));
+    ASSERT_EQ(runtime_version, "TestVersion");
+
+    ov::save_model(model, m_out_xml_path, false);
+
+    auto s_model = ov::test::readModel(m_out_xml_path, m_out_bin_path);
+
+    const auto& [exp_version, version_key] = ov::get_openvino_version();
+    ASSERT_TRUE(s_model->has_rt_info(version_key));
+    ASSERT_TRUE(s_model->has_rt_info(std::string{version_key}));
+
+    std::string ov_version;
+    ASSERT_NO_THROW(ov_version = s_model->get_rt_info<std::string>(version_key));
+    EXPECT_EQ(ov_version, exp_version);
+
+    ASSERT_NO_THROW(runtime_version = s_model->get_rt_info<std::string>("Runtime_version"));
+    ASSERT_EQ(runtime_version, "TestVersion");
+
+    std::string mo_version;
+    ASSERT_NO_THROW(mo_version = s_model->get_rt_info<std::string>("MO_version"));
+    EXPECT_EQ(mo_version, "TestVersion");
+}
+
 // After deprecating undefined type, test whether the serialization of replacing undefined type with dynamic type is
 // equivalent.
 class UndefinedTypeDynamicTypeSerializationTests : public ::testing::Test {
@@ -861,3 +917,4 @@ TEST_F(UndefinedTypeDynamicTypeSerializationTests, compare_dynamic_type_undefine
     ASSERT_TRUE(files_equal(m_dynamic_type_out_xml_path, m_undefined_type_out_xml_path))
         << "Serialized XML files are different: dynamic type vs undefined type";
 }
+}  // namespace ov::test

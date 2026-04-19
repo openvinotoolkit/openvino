@@ -1,5 +1,6 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 // Configuration: Enable loop-based Q@K computation to avoid materialized K/V broadcast
 // Set to 1 to enable grouped computation, 0 to use traditional broadcast
@@ -8,6 +9,7 @@
 
 #include "host_flash_attention.hpp"
 
+#include "intel_npu/ops/flash_attention_tile.hpp"
 #include "logging.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/ops.hpp"
@@ -49,9 +51,9 @@ struct HFATileF32Nodes {
 // Helper struct: Flash attention computation results (all in f32 precision)
 // Contains: acc (accumulator), maxx (maximum values), d (normalization denominator)
 struct FlashAttentionResults {
-    std::shared_ptr<ov::Node> acc;
-    std::shared_ptr<ov::Node> maxx;
-    std::shared_ptr<ov::Node> d;
+    ov::Output<ov::Node> acc;
+    ov::Output<ov::Node> maxx;
+    ov::Output<ov::Node> d;
 };
 
 // ============================================================================
@@ -69,47 +71,46 @@ static HFATileInputs create_hfa_tile_inputs(const ov::Shape& q_shape,
 
     HFATileInputs inputs;
 
+    auto set_param_name = [](std::shared_ptr<ov::op::v0::Parameter>& param, HFATileInputId id) {
+        const char* name = hfa_tile_input_id_to_string(id);
+        param->set_friendly_name(name);
+        param->output(0).get_tensor().set_names({name});
+    };
+
     // past_acc: [batch, num_heads, seq_len, head_dim]
     inputs.past_acc =
         std::make_shared<ov::op::v0::Parameter>(input_dtype, ov::Shape{batch, num_heads, seq_len, head_dim});
-    inputs.past_acc->set_friendly_name("past_acc");
-    inputs.past_acc->output(0).get_tensor().set_names({"past_acc"});
+    set_param_name(inputs.past_acc, HFATileInputId::PAST_ACC);
 
     // past_max: [batch, num_heads, seq_len, 1]
     inputs.past_max = std::make_shared<ov::op::v0::Parameter>(input_dtype, ov::Shape{batch, num_heads, seq_len, 1});
-    inputs.past_max->set_friendly_name("past_max");
-    inputs.past_max->output(0).get_tensor().set_names({"past_max"});
+    set_param_name(inputs.past_max, HFATileInputId::PAST_MAX);
 
     // past_d: [batch, num_heads, seq_len, 1]
     inputs.past_d = std::make_shared<ov::op::v0::Parameter>(input_dtype, ov::Shape{batch, num_heads, seq_len, 1});
-    inputs.past_d->set_friendly_name("past_d");
-    inputs.past_d->output(0).get_tensor().set_names({"past_d"});
+    set_param_name(inputs.past_d, HFATileInputId::PAST_D);
 
     // k_tile: [batch, kv_num_heads, tile_size, head_dim]
     inputs.k_tile = std::make_shared<ov::op::v0::Parameter>(
         input_dtype,
         ov::Shape{batch, kv_num_heads, static_cast<size_t>(tile_size), head_dim});
-    inputs.k_tile->set_friendly_name("k_tile");
-    inputs.k_tile->output(0).get_tensor().set_names({"k_tile"});
+    set_param_name(inputs.k_tile, HFATileInputId::K_TILE);
 
     // v_tile: [batch, kv_num_heads, head_dim, tile_size]
     inputs.v_tile = std::make_shared<ov::op::v0::Parameter>(
         input_dtype,
         ov::Shape{batch, kv_num_heads, head_dim, static_cast<size_t>(tile_size)});
-    inputs.v_tile->set_friendly_name("v_tile");
-    inputs.v_tile->output(0).get_tensor().set_names({"v_tile"});
+    set_param_name(inputs.v_tile, HFATileInputId::V_TILE);
 
     // q: [batch, num_heads, seq_len, head_dim]
     inputs.q = std::make_shared<ov::op::v0::Parameter>(input_dtype, ov::Shape{batch, num_heads, seq_len, head_dim});
-    inputs.q->set_friendly_name("q");
-    inputs.q->output(0).get_tensor().set_names({"q"});
+    set_param_name(inputs.q, HFATileInputId::Q);
 
     // mask_tile: [batch, 1, seq_len, tile_size] - use mask's original dtype
     inputs.mask_tile =
         std::make_shared<ov::op::v0::Parameter>(mask_dtype,
                                                 ov::Shape{batch, 1, seq_len, static_cast<size_t>(tile_size)});
-    inputs.mask_tile->set_friendly_name("mask_tile");
-    inputs.mask_tile->output(0).get_tensor().set_names({"mask_tile"});
+    set_param_name(inputs.mask_tile, HFATileInputId::MASK_TILE);
 
     return inputs;
 }
@@ -152,23 +153,72 @@ static HFATileF32Nodes convert_inputs_to_f32(const HFATileInputs& inputs,
 }
 
 // ============================================================================
+// Helper function: Execute flash attention tile implementation using NPU fused op
+// ============================================================================
+static FlashAttentionResults execute_fused_flash_attention(const HFATileF32Nodes& f32_nodes,
+                                                           const std::shared_ptr<ov::Node>& q_input,
+                                                           const std::shared_ptr<ov::Node>& k_input,
+                                                           const std::shared_ptr<ov::Node>& v_input,
+                                                           bool is_last_tile = false,
+                                                           bool is_first_tile = false) {
+    ov::intel_npu::op::FlashAttentionTile::Config config;
+    config.is_head = is_first_tile;
+    config.is_tail = is_last_tile;
+
+    auto v_shape = v_input->get_output_partial_shape(0);
+    auto rank = v_shape.rank().get_length();
+    if (rank != 4)
+        OPENVINO_THROW("v_input rank must be 4 for flash attention");
+    std::vector<int64_t> transpose_v_order({0, 1, 3, 2});
+    auto transpose_order = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
+                                                                  ov::Shape{static_cast<size_t>(rank)},
+                                                                  transpose_v_order);
+
+    auto v_transpose = std::make_shared<ov::op::v1::Transpose>(v_input, transpose_order);
+    v_transpose->set_friendly_name("v_input_transposed");
+
+    auto squeeze = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
+
+    auto past_max_squeezed = std::make_shared<ov::op::v0::Squeeze>(f32_nodes.past_max_f32, squeeze);
+    past_max_squeezed->set_friendly_name("past_max_squeezed");
+
+    auto past_sum_squeezed = std::make_shared<ov::op::v0::Squeeze>(f32_nodes.past_d_f32, squeeze);
+    past_sum_squeezed->set_friendly_name("past_sum_squeezed");
+
+    auto flash_attn_tile = std::make_shared<ov::intel_npu::op::FlashAttentionTile>(q_input,
+                                                                                   k_input,
+                                                                                   v_transpose,
+                                                                                   f32_nodes.past_acc_f32,
+                                                                                   past_max_squeezed,
+                                                                                   past_sum_squeezed,
+                                                                                   f32_nodes.mask_tile_f32,
+                                                                                   config);
+    flash_attn_tile->set_friendly_name("npu_op_flash_attention_tile");
+    FlashAttentionResults results;
+    results.acc = flash_attn_tile->output(0);
+    results.maxx = flash_attn_tile->output(1);
+    results.d = flash_attn_tile->output(2);
+    return results;
+}
+
+// ============================================================================
 // Helper function: Execute flash attention algorithm (unified implementation)
 // Supports both traditional broadcast and loop-based grouped computation
 // ============================================================================
 // Parameters:
 //   use_grouped: If true, uses loop-based grouped computation (Q/P reshape)
 //                If false, uses traditional broadcast K/V approach
-static FlashAttentionResults execute_flash_attention(const HFATileF32Nodes& f32_nodes,
-                                                     const std::shared_ptr<ov::Node>& q_input,
-                                                     const std::shared_ptr<ov::Node>& k_input,
-                                                     const std::shared_ptr<ov::Node>& v_input,
-                                                     size_t batch,
-                                                     size_t num_heads,
-                                                     size_t kv_num_heads,
-                                                     size_t seq_len,
-                                                     size_t tile_size,
-                                                     size_t head_dim,
-                                                     bool use_grouped = false) {
+static FlashAttentionResults execute_host_flash_attention(const HFATileF32Nodes& f32_nodes,
+                                                          const std::shared_ptr<ov::Node>& q_input,
+                                                          const std::shared_ptr<ov::Node>& k_input,
+                                                          const std::shared_ptr<ov::Node>& v_input,
+                                                          size_t batch,
+                                                          size_t num_heads,
+                                                          size_t kv_num_heads,
+                                                          size_t seq_len,
+                                                          size_t tile_size,
+                                                          size_t head_dim,
+                                                          bool use_grouped = false) {
     FlashAttentionResults results;
 
     // ========================================================================
@@ -216,8 +266,9 @@ static FlashAttentionResults execute_flash_attention(const HFATileF32Nodes& f32_
     auto qkm_max = std::make_shared<ov::op::v1::ReduceMax>(qkm, axes_const, true);
     qkm_max->set_friendly_name("qkm_max");
 
-    results.maxx = std::make_shared<ov::op::v1::Maximum>(qkm_max, f32_nodes.past_max_f32);
-    results.maxx->set_friendly_name("maxx");
+    auto maxx_node = std::make_shared<ov::op::v1::Maximum>(qkm_max, f32_nodes.past_max_f32);
+    maxx_node->set_friendly_name("maxx");
+    results.maxx = maxx_node->output(0);
 
     // p = exp(qkm - maxx)
     auto qkm_sub_maxx = std::make_shared<ov::op::v1::Subtract>(qkm, results.maxx);
@@ -235,8 +286,9 @@ static FlashAttentionResults execute_flash_attention(const HFATileF32Nodes& f32_
 
     // d = past_d * alpha + l
     auto past_d_alpha = std::make_shared<ov::op::v1::Multiply>(f32_nodes.past_d_f32, alpha);
-    results.d = std::make_shared<ov::op::v1::Add>(past_d_alpha, l);
-    results.d->set_friendly_name("d");
+    auto d_node = std::make_shared<ov::op::v1::Add>(past_d_alpha, l);
+    d_node->set_friendly_name("d");
+    results.d = d_node->output(0);
 
     // ========================================================================
     // Step 3: Compute PV and final accumulator (method differs based on use_grouped flag)
@@ -288,8 +340,9 @@ static FlashAttentionResults execute_flash_attention(const HFATileF32Nodes& f32_
     }
 
     // acc = past_acc * alpha + pv
-    results.acc = std::make_shared<ov::op::v1::Add>(past_acc_alpha, pv);
-    results.acc->set_friendly_name("acc");
+    auto acc_node = std::make_shared<ov::op::v1::Add>(past_acc_alpha, pv);
+    acc_node->set_friendly_name("acc");
+    results.acc = acc_node->output(0);
 
     return results;
 }
@@ -390,11 +443,20 @@ static ov::ResultVector create_final_tile_outputs(const FlashAttentionResults& r
                                                   size_t batch,
                                                   size_t seq_len,
                                                   size_t num_heads,
-                                                  size_t head_dim) {
-    // Division: result = acc / d
-    auto final_result = std::make_shared<ov::op::v1::Divide>(results.acc, results.d);
-    final_result->set_friendly_name("final_result");
+                                                  size_t head_dim,
+                                                  bool fused_flash_attention = false) {
+    std::shared_ptr<ov::Node> final_result;
+    if (fused_flash_attention) {
+        // If using FlashAttentionTile node, the output is already normalized, so skip division
+        final_result = results.acc.get_node_shared_ptr();
+        final_result->set_friendly_name("final_result");
 
+    } else {
+        // Division: result = acc / d
+        final_result =
+            std::make_shared<ov::op::v1::Divide>(results.acc.get_node_shared_ptr(), results.d.get_node_shared_ptr());
+        final_result->set_friendly_name("final_result");
+    }
     // Transpose (0,2,1,3): [batch, num_heads, seq_len, head_dim] -> [batch, seq_len, num_heads, head_dim]
     auto transpose_order =
         std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 2, 1, 3});
@@ -455,6 +517,42 @@ static ov::ResultVector create_regular_tile_outputs(const FlashAttentionResults&
 }
 
 // ============================================================================
+// Helper function: Create regular tile model outputs for single flash attention node (intermediate states: acc, max, d)
+// ============================================================================
+static ov::ResultVector create_regular_tile_outputs_fused(const FlashAttentionResults& results,
+                                                          const ov::element::Type& input_dtype) {
+    auto acc_output = std::make_shared<ov::op::v0::Convert>(results.acc, input_dtype);
+    acc_output->set_friendly_name("acc_output");
+    acc_output->output(0).get_tensor().set_names({"acc"});
+
+    auto axes = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
+
+    auto maxx_unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(results.maxx, axes);
+    maxx_unsqueezed->set_friendly_name("maxx_unsqueezed");
+    auto maxx_output = std::make_shared<ov::op::v0::Convert>(maxx_unsqueezed, input_dtype);
+    maxx_output->set_friendly_name("maxx_output");
+    maxx_output->output(0).get_tensor().set_names({"maxx"});
+
+    auto d_unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(results.d, axes);
+    d_unsqueezed->set_friendly_name("d_unsqueezed");
+    auto d_output = std::make_shared<ov::op::v0::Convert>(d_unsqueezed, input_dtype);
+    d_output->set_friendly_name("d_output");
+    d_output->output(0).get_tensor().set_names({"d"});
+
+    // Create results
+    auto out_acc = std::make_shared<ov::op::v0::Result>(acc_output);
+    out_acc->set_friendly_name("out_acc");
+
+    auto out_maxx = std::make_shared<ov::op::v0::Result>(maxx_output);
+    out_maxx->set_friendly_name("out_maxx");
+
+    auto out_d = std::make_shared<ov::op::v0::Result>(d_output);
+    out_d->set_friendly_name("out_d");
+
+    return {out_acc, out_maxx, out_d};
+}
+
+// ============================================================================
 // Helper function: Create individual tile model (regular or final)
 // ============================================================================
 // Parameters:
@@ -466,10 +564,12 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
                                                         int64_t tile_size,
                                                         size_t kv_num_heads,
                                                         bool is_final_tile = false,
+                                                        bool fused_flash_attention = false,
                                                         const ov::element::Type& output_dtype = ov::element::f16) {
     LOG_DEBUG("Creating HFA " << (is_final_tile ? "FINAL " : "") << "tile model with tile_size=" << tile_size
                               << ", kv_num_heads=" << kv_num_heads << ", mask_dtype=" << mask_dtype
-                              << (is_final_tile ? ", output_dtype=" + output_dtype.get_type_name() : ""));
+                              << (is_final_tile ? ", output_dtype=" + output_dtype.get_type_name() : "")
+                              << ", fused_flash_attention=" << fused_flash_attention);
 
     // Extract dimensions
     NPUW_ASSERT(q_shape.size() == 4);
@@ -501,17 +601,17 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     auto q_grouped = reshape_q_for_groups(f32_nodes.q_f32, batch, num_heads, kv_num_heads, seq_len, head_dim);
 
     // Execute flash attention with grouped computation (K and V remain 4D, no broadcast)
-    results = execute_flash_attention(f32_nodes,
-                                      q_grouped,             // Q: grouped format
-                                      f32_nodes.k_tile_f32,  // K: original 4D
-                                      f32_nodes.v_tile_f32,  // V: original 4D
-                                      batch,
-                                      num_heads,
-                                      kv_num_heads,
-                                      seq_len,
-                                      tile_size,
-                                      head_dim,
-                                      true);  // use_grouped = true
+    results = execute_host_flash_attention(f32_nodes,
+                                           q_grouped,             // Q: grouped format
+                                           f32_nodes.k_tile_f32,  // K: original 4D
+                                           f32_nodes.v_tile_f32,  // V: original 4D
+                                           batch,
+                                           num_heads,
+                                           kv_num_heads,
+                                           seq_len,
+                                           tile_size,
+                                           head_dim,
+                                           true);  // use_grouped = true
 #else
     // ========================================================================
     // Traditional broadcast-based computation: Materialize K/V broadcast
@@ -526,19 +626,23 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
                                                          kv_num_heads,
                                                          tile_size,
                                                          head_dim);
-
-    // Execute flash attention algorithm with broadcasted K/V
-    results = execute_flash_attention(f32_nodes,
-                                      f32_nodes.q_f32,  // Q: original 4D
-                                      k_broadcast,      // K: broadcast to num_heads
-                                      v_broadcast,      // V: broadcast to num_heads
-                                      batch,
-                                      num_heads,
-                                      kv_num_heads,
-                                      seq_len,
-                                      tile_size,
-                                      head_dim,
-                                      false);  // use_grouped = false
+    if (fused_flash_attention) {
+        // Execute fused flash attention node
+        results = execute_fused_flash_attention(f32_nodes, f32_nodes.q_f32, k_broadcast, v_broadcast, is_final_tile);
+    } else {
+        // Execute flash attention algorithm with broadcasted K/V
+        results = execute_host_flash_attention(f32_nodes,
+                                               f32_nodes.q_f32,  // Q: original 4D
+                                               k_broadcast,      // K: broadcast to num_heads
+                                               v_broadcast,      // V: broadcast to num_heads
+                                               batch,
+                                               num_heads,
+                                               kv_num_heads,
+                                               seq_len,
+                                               tile_size,
+                                               head_dim,
+                                               false);  // use_grouped = false
+    }
 #endif  // ENABLE_HFA_LOOP_BASED_COMPUTATION
 
     // Create model outputs and name based on tile type
@@ -547,13 +651,26 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
 
     if (is_final_tile) {
         // === FINAL TILE: Add division, transpose and reshape for final output ===
-        model_results = create_final_tile_outputs(results, output_dtype, batch, seq_len, num_heads, head_dim);
+        model_results = create_final_tile_outputs(results,
+                                                  output_dtype,
+                                                  batch,
+                                                  seq_len,
+                                                  num_heads,
+                                                  head_dim,
+                                                  fused_flash_attention);
         model_name = "HFA_Final_Tile";
         LOG_DEBUG("HFA FINAL tile model created: inputs=" << input_dtype << ", compute=" << compute_dtype
                                                           << ", output=" << output_dtype);
     } else {
         // === REGULAR TILE: Output intermediate states (acc, max, d) ===
-        model_results = create_regular_tile_outputs(results, input_dtype);
+        if (fused_flash_attention) {
+            LOG_DEBUG("Using fused flash attention implementation - outputs acc, max, d from separate nodes");
+            model_results = create_regular_tile_outputs_fused(results, input_dtype);
+
+        } else {
+            LOG_DEBUG("Using host flash attention implementation - outputs acc, max, d from the same node");
+            model_results = create_regular_tile_outputs(results, input_dtype);
+        }
         model_name = "HFA_Tile";
         LOG_DEBUG("HFA tile model created: inputs=" << input_dtype << ", compute=" << compute_dtype
                                                     << ", outputs=" << input_dtype);
@@ -587,7 +704,7 @@ static std::shared_ptr<ov::Node> skip_convert_nodes(const std::shared_ptr<ov::No
 // ============================================================================
 static void build_sdpa_param_mapping(HostFlashAttention& hfa,
                                      const std::shared_ptr<ov::Model>& model,
-                                     const SDPAPatternNodes& pattern_nodes) {
+                                     const ov::npuw::util::SDPAPatternNodes& pattern_nodes) {
     LOG_INFO("Building SDPA input parameter index mapping...");
 
     // Helper lambda to safely extract parameter from node (skipping Convert ops)
@@ -667,19 +784,19 @@ static void build_tile_param_mapping(HostFlashAttention& hfa, const std::shared_
         const std::string& name = *tensor_names.begin();
 
         // Map tensor name to enum ID
-        if (name == "past_acc") {
+        if (name == hfa_tile_input_id_to_string(HFATileInputId::PAST_ACC)) {
             hfa._tile_param_index_map[HFATileInputId::PAST_ACC] = i;
-        } else if (name == "past_max") {
+        } else if (name == hfa_tile_input_id_to_string(HFATileInputId::PAST_MAX)) {
             hfa._tile_param_index_map[HFATileInputId::PAST_MAX] = i;
-        } else if (name == "past_d") {
+        } else if (name == hfa_tile_input_id_to_string(HFATileInputId::PAST_D)) {
             hfa._tile_param_index_map[HFATileInputId::PAST_D] = i;
-        } else if (name == "k_tile") {
+        } else if (name == hfa_tile_input_id_to_string(HFATileInputId::K_TILE)) {
             hfa._tile_param_index_map[HFATileInputId::K_TILE] = i;
-        } else if (name == "v_tile") {
+        } else if (name == hfa_tile_input_id_to_string(HFATileInputId::V_TILE)) {
             hfa._tile_param_index_map[HFATileInputId::V_TILE] = i;
-        } else if (name == "q") {
+        } else if (name == hfa_tile_input_id_to_string(HFATileInputId::Q)) {
             hfa._tile_param_index_map[HFATileInputId::Q] = i;
-        } else if (name == "mask_tile") {
+        } else if (name == hfa_tile_input_id_to_string(HFATileInputId::MASK_TILE)) {
             hfa._tile_param_index_map[HFATileInputId::MASK_TILE] = i;
         } else {
             LOG_WARN("Unknown tile model input name: " << name);
@@ -758,14 +875,16 @@ static std::optional<std::size_t> extract_sequence_dim_from_concat(const std::sh
     return ov::util::try_normalize_axis(concat_op->get_axis(), concat_out_shape.rank(), *concat_op);
 }
 
-std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr<ov::Model>& model) {
-    LOG_INFO("Attempting to create HostFlashAttention from model");
+std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr<ov::Model>& model,
+                                                           bool fused_flash_attention) {
+    LOG_INFO("Attempting to create HostFlashAttention"
+             << (fused_flash_attention ? " with fused flash attention node" : ""));
     LOG_BLOCK();
 
     // ========================================================================
     // Step 1: Validate SDPA pattern and extract key nodes
     // ========================================================================
-    auto pattern_nodes = find_sdpa_pattern_nodes(model);
+    auto pattern_nodes = ov::npuw::util::find_sdpa_pattern_nodes(model);
     if (!pattern_nodes.is_valid()) {
         LOG_WARN("Failed to re-find SDPA pattern nodes");
         return std::nullopt;
@@ -864,14 +983,26 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // Step 5: Create tile models using query_size as tile_size
     // ========================================================================
     LOG_INFO("Creating HFA tile models with tile_size=" << query_size);
-    auto tile_model = create_hfa_tile_model(q_shape_static, dtype, mask_dtype, query_size, kv_num_heads, false);
+    auto tile_model = create_hfa_tile_model(q_shape_static,
+                                            dtype,
+                                            mask_dtype,
+                                            query_size,
+                                            kv_num_heads,
+                                            false,
+                                            fused_flash_attention);
     if (!tile_model) {
         LOG_WARN("Failed to create HFA tile model");
         return std::nullopt;
     }
 
-    auto final_tile_model =
-        create_hfa_tile_model(q_shape_static, dtype, mask_dtype, query_size, kv_num_heads, true, output_dtype);
+    auto final_tile_model = create_hfa_tile_model(q_shape_static,
+                                                  dtype,
+                                                  mask_dtype,
+                                                  query_size,
+                                                  kv_num_heads,
+                                                  true,
+                                                  fused_flash_attention,
+                                                  output_dtype);
     if (!final_tile_model) {
         LOG_WARN("Failed to create HFA final tile model");
         return std::nullopt;
@@ -1043,7 +1174,7 @@ void PositionIDs::prepare(int64_t past_len) {
 
     // Same logic as regular attention PositionIDs
     auto* pos_data_ptr = in_tensor->data<int64_t>();
-    for (auto idx = in_dims.back() - 1; idx >= 0; idx--) {
+    for (int64_t idx = static_cast<int64_t>(in_dims.back()) - 1; idx >= 0; idx--) {
         if (pos_data_ptr[idx] > 0) {
             // Initialize fields
             _current_length = pos_data_ptr[idx];

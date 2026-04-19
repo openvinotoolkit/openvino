@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ namespace ov::snippets::lowered::pass {
 
 bool SetDynamicWAToOuterMostLoop::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SetDynamicWAToOuterMostLoop")
-    if (linear_ir.empty() || !linear_ir.is_dynamic() || linear_ir.get_config().m_enable_domain_optimization) {
+    if (linear_ir.empty() || linear_ir.get_config().m_enable_domain_optimization) {
         return false;
     }
 
@@ -70,6 +70,11 @@ bool SetDynamicWAToOuterMostLoop::run(LinearIR& linear_ir) {
             ov::snippets::utils::update_data_pointer_shifts(loop_manager, loop);
             modified = true;
         }
+    }
+
+    if (modified) {
+        // Note: we need to update dynamic state of Linear IR after loop work amount modification
+        linear_ir.update_dynamic_state();
     }
 
     return modified;

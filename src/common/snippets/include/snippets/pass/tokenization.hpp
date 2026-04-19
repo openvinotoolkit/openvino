@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,7 +65,7 @@ public:
  *         Naming policy:
  *           - During tokenization new Subgraph op takes the name of the last tokenized op.
  *             It's needed to save output names of model in cases when tokenized op was before model Result.
- *           - If some transformation (for example, SplitDimensionM) insert new op after Subgraph,
+ *           - If some transformation inserts a new op after Subgraph,
  *             the op should be called as this Subgraph to save output name. The Subgraph name is updated using suffix
  *             "_original".
  * @ingroup snippets

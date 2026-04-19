@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -21,9 +21,10 @@ class TestIsInf(PytorchLayerTest):
             def forward(self, input_tensor):
                 return torch.isinf(input_tensor * float("inf"))
 
-        return aten_isinf(), None, "aten::isinf"
+        return aten_isinf(), "aten::isinf"
 
     @pytest.mark.precommit_fx_backend
+    @pytest.mark.precommit_torch_export
     def test_isinf(self, ie_device, precision, ir_version, input_tensor):
         self.input_tensor = input_tensor
         self._test(*self.create_model(), ie_device, precision, ir_version)

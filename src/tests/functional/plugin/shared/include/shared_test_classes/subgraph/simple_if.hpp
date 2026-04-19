@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,6 +60,17 @@ protected:
 class SimpleIfNotConstConditionUnusedOutputPortsTest : public SimpleIfNotConstConditionTest {
 protected:
     void SetUp() override;
+};
+
+class SimpleIfNoRedefinePathTest : public SimpleIfTest {
+public:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+
+protected:
+    void SetUp() override;
+
+    size_t m_cond_iter = 0;
+    size_t m_input_gen_iter = 0;
 };
 }  // namespace test
 }  // namespace ov

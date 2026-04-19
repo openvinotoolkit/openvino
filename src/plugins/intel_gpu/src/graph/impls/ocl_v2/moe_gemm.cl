@@ -23,6 +23,8 @@ DECLARE_2D_TILE(ugemm_moe_c_type_half, half, SUBGROUP_SIZE, ugemm_moe_c_type_blo
 DECLARE_2D_TILE_COPY_REBLOCK(ugemm_moe_c_type, SUBGROUP_SIZE, ugemm_moe_c_type_block0, ugemm_moe_c_type_block1, ugemm_moe_c_type_nblock0, ugemm_moe_c_type_nblock1,
                              ugemm_moe_c_type_half, SUBGROUP_SIZE, ugemm_moe_c_type_block0, ugemm_moe_c_type_block1, ugemm_moe_c_type_nblock0, ugemm_moe_c_type_nblock1)
 
+#define unroll_for __attribute__((opencl_unroll_hint)) for
+
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
         const global INPUT0_TYPE *input_ptr,
@@ -32,8 +34,11 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
         const global INPUT1_TYPE *weight_ptr,
 #endif
         global OUTPUT_TYPE *out_ptr,
+#ifdef POST_PROC_SILU_MUL
+        const global OUTPUT_TYPE *post_op_input,
+#endif
         const global INPUT2_TYPE *experts_ids,
-        const global INPUT3_TYPE * input_offset_per_expert,
+        const global INPUT3_TYPE *input_offset_per_expert,
         const global INPUT4_TYPE *n_array,
         int m, int k
 #ifdef BIAS_DT
@@ -50,7 +55,7 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 ) {
     uint batch = get_group_id(2);
-    int input_offset = input_offset_per_expert[batch];
+    int input_offset = sub_group_broadcast(input_offset_per_expert[batch], 0);
 
     #ifdef IS_GENERATE
     if (INPUT_SEQ_LEN > 1) {
@@ -60,24 +65,29 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
     }
     #endif
     out_ptr += input_offset * OUTPUT_STRIDE;
-    weight_ptr += experts_ids[batch] * EXPERT_STRIDE;
+#ifdef POST_PROC_SILU_MUL
+    post_op_input += input_offset * OUTPUT_STRIDE;
+#endif
+    INPUT2_TYPE expert_id = sub_group_broadcast(experts_ids[batch], 0);
+    weight_ptr += expert_id * EXPERT_STRIDE;
 
     int ld_input = k;
 #ifdef WEIGHT_COMPRESSED_INT4
-    weight_scales += experts_ids[batch] * m * NUM_GROUPS;
+    weight_scales += expert_id * m * NUM_GROUPS;
     #ifdef WEIGHT_ZP_DT
     #ifdef WEIGHT_COMPRESSED_ZP_INT4
-    weight_zps += experts_ids[batch] * m * NUM_GROUPS / 2;
+    weight_zps += expert_id * m * NUM_GROUPS / 2;
     #else
-    weight_zps += experts_ids[batch] * m * NUM_GROUPS;
+    weight_zps += expert_id * m * NUM_GROUPS;
     #endif
     #endif
 #endif
     int ld_weight = k;
-    int cur_n_tokens = n_array[batch];
+    int cur_n_tokens = sub_group_broadcast(n_array[batch], 0);
 
     uint sg_i = sub_group_broadcast(get_local_id(0)/SUBGROUP_SIZE, 0);
     uint sg_j = sub_group_broadcast(get_local_id(1), 0);
+    uint sg_k = sub_group_broadcast(get_local_id(2), 0);
 
     uint wg_i0 = get_group_id(0) * ugemm_moe_wg_tile_m;
     uint wg_j0 = get_group_id(1) * ugemm_moe_wg_tile_n;
@@ -94,10 +104,18 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
 #endif
     if (wg_j0 >= cur_n_tokens)
         return;     /* early exit if outside batch */
+#ifdef IS_GENERATE
+#ifdef USE_SLM
+    ugemm_moe_c_type c_tile = ugemm_moe(weight_ptr, ld_weight, input_ptr, ld_input, m, cur_n_tokens, k, wg_i0, wg_j0, 0, sg_i, sg_j, sg_k, slm
+#else
+    ugemm_moe_c_type c_tile = ugemm_moe(weight_ptr, ld_weight, input_ptr, ld_input, m, cur_n_tokens, k, wg_i0, wg_j0, 0, sg_i, sg_j, sg_k, 0
+#endif
+#else
 #ifdef USE_SLM
     ugemm_moe_c_type c_tile = ugemm_moe(weight_ptr, ld_weight, input_ptr, ld_input, m, cur_n_tokens, k, wg_i0, wg_j0, 0, sg_i, sg_j, slm
 #else
     ugemm_moe_c_type c_tile = ugemm_moe(weight_ptr, ld_weight, input_ptr, ld_input, m, cur_n_tokens, k, wg_i0, wg_j0, 0, sg_i, sg_j, 0
+#endif
 #endif
 #ifdef WEIGHT_COMPRESSED_INT4
                                         , weight_scales
@@ -107,11 +125,16 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
                                         , scale_zp_leading_dim
 #endif
 );
+
+    // Only the first sg stores data in kparallel microkernels
+    if (sg_k > 0)
+        return;
+
     ugemm_moe_c_type_half c_tile_half;
     tile_copy_reblock(c_tile, &c_tile_half);
 
 #ifdef BIAS_DT
-    bias_ptr += (experts_ids[batch] * BIAS_STRIDE);
+    bias_ptr += (expert_id * BIAS_STRIDE);
     int sglid = get_sub_group_local_id();
     const int br = ugemm_moe_c_type_block0;
     const int nbr = ugemm_moe_c_type_nblock0;
@@ -122,11 +145,42 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
         if (sg_j0 + j < cur_n_tokens) {
             for (int i0 = 0; i0 < br * nbr; i0 += sg) {
                 int i = i0 + sglid;
-                if (sg_i0 + i < m)
+                if (sg_i0 + i < m) {
                     c_tile_half.x[i0 / br + nbr * (j / bc)][(i0 % br)/sg + (j % bc) * (br / sg)] += bias_ptr[sg_i0 + i];
+                }
             }
         }
     }
 #endif
+
+#ifdef POST_PROC_SILU_MUL
+    {
+        int sglid = get_sub_group_local_id();
+        const int br = ugemm_moe_c_type_block0;
+        const int nbr = ugemm_moe_c_type_nblock0;
+        const int bc = ugemm_moe_c_type_block1;
+        const int nbc = ugemm_moe_c_type_nblock1;
+        int sg = SUBGROUP_SIZE;
+
+        const global OUTPUT_TYPE* post_op_base = post_op_input + sg_j0 * m + sg_i0;
+        unroll_for (int j = 0; j < bc * nbc; j++) {
+            if (sg_j0 + j < cur_n_tokens) {
+                const global OUTPUT_TYPE* post_op_row = post_op_base + j * m;
+                unroll_for (int i0 = 0; i0 < br * nbr; i0 += sg) {
+                    int i = i0 + sglid;
+                    if (sg_i0 + i < m) {
+                        float post_val = post_op_row[i];
+                        int reg_idx_i = (i0 / br) + nbr * (j / bc);
+                        int reg_idx_j = (i0 % br)/sg + (j % bc) * (br / sg);
+                        float val = c_tile_half.x[reg_idx_i][reg_idx_j];
+                        float res = post_val * (val / (1.0f + native_exp(-val)));
+                        c_tile_half.x[reg_idx_i][reg_idx_j] = res;
+                    }
+                }
+            }
+        }
+    }
+#endif
+
     tile_store(c_tile_half, out_ptr, m, cur_n_tokens, sg_i0, sg_j0);
 }

@@ -1,12 +1,14 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/runtime/tensor.hpp"
 
+#include <fstream>
 #include <numeric>
 
 #include "openvino/core/except.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/shape_util.hpp"
@@ -17,6 +19,7 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 
 namespace ov {
@@ -134,72 +137,66 @@ bool Tensor::is_continuous() const {
 }
 
 namespace {
-ov::Shape calc_static_shape_for_file(const std::filesystem::path& file_name,
-                                     const ov::element::Type& element_type,
-                                     const ov::PartialShape& partial_shape,
-                                     size_t offset) {
-    auto file_size = std::filesystem::file_size(file_name);
+/**
+ * @brief Resolves a static shape from a partial shape and available size in bytes for given element type.
+ * @param available_size Size in bytes, must exactly fit the resolved tensor data.
+ * @param element_type The element type of the tensor, used to calculate the size of the tensor data.
+ * @param partial_shape The partial shape of the tensor. If it has (at most one) dynamic dimension, it will be computed.
+ * @return The resolved static shape.
+ * @throw ov::Exception if the partial shape has more than one dynamic dimension,
+ *        or if the available size is inexact to fit the tensor data of resolved static shape,
+ *        or if the dynamic dimension cannot be resolved to fit the available size.
+ */
+Shape resolve_static_shape(size_t available_size,
+                           const element::Type& element_type,
+                           const PartialShape& partial_shape) {
+    Shape static_shape;
     if (partial_shape.is_static()) {
-        auto static_shape = partial_shape.get_shape();
-        OPENVINO_ASSERT((ov::shape_size(static_shape)) * element_type.bitwidth() + offset * 8 == file_size * 8,
-                        "Cannot fit file size into requested static PartialShape");
-        return static_shape;
-    }
-    auto partial_shape_copy = partial_shape;
-    auto rank = partial_shape_copy.rank();
-    OPENVINO_ASSERT(rank.is_static(), "Rank cannot be dynamic");
-    std::vector<size_t> dynamic_dimension_numbers;
-    typename Dimension::value_type slice_size = 1;
-    for (size_t id = 0; id < partial_shape_copy.size(); ++id) {
-        if (partial_shape_copy[id].is_dynamic()) {
-            dynamic_dimension_numbers.push_back(id);
-        } else {
-            slice_size *= partial_shape_copy[id].get_min_length();
+        static_shape = partial_shape.get_shape();
+    } else {
+        OPENVINO_ASSERT(partial_shape.rank().is_static(), "Rank cannot be dynamic");
+
+        std::optional<size_t> dynamic_dimension_index;
+        typename Dimension::value_type slice_size = 1;
+        for (size_t id = 0; id < partial_shape.size(); ++id) {
+            if (partial_shape[id].is_dynamic()) {
+                OPENVINO_ASSERT(!dynamic_dimension_index,
+                                "Only one dynamic dimension in input shape is supported, got ",
+                                partial_shape);
+                dynamic_dimension_index = id;
+            } else {
+                slice_size *= partial_shape[id].get_min_length();
+            }
         }
+        OPENVINO_ASSERT(slice_size > 0, "Cannot fit available bytes into requested PartialShape");
+
+        const auto elements_to_read = util::get_elements_capacity(element_type, available_size);
+        auto new_dimension = Dimension(elements_to_read) / slice_size;
+        OPENVINO_ASSERT(partial_shape[*dynamic_dimension_index].compatible(new_dimension),
+                        "Cannot fit available bytes into requested PartialShape ",
+                        partial_shape);
+
+        auto new_shape = partial_shape;
+        new_shape[*dynamic_dimension_index] = std::move(new_dimension);
+        static_shape = new_shape.get_shape();
     }
-    OPENVINO_ASSERT(slice_size > 0, "Cannot fit file size into requested PartialShape");
 
-    OPENVINO_ASSERT(dynamic_dimension_numbers.size() == 1,
-                    "Only one dynamic dimension in input shape is supported but got: ",
-                    dynamic_dimension_numbers.size());
-    auto& dynamic_dimension = partial_shape_copy[dynamic_dimension_numbers[0]];
-
-    auto file_size_to_read = file_size - offset;
-
-    OPENVINO_ASSERT((file_size_to_read * 8) % element_type.bitwidth() == 0,
-                    "cannot fit ",
-                    element_type.get_type_name(),
-                    " into ",
-                    file_size_to_read,
-                    " bytes");
-    auto elements_to_read = file_size_to_read * 8 / element_type.bitwidth();
-
-    auto new_dimension = ov::Dimension(elements_to_read) / slice_size;
-    OPENVINO_ASSERT(dynamic_dimension.compatible(new_dimension), "Cannot fit file size into requested PartialShape");
-
-    dynamic_dimension = std::move(new_dimension);
-    return partial_shape_copy.get_shape();
+    const auto requested_size = util::get_memory_size_safe(element_type, static_shape);
+    OPENVINO_ASSERT(requested_size && *requested_size <= available_size,
+                    "Requested space exceeds available bounds: available bytes=",
+                    available_size,
+                    " requested size=",
+                    requested_size ? std::to_string(*requested_size) : "uncountable");
+    return static_shape;
 }
 
-void read_tensor_data(const std::filesystem::path& file_name, Tensor& tensor, size_t offset) {
+void read_tensor_via_ifstream(const std::filesystem::path& file_name, Tensor& tensor, size_t offset) {
     OPENVINO_ASSERT(tensor.get_element_type() != ov::element::string);
     std::ifstream fin(file_name, std::ios::binary);
     fin.seekg(offset);
-    auto bytes_to_read = tensor.get_byte_size();
-
-    OPENVINO_ASSERT(bytes_to_read <= static_cast<size_t>(std::numeric_limits<std::streamsize>::max()),
-                    "Cannot read ",
-                    bytes_to_read,
-                    " bytes from ",
-                    file_name,
-                    ", because the value exceeds std::streamsize limit");
-
+    const auto bytes_to_read = static_cast<std::streamsize>(tensor.get_byte_size());
     fin.read(static_cast<char*>(tensor.data()), bytes_to_read);
-    OPENVINO_ASSERT(static_cast<size_t>(fin.gcount()) == bytes_to_read,
-                    "Cannot read ",
-                    bytes_to_read,
-                    "bytes from ",
-                    file_name);
+    OPENVINO_ASSERT(fin.gcount() == bytes_to_read, "Cannot read ", bytes_to_read, " bytes from ", file_name);
 }
 
 ov::Tensor wrap_obj_to_viewtensor(const std::shared_ptr<void>& shared_obj,
@@ -212,6 +209,34 @@ ov::Tensor wrap_obj_to_viewtensor(const std::shared_ptr<void>& shared_obj,
     view_tensor = make_tensor(impl);
     return view_tensor;
 }
+
+Tensor read_tensor_data_mmap_impl(std::shared_ptr<ov::MappedMemory> mapped_memory,
+                                  const ov::element::Type& element_type,
+                                  const ov::PartialShape& partial_shape,
+                                  size_t offset_in_bytes) {
+    const auto static_shape = resolve_static_shape(mapped_memory->size(), element_type, partial_shape);
+    const auto shared_buffer =
+        std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data(),
+                                                                              mapped_memory->size(),
+                                                                              mapped_memory);
+    auto tensor = wrap_obj_to_viewtensor(shared_buffer, shared_buffer->get_ptr(), element_type, static_shape);
+    set_tensor_source_id(tensor, mapped_memory->get_id());
+    return tensor;
+}
+
+size_t get_size_for_mapping(const ov::element::Type& element_type, const ov::PartialShape& partial_shape) {
+    if (partial_shape.is_static()) {
+        const auto memory_size = ov::util::get_memory_size_safe(element_type, partial_shape.get_shape());
+        OPENVINO_ASSERT(memory_size,
+                        "Cannot calculate memory size for provided element type ",
+                        element_type,
+                        " and shape ",
+                        partial_shape);
+        return *memory_size;
+    } else {
+        return auto_size;
+    }
+}
 }  // namespace
 
 Tensor read_tensor_data(const std::filesystem::path& file_name,
@@ -220,18 +245,38 @@ Tensor read_tensor_data(const std::filesystem::path& file_name,
                         size_t offset_in_bytes,
                         bool mmap) {
     OPENVINO_ASSERT(element_type != ov::element::string);
-    auto static_shape = calc_static_shape_for_file(file_name, element_type, partial_shape, offset_in_bytes);
     if (mmap) {
-        auto mapped_memory = ov::load_mmap_object(file_name);
-        auto shared_buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
-            mapped_memory->data() + offset_in_bytes,
-            mapped_memory->size() - offset_in_bytes,
-            mapped_memory);
-        return wrap_obj_to_viewtensor(shared_buffer, shared_buffer->get_ptr(), element_type, static_shape);
+        const auto size = get_size_for_mapping(element_type, partial_shape);
+        return read_tensor_data_mmap_impl(load_mmap_object(file_name, offset_in_bytes, size),
+                                          element_type,
+                                          partial_shape,
+                                          offset_in_bytes);
     } else {
-        auto tensor = std::make_shared<ov::Tensor>(element_type, static_shape);
-        read_tensor_data(file_name, *tensor.get(), offset_in_bytes);
-        return wrap_obj_to_viewtensor(tensor, tensor->data(), element_type, static_shape);
+        const auto file_size = std::filesystem::file_size(file_name);
+        OPENVINO_ASSERT(offset_in_bytes <= file_size,
+                        "Requested space exceeds available bounds: offset=",
+                        offset_in_bytes,
+                        " file size=",
+                        file_size);
+        const auto available_size = static_cast<size_t>(file_size - offset_in_bytes);
+        const auto static_shape = resolve_static_shape(available_size, element_type, partial_shape);
+        const auto tensor = std::make_shared<ov::Tensor>(element_type, static_shape);
+        read_tensor_via_ifstream(file_name, *tensor.get(), offset_in_bytes);
+        auto result = wrap_obj_to_viewtensor(tensor, tensor->data(), element_type, static_shape);
+        set_tensor_source_id(result, util::get_id_for_file(file_name, offset_in_bytes, tensor->get_byte_size()));
+        return result;
     }
+}
+
+Tensor read_tensor_data(ov::FileHandle file_handle,
+                        const ov::element::Type& element_type,
+                        const ov::PartialShape& partial_shape,
+                        size_t offset_in_bytes) {
+    OPENVINO_ASSERT(element_type != ov::element::string);
+    const auto size = get_size_for_mapping(element_type, partial_shape);
+    return read_tensor_data_mmap_impl(load_mmap_object(file_handle, offset_in_bytes, size),
+                                      element_type,
+                                      partial_shape,
+                                      offset_in_bytes);
 }
 }  // namespace ov

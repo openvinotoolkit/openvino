@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -24,7 +24,7 @@ def one_hot_v2(name: str, x, num_classes, is_tensor):
         feed_vars = [x_node, depth_node] if is_tensor else [x_node]
         input_list = [x, num_classes] if is_tensor else [x]
         saveModel(name, exe, feed_vars=feed_vars, fetchlist=[out], inputs=input_list, outputs=[outs[0]], target_dir=sys.argv[1])
-    
+
     return outs[0]
 
 

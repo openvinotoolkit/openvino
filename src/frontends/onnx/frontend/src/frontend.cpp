@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,8 +17,13 @@
 #    include <google/protobuf/stubs/logging.h>
 #endif
 
+#include <algorithm>
+#include <cctype>
+#include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <string>
 
 #include "core/graph_iterator_proto.hpp"
 #include "input_model.hpp"
@@ -26,6 +31,7 @@
 #include "onnx_framework_node.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/so_extension.hpp"
+#include "openvino/frontend/common/path_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/manager.hpp"
@@ -36,8 +42,10 @@
 #include "openvino/op/result.hpp"
 #include "openvino/util/log.hpp"
 #include "ops_bridge.hpp"
+#include "sequence_concat_replacer.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "translate_session.hpp"
+#include "unconverted_ops_report.hpp"
 #include "utils/common.hpp"
 #include "utils/onnx_internal.hpp"
 
@@ -48,6 +56,51 @@ using ::ONNX_NAMESPACE::ModelProto;
 using ::ONNX_NAMESPACE::Version;
 
 namespace {
+
+bool is_graph_iterator_enabled() {
+    const char* env_value = std::getenv("ONNX_ITERATOR");
+    if (env_value == nullptr) {
+        return true;  // Enabled by default
+    }
+
+    std::string value(env_value);
+    // Remove whitespace
+    value.erase(std::remove_if(value.begin(),
+                               value.end(),
+                               [](unsigned char ch) {
+                                   return std::isspace(ch);
+                               }),
+                value.end());
+    // Convert to lowercase
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+
+    static const std::unordered_map<std::string, bool> valid_values = {{"1", true},
+                                                                       {"true", true},
+                                                                       {"on", true},
+                                                                       {"enable", true},
+                                                                       {"0", false},
+                                                                       {"false", false},
+                                                                       {"off", false},
+                                                                       {"disable", false}};
+
+    auto it = valid_values.find(value);
+    if (it != valid_values.end()) {
+        if (!it->second) {
+            OPENVINO_WARN(
+                "DEPRECATED: Disabling ONNX graph iterator via ONNX_ITERATOR environment variable is deprecated and "
+                "will be removed in a future release. The graph iterator will become mandatory.");
+        }
+        return it->second;
+    }
+
+    OPENVINO_THROW("Unknown value for ONNX_ITERATOR environment variable: '",
+                   env_value,
+                   "'. "
+                   "Expected 1 (enable) or 0 (disable).");
+}
+
 // !!! Experimental feature, it may be changed or removed in the future !!!
 void enumerate_constants(const std::shared_ptr<ov::Model>& model) {
     const auto& operations = model->get_ordered_ops();
@@ -60,6 +113,37 @@ void enumerate_constants(const std::shared_ptr<ov::Model>& model) {
     }
 }
 // !!! End of Experimental feature
+
+ov::frontend::FrameworkNodeExtractor make_onnx_extractor() {
+    return [](const std::shared_ptr<ov::Node>& node) -> std::optional<std::pair<std::string, std::string>> {
+        if (const auto& fw_node = ov::as_type_ptr<ov::frontend::onnx::ONNXFrameworkNode>(node)) {
+            const auto& attrs = fw_node->get_attrs();
+            const auto& domain = attrs.get_opset_name();
+            const auto opset = fw_node->opset_version();
+            // Format as "domain.OpType-version" or "OpType-version" for default ONNX domain
+            std::string node_name;
+            if (domain.empty()) {
+                node_name = attrs.get_type_name() + "-" + std::to_string(opset);
+            } else {
+                node_name = domain + "." + attrs.get_type_name();  // Don't show version for custom domains
+            }
+            return std::make_pair(node_name, std::string{});
+        } else if (const auto& fw_node = ov::as_type_ptr<ov::frontend::onnx::NotSupportedONNXNode>(node)) {
+            const auto& attrs = fw_node->get_attrs();
+            const auto& domain = attrs.get_opset_name();
+            const auto opset = fw_node->opset_version();
+            std::string node_name;
+            if (domain.empty()) {
+                node_name = attrs.get_type_name() + "-" + std::to_string(opset);
+            } else {
+                node_name = domain + "." + attrs.get_type_name();  // Don't show version for custom domains
+            }
+            return std::make_pair(node_name, fw_node->additional_error_message());
+        }
+        return std::nullopt;
+    };
+}
+
 }  // namespace
 
 ONNX_FRONTEND_C_API ov::frontend::FrontEndVersion get_api_version() {
@@ -84,51 +168,34 @@ ONNX_FRONTEND_C_API void* get_front_end_data() {
 }
 
 ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
-    const bool gi_enabled = std::getenv("ONNX_ITERATOR") != nullptr;
+    const bool gi_enabled = is_graph_iterator_enabled();
     if (variants.empty()) {
         return nullptr;
     }
     // enable mmap by default
     const bool enable_mmap = variants[variants.size() - 1].is<bool>() ? variants[variants.size() - 1].as<bool>() : true;
 
-    if (variants[0].is<std::string>()) {
-        const auto path = variants[0].as<std::string>();
-        if (!gi_enabled) {
-            return std::make_shared<InputModel>(path, enable_mmap, m_extensions);
-        }
+    const auto create_iterator_model = [&](const std::filesystem::path& model_path) {
         OPENVINO_DEBUG("[ONNX Frontend] Enabled an experimental GraphIteratorProto interface!!!");
         GraphIteratorProto::Ptr graph_iterator =
             std::make_shared<GraphIteratorProto>(enable_mmap ? Internal_MMAP : Internal_Stream);
-        graph_iterator->initialize(path);
+        graph_iterator->initialize(model_path);
         graph_iterator->reset();
         return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, m_extensions.telemetry);
-    }
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    if (variants[0].is<std::wstring>()) {
-        const auto path = variants[0].as<std::wstring>();
+    };
+
+    if (const auto path = get_path_from_any(variants[0])) {
         if (!gi_enabled) {
-            return std::make_shared<InputModel>(path, enable_mmap, m_extensions);
+            return std::make_shared<InputModel>(path.value().native(), enable_mmap, m_extensions);
         }
-        OPENVINO_DEBUG("[ONNX Frontend] Enabled an experimental GraphIteratorProto interface!!!");
-        GraphIteratorProto::Ptr graph_iterator =
-            std::make_shared<GraphIteratorProto>(enable_mmap ? Internal_MMAP : Internal_Stream);
-        graph_iterator->initialize(path);
-        graph_iterator->reset();
-        return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, m_extensions.telemetry);
+        return create_iterator_model(path.value());
     }
-#endif
     if (variants[0].is<std::istream*>()) {
         const auto stream = variants[0].as<std::istream*>();
-        if (variants.size() > 1 && variants[1].is<std::string>()) {
-            const auto path = variants[1].as<std::string>();
-            return std::make_shared<InputModel>(*stream, path, enable_mmap, m_extensions);
-        }
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        if (variants.size() > 1 && variants[1].is<std::wstring>()) {
-            const auto path = variants[1].as<std::wstring>();
-            return std::make_shared<InputModel>(*stream, path, enable_mmap, m_extensions);
-        }
-#endif
+        if (variants.size() > 1)
+            if (const auto path = get_path_from_any(variants[1])) {
+                return std::make_shared<InputModel>(*stream, path.value().native(), enable_mmap, m_extensions);
+            }
         return std::make_shared<InputModel>(*stream, enable_mmap, m_extensions);
     }
     // !!! Experimental feature, it may be changed or removed in the future !!!
@@ -172,9 +239,12 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::Input
 
     const auto& converted_model = model_onnx->convert();
 
-    ov::frontend::onnx::common::collect_translation_exceptions(converted_model, m_extensions.telemetry);
-
     normalize(converted_model);
+
+    // For convert_partially, we don't throw on unconverted ops but still send telemetry
+    const auto report = ov::frontend::collect_unconverted_ops(converted_model, make_onnx_extractor());
+    ov::frontend::check_unconverted_ops(report, m_extensions.telemetry, "onnx", "[ONNX Frontend] ", "", nullptr, false);
+
     return converted_model;
 }
 
@@ -186,7 +256,8 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     // Here, you can register transformations as a second step of importing process
     // In particular, you can operate on not supported ops (it allows to N:N ONNX->OV mapping).
     ov::pass::Manager manager("Frontend:ONNX:normalize");
-    manager.register_pass<pass::ResolveNameCollisions>(true);
+    manager.register_pass<ov::frontend::pass::SequenceConcatReplacer>();
+    manager.register_pass<ov::pass::ResolveNameCollisions>(true);
     manager.run_passes(model);
 }
 
@@ -211,17 +282,13 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& input_model)
         return model;
     }
 
-    const auto& converted_model = model_onnx->convert();
-
-    std::stringstream error_messages;
-
-    if (ov::frontend::onnx::common::collect_translation_exceptions(converted_model,
-                                                                   m_extensions.telemetry,
-                                                                   &error_messages)) {
-        FRONT_END_THROW(error_messages.str());
-    }
+    auto converted_model = model_onnx->convert();
 
     normalize(converted_model);
+
+    const auto report = ov::frontend::collect_unconverted_ops(converted_model, make_onnx_extractor());
+    ov::frontend::check_unconverted_ops(report, m_extensions.telemetry, "onnx", "[ONNX Frontend] ");
+
     return converted_model;
 }
 
@@ -271,24 +338,17 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         return false;
     }
     std::ifstream model_stream;
-    if (variants[0].is<std::string>()) {
-        const auto path = variants[0].as<std::string>();
-        validate_path(path);
-        model_stream.open(path, std::ios::in | std::ifstream::binary);
+    if (const auto path = get_path_from_any(variants[0])) {
+        validate_path(path.value());
+        model_stream.open(path.value(), std::ios::in | std::ifstream::binary);
     }
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    else if (variants[0].is<std::wstring>()) {
-        const auto path = variants[0].as<std::wstring>();
-        validate_path(path);
-        model_stream.open(path.c_str(), std::ios::in | std::ifstream::binary);
-    }
-#endif
     if (model_stream.is_open()) {
         model_stream.seekg(0, model_stream.beg);
         const bool is_valid_model = ::ov::frontend::onnx::common::is_valid_model(model_stream);
         model_stream.close();
         return is_valid_model;
     }
+
     if (variants[0].is<std::istream*>()) {
         const auto stream = variants[0].as<std::istream*>();
         StreamRewinder rwd{*stream};
@@ -333,12 +393,11 @@ std::shared_ptr<ov::Model> FrontEnd::convert_unify(const InputModel::Ptr& input_
 
     translate_graph(input_model, false, false, ov_model);
 
-    std::stringstream error_messages;
-    if (ov::frontend::onnx::common::collect_translation_exceptions(ov_model, m_extensions.telemetry, &error_messages)) {
-        FRONT_END_THROW(error_messages.str());
-    }
-
     normalize(ov_model);
+
+    const auto report = ov::frontend::collect_unconverted_ops(ov_model, make_onnx_extractor());
+    ov::frontend::check_unconverted_ops(report, m_extensions.telemetry, "onnx", "[ONNX Frontend] ");
+
     return ov_model;
 }
 
@@ -357,9 +416,12 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially_unify(const InputModel::P
     std::shared_ptr<ov::Model> ov_model;
     translate_graph(input_model, false, false, ov_model);
 
-    ov::frontend::onnx::common::collect_translation_exceptions(ov_model, m_extensions.telemetry);
-
     normalize(ov_model);
+
+    // For convert_partially, we don't throw on unconverted ops but still send telemetry
+    const auto report = ov::frontend::collect_unconverted_ops(ov_model, make_onnx_extractor());
+    ov::frontend::check_unconverted_ops(report, m_extensions.telemetry, "onnx", "[ONNX Frontend] ", "", nullptr, false);
+
     return ov_model;
 }
 void FrontEnd::translate_graph(const InputModel::Ptr& input_model,

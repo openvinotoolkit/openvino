@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,15 +58,16 @@ public:
 
     const FilteredConfig& get_config() const override;
 
+    void release_memory() override;
+
 private:
     void configure_stream_executors();
 
-    FilteredConfig _config;
     Logger _logger;
     const std::shared_ptr<IDevice> _device;
     std::shared_ptr<ov::threading::ITaskExecutor> _resultExecutor;
 
-    std::unique_ptr<Properties> _properties;
+    std::unique_ptr<Properties> _propertiesManager;
 
     std::shared_ptr<IGraph> _graph;
 

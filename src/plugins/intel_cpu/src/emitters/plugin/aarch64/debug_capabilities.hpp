@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ namespace ov::intel_cpu::aarch64 {
 // WReg       Yes         Yes        No          No
 class RegPrinter {
 public:
-    using jit_generator_t = dnnl::impl::cpu::aarch64::jit_generator;
+    using jit_generator_t = dnnl::impl::cpu::aarch64::jit_generator_t;
 
     template <typename PRC_T, typename REG_T>
     static void print(jit_generator_t& h, REG_T reg, const char* name = nullptr) {

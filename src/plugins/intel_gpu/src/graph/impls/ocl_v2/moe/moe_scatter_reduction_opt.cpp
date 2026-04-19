@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "moe_scatter_reduction_opt.hpp"
@@ -50,6 +50,7 @@ protected:
         jit.make("HIDDEN_SIZE", hidden_size);
         jit.make("VEC_BLK_SIZE", MoeScatterReductionOpt::block_size);
         jit.make("BATCHES_PER_THREAD", batches_per_thread);
+        jit.make("ONEDNN_GROUPED_GEMM_USED", desc->onednn_grouped_gemm_used);
 
         return jit;
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "attention.hpp"
@@ -181,6 +182,10 @@ protected:
 
     // Tracks tensors we allocated on our own - to recognize and avoid copies
     mutable std::unordered_set<void*> m_input_allocated;  // mutable due to lazy I/O allocation in get_tensor()
+
+    // Cached from compiled model properties to avoid repeated lookups in hot paths
+    bool m_is_npu_global_mem = false;
+    std::unordered_set<std::string> m_strided_ports;
 
     // Common functionality - shared for subclasses
     const std::size_t m_num_submodels;

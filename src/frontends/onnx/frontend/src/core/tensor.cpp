@@ -1,14 +1,24 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "core/tensor.hpp"
 
 #include "input_model.hpp"
+#include "openvino/util/file_util.hpp"
 
 namespace ov {
 namespace frontend {
 namespace onnx {
+
+namespace {
+template <typename StorageT>
+size_t raw_value_count(const std::shared_ptr<TensorONNXPlace>& place) {
+    const size_t byte_size = place->get_data_size();
+    FRONT_END_GENERAL_CHECK(byte_size % sizeof(StorageT) == 0, "Raw tensor data size is not aligned with element size");
+    return byte_size / sizeof(StorageT);
+}
+}  // namespace
 
 detail::MappedMemoryHandles TensorONNXPlace::get_mmap_cache() {
     const auto model_onnx = dynamic_cast<const unify::InputModel*>(&m_input_model);
@@ -19,10 +29,18 @@ detail::LocalStreamHandles TensorONNXPlace::get_stream_cache() {
     return model_onnx->get_stream_cache();
 }
 
+std::filesystem::path TensorONNXPlace::get_model_dir() const {
+    const auto model_onnx = dynamic_cast<const unify::InputModel*>(&m_input_model);
+    if (!model_onnx) {
+        return {};
+    }
+    return model_onnx->get_model_dir();
+}
+
 Tensor::Tensor(const std::shared_ptr<TensorONNXPlace>& tensor_place) {
     m_tensor_proto = nullptr;
     m_shape = tensor_place->get_partial_shape().get_shape();
-    m_model_dir = "";
+    m_model_dir = tensor_place->get_model_dir();
     m_mmap_cache = tensor_place->get_mmap_cache();
     m_tensor_place = tensor_place;
 }
@@ -33,6 +51,10 @@ std::vector<double> Tensor::get_data() const {
         return get_external_data<double>();
     }
     if (m_tensor_place != nullptr) {
+        if (m_tensor_place->is_raw()) {
+            return detail::__get_data<double, double>(m_tensor_place->get_data(),
+                                                      raw_value_count<double>(m_tensor_place));
+        }
         return detail::__get_data<double, double>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
     }
     if (m_tensor_proto->has_raw_data()) {
@@ -50,6 +72,9 @@ std::vector<float> Tensor::get_data() const {
         return get_external_data<float>();
     }
     if (m_tensor_place != nullptr) {
+        if (m_tensor_place->is_raw()) {
+            return detail::__get_data<float, float>(m_tensor_place->get_data(), raw_value_count<float>(m_tensor_place));
+        }
         return detail::__get_data<float, float>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
     }
     if (m_tensor_proto->has_raw_data()) {
@@ -69,7 +94,7 @@ std::vector<ov::float16> Tensor::get_data() const {
     if (m_tensor_place != nullptr) {
         if (m_tensor_place->is_raw()) {
             return detail::__get_data<ov::float16, ov::float16>(m_tensor_place->get_data(),
-                                                                m_tensor_place->get_data_size());
+                                                                raw_value_count<ov::float16>(m_tensor_place));
         }
         using std::begin;
         using std::end;
@@ -112,7 +137,7 @@ std::vector<ov::bfloat16> Tensor::get_data() const {
     if (m_tensor_place != nullptr) {
         if (m_tensor_place->is_raw()) {
             return detail::__get_data<ov::bfloat16, ov::bfloat16>(m_tensor_place->get_data(),
-                                                                  m_tensor_place->get_data_size());
+                                                                  raw_value_count<ov::bfloat16>(m_tensor_place));
         }
         return detail::__get_data<ov::bfloat16, int32_t>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
     }
@@ -132,7 +157,8 @@ std::vector<int8_t> Tensor::get_data() const {
     }
     if (m_tensor_place != nullptr) {
         if (m_tensor_place->is_raw()) {
-            return detail::__get_data<int8_t, int8_t>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
+            return detail::__get_data<int8_t, int8_t>(m_tensor_place->get_data(),
+                                                      raw_value_count<int8_t>(m_tensor_place));
         }
         return detail::__get_data<int8_t, int32_t>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
     }
@@ -153,7 +179,8 @@ std::vector<int16_t> Tensor::get_data() const {
     }
     if (m_tensor_place != nullptr) {
         if (m_tensor_place->is_raw()) {
-            return detail::__get_data<int16_t, int16_t>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
+            return detail::__get_data<int16_t, int16_t>(m_tensor_place->get_data(),
+                                                        raw_value_count<int16_t>(m_tensor_place));
         }
         return detail::__get_data<int16_t, int32_t>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
     }
@@ -172,6 +199,10 @@ std::vector<int32_t> Tensor::get_data() const {
         return get_external_data<int32_t>();
     }
     if (m_tensor_place != nullptr) {
+        if (m_tensor_place->is_raw()) {
+            return detail::__get_data<int32_t, int32_t>(m_tensor_place->get_data(),
+                                                        raw_value_count<int32_t>(m_tensor_place));
+        }
         return detail::__get_data<int32_t, int32_t>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
     }
     if (m_tensor_proto->has_raw_data()) {
@@ -189,6 +220,10 @@ std::vector<int64_t> Tensor::get_data() const {
         return get_external_data<int64_t>();
     }
     if (m_tensor_place != nullptr) {
+        if (m_tensor_place->is_raw()) {
+            return detail::__get_data<int64_t, int64_t>(m_tensor_place->get_data(),
+                                                        raw_value_count<int64_t>(m_tensor_place));
+        }
         return detail::__get_data<int64_t, int64_t>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
     }
     if (m_tensor_proto->has_raw_data()) {
@@ -207,7 +242,8 @@ std::vector<uint8_t> Tensor::get_data() const {
     }
     if (m_tensor_place != nullptr) {
         if (m_tensor_place->is_raw()) {
-            return detail::__get_data<uint8_t, uint8_t>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
+            return detail::__get_data<uint8_t, uint8_t>(m_tensor_place->get_data(),
+                                                        raw_value_count<uint8_t>(m_tensor_place));
         }
         return detail::__get_data<uint8_t, int32_t>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
     }
@@ -228,7 +264,8 @@ std::vector<uint16_t> Tensor::get_data() const {
     }
     if (m_tensor_place != nullptr) {
         if (m_tensor_place->is_raw()) {
-            return detail::__get_data<uint16_t, uint16_t>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
+            return detail::__get_data<uint16_t, uint16_t>(m_tensor_place->get_data(),
+                                                          raw_value_count<uint16_t>(m_tensor_place));
         }
         return detail::__get_data<uint16_t, int32_t>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
     }
@@ -248,7 +285,8 @@ std::vector<uint32_t> Tensor::get_data() const {
     }
     if (m_tensor_place != nullptr) {
         if (m_tensor_place->is_raw()) {
-            return detail::__get_data<uint32_t, uint32_t>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
+            return detail::__get_data<uint32_t, uint32_t>(m_tensor_place->get_data(),
+                                                          raw_value_count<uint32_t>(m_tensor_place));
         }
         return detail::__get_data<uint32_t, uint64_t>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
     }
@@ -267,6 +305,10 @@ std::vector<uint64_t> Tensor::get_data() const {
         return get_external_data<uint64_t>();
     }
     if (m_tensor_place != nullptr) {
+        if (m_tensor_place->is_raw()) {
+            return detail::__get_data<uint64_t, uint64_t>(m_tensor_place->get_data(),
+                                                          raw_value_count<uint64_t>(m_tensor_place));
+        }
         return detail::__get_data<uint64_t, uint64_t>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
     }
     if (m_tensor_proto->has_raw_data()) {
@@ -285,8 +327,9 @@ std::vector<ov::float8_e4m3> Tensor::get_data() const {
     }
     if (m_tensor_place != nullptr) {
         if (m_tensor_place->is_raw()) {
-            return detail::__get_data<ov::float8_e4m3, ov::float8_e4m3>(m_tensor_place->get_data(),
-                                                                        m_tensor_place->get_data_size());
+            return detail::__get_data<ov::float8_e4m3, ov::float8_e4m3>(
+                m_tensor_place->get_data(),
+                raw_value_count<ov::float8_e4m3>(m_tensor_place));
         }
         return detail::__get_data<ov::float8_e4m3, int32_t>(m_tensor_place->get_data(),
                                                             m_tensor_place->get_data_size());
@@ -317,8 +360,9 @@ std::vector<ov::float8_e5m2> Tensor::get_data() const {
     }
     if (m_tensor_place != nullptr) {
         if (m_tensor_place->is_raw()) {
-            return detail::__get_data<ov::float8_e5m2, ov::float8_e5m2>(m_tensor_place->get_data(),
-                                                                        m_tensor_place->get_data_size());
+            return detail::__get_data<ov::float8_e5m2, ov::float8_e5m2>(
+                m_tensor_place->get_data(),
+                raw_value_count<ov::float8_e5m2>(m_tensor_place));
         }
         return detail::__get_data<ov::float8_e5m2, int32_t>(m_tensor_place->get_data(),
                                                             m_tensor_place->get_data_size());
@@ -351,7 +395,7 @@ std::vector<char> Tensor::get_data() const {
     }
     if (m_tensor_place != nullptr) {
         if (m_tensor_place->is_raw()) {
-            return detail::__get_data<char, char>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
+            return detail::__get_data<char, char>(m_tensor_place->get_data(), raw_value_count<char>(m_tensor_place));
         }
         return detail::__get_data<char, int32_t>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
     }
@@ -391,42 +435,55 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
     }
     ov::element::Type ov_type = get_ov_type();
     size_t element_count = get_data_size();
+    const auto shape_elements = shape_size(m_shape);
     if (ov::element::is_nibble_type(ov_type)) {
         element_count *= 2;  // Each byte contains 2 data items
-        if (shape_size(m_shape) % 2) {
+        if (shape_elements % 2) {
             // Odd elements
             element_count--;
         }
     }
-    if (has_external_data()) {
+    std::shared_ptr<ov::AlignedBuffer> constant_buffer;
+    bool external_data_valid = has_external_data();
+    if (external_data_valid) {
         const auto ext_data = m_tensor_place != nullptr
                                   ? detail::TensorExternalData(*m_tensor_place->get_data_location(),
                                                                reinterpret_cast<size_t>(m_tensor_place->get_data()),
                                                                m_tensor_place->get_data_size())
                                   : detail::TensorExternalData(*m_tensor_proto);
+
         if (ext_data.data_location() == detail::ORT_MEM_ADDR) {
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, ext_data.load_external_mem_data());
+            constant_buffer = ext_data.load_external_mem_data();
         } else if (m_mmap_cache) {
-            constant =
-                std::make_shared<ov::op::v0::Constant>(ov_type,
-                                                       m_shape,
-                                                       ext_data.load_external_mmap_data(m_model_dir, m_mmap_cache));
+            constant_buffer = ext_data.load_external_mmap_data(m_model_dir.string(), m_mmap_cache);
         } else {
-            constant =
-                std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, ext_data.load_external_data(m_model_dir));
+            constant_buffer = ext_data.load_external_data(m_model_dir.string());
         }
-        // ext_data.size() might be zero, need to recalc by using info about actually red data (for byte-size)
-        element_count = constant->get_byte_size() / ov_type.size();
-        if (ov::element::is_nibble_type(ov_type)) {
-            element_count *= 2;  // Each byte contains 2 data items, so byte size must be multiplicated
+        if (element_count == 0 && constant_buffer) {
+            element_count = constant_buffer->size() * 8 / ov_type.bitwidth();
         }
-        if (element_count != ov::shape_size(m_shape) ||
-            (ext_data.size() != 0 && constant->get_byte_size() != ext_data.size())) {
+    }
+
+    if (element_count != shape_elements && !(element_count == 0 && m_shape.empty())) {
+        std::string error_msg =
+            external_data_valid
+                ? "The size of the external data file does not match the byte size of an initializer '"
+                : "The size of the initializer does not match the number of elements implied by its shape for tensor '";
+        error_msg += get_name() + "' in the model";
+        throw error::invalid_external_data(error_msg);
+    }
+
+    if (element_count == 0) {
+        constant = common::make_failsafe_constant(ov_type);
+    } else if (constant_buffer) {
+        try {
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, constant_buffer);
+        } catch (const ov::Exception&) {
             throw error::invalid_external_data(
                 "The size of the external data file does not match the byte size of an initializer '" + get_name() +
                 "' in the model");
         }
-    } else if (element_count == shape_size(m_shape) && m_tensor_proto != nullptr) {
+    } else if (m_tensor_proto != nullptr) {
         switch (m_tensor_proto->data_type()) {
         case TensorProto_DataType::TensorProto_DataType_FLOAT:
         case TensorProto_DataType::TensorProto_DataType_DOUBLE:
@@ -473,12 +530,12 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
             constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<std::string>().data());
             break;
         default:
-            ONNX_UNSUPPORTED_DATA_TYPE(
-                m_tensor_proto->data_type(),
-                "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, INT8, INT16, INT32, INT64, "
-                "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
+            ONNX_UNSUPPORTED_DATA_TYPE(m_tensor_proto->data_type(),
+                                       "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, "
+                                       "INT8, INT16, INT32, INT64, "
+                                       "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
         }
-    } else if (element_count == shape_size(m_shape) && m_tensor_place != nullptr) {
+    } else if (m_tensor_place != nullptr) {
         switch (m_tensor_place->get_element_type()) {
         case ov::element::f32:
         case ov::element::f64:
@@ -525,13 +582,11 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
             constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<std::string>().data());
             break;
         default:
-            ONNX_UNSUPPORTED_DATA_TYPE(
-                m_tensor_proto->data_type(),
-                "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, INT8, INT16, INT32, INT64, "
-                "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
+            ONNX_UNSUPPORTED_DATA_TYPE(m_tensor_proto->data_type(),
+                                       "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, "
+                                       "INT8, INT16, INT32, INT64, "
+                                       "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
         }
-    } else if (element_count == 0 && m_shape.size() == 0) {
-        constant = common::make_failsafe_constant(ov_type);
     } else {
         FRONT_END_THROW("Tensor shape doesn't match data size");
     }

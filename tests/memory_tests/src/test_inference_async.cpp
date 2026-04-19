@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,17 @@
 #include "memory_test.hpp"
 
 
-void do_test(TestContext &test) {
+std::vector<std::string> test_samples() {
+    return {
+        "start",
+        "compile_model",
+        "fill_inputs",
+        "inference"
+    };
+}
+
+
+void do_test(memory_tests::Context &test) {
     test.sample("start");
 
     ov::Core core;

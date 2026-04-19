@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@
 #include "openvino/itt.hpp"
 
 namespace ov::intel_cpu::itt::domains {
-OV_ITT_DOMAIN(CPUSpecificTransform);
+OV_ITT_DOMAIN(CPUSpecificTransform, "ov::intel_cpu::specific_transformations");
 }  // namespace ov::intel_cpu::itt::domains
 
 OV_CC_DOMAINS(internal_op);

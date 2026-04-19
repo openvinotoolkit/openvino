@@ -1,13 +1,15 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "async_infer_request.hpp"
 
+#include "intel_npu/common/npu.hpp"
+
 namespace intel_npu {
 
 // clang-format off
-AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<SyncInferRequest>& syncInferRequest,
+AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<InferRequest>& syncInferRequest,
                                      const std::shared_ptr<ov::threading::ITaskExecutor>& requestExecutor,
                                      const std::shared_ptr<ov::threading::ITaskExecutor>& getResultExecutor,
                                      const std::shared_ptr<ov::threading::ITaskExecutor>& callbackExecutor)

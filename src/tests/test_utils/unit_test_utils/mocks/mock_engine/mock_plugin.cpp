@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,7 @@ public:
         OPENVINO_NOT_IMPLEMENTED;
     }
 
-    std::shared_ptr<ov::ICompiledModel> compile_model(const std::string& model_path,
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::filesystem::path& model_path,
                                                       const ov::AnyMap& properties) const override {
         if (m_plugin)
             return m_plugin->compile_model(model_path, properties);
@@ -147,7 +147,7 @@ std::shared_ptr<ov::ICompiledModel> MockPlugin::compile_model(const std::shared_
     return m_plugin->compile_model(model, properties);
 }
 
-std::shared_ptr<ov::ICompiledModel> MockPlugin::compile_model(const std::string& model_path,
+std::shared_ptr<ov::ICompiledModel> MockPlugin::compile_model(const std::filesystem::path& model_path,
                                                               const ov::AnyMap& properties) const {
     set_parameters_if_need();
     return m_plugin->compile_model(model_path, properties);

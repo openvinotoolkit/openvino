@@ -1,30 +1,21 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 # Function to download and extract files
 # download vcl prebuilt package info:
-#     vcl version: 7.5.0
-#     release: npu_ud_2025_48_rc1
+#     vcl version: 7.6.0
+#     release: releases/unified/2026/12_cip
 #     storage localtion: https://storage.openvinotoolkit.org/dependencies/thirdparty
-#     WINDOWS: npu_compiler_vcl_windows_2022-7_5_0-a1ae54e9.zip
-#     LINUX: 
-#         ubuntu22.04: npu_compiler_vcl_ubuntu_22_04-7_5_0-a1ae54e9.tar.gz
-#         ubuntu24.04: npu_compiler_vcl_ubuntu_24_04-7_5_0-a1ae54e9.tar.gz
-function(download_and_extract url zip_file extracted_dir modify_proxy)
-
+#     WINDOWS: npu_compiler_vcl_windows_2022-7_6_0-da3cc32.zip
+#     LINUX:
+#         ubuntu22.04: npu_compiler_vcl_ubuntu_22_04-7_6_0-da3cc32.tar.gz
+#         ubuntu24.04: npu_compiler_vcl_ubuntu_24_04-7_6_0-da3cc32.tar.gz
+function(download_and_extract url zip_file extracted_dir)
     # Check if the prebuilt Plugin compiler libraries not exist
     if(NOT EXISTS "${extracted_dir}")
         # Download the prebuilt Plugin compiler libraries, if failure, show error message and exit
         if(NOT "${url}" STREQUAL "")
-            if(modify_proxy STREQUAL "MODIFY")
-                # Update proxy to enable download for windows url
-            set(original_NO_PROXY $ENV{NO_PROXY})
-                set(original_no_proxy $ENV{no_proxy})
-                set(ENV{NO_PROXY} "")
-                set(ENV{no_proxy} "")
-            endif()
-            
             message(STATUS "${url} is not empty")
             message(STATUS "Downloading prebuilt Plugin compiler libraries from ${url}")
             file(DOWNLOAD "${url}" "${zip_file}"
@@ -32,12 +23,6 @@ function(download_and_extract url zip_file extracted_dir modify_proxy)
                 LOG log_output
                 STATUS download_status
                 SHOW_PROGRESS)
-
-            if(modify_proxy STREQUAL "MODIFY")
-                # Restore proxy
-                set(ENV{NO_PROXY} ${original_NO_PROXY})
-                set(ENV{no_proxy} ${original_no_proxy})
-            endif()
 
             list(GET download_status 0 download_result)
             if(NOT download_result EQUAL 0)
@@ -104,22 +89,41 @@ function(download_and_extract url zip_file extracted_dir modify_proxy)
     endif()
 endfunction()
 
+function(print_build_manifest extracted_file)
+    if(NOT EXISTS "${extracted_file}")
+        message(WARNING "Build manifest file '${extracted_file}' not found. Skipping build_manifest information printing for plugin compiler.")
+        return()
+    endif()
+    # read the build_manifest.json file
+    file(READ "${extracted_file}" FILE_CONTENT)
+    string(REGEX REPLACE "[{}\"']" "" FILE_CONTENT "${FILE_CONTENT}")
+    message(STATUS "build_manifest.json for npu plugin compiler:\n${FILE_CONTENT}")
+endfunction()
+
 if(ENABLE_INTEL_NPU_COMPILER)
     message(STATUS "Downloading prebuilt NPU Plugin compiler libraries")
     set(PLUGIN_COMPILER_VERSION_MAJOR 7)
-    set(PLUGIN_COMPILER_VERSION_MINOR 5)
+    set(PLUGIN_COMPILER_VERSION_MINOR 6)
     set(PLUGIN_COMPILER_VERSION_PATCH 0)
+    set(PLUGIN_COMPILER_COMMIT_SHA da3cc32)
     set(PLUGIN_COMPILER_VERSION "${PLUGIN_COMPILER_VERSION_MAJOR}_${PLUGIN_COMPILER_VERSION_MINOR}_${PLUGIN_COMPILER_VERSION_PATCH}")
     message(STATUS "The prebuilt compiler version is ${PLUGIN_COMPILER_VERSION_MAJOR}.${PLUGIN_COMPILER_VERSION_MINOR}.${PLUGIN_COMPILER_VERSION_PATCH}")
+    # The destinations are the same. CMAKE_BUILD_TYPE is added based on the option USE_BUILD_TYPE_SUBFOLDER
+    if(USE_BUILD_TYPE_SUBFOLDER)
+        set(NPU_COMPILER_LIB_DESTINATION ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
+    else()
+        set(NPU_COMPILER_LIB_DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_BUILD_TYPE}")
+    endif()
     if(WIN32)
         set(PLUGIN_COMPILER_LIBS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/temp/plugin_compiler_lib/win")
-        set(PLUGIN_COMPILER_LIBS_URL "https://storage.openvinotoolkit.org/dependencies/thirdparty/windows/npu_compiler_vcl_windows_2022-7_5_0-a1ae54e9.zip")
-        set(PLUGIN_COMPILER_LIBS_ZIP "${PLUGIN_COMPILER_LIBS_DIR}/npu_compiler_vcl_windows_2022-${PLUGIN_COMPILER_VERSION}-a1ae54e9.zip")
-        set(PLUGIN_COMPILER_LIBS_DIR_UNZIPPED "${PLUGIN_COMPILER_LIBS_DIR}/npu_compiler_vcl_windows_2022-${PLUGIN_COMPILER_VERSION}-a1ae54e9")
+        set(PLUGIN_COMPILER_LIBS_URL "https://storage.openvinotoolkit.org/dependencies/thirdparty/windows/npu_compiler_vcl_windows_2022-${PLUGIN_COMPILER_VERSION}-${PLUGIN_COMPILER_COMMIT_SHA}.zip")
+        set(PLUGIN_COMPILER_LIBS_ZIP "${PLUGIN_COMPILER_LIBS_DIR}/npu_compiler_vcl_windows_2022-${PLUGIN_COMPILER_VERSION}-${PLUGIN_COMPILER_COMMIT_SHA}.zip")
+        set(PLUGIN_COMPILER_LIBS_DIR_UNZIPPED "${PLUGIN_COMPILER_LIBS_DIR}/npu_compiler_vcl_windows_2022-${PLUGIN_COMPILER_VERSION}-${PLUGIN_COMPILER_COMMIT_SHA}")
 
-        download_and_extract("${PLUGIN_COMPILER_LIBS_URL}" "${PLUGIN_COMPILER_LIBS_ZIP}" "${PLUGIN_COMPILER_LIBS_DIR_UNZIPPED}" "MODIFY")
-        set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_UNZIPPED}/cid/lib")
+        download_and_extract("${PLUGIN_COMPILER_LIBS_URL}" "${PLUGIN_COMPILER_LIBS_ZIP}" "${PLUGIN_COMPILER_LIBS_DIR_UNZIPPED}")
+        print_build_manifest("${PLUGIN_COMPILER_LIBS_DIR_UNZIPPED}/build_manifest.json")
 
+        set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_UNZIPPED}/lib")
         configure_file(
             ${PLUGIN_COMPILER_LIB_PATH}/npu_driver_compiler.dll
             ${PLUGIN_COMPILER_LIB_PATH}/openvino_intel_npu_compiler.dll
@@ -127,8 +131,8 @@ if(ENABLE_INTEL_NPU_COMPILER)
         )
         set(PLUGIN_COMPILER_LIB "${PLUGIN_COMPILER_LIB_PATH}/openvino_intel_npu_compiler.dll")
         file(COPY "${PLUGIN_COMPILER_LIB}"
-            DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_BUILD_TYPE}")
-        message(STATUS "Copying prebuilt Plugin compiler libraries openvino_intel_npu_compiler.dll to ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} for windows")
+            DESTINATION "${NPU_COMPILER_LIB_DESTINATION}")
+        message(STATUS "Copying prebuilt Plugin compiler libraries openvino_intel_npu_compiler.dll to ${NPU_COMPILER_LIB_DESTINATION} for windows")
     else()
         # Check if the operating system is Linux and not macOS
         if(UNIX AND NOT APPLE)
@@ -140,38 +144,41 @@ if(ENABLE_INTEL_NPU_COMPILER)
                 if(OS_VERSION STREQUAL "22.04")
                     # Ubuntu 22.04-specific settings or actions
                     set(PLUGIN_COMPILER_LIBS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/temp/compiler_libs/ubuntu22.04")
-                    set(PLUGIN_COMPILER_LIBS_URL "https://storage.openvinotoolkit.org/dependencies/thirdparty/linux/npu_compiler_vcl_ubuntu_22_04-7_5_0-a1ae54e9.tar.gz")
-                    set(PLUGIN_COMPILER_LIBS_TAR "${PLUGIN_COMPILER_LIBS_DIR}/npu_compiler_vcl_ubuntu_22_04-${PLUGIN_COMPILER_VERSION}-a1ae54e9.tar.gz")
-                    set(PLUGIN_COMPILER_LIBS_DIR_EXTRACTED "${PLUGIN_COMPILER_LIBS_DIR}/npu_compiler_vcl_ubuntu_22_04-${PLUGIN_COMPILER_VERSION}-a1ae54e9")
+                    set(PLUGIN_COMPILER_LIBS_URL "https://storage.openvinotoolkit.org/dependencies/thirdparty/linux/npu_compiler_vcl_ubuntu_22_04-${PLUGIN_COMPILER_VERSION}-${PLUGIN_COMPILER_COMMIT_SHA}.tar.gz")
+                    set(PLUGIN_COMPILER_LIBS_TAR "${PLUGIN_COMPILER_LIBS_DIR}/npu_compiler_vcl_ubuntu_22_04-${PLUGIN_COMPILER_VERSION}-${PLUGIN_COMPILER_COMMIT_SHA}.tar.gz")
+                    set(PLUGIN_COMPILER_LIBS_DIR_EXTRACTED "${PLUGIN_COMPILER_LIBS_DIR}/npu_compiler_vcl_ubuntu_22_04-${PLUGIN_COMPILER_VERSION}-${PLUGIN_COMPILER_COMMIT_SHA}")
 
-                    download_and_extract("${PLUGIN_COMPILER_LIBS_URL}" "${PLUGIN_COMPILER_LIBS_TAR}" "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}" "NONE")
-                    set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/cid/lib/")
-
+                    download_and_extract("${PLUGIN_COMPILER_LIBS_URL}" "${PLUGIN_COMPILER_LIBS_TAR}" "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}")
+                    print_build_manifest("${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/build_manifest.json")
+                    
+                    set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/lib/")
                     configure_file(
                         ${PLUGIN_COMPILER_LIB_PATH}/libnpu_driver_compiler.so
                         ${PLUGIN_COMPILER_LIB_PATH}/libopenvino_intel_npu_compiler.so
                         COPYONLY
                     )
                     set(PLUGIN_COMPILER_LIB "${PLUGIN_COMPILER_LIB_PATH}/libopenvino_intel_npu_compiler.so")
-                    file(COPY "${PLUGIN_COMPILER_LIB}" DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
-                    message(STATUS "Copying prebuilt Plugin compiler libraries libopenvino_intel_npu_compiler.so to ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} for Ubuntu 22.04")
+                    file(COPY "${PLUGIN_COMPILER_LIB}" DESTINATION "${NPU_COMPILER_LIB_DESTINATION}")
+                    message(STATUS "Copying prebuilt Plugin compiler libraries libopenvino_intel_npu_compiler.so to ${NPU_COMPILER_LIB_DESTINATION} for Ubuntu 22.04")
                 elseif(OS_VERSION STREQUAL "24.04")
                     message(STATUS "This is Ubuntu 24.04")
                     set(PLUGIN_COMPILER_LIBS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/temp/compiler_libs/ubuntu24.04")
-                    set(PLUGIN_COMPILER_LIBS_URL "https://storage.openvinotoolkit.org/dependencies/thirdparty/linux/npu_compiler_vcl_ubuntu_24_04-7_5_0-a1ae54e9.tar.gz")
-                    set(PLUGIN_COMPILER_LIBS_TAR "${PLUGIN_COMPILER_LIBS_DIR}/npu_compiler_vcl_ubuntu_24_04-${PLUGIN_COMPILER_VERSION}-a1ae54e9.tar.gz")
-                    set(PLUGIN_COMPILER_LIBS_DIR_EXTRACTED "${PLUGIN_COMPILER_LIBS_DIR}/npu_compiler_vcl_ubuntu_24_04-${PLUGIN_COMPILER_VERSION}-a1ae54e9")
+                    set(PLUGIN_COMPILER_LIBS_URL "https://storage.openvinotoolkit.org/dependencies/thirdparty/linux/npu_compiler_vcl_ubuntu_24_04-${PLUGIN_COMPILER_VERSION}-${PLUGIN_COMPILER_COMMIT_SHA}.tar.gz")
+                    set(PLUGIN_COMPILER_LIBS_TAR "${PLUGIN_COMPILER_LIBS_DIR}/npu_compiler_vcl_ubuntu_24_04-${PLUGIN_COMPILER_VERSION}-${PLUGIN_COMPILER_COMMIT_SHA}.tar.gz")
+                    set(PLUGIN_COMPILER_LIBS_DIR_EXTRACTED "${PLUGIN_COMPILER_LIBS_DIR}/npu_compiler_vcl_ubuntu_24_04-${PLUGIN_COMPILER_VERSION}-${PLUGIN_COMPILER_COMMIT_SHA}")
 
-                    download_and_extract("${PLUGIN_COMPILER_LIBS_URL}" "${PLUGIN_COMPILER_LIBS_TAR}" "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}" "NONE")
-                    set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/cid/lib/")
+                    download_and_extract("${PLUGIN_COMPILER_LIBS_URL}" "${PLUGIN_COMPILER_LIBS_TAR}" "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}")
+                    print_build_manifest("${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/build_manifest.json")
+                    
+                    set(PLUGIN_COMPILER_LIB_PATH "${PLUGIN_COMPILER_LIBS_DIR_EXTRACTED}/lib/")
                     configure_file(
                         ${PLUGIN_COMPILER_LIB_PATH}/libnpu_driver_compiler.so
                         ${PLUGIN_COMPILER_LIB_PATH}/libopenvino_intel_npu_compiler.so
                         COPYONLY
                     )
                     set(PLUGIN_COMPILER_LIB "${PLUGIN_COMPILER_LIB_PATH}/libopenvino_intel_npu_compiler.so")
-                    file(COPY "${PLUGIN_COMPILER_LIB}" DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
-                    message(STATUS "Copying prebuilt Plugin compiler libraries libopenvino_intel_npu_compiler.so to ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} for Ubuntu 24.04")
+                    file(COPY "${PLUGIN_COMPILER_LIB}" DESTINATION "${NPU_COMPILER_LIB_DESTINATION}")
+                    message(STATUS "Copying prebuilt Plugin compiler libraries libopenvino_intel_npu_compiler.so to ${NPU_COMPILER_LIB_DESTINATION} for Ubuntu 24.04")
                 endif()
             else()
             message(STATUS "This is a different Linux distribution: ${OS_NAME}, skip downloading prebuilt Plugin compiler libraries. Can not use plugin compiler libraries!")
@@ -181,5 +188,5 @@ if(ENABLE_INTEL_NPU_COMPILER)
     endif()
 
     install(FILES ${PLUGIN_COMPILER_LIB}
-        DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${NPU_INTERNAL_COMPONENT})
+        DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT ${NPU_PLUGIN_COMPONENT})
 endif()

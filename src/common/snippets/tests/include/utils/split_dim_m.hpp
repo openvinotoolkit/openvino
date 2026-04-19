@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,14 +23,14 @@ struct ReferenceData {
     size_t kernel_m;
 };
 
-struct SplitDimensionMParams {
+struct MHAParallelWASplitParams {
     InputData input;
     ReferenceData reference;
 };
 
-class SplitDimensionMTest : public testing::TestWithParam<SplitDimensionMParams> {
+class MHAParallelWASplitTest : public testing::TestWithParam<MHAParallelWASplitParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<SplitDimensionMParams> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<MHAParallelWASplitParams> obj);
 };
 
 }  // namespace snippets

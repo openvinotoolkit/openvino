@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import functools
@@ -41,7 +41,12 @@ def get_models_list(file_name: str):
             other = line_items[4:]
             transformations = [item[8:] for item in other if item.startswith('ts_name:')]
             layers = [item[6:] for item in other if item.startswith('layer:')]
-            models.append((model_name, model_link, mark, reason, transformations, layers))
+            model_type = None
+            for item in other:
+                if item.startswith('type:'):
+                    model_type = item[5:]
+                    break
+            models.append((model_name, model_link, mark, reason, transformations, layers, model_type))
         else:
             items = ','.join(line_items)
             assert False, \

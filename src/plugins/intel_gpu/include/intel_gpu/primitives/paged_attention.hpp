@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,6 +39,9 @@ struct paged_attention : public primitive_base<paged_attention> {
         ADAPTIVE_RKV_EVICTABLE_SIZES = 22,
         ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES = 23,
         ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS = 24,
+        TOKEN_TYPE_IDS = 25,
+        QQ_BIAS = 26,
+        QQ_BIAS_BEGINS = 27
     };
 
     static constexpr size_t block_size = 16;
@@ -49,7 +52,7 @@ struct paged_attention : public primitive_base<paged_attention> {
     paged_attention(const primitive_id& id,
                     const std::vector<input_info>& inputs)
         : primitive_base(id, inputs) {
-        OPENVINO_ASSERT((inputs.size() == 25),
+        OPENVINO_ASSERT((inputs.size() == 28),
                         "[GPU] Unexpected inputs number for PagedAttention primitive: ",
                         inputs.size());
     }
@@ -70,6 +73,9 @@ struct paged_attention : public primitive_base<paged_attention> {
         seed = hash_combine(seed, has_score_aggregation);
         seed = hash_combine(seed, has_xattention);
         seed = hash_combine(seed, has_sink_input);
+        seed = hash_combine(seed, has_adaptive_rkv);
+        seed = hash_combine(seed, has_token_type_ids);
+        seed = hash_combine(seed, has_qq_bias);
         if (scale_val.has_value()) {
             seed = hash_combine(seed, scale_val.value());
         }
@@ -88,11 +94,17 @@ struct paged_attention : public primitive_base<paged_attention> {
                v_head_size == rhs_casted.v_head_size &&
                heads_num == rhs_casted.heads_num &&
                kv_heads_num == rhs_casted.kv_heads_num &&
-               sliding_window == rhs_casted.sliding_window &&
                has_alibi == rhs_casted.has_alibi &&
-               has_score_aggregation == rhs_casted.has_score_aggregation &&
                has_rotated_blocks == rhs_casted.has_rotated_blocks &&
-               scale_val.value_or(1.0f) == rhs_casted.scale_val.value_or(1.0f);
+               sliding_window == rhs_casted.sliding_window &&
+               has_score_aggregation == rhs_casted.has_score_aggregation &&
+               has_xattention == rhs_casted.has_xattention &&
+               has_sink_input == rhs_casted.has_sink_input &&
+               has_adaptive_rkv == rhs_casted.has_adaptive_rkv &&
+               has_token_type_ids == rhs_casted.has_token_type_ids &&
+               has_qq_bias == rhs_casted.has_qq_bias &&
+               scale_val.value_or(1.0f) == rhs_casted.scale_val.value_or(1.0f) &&
+               is_key_by_channel == rhs_casted.is_key_by_channel;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -108,6 +120,8 @@ struct paged_attention : public primitive_base<paged_attention> {
         ob << has_xattention;
         ob << has_sink_input;
         ob << has_adaptive_rkv;
+        ob << has_token_type_ids;
+        ob << has_qq_bias;
 
         if (scale_val.has_value()) {
             ob << true;
@@ -131,6 +145,8 @@ struct paged_attention : public primitive_base<paged_attention> {
         ib >> has_xattention;
         ib >> has_sink_input;
         ib >> has_adaptive_rkv;
+        ib >> has_token_type_ids;
+        ib >> has_qq_bias;
 
         bool has_scale;
         ib >> has_scale;
@@ -156,6 +172,8 @@ struct paged_attention : public primitive_base<paged_attention> {
     bool has_xattention = false;
     bool has_sink_input = false;
     bool has_adaptive_rkv = false;
+    bool has_token_type_ids = false;
     bool is_key_by_channel = false;
+    bool has_qq_bias = false;
 };
 }  // namespace cldnn

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,8 +24,6 @@ public:
                                                              int ctx_device_id = 0,
                                                              int target_tile_id = -1,
                                                              bool initialize_devices = false) const;
-
-    static std::vector<device::ptr> sort_devices(const std::vector<device::ptr>& devices_list);
 
 private:
     std::vector<device::ptr> create_device_list() const;

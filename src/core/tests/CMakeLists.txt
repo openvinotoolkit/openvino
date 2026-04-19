@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -6,8 +6,6 @@
 set(TARGET_NAME ov_core_unit_tests)
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
-
-ov_try_use_gold_linker()
 
 add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/core/models\")
 

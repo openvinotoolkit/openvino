@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,11 +9,16 @@
 
 #pragma once
 
+#include <filesystem>
 #include <fstream>
 #include <memory>
 #include <string>
 
 namespace ov {
+
+namespace util {
+int64_t get_system_page_size();
+}  // namespace util
 
 #ifdef _WIN32
 // Windows uses HANDLE (void*) for file handles
@@ -32,8 +37,14 @@ class MappedMemory {
 public:
     virtual char* data() noexcept = 0;
     virtual size_t size() const noexcept = 0;
+    virtual uint64_t get_id() const noexcept = 0;
     virtual ~MappedMemory() = default;
 };
+
+/**
+ * @brief Generic constant to indicate automatic size calculation is required.
+ */
+inline constexpr auto auto_size = std::numeric_limits<size_t>::max();
 
 /**
  * @brief Returns mapped memory for a file from provided path.
@@ -41,9 +52,13 @@ public:
  * in order to avoid time-consuming reading and reduce memory consumption.
  *
  * @param path Path to a file which memory will be mmaped.
+ * @param offset Offset in the file where the mapping starts.
+ * @param size Size of the mapping. If size is std::numeric_limits<size_t>::max(), maps from offset to EOF.
  * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
  */
-std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path);
+std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& path,
+                                                   size_t offset = 0,
+                                                   size_t size = auto_size);
 
 /**
  * @brief Returns mapped memory for a file from provided file handle (cross-platform).
@@ -51,21 +66,9 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path);
  * This allows external control of file access through a callback function.
  *
  * @param handle Platform-specific file handle (int fd on Linux, HANDLE on Windows).
+ * @param offset Offset in the file where the mapping starts.
+ * @param size Size of the mapping. If size is std::numeric_limits<size_t>::max(), maps from offset to EOF.
  * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
  */
-std::shared_ptr<ov::MappedMemory> load_mmap_object(FileHandle handle);
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
-/**
- * @brief Returns mapped memory for a file from provided path.
- * Instead of reading files, we can map the memory via MapViewOfFile for Windows
- * in order to avoid time-consuming reading and reduce memory consumption.
- *
- * @param path Path to a file which memory will be mmaped.
- * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
- */
-std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::wstring& path);
-
-#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+std::shared_ptr<ov::MappedMemory> load_mmap_object(FileHandle handle, size_t offset = 0, size_t size = auto_size);
 }  // namespace ov

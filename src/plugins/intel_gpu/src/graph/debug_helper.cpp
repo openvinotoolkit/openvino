@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 
 #ifdef GPU_DEBUG_CONFIG
 
+#include "impls/ocl/kernels_cache.hpp"
 #include "to_string_utils.h"
 #include "loop_inst.h"
 #include "condition_inst.h"
@@ -44,20 +45,24 @@ size_t get_x_pitch(const layout& layout) {
 }
 
 template <class T>
-void __validate_data_range(memory::ptr mem, stream& stream, std::string &info) {
+void __validate_data_range(memory::ptr mem, stream& stream, const layout& data_layout, std::string &info) {
     if (!mem)
         return;
-    auto&& size = mem->get_layout().get_tensor();
-    mem_lock<T, mem_lock_type::read> lock(mem, stream);
+
+    // Reinterpret buffer to represent actual data layout (same as log_memory_to_file)
+    auto actual_mem = mem->get_engine()->reinterpret_buffer(*mem, data_layout);
+
+    auto&& size = actual_mem->get_layout().get_tensor();
+    mem_lock<T, mem_lock_type::read> lock(actual_mem, stream);
     auto mem_ptr = lock.data();
-    auto x_pitch = get_x_pitch(mem->get_layout());
+    auto x_pitch = get_x_pitch(actual_mem->get_layout());
     std::stringstream buffer;
     float val_min = std::numeric_limits<float>::max();
     float val_max = std::numeric_limits<float>::lowest();
-    const bool is_memory_packed = !mem->is_memory_reset_needed(mem->get_layout());
+    const bool is_memory_packed = !actual_mem->is_memory_reset_needed(actual_mem->get_layout());
 
     if (is_memory_packed) {
-        for (size_t i = 0; i < mem->count(); ++i) {
+        for (size_t i = 0; i < actual_mem->count(); ++i) {
             auto val = convert_element(mem_ptr[i]);
             if (std::isinf(val) || std::isnan(val)) {
                 std::string err_str = std::isinf(val) ? "inf" : "nan";
@@ -77,7 +82,7 @@ void __validate_data_range(memory::ptr mem, stream& stream, std::string &info) {
                         for (ov::Dimension::value_type z = 0; z < size.spatial[2]; ++z) {
                             for (ov::Dimension::value_type y = 0; y < size.spatial[1]; ++y) {
                                 cldnn::tensor t(cldnn::group(g), cldnn::batch(b), cldnn::feature(f), cldnn::spatial(0, y, z, w));
-                                size_t input_it = mem->get_layout().get_linear_offset(t);
+                                size_t input_it = actual_mem->get_layout().get_linear_offset(t);
 
                                 for (ov::Dimension::value_type x = 0; x < size.spatial[0]; ++x, input_it += x_pitch) {
                                     auto val = convert_element(mem_ptr[input_it]);
@@ -101,15 +106,16 @@ void __validate_data_range(memory::ptr mem, stream& stream, std::string &info) {
     GPU_DEBUG_INFO << "min, max = " << val_min << ", " << val_max << "  : " << info << "  is_packed " << is_memory_packed << std::endl;
 }
 
-void validate_data_range(memory::ptr mem, stream& stream, ov::element::Type_t data_type, std::string &info) {
-    if (data_type == ov::element::Type_t::f32)
-        __validate_data_range<float>(mem, stream, info);
-    else if (data_type == ov::element::Type_t::f16)
-        __validate_data_range<ov::float16>(mem, stream, info);
-    else if (data_type == ov::element::Type_t::i8)
-        __validate_data_range<int8_t>(mem, stream, info);
-    else if (data_type == ov::element::Type_t::u8)
-        __validate_data_range<uint8_t>(mem, stream, info);
+void validate_data_range(memory::ptr mem, stream& stream, const layout& data_layout, std::string &info) {
+    auto data_type = data_layout.data_type;
+    if (data_type == cldnn::data_types::f32)
+        __validate_data_range<float>(mem, stream, data_layout, info);
+    else if (data_type == cldnn::data_types::f16)
+        __validate_data_range<ov::float16>(mem, stream, data_layout, info);
+    else if (data_type == cldnn::data_types::i8)
+        __validate_data_range<int8_t>(mem, stream, data_layout, info);
+    else if (data_type == cldnn::data_types::u8)
+        __validate_data_range<uint8_t>(mem, stream, data_layout, info);
     else
         GPU_DEBUG_INFO << "Unsupport data type for validating data range " << data_type << std::endl;
 }
@@ -472,7 +478,7 @@ NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
                     auto filename = get_file_path_for_binary_dump(input_layout, name, config.get_dump_tensors_path());
 
                     mem_lock<char, mem_lock_type::read> lock(input_mem, m_stream);
-                    ov::util::save_binary(filename, lock.data(), input_mem->size());
+                    ov::util::save_binary(ov::util::make_path(filename), lock.data(), input_mem->size());
                     GPU_DEBUG_COUT << " Dump layer src : " << layer_name << " to " << filename << std::endl;
                     debug_str_for_bin_load += (filename + ",");
                 } else {
@@ -504,7 +510,7 @@ NodeDebugHelper::~NodeDebugHelper() {
         for (size_t i = 0; i < m_inst.outputs_memory_count(); i++) {
             auto output_mem = m_inst.output_memory_ptr(i);
             std::string info = m_inst.id() + "(" + std::to_string(i) + ") at iteration " + std::to_string(m_network.get_current_iteration_num());
-            validate_data_range(output_mem, m_stream, m_inst.get_output_layout(i).data_type, info);
+            validate_data_range(output_mem, m_stream, m_inst.get_output_layout(i), info);
         }
     }
 
@@ -532,7 +538,7 @@ NodeDebugHelper::~NodeDebugHelper() {
                     auto filename = get_file_path_for_binary_dump(output_layout, name, config.get_dump_tensors_path());
 
                     mem_lock<char, mem_lock_type::read> lock(output_mem, m_stream);
-                    ov::util::save_binary(filename, lock.data(), output_mem->size());
+                    ov::util::save_binary(ov::util::make_path(filename), lock.data(), output_mem->size());
                     GPU_DEBUG_COUT  << " Dump layer dst : " << layer_name << " to " << filename << std::endl;
                     debug_str_for_bin_load += (filename + ",");
                 } else {
@@ -561,7 +567,7 @@ NodeDebugHelper::~NodeDebugHelper() {
                     auto filename = get_file_path_for_binary_dump(output_layout, name, config.get_dump_tensors_path());
 
                     mem_lock<char, mem_lock_type::read> lock(output_mem, m_stream);
-                    ov::util::save_binary(filename, lock.data(), output_mem->size());
+                    ov::util::save_binary(ov::util::make_path(filename), lock.data(), output_mem->size());
                     GPU_DEBUG_COUT << " Dump layer dst : " << layer_name << " to " << filename << std::endl;
                     debug_str_for_bin_load += (filename + ",");
                 } else {
@@ -588,7 +594,7 @@ NodeDebugHelper::~NodeDebugHelper() {
                         auto filename = get_file_path_for_binary_dump(output_layout, name, config.get_dump_tensors_path());
 
                         mem_lock<char, mem_lock_type::read> lock(output_mem, m_stream);
-                        ov::util::save_binary(filename, lock.data(), output_mem->size());
+                        ov::util::save_binary(ov::util::make_path(filename), lock.data(), output_mem->size());
                         GPU_DEBUG_COUT << " Dump layer dst : " << layer_name << " to " << filename << std::endl;
                         debug_str_for_bin_load += (filename + ",");
                     } else {
@@ -609,9 +615,13 @@ NodeDebugHelper::~NodeDebugHelper() {
     }
 }
 
-NetworkDebugHelper::NetworkDebugHelper(const network& net)
+NetworkDebugHelper::NetworkDebugHelper(network& net)
     : m_network(net)
     , m_iter(net.iteration) {
+    if (m_network.get_config().get_network_marker()) {
+        NetworkMarkerHelper::enqueue_start_marker(m_network);
+    }
+
     auto net_id = m_network.get_id();
     const auto& config = m_network.get_config();
     if (config.get_dump_memory_pool()) {
@@ -704,6 +714,10 @@ NetworkDebugHelper::~NetworkDebugHelper() {
         }
     }
 
+    if (m_network.get_config().get_network_marker()) {
+        NetworkMarkerHelper::enqueue_finish_marker(m_network);
+    }
+
     m_network.iteration++;
 }
 
@@ -758,6 +772,53 @@ void NetworkDebugHelper::dump_memory_pool(std::string dump_path, int64_t curr_it
     GPU_DEBUG_COUT << " * Variable              : " << get_mb_size(usm_device_var_mem_size)     << std::endl;
     GPU_DEBUG_COUT << " * ETC                   : " << get_mb_size(usm_device_etc_size)         << std::endl;
     GPU_DEBUG_COUT << "------------------------------------------------------------------------" << std::endl;
+}
+
+// --- NetworkMarkerHelper ---
+
+std::mutex NetworkMarkerHelper::_mutex;
+std::unordered_map<std::string, kernel::ptr> NetworkMarkerHelper::_compiled_kernels;
+
+kernel::ptr NetworkMarkerHelper::get_or_compile_marker(network& net, const std::string& kernel_name) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    auto it = _compiled_kernels.find(kernel_name);
+    if (it != _compiled_kernels.end())
+        return it->second;
+
+    auto kernel_src = std::make_shared<kernel_string>();
+    kernel_src->str = "__kernel void " + kernel_name + "() {}";
+    kernel_src->entry_point = kernel_name;
+
+    kernel_impl_params dummy_params;
+    auto& cache = net.get_program()->get_kernels_cache();
+    auto compiled = cache.compile(dummy_params, {kernel_src});
+    auto kptr = compiled[dummy_params][0].first;
+    _compiled_kernels[kernel_name] = kptr;
+    return kptr;
+}
+
+void NetworkMarkerHelper::enqueue_start_marker(network& net) {
+    auto name = "network_marker_start_p" + std::to_string(net.get_program()->get_id()) + "_n" + std::to_string(net.get_id());
+    auto kptr = get_or_compile_marker(net, name);
+
+    auto iter = static_cast<size_t>(net.get_current_iteration_num()) + 1;
+    kernel_arguments_desc args_desc;
+    args_desc.workGroups.global = {iter, 1, 1};
+    args_desc.workGroups.local = {iter, 1, 1};
+    kernel_arguments_data args_data;
+    net.get_stream().enqueue_kernel(*kptr, args_desc, args_data, {});
+}
+
+void NetworkMarkerHelper::enqueue_finish_marker(network& net) {
+    auto name = "network_marker_finish_p" + std::to_string(net.get_program()->get_id()) + "_n" + std::to_string(net.get_id());
+    auto kptr = get_or_compile_marker(net, name);
+
+    auto iter = static_cast<size_t>(net.get_current_iteration_num()) + 1;
+    kernel_arguments_desc args_desc;
+    args_desc.workGroups.global = {iter, 1, 1};
+    args_desc.workGroups.local = {iter, 1, 1};
+    kernel_arguments_data args_data;
+    net.get_stream().enqueue_kernel(*kptr, args_desc, args_data, {});
 }
 
 }  // namespace cldnn

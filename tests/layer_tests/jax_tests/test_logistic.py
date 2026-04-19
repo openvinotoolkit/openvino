@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import jax
@@ -13,7 +13,7 @@ rng = np.random.default_rng(5402)
 
 class TestLogistic(JaxLayerTest):
     def _prepare_input(self):
-        
+
         input = jnp.array(np.random.uniform(-1000, 1000, self.input_shape).astype(self.input_type))
         return [input]
 

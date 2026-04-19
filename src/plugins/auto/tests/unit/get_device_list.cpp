@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ public:
         ON_CALL(*plugin, get_device_list)
             .WillByDefault([this](ov::AnyMap& config,
                                   const std::shared_ptr<const ov::Model>& model,
-                                  const std::string& model_path) {
+                                  const std::filesystem::path& model_path) {
                 return plugin->Plugin::get_device_list(config);
             });
     }

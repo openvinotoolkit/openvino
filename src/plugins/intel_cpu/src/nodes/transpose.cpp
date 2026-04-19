@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,6 +50,11 @@ bool Transpose::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
         if (op->get_input_node_ptr(INPUT_ORDER_IDX)->get_type_info() != ov::op::v0::Constant::get_type_info_static()) {
             // TODO: Support parameterized Order input for dynamic shapes.
             errorMessage = "Constant expected as the second input for static shapes.";
+            return false;
+        }
+
+        if (op->get_input_element_type(INPUT_DATA_IDX) == ov::element::string) {
+            errorMessage = "String element type is not supported.";
             return false;
         }
     } catch (...) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 #include <openvino/cc/pass/itt.hpp>
 
 namespace ov::pass::itt::domains {
-OV_ITT_DOMAIN(SnippetsTransform);
+OV_ITT_DOMAIN(SnippetsTransform, "ov::snippets_transformations");
 }  // namespace ov::pass::itt::domains
 
 OV_CC_DOMAINS(internal_op);

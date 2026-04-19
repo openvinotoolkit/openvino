@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <ios>
@@ -33,14 +34,18 @@
 #include "openvino/op/result.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/pass/visualize_tree.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
+#include "openvino/util/common_util.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 #include "utils/platform.h"
 
 namespace ov::intel_cpu {
 
 void serializeToCout(const Graph& graph);
-void serializeToXML(const Graph& graph, const std::string& path);
+void serializeToXML(const Graph& graph, const std::filesystem::path& path);
+void serializeToDot(const Graph& graph, const std::filesystem::path& path);
 
 namespace {
 
@@ -62,25 +67,19 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr& node) {
 
     std::string outputPrecisionsStr;
     if (!node->getChildEdges().empty()) {
-        outputPrecisionsStr = node->getChildEdgeAt(0)->getMemory().getDesc().getPrecision().get_type_name();
-
-        bool isAllEqual = true;
-        for (size_t i = 1; i < node->getChildEdges().size(); i++) {
-            if (node->getChildEdgeAt(i - 1)->getMemory().getDesc().getPrecision() !=
-                node->getChildEdgeAt(i)->getMemory().getDesc().getPrecision()) {
-                isAllEqual = false;
-                break;
-            }
+        std::vector<std::string> outputPrecisions;
+        outputPrecisions.reserve(node->getChildEdges().size());
+        for (size_t i = 0; i < node->getChildEdges().size(); ++i) {
+            outputPrecisions.emplace_back(
+                node->getChildEdgeAt(i)->getMemory().getDesc().getPrecision().get_type_name());
         }
-
+        const bool isAllEqual = std::adjacent_find(outputPrecisions.begin(),
+                                                   outputPrecisions.end(),
+                                                   [](const std::string& lhs, const std::string& rhs) {
+                                                       return lhs != rhs;
+                                                   }) == outputPrecisions.end();
         // If all output precisions are the same, we store the name only once
-        if (!isAllEqual) {
-            for (size_t i = 1; i < node->getChildEdges().size(); i++) {
-                outputPrecisionsStr +=
-                    "," + static_cast<std::string>(
-                              node->getChildEdgeAt(i)->getMemory().getDesc().getPrecision().get_type_name());
-            }
-        }
+        outputPrecisionsStr = isAllEqual ? outputPrecisions.front() : ov::util::join(outputPrecisions, ",");
     } else {
         // Branch to correctly handle output nodes
         if (!node->getParentEdges().empty()) {
@@ -93,22 +92,18 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr& node) {
     auto outDescs = node->getSelectedPrimitiveDescriptor()->getConfig().outConfs;
 
     if (!outDescs.empty()) {
-        outputLayoutsStr = outDescs[0].getMemDesc()->serializeFormat();
-
-        bool isAllEqual = true;
-        for (size_t i = 1; i < outDescs.size(); i++) {
-            if (outDescs[i - 1].getMemDesc()->serializeFormat() != outDescs[i].getMemDesc()->serializeFormat()) {
-                isAllEqual = false;
-                break;
-            }
-        }
-
+        std::vector<std::string> outputLayouts;
+        outputLayouts.reserve(outDescs.size());
+        std::transform(outDescs.begin(), outDescs.end(), std::back_inserter(outputLayouts), [](const auto& outDesc) {
+            return outDesc.getMemDesc()->serializeFormat();
+        });
+        const bool isAllEqual = std::adjacent_find(outputLayouts.begin(),
+                                                   outputLayouts.end(),
+                                                   [](const std::string& lhs, const std::string& rhs) {
+                                                       return lhs != rhs;
+                                                   }) == outputLayouts.end();
         // If all output layouts are the same, we store the name only once
-        if (!isAllEqual) {
-            for (size_t i = 1; i < outDescs.size(); i++) {
-                outputLayoutsStr += "," + outDescs[i].getMemDesc()->serializeFormat();
-            }
-        }
+        outputLayoutsStr = isAllEqual ? outputLayouts.front() : ov::util::join(outputLayouts, ",");
     } else {
         outputLayoutsStr = dnnl::utils::fmt2str(dnnl::memory::format_tag::undef);
     }
@@ -236,24 +231,46 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
 
 #ifdef CPU_DEBUG_CAPS
 void serialize(const Graph& graph) {
-    const std::string& path = graph.getConfig().debugCaps.execGraphPath;
+    const std::string& pathStr = graph.getConfig().debugCaps.execGraphPath;
 
+    if (pathStr.empty()) {
+        return;
+    }
+
+    if (pathStr == "cout") {
+        serializeToCout(graph);
+        return;
+    }
+
+    std::filesystem::path p{pathStr};
+    const auto ext = p.extension();
+
+    if (none_of(ext, ".xml", ".dot")) {
+        OPENVINO_THROW("Unknown serialize format. Should be either 'cout', '*.xml' or '*.dot'. Got ", pathStr);
+    }
+
+    static int g_idx = 0;
+    const auto indexedFileName = p.stem().string() + "_" + std::to_string(g_idx++) + ext.string();
+    const auto indexedPath = p.parent_path() / indexedFileName;
+
+    if (ext == ".xml") {
+        serializeToXML(graph, indexedPath);
+    } else {
+        serializeToDot(graph, indexedPath);
+    }
+}
+
+void serializeToDot(const Graph& graph, const std::filesystem::path& path) {
     if (path.empty()) {
         return;
     }
 
-    if (path == "cout") {
-        serializeToCout(graph);
-    } else if (!path.compare(path.size() - 4, 4, ".xml")) {
-        static int g_idx = 0;
-        std::string xmlPath = std::string(path, 0, path.size() - 4) + "_" + std::to_string(g_idx++) + ".xml";
-        serializeToXML(graph, xmlPath);
-    } else {
-        OPENVINO_THROW("Unknown serialize format. Should be either 'cout' or '*.xml'. Got ", path);
-    }
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::VisualizeTree>(path.string(), nullptr, true);
+    manager.run_passes(graph.dump());
 }
 
-void serializeToXML(const Graph& graph, const std::string& path) {
+void serializeToXML(const Graph& graph, const std::filesystem::path& path) {
     if (path.empty()) {
         return;
     }
@@ -393,10 +410,9 @@ void average_counters(const Graph& graph) {
     }
 
     static int graphIndex = 0;
-    std::string fileName = path + "_" + std::to_string(graphIndex++) + ".csv";
-
-    std::ofstream file;
-    file.open(fileName);
+    std::filesystem::path fileName{path};
+    fileName += "_" + std::to_string(graphIndex++) + ".csv";
+    std::ofstream file(fileName);
 
     // table structure is identical to the benchmark_app average_counters report
     const std::string header = "layerName;execStatus;layerType;execType;realTime (ms);cpuTime (ms);";

@@ -1,7 +1,12 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
 
 #include "openvino/pass/pattern/op/block.hpp"
 
+#include "openvino/core/log_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/util/log.hpp"
 
 using namespace ov;
 using namespace ov::pass::pattern;
@@ -16,11 +21,15 @@ Block::Block(const OutputVector& inputs, const OutputVector& outputs, const std:
 }
 
 bool Block::match_value(Matcher* matcher, const Output<Node>& pattern_value, const Output<Node>& graph_value) {
-    auto block_pattern_root = m_outputs.front();
+    const auto& block_pattern_root = m_outputs.front();
 
     // Using a local matcher to match only those patterns that are encapsulated into the current Block.
-    auto local_matcher = std::make_shared<Matcher>(block_pattern_root.get_node_shared_ptr(), "BlockMatcher");
+    // Inherit the parent matcher's name so that OV_MATCHERS_TO_LOG filtering applies inside the Block too.
+    auto local_matcher = std::make_shared<Matcher>(block_pattern_root.get_node_shared_ptr(), matcher->get_name());
+
+    OPENVINO_LOG_BLOCK1(matcher, get_friendly_name());
     if (!local_matcher->match_value(block_pattern_root, graph_value)) {
+        OPENVINO_LOG_BLOCK3(matcher, get_friendly_name());
         return false;
     }
 
@@ -54,5 +63,7 @@ bool Block::match_value(Matcher* matcher, const Output<Node>& pattern_value, con
             matcher->add_node(matched_node_out);
         }
     }
+
+    OPENVINO_LOG_BLOCK2(matcher, get_friendly_name());
     return true;
 }

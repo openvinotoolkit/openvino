@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -532,4 +532,30 @@ TEST_F(test_layout_to_memory_desc, regression_3d_shape_format_selection) {
     EXPECT_EQ(get_format_tag_from_desc(desc_bfyx), dnnl::memory::format_tag::abc);
     EXPECT_EQ(get_format_tag_from_desc(desc_byxf), dnnl::memory::format_tag::acb);
     // Format tags should be different (abc vs acb)
+}
+
+TEST_F(test_layout_to_memory_desc, zero_batch_ab_format) {
+    // batch=0 should not cause division-by-zero; inner dims should be preserved
+    layout l = layout{ov::PartialShape{0, 256}, data_types::f32, format::bfyx};
+    auto desc = layout_to_memory_desc(l, dnnl::memory::format_tag::ab);
+    EXPECT_EQ(desc.get_ndims(), 2);
+    EXPECT_EQ(desc.get_dims()[0], 0);
+    EXPECT_EQ(desc.get_dims()[1], 256);
+}
+
+TEST_F(test_layout_to_memory_desc, zero_feature_ba_format) {
+    // feature=0 should not cause division-by-zero; inner dims should be preserved
+    layout l = layout{ov::PartialShape{256, 0}, data_types::f32, format::bfyx};
+    auto desc = layout_to_memory_desc(l, dnnl::memory::format_tag::ba);
+    EXPECT_EQ(desc.get_ndims(), 2);
+    EXPECT_EQ(desc.get_dims()[0], 0);
+    EXPECT_EQ(desc.get_dims()[1], 256);
+}
+
+TEST_F(test_layout_to_memory_desc, zero_batch_default_format) {
+    // All-zero batch with default format should not crash
+    layout l = layout{ov::PartialShape{0, 64, 32, 32}, data_types::f16, format::bfyx};
+    EXPECT_NO_THROW({
+        auto desc = layout_to_memory_desc(l, dnnl::memory::format_tag::undef);
+    });
 }

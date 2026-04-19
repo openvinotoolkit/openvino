@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -290,3 +290,7 @@ class Identity;
 class SegmentMax;
 class SparseFillEmptyRows;
 }  // namespace ov::op::v16
+
+namespace ov::op::v17 {
+class ErfInv;
+}  // namespace ov::op::v17
