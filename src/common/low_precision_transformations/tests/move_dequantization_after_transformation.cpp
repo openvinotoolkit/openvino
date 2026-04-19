@@ -291,6 +291,20 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
         },
         false
     },
+    {
+        ov::element::u8,
+        LayerTransformation::createParamsU8I8(),
+        true,
+        true,
+        {
+            {{ov::element::f16}, {128.f}, {0.1f}}
+        },
+        {
+            {},
+            ov::element::u8,
+            {{ov::element::f16}, {128.f}, {0.1f}}
+        }
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(

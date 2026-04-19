@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -88,6 +88,7 @@ const std::vector<maxPoolV8SpecificParams>& paramsMaxV145D();
 const std::vector<InputShape>& inputShapes3D();
 const std::vector<InputShape>& inputShapes4D();
 const std::vector<InputShape>& inputShapes4D_Large();
+const std::vector<InputShape>& inputShapes4D_int8();
 const std::vector<InputShape>& inputShapes5D();
 
 const std::vector<poolSpecificParams>& paramsAvg4D();

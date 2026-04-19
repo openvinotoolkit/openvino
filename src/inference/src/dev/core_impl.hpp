@@ -12,6 +12,7 @@
 #include "openvino/core/so_extension.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/icache_manager.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 
@@ -150,9 +151,11 @@ private:
                               bool mmap_enabled = false,
                               const std::filesystem::path model_path = {})
             : m_cache_manager(cache_manager),
+              m_shared_ctx(dynamic_cast<ov::IContextStore*>(cache_manager.get())),
               m_model_path(model_path),
               m_mmap_enabled{mmap_enabled} {}
         std::shared_ptr<ov::ICacheManager> m_cache_manager{};
+        ov::IContextStore* m_shared_ctx{};
         std::string m_blob_id{};
         std::filesystem::path m_model_path{};
         std::shared_ptr<const ov::Model> model{};
@@ -169,19 +172,19 @@ private:
     struct PluginDescriptor {
         std::filesystem::path m_lib_location{};
         ov::AnyMap m_default_config{};
-        std::vector<ov::util::FilePath> m_list_of_extensions{};
+        std::vector<std::filesystem::path> m_list_of_extensions{};
         CreatePluginEngineFunc* m_plugin_create_func = nullptr;
         CreateExtensionFunc* m_extension_create_func = nullptr;
         mutable std::vector<Extension::Ptr> m_extensions{};  // mutable because of lazy init
 
         PluginDescriptor() = default;
 
-        PluginDescriptor(const ov::util::FilePath& lib_location,
+        PluginDescriptor(const std::filesystem::path& lib_location,
                          const ov::AnyMap& default_config = {},
-                         const std::vector<ov::util::FilePath>& list_of_extentions = {})
+                         const std::vector<std::filesystem::path>& list_of_extensions = {})
             : m_lib_location(lib_location),
               m_default_config(default_config),
-              m_list_of_extensions(list_of_extentions) {}
+              m_list_of_extensions(list_of_extensions) {}
 
         PluginDescriptor(CreatePluginEngineFunc* plugin_create_func,
                          const ov::AnyMap& default_config = {},
@@ -213,7 +216,6 @@ private:
 
     bool device_supports_model_caching(const ov::Plugin& plugin, const ov::AnyMap& orig_config = {}) const;
 
-    bool device_supports_property(const ov::Plugin& plugin, const ov::PropertyName& key) const;
     bool device_supports_internal_property(const ov::Plugin& plugin, const ov::PropertyName& key) const;
 
     ov::AnyMap create_compile_config(const ov::Plugin& plugin, const ov::AnyMap& orig_config) const;
@@ -231,16 +233,15 @@ private:
 
 public:
     CoreImpl();
-
     ~CoreImpl() override = default;
 
     /**
      * @brief Register plugins for devices which are located in .xml configuration file.
      * @note The function supports UNICODE path
-     * @param xml_config_file An .xml configuraion with device / plugin information
+     * @param xml_config_file An .xml configuration with device / plugin information
      * @param by_abs_path A boolean value - register plugins by absolute file path or not
      */
-    void register_plugins_in_registry(const std::string& xml_config_file, const bool& by_abs_path = false);
+    void register_plugins_in_registry(const std::filesystem::path& xml_config_file, const bool by_abs_path = false);
 
     std::shared_ptr<const ov::Model> apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
                                                          std::string& device_name,
@@ -273,7 +274,7 @@ public:
      * @param device_name A name of device
      * @param properties Plugin configuration
      */
-    void register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& properties);
+    void register_plugin(const std::filesystem::path& plugin, const std::string& device_name, const ov::AnyMap& properties);
 
     /**
      * @brief Provides a list of plugin names in registry; physically such plugins may not be created
@@ -302,9 +303,9 @@ public:
     std::shared_ptr<ov::Model> read_model(const std::shared_ptr<AlignedBuffer>& model,
                                           const std::shared_ptr<AlignedBuffer>& weights) const override;
 
-    std::shared_ptr<ov::Model> read_model(const std::string& model_path,
-                                          const std::string& bin_path,
-                                          const AnyMap& properties) const override;
+    std::shared_ptr<ov::Model> read_model(const std::filesystem::path& model_path,
+                                          const std::filesystem::path& bin_path,
+                                          const ov::AnyMap& properties) const override;
 
     ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                 const std::string& device_name,
@@ -314,7 +315,7 @@ public:
                                                 const ov::SoPtr<ov::IRemoteContext>& context,
                                                 const ov::AnyMap& config = {}) const override;
 
-    ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& model_path,
+    ov::SoPtr<ov::ICompiledModel> compile_model(const std::filesystem::path& model_path,
                                                 const std::string& device_name,
                                                 const ov::AnyMap& config) const override;
 

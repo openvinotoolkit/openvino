@@ -359,15 +359,16 @@ TEST_P(CompileModelLoadFromFileTestBase, CanLoadFromFileWithoutException) {
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 TEST_P(CompileModelLoadFromFileTestBase, CanCreateCacheDirAndDumpBinariesUnicodePath) {
-    std::string cache_path = ov::test::utils::getCurrentWorkingDir() + ov::util::FileTraits<char>::file_separator +
-                             "compiledModel_" + utils::generateTestFilePrefix() + "_cache";
+    std::string cache_path = ov::test::utils::getCurrentWorkingDir() +
+                             ov::test::utils::FileTraits<char>::file_separator + "compiledModel_" +
+                             utils::generateTestFilePrefix() + "_cache";
     std::wstring postfix = L"_" + ov::test::utils::test_unicode_postfix_vector[0];
     std::wstring cache_path_w = ov::util::string_to_wstring(cache_path) + postfix;
     auto cache_path_mb = ov::util::wstring_to_string(cache_path_w);
     std::wstring model_xml_path_w =
-        ov::util::string_to_wstring(cache_path_mb + ov::util::FileTraits<char>::file_separator + m_modelName);
+        ov::util::string_to_wstring(cache_path_mb + ov::test::utils::FileTraits<char>::file_separator + m_modelName);
     std::wstring model_bin_path_w =
-        ov::util::string_to_wstring(cache_path_mb + ov::util::FileTraits<char>::file_separator + m_weightsName);
+        ov::util::string_to_wstring(cache_path_mb + ov::test::utils::FileTraits<char>::file_separator + m_weightsName);
 
     try {
         ov::test::utils::createDirectory(cache_path_w);

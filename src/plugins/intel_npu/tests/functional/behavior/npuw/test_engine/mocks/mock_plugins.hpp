@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+#include <filesystem>
 #include <memory>
 #include <utility>
 
@@ -112,7 +113,7 @@ public:
                          std::shared_ptr<ov::ICompiledModel>(const std::shared_ptr<const ov::Model>& model,
                                                              const ov::AnyMap& properties));
     MOCK_CONST_METHOD2_T(compile_model,
-                         std::shared_ptr<ov::ICompiledModel>(const std::string& model_path,
+                         std::shared_ptr<ov::ICompiledModel>(const std::filesystem::path& model_path,
                                                              const ov::AnyMap& properties));
     MOCK_CONST_METHOD3_T(compile_model,
                          std::shared_ptr<ov::ICompiledModel>(const std::shared_ptr<const ov::Model>& model,

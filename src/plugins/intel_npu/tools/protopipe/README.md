@@ -50,6 +50,7 @@ log_level: INFO
 - `name` or `path` - **Required**. Path to the model file.
 - `framework` - **Optional**. Framework to use for inference: *onnxrt*, *openvino*. (**Default**: *openvino*)
 - `input_data`, `output_data`, `metric`, `random` - **Optional**. Follow [Use-cases](#use-cases) to  learn the details.
+- `reshape` - **Optional**. Set shape for input layers. For example, "input1: [1,3,224,224], input2: [1,4]" or "[1,3,224,224]" in case of one input layer.
 #### OpenVINO parameters
 - `priority` - **Optional**. Model priority: _HIGH_, _MEDIUM_, _LOW_. (Default: _MEDIUM_)
 - `config` - **Optional**. OpenVINO Plugin specific parameters.
@@ -60,7 +61,6 @@ log_level: INFO
 - `ol` - **Optional**. Output layer layout.
 - `iml` - **Optional**. Input model layout.
 - `oml` - **Optional**. Output model layout.
-- `reshape` - **Optional**. Set shape for input layers. For example, "input1: [1,3,224,224], input2: [1,4]" or "[1,3,224,224]" in case of one input layer.
 - `clamp_outputs` - **Optional**. Clamps all model outputs to the valid range for their precision. Requires `op` to be set for it to take effect.
 
 Examples:
@@ -265,7 +265,16 @@ Every stream has the following execution parameters:
 - `target_fps` - **Optional**. Execution frequency of the stream. `target_fps = 1000 / frames_interval_in_ms`. `target_fps` and `frames_interval_in_ms` are mutually exclusive and cannot be provided together.
 - `target_latency_in_ms` - **Optional**. When iteration isn't finished within specified interval, the next frame will be dropped from execution. (**Default**: Disabled)
 - `op_desc`/`conections` or `network` - **Required**. Execution graph structure. Follow [Graph structure](#graph-structure) for the details.
+- `workload_type` - **Optional**. Configure workload type updates at runtime. `workload_type` has the following parameters:
+  - `initial_value` - **Required**. Initial value for workload type. This value will be used when starting the simulation.
+  - `change_to` - **Required**. A list containing the values used to update the workload type during runtime.
+  - `change_interval` - **Required**. A value that represents the number of seconds or iterations depending on stream configuration (iteration_count or exec_time_in_secs is set). The workload type will be updated according to this interval value.
+  - `repeat` - **Optional**. If this value is set to true and all the values in the `change_to` list were used, the values will be reiterated. If set to false or not set at all, workload type updates will stop after the last value in `change_to` list.
 
+  Example:
+    ```
+    workload_type : {initial_value: Default, change_to: [Efficient, Default], change_interval: 5, repeat: true}
+    ```
 ### Config example
 Consider the following scenario that consists of two parallel streams specified on `config.yaml`:  
 ```

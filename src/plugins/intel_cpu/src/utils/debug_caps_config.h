@@ -230,13 +230,12 @@ private:
             return true;
         }
         [[nodiscard]] std::string getPropertyValueDescription() const override {
-            std::string supportedTokens = "comma separated filter tokens: ";
-            for (size_t i = 0; i < propertyTokens.size(); i++) {
-                if (i) {
-                    supportedTokens.push_back(',');
-                }
-                supportedTokens.append(propertyTokens[i].name);
+            std::vector<std::string> tokenNames;
+            tokenNames.reserve(propertyTokens.size());
+            for (const auto& token : propertyTokens) {
+                tokenNames.push_back(token.name);
             }
+            std::string supportedTokens = "comma separated filter tokens: " + ov::util::join(tokenNames, ",");
             supportedTokens.append(
                 "; -'token' is used for exclusion, case does not matter, no tokens is treated as 'all'");
             return supportedTokens;

@@ -18,6 +18,7 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/allocator.hpp"
+#include "openvino/runtime/file_handle.hpp"
 
 namespace ov {
 
@@ -310,7 +311,7 @@ using TensorVector = std::vector<Tensor>;
 
 /// \brief Read a tensor content from a file. Only raw data is loaded.
 /// \param file_name Path to file to read.
-/// \param element_type Element type, when not specified the it is assumed as element::u8.
+/// \param element_type Element type, when not specified then it is assumed as element::u8.
 /// \param shape Shape for resulting tensor. If provided shape is static, specified number of elements is read only.
 ///              File should contain enough bytes, an exception is raised otherwise.
 ///              One of the dimensions can be dynamic. In this case it will be determined automatically based on the
@@ -325,4 +326,18 @@ Tensor read_tensor_data(const std::filesystem::path& file_name,
                         const PartialShape& shape = PartialShape::dynamic(1),
                         std::size_t offset_in_bytes = 0,
                         bool mmap = true);
+
+/// \brief Read a tensor content from an externally provided file handle. Only raw data is loaded.
+/// \param file_handle File handle to read. File handle should be opened by the caller OpenVINO takes ownership of the
+/// file
+///                    handle and is responsible for closing it. File should be opened with GENERIC_READ,
+///                    FILE_SHARE_READ flags on Windows and O_RDONLY on Linux.
+/// \param element_type Element type, when not specified the it is assumed as element::u8.
+/// \param shape Shape for resulting tensor.
+/// \param offset_in_bytes Read file starting from specified offset.
+OPENVINO_API
+Tensor read_tensor_data(ov::FileHandle file_handle,
+                        const element::Type& element_type = element::u8,
+                        const PartialShape& shape = PartialShape::dynamic(1),
+                        std::size_t offset_in_bytes = 0);
 }  // namespace ov

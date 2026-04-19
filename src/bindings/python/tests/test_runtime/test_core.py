@@ -209,7 +209,7 @@ def test_read_model_as_path_with_user_config(request, tmp_path):
     core_cache_dir = core.get_property("CACHE_DIR")
     cache_path = tmp_path / Path("cache_as_path")
 
-    model = core.read_model(Path(xml_path), Path(bin_path), config={"CACHE_DIR": f"{cache_path}"})
+    model = core.read_model(Path(xml_path), Path(bin_path), config={"CACHE_DIR": cache_path})
 
     assert isinstance(model, Model)
     assert core_cache_dir == core.get_property("CACHE_DIR")
@@ -374,7 +374,7 @@ def test_register_plugin():
     core.register_plugin(lib_name, device)
     with pytest.raises(RuntimeError) as e:
         core.get_versions(device)
-    assert f"Cannot load library '{full_lib_name}'" in str(e.value)
+    assert f'Cannot load library "{full_lib_name}"' in str(e.value)
 
 
 @pytest.mark.dynamic_library
@@ -390,7 +390,7 @@ def test_register_plugins():
 
     with pytest.raises(RuntimeError) as e:
         core.get_versions(device)
-    assert f"Cannot load library '{full_lib_name}'" in str(e.value)
+    assert f'Cannot load library "{full_lib_name}"' in str(e.value)
 
 
 @pytest.mark.dynamic_library
@@ -405,7 +405,7 @@ def test_core_register_plugins():
 
     with pytest.raises(RuntimeError) as e:
         core.get_versions(device)
-    assert f"Cannot load library '{full_lib_name}'" in str(e.value)
+    assert f'Cannot load library "{full_lib_name}"' in str(e.value)
 
 
 def test_unload_plugin(device):
@@ -444,6 +444,14 @@ def test_add_extension():
     core.add_extension([EmptyExtension(), EmptyExtension()])
     model = get_relu_model()
     assert isinstance(model, Model)
+
+
+def test_add_extension_from_path():
+    core = Core()
+
+    with pytest.raises(RuntimeError) as e:
+        core.add_extension(Path("non_existing_extension"))
+    assert "Cannot load library" in str(e.value)
 
 
 def test_read_model_from_buffer_no_weights():

@@ -213,19 +213,12 @@ struct ParseResult {
  *
  * @return     The ParseResult.
  */
-inline ParseResult parse_xml(const char* file_path) {
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    std::wstring wFilePath = ov::util::string_to_wstring(file_path);
-    const wchar_t* resolvedFilepath = wFilePath.c_str();
-#else
-    const char* resolvedFilepath = file_path;
-#endif
-
+inline ParseResult parse_xml(const std::filesystem::path& file_path) {
     try {
-        auto xml = std::unique_ptr<pugi::xml_document>{new pugi::xml_document{}};
-        const auto load_result = xml->load_file(resolvedFilepath);
+        auto xml = std::make_unique<pugi::xml_document>();
+        const auto load_result = xml->load_file(file_path.c_str());
 
-        const auto error_msg = [&]() -> std::string {
+        auto error_msg = [&]() -> std::string {
             if (load_result.status == pugi::status_ok)
                 return {};
 
@@ -244,7 +237,7 @@ inline ParseResult parse_xml(const char* file_path) {
             return ss.str();
         }();
 
-        return {std::move(xml), error_msg};
+        return {std::move(xml), std::move(error_msg)};
     } catch (std::exception& e) {
         return {std::move(nullptr), std::string("Error loading XML file: ") + e.what()};
     }

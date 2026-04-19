@@ -10,15 +10,18 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v1 = ov::op::v1;
 ov::pass::ConvertMaxPool1ToMaxPool8::ConvertMaxPool1ToMaxPool8() {
     MATCHER_SCOPE(ConvertMaxPool1ToMaxPool8);
     // Replaces v1::MaxPool with v8::MaxPool with default dilations, axis and index_element_type attributes
 
-    auto input = pattern::any_input(pattern::has_static_rank());
-    auto maxpool_v1_pattern = ov::pass::pattern::wrap_type<ov::op::v1::MaxPool>({input});
+    auto input = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
+    auto maxpool_v1_pattern = ov::pass::pattern::wrap_type<v1::MaxPool>({input});
 
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-        auto maxpool_v1_node = ov::as_type_ptr<ov::op::v1::MaxPool>(m.get_match_root());
+    matcher_pass_callback callback = [=](Matcher& m) {
+        auto maxpool_v1_node = ov::as_type_ptr<v1::MaxPool>(m.get_match_root());
 
         if (!maxpool_v1_node)
             return false;
@@ -47,6 +50,6 @@ ov::pass::ConvertMaxPool1ToMaxPool8::ConvertMaxPool1ToMaxPool8() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(maxpool_v1_pattern, matcher_name);
+    auto m = std::make_shared<Matcher>(maxpool_v1_pattern, matcher_name);
     register_matcher(m, callback);
 }

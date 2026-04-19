@@ -7,7 +7,17 @@
 #include "memory_test.hpp"
 
 
-void do_test(TestContext &test) {
+std::vector<std::string> test_samples() {
+    return {
+        "start",
+        "compile_model",
+        "fill_inputs",
+        "inference"
+    };
+}
+
+
+void do_test(memory_tests::Context &test) {
     test.sample("start");
 
     ov::Core core;
@@ -22,5 +32,4 @@ void do_test(TestContext &test) {
 
     ireq.infer();
     test.sample("inference");
-
 }

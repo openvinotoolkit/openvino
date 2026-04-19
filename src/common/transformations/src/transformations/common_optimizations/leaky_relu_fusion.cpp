@@ -16,13 +16,18 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-ov::pass::LeakyReluFusion::LeakyReluFusion() {
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+
+namespace ov::pass {
+
+LeakyReluFusion::LeakyReluFusion() {
     MATCHER_SCOPE(LeakyReluFusion);
-    auto data_pattern = pass::pattern::any_input();
-    auto alpha_pattern = pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto data_pattern = pattern::any_input();
+    auto alpha_pattern = pattern::wrap_type<v0::Constant>();
     auto multiply_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({data_pattern, alpha_pattern}, pattern::consumers_count(1));
-    auto max_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Maximum>({data_pattern, multiply_pattern});
+        pattern::wrap_type<v1::Multiply>({data_pattern, alpha_pattern}, pattern::consumers_count(1));
+    auto max_pattern = pattern::wrap_type<v1::Maximum>({data_pattern, multiply_pattern});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -31,7 +36,7 @@ ov::pass::LeakyReluFusion::LeakyReluFusion() {
         if (shape_size(original_alpha_pattern.get_shape()) != 1)
             return false;
 
-        auto constant = ov::as_type_ptr<ov::op::v0::Constant>(original_alpha_pattern.get_node_shared_ptr());
+        auto constant = ov::as_type_ptr<v0::Constant>(original_alpha_pattern.get_node_shared_ptr());
         if (!constant)
             return false;
 
@@ -42,7 +47,7 @@ ov::pass::LeakyReluFusion::LeakyReluFusion() {
         if (value > 1.0f)
             return false;
 
-        auto leaky_relu = register_new_node<ov::op::v0::PRelu>(pattern_map.at(data_pattern), original_alpha_pattern);
+        auto leaky_relu = register_new_node<v0::PRelu>(pattern_map.at(data_pattern), original_alpha_pattern);
         auto maximum = pattern_map.at(max_pattern);
         leaky_relu->set_friendly_name(maximum.get_node()->get_friendly_name());
 
@@ -53,6 +58,8 @@ ov::pass::LeakyReluFusion::LeakyReluFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(max_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(max_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

@@ -177,15 +177,21 @@ describe("ov basic tests.", () => {
 
       assert.throws(() => core.compileModelSync(model), new RegExp(expectedMsg));
     });
+
+    it("compileModelSync(invalid path to model) - C++ API error", () => {
+      assert.throws(
+        () => core.compileModelSync("invalid_path.xml", "CPU"),
+        /Could not open the file/,
+      );
+    });
   });
 
   describe("Core.compileModel()", () => {
     const tput = { PERFORMANCE_HINT: "THROUGHPUT" };
 
-    it("compileModel(model:Model, deviceName: string, config: {}) ", () => {
-      core.compileModel(model, "CPU", tput).then((cm) => {
-        assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
-      });
+    it("compileModel(model:Model, deviceName: string, config: {}) ", async () => {
+      const cm = await core.compileModel(model, "CPU", tput);
+      assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
     });
 
     it("compileModel(model:Model) returns Promise<CompiledModel>", async () => {
@@ -193,6 +199,7 @@ describe("ov basic tests.", () => {
       assert.ok(promise instanceof Promise);
       const cm = await promise;
       assert.ok(cm instanceof ov.CompiledModel);
+      assert.ok(cm.createInferRequest());
     });
 
     it("compileModel(model_path) returns Promise<CompiledModel>", async () => {
@@ -200,36 +207,52 @@ describe("ov basic tests.", () => {
       assert.ok(promise instanceof Promise);
       const cm = await promise;
       assert.ok(cm instanceof ov.CompiledModel);
+      assert.ok(cm.createInferRequest());
     });
 
-    it("compileModel(model_path, deviceName, config: {}) ", () => {
-      core.compileModel(testModelFP32.xml, "CPU", tput).then((cm) => {
-        assert.equal(cm.inputs.length, 1);
-      });
+    it("compileModel(model_path, deviceName, config: {}) ", async () => {
+      const cm = await core.compileModel(testModelFP32.xml, "CPU", tput);
+      assert.equal(cm.inputs.length, 1);
     });
 
-    it("compileModel(model:model_path, deviceName: string) ", () => {
-      core.compileModel(testModelFP32.xml, "CPU").then((cm) => {
-        assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
-      });
+    it("compileModel(model:model_path, deviceName: string) ", async () => {
+      const cm = await core.compileModel(testModelFP32.xml, "CPU");
+      assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
     });
 
-    it("compileModel(model, device, invalidconfig) throws", () => {
-      assert.throws(
-        () => core.compileModel(model, "CPU", "string").then(),
-        "Argument #3 must be an Object.",
+    it("compileModel(model, device, invalidconfig) throws", async () => {
+      await assert.rejects(
+        async () => await core.compileModel(model, "CPU", "string"),
+        /'compileModel' method called with incorrect parameters/,
       );
     });
 
-    it("compileModel(model, device, invalidConfig) throws", () => {
-      assert.throws(
-        () => core.compileModel(model, "CPU", { PERFORMANCE_HINT: tput }).then(),
+    it("compileModel(model, device, invalidConfig) throws", async () => {
+      await assert.rejects(
+        async () => await core.compileModel(model, "CPU", { PERFORMANCE_HINT: tput }),
         /Cannot convert to ov::Any/,
       );
     });
 
-    it("compileModel(model) throws with invalid number of args", () => {
-      assert.throws(() => core.compileModel(model).then(), /Invalid number of arguments/);
+    it("compileModel(model) throws with invalid number of args", async () => {
+      await assert.rejects(
+        async () => await core.compileModel(model),
+        /'compileModel' method called with incorrect parameters/,
+      );
+    });
+
+    it("compileModel(invalid device) - C++ API error", async () => {
+      await assert.rejects(
+        async () => await core.compileModel(model, "DEVICE"),
+        /Device .* is not registered/,
+      );
+    });
+
+    it("compileModel(invalid path to model) - C++ API error", async () => {
+      await assert.rejects(
+        async () => await core.compileModel("invalid_path.xml", "CPU"),
+        /Could not open the file/,
+      );
     });
   });
 
@@ -319,14 +342,21 @@ describe("ov basic tests.", () => {
     it("Test importModelSync(stream, device) throws", () => {
       assert.throws(
         () => core.importModelSync(model, "CPU"),
-        /The first argument must be of type Buffer./,
+        /'importModelSync' method called with incorrect parameters./,
+      );
+    });
+
+    it("importModelSync(stream, device) - C++ API error", () => {
+      assert.throws(
+        () => core.importModelSync(userStream, "DEVICE"),
+        /Device .* is not registered/,
       );
     });
 
     it("Test importModelSync(stream, device) throws", () => {
       assert.throws(
         () => core.importModelSync(userStream, tensor),
-        /The second argument must be of type String./,
+        /'importModelSync' method called with incorrect parameters./,
       );
     });
     it("Test importModelSync(stream, device, config: tensor) throws", () => {
@@ -340,7 +370,7 @@ describe("ov basic tests.", () => {
       const testString = "test";
       assert.throws(
         () => core.importModelSync(userStream, "CPU", testString),
-        /Passed Napi::Value must be an object./,
+        /'importModelSync' method called with incorrect parameters./,
       );
     });
 
@@ -359,43 +389,109 @@ describe("ov basic tests.", () => {
       assert.ok(cm instanceof ov.CompiledModel);
     });
 
-    it("Test importModel(stream, device)", () => {
-      core.importModel(userStream, "CPU").then((newCompiled) => {
-        const newInferRequest = newCompiled.createInferRequest();
-        const res2 = newInferRequest.infer([tensor]);
-        assert.deepStrictEqual(res1["fc_out"].data[0], res2["fc_out"].data[0]);
-      });
+    it("Test importModel(stream, device)", async () => {
+      const newCompiled = await core.importModel(userStream, "CPU");
+      const newInferRequest = newCompiled.createInferRequest();
+      const res2 = newInferRequest.infer([tensor]);
+      assert.deepStrictEqual(res1["fc_out"].data[0], res2["fc_out"].data[0]);
     });
 
-    it("Test importModel(stream, device, config)", () => {
-      core.importModel(userStream, "CPU", { NUM_STREAMS: 1 }).then((newCompiled) => {
-        const newInferRequest = newCompiled.createInferRequest();
-        const res2 = newInferRequest.infer([tensor]);
+    it("Test importModel(stream, device, config)", async () => {
+      const newCompiled = await core.importModel(userStream, "CPU", { NUM_STREAMS: 1 });
+      const newInferRequest = newCompiled.createInferRequest();
+      const res2 = newInferRequest.infer([tensor]);
 
-        assert.deepStrictEqual(res1["fc_out"].data[0], res2["fc_out"].data[0]);
-      });
+      assert.deepStrictEqual(res1["fc_out"].data[0], res2["fc_out"].data[0]);
     });
 
-    it("Test importModel(stream, device) throws", () => {
-      assert.throws(
-        () => core.importModel(model, "CPU").then(),
+    it("Test importModel(stream, device) throws", async () => {
+      await assert.rejects(
+        async () => await core.importModel(model, "CPU"),
         /'importModel' method called with incorrect parameters./,
       );
     });
 
-    it("Test importModel(stream, device) throws", () => {
-      assert.throws(
-        () => core.importModel(userStream, tensor).then(),
+    it("importModel(stream, device) - C++ API error", async () => {
+      await assert.rejects(
+        async () => await core.importModel(userStream, "DEVICE"),
+        /Device .* is not registered/,
+      );
+    });
+
+    it("Test importModel(stream, device) throws", async () => {
+      await assert.rejects(
+        async () => await core.importModel(userStream, tensor),
         /'importModel' method called with incorrect parameters./,
       );
     });
 
-    it("Test importModel(stream, device, config: string) throws", () => {
+    it("Test importModel(stream, device, config: string) throws", async () => {
       const testString = "test";
-      assert.throws(
-        () => core.importModel(userStream, "CPU", testString).then(),
+      await assert.rejects(
+        async () => await core.importModel(userStream, "CPU", testString),
         /'importModel' method called with incorrect parameters./,
       );
+    });
+
+    it("Test importModelSync from Tensor", () => {
+      const uint8Array = new Uint8Array(userStream);
+      const tensorFromBuffer = new ov.Tensor(ov.element.u8, [userStream.length], uint8Array);
+
+      const newCompiled = core.importModelSync(tensorFromBuffer, "CPU");
+      assert.ok(newCompiled instanceof ov.CompiledModel);
+
+      const newInferRequest = newCompiled.createInferRequest();
+      const res2 = newInferRequest.infer([tensor]);
+
+      assert.deepStrictEqual(res1["fc_out"].data[0], res2["fc_out"].data[0]);
+    });
+
+    it("Test importModelSync from Tensor with config", () => {
+      const uint8Array = new Uint8Array(userStream);
+      const tensorFromBuffer = new ov.Tensor(ov.element.u8, [userStream.length], uint8Array);
+
+      const newCompiled = core.importModelSync(tensorFromBuffer, "CPU", {
+        NUM_STREAMS: 1,
+      });
+      assert.ok(newCompiled instanceof ov.CompiledModel);
+
+      const newInferRequest = newCompiled.createInferRequest();
+      const res2 = newInferRequest.infer([tensor]);
+
+      assert.deepStrictEqual(res1["fc_out"].data[0], res2["fc_out"].data[0]);
+    });
+
+    it("Test importModel from Tensor returns Promise", async () => {
+      const uint8Array = new Uint8Array(userStream);
+      const tensorFromBuffer = new ov.Tensor(ov.element.u8, [userStream.length], uint8Array);
+
+      const promise = core.importModel(tensorFromBuffer, "CPU");
+      assert.ok(promise instanceof Promise);
+      const cm = await promise;
+      assert.ok(cm instanceof ov.CompiledModel);
+    });
+
+    it("importModel(tensor, device) - C++ API error", async () => {
+      const uint8Array = new Uint8Array(userStream);
+      const tensorFromBuffer = new ov.Tensor(ov.element.u8, [userStream.length], uint8Array);
+      await assert.rejects(
+        async () => await core.importModel(tensorFromBuffer, "DEVICE"),
+        /Device .* is not registered/,
+      );
+    });
+
+    it("Test importModel from Tensor with config", async () => {
+      const uint8Array = new Uint8Array(userStream);
+      const tensorFromBuffer = new ov.Tensor(ov.element.u8, [userStream.length], uint8Array);
+
+      const newCompiled = await core.importModel(tensorFromBuffer, "CPU", {
+        NUM_STREAMS: 1,
+      });
+
+      const newInferRequest = newCompiled.createInferRequest();
+      const res2 = newInferRequest.infer([tensor]);
+
+      assert.deepStrictEqual(res1["fc_out"].data[0], res2["fc_out"].data[0]);
     });
   });
 });

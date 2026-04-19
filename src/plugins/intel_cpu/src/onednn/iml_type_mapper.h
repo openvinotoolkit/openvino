@@ -48,12 +48,9 @@ enum impl_desc_type : int64_t {
     sve384 = 1 << 30,
     sve512 = 1 << 31,
 
-    // shl backend
-    shl = 1LL << 32,
+    gv = 1LL << 32,
 
-    gv = 1LL << 33,
-
-    kleidiai = 1LL << 34,
+    kleidiai = 1LL << 33,
 
     // real types
     ref_any = ref | any,
@@ -126,7 +123,6 @@ enum impl_desc_type : int64_t {
     jit_sve384 = jit | sve384,
     jit_sve512 = jit | sve512,
 
-    gemm_shl = gemm | shl,
     gemm_kleidiai = gemm | kleidiai,
 
     jit_gv = jit | gv

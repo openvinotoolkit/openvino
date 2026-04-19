@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@ class CommonOptimizations : public ov::pass::MatcherPass {
     class SubgraphManager;
     friend class ExtractConstants;
     friend class ExtractUnsupportedTransposes;
-    friend class SplitDimensionM;
 
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::CommonOptimizations");
@@ -30,9 +29,7 @@ public:
     struct Config {
         using TransposeSupportCallback = std::function<bool(const std::shared_ptr<const ov::Node>&)>;
 
-        Config(size_t concurrency, bool split_m_dimension)
-            : m_concurrency(concurrency),
-              m_split_m_dimension(split_m_dimension) {
+        explicit Config(size_t concurrency) : m_concurrency(concurrency) {
             OPENVINO_ASSERT(concurrency > 0, "Concurrency should be greater than 0");
         }
 
@@ -45,10 +42,6 @@ public:
             return m_concurrency;
         }
 
-        [[nodiscard]] bool get_split_m_dimension() const {
-            return m_split_m_dimension;
-        }
-
         void set_transpose_support_callback(TransposeSupportCallback cb) {
             m_transpose_support_cb = std::move(cb);
         }
@@ -59,8 +52,6 @@ public:
 
     private:
         size_t m_concurrency = 0;
-        // True if "SplitDimensionM" optimization is enabled.
-        bool m_split_m_dimension = true;
         // Callback to determine whether a given Transpose is supported inside Subgraph.
         // If empty, all Transposes are treated as unsupported.
         TransposeSupportCallback m_transpose_support_cb = [](const std::shared_ptr<const ov::Node>&) {

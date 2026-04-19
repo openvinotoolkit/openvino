@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 #include "registry.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "primitive_inst.h"
+#include "reorder_inst.h"
 
 #if OV_GPU_WITH_ONEDNN
     #include "impls/onednn/reorder_onednn.hpp"

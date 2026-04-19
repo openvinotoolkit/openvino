@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -157,9 +157,9 @@ void MockPluginBase<DeviceType>::create_implementation() {
 
             return mock_compiled_model;
         });
-    ON_CALL(*this, compile_model(testing::A<const std::string&>(), testing::_))
+    ON_CALL(*this, compile_model(testing::A<const std::filesystem::path&>(), testing::_))
         .WillByDefault(
-            [](const std::string& model_path, const ov::AnyMap& properties) -> std::shared_ptr<ov::ICompiledModel> {
+            [](const std::filesystem::path& model_path, const ov::AnyMap& properties) -> std::shared_ptr<ov::ICompiledModel> {
                 OPENVINO_NOT_IMPLEMENTED;
             });
     ON_CALL(*this, compile_model(testing::A<const std::shared_ptr<const ov::Model>&>(), testing::_, testing::_))

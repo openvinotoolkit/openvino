@@ -514,12 +514,13 @@ static const std::vector<std::string> models{
     std::string("reshape/reshape.pdmodel"),
     std::string("reshape_tensor/reshape_tensor.pdmodel"),
     std::string("reshape_tensor_list/reshape_tensor_list.pdmodel"),
-    std::string("rnn_lstm_layer_1_bidirectional/rnn_lstm_layer_1_bidirectional.pdmodel"),
-    std::string("rnn_lstm_layer_1_forward/rnn_lstm_layer_1_forward.pdmodel"),
-    std::string("rnn_lstm_layer_2_bidirectional/rnn_lstm_layer_2_bidirectional.pdmodel"),
-    std::string("rnn_lstm_layer_2_forward/rnn_lstm_layer_2_forward.pdmodel"),
-    std::string("rnn_lstm_layer_1_forward_seq_len_4/rnn_lstm_layer_1_forward_seq_len_4.pdmodel"),
-    std::string("rnn_lstm_layer_2_bidirectional_seq_len_4/rnn_lstm_layer_2_bidirectional_seq_len_4.pdmodel"),
+    // CVS-184334 Temporarily disable Paddle RNN/LSTM frontend models.
+    // std::string("rnn_lstm_layer_1_bidirectional/rnn_lstm_layer_1_bidirectional.pdmodel"),
+    // std::string("rnn_lstm_layer_1_forward/rnn_lstm_layer_1_forward.pdmodel"),
+    // std::string("rnn_lstm_layer_2_bidirectional/rnn_lstm_layer_2_bidirectional.pdmodel"),
+    // std::string("rnn_lstm_layer_2_forward/rnn_lstm_layer_2_forward.pdmodel"),
+    // std::string("rnn_lstm_layer_1_forward_seq_len_4/rnn_lstm_layer_1_forward_seq_len_4.pdmodel"),
+    // std::string("rnn_lstm_layer_2_bidirectional_seq_len_4/rnn_lstm_layer_2_bidirectional_seq_len_4.pdmodel"),
     std::string("roi_align_test/roi_align_test.pdmodel"),
     std::string("roi_align_test2/roi_align_test2.pdmodel"),
     std::string("roll_test_0/roll_test_0.pdmodel"),
@@ -679,7 +680,7 @@ static const std::vector<std::string> models{
     std::string("scatter_test_1/scatter_test_1.pdmodel"),
     std::string("scatter_test_2/scatter_test_2.pdmodel"),
     std::string("scatter_nd_add_test_1/scatter_nd_add_test_1.pdmodel"),
-    // Temporily disable them until root caused to secure CI stable.
+    // Temporarily disable them until root caused to secure CI stable.
     // CVS-66703 to track this.
     // std::string("yolo_box_clip_box/yolo_box_clip_box.pdmodel"),
     // std::string("yolo_box_default/yolo_box_default.pdmodel"),

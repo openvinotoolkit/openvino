@@ -31,6 +31,11 @@
 
 using namespace ov;
 
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v4 = ov::op::v4;
 namespace {
 // This function creates a partition of its argument into groups consisting of adjacent identical elements.
 // Argument: std::vector<uint64_t> v
@@ -56,8 +61,7 @@ std::vector<std::vector<uint64_t>> grouped_vector(const std::vector<uint64_t>& v
     return result;
 }
 
-std::pair<std::shared_ptr<ov::op::v1::Split>, uint64_t> get_split_before_concat(
-    const std::shared_ptr<ov::op::v0::Concat>& concat) {
+std::pair<std::shared_ptr<v1::Split>, uint64_t> get_split_before_concat(const std::shared_ptr<v0::Concat>& concat) {
     // This function gets producers of the 'concat' node, checks that the following conditions are fulfilled:
     // 1) all producers for 'concat' are Split nodes;
     // 2) 'concat' has only one unique producer ('split');
@@ -69,10 +73,10 @@ std::pair<std::shared_ptr<ov::op::v1::Split>, uint64_t> get_split_before_concat(
     // these conditions is false, this functions returns nullptr.
 
     std::vector<uint64_t> idx;
-    std::shared_ptr<ov::op::v1::Split> split;
+    std::shared_ptr<v1::Split> split;
     for (const auto& input : concat->input_values()) {
         // If 'concat' has some non-Split producer, then the transformation is not applicable.
-        auto split_op = ov::as_type_ptr<ov::op::v1::Split>(input.get_node_shared_ptr());
+        auto split_op = ov::as_type_ptr<v1::Split>(input.get_node_shared_ptr());
         if (!split)
             split = split_op;
         if (!split_op || split != split_op)
@@ -151,14 +155,14 @@ ov::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFusion
     // by number of output ports of 'split'.
     //
     // Detect only concat, because we don't know how many inputs will go into concat.
-    auto concat_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Concat>();
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        auto concat = ov::as_type_ptr<ov::op::v0::Concat>(m.get_match_root());
+    auto concat_pattern = ov::pass::pattern::wrap_type<v0::Concat>();
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+        auto concat = ov::as_type_ptr<v0::Concat>(m.get_match_root());
         if (!concat)
             return false;
 
         uint64_t scale_factor;
-        std::shared_ptr<ov::op::v1::Split> split;
+        std::shared_ptr<v1::Split> split;
         std::tie(split, scale_factor) = get_split_before_concat(concat);
         // If scale_factor == 1, then output data of Interpolate are equal to input data. Hence, we should not replace
         // Split->Concat pair with Interpolate.
@@ -174,7 +178,7 @@ ov::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFusion
         if (split_input_rank != 4 && split_input_rank != 5)
             return false;
 
-        auto split_axis_const = ov::as_type_ptr<ov::op::v0::Constant>(split->input_value(1).get_node_shared_ptr());
+        auto split_axis_const = ov::as_type_ptr<v0::Constant>(split->input_value(1).get_node_shared_ptr());
         if (!split_axis_const)
             return false;
 
@@ -184,33 +188,33 @@ ov::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFusion
             split->get_input_partial_shape(0)[axis].get_length() != static_cast<int64_t>(split->outputs().size()))
             return false;
 
-        ov::op::v4::Interpolate::InterpolateAttrs attrs;
+        v4::Interpolate::InterpolateAttrs attrs;
 
-        attrs.mode = ov::op::v4::Interpolate::InterpolateMode::NEAREST;
-        attrs.shape_calculation_mode = ov::op::v4::Interpolate::ShapeCalcMode::SCALES;
-        attrs.nearest_mode = ov::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR;
+        attrs.mode = v4::Interpolate::InterpolateMode::NEAREST;
+        attrs.shape_calculation_mode = v4::Interpolate::ShapeCalcMode::SCALES;
+        attrs.nearest_mode = v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR;
         attrs.pads_begin = std::vector<size_t>{0};
         attrs.pads_end = std::vector<size_t>{0};
         attrs.antialias = false;
-        attrs.coordinate_transformation_mode = ov::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL;
+        attrs.coordinate_transformation_mode = v4::Interpolate::CoordinateTransformMode::HALF_PIXEL;
         attrs.cube_coeff = -0.75f;
 
         auto scales_node =
-            ov::op::v0::Constant::create(element::f32, {1}, std::vector<float>{static_cast<float>(scale_factor)});
-        auto axis_node = ov::op::v0::Constant::create(element::i64, {1}, std::vector<int64_t>{axis});
+            v0::Constant::create(element::f32, {1}, std::vector<float>{static_cast<float>(scale_factor)});
+        auto axis_node = v0::Constant::create(element::i64, {1}, std::vector<int64_t>{axis});
         auto shape_node = std::make_shared<ov::op::v3::ShapeOf>(split->input_value(0));
 
-        auto sslice_begin = ov::op::v0::Constant::create(element::i64, {1}, std::vector<int64_t>{axis});
-        auto sslice_end = ov::op::v0::Constant::create(element::i64, {1}, std::vector<int64_t>{axis + 1});
+        auto sslice_begin = v0::Constant::create(element::i64, {1}, std::vector<int64_t>{axis});
+        auto sslice_end = v0::Constant::create(element::i64, {1}, std::vector<int64_t>{axis + 1});
         std::vector<int64_t> begin_mask = {0};
         std::vector<int64_t> end_mask = {0};
         auto strided_slice_node =
-            std::make_shared<ov::op::v1::StridedSlice>(shape_node, sslice_begin, sslice_end, begin_mask, end_mask);
+            std::make_shared<v1::StridedSlice>(shape_node, sslice_begin, sslice_end, begin_mask, end_mask);
 
-        auto cast_shape_to_float = std::make_shared<ov::op::v0::Convert>(strided_slice_node, element::f32);
-        auto mul_node = std::make_shared<ov::op::v1::Multiply>(cast_shape_to_float, scales_node);
-        auto floor_node = std::make_shared<ov::op::v0::Floor>(mul_node);
-        auto cast_mul_result_to_int = std::make_shared<ov::op::v0::Convert>(floor_node, element::i64);
+        auto cast_shape_to_float = std::make_shared<v0::Convert>(strided_slice_node, element::f32);
+        auto mul_node = std::make_shared<v1::Multiply>(cast_shape_to_float, scales_node);
+        auto floor_node = std::make_shared<v0::Floor>(mul_node);
+        auto cast_mul_result_to_int = std::make_shared<v0::Convert>(floor_node, element::i64);
 
         std::shared_ptr<Node> sizes_node;
 
@@ -223,11 +227,8 @@ ov::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFusion
         if (!sizes_node)
             sizes_node = cast_mul_result_to_int;
 
-        auto interpolate = register_new_node<ov::op::v4::Interpolate>(split->input_value(0),
-                                                                      sizes_node,
-                                                                      scales_node,
-                                                                      axis_node,
-                                                                      attrs);
+        auto interpolate =
+            register_new_node<v4::Interpolate>(split->input_value(0), sizes_node, scales_node, axis_node, attrs);
 
         interpolate->set_friendly_name(concat->get_friendly_name());
         copy_runtime_info({split, concat},
@@ -247,6 +248,6 @@ ov::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFusion
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(concat_pattern, matcher_name);
+    auto m = std::make_shared<Matcher>(concat_pattern, matcher_name);
     register_matcher(m, callback);
 }
