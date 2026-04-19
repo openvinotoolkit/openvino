@@ -284,15 +284,23 @@ KERNEL(pa_sdpa_opt)(
                     INPUT0_TYPE comp_scale = comp_ptr[0];
                     INPUT0_TYPE comp_zp = comp_ptr[1];
 
-                    unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
-                        const uint head_dim = qk_idx * KEY_VEC_SIZE + i;
-                        const uint col_base = key_block_offset + head_dim * hidden_stride;
-                        // Read packed byte containing this lane's u4 token value
-                        char packed = key_cache[col_base + sglid / U4_ELEMS_PER_BYTE];
-                        MAKE_VECTOR_TYPE(char, U4_ELEMS_PER_BYTE) buff = unpack_to_char(*(uint4x2_t *)&packed);
-                        char u4_val = (sglid % U4_ELEMS_PER_BYTE == 0) ? buff.s0 : buff.s1;
-                        // Use shuffled per-channel scale/zp
-                        k_vals[qk_idx][i] = ((INPUT0_TYPE)u4_val - _sub_group_shuffle(comp_zp, i)) * _sub_group_shuffle(comp_scale, i);
+                    // Optimized: process 2 adjacent head dims per iteration to halve memory reads
+                    // and eliminate redundant unpack + branch operations.
+                    const uint sglid_byte_offset = sglid / U4_ELEMS_PER_BYTE;
+                    const uint is_odd_lane = sglid % U4_ELEMS_PER_BYTE;
+                    unroll_for (uint i = 0; i < KEY_VEC_SIZE; i += 2) {
+                        const uint head_dim0 = qk_idx * KEY_VEC_SIZE + i;
+                        const uint head_dim1 = head_dim0 + 1;
+
+                        const uint col_base0 = key_block_offset + head_dim0 * hidden_stride;
+                        const uint col_base1 = key_block_offset + head_dim1 * hidden_stride;
+                        char packed0 = key_cache[col_base0 + sglid_byte_offset];
+                        char packed1 = key_cache[col_base1 + sglid_byte_offset];
+                        char u4_val0 = is_odd_lane ? ((uchar)packed0 >> 4) : (packed0 & 0x0F);
+                        char u4_val1 = is_odd_lane ? ((uchar)packed1 >> 4) : (packed1 & 0x0F);
+
+                        k_vals[qk_idx][i]     = ((INPUT0_TYPE)u4_val0 - _sub_group_shuffle(comp_zp, i))     * _sub_group_shuffle(comp_scale, i);
+                        k_vals[qk_idx][i + 1] = ((INPUT0_TYPE)u4_val1 - _sub_group_shuffle(comp_zp, i + 1)) * _sub_group_shuffle(comp_scale, i + 1);
                     }
                 }
             }
