@@ -42,7 +42,7 @@ layout detection_output_inst::calc_output_layout(detection_output_node const& no
     }
 
     if (desc->top_k != -1) {
-        int top_k = desc->top_k * num_classes * input_layout.batch();
+        int top_k = desc->top_k * num_classes * static_cast<int>(input_layout.batch());
         if (top_k < output_size) {
             output_size = top_k;
         }
@@ -50,7 +50,7 @@ layout detection_output_inst::calc_output_layout(detection_output_node const& no
 
     output_size *= DETECTION_OUTPUT_ROW_SIZE;
     // Add space for number of output results per image - needed in the next detection output step
-    output_size += ((input_layout.batch() + 15) / 16) * 16;
+    output_size += ((static_cast<int>(input_layout.batch()) + 15) / 16) * 16;
 
     return {input_layout.data_type, cldnn::format::bfyx,
             cldnn::tensor(1, 1, DETECTION_OUTPUT_ROW_SIZE, desc->keep_top_k * input_layout.batch())};
