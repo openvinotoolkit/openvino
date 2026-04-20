@@ -1050,6 +1050,74 @@ TEST_P(mvn_random_test_bsv32, random_cached) {
     this->execute(GetParam(), true);
 }
 
+TEST(mvn_gpu_test, mvn_bfyx_opt_high_bias_numerical_stability) {
+    // Test single-pass variance formula with high-bias input to validate
+    // catastrophic cancellation prevention (E[x²] - (E[x])² when mean >> std_dev)
+    auto& engine = get_test_engine();
+
+    const float bias = 10000.0f;
+    const float std_dev = 1.0f;
+
+    // Create input: mean=10000, std_dev=1
+    // Values: [10001, 10000, 10002, 9999, 10000.5, 9999.5, 10001.5, 10000.2, ...]
+    auto input_layout = layout{ov::PartialShape{1, 1, 128, 128}, data_types::f32, format::bfyx};
+    auto input = engine.allocate_memory(input_layout);
+
+    std::vector<float> input_data(128 * 128);
+    tests::random_generator rg(GET_SUITE_NAME);
+    for (size_t i = 0; i < input_data.size(); ++i) {
+        // Normal distribution around bias with small std_dev
+        input_data[i] = bias + (rg.generate_random_val<float>(-2.0f * std_dev, 2.0f * std_dev));
+    }
+    set_values(input, input_data);
+
+    // Compute reference mean and variance
+    double ref_sum = 0.0;
+    double ref_sum_sq = 0.0;
+    for (float val : input_data) {
+        ref_sum += val;
+        ref_sum_sq += val * val;
+    }
+    float ref_mean = static_cast<float>(ref_sum / input_data.size());
+    float ref_variance = static_cast<float>(ref_sum_sq / input_data.size() - ref_mean * ref_mean);
+
+    // Reference variance should be positive (around 1.0)
+    ASSERT_GT(ref_variance, 0.0f) << "Reference variance should be positive";
+    ASSERT_NEAR(ref_variance, std_dev * std_dev, 2.0f) << "Reference variance should be ~1.0";
+
+    topology topo;
+    topo.add(input_layout("input", input_layout));
+    topo.add(mvn("mvn", input_info("input"), true, 1e-10f, false, {2, 3}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"mvn", {format::bfyx, "mvn_gpu_bfyx_opt"}}}));
+
+    network net(engine, topo, config);
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+    auto output = outputs.at("mvn").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    // Validate outputs are normalized (mean=0, std=1)
+    double out_sum = 0.0;
+    double out_sum_sq = 0.0;
+    for (size_t i = 0; i < input_data.size(); ++i) {
+        float val = output_ptr[i];
+        ASSERT_FALSE(std::isnan(val)) << "Output should not be NaN at index " << i;
+        ASSERT_FALSE(std::isinf(val)) << "Output should not be Inf at index " << i;
+        out_sum += val;
+        out_sum_sq += val * val;
+    }
+
+    float out_mean = static_cast<float>(out_sum / input_data.size());
+    float out_variance = static_cast<float>(out_sum_sq / input_data.size() - out_mean * out_mean);
+
+    ASSERT_NEAR(out_mean, 0.0f, 1e-4f) << "Normalized output mean should be ~0";
+    ASSERT_NEAR(out_variance, 1.0f, 0.1f) << "Normalized output variance should be ~1";
+}
+
 TEST(mvn_bfyx_opt_fused_ops, basic_fused) {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();

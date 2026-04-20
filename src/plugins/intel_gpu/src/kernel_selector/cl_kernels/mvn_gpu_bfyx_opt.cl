@@ -87,7 +87,7 @@ KERNEL (mvn_gpu_bfyx_opt)(
 
     my_sum = work_group_reduce_add(my_sum) / data_set_size;
 
-    float my_variance = work_group_reduce_add(my_sum_sq) / data_set_size - my_sum * my_sum;
+    float my_variance = fmax(work_group_reduce_add(my_sum_sq) / data_set_size - my_sum * my_sum, 0.0f);
 
     if (in_data_set_idx == 0)
     {

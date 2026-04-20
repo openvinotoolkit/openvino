@@ -137,8 +137,6 @@ bool layout_optimizer::is_format_supported(program_node& node, format::type fmt)
     if (node.is_type<fully_connected>() && fmt == format::byxf)
         return false;
 
-    // MVN FSV16 now supports both int8/uint8 and float types
-    // No format restriction needed
     if (node.is_type<input_layout>())
         return node.get_output_layout().format == fmt;
 
@@ -1431,13 +1429,6 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         expected = format::get_default_format(node.get_output_layout().get_rank());
     } else if (node.is_type<deconvolution>()) {
         expected = get_expected_format(node.as<deconvolution>());
-    } else if (node.is_type<concatenation>()) {
-        // For 5D int8/uint8 concat, prefer b_fs_zyx_fsv16 to align with oneDNN conv/deconv
-        // blocked format and minimize reorders between encoder/decoder stages
-        if (output_layout.get_rank() == 5 &&
-            (output_layout.data_type == data_types::i8 || output_layout.data_type == data_types::u8)) {
-            expected = format::b_fs_zyx_fsv16;
-        }
     } else if (node.is_type<mvn>()) {
         expected = format::any;
     } else if (node.is_type<resample>()) {
