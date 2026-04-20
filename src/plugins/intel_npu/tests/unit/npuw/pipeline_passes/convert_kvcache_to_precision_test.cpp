@@ -10,7 +10,10 @@
 
 #include "llm_pass_test_fixture.hpp"
 #include "../util.hpp"
+#include "npuw_transformations/convert_kvcache_to_precision.hpp"
+#include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "whisper/prepare_whisper_model.hpp"
 
 // --- Design note -------------------------------------------------------------------------
 // The model builder creates KV cache state with ov::element::f32 (the default
@@ -309,6 +312,31 @@ TEST_P(ConvertKVCacheHintPrecisionTest, PrefillModelPresentOutputsHaveExpectedPr
     expect_kv_cache_present_output_types(prefill.model, kv_type);
 }
 
+// Whisper decoder_with_past model uses names like:
+//   past_key_values.<idx>.decoder.key / present.<idx>.decoder.key
+//   past_key_values.<idx>.encoder.key / present.<idx>.encoder.key
+// Ensure KV-cache precision conversion handles those variants too.
+TEST_P(ConvertKVCacheHintPrecisionTest, WhisperKVCacheModelPastKeyInputsHaveExpectedPrecision) {
+    const auto kv_type = GetParam();
+    auto model = ov::test::npuw::build_whisper_decoder_test_model();
+    ov::pass::StatefulToStateless().run_on_model(model);
+    model = model->clone();
+    ASSERT_TRUE(ov::npuw::util::PrepareWhisperKVCacheModel().run_on_model(model));
+    ASSERT_TRUE(ov::npuw::ConvertKVCacheToPrecision(kv_type).run_on_model(model));
+
+    expect_kv_cache_input_types(model, kv_type);
+}
+
+TEST_P(ConvertKVCacheHintPrecisionTest, WhisperKVCacheModelPresentOutputsHaveExpectedPrecision) {
+    const auto kv_type = GetParam();
+    auto model = ov::test::npuw::build_whisper_decoder_test_model();
+    ov::pass::StatefulToStateless().run_on_model(model);
+    model = model->clone();
+    ASSERT_TRUE(ov::npuw::util::PrepareWhisperKVCacheModel().run_on_model(model));
+    ASSERT_TRUE(ov::npuw::ConvertKVCacheToPrecision(kv_type).run_on_model(model));
+
+    expect_kv_cache_present_output_types(model, kv_type);
+}
 
 // --- Non-parametric tests -------------------------------------------------------------------------
 
