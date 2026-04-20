@@ -124,6 +124,13 @@ inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uin
 #else
     #define GET_COMPRESSION_INDEX(INPUT, b, f, y, x) GET_DATA_INDEX(INPUT, (b), (0), (y), (0));
 #endif
+    #define HAS_KV_CACHE_ZP_INPUT (USE_ASYMMETRIC_QUANTIZATION && !COMBINE_SCALES_AND_ZP)
+    #define GET_SCALE(zp, scale, comp_offset) ((scale)[(comp_offset)])
+#if HAS_KV_CACHE_ZP_INPUT
+    #define GET_ZP(zp, scale, comp_offset) ((zp)[(comp_offset)])
+#else
+    #define GET_ZP(zp, scale, comp_offset) ((scale)[(comp_offset) + 1])
+#endif
 #endif
 
 #ifdef SDPA_STAGE_0
@@ -159,6 +166,10 @@ KERNEL(sdpa_opt)(
 #if IS_KV_COMPRESSED
     const __global KEY_COMPRESSION_SCALE_TYPE* key_scale,
     const __global VALUE_COMPRESSION_SCALE_TYPE* val_scale,
+#if HAS_KV_CACHE_ZP_INPUT
+    const __global KEY_COMPRESSION_ZP_TYPE* key_zp,
+    const __global VALUE_COMPRESSION_ZP_TYPE* val_zp,
+#endif
 #endif
 #ifdef BEAM_TABLE_TYPE
     const __global BEAM_TABLE_TYPE* beam_table,
@@ -277,9 +288,9 @@ KERNEL(sdpa_opt)(
 
 #if IS_KV_COMPRESSED
                 const uint comp_offset = GET_COMPRESSION_INDEX(KEY_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + seq_len, 0);
-                KEY_COMPRESSION_SCALE_TYPE comp_scale = key_scale[comp_offset];
+                KEY_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(key_zp, key_scale, comp_offset);
 #if USE_ASYMMETRIC_QUANTIZATION
-                KEY_COMPRESSION_SCALE_TYPE comp_zp = key_scale[comp_offset + 1];
+                KEY_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(key_zp, key_scale, comp_offset);
 #endif
 #endif
                 uint head_idx_index = 0;
@@ -659,9 +670,9 @@ KERNEL(sdpa_opt)(
 
 #if IS_KV_COMPRESSED
             const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, 0);
-            VALUE_COMPRESSION_SCALE_TYPE comp_scale = val_scale[comp_offset];
+            VALUE_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(val_zp, val_scale, comp_offset);
 #if USE_ASYMMETRIC_QUANTIZATION
-            VALUE_COMPRESSION_SCALE_TYPE comp_zp = val_scale[comp_offset + 1];
+            VALUE_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(val_zp, val_scale, comp_offset);
 #endif
 #endif
 
@@ -714,9 +725,9 @@ KERNEL(sdpa_opt)(
 
 #if IS_KV_COMPRESSED
             const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + seq_len, 0);
-            VALUE_COMPRESSION_SCALE_TYPE comp_scale = val_scale[comp_offset];
+            VALUE_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(val_zp, val_scale, comp_offset);
 #if USE_ASYMMETRIC_QUANTIZATION
-            VALUE_COMPRESSION_SCALE_TYPE comp_zp = val_scale[comp_offset + 1];
+            VALUE_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(val_zp, val_scale, comp_offset);
 #endif
 #endif
 
@@ -919,6 +930,56 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 #endif
 
+typedef struct __attribute__((__packed__)) {
+    int min;
+    int max;
+    int subgroup_max;
+} FUNC(seq_range);
+
+// This is needed, because this file can be included multiple times with different macro definitions
+// and error of redefinition of struct can happen.
+#define SEQ_RANGE FUNC(seq_range)
+
+#if SLIDING_WINDOW_SIZE != 0
+inline SEQ_RANGE FUNC(calc_sliding_window_seq_range)(const SEQ_RANGE default_seq_range) {
+    SEQ_RANGE range = default_seq_range;
+    range.min = default_seq_range.max - SLIDING_WINDOW_SIZE + 1;
+    return range;
+}
+#endif
+
+#if HAS_TOKEN_TYPE_IDS
+    // Bidirectional attention for image token groups (e.g. Gemma3 VLM):
+    // Compute per-lane effective causal limit to extend the visible range for image tokens
+    // This is a REFERENCE implementation.
+    inline SEQ_RANGE FUNC(calc_bi_dir_seq_range)(
+                            const __global int* token_type_ids, 
+                            const int seq_len, 
+                            const SEQ_RANGE default_seq_range) {
+        int token_group_end = default_seq_range.max;
+        int token_group_begin = default_seq_range.max;
+
+        if (token_type_ids[token_group_end] == 1) {
+            int new_group_end = token_group_end + 1;
+            while (new_group_end < seq_len && token_type_ids[new_group_end] == 1) {
+                new_group_end++;
+            }
+            token_group_end = new_group_end - 1;
+
+            int new_group_begin = token_group_begin - 1;
+            while (new_group_begin >= 0 && token_type_ids[new_group_begin] == 1) {
+                new_group_begin--;
+            }
+            token_group_begin = new_group_begin + 1;
+        }
+        SEQ_RANGE range;
+        range.min = token_group_begin;
+        range.max = token_group_end;
+        range.subgroup_max = sub_group_reduce_max(token_group_end) + 1;
+        return range;
+    }
+#endif
+
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 KERNEL(sdpa_opt)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -937,10 +998,17 @@ KERNEL(sdpa_opt)(
 #if IS_PAGED_ATTENTION && HAS_ALIBI
     const __global ALIBI_TYPE* alibi_slopes,
 #endif
+#if IS_PAGED_ATTENTION && HAS_TOKEN_TYPE_IDS
+    const __global int* token_type_ids,
+#endif
     __global OUTPUT_TYPE* output,
 #if IS_KV_COMPRESSED
     const __global KEY_COMPRESSION_SCALE_TYPE* key_scale,
     const __global VALUE_COMPRESSION_SCALE_TYPE* val_scale,
+#if HAS_KV_CACHE_ZP_INPUT
+    const __global KEY_COMPRESSION_ZP_TYPE* key_zp,
+    const __global VALUE_COMPRESSION_ZP_TYPE* val_zp,
+#endif
 #endif
 #ifdef BEAM_TABLE_TYPE
     const __global BEAM_TABLE_TYPE* beam_table,
@@ -1023,6 +1091,38 @@ KERNEL(sdpa_opt)(
 #else
     const uint seq_idx_end = min(TARGET_SEQ_LEN - target_seq_idx, (uint)TARGET_SEQ_LEN_BLOCK_SIZE);
 #endif
+
+#if IS_CAUSAL
+    const SEQ_RANGE default_this_work_item_seq_range = {0, target_seq_idx + sglid, target_seq_idx + seq_idx_end};
+    SEQ_RANGE this_work_item_seq_range_temp = default_this_work_item_seq_range;
+    
+    #if IS_PAGED_ATTENTION
+        #if HAS_TOKEN_TYPE_IDS
+            const SEQ_RANGE bi_dir_range = FUNC_CALL(calc_bi_dir_seq_range)(token_type_ids, 
+                                                                            SOURCE_SEQ_LEN, 
+                                                                            default_this_work_item_seq_range);
+            this_work_item_seq_range_temp = bi_dir_range;
+        #endif //< HAS_TOKEN_TYPE_IDS   
+
+        #if SLIDING_WINDOW_SIZE != 0
+            const SEQ_RANGE sliding_window_range = FUNC_CALL(calc_sliding_window_seq_range)(default_this_work_item_seq_range);
+            this_work_item_seq_range_temp = sliding_window_range;
+        #else
+            // If sliding window is not present, use the default causal start range.
+            this_work_item_seq_range_temp.min = default_this_work_item_seq_range.min;
+        #endif //< SLIDING_WINDOW_SIZE
+
+        #if HAS_TOKEN_TYPE_IDS && SLIDING_WINDOW_SIZE != 0
+            // If both token type ids and sliding window are present, take the intersection of the two ranges
+            this_work_item_seq_range_temp.min = min(bi_dir_range.min, sliding_window_range.min);
+            this_work_item_seq_range_temp.max = max(bi_dir_range.max, sliding_window_range.max);
+            this_work_item_seq_range_temp.subgroup_max = max(bi_dir_range.subgroup_max, sliding_window_range.subgroup_max);
+        #endif //< HAS_TOKEN_TYPE_IDS && SLIDING_WINDOW_SIZE
+    #endif //< IS_PAGED_ATTENTION
+
+    const SEQ_RANGE this_work_item_seq_range = this_work_item_seq_range_temp;
+#endif //< IS_CAUSAL
+
     const uint num_read_blocks = K_HEAD_SIZE == V_HEAD_SIZE ? 1 :  CEIL_DIV(K_HEAD_SIZE, V_HEAD_SIZE);
 
     for (int read_blk_idx = 0; read_blk_idx < num_read_blocks; read_blk_idx++)
@@ -1178,14 +1278,14 @@ KERNEL(sdpa_opt)(
     for (uint start_partition_idx = 0; start_partition_idx < SOURCE_SEQ_LEN; start_partition_idx += SEQ_LEN_PARTITION_SIZE) {
         const uint seq_len = start_partition_idx + sgid * SUBGROUP_SIZE;
 #if IS_CAUSAL
-        const uint partition_seq_len = min((uint)SEQ_LEN_PARTITION_SIZE, (uint)max(0, (int)(target_seq_idx + seq_idx_end) - (int)start_partition_idx));
+        const uint partition_seq_len = min((uint)SEQ_LEN_PARTITION_SIZE, (uint)max(0, (int)(this_work_item_seq_range_temp.subgroup_max) - (int)start_partition_idx));
 #else
         const uint partition_seq_len = min((uint)SOURCE_SEQ_LEN - start_partition_idx, (uint)SEQ_LEN_PARTITION_SIZE);
 #endif
 
         MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = INPUT0_VAL_ZERO;
 #if IS_CAUSAL
-        if (seq_len <= target_seq_idx) { // keep tril i.e. m >= n
+        if (seq_len <= this_work_item_seq_range_temp.subgroup_max) { // keep tril i.e. m >= n
 #endif
 #if IS_PAGED_ATTENTION
 #ifdef BROADCAST_GROUP_SIZE
@@ -1231,9 +1331,9 @@ KERNEL(sdpa_opt)(
             if (seq_len_calc_size >= SUBGROUP_SIZE) {
 #if IS_KV_COMPRESSED
                 const uint comp_offset = GET_COMPRESSION_INDEX(KEY_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, seq_len + sglid, 0);
-                KEY_COMPRESSION_SCALE_TYPE comp_scale = key_scale[comp_offset];
+                KEY_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(key_zp, key_scale, comp_offset);
 #if USE_ASYMMETRIC_QUANTIZATION
-                KEY_COMPRESSION_SCALE_TYPE comp_zp = key_scale[comp_offset + 1];
+                KEY_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(key_zp, key_scale, comp_offset);
 #endif
 #endif
                 uint head_idx_index = 0;
@@ -1298,9 +1398,9 @@ KERNEL(sdpa_opt)(
 #if IS_KV_COMPRESSED
                 const uint comp_offset = GET_COMPRESSION_INDEX(KEY_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, seq_len + min(sglid, (uint)seq_len_calc_size - 1), 0);
                 // const uint comp_offset = GET_COMPRESSION_INDEX(KEY_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, seq_len + sglid, 0);
-                KEY_COMPRESSION_SCALE_TYPE comp_scale = key_scale[comp_offset];
+                KEY_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(key_zp, key_scale, comp_offset);
 #if USE_ASYMMETRIC_QUANTIZATION
-                KEY_COMPRESSION_SCALE_TYPE comp_zp = key_scale[comp_offset + 1];
+                KEY_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(key_zp, key_scale, comp_offset);
 #endif
 #endif
                 uint head_idx_index = 0;
@@ -1397,13 +1497,12 @@ KERNEL(sdpa_opt)(
                 SOFTMAX_ACCUMULATOR_TYPE qk_max = SOFTMAX_ACCUMULATOR_VAL_MIN;
                 unroll_for (uint i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {
 #if IS_CAUSAL
-                    // casual mask: valid only if m >= n
-#if defined(IS_PAGED_ATTENTION) && SLIDING_WINDOW_SIZE != 0
-                    if ((seq_len + i <= target_seq_idx + sglid) && (target_seq_idx + sglid < SLIDING_WINDOW_SIZE || seq_len + i > target_seq_idx + sglid - SLIDING_WINDOW_SIZE)) {
-#else
-                    if (seq_len + i <= target_seq_idx + sglid) {
-#endif
+                    // causal mask: valid only if m >= n
+                    const int curr_seq_idx = seq_len + i;
+                    if ((curr_seq_idx <= this_work_item_seq_range.max) 
+                        && (curr_seq_idx >= this_work_item_seq_range.min)) {
 #endif  // IS_CAUSAL
+
 #if !APPLY_SCALES_TO_QUERY
 #if HAS_SCALE_INPUT
                         const OUTPUT_TYPE scale_val = *scale;
@@ -1558,17 +1657,18 @@ KERNEL(sdpa_opt)(
 
             SOFTMAX_ACCUMULATOR_TYPE exp_sum_new = SOFTMAX_ACCUMULATOR_VAL_ZERO;
 
-            for (uint i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {
-                qk_acc[i] = native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(qk_acc[i]) - qk_max_new);
+            for (int i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {    
 #if IS_CAUSAL
-#if defined(IS_PAGED_ATTENTION) && SLIDING_WINDOW_SIZE != 0
-                if ((seq_len + i <= target_seq_idx + sglid) && (target_seq_idx + sglid < SLIDING_WINDOW_SIZE || seq_len + i >= target_seq_idx + sglid - SLIDING_WINDOW_SIZE)) {
-#else
-                if (seq_len + i <= target_seq_idx + sglid) {
-#endif
+                const int curr_seq_idx = seq_len + i;
+                if ((curr_seq_idx <= this_work_item_seq_range.max)
+                    && (curr_seq_idx >= this_work_item_seq_range.min)) {
+                    qk_acc[i] = native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(qk_acc[i]) - qk_max_new);
                     exp_sum_new += qk_acc[i];
+                } else {
+                    qk_acc[i] = SOFTMAX_ACCUMULATOR_VAL_ZERO;
                 }
 # else
+                qk_acc[i] = native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(qk_acc[i]) - qk_max_new);
                 exp_sum_new += qk_acc[i];
 #endif
             }
@@ -1587,7 +1687,7 @@ KERNEL(sdpa_opt)(
             }
 
             for (uint i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {
-                qk_acc[i] = qk_acc[i] / exp_sum_new;
+                qk_acc[i] = (exp_sum_new > SOFTMAX_ACCUMULATOR_VAL_ZERO) ? (qk_acc[i] / exp_sum_new) : SOFTMAX_ACCUMULATOR_VAL_ZERO;
             }
 
             if (sgid == 0) {
@@ -1698,9 +1798,9 @@ KERNEL(sdpa_opt)(
                     }
 #if IS_KV_COMPRESSED
                     const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + seq_len + sglid, 0);
-                    VALUE_COMPRESSION_SCALE_TYPE comp_scale = val_scale[comp_offset];
+                    VALUE_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(val_zp, val_scale, comp_offset);
 #if USE_ASYMMETRIC_QUANTIZATION
-                    VALUE_COMPRESSION_SCALE_TYPE comp_zp = val_scale[comp_offset + 1];
+                    VALUE_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(val_zp, val_scale, comp_offset);
 #endif
 #endif
                     #ifdef V_HEAD_SIZE_LEFTOVER
@@ -1788,9 +1888,9 @@ KERNEL(sdpa_opt)(
 
 #if IS_KV_COMPRESSED
                     const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, 0);
-                    VALUE_COMPRESSION_SCALE_TYPE comp_scale = val_scale[comp_offset];
+                    VALUE_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(val_zp, val_scale, comp_offset);
 #if USE_ASYMMETRIC_QUANTIZATION
-                    VALUE_COMPRESSION_SCALE_TYPE comp_zp = val_scale[comp_offset + 1];
+                    VALUE_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(val_zp, val_scale, comp_offset);
 #endif
 #endif // IS_KV_COMPRESSED
 
@@ -1887,9 +1987,9 @@ KERNEL(sdpa_opt)(
 #if IS_KV_COMPRESSED
                     const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + min(seq_len_leftovers_start + sglid, seq_len_end - 1), 0);
                     // const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1_idx / BROADCAST_GROUP_SIZE, start_partition_idx + seq_len_leftovers_start + sglid, 0);
-                    VALUE_COMPRESSION_SCALE_TYPE comp_scale = val_scale[comp_offset];
+                    VALUE_COMPRESSION_SCALE_TYPE comp_scale = GET_SCALE(val_zp, val_scale, comp_offset);
 #if USE_ASYMMETRIC_QUANTIZATION
-                    VALUE_COMPRESSION_SCALE_TYPE comp_zp = val_scale[comp_offset + 1];
+                    VALUE_COMPRESSION_SCALE_TYPE comp_zp = GET_ZP(val_zp, val_scale, comp_offset);
 #endif
 #endif
 
@@ -1962,8 +2062,8 @@ KERNEL(sdpa_opt)(
                     SOFTMAX_ACCUMULATOR_TYPE updated_exp_sum_cur = sub_group_broadcast(exp_sum_cur, seq_idx) * native_exp(sub_group_broadcast(max_val_cur, seq_idx) - total_max);
                     SOFTMAX_ACCUMULATOR_TYPE updated_total_exp_sum = updated_exp_sum_prev + updated_exp_sum_cur;
 
-                    if (start_partition_idx > 0) {
-                        OUTPUT_TYPE updated_prev_res = TO_SOFTMAX_ACCUMULATOR_TYPE(output_acc[seq_idx]) * updated_exp_sum_prev / updated_total_exp_sum;;
+                    if (start_partition_idx > 0 && updated_total_exp_sum > SOFTMAX_ACCUMULATOR_VAL_ZERO) {
+                        OUTPUT_TYPE updated_prev_res = TO_SOFTMAX_ACCUMULATOR_TYPE(output_acc[seq_idx]) * updated_exp_sum_prev / updated_total_exp_sum;
                         acc_output_res[seq_idx] *= updated_exp_sum_cur / updated_total_exp_sum;
                         acc_output_res[seq_idx] += updated_prev_res;
                     }
