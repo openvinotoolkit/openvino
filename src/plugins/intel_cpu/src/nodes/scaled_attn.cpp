@@ -79,6 +79,27 @@ using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu::node {
 
+// Compress and write cur tensor into the KV cache (dst) at position L0.
+// Handles u8 quant (per-group or by-channel) and raw precision-matching copy.
+static void compress_cache(const PlainTensor& cur,
+                           PlainTensor& dst,
+                           size_t L0,
+                           ov::element::Type quant_precision,
+                           PlainTensor& scale_zp,
+                           size_t group_size,
+                           bool quant_by_channel,
+                           const CpuParallelPtr& cpu_parallel) {
+    if (quant_precision == ov::element::u8) {
+        if (quant_by_channel) {
+            attn_quant_by_channel(cur, dst, scale_zp, L0, group_size, cpu_parallel);
+        } else {
+            attn_quant_by_token(cur, dst, scale_zp, L0, group_size, cpu_parallel);
+        }
+    } else {
+        attn_memcpy2d(cur, dst, L0, cpu_parallel);
+    }
+}
+
 struct ScaledDotProductAttentionKey {
     ov::element::Type rtPrecision;
 
@@ -2250,29 +2271,24 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
                                                             VectorDims{},
                                                             strides);
         new_internal_mem_v->redefineDesc(mem_desc_v);
-        if (kvcache_precision == ov::element::u8) {
-            // past_k's shape is BHLS, internal layout LBHS
-            // scale_zp's shape is LBHS, internal layout LBHS
-            auto newMemDesc = std::make_shared<CpuBlockedMemoryDesc>(
-                ov::element::f32,
-                ov::intel_cpu::Shape{static_cast<size_t>(parallel_get_max_threads()), m_key_quant_param.groupSize * S});
-            auto scratchMem = context->getScratchPad()->createScratchPadMem(newMemDesc);
-            auto* temp_buffer = scratchMem->getDataAs<float>();
-            attn_quantkv(cur_k,
-                         cur_v,
-                         temp_buffer,
-                         new_pastk,
-                         new_pastv,
-                         m_k_state->get_scale_zp(),
-                         m_v_state->get_scale_zp(),
-                         L0,
-                         m_key_quant_param.isByChannel,
-                         m_key_quant_param.groupSize,
-                         m_value_quant_param.groupSize,
-                         cpu_parallel);
-        } else {
-            attn_memcpy(cur_k, cur_v, new_pastk.slice(2, L0, L0 + L1), new_pastv.slice(2, L0, L0 + L1), cpu_parallel);
-        }
+        auto k_scale_zp = m_k_state->get_scale_zp();
+        auto v_scale_zp = m_v_state->get_scale_zp();
+        compress_cache(cur_k,
+                       new_pastk,
+                       L0,
+                       kvcache_precision,
+                       k_scale_zp,
+                       m_key_quant_param.groupSize,
+                       m_key_quant_param.isByChannel,
+                       cpu_parallel);
+        compress_cache(cur_v,
+                       new_pastv,
+                       L0,
+                       kvcache_precision,
+                       v_scale_zp,
+                       m_value_quant_param.groupSize,
+                       false,
+                       cpu_parallel);
 
         m_k_state->assign_internal_state(new_internal_mem_k);
         m_v_state->assign_internal_state(new_internal_mem_v);
@@ -2682,55 +2698,46 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
             init_v.reset(v_mem);
             init_k = init_k.permute(order);
             init_v = init_v.permute(order);
-            if (kvcache_precision == ov::element::u8) {
-                auto newMemDesc = std::make_shared<CpuBlockedMemoryDesc>(
-                    ov::element::f32,
-                    ov::intel_cpu::Shape{static_cast<size_t>(parallel_get_max_threads()),
-                                         m_key_quant_param.groupSize * S});
-                auto scratchMem = context->getScratchPad()->createScratchPadMem(newMemDesc);
-                auto* temp_buffer = scratchMem->getDataAs<float>();
-                // L0 is set to 0 here because past_kv is reset by set_state API, re-initializing
-                attn_quantkv(init_k,
-                             init_v,
-                             temp_buffer,
-                             past_k,
-                             past_v,
-                             m_k_state->get_scale_zp(),
-                             m_v_state->get_scale_zp(),
-                             0,
-                             m_key_quant_param.isByChannel,
-                             m_key_quant_param.groupSize,
-                             m_value_quant_param.groupSize,
-                             cpu_parallel);
-            } else {
-                attn_memcpy(init_k, init_v, past_k, past_v, cpu_parallel);
-            }
+            // L0 is set to 0 here because past_kv is reset by set_state API, re-initializing
+            auto k_scale_zp = m_k_state->get_scale_zp();
+            auto v_scale_zp = m_v_state->get_scale_zp();
+            compress_cache(init_k,
+                           past_k,
+                           0,
+                           kvcache_precision,
+                           k_scale_zp,
+                           m_key_quant_param.groupSize,
+                           m_key_quant_param.isByChannel,
+                           cpu_parallel);
+            compress_cache(init_v,
+                           past_v,
+                           0,
+                           kvcache_precision,
+                           v_scale_zp,
+                           m_value_quant_param.groupSize,
+                           false,
+                           cpu_parallel);
         }
     }
 
-    if (kvcache_precision == ov::element::u8) {
-        // past_k's shape is BHLS, internal layout LBHS
-        // scale_zp's shape is LBHS, internal layout LBHS
-        auto newMemDesc = std::make_shared<CpuBlockedMemoryDesc>(
-            ov::element::f32,
-            ov::intel_cpu::Shape{static_cast<size_t>(parallel_get_max_threads()), m_key_quant_param.groupSize * S});
-        auto scratchMem = context->getScratchPad()->createScratchPadMem(newMemDesc);
-        auto* temp_buffer = scratchMem->getDataAs<float>();
-        attn_quantkv(cur_k,
-                     cur_v,
-                     temp_buffer,
-                     past_k,
-                     past_v,
-                     m_k_state->get_scale_zp(),
-                     m_v_state->get_scale_zp(),
-                     L0,
-                     m_key_quant_param.isByChannel,
-                     m_key_quant_param.groupSize,
-                     m_value_quant_param.groupSize,
-                     cpu_parallel);
-    } else {
-        attn_memcpy(cur_k, cur_v, past_k.slice(2, L0, L0 + L1), past_v.slice(2, L0, L0 + L1), cpu_parallel);
-    }
+    auto k_scale_zp = m_k_state->get_scale_zp();
+    auto v_scale_zp = m_v_state->get_scale_zp();
+    compress_cache(cur_k,
+                   past_k,
+                   L0,
+                   kvcache_precision,
+                   k_scale_zp,
+                   m_key_quant_param.groupSize,
+                   m_key_quant_param.isByChannel,
+                   cpu_parallel);
+    compress_cache(cur_v,
+                   past_v,
+                   L0,
+                   kvcache_precision,
+                   v_scale_zp,
+                   m_value_quant_param.groupSize,
+                   false,
+                   cpu_parallel);
 }
 
 ov::element::Type ScaledDotProductAttention::getKVCachePrecision() {
