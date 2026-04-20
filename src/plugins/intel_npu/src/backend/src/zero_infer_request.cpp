@@ -19,8 +19,6 @@
 #include "transformations/utils/utils.hpp"
 #include "zero_variable_state.hpp"
 
-namespace intel_npu {
-
 namespace {
 
 std::shared_ptr<const ov::ICompiledModel> validate_compiled_model(
@@ -29,7 +27,33 @@ std::shared_ptr<const ov::ICompiledModel> validate_compiled_model(
     return compiledModel;
 }
 
+bool has_related_shape_tensor(const std::vector<intel_npu::IODescriptor>& metadata, size_t descriptorIdx) {
+    const auto& relatedDescriptor = metadata.at(descriptorIdx).relatedDescriptorIndex;
+    return relatedDescriptor.has_value() && metadata.at(relatedDescriptor.value()).isShapeTensor;
+}
+
+void copy_tensor_with_optional_shape_view(const std::shared_ptr<ov::ITensor>& srcTensor,
+                                          const std::shared_ptr<ov::ITensor>& dstTensor,
+                                          bool hasRelatedShapeTensor) {
+    if (hasRelatedShapeTensor && srcTensor->get_shape() != dstTensor->get_shape()) {
+        // With dynamic bounds (shape tensor present), Level Zero tensor is allocated for max shape.
+        // User tensor can be smaller for the current inference, so we create a smaller view over
+        // the same Level Zero buffer and copy using the user-visible shape.
+        OPENVINO_ASSERT(srcTensor->get_byte_size() <= dstTensor->get_byte_size(),
+                        "Source byte size exceeds destination tensor allocation for dynamic-shape view copy");
+
+        auto viewTensor = ov::make_tensor(dstTensor->get_element_type(),
+                                          srcTensor->get_shape(),
+                                          static_cast<unsigned char*>(dstTensor->data()));
+        srcTensor->copy_to(viewTensor);
+    } else {
+        srcTensor->copy_to(dstTensor);
+    }
+}
+
 }  // namespace
+
+namespace intel_npu {
 
 std::optional<size_t> determine_dynamic_batch_size(const IODescriptor& desc,
                                                    const ov::PartialShape& ioShape,
@@ -467,14 +491,14 @@ void ZeroInferRequest::sync_zero_tensor_with_graph(const ZeroInferRequest::Found
                       itt::domains::LevelZeroBackend,
                       "ZeroInferRequest",
                       "sync_zero_tensor_with_graph");
+    const auto& metadata = foundPort.is_input() ? _metadata.inputs : _metadata.outputs;
     auto& levelZeroTensor =
         foundPort.is_input() ? get_level_zero_input(foundPort.idx) : _levelZeroOutputTensors.at(foundPort.idx);
 
-    const auto& metadata = foundPort.is_input() ? _metadata.inputs : _metadata.outputs;
-    const auto& relatedDescriptor = metadata.at(foundPort.idx).relatedDescriptorIndex;
-    bool isShapeTensorPresent = relatedDescriptor.has_value() && metadata.at(relatedDescriptor.value()).isShapeTensor;
-
-    if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0) && !isShapeTensorPresent) {
+    // For dynamic bounds (related shape tensor present), we must keep Level Zero allocation at max shape.
+    // Therefore user-memory import is allowed only when there is no related shape tensor.
+    if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0) &&
+        !has_related_shape_tensor(metadata, foundPort.idx)) {
         bool updateCommandListArg = false;
         try {
             _logger.debug("sync_zero_tensor_with_graph - create zero tensor");
@@ -590,11 +614,10 @@ void ZeroInferRequest::sync_zero_tensors_with_graph(const ZeroInferRequest::Foun
                       "ZeroInferRequest",
                       "sync_zero_tensors_with_graph");
 
-    const auto& metadata = foundPort.is_input() ? _metadata.inputs : _metadata.outputs;
-    const auto& relatedDescriptor = metadata.at(foundPort.idx).relatedDescriptorIndex;
-    bool isShapeTensorPresent = relatedDescriptor.has_value() && metadata.at(relatedDescriptor.value()).isShapeTensor;
-
-    if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0) && !isShapeTensorPresent) {
+    // For dynamic bounds (related shape tensor present), we must keep Level Zero allocation at max shape.
+    // Therefore user-memory import is allowed only when there is no related shape tensor.
+    if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0) &&
+        !has_related_shape_tensor(_metadata.inputs, foundPort.idx)) {
         if (batchSize.has_value()) {
             get_level_zero_inputs(foundPort.idx).resize(tensors.size());
             for (size_t i = 0; i < tensors.size(); i++) {
@@ -1008,21 +1031,9 @@ void ZeroInferRequest::prepare_inputs() {
 
             _logger.info("prepare_inputs - tensor is not allocated in the current Level Zero context");
             OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
-            const auto& relatedDescriptor = inputDescriptor.relatedDescriptorIndex;
-            const bool hasShapeTensor =
-                relatedDescriptor.has_value() && _metadata.inputs.at(relatedDescriptor.value()).isShapeTensor;
-
-            if (hasShapeTensor && userTensor.at(SINGLE_TENSOR)->get_shape() != levelZeroTensor->get_shape()) {
-                OPENVINO_ASSERT(userTensor.at(SINGLE_TENSOR)->get_byte_size() <= levelZeroTensor->get_byte_size(),
-                                "User tensor byte size exceeds Level Zero tensor allocation when creating a view");
-
-                auto viewTensor = ov::make_tensor(levelZeroTensor->get_element_type(),
-                                                  userTensor.at(SINGLE_TENSOR)->get_shape(),
-                                                  static_cast<unsigned char*>(levelZeroTensor->data()));
-                userTensor.at(SINGLE_TENSOR)->copy_to(viewTensor);
-            } else {
-                userTensor.at(SINGLE_TENSOR)->copy_to(levelZeroTensor);
-            }
+            copy_tensor_with_optional_shape_view(userTensor.at(SINGLE_TENSOR)._ptr,
+                                                 levelZeroTensor,
+                                                 has_related_shape_tensor(_metadata.inputs, inputIndex));
         }
 
         ++inputIndex;
@@ -1079,23 +1090,9 @@ void ZeroInferRequest::get_result() {
             _logger.info("get_result - output tensor by index: %zu is not allocated in the current Level Zero context",
                          outputIndex);
             OV_ITT_TASK_NEXT(ZERO_RESULT, "memcpy");
-            const auto& relatedDescriptor = outputDescriptor.relatedDescriptorIndex;
-            const bool hasShapeTensor =
-                relatedDescriptor.has_value() && _metadata.outputs.at(relatedDescriptor.value()).isShapeTensor;
-
-            if (hasShapeTensor && userTensor->get_shape() != levelZeroTensor->get_shape()) {
-                OPENVINO_ASSERT(userTensor->get_byte_size() <= levelZeroTensor->get_byte_size(),
-                                "User-visible output shape requires more bytes than the backing Level Zero tensor "
-                                "allocation, entry name: ",
-                                outputDescriptor.nameFromCompiler);
-
-                auto viewTensor = ov::make_tensor(levelZeroTensor->get_element_type(),
-                                                  userTensor->get_shape(),
-                                                  static_cast<unsigned char*>(levelZeroTensor->data()));
-                viewTensor->copy_to(userTensor._ptr);
-            } else {
-                levelZeroTensor->copy_to(userTensor._ptr);
-            }
+            copy_tensor_with_optional_shape_view(levelZeroTensor,
+                                                 userTensor._ptr,
+                                                 has_related_shape_tensor(_metadata.outputs, outputIndex));
         }
 
         levelZeroTensor->detach_imported_allocation_for_custom_tensor();
