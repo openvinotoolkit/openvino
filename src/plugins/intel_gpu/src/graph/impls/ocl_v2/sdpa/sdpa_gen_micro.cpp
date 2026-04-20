@@ -1471,18 +1471,18 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     bool is_quantized =
         (K.data_type == ov::element::u8 || K.data_type == ov::element::i8) || (V.data_type == ov::element::u8 || V.data_type == ov::element::i8);
-    int32_t nkeys_v = n_keys.is_dynamic() ? 0 : n_keys.get_length();
+    int32_t nkeys_v = static_cast<int32_t>(n_keys.is_dynamic() ? 0 : n_keys.get_length());
 
     GPU_DEBUG_TRACE_DETAIL << "k_head_size = " << k_head_size << ", nkeys_v = " << nkeys_v << "\n";
     GPU_DEBUG_TRACE_DETAIL << "thin_q = " << thin_q << ", is_quantized = " << is_quantized << "\n";
     switch (device_info.arch) {
     case gpu_arch::xe_hpg: {
-        config = choose_config_xehpg(static_cast<int32_t>(k_head_size), static_cast<int32_t>(nkeys_v), thin_q, is_quantized, is_paged_attention, is_prefill);
+        config = choose_config_xehpg(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_paged_attention, is_prefill);
         break;
     }
     case gpu_arch::xe_hpc:
         config = choose_config_xehpc(static_cast<int32_t>(k_head_size),
-                                     static_cast<int32_t>(nkeys_v),
+                                     nkeys_v,
                                      thin_q,
                                      is_quantized,
                                      is_integrated,
@@ -1491,7 +1491,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         break;
     default: {
         config = choose_config_xe2(static_cast<int32_t>(k_head_size),
-                                   static_cast<int32_t>(nkeys_v),
+                                   nkeys_v,
                                    thin_q,
                                    is_quantized,
                                    is_integrated,
