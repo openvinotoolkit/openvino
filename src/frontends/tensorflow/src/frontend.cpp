@@ -143,12 +143,12 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         return false;
 
     std::filesystem::path model_path, checkpoints_or_tags;
-    if (const auto path = ov::frontend::get_path_from_any(variants[0])) {
-        model_path = path.value();
-    } else if (const auto paths = ov::frontend::get_path_vec_from_any(variants[0])) {
+    if (auto path = ov::frontend::get_path_from_any(variants[0])) {
+        model_path = std::move(*path);
+    } else if (auto paths = ov::frontend::get_path_vec_from_any(variants[0])) {
         if (paths->size() == 2) {
-            model_path = paths.value()[0];
-            checkpoints_or_tags = paths.value()[1];
+            model_path = std::move((*paths)[0]);
+            checkpoints_or_tags = std::move((*paths)[1]);
         }
     }
 
@@ -201,12 +201,12 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
     FRONT_END_GENERAL_CHECK(variants.size() == 1 + extra_variants_num, err_msg);
 
     std::filesystem::path model_path, checkpoints_or_tags;
-    if (const auto path = ov::frontend::get_path_from_any(variants[0])) {
-        model_path = path.value();
-    } else if (const auto paths = ov::frontend::get_path_vec_from_any(variants[0])) {
+    if (auto path = ov::frontend::get_path_from_any(variants[0])) {
+        model_path = std::move(*path);
+    } else if (auto paths = ov::frontend::get_path_vec_from_any(variants[0])) {
         FRONT_END_GENERAL_CHECK(paths->size() == 2, err_msg);
-        model_path = paths.value()[0];
-        checkpoints_or_tags = paths.value()[1];
+        model_path = std::move((*paths)[0]);
+        checkpoints_or_tags = std::move((*paths)[1]);
     }
 
     if (!model_path.empty() && checkpoints_or_tags.empty()) {
