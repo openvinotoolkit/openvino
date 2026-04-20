@@ -405,10 +405,17 @@ const std::vector<bool> transpose_weights = {true, false};
 const std::vector<bool> param_weights = {true, false};
 const std::vector<ShapeParams> input_shapes_basic = {
     {{{-1, -1, -1}, {{1, 4, 16}, {10, 16, 16}}}, {16, 32}},
-    {{{}, {{1, 4, 16}}}, {16, 32}, 2ul},
     {{{}, {{1, 4, 16}}}, {1, 16, 32}},
     {{{}, {{1, 4, 48}}}, {48, 256}},
     {{{}, {{11, 339, 377}}}, {377, 335}}
+};
+
+const std::vector<ShapeParams> input_shapes_extra_multiply_supported = {
+    {{{}, {{1, 4, 2}}}, {2, 32}, 2ul},
+};
+
+const std::vector<ShapeParams> input_shapes_extra_multiply_broadcast_3d = {
+    {{{}, {{1, 4, 16}}}, {16, 32}, 2ul},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
@@ -428,7 +435,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_extra_multiply,
                          MatmulWeightsDecompression,
-                         ::testing::Combine(::testing::ValuesIn(input_shapes_basic),
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_extra_multiply_supported),
+                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::ValuesIn(activations_precisions),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(true),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(param_weights),
+                                            ::testing::Values(0),
+                                            ::testing::Values(1.0f)),
+                         MatmulWeightsDecompression::get_test_case_name);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_extra_multiply_broadcast_3D,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_extra_multiply_broadcast_3d),
                                             ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(activations_precisions),
                                             ::testing::Values(false),
