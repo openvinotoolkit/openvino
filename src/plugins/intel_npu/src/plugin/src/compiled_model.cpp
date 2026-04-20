@@ -4,6 +4,7 @@
 
 #include "compiled_model.hpp"
 
+#include <cstring>
 #include <fstream>
 #include <string_view>
 
@@ -198,8 +199,9 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
                                            std::nullopt)
             .write(requirementsString);
         const std::string encodedString = encode_compatibility_string(requirementsString.str());
-        // TODO check this tensor is constructed properly
-        return ov::Tensor(ov::element::Type_t::string, ov::Shape(encodedString.length()), encodedString.data());
+        ov::Tensor result(ov::element::Type_t::u8, ov::Shape{encodedString.length()});
+        std::memcpy(result.data(), encodedString.data(), encodedString.length());
+        return result;
     }
 
     // default behaviour

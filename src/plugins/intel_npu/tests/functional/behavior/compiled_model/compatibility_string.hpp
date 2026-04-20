@@ -12,7 +12,7 @@
 #include <openvino/runtime/intel_npu/properties.hpp>
 #include <openvino/runtime/properties.hpp>
 
-#include "common/functions.h"
+#include "common/functions.hpp"
 #include "common/utils.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 

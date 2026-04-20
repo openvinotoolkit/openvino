@@ -362,8 +362,7 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
     if (name == ov::runtime_requirements_met.name()) {
         if (arguments.empty()) {
-            // TODO is this good?
-            return ov::RuntimeRequirementCheckResult::COMPATIBILITY_PASSED;
+            return ov::RuntimeRequirementCheckResult::COMPATIBILITY_FAILED;
         }
 
         ov::Tensor encodedTensor = arguments.at(ov::runtime_requirements.name()).as<ov::Tensor>();
@@ -378,7 +377,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
             // based
             // on other metadata fields can be done following this line.
             metadata = read_metadata_from(viewTensor);
-        } catch (const std::exception& ex) {
+        } catch (const std::exception&) {
             // Unsupported version, could not read the metadata or an unknown error has occured. Report that the
             // requirements are not met.
             return ov::RuntimeRequirementCheckResult::COMPATIBILITY_FAILED;
@@ -396,7 +395,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         try {
             // TODO consider using backend directly
             compiler = factory.getCompiler(_backend, ov::intel_npu::CompilerType::DRIVER);
-        } catch (const std::exception& ex) {
+        } catch (const std::exception&) {
             compiler = factory.getCompiler(_backend, ov::intel_npu::CompilerType::PLUGIN);
         }
         OPENVINO_ASSERT(compiler != nullptr);
