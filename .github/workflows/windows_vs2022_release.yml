@@ -644,6 +644,40 @@ jobs:
             ${{ env.PARALLEL_TEST_CACHE }}
           if-no-files-found: 'error'
 
+  iGPU-UHD-770:
+    name: iGPU Tests - UHD 770
+    needs: [ Build, Smart_CI ]
+    uses: ./.github/workflows/job_gpu_tests.yml
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        TEST_TYPE: ['unit', 'func']
+    with:
+      device: 'igpu'
+      device_name: 'igpu-uhd770'
+      test_type: ${{ matrix.TEST_TYPE }}
+      runner: "[ 'self-hosted', 'Windows', 'UHD-770' ]"
+      runner-group: 'Intel-GPU'
+    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
+
+  iGPU-UHD-750:
+    name: iGPU Tests - UHD 750
+    needs: [ Build, Smart_CI ]
+    uses: ./.github/workflows/job_gpu_tests.yml
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        TEST_TYPE: ['unit', 'func']
+    with:
+      device: 'igpu'
+      device_name: 'igpu-uhd750'
+      test_type: ${{ matrix.TEST_TYPE }}
+      runner: "[ 'self-hosted', 'Windows', 'UHD-750' ]"
+      runner-group: 'Intel-GPU'
+    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
+
   Overall_Status:
     name: ci/gha_overall_status_windows
     needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests, Openvino_tokenizers, TensorFlow_Layer_Tests, Pytorch_Layer_Tests, JS_API ]
