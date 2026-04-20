@@ -112,7 +112,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     kv_seq_len = subseq_q_len + past_q_lens;
 
     int q_start_local = (block_start_pos - subseq_q_begin) + (wg_local_id * q_step);
-#if CMPA_KVCACHE_U8
+#if KV_CACHE_COMPRESSION
     // U8 path uses workgroup-level barriers in `pa_lsc_u8`, so every lane in
     // the workgroup must participate. For out-of-range lanes, pass q_len_sg=0
     // so no output is written while still participating in synchronization.
