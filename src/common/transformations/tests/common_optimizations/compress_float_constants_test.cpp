@@ -658,7 +658,7 @@ TEST_F(TransformationTestsF, CompressConstants_compress_scalar_exact_f16) {
 
 TEST_F(TransformationTestsF, CompressConstants_skip_non_scalar_with_high_error_more_than_75) {
     // Model: Parameter -> Multiply(input, Const({2.7725887, 2.7725887, 2.7725887, 2.7725887})) -> Result
-    // Non-scalar (numel=4) with high per-element error -> compressed.
+    // Non-scalar (numel=4) with high per-element error in more than 75% of elements -> skipped (not compressed).
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 4});
         auto scale =

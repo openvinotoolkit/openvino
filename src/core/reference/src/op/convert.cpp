@@ -36,7 +36,7 @@ void jit_convert_vec<uint8_t, float16>(jit::Generator& gen, const Xbyak::RegExp&
     gen.movq(u8vec, gen.qword[src]);
     gen.vpmovzxbd(i32vec, u8vec);
     gen.vcvtdq2ps(fvec, i32vec);
-    gen.vcvtps2ph(f16vec, fvec, 0);
+    gen.vcvtps2ph(f16vec, fvec, 0x04);  // force RNE, independent of MXCSR
     gen.vzeroupper();
     gen.vmovdqu(gen.xword[dst], f16vec);
 }
@@ -57,7 +57,7 @@ void jit_convert_vec<float, float16>(jit::Generator& gen, const Xbyak::RegExp& s
     auto f32vec = gen.ymm4;
 
     gen.vmovups(f32vec, gen.yword[src]);
-    gen.vcvtps2ph(f16vec, f32vec, 0);
+    gen.vcvtps2ph(f16vec, f32vec, 0x04);  // force RNE, independent of MXCSR
     gen.vmovdqu(gen.xword[dst], f16vec);
 }
 
@@ -68,7 +68,7 @@ void jit_convert_vec<bfloat16, float16>(jit::Generator& gen, const Xbyak::RegExp
 
     gen.vpmovzxwd(f32vec, gen.yword[src]);  // load bf16 into tmp
     gen.vpslld(f32vec, f32vec, 16);         // convert bf16->f32 by bit shift
-    gen.vcvtps2ph(f16vec, f32vec, 0);       // convert f32 -> f16
+    gen.vcvtps2ph(f16vec, f32vec, 0x04);    // convert f32 -> f16 (force RNE, independent of MXCSR)
     gen.vmovdqu(gen.xword[dst], f16vec);    // move result to destination
 }
 
@@ -84,7 +84,7 @@ void jit_convert_vec<bfloat16, float16, true>(jit::Generator& gen, const Xbyak::
     gen.vpslld(f32vec, f32vec, 16);           // convert bf16->f32 by bit shift
     gen.vminps(f32vec, f32vec, upper_bound);  // clamp f16 max
     gen.vmaxps(f32vec, f32vec, lower_bound);  // clamp f16 lowest
-    gen.vcvtps2ph(f16vec, f32vec, 0);         // convert f32 -> f16
+    gen.vcvtps2ph(f16vec, f32vec, 0x04);      // convert f32 -> f16 (force RNE, independent of MXCSR)
     gen.vmovdqu(gen.xword[dst], f16vec);      // move result to destination
 }
 
@@ -129,7 +129,7 @@ void jit_convert_vec<float, float16, true>(jit::Generator& gen, const Xbyak::Reg
     gen.vmovups(f32vec, gen.yword[src]);
     gen.vminps(f32vec, f32vec, upper_bound);
     gen.vmaxps(f32vec, f32vec, lower_bound);
-    gen.vcvtps2ph(f16vec, f32vec, 0);
+    gen.vcvtps2ph(f16vec, f32vec, 0x04);  // force RNE, independent of MXCSR
     gen.vmovdqu(gen.xword[dst], f16vec);
 }
 
@@ -398,6 +398,10 @@ public:
     static fn_t get() {
         if (is_x64() && mayiuse(jit::avx512_core) && mayiuse(jit::fp16)) {
             static jit_check_f16_compression_avx512 generator;
+
+            // Since the JIT code always resides in memory, and ASAN's memory management may remove executable
+            // permissions, we need to restore executable permissions for the generated code.
+            generator.setProtectModeRE(false);
             return (fn_t)generator.getCode();
         }
         return nullptr;
@@ -599,6 +603,10 @@ public:
     static fn_t get() {
         if (is_x64() && mayiuse(jit::avx2) && mayiuse(jit::fp16)) {
             static jit_check_f16_compression generator;
+
+            // Since the JIT code always resides in memory, and ASAN's memory management may remove executable
+            // permissions, we need to restore executable permissions for the generated code.
+            generator.setProtectModeRE(false);
             return (fn_t)generator.getCode();
         }
         return nullptr;

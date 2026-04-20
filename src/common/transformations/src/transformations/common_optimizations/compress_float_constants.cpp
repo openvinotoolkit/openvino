@@ -46,7 +46,7 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<v0::
         return nullptr;
 
     // slow implementation: is used when optimized ones are not available: f64 or for ARM (both for f64 and f32)
-    int num_out_of_range = 0;
+    size_t num_out_of_range = 0;
     for (size_t i = 0; i < size; ++i) {
         // if abs value is smaller than the smallest positive fp16, but not zero
         if (std::abs(src_data[i]) < ov::float16::from_bits(0x0001) && src_data[i] != 0.0f) {
@@ -77,7 +77,7 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<v0::
     }
 
     // if more than 75% of a FP32 constant do not fit into FP16 keep in FP32
-    const float out_of_range_proportion = static_cast<float>(num_out_of_range) / static_cast<float>(size);
+    const double out_of_range_proportion = static_cast<double>(num_out_of_range) / static_cast<double>(size);
 
     if (out_of_range_proportion >= ov::reference::f16_compression_keep_threshold) {
         return nullptr;
