@@ -20,6 +20,13 @@ namespace reference {
 
 namespace {
 #ifdef OV_CORE_USE_XBYAK_JIT
+// vcvtps2ph immediate: force round-to-nearest-even and suppress all FP
+// exceptions, so the rounding is independent of caller MXCSR state and
+// bit-identical to static_cast<ov::float16>(float). Equivalent to
+// _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC from <immintrin.h>.
+// (Not 0x04 — that is _MM_FROUND_CUR_DIRECTION, i.e. "use MXCSR".)
+static constexpr uint8_t kVcvtps2phRneNoExc = 0x08;
+
 template <typename src_t, typename dst_t, bool clamp = false>
 void jit_convert_vec(jit::Generator&, const Xbyak::RegExp&, const Xbyak::RegExp&) {}
 
@@ -36,7 +43,7 @@ void jit_convert_vec<uint8_t, float16>(jit::Generator& gen, const Xbyak::RegExp&
     gen.movq(u8vec, gen.qword[src]);
     gen.vpmovzxbd(i32vec, u8vec);
     gen.vcvtdq2ps(fvec, i32vec);
-    gen.vcvtps2ph(f16vec, fvec, 0x08);  // RNE + suppress all exceptions (independent of MXCSR)
+    gen.vcvtps2ph(f16vec, fvec, kVcvtps2phRneNoExc);
     gen.vzeroupper();
     gen.vmovdqu(gen.xword[dst], f16vec);
 }
@@ -57,7 +64,7 @@ void jit_convert_vec<float, float16>(jit::Generator& gen, const Xbyak::RegExp& s
     auto f32vec = gen.ymm4;
 
     gen.vmovups(f32vec, gen.yword[src]);
-    gen.vcvtps2ph(f16vec, f32vec, 0x08);  // RNE + suppress all exceptions (independent of MXCSR)
+    gen.vcvtps2ph(f16vec, f32vec, kVcvtps2phRneNoExc);
     gen.vmovdqu(gen.xword[dst], f16vec);
 }
 
@@ -66,9 +73,9 @@ void jit_convert_vec<bfloat16, float16>(jit::Generator& gen, const Xbyak::RegExp
     const auto f32vec = gen.ymm4;
     const auto f16vec = gen.xmm3;
 
-    gen.vpmovzxwd(f32vec, gen.yword[src]);  // load bf16 into tmp
-    gen.vpslld(f32vec, f32vec, 16);         // convert bf16->f32 by bit shift
-    gen.vcvtps2ph(f16vec, f32vec, 0x08);    // convert f32 -> f16 (RNE + suppress exc, independent of MXCSR)
+    gen.vpmovzxwd(f32vec, gen.yword[src]);               // load bf16 into tmp
+    gen.vpslld(f32vec, f32vec, 16);                      // convert bf16->f32 by bit shift
+    gen.vcvtps2ph(f16vec, f32vec, kVcvtps2phRneNoExc);   // convert f32 -> f16
     gen.vmovdqu(gen.xword[dst], f16vec);    // move result to destination
 }
 
@@ -82,9 +89,9 @@ void jit_convert_vec<bfloat16, float16, true>(jit::Generator& gen, const Xbyak::
 
     gen.vpmovzxwd(f32vec, gen.yword[src]);    // load bf16 into tmp
     gen.vpslld(f32vec, f32vec, 16);           // convert bf16->f32 by bit shift
-    gen.vminps(f32vec, f32vec, upper_bound);  // clamp f16 max
-    gen.vmaxps(f32vec, f32vec, lower_bound);  // clamp f16 lowest
-    gen.vcvtps2ph(f16vec, f32vec, 0x08);      // convert f32 -> f16 (RNE + suppress exc, independent of MXCSR)
+    gen.vminps(f32vec, f32vec, upper_bound);              // clamp f16 max
+    gen.vmaxps(f32vec, f32vec, lower_bound);              // clamp f16 lowest
+    gen.vcvtps2ph(f16vec, f32vec, kVcvtps2phRneNoExc);    // convert f32 -> f16
     gen.vmovdqu(gen.xword[dst], f16vec);      // move result to destination
 }
 
@@ -129,7 +136,7 @@ void jit_convert_vec<float, float16, true>(jit::Generator& gen, const Xbyak::Reg
     gen.vmovups(f32vec, gen.yword[src]);
     gen.vminps(f32vec, f32vec, upper_bound);
     gen.vmaxps(f32vec, f32vec, lower_bound);
-    gen.vcvtps2ph(f16vec, f32vec, 0x08);  // RNE + suppress all exceptions (independent of MXCSR)
+    gen.vcvtps2ph(f16vec, f32vec, kVcvtps2phRneNoExc);
     gen.vmovdqu(gen.xword[dst], f16vec);
 }
 
@@ -388,7 +395,7 @@ class jit_check_f16_compression_avx512 : public jit::Generator {
 public:
     typedef struct {
         const void* src;
-        void* oor_dst;    // size_t* — output: out-of-range + relative-error count
+        void* oor_dst;    // size_t* — output: combined out-of-range + high-relative-error count
         void* lossy_dst;  // size_t* — output: lossy count (0 or non-zero)
         const size_t count;
     } args_t;
@@ -507,8 +514,7 @@ private:
             }
 
             // === Roundtrip f32 -> f16 -> f32 ===
-            // imm=0x08 (RNE + suppress all exceptions, ignore MXCSR) — matches static_cast<float16> in C++ fallback
-            vcvtps2ph(rt_ymm, data_vec, 0x08);
+            vcvtps2ph(rt_ymm, data_vec, kVcvtps2phRneNoExc);
             vcvtph2ps(rt_vec, rt_ymm);
 
             // === abs_diff = |data - roundtripped| ===
@@ -613,7 +619,7 @@ class jit_check_f16_compression : public jit::Generator {
 public:
     typedef struct {
         const void* src;
-        void* oor_dst;    // size_t* — output: out-of-range count
+        void* oor_dst;    // size_t* — output: combined out-of-range + high-relative-error count
         void* lossy_dst;  // size_t* — output: lossy count (0 or non-zero)
         const size_t count;
     } args_t;
@@ -751,9 +757,8 @@ private:
             // mask_vec now has per-element OOR mask (0xFFFFFFFF for OOR, 0 for in-range)
 
             // === Lossy check for in-range elements ===
-            // Roundtrip: f32 -> f16 -> f32
-            // imm=0x08 (RNE + suppress all exceptions, ignore MXCSR) — matches static_cast<float16> in C++ fallback
-            vcvtps2ph(rt_vec_xmm, data_vec, 0x08);  // f32 -> f16 (8 values)
+            // Roundtrip: f32 -> f16 -> f32 (f16 part written to low xmm of rt_vec_xmm)
+            vcvtps2ph(rt_vec_xmm, data_vec, kVcvtps2phRneNoExc);  // f32 -> f16 (8 values)
             vcvtph2ps(diff_vec, rt_vec_xmm);        // f16 -> f32 (roundtripped)
 
             // abs_diff = |data - roundtripped|
@@ -955,6 +960,18 @@ CompressionCheckResult check_f16_compression(const float* arg, size_t count) {
         }
     }
     return {out_of_range, false};
+}
+
+size_t count_out_of_f16_range(const float* arg, size_t count) {
+    // Backward-compatible helper: strict FP16-range count only (no relative-error accounting).
+    // The in-tree FP16 compression path uses check_f16_compression(); this wrapper exists for
+    // external developer-package consumers that linked against the pre-PR symbol.
+    const auto is_out_of_f16_range = [](const float v) {
+        return (std::abs(v) < float16::from_bits(0x0001) && v != 0.0f) || (v > std::numeric_limits<float16>::max()) ||
+               (v < std::numeric_limits<float16>::lowest());
+    };
+
+    return std::count_if(arg, arg + count, is_out_of_f16_range);
 }
 
 }  // namespace reference

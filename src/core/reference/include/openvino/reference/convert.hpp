@@ -87,13 +87,28 @@ constexpr double f16_compression_max_rel_error = 1e-4;
 constexpr float f16_compression_keep_threshold = 0.75f;
 
 // Single-pass combined check for FP16 compression feasibility.
-// Counts out-of-range values and bails immediately if any in-range value has significant precision loss.
+// Bails immediately if any in-range value has significant precision loss
+// (|round-trip error| > f16_compression_max_abs_error). Otherwise accumulates a
+// combined rejection count used by CompressFloatConstantsImpl to decide whether
+// to keep the Constant in FP32 via the f16_compression_keep_threshold.
 // JIT/AVX2+F16C accelerated on x86.
 struct CompressionCheckResult {
+    // Combined count of rejected elements: values outside finite FP16 range PLUS
+    // in-range values whose FP16 conversion exceeds f16_compression_max_rel_error.
+    // This is NOT a pure out-of-range count — see count_out_of_f16_range() for
+    // that.
     size_t out_of_range_count;
+    // Early-bail flag: true iff any in-range element has |abs error| greater
+    // than f16_compression_max_abs_error after the FP16 round-trip. When set,
+    // out_of_range_count is not guaranteed to be complete.
     bool has_lossy;
 };
 CompressionCheckResult check_f16_compression(const float* arg, size_t count);
+
+// Counts elements in `arg` that fall outside the finite FP16 range (subnormal
+// when rounded, or larger in magnitude than float16::max()). Distinct from
+// check_f16_compression(), which also accounts for relative-error rejections.
+size_t count_out_of_f16_range(const float* arg, size_t count);
 
 // Convert values from f32 to f16 with clamping to f16 min/max when value is out of normal finite numbers range
 void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t count);
