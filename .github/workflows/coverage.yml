@@ -32,17 +32,13 @@ env:
   IGPU_DRIVER_PACKAGES: |-
     https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-core_1.0.15985.7_amd64.deb
     https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-opencl_1.0.15985.7_amd64.deb
-    https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu-dbgsym_1.3.28454.6_amd64.ddeb
     https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu_1.3.28454.6_amd64.deb
-    https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd-dbgsym_24.05.28454.6_amd64.ddeb
     https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd_24.05.28454.6_amd64.deb
     https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/libigdgmm12_22.3.11_amd64.deb
   DGPU_DRIVER_PACKAGES: |-
     https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.17791.9/intel-igc-core_1.0.17791.9_amd64.deb
     https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.17791.9/intel-igc-opencl_1.0.17791.9_amd64.deb
-    https://github.com/intel/compute-runtime/releases/download/24.39.31294.12/intel-level-zero-gpu-dbgsym_1.6.31294.12_amd64.ddeb
     https://github.com/intel/compute-runtime/releases/download/24.39.31294.12/intel-level-zero-gpu_1.6.31294.12_amd64.deb
-    https://github.com/intel/compute-runtime/releases/download/24.39.31294.12/intel-opencl-icd-dbgsym_24.39.31294.12_amd64.ddeb
     https://github.com/intel/compute-runtime/releases/download/24.39.31294.12/intel-opencl-icd_24.39.31294.12_amd64.deb
     https://github.com/intel/compute-runtime/releases/download/24.39.31294.12/libigdgmm12_22.5.2_amd64.deb
 
@@ -838,6 +834,20 @@ jobs:
     name: Coverage Summary
     if: ${{ always() && needs.Build.result == 'success' }}
     needs: [Build, CoverageCpp, CoverageCppGpu, CoveragePython, CoveragePythonGpu, CoverageJS]
+    outputs:
+      cpp_cpu: ${{ steps.coverage_files.outputs.cpp_cpu }}
+      cpp_igpu_unit: ${{ steps.coverage_files.outputs.cpp_igpu_unit }}
+      cpp_igpu_func: ${{ steps.coverage_files.outputs.cpp_igpu_func }}
+      cpp_dgpu_unit: ${{ steps.coverage_files.outputs.cpp_dgpu_unit }}
+      cpp_dgpu_func: ${{ steps.coverage_files.outputs.cpp_dgpu_func }}
+      python_cpu_xml: ${{ steps.coverage_files.outputs.python_cpu_xml }}
+      python_cpu_info: ${{ steps.coverage_files.outputs.python_cpu_info }}
+      python_igpu_xml: ${{ steps.coverage_files.outputs.python_igpu_xml }}
+      python_igpu_info: ${{ steps.coverage_files.outputs.python_igpu_info }}
+      python_dgpu_xml: ${{ steps.coverage_files.outputs.python_dgpu_xml }}
+      python_dgpu_info: ${{ steps.coverage_files.outputs.python_dgpu_info }}
+      js_cpu_lcov: ${{ steps.coverage_files.outputs.js_cpu_lcov }}
+      js_cpu_info: ${{ steps.coverage_files.outputs.js_cpu_info }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
@@ -918,183 +928,99 @@ jobs:
             --workspace "${{ github.workspace }}" \
             --output-file "${GITHUB_OUTPUT}"
 
-      - name: Upload Codecov (C++ runtime, CPU)
-        if: ${{ always() && steps.coverage_files.outputs.cpp_cpu != '' }}
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+  CoverageCodecovUploads:
+    name: Coverage Codecov Upload (${{ matrix.upload.name }})
+    if: ${{ always() && needs.CoverageSummary.result != 'skipped' && needs.CoverageSummary.result != 'cancelled' }}
+    needs: CoverageSummary
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        upload:
+          - name: C++ runtime, CPU
+            artifact_name: coverage-cpp-cpu
+            output_key: cpp_cpu
+            flag: cpp-runtime-cpp-cpu
+          - name: C++ runtime, iGPU Unit
+            artifact_name: coverage-cpp-igpu-unit
+            output_key: cpp_igpu_unit
+            flag: cpp-runtime-cpp-igpu-unit
+          - name: C++ runtime, iGPU Func
+            artifact_name: coverage-cpp-igpu-func
+            output_key: cpp_igpu_func
+            flag: cpp-runtime-cpp-igpu-func
+          - name: C++ runtime, dGPU Unit
+            artifact_name: coverage-cpp-dgpu-unit
+            output_key: cpp_dgpu_unit
+            flag: cpp-runtime-cpp-dgpu-unit
+          - name: C++ runtime, dGPU Func
+            artifact_name: coverage-cpp-dgpu-func
+            output_key: cpp_dgpu_func
+            flag: cpp-runtime-cpp-dgpu-func
+          - name: Python API, CPU
+            artifact_name: coverage-python-cpu
+            output_key: python_cpu_xml
+            flag: python-api-frontend-layer-ovc-cpu
+          - name: C++ runtime, Python suite, CPU
+            artifact_name: coverage-python-cpu
+            output_key: python_cpu_info
+            flag: cpp-runtime-python-cpu
+          - name: Python API, iGPU
+            artifact_name: coverage-python-igpu
+            output_key: python_igpu_xml
+            flag: python-api-frontend-layer-ovc-igpu
+          - name: C++ runtime, Python suite, iGPU
+            artifact_name: coverage-python-igpu
+            output_key: python_igpu_info
+            flag: cpp-runtime-python-igpu
+          - name: Python API, dGPU
+            artifact_name: coverage-python-dgpu
+            output_key: python_dgpu_xml
+            flag: python-api-frontend-layer-ovc-dgpu
+          - name: C++ runtime, Python suite, dGPU
+            artifact_name: coverage-python-dgpu
+            output_key: python_dgpu_info
+            flag: cpp-runtime-python-dgpu
+          - name: JS bindings, CPU
+            artifact_name: coverage-js-cpu
+            output_key: js_cpu_lcov
+            flag: nodejs-bindings-unit-e2e-cpu
+          - name: C++ runtime, JS suite, CPU
+            artifact_name: coverage-js-cpu
+            output_key: js_cpu_info
+            flag: cpp-runtime-js-cpu
+    steps:
+      - name: Checkout sources
+        if: ${{ needs.CoverageSummary.outputs[matrix.upload.output_key] != '' }}
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ${{ steps.coverage_files.outputs.cpp_cpu }}
-          disable_search: true
-          plugins: noop
-          flags: cpp-runtime-cpp-cpu
-          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-          fail_ci_if_error: true
-          verbose: true
+          submodules: 'false'
 
-      - name: Upload Codecov (C++ runtime, iGPU Unit)
-        if: ${{ always() && steps.coverage_files.outputs.cpp_igpu_unit != '' }}
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+      - name: Download coverage artifact
+        if: ${{ needs.CoverageSummary.outputs[matrix.upload.output_key] != '' }}
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ${{ steps.coverage_files.outputs.cpp_igpu_unit }}
-          disable_search: true
-          plugins: noop
-          flags: cpp-runtime-cpp-igpu-unit
-          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-          fail_ci_if_error: true
-          verbose: true
+          name: ${{ matrix.upload.artifact_name }}
+          path: ${{ github.workspace }}/artifacts/${{ matrix.upload.artifact_name }}
 
-      - name: Upload Codecov (C++ runtime, iGPU Func)
-        if: ${{ always() && steps.coverage_files.outputs.cpp_igpu_func != '' }}
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ${{ steps.coverage_files.outputs.cpp_igpu_func }}
-          disable_search: true
-          plugins: noop
-          flags: cpp-runtime-cpp-igpu-func
-          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-          fail_ci_if_error: true
-          verbose: true
+      - name: Resolve Codecov upload file
+        id: coverage_files
+        if: ${{ needs.CoverageSummary.outputs[matrix.upload.output_key] != '' }}
+        run: |
+          python3 .github/scripts/coverage/ci_reports.py resolve-uploads \
+            --workspace "${{ github.workspace }}" \
+            --output-file "${GITHUB_OUTPUT}"
 
-      - name: Upload Codecov (C++ runtime, dGPU Unit)
-        if: ${{ always() && steps.coverage_files.outputs.cpp_dgpu_unit != '' }}
+      - name: Upload Codecov (${{ matrix.upload.name }})
+        if: ${{ steps.coverage_files.outputs[matrix.upload.output_key] != '' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ${{ steps.coverage_files.outputs.cpp_dgpu_unit }}
+          files: ${{ steps.coverage_files.outputs[matrix.upload.output_key] }}
           disable_search: true
           plugins: noop
-          flags: cpp-runtime-cpp-dgpu-unit
-          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-          fail_ci_if_error: true
-          verbose: true
-
-      - name: Upload Codecov (C++ runtime, dGPU Func)
-        if: ${{ always() && steps.coverage_files.outputs.cpp_dgpu_func != '' }}
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ${{ steps.coverage_files.outputs.cpp_dgpu_func }}
-          disable_search: true
-          plugins: noop
-          flags: cpp-runtime-cpp-dgpu-func
-          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-          fail_ci_if_error: true
-          verbose: true
-
-      - name: Upload Codecov (Python API, CPU)
-        if: ${{ always() && steps.coverage_files.outputs.python_cpu_xml != '' }}
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ${{ steps.coverage_files.outputs.python_cpu_xml }}
-          disable_search: true
-          plugins: noop
-          flags: python-api-frontend-layer-ovc-cpu
-          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-          fail_ci_if_error: true
-          verbose: true
-
-      - name: Upload Codecov (C++ runtime, Python suite, CPU)
-        if: ${{ always() && steps.coverage_files.outputs.python_cpu_info != '' }}
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ${{ steps.coverage_files.outputs.python_cpu_info }}
-          disable_search: true
-          plugins: noop
-          flags: cpp-runtime-python-cpu
-          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-          fail_ci_if_error: true
-          verbose: true
-
-      - name: Upload Codecov (Python API, iGPU)
-        if: ${{ always() && steps.coverage_files.outputs.python_igpu_xml != '' }}
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ${{ steps.coverage_files.outputs.python_igpu_xml }}
-          disable_search: true
-          plugins: noop
-          flags: python-api-frontend-layer-ovc-igpu
-          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-          fail_ci_if_error: true
-          verbose: true
-
-      - name: Upload Codecov (C++ runtime, Python suite, iGPU)
-        if: ${{ always() && steps.coverage_files.outputs.python_igpu_info != '' }}
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ${{ steps.coverage_files.outputs.python_igpu_info }}
-          disable_search: true
-          plugins: noop
-          flags: cpp-runtime-python-igpu
-          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-          fail_ci_if_error: true
-          verbose: true
-
-      - name: Upload Codecov (Python API, dGPU)
-        if: ${{ always() && steps.coverage_files.outputs.python_dgpu_xml != '' }}
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ${{ steps.coverage_files.outputs.python_dgpu_xml }}
-          disable_search: true
-          plugins: noop
-          flags: python-api-frontend-layer-ovc-dgpu
-          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-          fail_ci_if_error: true
-          verbose: true
-
-      - name: Upload Codecov (C++ runtime, Python suite, dGPU)
-        if: ${{ always() && steps.coverage_files.outputs.python_dgpu_info != '' }}
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ${{ steps.coverage_files.outputs.python_dgpu_info }}
-          disable_search: true
-          plugins: noop
-          flags: cpp-runtime-python-dgpu
-          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-          fail_ci_if_error: true
-          verbose: true
-
-      - name: Upload Codecov (JS bindings, CPU)
-        if: ${{ always() && steps.coverage_files.outputs.js_cpu_lcov != '' }}
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ${{ steps.coverage_files.outputs.js_cpu_lcov }}
-          disable_search: true
-          plugins: noop
-          flags: nodejs-bindings-unit-e2e-cpu
-          override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-          fail_ci_if_error: true
-          verbose: true
-
-      - name: Upload Codecov (C++ runtime, JS suite, CPU)
-        if: ${{ always() && steps.coverage_files.outputs.js_cpu_info != '' }}
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ${{ steps.coverage_files.outputs.js_cpu_info }}
-          disable_search: true
-          plugins: noop
-          flags: cpp-runtime-js-cpu
+          flags: ${{ matrix.upload.flag }}
           override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           fail_ci_if_error: true
