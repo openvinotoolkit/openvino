@@ -22,7 +22,6 @@ namespace op_util = ov::op::util;
 
 // Builds:  param_a -> relu -> add -> result
 //                    param_b -^
-// Node friendly names: "A", "Relu", "B", "Add", "Result"
 static std::shared_ptr<ov::Model> build_linear_model() {
     auto param_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4});
     param_a->set_friendly_name("A");
@@ -45,7 +44,6 @@ static std::shared_ptr<ov::Model> build_linear_model() {
 // Builds a branching model:
 //   param_a -> relu ---------> mul -> result
 //   param_b -> sigmoid -------^
-// Node friendly names: "A", "Relu", "B", "Sigmoid", "Mul", "Result"
 static std::shared_ptr<ov::Model> build_branch_model() {
     auto param_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 3});
     param_a->set_friendly_name("A");
@@ -68,8 +66,6 @@ static std::shared_ptr<ov::Model> build_branch_model() {
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param_a, param_b});
 }
 
-// ── Core overload ──────────────────────────────────────────────────────────────
-
 TEST(ExtractSubgraphTest, CoreOverload_SingleOp) {
     auto model = build_linear_model();
 
@@ -80,17 +76,16 @@ TEST(ExtractSubgraphTest, CoreOverload_SingleOp) {
     }
     ASSERT_NE(relu_ptr, nullptr);
 
-    auto subgraph =
-        op_util::extract_subgraph(model, {relu_ptr->input(0)}, {relu_ptr->output(0)});
+    auto subgraph = op_util::extract_subgraph(model, {relu_ptr->input(0)}, {relu_ptr->output(0)});
 
     // Build the expected model: param -> relu -> result
     auto expected_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4});
     auto expected_relu = std::make_shared<ov::op::v0::Relu>(expected_param);
+    expected_relu->set_friendly_name("Relu");
     auto expected_result = std::make_shared<ov::op::v0::Result>(expected_relu);
-    auto expected =
-        std::make_shared<ov::Model>(ov::ResultVector{expected_result}, ov::ParameterVector{expected_param});
+    auto expected = std::make_shared<ov::Model>(ov::ResultVector{expected_result}, ov::ParameterVector{expected_param});
 
-    const auto cmp = FunctionsComparator::with_default();
+    const auto cmp = FunctionsComparator::all_flags_enabled();
     const auto res = cmp.compare(subgraph, expected);
     EXPECT_TRUE(res.valid) << res.message;
 }
@@ -107,14 +102,14 @@ TEST(ExtractSubgraphTest, CoreOverload_TwoInputsOneOutput) {
 
     auto subgraph = op_util::extract_subgraph(model, {add_ptr->input(0), add_ptr->input(1)}, {add_ptr->output(0)});
 
-    // Expected: two params -> add -> result
     auto p0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4});
     auto p1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4});
     auto expected_add = std::make_shared<ov::op::v1::Add>(p0, p1);
+    expected_add->set_friendly_name("Add");
     auto expected_result = std::make_shared<ov::op::v0::Result>(expected_add);
     auto expected = std::make_shared<ov::Model>(ov::ResultVector{expected_result}, ov::ParameterVector{p0, p1});
 
-    const auto cmp = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto cmp = FunctionsComparator::all_flags_enabled().enable(FunctionsComparator::ATTRIBUTES);
     const auto res = cmp.compare(subgraph, expected);
     EXPECT_TRUE(res.valid) << res.message;
 }
@@ -135,11 +130,8 @@ TEST(ExtractSubgraphTest, CoreOverload_OriginalModelUnchanged) {
     EXPECT_EQ(model->get_ordered_ops().size(), original_op_count);
     EXPECT_EQ(model->get_parameters().size(), 2u);
     EXPECT_EQ(model->get_results().size(), 1u);
-    // Relu must still be fed by the original Parameter in the model
     EXPECT_TRUE(ov::is_type<ov::op::v0::Parameter>(relu_ptr->get_input_node_shared_ptr(0)));
 }
-
-// ── Multimap overload ──────────────────────────────────────────────────────────
 
 TEST(ExtractSubgraphTest, MultimapOverload_SingleOp) {
     auto model = build_linear_model();
@@ -151,11 +143,11 @@ TEST(ExtractSubgraphTest, MultimapOverload_SingleOp) {
 
     auto expected_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4});
     auto expected_relu = std::make_shared<ov::op::v0::Relu>(expected_param);
+    expected_relu->set_friendly_name("Relu");
     auto expected_result = std::make_shared<ov::op::v0::Result>(expected_relu);
-    auto expected =
-        std::make_shared<ov::Model>(ov::ResultVector{expected_result}, ov::ParameterVector{expected_param});
+    auto expected = std::make_shared<ov::Model>(ov::ResultVector{expected_result}, ov::ParameterVector{expected_param});
 
-    const auto cmp = FunctionsComparator::with_default();
+    const auto cmp = FunctionsComparator::all_flags_enabled();
     const auto res = cmp.compare(subgraph, expected);
     EXPECT_TRUE(res.valid) << res.message;
 }
@@ -173,11 +165,13 @@ TEST(ExtractSubgraphTest, MultimapOverload_MultiInputChain) {
     auto p0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4});
     auto p1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4});
     auto expected_relu = std::make_shared<ov::op::v0::Relu>(p0);
+    expected_relu->set_friendly_name("Relu");
     auto expected_add = std::make_shared<ov::op::v1::Add>(expected_relu, p1);
+    expected_add->set_friendly_name("Add");
     auto expected_result = std::make_shared<ov::op::v0::Result>(expected_add);
     auto expected = std::make_shared<ov::Model>(ov::ResultVector{expected_result}, ov::ParameterVector{p0, p1});
 
-    const auto cmp = FunctionsComparator::with_default();
+    const auto cmp = FunctionsComparator::all_flags_enabled();
     const auto res = cmp.compare(subgraph, expected);
     EXPECT_TRUE(res.valid) << res.message;
 }
@@ -194,10 +188,11 @@ TEST(ExtractSubgraphTest, MultimapOverload_BranchingModel_BothBranches) {
     auto p0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 3});
     auto p1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 3});
     auto expected_mul = std::make_shared<ov::op::v1::Multiply>(p0, p1);
+    expected_mul->set_friendly_name("Mul");
     auto expected_result = std::make_shared<ov::op::v0::Result>(expected_mul);
     auto expected = std::make_shared<ov::Model>(ov::ResultVector{expected_result}, ov::ParameterVector{p0, p1});
 
-    const auto cmp = FunctionsComparator::with_default();
+    const auto cmp = FunctionsComparator::all_flags_enabled();
     const auto res = cmp.compare(subgraph, expected);
     EXPECT_TRUE(res.valid) << res.message;
 }
@@ -213,16 +208,14 @@ TEST(ExtractSubgraphTest, MultimapOverload_BranchingModel_SingleBranch) {
 
     auto expected_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 3});
     auto expected_relu = std::make_shared<ov::op::v0::Relu>(expected_param);
+    expected_relu->set_friendly_name("Relu");
     auto expected_result = std::make_shared<ov::op::v0::Result>(expected_relu);
-    auto expected =
-        std::make_shared<ov::Model>(ov::ResultVector{expected_result}, ov::ParameterVector{expected_param});
+    auto expected = std::make_shared<ov::Model>(ov::ResultVector{expected_result}, ov::ParameterVector{expected_param});
 
-    const auto cmp = FunctionsComparator::with_default();
+    const auto cmp = FunctionsComparator::all_flags_enabled();
     const auto res = cmp.compare(subgraph, expected);
     EXPECT_TRUE(res.valid) << res.message;
 }
-
-// ── Error cases ────────────────────────────────────────────────────────────────
 
 TEST(ExtractSubgraphTest, MultimapOverload_UnknownInputNameThrows) {
     auto model = build_linear_model();

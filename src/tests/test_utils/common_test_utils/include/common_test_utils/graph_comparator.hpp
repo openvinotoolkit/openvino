@@ -58,6 +58,10 @@ public:
         return fc;
     }
 
+    static FunctionsComparator all_flags_enabled() noexcept {
+        return FunctionsComparator{static_cast<CmpValues>(~0)};
+    }
+
     FunctionsComparator& enable(CmpValues f) noexcept {
         m_comparison_flags = static_cast<CmpValues>(m_comparison_flags | f);
         return *this;
