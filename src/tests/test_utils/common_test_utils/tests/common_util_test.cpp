@@ -6,38 +6,6 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "openvino/util/common_util.hpp"
-
-namespace ov::util{
-    namespace {
-    template <typename Iterator, typename UnaryOp = std::nullptr_t>
-constexpr Iterator view_transform2(std::string_view sv, Iterator output_it, std::string_view sep, UnaryOp unary = {}) {
-    for (bool has_next = !sv.empty(); has_next; ++output_it) {
-        const auto sep_pos = sv.find(sep);
-        if constexpr (const auto field = sv.substr(0, sep_pos); std::is_same_v<UnaryOp, std::nullptr_t>) {
-            *output_it = field;
-        } else {
-            *output_it = unary(field);
-        }
-        has_next = sep_pos != std::string_view::npos;
-        sv = has_next ? sv.substr(sep_pos + sep.size()) : std::string_view{};
-    }
-    return output_it;
-}
-
-
-template <typename Predicate = std::nullptr_t>
-std::vector<std::string_view> split2(std::string_view sv, std::string_view sep = ",", Predicate predicate = {}) {
-    std::vector<std::string_view> result{};
-    if constexpr (std::is_same_v<Predicate, std::nullptr_t>) {
-        view_transform2(sv, std::back_inserter(result), sep);
-    } else {
-        view_transform_if(sv, std::back_inserter(result), sep, predicate);
-    }
-    return result;
-}
-
-}
-}
 namespace ov::test {
 
 using CommonUtilsTest = testing::Test;
