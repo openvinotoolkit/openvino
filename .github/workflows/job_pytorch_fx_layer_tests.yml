@@ -26,6 +26,8 @@ permissions: read-all
 env:
   PIP_CACHE_PATH_LINUX: /mount/caches/pip/linux
   PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
+  HF_TOKEN_PATH_LIN: /home/runner/secrets/huggingface/hf-token
+  HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\hf-token"
 
 jobs:
   PyTorch_FX_Layer_Tests:
@@ -49,7 +51,6 @@ jobs:
       USE_SYSTEM_CACHE: False # Using remote HuggingFace cache
       HF_HUB_VERBOSITY: debug
       TRANSFORMERS_VERBOSITY: debug
-      HF_TOKEN_PATH: ${{ runner.os == 'Linux' && '/home/runner/secrets/huggingface/hf-token' || 'C:\mount\secrets\huggingface\hf-token' }}
     steps:
       - name: Fetch setup_python and install wheels actions
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
@@ -81,6 +82,7 @@ jobs:
       - name: Setup Variables
         run: |
           echo "PIP_INSTALL_COMMAND=python3 -m pip install" >> "$GITHUB_ENV" # Linux and MacOS only, and just for debug purposes, will be reverted, see PR #34185
+          echo "HF_TOKEN_PATH=${{ runner.os == 'Linux' && env.HF_TOKEN_PATH_LIN || env.HF_TOKEN_PATH_WIN }}" >> "$GITHUB_ENV"
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
