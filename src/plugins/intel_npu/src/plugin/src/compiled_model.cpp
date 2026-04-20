@@ -163,6 +163,13 @@ void CompiledModel::set_property(const ov::AnyMap& properties) {
             _graph->set_workload_type(workloadType);
         }
     }
+
+    if (properties.count(std::string(MODEL_PRIORITY::key())) != 0) {
+        if (_graph != nullptr) {
+            const auto modelPriority = properties.at(ov::hint::model_priority.name()).as<ov::hint::Priority>();
+            _graph->set_model_priority(modelPriority);
+        }
+    }
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
@@ -182,6 +189,12 @@ const std::shared_ptr<IGraph>& CompiledModel::get_graph() const {
 
 const FilteredConfig& CompiledModel::get_config() const {
     return _propertiesManager->getConfig();
+}
+
+void CompiledModel::release_memory() {
+    if (_graph != nullptr) {
+        _graph->evict_memory();
+    }
 }
 
 void CompiledModel::configure_stream_executors() {

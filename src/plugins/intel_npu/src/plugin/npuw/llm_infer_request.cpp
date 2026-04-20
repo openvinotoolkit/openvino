@@ -215,7 +215,9 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
                 continue;
             }
             auto kvcache_in_tensor = largest_kvcache_req->get_tensor(variant_in_ports.at(input_name));
-            ov::npuw::util::fill_tensor<ov::float16>(kvcache_in_tensor, 0);
+            // NB: Use fill_tensor_bytes to zero-fill regardless of element type.
+            // fill_tensor<ov::float16> would fail with a type mismatch error for i8 kv-cache
+            ov::npuw::util::fill_tensor_bytes(kvcache_in_tensor, 0u);
         }
     }
 
@@ -594,8 +596,8 @@ void ov::npuw::LLMInferRequest::trim_kvcache_for_speculative_decoding(ov::SoPtr<
     auto position_id = position_ids->data<int64_t>()[0];
     auto dirty_num = kvcache_desc.num_stored_tokens - static_cast<uint32_t>(position_id);
     if (dirty_num > 0) {
-        LOG_DEBUG("Trim kv cache from " << kvcache_desc.num_stored_tokens << " length"
-                                        << " to " << position_id << " length");
+        LOG_DEBUG("Trim kv cache from " << kvcache_desc.num_stored_tokens << " length" << " to " << position_id
+                                        << " length");
     }
     kvcache_desc.num_stored_tokens -= dirty_num;
 }
@@ -614,7 +616,10 @@ void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
 
         auto chunk_prefill_kvcache_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
 
-        ov::npuw::util::fill_tensor<ov::float16>(chunk_prefill_kvcache_in_tensor, 0);
+        // NB: Use fill_tensor_bytes to zero-fill regardless of element type.
+        // After KV cache compression, past KV inputs may be i8 precision, and
+        // fill_tensor<ov::float16> would fail with a type mismatch error.
+        ov::npuw::util::fill_tensor_bytes(chunk_prefill_kvcache_in_tensor, 0u);
     }
 }
 
@@ -900,6 +905,16 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
     // Note: m_kvcache_request, m_kvcache_in_ports, and m_kvcache_out_ports are selected in
     // prepare_for_new_conversation()
+
+    // Eagle3: Check for sampling result from external pipeline via VariableState
+    if (m_eagle3_ext.is_eagle3_model() && m_generate_initialized) {
+        m_eagle3_ext.process_sampling_result_from_state(m_kvcache_request,
+                                                        m_kvcache_in_ports,
+                                                        kvcache_desc.num_stored_tokens,
+                                                        kvcache_desc.v_tensors_transposed_gen,
+                                                        kvcache_desc.dim);
+    }
+
     m_llm_profile["N/generate:1.prepare"].record([&]() {
         if (!m_generate_initialized) {
             LOG_DEBUG("Copy kv-cache from prefill to generate model.");
@@ -1035,8 +1050,10 @@ void ov::npuw::LLMInferRequest::infer() {
     OPENVINO_ASSERT(ov::element::i64 == attention_mask->get_element_type());
     OPENVINO_ASSERT(ov::element::i64 == position_ids->get_element_type());
 
-    // Eagle3: Accept and validate hidden state inputs
-    m_eagle3_ext.store_hidden_state_inputs(*this, inputs);
+    // Eagle3: Store Eagle3 specific inputs with pre-validation
+    if (m_eagle3_ext.is_eagle3_model()) {
+        m_eagle3_ext.store_user_inputs(*this, inputs);
+    }
 
     if (m_first_run) {
         // Most of the models have position_ids->data<int64_t>()[0] == 0 for the first infer
@@ -1109,5 +1126,13 @@ ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<co
 }
 
 std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::LLMInferRequest::query_state() const {
-    return m_variableStates;
+    auto states = m_variableStates;
+
+    // Add Eagle3 sampling state if available
+    auto eagle3_state = m_eagle3_ext.get_sampling_state();
+    if (eagle3_state) {
+        states.push_back(eagle3_state);
+    }
+
+    return states;
 }
