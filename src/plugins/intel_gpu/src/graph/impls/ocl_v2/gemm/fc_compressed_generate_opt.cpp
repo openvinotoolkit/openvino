@@ -80,6 +80,40 @@ public:
     FCCompressedOptGenerator() : KernelGenerator("gemm_generate_opt") {}
 
 protected:
+    // Content-based entry point: FC layers with identical GEMV kernel configs
+    // (K, N, B, group_size, data types) produce the same entry point, enabling
+    // cross-layer kernel compilation cache hits in s_gemv_compiled_cache.
+    // The default base-class entry point uses params.hash() which includes
+    // per-instance info (primitive ID, layout addresses), defeating the cache
+    // for every new FC layer even when the kernel logic is identical.
+    [[nodiscard]] std::string get_entry_point(const RuntimeParams& params) const override {
+        const auto& in0    = params.input_layouts[0];
+        const auto& in1    = params.input_layouts[1];
+        const auto& in_sc  = params.input_layouts[2];
+        const auto& shape_a  = in0.get_shape();
+        const auto& shape_w  = in1.get_shape();
+        const auto& shape_sc = in_sc.get_shape();
+
+        const size_t rank = shape_a.size();
+        const size_t K = shape_a[rank - 1];
+        const size_t N = shape_w[0];
+        size_t B = 1;
+        for (size_t i = 0; i + 1 < rank; ++i)
+            B *= shape_a[i];
+        const size_t num_groups = shape_sc[shape_sc.size() - 1];
+        const size_t group_size = (num_groups > 0) ? (K / num_groups) : K;
+
+        return get_kernel_name()
+               + "_K" + std::to_string(K)
+               + "_N" + std::to_string(N)
+               + "_B" + std::to_string(B)
+               + "_G" + std::to_string(group_size)
+               + (in1.data_type == data_types::i4 ? "_i4" : "_u4")
+               + (detect_has_zp(params) ? "_zp" : "")
+               + (detect_zp_is_u8(params) ? "_u8zp" : "")
+               + (in0.data_type == data_types::i8 ? "_i8act" : "_f16act");
+    }
+
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
 

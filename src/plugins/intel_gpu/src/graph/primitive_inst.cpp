@@ -3693,9 +3693,21 @@ void primitive_inst::enable_multi_impl_mode(ImplSwitchingPolicy policy) {
 
     size_t alt_count = 0;
     for (auto t : candidate_types) {
-        auto alt_impl = _impls_factory->create_impl_for_type(*this, *_impl_params, t);
+        std::shared_ptr<primitive_impl> alt_impl;
 
         // Sub-byte WOQ decode-path impl creation.
+        //
+        // For sub-byte weights crossing backend boundaries (e.g. OneDNN primary + OCL alt),
+        // skip the initial create_impl_for_type() entirely.  It would waste time compiling
+        // a generic OCL FC impl that always fails Rule 3 (sub-byte cross-backend packing)
+        // and gets discarded.  Go directly to the M=1 GEMV retry path below.
+        //
+        // For non-sub-byte or same-backend candidates, run create_impl_for_type normally.
+        if (!(weight_is_sub_byte && t != primary_type)) {
+            alt_impl = _impls_factory->create_impl_for_type(*this, *_impl_params, t);
+        }
+
+        // M=1 GEMV retry path for sub-byte WOQ decode-phase impls.
         //
         // Problem: create_impl_for_type() applies fake alignment to params before calling
         // support_shapes().  For FCCompressedGenerateOpt (GEMV WOQ kernel), support_shapes()
@@ -3705,14 +3717,13 @@ void primitive_inst::enable_multi_impl_mode(ImplSwitchingPolicy policy) {
         // Rule 1 to fire.  Similarly, when the pool is built during prefill (M >> 1),
         // FCCompressedGenerateOpt's support_shapes(M>1) also fails.
         //
-        // Fix: when the initial alt_impl would fail Rule 3 (or is wrong), bypass fake
-        // alignment entirely and directly iterate m_available_impls with exact M=1 params,
-        // finding and compiling FCCompressedGenerateOpt for decode-phase use.
+        // Fix: bypass fake alignment entirely and directly iterate m_available_impls with
+        // exact M=1 params, finding and compiling FCCompressedGenerateOpt for decode-phase use.
         if (weight_is_sub_byte && t != primary_type) {
             // Retry with M=1 params whenever the found alt_impl is NOT confirmed to be
             // the raw-sub-byte-compatible generate-optimized kernel (FCCompressedGenerateOpt).
             // This covers three cases:
-            //   1. !alt_impl — create_impl_for_type failed (e.g. M>1 shape rejected)
+            //   1. !alt_impl — create_impl_for_type skipped or failed
             //   2. m_manager==null — impl has no manager pointer (can't confirm compatibility)
             //   3. !raw_sub_byte_weight_compatible() — generic impl found (e.g. fully_connected_opt)
             //      but its sub-byte handling is backend-specific (not raw u4 compatible)
