@@ -182,6 +182,40 @@ jobs:
         if: ${{ inputs.test_type == 'rope' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+
+          # Candidate fix: expose wheel-bundled OpenVINO libs (GPU plugin + deps)
+          # to the dynamic linker. Non-RoPE flow relies on setupvars.sh for this;
+          # the wheel flow does not source it, so LD_LIBRARY_PATH must be set
+          # explicitly — otherwise the GPU plugin loads but discovers 0 devices.
+          OV_LIBS_DIR=$(python3 -c "import openvino, os; print(os.path.join(os.path.dirname(openvino.__file__), 'libs'))")
+          export LD_LIBRARY_PATH="${OV_LIBS_DIR}:${LD_LIBRARY_PATH}"
+
+          # === DEBUG START (to be removed once CI is green) ===
+          echo "=== LD_LIBRARY_PATH ==="
+          echo "${LD_LIBRARY_PATH}"
+          echo "=== OV libs dir listing ==="
+          ls -la "${OV_LIBS_DIR}" || true
+          echo "=== clinfo -l inside python test step ==="
+          clinfo -l || true
+          echo "=== ldd libopenvino_intel_gpu_plugin.so ==="
+          ldd "${OV_LIBS_DIR}/libopenvino_intel_gpu_plugin.so" || true
+          echo "=== /etc/OpenCL/vendors ==="
+          ls -la /etc/OpenCL/vendors/ || true
+          echo "=== /dev/dri ==="
+          ls -la /dev/dri/ || true
+          echo "=== Python smoke: enumerate devices before pytest ==="
+          python3 -c "
+          from openvino import Core
+          c = Core()
+          print('Available devices:', c.available_devices)
+          if 'GPU' in c.available_devices:
+              print('GPU versions:', c.get_versions('GPU'))
+          else:
+              print('GPU NOT FOUND — plugin loaded but 0 devices')
+          assert 'GPU' in c.available_devices, 'GPU plugin loaded but 0 devices'
+          "
+          # === DEBUG END ===
+
           python3 -m pip install \
             -r ${INSTALL_TEST_DIR}/requirements_pytorch \
             -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/rope.txt
@@ -193,6 +227,7 @@ jobs:
           TEST_DEVICE: GPU
           HF_HUB_VERBOSITY: debug
           TRANSFORMERS_VERBOSITY: debug
+          OV_LOG_LEVEL: '5'
 
       - name: Upload RoPE Test Results
         if: ${{ inputs.test_type == 'rope' && always() }}
