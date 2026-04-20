@@ -68,12 +68,14 @@ static std::shared_ptr<ov::Model> make_pa_matmul_model(ov::element::Type weight_
     auto pa_ai = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
     auto pa_ab = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
     auto pa_tt = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{0});
+    auto pa_qb = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape{-1});
+    auto pa_qbb = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
 
     ov::OutputVector pa_args = {pa_q, pa_k, pa_v, pa_kc, pa_vc,
                                 pa_pl, pa_sb, pa_bi, pa_bb, pa_sc, pa_sw,
                                 pa_al, pa_mc, pa_sa, pa_rb, pa_rd, pa_rt,
                                 pa_xt, pa_xb, pa_xs, pa_sk, pa_as, pa_ae,
-                                pa_ai, pa_ab, pa_tt};
+                                pa_ai, pa_ab, pa_tt, pa_qb, pa_qbb};
     auto pa_node = std::make_shared<ov::op::PagedAttentionExtension>(pa_args);
 
     return std::make_shared<ov::Model>(
@@ -81,7 +83,7 @@ static std::shared_ptr<ov::Model> make_pa_matmul_model(ov::element::Type weight_
         ov::ParameterVector{input, pa_q, pa_k, pa_v, pa_kc, pa_vc,
                             pa_pl, pa_sb, pa_bi, pa_bb, pa_mc, pa_sa,
                             pa_rb, pa_rd, pa_rt, pa_xt, pa_xb, pa_xs,
-                            pa_ae, pa_ai, pa_ab, pa_tt});
+                            pa_ae, pa_ai, pa_ab, pa_tt, pa_qb, pa_qbb});
 }
 
 TEST(execution_config, kv_cache_u4_weights_auto_detect_u4) {
