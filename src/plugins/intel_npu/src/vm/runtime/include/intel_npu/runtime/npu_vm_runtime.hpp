@@ -9,7 +9,7 @@
 #    pragma once
 #endif
 
-#include "ze_api.h"
+#include <level_zero/ze_api.h>
 #include "ze_graph_ext.h"
 
 #if defined(__cplusplus)
@@ -69,9 +69,8 @@ extern "C" {
 ///     - VM runtime versions contain major and minor attributes, use
 ///       ::NPU_VM_RUNTIME_MAJOR_VERSION and ::NPU_VM_RUNTIME_MINOR_VERSION
 typedef enum _npu_vm_runtime_version_t {
-    NPU_VM_RUNTIME_VERSION_1_0 = ZE_MAKE_VERSION(1, 0),             ///< version 1.0
-    NPU_VM_RUNTIME_VERSION_1_1 = ZE_MAKE_VERSION(1, 1),             ///< version 1.1
-    NPU_VM_RUNTIME_VERSION_CURRENT = NPU_VM_RUNTIME_VERSION_1_1,  ///< latest known version
+    NPU_VM_RUNTIME_VERSION_1_0 = ZE_MAKE_VERSION(1, 0),           ///< version 1.0
+    NPU_VM_RUNTIME_VERSION_CURRENT = NPU_VM_RUNTIME_VERSION_1_0,  ///< latest known version
     NPU_VM_RUNTIME_VERSION_FORCE_UINT32 = 0x7fffffff,
 } npu_vm_runtime_version_t;
 
@@ -215,8 +214,6 @@ npuVMRuntimeParseMemRef(npu_vm_runtime_mem_ref_handle_t hMemRef,  ///< [in] hand
                           int64_t* pStrides,                          ///< [out] pointer to tensor strides
                           int64_t* pDimsCount);                       ///< [out] value of tensor rank
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// @brief Extension version 1.1
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Init VM runtime instance and return handle
