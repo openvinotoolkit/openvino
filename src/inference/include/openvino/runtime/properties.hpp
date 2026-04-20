@@ -1491,9 +1491,12 @@ inline std::istream& operator>>(std::istream& is, BlobCompatibility& compatibili
  * @brief Read-write property carrying plugin-specific runtime requirements of a compiled model blob.
  * @ingroup ov_runtime_cpp_prop_api
  *
- * The property value is an ov::Tensor containing opaque binary data encoding the device environment
- * requirements at the time a model was compiled. The format and content are plugin-dependent and
- * may encode information such as plugin version, required hardware capabilities, or driver version.
+ * The property value is an ov::Tensor containing data encoding the device environment requirements  at the time
+ * a model was compiled. The format and content are plugin-dependent and may encode information such as
+ * plugin version, required hardware capabilities, or driver version.
+ *
+ * @note Current OpenVINO implementation supports single element tensors (scalar or 1-D) and of type string.
+ * The string must be c-type compatible string with a null terminator.
  *
  * **Reading** — query on a compiled model to obtain requirements to persist alongside the blob:
  * @code
