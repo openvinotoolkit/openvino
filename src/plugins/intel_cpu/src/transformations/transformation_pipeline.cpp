@@ -281,38 +281,6 @@
 
 namespace ov::intel_cpu {
 
-namespace{
-std::shared_ptr<ov::Model> extract_subgraph(const std::shared_ptr<ov::Model>& model,
-                                            const std::vector<ov::Input<ov::Node>>& subgraph_inputs,
-                                            const std::vector<ov::Output<ov::Node>>& subgraph_outputs) {
-    ov::OutputVector replaced_outputs;
-    ov::ParameterVector subgraph_parameters;
-    subgraph_parameters.reserve(subgraph_inputs.size());
-    replaced_outputs.reserve(subgraph_inputs.size());
-
-    // Temporarily replace inputs with subgraph parameters
-    for (const auto& input : subgraph_inputs) {
-        const auto new_parameter = std::make_shared<ov::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
-        subgraph_parameters.push_back(new_parameter);
-
-        const auto& source_output = input.get_source_output();
-        replaced_outputs.push_back(source_output);
-        ov::replace_output_update_name(source_output, new_parameter->output(0));
-    }
-    OPENVINO_ASSERT(subgraph_parameters.size() == replaced_outputs.size(),
-                    "extract_subgraph: number of subgraph_parameters is not equal to the number of replaced_outputs");
-
-    // The subgraph have to be cloned to avoid original model disruption
-    auto subgraph = std::make_shared<ov::Model>(subgraph_outputs, subgraph_parameters)->clone();
-
-    // Restore original model after subgraph extraction
-    for (size_t i = 0; i < subgraph_parameters.size(); ++i) {
-        subgraph_parameters[i]->output(0).replace(replaced_outputs[i]);
-    }
-    return subgraph;
-}
-} // namespace
-
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
 bool Transformations::is_decompression_multiply(const_node_ptr& node) {
@@ -485,32 +453,6 @@ void Transformations::CpuSpecificOpSet() {
 
 void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecisions) {
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, PreLpt);
-
-    // extract_subgraph demonstrarion: extract inputs/outputs with given names
-    {
-        // <name, in_index>
-        static const std::multimap<std::string, size_t> inputs_to_extract {
-            {"name_1", 0}
-        };
-        // <name, out_index>
-        static const std::multimap<std::string, size_t> outputs_to_extract {
-            {"name_1", 0}
-        };
-        std::vector<ov::Input<ov::Node>> subgraph_inputs;
-        std::vector<ov::Output<ov::Node>> subgraph_outputs;
-        for (const auto& n : model->get_ordered_ops()) {
-            const auto& name = n->get_friendly_name();
-            const auto input_range = inputs_to_extract.equal_range(name);
-            for (auto it = input_range.first; it != input_range.second; ++it)
-                subgraph_inputs.push_back(n->input(it->second));
-
-            const auto output_range = outputs_to_extract.equal_range(name);
-            for (auto it = output_range.first; it != output_range.second; ++it)
-                subgraph_outputs.push_back(n->output(it->second));
-        }
-        const auto subgraph = extract_subgraph(model, subgraph_inputs, subgraph_outputs);
-        ov::pass::Serialize(std::string("subgraph.xml"), std::string("subgraph.bin")).run_on_model(subgraph);
-    }
 
     // Decompression handling related transformations must be run separately from common preLPT pipeline
     // since there is used the same transformations as in LPT related transformations, but with the specific settings.
