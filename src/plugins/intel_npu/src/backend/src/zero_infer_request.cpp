@@ -1008,7 +1008,7 @@ void ZeroInferRequest::prepare_inputs() {
 
             _logger.info("prepare_inputs - tensor is not allocated in the current Level Zero context");
             OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
-            if (_isShapeTensorPresent) {
+            if (_isShapeTensorPresent && userTensor.at(SINGLE_TENSOR)->get_shape() != levelZeroTensor->get_shape()) {
                 auto viewTensor = ov::make_tensor(levelZeroTensor->get_element_type(),
                                                   userTensor.at(SINGLE_TENSOR)->get_shape(),
                                                   static_cast<unsigned char*>(levelZeroTensor->data()));
@@ -1072,7 +1072,7 @@ void ZeroInferRequest::get_result() {
             _logger.info("get_result - output tensor by index: %zu is not allocated in the current Level Zero context",
                          outputIndex);
             OV_ITT_TASK_NEXT(ZERO_RESULT, "memcpy");
-            if (_isShapeTensorPresent) {
+            if (_isShapeTensorPresent && userTensor->get_shape() != levelZeroTensor->get_shape()) {
                 auto viewTensor = ov::make_tensor(levelZeroTensor->get_element_type(),
                                                   userTensor->get_shape(),
                                                   static_cast<unsigned char*>(levelZeroTensor->data()));
