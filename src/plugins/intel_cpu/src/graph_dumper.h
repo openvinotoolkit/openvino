@@ -13,7 +13,7 @@ namespace ov::intel_cpu {
 
 std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph);
 #ifdef CPU_DEBUG_CAPS
-void serialize(const Graph& graph);
+void serialize(const Graph& graph, bool isPostInference = false);
 void summary_perf(const Graph& graph);
 void average_counters(const Graph& graph);
 #endif  // CPU_DEBUG_CAPS
