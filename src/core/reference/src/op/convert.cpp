@@ -536,24 +536,24 @@ private:
 
             // === Accumulate popcount(k_oor) into reg_oor_accum ===
             // Branchless 16-bit SWAR popcount — avoids POPCNT (not gated by mayiuse(avx512_core)).
-            kmovw(reg_tmp.cvt32(), k_oor);                // x = k_oor (16 bits in low word)
-            mov(reg_addr.cvt32(), reg_tmp.cvt32());       // tmp2 = x
+            kmovw(reg_tmp.cvt32(), k_oor);           // x = k_oor (16 bits in low word)
+            mov(reg_addr.cvt32(), reg_tmp.cvt32());  // tmp2 = x
             shr(reg_addr.cvt32(), 1);
             and_(reg_addr.cvt32(), 0x5555);
-            sub(reg_tmp.cvt32(), reg_addr.cvt32());       // x -= (x >> 1) & 0x5555
+            sub(reg_tmp.cvt32(), reg_addr.cvt32());  // x -= (x >> 1) & 0x5555
             mov(reg_addr.cvt32(), reg_tmp.cvt32());
             and_(reg_addr.cvt32(), 0x3333);
             shr(reg_tmp.cvt32(), 2);
             and_(reg_tmp.cvt32(), 0x3333);
-            add(reg_tmp.cvt32(), reg_addr.cvt32());       // x = (x & 0x3333) + ((x >> 2) & 0x3333)
+            add(reg_tmp.cvt32(), reg_addr.cvt32());  // x = (x & 0x3333) + ((x >> 2) & 0x3333)
             mov(reg_addr.cvt32(), reg_tmp.cvt32());
             shr(reg_addr.cvt32(), 4);
             add(reg_tmp.cvt32(), reg_addr.cvt32());
-            and_(reg_tmp.cvt32(), 0x0F0F);                // x = (x + (x >> 4)) & 0x0F0F
+            and_(reg_tmp.cvt32(), 0x0F0F);  // x = (x + (x >> 4)) & 0x0F0F
             mov(reg_addr.cvt32(), reg_tmp.cvt32());
             shr(reg_addr.cvt32(), 8);
-            add(reg_tmp.cvt32(), reg_addr.cvt32());       // low byte = popcount (max 16)
-            and_(reg_tmp, 0xFF);                          // zero upper bits before 64-bit add
+            add(reg_tmp.cvt32(), reg_addr.cvt32());  // low byte = popcount (max 16)
+            and_(reg_tmp, 0xFF);                     // zero upper bits before 64-bit add
             add(reg_oor_accum, reg_tmp);
         };
 
