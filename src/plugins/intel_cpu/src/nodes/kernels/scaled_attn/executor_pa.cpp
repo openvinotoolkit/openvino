@@ -11,6 +11,7 @@
 #include <limits>
 #include <memory>
 #include <type_traits>
+#include <unordered_map>
 #include <vector>
 
 #include "cpu_memory.h"
@@ -412,7 +413,10 @@ struct ScoreAggregationInfo {
     int32_t score_buf_num;          // tmp buffer number for current head
     int32_t kv_len_aligned;         // tmp buffer length for current block
 };
-
+struct QueryToQueryBiasInfo {
+    size_t qq_begin_offset = 0;
+    size_t spec_num = 0;
+};
 template <typename DATA_TYPE, ov::element::Type_t KEY_PREC, ov::element::Type_t VALUE_PREC>
 struct MHAHelper {
     // initialize once
@@ -527,44 +531,51 @@ struct MHAHelper {
         _qq_bias_begins = PlainTensor();
     }
 
-    bool qq_bias_is_allowed(size_t batch_in_seq, size_t query_spec_idx, size_t key_idx, size_t past_len) const {
-        if (!_has_qq_bias) {
-            return true;
-        }
+    // Precompute qq_bias metadata for a given batch_in_seq to avoid redundant computation
+    QueryToQueryBiasInfo precompute_qq_bias_info(size_t batch_in_seq) const {
+        QueryToQueryBiasInfo qq_bias_info;
 
-        if (key_idx < past_len) {
-            return true;
+        if (!_has_qq_bias || !_qq_bias_begins || !_qq_bias) {
+            return qq_bias_info;  // is_valid = false
         }
-
-        OPENVINO_ASSERT(_qq_bias_begins && _qq_bias,
-                        "PagedAttention: invalid qq_bias state (missing qq_bias or qq_bias_begins)");
 
         const auto qq_begin = static_cast<size_t>(_qq_bias_begins.ptr<int32_t>()[batch_in_seq]);
         const auto qq_end = static_cast<size_t>(_qq_bias_begins.ptr<int32_t>()[batch_in_seq + 1]);
+
         OPENVINO_ASSERT(qq_begin <= qq_end && qq_end <= _qq_bias.size(0),
                         "PagedAttention: qq_bias_begins contains invalid range");
 
         const auto qq_num = qq_end - qq_begin;
         if (qq_num == 0) {
-            return true;
+            return qq_bias_info;
         }
 
         const auto spec_num = static_cast<size_t>(std::sqrt(static_cast<float>(qq_num)));
-        if (spec_num == 0 || spec_num * spec_num != qq_num) {
-            return true;
+
+        OPENVINO_ASSERT(spec_num * spec_num == qq_num, "PagedAttention: qq_bias range length incorrect ");
+
+        qq_bias_info.qq_begin_offset = qq_begin;
+        qq_bias_info.spec_num = spec_num;
+        return qq_bias_info;
+    }
+
+    bool query_to_query_is_masked(const QueryToQueryBiasInfo* cache, size_t query_spec_idx,
+                                  size_t key_idx, size_t past_len) const {
+        if (!_has_qq_bias || key_idx < past_len || cache == nullptr || cache->spec_num == 0) {
+            return false;
         }
 
-        if (query_spec_idx >= spec_num) {
-            return true;
+        if (query_spec_idx >= cache->spec_num) {
+            return false;
         }
 
         const auto key_spec_idx = key_idx - past_len;
-        if (key_spec_idx >= spec_num) {
-            return true;
+        if (key_spec_idx >= cache->spec_num) {
+            return false;
         }
 
-        const auto qq_off = qq_begin + query_spec_idx * spec_num + key_spec_idx;
-        return _qq_bias.ptr<uint8_t>()[qq_off] != 0;
+        const auto qq_off = cache->qq_begin_offset + query_spec_idx * cache->spec_num + key_spec_idx;
+        return _qq_bias.ptr<uint8_t>()[qq_off] == 0;
     }
 
     CpuParallelPtr _cpu_parallel;
@@ -827,7 +838,8 @@ struct MHAHelper {
                               const PlainTensor& sinks,
                               size_t batch_in_seq = 0,
                               const std::vector<PlainTensor>& sparse_attention_mask = {},
-                              size_t q_token_start = 0) {
+                              size_t q_token_start = 0,
+                              const QueryToQueryBiasInfo* query_to_query_info_ptr = nullptr) {
         auto q_start = q_blk * _block_size;
         auto q_end = std::min(q_start + _block_size, q_len);
         auto q_cnt = q_end - q_start;
@@ -835,6 +847,7 @@ struct MHAHelper {
         constexpr bool q_cache_is_same = precision_of<DATA_TYPE>::value == VALUE_PREC;
         auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
         const size_t past_len = cur_kv_len - (q_blk * _block_size + q_cnt);
+
         [[maybe_unused]] size_t sparse_scale = 1;
         [[maybe_unused]] std::function<std::pair<size_t, size_t>(size_t, size_t)> map_to_mask_idx =
             [](size_t q_blk_rt, size_t k_blk_rt) {
@@ -911,7 +924,7 @@ struct MHAHelper {
                 auto* score = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
                 if (_has_qq_bias) {
                     for (size_t key_idx = past_len; key_idx < cur_kv_len; key_idx++) {
-                        if (!qq_bias_is_allowed(batch_in_seq, m, key_idx, past_len)) {
+                        if (query_to_query_is_masked(query_to_query_info_ptr, m, key_idx, past_len)) {
                             score[key_idx] = -FLT_MAX;
                         }
                     }
@@ -1085,7 +1098,7 @@ struct MHAHelper {
                                   size_t q_start_idx_score,
                                   const ScoreAggregationInfo* score_info_ptr,
                                   size_t q_token_start = 0,
-                                  size_t batch_in_seq = 0) {
+                                  const QueryToQueryBiasInfo* query_to_query_info_ptr = nullptr) {
         auto q_start = q_blk * _block_size;
         auto q_end = std::min(q_start + _block_size, q_len);
         auto q_cnt = q_end - q_start;
@@ -1132,7 +1145,7 @@ struct MHAHelper {
                 // Apply qq_bias mask
                 if (_has_qq_bias) {
                     for (size_t key_idx = past_len; key_idx < cur_kv_len; key_idx++) {
-                        if (!qq_bias_is_allowed(batch_in_seq, m, key_idx, past_len)) {
+                        if (query_to_query_is_masked(query_to_query_info_ptr, m, key_idx, past_len)) {
                             score[key_idx] = -FLT_MAX;
                         }
                     }
@@ -1239,8 +1252,7 @@ struct MHAHelper {
                             const PlainTensor& alibi_slopes,
                             float* score_output,
                             const PlainTensor& sinks,
-                            size_t q_token_start = 0,
-                            size_t batch_in_seq = 0) {
+                            size_t q_token_start = 0) {
 #    if defined(OPENVINO_ARCH_X86_64)
         if (any_of(_fastpath_valid_prec, ov::element::bf16, ov::element::f16)) {
             _gemv->tile_config();
@@ -1295,15 +1307,6 @@ struct MHAHelper {
                 float* score = _weight.ptr<float>(ithr, h - hq_beg, pq);
                 OPENVINO_DEBUG_ASSERT(score != nullptr, "PagedAttention: _weight buffer must be allocated");
 
-                // Apply qq_bias mask
-                if (_has_qq_bias) {
-                    const auto past_len = cur_kv_len - q_len;
-                    for (size_t key_idx = past_len; key_idx < cur_kv_len; key_idx++) {
-                        if (!qq_bias_is_allowed(batch_in_seq, pq, key_idx, past_len)) {
-                            score[key_idx] = std::numeric_limits<float>::lowest();
-                        }
-                    }
-                }
                 float* alibi_lookup = nullptr;
                 float alibi_slope = 0.F;
                 if (alibi_slopes) {
@@ -1516,14 +1519,6 @@ struct MHAHelper {
             //  apply attention mask & sofmax
             float* score = _weight_bhl.ptr<float>(b, h, pq);
             OPENVINO_DEBUG_ASSERT(score != nullptr, "PagedAttention: _weight_bhl buffer must be allocated");
-            if (_has_qq_bias) {
-                const auto past_len = cur_kv_len - q_len;
-                for (size_t key_idx = past_len; key_idx < cur_kv_len; key_idx++) {
-                    if (!qq_bias_is_allowed(b, pq, key_idx, past_len)) {
-                        score[key_idx] = std::numeric_limits<float>::lowest();
-                    }
-                }
-            }
             float* alibi_lookup = nullptr;
             float alibi_slope = 0.F;
             if (alibi_slopes) {
@@ -1843,8 +1838,7 @@ struct MHA {
                     alibi_slopes,
                     score_output,
                     sinks,
-                    static_cast<size_t>(batch_in_token),
-                    batch_in_seq);
+                    static_cast<size_t>(batch_in_token));
             } else {
                 const auto batch_in_reorder = item.batch_in_reorder;
                 const auto q_blk = item.q_block_id;
@@ -1876,6 +1870,12 @@ struct MHA {
                 sub_query.resize({q_len, _helper.H, _helper.S}, q.ptr<DATA_TYPE>(batch_in_token));
                 // physical layout (B_in_tokens, H, S)
                 sub_query = sub_query.permute({1, 0, 2});
+
+                QueryToQueryBiasInfo* query_to_query_info_ptr = nullptr;
+                if (_helper._has_qq_bias) {
+                    auto query_to_query_bias= _helper.precompute_qq_bias_info(batch_in_seq);
+                    query_to_query_info_ptr = &query_to_query_bias;
+                }
 #    if defined(OPENVINO_ARCH_ARM64)
                 if constexpr (q_is_xf16) {
                     _helper.exec_kernel_multiple_kai(
@@ -1898,7 +1898,7 @@ struct MHA {
                         q_start_idx_score,
                         score_info_ptr,
                         static_cast<size_t>(batch_in_token),
-                        batch_in_seq);
+                        query_to_query_info_ptr);
                 } else {
                     _helper.exec_kernel_multiple(
                         sub_query,
@@ -1922,7 +1922,8 @@ struct MHA {
                         PlainTensor(),
                         0,
                         {},
-                        static_cast<size_t>(batch_in_token));
+                        static_cast<size_t>(batch_in_token),
+                        query_to_query_info_ptr);
                 }
 #    else
                 _helper.exec_kernel_multiple(
@@ -1947,7 +1948,8 @@ struct MHA {
                     sinks,
                     batch_in_seq,
                     sparse_attention_mask,
-                    static_cast<size_t>(batch_in_token));
+                    static_cast<size_t>(batch_in_token),
+                    query_to_query_info_ptr);
 #    endif
             }
         });

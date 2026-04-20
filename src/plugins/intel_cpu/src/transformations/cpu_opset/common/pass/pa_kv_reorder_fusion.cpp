@@ -170,16 +170,11 @@ std::vector<std::shared_ptr<ov::op::v0::Concat>> get_joint_concat_consumers(cons
 }  // namespace
 
 bool PaKVReorderFusion::run_on_model(const std::shared_ptr<ov::Model>& m) {
-    std::cout << "[PaKVReorderFusion] Pass is running on model: " << m->get_friendly_name() << std::endl;
-
     auto block_indices_begins = get_parameter_by_name(m, "block_indices_begins");
     auto block_update_indices_begins = get_parameter_by_name(m, "block_update_indices_begins");
     if (!block_indices_begins || !block_update_indices_begins) {
-        std::cout << "[PaKVReorderFusion] Required parameters not found - skipping" << std::endl;
         return false;
     }
-
-    std::cout << "[PaKVReorderFusion] Found required parameters, scanning for patterns..." << std::endl;
 
     std::unordered_map<std::string, CacheReorderPath> key_paths;
     std::unordered_map<std::string, CacheReorderPath> value_paths;
@@ -215,9 +210,6 @@ bool PaKVReorderFusion::run_on_model(const std::shared_ptr<ov::Model>& m) {
         if (concat_consumers.empty()) {
             continue;
         }
-
-        std::cout << "[PaKVReorderFusion] ✓ Found matching pattern for index: " << index << std::endl;
-        std::cout << "[PaKVReorderFusion]   Creating PaKVReorder operation..." << std::endl;
 
         auto pa_kv_reorder = std::make_shared<ov::intel_cpu::op::PaKVReorder>(key_path.cache->output(0),
                                                                                value_path.cache->output(0),
@@ -268,12 +260,6 @@ bool PaKVReorderFusion::run_on_model(const std::shared_ptr<ov::Model>& m) {
             ov::replace_output_update_name(concat->output(0), pa_kv_reorder->output(0));
         }
         rewritten = true;
-    }
-
-    if (rewritten) {
-        std::cout << "[PaKVReorderFusion] ✓ Successfully applied fusion" << std::endl;
-    } else {
-        std::cout << "[PaKVReorderFusion] No patterns matched - no changes made" << std::endl;
     }
 
     return rewritten;
