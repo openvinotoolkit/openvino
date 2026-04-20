@@ -20,6 +20,10 @@ They can be activated at runtime and are useful for analyzing transformation beh
   When to use: need to inspect model IR (.xml/.bin) after specific passes — useful for diffing model state before and after a transformation.
   Example: `OV_ENABLE_SERIALIZE_TRACING=true` or `OV_ENABLE_SERIALIZE_TRACING="Pass1,Pass2"`
 
+* [Subgraph extraction](extract_subgraph.md)
+  When to use: working with a large model where full compilation or inference is slow, or where the serialized IR is too large to read or render in graph visualization tools — extract only the relevant subgraph as a standalone `ov::Model`, serialize to IR, and continue investigation on the smaller model independently.
+  Example: `ov::op::util::extract_subgraph(model, {{"MatMul_0", 0}}, {{"Softmax_0", 0}})`
+
 ## See also
 
 * [debug-matcher-pass skill](../../../../.claude/skills/debug-matcher-pass/SKILL.md) — automated diagnosis workflow for MatcherPass transformations that are not firing. Collects matcher logs, identifies root cause, and generates a reproducer test.
