@@ -243,8 +243,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_access_to_body_sc
 OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_too_few_body_inputs_exception) {
     OV_EXPECT_THROW(convert_model("controlflow/loop_too_few_body_inputs.onnx"),
                     ov::AssertFailure,
-                    testing::AllOf(testing::HasSubstr("loop body graph inputs size"),
-                                   testing::HasSubstr("is smaller than the sum of loop carried dependencies")));
+                    testing::AllOf(testing::HasSubstr("loop body graph canonical inputs size"),
+                                   testing::HasSubstr("does not match the sum of loop carried dependencies")));
 }
 
 // Regression test: Loop body with too few outputs relative to loop-carried
