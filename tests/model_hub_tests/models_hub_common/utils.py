@@ -8,6 +8,7 @@ import shutil
 import time
 
 import numpy as np
+from huggingface_hub import snapshot_download
 from models_hub_common.constants import test_device
 
 
@@ -101,6 +102,24 @@ def get_params(ie_device=None):
     for element in itertools.product(ie_device_params):
         test_args.append(element)
     return test_args
+
+
+def cached_snapshot_download(repo_id: str) -> str:
+    """Return local path to a cached HuggingFace repo snapshot.
+
+    Tries the local cache first (no network call).
+    Falls back to a full download on cache miss.
+
+    Args:
+        repo_id: HuggingFace repo identifier, e.g. "google/bert-base"
+
+    Returns:
+        Local filesystem path to the downloaded snapshot directory.
+    """
+    try:
+        return snapshot_download(repo_id, local_files_only=True)
+    except Exception:
+        return snapshot_download(repo_id)
 
 
 def cleanup_dir(dir: str):

@@ -9,7 +9,7 @@ from optimum.intel import OVModelForCausalLM, OVModelForSeq2SeqLM
 from optimum.intel.openvino import OVModelForVisualCausalLM
 from typing import Union
 import openvino as ov
-from models_hub_common.utils import retry
+from models_hub_common.utils import cached_snapshot_download, retry
 import models_hub_common.utils as utils
 from sdpa2pa_ref_diff import ref_diff_map, ref_diff_map_optimizations, nodes_to_compare
 import pytest
@@ -157,7 +157,7 @@ def run_pa(tmp_path,
            allow_adaptive_rkv,
            allow_qq_bias,
            ie_device):
-    model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
+    model_cached = cached_snapshot_download(model_id)
     model = cls.from_pretrained(model_cached, export=True, trust_remote_code=True)
 
     if cls is OVModelForCausalLM:

@@ -3,6 +3,7 @@
 
 from huggingface_hub import snapshot_download
 import models_hub_common.utils as utils
+from models_hub_common.utils import cached_snapshot_download
 import pytest
 import os
 import platform
@@ -92,7 +93,7 @@ def run_test(model_id, ie_device, ts_names, expected_layer_types):
         except (ImportError, AttributeError):
             pytest.skip("OVModelForCausalLM unavailable with installed package versions")
 
-    model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
+    model_cached = cached_snapshot_download(model_id)
     try:
         model = OVModelForCausalLM.from_pretrained(model_cached, export=True, trust_remote_code=True)
     except (ValueError, ImportError) as e:
@@ -104,7 +105,7 @@ def run_test(model_id, ie_device, ts_names, expected_layer_types):
 def run_flux_test(model_id, ie_device, ts_names, expected_layer_types):
     from diffusers import FluxTransformer2DModel
 
-    model_cached = snapshot_download(model_id)
+    model_cached = cached_snapshot_download(model_id)
     try:
         transformer = FluxTransformer2DModel.from_pretrained(
             model_cached, subfolder="transformer")

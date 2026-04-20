@@ -4,7 +4,7 @@
 from huggingface_hub import snapshot_download
 from optimum.intel import OVModelForCausalLM
 import openvino as ov
-from models_hub_common.utils import retry
+from models_hub_common.utils import cached_snapshot_download, retry
 import models_hub_common.utils as utils
 import pytest
 import os
@@ -103,7 +103,7 @@ def create_synthetic_moe_model(tmp_path, num_layers, num_experts, dtype="float32
         str: Path to the saved model
     """
     # Load config from cache to avoid HuggingFace rate limits
-    config_cache = snapshot_download("optimum-internal-testing/tiny-random-qwen3_moe")
+    config_cache = cached_snapshot_download("optimum-internal-testing/tiny-random-qwen3_moe")
     config = AutoConfig.from_pretrained(config_cache)
     config.num_hidden_layers = num_layers
     config.decoder_sparse_step = 1
@@ -137,7 +137,7 @@ def run_moe(tmp_path,
     Args:
         batch_size: Number of sequences to process in parallel (default: 1)
     """
-    model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
+    model_cached = cached_snapshot_download(model_id)
 
     # Load original PyTorch model and tokenizer for comparison (from cache to avoid rate limits)
     pt_model = AutoModelForCausalLM.from_pretrained(model_cached, trust_remote_code=True)
@@ -210,7 +210,7 @@ def run_moe_synthetic(tmp_path,
     # Load original PyTorch model for comparison (from local path)
     pt_model = AutoModelForCausalLM.from_pretrained(model_path, trust_remote_code=True)
     # Load tokenizer from cache to avoid HuggingFace rate limits
-    tokenizer_cache = snapshot_download("optimum-internal-testing/tiny-random-qwen3_moe")
+    tokenizer_cache = cached_snapshot_download("optimum-internal-testing/tiny-random-qwen3_moe")
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_cache, trust_remote_code=True)
 
     # Prepare test input with specified batch size

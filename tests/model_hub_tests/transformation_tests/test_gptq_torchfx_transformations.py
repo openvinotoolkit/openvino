@@ -7,6 +7,7 @@ import torch
 import hashlib
 from openvino.frontend.pytorch.torchdynamo.execute import compiled_cache
 import models_hub_common.utils as utils
+from models_hub_common.utils import cached_snapshot_download
 import pytest
 import os
 import platform
@@ -42,7 +43,7 @@ def patch_gptq(config):
     return orig_cuda_check, orig_post_init_model
 
 def run_gptq_torchfx(tmp_path, model_id, model_link, prompt_result_pair):
-    model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
+    model_cached = cached_snapshot_download(model_id)
     config = AutoConfig.from_pretrained(model_cached, trust_remote_code=True, torch_dtype=torch.float32)
     cuda, post_init = patch_gptq(config)
     tokenizer = AutoTokenizer.from_pretrained(model_cached, trust_remote_code=True, torch_dtype=torch.float32)

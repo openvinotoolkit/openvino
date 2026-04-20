@@ -41,6 +41,7 @@ import sys
 from huggingface_hub import snapshot_download
 from pathlib import Path
 import models_hub_common.utils as utils
+from models_hub_common.utils import cached_snapshot_download
 from openvino._offline_transformations import paged_attention_transformation
 from openvino._pyopenvino.op import _PagedAttentionExtension, Parameter, Result
 from optimum.intel import OVModelForCausalLM, OVModelForSeq2SeqLM
@@ -94,7 +95,7 @@ def main():
         for model_id, _, _, _, cls in model_list:
             # wrapping in try/catch block to continue printing models even if one has failed
             try:
-                model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
+                model_cached = cached_snapshot_download(model_id)
                 model = cls.from_pretrained(model_cached, export=True, trust_remote_code=True)
             except:
                 print(f"Couldn't read {model_id}.")
