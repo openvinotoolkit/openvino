@@ -1,0 +1,243 @@
+.\" Man page generated from reStructuredText.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "BANDIT" "1" "Jul 06, 2025" "" "Bandit"
+.SH NAME
+bandit \- Python source code security analyzer
+.SH SYNOPSIS
+.INDENT 0.0
+.TP
+.B bandit [\-h] [\-r] [\-a {file,vuln}] [\-n CONTEXT_LINES] [\-c CONFIG_FILE]
+[\-p PROFILE] [\-t TESTS] [\-s SKIPS] [\-l] [\-i]
+[\-f {csv,custom,html,json,screen,txt,xml,yaml}]
+[\-\-msg\-template MSG_TEMPLATE] [\-o [OUTPUT_FILE]] [\-v] [\-d] [\-q]
+[\-\-ignore\-nosec] [\-x EXCLUDED_PATHS] [\-b BASELINE]
+[\-\-ini INI_PATH] [\-\-exit\-zero] [\-\-version]
+[targets [targets ...]]
+.UNINDENT
+.SH DESCRIPTION
+.sp
+\fBbandit\fP is a tool designed to find common security issues in Python code. To
+do this Bandit processes each file, builds an AST from it, and runs appropriate
+plugins against the AST nodes.  Once Bandit has finished scanning all the files
+it generates a report.
+.SH OPTIONS
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B  \-h\fP,\fB  \-\-help
+show this help message and exit
+.TP
+.B  \-r\fP,\fB  \-\-recursive
+find and process files in subdirectories
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-a {file,vuln}, \-\-aggregate {file,vuln}
+aggregate output by vulnerability (default) or by
+filename
+.UNINDENT
+.INDENT 0.0
+.TP
+.BI \-n \ CONTEXT_LINES\fR,\fB \ \-\-number \ CONTEXT_LINES
+maximum number of code lines to output for each issue
+.TP
+.BI \-c \ CONFIG_FILE\fR,\fB \ \-\-configfile \ CONFIG_FILE
+optional config file to use for selecting plugins and
+overriding defaults
+.TP
+.BI \-p \ PROFILE\fR,\fB \ \-\-profile \ PROFILE
+profile to use (defaults to executing all tests)
+.TP
+.BI \-t \ TESTS\fR,\fB \ \-\-tests \ TESTS
+comma\-separated list of test IDs to run
+.TP
+.BI \-s \ SKIPS\fR,\fB \ \-\-skip \ SKIPS
+comma\-separated list of test IDs to skip
+.TP
+.B  \-l\fP,\fB  \-\-level
+report only issues of a given severity level or higher
+(\-l for LOW, \-ll for MEDIUM, \-lll for HIGH)
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-l, \-\-severity\-level={all,high,medium,low}
+report only issues of a given severity level or higher.
+\(dqall\(dq and \(dqlow\(dq are likely to produce the same results, but it
+is possible for rules to be undefined which will not be listed in \(dqlow\(dq.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B  \-i\fP,\fB  \-\-confidence
+report only issues of a given confidence level or
+higher (\-i for LOW, \-ii for MEDIUM, \-iii for HIGH)
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-l, \-\-confidence\-level={all,high,medium,low}
+report only issues of a given confidence level or higher.
+\(dqall\(dq and \(dqlow\(dq are likely to produce the same results, but it
+is possible for rules to be undefined which will not be listed in \(dqlow\(dq.
+.TP
+.B \-f {csv,custom,html,json,sarif,screen,txt,xml,yaml}, \-\-format {csv,custom,html,json,sarif,screen,txt,xml,yaml}
+specify output format
+.UNINDENT
+.INDENT 0.0
+.TP
+.BI \-\-msg\-template \ MSG_TEMPLATE
+specify output message template (only usable with
+\-\-format custom), see CUSTOM FORMAT section for list
+of available values
+.TP
+.BI \-o \ OUTPUT_FILE\fR,\fB \ \-\-output \ OUTPUT_FILE
+write report to filename
+.TP
+.B  \-v\fP,\fB  \-\-verbose
+output extra information like excluded and included files
+.TP
+.B  \-d\fP,\fB  \-\-debug
+turn on debug mode
+.TP
+.B  \-q\fP,\fB  \-\-quiet\fP,\fB  \-\-silent
+only show output in the case of an error
+.TP
+.B  \-\-ignore\-nosec
+do not skip lines with # nosec comments
+.TP
+.BI \-x \ EXCLUDED_PATHS\fR,\fB \ \-\-exclude \ EXCLUDED_PATHS
+comma\-separated list of paths (glob patterns
+supported) to exclude from scan (note that these are
+in addition to the excluded paths provided in the
+config file) (default:
+\&.svn,CVS,.bzr,.hg,.git,__pycache__,.tox,.eggs,*.egg)
+.TP
+.BI \-b \ BASELINE\fR,\fB \ \-\-baseline \ BASELINE
+path of a baseline report to compare against (only
+JSON\-formatted files are accepted)
+.TP
+.BI \-\-ini \ INI_PATH
+path to a .bandit file that supplies command line arguments
+.TP
+.B  \-\-exit\-zero
+exit with 0, even with results found
+.TP
+.B  \-\-version
+show program\(aqs version number and exit
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS CUSTOM FORMATTING
+.sp
+Available tags:
+.INDENT 0.0
+.INDENT 3.5
+{abspath}, {relpath}, {line},  {test_id},
+{severity}, {msg}, {confidence}, {range}
+.UNINDENT
+.UNINDENT
+.sp
+Example usage:
+.INDENT 0.0
+.INDENT 3.5
+Default template:
+bandit \-r examples/ \-\-format custom \-\-msg\-template \(dq{abspath}:{line}: {test_id}[bandit]: {severity}: {msg}\(dq
+.sp
+Provides same output as:
+bandit \-r examples/ \-\-format custom
+.sp
+Tags can also be formatted in python string.format() style:
+bandit \-r examples/ \-\-format custom \-\-msg\-template \(dq{relpath:20.20s}: {line:03}: {test_id:^8}: DEFECT: {msg:>20}\(dq
+.sp
+See python documentation for more information about formatting style:
+\X'tty: link https://docs.python.org/3/library/string.html'\fI\%https://docs.python.org/3/library/string.html\fP\X'tty: link'
+.UNINDENT
+.UNINDENT
+.SH FILES
+.INDENT 0.0
+.TP
+.B \&.bandit
+file that supplies command line arguments
+.TP
+.B /etc/bandit/bandit.yaml
+legacy bandit configuration file
+.UNINDENT
+.SH EXAMPLES
+.sp
+Example usage across a code tree:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+bandit \-r ~/your\-repos/project
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Example usage across the \fBexamples/\fP directory, showing three lines of
+context and only reporting on the high\-severity issues:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+bandit examples/*.py \-n 3 \-\-severity\-level=high
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Bandit can be run with profiles.  To run Bandit against the examples directory
+using only the plugins listed in the ShellInjection profile:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+bandit examples/*.py \-p ShellInjection
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Bandit also supports passing lines of code to scan using standard input. To
+run Bandit with standard input:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+cat examples/imports.py | bandit \-
+.EE
+.UNINDENT
+.UNINDENT
+.SH SEE ALSO
+.sp
+pylint(1)
+.SH AUTHOR
+PyCQA
+.SH COPYRIGHT
+2025, Bandit Developers
+.\" Generated by docutils manpage writer.
+.

@@ -1,0 +1,21 @@
+# Copyright (C) 2018-2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+pc_path=${pcfiledir}
+prefix=${pc_path}/../../../../
+
+exec_prefix=${prefix}/runtime/lib/intel64
+libdir=${exec_prefix}
+
+include_prefix=${prefix}/runtime/include
+includedir=${include_prefix}
+
+Name: OpenVINO
+Description: OpenVINO™ Toolkit
+URL: https://docs.openvino.ai/latest/index.html
+Version: 2026.0.0
+Conflicts: openvino < 2026.0.0
+Cflags: -I${includedir}  -D_GLIBCXX_USE_CXX11_ABI=1 -DOV_THREAD=OV_THREAD_TBB_ADAPTIVE
+Libs: -L${libdir} -lopenvino_jax_frontend -lopenvino_onnx_frontend -lopenvino_paddle_frontend -lopenvino_pytorch_frontend -lopenvino_tensorflow_frontend -lopenvino_tensorflow_lite_frontend -lopenvino_c -lopenvino -L${prefix}/runtime/3rdparty/tbb -ltbb
+Libs.private: -ldl -lm -lpthread -lrt
