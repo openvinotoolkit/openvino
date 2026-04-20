@@ -19,6 +19,9 @@ public:
         std::vector<int64_t> _strides;
         int64_t _dimsCount;
         std::shared_ptr<void> _impl;
+        bool _ptrUpdated = false;
+        bool _shapeUpdated = false;
+        bool _strideUpdated = false;
 
         MemRefType() : _basePtr(nullptr), _data(nullptr), _offset(0), _sizes(), _strides(), _dimsCount(0) {}
 
@@ -37,6 +40,7 @@ public:
 
         void setArg(const void* arg);
         void setSize(const ov::Shape& shape);
+        void setStrides(const ov::Strides& strides, int32_t elementSize = 1);
         void set(const void* basePtr, int64_t offset, std::shared_ptr<ov::ITensor> tensor);
         void updateStride();
         bool compare(const MemRefType& memref);

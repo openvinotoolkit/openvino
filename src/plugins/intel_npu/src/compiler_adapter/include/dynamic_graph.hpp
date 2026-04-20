@@ -77,10 +77,17 @@ public:
         }
     };
 
-    struct GraphArgumentsImpl : public GraphArguments {
+    struct GraphArgumentsImpl {
         std::vector<npu_vm_runtime_mem_ref_handle_t> _inputMemRefs;
         std::vector<npu_vm_runtime_mem_ref_handle_t> _outputMemRefs;
         npu_vm_runtime_execute_params_t _executeParams = {};
+
+        virtual ~GraphArgumentsImpl() {
+            if (_executeParams.executionContext != nullptr) {
+                npuVMRuntimeDestroyExecutionContext(_executeParams.executionContext);
+                _executeParams.executionContext = nullptr;
+            }
+        }
     };
 
     class Impl {
@@ -109,7 +116,8 @@ public:
     DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                  ov::Tensor blob,
                  bool blobAllocatedByPlugin,
-                 const FilteredConfig& config);
+                 const FilteredConfig& config,
+                 bool isOptimizedDynamicStrideSupported);
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
@@ -191,6 +199,7 @@ private:
      */
     std::optional<std::size_t> _batchSize = std::nullopt;
 
+    bool _isOptimizedDynamicStrideSupported = false;
     Logger _logger;
 
     std::unique_ptr<Impl> _impl;

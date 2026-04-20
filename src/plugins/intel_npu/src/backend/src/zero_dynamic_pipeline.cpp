@@ -176,7 +176,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
 }
 
 void DynamicPipeline::push() {
-    _logger.debug("push - started");
+    _logger.debug("DynamicPipeline - push() started");
 
     auto* dynamicGraph = dynamic_cast<IDynamicGraph*>(_graph.get());
     OPENVINO_ASSERT(dynamicGraph != nullptr, "Failed to cast graph to IDynamicGraph");
@@ -216,11 +216,8 @@ void DynamicPipeline::push() {
             }
         }
 
-        // L0 wrapper handle closed command list
-        command_lists->resetCommandList();
-
         dynamicGraph->execute(_init_structs,
-                              command_lists->getBinding(),
+                              graphArguments,
                               command_lists->getHandles(),
                               commandQueueHandle,
                               fence,
@@ -237,8 +234,10 @@ void DynamicPipeline::pull() {
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
         if (_sync_output_with_fences) {
+            std::cout << "use fence to synchronize" << std::endl;
             _fences.at(i)->hostSynchronize();
         } else {
+            std::cout << "use command to synchronize" << std::endl;
             _events.at(i)->hostSynchronize();
         }
         /// sample npu timestamps if feature was activated
@@ -259,8 +258,7 @@ void DynamicPipeline::reset() const {
             _events.at(i)->reset();
         }
     }
-
-    _logger.debug("reset - completed");
+    _logger.debug("DynamicPipeline - reset() completed");
 }
 
 void DynamicPipeline::update_graph_arguments(uint32_t index,
@@ -310,19 +308,11 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
                     "Command list index is higher than the number of Command lists ",
                     batch_index);
 
-    if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
-        _command_lists.at(batch_index)
-            ->updateMutableCommandList(index,
-                                       zeroTensor->data(),
-                                       get_strides(tensor->get_strides(), elementSize),
-                                       tensor->get_shape());
-    } else {
-        _command_lists.at(batch_index)
-            ->updateMutableCommandList(index,
-                                       zeroTensor->data(),
-                                       get_strides(tensor->get_strides(), elementSize),
-                                       tensor->get_shape());
-    }
+    _command_lists.at(batch_index)
+        ->updateMutableCommandList(index,
+                                   zeroTensor->data(),
+                                   get_strides(tensor->get_strides(), elementSize),
+                                   tensor->get_shape());
 }
 
 }  // namespace intel_npu

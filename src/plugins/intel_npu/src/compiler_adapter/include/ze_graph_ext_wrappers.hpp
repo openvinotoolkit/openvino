@@ -89,6 +89,10 @@ public:
 
     void evict_memory(const GraphDescriptor& graphDescriptor) const;
 
+    bool isOptimizedDynamicStrideSupported() const {
+        return _isOptimizedDynamicStrideSupported;
+    }
+
 private:
     void getMetadata(ze_graph_handle_t graphHandle,
                      uint32_t indexUsedByDriver,
@@ -102,6 +106,7 @@ private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     uint32_t _graphExtVersion;
     bool _isCompilerOptionQuerySupported;
+    bool _isOptimizedDynamicStrideSupported;
 
     Logger _logger;
 };
