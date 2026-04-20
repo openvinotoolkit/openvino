@@ -1,1 +1,2 @@
 optimum-intel==1.27.0
+diffusers
