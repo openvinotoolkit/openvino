@@ -154,7 +154,8 @@ ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node& node) {
         auto reinterleave_5d = std::make_shared<v0::Concat>(ov::NodeVector{dim_bns, two, half_head_size}, 0);
         auto result_5d = std::make_shared<v1::Reshape>(output, reinterleave_5d, false);
         auto result_transposed = std::make_shared<v1::Transpose>(result_5d, perm_5d);
-        output = std::make_shared<v1::Reshape>(result_transposed, input_4d_shape,
+        output = std::make_shared<v1::Reshape>(result_transposed,
+                                               input_4d_shape,
                                                false);  // [bs,num_heads,seqlen,head_size]
     }
 
