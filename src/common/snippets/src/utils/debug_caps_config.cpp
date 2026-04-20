@@ -59,7 +59,7 @@ void DebugCapsConfig::PropertyGroup::parseAndSet(const std::string& str) {
                                                    return setter->getPropertyName() == propertyName;
                                                });
         if (foundSetter == propertySetters.end() ||
-            !(*foundSetter)->parseAndSet(parts.size() == 1 ? "" : parts.back())) {
+            !(*foundSetter)->parseAndSet(parts.size() == 1 ? "" : std::string(parts.back()))) {
             failed = true;
             break;
         }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 #include "common_test_utils/common_utils.hpp"
 #include "openvino/util/common_util.hpp"
@@ -129,6 +129,15 @@ TEST_F(CommonUtilsTest, split_to_views_custom_check_fail) {
 TEST_F(CommonUtilsTest, split_to_views_lower) {
     const std::string test_str{"Test1,Test2,Test3"};
     EXPECT_EQ((std::vector<std::string_view>{"test1", "test2", "test3"}), util::split(util::to_lower(test_str)));
+}
+
+TEST_F(CommonUtilsTest, split_empty_strings) {
+    using testing::ElementsAre;
+    EXPECT_THAT(util::split2(""), testing::IsEmpty());
+    EXPECT_THAT(util::split2(","), ElementsAre("", ""));
+    EXPECT_THAT(util::split2(",,"), ElementsAre("", "", ""));
+    EXPECT_THAT(util::split2("test,"), ElementsAre("test", ""));
+    EXPECT_THAT(util::split2(",test"), ElementsAre("", "test"));
 }
 
 TEST_F(CommonUtilsTest, view_to_integral_number){

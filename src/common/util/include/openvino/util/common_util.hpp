@@ -308,8 +308,8 @@ constexpr bool mul_overflow(T x, T y, T& result) {
 template <class T>
 std::optional<T> view_to_number(std::string_view sv) noexcept {
     static_assert(std::is_arithmetic_v<T>, "T must be an arithmetic type");
-    T value{};
     if constexpr (std::is_integral_v<T>) {
+        T value{};
         const auto result = std::from_chars(sv.data(), sv.data() + sv.size(), value);
         return result.ec == std::errc() ? std::make_optional(value) : std::nullopt;
     } else {
@@ -342,24 +342,15 @@ std::optional<T> view_to_number(std::string_view sv) noexcept {
  */
 template <typename Iterator, typename UnaryOp = std::nullptr_t>
 constexpr Iterator view_transform(std::string_view sv, Iterator output_it, std::string_view sep, UnaryOp unary = {}) {
-    if (sv.empty())
-        return output_it;
-    while (true) {
+    for (bool has_next = !sv.empty(); has_next; ++output_it) {
         const auto sep_pos = sv.find(sep);
-        const auto field = sv.substr(0, sep_pos);
-
-        if constexpr (std::is_same_v<UnaryOp, std::nullptr_t>) {
+        if constexpr (const auto field = sv.substr(0, sep_pos); std::is_same_v<UnaryOp, std::nullptr_t>) {
             *output_it = field;
         } else {
             *output_it = unary(field);
         }
-        ++output_it;
-
-        if (sep_pos == std::string_view::npos) {
-            break;
-        } else {
-            sv = sv.substr(sep_pos + sep.size());
-        }
+        has_next = sep_pos != std::string_view::npos;
+        sv = has_next ? sv.substr(sep_pos + sep.size()) : std::string_view{};
     }
     return output_it;
 }
@@ -384,9 +375,7 @@ constexpr Iterator view_transform_if(std::string_view sv,
                                      std::string_view sep,
                                      Predicate predicate,
                                      UnaryOp unary = {}) {
-    if (sv.empty())
-        return output_it;
-    while (true) {
+    for (bool has_next = !sv.empty(); has_next; ++output_it) {
         const auto sep_pos = sv.find(sep);
         if (const auto field = sv.substr(0, sep_pos); predicate(field)) {
             if constexpr (std::is_same_v<UnaryOp, std::nullptr_t>) {
@@ -394,14 +383,9 @@ constexpr Iterator view_transform_if(std::string_view sv,
             } else {
                 *output_it = unary(field);
             }
-            ++output_it;
         }
-
-        if (sep_pos == std::string_view::npos) {
-            break;
-        } else {
-            sv = sv.substr(sep_pos + sep.size());
-        }
+        has_next = sep_pos != std::string_view::npos;
+        sv = has_next ? sv.substr(sep_pos + sep.size()) : std::string_view{};
     }
     return output_it;
 }
