@@ -192,7 +192,7 @@ CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
                 return false;
 
             // if more than 75% of elements are rejected (outside FP16 range or FP16
-    // round-trip relative error exceeds the threshold), keep the Constant in FP32
+            // round-trip relative error exceeds the threshold), keep the Constant in FP32
             const float out_of_range_proportion =
                 static_cast<float>(check.out_of_range_count) / static_cast<float>(size);
             if (out_of_range_proportion >= ov::reference::f16_compression_keep_threshold)
