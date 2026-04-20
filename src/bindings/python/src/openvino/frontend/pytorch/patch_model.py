@@ -169,27 +169,108 @@ def _unpatch_torch_functions():
             del _patched_torch_functions[key]
 
 
+# Prevent garbage collection of auto-registered torch.library.Library objects.
+_auto_registered_libs = []
+
+
+def _auto_register_module_extension_op(namespace, op_name):
+    """Auto-register a ``torch.library`` op for a ``ModuleExtension`` target.
+
+    Creates a simple ``(Tensor x) -> Tensor`` passthrough op so that
+    ``torch.export`` can capture the call in the FX graph.  Works for
+    modules whose default ``convert`` callback forwards a single tensor.
+    """
+    # Use FRAGMENT if the namespace already has a DEF library (e.g. ov_ext
+    # from ov_custom_ops.py), otherwise create a new DEF library.
+    kind = "FRAGMENT" if hasattr(torch.ops, namespace) else "DEF"
+    lib = torch.library.Library(namespace, kind)
+    _auto_registered_libs.append(lib)
+
+    lib.define(f"{op_name}(Tensor x) -> Tensor")
+
+    @torch.library.impl(lib, op_name, "Meta")
+    def _meta(x):
+        return torch.empty_like(x)
+
+    @torch.library.impl(lib, op_name, "CPU")
+    def _cpu(x):
+        return x
+
+    return getattr(getattr(torch.ops, namespace), op_name)
+
+
 def patch_model_for_export(model, module_extensions, orig_forward_name):
-    """Patch model modules for ``torch.export`` by replacing forwards with ``torch.ops.ov_ext.*`` calls.
+    """Patch model modules for ``torch.export`` by replacing forwards with ``torch.library`` op calls.
 
     Unlike ``patch_model`` (which uses ``torch.autograd.Function`` / ``torch.jit.ignore``
     for TorchScript tracing), this function creates forwards that call registered
     ``torch.library`` custom ops so that ``torch.export`` captures them as
     ``call_function`` nodes in the FX graph.
+
+    Returns:
+        dict: Mapping from the registered ``namespace::op_name`` to the
+        user-provided ``target_op`` string.  The FX decoder uses this in
+        ``get_op_type()`` so that the C++ frontend sees the user's original
+        ``target_op`` name.
     """
     import openvino.frontend.pytorch.ov_custom_ops  # noqa: F401 – triggers registration
 
+    op_type_mapping = {}  # registered_name → user target_op
+
     def _resolve_target_op(extension):
-        """Map an ``ov_ext::*`` target-op name to the corresponding ``torch.ops.ov_ext.*`` callable."""
-        # extension.target_op is e.g. "ov_ext::linear"
-        parts = extension.target_op.split("::")
-        if len(parts) == 2 and parts[0] == "ov_ext":
-            op_fn = getattr(torch.ops.ov_ext, parts[1], None)
-            if op_fn is not None:
-                return op_fn
-        raise RuntimeError(
-            f"Cannot resolve torch.library op for target_op='{extension.target_op}'. "
-            "Make sure it is registered in openvino.frontend.pytorch.ov_custom_ops.")
+        """Resolve ``target_op`` to a passthrough ``torch.ops`` callable.
+
+        Always registers a passthrough op under the ``ov_ext`` namespace.
+        ModuleExtension never calls the real PyTorch op — the ``target_op``
+        name is only a label for the C++ frontend (consistent with TorchScript
+        behavior where the Trampoline wraps the call without invoking the op).
+        """
+        target_op = extension.target_op
+        parts = target_op.split("::")
+        if len(parts) == 2:
+            namespace, op_name = parts
+        elif len(parts) == 1:
+            namespace, op_name = "ov_ext", parts[0]
+        else:
+            raise RuntimeError(
+                f"Invalid target_op format: '{target_op}'. "
+                "Expected 'op_name' or 'namespace::op_name'.")
+
+        # Warn if target_op collides with an existing PyTorch op.
+        # Note: torch.ops namespace __getattr__ raises RuntimeError (not
+        # AttributeError) for missing ops, so getattr(ns, name, default)
+        # does not work — explicit try/except is required.
+        if namespace != "ov_ext":
+            try:
+                getattr(getattr(torch.ops, namespace), op_name)
+                log.warning(
+                    "ModuleExtension target_op '%s' matches an existing PyTorch "
+                    "op. A passthrough op will be registered under the ov_ext "
+                    "namespace instead (the original op will NOT be called, "
+                    "consistent with TorchScript ModuleExtension behavior).",
+                    target_op)
+            except (AttributeError, RuntimeError):
+                pass
+
+        # Always register under ov_ext — target_op is just a label.
+        # Sanitize dots in op_name (torch.library rejects them).
+        safe_op_name = op_name.replace(".", "_")
+        registered_name = f"ov_ext::{safe_op_name}"
+
+        # Reuse if already auto-registered (e.g. two extensions sharing a name).
+        try:
+            op_fn = getattr(getattr(torch.ops, "ov_ext"), safe_op_name)
+            op_type_mapping[registered_name] = target_op
+            return op_fn
+        except (AttributeError, RuntimeError):
+            pass
+
+        # Auto-register a passthrough op under ov_ext.
+        log.debug("Auto-registering torch.library op ov_ext::%s for "
+                  "ModuleExtension (target_op='%s')", safe_op_name, target_op)
+        op_fn = _auto_register_module_extension_op("ov_ext", safe_op_name)
+        op_type_mapping[registered_name] = target_op
+        return op_fn
 
     def module_patcher(module, name):
         extension = None
@@ -218,6 +299,8 @@ def patch_model_for_export(model, module_extensions, orig_forward_name):
                       "Result of the conversion maybe broken.", name)
             continue
         module_patcher(module, name)
+
+    return op_type_mapping
 
 
 def _get_16bit_extensions(patch_condition=None):
