@@ -27,14 +27,19 @@ public:
     ///        [num_blocks, v_num_heads, key_head_dim, value_head_dim].
     /// \param gate Gate tensor [batch_size_in_tokens, v_num_heads].
     /// \param beta Beta tensor [batch_size_in_tokens, v_num_heads].
-    /// \param subsequence_begins Start indices of tokens from current sequences [batch_size_in_sequences+1].
-    /// \param la_block_indices Block index along 0-th dim in recurrent_state table [num_blocks].
-    /// \param la_block_indices_begins Defines how block indices are split among sequences [batch_size_in_sequences+1].
-    /// \param processed_tokens Number of tokens already handled per sequence [batch_size_in_sequences].
-    /// \param cache_interval Interval between tokens to cache state [batch_size_in_sequences].
-    /// \param fuse_qk_l2norm Enables fusing q/k L2-normalization into this op.
-    /// \param q_l2_norm_eps Epsilon used for query L2-normalization when fusion is enabled.
-    /// \param k_l2_norm_eps Epsilon used for key L2-normalization when fusion is enabled.
+    /// \param subsequence_begins Start indices of tokens from current sequences [batch_size_in_sequences+1],
+    ///        element type i32 or i64.
+    /// \param la_block_indices Block index along 0-th dim in recurrent_state table [num_blocks],
+    ///        element type i32 or i64.
+    /// \param la_block_indices_begins Defines how block indices are split among sequences [batch_size_in_sequences+1],
+    ///        element type i32 or i64.
+    /// \param processed_tokens Number of tokens already handled per sequence [batch_size_in_sequences],
+    ///        element type i32 or i64.
+    /// \param cache_interval Interval between tokens to cache state [batch_size_in_sequences],
+    ///        element type i32 or i64.
+    /// \param use_qk_l2norm Enables q/k L2-normalization inside this op.
+    /// \param q_l2_norm_eps Positive floating-point epsilon used for query L2-normalization.
+    /// \param k_l2_norm_eps Positive floating-point epsilon used for key L2-normalization.
     PagedGatedDeltaNet(const Output<Node>& query,
                        const Output<Node>& key,
                        const Output<Node>& value,
@@ -46,18 +51,18 @@ public:
                        const Output<Node>& la_block_indices_begins,
                        const Output<Node>& processed_tokens,
                        const Output<Node>& cache_interval,
-                       bool fuse_qk_l2norm = false,
+                       bool use_qk_l2norm = false,
                        float q_l2_norm_eps = 1e-6F,
                        float k_l2_norm_eps = 1e-6F);
 
     /// \brief Constructs a PagedGatedDeltaNet operation from input vector.
     ///
     /// \param args Input tensor vector (11 inputs in order listed above).
-    /// \param fuse_qk_l2norm Enables fusing q/k L2-normalization into this op.
-    /// \param q_l2_norm_eps Epsilon used for query L2-normalization when fusion is enabled.
-    /// \param k_l2_norm_eps Epsilon used for key L2-normalization when fusion is enabled.
+    /// \param use_qk_l2norm Enables q/k L2-normalization inside this op.
+    /// \param q_l2_norm_eps Positive floating-point epsilon used for query L2-normalization.
+    /// \param k_l2_norm_eps Positive floating-point epsilon used for key L2-normalization.
     PagedGatedDeltaNet(const ov::OutputVector& args,
-                       bool fuse_qk_l2norm = false,
+                       bool use_qk_l2norm = false,
                        float q_l2_norm_eps = 1e-6F,
                        float k_l2_norm_eps = 1e-6F);
 
@@ -65,8 +70,8 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
-    bool get_fuse_qk_l2norm() const {
-        return m_fuse_qk_l2norm;
+    bool get_use_qk_l2norm() const {
+        return m_use_qk_l2norm;
     }
     float get_q_l2_norm_eps() const {
         return m_q_l2_norm_eps;
@@ -76,7 +81,7 @@ public:
     }
 
 private:
-    bool m_fuse_qk_l2norm = false;
+    bool m_use_qk_l2norm = false;
     float m_q_l2_norm_eps = 1e-6F;
     float m_k_l2_norm_eps = 1e-6F;
 };

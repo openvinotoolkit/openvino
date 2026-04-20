@@ -39,9 +39,9 @@ std::vector<TRShape> shape_infer(const OpType* op, const std::vector<T>& input_s
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                q_head_num.compatible(k_head_num),
-                               "The number of heads in query and key should be the same, but got ",
+                               "The number of heads in query and key inputs must be equal. Got: query=",
                                q_head_num,
-                               " and ",
+                               ", key=",
                                k_head_num,
                                ".");
 
@@ -51,10 +51,10 @@ std::vector<TRShape> shape_infer(const OpType* op, const std::vector<T>& input_s
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                k_head_size.compatible(q_head_size),
-                               "The head size in key and query should be the same, but got ",
-                               k_head_size,
-                               " and ",
+                               "The head size of query and key inputs must be equal. Got: query=",
                                q_head_size,
+                               ", key=",
+                               k_head_size,
                                ".");
     }
 
@@ -66,7 +66,7 @@ std::vector<TRShape> shape_infer(const OpType* op, const std::vector<T>& input_s
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                gate_head_num.compatible(v_head_num) && beta_head_num.compatible(v_head_num),
-                               "The number of heads in gate, beta, and value should be the same, but got gate=",
+                               "The number of heads in gate, beta, and value inputs must be equal. Got: gate=",
                                gate_head_num,
                                ", beta=",
                                beta_head_num,
@@ -87,9 +87,10 @@ std::vector<TRShape> shape_infer(const OpType* op, const std::vector<T>& input_s
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                state_head_num.compatible(v_head_num),
-                               "The number of heads in recurrent_state_table and value should be the same, but got ",
+                               "The number of heads in recurrent_state_table and value inputs must be equal. Got: "
+                               "recurrent_state_table=",
                                state_head_num,
-                               " and ",
+                               ", value=",
                                v_head_num,
                                ".");
 
@@ -97,9 +98,10 @@ std::vector<TRShape> shape_infer(const OpType* op, const std::vector<T>& input_s
             op,
             input_shapes,
             state_key_dim.compatible(k_head_size),
-            "The key_head_dim of recurrent_state_table and head size of key should be the same, but got ",
+            "The key dimension of recurrent_state_table and the head size of key input must be equal. Got: "
+            "recurrent_state_table=",
             state_key_dim,
-            " and ",
+            ", key=",
             k_head_size,
             ".");
 
@@ -107,9 +109,10 @@ std::vector<TRShape> shape_infer(const OpType* op, const std::vector<T>& input_s
             op,
             input_shapes,
             state_value_dim.compatible(v_head_size),
-            "The value_head_dim of recurrent_state_table and head size of value should be the same, but got ",
+            "The value dimension of recurrent_state_table and the head size of value input must be equal. Got: "
+            "recurrent_state_table=",
             state_value_dim,
-            " and ",
+            ", value=",
             v_head_size,
             ".");
     }

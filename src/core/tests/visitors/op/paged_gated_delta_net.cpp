@@ -55,9 +55,13 @@ TEST(attributes, paged_gated_delta_net_default_attrs) {
     constexpr auto expected_attr_count = 3;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 
-    EXPECT_EQ(g_op->get_fuse_qk_l2norm(), op->get_fuse_qk_l2norm());
-    EXPECT_NEAR(g_op->get_q_l2_norm_eps(), op->get_q_l2_norm_eps(), 1e-10f);
-    EXPECT_NEAR(g_op->get_k_l2_norm_eps(), op->get_k_l2_norm_eps(), 1e-10f);
+    EXPECT_FALSE(op->get_use_qk_l2norm());
+    EXPECT_FLOAT_EQ(op->get_q_l2_norm_eps(), 1e-6f);
+    EXPECT_FLOAT_EQ(op->get_k_l2_norm_eps(), 1e-6f);
+
+    EXPECT_EQ(g_op->get_use_qk_l2norm(), op->get_use_qk_l2norm());
+    EXPECT_FLOAT_EQ(g_op->get_q_l2_norm_eps(), op->get_q_l2_norm_eps());
+    EXPECT_FLOAT_EQ(g_op->get_k_l2_norm_eps(), op->get_k_l2_norm_eps());
 }
 
 TEST(attributes, paged_gated_delta_net_non_default_attrs) {
@@ -85,7 +89,7 @@ TEST(attributes, paged_gated_delta_net_non_default_attrs) {
                                                                                    la_block_indices_begins,
                                                                                    processed_tokens,
                                                                                    cache_interval},
-                                                                      true,    // fuse_qk_l2norm
+                                                                      true,    // use_qk_l2norm
                                                                       1e-3f,   // q_l2_norm_eps
                                                                       2e-3f);  // k_l2_norm_eps
 
@@ -106,7 +110,11 @@ TEST(attributes, paged_gated_delta_net_non_default_attrs) {
     constexpr auto expected_attr_count = 3;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 
-    EXPECT_EQ(g_op->get_fuse_qk_l2norm(), op->get_fuse_qk_l2norm());
-    EXPECT_NEAR(g_op->get_q_l2_norm_eps(), op->get_q_l2_norm_eps(), 1e-10f);
-    EXPECT_NEAR(g_op->get_k_l2_norm_eps(), op->get_k_l2_norm_eps(), 1e-10f);
+    EXPECT_TRUE(op->get_use_qk_l2norm());
+    EXPECT_FLOAT_EQ(op->get_q_l2_norm_eps(), 1e-3f);
+    EXPECT_FLOAT_EQ(op->get_k_l2_norm_eps(), 2e-3f);
+
+    EXPECT_EQ(g_op->get_use_qk_l2norm(), op->get_use_qk_l2norm());
+    EXPECT_FLOAT_EQ(g_op->get_q_l2_norm_eps(), op->get_q_l2_norm_eps());
+    EXPECT_FLOAT_EQ(g_op->get_k_l2_norm_eps(), op->get_k_l2_norm_eps());
 }
