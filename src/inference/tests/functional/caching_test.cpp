@@ -2576,7 +2576,7 @@ TEST_P(CachingTest, LoadMulti_race) {
 // Test that it is safe to load multiple devices through compile_model
 // In case of sporadic failures - increase 'TEST_DURATION_MS' 100x times for better reproducibility
 TEST_P(CachingTest, LoadMultiWithConfig_race) {
-    const auto TEST_DURATION_MS = 2000;
+    const auto TEST_DURATION_MS = 200000;
     const auto TEST_DEVICE_MAX_COUNT = 10;
     EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_default_context(_)).Times(AnyNumber());

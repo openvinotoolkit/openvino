@@ -1546,7 +1546,12 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
                                                  header_size_alignment);
                 compiled_model->export_model(stream);
             });
+        } catch (const std::exception& ex) {
+            std::cout << "[DEBUG][compile_model_and_cache:" << __LINE__ << "] std::exception: " << ex.what()
+                      << std::endl;
+            cache_content.m_cache_manager->remove_cache_entry(cache_content.m_blob_id);
         } catch (...) {
+            std::cout << "[DEBUG][compile_model_and_cache:" << __LINE__ << "] Unrecognized exception" << std::endl;
             cache_content.m_cache_manager->remove_cache_entry(cache_content.m_blob_id);
             throw;
         }
@@ -1611,7 +1616,17 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                             OPENVINO_THROW("Version does not match");
                         }
                     }
+                } catch (const ov::Exception& ex) {
+                    std::cout << "[DEBUG][load_model_from_cache:" << __LINE__ << "] ov::Exception: " << ex.what()
+                              << std::endl;
+                    throw HeaderException();
+                } catch (const std::exception& ex) {
+                    std::cout << "[DEBUG][load_model_from_cache:" << __LINE__ << "] std::exception: " << ex.what()
+                              << std::endl;
+                    throw HeaderException();
                 } catch (...) {
+                    std::cout << "[DEBUG][load_model_from_cache:" << __LINE__ << "] Exception during header reading"
+                              << std::endl;
                     throw HeaderException();
                 }
 
@@ -1659,8 +1674,16 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
             });
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work
+        std::cout << "[DEBUG][load_model_from_cache:" << __LINE__ << "] HeaderException exception" << std::endl;
+        cache_content.m_cache_manager->remove_cache_entry(cache_content.m_blob_id);
+    } catch (const ov::Exception& ex) {
+        std::cout << "[DEBUG][load_model_from_cache:" << __LINE__ << "] ov::Exception: " << ex.what() << std::endl;
+        cache_content.m_cache_manager->remove_cache_entry(cache_content.m_blob_id);
+    } catch (const std::exception& ex) {
+        std::cout << "[DEBUG][load_model_from_cache:" << __LINE__ << "] std::exception: " << ex.what() << std::endl;
         cache_content.m_cache_manager->remove_cache_entry(cache_content.m_blob_id);
     } catch (...) {
+        std::cout << "[DEBUG][load_model_from_cache:" << __LINE__ << "] Unrecognized exception" << std::endl;
         cache_content.m_cache_manager->remove_cache_entry(cache_content.m_blob_id);
         // TODO: temporary disabled by #54335. In future don't throw only for new 'blob_outdated' exception
         // throw;
@@ -1669,6 +1692,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
     // Fallback scenario
     if (!compiled_model) {
         OPENVINO_WARN("Could not load model from cache.");
+        std::cout << "[DEBUG][load_model_from_cache:" << __LINE__ << "] Fallback to compile_model" << std::endl;
         compiled_model = compile_model_lambda();
     }
     if (compiled_model && cache_content.m_shared_ctx) {
