@@ -11,6 +11,18 @@
 #include <string>
 
 namespace ov::util {
+namespace {
+
+#ifdef PUGIXML_HAS_STRING_VIEW
+constexpr std::string_view to_pugi_attr_name(std::string_view name) noexcept {
+    return name;
+}
+#else
+inline std::string to_pugi_attr_name(std::string_view name) {
+    return std::string(name);
+}
+#endif
+}  // namespace
 
 int pugixml::get_int_attr(const pugi::xml_node& node, const char* str) {
     auto attr = node.attribute(str);
@@ -231,14 +243,10 @@ int pugixml::get_int_child(const pugi::xml_node& node, const char* str, int defV
     return atoi(child.child_value());
 }
 
-#ifndef PUGIXML_HAS_STRING_VIEW
-#error "pugixml does not support std::string_view"
-#endif
-
 std::optional<std::string_view> pugixml::get_attribute_view(const pugi::xml_node& node, std::string_view name) {
     if (!node) {
         return std::nullopt;
-    } else if (const auto attr = node.attribute(name); !attr.empty()) {
+    } else if (const auto attr = node.attribute(to_pugi_attr_name(name)); !attr.empty()) {
         return std::make_optional<std::string_view>(attr.value());
     } else {
         return std::nullopt;

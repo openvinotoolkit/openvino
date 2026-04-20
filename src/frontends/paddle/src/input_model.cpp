@@ -209,7 +209,7 @@ bool is_pdmodel(const std::basic_string<T>& path) {
 template <>
 bool is_pdmodel(const std::basic_string<wchar_t>& path) {
     std::wstring ext = L".pdmodel";
-    return ov::util::ends_with(path, ext);
+    return ov::util::ends_with<wchar_t>(path, ext);
 }
 #endif
 
@@ -235,7 +235,7 @@ template <>
 std::basic_string<wchar_t> get_model_path(const std::basic_string<wchar_t>& path, std::ifstream* weights_stream) {
     std::wstring model_file{path};
     std::wstring ext = L".pdmodel";
-    if (ov::util::ends_with(model_file, ext)) {
+    if (ov::util::ends_with<wchar_t>(model_file, ext)) {
         std::wstring params_ext = L".pdiparams";
         std::wstring weights_file{path};
         weights_file.replace(weights_file.size() - ext.size(), ext.size(), params_ext);
