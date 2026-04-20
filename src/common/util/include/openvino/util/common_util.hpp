@@ -313,17 +313,12 @@ std::optional<T> view_to_number(std::string_view sv) noexcept {
         const auto result = std::from_chars(sv.data(), sv.data() + sv.size(), value);
         return result.ec == std::errc() ? std::make_optional(value) : std::nullopt;
     } else {
-        try {
-            if constexpr (std::string str{sv}; std::is_same_v<float, T>) {
-                return std::make_optional<T>(std::strtof(str.c_str(), nullptr));
-            } else if constexpr (std::is_same_v<double, T>) {
-                return std::make_optional<T>(std::strtod(str.c_str(), nullptr));
-            } else if constexpr (std::is_same_v<long double, T>) {
-                return std::make_optional<T>(std::strtold(str.c_str(), nullptr));
-            }
-        } catch (const std::exception&) {
-        }
-        return std::nullopt;
+        StringViewStreamBuf buf{sv};
+        std::istream stream{&buf};
+        stream.imbue(std::locale::classic());
+        T value{};
+        stream >> value;
+        return stream ? std::make_optional<T>(value) : std::nullopt;
     }
 }
 

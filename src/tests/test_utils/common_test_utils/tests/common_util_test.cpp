@@ -178,16 +178,23 @@ TEST_F(CommonUtilsTest, view_to_integral_number){
 }
 
 TEST_F(CommonUtilsTest, view_to_number_invalid_input){
-    EXPECT_EQ(0, util::view_to_number<int>("abc").value_or(0));
-    EXPECT_EQ(0, util::view_to_number<int>("").value_or(0));
+    EXPECT_FALSE(util::view_to_number<int>("abc").has_value());
+    EXPECT_FALSE(util::view_to_number<int>("").has_value());
+
+    EXPECT_FALSE(util::view_to_number<float>("abc").has_value());
+    EXPECT_FALSE(util::view_to_number<float>("").has_value());
+
+    EXPECT_FALSE(util::view_to_number<double>("abc").has_value());
+    EXPECT_FALSE(util::view_to_number<double>("").has_value());
+
+    EXPECT_FALSE(util::view_to_number<long double>("abc").has_value());
+    EXPECT_FALSE(util::view_to_number<long double>("").has_value());
 }
 
 TEST_F(CommonUtilsTest, view_to_floating_point_number){
-    EXPECT_FLOAT_EQ(123.456f, util::view_to_number<float>("123.456").value_or(0));
-    EXPECT_DOUBLE_EQ(123.456, util::view_to_number<double>("123.456").value_or(0));
-    EXPECT_DOUBLE_EQ(-123.456, util::view_to_number<double>("-123.456").value_or(0));
-    EXPECT_DOUBLE_EQ(0, util::view_to_number<double>("abc").value_or(0));
-    EXPECT_DOUBLE_EQ(0, util::view_to_number<double>("").value_or(0));
+    EXPECT_FLOAT_EQ(123.456f, util::view_to_number<float>("123.456").value());
+    EXPECT_DOUBLE_EQ(123.456, util::view_to_number<double>("123.456").value());
+    EXPECT_DOUBLE_EQ(-123.456, util::view_to_number<double>("-123.456").value());
 }
 
 TEST_F(CommonUtilsTest, ends_with) {
