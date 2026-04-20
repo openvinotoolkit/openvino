@@ -658,11 +658,7 @@ def run_cpp(ctx: CoverageContext) -> None:
             f"GPU mode: {'true' if ctx.run_gpu_tests else 'false'}",
             "",
         ],
-        no_execution_warning=(
-            f"No C++ tests were executed. Check restored binaries under: {ctx.paths.bin_dir}"
-            if results
-            else None
-        ),
+        no_execution_warning=f"No C++ tests were executed. Check restored binaries under: {ctx.paths.bin_dir}",
         failure_warning="One or more C++ tests failed; continuing to coverage generation.",
     )
 
