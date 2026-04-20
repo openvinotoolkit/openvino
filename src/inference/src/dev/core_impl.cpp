@@ -1616,7 +1616,17 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                             OPENVINO_THROW("Version does not match");
                         }
                     }
+                } catch (const ov::Exception& ex) {
+                    std::cout << "[DEBUG][load_model_from_cache:" << __LINE__ << "] ov::Exception: " << ex.what()
+                              << std::endl;
+                    throw HeaderException();
+                } catch (const std::exception& ex) {
+                    std::cout << "[DEBUG][load_model_from_cache:" << __LINE__ << "] std::exception: " << ex.what()
+                              << std::endl;
+                    throw HeaderException();
                 } catch (...) {
+                    std::cout << "[DEBUG][load_model_from_cache:" << __LINE__ << "] Exception during header reading"
+                              << std::endl;
                     throw HeaderException();
                 }
 
@@ -1682,6 +1692,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
     // Fallback scenario
     if (!compiled_model) {
         OPENVINO_WARN("Could not load model from cache.");
+        std::cout << "[DEBUG][load_model_from_cache:" << __LINE__ << "] Fallback to compile_model" << std::endl;
         compiled_model = compile_model_lambda();
     }
     if (compiled_model && cache_content.m_shared_ctx) {
