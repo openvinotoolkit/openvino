@@ -682,7 +682,7 @@ void Properties::registerPluginProperties() {
             CompilerAdapterFactory factory;
             auto dummyCompiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
 
-            return dummyCompiler->get_version();
+            return ov::intel_npu::CompilerVersion(dummyCompiler->get_version());
         });
         REGISTER_CUSTOM_METRIC(ov::internal::caching_properties, false, [&](const Config& config) {
             // return a dynamically created list based on what is supported in current configuration
@@ -727,8 +727,10 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::cache_mode, CACHE_MODE);
 
     // Properties we shall only enable if they were set prior-to-compilation
+    TRY_REGISTER_CUSTOMFUNC_PROPERTY(ov::intel_npu::compiler_version, COMPILER_VERSION, [](const Config& config) {
+        return ov::intel_npu::CompilerVersion(config.get<COMPILER_VERSION>());
+    });
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::compiler_type, COMPILER_TYPE);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::compiler_version, COMPILER_VERSION);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::weights_path, WEIGHTS_PATH);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::cache_dir, CACHE_DIR);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::enable_profiling, PERF_COUNT);
