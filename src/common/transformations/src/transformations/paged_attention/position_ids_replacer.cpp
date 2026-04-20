@@ -184,6 +184,29 @@ ov::pass::PositionIDsReplacerLFM2::PositionIDsReplacerLFM2(const Output<Node>& p
 
         replace_node(range, replacement_node);
         copy_runtime_info(range, replacement_node);
+
+        // In PA mode the RoPE node receives input [seq_tokens, heads, 1, dim] where
+        // seq_tokens are in the batch dimension and the seq axis is always 1.
+        const auto concat = pattern_map.at(p_concat).get_node_shared_ptr();
+        const auto concat_pshape = concat->get_output_partial_shape(0);
+        if (concat_pshape.rank().is_static()) {
+            const auto concat_rank = concat_pshape.rank().get_length();
+            std::vector<int64_t> permutation;
+            if (concat_rank == 3) {
+                permutation = {1, 0, 2}; // Transpose [1, seq, dim] → [seq, 1, dim]
+            } else if (concat_rank == 4) {
+                permutation = {2, 1, 0, 3}; // Transpose [1, 1, seq, dim] → [seq, 1, 1, dim]
+            }
+
+            if (!permutation.empty()) {
+                const auto order = v0::Constant::create(element::i64, Shape{permutation.size()}, permutation);
+                auto transpose = std::make_shared<v1::Transpose>(concat, order);
+                transpose->set_friendly_name(concat->get_friendly_name() + "_seq_dim_transpose");
+                transpose->validate_and_infer_types();
+                replace_node(concat, transpose);
+                copy_runtime_info(concat, transpose);
+            }
+        }
         return true;
     };
 
