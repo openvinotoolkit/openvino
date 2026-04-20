@@ -266,7 +266,17 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool ha
         auto experts_reshape_node = pm.at(experts_reshape_m).get_node_shared_ptr();
         auto hidden_states = experts_reshape_node->input_value(0);
 
-        auto routing = pm.at(routing_unsqueeze_m).get_node_shared_ptr();
+        // The matched `Transpose -> Unsqueeze` produces routing in [topk, tokens, ...] layout
+        // (the Transpose permutes {1, 0}). moe_scatter_reduction consumes `expert_weights` with
+        // stride `token_id * topk + e_iter`, i.e. the [tokens, topk] layout. Bypass the Transpose
+        // by taking its input directly, so we keep the tokens-major order the kernel expects.
+        auto routing_transpose_node = pm.at(routing_transpose_m).get_node_shared_ptr();
+        auto transpose_order = ov::as_type_ptr<v0::Constant>(
+            routing_transpose_node->input_value(1).get_node_shared_ptr());
+        if (!transpose_order || transpose_order->cast_vector<int64_t>() != std::vector<int64_t>{1, 0}) {
+            return false;  // unexpected permutation — abort rewrite
+        }
+        ov::Output<ov::Node> routing = routing_transpose_node->input_value(0);
         auto topk_indices = pm.at(topk_indices_m);
         auto gate_up_w = pm.at(gate_up_w_m);
         auto gate_up_bias = pm.at(gate_up_bias_m);
@@ -278,11 +288,10 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool ha
         float expert_beta = swish_beta_const->cast_vector<float>()[0];
 
         // Extract expert_alpha from Clamp max
-        float expert_alpha = 0.0f;
-
         auto clamp_node = pm.at(clamp_m).get_node_shared_ptr();
         auto clamp_op = ov::as_type_ptr<v0::Clamp>(clamp_node);
         OPENVINO_ASSERT(clamp_op, "Unexpected node type matched for clamp: ", *clamp_node);
+        float expert_alpha = static_cast<float>(clamp_op->get_max());
 
         std::shared_ptr<ov::Node> moe_node;
 
