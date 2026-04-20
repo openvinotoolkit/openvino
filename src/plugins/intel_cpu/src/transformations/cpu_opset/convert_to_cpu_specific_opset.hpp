@@ -29,6 +29,7 @@
 #include "ov_ops/fully_connected.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
+#include "transformations/common_optimizations/transpose_to_reshape.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/defs.hpp"
 #include "transformations/op_conversions/convert_fc_to_compressed.hpp"
@@ -76,9 +77,13 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
     CPU_REGISTER_PASS_COMMON(manager, ConvertToLeakyRelu);
     CPU_REGISTER_PASS_COMMON(manager, ConvertToSwishCPU);
     CPU_REGISTER_PASS_COMMON(manager, OptimizeSequenceTransposes);
-    // after transformation "MoveEltwiseUpThroughDataMov" there can be reshaped sequences that should be eliminated or
-    // fused
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ReshapeSequenceFusion);
+    CPU_REGISTER_PASS_COMMON(
+        manager,
+        ov::pass::TransposeToReshape);  // Should be after all transformations that can produce transposes
+    CPU_REGISTER_PASS_COMMON(
+        manager,
+        ov::pass::ReshapeSequenceFusion);  // after transformation "MoveEltwiseUpThroughDataMov" there can be reshaped
+                                           // sequences that should be eliminated or fused
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
     CPU_REGISTER_PASS_COMMON(manager,
                              ov::pass::ConvertPrecision,
