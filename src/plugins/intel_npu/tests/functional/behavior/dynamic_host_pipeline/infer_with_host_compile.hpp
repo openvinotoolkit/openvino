@@ -170,6 +170,9 @@ TEST_P(InferWithHostCompileTests, CompileAndImport) {
 TEST_P(InferWithHostCompileTests, CompileAndImportAndInfer) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
     auto model = createMaxPoolModel();
 
     ov::CompiledModel compiledModel;
