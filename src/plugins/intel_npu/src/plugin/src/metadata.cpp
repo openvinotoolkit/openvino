@@ -102,7 +102,7 @@ Metadata<METADATA_VERSION_2_4>::Metadata(uint64_t blobSize,
                                          const std::optional<int64_t> batchSize,
                                          const std::optional<std::vector<ov::Layout>>& inputLayouts,
                                          const std::optional<std::vector<ov::Layout>>& outputLayouts,
-                                         const std::optional<uint64_t> compilerVersion)
+                                         const std::optional<uint32_t> compilerVersion)
     : Metadata<METADATA_VERSION_2_3>{blobSize, ovVersion, initSizes, batchSize, inputLayouts, outputLayouts},
       _compilerVersion{compilerVersion} {
     _version = METADATA_VERSION_2_4;
@@ -223,7 +223,7 @@ void Metadata<METADATA_VERSION_2_3>::read() {
 void Metadata<METADATA_VERSION_2_4>::read() {
     Metadata<METADATA_VERSION_2_3>::read();
 
-    uint64_t compilerVersion;
+    uint32_t compilerVersion;
     read_data_from_source(reinterpret_cast<char*>(&compilerVersion), sizeof(compilerVersion));
     _compilerVersion = compilerVersion != 0 ? std::optional(compilerVersion) : std::nullopt;
 }
@@ -279,7 +279,7 @@ void Metadata<METADATA_VERSION_2_3>::write(std::ostream& stream) {
 void Metadata<METADATA_VERSION_2_4>::write(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_3>::write(stream);
 
-    uint64_t compilerVersion = _compilerVersion.value_or(0);
+    uint32_t compilerVersion = _compilerVersion.value_or(0);
     stream.write(reinterpret_cast<const char*>(&compilerVersion), sizeof(compilerVersion));
 
     append_padding_blob_size_and_magic(stream);
@@ -428,7 +428,7 @@ std::optional<std::vector<ov::Layout>> MetadataBase::get_output_layouts() const 
     return std::nullopt;
 }
 
-std::optional<uint64_t> MetadataBase::get_compiler_version() const {
+std::optional<uint32_t> MetadataBase::get_compiler_version() const {
     return std::nullopt;
 }
 
@@ -448,7 +448,7 @@ std::optional<std::vector<ov::Layout>> Metadata<METADATA_VERSION_2_3>::get_outpu
     return _outputLayouts;
 }
 
-std::optional<uint64_t> Metadata<METADATA_VERSION_2_4>::get_compiler_version() const {
+std::optional<uint32_t> Metadata<METADATA_VERSION_2_4>::get_compiler_version() const {
     return _compilerVersion;
 }
 

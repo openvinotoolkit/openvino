@@ -59,7 +59,7 @@ public:
 
     virtual std::optional<std::vector<ov::Layout>> get_output_layouts() const;
 
-    virtual std::optional<uint64_t> get_compiler_version() const;
+    virtual std::optional<uint32_t> get_compiler_version() const;
 
     virtual ~MetadataBase() = default;
 
@@ -331,7 +331,7 @@ public:
              const std::optional<int64_t> batchSize = std::nullopt,
              const std::optional<std::vector<ov::Layout>>& inputLayouts = std::nullopt,
              const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt,
-             const std::optional<uint64_t> compilerVersion = std::nullopt);
+             const std::optional<uint32_t> compilerVersion = std::nullopt);
 
     void read() override;
 
@@ -339,10 +339,10 @@ public:
 
     size_t get_metadata_size() const override;
 
-    std::optional<uint64_t> get_compiler_version() const override;
+    std::optional<uint32_t> get_compiler_version() const override;
 
 private:
-    std::optional<uint64_t> _compilerVersion;
+    std::optional<uint32_t> _compilerVersion;
 };
 
 /**

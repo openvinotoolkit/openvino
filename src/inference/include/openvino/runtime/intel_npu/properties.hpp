@@ -103,53 +103,12 @@ static constexpr ov::Property<uint32_t, ov::PropertyMutability::RO> driver_versi
 static constexpr ov::Property<CompilerType> compiler_type{"NPU_COMPILER_TYPE"};
 
 /**
- * @brief NPU compiler version, formatted as "major.minor" when read
- * Stores major (16-bit MSB) and minor (16-bit LSB) in a single uint32_t
- * Implicitly converts to/from uint32_t
- */
-struct CompilerVersion {
-    uint32_t version;
-
-    CompilerVersion() = default;
-
-    CompilerVersion(uint32_t v) : version(v) {}
-
-    operator uint32_t() const {
-        return version;
-    }
-
-    bool operator==(const CompilerVersion& o) const {
-        return version == o.version;
-    }
-    bool operator!=(const CompilerVersion& o) const {
-        return version != o.version;
-    }
-    bool operator<(const CompilerVersion& o) const {
-        return version < o.version;
-    }
-    bool operator>=(const CompilerVersion& o) const {
-        return version >= o.version;
-    }
-};
-
-inline std::ostream& operator<<(std::ostream& out, const CompilerVersion& v) {
-    return out << (v.version >> 16) << '.' << (v.version & 0xffff);
-}
-
-inline std::istream& operator>>(std::istream& in, CompilerVersion& v) {
-    uint32_t major = 0, minor = 0;
-    char dot = 0;
-    in >> major >> dot >> minor;
-    v.version = (major << 16) | (minor & 0xffff);
-    return in;
-}
-
-/**
  * @brief [Only for NPU plugin]
- * Read-only property to get NPU compiler version. Type: CompilerVersion (printed as "major.minor", e.g. "7.6")
+ * Type: uint32_t
+ * Read-only property to get NPU compiler version. Composite of Major (16bit MSB) and Minor (16bit LSB)
  * @ingroup ov_runtime_npu_prop_cpp_api
  */
-static constexpr ov::Property<CompilerVersion, ov::PropertyMutability::RO> compiler_version{"NPU_COMPILER_VERSION"};
+static constexpr ov::Property<uint32_t, ov::PropertyMutability::RO> compiler_version{"NPU_COMPILER_VERSION"};
 
 /**
  * @brief [Only for NPU compiler]

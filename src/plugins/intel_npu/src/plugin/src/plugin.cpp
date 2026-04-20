@@ -854,6 +854,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         std::optional<uint64_t> compiler_version = metadata->get_compiler_version();
         if (compiler_version.has_value()) {
             localConfig.update({{ov::intel_npu::compiler_version.name(), std::to_string(compiler_version.value())}});
+            _logger.debug("Imported model was compiled with compiler version: %s",
+                          COMPILER_VERSION::toString(compiler_version.value()).c_str());
         }
     } else {
         _logger.info("Blob compatibility check skipped.");

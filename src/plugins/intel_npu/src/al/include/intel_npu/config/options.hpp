@@ -876,6 +876,10 @@ struct COMPILER_VERSION final : OptionBase<COMPILER_VERSION, uint32_t> {
         return 0;
     }
 
+    static std::string toString(const uint32_t& val) {
+        return std::to_string(val >> 16) + "." + std::to_string(val & 0xffff);
+    }
+
     static OptionMode mode() {
         return OptionMode::RunTime;
     }
