@@ -13,15 +13,13 @@
 namespace ov::util {
 namespace {
 
+inline pugi::xml_attribute get_node_attr(const pugi::xml_node& node, std::string_view name) {
 #ifdef PUGIXML_HAS_STRING_VIEW
-constexpr std::string_view to_pugi_attr_name(std::string_view name) noexcept {
-    return name;
-}
+    return node.attribute(name);
 #else
-inline std::string to_pugi_attr_name(std::string_view name) {
-    return std::string(name);
-}
+    return node.attribute(std::string(name).c_str());
 #endif
+}
 }  // namespace
 
 int pugixml::get_int_attr(const pugi::xml_node& node, const char* str) {
@@ -246,7 +244,7 @@ int pugixml::get_int_child(const pugi::xml_node& node, const char* str, int defV
 std::optional<std::string_view> pugixml::get_attribute_view(const pugi::xml_node& node, std::string_view name) {
     if (!node) {
         return std::nullopt;
-    } else if (const auto attr = node.attribute(to_pugi_attr_name(name)); !attr.empty()) {
+    } else if (const auto attr = get_node_attr(node, name); !attr.empty()) {
         return std::make_optional<std::string_view>(attr.value());
     } else {
         return std::nullopt;
