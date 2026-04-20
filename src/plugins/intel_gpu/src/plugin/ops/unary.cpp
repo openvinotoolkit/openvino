@@ -45,11 +45,7 @@
 #include "openvino/op/round.hpp"
 
 #include "intel_gpu/primitives/activation.hpp"
-#include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
-#include "intel_gpu/primitives/eltwise.hpp"
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/primitives/reorder.hpp"
 
 #include <algorithm> 
 
@@ -316,74 +312,7 @@ static void CreateGeluOp(ProgramBuilder &p, const std::shared_ptr<ov::op::v0::Ge
 }
 
 static void CreateSignOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Sign>& op) {
-    validate_inputs_count(op, {1});
-    const auto et = op->get_input_element_type(0);
-    // Floating point: keep existing activation lowering
-    if (et.is_real()) {
-        CreateUnaryEltwiseOp(p, op, cldnn::activation_func::sign, {});
-        return;
-    }
-
-    // Integer path: implement sign(x) = (x > 0) - (x < 0)
-    auto inputs = p.GetInputInfo(op);
-    const auto& x = inputs[0];
-
-    const std::string baseName = layer_type_name_ID(op);
-    const std::string zero_id = baseName + "/zero";
-    const auto out_dt = cldnn::element_type_to_data_type(op->get_output_element_type(0));
-    cldnn::data_types dt = cldnn::element_type_to_data_type(et);
-    cldnn::tensor zero_t{1, 1, 1, 1};
-    cldnn::layout zero_layout{dt, cldnn::format::bfyx, zero_t};
-    auto zero_mem = p.get_engine().allocate_memory(zero_layout);
-    auto& service_stream = p.get_engine().get_service_stream();
-    if (et == ov::element::i32) {
-        cldnn::mem_lock<int32_t, cldnn::mem_lock_type::write> lock{zero_mem, service_stream};
-        std::fill(lock.begin(), lock.end(), 0);
-    } else if (et == ov::element::i64) {
-        cldnn::mem_lock<int64_t, cldnn::mem_lock_type::write> lock{zero_mem, service_stream};
-        std::fill(lock.begin(), lock.end(), 0);
-    } else if (et == ov::element::i8) {
-        cldnn::mem_lock<int8_t, cldnn::mem_lock_type::write> lock{zero_mem, service_stream};
-        std::fill(lock.begin(), lock.end(), 0);
-    } else if (et == ov::element::u8) {
-        cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::write> lock{zero_mem, service_stream};
-        std::fill(lock.begin(), lock.end(), 0);
-    } else if (et == ov::element::i16) {
-        cldnn::mem_lock<int16_t, cldnn::mem_lock_type::write> lock{zero_mem, service_stream};
-        std::fill(lock.begin(), lock.end(), 0);
-    } else if (et == ov::element::u16) {
-        cldnn::mem_lock<uint16_t, cldnn::mem_lock_type::write> lock{zero_mem, service_stream};
-        std::fill(lock.begin(), lock.end(), 0);
-    } else if (et == ov::element::u32) {
-        cldnn::mem_lock<uint32_t, cldnn::mem_lock_type::write> lock{zero_mem, service_stream};
-        std::fill(lock.begin(), lock.end(), 0);
-    } else if (et == ov::element::u64) {
-        cldnn::mem_lock<uint64_t, cldnn::mem_lock_type::write> lock{zero_mem, service_stream};
-        std::fill(lock.begin(), lock.end(), 0);
-    } else {
-        OPENVINO_THROW("[GPU] Sign integer path: unsupported input type ", et, " for ", op->get_friendly_name());
-    }
-    auto zero_prim = cldnn::data(zero_id, zero_mem);
-    p.add_primitive(*op, zero_prim);
-
-    const std::string gt_id = baseName + "/gt0";
-    auto gt_prim = cldnn::eltwise(gt_id, x, cldnn::input_info{zero_id}, cldnn::eltwise_mode::gt);
-    p.add_primitive(*op, gt_prim);
-
-    const std::string gt_cast_id = baseName + "/gt0_cast";
-    auto gt_cast_prim = cldnn::reorder(gt_cast_id, cldnn::input_info{gt_id}, cldnn::format::any, out_dt);
-    p.add_primitive(*op, gt_cast_prim);
-
-    const std::string lt_id = baseName + "/lt0";
-    auto lt_prim = cldnn::eltwise(lt_id, x, cldnn::input_info{zero_id}, cldnn::eltwise_mode::lt);
-    p.add_primitive(*op, lt_prim);
-
-    const std::string lt_cast_id = baseName + "/lt0_cast";
-    auto lt_cast_prim = cldnn::reorder(lt_cast_id, cldnn::input_info{lt_id}, cldnn::format::any, out_dt);
-    p.add_primitive(*op, lt_cast_prim);
-
-    auto out_prim = cldnn::eltwise(baseName, cldnn::input_info{gt_cast_id}, cldnn::input_info{lt_cast_id}, cldnn::eltwise_mode::sub);
-    p.add_primitive(*op, out_prim);
+    CreateUnaryEltwiseOp(p, op, cldnn::activation_func::sign, {});
 }
 
 static void CreateHSigmoidOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v5::HSigmoid>& op) {
