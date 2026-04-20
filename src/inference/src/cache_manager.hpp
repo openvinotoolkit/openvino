@@ -51,9 +51,13 @@ private:
         // Fix the bug caused by pugixml, which may return unexpected results if the locale is different from "C".
         ScopedLocale plocal_C(LC_ALL, "C");
         const auto blob_path = get_blob_file(id);
-        std::ofstream stream(blob_path, std::ios_base::binary);
-        writer(stream);
-        stream.close();
+        {
+            std::ofstream stream(blob_path, std::ios_base::binary);
+            writer(stream);
+            stream.flush();
+        }
+        // Force directory metadata refresh
+        OPENVINO_ASSERT(util::file_exists(blob_path), blob_path, " file not visible after write");
         std::filesystem::permissions(blob_path,
                                      std::filesystem::perms::owner_read | std::filesystem::perms::group_read);
     }
