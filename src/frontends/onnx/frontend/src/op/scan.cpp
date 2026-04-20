@@ -6,6 +6,7 @@
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/tensor_iterator.hpp"
