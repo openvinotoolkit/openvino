@@ -288,7 +288,7 @@ class TestSession:
                 "branch": os.environ.get("sourceBranch", "unknown"),
                 "target_branch": os.environ.get("targetBranch", "unknown"),
                 "log_path": os.environ.get("SHARED_LOG_PATH", ""),
-                "dldt_version": build_number,
+                "version": build_number,
                 "ext": {}
             }
         except KeyError as err:
