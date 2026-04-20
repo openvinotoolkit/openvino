@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include <sstream>
 #include <transformations/cpu_opset/common/pass/move_readvalue_inputs_to_subgraph.hpp>
 #include <transformations/init_node_info.hpp>
 
@@ -12,6 +13,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/read_value.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
 
 using namespace testing;
@@ -229,4 +231,23 @@ TEST(TransformationTests, ReadValueWithSubgraph_2) {
         auto res = compare_functions(model, model_ref, 0, 0, 0, 0, 0, 0);
         ASSERT_TRUE(res.first) << res.second;
     }
+}
+
+TEST(TransformationTests, ReadValueWithSubgraph_Serialize) {
+    const ov::PartialShape shape{1, 1, 2};
+    const ov::element::Type type = ov::element::f32;
+    auto variable =
+        std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{ov::PartialShape{1, 1, 2}, type, "var_id"});
+
+    auto input = std::make_shared<ov::op::v0::Parameter>(type, shape);
+    auto readvalue = constructRVWithSubGraph(input, type, variable);
+    auto assign = std::make_shared<ov::op::v6::Assign>(readvalue, variable);
+    auto result = std::make_shared<ov::op::v0::Result>(readvalue);
+
+    auto model =
+        std::make_shared<ov::Model>(ov::ResultVector{result}, ov::SinkVector{assign}, ov::ParameterVector{input});
+
+    std::stringstream model_ss;
+    std::stringstream weights_ss;
+    ASSERT_NO_THROW(ov::pass::Serialize(model_ss, weights_ss).run_on_model(model));
 }
