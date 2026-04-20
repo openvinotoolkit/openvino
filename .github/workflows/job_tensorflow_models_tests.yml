@@ -44,7 +44,7 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       NUMBER_OF_REPLICAS: 2
-      USE_SYSTEM_CACHE: False # Using remote HuggingFace cache
+      USE_SYSTEM_CACHE: False # Using remote HuggingFace cache #
       HF_HUB_VERBOSITY: debug
       TRANSFORMERS_VERBOSITY: debug
     steps:
