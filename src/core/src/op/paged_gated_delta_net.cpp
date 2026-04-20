@@ -15,11 +15,11 @@
 namespace {
 
 // Validates input rank and type for a node input.
-inline void input_check(const ov::Node* node,
-                        size_t idx,
-                        const std::string_view input_name,
-                        std::initializer_list<ov::Rank>&& allowed_ranks,
-                        const std::vector<ov::element::Type>& allowed_types) {
+inline void paged_gated_delta_net_input_check(const ov::Node* node,
+                                              size_t idx,
+                                              const std::string_view input_name,
+                                              std::initializer_list<ov::Rank>&& allowed_ranks,
+                                              const std::vector<ov::element::Type>& allowed_types) {
     using namespace ov;
     using namespace ov::util;
     using namespace ov::element;
@@ -113,17 +113,17 @@ void PagedGatedDeltaNet::validate_and_infer_types() {
     static const std::vector<ov::element::Type> float_types = {ov::element::f32, ov::element::f16, ov::element::bf16};
     static const std::vector<ov::element::Type> integer_types = {ov::element::i32, ov::element::i64};
 
-    input_check(this, 0, "query", {3}, float_types);
-    input_check(this, 1, "key", {3}, float_types);
-    input_check(this, 2, "value", {3}, float_types);
-    input_check(this, 3, "recurrent_state_table", {4}, float_types);
-    input_check(this, 4, "gate", {2}, float_types);
-    input_check(this, 5, "beta", {2}, float_types);
-    input_check(this, 6, "subsequence_begins", {1}, integer_types);
-    input_check(this, 7, "la_block_indices", {1}, integer_types);
-    input_check(this, 8, "la_block_indices_begins", {1}, integer_types);
-    input_check(this, 9, "processed_tokens", {1}, integer_types);
-    input_check(this, 10, "cache_interval", {1}, integer_types);
+    paged_gated_delta_net_input_check(this, 0, "query", {3}, float_types);
+    paged_gated_delta_net_input_check(this, 1, "key", {3}, float_types);
+    paged_gated_delta_net_input_check(this, 2, "value", {3}, float_types);
+    paged_gated_delta_net_input_check(this, 3, "recurrent_state_table", {4}, float_types);
+    paged_gated_delta_net_input_check(this, 4, "gate", {2}, float_types);
+    paged_gated_delta_net_input_check(this, 5, "beta", {2}, float_types);
+    paged_gated_delta_net_input_check(this, 6, "subsequence_begins", {1}, integer_types);
+    paged_gated_delta_net_input_check(this, 7, "la_block_indices", {1}, integer_types);
+    paged_gated_delta_net_input_check(this, 8, "la_block_indices_begins", {1}, integer_types);
+    paged_gated_delta_net_input_check(this, 9, "processed_tokens", {1}, integer_types);
+    paged_gated_delta_net_input_check(this, 10, "cache_interval", {1}, integer_types);
 
     ov::element::Type common_float_type = get_input_element_type(0);
     NODE_VALIDATION_CHECK(
