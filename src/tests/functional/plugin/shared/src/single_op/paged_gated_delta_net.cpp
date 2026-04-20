@@ -199,10 +199,10 @@ std::vector<ov::Tensor> calculate_typed_refs(const std::map<std::shared_ptr<ov::
                   v_head_size,
                   ref_output);
 
-    ov::Tensor output_tensor(data_type, function->output(0).get_shape());
+    ov::Tensor output_tensor(data_type, host_inputs.at(params[2]).get_shape());
     std::copy(ref_output.begin(), ref_output.end(), output_tensor.data<T>());
 
-    ov::Tensor state_tensor(data_type, params[3]->get_shape());
+    ov::Tensor state_tensor(data_type, host_inputs.at(params[3]).get_shape());
     std::copy(state.begin(), state.end(), state_tensor.data<T>());
 
     return {output_tensor, state_tensor};
@@ -296,23 +296,18 @@ void PagedGatedDeltaNetLayerTest::SetUp() {
                                                             ov::Shape{static_cast<size_t>(num_sequences)},
                                                             ov::Shape{static_cast<size_t>(num_sequences)}}));
 
-    auto p_query = std::make_shared<ov::op::v0::Parameter>(data_type, q_shape);
-    auto p_key = std::make_shared<ov::op::v0::Parameter>(data_type, q_shape);
-    auto p_value = std::make_shared<ov::op::v0::Parameter>(data_type, v_shape);
-    auto p_state = std::make_shared<ov::op::v0::Parameter>(data_type, state_shape);
-    auto p_gate = std::make_shared<ov::op::v0::Parameter>(data_type, gv_shape);
-    auto p_beta = std::make_shared<ov::op::v0::Parameter>(data_type, gv_shape);
-    auto p_subseq =
-        std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{static_cast<size_t>(num_sequences + 1)});
-    auto p_blocks =
-        std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{static_cast<size_t>(num_blocks)});
-    auto p_block_begins =
-        std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{static_cast<size_t>(num_sequences + 1)});
-    auto p_past_lens =
-        std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{static_cast<size_t>(num_sequences)});
-    auto p_cache_interval =
-        std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{static_cast<size_t>(num_sequences)});
-
+    auto p_query = std::make_shared<ov::op::v0::Parameter>(data_type, ov::PartialShape{-1, qk_heads, qk_head_size});
+    auto p_key = std::make_shared<ov::op::v0::Parameter>(data_type, ov::PartialShape{-1, qk_heads, qk_head_size});
+    auto p_value = std::make_shared<ov::op::v0::Parameter>(data_type, ov::PartialShape{-1, v_heads, v_head_size});
+    auto p_state =
+        std::make_shared<ov::op::v0::Parameter>(data_type, ov::PartialShape{-1, v_heads, v_head_size, qk_head_size});
+    auto p_gate = std::make_shared<ov::op::v0::Parameter>(data_type, ov::PartialShape{-1, v_heads});
+    auto p_beta = std::make_shared<ov::op::v0::Parameter>(data_type, ov::PartialShape{-1, v_heads});
+    auto p_subseq = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
+    auto p_blocks = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
+    auto p_block_begins = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
+    auto p_past_lens = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
+    auto p_cache_interval = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
     auto pgdn = std::make_shared<ov::op::internal::PagedGatedDeltaNet>(p_query,
                                                                        p_key,
                                                                        p_value,
@@ -475,7 +470,7 @@ std::vector<ov::Tensor> PagedGatedDeltaNetLayerTest::get_plugin_outputs() {
 
     const auto& state_param = function->get_parameters().at(3);
     const auto actual_state_tensor = inferRequest.get_tensor(state_param);
-    ov::Tensor host_state_tensor(actual_state_tensor.get_element_type(), state_param->get_shape());
+    ov::Tensor host_state_tensor(actual_state_tensor.get_element_type(), actual_state_tensor.get_shape());
     actual_state_tensor.copy_to(host_state_tensor);
     outputs.push_back(host_state_tensor);
 

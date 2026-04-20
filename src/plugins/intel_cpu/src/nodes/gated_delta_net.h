@@ -45,7 +45,6 @@ public:
 
 private:
     MemoryPtr m_tmpInpBuffer = nullptr;
-    bool m_is_paged = false;
     bool m_fuse_qk_l2norm = false;
     float m_q_l2_norm_eps = 1e-6F;
     float m_k_l2_norm_eps = 1e-6F;

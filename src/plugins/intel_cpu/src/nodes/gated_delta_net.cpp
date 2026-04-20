@@ -22,7 +22,6 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/gated_delta_net.hpp"
-#include "openvino/op/paged_gated_delta_net.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/plain_tensor.hpp"
 
@@ -38,11 +37,9 @@ GatedDeltaNet::GatedDeltaNet(const std::shared_ptr<ov::Node>& op, const GraphCon
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     const auto& gdn = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(op);
-    OPENVINO_ASSERT(gdn != nullptr, "Expected GatedDeltaNet node");
     m_fuse_qk_l2norm = gdn->get_fuse_qk_l2norm();
     m_q_l2_norm_eps = gdn->get_q_l2_norm_eps();
     m_k_l2_norm_eps = gdn->get_k_l2_norm_eps();
-    m_is_paged = false;
 }
 
 void GatedDeltaNet::initSupportedPrimitiveDescriptors() {
@@ -50,19 +47,11 @@ void GatedDeltaNet::initSupportedPrimitiveDescriptors() {
     auto dataPrecision = ov::element::f32;
     std::vector<PortConfigurator> inPortConfigs;
     for (size_t i = 0; i < getParentEdges().size(); ++i) {
-        const bool is_i32_input = m_is_paged && i >= 6;
-        inPortConfigs.emplace_back(LayoutType::ncsp,
-                                   is_i32_input ? ov::element::i32 : dataPrecision,
-                                   getInputShapeAtPort(i),
-                                   false,
-                                   -1);
+        inPortConfigs.emplace_back(LayoutType::ncsp, dataPrecision, getInputShapeAtPort(i), false, -1);
     }
-
     std::vector<PortConfigurator> outPortConfigs = {
-        PortConfigurator{LayoutType::ncsp, dataPrecision, getOutputShapeAtPort(0), false, -1}};
-    if (!m_is_paged) {
-        outPortConfigs.emplace_back(LayoutType::ncsp, dataPrecision, getOutputShapeAtPort(1), false, -1);
-    }
+        PortConfigurator{LayoutType::ncsp, dataPrecision, getOutputShapeAtPort(0), false, -1},
+        PortConfigurator{LayoutType::ncsp, dataPrecision, getOutputShapeAtPort(1), false, -1}};
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }
 
@@ -79,16 +68,14 @@ void GatedDeltaNet::createPrimitive() {
 void GatedDeltaNet::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto originalInputNumber = getOriginalInputsNumber();
     std::vector<MemoryPtr> inputs(originalInputNumber);
-    std::vector<MemoryPtr> outputs(getOriginalOutputsNumber());
+    std::vector<MemoryPtr> outputs(2);
 
     for (size_t i = 0; i < originalInputNumber; i++) {
         inputs[i] = getSrcMemoryAtPort(i);
     }
 
     outputs[0] = getDstMemoryAtPort(0);
-    if (!m_is_paged) {
-        outputs[1] = getDstMemoryAtPort(1);
-    }
+    outputs[1] = getDstMemoryAtPort(1);
 
     PlainTensor query(inputs[0]);
     PlainTensor key(inputs[1]);
@@ -97,47 +84,22 @@ void GatedDeltaNet::execute([[maybe_unused]] const dnnl::stream& strm) {
     PlainTensor gate(inputs[4]);
     PlainTensor beta(inputs[5]);
     PlainTensor output_attn(outputs[0]);
+    PlainTensor output_recurrent_state(outputs[1]);
 
     auto* temp_buffer = m_tmpInpBuffer->getDataAs<float>();
-    if (m_is_paged) {
-        PlainTensor subsequence_begins(inputs[6]);
-        PlainTensor block_indices(inputs[7]);
-        PlainTensor block_indices_begins(inputs[8]);
-        PlainTensor past_lens(inputs[9]);
-        PlainTensor cache_interval(inputs[10]);
-        recurrent_linear_attn_paged(query,
-                                    key,
-                                    value,
-                                    recurrent_state,
-                                    gate,
-                                    beta,
-                                    subsequence_begins,
-                                    block_indices,
-                                    block_indices_begins,
-                                    past_lens,
-                                    cache_interval,
-                                    m_fuse_qk_l2norm,
-                                    m_q_l2_norm_eps,
-                                    m_k_l2_norm_eps,
-                                    output_attn,
-                                    temp_buffer,
-                                    context->getCpuParallel());
-    } else {
-        PlainTensor output_recurrent_state(outputs[1]);
-        recurrent_linear_attn(query,
-                              key,
-                              value,
-                              recurrent_state,
-                              gate,
-                              beta,
-                              m_q_l2_norm_eps,
-                              m_k_l2_norm_eps,
-                              m_fuse_qk_l2norm,
-                              output_attn,
-                              output_recurrent_state,
-                              temp_buffer,
-                              context->getCpuParallel());
-    }
+    recurrent_linear_attn(query,
+                          key,
+                          value,
+                          recurrent_state,
+                          gate,
+                          beta,
+                          m_q_l2_norm_eps,
+                          m_k_l2_norm_eps,
+                          m_fuse_qk_l2norm,
+                          output_attn,
+                          output_recurrent_state,
+                          temp_buffer,
+                          context->getCpuParallel());
 }
 
 bool GatedDeltaNet::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
