@@ -4,6 +4,9 @@
 
 #include "openvino/op/paged_causal_conv1d.hpp"
 
+#include <algorithm>
+#include <string_view>
+
 #include "dimension_util.hpp"
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -13,11 +16,11 @@
 namespace {
 
 // Validates input rank and type for a node input.
-inline void input_check(const ov::Node* node,
-                        size_t idx,
-                        const std::string_view input_name,
-                        std::initializer_list<ov::Rank>&& allowed_ranks,
-                        const std::vector<ov::element::Type>& allowed_types) {
+inline void paged_causal_conv1d_input_check(const ov::Node* node,
+                                            size_t idx,
+                                            const std::string_view input_name,
+                                            const std::initializer_list<ov::Rank>& allowed_ranks,
+                                            const std::vector<ov::element::Type>& allowed_types) {
     using namespace ov;
     using namespace ov::util;
     using namespace ov::element;
@@ -38,9 +41,9 @@ inline void input_check(const ov::Node* node,
                           rank_check(rank),
                           "Rank of `",
                           input_name,
-                          "` input should be in [",
+                          "` input must be one of [",
                           join(allowed_ranks),
-                          "] list, but it is ",
+                          "]. Got: ",
                           rank,
                           ".");
 
@@ -48,9 +51,9 @@ inline void input_check(const ov::Node* node,
                           type_check(tp),
                           "Element type of `",
                           input_name,
-                          "` input should be in [",
+                          "` input must be one of [",
                           join(allowed_types),
-                          "] list, but it is ",
+                          "]. Got: ",
                           tp,
                           ".");
 }
@@ -86,22 +89,20 @@ PagedCausalConv1D::PagedCausalConv1D(const ov::OutputVector& args) : ov::op::Op(
 void PagedCausalConv1D::validate_and_infer_types() {
     OV_OP_SCOPE(PagedCausalConv1D_validate_and_infer_types);
 
-    NODE_VALIDATION_CHECK(this,
-                          get_input_size() == 9,
-                          "PagedCausalConv1D expects 9 inputs, but it has ",
-                          get_input_size());
+    NODE_VALIDATION_CHECK(this, get_input_size() == 9, "PagedCausalConv1D expects 9 inputs. Got: ", get_input_size());
 
-    const std::vector<ov::element::Type> float_types = {ov::element::f32, ov::element::f16, ov::element::bf16};
+    static const std::vector<ov::element::Type> float_types = {ov::element::f32, ov::element::f16, ov::element::bf16};
+    static const std::vector<ov::element::Type> integer_types = {ov::element::i32, ov::element::i64};
 
-    input_check(this, 0, "input_embeds", {2}, float_types);
-    input_check(this, 1, "conv_state_table", {3}, float_types);
-    input_check(this, 2, "conv_weight", {3}, float_types);
-    input_check(this, 3, "conv_bias", {1}, float_types);
-    input_check(this, 4, "subsequence_begins", {1}, {ov::element::i32});
-    input_check(this, 5, "la_block_indices", {1}, {ov::element::i32});
-    input_check(this, 6, "la_block_indices_begins", {1}, {ov::element::i32});
-    input_check(this, 7, "processed_tokens", {1}, {ov::element::i32});
-    input_check(this, 8, "cache_interval", {1}, {ov::element::i32});
+    paged_causal_conv1d_input_check(this, 0, "input_embeds", {2}, float_types);
+    paged_causal_conv1d_input_check(this, 1, "conv_state_table", {3}, float_types);
+    paged_causal_conv1d_input_check(this, 2, "conv_weight", {3}, float_types);
+    paged_causal_conv1d_input_check(this, 3, "conv_bias", {1}, float_types);
+    paged_causal_conv1d_input_check(this, 4, "subsequence_begins", {1}, integer_types);
+    paged_causal_conv1d_input_check(this, 5, "la_block_indices", {1}, integer_types);
+    paged_causal_conv1d_input_check(this, 6, "la_block_indices_begins", {1}, integer_types);
+    paged_causal_conv1d_input_check(this, 7, "processed_tokens", {1}, integer_types);
+    paged_causal_conv1d_input_check(this, 8, "cache_interval", {1}, integer_types);
 
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
     set_output_type(0, get_input_element_type(0), output_shapes[0]);

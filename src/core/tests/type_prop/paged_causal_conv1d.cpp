@@ -21,16 +21,17 @@ std::shared_ptr<op::internal::PagedCausalConv1D> make_pcc(const element::Type& d
                                                           const PartialShape& la_block_indices_ps,
                                                           const PartialShape& la_block_indices_begins_ps,
                                                           const PartialShape& processed_tokens_ps,
-                                                          const PartialShape& cache_interval_ps) {
+                                                          const PartialShape& cache_interval_ps,
+                                                          const element::Type& index_et = element::i32) {
     auto input_embeds = std::make_shared<op::v0::Parameter>(data_et, input_embeds_ps);
     auto conv_state_table = std::make_shared<op::v0::Parameter>(data_et, conv_state_table_ps);
     auto conv_weight = std::make_shared<op::v0::Parameter>(data_et, conv_weight_ps);
     auto conv_bias = std::make_shared<op::v0::Parameter>(data_et, conv_bias_ps);
-    auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, subsequence_begins_ps);
-    auto la_block_indices = std::make_shared<op::v0::Parameter>(element::i32, la_block_indices_ps);
-    auto la_block_indices_begins = std::make_shared<op::v0::Parameter>(element::i32, la_block_indices_begins_ps);
-    auto processed_tokens = std::make_shared<op::v0::Parameter>(element::i32, processed_tokens_ps);
-    auto cache_interval = std::make_shared<op::v0::Parameter>(element::i32, cache_interval_ps);
+    auto subsequence_begins = std::make_shared<op::v0::Parameter>(index_et, subsequence_begins_ps);
+    auto la_block_indices = std::make_shared<op::v0::Parameter>(index_et, la_block_indices_ps);
+    auto la_block_indices_begins = std::make_shared<op::v0::Parameter>(index_et, la_block_indices_begins_ps);
+    auto processed_tokens = std::make_shared<op::v0::Parameter>(index_et, processed_tokens_ps);
+    auto cache_interval = std::make_shared<op::v0::Parameter>(index_et, cache_interval_ps);
 
     return std::make_shared<op::internal::PagedCausalConv1D>(OutputVector{input_embeds,
                                                                           conv_state_table,
@@ -106,7 +107,7 @@ TEST(type_prop, paged_causal_conv1d_invalid_input_embeds_rank) {
                                            Shape{2},
                                            Shape{2}),
                     NodeValidationFailure,
-                    testing::HasSubstr("Rank of `input_embeds` input should be in [2] list"));
+                    testing::HasSubstr("Rank of `input_embeds` input must be one of [2]."));
 }
 
 TEST(type_prop, paged_causal_conv1d_invalid_conv_state_table_rank) {
@@ -121,7 +122,7 @@ TEST(type_prop, paged_causal_conv1d_invalid_conv_state_table_rank) {
                                            Shape{2},
                                            Shape{2}),
                     NodeValidationFailure,
-                    testing::HasSubstr("Rank of `conv_state_table` input should be in [3] list"));
+                    testing::HasSubstr("Rank of `conv_state_table` input must be one of [3]."));
 }
 
 TEST(type_prop, paged_causal_conv1d_invalid_type) {
@@ -136,7 +137,7 @@ TEST(type_prop, paged_causal_conv1d_invalid_type) {
                                            Shape{2},
                                            Shape{2}),
                     NodeValidationFailure,
-                    testing::HasSubstr("Element type of `input_embeds` input should be in"));
+                    testing::HasSubstr("Element type of `input_embeds` input must be one of [f32, f16, bf16]."));
 }
 
 TEST(type_prop, paged_causal_conv1d_hidden_size_mismatch) {
@@ -151,7 +152,7 @@ TEST(type_prop, paged_causal_conv1d_hidden_size_mismatch) {
                                            Shape{2},
                                            Shape{2}),
                     NodeValidationFailure,
-                    testing::HasSubstr("hidden_size dimension of input_embeds and conv_state_table should be "
+                    testing::HasSubstr("hidden_size dimensions of input_embeds and conv_state_table inputs must be "
                                        "compatible"));
 }
 
@@ -167,7 +168,7 @@ TEST(type_prop, paged_causal_conv1d_kernel_size_mismatch) {
                                            Shape{2},
                                            Shape{2}),
                     NodeValidationFailure,
-                    testing::HasSubstr("kernel_size dimension of conv_state_table and conv_weight should be "
+                    testing::HasSubstr("kernel_size dimensions of conv_state_table and conv_weight inputs must be "
                                        "compatible"));
 }
 
@@ -175,7 +176,7 @@ TEST(type_prop, paged_causal_conv1d_wrong_input_count) {
     auto p = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 256});
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::PagedCausalConv1D>(OutputVector{p, p, p}),
                     NodeValidationFailure,
-                    testing::HasSubstr("PagedCausalConv1D expects 9 inputs"));
+                    testing::HasSubstr("PagedCausalConv1D expects 9 inputs. Got: 3"));
 }
 
 TEST(type_prop, paged_causal_conv1d_out_channels_hidden_size_mismatch) {
@@ -190,7 +191,8 @@ TEST(type_prop, paged_causal_conv1d_out_channels_hidden_size_mismatch) {
                                            Shape{2},
                                            Shape{2}),
                     NodeValidationFailure,
-                    testing::HasSubstr("out_channels dimension of conv_weight should be compatible with hidden_size"));
+                    testing::HasSubstr("out_channels dimension of conv_weight must be compatible with the hidden_size "
+                                       "dimension of input_embeds"));
 }
 
 TEST(type_prop, paged_causal_conv1d_conv_bias_size_mismatch) {
@@ -205,7 +207,57 @@ TEST(type_prop, paged_causal_conv1d_conv_bias_size_mismatch) {
                                            Shape{2},
                                            Shape{2}),
                     NodeValidationFailure,
-                    testing::HasSubstr("size of conv_bias should be compatible with out_channels"));
+                    testing::HasSubstr("size of conv_bias must be compatible with the out_channels dimension of "
+                                       "conv_weight or equal to 0 (no bias)"));
+}
+
+TEST(type_prop, paged_causal_conv1d_i64_int_inputs_accepted) {
+    const auto op = make_pcc(element::f32,
+                             Shape{10, 256},
+                             Shape{5, 256, 4},
+                             Shape{256, 256, 4},
+                             Shape{256},
+                             Shape{3},
+                             Shape{5},
+                             Shape{3},
+                             Shape{2},
+                             Shape{2},
+                             element::i64);
+
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape(Shape{10, 256}));
+}
+
+TEST(type_prop, paged_causal_conv1d_invalid_subsequence_begins_rank) {
+    OV_EXPECT_THROW(std::ignore = make_pcc(element::f32,
+                                           Shape{10, 256},
+                                           Shape{5, 256, 4},
+                                           Shape{256, 256, 4},
+                                           Shape{256},
+                                           Shape{2, 2},
+                                           Shape{5},
+                                           Shape{3},
+                                           Shape{2},
+                                           Shape{2}),
+                    NodeValidationFailure,
+                    testing::HasSubstr("Rank of `subsequence_begins` input must be one of [1]."));
+}
+
+TEST(type_prop, paged_causal_conv1d_invalid_subsequence_begins_type) {
+    OV_EXPECT_THROW(std::ignore = make_pcc(element::f32,
+                                           Shape{10, 256},
+                                           Shape{5, 256, 4},
+                                           Shape{256, 256, 4},
+                                           Shape{256},
+                                           Shape{3},
+                                           Shape{5},
+                                           Shape{3},
+                                           Shape{2},
+                                           Shape{2},
+                                           element::i16),
+                    NodeValidationFailure,
+                    testing::HasSubstr("Element type of `subsequence_begins` input must be one of [i32, i64]."));
 }
 
 TEST(type_prop, paged_causal_conv1d_empty_conv_bias) {
@@ -257,5 +309,72 @@ TEST(type_prop, paged_causal_conv1d_dynamic_type_accepted) {
 
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::dynamic);
+}
+
+TEST(type_prop, paged_causal_conv1d_la_block_indices_num_blocks_mismatch) {
+    // la_block_indices[0] (num_blocks) must match conv_state_table[0]
+    // conv_state_table has 5 blocks, but la_block_indices has 10
+    OV_EXPECT_THROW(std::ignore = make_pcc(element::f32,
+                                           Shape{10, 256},
+                                           Shape{5, 256, 4},  // num_blocks = 5
+                                           Shape{256, 256, 4},
+                                           Shape{256},
+                                           Shape{3},
+                                           Shape{10},  // num_blocks = 10 - mismatch!
+                                           Shape{3},
+                                           Shape{2},
+                                           Shape{2}),
+                    NodeValidationFailure,
+                    testing::HasSubstr("num_blocks dimension of la_block_indices must be compatible"));
+}
+
+TEST(type_prop, paged_causal_conv1d_subsequence_begins_block_begins_mismatch) {
+    // subsequence_begins and la_block_indices_begins must have same size (batch_size_in_sequences + 1)
+    OV_EXPECT_THROW(std::ignore = make_pcc(element::f32,
+                                           Shape{10, 256},
+                                           Shape{5, 256, 4},
+                                           Shape{256, 256, 4},
+                                           Shape{256},
+                                           Shape{3},  // subsequence_begins size = 3
+                                           Shape{5},
+                                           Shape{5},  // la_block_indices_begins size = 5 - mismatch!
+                                           Shape{2},
+                                           Shape{2}),
+                    NodeValidationFailure,
+                    testing::HasSubstr("size of subsequence_begins must be compatible with the size of "
+                                       "la_block_indices_begins"));
+}
+
+TEST(type_prop, paged_causal_conv1d_processed_tokens_size_mismatch) {
+    // processed_tokens size must be batch_size_in_sequences (subsequence_begins size - 1)
+    // subsequence_begins = 3 means batch_size_in_sequences = 2, so processed_tokens should be 2
+    OV_EXPECT_THROW(std::ignore = make_pcc(element::f32,
+                                           Shape{10, 256},
+                                           Shape{5, 256, 4},
+                                           Shape{256, 256, 4},
+                                           Shape{256},
+                                           Shape{3},  // batch_size_in_sequences + 1 = 3
+                                           Shape{5},
+                                           Shape{3},
+                                           Shape{5},  // should be 2, not 5
+                                           Shape{2}),
+                    NodeValidationFailure,
+                    testing::HasSubstr("size of processed_tokens must be batch_size_in_sequences"));
+}
+
+TEST(type_prop, paged_causal_conv1d_cache_interval_size_mismatch) {
+    // cache_interval size must be batch_size_in_sequences (subsequence_begins size - 1)
+    OV_EXPECT_THROW(std::ignore = make_pcc(element::f32,
+                                           Shape{10, 256},
+                                           Shape{5, 256, 4},
+                                           Shape{256, 256, 4},
+                                           Shape{256},
+                                           Shape{3},  // batch_size_in_sequences + 1 = 3
+                                           Shape{5},
+                                           Shape{3},
+                                           Shape{2},
+                                           Shape{5}),  // should be 2, not 5
+                    NodeValidationFailure,
+                    testing::HasSubstr("size of cache_interval must be batch_size_in_sequences"));
 }
 }  // namespace ov::test
