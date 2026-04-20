@@ -231,6 +231,10 @@ int pugixml::get_int_child(const pugi::xml_node& node, const char* str, int defV
     return atoi(child.child_value());
 }
 
+#ifndef PUGIXML_HAS_STRING_VIEW
+#error "pugixml does not support std::string_view"
+#endif
+
 std::optional<std::string_view> pugixml::get_attribute_view(const pugi::xml_node& node, std::string_view name) {
     if (!node) {
         return std::nullopt;

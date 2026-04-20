@@ -42,7 +42,7 @@ ov::Shape::Shape(const std::string& value) {
             return true;
         },
         [](auto&& dim_field) {
-            return util::view_to_number<size_t>(dim_field).value_or(0);
+            return util::view_to_number<size_t>(util::trim(dim_field)).value_or(0);
         });
 }
 
