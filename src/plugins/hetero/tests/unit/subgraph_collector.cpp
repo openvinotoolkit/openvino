@@ -6,12 +6,13 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "op/device_subgraph.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/ops.hpp"
-#include <algorithm>
 
 using namespace ov::hetero;
 
@@ -679,7 +680,7 @@ INSTANTIATE_TEST_SUITE_P(
             "merge_independent_submodel",
             create_merge_independent_model,
             {{"input1", "MOCK.0"}, {"input2", "MOCK.0"}, {"const_val1", "MOCK.0"},
-             {"add1", "MOCK.0"}, {"add2", "MOCK.1"}, {"res", "MOCK.1"}},
+             {"add1", "MOCK.0"}, {"const_val2", "MOCK.1"}, {"add2", "MOCK.1"}, {"res", "MOCK.1"}},
             "",
             3,
             {},
@@ -710,8 +711,8 @@ INSTANTIATE_TEST_SUITE_P(
             {{"input", "MOCK.0"}, {"const_val", "MOCK.0"}, {"add", "MOCK.1"},
              {"sub", "MOCK.2"}, {"reshape_val", "MOCK.3"}, {"reshape", "MOCK.3"}, {"res", "MOCK.3"}},
             "",
-            3,
-            {"MOCK.1", "MOCK.2", "MOCK.3"},
+            4,
+            {"MOCK.0", "MOCK.1", "MOCK.2", "MOCK.3"},
             {},
             {},
             {},
