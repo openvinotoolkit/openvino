@@ -4,8 +4,6 @@
 
 #include "plugin.hpp"
 
-#include <fstream>
-
 #include "compiled_model.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
@@ -17,7 +15,6 @@
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
-#include "intel_npu/utils/zero/zero_init.hpp"
 #include "metrics.hpp"
 #include "npuw/compiled_model.hpp"
 #include "npuw/llm_compiled_model.hpp"
@@ -855,7 +852,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         if (compiler_version.has_value()) {
             localConfig.update({{ov::intel_npu::compiler_version.name(), std::to_string(compiler_version.value())}});
             _logger.debug("Imported model was compiled with compiler version: %s",
-                          COMPILER_VERSION::toString(compiler_version.value()).c_str());
+                          COMPILER_VERSION::toString(static_cast<uint32_t>(compiler_version.value())).c_str());
         }
     } else {
         _logger.info("Blob compatibility check skipped.");

@@ -10,7 +10,6 @@
 
 #include "intel_npu/utils/utils.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
-#include "openvino/util/variant_visitor.hpp"
 
 namespace intel_npu {
 

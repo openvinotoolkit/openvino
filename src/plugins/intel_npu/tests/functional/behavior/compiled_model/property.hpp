@@ -14,7 +14,6 @@
 #include "intel_npu/npu_private_properties.hpp"
 #include "openvino/core/log.hpp"
 #include "zero_backend.hpp"
-#include "zero_device.hpp"
 
 using namespace ov::test::behavior;
 
