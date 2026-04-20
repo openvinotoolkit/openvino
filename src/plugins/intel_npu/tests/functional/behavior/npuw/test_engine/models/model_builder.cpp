@@ -499,26 +499,98 @@ ov::Output<ov::Node> make_position_ids_3d() {
     return squeeze->output(0);
 }
 
+/// LoRA injection state: when non-null, make_linear_lora injects A/B/alpha Parameters.
+struct LoRAInjector {
+    size_t max_rank;
+    std::vector<std::string> targets;
+    ov::ParameterVector* params;
+    ov::element::Type precision;
+
+    bool should_adapt(const std::string& name) const {
+        if (targets.empty()) {
+            // Default target set
+            static const std::vector<std::string> defaults = {
+                "q_proj", "k_proj", "v_proj", "o_proj",
+                "gate_proj", "up_proj", "down_proj"};
+            for (const auto& t : defaults)
+                if (name.find(t) != std::string::npos)
+                    return true;
+            return false;
+        }
+        for (const auto& t : targets)
+            if (name.find(t) != std::string::npos)
+                return true;
+        return false;
+    }
+};
+
 ov::Output<ov::Node> make_linear(const ov::Output<ov::Node>& input,
                                  size_t in_features,
                                  size_t out_features,
                                  const std::string& name,
                                  ov::element::Type precision,
                                  const WeightFn& weight_fn,
-                                 const WeightFn& bias_fn) {
+                                 const WeightFn& bias_fn,
+                                 const LoRAInjector* lora) {
     auto weight_output = weight_fn(name + ".weight", ov::Shape{out_features, in_features}, precision);
 
     auto matmul = std::make_shared<ov::opset11::MatMul>(input, weight_output, false, true);
     matmul->set_friendly_name(name);
 
+    ov::Output<ov::Node> result = matmul->output(0);
+
     if (bias_fn) {
         auto bias = bias_fn(name + ".bias", ov::Shape{out_features}, precision);
-        auto add = std::make_shared<ov::opset11::Add>(matmul, bias);
+        auto add = std::make_shared<ov::opset11::Add>(result, bias);
         add->set_friendly_name(name + "_bias_add");
-        return add->output(0);
+        result = add->output(0);
     }
 
-    return matmul->output(0);
+    // LoRA injection: input -> MatMul(A^T) -> MatMul(B^T) -> Multiply(alpha) -> Add(base_output)
+    // Parameter names match NPUW lora_state_* pattern.
+    if (lora && lora->should_adapt(name)) {
+        const size_t R = lora->max_rank;
+        const auto prec = lora->precision;
+        const std::string state_prefix = "lora_state_" + name;
+
+        const int64_t Ri = static_cast<int64_t>(R);
+        auto lora_a = std::make_shared<ov::op::v0::Parameter>(
+            prec, ov::PartialShape{Ri, static_cast<int64_t>(in_features)});
+        lora_a->set_friendly_name(state_prefix + ".MatMul.A");
+        lora_a->output(0).set_names({state_prefix + ".MatMul.A"});
+
+        auto lora_b = std::make_shared<ov::op::v0::Parameter>(
+            prec, ov::PartialShape{static_cast<int64_t>(out_features), Ri});
+        lora_b->set_friendly_name(state_prefix + ".MatMul.B");
+        lora_b->output(0).set_names({state_prefix + ".MatMul.B"});
+
+        auto lora_alpha = std::make_shared<ov::op::v0::Parameter>(
+            prec, ov::PartialShape{1, Ri});
+        lora_alpha->set_friendly_name(state_prefix + ".MatMul.alpha");
+        lora_alpha->output(0).set_names({state_prefix + ".MatMul.alpha"});
+
+        lora->params->push_back(lora_a);
+        lora->params->push_back(lora_b);
+        lora->params->push_back(lora_alpha);
+
+        // input @ A^T -> [batch, seq, R]
+        auto mm_a = std::make_shared<ov::opset11::MatMul>(input, lora_a, false, true);
+        mm_a->set_friendly_name(state_prefix + ".mm_a");
+
+        // Multiply by alpha -> [batch, seq, R]  (broadcast alpha [1,R] over batch/seq)
+        auto scaled = std::make_shared<ov::opset11::Multiply>(mm_a, lora_alpha);
+        scaled->set_friendly_name(state_prefix + ".scale");
+
+        // scaled @ B^T -> [batch, seq, out_features]
+        auto mm_b = std::make_shared<ov::opset11::MatMul>(scaled, lora_b, false, true);
+        mm_b->set_friendly_name(state_prefix + ".mm_b");
+
+        auto lora_add = std::make_shared<ov::opset11::Add>(result, mm_b);
+        lora_add->set_friendly_name(name + ".lora_add");
+        result = lora_add->output(0);
+    }
+
+    return result;
 }
 
 ov::Output<ov::Node> make_multihead_reshape(const ov::Output<ov::Node>& input,
@@ -699,7 +771,8 @@ ov::Output<ov::Node> make_attention_output(const ov::Output<ov::Node>& sdpa_outp
                                            const std::string& name,
                                            ov::element::Type precision,
                                            const WeightFn& weight_fn,
-                                           const WeightFn& bias_fn) {
+                                           const WeightFn& bias_fn,
+                                           const LoRAInjector* lora) {
     auto attn_trans = make_attention_transpose(sdpa_output, name + "_transpose");
 
     auto reshape_shape = ov::opset11::Constant::create(ov::element::i64,
@@ -708,7 +781,7 @@ ov::Output<ov::Node> make_attention_output(const ov::Output<ov::Node>& sdpa_outp
     auto attn_reshaped = std::make_shared<ov::opset11::Reshape>(attn_trans, reshape_shape, true);
     attn_reshaped->set_friendly_name(name + "_reshape");
 
-    return make_linear(attn_reshaped->output(0), hidden_size, hidden_size, name, precision, weight_fn, bias_fn);
+    return make_linear(attn_reshaped->output(0), hidden_size, hidden_size, name, precision, weight_fn, bias_fn, lora);
 }
 
 ov::Output<ov::Node> make_embedding(const ov::Output<ov::Node>& input_ids,
@@ -797,8 +870,9 @@ KVCacheResult make_encoder_kv_cache(const ov::Output<ov::Node>& encoder_kv,
 }
 
 ov::Output<ov::Node> SwiGLU::operator()(const ov::Output<ov::Node>& input, const std::string& name) const {
-    auto gate = make_linear(input, hidden_size, intermediate_size, name + ".gate_proj", precision, weight_fn);
-    auto up = make_linear(input, hidden_size, intermediate_size, name + ".up_proj", precision, weight_fn);
+    WeightFn no_bias;
+    auto gate = make_linear(input, hidden_size, intermediate_size, name + ".gate_proj", precision, weight_fn, no_bias, lora);
+    auto up = make_linear(input, hidden_size, intermediate_size, name + ".up_proj", precision, weight_fn, no_bias, lora);
 
     auto sigmoid = std::make_shared<ov::opset11::Sigmoid>(gate);
 
@@ -808,18 +882,18 @@ ov::Output<ov::Node> SwiGLU::operator()(const ov::Output<ov::Node>& input, const
     auto gate_up = std::make_shared<ov::opset11::Multiply>(silu, up);
     gate_up->set_friendly_name(name + "_gate_up");
 
-    auto down = make_linear(gate_up, intermediate_size, hidden_size, name + ".down_proj", precision, weight_fn);
+    auto down = make_linear(gate_up, intermediate_size, hidden_size, name + ".down_proj", precision, weight_fn, no_bias, lora);
 
     return down;
 }
 
 ov::Output<ov::Node> GELU::operator()(const ov::Output<ov::Node>& input, const std::string& name) const {
-    auto up = make_linear(input, hidden_size, intermediate_size, name + ".up_proj", precision, weight_fn, bias_fn);
+    auto up = make_linear(input, hidden_size, intermediate_size, name + ".up_proj", precision, weight_fn, bias_fn, lora);
 
     auto gelu = std::make_shared<ov::opset11::Gelu>(up);
     gelu->set_friendly_name(name + "_gelu");
 
-    auto down = make_linear(gelu, intermediate_size, hidden_size, name + ".down_proj", precision, weight_fn, bias_fn);
+    auto down = make_linear(gelu, intermediate_size, hidden_size, name + ".down_proj", precision, weight_fn, bias_fn, lora);
 
     return down;
 }
@@ -899,17 +973,17 @@ ov::Output<ov::Node> Attention::operator()(const ov::Output<ov::Node>& q,
         std::tie(k_for_attn, v_for_attn) = kv_cache_fn(k_roped, v_trans, layer_idx);
     }
 
-    auto k_expanded =
-        make_repeat_kv(k_for_attn, num_heads, num_kv_heads, head_dim, prefix + "k_repeat", shared_broadcast_shape);
-    auto v_expanded =
-        make_repeat_kv(v_for_attn, num_heads, num_kv_heads, head_dim, prefix + "v_repeat", shared_broadcast_shape);
+    auto k_expanded = make_repeat_kv(k_for_attn, num_heads, num_kv_heads, head_dim,
+                                     prefix + attn_prefix + "k_repeat", shared_broadcast_shape);
+    auto v_expanded = make_repeat_kv(v_for_attn, num_heads, num_kv_heads, head_dim,
+                                     prefix + attn_prefix + "v_repeat", shared_broadcast_shape);
 
     // 5-input SDPA with explicit scale needed for embedding model pattern matching
     size_t sdpa_scale_dim = shared_broadcast_shape.get_node() ? head_dim : 0;
     auto attn_output =
         make_sdpa(q_roped, k_expanded, v_expanded, prefix + attn_prefix + "attn", sdpa_mask, sdpa_scale_dim);
 
-    return make_attention_output(attn_output, hidden_size, prefix + o_proj_name, precision, weight_fn, bias_fn);
+    return make_attention_output(attn_output, hidden_size, prefix + o_proj_name, precision, weight_fn, bias_fn, lora);
 }
 
 ov::Output<ov::Node> Attention::operator()(const ov::Output<ov::Node>& input,
@@ -919,9 +993,9 @@ ov::Output<ov::Node> Attention::operator()(const ov::Output<ov::Node>& input,
     auto kv_src = kv_input.get_node() ? kv_input : input;
     size_t kv_dim = num_kv_heads * head_dim;
     auto q =
-        make_linear(input, hidden_size, hidden_size, prefix + attn_prefix + "q_proj", precision, weight_fn, bias_fn);
-    auto k = make_linear(kv_src, hidden_size, kv_dim, prefix + attn_prefix + "k_proj", precision, weight_fn, bias_fn);
-    auto v = make_linear(kv_src, hidden_size, kv_dim, prefix + attn_prefix + "v_proj", precision, weight_fn, bias_fn);
+        make_linear(input, hidden_size, hidden_size, prefix + attn_prefix + "q_proj", precision, weight_fn, bias_fn, lora);
+    auto k = make_linear(kv_src, hidden_size, kv_dim, prefix + attn_prefix + "k_proj", precision, weight_fn, bias_fn, lora);
+    auto v = make_linear(kv_src, hidden_size, kv_dim, prefix + attn_prefix + "v_proj", precision, weight_fn, bias_fn, lora);
     return (*this)(q, k, v, prefix, layer_idx);
 }
 
@@ -1587,6 +1661,20 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     const auto hs = config.hidden_size;
     const auto kv_heads = config.get_kv_heads();
 
+    // Set up LoRA injector if requested
+    ov::ParameterVector lora_params;  // collected by LoRAInjector, added to model after graph build
+    std::unique_ptr<LoRAInjector> lora_ptr;
+    if (config.lora_rank > 0) {
+        lora_ptr = std::make_unique<LoRAInjector>();
+        lora_ptr->max_rank = config.lora_rank;
+        lora_ptr->targets = config.lora_targets;
+        lora_ptr->params = &lora_params;
+        lora_ptr->precision = prec;
+        // Recreate FFN with LoRA injector so MLP projections get adapted
+        config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, prec, config.weight, lora_ptr.get());
+    }
+    const LoRAInjector* lora = lora_ptr.get();
+
     Attention attn{};
     attn.hidden_size = hs;
     attn.num_heads = config.num_heads;
@@ -1597,6 +1685,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     attn.bias_fn = config.attn_bias;
     attn.qk_norm = config.qk_norm;
     attn.rope_fn = config.rope;
+    attn.lora = lora;
     attn.sdpa_mask = sdpa_mask;
     attn.shared_broadcast_shape = shared_broadcast;
 

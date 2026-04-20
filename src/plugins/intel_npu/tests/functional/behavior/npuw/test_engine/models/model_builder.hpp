@@ -155,17 +155,21 @@ ov::Output<ov::Node> make_position_ids_2d();
 /// [3, batch, seq] position_ids Parameter for m-rope. Returns [batch, seq] slice.
 ov::Output<ov::Node> make_position_ids_3d();
 
+struct LoRAInjector;
+
 struct SwiGLU {
     size_t hidden_size;
     size_t intermediate_size;
     ov::element::Type precision;
     WeightFn weight_fn;
+    const LoRAInjector* lora = nullptr;
 
-    SwiGLU(size_t hs, size_t is, ov::element::Type prec, WeightFn wf)
+    SwiGLU(size_t hs, size_t is, ov::element::Type prec, WeightFn wf, const LoRAInjector* l = nullptr)
         : hidden_size(hs),
           intermediate_size(is),
           precision(prec),
-          weight_fn(std::move(wf)) {}
+          weight_fn(std::move(wf)),
+          lora(l) {}
 
     ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
 };
@@ -176,13 +180,15 @@ struct GELU {
     ov::element::Type precision;
     WeightFn weight_fn;
     WeightFn bias_fn;
+    const LoRAInjector* lora = nullptr;
 
-    GELU(size_t hs, size_t is, ov::element::Type prec, WeightFn wf, WeightFn bf = {})
+    GELU(size_t hs, size_t is, ov::element::Type prec, WeightFn wf, WeightFn bf = {}, const LoRAInjector* l = nullptr)
         : hidden_size(hs),
           intermediate_size(is),
           precision(prec),
           weight_fn(std::move(wf)),
-          bias_fn(std::move(bf)) {}
+          bias_fn(std::move(bf)),
+          lora(l) {}
 
     ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
 };
@@ -193,7 +199,8 @@ ov::Output<ov::Node> make_linear(const ov::Output<ov::Node>& input,
                                  const std::string& name,
                                  ov::element::Type precision = ov::element::f32,
                                  const WeightFn& weight_fn = FP32Weight{},
-                                 const WeightFn& bias_fn = {});
+                                 const WeightFn& bias_fn = {},
+                                 const LoRAInjector* lora = nullptr);
 
 ov::Output<ov::Node> make_multihead_reshape(const ov::Output<ov::Node>& input,
                                             size_t num_heads,
@@ -274,6 +281,8 @@ ov::Output<ov::Node> make_transformer_layers(const ov::Output<ov::Node>& initial
                                              const LayerFn& layer_fn);
 
 /// Takes pre-projected Q, K, V. Handles reshape, QK-norm, RoPE, KV cache, GQA, SDPA, O proj.
+struct LoRAInjector;
+
 struct Attention {
     size_t hidden_size, num_heads, num_kv_heads, head_dim;
     ov::element::Type precision;
@@ -285,6 +294,8 @@ struct Attention {
 
     ov::Output<ov::Node> sdpa_mask;
     ov::Output<ov::Node> shared_broadcast_shape;
+
+    const LoRAInjector* lora = nullptr;
 
     std::string o_proj_name = "self_attn.o_proj";
     std::string attn_prefix = "self_attn.";
@@ -403,6 +414,13 @@ struct LLMConfig : public BaseModelConfig {
     bool use_inputs_embeds = false;
     bool internal_position_ids = false;  ///< embedding model
     bool pre_norm = true;
+
+    /// LoRA adapter support: inject low-rank A/B/alpha Parameters per adapted linear layer.
+    /// 0 = no LoRA. >0 = inject LoRA with this max rank into adapted projections.
+    size_t lora_rank = 0;
+    /// Which projection names get LoRA adapters ("q_proj", "v_proj", etc).
+    /// Empty = default set (q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj).
+    std::vector<std::string> lora_targets;
 };
 
 struct WhisperConfig : public BaseModelConfig {
