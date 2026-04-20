@@ -1152,12 +1152,20 @@ void ZeroInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
 
         if (port_length > 0) {
             const auto& port_max_shape = port_partial_shape.get_max_shape();
+            const auto& port_min_shape = port_partial_shape.get_min_shape();
             for (auto i = 0; i < port_length; ++i) {
-                if (tensor_shape[i] > port_max_shape[i]) {
+                if (port_min_shape[i] != port_max_shape[i] && tensor_shape[i] > port_max_shape[i]) {
                     OPENVINO_THROW("The tensor shape is not compatible with the model input/output max shape: got ",
                                    tensor_shape,
                                    " expecting max shape ",
                                    port_max_shape);
+                }
+
+                if (port_min_shape[i] == port_max_shape[i] && tensor_shape[i] != port_min_shape[i]) {
+                    OPENVINO_THROW("The tensor shape is not compatible with the model input/output shape: got ",
+                                   tensor_shape,
+                                   " expecting shape ",
+                                   port_min_shape);
                 }
             }
         }

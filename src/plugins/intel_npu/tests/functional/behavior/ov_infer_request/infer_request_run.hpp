@@ -2607,7 +2607,6 @@ TEST_P(DynamicBoundsTests, ChangeShapeAfterTensorIsSet) {
     // Create InferRequest
     ov::InferRequest req;
     req = compiled_model.create_infer_request();
-    std::vector<ov::Tensor> tensors;
 
     auto shape = Shape{1, 4, 2, 2};
     auto shape_size = ov::shape_size(shape);
@@ -2689,7 +2688,6 @@ TEST_P(DynamicBoundsTests, ChangeShapeAfterTensorIsSetUsingAlignedExternalMemory
     // Create InferRequest
     ov::InferRequest req;
     req = compiled_model.create_infer_request();
-    std::vector<ov::Tensor> tensors;
 
     ov::Allocator allocator{ov::test::utils::DefaultAllocatorAligned{}};
 
@@ -2761,7 +2759,6 @@ TEST_P(DynamicBoundsTests, RunningTwiceWithRemoteTensor) {
     // Create InferRequest
     ov::InferRequest req;
     req = compiled_model.create_infer_request();
-    std::vector<ov::Tensor> tensors;
 
     auto context = core->get_default_context(target_device);
 
@@ -2808,6 +2805,29 @@ TEST_P(DynamicBoundsTests, RunningTwiceWithRemoteTensor) {
     ASSERT_EQ(shape_size * sizeof(float), output_tensor.get_byte_size());
     ASSERT_EQ(shape, input_tensor.get_shape());
     ASSERT_EQ(shape, output_tensor.get_shape());
+}
+
+TEST_P(DynamicBoundsTests, ExpectErrorFromWrongTensorShape) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto model_shape = PartialShape{1, ov::Dimension(1, 10), 4, 64};
+    auto model = createModel(element::f32, model_shape, "N...");
+
+    auto compiled_model = core->compile_model(model, target_device, configuration);
+    // Create InferRequest
+    ov::InferRequest req;
+    req = compiled_model.create_infer_request();
+
+    auto context = core->get_default_context(target_device);
+    auto input_tensor = context.create_host_tensor(ov::element::f32, Shape{1, 8, 2, 64});
+    OV_EXPECT_THROW(req.set_input_tensor(input_tensor),
+                    ov::Exception,
+                    HasSubstr("The tensor shape is not compatible with the model input/output shape"));
+
+    auto output_tensor = context.create_host_tensor(ov::element::f32, Shape{1, 8, 12, 64});
+    OV_EXPECT_THROW(req.set_output_tensor(output_tensor),
+                    ov::Exception,
+                    HasSubstr("The tensor shape is not compatible with the model input/output shape"));
 }
 
 }  // namespace behavior
