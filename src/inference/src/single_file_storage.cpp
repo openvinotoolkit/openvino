@@ -4,8 +4,6 @@
 
 #include "openvino/runtime/single_file_storage.hpp"
 
-#include <exception>
-
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
@@ -239,82 +237,11 @@ void SingleFileStorage::write_blob_entry(std::fstream& stream, BlobIdType blob_i
     m_blob_index[blob_id] = {static_cast<uint64_t>(blob_pos), static_cast<uint64_t>(blob_size), std::move(model_name)};
 }
 
-namespace {
-
-void reset_single_file_storage_state(const std::filesystem::path& file_path,
-                                     const util::Version& version,
-                                     std::shared_ptr<wsh::Context>& shared_context) {
-    shared_context->m_cache_sources.clear();
-    shared_context->m_runtime_sources.clear();
-    shared_context->m_weight_registry.clear();
-
-    std::ofstream reset_stream;
-    reset_stream.exceptions(std::ios_base::failbit | std::ios_base::badbit);
-    reset_stream.open(file_path, std::ios::binary | std::ios::trunc);
-    write_version(reset_stream, version);
-    reset_stream.flush();
-    reset_stream.close();
-}
-
-[[noreturn]] void rethrow_recoverable_cache_write_failure(std::exception_ptr write_error) {
-    try {
-        std::rethrow_exception(write_error);
-    } catch (const std::filesystem::filesystem_error& ex) {
-        throw std::ios_base::failure(ex.what());
-    } catch (...) {
-        std::rethrow_exception(write_error);
-    }
-}
-
-}  // namespace
-
 void SingleFileStorage::write_cache_entry(const std::string& blob_id, StreamWriter writer) {
-    const auto cid = convert_blob_id(blob_id);
     ScopedLocale plocal_C(LC_ALL, "C");
-    const auto original_size = std::filesystem::file_size(m_file_path);
-    std::fstream stream;
-    bool cache_entry_added = false;
-    stream.exceptions(std::ios_base::failbit | std::ios_base::badbit);
-    try {
-        stream.open(m_file_path, std::ios::binary | std::ios::in | std::ios::out | std::ios::ate);
-        OPENVINO_ASSERT(stream.good(), "Failed to open cache file ", m_file_path, " for writing blob id ", blob_id);
-        write_blob_entry(stream, cid, writer);
-        cache_entry_added = true;
-        stream.flush();
-        stream.close();
-    } catch (...) {
-        auto write_error = std::current_exception();
-        stream.exceptions(std::ios_base::goodbit);
-        if (stream.is_open()) {
-            stream.close();
-        }
-        if (cache_entry_added) {
-            m_blob_index.erase(cid);
-        }
-        std::error_code ec;
-        std::filesystem::resize_file(m_file_path, original_size, ec);
-        if (!ec) {
-            rethrow_recoverable_cache_write_failure(write_error);
-        }
-
-        try {
-            m_blob_index.clear();
-            reset_single_file_storage_state(m_file_path, m_version, m_shared_context);
-        } catch (const std::filesystem::filesystem_error&) {
-            throw;
-        } catch (const std::exception& ex) {
-            throw std::filesystem::filesystem_error(
-                "Failed to restore cache file after write failure: " + std::string(ex.what()),
-                m_file_path,
-                std::make_error_code(std::errc::io_error));
-        } catch (...) {
-            throw std::filesystem::filesystem_error("Failed to restore cache file after write failure",
-                                                    m_file_path,
-                                                    std::make_error_code(std::errc::io_error));
-        }
-
-        rethrow_recoverable_cache_write_failure(write_error);
-    }
+    std::fstream stream(m_file_path, std::ios::binary | std::ios::in | std::ios::out | std::ios::ate);
+    OPENVINO_ASSERT(stream.good(), "Failed to open cache file ", m_file_path, " for writing blob id ", blob_id);
+    write_blob_entry(stream, convert_blob_id(blob_id), writer);
 }
 
 void SingleFileStorage::read_cache_entry(const std::string& blob_id, bool enable_mmap, StreamReader reader) {
@@ -410,25 +337,11 @@ void SingleFileStorage::initialize(std::shared_ptr<ov::wsh::Context> weight_shar
         m_shared_context = std::move(weight_sharing_context);
     }
 
-    m_blob_index.clear();
     if (std::ifstream stream(m_file_path, std::ios::binary); stream.good()) {
         util::Version file_version;
         read_version(stream, file_version);
         OPENVINO_ASSERT(util::is_version_compatible(m_version, file_version), "Incompatible cache format");
-        if (!build_content_index(stream)) {
-            try {
-                reset_single_file_storage_state(m_file_path, m_version, m_shared_context);
-            } catch (const std::exception& ex) {
-                throw std::filesystem::filesystem_error(
-                    "Failed to restore cache file after initialize failure: " + std::string(ex.what()),
-                    m_file_path,
-                    std::make_error_code(std::errc::io_error));
-            } catch (...) {
-                throw std::filesystem::filesystem_error("Failed to restore cache file after initialize failure",
-                                                        m_file_path,
-                                                        std::make_error_code(std::errc::io_error));
-            }
-        }
+        OPENVINO_ASSERT(build_content_index(stream), "The cache file may be corrupted or in an unsupported format");
     }
 }
 
