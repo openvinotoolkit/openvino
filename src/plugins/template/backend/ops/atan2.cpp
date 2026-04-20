@@ -26,8 +26,8 @@ bool evaluate(const std::shared_ptr<ov::op::v17::Atan2>& op,
 
 template <>
 bool evaluate_node<ov::op::v17::Atan2>(std::shared_ptr<ov::Node> node,
-                                        ov::TensorVector& outputs,
-                                        const ov::TensorVector& inputs) {
+                                       ov::TensorVector& outputs,
+                                       const ov::TensorVector& inputs) {
     const auto& element_type = node->get_output_element_type(0);
 
     switch (element_type) {
