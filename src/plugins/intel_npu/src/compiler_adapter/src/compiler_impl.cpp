@@ -612,8 +612,12 @@ bool VCLCompilerImpl::is_option_supported(std::string option, std::optional<std:
     return false;
 }
 
-bool VCLCompilerImpl::validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const {
-    return is_option_supported(ov::runtime_requirements_met.name(), compatibilityDescriptor);
+ov::RuntimeRequirementCheckResult VCLCompilerImpl::validate_compatibility_descriptor(
+    const std::string& compatibilityDescriptor) const {
+    if (is_option_supported(ov::runtime_requirements_met.name(), compatibilityDescriptor)) {
+        return ov::RuntimeRequirementCheckResult::PARTIAL_CHECK_PASSED;
+    }
+    return ov::RuntimeRequirementCheckResult::COMPATIBILITY_FAILED;
 }
 
 }  // namespace intel_npu

@@ -317,7 +317,8 @@ bool DriverCompilerAdapter::isCompilerOptionSupported(const FilteredConfig& conf
             (compilerVersion.minor >= minorCompilerOptSupportValue));
 }
 
-bool DriverCompilerAdapter::validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const {
+ov::RuntimeRequirementCheckResult DriverCompilerAdapter::validate_compatibility_descriptor(
+    const std::string& compatibilityDescriptor) const {
     if (!_zeGraphExt->isCompatibilityDescriptorSupported()) {
         OPENVINO_THROW("");
     }

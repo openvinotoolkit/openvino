@@ -294,7 +294,8 @@ bool PluginCompilerAdapter::is_option_supported(std::string optname, std::option
     }
 }
 
-bool PluginCompilerAdapter::validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const {
+ov::RuntimeRequirementCheckResult PluginCompilerAdapter::validate_compatibility_descriptor(
+    const std::string& compatibilityDescriptor) const {
     return _compiler->validate_compatibility_descriptor(compatibilityDescriptor);
 }
 

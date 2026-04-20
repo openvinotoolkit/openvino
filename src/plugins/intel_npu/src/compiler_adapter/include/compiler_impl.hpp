@@ -89,7 +89,8 @@ public:
 
     std::shared_ptr<void> getLinkedLibrary() const;
 
-    bool validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const;
+    ov::RuntimeRequirementCheckResult validate_compatibility_descriptor(
+        const std::string& compatibilityDescriptor) const;
 
 private:
     /**

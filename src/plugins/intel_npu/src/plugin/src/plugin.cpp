@@ -363,7 +363,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     if (name == ov::runtime_requirements_met.name()) {
         if (arguments.empty()) {
             // TODO is this good?
-            return true;
+            return ov::RuntimeRequirementCheckResult::COMPATIBILITY_PASSED;
         }
 
         ov::Tensor encodedTensor = arguments.at(ov::runtime_requirements.name()).as<ov::Tensor>();
@@ -381,7 +381,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         } catch (const std::exception& ex) {
             // Unsupported version, could not read the metadata or an unknown error has occured. Report that the
             // requirements are not met.
-            return false;
+            return ov::RuntimeRequirementCheckResult::COMPATIBILITY_FAILED;
         }
 
         OPENVINO_ASSERT(metadata);
