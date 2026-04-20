@@ -559,8 +559,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         // Preserve f16 precision at the output of Math-type operations during f16->f32 conversion.
         // Without this, the f16 rounding between operations is lost, causing incorrect results
-        // for downstream ops with discontinuities (Floor, Ceiling, Round).
-        // See: https://github.com/openvinotoolkit/openvino/issues/33233
+        // for downstream ops
         auto wrap_math_to_preserve_f16 = [](const std::shared_ptr<ov::Node>& node,
                                             const precisions_map& precisions) -> bool {
             auto it = precisions.find(node->get_output_element_type(0));

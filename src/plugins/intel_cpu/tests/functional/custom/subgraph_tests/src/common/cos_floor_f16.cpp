@@ -1,13 +1,9 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-// Test for GitHub issue #33233: Incorrect Floor result (0.0 instead of 1.0)
+
+// Test for #184635: Incorrect Floor result (0.0 instead of 1.0)
 // in float16 inference when Cos output approaches 1.0.
-//
-// When a Cos node feeds into Floor with f16 intermediate precision,
-// the f16 rounding of cos(6.27734375) ≈ 0.99998 must produce 1.0 in f16,
-// so that floor(1.0) = 1.0. Without proper f16 I/O support in the Math node,
-// the graph may compute entirely in f32, giving floor(0.99998) = 0.0.
 
 #include <cmath>
 #include <vector>

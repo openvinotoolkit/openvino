@@ -566,12 +566,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     type_to_fuse_map type_to_fuse = {{ov::op::v0::Convert::get_type_info_static(), fuse_type_to_convert}};
 
     // Preserve f16 precision at the output of Math-type operations during f16->f32 conversion.
-    // The CPU Math node only computes in f32, so normally ConvertPrecision converts all f16
-    // edges to f32. But this eliminates the f16 rounding at node boundaries, which changes
-    // results for downstream operations with discontinuities (Floor, Ceiling, Round).
-    // For example, cos(6.27734375) ≈ 0.99998 in f32, but rounds to 1.0 in f16.
-    // Without preserving f16: floor(0.99998) = 0.0. With f16 rounding: floor(1.0) = 1.0.
-    // See: https://github.com/openvinotoolkit/openvino/issues/33233
+    // The CPU Math node only computes in f32 so normally ConvertPrecision converts all f16
+    // edges to f32. This eliminates the f16 rounding, which changes results for downstream operations
     auto wrap_math_to_preserve_f16 = [](const std::shared_ptr<ov::Node>& node,
                                         const precisions_map& precisions) -> bool {
         auto it = precisions.find(node->get_output_element_type(0));
@@ -584,10 +580,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         const auto& original_type = it->first;
         const auto& target_type = it->second;
 
-        // Convert inputs back to the original f16 type so the node keeps f16 I/O.
-        // The CPU plugin will insert Reorders (f16->f32 before, f32->f16 after) to
-        // match the Math node's f32 descriptor. The f32->f16 Reorder after the node
-        // performs the critical f16 rounding.
+        // Convert inputs back to the original f16 type so the node keeps f16 I/O
         for (size_t i = 0; i < node->get_input_size(); i++) {
             auto convert = std::make_shared<ov::op::v0::Convert>(node->input_value(i), original_type);
             node->input(i).replace_source_output(convert);
@@ -607,9 +600,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         return true;
     };
 
-    // Register all Math-type operations (ops handled by the CPU Math node, which only
-    // supports f32 computation). These are the ops that lose intermediate f16 rounding
-    // when ConvertPrecision converts f16->f32.
     for (const auto& type_info : {ov::op::v0::Cos::get_type_info_static(),
                                   ov::op::v0::Cosh::get_type_info_static(),
                                   ov::op::v0::Sin::get_type_info_static(),
