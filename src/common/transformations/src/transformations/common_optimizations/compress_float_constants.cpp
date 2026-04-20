@@ -58,26 +58,19 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<v0::
             dst_data[i] = std::numeric_limits<ov::float16>::lowest();
             num_out_of_range++;
         } else {
-            constexpr double max_relative_error = ov::reference::f16_compression_max_rel_error;
-            constexpr double max_abs_error = ov::reference::f16_compression_max_abs_error;
             const ov::float16 f16_val = static_cast<ov::float16>(src_data[i]);
             const double src_val = static_cast<double>(src_data[i]);
             const double roundtripped = static_cast<double>(static_cast<src_type>(f16_val));
             const double abs_diff = std::abs(src_val - roundtripped);
 
-            if (abs_diff > max_abs_error) {
+            if (abs_diff > ov::reference::f16_compression_max_abs_error) {
                 return nullptr;
-            }
-
-            if (src_val != 0.0 && abs_diff / std::abs(src_val) > max_relative_error) {
-                num_out_of_range++;
             }
             dst_data[i] = f16_val;
         }
     }
 
-    // if more than 75% of elements are rejected (outside FP16 range or FP16
-    // round-trip relative error exceeds the threshold), keep the Constant in FP32
+    // if more than 75% of elements fall outside the finite FP16 range, keep the Constant in FP32
     const double out_of_range_proportion = static_cast<double>(num_out_of_range) / static_cast<double>(size);
 
     if (out_of_range_proportion >= ov::reference::f16_compression_keep_threshold) {
@@ -91,6 +84,23 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<v0::
     } else {
         return new_constant;
     }
+}
+
+// Returns true if a scalar constant of type T loses significant precision when rounded to FP16.
+// Used to protect mathematical scale factors (e.g. log(16) in attention bucketing) from FP16
+// rounding errors that cascade through every computation referencing them. Tensor-wide
+// compression decisions do not use this check — bulk weights tolerate FP16 quantization noise.
+template <typename T>
+bool scalar_has_high_f16_error(const ov::op::v0::Constant& const_node) {
+    static_assert(sizeof(T) >= 4);
+    const T src = *const_node.get_data_ptr<T>();
+    if (std::isfinite(src) && src != T{0}) {
+        const double src_val = static_cast<double>(src);
+        const ov::float16 f16_val = static_cast<ov::float16>(src);
+        const double roundtripped = static_cast<double>(static_cast<T>(f16_val));
+        return std::abs(src_val - roundtripped) / std::abs(src_val) > ov::reference::f16_compression_max_rel_error;
+    }
+    return false;
 }
 
 class DetectFakeQuantizeOrFakeConvert : public MatcherPass {
@@ -169,6 +179,16 @@ CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
 
         auto c_type = const_node->get_element_type();
 
+        // Skip FP16 compression for scalar constants with significant rounding error.
+        // Scalar constants often serve as mathematical scale factors (e.g. log(16) in attention
+        // bucketing) where FP16 rounding error cascades through every computation that uses them.
+        if (ov::shape_size(const_node->get_shape()) == 1) {
+            if (c_type == ov::element::f32 && scalar_has_high_f16_error<float>(*const_node))
+                return false;
+            if (c_type == ov::element::f64 && scalar_has_high_f16_error<double>(*const_node))
+                return false;
+        }
+
         std::shared_ptr<ov::Node> new_const;
 
 #if !defined(OPENVINO_ARCH_X86) && !defined(OPENVINO_ARCH_X86_64)
@@ -191,8 +211,7 @@ CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
             if (check.has_lossy)
                 return false;
 
-            // if more than 75% of elements are rejected (outside FP16 range or FP16
-            // round-trip relative error exceeds the threshold), keep the Constant in FP32
+            // if more than 75% of elements fall outside the finite FP16 range, keep the Constant in FP32
             const float out_of_range_proportion =
                 static_cast<float>(check.out_of_range_count) / static_cast<float>(size);
             if (out_of_range_proportion >= ov::reference::f16_compression_keep_threshold)
