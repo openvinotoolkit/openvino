@@ -11,6 +11,11 @@ on:
         description: 'Device name (igpu or dgpu)'
         type: string
         required: true
+      device_name:
+        description: 'Name of the device for artifact suffix'
+        type: string
+        required: false
+        default: ''
       runner:
         description: 'Runner labels by which the runner will be chosen. Example: [ "self-hosted", "igpu" ]'
         type: string
@@ -125,7 +130,7 @@ jobs:
         id: run_tests
         env:
           TEST_TYPE: ${{ inputs.test_type }}
-          DEVICE: ${{ inputs.device }}
+          DEVICE: ${{ inputs.device_name != '' && inputs.device_name || inputs.device }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
 
@@ -148,7 +153,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2 We are not using newest version v6.0.0 due to very frequent issues with 'Error: Unable to make request: ECONNRESET'
         if: always()
         with:
-          name: test-results-${{ inputs.test_type }}-${{ inputs.device }}
+          name: test-results-${{ inputs.test_type }}-${{ inputs.device_name != '' && inputs.device_name || inputs.device }}
           path: ${{ env.INSTALL_TEST_DIR }}/${{ steps.run_tests.outputs.test_results_dir }}
           if-no-files-found: 'error'
 
@@ -197,7 +202,7 @@ jobs:
         id: run_tests
         env:
           TEST_TYPE: ${{ inputs.test_type }}
-          DEVICE: ${{ inputs.device }}
+          DEVICE: ${{ inputs.device_name != '' && inputs.device_name || inputs.device }}
         run: |
           # Source OpenVINO environment variables from setupvars.bat
           $setupvarsOutput = cmd /c "call `"$env:INSTALL_DIR\setupvars.bat`" && set" 2>&1
@@ -228,6 +233,6 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2 We are not using newest version v6.0.0 due to very frequent issues with 'Error: Unable to make request: ECONNRESET'
         if: always()
         with:
-          name: test-results-${{ inputs.test_type }}-${{ inputs.device }}
+          name: test-results-${{ inputs.test_type }}-${{ inputs.device_name != '' && inputs.device_name || inputs.device }}
           path: ${{ env.INSTALL_TEST_DIR }}/${{ steps.run_tests.outputs.test_results_dir }}
           if-no-files-found: 'error'
