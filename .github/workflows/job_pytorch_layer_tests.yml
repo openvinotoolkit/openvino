@@ -28,8 +28,11 @@ env:
   PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
   HF_HUB_CACHE_LIN: /mount/caches/huggingface
   HF_HUB_CACHE_WIN: "C:\\mount\\caches\\huggingface"
-  HF_TOKEN_PATH_LIN: /home/runner/secrets/huggingface/hf-token
-  HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\hf-token"
+  # To switch to the primary HF token, change the filename suffix to remove `-secondary`:
+  #   HF_TOKEN_PATH_LIN: /home/runner/secrets/huggingface/hf-token
+  #   HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\hf-token"
+  HF_TOKEN_PATH_LIN: /home/runner/secrets/huggingface/hf-token-secondary
+  HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\hf-token-secondary"
 
 jobs:
   PyTorch_Layer_Tests:
