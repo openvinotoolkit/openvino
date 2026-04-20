@@ -37,12 +37,14 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
                 new_shape = ov::PartialShape({1, kvcache_size + 1});
         } else if (input_name.find("position_ids") != std::string::npos) {
             const auto partial_shape_size = input.get_partial_shape().size();
-            // NB: Regular LLM uses 2D shapes, Qwen2.5 VL/Omni uses 3D shapes
+            // NB: Regular LLM uses 2D shapes, Qwen2.5 VL/Omni, Qwen3.5 VL use 3D shapes
             // The first dimension (3) represents the three components of position encoding: time, height, and width
             // enabling alignment across multimodal inputs like text, audio, and video
+            // Update: Qwen3.5 has first dimenstion = 4.
             NPUW_ASSERT(partial_shape_size == 3u || partial_shape_size == 2u);
+            auto first_dim_value = input.get_partial_shape()[0];
             new_shape =
-                partial_shape_size == 3u ? ov::PartialShape({3, 1, input_size}) : ov::PartialShape({1, input_size});
+                partial_shape_size == 3u ? ov::PartialShape({first_dim_value, 1, input_size}) : ov::PartialShape({1, input_size});
         } else if (input_name.find("cache_position") != std::string::npos) {
             // NB: Whisper case
             new_shape = ov::PartialShape({1});

@@ -14,6 +14,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/validate.hpp"
 
+#include <regex>
+
 namespace opp = ov::pass::pattern;
 
 namespace {
@@ -60,6 +62,14 @@ public:
         auto callback = [=](opp::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
             auto matched_param = ov::as_type_ptr<ov::op::v0::Parameter>(node_to_output.at(param).get_node_shared_ptr());
+
+            // Note: Additional precaution if Linear Cache got matched by mistake
+            std::string param_name = matched_param->get_friendly_name();
+            std::regex regex_pattern(R"(^(past_key_values\.(\d+)\.(key|value))$)");
+            if (!std::regex_match(param_name, regex_pattern)) {
+                return false;
+            }
+
             auto matched_node_concat = node_to_output.at(concat).get_node_shared_ptr();
 
             ctx.get().old_params.push_back(matched_param);

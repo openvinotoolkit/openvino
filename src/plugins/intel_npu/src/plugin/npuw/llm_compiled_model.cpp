@@ -773,6 +773,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         ov::pass::StatefulToStateless().run_on_model(kvcache_model);
     }
 
+    OPENVINO_ASSERT(
+            !ov::npuw::util::has_input(kvcache_model, LLMCompiledModel::past_lin_conv_cache) ||
+            !ov::npuw::util::has_input(kvcache_model, LLMCompiledModel::past_lin_ssm_cache),
+            "Chunking is not implemented for models with Linear Attention yet. "
+            "Please set NPUW_LLM_PREFILL_HINT to 'STATIC'");
+
     ov::npuw::LoraStatefulToStatelessPass().run_on_model(kvcache_model);
 
     LOG_DEBUG("   ...also convert BF16 to FP16");
