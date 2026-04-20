@@ -25,7 +25,7 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    const int32_t get_subblock_index() const {
+    int32_t get_subblock_index() const {
         return m_sub_block;
     }
 
