@@ -176,8 +176,6 @@ protected:
      * @see ov::ISyncInferRequest
      */
     mutable std::mutex _cacheMutex;
-
-    bool _isShapeTensorPresent = false;
 };
 
 }  //  namespace intel_npu

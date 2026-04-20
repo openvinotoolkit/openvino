@@ -117,10 +117,6 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
             continue;
         }
 
-        if (inputDescriptor.isShapeTensor) {
-            _isShapeTensorPresent = true;
-        }
-
         get_level_zero_input(ioIndex) = allocate_tensor(ioIndex, INPUT);
 
         if (inputDescriptor.isStateInput) {
@@ -151,10 +147,6 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
             ++ioIndex;
             continue;
-        }
-
-        if (outputDescriptor.isShapeTensor) {
-            _isShapeTensorPresent = true;
         }
 
         _levelZeroOutputTensors.at(ioIndex) = allocate_tensor(ioIndex, OUTPUT);
@@ -478,7 +470,11 @@ void ZeroInferRequest::sync_zero_tensor_with_graph(const ZeroInferRequest::Found
     auto& levelZeroTensor =
         foundPort.is_input() ? get_level_zero_input(foundPort.idx) : _levelZeroOutputTensors.at(foundPort.idx);
 
-    if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0) && !_isShapeTensorPresent) {
+    const auto& metadata = foundPort.is_input() ? _metadata.inputs : _metadata.outputs;
+    const auto& relatedDescriptor = metadata.at(foundPort.idx).relatedDescriptorIndex;
+    bool isShapeTensorPresent = relatedDescriptor.has_value() && metadata.at(relatedDescriptor.value()).isShapeTensor;
+
+    if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0) && !isShapeTensorPresent) {
         bool updateCommandListArg = false;
         try {
             _logger.debug("sync_zero_tensor_with_graph - create zero tensor");
@@ -594,7 +590,11 @@ void ZeroInferRequest::sync_zero_tensors_with_graph(const ZeroInferRequest::Foun
                       "ZeroInferRequest",
                       "sync_zero_tensors_with_graph");
 
-    if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0) && !_isShapeTensorPresent) {
+    const auto& metadata = foundPort.is_input() ? _metadata.inputs : _metadata.outputs;
+    const auto& relatedDescriptor = metadata.at(foundPort.idx).relatedDescriptorIndex;
+    bool isShapeTensorPresent = relatedDescriptor.has_value() && metadata.at(relatedDescriptor.value()).isShapeTensor;
+
+    if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0) && !isShapeTensorPresent) {
         if (batchSize.has_value()) {
             get_level_zero_inputs(foundPort.idx).resize(tensors.size());
             for (size_t i = 0; i < tensors.size(); i++) {
@@ -1008,7 +1008,14 @@ void ZeroInferRequest::prepare_inputs() {
 
             _logger.info("prepare_inputs - tensor is not allocated in the current Level Zero context");
             OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
-            if (_isShapeTensorPresent && userTensor.at(SINGLE_TENSOR)->get_shape() != levelZeroTensor->get_shape()) {
+            const auto& relatedDescriptor = inputDescriptor.relatedDescriptorIndex;
+            const bool hasShapeTensor =
+                relatedDescriptor.has_value() && _metadata.inputs.at(relatedDescriptor.value()).isShapeTensor;
+
+            if (hasShapeTensor && userTensor.at(SINGLE_TENSOR)->get_shape() != levelZeroTensor->get_shape()) {
+                OPENVINO_ASSERT(userTensor.at(SINGLE_TENSOR)->get_byte_size() <= levelZeroTensor->get_byte_size(),
+                                "User tensor byte size exceeds Level Zero tensor allocation when creating a view");
+
                 auto viewTensor = ov::make_tensor(levelZeroTensor->get_element_type(),
                                                   userTensor.at(SINGLE_TENSOR)->get_shape(),
                                                   static_cast<unsigned char*>(levelZeroTensor->data()));
@@ -1072,7 +1079,16 @@ void ZeroInferRequest::get_result() {
             _logger.info("get_result - output tensor by index: %zu is not allocated in the current Level Zero context",
                          outputIndex);
             OV_ITT_TASK_NEXT(ZERO_RESULT, "memcpy");
-            if (_isShapeTensorPresent && userTensor->get_shape() != levelZeroTensor->get_shape()) {
+            const auto& relatedDescriptor = outputDescriptor.relatedDescriptorIndex;
+            const bool hasShapeTensor =
+                relatedDescriptor.has_value() && _metadata.outputs.at(relatedDescriptor.value()).isShapeTensor;
+
+            if (hasShapeTensor && userTensor->get_shape() != levelZeroTensor->get_shape()) {
+                OPENVINO_ASSERT(userTensor->get_byte_size() <= levelZeroTensor->get_byte_size(),
+                                "User-visible output shape requires more bytes than the backing Level Zero tensor "
+                                "allocation, entry name: ",
+                                outputDescriptor.nameFromCompiler);
+
                 auto viewTensor = ov::make_tensor(levelZeroTensor->get_element_type(),
                                                   userTensor->get_shape(),
                                                   static_cast<unsigned char*>(levelZeroTensor->data()));
