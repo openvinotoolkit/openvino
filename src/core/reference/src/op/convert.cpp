@@ -73,10 +73,10 @@ void jit_convert_vec<bfloat16, float16>(jit::Generator& gen, const Xbyak::RegExp
     const auto f32vec = gen.ymm4;
     const auto f16vec = gen.xmm3;
 
-    gen.vpmovzxwd(f32vec, gen.yword[src]);               // load bf16 into tmp
-    gen.vpslld(f32vec, f32vec, 16);                      // convert bf16->f32 by bit shift
-    gen.vcvtps2ph(f16vec, f32vec, kVcvtps2phRneNoExc);   // convert f32 -> f16
-    gen.vmovdqu(gen.xword[dst], f16vec);    // move result to destination
+    gen.vpmovzxwd(f32vec, gen.yword[src]);              // load bf16 into tmp
+    gen.vpslld(f32vec, f32vec, 16);                     // convert bf16->f32 by bit shift
+    gen.vcvtps2ph(f16vec, f32vec, kVcvtps2phRneNoExc);  // convert f32 -> f16
+    gen.vmovdqu(gen.xword[dst], f16vec);                // move result to destination
 }
 
 template <>
@@ -87,12 +87,12 @@ void jit_convert_vec<bfloat16, float16, true>(jit::Generator& gen, const Xbyak::
     auto upper_bound = gen.ymm5;
     auto lower_bound = gen.ymm6;
 
-    gen.vpmovzxwd(f32vec, gen.yword[src]);    // load bf16 into tmp
-    gen.vpslld(f32vec, f32vec, 16);           // convert bf16->f32 by bit shift
-    gen.vminps(f32vec, f32vec, upper_bound);              // clamp f16 max
-    gen.vmaxps(f32vec, f32vec, lower_bound);              // clamp f16 lowest
-    gen.vcvtps2ph(f16vec, f32vec, kVcvtps2phRneNoExc);    // convert f32 -> f16
-    gen.vmovdqu(gen.xword[dst], f16vec);      // move result to destination
+    gen.vpmovzxwd(f32vec, gen.yword[src]);              // load bf16 into tmp
+    gen.vpslld(f32vec, f32vec, 16);                     // convert bf16->f32 by bit shift
+    gen.vminps(f32vec, f32vec, upper_bound);            // clamp f16 max
+    gen.vmaxps(f32vec, f32vec, lower_bound);            // clamp f16 lowest
+    gen.vcvtps2ph(f16vec, f32vec, kVcvtps2phRneNoExc);  // convert f32 -> f16
+    gen.vmovdqu(gen.xword[dst], f16vec);                // move result to destination
 }
 
 template <>
@@ -759,7 +759,7 @@ private:
             // === Lossy check for in-range elements ===
             // Roundtrip: f32 -> f16 -> f32 (f16 part written to low xmm of rt_vec_xmm)
             vcvtps2ph(rt_vec_xmm, data_vec, kVcvtps2phRneNoExc);  // f32 -> f16 (8 values)
-            vcvtph2ps(diff_vec, rt_vec_xmm);        // f16 -> f32 (roundtripped)
+            vcvtph2ps(diff_vec, rt_vec_xmm);                      // f16 -> f32 (roundtripped)
 
             // abs_diff = |data - roundtripped|
             vsubps(diff_vec, data_vec, diff_vec);
