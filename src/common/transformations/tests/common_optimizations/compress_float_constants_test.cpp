@@ -669,6 +669,15 @@ TEST_F(TransformationTestsF, CompressConstants_skip_non_scalar_with_high_error_m
         manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
         manager.register_pass<ov::pass::CompressFloatConstants>();
     }
+
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 4});
+        // Stays FP32: relative round-trip error exceeds threshold for all 4 elements (>75%).
+        auto scale =
+            v0::Constant::create(ov::element::f32, ov::Shape{4}, {2.7725887f, 2.7725887f, 2.7725887f, 2.7725887f});
+        auto mul = std::make_shared<ov::opset8::Multiply>(input, scale);
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
+    }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 

@@ -36,7 +36,7 @@ void jit_convert_vec<uint8_t, float16>(jit::Generator& gen, const Xbyak::RegExp&
     gen.movq(u8vec, gen.qword[src]);
     gen.vpmovzxbd(i32vec, u8vec);
     gen.vcvtdq2ps(fvec, i32vec);
-    gen.vcvtps2ph(f16vec, fvec, 0x04);  // force RNE, independent of MXCSR
+    gen.vcvtps2ph(f16vec, fvec, 0x08);  // RNE + suppress all exceptions (independent of MXCSR)
     gen.vzeroupper();
     gen.vmovdqu(gen.xword[dst], f16vec);
 }
@@ -57,7 +57,7 @@ void jit_convert_vec<float, float16>(jit::Generator& gen, const Xbyak::RegExp& s
     auto f32vec = gen.ymm4;
 
     gen.vmovups(f32vec, gen.yword[src]);
-    gen.vcvtps2ph(f16vec, f32vec, 0x04);  // force RNE, independent of MXCSR
+    gen.vcvtps2ph(f16vec, f32vec, 0x08);  // RNE + suppress all exceptions (independent of MXCSR)
     gen.vmovdqu(gen.xword[dst], f16vec);
 }
 
@@ -68,7 +68,7 @@ void jit_convert_vec<bfloat16, float16>(jit::Generator& gen, const Xbyak::RegExp
 
     gen.vpmovzxwd(f32vec, gen.yword[src]);  // load bf16 into tmp
     gen.vpslld(f32vec, f32vec, 16);         // convert bf16->f32 by bit shift
-    gen.vcvtps2ph(f16vec, f32vec, 0x04);    // convert f32 -> f16 (force RNE, independent of MXCSR)
+    gen.vcvtps2ph(f16vec, f32vec, 0x08);    // convert f32 -> f16 (RNE + suppress exc, independent of MXCSR)
     gen.vmovdqu(gen.xword[dst], f16vec);    // move result to destination
 }
 
@@ -84,7 +84,7 @@ void jit_convert_vec<bfloat16, float16, true>(jit::Generator& gen, const Xbyak::
     gen.vpslld(f32vec, f32vec, 16);           // convert bf16->f32 by bit shift
     gen.vminps(f32vec, f32vec, upper_bound);  // clamp f16 max
     gen.vmaxps(f32vec, f32vec, lower_bound);  // clamp f16 lowest
-    gen.vcvtps2ph(f16vec, f32vec, 0x04);      // convert f32 -> f16 (force RNE, independent of MXCSR)
+    gen.vcvtps2ph(f16vec, f32vec, 0x08);      // convert f32 -> f16 (RNE + suppress exc, independent of MXCSR)
     gen.vmovdqu(gen.xword[dst], f16vec);      // move result to destination
 }
 
@@ -129,7 +129,7 @@ void jit_convert_vec<float, float16, true>(jit::Generator& gen, const Xbyak::Reg
     gen.vmovups(f32vec, gen.yword[src]);
     gen.vminps(f32vec, f32vec, upper_bound);
     gen.vmaxps(f32vec, f32vec, lower_bound);
-    gen.vcvtps2ph(f16vec, f32vec, 0x04);  // force RNE, independent of MXCSR
+    gen.vcvtps2ph(f16vec, f32vec, 0x08);  // RNE + suppress all exceptions (independent of MXCSR)
     gen.vmovdqu(gen.xword[dst], f16vec);
 }
 
@@ -507,8 +507,8 @@ private:
             }
 
             // === Roundtrip f32 -> f16 -> f32 ===
-            // imm=0x04 (RNE, ignore MXCSR) — matches static_cast<float16> in C++ fallback
-            vcvtps2ph(rt_ymm, data_vec, 0x04);
+            // imm=0x08 (RNE + suppress all exceptions, ignore MXCSR) — matches static_cast<float16> in C++ fallback
+            vcvtps2ph(rt_ymm, data_vec, 0x08);
             vcvtph2ps(rt_vec, rt_ymm);
 
             // === abs_diff = |data - roundtripped| ===
@@ -535,8 +535,25 @@ private:
             }
 
             // === Accumulate popcount(k_oor) into reg_oor_accum ===
-            kmovw(reg_tmp.cvt32(), k_oor);
-            popcnt(reg_tmp, reg_tmp);
+            // Branchless 16-bit SWAR popcount — avoids POPCNT (not gated by mayiuse(avx512_core)).
+            kmovw(reg_tmp.cvt32(), k_oor);                // x = k_oor (16 bits in low word)
+            mov(reg_addr.cvt32(), reg_tmp.cvt32());       // tmp2 = x
+            shr(reg_addr.cvt32(), 1);
+            and_(reg_addr.cvt32(), 0x5555);
+            sub(reg_tmp.cvt32(), reg_addr.cvt32());       // x -= (x >> 1) & 0x5555
+            mov(reg_addr.cvt32(), reg_tmp.cvt32());
+            and_(reg_addr.cvt32(), 0x3333);
+            shr(reg_tmp.cvt32(), 2);
+            and_(reg_tmp.cvt32(), 0x3333);
+            add(reg_tmp.cvt32(), reg_addr.cvt32());       // x = (x & 0x3333) + ((x >> 2) & 0x3333)
+            mov(reg_addr.cvt32(), reg_tmp.cvt32());
+            shr(reg_addr.cvt32(), 4);
+            add(reg_tmp.cvt32(), reg_addr.cvt32());
+            and_(reg_tmp.cvt32(), 0x0F0F);                // x = (x + (x >> 4)) & 0x0F0F
+            mov(reg_addr.cvt32(), reg_tmp.cvt32());
+            shr(reg_addr.cvt32(), 8);
+            add(reg_tmp.cvt32(), reg_addr.cvt32());       // low byte = popcount (max 16)
+            and_(reg_tmp, 0xFF);                          // zero upper bits before 64-bit add
             add(reg_oor_accum, reg_tmp);
         };
 
@@ -560,9 +577,12 @@ private:
         and_(reg_count, 15);
         jz(normal_exit, T_NEAR);
 
-        // k_tail = (1 << reg_count) - 1, via bzhi (BMI2 — always present with avx512_core)
-        mov(reg_tmp, static_cast<int>(-1));
-        bzhi(reg_tmp, reg_tmp, reg_count);
+        // k_tail = (1 << reg_count) - 1, using baseline SHL (BMI2 bzhi not gated by mayiuse(avx512_core)).
+        // rcx is free at this point: args_t pointer was consumed in the preamble.
+        mov(rcx, reg_count);
+        mov(reg_tmp, 1);
+        shl(reg_tmp, cl);
+        dec(reg_tmp);
         kmovw(k_tail, reg_tmp.cvt32());
 
         // Masked zeroing-load: out-of-mask lanes read as +0.0 (benign — pass none of the predicates)
@@ -732,8 +752,8 @@ private:
 
             // === Lossy check for in-range elements ===
             // Roundtrip: f32 -> f16 -> f32
-            // imm=0x04 (RNE, ignore MXCSR) — matches static_cast<float16> in C++ fallback
-            vcvtps2ph(rt_vec_xmm, data_vec, 0x04);  // f32 -> f16 (8 values)
+            // imm=0x08 (RNE + suppress all exceptions, ignore MXCSR) — matches static_cast<float16> in C++ fallback
+            vcvtps2ph(rt_vec_xmm, data_vec, 0x08);  // f32 -> f16 (8 values)
             vcvtph2ps(diff_vec, rt_vec_xmm);        // f16 -> f32 (roundtripped)
 
             // abs_diff = |data - roundtripped|
