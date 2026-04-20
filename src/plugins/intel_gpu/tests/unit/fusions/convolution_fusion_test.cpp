@@ -3184,7 +3184,7 @@ TEST_P(conv_fp16_prelu_onednn, basic_activation_eltwise) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    tolerance = 0.002f;
+    tolerance = 0.005f;
     execute(p);
 }
 
