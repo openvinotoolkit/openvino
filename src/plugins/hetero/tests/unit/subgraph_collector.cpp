@@ -530,17 +530,17 @@ TEST_F(SubgraphCollectorTest, constant_subgraphs_follow_consumer_affinity) {
 
 struct SubgraphCollectorTestParam {
     std::string test_name;
-    std::shared_ptr<ov::Model> (*create_model)();                       // factory to build the model under test
-    std::map<std::string, std::string> affinity_map;                    // node_name → device; empty = broadcast default
-    std::string default_affinity;                                       // used when affinity_map is empty
-    size_t expected_subgraph_count;                                     // number of subgraphs from run()
+    std::shared_ptr<ov::Model> (*create_model)();     // factory to build the model under test
+    std::map<std::string, std::string> affinity_map;  // node_name → device; empty = broadcast default
+    std::string default_affinity;                     // used when affinity_map is empty
+    size_t expected_subgraph_count;                   // number of subgraphs from run()
     // --- optional checks (empty / false = skip) ---
-    std::vector<std::string> expected_affinities;                       // sorted affinity list per subgraph
-    std::map<std::string, SubgraphCollector::SubgraphId> expected_ids;  // node_name → expected subgraph ID
+    std::vector<std::string> expected_affinities;                               // sorted affinity list per subgraph
+    std::map<std::string, SubgraphCollector::SubgraphId> expected_ids;          // node_name → expected subgraph ID
     std::vector<std::shared_ptr<ov::Model> (*)()> expected_submodel_factories;  // reference submodel per subgraph
-    SubgraphsMappingInfo expected_mapping;                               // expected mapping info from run()
-    bool verify_merge_roundtrip;                                        // merge submodels back and check size == 1
-    bool verify_merge_compare;                                          // compare_functions(original, merged)
+    SubgraphsMappingInfo expected_mapping;                                      // expected mapping info from run()
+    bool verify_merge_roundtrip;  // merge submodels back and check size == 1
+    bool verify_merge_compare;    // compare_functions(original, merged)
 };
 
 class SubgraphCollectorParamTest : public testing::TestWithParam<SubgraphCollectorTestParam> {};
@@ -556,8 +556,7 @@ TEST_P(SubgraphCollectorParamTest, split_by_affinity) {
             affinities[node] = param.default_affinity;
         } else {
             const auto& name = node->get_friendly_name();
-            ASSERT_TRUE(param.affinity_map.count(name))
-                << "Missing affinity for node '" << name << "'";
+            ASSERT_TRUE(param.affinity_map.count(name)) << "Missing affinity for node '" << name << "'";
             affinities[node] = param.affinity_map.at(name);
         }
     }
@@ -613,8 +612,7 @@ TEST_P(SubgraphCollectorParamTest, split_by_affinity) {
     if (check_mapping) {
         ASSERT_EQ(param.expected_mapping._inputs_to_submodels_inputs, mapping._inputs_to_submodels_inputs);
         ASSERT_EQ(param.expected_mapping._outputs_to_submodels_outputs, mapping._outputs_to_submodels_outputs);
-        ASSERT_EQ(param.expected_mapping._submodels_input_to_prev_output,
-                  mapping._submodels_input_to_prev_output);
+        ASSERT_EQ(param.expected_mapping._submodels_input_to_prev_output, mapping._submodels_input_to_prev_output);
     }
 
     // Test merge roundtrip if requested
