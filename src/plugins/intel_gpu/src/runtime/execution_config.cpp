@@ -268,7 +268,8 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         return false;
     };
     if (!is_set_by_user(ov::hint::kv_cache_precision) || get_kv_cache_precision() == ov::element::dynamic) {
-        if (is_paged_attention_model && has_4bit_weights) {
+        if (is_paged_attention_model && has_4bit_weights &&
+            m_key_cache_quant_mode != ov::internal::CacheQuantMode::BY_TOKEN) {
             // Enable 4-bit KV-cache compression for PA models with 4-bit compressed weights
             m_kv_cache_precision = ov::element::u4;
             GPU_DEBUG_COUT << "[Info] 4-bit weights detected. Setting KV-cache precision to u4." << std::endl;
