@@ -585,7 +585,12 @@ def create_pytorch_module_convert_pytorch_frontend_oob(tmp_dir):
     class ConvModel(torch.nn.Module):
         def __init__(self):
             super(ConvModel, self).__init__()
-            self.weights = torch.rand([1, 3, 3, 3])
+            # Deterministic weights with zero FP16 round-trip error so the
+            # CompressFloatConstants decision doesn't depend on a random state.
+            # 0.5 is exactly representable in FP16 (abs/rel round-trip error = 0),
+            # so compression always happens and the reference model below matches.
+            torch.manual_seed(0)
+            self.weights = torch.full([1, 3, 3, 3], 0.5)
 
         def forward(self, x):
             return F.conv2d(x, self.weights)

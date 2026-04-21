@@ -82,9 +82,17 @@ void convert<bfloat16, float>(const bfloat16* arg, float* out, size_t count);
 template <>
 void convert<int32_t, float16>(const int32_t* arg, float16* out, size_t count);
 
-constexpr double f16_compression_max_abs_error = 1.0;
-constexpr double f16_compression_max_rel_error = 1e-4;
-constexpr float f16_compression_keep_threshold = 0.75f;
+/// Maximum tolerated |abs(src - round_trip_f16(src))| for an in-range element.
+/// If any element exceeds this threshold, the whole tensor is kept in FP32
+/// (acts as a tensor-wide veto in check_f16_compression()).
+inline constexpr double f16_compression_max_abs_error = 1.0;
+/// Maximum tolerated relative round-trip error |abs_diff / src| for an
+/// in-range element. Elements above this threshold are accumulated into the
+/// combined rejection count used together with f16_compression_keep_threshold.
+inline constexpr double f16_compression_max_rel_error = 1e-4;
+/// Proportion of combined rejections (out-of-FP16-range + high relative-error)
+/// at which the Constant is kept in FP32 (no FP16 compression).
+inline constexpr float f16_compression_keep_threshold = 0.75f;
 
 // Single-pass combined check for FP16 compression feasibility.
 // Bails immediately if any in-range value has significant precision loss
