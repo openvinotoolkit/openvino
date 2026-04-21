@@ -231,7 +231,7 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
 }
 
 #ifdef CPU_DEBUG_CAPS
-void serialize(const Graph& graph, bool isPostInference) {
+void serialize(const Graph& graph) {
     const std::string& pathStr = graph.getConfig().debugCaps.execGraphPath;
 
     if (pathStr.empty()) {
@@ -251,54 +251,27 @@ void serialize(const Graph& graph, bool isPostInference) {
     }
 
     // Exec graph serialization happens twice per graph instance:
-    //   1. At compile time (Graph::Activate, isPostInference=false): the graph structure
-    //      is written with "not_executed" perf counters.
-    //   2. At destruction (Graph::~Graph, isPostInference=true): the same file is
-    //      overwritten with real perf counters collected during inference.
+    //   1. At compile time (Graph::Activate): the graph structure is written with
+    //      "not_executed" perf counters. This ensures a file is always present even
+    //      if a crash occurs during inference.
+    //   2. At destruction (Graph::~Graph): the same file is overwritten with real
+    //      perf counters collected during inference.
     //
-    // 'numPerModel'  assigns a unique, monotonically increasing file index per model name,
-    //                so that graphs of different models (or separate compiled-model instances
-    //                of the same model) each get their own file.
-    // 'graphToIdx'   maps each Graph* to its assigned index, so the destructor can locate
-    //                and overwrite the exact file written during Activate(), regardless of
-    //                how many other graphs have been compiled or destroyed in between.
-    //
-    // Example with 2 streams (nstreams=2), 2 models (A and B),
-    // OV_CPU_EXEC_GRAPH_PATH=exec.xml:
-    //
-    //   Compile modelA stream0 -> numPerModel["A"]=0, graphToIdx[s0A]=0, writes exec_A_0.xml (no perf)
-    //   Compile modelA stream1 -> numPerModel["A"]=1, graphToIdx[s1A]=1, writes exec_A_1.xml (no perf)
-    //   Compile modelB stream0 -> numPerModel["B"]=0, graphToIdx[s0B]=0, writes exec_B_0.xml (no perf)
-    //   Compile modelB stream1 -> numPerModel["B"]=1, graphToIdx[s1B]=1, writes exec_B_1.xml (no perf)
-    //   --- all inference runs ---
-    //   Destruct modelA stream0 -> graphToIdx[s0A]=0, erases it, overwrites exec_A_0.xml (with perf)
-    //   Destruct modelA stream1 -> graphToIdx[s1A]=1, erases it, overwrites exec_A_1.xml (with perf)
-    //   Destruct modelB stream0 -> graphToIdx[s0B]=0, erases it, overwrites exec_B_0.xml (with perf)
-    //   Destruct modelB stream1 -> graphToIdx[s1B]=1, erases it, overwrites exec_B_1.xml (with perf)
-    static std::unordered_map<std::string, int> numPerModel;
-    static std::unordered_map<const Graph*, int> graphToIdx;
-
-    int assignedIdx = 0;
-    if (!isPostInference) {
-        assignedIdx = numPerModel[graph.GetName()]++;
-        graphToIdx[&graph] = assignedIdx;
-    } else {
-        auto it = graphToIdx.find(&graph);
-        if (it == graphToIdx.end()) {
-            return;
-        }
-        assignedIdx = it->second;
-        graphToIdx.erase(it);
-    }
-
-    const auto indexedFileName =
-        p.stem().string() + "_" + graph.GetName() + "_" + std::to_string(assignedIdx) + ext.string();
-    const auto indexedPath = p.parent_path() / indexedFileName;
+    // All streams of the same model share a single file. A monotonically increasing
+    // index is assigned once per unique model name so that the order of compilation
+    // is visible in the filename and multiple models don't overwrite each other.
+    // Example with OV_CPU_EXEC_GRAPH_PATH=exec.xml:
+    //   modelA (any stream) -> exec_0_A.xml
+    //   modelB (any stream) -> exec_1_B.xml
+    static std::unordered_map<std::string, size_t> numPerModel;
+    const auto idx = numPerModel.emplace(graph.GetName(), numPerModel.size()).first->second;
+    const auto fileName = p.stem().string() + "_" + std::to_string(idx) + "_" + graph.GetName() + ext.string();
+    const auto filePath = p.parent_path() / fileName;
 
     if (ext == ".xml") {
-        serializeToXML(graph, indexedPath);
+        serializeToXML(graph, filePath);
     } else {
-        serializeToDot(graph, indexedPath);
+        serializeToDot(graph, filePath);
     }
 }
 
