@@ -409,8 +409,8 @@ class jit_check_f16_compression_avx512 : public jit::Generator {
 public:
     typedef struct {
         const void* src;
-        void* rejected_dst;    // size_t* — output: combined out-of-range + high-relative-error count
-        void* lossy_dst;  // size_t* — output: lossy count (0 or non-zero)
+        void* rejected_dst;  // size_t* — output: combined out-of-range + high-relative-error count
+        void* lossy_dst;     // size_t* — output: lossy count (0 or non-zero)
         const size_t count;
     } args_t;
 
@@ -436,10 +436,11 @@ private:
 
         // GP register allocation
         const auto& reg_src = rax;
-        const auto& reg_rejected_dst = rbx;    // callee-saved
-        const auto& reg_lossy_dst = r12;  // callee-saved
+        const auto& reg_rejected_dst = rbx;  // callee-saved
+        const auto& reg_lossy_dst = r12;     // callee-saved
         const auto& reg_count = rdx;
-        const auto& reg_rejected_accum = r14;  // callee-saved — 64-bit combined rejection accumulator (OOR + high-rel-err)
+        const auto& reg_rejected_accum =
+            r14;  // callee-saved — 64-bit combined rejection accumulator (OOR + high-rel-err)
         const auto& reg_main_iters = r8;
         const auto& reg_idx = rsi;
         const auto& reg_tmp = r9;
@@ -627,8 +628,8 @@ class jit_check_f16_compression : public jit::Generator {
 public:
     typedef struct {
         const void* src;
-        void* rejected_dst;    // size_t* — output: combined out-of-range + high-relative-error count
-        void* lossy_dst;  // size_t* — output: lossy count (0 or non-zero)
+        void* rejected_dst;  // size_t* — output: combined out-of-range + high-relative-error count
+        void* lossy_dst;     // size_t* — output: lossy count (0 or non-zero)
         const size_t count;
     } args_t;
 

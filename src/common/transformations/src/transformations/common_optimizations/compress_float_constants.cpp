@@ -216,8 +216,7 @@ CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
             // range PLUS in-range values whose FP16 round-trip relative error exceeds
             // f16_compression_max_rel_error) reaches f16_compression_keep_threshold
             // (inclusive, 75% by default), keep the Constant in FP32.
-            const float rejected_proportion =
-                static_cast<float>(check.rejected_count) / static_cast<float>(size);
+            const float rejected_proportion = static_cast<float>(check.rejected_count) / static_cast<float>(size);
             if (rejected_proportion >= ov::reference::f16_compression_keep_threshold)
                 return false;
 
