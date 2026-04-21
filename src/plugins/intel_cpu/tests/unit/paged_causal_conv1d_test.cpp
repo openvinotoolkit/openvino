@@ -12,6 +12,9 @@
 #include <vector>
 
 #include "nodes/kernels/paged_causal_conv1d.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "openvino/runtime/system_conf.hpp"
 
 namespace {
 
@@ -147,6 +150,58 @@ void compare_vectors_near(const std::vector<float>& actual,
     for (size_t i = 0; i < actual.size(); i++) {
         ASSERT_NEAR(actual[i], expected[i], tol) << what << " mismatch at index " << i;
     }
+}
+
+template <typename StateType>
+std::vector<StateType> float_to_typed(const std::vector<float>& src) {
+    std::vector<StateType> dst(src.size());
+    for (size_t i = 0; i < src.size(); i++) {
+        dst[i] = static_cast<StateType>(src[i]);
+    }
+    return dst;
+}
+
+template <typename StateType>
+std::vector<float> typed_to_float(const std::vector<StateType>& src) {
+    std::vector<float> dst(src.size());
+    for (size_t i = 0; i < src.size(); i++) {
+        dst[i] = static_cast<float>(src[i]);
+    }
+    return dst;
+}
+
+template <typename StateType>
+void run_paged_causal_conv1d_cpu_typed(const PagedCausalConv1DParams& p,
+                                       const std::vector<float>& input_embeds,
+                                       std::vector<StateType>& conv_state_table,
+                                       const std::vector<float>& conv_weight,
+                                       const std::vector<float>& conv_bias,
+                                       const std::vector<int32_t>& subsequence_begins,
+                                       const std::vector<int32_t>& block_indices,
+                                       const std::vector<int32_t>& block_indices_begins,
+                                       const std::vector<int32_t>& past_lens,
+                                       const std::vector<int32_t>& cache_interval,
+                                       std::vector<float>& output_embeds) {
+    std::vector<float> local_state(p.hidden_size * p.kernel_size);
+    const bool has_bias = !conv_bias.empty();
+    const float* conv_bias_ptr = has_bias ? conv_bias.data() : nullptr;
+    ov::intel_cpu::node::kernels::paged_causal_conv1d_optimized(input_embeds.data(),
+                                                                 conv_state_table.data(),
+                                                                 conv_weight.data(),
+                                                                 conv_bias_ptr,
+                                                                 has_bias,
+                                                                 subsequence_begins.data(),
+                                                                 block_indices.data(),
+                                                                 block_indices_begins.data(),
+                                                                 past_lens.data(),
+                                                                 cache_interval.data(),
+                                                                 output_embeds.data(),
+                                                                 p.batch_size_in_tokens,
+                                                                 p.hidden_size,
+                                                                 p.kernel_size,
+                                                                 conv_state_table.size() / (p.hidden_size * p.kernel_size),
+                                                                 p.seq_count,
+                                                                 local_state.data());
 }
 
 }  // namespace
@@ -498,4 +553,154 @@ TEST(PagedCausalConv1DUnitTest, KernelSize4FastPathMatchesReferenceWithNonZeroBi
     EXPECT_FLOAT_EQ(ref_output[0], 43.5f);
     EXPECT_FLOAT_EQ(ref_output[1], 32.5f);
     EXPECT_FLOAT_EQ(ref_output[2], 28.5f);
+}
+
+TEST(PagedCausalConv1DUnitTest, BF16StateMatchesF32ReferenceWithinTolerance) {
+    if (!ov::with_cpu_x86_bfloat16())
+        GTEST_SKIP() << "Platform does not support bf16";
+
+    const PagedCausalConv1DParams p{3, 1, 4, 1};
+
+    const std::vector<float> input_embeds = {1.0f, 2.0f, 3.0f};
+    const std::vector<float> conv_state_f32 = {4.0f, 5.0f, 6.0f, 7.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    const std::vector<float> conv_weight = {1.0f, 2.0f, 3.0f, 4.0f};
+    const std::vector<float> conv_bias = {1.5f};
+    const std::vector<int32_t> subsequence_begins = {0, 3};
+    const std::vector<int32_t> block_indices = {0, 1};
+    const std::vector<int32_t> block_indices_begins = {0, 2};
+    const std::vector<int32_t> past_lens = {0};
+    const std::vector<int32_t> cache_interval = {1};
+
+    // f32 reference
+    std::vector<float> ref_state = conv_state_f32;
+    std::vector<float> ref_output(3, 0.0f);
+    run_paged_causal_conv1d_reference(p, input_embeds, ref_state, conv_weight, conv_bias,
+                                      subsequence_begins, block_indices, block_indices_begins,
+                                      past_lens, cache_interval, ref_output);
+
+    // bf16 state
+    auto state_bf16 = float_to_typed<ov::bfloat16>(conv_state_f32);
+    std::vector<float> output_bf16(3, 0.0f);
+    run_paged_causal_conv1d_cpu_typed(p, input_embeds, state_bf16, conv_weight, conv_bias,
+                                      subsequence_begins, block_indices, block_indices_begins,
+                                      past_lens, cache_interval, output_bf16);
+
+    // bf16 has 7-bit mantissa, tolerance ~1e-2 for small values
+    constexpr float tol = 0.1f;
+    compare_vectors_near(output_bf16, ref_output, tol, "bf16 output");
+
+    auto state_bf16_f32 = typed_to_float(state_bf16);
+    compare_vectors_near(state_bf16_f32, ref_state, tol, "bf16 state");
+}
+
+TEST(PagedCausalConv1DUnitTest, F16StateMatchesF32ReferenceWithinTolerance) {
+    if (!ov::with_cpu_x86_avx512_core_fp16())
+        GTEST_SKIP() << "Platform does not support fp16";
+
+    const PagedCausalConv1DParams p{3, 1, 4, 1};
+
+    const std::vector<float> input_embeds = {1.0f, 2.0f, 3.0f};
+    const std::vector<float> conv_state_f32 = {4.0f, 5.0f, 6.0f, 7.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    const std::vector<float> conv_weight = {1.0f, 2.0f, 3.0f, 4.0f};
+    const std::vector<float> conv_bias = {1.5f};
+    const std::vector<int32_t> subsequence_begins = {0, 3};
+    const std::vector<int32_t> block_indices = {0, 1};
+    const std::vector<int32_t> block_indices_begins = {0, 2};
+    const std::vector<int32_t> past_lens = {0};
+    const std::vector<int32_t> cache_interval = {1};
+
+    // f32 reference
+    std::vector<float> ref_state = conv_state_f32;
+    std::vector<float> ref_output(3, 0.0f);
+    run_paged_causal_conv1d_reference(p, input_embeds, ref_state, conv_weight, conv_bias,
+                                      subsequence_begins, block_indices, block_indices_begins,
+                                      past_lens, cache_interval, ref_output);
+
+    // f16 state
+    auto state_f16 = float_to_typed<ov::float16>(conv_state_f32);
+    std::vector<float> output_f16(3, 0.0f);
+    run_paged_causal_conv1d_cpu_typed(p, input_embeds, state_f16, conv_weight, conv_bias,
+                                      subsequence_begins, block_indices, block_indices_begins,
+                                      past_lens, cache_interval, output_f16);
+
+    // f16 has 10-bit mantissa, tighter tolerance than bf16
+    constexpr float tol = 1e-3f;
+    compare_vectors_near(output_f16, ref_output, tol, "f16 output");
+
+    auto state_f16_f32 = typed_to_float(state_f16);
+    compare_vectors_near(state_f16_f32, ref_state, tol, "f16 state");
+}
+
+TEST(PagedCausalConv1DUnitTest, BF16StateKernelSize3MultiSeqMatchesReference) {
+    if (!ov::with_cpu_x86_bfloat16())
+        GTEST_SKIP() << "Platform does not support bf16";
+
+    const PagedCausalConv1DParams p{3, 1, 2, 2};
+
+    const std::vector<float> input_embeds = {2.0f, 3.0f, 7.0f};
+    const std::vector<float> conv_state_f32 = {0.0f, 1.0f, 9.0f, 9.0f, 5.0f, 6.0f, 8.0f, 8.0f};
+    const std::vector<float> conv_weight = {1.0f, 1.0f};
+    const std::vector<float> conv_bias = {0.0f};
+    const std::vector<int32_t> subsequence_begins = {0, 2, 3};
+    const std::vector<int32_t> block_indices = {0, 1, 2, 3};
+    const std::vector<int32_t> block_indices_begins = {0, 2, 4};
+    const std::vector<int32_t> past_lens = {0, 0};
+    const std::vector<int32_t> cache_interval = {1, 1};
+
+    // f32 reference
+    std::vector<float> ref_state = conv_state_f32;
+    std::vector<float> ref_output(3, 0.0f);
+    run_paged_causal_conv1d_reference(p, input_embeds, ref_state, conv_weight, conv_bias,
+                                      subsequence_begins, block_indices, block_indices_begins,
+                                      past_lens, cache_interval, ref_output);
+
+    // bf16 state
+    auto state_bf16 = float_to_typed<ov::bfloat16>(conv_state_f32);
+    std::vector<float> output_bf16(3, 0.0f);
+    run_paged_causal_conv1d_cpu_typed(p, input_embeds, state_bf16, conv_weight, conv_bias,
+                                      subsequence_begins, block_indices, block_indices_begins,
+                                      past_lens, cache_interval, output_bf16);
+
+    constexpr float tol = 0.1f;
+    compare_vectors_near(output_bf16, ref_output, tol, "bf16 multi-seq output");
+
+    auto state_bf16_f32 = typed_to_float(state_bf16);
+    compare_vectors_near(state_bf16_f32, ref_state, tol, "bf16 multi-seq state");
+}
+
+TEST(PagedCausalConv1DUnitTest, F16StateKernelSize3MultiSeqMatchesReference) {
+    if (!ov::with_cpu_x86_avx512_core_fp16())
+        GTEST_SKIP() << "Platform does not support fp16";
+
+    const PagedCausalConv1DParams p{3, 1, 2, 2};
+
+    const std::vector<float> input_embeds = {2.0f, 3.0f, 7.0f};
+    const std::vector<float> conv_state_f32 = {0.0f, 1.0f, 9.0f, 9.0f, 5.0f, 6.0f, 8.0f, 8.0f};
+    const std::vector<float> conv_weight = {1.0f, 1.0f};
+    const std::vector<float> conv_bias = {0.0f};
+    const std::vector<int32_t> subsequence_begins = {0, 2, 3};
+    const std::vector<int32_t> block_indices = {0, 1, 2, 3};
+    const std::vector<int32_t> block_indices_begins = {0, 2, 4};
+    const std::vector<int32_t> past_lens = {0, 0};
+    const std::vector<int32_t> cache_interval = {1, 1};
+
+    // f32 reference
+    std::vector<float> ref_state = conv_state_f32;
+    std::vector<float> ref_output(3, 0.0f);
+    run_paged_causal_conv1d_reference(p, input_embeds, ref_state, conv_weight, conv_bias,
+                                      subsequence_begins, block_indices, block_indices_begins,
+                                      past_lens, cache_interval, ref_output);
+
+    // f16 state
+    auto state_f16 = float_to_typed<ov::float16>(conv_state_f32);
+    std::vector<float> output_f16(3, 0.0f);
+    run_paged_causal_conv1d_cpu_typed(p, input_embeds, state_f16, conv_weight, conv_bias,
+                                      subsequence_begins, block_indices, block_indices_begins,
+                                      past_lens, cache_interval, output_f16);
+
+    constexpr float tol = 1e-3f;
+    compare_vectors_near(output_f16, ref_output, tol, "f16 multi-seq output");
+
+    auto state_f16_f32 = typed_to_float(state_f16);
+    compare_vectors_near(state_f16_f32, ref_state, tol, "f16 multi-seq state");
 }
