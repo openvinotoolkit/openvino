@@ -184,23 +184,22 @@ ov::Shape make_shape_checked(const DimsT& dims) {
 }
 
 std::filesystem::path get_const_path(const std::filesystem::path& folder_with_weights, const std::string& name) {
-    return folder_with_weights / name;
+    return folder_with_weights / ov::util::make_path(name);
 }
 
 bool is_pdmodel(const std::filesystem::path& path) {
     return path.extension() == ".pdmodel";
 }
 
-std::filesystem::path get_model_path(const std::filesystem::path& path, std::ifstream* weights_stream) {
-    std::filesystem::path model_file = path;
-    if (is_pdmodel(path)) {
-        auto weights_file = path;
+std::filesystem::path get_model_path(std::filesystem::path model_file, std::ifstream* weights_stream) {
+    if (is_pdmodel(model_file)) {
+        auto weights_file = model_file;
         weights_file.replace_extension(".pdiparams");
         weights_stream->open(weights_file, std::ios::binary);
         // Don't throw error if file isn't opened
         // It may mean that model don't have constants
     } else {
-        model_file = path / "__model__";
+        model_file = model_file / "__model__";
     }
     return model_file;
 }
