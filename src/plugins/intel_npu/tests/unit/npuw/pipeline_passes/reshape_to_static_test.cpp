@@ -5,10 +5,12 @@
 #include <gtest/gtest.h>
 
 #include "llm_pass_test_fixture.hpp"
+#include "util.hpp"
 
 namespace {
 
 using ov::test::npuw::RecordingFactory;
+using ov::npuw::util::constants::past_key_values;
 
 class ReshapeToStaticPassTest : public ov::test::npuw::LLMPassTestFixture {};
 
@@ -66,8 +68,8 @@ TEST_F(ReshapeToStaticPassTest, AllGenerateInputsAreStatic) {
     EXPECT_EQ(*mask_shape, (ov::Shape{1, 192}));
 
     // past_key_values: [batch=1, num_kv_heads=4, past_seq=kvcache-input_size=191, head_dim=16]
-    const auto kv_shape = input_shape(generate.model, "past_key_values");
-    ASSERT_TRUE(kv_shape.has_value()) << "past_key_values not found in generate model";
+    const auto kv_shape = input_shape(generate.model, past_key_values);
+    ASSERT_TRUE(kv_shape.has_value()) << past_key_values << " not found in generate model";
     ASSERT_EQ(kv_shape->size(), 4u);
     EXPECT_EQ((*kv_shape)[0], 1u);   // batch
     EXPECT_EQ((*kv_shape)[1], 4u);   // num_kv_heads
@@ -95,8 +97,8 @@ TEST_F(ReshapeToStaticPassTest, GenerateModelKVCacheShapeReflectsKVCacheSize) {
     EXPECT_TRUE(all_inputs_static(generate.model))
         << "At least one generate input still has a dynamic dimension after ReshapeToStatic";
 
-    const auto kv_shape = input_shape(generate.model, "past_key_values");
-    ASSERT_TRUE(kv_shape.has_value()) << "past_key_values not found in generate model";
+    const auto kv_shape = input_shape(generate.model, past_key_values);
+    ASSERT_TRUE(kv_shape.has_value()) << past_key_values << " not found in generate model";
     ASSERT_EQ(kv_shape->size(), 4u);
     // seq dim = kvcache_size(384) - input_size(1) = 383
     EXPECT_EQ((*kv_shape)[2], 383u);
@@ -135,8 +137,8 @@ TEST_F(ReshapeToStaticPassTest, MaxGenerationTokenLenDrivesGenerateInputShape) {
     EXPECT_EQ(*mask_shape, (ov::Shape{1, 192}));
 
     // past_key_values seq dim = 192 - 8 = 184
-    const auto kv_shape = input_shape(generate.model, "past_key_values");
-    ASSERT_TRUE(kv_shape.has_value()) << "past_key_values not found in generate model";
+    const auto kv_shape = input_shape(generate.model, past_key_values);
+    ASSERT_TRUE(kv_shape.has_value()) << past_key_values << " not found in generate model";
     ASSERT_EQ(kv_shape->size(), 4u);
     EXPECT_EQ((*kv_shape)[0], 1u);   // batch
     EXPECT_EQ((*kv_shape)[1], 4u);   // num_kv_heads

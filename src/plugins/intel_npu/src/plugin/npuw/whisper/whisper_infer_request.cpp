@@ -4,8 +4,6 @@
 
 #include "whisper_infer_request.hpp"
 
-#include <regex>
-
 #include "../../../utils/include/intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "../infer_request_utils.hpp"
 #include "../logging.hpp"
@@ -83,7 +81,7 @@ void ov::npuw::WhisperInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_
                 continue;
             }
 
-            const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
+            const auto input_name = ov::npuw::util::present_to_past_key_values_name(output_name);
             if (m_kvcache_in_ports.find(input_name) == m_kvcache_in_ports.end()) {
                 LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
                 continue;
@@ -121,7 +119,7 @@ void ov::npuw::WhisperInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_
                 continue;
             }
 
-            const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
+            const auto input_name = ov::npuw::util::present_to_past_key_values_name(output_name);
             m_kvcache_request->set_tensor(m_kvcache_in_ports.at(input_name), prefill_out_tensor);
         }
 
@@ -169,7 +167,7 @@ void ov::npuw::WhisperInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_
     // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
     for (std::size_t i = 0; i < kvcache_compiled->outputs().size() - 1; ++i) {
         const auto& output_name = kvcache_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
-        const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
+        const auto input_name = ov::npuw::util::present_to_past_key_values_name(output_name);
         if (m_kvcache_in_ports.find(input_name) == m_kvcache_in_ports.end()) {
             LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
             continue;

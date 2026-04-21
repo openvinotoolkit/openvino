@@ -28,6 +28,7 @@ public:
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
 
 protected:
+
     virtual void prepare_for_new_conversation();
     void prepare_for_new_conversation(int64_t prompt_length);
     void apply_lora();
@@ -43,6 +44,18 @@ protected:
     std::shared_ptr<ov::IAsyncInferRequest> select_generate_request(int64_t prompt_length);
 
     void trim_kvcache_for_speculative_decoding(ov::SoPtr<ov::ITensor> position_ids);
+
+    LLMCompiledModel::KVCacheDesc& kvcache_desc() {
+        return m_npuw_llm_compiled_model->m_kvcache_desc;
+    }
+
+    const LLMCompiledModel::KVCacheDesc& kvcache_desc() const {
+        return m_npuw_llm_compiled_model->m_kvcache_desc;
+    }
+
+    bool use_chunk_prefill() const {
+        return m_npuw_llm_compiled_model->m_use_chunk_prefill;
+    }
 
     void infer_chunked_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                ov::SoPtr<ov::ITensor> attention_mask,

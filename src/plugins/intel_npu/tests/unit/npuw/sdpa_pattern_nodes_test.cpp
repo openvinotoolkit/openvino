@@ -24,6 +24,22 @@ namespace {
 
 using ExpectedNodes = ov::npuw::util::SDPAPatternNodes;
 
+std::string make_past_key_name(const size_t idx) {
+    return ov::npuw::util::make_past_key_name(idx);
+}
+
+std::string make_past_value_name(const size_t idx) {
+    return ov::npuw::util::make_past_value_name(idx);
+}
+
+std::string make_present_key_name(const size_t idx) {
+    return ov::npuw::util::make_present_key_name(idx);
+}
+
+std::string make_present_value_name(const size_t idx) {
+    return ov::npuw::util::make_present_value_name(idx);
+}
+
 struct ModelBuildResult {
     std::shared_ptr<ov::Model> model;
     std::vector<ExpectedNodes> expected;
@@ -54,13 +70,13 @@ ModelBuildResult build_sdpa_model(size_t num_sdpa, bool miss_key_concat = false,
             return p;
         };
 
-        auto past_value = make_param("past_key_values." + idx + ".value", past_shape);
+        auto past_value = make_param(make_past_value_name(n), past_shape);
         std::shared_ptr<op::v0::Parameter> past_key;
         std::shared_ptr<op::v0::Parameter> fallback_key;
         if (miss_past_key_param) {
             fallback_key = make_param("fallback_key." + idx, past_shape);
         } else {
-            past_key = make_param("past_key_values." + idx + ".key", past_shape);
+            past_key = make_param(make_past_key_name(n), past_shape);
         }
 
         // Use output from previous SDPA as query for current SDPA (chain layers)
@@ -108,8 +124,8 @@ ModelBuildResult build_sdpa_model(size_t num_sdpa, bool miss_key_concat = false,
             results.push_back(r);
         };
 
-        make_result(key_path->output(0), "present." + idx + ".key");
-        make_result(value_concat->output(0), "present." + idx + ".value");
+        make_result(key_path->output(0), make_present_key_name(n));
+        make_result(value_concat->output(0), make_present_value_name(n));
         make_result(matmul2->output(0), "attn_out." + idx);
 
         prev_attn_out = matmul2;  // Store output for next iteration
@@ -284,8 +300,8 @@ ModelBuildResult build_noisy_sdpa_model(size_t num_sdpa, size_t broken_idx, size
         std::shared_ptr<op::v0::Parameter> past_value;
 
         if (!is_broken) {
-            past_key = make_param("past_key_values." + idx + ".key", past_shape);
-            past_value = make_param("past_key_values." + idx + ".value", past_shape);
+            past_key = make_param(make_past_key_name(n), past_shape);
+            past_value = make_param(make_past_value_name(n), past_shape);
         }
 
         std::shared_ptr<ov::Node> query;
@@ -333,8 +349,8 @@ ModelBuildResult build_noisy_sdpa_model(size_t num_sdpa, size_t broken_idx, size
             results.push_back(r);
         };
 
-        make_result(key_path->output(0), "present." + idx + ".key");
-        make_result(value_path->output(0), "present." + idx + ".value");
+        make_result(key_path->output(0), make_present_key_name(n));
+        make_result(value_path->output(0), make_present_value_name(n));
         make_result(matmul2->output(0), "attn_out." + idx);
 
         prev_attn_out = matmul2;
@@ -382,8 +398,8 @@ ModelBuildResult build_sdpa_model_with_wrapped_concats(size_t num_sdpa) {
             return p;
         };
 
-        auto past_key = make_param("past_key_values." + idx + ".key", past_shape);
-        auto past_value = make_param("past_key_values." + idx + ".value", past_shape);
+        auto past_key = make_param(make_past_key_name(n), past_shape);
+        auto past_value = make_param(make_past_value_name(n), past_shape);
         auto query = make_param("query_wrapped." + idx, new_token_shape);
         auto new_key = make_param("new_key_wrapped." + idx, new_token_shape);
         auto new_value = make_param("new_value_wrapped." + idx, new_token_shape);
@@ -421,8 +437,8 @@ ModelBuildResult build_sdpa_model_with_wrapped_concats(size_t num_sdpa) {
             results.push_back(r);
         };
 
-        make_result(key_reshape->output(0), "present." + idx + ".key");
-        make_result(value_reshape->output(0), "present." + idx + ".value");
+        make_result(key_reshape->output(0), make_present_key_name(n));
+        make_result(value_reshape->output(0), make_present_value_name(n));
         make_result(matmul2->output(0), "attn_out_wrapped." + idx);
 
         expected.push_back(ExpectedNodes{qk,

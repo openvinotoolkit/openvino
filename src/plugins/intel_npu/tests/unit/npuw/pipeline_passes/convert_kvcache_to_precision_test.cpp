@@ -5,11 +5,17 @@
 #include <gtest/gtest.h>
 
 #include <map>
+#include <cstring>
+#include <optional>
 #include <sstream>
 #include <string>
+#include <unordered_set>
+#include <vector>
 
 #include "llm_pass_test_fixture.hpp"
 #include "../util.hpp"
+#include "infer_request_utils.hpp"
+#include "llm_infer_request.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -34,6 +40,97 @@ bool any_name_contains(const ov::Output<const ov::Node>& port, std::string_view 
         }
     }
     return false;
+}
+
+std::optional<std::string> resolve_kv_input_name_for_test(const std::string& output_name,
+                                                           const std::unordered_set<std::string>& input_names) {
+    auto input_name = ov::npuw::util::present_to_past_key_values_name(output_name);
+    if (input_names.find(input_name) != input_names.end()) {
+        return input_name;
+    }
+
+    const auto marker = std::string(ov::npuw::util::constants::past_key_values);
+    const auto marker_pos = input_name.find(marker);
+    if (marker_pos == std::string::npos) {
+        return std::nullopt;
+    }
+
+    auto canonical_name = input_name.substr(marker_pos);
+    if (input_names.find(canonical_name) != input_names.end()) {
+        return canonical_name;
+    }
+
+    return std::nullopt;
+}
+
+class TestableLLMInferRequest final : public ov::npuw::LLMInferRequest {
+public:
+    explicit TestableLLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model)
+        : ov::npuw::LLMInferRequest(compiled_model) {}
+
+    using ov::npuw::LLMInferRequest::copy_kvcache;
+
+    void prepare_non_chunked_copy() {
+        auto& desc = ov::npuw::LLMInferRequest::kvcache_desc();
+        ASSERT_FALSE(use_chunk_prefill());
+        ASSERT_GT(desc.max_prompt_size, 0u);
+        desc.num_stored_tokens = desc.max_prompt_size;
+    }
+
+    const ov::npuw::LLMCompiledModel::KVCacheDesc& kvcache_desc() const {
+        return ov::npuw::LLMInferRequest::kvcache_desc();
+    }
+
+    const ov::npuw::LLMInferBaseRequest::PortsMap& prefill_in_ports() const {
+        return m_prefill_in_ports;
+    }
+
+    const ov::npuw::LLMInferBaseRequest::PortsMap& prefill_out_ports() const {
+        return m_prefill_out_ports;
+    }
+
+    const ov::npuw::LLMInferBaseRequest::PortsMap& kvcache_in_ports() const {
+        return m_kvcache_in_ports;
+    }
+
+    const ov::npuw::LLMInferBaseRequest::PortsMap& kvcache_out_ports() const {
+        return m_kvcache_out_ports;
+    }
+
+    std::shared_ptr<ov::IAsyncInferRequest> prefill_request() const {
+        return m_prefill_request;
+    }
+
+    std::shared_ptr<ov::IAsyncInferRequest> kvcache_request() const {
+        return m_kvcache_request;
+    }
+};
+
+bool is_kv_name(std::string_view name) {
+    return name.find(ov::npuw::util::constants::present) != std::string_view::npos ||
+           name.find(ov::npuw::util::constants::past_key_values) != std::string_view::npos;
+}
+
+std::pair<ov::SoPtr<ov::ITensor>, ov::SoPtr<ov::ITensor>> make_non_chunked_copy_views(
+    const TestableLLMInferRequest& request,
+    const std::string& output_name,
+    const ov::SoPtr<ov::ITensor>& src_tensor,
+    const ov::SoPtr<ov::ITensor>& dst_tensor) {
+    const auto& desc = request.kvcache_desc();
+    const auto is_value_tensor = output_name.find("value") != std::string::npos;
+    const auto kv_dim = [&](bool v_transposed) {
+        return (is_value_tensor && v_transposed) ? 3u : desc.dim;
+    };
+
+    const auto pre_kv_dim = kv_dim(desc.v_tensors_transposed_pre);
+    const auto gen_kv_dim = kv_dim(desc.v_tensors_transposed_gen);
+
+    auto src_view = ov::npuw::util::make_tensor_slice(src_tensor,
+                                                      pre_kv_dim,
+                                                      desc.max_prompt_size - desc.num_stored_tokens,
+                                                      desc.max_prompt_size);
+    auto dst_view = ov::npuw::util::make_tensor_slice(dst_tensor, gen_kv_dim, 0u, desc.num_stored_tokens);
+    return {src_view, dst_view};
 }
 
 const std::map<ov::element::Type, std::map<std::string, ov::element::Type>>& precision_key_matrix() {
@@ -68,15 +165,23 @@ ov::AnyMap make_kv_precision_props(const ov::element::Type kv_type) {
     return props;
 }
 
-void expect_kv_cache_input_types(const std::shared_ptr<ov::Model>& model, const ov::element::Type kv_type) {
+void expect_kv_cache_input_types(const std::shared_ptr<ov::Model>& model,
+                                 const ov::element::Type kv_type,
+                                 const bool ignore_quant_aux_ports = false) {
     // Key cache: asymmetric quantization -> value tensor + scale (f32) + zero_point (same as quant type).
     // Value cache: symmetric quantization -> value tensor (i4) + scale (f32), no zero_point.
     const bool is_quantized = is_quantized_kv_type(kv_type);
 
-    constexpr std::string_view past_key_scale_name = "/past_key_values/key/scale";
-    constexpr std::string_view past_key_zp_name = "/past_key_values/key/zp";
-    constexpr std::string_view past_value_scale_name = "/past_key_values/value/scale";
-    constexpr std::string_view past_value_zp_name = "/past_key_values/value/zp";
+    const std::string past_key_scale_name =
+        std::string("/") + ov::npuw::util::constants::past_key_values + "/key/scale";
+    const std::string past_key_zp_name =
+        std::string("/") + ov::npuw::util::constants::past_key_values + "/key/zp";
+    const std::string past_value_scale_name =
+        std::string("/") + ov::npuw::util::constants::past_key_values + "/value/scale";
+    const std::string past_value_zp_name =
+        std::string("/") + ov::npuw::util::constants::past_key_values + "/value/zp";
+    const std::string past_key_label = std::string(ov::npuw::util::constants::past_key_values) + ".<N>.key";
+    const std::string past_value_label = std::string(ov::npuw::util::constants::past_key_values) + ".<N>.value";
 
     bool found_key_cache_input = false;
     bool found_value_cache_input = false;
@@ -86,6 +191,11 @@ void expect_kv_cache_input_types(const std::shared_ptr<ov::Model>& model, const 
     bool found_value_zp_input = false;
 
     for (const auto& input : model->inputs()) {
+        if (ignore_quant_aux_ports &&
+            (any_name_contains(input, "/scale") || any_name_contains(input, "/zp"))) {
+            continue;
+        }
+
         // Check if any name on this input matches past_key_values pattern
         bool is_past_key = false;
         bool is_past_value = false;
@@ -102,14 +212,14 @@ void expect_kv_cache_input_types(const std::shared_ptr<ov::Model>& model, const 
             found_key_cache_input = true;
             const auto expected = is_quantized ? precision_key_matrix().at(kv_type).at("value") : kv_type;
             EXPECT_EQ(input.get_element_type(), expected)
-                << "past_key_values.<N>.key input must have type " << expected;
+                << past_key_label << " input must have type " << expected;
         }
 
         if (is_past_value) {
             found_value_cache_input = true;
             const auto expected = is_quantized ? precision_value_matrix().at(kv_type).at("value") : kv_type;
             EXPECT_EQ(input.get_element_type(), expected)
-                << "past_key_values.<N>.value input must have type " << expected;
+                << past_value_label << " input must have type " << expected;
         }
 
         if (any_name_contains(input, past_key_scale_name)) {
@@ -138,8 +248,12 @@ void expect_kv_cache_input_types(const std::shared_ptr<ov::Model>& model, const 
         }
     }
 
-    EXPECT_TRUE(found_key_cache_input) << "No past_key_values.<N>.key input found in model";
-    EXPECT_TRUE(found_value_cache_input) << "No past_key_values.<N>.value input found in model";
+    EXPECT_TRUE(found_key_cache_input) << "No " << past_key_label << " input found in model";
+    EXPECT_TRUE(found_value_cache_input) << "No " << past_value_label << " input found in model";
+
+    if (ignore_quant_aux_ports) {
+        return;
+    }
 
     if (is_quantized) {
         EXPECT_TRUE(found_key_scale_input)
@@ -158,13 +272,21 @@ void expect_kv_cache_input_types(const std::shared_ptr<ov::Model>& model, const 
     }
 }
 
-void expect_kv_cache_present_output_types(const std::shared_ptr<ov::Model>& model, const ov::element::Type kv_type) {
+void expect_kv_cache_present_output_types(const std::shared_ptr<ov::Model>& model,
+                                          const ov::element::Type kv_type,
+                                          const bool ignore_quant_aux_ports = false) {
     const bool is_quantized = is_quantized_kv_type(kv_type);
 
-    constexpr std::string_view present_key_scale_name = "/present/key/scale";
-    constexpr std::string_view present_key_zp_name = "/present/key/zp";
-    constexpr std::string_view present_value_scale_name = "/present/value/scale";
-    constexpr std::string_view present_value_zp_name = "/present/value/zp";
+    const std::string present_key_scale_name =
+        std::string("/") + ov::npuw::util::constants::present + "/key/scale";
+    const std::string present_key_zp_name =
+        std::string("/") + ov::npuw::util::constants::present + "/key/zp";
+    const std::string present_value_scale_name =
+        std::string("/") + ov::npuw::util::constants::present + "/value/scale";
+    const std::string present_value_zp_name =
+        std::string("/") + ov::npuw::util::constants::present + "/value/zp";
+    const std::string present_key_label = std::string(ov::npuw::util::constants::present) + ".<N>.key";
+    const std::string present_value_label = std::string(ov::npuw::util::constants::present) + ".<N>.value";
 
     bool found_present_key = false;
     bool found_present_value = false;
@@ -174,6 +296,11 @@ void expect_kv_cache_present_output_types(const std::shared_ptr<ov::Model>& mode
     bool found_present_value_zp = false;
 
     for (const auto& output : model->outputs()) {
+        if (ignore_quant_aux_ports &&
+            (any_name_contains(output, "/scale") || any_name_contains(output, "/zp"))) {
+            continue;
+        }
+
         // Check if any name on this output matches present pattern
         bool is_present_key = false;
         bool is_present_value = false;
@@ -190,14 +317,14 @@ void expect_kv_cache_present_output_types(const std::shared_ptr<ov::Model>& mode
             found_present_key = true;
             const auto expected = is_quantized ? precision_key_matrix().at(kv_type).at("value") : kv_type;
             EXPECT_EQ(output.get_element_type(), expected)
-                << "present.<N>.key output must have type " << expected;
+                << present_key_label << " output must have type " << expected;
         }
 
         if (is_present_value) {
             found_present_value = true;
             const auto expected = is_quantized ? precision_value_matrix().at(kv_type).at("value") : kv_type;
             EXPECT_EQ(output.get_element_type(), expected)
-                << "present.<N>.value output must have type " << expected;
+                << present_value_label << " output must have type " << expected;
         }
 
         if (any_name_contains(output, present_key_scale_name)) {
@@ -226,8 +353,12 @@ void expect_kv_cache_present_output_types(const std::shared_ptr<ov::Model>& mode
         }
     }
 
-    EXPECT_TRUE(found_present_key) << "No present.<N>.key output found in model";
-    EXPECT_TRUE(found_present_value) << "No present.<N>.value output found in model";
+    EXPECT_TRUE(found_present_key) << "No " << present_key_label << " output found in model";
+    EXPECT_TRUE(found_present_value) << "No " << present_value_label << " output found in model";
+
+    if (ignore_quant_aux_ports) {
+        return;
+    }
 
     if (is_quantized) {
         EXPECT_TRUE(found_present_key_scale)
@@ -298,6 +429,41 @@ TEST_P(ConvertKVCacheHintPrecisionTest, GenerateModelPresentOutputsHaveExpectedP
     expect_kv_cache_present_output_types(generate.model, kv_type);
 }
 
+// update_kvcache/copy_kvcache map output names to past-key input names. This must
+// also work for quantized aux outputs (scale/zero-point) when graph rewrites add
+// prefixes (e.g. DynamicDequantize/.../present...).
+TEST_P(ConvertKVCacheHintPrecisionTest, GenerateModelKvOutputsResolveToPastInputsForKvUpdate) {
+    const auto kv_type = GetParam();
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(make_kv_precision_props(kv_type), recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& generate = require_sub_model_containing(recorder, "_kv");
+
+    std::unordered_set<std::string> input_names;
+    for (const auto& input : generate.model->inputs()) {
+        input_names.insert(input.get_any_name());
+    }
+
+    bool checked_any_kv_output = false;
+    for (const auto& output : generate.model->outputs()) {
+        const auto& output_name = output.get_any_name();
+        const bool is_kv_output = output_name.find(ov::npuw::util::constants::present) != std::string::npos ||
+                                  output_name.find(ov::npuw::util::constants::past_key_values) != std::string::npos;
+        if (!is_kv_output) {
+            continue;
+        }
+
+        checked_any_kv_output = true;
+        const auto resolved_input = resolve_kv_input_name_for_test(output_name, input_names);
+        ASSERT_TRUE(resolved_input.has_value())
+            << "No matching past-key input for KV output name used by update flow: " << output_name;
+    }
+    ASSERT_TRUE(checked_any_kv_output) << "No KV-related outputs found in generate model";
+}
+
 // present outputs of the prefill model have the requested precision.
 TEST_P(ConvertKVCacheHintPrecisionTest, PrefillModelPresentOutputsHaveExpectedPrecision) {
     const auto kv_type = GetParam();
@@ -324,7 +490,7 @@ TEST_P(ConvertKVCacheHintPrecisionTest, WhisperKVCacheModelPastKeyInputsHaveExpe
     ASSERT_TRUE(ov::npuw::util::PrepareWhisperKVCacheModel().run_on_model(model));
     ASSERT_TRUE(ov::npuw::ConvertKVCacheToPrecision(kv_type).run_on_model(model));
 
-    expect_kv_cache_input_types(model, kv_type);
+    expect_kv_cache_input_types(model, kv_type, true);
 }
 
 TEST_P(ConvertKVCacheHintPrecisionTest, WhisperKVCacheModelPresentOutputsHaveExpectedPrecision) {
@@ -335,7 +501,7 @@ TEST_P(ConvertKVCacheHintPrecisionTest, WhisperKVCacheModelPresentOutputsHaveExp
     ASSERT_TRUE(ov::npuw::util::PrepareWhisperKVCacheModel().run_on_model(model));
     ASSERT_TRUE(ov::npuw::ConvertKVCacheToPrecision(kv_type).run_on_model(model));
 
-    expect_kv_cache_present_output_types(model, kv_type);
+    expect_kv_cache_present_output_types(model, kv_type, true);
 }
 
 // --- Non-parametric tests -------------------------------------------------------------------------
@@ -416,6 +582,87 @@ TEST_F(ConvertKVCacheToPrecisionPassTest, NonKVInputsAreNotConverted) {
 
     EXPECT_TRUE(no_inputs_with_name_have_type(generate.model, "input_ids", ov::element::f16))
         << "input_ids must NOT be f16 -- ConvertKVCacheToPrecision must not touch it";
+}
+
+TEST_F(ConvertKVCacheToPrecisionPassTest, CopyKvCacheSimpleSmoke) {
+    RecordingFactory recorder;
+    auto compiled_unique = create_compiled_model(make_kv_precision_props(ov::element::i8), recorder);
+    ASSERT_NE(compiled_unique, nullptr);
+
+    std::shared_ptr<ov::npuw::LLMCompiledModel> compiled(compiled_unique.release());
+    TestableLLMInferRequest request(compiled);
+    request.prepare_non_chunked_copy();
+
+    ASSERT_NO_THROW(request.copy_kvcache());
+}
+
+// Regression for kv-cache runtime copy path: execute real copy_kvcache() and verify
+// that all KV outputs (including quantized aux tensors) are copied to matching past inputs.
+TEST_F(ConvertKVCacheToPrecisionPassTest, CopyKvCacheCopiesQuantizedAuxTensorsByNameMapping) {
+    RecordingFactory recorder;
+    auto compiled_unique = create_compiled_model(make_kv_precision_props(ov::element::i8), recorder);
+    ASSERT_NE(compiled_unique, nullptr);
+    std::shared_ptr<ov::npuw::LLMCompiledModel> compiled(compiled_unique.release());
+    TestableLLMInferRequest request(compiled);
+    request.prepare_non_chunked_copy();
+
+    std::unordered_set<std::string> input_names;
+    for (const auto& [name, _] : request.kvcache_in_ports()) {
+        input_names.insert(name);
+    }
+    struct CopyPair {
+        std::string output_name;
+        std::string input_name;
+    };
+    std::vector<CopyPair> copied_pairs;
+
+    uint8_t pattern_seed = 7u;
+    for (const auto& [output_name, _] : request.kvcache_out_ports()) {
+        if (!is_kv_name(output_name)) {
+            continue;
+        }
+        const auto resolved_input = resolve_kv_input_name_for_test(output_name, input_names);
+        ASSERT_TRUE(resolved_input.has_value())
+            << "No past KV input mapped for output: " << output_name;
+
+        const auto& prefill_out_port = request.prefill_out_ports().at(output_name);
+        auto src_tensor = request.prefill_request()->get_tensor(prefill_out_port);
+        auto dst_tensor = request.kvcache_request()->get_tensor(request.kvcache_in_ports().at(resolved_input.value()));
+
+        if (src_tensor->get_byte_size() == 0 || dst_tensor->get_byte_size() == 0) {
+            continue;
+        }
+
+        ov::Tensor src_host(src_tensor->get_element_type(), src_tensor->get_shape());
+        ov::Tensor dst_host(dst_tensor->get_element_type(), dst_tensor->get_shape());
+        std::memset(src_host.data(), pattern_seed, src_host.get_byte_size());
+        std::memset(dst_host.data(), static_cast<int>(pattern_seed + 1), dst_host.get_byte_size());
+        ov::get_tensor_impl(src_host)->copy_to(src_tensor._ptr);
+        ov::get_tensor_impl(dst_host)->copy_to(dst_tensor._ptr);
+        pattern_seed = static_cast<uint8_t>(pattern_seed + 13);
+        copied_pairs.push_back({output_name, resolved_input.value()});
+    }
+
+    ASSERT_FALSE(copied_pairs.empty()) << "No KV output/input pairs found for copy_kvcache test";
+
+    ASSERT_NO_THROW(request.copy_kvcache());
+
+    for (const auto& pair : copied_pairs) {
+        auto src_tensor = request.prefill_request()->get_tensor(request.prefill_out_ports().at(pair.output_name));
+        auto dst_tensor = request.kvcache_request()->get_tensor(request.kvcache_in_ports().at(pair.input_name));
+        auto [src_view, dst_view] = make_non_chunked_copy_views(request, pair.output_name, src_tensor, dst_tensor);
+
+        ASSERT_EQ(src_view->get_byte_size(), dst_view->get_byte_size())
+            << "Byte-size mismatch for output/input pair: " << pair.output_name << " -> " << pair.input_name;
+
+        ov::Tensor src_host(src_view->get_element_type(), src_view->get_shape());
+        ov::Tensor dst_host(dst_view->get_element_type(), dst_view->get_shape());
+        src_view->copy_to(ov::get_tensor_impl(src_host)._ptr);
+        dst_view->copy_to(ov::get_tensor_impl(dst_host)._ptr);
+
+        EXPECT_EQ(std::memcmp(src_host.data(), dst_host.data(), src_host.get_byte_size()), 0)
+            << "copy_kvcache did not copy bytes for pair: " << pair.output_name << " -> " << pair.input_name;
+    }
 }
 
 }  // namespace

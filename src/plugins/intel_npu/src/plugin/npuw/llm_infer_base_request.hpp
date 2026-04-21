@@ -7,6 +7,7 @@
 #include "llm_compiled_model.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
+#include "util.hpp"
 
 namespace ov {
 namespace npuw {
@@ -18,7 +19,7 @@ public:
         static constexpr const char* inputs_embeds = "inputs_embeds";
         static constexpr const char* attention_mask = "attention_mask";
         static constexpr const char* position_ids = "position_ids";
-        static constexpr const char* past_key_values = "past_key_values";
+        static constexpr const char* past_key_values = ov::npuw::util::constants::past_key_values;
         static constexpr const char* output_embeds = "npuw_output_embed";
         static constexpr const char* logits = "logits";
         static constexpr const char* token_type_ids = "token_type_ids";

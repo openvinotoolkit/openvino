@@ -5,9 +5,12 @@
 #pragma once
 
 #include <future>
+#include <functional>
 #include <optional>
 #include <random>
+#include <cstddef>
 #include <string>
+#include <string_view>
 
 #include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
@@ -279,6 +282,20 @@ std::optional<int> isPastKeyValuesKey(const std::string& str);
 std::optional<int> isPastKeyValuesValue(const std::string& str);
 std::optional<int> isPresentKeyValuesKey(const std::string& str);
 std::optional<int> isPresentKeyValuesValue(const std::string& str);
+bool isKVCacheName(const std::string& str);
+std::string make_past_key_name(std::size_t layer_id);
+std::string make_past_value_name(std::size_t layer_id);
+std::string make_present_key_name(std::size_t layer_id);
+std::string make_present_value_name(std::size_t layer_id);
+
+namespace constants {
+inline constexpr const char* past_key_values = "past_key_values";
+inline constexpr const char* present = "present";
+}  // namespace constants
+
+std::string present_to_past_key_values_name(const std::string& output_name);
+std::optional<std::string> resolveKVInputName(const std::string& output_name,
+                                              const std::function<bool(const std::string&)>& has_input_name);
 
 }  // namespace util
 }  // namespace npuw

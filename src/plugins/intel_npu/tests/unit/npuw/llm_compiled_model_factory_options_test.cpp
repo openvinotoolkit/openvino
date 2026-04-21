@@ -456,8 +456,8 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperPreparationAddsKvCacheInputsAn
     EXPECT_EQ(prepared->outputs().size(), output_count_before);
     EXPECT_TRUE(has_input_name(prepared, "attention_mask"));
     EXPECT_TRUE(has_input_name(prepared, "cache_position"));
-    EXPECT_TRUE(has_input_name(prepared, "past_key_values"));
-    EXPECT_TRUE(has_output_name(prepared, "present"));
+    EXPECT_TRUE(has_input_name(prepared, ov::npuw::util::constants::past_key_values));
+    EXPECT_TRUE(has_output_name(prepared, ov::npuw::util::constants::present));
     EXPECT_EQ(prepared->input("input_ids").get_partial_shape()[1].get_length(), 1);
 }
 
@@ -473,7 +473,7 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperPrefillPreparationAddsCrossAtt
 
     EXPECT_TRUE(has_input_name(prepared, "attention_mask"));
     EXPECT_FALSE(has_input_name(prepared, "cache_position"));
-    EXPECT_TRUE(has_output_name(prepared, "present"));
+    EXPECT_TRUE(has_output_name(prepared, ov::npuw::util::constants::present));
 }
 
 }  // namespace

@@ -360,13 +360,10 @@ std::vector<uint64_t> PrefixCachingHelper::calculate_hashes(const ov::SoPtr<ov::
 void PrefixCachingHelper::create_name_mapping() {
     const auto& prefill_compiled = m_request.m_prefill_request->get_compiled_model();
 
-    // Pre-compile regex pattern (static to avoid recompilation)
-    static const std::regex present_regex("present");
-
     for (std::size_t i = LLMInferRequest::layer_ids::kStartOutputKVCacheLayers; i < prefill_compiled->outputs().size();
          ++i) {
         const auto& output_name = prefill_compiled->outputs()[i].get_any_name();
-        std::string input_name = std::regex_replace(output_name, present_regex, "past_key_values");
+        std::string input_name = ov::npuw::util::present_to_past_key_values_name(output_name);
         if (m_request.m_prefill_in_ports.find(input_name) == m_request.m_prefill_in_ports.end()) {
             LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
             continue;
