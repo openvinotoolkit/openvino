@@ -171,13 +171,15 @@ Output<Node> rearrange_constant_nncf(const Output<Node>& c, uint32_t groups, uin
     FRONT_END_OP_CONVERSION_CHECK(initial_shape[0] % (groups == 0 ? 1 : groups) == 0,
                                   "NNCF qweight first dimension must be divisible by group size.");
     const size_t values_per_byte = bits == 8 ? 1 : 2;
-    const size_t unpacked_last_dim = initial_shape[1] * sizeof(uint32_t) * values_per_byte;
+    const size_t unpacked_last_dim = initial_shape[1] * values_per_byte;
     auto new_shape = groups == 0 ? Shape{initial_shape[0], unpacked_last_dim}
                                  : Shape{initial_shape[0] / groups, groups, unpacked_last_dim};
 
     // unpack input bits 8bit values stored in bytes one by one into a continuous buffer of 8bit values
     // for 4, 3 and 2 bit values stored by 2 value per byte with zero padding for convinince of unpacking
     std::vector<int16_t> buffer(shape_size(new_shape));
+
+    std::cout << "Buffer size: " << buffer.size() << std::endl;
 
     const size_t packed_bytes_count = shape_size(initial_shape) * sizeof(uint32_t);
     FRONT_END_OP_CONVERSION_CHECK(bits == 8 || bits == 4 || bits == 3 || bits == 2,
@@ -203,6 +205,8 @@ Output<Node> rearrange_constant_nncf(const Output<Node>& c, uint32_t groups, uin
     }
 
     auto new_qweight = std::make_shared<v0::Constant>(getElementTypeForBits(bits, sym), new_shape, buffer);
+
+    std::cout << "Data type: " << getElementTypeForBits(bits, sym) << ", new shape: " << new_qweight->get_shape() << std::endl;
 
     new_qweight->set_friendly_name(constant->get_friendly_name());
     return new_qweight;
@@ -340,6 +344,10 @@ OutputVector translate_linear_nncf(const NodeContext& context) {
     auto bits = context.const_input<int64_t>(5);
     bool sym = context.const_input<bool>(6);
 
+    std::cout << "NNCF linear with groups=" << groups << ", bits=" << bits << ", sym=" << sym << std::endl;
+    std::cout << qweight.get_shape() << std::endl;
+    std::cout << scales.get_shape() << std::endl;
+
     FRONT_END_OP_CONVERSION_CHECK(bits == 8 || bits == 4 || bits == 3 || bits == 2,
                                   "Only {8, 4, 3, 2} bit NNCF is supported.");
     if (sym) {
@@ -358,6 +366,9 @@ OutputVector translate_linear_nncf(const NodeContext& context) {
     
     Output<Node> weight;
     if (sym) {
+        std::cout << "Using symmetric quantization subgraph for NNCF linear." << std::endl;
+        std::cout << "Rearranged weight shape: " << new_qweight.get_shape() << std::endl;
+
         weight = low_precision_subgraph_sym(context, x, new_qweight, new_scales, out_shape);
     } else {
         auto new_qzeros = rearrange_constant_nncf(qzeros, 1, static_cast<uint32_t>(bits), sym);

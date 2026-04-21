@@ -79,7 +79,8 @@ def patch_quantized(model: torch.nn.Module) -> None:
                 convert=lambda module, target_op, *args, **kwargs: target_op(
                     args[0], module.qweight, module.qzeros, module.scales,
                     torch.tensor(module.group_size),
-                    torch.tensor(module.w_bit), module.bias),
+                    torch.tensor(module.bits), torch.tensor(module.sym),
+                    module.bias),
                 evaluate=lambda module, *args, **kwargs: fp32_tensor(
                     *args[0].shape[:-1], module.out_features))  # type: ignore
         except ImportError:
