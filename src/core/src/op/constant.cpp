@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <cstring>
 #include <sstream>
+#include <iterator>
 
 #include "compare.hpp"
 #include "element_visitor.hpp"

@@ -3,6 +3,8 @@
 //
 #include "openvino/c/ov_infer_request.h"
 
+#include <exception>
+
 #include "common.h"
 
 void ov_infer_request_free(ov_infer_request_t* infer_request) {

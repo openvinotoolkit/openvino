@@ -73,7 +73,7 @@ public:
             if (file_size < offset_size) {
                 return false;
             }
-#if defined(__MINGW32__) || defined(__MINGW64__)
+#if defined(__MINGW32__) || defined(__MINGW64__) || defined(_WIN32)
             std::ifstream tflite_stream(std::filesystem::path(path), std::ios::in | std::ifstream::binary);
 #else
             std::ifstream tflite_stream(path, std::ios::in | std::ifstream::binary);
