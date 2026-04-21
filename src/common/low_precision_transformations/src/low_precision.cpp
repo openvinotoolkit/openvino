@@ -336,27 +336,28 @@ bool LowPrecision::isFunctionQuantized(const std::shared_ptr<const ov::Model>& m
 
 bool ov::pass::low_precision::LowPrecision::doesModelContainMXFPPatterns(
         const std::shared_ptr<const ov::Model>& model) {
-    using namespace ov::op;
-    using namespace ov::pass::pattern;
-
-    auto weight_pattern = any_input(
-        type_matches_any({ov::element::Type_t::f8e4m3, ov::element::Type_t::f8e5m2, ov::element::Type_t::f4e2m1}) &&
-        shape_matches("[Dims..., 32]"));
-    auto weight_cvt_pattern = wrap_type<v0::Convert>({weight_pattern});
-
-    auto scale_pattern = any_input(type_matches(ov::element::Type_t::f8e8m0) && shape_matches("[Dims..., 1]"));
-    auto scale_cvt_pattern = wrap_type<v0::Convert>({scale_pattern});
-
-    auto mult_pattern = wrap_type<v1::Multiply>({weight_cvt_pattern, scale_cvt_pattern});
-
-    auto m = std::make_shared<Matcher>(mult_pattern, "doesModelContainMXFPPatterns");
-
-    const auto ops = model->get_ops();
-    for (const auto& n : ops) {
-        if (m->match(n)) {
-            return true;
-        }
-    }
-
     return false;
+    // using namespace ov::op;
+    // using namespace ov::pass::pattern;
+
+    // auto weight_pattern = any_input(
+    //     type_matches_any({ov::element::Type_t::f8e4m3, ov::element::Type_t::f8e5m2, ov::element::Type_t::f4e2m1}) &&
+    //     shape_matches("[Dims..., 32]"));
+    // auto weight_cvt_pattern = wrap_type<v0::Convert>({weight_pattern});
+
+    // auto scale_pattern = any_input(type_matches(ov::element::Type_t::f8e8m0) && shape_matches("[Dims..., 1]"));
+    // auto scale_cvt_pattern = wrap_type<v0::Convert>({scale_pattern});
+
+    // auto mult_pattern = wrap_type<v1::Multiply>({weight_cvt_pattern, scale_cvt_pattern});
+
+    // auto m = std::make_shared<Matcher>(mult_pattern, "doesModelContainMXFPPatterns");
+
+    // const auto ops = model->get_ops();
+    // for (const auto& n : ops) {
+    //     if (m->match(n)) {
+    //         return true;
+    //     }
+    // }
+
+    // return false;
 }
