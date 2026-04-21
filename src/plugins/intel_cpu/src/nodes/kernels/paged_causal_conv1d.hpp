@@ -67,8 +67,6 @@ inline void paged_causal_conv1d_ref(const float* input_embeds,
                                     size_t num_blocks,
                                     size_t seq_count,
                                     float* local_state) {
-    (void)past_lens;
-
     const size_t state_stride = hidden_size * kernel_size;
     constexpr size_t channel_block = 64;
     const size_t block_count = (hidden_size + channel_block - 1) / channel_block;
@@ -113,6 +111,10 @@ inline void paged_causal_conv1d_ref(const float* input_embeds,
                         " for sequence ",
                         s);
 
+        const int32_t seq_interval = cache_interval[s];
+        const int32_t prev_nums = (seq_interval > 0) ? (past_lens[s] % seq_interval) : 0;
+        const int32_t seq_tokens = token_end - token_begin;
+
         read_state_to_float(local_state,
                     conv_state_table + static_cast<size_t>(read_physical_block) * state_stride,
                     state_stride);
@@ -128,7 +130,7 @@ inline void paged_causal_conv1d_ref(const float* input_embeds,
                 const size_t h_count = h_end - h_begin;
                 const size_t state_off = h_begin * kernel_size;
 
-                for (int32_t t = 0; t < token_end - token_begin; t++) {
+                for (int32_t t = 0; t < seq_tokens; t++) {
                     const auto token_idx = static_cast<size_t>(token_begin + t);
                     const auto* token_ptr = input_embeds + token_idx * hidden_size;
                     auto* out_ptr = output_embeds + token_idx * hidden_size;
@@ -148,45 +150,24 @@ inline void paged_causal_conv1d_ref(const float* input_embeds,
                         out_ptr[h] = sum;
                     }
 
-                    const int32_t interval = cache_interval[s];
-                    if (interval > 0) {
-                        const int32_t processed_tokens = t + 1;
-                        if ((processed_tokens % interval) == 0) {
-                            const int32_t logical_block = (processed_tokens + interval - 1) / interval;
-                            if (logical_block >= 1 && logical_block < block_span) {
-                                const int32_t physical_block = block_indices[blk_begin + logical_block];
-                                OPENVINO_ASSERT(physical_block >= 0 && static_cast<size_t>(physical_block) < num_blocks,
-                                                "PagedCausalConv1D has invalid physical block index ",
-                                                physical_block,
-                                                " while updating intermediate cache state.");
-                                write_state_from_float(conv_state_table + static_cast<size_t>(physical_block) * state_stride +
-                                                state_off,
-                                            local_state + state_off,
-                                            h_count * kernel_size);
-                            }
+                    const int32_t cached_tokens = prev_nums + (t + 1);
+                    const bool interval_hit = (seq_interval > 0) && ((cached_tokens % seq_interval) == 0);
+                    const bool is_last_token = (t == seq_tokens - 1);
+                    if (interval_hit || is_last_token) {
+                        const int32_t slot = (seq_interval > 0) ? (1 + (cached_tokens - 1) / seq_interval) : 1;
+                        if (slot < block_span) {
+                            const int32_t physical_block = block_indices[blk_begin + slot];
+                            OPENVINO_ASSERT(physical_block >= 0 && static_cast<size_t>(physical_block) < num_blocks,
+                                            "PagedCausalConv1D has invalid physical block index ",
+                                            physical_block,
+                                            " while updating cache state.");
+                            write_state_from_float(conv_state_table + static_cast<size_t>(physical_block) * state_stride +
+                                            state_off,
+                                        local_state + state_off,
+                                        h_count * kernel_size);
                         }
                     }
                 }
-
-                int32_t final_logical_block = 1;
-                const int32_t interval = cache_interval[s];
-                const int32_t seq_tokens = token_end - token_begin;
-                if (interval > 0) {
-                    final_logical_block = (seq_tokens + interval - 1) / interval;
-                }
-                if (final_logical_block >= block_span) {
-                    final_logical_block = block_span - 1;
-                }
-
-                const int32_t final_physical_block = block_indices[blk_begin + final_logical_block];
-                OPENVINO_ASSERT(final_physical_block >= 0 && static_cast<size_t>(final_physical_block) < num_blocks,
-                                "PagedCausalConv1D has invalid physical block index ",
-                                final_physical_block,
-                                " while updating final cache state.");
-
-                write_state_from_float(conv_state_table + static_cast<size_t>(final_physical_block) * state_stride + state_off,
-                            local_state + state_off,
-                            h_count * kernel_size);
             }
         });
     }
@@ -229,8 +210,6 @@ inline void paged_causal_conv1d_optimized(const float* input_embeds,
                             seq_count,
                             local_state);
 #else
-    (void)past_lens;
-
     if (kernel_size != 3 && kernel_size != 4) {
         paged_causal_conv1d_ref(input_embeds,
                                 conv_state_table,
@@ -318,6 +297,10 @@ inline void paged_causal_conv1d_optimized(const float* input_embeds,
                         " at sequence ",
                         s);
 
+        const int32_t seq_interval = cache_interval[s];
+        const int32_t prev_nums = (seq_interval > 0) ? (past_lens[s] % seq_interval) : 0;
+        const int32_t seq_tokens = token_end - token_begin;
+
         const int32_t read_physical_block = block_indices[blk_begin];
         OPENVINO_ASSERT(read_physical_block >= 0 && static_cast<size_t>(read_physical_block) < num_blocks,
                         "PagedCausalConv1D has invalid physical block index ",
@@ -340,7 +323,7 @@ inline void paged_causal_conv1d_optimized(const float* input_embeds,
                 const size_t h_count = h_end - h_begin;
                 const size_t state_off = h_begin * kernel_size;
 
-                for (int32_t t = 0; t < token_end - token_begin; t++) {
+                for (int32_t t = 0; t < seq_tokens; t++) {
                     const auto token_idx = static_cast<size_t>(token_begin + t);
                     const auto* token_ptr = input_embeds + token_idx * hidden_size;
                     auto* out_ptr = output_embeds + token_idx * hidden_size;
@@ -516,45 +499,24 @@ inline void paged_causal_conv1d_optimized(const float* input_embeds,
                         }
                     }
 
-                    const int32_t interval = cache_interval[s];
-                    if (interval > 0) {
-                        const int32_t processed_tokens = t + 1;
-                        if ((processed_tokens % interval) == 0) {
-                            const int32_t logical_block = (processed_tokens + interval - 1) / interval;
-                            if (logical_block >= 1 && logical_block < block_span) {
-                                const int32_t physical_block = block_indices[blk_begin + logical_block];
-                                OPENVINO_ASSERT(physical_block >= 0 && static_cast<size_t>(physical_block) < num_blocks,
-                                                "PagedCausalConv1D has invalid physical block index ",
-                                                physical_block,
-                                                " while updating intermediate cache state.");
-                                write_state_from_float(conv_state_table + static_cast<size_t>(physical_block) * state_stride +
-                                                state_off,
-                                            local_state + state_off,
-                                            h_count * kernel_size);
-                            }
+                    const int32_t cached_tokens = prev_nums + (t + 1);
+                    const bool interval_hit = (seq_interval > 0) && ((cached_tokens % seq_interval) == 0);
+                    const bool is_last_token = (t == seq_tokens - 1);
+                    if (interval_hit || is_last_token) {
+                        const int32_t slot = (seq_interval > 0) ? (1 + (cached_tokens - 1) / seq_interval) : 1;
+                        if (slot < block_span) {
+                            const int32_t physical_block = block_indices[blk_begin + slot];
+                            OPENVINO_ASSERT(physical_block >= 0 && static_cast<size_t>(physical_block) < num_blocks,
+                                            "PagedCausalConv1D has invalid physical block index ",
+                                            physical_block,
+                                            " while updating cache state.");
+                            write_state_from_float(conv_state_table + static_cast<size_t>(physical_block) * state_stride +
+                                            state_off,
+                                        local_state + state_off,
+                                        h_count * kernel_size);
                         }
                     }
                 }
-
-                int32_t final_logical_block = 1;
-                const int32_t interval = cache_interval[s];
-                const int32_t seq_tokens = token_end - token_begin;
-                if (interval > 0) {
-                    final_logical_block = (seq_tokens + interval - 1) / interval;
-                }
-                if (final_logical_block >= block_span) {
-                    final_logical_block = block_span - 1;
-                }
-
-                const int32_t final_physical_block = block_indices[blk_begin + final_logical_block];
-                OPENVINO_ASSERT(final_physical_block >= 0 && static_cast<size_t>(final_physical_block) < num_blocks,
-                                "PagedCausalConv1D has invalid physical block index ",
-                                final_physical_block,
-                                " while updating final cache state.");
-
-                write_state_from_float(conv_state_table + static_cast<size_t>(final_physical_block) * state_stride + state_off,
-                            local_state + state_off,
-                            h_count * kernel_size);
             }
         });
     }
