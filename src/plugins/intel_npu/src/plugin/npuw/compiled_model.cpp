@@ -41,6 +41,20 @@
 #include "transformations/convert_precision.hpp"
 
 namespace {
+std::string canonical_device_name(const std::string& device_name) {
+    const auto dot_pos = device_name.find('.');
+    return dot_pos == std::string::npos ? device_name : device_name.substr(0, dot_pos);
+}
+
+std::size_t find_device_index(const std::vector<std::string>& devices, const std::string& device_name) {
+    const auto canonical_name = canonical_device_name(device_name);
+    const auto it = std::find_if(devices.begin(), devices.end(), [&](const std::string& candidate) {
+        return canonical_device_name(candidate) == canonical_name;
+    });
+    NPUW_ASSERT(it != devices.end());
+    return static_cast<std::size_t>(it - devices.begin());
+}
+
 void split_properties(const ov::AnyMap& properties,
                       ov::AnyMap& npu_plugin_properties,
                       ov::AnyMap& npuw_path_properties) {
@@ -1197,9 +1211,7 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s1
             // Write device idx
             // FIXME: if there is no compiled submodel, device_it is not set.
             auto dev_idx = [&]() {
-                auto it = std::find(m_dev_list.begin(), m_dev_list.end(), submodel_device(real_idx));
-                NPUW_ASSERT(it != m_dev_list.end());
-                return it - m_dev_list.begin();
+                return find_device_index(m_dev_list, submodel_device(real_idx));
             };
             auto device_index = real_idx == i ? dev_idx() : 0;
             stream & device_index;
@@ -1759,6 +1771,26 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
     auto make_wrapped = [&](const std::shared_ptr<ov::Model>& model,
                             const std::string& profile_suffix,
                             const std::vector<std::string>& devs) -> ov::SoPtr<ov::ICompiledModel> {
+        if (!m_cfg.get<::intel_npu::NPUW_FALLBACK_EXEC>()) {
+            std::exception_ptr last_failure;
+            auto factory = make_factory(model, profile_suffix);
+            for (const auto& device : devs) {
+                try {
+                    auto compiled = factory(device);
+                    OPENVINO_ASSERT(compiled._ptr != nullptr,
+                                    "Failsafe factory returned null compiled model for device ",
+                                    device);
+                    return compiled;
+                } catch (...) {
+                    last_failure = std::current_exception();
+                }
+            }
+            if (last_failure) {
+                std::rethrow_exception(last_failure);
+            }
+            OPENVINO_THROW("No candidate devices available for compilation");
+        }
+
         return ov::npuw::failsafe::CompiledModel::create(model,
                                                          get_plugin(),
                                                          devs,
