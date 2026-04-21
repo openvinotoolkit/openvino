@@ -7,59 +7,23 @@
 #include "include/batch_headers/sub_group_block_write.cl"
 #include "include/batch_headers/sub_group_shuffle.cl"
 
+#ifndef FUSE_QK_L2NORM
+#    define FUSE_QK_L2NORM 0
+#endif
+
+#ifndef Q_L2_NORM_EPS
+#    define Q_L2_NORM_EPS 1e-6f
+#endif
+
+#ifndef K_L2_NORM_EPS
+#    define K_L2_NORM_EPS 1e-6f
+#endif
+
 inline float FUNC(l2norm_scale)(float sum, float extra_scale, float eps) {
     return rsqrt(sum + eps) * extra_scale;
 }
 
-inline float FUNC(sum8)(float8 v) {
-    return v.s0 + v.s1 + v.s2 + v.s3 + v.s4 + v.s5 + v.s6 + v.s7;
-}
-
-// Fast-path helper for head_size == 128: load one float8 lane of q/k, compute its
-// subgroup L2 norm, and apply the final scaling used by the gated-delta update.
-inline void FUNC(normalize_kq_128)(float8* b_k, float8* b_q) {
-    float k_sum = FUNC(sum8)((*b_k) * (*b_k));
-    k_sum = sub_group_reduce_add(k_sum);
-    const float k_scale = FUNC(l2norm_scale)(k_sum, 1.0f, 1e-6f);
-    *b_k *= k_scale;
-
-    float q_sum = FUNC(sum8)((*b_q) * (*b_q));
-    q_sum = sub_group_reduce_add(q_sum);
-    const float q_scale = FUNC(l2norm_scale)(q_sum, SCALE_FACTOR, 1e-6f);
-    *b_q *= q_scale;
-}
-
 #define K_SLICE_SIZE ((K_HEAD_DIM + SUBGROUP_SIZE - 1) / SUBGROUP_SIZE)
-
-#ifndef K_VEC_SIZE
-#    define K_VEC_SIZE 1
-#endif
-
-#if ((K_HEAD_DIM % 16) == 0) && ((V_HEAD_DIM % 16) == 0) && (K_VEC_SIZE > 1) && ((K_HEAD_DIM % (SUBGROUP_SIZE * K_VEC_SIZE)) == 0)
-#    define KV_OPT_VEC_PATH 1
-#    define K_LANE_ELEMS    (K_HEAD_DIM / SUBGROUP_SIZE)
-
-typedef MAKE_VECTOR_TYPE(float, K_VEC_SIZE) K_VEC_TYPE;
-#    define K_VEC_ZERO                 ((K_VEC_TYPE)(0.0f))
-#    define K_VEC_LOAD_Q(ptr, idx)     CAT(convert_float, K_VEC_SIZE)(BLOCK_READN(INPUT0_TYPE, K_VEC_SIZE, (ptr), (idx)))
-#    define K_VEC_LOAD_K(ptr, idx)     CAT(convert_float, K_VEC_SIZE)(BLOCK_READN(INPUT1_TYPE, K_VEC_SIZE, (ptr), (idx)))
-#    define K_VEC_LOAD_STATE(ptr, idx) CAT(convert_float, K_VEC_SIZE)(BLOCK_READN(INPUT3_TYPE, K_VEC_SIZE, (ptr), (idx)))
-#    define K_VEC_TO_STATE(vec)        CAT(convert_, CAT(INPUT3_TYPE, K_VEC_SIZE))(vec)
-#    define K_VEC_FROM_TMP(tmp)        CAT(vload, K_VEC_SIZE)(0, (tmp))
-#    define K_VEC_TO_TMP(vec, tmp)     CAT(vstore, K_VEC_SIZE)((vec), 0, (tmp))
-
-#    if (K_VEC_SIZE == 8)
-#        define K_VEC_DOT(a, b) FUNC(sum8)((a) * (b))
-#        define K_VEC_SUM_SQ(a) FUNC(sum8)((a) * (a))
-#    else
-#        define K_VEC_DOT(a, b) dot((a), (b))
-#        define K_VEC_SUM_SQ(a) dot((a), (a))
-#    endif
-
-#    define K_VEC_COUNT (K_LANE_ELEMS / K_VEC_SIZE)
-#else
-#    define KV_OPT_VEC_PATH 0
-#endif
 
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 KERNEL(paged_gated_delta_net_ref)
@@ -105,51 +69,25 @@ KERNEL(paged_gated_delta_net_ref)
     const int v_head_base = (h + value_head_offset) * v_head_stride;
     const int state_stride = K_HEAD_DIM * V_HEAD_DIM;
 
-    // Per-subgroup working set:
-    // - `state` holds the recurrent KxV tile for the current head and V block.
-    // - `q_norm` / `k_norm` hold the normalized query/key used for this token update.
-#if KV_OPT_VEC_PATH
-    K_VEC_TYPE state[V_BLOCK_SIZE][K_VEC_COUNT];
-    K_VEC_TYPE q_norm[K_VEC_COUNT];
-    K_VEC_TYPE k_norm[K_VEC_COUNT];
-#else
     float state[V_BLOCK_SIZE][K_SLICE_SIZE];
     float q_norm[K_SLICE_SIZE];
     float k_norm[K_SLICE_SIZE];
-#endif
 
     const int initial_block_id = block_indices[block_begin];
     const int initial_block_base = (initial_block_id * V_HEAD_NUM + h) * state_stride;
 
-    // 1. LOAD INITIAL STATE BLOCK
-    // Each subgroup owns one V tile and loads the corresponding recurrent state rows
-    // for the current head from the first cache block of the sequence.
 #pragma unroll
     for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
         int curr_iv = start_iv + v_idx;
-#if !KV_OPT_VEC_PATH
         if (curr_iv >= V_HEAD_DIM)
             continue;
-#endif
 
-        {
-            int base = initial_block_base + curr_iv * K_HEAD_DIM;
-#if KV_OPT_VEC_PATH && (K_VEC_SIZE == 8) && (K_VEC_COUNT == 1)
-            state[v_idx][0] = K_VEC_LOAD_STATE(recurrent_state_table, base);
-#elif KV_OPT_VEC_PATH
-#    pragma unroll
-            for (int kc = 0; kc < K_VEC_COUNT; kc++) {
-                const int k_base = kc * K_VEC_SIZE * SUBGROUP_SIZE;
-                state[v_idx][kc] = K_VEC_LOAD_STATE(recurrent_state_table, base + k_base);
+        int base = initial_block_base + curr_iv * K_HEAD_DIM;
+        for (int ks = 0; ks < K_SLICE_SIZE; ks++) {
+            const int k_idx = lid + ks * SUBGROUP_SIZE;
+            if (k_idx < K_HEAD_DIM) {
+                state[v_idx][ks] = convert_float(recurrent_state_table[base + k_idx]);
             }
-#else
-            for (int ks = 0; ks < K_SLICE_SIZE; ks++) {
-                const int k_idx = lid + ks * SUBGROUP_SIZE;
-                if (k_idx < K_HEAD_DIM) {
-                    state[v_idx][ks] = convert_float(recurrent_state_table[base + k_idx]);
-                }
-            }
-#endif
         }
     }
 
@@ -157,7 +95,6 @@ KERNEL(paged_gated_delta_net_ref)
     int slot = 1;
     int tokens_to_next_boundary = interval > 0 ? (prev_nums > 0 ? (interval - prev_nums) : interval) : (token_end - token_begin);
     while (token < token_end) {
-        // Process one cache chunk, then spill the updated recurrent tile to the next cache block.
         const int chunk_end = min(token + tokens_to_next_boundary, token_end);
 
         int q_base = token * q_token_stride + q_head_base;
@@ -166,25 +103,8 @@ KERNEL(paged_gated_delta_net_ref)
         int g_idx = token * V_HEAD_NUM + h;
 
         for (; token < chunk_end; token++, q_base += q_token_stride, k_base += k_token_stride, v_base += v_token_stride, g_idx += V_HEAD_NUM) {
-            // 2. LOAD COMMON TIMESTEP DATA
-            // Read q/k for this token and prepare normalized vectors used by both the
-            // recurrent-state projection (`h_k`) and the final output projection.
             float q_sum_local = 0.0f;
             float k_sum_local = 0.0f;
-#if KV_OPT_VEC_PATH && (K_VEC_SIZE == 8) && (K_VEC_COUNT == 1)
-            q_norm[0] = K_VEC_LOAD_Q(query, q_base);
-            k_norm[0] = K_VEC_LOAD_K(key, k_base);
-            FUNC(normalize_kq_128)(&k_norm[0], &q_norm[0]);
-#elif KV_OPT_VEC_PATH
-#    pragma unroll
-            for (int kc = 0; kc < K_VEC_COUNT; kc++) {
-                const int offset = kc * K_VEC_SIZE * SUBGROUP_SIZE;
-                q_norm[kc] = K_VEC_LOAD_Q(query, q_base + offset);
-                k_norm[kc] = K_VEC_LOAD_K(key, k_base + offset);
-                q_sum_local += K_VEC_SUM_SQ(q_norm[kc]);
-                k_sum_local += K_VEC_SUM_SQ(k_norm[kc]);
-            }
-#else
             for (int ks = 0; ks < K_SLICE_SIZE; ks++) {
                 const int k_idx = lid + ks * SUBGROUP_SIZE;
                 if (k_idx < K_HEAD_DIM) {
@@ -199,113 +119,35 @@ KERNEL(paged_gated_delta_net_ref)
                     k_norm[ks] = 0.0f;
                 }
             }
-#endif
 
-            // Complete the subgroup reduction and apply the final q/k scaling.
-#if KV_OPT_VEC_PATH && (K_VEC_SIZE == 8) && (K_VEC_COUNT == 1)
-            // already normalized by FUNC(normalize_kq_128)
-#else
+            float q_scale = SCALE_FACTOR;
+            float k_scale = 1.0f;
+#if FUSE_QK_L2NORM
             const float q_sum = sub_group_reduce_add(q_sum_local);
             const float k_sum = sub_group_reduce_add(k_sum_local);
 
-            const float q_scale = FUNC(l2norm_scale)(q_sum, SCALE_FACTOR, 1e-6f);
-            const float k_scale = FUNC(l2norm_scale)(k_sum, 1.0f, 1e-6f);
-#    if KV_OPT_VEC_PATH
-#        pragma unroll
-            for (int kc = 0; kc < K_VEC_COUNT; kc++) {
-                q_norm[kc] *= q_scale;
-                k_norm[kc] *= k_scale;
-            }
-#    else
+            q_scale = FUNC(l2norm_scale)(q_sum, SCALE_FACTOR, Q_L2_NORM_EPS);
+            k_scale = FUNC(l2norm_scale)(k_sum, 1.0f, K_L2_NORM_EPS);
+#endif
             for (int ks = 0; ks < K_SLICE_SIZE; ks++) {
                 q_norm[ks] *= q_scale;
                 k_norm[ks] *= k_scale;
             }
-#    endif
-#endif
 
-            // `gate` decays the previous recurrent state, while `beta` scales the new token update.
             const float b_g = exp(convert_float(gate[g_idx]));
             const float b_beta = convert_float(beta[g_idx]);
 
-#if KV_OPT_VEC_PATH
-            // 3. RECURRENT UPDATE
-            // Fast vector path:
-            // - gather the current V tile,
-            // - project the decayed state onto k to get h_k,
-            // - compute the delta update from (v - h_k),
-            // - apply the update and project the new state onto q.
-            float b_v_block[V_BLOCK_SIZE];
-            float h_k_block[V_BLOCK_SIZE];
-            float update_block[V_BLOCK_SIZE];
-            float out_block[V_BLOCK_SIZE];
-#    pragma unroll
-            for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
-                const int curr_iv = start_iv + v_idx;
-                const int v_base_aligned = v_base + (curr_iv & ~(SUBGROUP_SIZE - 1));
-                const int v_lane = curr_iv & (SUBGROUP_SIZE - 1);
-                const float v_val = convert_float(BLOCK_READN(INPUT2_TYPE, 1, value, v_base_aligned));
-                b_v_block[v_idx] = sub_group_broadcast(v_val, v_lane);
-            }
-
-            // Decay the recurrent state, then compute h_k = <state, k_norm> for each V lane.
-#    pragma unroll
-            for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
-                float h_k_local = 0.0f;
-#    if KV_OPT_VEC_PATH && (K_VEC_SIZE == 8) && (K_VEC_COUNT == 1)
-                state[v_idx][0] *= b_g;
-                h_k_local = FUNC(sum8)(state[v_idx][0] * k_norm[0]);
-#    else
-#        pragma unroll
-                for (int kc = 0; kc < K_VEC_COUNT; kc++) {
-                    state[v_idx][kc] *= b_g;
-                    h_k_local += K_VEC_DOT(state[v_idx][kc], k_norm[kc]);
-                }
-#    endif
-                h_k_block[v_idx] = sub_group_reduce_add(h_k_local);
-            }
-
-            // Convert the residual `(v - h_k)` into the per-lane update magnitude.
-#    pragma unroll
-            for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
-                update_block[v_idx] = (b_v_block[v_idx] - h_k_block[v_idx]) * b_beta;
-            }
-
-            // Inject the key-aligned update into state, then compute output = <state, q_norm>.
-#    pragma unroll
-            for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
-                float out_val_local = 0.0f;
-#    if KV_OPT_VEC_PATH && (K_VEC_SIZE == 8) && (K_VEC_COUNT == 1)
-                state[v_idx][0] = fma(k_norm[0], update_block[v_idx], state[v_idx][0]);
-                out_val_local = FUNC(sum8)(state[v_idx][0] * q_norm[0]);
-#    else
-#        pragma unroll
-                for (int kc = 0; kc < K_VEC_COUNT; kc++) {
-                    state[v_idx][kc] = fma(k_norm[kc], update_block[v_idx], state[v_idx][kc]);
-                    out_val_local += K_VEC_DOT(state[v_idx][kc], q_norm[kc]);
-                }
-#    endif
-                out_block[v_idx] = sub_group_reduce_add(out_val_local);
-            }
-#endif
-
-            // Final output store. The scalar path computes its update/output here; the vector path
-            // has already done that work and only consumes `out_block`.
 #pragma unroll
             for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
                 int curr_iv = start_iv + v_idx;
-#if !KV_OPT_VEC_PATH
                 if (curr_iv >= V_HEAD_DIM)
                     continue;
-#endif
                 float h_k_local = 0.0f;
-#if !KV_OPT_VEC_PATH
                 for (int ks = 0; ks < K_SLICE_SIZE; ks++) {
                     state[v_idx][ks] *= b_g;
                     h_k_local = fma(state[v_idx][ks], k_norm[ks], h_k_local);
                 }
-#endif
-#if !KV_OPT_VEC_PATH
+
                 const float h_k = sub_group_reduce_add(h_k_local);
                 const int v_idx_offset = v_base + curr_iv;
                 const float b_v = convert_float(value[v_idx_offset]);
@@ -317,9 +159,6 @@ KERNEL(paged_gated_delta_net_ref)
                     out_val_local = fma(state[v_idx][ks], q_norm[ks], out_val_local);
                 }
                 const float out_val = sub_group_reduce_add(out_val_local);
-#else
-                const float out_val = out_block[v_idx];
-#endif
 
                 if (lid == 0) {
                     const int out_offset = (token * V_HEAD_NUM + h) * V_HEAD_DIM + curr_iv;
@@ -328,36 +167,22 @@ KERNEL(paged_gated_delta_net_ref)
             }
         }
 
-        // 4. WRITE BACK STATE BLOCK
-        // Spill the updated recurrent tile so the next cache interval resumes from this state.
         const int block_id = block_indices[block_begin + slot];
         slot++;
         const int block_base = (block_id * V_HEAD_NUM + h) * state_stride;
 #pragma unroll
         for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
             int curr_iv = start_iv + v_idx;
-#if !KV_OPT_VEC_PATH
             if (curr_iv >= V_HEAD_DIM)
                 continue;
-#endif
 
             int base = block_base + curr_iv * K_HEAD_DIM;
-#if KV_OPT_VEC_PATH && (K_VEC_SIZE == 8) && (K_VEC_COUNT == 1)
-            BLOCK_WRITEN(INPUT3_TYPE, K_VEC_SIZE, recurrent_state_table, base, K_VEC_TO_STATE(state[v_idx][0]));
-#elif KV_OPT_VEC_PATH
-#    pragma unroll
-            for (int kc = 0; kc < K_VEC_COUNT; kc++) {
-                const int k_base = kc * K_VEC_SIZE * SUBGROUP_SIZE;
-                BLOCK_WRITEN(INPUT3_TYPE, K_VEC_SIZE, recurrent_state_table, base + k_base, K_VEC_TO_STATE(state[v_idx][kc]));
-            }
-#else
             for (int ks = 0; ks < K_SLICE_SIZE; ks++) {
                 const int k_idx = lid + ks * SUBGROUP_SIZE;
                 if (k_idx < K_HEAD_DIM) {
                     recurrent_state_table[base + k_idx] = (INPUT3_TYPE)(state[v_idx][ks]);
                 }
             }
-#endif
         }
 
         if (interval > 0)

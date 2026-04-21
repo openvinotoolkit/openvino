@@ -35,9 +35,15 @@ struct paged_gated_delta_net : public primitive_base<paged_gated_delta_net> {
 
     paged_gated_delta_net() : primitive_base("", {}) {}
 
-    paged_gated_delta_net(const primitive_id& id,
-                          const std::vector<input_info>& inputs)
-        : primitive_base(id, inputs) {
+        paged_gated_delta_net(const primitive_id& id,
+                                                    const std::vector<input_info>& inputs,
+                              bool fuse_qk_l2norm = false,
+                                                    float q_l2_norm_eps = 1e-6f,
+                                                    float k_l2_norm_eps = 1e-6f)
+                : primitive_base(id, inputs),
+                    fuse_qk_l2norm(fuse_qk_l2norm),
+                    q_l2_norm_eps(q_l2_norm_eps),
+                    k_l2_norm_eps(k_l2_norm_eps) {
         OPENVINO_ASSERT((inputs.size() == 11),
                         "[GPU] Unexpected inputs number for paged_gated_delta_net primitive: ",
                         inputs.size());
@@ -49,6 +55,9 @@ struct paged_gated_delta_net : public primitive_base<paged_gated_delta_net> {
         seed = hash_combine(seed, v_head_size);
         seed = hash_combine(seed, k_heads_num);
         seed = hash_combine(seed, v_heads_num);
+        seed = hash_combine(seed, fuse_qk_l2norm);
+        seed = hash_combine(seed, q_l2_norm_eps);
+        seed = hash_combine(seed, k_l2_norm_eps);
         return seed;
     }
 
@@ -60,7 +69,10 @@ struct paged_gated_delta_net : public primitive_base<paged_gated_delta_net> {
         return k_head_size == rhs_casted.k_head_size &&
                v_head_size == rhs_casted.v_head_size &&
                k_heads_num == rhs_casted.k_heads_num &&
-               v_heads_num == rhs_casted.v_heads_num;
+             v_heads_num == rhs_casted.v_heads_num &&
+             fuse_qk_l2norm == rhs_casted.fuse_qk_l2norm &&
+             q_l2_norm_eps == rhs_casted.q_l2_norm_eps &&
+             k_l2_norm_eps == rhs_casted.k_l2_norm_eps;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -69,6 +81,9 @@ struct paged_gated_delta_net : public primitive_base<paged_gated_delta_net> {
         ob << v_head_size;
         ob << k_heads_num;
         ob << v_heads_num;
+        ob << fuse_qk_l2norm;
+        ob << q_l2_norm_eps;
+        ob << k_l2_norm_eps;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -77,12 +92,18 @@ struct paged_gated_delta_net : public primitive_base<paged_gated_delta_net> {
         ib >> v_head_size;
         ib >> k_heads_num;
         ib >> v_heads_num;
+        ib >> fuse_qk_l2norm;
+        ib >> q_l2_norm_eps;
+        ib >> k_l2_norm_eps;
     }
 
     size_t k_head_size = 0;
     size_t v_head_size = 0;
     size_t k_heads_num = 0;
     size_t v_heads_num = 0;
+    bool fuse_qk_l2norm = false;
+    float q_l2_norm_eps = 1e-6f;
+    float k_l2_norm_eps = 1e-6f;
 };
 
 }  // namespace cldnn

@@ -7,7 +7,7 @@
 #include "registry.hpp"
 
 #if OV_GPU_WITH_OCL
-#    include "impls/ocl_v2/paged_gated_delta_net_ref.hpp"
+#    include "impls/ocl_v2/paged_gated_delta_net.hpp"
 #endif
 
 namespace ov::intel_gpu {
@@ -17,7 +17,8 @@ using namespace cldnn;
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<paged_gated_delta_net>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
 #if OV_GPU_WITH_OCL
-        OV_GPU_CREATE_INSTANCE_OCL(ocl::PagedGatedDeltaNetRef, shape_types::any)
+    OV_GPU_CREATE_INSTANCE_OCL(ocl::PagedGatedDeltaNetOpt, shape_types::any)
+    OV_GPU_CREATE_INSTANCE_OCL(ocl::PagedGatedDeltaNetRef, shape_types::any)
 #endif
     };
 

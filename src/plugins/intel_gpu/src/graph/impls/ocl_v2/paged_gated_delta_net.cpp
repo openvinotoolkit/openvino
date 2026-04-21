@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "paged_gated_delta_net_ref.hpp"
+#include "paged_gated_delta_net.hpp"
+
+#include <string_view>
 
 #include "intel_gpu/primitives/paged_gated_delta_net.hpp"
 #include "primitive_ocl_base.hpp"
@@ -66,13 +68,16 @@ size_t get_vec_size(const RuntimeParams& params) {
     return vec_size;
 }
 
-class PagedGatedDeltaNetRefGenerator : public KernelGenerator {
+class PagedGatedDeltaNetBaseGenerator : public KernelGenerator {
 public:
-    PagedGatedDeltaNetRefGenerator() : KernelGenerator("paged_gated_delta_net_ref") {}
+    PagedGatedDeltaNetBaseGenerator(std::string_view kernel_name, bool force_ref_path) : KernelGenerator(kernel_name), m_force_ref_path(force_ref_path) {}
 
 protected:
+    bool m_force_ref_path = false;
+
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
+        auto desc = params.typed_desc<paged_gated_delta_net>();
 
         const auto& q_shape = params.get_input_layout(paged_gated_delta_net::QUERY).get_partial_shape();
         const auto& v_shape = params.get_input_layout(paged_gated_delta_net::VALUE).get_partial_shape();
@@ -89,7 +94,10 @@ protected:
         jit.make("V_HEAD_DIM", v_head_dims);
         jit.make("V_BLOCK_SIZE", get_v_block_size(v_head_dims));
         jit.make("SUBGROUP_SIZE", get_subgroup_size(params.get_device_info().arch));
-        jit.make("K_VEC_SIZE", get_vec_size(params));
+        jit.make("K_VEC_SIZE", m_force_ref_path ? 1 : get_vec_size(params));
+        jit.make("FUSE_QK_L2NORM", desc->fuse_qk_l2norm ? 1 : 0);
+        jit.make("Q_L2_NORM_EPS", desc->q_l2_norm_eps);
+        jit.make("K_L2_NORM_EPS", desc->k_l2_norm_eps);
         jit.make("SCALE_FACTOR", scale_factor);
 
         return jit;
@@ -178,6 +186,16 @@ protected:
     }
 };
 
+class PagedGatedDeltaNetRefGenerator : public PagedGatedDeltaNetBaseGenerator {
+public:
+    PagedGatedDeltaNetRefGenerator() : PagedGatedDeltaNetBaseGenerator("paged_gated_delta_net_ref", true) {}
+};
+
+class PagedGatedDeltaNetOptGenerator : public PagedGatedDeltaNetBaseGenerator {
+public:
+    PagedGatedDeltaNetOptGenerator() : PagedGatedDeltaNetBaseGenerator("paged_gated_delta_net_opt", false) {}
+};
+
 class PagedGatedDeltaNetRefImpl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::PagedGatedDeltaNetRefImpl)
@@ -194,6 +212,22 @@ public:
     }
 };
 
+class PagedGatedDeltaNetOptImpl : public PrimitiveImplOCL {
+public:
+    DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::PagedGatedDeltaNetOptImpl)
+
+    Stage::Ptr paged_gated_delta_net = make_stage<PagedGatedDeltaNetOptGenerator>();
+
+    PagedGatedDeltaNetOptImpl() : PrimitiveImplOCL(PagedGatedDeltaNetOpt::get_type_info_static()) {}
+    PagedGatedDeltaNetOptImpl(const program_node& node, const RuntimeParams& params) : PagedGatedDeltaNetOptImpl() {
+        add_stage(paged_gated_delta_net, params);
+    }
+
+    [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
+        return make_deep_copy<PagedGatedDeltaNetOptImpl>(this);
+    }
+};
+
 }  // namespace
 
 std::unique_ptr<primitive_impl> PagedGatedDeltaNetRef::create_impl(const program_node& node, const RuntimeParams& params) const {
@@ -201,6 +235,12 @@ std::unique_ptr<primitive_impl> PagedGatedDeltaNetRef::create_impl(const program
     return std::make_unique<PagedGatedDeltaNetRefImpl>(node, params);
 }
 
+std::unique_ptr<primitive_impl> PagedGatedDeltaNetOpt::create_impl(const program_node& node, const RuntimeParams& params) const {
+    assert(node.is_type<paged_gated_delta_net>());
+    return std::make_unique<PagedGatedDeltaNetOptImpl>(node, params);
+}
+
 }  // namespace ov::intel_gpu::ocl
 
 BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::PagedGatedDeltaNetRefImpl)
+BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::PagedGatedDeltaNetOptImpl)

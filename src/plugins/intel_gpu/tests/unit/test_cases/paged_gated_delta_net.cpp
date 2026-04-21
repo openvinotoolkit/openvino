@@ -288,7 +288,10 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
                                         input_info("block_indices"),
                                         input_info("block_indices_begins"),
                                         input_info("past_lens"),
-                                        input_info("cache_interval")}));
+                                        input_info("cache_interval")},
+                                       true,
+                                       1e-6f,
+                                       1e-6f));
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
