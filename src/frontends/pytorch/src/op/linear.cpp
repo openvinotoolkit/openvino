@@ -161,53 +161,57 @@ ov::element::Type getElementTypeForBits(uint32_t bits, bool sym) {
     }
 }
 
-Output<Node> rearrange_constant_nncf(const Output<Node>& c, uint32_t groups, uint32_t bits, bool sym) {
+Output<Node> rearrange_constant_nncf(const Output<Node>& c,
+                                     uint32_t group_size,
+                                     uint32_t dst_bits,
+                                     uint32_t src_bits,
+                                     bool sym) {
     auto constant = ov::as_type_ptr<v0::Constant>(c.get_node_shared_ptr());
     FRONT_END_OP_CONVERSION_CHECK(constant, "weight must be Constant.");
     auto src = constant->get_data_ptr<uint8_t>();
     auto initial_shape = constant->get_shape();
     FRONT_END_OP_CONVERSION_CHECK(initial_shape.size() == 2, "Only 2D constants are supported.");
-    // groups == 0 means that weights are not grouped, so we can treat them as if group size is 1.
-    FRONT_END_OP_CONVERSION_CHECK(initial_shape[0] % (groups == 0 ? 1 : groups) == 0,
+    // group_size == 0 means that weights are not grouped, so we can treat them as if group size is 1.
+    FRONT_END_OP_CONVERSION_CHECK(initial_shape[0] % (group_size == 0 ? 1 : group_size) == 0,
                                   "NNCF qweight first dimension must be divisible by group size.");
-    const size_t values_per_byte = bits == 8 ? 1 : 2;
+    const size_t values_per_byte = src_bits == 8 ? 1 : 2;
     const size_t unpacked_last_dim = initial_shape[1] * values_per_byte;
-    auto new_shape = groups == 0 ? Shape{initial_shape[0], unpacked_last_dim}
-                                 : Shape{initial_shape[0] / groups, groups, unpacked_last_dim};
+    auto new_shape = group_size < 2 ? Shape{initial_shape[0], unpacked_last_dim}
+                                 : Shape{initial_shape[0] / group_size, group_size, unpacked_last_dim};
 
-    // unpack input bits 8bit values stored in bytes one by one into a continuous buffer of 8bit values
-    // for 4, 3 and 2 bit values stored by 2 value per byte with zero padding for convinince of unpacking
-    std::vector<int16_t> buffer(shape_size(new_shape));
-
-    std::cout << "Buffer size: " << buffer.size() << std::endl;
-
-    const size_t packed_bytes_count = shape_size(initial_shape) * sizeof(uint32_t);
-    FRONT_END_OP_CONVERSION_CHECK(bits == 8 || bits == 4 || bits == 3 || bits == 2,
+    auto element_type = getElementTypeForBits(dst_bits, sym);
+    const size_t packed_bytes_count = shape_size(initial_shape);
+    FRONT_END_OP_CONVERSION_CHECK(dst_bits == 8 || dst_bits == 4 || dst_bits == 3 || dst_bits == 2,
                                   "Only 8, 4, 3 and 2 bit NNCF weights are supported.");
+
+    std::vector<int16_t> values(shape_size(new_shape));
+    FRONT_END_OP_CONVERSION_CHECK(src_bits == 8 || src_bits == 4 || src_bits == 3 || src_bits == 2,
+                                  "Only 8, 4, 3 and 2 bit source NNCF packing is supported.");
+    FRONT_END_OP_CONVERSION_CHECK(src_bits == 8 ? packed_bytes_count <= values.size() : 2 * packed_bytes_count <= values.size(),
+                                  "NNCF unpacking would overflow destination values buffer.");
 
     int16_t zero_point = 0;
     if (sym) {
         // For signed quantization we need to convert zero point to signed representation as well.
-        zero_point = static_cast<int16_t>(1 << (bits - 1));
+        zero_point = static_cast<int16_t>(1 << (dst_bits - 1));
     }
 
-    if (bits == 8) {
+    if (src_bits == 8) {
         for (size_t i = 0; i < packed_bytes_count; ++i) {
-            buffer[i] = static_cast<int16_t>(src[i]) - zero_point;
+            values[i] = static_cast<int16_t>(src[i]) - zero_point;
         }
     } else {
-        const uint8_t value_mask = static_cast<uint8_t>((1u << bits) - 1);
+        const uint8_t value_mask = static_cast<uint8_t>((1u << dst_bits) - 1);
         for (size_t i = 0; i < packed_bytes_count; ++i) {
-            const uint8_t value = src[i];
-            buffer[2 * i] = static_cast<int16_t>(value & value_mask) - zero_point;
-            buffer[2 * i + 1] = static_cast<int16_t>((value >> 4) & value_mask) - zero_point;
+            const uint8_t byte_val = src[i];
+            values[2 * i] = static_cast<int16_t>(byte_val & value_mask) - zero_point;
+            values[2 * i + 1] = static_cast<int16_t>((byte_val >> 4) & value_mask) - zero_point;
         }
     }
 
-    auto new_qweight = std::make_shared<v0::Constant>(getElementTypeForBits(bits, sym), new_shape, buffer);
+    auto new_qweight = std::make_shared<v0::Constant>(element_type, new_shape, values);
 
-    std::cout << "Data type: " << getElementTypeForBits(bits, sym) << ", new shape: " << new_qweight->get_shape() << std::endl;
-
+    std::cout << "Data type: " << element_type << ", new shape: " << new_qweight->get_shape() << std::endl;
     new_qweight->set_friendly_name(constant->get_friendly_name());
     return new_qweight;
 }
@@ -236,8 +240,8 @@ OutputVector translate_linear_awq(const NodeContext& context) {
     auto weight = low_precision_subgraph(context, x, new_qweight, new_qzeros, new_scales, out_shape);
 
     auto matmul = context.mark_node(std::make_shared<v0::MatMul>(x, weight, false, false));
-    if (!context.input_is_none(6)) {
-        auto bias = context.get_input(6);
+    if (!context.input_is_none(7)) {
+        auto bias = context.get_input(7);
 
         if (bias.get_element_type() == element::f16 || bias.get_element_type() == element::bf16) {
             bias = context.mark_node(std::make_shared<v1::ConvertLike>(bias, x));
@@ -335,7 +339,7 @@ OutputVector translate_bmm_ext(const NodeContext& context) {
 }
 
 OutputVector translate_linear_nncf(const NodeContext& context) {
-    num_inputs_check(context, 4, 7);
+    num_inputs_check(context, 4, 8);
     auto x = context.get_input(0);
     auto qweight = context.get_input(1);
     auto qzeros = context.get_input(2);
@@ -347,6 +351,7 @@ OutputVector translate_linear_nncf(const NodeContext& context) {
     std::cout << "NNCF linear with groups=" << groups << ", bits=" << bits << ", sym=" << sym << std::endl;
     std::cout << qweight.get_shape() << std::endl;
     std::cout << scales.get_shape() << std::endl;
+    std::cout << "Input data shape: "  <<  x.get_partial_shape() << std::endl;
 
     FRONT_END_OP_CONVERSION_CHECK(bits == 8 || bits == 4 || bits == 3 || bits == 2,
                                   "Only {8, 4, 3, 2} bit NNCF is supported.");
@@ -354,13 +359,24 @@ OutputVector translate_linear_nncf(const NodeContext& context) {
         FRONT_END_OP_CONVERSION_CHECK(bits == 4 || bits == 8, "Only 4 bit or 8 bit NNCF is supported for symmetric quantization.");
     }
 
-    auto new_qweight = rearrange_constant_nncf(qweight, static_cast<uint32_t>(groups), static_cast<uint32_t>(bits), sym);
+    auto new_qweight = rearrange_constant_nncf(qweight, static_cast<uint32_t>(groups),
+                                               static_cast<uint32_t>(bits), static_cast<uint32_t>(bits),
+                                               sym);
     
     FRONT_END_OP_CONVERSION_CHECK(scales.get_partial_shape().is_static(), "Scales must be constant.");
     auto scales_shape = scales.get_shape();
-    auto new_scales_shape =
-        v0::Constant::create(element::i32, {3}, std::vector<uint64_t>{scales_shape[0], 1, scales_shape[1]});
-    auto new_scales = context.mark_node(std::make_shared<v1::Reshape>(scales, new_scales_shape, false));
+    Output<Node> new_scales;
+    
+    // For ungrouped NNCF (groups=0), scales shape is [out_features, 1] and should stay 2D for proper broadcasting
+    // For grouped NNCF (groups>0), reshape to [out_features/groups, groups, 1] for 3D weight broadcasting
+    if (groups == 0) {
+        new_scales = scales;
+    } else {
+        auto new_scales_shape =
+            v0::Constant::create(element::i32, {3}, std::vector<uint64_t>{scales_shape[0] / groups, groups, scales_shape[1]});
+        new_scales = context.mark_node(std::make_shared<v1::Reshape>(scales, new_scales_shape, false));
+    }
+    
     auto out_shape =
         v0::Constant::create(element::i32, {2}, std::vector<int32_t>{static_cast<int32_t>(qweight.get_shape()[0]), -1});
     
@@ -368,16 +384,18 @@ OutputVector translate_linear_nncf(const NodeContext& context) {
     if (sym) {
         std::cout << "Using symmetric quantization subgraph for NNCF linear." << std::endl;
         std::cout << "Rearranged weight shape: " << new_qweight.get_shape() << std::endl;
+        std::cout << "out shape: " << static_cast<int32_t>(qweight.get_shape()[0]) << ", -1" << std::endl;
 
         weight = low_precision_subgraph_sym(context, x, new_qweight, new_scales, out_shape);
     } else {
-        auto new_qzeros = rearrange_constant_nncf(qzeros, 1, static_cast<uint32_t>(bits), sym);
+        std::cout << "QZeros shape: " << qzeros.get_shape() << std::endl;
+        auto new_qzeros = rearrange_constant_nncf(qzeros, 1, static_cast<uint32_t>(bits), static_cast<uint32_t>(8), false);
         weight = low_precision_subgraph(context, x, new_qweight, new_qzeros, new_scales, out_shape);
     }
 
     auto matmul = context.mark_node(std::make_shared<v0::MatMul>(x, weight, false, false));
-    if (!context.input_is_none(6)) {
-        auto bias = context.get_input(6);
+    if (!context.input_is_none(7)) {
+        auto bias = context.get_input(7);
 
         if (bias.get_element_type() == element::f16 || bias.get_element_type() == element::bf16) {
             bias = context.mark_node(std::make_shared<v1::ConvertLike>(bias, x));
