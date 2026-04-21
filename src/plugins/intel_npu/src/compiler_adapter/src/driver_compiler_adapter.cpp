@@ -320,7 +320,7 @@ bool DriverCompilerAdapter::isCompilerOptionSupported(const FilteredConfig& conf
 ov::RuntimeRequirementCheckResult DriverCompilerAdapter::validate_compatibility_descriptor(
     const std::string& compatibilityDescriptor) const {
     if (!_zeGraphExt->isCompatibilityDescriptorSupported()) {
-        OPENVINO_THROW("");
+        OPENVINO_THROW("isCompatibilityDescriptorSupported returned false for driver");
     }
     return _zeGraphExt->validateCompatibilityDescriptor(compatibilityDescriptor);
 }

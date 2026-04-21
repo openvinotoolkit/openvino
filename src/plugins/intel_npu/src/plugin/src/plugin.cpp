@@ -368,8 +368,13 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         ov::Tensor encodedTensor = arguments.at(ov::runtime_requirements.name()).as<ov::Tensor>();
         const std::string encodedString(reinterpret_cast<char*>(encodedTensor.data()), encodedTensor.get_byte_size());
         std::string decodedString = decode_compatibility_string(encodedString);
+
+        std::cout << "[DEBUG] ov::runtime_requirements_met check started." << std::endl;
+        std::cout << "[DEBUG] encodedTensor byte size: " << encodedTensor.get_byte_size() << std::endl;
+        std::cout << "[DEBUG] decodedString length: " << decodedString.length() << std::endl;
+
         const ov::Tensor viewTensor =
-            ov::Tensor(ov::element::Type_t::u8, ov::Shape(decodedString.length()), decodedString.data());
+            ov::Tensor(ov::element::Type_t::u8, ov::Shape{decodedString.length()}, decodedString.data());
 
         std::unique_ptr<MetadataBase> metadata = nullptr;
         try {
@@ -377,15 +382,18 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
             // based
             // on other metadata fields can be done following this line.
             metadata = read_metadata_from(viewTensor);
-        } catch (const std::exception&) {
+        } catch (const std::exception& e) {
             // Unsupported version, could not read the metadata or an unknown error has occured. Report that the
             // requirements are not met.
+            std::cout << "[DEBUG] Exception reading metadata: " << e.what() << std::endl;
             return ov::RuntimeRequirementCheckResult::COMPATIBILITY_FAILED;
         }
 
         OPENVINO_ASSERT(metadata);
 
         const size_t compilerStringSize = metadata->get_blob_size();
+        std::cout << "[DEBUG] Metadata compilerStringSize: " << compilerStringSize << std::endl;
+
         // Discard everything else but the compiler section
         decodedString = decodedString.substr(0, compilerStringSize);
 
@@ -395,11 +403,24 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         try {
             // TODO consider using backend directly
             compiler = factory.getCompiler(_backend, ov::intel_npu::CompilerType::DRIVER);
-        } catch (const std::exception&) {
+            std::cout << "[DEBUG] Created DRIVER compiler adapter" << std::endl;
+            std::cout << "[DEBUG] Calling driver compiler->validate_compatibility_descriptor..." << std::endl;
+            auto result = compiler->validate_compatibility_descriptor(decodedString);
+            std::cout << "[DEBUG] DRIVER validate_compatibility_descriptor finished, result enum: " << (int)result
+                      << std::endl;
+            return result;
+        } catch (const std::exception& e) {
+            std::cout << "[DEBUG] Exception creating or validating against DRIVER adapter: " << e.what()
+                      << ". Falling back to PLUGIN." << std::endl;
             compiler = factory.getCompiler(_backend, ov::intel_npu::CompilerType::PLUGIN);
         }
+
         OPENVINO_ASSERT(compiler != nullptr);
-        return compiler->validate_compatibility_descriptor(decodedString);
+        std::cout << "[DEBUG] Calling plugin compiler->validate_compatibility_descriptor..." << std::endl;
+        auto result = compiler->validate_compatibility_descriptor(decodedString);
+        std::cout << "[DEBUG] PLUGIN validate_compatibility_descriptor finished, result enum: " << (int)result
+                  << std::endl;
+        return result;
     }
 
     if (!arguments.empty()) {

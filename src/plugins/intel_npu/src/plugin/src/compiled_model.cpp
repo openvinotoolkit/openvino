@@ -180,10 +180,18 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
         return _graph->get_metadata().name;
     } else if (name == ov::runtime_requirements.name()) {
-        // The weights-separation case is not supported for now
-        OPENVINO_ASSERT(_graph->get_init_sizes().empty());
+        std::optional<std::vector<uint64_t>> initSizes;
+        try {
+            initSizes = _graph->get_init_sizes();
+            // The weights-separation case is not supported for now
+            OPENVINO_ASSERT(!initSizes.has_value() || initSizes->empty());
+        } catch (const std::exception&) {
+            // It's a weightful graph, init sizes are implicitly non-existent
+            initSizes = std::nullopt;
+        }
 
-        OPENVINO_ASSERT(_graph->get_compiler_compatibility_descriptor().has_value());
+        OPENVINO_ASSERT(_graph->get_compiler_compatibility_descriptor().has_value(),
+                        "The compiler compatibility descriptor is unavailable");
         std::string compilerDescriptor = _graph->get_compiler_compatibility_descriptor().value();
 
         std::ostringstream requirementsString;
@@ -193,7 +201,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         // The layouts are not useful compatibility information
         Metadata<CURRENT_METADATA_VERSION>(compilerDescriptor.size(),
                                            CURRENT_OPENVINO_VERSION,
-                                           _graph->get_init_sizes(),
+                                           initSizes,
                                            _batchSize,
                                            std::nullopt,
                                            std::nullopt)

@@ -4,6 +4,7 @@
 
 #include "compiler_impl.hpp"
 
+#include <iostream>
 #include <limits>
 #include <mutex>
 
@@ -309,10 +310,10 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                                      buildFlags.c_str(),
                                      buildFlags.size()};
 
-    if (usedVersion.Major >= 7 && usedVersion.Minor >= 7) {
+    if (usedVersion.Major >= 8 && usedVersion.Minor >= 1) {
         // support the lastest vcl api
-        // For VCL 7.7 and later, we can use vclAllocatedExecutableCreate3
-        _logger.debug("Using vclAllocatedExecutableCreate3 for 7.7 <= VCL");
+        // For VCL 8.1 and later, we can use vclAllocatedExecutableCreate3
+        _logger.debug("Using vclAllocatedExecutableCreate3 for 8.1 <= VCL");
         vcl_allocator_2 allocator;
         uint8_t* blob = nullptr;
         size_t blobSize = 0;
@@ -361,6 +362,9 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                             "compatibility descriptor is null");
             compatibilityString =
                 std::string(reinterpret_cast<char*>(compatibilityStringBuffer), compatibilityStringSize);
+
+            // Free the memory allocated by vclAllocatedExecutableCreate3 for the compatibility string
+            allocator.deallocate(&allocator, compatibilityStringBuffer);
         }
 
         _logger.debug("compile end, blob size:%d", alignedBlobSize);
@@ -614,9 +618,15 @@ bool VCLCompilerImpl::is_option_supported(std::string option, std::optional<std:
 
 ov::RuntimeRequirementCheckResult VCLCompilerImpl::validate_compatibility_descriptor(
     const std::string& compatibilityDescriptor) const {
+    std::cout << "[DEBUG] VCLCompilerImpl::validate_compatibility_descriptor called." << std::endl;
+    std::cout << "[DEBUG] Passed string size = " << compatibilityDescriptor.size() << std::endl;
+
     if (is_option_supported(ov::runtime_requirements_met.name(), compatibilityDescriptor)) {
+        std::cout << "[DEBUG] is_option_supported returned TRUE -> PARTIAL_CHECK_PASSED" << std::endl;
         return ov::RuntimeRequirementCheckResult::PARTIAL_CHECK_PASSED;
     }
+
+    std::cout << "[DEBUG] is_option_supported returned FALSE -> COMPATIBILITY_FAILED" << std::endl;
     return ov::RuntimeRequirementCheckResult::COMPATIBILITY_FAILED;
 }
 
