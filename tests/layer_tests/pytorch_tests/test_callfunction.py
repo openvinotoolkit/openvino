@@ -10,6 +10,8 @@ from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 from pytorch_layer_test_class import PytorchLayerTest
 
 
+# Keep call targets as TorchScript Function objects so the graph contains
+# prim::Constant(Function) + prim::CallFunction instead of already-inlined aten ops.
 _CALLFUNCTION_CU = torch.jit.CompilationUnit(
     """
 def callfunction_const() -> Tensor:
@@ -75,6 +77,8 @@ class TestCallFunction(PytorchLayerTest):
             f"prim::CallFunction is expected in traced graph, but not found.\nGraph:\n{scripted_model.graph}"
         )
 
+        # Use scripted_model.graph explicitly (instead of decoder default inlined_graph)
+        # to keep prim::CallFunction visible and exercise this conversion path directly.
         decoder = TorchScriptPythonDecoder(
             scripted_model,
             graph_element=scripted_model.graph,
