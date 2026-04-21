@@ -81,7 +81,7 @@ TEST(type_prop, atan2_integer_input_throws) {
     auto y = std::make_shared<op::v0::Parameter>(element::i32, Shape{2, 2});
     auto x = std::make_shared<op::v0::Parameter>(element::i32, Shape{2, 2});
 
-    OV_EXPECT_THROW(std::make_shared<op::v17::Atan2>(y, x),
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v17::Atan2>(y, x),
                     ov::NodeValidationFailure,
                     HasSubstr("Atan2 inputs must be floating-point type"));
 }
