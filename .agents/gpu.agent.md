@@ -128,6 +128,26 @@ The agent executes a **sequential multi-step pipeline** via the `intel-gpu-kerne
 - **CRITICAL:** Step 5 (`gpu-kernel-optimize`) is **mandatory** — never skip it.
 - Filenames use `snake_case`, class names use `CamelCase`.
 - New ops use the `ocl_v2` co-located structure (`.cl` files alongside `.cpp` graph impl files).
+
+## Code Quality
+
+Before writing any code, read [`.github/copilot-instructions.md`](.github/copilot-instructions.md)
+and apply its conventions. Additional GPU-plugin specifics:
+
+- **clang-format**: `src/.clang-format` (Google-based, 4-space indent, 120-column limit).
+  Run: `clang-format -i <file>`.
+- Filenames: `snake_case`; class names: `CamelCase`.
+- New ops in `ov::intel_gpu` namespace; OpenCL kernel sources co-located with graph impl in `ocl_v2/`.
+- Every new op must include SLT coverage for static and dynamic shapes.
+
+## Debug Skills
+
+When inference produces wrong results, a crash occurs, or kernel performance is unexpected,
+load the debug skill before retrying:
+
+| Symptom | Skill |
+|---------|-------|
+| Wrong accuracy, inference crash, layer-output mismatch, kernel performance issues | `.agents/skills/debug/SKILL.md` — load component `openvino_intel_gpu_plugin` |
 - Reference kernel must be straightforward (no HW-specific optimizations) to ensure clean correctness baseline.
 - Use Debug builds for correctness testing, Release builds for profiling.
 

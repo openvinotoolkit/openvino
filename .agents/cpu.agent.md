@@ -132,6 +132,9 @@ skill file.
 
 ## Code Quality
 
+Before writing any code, read [`.github/copilot-instructions.md`](.github/copilot-instructions.md)
+and apply its conventions. Additional CPU-plugin specifics:
+
 - **clang-format**: Enforced via `src/.clang-format` (Google-based, 4-space indent,
   120-column limit). Run: `clang-format -i <file>`.
 - **clang-tidy**: Enforced via `src/plugins/intel_cpu/src/.clang-tidy`. Run:
@@ -140,6 +143,15 @@ skill file.
 - All node code in namespace `ov::intel_cpu::node`; other plugin code in
   `ov::intel_cpu`.
 - Use `[[nodiscard]]` on const getters, `[[maybe_unused]]` when required.
+
+## Debug Skills
+
+When a test fails, the inference produces wrong results, or a crash occurs during
+CPU execution, load the debug skill before retrying:
+
+| Symptom | Skill |
+|---------|-------|
+| Wrong accuracy, inference crash, layer-output mismatch, memory issues | `.agents/skills/debug/SKILL.md` — load component `openvino_intel_cpu_plugin` |
 
 ## Constraints
 
