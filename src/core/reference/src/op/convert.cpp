@@ -503,9 +503,12 @@ private:
         auto emit_chunk = [&, this](bool masked) {
             // === Build OOR mask in k_oor ===
             // subnormal-when-rounded: |data| < min_pos AND data != 0
-            vcmpps(k_tmp1, data_vec, f16_min_pos_vec, cmp_lt_os);             // data < min_pos
-            vcmpps(k_oor | k_tmp1, data_vec, f16_min_neg_vec, cmp_gt_os);     // merge-masked: k_oor = k_tmp1 & (data > min_neg)
-            vcmpps(k_tmp1, data_vec, zero_vec, cmp_neq_uq);                   // data != 0
+            vcmpps(k_tmp1, data_vec, f16_min_pos_vec, cmp_lt_os);  // data < min_pos
+            vcmpps(k_oor | k_tmp1,
+                   data_vec,
+                   f16_min_neg_vec,
+                   cmp_gt_os);                               // merge-masked: k_oor = k_tmp1 & (data > min_neg)
+            vcmpps(k_tmp1, data_vec, zero_vec, cmp_neq_uq);  // data != 0
             kandw(k_oor, k_oor, k_tmp1);
             // overflow: data > max_pos OR data < max_neg
             vcmpps(k_tmp1, data_vec, f16_max_pos_vec, cmp_gt_os);
@@ -782,11 +785,11 @@ private:
 
             // === Relative error check: count elements where |diff| > |value| * 1e-4 ===
             // (equivalent to abs_diff / |value| > 1e-4, but avoids division)
-            vandps(tmp_vec, data_vec, abs_mask_vec);         // tmp_vec = |data|
-            vmulps(tmp_vec, tmp_vec, rel_err_vec);           // tmp_vec = |data| * 1e-4
+            vandps(tmp_vec, data_vec, abs_mask_vec);        // tmp_vec = |data|
+            vmulps(tmp_vec, tmp_vec, rel_err_vec);          // tmp_vec = |data| * 1e-4
             vcmpps(tmp_vec, diff_vec, tmp_vec, cmp_gt_os);  // 1 where |diff| > |data|*1e-4
-            vandnps(tmp_vec, mask_vec, tmp_vec);             // exclude OOR (avoid double-count)
-            vorps(mask_vec, mask_vec, tmp_vec);              // combine OOR + relative-error
+            vandnps(tmp_vec, mask_vec, tmp_vec);            // exclude OOR (avoid double-count)
+            vorps(mask_vec, mask_vec, tmp_vec);             // combine OOR + relative-error
 
             // === Accumulate combined OOR + relative-error count ===
             vandps(mask_vec, mask_vec, i32_ones_vec);
