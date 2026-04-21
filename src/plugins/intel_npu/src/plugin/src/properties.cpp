@@ -628,7 +628,9 @@ void Properties::registerPluginProperties() {
         REGISTER_SIMPLE_METRIC(ov::device::pci_info, true, _metrics->GetPciInfo(get_specified_device_name(config)));
         REGISTER_SIMPLE_METRIC(ov::device::gops, true, _metrics->GetGops(get_specified_device_name(config)));
         REGISTER_SIMPLE_METRIC(ov::device::type, true, _metrics->GetDeviceType(get_specified_device_name(config)));
-        REGISTER_SIMPLE_METRIC(ov::internal::supported_properties, false, _internalSupportedProperties);
+        REGISTER_CUSTOM_METRIC(ov::internal::supported_properties, false, [&](const Config&) {
+            return _internalSupportedProperties;
+        });
         REGISTER_SIMPLE_METRIC(ov::internal::cache_header_alignment, false, utils::STANDARD_PAGE_SIZE);
         REGISTER_SIMPLE_METRIC(ov::intel_npu::device_alloc_mem_size,
                                true,
@@ -676,7 +678,7 @@ void Properties::registerPluginProperties() {
 
             auto compilationPlatform = utils::getCompilationPlatform(
                 config.get<PLATFORM>(),
-                device == nullptr ? deviceId : device->getName(),
+                device == nullptr ? std::move(deviceId) : device->getName(),
                 _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
             CompilerAdapterFactory factory;
@@ -835,7 +837,7 @@ ov::Any Properties::getProperty(const std::string& name) {
 
             auto compilationPlatform = utils::getCompilationPlatform(
                 _config.get<PLATFORM>(),
-                device == nullptr ? deviceId : device->getName(),
+                device == nullptr ? std::move(deviceId) : device->getName(),
                 _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
             // Create a compiler to get the type and fetch version and supported options if needed
@@ -915,7 +917,7 @@ void Properties::setProperty(const ov::AnyMap& properties) {
 
             auto compilationPlatform = utils::getCompilationPlatform(
                 determinePlatform(properties),
-                device == nullptr ? deviceId : device->getName(),
+                device == nullptr ? std::move(deviceId) : device->getName(),
                 _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
             // Create a compiler to get the type and fetch version and supported options if needed
@@ -999,7 +1001,7 @@ bool Properties::isPropertySupported(const std::string& name) {
 
         auto compilationPlatform = utils::getCompilationPlatform(
             _config.get<PLATFORM>(),
-            device == nullptr ? deviceId : device->getName(),
+            device == nullptr ? std::move(deviceId) : device->getName(),
             _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
         // Create a compiler to get the type and fetch version and supported options if needed
@@ -1027,7 +1029,7 @@ bool Properties::isPropertySupported(const std::string& name) {
             registerProperties();
             _compilerConfigsFilteredByCompiler = true;
             _currentlyUsedCompiler = compilerType;
-            _currentlyUsedPlatform = compilationPlatform;
+            _currentlyUsedPlatform = std::move(compilationPlatform);
         }
     }
 
@@ -1107,7 +1109,7 @@ FilteredConfig Properties::getConfigWithCompilerPropertiesDisabled(const ov::Any
     }
 
     if (properties.empty()) {
-        return updatedConfig;
+        return std::move(updatedConfig);
     }
 
     const std::map<std::string, std::string> rawConfig = any_copy(properties);
@@ -1135,7 +1137,7 @@ FilteredConfig Properties::getConfigWithCompilerPropertiesDisabled(const ov::Any
 
     updatedConfig.update(cfgsToSet);
 
-    return updatedConfig;
+    return std::move(updatedConfig);
 }
 
 ov::intel_npu::CompilerType Properties::determineCompilerType(const ov::AnyMap& properties) const {
