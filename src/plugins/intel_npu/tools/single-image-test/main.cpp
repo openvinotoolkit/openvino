@@ -360,7 +360,7 @@ void cvToOV(const cv::Mat& cvImg,
                           << n << " up to " << N << " with image data from the array: "
                           << cvImgInBatch.to_string() << std::endl;
             }
-            cv::Mat batch(static_cast<const int>(H),
+            cv::Mat batch(static_cast<int>(H),
                           static_cast<int>(W),
                           cvType,
                           dataBuffer + n * (out.size().area() * out.elemSize()));
