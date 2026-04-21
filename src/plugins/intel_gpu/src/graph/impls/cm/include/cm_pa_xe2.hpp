@@ -99,7 +99,6 @@ void pa_lsc_u8(
         #pragma unroll
         for (int k = 0, ri = 0; k < head_size / 2; k += REG_K / 2, ri++) {
             cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(k));
-            rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
         }
     }
 
@@ -299,6 +298,8 @@ void pa_lsc_u8(
                     uint slm_offset = (slm_buff_id_read & 3) * slm_buff_size;
 
                     matrix<float, kv_step, q_step> St = ugemm_KQ(slm_K, rQ, slm_offset);
+                    // Post-scale QK scores in fp32 (avoids (half)scale_factor truncation)
+                    St = cm_mul<float>(St, (float)scale_factor);
 
                     if constexpr (use_causal_mask) {
                         if (causal_left == 0) {
@@ -460,11 +461,20 @@ void pa_lsc_u8(
             continue;
         }
 #endif
+        // Skip computation for fully-masked causal blocks (after barriers/SLM load).
+        if constexpr (use_causal_mask) {
+            if (causal_left < 0) {
+                causal_left -= kv_step;
+                continue;
+            }
+        }
 
         {
             uint slm_offset = (slm_buff_id_read & 3) * slm_buff_size;
 
             matrix<float, kv_step, q_step> St = ugemm_KQ(slm_K, rQ, slm_offset);
+            // Post-scale QK scores in fp32 (avoids (half)scale_factor truncation)
+            St = cm_mul<float>(St, (float)scale_factor);
 
             if constexpr (use_causal_mask) {
                 if (causal_left == 0) {
@@ -599,7 +609,6 @@ void pa_kernel_lsc_prefetch_f16(
         #pragma unroll
         for(int k = 0, ri = 0; k < head_size/2; k += REG_K/2, ri++) {
             cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(k));
-            rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
         }
     }
 
@@ -682,6 +691,8 @@ void pa_kernel_lsc_prefetch_f16(
                 }
             }
         }
+        // Post-scale QK scores in fp32 (avoids (half)scale_factor truncation)
+        St = cm_mul<float>(St, (float)scale_factor);
         if constexpr (use_causal_mask) {
             // since kv_step == q_step == 16, causal_left is n*kv_step
             if (causal_left == 0) {
@@ -830,6 +841,8 @@ void pa_kernel_lsc_prefetch_f16(
                 }
             }
         }
+        // Post-scale QK scores in fp32 (avoids (half)scale_factor truncation)
+        St = cm_mul<float>(St, (float)scale_factor);
         if constexpr (use_causal_mask) {
             // since kv_step == q_step == 16, causal_left is n*kv_step
             if (causal_left == 0) {
