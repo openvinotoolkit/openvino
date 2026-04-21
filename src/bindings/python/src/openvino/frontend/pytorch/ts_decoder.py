@@ -4,6 +4,7 @@
 
 # mypy: ignore-errors
 
+import importlib
 import inspect
 import logging
 import typing
@@ -60,6 +61,8 @@ class TorchScriptPythonDecoder(Decoder):
         self.constant_cache = constant_cache if constant_cache is not None else dict()  # noqa: C408
         self.module_extensions = module_extensions
         self.config = None
+        self._input_ids_override = None
+        self._callfunction_target = None
         self.out_debug_name_overwrites = {}
         self.cached_out_types = []
         if graph_element is None:
@@ -206,6 +209,8 @@ class TorchScriptPythonDecoder(Decoder):
         return f_model
 
     def inputs(self) -> list:
+        if self._input_ids_override is not None:
+            return self._input_ids_override
         return [x.unique() for x in self.raw_inputs]
 
     def get_input_debug_name(self, index: int) -> str:
@@ -272,6 +277,10 @@ class TorchScriptPythonDecoder(Decoder):
             return OVAny(DecoderType.List(self._get_known_type_for_value(element_type)))
         elif isinstance(pt_type, (torch.StringType, torch.DeviceObjType)):
             return OVAny(DecoderType.Str())
+        elif hasattr(pt_type, "kind") and pt_type.kind() == "FunctionType":
+            # Function constants are consumed by prim::CallFunction and cannot be
+            # represented as OpenVINO Constant directly.
+            return OVAny(DecoderType.Str())
         elif isinstance(pt_type, torch.NoneType):
             return OVAny(DecoderType.PyNone())
         else:
@@ -295,6 +304,130 @@ class TorchScriptPythonDecoder(Decoder):
         _type = value.type() if hasattr(value, "type") else type(value).__name__
         full_type = self._get_known_type_for_value(_type)
         return full_type
+
+    def _module_namespace_candidates(self):
+        if not hasattr(self.pt_module, "_c") or not hasattr(self.pt_module._c, "_type"):
+            return []
+        try:
+            qualified_name = self.pt_module._c._type().qualified_name
+            if callable(qualified_name):
+                qualified_name = qualified_name()
+        except Exception as e:
+            logging.debug("Failed to get ScriptModule qualified name", exc_info=e)
+            return []
+        if not isinstance(qualified_name, str):
+            return []
+        if qualified_name.startswith("__torch__."):
+            qualified_name = qualified_name[len("__torch__."):]
+        parts = qualified_name.split(".")
+        if len(parts) <= 1:
+            return []
+        candidates = []
+        # Try the longest namespace first and fall back to shorter ones.
+        for i in range(len(parts) - 1, 0, -1):
+            candidates.append(".".join(parts[:i]))
+        return candidates
+
+    @staticmethod
+    def _qualified_name_matches(script_function, function_name: str) -> bool:
+        try:
+            qname = script_function.qualified_name
+            if callable(qname):
+                qname = qname()
+            if isinstance(qname, str):
+                return qname == function_name or qname.endswith("." + function_name)
+        except Exception:
+            pass
+        return False
+
+    @staticmethod
+    def _name_matches(script_function, function_name: str) -> bool:
+        try:
+            name = script_function.name
+            if callable(name):
+                name = name()
+            if isinstance(name, str):
+                return name == function_name
+        except Exception:
+            pass
+        return False
+
+    def _find_script_function(self, function_name: str):
+        if not function_name:
+            return None
+        if self._callfunction_target is not None:
+            return self._callfunction_target
+
+        # 1) Try global Python compilation unit by direct and namespace-qualified names.
+        qualified_candidates = [function_name]
+        for namespace in self._module_namespace_candidates():
+            qualified_candidates.append(f"__torch__.{namespace}.{function_name}")
+        try:
+            global_cu = torch.jit._state._python_cu
+            for candidate in qualified_candidates:
+                fn = global_cu.find_function(candidate)
+                if fn is not None:
+                    self._callfunction_target = fn
+                    return fn
+        except Exception as e:
+            logging.debug("Failed to resolve function from global Python CU", exc_info=e)
+
+        # 2) Try module globals and any CompilationUnit-like objects in that module.
+        for namespace in self._module_namespace_candidates():
+            try:
+                py_module = importlib.import_module(namespace)
+            except Exception:
+                continue
+            for obj in vars(py_module).values():
+                if isinstance(obj, torch.jit.ScriptFunction):
+                    if self._name_matches(obj, function_name) or self._qualified_name_matches(obj, function_name):
+                        self._callfunction_target = obj
+                        return obj
+                # CompilationUnit-like object (e.g. torch.jit.CompilationUnit instance)
+                if hasattr(obj, "find_function"):
+                    for candidate in qualified_candidates:
+                        try:
+                            fn = obj.find_function(candidate)
+                            if fn is not None:
+                                self._callfunction_target = fn
+                                return fn
+                        except Exception:
+                            continue
+                if hasattr(obj, "get_functions"):
+                    try:
+                        for fn in obj.get_functions():
+                            if self._name_matches(fn, function_name) or self._qualified_name_matches(fn, function_name):
+                                self._callfunction_target = fn
+                                return fn
+                    except Exception:
+                        continue
+        return None
+
+    def _resolve_callfunction_graph(self):
+        if self.graph_element.kind() != "prim::CallFunction" or len(self.raw_inputs) == 0:
+            return None
+        function_name = None
+        const_input = self._raw_input(0).node()
+        if const_input.kind() == "prim::Constant" and "name" in const_input.attributeNames():
+            function_name = const_input.s("name")
+        if not function_name:
+            input_type = self._raw_input(0).type()
+            if hasattr(input_type, "annotation_str"):
+                annotation = input_type.annotation_str
+                function_name = annotation() if callable(annotation) else annotation
+        if not isinstance(function_name, str) or function_name == "":
+            return None
+
+        function = self._find_script_function(function_name)
+        if function is None:
+            return None
+
+        subgraph = function.graph
+        # Use a fresh graph instance for each request to avoid cross-node mutation.
+        if hasattr(subgraph, "copy"):
+            subgraph = subgraph.copy()
+        torch._C._jit_pass_inline(subgraph)
+        return subgraph
 
     def get_subgraph_size(self) -> int:
         if isinstance(self.graph_element, torch.Node):
@@ -320,6 +453,9 @@ class TorchScriptPythonDecoder(Decoder):
         return "ts"
 
     def get_subgraphs(self) -> list:
+        if self.graph_element.kind() == "prim::CallFunction":
+            subgraph = self._resolve_callfunction_graph()
+            return [subgraph] if subgraph is not None else []
         if self.graph_element.kind() in ["prim::PythonOp", "prim::fork"]:
             if "Subgraph" in self.graph_element.attributeNames():
                 assert isinstance(
@@ -346,6 +482,9 @@ class TorchScriptPythonDecoder(Decoder):
                                            shared_memory=self._shared_memory,
                                            module_extensions=self.module_extensions
                                            )
+        if self.graph_element.kind() == "prim::CallFunction":
+            # Input 0 is a function object, real call arguments start from input 1.
+            decoder._input_ids_override = self.inputs()[1:]
         self.m_decoders.append(decoder)
         return decoder
 
@@ -504,6 +643,12 @@ class TorchScriptPythonDecoder(Decoder):
                 return pt_value.toIValue()
             elif str(pt_value.type()) == "Device":
                 return pt_value.toIValue().type
+            elif hasattr(pt_value.type(), "kind") and pt_value.type().kind() == "FunctionType":
+                if "name" in self.graph_element.attributeNames():
+                    return self.graph_element.s("name")
+                # Fallback to annotation if "name" is unavailable.
+                annotation = pt_value.type().annotation_str
+                return annotation() if callable(annotation) else annotation
         elif self.get_op_type() == "prim::device":
             return self._get_device_string()
         return None
