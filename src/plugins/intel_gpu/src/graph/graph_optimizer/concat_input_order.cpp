@@ -134,20 +134,20 @@ void concat_input_order::run(program& p) {
 
         auto out_format = concat_node.get_output_layout().format;
         bool correct_format = (out_format == format::b_fs_yx_fsv16) || (out_format == format::b_fs_yx_fsv32);
-        tensor::value_type alignment = 1;
+        int32_t alignment = 1;
         if (out_format == format::b_fs_yx_fsv16)
             alignment = 16;
         else if (out_format == format::b_fs_yx_fsv32)
             alignment = 32;
 
         bool single_format = true;
-        std::vector<tensor::value_type> feature_sizes;
+        std::vector<int32_t> feature_sizes;
         feature_sizes.reserve(inputs_count);
         for (size_t input_idx = 0; input_idx < inputs_count; ++input_idx) {
             const auto dep = concat_node.get_dependency_with_port(input_idx);
             auto dep_layout = dep.first->get_output_layout(false, dep.second);
             single_format &= dep_layout.format == out_format;
-            feature_sizes.push_back(dep_layout.feature());
+            feature_sizes.push_back(static_cast<int32_t>(dep_layout.feature()));
         }
 
         // Alignment is not optimal if aligned input follows unaligned one
