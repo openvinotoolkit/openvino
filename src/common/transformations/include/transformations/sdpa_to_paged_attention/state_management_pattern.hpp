@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <unordered_set>
+#include <map>
 
 #include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
@@ -20,8 +20,8 @@ class TRANSFORMATIONS_API StateManagementPattern;
 class ov::pass::StateManagementPattern : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("StateManagementPattern");
-    StateManagementPattern(ParameterVector& kv_parameters,
-                           ParameterVector& model_wide_params,
+    using KvCacheParamMap = std::map<std::string, std::shared_ptr<op::v0::Parameter>>;
+    StateManagementPattern(ParameterVector& model_wide_params,
                            int& layer_index,
                            ov::Output<Node> max_context_len,
                            ParameterVector& block_indices_inputs_for_each_layer,
@@ -40,5 +40,5 @@ public:
                            ParameterVector& adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
                            ResultVector& adaptive_rkv_diversity_results,
                            const std::map<std::string, std::shared_ptr<op::v0::Parameter>>& optional_model_wide_params,
-                           std::unordered_set<std::string>& var_ids_to_remove);
+                           KvCacheParamMap& seen_kv_var_ids);
 };

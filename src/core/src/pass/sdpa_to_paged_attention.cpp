@@ -148,14 +148,15 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         target.replace_source_output(processed_input_ids);
     }
 
-    ParameterVector kv_parameters;
     ParameterVector block_indices_inputs_for_each_layer;
     ParameterVector rotated_block_indices_inputs_for_each_layer;
     ParameterVector rotation_deltas_inputs_for_each_layer;
     ParameterVector xattention_threshold_inputs_for_each_layer;
     ParameterVector adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer;
     ParameterVector adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer;
-    std::unordered_set<std::string> var_ids_to_remove;
+    // Maps ReadValue variable_id to the KV-cache Parameters of the owning layer.
+    // Used to detect shared KV-cache layers and to remove corresponding Assign sinks.
+    StateManagementPattern::KvCacheParamMap seen_kv_var_ids;
 
     ResultVector score_results;
     ResultVector adaptive_rkv_diversity_results;
@@ -199,8 +200,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     ov::pass::Manager manager("SDPA to PA");
     manager.set_per_pass_validation(false);
-    manager.register_pass<StateManagementPattern>(kv_parameters,
-                                                  model_wide_params,
+    manager.register_pass<StateManagementPattern>(model_wide_params,
                                                   layer_index,
                                                   max_context_len->output(0),
                                                   block_indices_inputs_for_each_layer,
@@ -219,7 +219,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
                                                   adaptive_rkv_diversity_results,
                                                   optional_model_wide_params,
-                                                  var_ids_to_remove);
+                                                  seen_kv_var_ids);
     manager.register_pass<PrevSequenceLengthPattern>(processed_input_ids, max_context_len, position_ids);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
     manager.register_pass<TotalSequenceLengthPatternQwen>(max_context_len);
@@ -237,7 +237,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
         for (auto& sink : sinks) {
             if (auto assign = ov::as_type_ptr<ov::op::util::AssignBase>(sink)) {
-                if (var_ids_to_remove.count(assign->get_variable_id())) {
+                const auto& var_id = assign->get_variable_id();
+                if (seen_kv_var_ids.count(var_id + "/k") || seen_kv_var_ids.count(var_id + "/v")) {
                     model->remove_sink(sink);
                 }
             }
@@ -301,7 +302,10 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         model->add_parameters({optional_model_wide_params["qq_bias_begins"]});
     }
 
-    model->add_parameters(kv_parameters);
+    // Each map entry is 1:1 with a unique Parameter — no dedup needed
+    for (const auto& entry : seen_kv_var_ids) {
+        model->add_parameters({entry.second});
+    }
     model->add_parameters(model_wide_params);
     model->add_parameters({std::move(max_context_len)});
     model->validate_nodes_and_infer_types();
