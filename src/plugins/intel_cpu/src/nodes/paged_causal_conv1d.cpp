@@ -4,22 +4,22 @@
 
 #include "paged_causal_conv1d.h"
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <utility>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 #include <vector>
 
-#include "cpu_types.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "nodes/kernels/paged_causal_conv1d.hpp"
-#include "nodes/node_config.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
@@ -77,45 +77,19 @@ void PagedCausalConv1D::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto weight_shape = getSrcMemoryAtPort(2)->getStaticDims();
     const auto bias_shape = getSrcMemoryAtPort(3)->getStaticDims();
 
-    OPENVINO_ASSERT(input_embeds_shape.size() == 2,
-                    "PagedCausalConv1D expects input_embeds rank 2, got ",
-                    input_embeds_shape.size());
-    OPENVINO_ASSERT(state_table_shape.size() == 3,
-                    "PagedCausalConv1D expects conv_state_table rank 3, got ",
-                    state_table_shape.size());
-    OPENVINO_ASSERT(weight_shape.size() == 3,
-                    "PagedCausalConv1D expects conv_weight rank 3, got ",
-                    weight_shape.size());
-
     const size_t batch_size_in_tokens = input_embeds_shape[0];
     const size_t hidden_size = input_embeds_shape[1];
     const size_t num_blocks = state_table_shape[0];
-    const size_t state_hidden_size = state_table_shape[1];
     const size_t kernel_size = state_table_shape[2];
 
-    OPENVINO_ASSERT(hidden_size == state_hidden_size,
-                    "PagedCausalConv1D expects hidden size match between input_embeds and conv_state_table. Got ",
+    OPENVINO_ASSERT(state_table_shape[1] == hidden_size,
+                    "PagedCausalConv1D: conv_state_table hidden_size (",
+                    state_table_shape[1],
+                    ") != input_embeds hidden_size (",
                     hidden_size,
-                    " and ",
-                    state_hidden_size);
-    OPENVINO_ASSERT(weight_shape[0] == hidden_size,
-                    "PagedCausalConv1D expects conv_weight out_channels equal hidden_size. Got ",
-                    weight_shape[0],
-                    " and ",
-                    hidden_size);
-    OPENVINO_ASSERT(weight_shape[2] == kernel_size,
-                    "PagedCausalConv1D expects conv_weight kernel size equal conv_state_table kernel size. Got ",
-                    weight_shape[2],
-                    " and ",
-                    kernel_size);
-    OPENVINO_ASSERT(bias_shape.size() == 1, "PagedCausalConv1D expects conv_bias rank 1, got ", bias_shape.size());
+                    ").");
 
     const bool has_bias = bias_shape[0] != 0;
-    OPENVINO_ASSERT(!has_bias || bias_shape[0] == hidden_size,
-                    "PagedCausalConv1D expects conv_bias shape[0] to be 0 (optional) or hidden_size. Got ",
-                    bias_shape[0],
-                    " and hidden_size=",
-                    hidden_size);
 
     const auto* input_embeds = getSrcDataAtPortAs<const float>(0);
     const auto state_precision = getSrcMemoryAtPort(1)->getDescPtr()->getPrecision();

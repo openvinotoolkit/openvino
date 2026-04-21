@@ -49,6 +49,82 @@ inline void write_state_from_float<float>(float* dst, const float* src, size_t c
     std::memcpy(dst, src, count * sizeof(float));
 }
 
+constexpr size_t kChannelBlock = 64;
+
+// Validate all block_indices for a sequence are within [0, num_blocks) before entering hot loop.
+inline void validate_block_indices(const int32_t* block_indices,
+                                   int32_t blk_begin,
+                                   int32_t blk_end,
+                                   size_t num_blocks,
+                                   size_t seq_idx) {
+    for (int32_t i = blk_begin; i < blk_end; i++) {
+        OPENVINO_ASSERT(block_indices[i] >= 0 && static_cast<size_t>(block_indices[i]) < num_blocks,
+                        "PagedCausalConv1D has invalid physical block index ",
+                        block_indices[i],
+                        " at position ",
+                        i,
+                        " for sequence ",
+                        seq_idx);
+    }
+}
+
+// Flush state to conv_state_table when interval or last-token condition is met.
+// Called from the inner token loop of both ref and optimized kernels.
+template <typename StateType>
+inline void maybe_flush_state(StateType* conv_state_table,
+                              const float* local_state,
+                              const int32_t* block_indices,
+                              int32_t blk_begin,
+                              int32_t block_span,
+                              int32_t prev_nums,
+                              int32_t seq_interval,
+                              int32_t t,
+                              int32_t seq_tokens,
+                              size_t state_stride,
+                              size_t state_off,
+                              size_t h_count,
+                              size_t kernel_size) {
+    const int32_t cached_tokens = prev_nums + (t + 1);
+    const bool interval_hit = (seq_interval > 0) && ((cached_tokens % seq_interval) == 0);
+    const bool is_last_token = (t == seq_tokens - 1);
+    if (interval_hit || is_last_token) {
+        const int32_t slot = (seq_interval > 0) ? (1 + (cached_tokens - 1) / seq_interval) : 1;
+        if (slot < block_span) {
+            const int32_t physical_block = block_indices[blk_begin + slot];
+            write_state_from_float(conv_state_table + static_cast<size_t>(physical_block) * state_stride + state_off,
+                                   local_state + state_off,
+                                   h_count * kernel_size);
+        }
+    }
+}
+
+// Scalar conv1d computation for a channel range [h_begin, h_end).
+// Shifts state, inserts new token, computes dot product with weight.
+inline void conv1d_scalar(float* local_state,
+                          const float* token_ptr,
+                          const float* conv_weight,
+                          const float* conv_bias,
+                          bool has_bias,
+                          float* out_ptr,
+                          size_t h_begin,
+                          size_t h_end,
+                          size_t kernel_size) {
+    for (size_t h = h_begin; h < h_end; h++) {
+        float* state_h = local_state + h * kernel_size;
+        for (size_t k = 0; k + 1 < kernel_size; k++) {
+            state_h[k] = state_h[k + 1];
+        }
+        state_h[kernel_size - 1] = token_ptr[h];
+
+        const float* weight_h = conv_weight + h * kernel_size;
+        float sum = has_bias ? conv_bias[h] : 0.0F;
+        for (size_t k = 0; k < kernel_size; k++) {
+            sum += state_h[k] * weight_h[k];
+        }
+        out_ptr[h] = sum;
+    }
+}
+
 template <typename StateType>
 inline void paged_causal_conv1d_ref(const float* input_embeds,
                                     StateType* conv_state_table,
@@ -68,8 +144,7 @@ inline void paged_causal_conv1d_ref(const float* input_embeds,
                                     size_t seq_count,
                                     float* local_state) {
     const size_t state_stride = hidden_size * kernel_size;
-    constexpr size_t channel_block = 64;
-    const size_t block_count = (hidden_size + channel_block - 1) / channel_block;
+    const size_t block_count = (hidden_size + kChannelBlock - 1) / kChannelBlock;
 
     for (size_t s = 0; s < seq_count; s++) {
         const int32_t token_begin = subsequence_begins[s];
@@ -98,75 +173,66 @@ inline void paged_causal_conv1d_ref(const float* input_embeds,
                         s);
 
         const int32_t block_span = blk_end - blk_begin;
-        OPENVINO_ASSERT(block_span > 1,
-                        "PagedCausalConv1D expects at least two logical blocks per sequence (read block 0, write block 1..N), got ",
-                        block_span,
-                        " at sequence ",
-                        s);
+        OPENVINO_ASSERT(
+            block_span > 1,
+            "PagedCausalConv1D expects at least two logical blocks per sequence (read block 0, write block 1..N), got ",
+            block_span,
+            " at sequence ",
+            s);
 
-        const int32_t read_physical_block = block_indices[blk_begin];
-        OPENVINO_ASSERT(read_physical_block >= 0 && static_cast<size_t>(read_physical_block) < num_blocks,
-                        "PagedCausalConv1D has invalid physical block index ",
-                        read_physical_block,
-                        " for sequence ",
-                        s);
+        // Validate all block indices upfront, before entering the hot loop.
+        validate_block_indices(block_indices, blk_begin, blk_end, num_blocks, s);
 
         const int32_t seq_interval = cache_interval[s];
         const int32_t prev_nums = (seq_interval > 0) ? (past_lens[s] % seq_interval) : 0;
         const int32_t seq_tokens = token_end - token_begin;
 
+        const int32_t read_physical_block = block_indices[blk_begin];
         read_state_to_float(local_state,
-                    conv_state_table + static_cast<size_t>(read_physical_block) * state_stride,
-                    state_stride);
+                            conv_state_table + static_cast<size_t>(read_physical_block) * state_stride,
+                            state_stride);
 
+        // Thread safety: each thread operates on a disjoint channel slice [h_begin, h_end)
+        // of local_state, so no synchronization is needed despite sharing the buffer.
         ov::parallel_nt_static(0, [&](const int ithr, const int nthr) {
             size_t blk_start = 0;
             size_t blk_stop = 0;
             ov::splitter(block_count, nthr, ithr, blk_start, blk_stop);
 
             for (size_t blk = blk_start; blk < blk_stop; blk++) {
-                const size_t h_begin = blk * channel_block;
-                const size_t h_end = std::min(h_begin + channel_block, hidden_size);
+                const size_t h_begin = blk * kChannelBlock;
+                const size_t h_end = std::min(h_begin + kChannelBlock, hidden_size);
                 const size_t h_count = h_end - h_begin;
                 const size_t state_off = h_begin * kernel_size;
 
                 for (int32_t t = 0; t < seq_tokens; t++) {
-                    const auto token_idx = static_cast<size_t>(token_begin + t);
+                    const size_t token_idx = static_cast<size_t>(token_begin) + static_cast<size_t>(t);
                     const auto* token_ptr = input_embeds + token_idx * hidden_size;
                     auto* out_ptr = output_embeds + token_idx * hidden_size;
 
-                    for (size_t h = h_begin; h < h_end; h++) {
-                        float* state_h = local_state + h * kernel_size;
-                        for (size_t k = 0; k + 1 < kernel_size; k++) {
-                            state_h[k] = state_h[k + 1];
-                        }
-                        state_h[kernel_size - 1] = token_ptr[h];
+                    conv1d_scalar(local_state,
+                                  token_ptr,
+                                  conv_weight,
+                                  conv_bias,
+                                  has_bias,
+                                  out_ptr,
+                                  h_begin,
+                                  h_end,
+                                  kernel_size);
 
-                        const float* weight_h = conv_weight + h * kernel_size;
-                        float sum = has_bias ? conv_bias[h] : 0.0f;
-                        for (size_t k = 0; k < kernel_size; k++) {
-                            sum += state_h[k] * weight_h[k];
-                        }
-                        out_ptr[h] = sum;
-                    }
-
-                    const int32_t cached_tokens = prev_nums + (t + 1);
-                    const bool interval_hit = (seq_interval > 0) && ((cached_tokens % seq_interval) == 0);
-                    const bool is_last_token = (t == seq_tokens - 1);
-                    if (interval_hit || is_last_token) {
-                        const int32_t slot = (seq_interval > 0) ? (1 + (cached_tokens - 1) / seq_interval) : 1;
-                        if (slot < block_span) {
-                            const int32_t physical_block = block_indices[blk_begin + slot];
-                            OPENVINO_ASSERT(physical_block >= 0 && static_cast<size_t>(physical_block) < num_blocks,
-                                            "PagedCausalConv1D has invalid physical block index ",
-                                            physical_block,
-                                            " while updating cache state.");
-                            write_state_from_float(conv_state_table + static_cast<size_t>(physical_block) * state_stride +
-                                            state_off,
-                                        local_state + state_off,
-                                        h_count * kernel_size);
-                        }
-                    }
+                    maybe_flush_state(conv_state_table,
+                                      local_state,
+                                      block_indices,
+                                      blk_begin,
+                                      block_span,
+                                      prev_nums,
+                                      seq_interval,
+                                      t,
+                                      seq_tokens,
+                                      state_stride,
+                                      state_off,
+                                      h_count,
+                                      kernel_size);
                 }
             }
         });
@@ -233,12 +299,12 @@ inline void paged_causal_conv1d_optimized(const float* input_embeds,
 
     bool use_avx512 = false;
     bool use_avx2 = false;
-#if defined(HAVE_AVX512F)
+#    if defined(HAVE_AVX512F)
     use_avx512 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
-#endif
-#if defined(HAVE_AVX2)
+#    endif
+#    if defined(HAVE_AVX2)
     use_avx2 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
-#endif
+#    endif
     if (!use_avx512 && !use_avx2) {
         paged_causal_conv1d_ref(input_embeds,
                                 conv_state_table,
@@ -261,8 +327,7 @@ inline void paged_causal_conv1d_optimized(const float* input_embeds,
     }
 
     const size_t state_stride = hidden_size * kernel_size;
-    constexpr size_t channel_block = 64;
-    const size_t block_count = (hidden_size + channel_block - 1) / channel_block;
+    const size_t block_count = (hidden_size + kChannelBlock - 1) / kChannelBlock;
 
     for (size_t s = 0; s < seq_count; s++) {
         const int32_t token_begin = subsequence_begins[s];
@@ -291,231 +356,132 @@ inline void paged_causal_conv1d_optimized(const float* input_embeds,
                         s);
 
         const int32_t block_span = blk_end - blk_begin;
-        OPENVINO_ASSERT(block_span > 1,
-                        "PagedCausalConv1D expects at least two logical blocks per sequence (read block 0, write block 1..N), got ",
-                        block_span,
-                        " at sequence ",
-                        s);
+        OPENVINO_ASSERT(
+            block_span > 1,
+            "PagedCausalConv1D expects at least two logical blocks per sequence (read block 0, write block 1..N), got ",
+            block_span,
+            " at sequence ",
+            s);
+
+        // Validate all block indices upfront, before entering the hot loop.
+        validate_block_indices(block_indices, blk_begin, blk_end, num_blocks, s);
 
         const int32_t seq_interval = cache_interval[s];
         const int32_t prev_nums = (seq_interval > 0) ? (past_lens[s] % seq_interval) : 0;
         const int32_t seq_tokens = token_end - token_begin;
 
         const int32_t read_physical_block = block_indices[blk_begin];
-        OPENVINO_ASSERT(read_physical_block >= 0 && static_cast<size_t>(read_physical_block) < num_blocks,
-                        "PagedCausalConv1D has invalid physical block index ",
-                        read_physical_block,
-                        " for sequence ",
-                        s);
-
         read_state_to_float(local_state,
-                    conv_state_table + static_cast<size_t>(read_physical_block) * state_stride,
-                    state_stride);
+                            conv_state_table + static_cast<size_t>(read_physical_block) * state_stride,
+                            state_stride);
 
+        // Thread safety: each thread operates on a disjoint channel slice [h_begin, h_end)
+        // of local_state, so no synchronization is needed despite sharing the buffer.
         ov::parallel_nt_static(0, [&](const int ithr, const int nthr) {
             size_t blk_start = 0;
             size_t blk_stop = 0;
             ov::splitter(block_count, nthr, ithr, blk_start, blk_stop);
 
             for (size_t blk = blk_start; blk < blk_stop; blk++) {
-                const size_t h_begin = blk * channel_block;
-                const size_t h_end = std::min(h_begin + channel_block, hidden_size);
+                const size_t h_begin = blk * kChannelBlock;
+                const size_t h_end = std::min(h_begin + kChannelBlock, hidden_size);
                 const size_t h_count = h_end - h_begin;
                 const size_t state_off = h_begin * kernel_size;
 
                 for (int32_t t = 0; t < seq_tokens; t++) {
-                    const auto token_idx = static_cast<size_t>(token_begin + t);
+                    const size_t token_idx = static_cast<size_t>(token_begin) + static_cast<size_t>(t);
                     const auto* token_ptr = input_embeds + token_idx * hidden_size;
                     auto* out_ptr = output_embeds + token_idx * hidden_size;
 
+                    // SIMD-accelerated paths for kernel_size 3 and 4.
+                    // Each path: shift state, gather into aligned buffers, vectorized MAC, scalar tail.
                     size_t h = h_begin;
-                    if (kernel_size == 4) {
-#if defined(HAVE_AVX512F)
-                        if (use_avx512) {
-                            for (; h + 16 <= h_end; h += 16) {
-                                alignas(64) float st0[16], st1[16], st2[16], st3[16];
-                                alignas(64) float wt0[16], wt1[16], wt2[16], wt3[16];
-                                alignas(64) float bias_buf[16];
-                                for (size_t i = 0; i < 16; i++) {
-                                    const size_t ch = h + i;
-                                    float* state_h = local_state + ch * 4;
-                                    state_h[0] = state_h[1];
-                                    state_h[1] = state_h[2];
-                                    state_h[2] = state_h[3];
-                                    state_h[3] = token_ptr[ch];
 
-                                    st0[i] = state_h[0];
-                                    st1[i] = state_h[1];
-                                    st2[i] = state_h[2];
-                                    st3[i] = state_h[3];
-
-                                    const float* weight_h = conv_weight + ch * 4;
-                                    wt0[i] = weight_h[0];
-                                    wt1[i] = weight_h[1];
-                                    wt2[i] = weight_h[2];
-                                    wt3[i] = weight_h[3];
-                                    bias_buf[i] = has_bias ? conv_bias[ch] : 0.0f;
+#    if defined(HAVE_AVX512F)
+                    if (use_avx512) {
+                        for (; h + 16 <= h_end; h += 16) {
+                            alignas(64) float st[4][16];
+                            alignas(64) float wt[4][16];
+                            alignas(64) float bias_buf[16];
+                            for (size_t i = 0; i < 16; i++) {
+                                const size_t ch = h + i;
+                                float* state_h = local_state + ch * kernel_size;
+                                for (size_t k = 0; k + 1 < kernel_size; k++) {
+                                    state_h[k] = state_h[k + 1];
                                 }
-
-                                __m512 acc = _mm512_loadu_ps(bias_buf);
-                                acc = _mm512_add_ps(acc, _mm512_mul_ps(_mm512_loadu_ps(st0), _mm512_loadu_ps(wt0)));
-                                acc = _mm512_add_ps(acc, _mm512_mul_ps(_mm512_loadu_ps(st1), _mm512_loadu_ps(wt1)));
-                                acc = _mm512_add_ps(acc, _mm512_mul_ps(_mm512_loadu_ps(st2), _mm512_loadu_ps(wt2)));
-                                acc = _mm512_add_ps(acc, _mm512_mul_ps(_mm512_loadu_ps(st3), _mm512_loadu_ps(wt3)));
-                                _mm512_storeu_ps(out_ptr + h, acc);
-                            }
-                        }
-#endif
-#if defined(HAVE_AVX2)
-                        if (use_avx2) {
-                            for (; h + 8 <= h_end; h += 8) {
-                                alignas(32) float st0[8], st1[8], st2[8], st3[8];
-                                alignas(32) float wt0[8], wt1[8], wt2[8], wt3[8];
-                                alignas(32) float bias_buf[8];
-                                for (size_t i = 0; i < 8; i++) {
-                                    const size_t ch = h + i;
-                                    float* state_h = local_state + ch * 4;
-                                    state_h[0] = state_h[1];
-                                    state_h[1] = state_h[2];
-                                    state_h[2] = state_h[3];
-                                    state_h[3] = token_ptr[ch];
-
-                                    st0[i] = state_h[0];
-                                    st1[i] = state_h[1];
-                                    st2[i] = state_h[2];
-                                    st3[i] = state_h[3];
-
-                                    const float* weight_h = conv_weight + ch * 4;
-                                    wt0[i] = weight_h[0];
-                                    wt1[i] = weight_h[1];
-                                    wt2[i] = weight_h[2];
-                                    wt3[i] = weight_h[3];
-                                    bias_buf[i] = has_bias ? conv_bias[ch] : 0.0f;
+                                state_h[kernel_size - 1] = token_ptr[ch];
+                                for (size_t k = 0; k < kernel_size; k++) {
+                                    st[k][i] = state_h[k];
                                 }
-
-                                __m256 acc = _mm256_loadu_ps(bias_buf);
-                                acc = _mm256_add_ps(acc, _mm256_mul_ps(_mm256_loadu_ps(st0), _mm256_loadu_ps(wt0)));
-                                acc = _mm256_add_ps(acc, _mm256_mul_ps(_mm256_loadu_ps(st1), _mm256_loadu_ps(wt1)));
-                                acc = _mm256_add_ps(acc, _mm256_mul_ps(_mm256_loadu_ps(st2), _mm256_loadu_ps(wt2)));
-                                acc = _mm256_add_ps(acc, _mm256_mul_ps(_mm256_loadu_ps(st3), _mm256_loadu_ps(wt3)));
-                                _mm256_storeu_ps(out_ptr + h, acc);
-                            }
-                        }
-#endif
-
-                        for (; h < h_end; h++) {
-                            float* state_h = local_state + h * 4;
-                            state_h[0] = state_h[1];
-                            state_h[1] = state_h[2];
-                            state_h[2] = state_h[3];
-                            state_h[3] = token_ptr[h];
-
-                            const float* weight_h = conv_weight + h * 4;
-                            float sum = has_bias ? conv_bias[h] : 0.0f;
-                            sum += state_h[0] * weight_h[0];
-                            sum += state_h[1] * weight_h[1];
-                            sum += state_h[2] * weight_h[2];
-                            sum += state_h[3] * weight_h[3];
-                            out_ptr[h] = sum;
-                        }
-                    } else {
-#if defined(HAVE_AVX512F)
-                        if (use_avx512) {
-                            for (; h + 16 <= h_end; h += 16) {
-                                alignas(64) float st0[16], st1[16], st2[16];
-                                alignas(64) float wt0[16], wt1[16], wt2[16];
-                                alignas(64) float bias_buf[16];
-                                for (size_t i = 0; i < 16; i++) {
-                                    const size_t ch = h + i;
-                                    float* state_h = local_state + ch * 3;
-                                    state_h[0] = state_h[1];
-                                    state_h[1] = state_h[2];
-                                    state_h[2] = token_ptr[ch];
-
-                                    st0[i] = state_h[0];
-                                    st1[i] = state_h[1];
-                                    st2[i] = state_h[2];
-
-                                    const float* weight_h = conv_weight + ch * 3;
-                                    wt0[i] = weight_h[0];
-                                    wt1[i] = weight_h[1];
-                                    wt2[i] = weight_h[2];
-                                    bias_buf[i] = has_bias ? conv_bias[ch] : 0.0f;
+                                const float* weight_h = conv_weight + ch * kernel_size;
+                                for (size_t k = 0; k < kernel_size; k++) {
+                                    wt[k][i] = weight_h[k];
                                 }
-
-                                __m512 acc = _mm512_loadu_ps(bias_buf);
-                                acc = _mm512_add_ps(acc, _mm512_mul_ps(_mm512_loadu_ps(st0), _mm512_loadu_ps(wt0)));
-                                acc = _mm512_add_ps(acc, _mm512_mul_ps(_mm512_loadu_ps(st1), _mm512_loadu_ps(wt1)));
-                                acc = _mm512_add_ps(acc, _mm512_mul_ps(_mm512_loadu_ps(st2), _mm512_loadu_ps(wt2)));
-                                _mm512_storeu_ps(out_ptr + h, acc);
+                                bias_buf[i] = has_bias ? conv_bias[ch] : 0.0F;
                             }
-                        }
-#endif
-#if defined(HAVE_AVX2)
-                        if (use_avx2) {
-                            for (; h + 8 <= h_end; h += 8) {
-                                alignas(32) float st0[8], st1[8], st2[8];
-                                alignas(32) float wt0[8], wt1[8], wt2[8];
-                                alignas(32) float bias_buf[8];
-                                for (size_t i = 0; i < 8; i++) {
-                                    const size_t ch = h + i;
-                                    float* state_h = local_state + ch * 3;
-                                    state_h[0] = state_h[1];
-                                    state_h[1] = state_h[2];
-                                    state_h[2] = token_ptr[ch];
-
-                                    st0[i] = state_h[0];
-                                    st1[i] = state_h[1];
-                                    st2[i] = state_h[2];
-
-                                    const float* weight_h = conv_weight + ch * 3;
-                                    wt0[i] = weight_h[0];
-                                    wt1[i] = weight_h[1];
-                                    wt2[i] = weight_h[2];
-                                    bias_buf[i] = has_bias ? conv_bias[ch] : 0.0f;
-                                }
-
-                                __m256 acc = _mm256_loadu_ps(bias_buf);
-                                acc = _mm256_add_ps(acc, _mm256_mul_ps(_mm256_loadu_ps(st0), _mm256_loadu_ps(wt0)));
-                                acc = _mm256_add_ps(acc, _mm256_mul_ps(_mm256_loadu_ps(st1), _mm256_loadu_ps(wt1)));
-                                acc = _mm256_add_ps(acc, _mm256_mul_ps(_mm256_loadu_ps(st2), _mm256_loadu_ps(wt2)));
-                                _mm256_storeu_ps(out_ptr + h, acc);
+                            __m512 acc = _mm512_loadu_ps(bias_buf);
+                            for (size_t k = 0; k < kernel_size; k++) {
+                                acc = _mm512_add_ps(acc, _mm512_mul_ps(_mm512_loadu_ps(st[k]), _mm512_loadu_ps(wt[k])));
                             }
-                        }
-#endif
-
-                        for (; h < h_end; h++) {
-                            float* state_h = local_state + h * 3;
-                            state_h[0] = state_h[1];
-                            state_h[1] = state_h[2];
-                            state_h[2] = token_ptr[h];
-
-                            const float* weight_h = conv_weight + h * 3;
-                            float sum = has_bias ? conv_bias[h] : 0.0f;
-                            sum += state_h[0] * weight_h[0];
-                            sum += state_h[1] * weight_h[1];
-                            sum += state_h[2] * weight_h[2];
-                            out_ptr[h] = sum;
+                            _mm512_storeu_ps(out_ptr + h, acc);
                         }
                     }
-
-                    const int32_t cached_tokens = prev_nums + (t + 1);
-                    const bool interval_hit = (seq_interval > 0) && ((cached_tokens % seq_interval) == 0);
-                    const bool is_last_token = (t == seq_tokens - 1);
-                    if (interval_hit || is_last_token) {
-                        const int32_t slot = (seq_interval > 0) ? (1 + (cached_tokens - 1) / seq_interval) : 1;
-                        if (slot < block_span) {
-                            const int32_t physical_block = block_indices[blk_begin + slot];
-                            OPENVINO_ASSERT(physical_block >= 0 && static_cast<size_t>(physical_block) < num_blocks,
-                                            "PagedCausalConv1D has invalid physical block index ",
-                                            physical_block,
-                                            " while updating cache state.");
-                            write_state_from_float(conv_state_table + static_cast<size_t>(physical_block) * state_stride +
-                                            state_off,
-                                        local_state + state_off,
-                                        h_count * kernel_size);
+#    endif
+#    if defined(HAVE_AVX2)
+                    if (use_avx2) {
+                        for (; h + 8 <= h_end; h += 8) {
+                            alignas(32) float st[4][8];
+                            alignas(32) float wt[4][8];
+                            alignas(32) float bias_buf[8];
+                            for (size_t i = 0; i < 8; i++) {
+                                const size_t ch = h + i;
+                                float* state_h = local_state + ch * kernel_size;
+                                for (size_t k = 0; k + 1 < kernel_size; k++) {
+                                    state_h[k] = state_h[k + 1];
+                                }
+                                state_h[kernel_size - 1] = token_ptr[ch];
+                                for (size_t k = 0; k < kernel_size; k++) {
+                                    st[k][i] = state_h[k];
+                                }
+                                const float* weight_h = conv_weight + ch * kernel_size;
+                                for (size_t k = 0; k < kernel_size; k++) {
+                                    wt[k][i] = weight_h[k];
+                                }
+                                bias_buf[i] = has_bias ? conv_bias[ch] : 0.0F;
+                            }
+                            __m256 acc = _mm256_loadu_ps(bias_buf);
+                            for (size_t k = 0; k < kernel_size; k++) {
+                                acc = _mm256_add_ps(acc, _mm256_mul_ps(_mm256_loadu_ps(st[k]), _mm256_loadu_ps(wt[k])));
+                            }
+                            _mm256_storeu_ps(out_ptr + h, acc);
                         }
                     }
+#    endif
+
+                    // Scalar tail for remaining channels
+                    conv1d_scalar(local_state,
+                                  token_ptr,
+                                  conv_weight,
+                                  conv_bias,
+                                  has_bias,
+                                  out_ptr,
+                                  h,
+                                  h_end,
+                                  kernel_size);
+
+                    maybe_flush_state(conv_state_table,
+                                      local_state,
+                                      block_indices,
+                                      blk_begin,
+                                      block_span,
+                                      prev_nums,
+                                      seq_interval,
+                                      t,
+                                      seq_tokens,
+                                      state_stride,
+                                      state_off,
+                                      h_count,
+                                      kernel_size);
                 }
             }
         });

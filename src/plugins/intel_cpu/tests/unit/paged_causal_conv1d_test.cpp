@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "nodes/kernels/paged_causal_conv1d.hpp"
+
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -11,7 +13,6 @@
 #include <string>
 #include <vector>
 
-#include "nodes/kernels/paged_causal_conv1d.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/runtime/system_conf.hpp"
@@ -109,23 +110,24 @@ void run_paged_causal_conv1d_cpu(const PagedCausalConv1DParams& p,
     std::vector<float> local_state(p.hidden_size * p.kernel_size);
     const bool has_bias = !conv_bias.empty();
     const float* conv_bias_ptr = has_bias ? conv_bias.data() : nullptr;
-    ov::intel_cpu::node::kernels::paged_causal_conv1d_optimized(input_embeds.data(),
-                                                                 conv_state_table.data(),
-                                                                 conv_weight.data(),
-                                                                 conv_bias_ptr,
-                                                                 has_bias,
-                                                                 subsequence_begins.data(),
-                                                                 block_indices.data(),
-                                                                 block_indices_begins.data(),
-                                                                 past_lens.data(),
-                                                                 cache_interval.data(),
-                                                                 output_embeds.data(),
-                                                                 p.batch_size_in_tokens,
-                                                                 p.hidden_size,
-                                                                 p.kernel_size,
-                                                                 conv_state_table.size() / (p.hidden_size * p.kernel_size),
-                                                                 p.seq_count,
-                                                                 local_state.data());
+    ov::intel_cpu::node::kernels::paged_causal_conv1d_optimized(
+        input_embeds.data(),
+        conv_state_table.data(),
+        conv_weight.data(),
+        conv_bias_ptr,
+        has_bias,
+        subsequence_begins.data(),
+        block_indices.data(),
+        block_indices_begins.data(),
+        past_lens.data(),
+        cache_interval.data(),
+        output_embeds.data(),
+        p.batch_size_in_tokens,
+        p.hidden_size,
+        p.kernel_size,
+        conv_state_table.size() / (p.hidden_size * p.kernel_size),
+        p.seq_count,
+        local_state.data());
 }
 
 void compare_vectors_near(const std::vector<float>& actual,
@@ -171,23 +173,24 @@ void run_paged_causal_conv1d_cpu_typed(const PagedCausalConv1DParams& p,
     std::vector<float> local_state(p.hidden_size * p.kernel_size);
     const bool has_bias = !conv_bias.empty();
     const float* conv_bias_ptr = has_bias ? conv_bias.data() : nullptr;
-    ov::intel_cpu::node::kernels::paged_causal_conv1d_optimized(input_embeds.data(),
-                                                                 conv_state_table.data(),
-                                                                 conv_weight.data(),
-                                                                 conv_bias_ptr,
-                                                                 has_bias,
-                                                                 subsequence_begins.data(),
-                                                                 block_indices.data(),
-                                                                 block_indices_begins.data(),
-                                                                 past_lens.data(),
-                                                                 cache_interval.data(),
-                                                                 output_embeds.data(),
-                                                                 p.batch_size_in_tokens,
-                                                                 p.hidden_size,
-                                                                 p.kernel_size,
-                                                                 conv_state_table.size() / (p.hidden_size * p.kernel_size),
-                                                                 p.seq_count,
-                                                                 local_state.data());
+    ov::intel_cpu::node::kernels::paged_causal_conv1d_optimized(
+        input_embeds.data(),
+        conv_state_table.data(),
+        conv_weight.data(),
+        conv_bias_ptr,
+        has_bias,
+        subsequence_begins.data(),
+        block_indices.data(),
+        block_indices_begins.data(),
+        past_lens.data(),
+        cache_interval.data(),
+        output_embeds.data(),
+        p.batch_size_in_tokens,
+        p.hidden_size,
+        p.kernel_size,
+        conv_state_table.size() / (p.hidden_size * p.kernel_size),
+        p.seq_count,
+        local_state.data());
 }
 
 }  // namespace
@@ -574,16 +577,32 @@ TEST(PagedCausalConv1DUnitTest, BF16StateMatchesF32ReferenceWithinTolerance) {
     // f32 reference
     std::vector<float> ref_state = conv_state_f32;
     std::vector<float> ref_output(3, 0.0f);
-    run_paged_causal_conv1d_reference(p, input_embeds, ref_state, conv_weight, conv_bias,
-                                      subsequence_begins, block_indices, block_indices_begins,
-                                      past_lens, cache_interval, ref_output);
+    run_paged_causal_conv1d_reference(p,
+                                      input_embeds,
+                                      ref_state,
+                                      conv_weight,
+                                      conv_bias,
+                                      subsequence_begins,
+                                      block_indices,
+                                      block_indices_begins,
+                                      past_lens,
+                                      cache_interval,
+                                      ref_output);
 
     // bf16 state
     auto state_bf16 = float_to_typed<ov::bfloat16>(conv_state_f32);
     std::vector<float> output_bf16(3, 0.0f);
-    run_paged_causal_conv1d_cpu_typed(p, input_embeds, state_bf16, conv_weight, conv_bias,
-                                      subsequence_begins, block_indices, block_indices_begins,
-                                      past_lens, cache_interval, output_bf16);
+    run_paged_causal_conv1d_cpu_typed(p,
+                                      input_embeds,
+                                      state_bf16,
+                                      conv_weight,
+                                      conv_bias,
+                                      subsequence_begins,
+                                      block_indices,
+                                      block_indices_begins,
+                                      past_lens,
+                                      cache_interval,
+                                      output_bf16);
 
     // bf16 has 7-bit mantissa, tolerance ~1e-2 for small values
     constexpr float tol = 0.1f;
@@ -612,16 +631,32 @@ TEST(PagedCausalConv1DUnitTest, F16StateMatchesF32ReferenceWithinTolerance) {
     // f32 reference
     std::vector<float> ref_state = conv_state_f32;
     std::vector<float> ref_output(3, 0.0f);
-    run_paged_causal_conv1d_reference(p, input_embeds, ref_state, conv_weight, conv_bias,
-                                      subsequence_begins, block_indices, block_indices_begins,
-                                      past_lens, cache_interval, ref_output);
+    run_paged_causal_conv1d_reference(p,
+                                      input_embeds,
+                                      ref_state,
+                                      conv_weight,
+                                      conv_bias,
+                                      subsequence_begins,
+                                      block_indices,
+                                      block_indices_begins,
+                                      past_lens,
+                                      cache_interval,
+                                      ref_output);
 
     // f16 state
     auto state_f16 = float_to_typed<ov::float16>(conv_state_f32);
     std::vector<float> output_f16(3, 0.0f);
-    run_paged_causal_conv1d_cpu_typed(p, input_embeds, state_f16, conv_weight, conv_bias,
-                                      subsequence_begins, block_indices, block_indices_begins,
-                                      past_lens, cache_interval, output_f16);
+    run_paged_causal_conv1d_cpu_typed(p,
+                                      input_embeds,
+                                      state_f16,
+                                      conv_weight,
+                                      conv_bias,
+                                      subsequence_begins,
+                                      block_indices,
+                                      block_indices_begins,
+                                      past_lens,
+                                      cache_interval,
+                                      output_f16);
 
     // f16 has 10-bit mantissa, tighter tolerance than bf16
     constexpr float tol = 1e-3f;
@@ -650,16 +685,32 @@ TEST(PagedCausalConv1DUnitTest, BF16StateKernelSize3MultiSeqMatchesReference) {
     // f32 reference
     std::vector<float> ref_state = conv_state_f32;
     std::vector<float> ref_output(3, 0.0f);
-    run_paged_causal_conv1d_reference(p, input_embeds, ref_state, conv_weight, conv_bias,
-                                      subsequence_begins, block_indices, block_indices_begins,
-                                      past_lens, cache_interval, ref_output);
+    run_paged_causal_conv1d_reference(p,
+                                      input_embeds,
+                                      ref_state,
+                                      conv_weight,
+                                      conv_bias,
+                                      subsequence_begins,
+                                      block_indices,
+                                      block_indices_begins,
+                                      past_lens,
+                                      cache_interval,
+                                      ref_output);
 
     // bf16 state
     auto state_bf16 = float_to_typed<ov::bfloat16>(conv_state_f32);
     std::vector<float> output_bf16(3, 0.0f);
-    run_paged_causal_conv1d_cpu_typed(p, input_embeds, state_bf16, conv_weight, conv_bias,
-                                      subsequence_begins, block_indices, block_indices_begins,
-                                      past_lens, cache_interval, output_bf16);
+    run_paged_causal_conv1d_cpu_typed(p,
+                                      input_embeds,
+                                      state_bf16,
+                                      conv_weight,
+                                      conv_bias,
+                                      subsequence_begins,
+                                      block_indices,
+                                      block_indices_begins,
+                                      past_lens,
+                                      cache_interval,
+                                      output_bf16);
 
     constexpr float tol = 0.1f;
     compare_vectors_near(output_bf16, ref_output, tol, "bf16 multi-seq output");
@@ -687,16 +738,32 @@ TEST(PagedCausalConv1DUnitTest, F16StateKernelSize3MultiSeqMatchesReference) {
     // f32 reference
     std::vector<float> ref_state = conv_state_f32;
     std::vector<float> ref_output(3, 0.0f);
-    run_paged_causal_conv1d_reference(p, input_embeds, ref_state, conv_weight, conv_bias,
-                                      subsequence_begins, block_indices, block_indices_begins,
-                                      past_lens, cache_interval, ref_output);
+    run_paged_causal_conv1d_reference(p,
+                                      input_embeds,
+                                      ref_state,
+                                      conv_weight,
+                                      conv_bias,
+                                      subsequence_begins,
+                                      block_indices,
+                                      block_indices_begins,
+                                      past_lens,
+                                      cache_interval,
+                                      ref_output);
 
     // f16 state
     auto state_f16 = float_to_typed<ov::float16>(conv_state_f32);
     std::vector<float> output_f16(3, 0.0f);
-    run_paged_causal_conv1d_cpu_typed(p, input_embeds, state_f16, conv_weight, conv_bias,
-                                      subsequence_begins, block_indices, block_indices_begins,
-                                      past_lens, cache_interval, output_f16);
+    run_paged_causal_conv1d_cpu_typed(p,
+                                      input_embeds,
+                                      state_f16,
+                                      conv_weight,
+                                      conv_bias,
+                                      subsequence_begins,
+                                      block_indices,
+                                      block_indices_begins,
+                                      past_lens,
+                                      cache_interval,
+                                      output_f16);
 
     constexpr float tol = 1e-3f;
     compare_vectors_near(output_f16, ref_output, tol, "f16 multi-seq output");
@@ -733,15 +800,31 @@ TEST(PagedCausalConv1DUnitTest, PastLensAffectsFlushSlotComputation) {
 
     std::vector<float> ref_state_pl1 = init_state;
     std::vector<float> ref_output_pl1(3, 0.0f);
-    run_paged_causal_conv1d_reference(p, input_embeds, ref_state_pl1, conv_weight, conv_bias,
-                                      subsequence_begins, block_indices, block_indices_begins,
-                                      past_lens_1, cache_interval, ref_output_pl1);
+    run_paged_causal_conv1d_reference(p,
+                                      input_embeds,
+                                      ref_state_pl1,
+                                      conv_weight,
+                                      conv_bias,
+                                      subsequence_begins,
+                                      block_indices,
+                                      block_indices_begins,
+                                      past_lens_1,
+                                      cache_interval,
+                                      ref_output_pl1);
 
     std::vector<float> cpu_state_pl1 = init_state;
     std::vector<float> cpu_output_pl1(3, 0.0f);
-    run_paged_causal_conv1d_cpu(p, input_embeds, cpu_state_pl1, conv_weight, conv_bias,
-                                subsequence_begins, block_indices, block_indices_begins,
-                                past_lens_1, cache_interval, cpu_output_pl1);
+    run_paged_causal_conv1d_cpu(p,
+                                input_embeds,
+                                cpu_state_pl1,
+                                conv_weight,
+                                conv_bias,
+                                subsequence_begins,
+                                block_indices,
+                                block_indices_begins,
+                                past_lens_1,
+                                cache_interval,
+                                cpu_output_pl1);
 
     constexpr float tol = 1e-6f;
     compare_vectors_near(cpu_output_pl1, ref_output_pl1, tol, "past_lens=1 output");
@@ -752,15 +835,31 @@ TEST(PagedCausalConv1DUnitTest, PastLensAffectsFlushSlotComputation) {
 
     std::vector<float> ref_state_pl0 = init_state;
     std::vector<float> ref_output_pl0(3, 0.0f);
-    run_paged_causal_conv1d_reference(p, input_embeds, ref_state_pl0, conv_weight, conv_bias,
-                                      subsequence_begins, block_indices, block_indices_begins,
-                                      past_lens_0, cache_interval, ref_output_pl0);
+    run_paged_causal_conv1d_reference(p,
+                                      input_embeds,
+                                      ref_state_pl0,
+                                      conv_weight,
+                                      conv_bias,
+                                      subsequence_begins,
+                                      block_indices,
+                                      block_indices_begins,
+                                      past_lens_0,
+                                      cache_interval,
+                                      ref_output_pl0);
 
     std::vector<float> cpu_state_pl0 = init_state;
     std::vector<float> cpu_output_pl0(3, 0.0f);
-    run_paged_causal_conv1d_cpu(p, input_embeds, cpu_state_pl0, conv_weight, conv_bias,
-                                subsequence_begins, block_indices, block_indices_begins,
-                                past_lens_0, cache_interval, cpu_output_pl0);
+    run_paged_causal_conv1d_cpu(p,
+                                input_embeds,
+                                cpu_state_pl0,
+                                conv_weight,
+                                conv_bias,
+                                subsequence_begins,
+                                block_indices,
+                                block_indices_begins,
+                                past_lens_0,
+                                cache_interval,
+                                cpu_output_pl0);
 
     compare_vectors_near(cpu_output_pl0, ref_output_pl0, tol, "past_lens=0 output");
     compare_vectors_near(cpu_state_pl0, ref_state_pl0, tol, "past_lens=0 state");
