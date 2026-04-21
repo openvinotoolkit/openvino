@@ -162,13 +162,25 @@ ov::OutputVector onnx_reduce_log_sum_exp_stable(const ov::frontend::onnx::Node& 
         return {std::make_shared<ov::op::v16::Identity>(input)};
     }
 
-    // Numerically stable implementation: k + log(sum(exp(x - k))) where k = max(x)
-    // This avoids overflow by ensuring exp(x - k) <= 1 for all x
-    auto k = std::make_shared<ov::op::v1::ReduceMax>(input, reduction_axes, keepdims);
+    // Numerically stable LogSumExp: k + log(sum(exp(x - k))) where k = max(x)
+    // For numerical stability and avoiding exponent explosion:
+    //   ln(e^x1 + ... + e^xn) = ln(e^k * (e^(x1-k) + ... + e^(xn-k)))
+    //                         = k + ln(e^(x1-k) + ... + e^(xn-k))
+    // where k = max(x1, ..., xn), so all exponent degrees <= 0.
+    //
+    // Always compute k with keepdims=true so that (input - k) broadcasts correctly
+    // regardless of which axes are being reduced. Then squeeze k at the end if the
+    // original keepdims was false. This follows the pattern from the PyTorch frontend
+    // (src/frontends/pytorch/src/op/log.cpp).
+    std::shared_ptr<ov::Node> k = std::make_shared<ov::op::v1::ReduceMax>(input, reduction_axes, true);
     auto input_minus_k = std::make_shared<ov::op::v1::Subtract>(input, k);
     auto exp_node = std::make_shared<ov::op::v0::Exp>(input_minus_k);
     auto sum_node = std::make_shared<ov::op::v1::ReduceSum>(exp_node, reduction_axes, keepdims);
     auto log_node = std::make_shared<ov::op::v0::Log>(sum_node);
+
+    if (!keepdims) {
+        k = std::make_shared<ov::op::v0::Squeeze>(k, reduction_axes);
+    }
 
     auto out = std::make_shared<ov::op::v1::Add>(k, log_node);
     return {out};

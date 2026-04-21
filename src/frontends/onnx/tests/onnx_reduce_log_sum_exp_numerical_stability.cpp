@@ -1,10 +1,12 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
+#include <vector>
 
 // Test that demonstrates the numerical stability of the LogSumExp algorithm
 // This is a pure C++ test that doesn't require OpenVINO runtime
