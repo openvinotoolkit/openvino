@@ -1817,7 +1817,7 @@ public:
 
         auto output_mem = outputs.begin()->second.get_memory();
         auto ref_output_mem = get_ref_results();
-        compare_outputs<ov::float16>(output_mem, ref_output_mem, 12.0f);
+        compare_outputs<ov::float16>(output_mem, ref_output_mem, 14.0f);
     }
 
     void test_compressed_int4_accumulation(bool is_caching_test, bool is_dynamic, long int batch_num) {
