@@ -45,7 +45,6 @@ PagedGatedDeltaNet::PagedGatedDeltaNet(const std::shared_ptr<ov::Node>& op, cons
 }
 
 void PagedGatedDeltaNet::initSupportedPrimitiveDescriptors() {
-    auto dataPrecision = ov::element::f32;
     std::vector<PortConfigurator> inPortConfigs;
     for (size_t i = 0; i < getParentEdges().size(); ++i) {
         inPortConfigs.emplace_back(LayoutType::ncsp,
