@@ -139,21 +139,16 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Poland"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 3
     assignees:
       - "mlukasze"
       - "Retribution98"
       - "almilosz"
-    versioning-strategy: increase-if-necessary
+    versioning-strategy: lockfile-only
     groups:
-      dev-updates:
-        dependency-type: development
-        applies-to: security-updates
-      production-dependencies:
-        dependency-type: production
-        update-types:
-          - minor
-          - patch
+      npm-packages:
+        patterns:
+          - "*"
 
   # JavaScript samples (Node.js)
   - package-ecosystem: npm
@@ -162,23 +157,36 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Poland"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 3
     assignees:
       - "mlukasze"
       - "Retribution98"
       - "almilosz"
-    versioning-strategy: increase-if-necessary
+    versioning-strategy: lockfile-only
     groups:
-      dev-updates:
-        dependency-type: development
-        applies-to: security-updates
-      production-dependencies:
-        dependency-type: production
+      npm-packages:
+        patterns:
+          - "*"
+
   #
   # Github actions - CI
   #
 
-  # Github actions
+  # Custom Github actions (Node.js)
+  - package-ecosystem: npm
+    directories:
+      - "/.github/actions/**/*"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    assignees:
+      - "akashchi"
+      - "mryzhov"
+      - "akladiev"
+    open-pull-requests-limit: 10
+
+  # Github action workflows
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
