@@ -1,0 +1,173 @@
+name: Linux GPU Plugin Level Zero (Battlemage/Arc-B50)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+    paths:
+      - '.github/workflows/dev_gpu_linux_level_zero.yml'
+      - 'src/plugins/intel_gpu/**'
+
+concurrency:
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-gpu-l0-dev
+  cancel-in-progress: true
+
+permissions: read-all
+
+jobs:
+  Build:
+    timeout-minutes: 150
+    runs-on:
+      group: 'Intel-GPU'
+      labels: [ 'self-hosted', 'dgpu', 'Arc-B50', 'Battlemage' ]
+    container:
+      image: ubuntu:24.04
+      options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      CMAKE_BUILD_TYPE: 'Release'
+      CMAKE_GENERATOR: 'Ninja Multi-Config'
+      BUILD_DIR: ${{ github.workspace }}/openvino_build
+      INSTALL_DIR: ${{ github.workspace }}/openvino_install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/tests_install
+
+    steps:
+      - name: Install Prerequisites
+        run: apt-get update && apt-get install -y git sudo wget file
+
+      - name: Checkout OpenVINO
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+
+      - name: Install Build Dependencies
+        run: |
+          apt-get update
+          apt-get install -y cmake ninja-build ccache default-compiler-rt
+          ./install_build_dependencies.sh
+
+      - name: CMake configure - OpenVINO (Level Zero)
+        run: |
+          cmake \
+            -G "${CMAKE_GENERATOR}" \
+            -DENABLE_TESTS=ON \
+            -DGPU_RT_TYPE=L0 \
+            -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
+            -S ${{ github.workspace }} \
+            -B ${BUILD_DIR}
+
+      - name: CMake build - OpenVINO
+        run: cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${CMAKE_BUILD_TYPE}
+
+      - name: CMake install - OpenVINO
+        run: |
+          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake
+          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_TEST_DIR} -DCOMPONENT=tests -P ${BUILD_DIR}/cmake_install.cmake
+
+      - name: Pack Artifacts
+        run: |
+          sudo apt-get install -y pigz
+          pushd ${INSTALL_DIR}
+            tar -cvf - * | pigz > ${BUILD_DIR}/openvino_package.tar.gz
+          popd
+          pushd ${INSTALL_TEST_DIR}
+            tar -cvf - * | pigz > ${BUILD_DIR}/openvino_tests.tar.gz
+          popd
+
+      - name: Upload OpenVINO package
+        uses: actions/upload-artifact@v4
+        with:
+          name: openvino_package
+          path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+          if-no-files-found: 'error'
+
+      - name: Upload OpenVINO tests package
+        uses: actions/upload-artifact@v4
+        with:
+          name: openvino_tests
+          path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+          if-no-files-found: 'error'
+
+  Test:
+    needs: Build
+    timeout-minutes: 60
+    runs-on:
+      group: 'Intel-GPU'
+      labels: [ 'self-hosted', 'dgpu', 'Arc-B50', 'Battlemage' ]
+    container:
+      image: ubuntu:24.04
+      options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
+
+    steps:
+      - name: Install Dependencies & L0 Driver
+        run: |
+          apt-get update
+          apt-get install -y software-properties-common ca-certificates wget pigz python3
+          add-apt-repository -y ppa:kobuk-team/intel-graphics
+          apt-get update
+          apt-get install -y libze-intel-gpu1 libze1 intel-metrics-discovery intel-opencl-icd clinfo intel-gsc \
+            intel-media-va-driver-non-free libmfx-gen1 libvpl2 libvpl-tools libva-glx2 va-driver-all vainfo \
+            libze-dev intel-ocloc libze-intel-gpu-raytracing
+
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@v4
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@v4
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd ${INSTALL_DIR}
+            pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
+          popd
+          pushd ${INSTALL_TEST_DIR}
+            pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_TEST_DIR}
+          popd
+
+      - name: Setup Variables
+        run: |
+          echo "SETUPVARS_COMMAND=source ${INSTALL_DIR}/setupvars.sh" >> "$GITHUB_ENV"
+
+      - name: Get gtest-parallel script
+        run: wget https://raw.githubusercontent.com/google/gtest-parallel/master/gtest_parallel.py -O ${{ github.workspace }}/gtest_parallel.py
+
+      - name: OpenVINO GPU Unit Tests (Level Zero)
+        run: |
+          ${SETUPVARS_COMMAND}
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_TEST_DIR}
+          python3 ${{ github.workspace }}/gtest_parallel.py ${INSTALL_TEST_DIR}/ov_gpu_unit_tests \
+            --dump_json_test_results=${INSTALL_TEST_DIR}/ov_gpu_unit_tests.json \
+            -- \
+            --report_unique_name \
+            --gtest_filter=*fully_connected*
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-gpu-l0
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/*.json
+            ${{ env.INSTALL_TEST_DIR }}/TEST-*.xml
+          if-no-files-found: 'ignore'
