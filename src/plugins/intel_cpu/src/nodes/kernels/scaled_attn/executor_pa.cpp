@@ -468,8 +468,8 @@ struct MHAHelper {
 
     // Precompute image group boundaries from token_type_ids.
     // For each image token:
-    //   _image_group_end[i]   = index past the last  contiguous image token in the same group.
-    //   _image_group_begin[i] = index of  the first  contiguous image token in the same group.
+    //   _image_group_end[i] = index past the last contiguous image token in the same group
+    //   _image_group_begin[i] = index of the first contiguous image token in the same group
     // For text tokens, both are -1.
     void set_token_type(const PlainTensor& token_type,
                         const PlainTensor& subsequence_begins,
@@ -485,35 +485,27 @@ struct MHAHelper {
             auto seq_begin = subsequence_begins.ptr<int32_t>()[seq];
             auto seq_end = subsequence_begins.ptr<int32_t>()[seq + 1];
 
-            // Backward scan within this subsequence to find group ends
-            for (int32_t i = seq_end - 1; i >= seq_begin; i--) {
-                if (token_type.ptr<int32_t>()[i] == 1) {  // image token
-                    if (i + 1 < seq_end && token_type.ptr<int32_t>()[i + 1] == 1) {
-                        _image_group_end[i] = _image_group_end[i + 1];
-                    } else {
-                        _image_group_end[i] = i + 1;
-                    }
-                } else {
-                    _image_group_end[i] = -1;
-                }
-            }
-
-            // Forward scan within this subsequence to find group begins
-            for (int32_t i = seq_begin; i < seq_end; i++) {
-                if (token_type.ptr<int32_t>()[i] == 1) {  // image token
-                    if (i > seq_begin && token_type.ptr<int32_t>()[i - 1] == 1) {
-                        _image_group_begin[i] = _image_group_begin[i - 1];
-                    } else {
-                        _image_group_begin[i] = i;
-                    }
-                } else {
+            // Record both boundaries for each contiguous image group
+            for (int32_t i = seq_begin; i < seq_end;) {
+                if (token_type.ptr<int32_t>()[i] != 1) {
                     _image_group_begin[i] = -1;
+                    _image_group_end[i] = -1;
+                    ++i;
+                } else {
+                    const int32_t group_begin = i;
+                    while (i < seq_end && token_type.ptr<int32_t>()[i] == 1) {
+                        ++i;
+                    }
+                    const int32_t group_end = i;
+                    for (int32_t j = group_begin; j < group_end; ++j) {
+                        _image_group_begin[j] = group_begin;
+                        _image_group_end[j] = group_end;
+                    }
                 }
             }
         }
     }
 
-    // Reset image token state (call when token_type_ids input is absent).
     void clear_token_type() {
         _has_image_tokens = false;
         _token_type = PlainTensor();
@@ -534,14 +526,6 @@ struct MHAHelper {
         return default_ncausal;
     }
 
-    // Return the effective start_idx for sliding window attention, accounting for bidirectional
-    // image token groups.  For text tokens this is simply max(0, default_ncausal - sliding_window).
-    // For image tokens the GPU plugin takes the *union* of the sliding-window range and the image
-    // group range, so that image tokens can always attend to their entire group even when the group
-    // starts before the sliding window.  Concretely:
-    //   text  → max(0, default_ncausal - sliding_window)
-    //   image → min(image_group_begin, max(0, default_ncausal - sliding_window))
-    // where default_ncausal is the causal position *before* any image-group extension.
     [[nodiscard]] size_t get_sliding_start_idx(size_t q_global_idx, size_t default_ncausal) const {
         const size_t sw_start = default_ncausal > _sliding_window ? default_ncausal - _sliding_window : 0UL;
         if (!_has_image_tokens || q_global_idx >= _image_group_begin.size()) {
@@ -1251,7 +1235,6 @@ struct MHAHelper {
         for (size_t pq = 0; pq < q_len; pq++) {
             for (size_t h = hq_beg; h < hq_end; h++) {
                 // apply attention mask & sofmax
-                // default_ncausal = cur_kv_len (can see all past tokens)
                 const auto ncausal = get_ncausal(q_token_start + pq, cur_kv_len, cur_kv_len);
                 float* score = _weight.ptr<float>(ithr, h - hq_beg, pq);
                 OPENVINO_DEBUG_ASSERT(score != nullptr, "PagedAttention: _weight buffer must be allocated");
