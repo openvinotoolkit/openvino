@@ -4,22 +4,30 @@
 
 #include "pa_kv_reorder_fusion.hpp"
 
-#include <iostream>
+#include <cstdint>
+#include <memory>
 #include <optional>
 #include <regex>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "../op/pa_kv_reorder.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/scatter_update.hpp"
-#include "transformations/utils/utils.hpp"
 
 namespace ov::intel_cpu {
 namespace {
@@ -214,12 +222,12 @@ bool PaKVReorderFusion::run_on_model(const std::shared_ptr<ov::Model>& m) {
             continue;
         }
 
-        auto pa_kv_reorder = std::make_shared<ov::intel_cpu::op::PaKVReorder>(key_path.cache->output(0),
-                                                                              value_path.cache->output(0),
-                                                                              key_path.block_indices,
-                                                                              block_indices_begins->output(0),
-                                                                              key_path.block_update_indices,
-                                                                              block_update_indices_begins->output(0));
+        auto pa_kv_reorder = std::make_shared<ov::intel_cpu::PaKVReorder>(key_path.cache->output(0),
+                                                                          value_path.cache->output(0),
+                                                                          key_path.block_indices,
+                                                                          block_indices_begins->output(0),
+                                                                          key_path.block_update_indices,
+                                                                          block_update_indices_begins->output(0));
 
         // Format cache precision: use inference precision if cache is f16 and inference is bf16
         auto format_cache_precision = [](ov::element::Type cache_precision, ov::element::Type infer_precision) {

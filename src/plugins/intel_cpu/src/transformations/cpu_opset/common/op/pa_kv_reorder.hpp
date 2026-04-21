@@ -6,7 +6,7 @@
 
 #include "openvino/op/op.hpp"
 
-namespace ov::intel_cpu::op {
+namespace ov::intel_cpu {
 
 class PaKVReorder : public ov::op::Op {
 public:
@@ -28,4 +28,4 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 };
 
-}  // namespace ov::intel_cpu::op
+}  // namespace ov::intel_cpu

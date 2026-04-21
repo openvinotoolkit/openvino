@@ -23,11 +23,11 @@ using ov::intel_cpu::PlainTensor;
 template <typename Func>
 inline void dispatch_precision(ov::element::Type_t prec, Func&& func) {
     if (prec == ov::element::u8) {
-        func(std::integral_constant<ov::element::Type_t, ov::element::u8>{});
+        std::forward<Func>(func)(std::integral_constant<ov::element::Type_t, ov::element::u8>{});
     } else if (prec == ov::element::u4) {
-        func(std::integral_constant<ov::element::Type_t, ov::element::u4>{});
+        std::forward<Func>(func)(std::integral_constant<ov::element::Type_t, ov::element::u4>{});
     } else {
-        func(std::integral_constant<ov::element::Type_t, ov::element::f32>{});
+        std::forward<Func>(func)(std::integral_constant<ov::element::Type_t, ov::element::f32>{});
     }
 }
 
@@ -59,7 +59,6 @@ inline void reorder_kv_cache_token(ov::intel_cpu::PlainTensor& cache,
                                    std::vector<float>& block_float_buffer,
                                    std::vector<float>& row_float_buffer,
                                    bool by_channel,
-                                   size_t src_block_actual_tokens,
                                    size_t dst_block_actual_tokens) {
     const size_t elem_size = cache.get_precision().size();
     const size_t sub_byte = get_sub_byte_multiplier(cache.get_precision());
@@ -238,11 +237,11 @@ inline void reorder_kv_cache(ov::intel_cpu::PlainTensor& key_cache,
         auto get_block_actual_tokens = [&](size_t block_local) -> size_t {
             if (block_local < max_src_block_local) {
                 return block_size;  // Fully filled
-            } else if (block_local == max_src_block_local) {
-                return max_src_token + 1;  // Partially filled
-            } else {
-                return block_size;
             }
+            if (block_local == max_src_block_local) {
+                return max_src_token + 1;  // Partially filled
+            }
+            return block_size;
         };
 
         for (int32_t op = op_begin; op < op_end;) {
@@ -266,8 +265,8 @@ inline void reorder_kv_cache(ov::intel_cpu::PlainTensor& key_cache,
                 continue;
             }
 
-            const size_t src_block = static_cast<size_t>(block_idx_ptr[block_indices_base + src_block_local]);
-            const size_t dst_block = static_cast<size_t>(block_idx_ptr[block_indices_base + dst_block_local]);
+            const auto src_block = static_cast<size_t>(block_idx_ptr[block_indices_base + src_block_local]);
+            const auto dst_block = static_cast<size_t>(block_idx_ptr[block_indices_base + dst_block_local]);
 
             // Check if this is a same-block operation that can be batched
             if (src_block == dst_block && (key_by_channel || value_by_channel)) {
@@ -292,9 +291,9 @@ inline void reorder_kv_cache(ov::intel_cpu::PlainTensor& key_cache,
                         continue;
                     }
 
-                    const size_t next_src_block =
+                    const auto next_src_block =
                         static_cast<size_t>(block_idx_ptr[block_indices_base + next_src_block_local]);
-                    const size_t next_dst_block =
+                    const auto next_dst_block =
                         static_cast<size_t>(block_idx_ptr[block_indices_base + next_dst_block_local]);
 
                     // Stop if not same physical block
@@ -309,10 +308,7 @@ inline void reorder_kv_cache(ov::intel_cpu::PlainTensor& key_cache,
                 const size_t block_actual_tokens = get_block_actual_tokens(src_block_local);
 
                 // Lambda to process a cache with by-channel quantization (batched)
-                auto process_cache_by_channel = [&](PlainTensor& cache,
-                                                    ov::element::Type_t prec,
-                                                    std::vector<float>& block_float,
-                                                    size_t hidden_size) {
+                auto process_cache_by_channel = [&](PlainTensor& cache, ov::element::Type_t prec, size_t hidden_size) {
                     dispatch_precision(prec, [&](auto prec_tag) {
                         constexpr auto PREC = decltype(prec_tag)::value;
                         constexpr bool is_quantized = (PREC == ov::element::u8 || PREC == ov::element::u4);
@@ -322,7 +318,11 @@ inline void reorder_kv_cache(ov::intel_cpu::PlainTensor& key_cache,
                             constexpr size_t HEAD_PARALLEL_THRESHOLD = 16;
                             const bool use_head_parallel = kv_heads >= HEAD_PARALLEL_THRESHOLD;
 
+                            // MSVC requires PREC to be passed explicitly - create wrapper with integral_constant
+                            constexpr auto prec_const = std::integral_constant<ov::element::Type_t, PREC>{};
+
                             auto process_head = [&](size_t h) {
+                                constexpr auto P = decltype(prec_const)::value;
                                 // Use thread-local buffer for parallel execution
                                 thread_local std::vector<float> local_block_buf;
                                 local_block_buf.resize(block_actual_tokens * hidden_size);
@@ -334,22 +334,23 @@ inline void reorder_kv_cache(ov::intel_cpu::PlainTensor& key_cache,
                                 const size_t data_stride = cache.stride_bytes(2);
 
                                 // Dequantize once
-                                attn_dequant_by_channel_kernel<float, PREC>(data,
-                                                                            local_block_buf.data(),
-                                                                            block_actual_tokens,
-                                                                            hidden_size,
-                                                                            data_stride,
-                                                                            hidden_size,
-                                                                            scales,
-                                                                            zps);
+                                attn_dequant_by_channel_kernel<float, P>(data,
+                                                                         local_block_buf.data(),
+                                                                         block_actual_tokens,
+                                                                         hidden_size,
+                                                                         data_stride,
+                                                                         hidden_size,
+                                                                         scales,
+                                                                         zps);
 
                                 // Execute all copy operations in order
                                 for (int32_t batch_op = op; batch_op < batch_end; batch_op++) {
                                     const int32_t b_pair_base = batch_op * 2;
                                     const int32_t b_src_logical = update_ptr[b_pair_base + 0];
                                     const int32_t b_dst_logical = update_ptr[b_pair_base + 1];
-                                    if (b_src_logical < 0 || b_dst_logical < 0)
+                                    if (b_src_logical < 0 || b_dst_logical < 0) {
                                         continue;
+                                    }
 
                                     const size_t b_src_token = static_cast<size_t>(b_src_logical) % block_size;
                                     const size_t b_dst_token = static_cast<size_t>(b_dst_logical) % block_size;
@@ -360,14 +361,14 @@ inline void reorder_kv_cache(ov::intel_cpu::PlainTensor& key_cache,
                                 }
 
                                 // Requantize once
-                                quantize_by_channel<float, PREC>(local_block_buf.data(),
-                                                                 data,
-                                                                 block_actual_tokens,
-                                                                 hidden_size,
-                                                                 hidden_size,
-                                                                 data_stride,
-                                                                 scales,
-                                                                 zps);
+                                quantize_by_channel<float, P>(local_block_buf.data(),
+                                                              data,
+                                                              block_actual_tokens,
+                                                              hidden_size,
+                                                              hidden_size,
+                                                              data_stride,
+                                                              scales,
+                                                              zps);
                             };
 
                             if (use_head_parallel) {
@@ -392,8 +393,9 @@ inline void reorder_kv_cache(ov::intel_cpu::PlainTensor& key_cache,
                             const int32_t b_pair_base = batch_op * 2;
                             const int32_t b_src_logical = update_ptr[b_pair_base + 0];
                             const int32_t b_dst_logical = update_ptr[b_pair_base + 1];
-                            if (b_src_logical < 0 || b_dst_logical < 0)
+                            if (b_src_logical < 0 || b_dst_logical < 0) {
                                 continue;
+                            }
 
                             const size_t b_src_token = static_cast<size_t>(b_src_logical) % block_size;
                             const size_t b_dst_token = static_cast<size_t>(b_dst_logical) % block_size;
@@ -408,7 +410,6 @@ inline void reorder_kv_cache(ov::intel_cpu::PlainTensor& key_cache,
                                                              block_float,
                                                              row_float,
                                                              false,
-                                                             block_actual_tokens,
                                                              block_actual_tokens);
                             }
                         }
@@ -416,13 +417,13 @@ inline void reorder_kv_cache(ov::intel_cpu::PlainTensor& key_cache,
                 };
 
                 if (key_by_channel) {
-                    process_cache_by_channel(key_cache, key_prec, local_key_block_float, key_hidden);
+                    process_cache_by_channel(key_cache, key_prec, key_hidden);
                 } else {
                     process_cache_non_by_channel(key_cache, key_prec, local_key_block_float, local_key_row_float);
                 }
 
                 if (value_by_channel) {
-                    process_cache_by_channel(value_cache, value_prec, local_value_block_float, value_hidden);
+                    process_cache_by_channel(value_cache, value_prec, value_hidden);
                 } else {
                     process_cache_non_by_channel(value_cache,
                                                  value_prec,
@@ -435,24 +436,19 @@ inline void reorder_kv_cache(ov::intel_cpu::PlainTensor& key_cache,
 
             } else {
                 // Cross-block: process single operation
-                const size_t src_actual_tokens = get_block_actual_tokens(src_block_local);
                 const size_t dst_actual_tokens = get_block_actual_tokens(dst_block_local);
 
                 // Lambda to process a single cross-block operation for one cache
-                auto process_single_op = [&](PlainTensor& cache,
-                                             ov::element::Type_t prec,
-                                             std::vector<float>& block_float,
-                                             std::vector<float>& row_float,
-                                             bool by_channel) {
+                auto process_single_op = [&](PlainTensor& cache, ov::element::Type_t prec, bool by_channel) {
                     dispatch_precision(prec, [&](auto prec_tag) {
                         constexpr auto PREC = decltype(prec_tag)::value;
                         const bool use_by_channel = (PREC == ov::element::u8 || PREC == ov::element::u4) && by_channel;
 
-                        // Parallel over heads if enough heads
-                        constexpr size_t HEAD_PARALLEL_THRESHOLD = 16;
-                        const bool use_head_parallel = kv_heads >= HEAD_PARALLEL_THRESHOLD;
+                        // MSVC requires PREC to be passed explicitly
+                        constexpr auto prec_const = std::integral_constant<ov::element::Type_t, PREC>{};
 
                         auto process_head = [&](size_t h) {
+                            constexpr auto P = decltype(prec_const)::value;
                             // Use thread-local buffers for parallel execution
                             thread_local std::vector<float> local_block_buf;
                             thread_local std::vector<float> local_row_buf;
@@ -461,35 +457,24 @@ inline void reorder_kv_cache(ov::intel_cpu::PlainTensor& key_cache,
                             local_block_buf.resize(block_size * hidden);
                             local_row_buf.resize(hidden);
 
-                            reorder_kv_cache_token<PREC>(cache,
-                                                         src_block,
-                                                         dst_block,
-                                                         src_token,
-                                                         dst_token,
-                                                         h,
-                                                         local_block_buf,
-                                                         local_row_buf,
-                                                         use_by_channel,
-                                                         src_actual_tokens,
-                                                         dst_actual_tokens);
+                            reorder_kv_cache_token<P>(cache,
+                                                      src_block,
+                                                      dst_block,
+                                                      src_token,
+                                                      dst_token,
+                                                      h,
+                                                      local_block_buf,
+                                                      local_row_buf,
+                                                      use_by_channel,
+                                                      dst_actual_tokens);
                         };
 
-                        if (use_head_parallel) {
-                            cpu_parallel->parallel_for(kv_heads, process_head);
-                        } else {
-                            for (size_t h = 0; h < kv_heads; h++) {
-                                process_head(h);
-                            }
-                        }
+                        cpu_parallel->parallel_for(kv_heads, process_head);
                     });
                 };
 
-                process_single_op(key_cache, key_prec, local_key_block_float, local_key_row_float, key_by_channel);
-                process_single_op(value_cache,
-                                  value_prec,
-                                  local_value_block_float,
-                                  local_value_row_float,
-                                  value_by_channel);
+                process_single_op(key_cache, key_prec, key_by_channel);
+                process_single_op(value_cache, value_prec, value_by_channel);
 
                 op++;
             }

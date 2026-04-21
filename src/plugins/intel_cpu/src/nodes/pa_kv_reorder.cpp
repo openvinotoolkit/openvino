@@ -4,17 +4,22 @@
 
 #include "pa_kv_reorder.hpp"
 
+#include <cstring>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <string>
 
 #include "config.h"
 #include "cpu_types.h"
 #include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "nodes/kernels/scaled_attn/cache_reorder.hpp"
 #include "nodes/paged_attn.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/plain_tensor.hpp"
 

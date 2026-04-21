@@ -38,8 +38,8 @@ TEST(PaKVReorderFusionTest, EmptyModel) {
 TEST(PaKVReorderFusionTest, NoPatternToFuse) {
     using namespace ov;
     // Simple model: Input -> Result
-    auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
-    auto result = std::make_shared<op::v0::Result>(input);
+    auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
+    auto result = std::make_shared<ov::op::v0::Result>(input);
     auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{input});
 
     size_t ops_before = model->get_ops().size();
@@ -60,44 +60,44 @@ TEST(PaKVReorderFusionTest, FusionPattern) {
 
     // Create model with key and value cache Gather->ScatterUpdate pattern
     // Key cache: cache -> Gather -> ScatterUpdate
-    auto key_cache = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 8, 32, 64});
+    auto key_cache = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{4, 8, 32, 64});
     key_cache->set_friendly_name("key_cache.0_clone_for_k_update");
 
-    auto value_cache = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 8, 32, 64});
+    auto value_cache = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{4, 8, 32, 64});
     value_cache->set_friendly_name("value_cache.0_clone_for_v_update");
 
     // Indices for Gather (which blocks to copy from)
-    auto block_update_indices = std::make_shared<op::v0::Parameter>(element::i32, Shape{4});
+    auto block_update_indices = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{4});
     block_update_indices->set_friendly_name("block_update_indices");
 
     // Indices for ScatterUpdate (which blocks to copy to)
-    auto block_indices = std::make_shared<op::v0::Parameter>(element::i32, Shape{4});
+    auto block_indices = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{4});
     block_indices->set_friendly_name("block_indices");
 
     // Required parameters for fusion
-    auto block_indices_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{2});
+    auto block_indices_begins = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
     block_indices_begins->set_friendly_name("block_indices_begins");
 
-    auto block_update_indices_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{2});
+    auto block_update_indices_begins = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
     block_update_indices_begins->set_friendly_name("block_update_indices_begins");
 
     // Axis = 0 (gather/scatter along block dimension)
-    auto axis = op::v0::Constant::create(element::i32, Shape{}, {0});
+    auto axis = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
 
     // Key path: key_cache -> Gather -> ScatterUpdate
-    auto key_gather = std::make_shared<op::v8::Gather>(key_cache, block_update_indices, axis);
-    auto key_scatter = std::make_shared<op::v3::ScatterUpdate>(key_cache, block_indices, key_gather, axis);
+    auto key_gather = std::make_shared<ov::op::v8::Gather>(key_cache, block_update_indices, axis);
+    auto key_scatter = std::make_shared<ov::op::v3::ScatterUpdate>(key_cache, block_indices, key_gather, axis);
     key_scatter->set_friendly_name("updated_key_cache_0");
 
     // Value path: value_cache -> Gather -> ScatterUpdate
-    auto value_gather = std::make_shared<op::v8::Gather>(value_cache, block_update_indices, axis);
-    auto value_scatter = std::make_shared<op::v3::ScatterUpdate>(value_cache, block_indices, value_gather, axis);
+    auto value_gather = std::make_shared<ov::op::v8::Gather>(value_cache, block_update_indices, axis);
+    auto value_scatter = std::make_shared<ov::op::v3::ScatterUpdate>(value_cache, block_indices, value_gather, axis);
     value_scatter->set_friendly_name("updated_value_cache_0");
 
     // Concat key and value outputs
-    auto concat = std::make_shared<op::v0::Concat>(OutputVector{key_scatter, value_scatter}, 0);
+    auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{key_scatter, value_scatter}, 0);
 
-    auto result = std::make_shared<op::v0::Result>(concat);
+    auto result = std::make_shared<ov::op::v0::Result>(concat);
 
     auto model = std::make_shared<Model>(
         ResultVector{result},
@@ -115,13 +115,13 @@ TEST(PaKVReorderFusionTest, FusionPattern) {
     int scatter_count = 0;
 
     for (const auto& op : model->get_ops()) {
-        if (std::dynamic_pointer_cast<ov::intel_cpu::op::PaKVReorder>(op)) {
+        if (std::dynamic_pointer_cast<ov::intel_cpu::PaKVReorder>(op)) {
             found_pa_kv_reorder = true;
         }
-        if (std::dynamic_pointer_cast<op::v8::Gather>(op)) {
+        if (std::dynamic_pointer_cast<ov::op::v8::Gather>(op)) {
             gather_count++;
         }
-        if (std::dynamic_pointer_cast<op::v3::ScatterUpdate>(op)) {
+        if (std::dynamic_pointer_cast<ov::op::v3::ScatterUpdate>(op)) {
             scatter_count++;
         }
     }
@@ -135,14 +135,14 @@ TEST(PaKVReorderFusionTest, FusionPattern) {
 // Test that PaKVReorder op can be created
 TEST(PaKVReorderOpTest, OpCreation) {
     using namespace ov;
-    auto key_cache = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 8, 32, 64});
-    auto value_cache = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 8, 32, 64});
-    auto block_indices = std::make_shared<op::v0::Parameter>(element::i32, Shape{8});
-    auto block_indices_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{2});
-    auto block_update_indices = std::make_shared<op::v0::Parameter>(element::i32, Shape{4});
-    auto block_update_indices_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{2});
+    auto key_cache = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{4, 8, 32, 64});
+    auto value_cache = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{4, 8, 32, 64});
+    auto block_indices = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{8});
+    auto block_indices_begins = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
+    auto block_update_indices = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{4});
+    auto block_update_indices_begins = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
 
-    auto pa_kv_reorder = std::make_shared<ov::intel_cpu::op::PaKVReorder>(
+    auto pa_kv_reorder = std::make_shared<ov::intel_cpu::PaKVReorder>(
         key_cache, value_cache, block_indices, block_indices_begins,
         block_update_indices, block_update_indices_begins);
 
@@ -157,29 +157,29 @@ TEST(PaKVReorderOpTest, OpCreation) {
 // Test model with PaKVReorder op can be created
 TEST(PaKVReorderOpTest, ModelWithOp) {
     using namespace ov;
-    auto key_cache = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 8, 32, 64});
+    auto key_cache = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{4, 8, 32, 64});
     key_cache->set_friendly_name("key_cache");
 
-    auto value_cache = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 8, 32, 64});
+    auto value_cache = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{4, 8, 32, 64});
     value_cache->set_friendly_name("value_cache");
 
-    auto block_indices = std::make_shared<op::v0::Parameter>(element::i32, Shape{8});
+    auto block_indices = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{8});
     block_indices->set_friendly_name("block_indices");
 
-    auto block_indices_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{2});
+    auto block_indices_begins = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
     block_indices_begins->set_friendly_name("block_indices_begins");
 
-    auto block_update_indices = std::make_shared<op::v0::Parameter>(element::i32, Shape{4});
+    auto block_update_indices = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{4});
     block_update_indices->set_friendly_name("block_update_indices");
 
-    auto block_update_indices_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{2});
+    auto block_update_indices_begins = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
     block_update_indices_begins->set_friendly_name("block_update_indices_begins");
 
-    auto pa_kv_reorder = std::make_shared<ov::intel_cpu::op::PaKVReorder>(
+    auto pa_kv_reorder = std::make_shared<ov::intel_cpu::PaKVReorder>(
         key_cache, value_cache, block_indices, block_indices_begins,
         block_update_indices, block_update_indices_begins);
 
-    auto result = std::make_shared<op::v0::Result>(pa_kv_reorder->output(0));
+    auto result = std::make_shared<ov::op::v0::Result>(pa_kv_reorder->output(0));
 
     auto model = std::make_shared<Model>(
         ResultVector{result},
@@ -193,7 +193,7 @@ TEST(PaKVReorderOpTest, ModelWithOp) {
     // Verify that PaKVReorder op exists in the model
     bool found_pa_kv_reorder = false;
     for (const auto& op : model->get_ops()) {
-        if (std::dynamic_pointer_cast<ov::intel_cpu::op::PaKVReorder>(op)) {
+        if (std::dynamic_pointer_cast<ov::intel_cpu::PaKVReorder>(op)) {
             found_pa_kv_reorder = true;
             break;
         }
@@ -204,14 +204,14 @@ TEST(PaKVReorderOpTest, ModelWithOp) {
 // Test that PaKVReorder op has correct type info
 TEST(PaKVReorderOpTest, TypeInfo) {
     using namespace ov;
-    auto key_cache = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 8, 32, 64});
-    auto value_cache = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 8, 32, 64});
-    auto block_indices = std::make_shared<op::v0::Parameter>(element::i32, Shape{8});
-    auto block_indices_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{2});
-    auto block_update_indices = std::make_shared<op::v0::Parameter>(element::i32, Shape{4});
-    auto block_update_indices_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{2});
+    auto key_cache = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{4, 8, 32, 64});
+    auto value_cache = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{4, 8, 32, 64});
+    auto block_indices = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{8});
+    auto block_indices_begins = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
+    auto block_update_indices = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{4});
+    auto block_update_indices_begins = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
 
-    auto pa_kv_reorder = std::make_shared<ov::intel_cpu::op::PaKVReorder>(
+    auto pa_kv_reorder = std::make_shared<ov::intel_cpu::PaKVReorder>(
         key_cache, value_cache, block_indices, block_indices_begins,
         block_update_indices, block_update_indices_begins);
 

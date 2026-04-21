@@ -4,10 +4,17 @@
 
 #include "pa_kv_reorder.hpp"
 
-#include "openvino/core/partial_shape.hpp"
-#include "openvino/op/concat.hpp"
+#include <memory>
 
-namespace ov::intel_cpu::op {
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/op.hpp"
+
+namespace ov::intel_cpu {
 
 PaKVReorder::PaKVReorder(const Output<Node>& key_cache,
                          const Output<Node>& value_cache,
@@ -24,17 +31,13 @@ PaKVReorder::PaKVReorder(const Output<Node>& key_cache,
     constructor_validate_and_infer_types();
 }
 
-bool PaKVReorder::visit_attributes(ov::AttributeVisitor& visitor) {
+bool PaKVReorder::visit_attributes(ov::AttributeVisitor& /*visitor*/) {
     return true;
 }
 
 void PaKVReorder::validate_and_infer_types() {
     OPENVINO_ASSERT(get_input_size() == 6, "PaKVReorder expects 6 inputs");
 
-    const auto& key_cache_shape = get_input_partial_shape(0);
-    const auto& value_cache_shape = get_input_partial_shape(1);
-
-    // Output shape is the concatenation of key and value cache shapes
     // Output is a dummy u8 scalar (placeholder for in-place operation)
     set_output_type(0, ov::element::u8, ov::PartialShape{});
 }
@@ -49,4 +52,4 @@ std::shared_ptr<Node> PaKVReorder::clone_with_new_inputs(const ov::OutputVector&
                                          new_args.at(5));
 }
 
-}  // namespace ov::intel_cpu::op
+}  // namespace ov::intel_cpu

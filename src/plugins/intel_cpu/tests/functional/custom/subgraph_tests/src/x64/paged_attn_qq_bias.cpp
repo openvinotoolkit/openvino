@@ -321,7 +321,6 @@ TEST_P(PagedAttnQQBiasTest, SpeculativeDecodingTreeMask) {
     targetDevice = ov::test::utils::DEVICE_CPU;
 
     size_t head_num = 8;
-    size_t batch_size = 1;
 
     // Run with tree mask (qq_bias enabled with pattern)
     std::vector<int32_t> qq_bias_begins_tree = {0, static_cast<int32_t>(pattern.matrix.size())};
