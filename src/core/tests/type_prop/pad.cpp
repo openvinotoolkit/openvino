@@ -365,6 +365,18 @@ TYPED_TEST_P(PadStringTest, pad_string_dynamic_shape) {
     EXPECT_EQ(pad->get_output_partial_shape(0), (PartialShape{{3, -1}, {1, -1}}));
 }
 
+TYPED_TEST_P(PadStringTest, pad_string_multi_char_pad_value) {
+    auto arg = make_shared<op::v0::Parameter>(element::string, Shape{2, 3});
+    auto pads_begin = make_shared<op::v0::Constant>(element::i64, Shape{2}, std::vector<int64_t>{1, 2});
+    auto pads_end = make_shared<op::v0::Constant>(element::i64, Shape{2}, std::vector<int64_t>{1, 0});
+    auto pad_value = make_shared<op::v0::Constant>(element::string, Shape{}, std::vector<std::string>{"hello world"});
+
+    auto pad = this->make_op(arg, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
+
+    EXPECT_EQ(pad->get_output_element_type(0), element::string);
+    EXPECT_EQ(pad->get_output_partial_shape(0), PartialShape({4, 5}));
+}
+
 TYPED_TEST_P(PadStringTest, pad_string_pad_value_type_mismatch) {
     auto arg = make_shared<op::v0::Parameter>(element::string, Shape{3});
     auto pads_begin = make_shared<op::v0::Parameter>(element::i64, Shape{1});
@@ -380,6 +392,7 @@ REGISTER_TYPED_TEST_SUITE_P(PadStringTest,
                             pad_string_output_type_is_string,
                             pad_string_negative_pads_crop,
                             pad_string_dynamic_shape,
+                            pad_string_multi_char_pad_value,
                             pad_string_pad_value_type_mismatch);
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, PadStringTest, PadOpTypes);
