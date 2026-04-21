@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #pragma once
 
 #include <array>
@@ -287,8 +291,7 @@ inline void fill_weights_memory(cldnn::stream& exec_stream,
     const auto& weights_path = desc._weights_path;
 
     OPENVINO_ASSERT(!weights_path.empty(), "weights path is empty for OTD weight loading");
-    OPENVINO_ASSERT(weight_bin_offsets.size() == cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count,
-                    "Unexpected number of MOE weight offsets");
+    OPENVINO_ASSERT(weight_bin_offsets.size() == cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count, "Unexpected number of MOE weight offsets");
 
     std::ifstream size_file(weights_path.c_str(), std::ios::in | std::ios::binary | std::ios::ate);
     OPENVINO_ASSERT(size_file.is_open(), "Failed to open weight file to query size: ", weights_path);
@@ -345,7 +348,8 @@ inline void fill_weights_memory(cldnn::stream& exec_stream,
         auto& weight_reader = get_thread_local_weight_reader(weights_path);
 
         for (size_t offset_pos = 0; offset_pos < static_cast<size_t>(cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count); offset_pos++) {
-            auto plan = make_tensor_fill_plan(weight_bin_offsets[offset_pos], tensors_by_offset[offset_pos], expert, lru_experts[index], tensor_names[offset_pos]);
+            auto plan =
+                make_tensor_fill_plan(weight_bin_offsets[offset_pos], tensors_by_offset[offset_pos], expert, lru_experts[index], tensor_names[offset_pos]);
             std::vector<uint8_t> payload;
 
             if (plan.per_expert_size != 0) {
