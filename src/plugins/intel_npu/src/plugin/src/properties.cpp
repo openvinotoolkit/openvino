@@ -524,7 +524,6 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::cache_mode, CACHE_MODE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::compiled_blob, COMPILED_BLOB);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::device::id, DEVICE_ID);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::num_streams, NUM_STREAMS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::weights_path, WEIGHTS_PATH);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::internal::exclusive_async_requests, EXCLUSIVE_ASYNC_REQUESTS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::compilation_mode_params, COMPILATION_MODE_PARAMS);
@@ -549,7 +548,6 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::export_raw_blob, EXPORT_RAW_BLOB);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::import_raw_blob, IMPORT_RAW_BLOB);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::batch_compiler_mode_settings, BATCH_COMPILER_MODE_SETTINGS);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::workload_type, WORKLOAD_TYPE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::enable_weightless, ENABLE_WEIGHTLESS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::separate_weights_version, SEPARATE_WEIGHTS_VERSION);
@@ -589,7 +587,6 @@ void Properties::registerPluginProperties() {
         }
         return false;
     }());
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
 
     FORCE_REGISTER_CUSTOM_PROPERTY(ov::hint::model,
                                    MODEL_PTR,
@@ -624,7 +621,6 @@ void Properties::registerPluginProperties() {
                                         : _backend->getDevice(config.get<DEVICE_ID>())->getName(),
                     _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames())))));
         REGISTER_SIMPLE_METRIC(ov::range_for_async_infer_requests, true, _metrics->GetRangeForAsyncInferRequest());
-        REGISTER_SIMPLE_METRIC(ov::range_for_streams, true, _metrics->GetRangeForStreams());
         REGISTER_SIMPLE_METRIC(ov::device::pci_info, true, _metrics->GetPciInfo(get_specified_device_name(config)));
         REGISTER_SIMPLE_METRIC(ov::device::gops, true, _metrics->GetGops(get_specified_device_name(config)));
         REGISTER_SIMPLE_METRIC(ov::device::type, true, _metrics->GetDeviceType(get_specified_device_name(config)));
@@ -718,7 +714,6 @@ void Properties::registerCompiledModelProperties() {
     // FORCE_REGISTER_CUSTOM_PROPERTY format: (property, visibility, mutability, custom_return_lambda_function)
 
     // Permanent properties
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::log::level, LOG_LEVEL);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::loaded_from_cache, LOADED_FROM_CACHE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::performance_mode, PERFORMANCE_HINT);

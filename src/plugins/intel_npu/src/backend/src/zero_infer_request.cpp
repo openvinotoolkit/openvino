@@ -12,6 +12,7 @@
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/runtime/exception.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/plugin_itt.hpp"
@@ -25,6 +26,16 @@ std::shared_ptr<const ov::ICompiledModel> validate_compiled_model(
     const std::shared_ptr<const ov::ICompiledModel>& compiledModel) {
     OPENVINO_ASSERT(compiledModel, "Inference request creation: compiled model is not available");
     return compiledModel;
+}
+
+std::exception_ptr make_cancelled_exception() {
+    try {
+        ov::Cancelled::create("Infer Request was canceled");
+    } catch (...) {
+        return std::current_exception();
+    }
+
+    return nullptr;
 }
 
 bool has_related_shape_tensor(const std::vector<intel_npu::IODescriptor>& metadata, size_t descriptorIdx) {
@@ -119,7 +130,8 @@ void* get_tensor_data_ptr(const std::shared_ptr<ov::ITensor>& tensor) {
 ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
                                    const std::shared_ptr<const ICompiledModel>& compiledModel,
                                    const Config& config)
-    : _initStructs(initStructs),
+    : ov::IAsyncInferRequest({}, {}, {}),
+      _initStructs(initStructs),
       _compiledModel(validate_compiled_model(compiledModel)),
       _graph(compiledModel->get_graph()),
       _metadata(_graph->get_metadata()),
@@ -277,6 +289,7 @@ void ZeroInferRequest::add_state(const IODescriptor& descriptor, size_t tensorIn
 }
 
 std::vector<ov::SoPtr<ov::IVariableState>> ZeroInferRequest::query_state() const {
+    check_request_busy();
     return _variableStates;
 }
 
@@ -393,18 +406,20 @@ void ZeroInferRequest::create_pipeline_impl() {
     _logger.debug("create_pipeline_impl - constructing pipeline");
     auto batchSize = _graph->get_batch_size();
     // Construct pipeline
-    _pipeline = std::make_unique<Pipeline>(_initStructs,
-                                           _graph,
-                                           _config,
-                                           _levelZeroInputTensors,
-                                           _levelZeroOutputTensors,
-                                           batchSize.has_value() ? batchSize.value() : utils::DEFAULT_BATCH_SIZE);
+    _pipeline =
+        std::make_unique<intel_npu::Pipeline>(_initStructs,
+                                              _graph,
+                                              _config,
+                                              _levelZeroInputTensors,
+                                              _levelZeroOutputTensors,
+                                              batchSize.has_value() ? batchSize.value() : utils::DEFAULT_BATCH_SIZE);
 
     _logger.debug("create_pipeline_impl - completed");
 }
 
 void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
     OV_ITT_TASK_CHAIN(ZERO_SET_TENSOR, itt::domains::LevelZeroBackend, "set_tensor", "set_tensor");
+    check_request_busy();
 
     auto foundPort = find_port(port);
     OPENVINO_ASSERT(foundPort.found(), "Cannot find tensor for port ", port);
@@ -573,6 +588,7 @@ void ZeroInferRequest::sync_zero_tensor_with_graph(const ZeroInferRequest::Found
 void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
                                    const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
     OV_ITT_TASK_CHAIN(ZERO_SET_TENSORS, itt::domains::LevelZeroBackend, "set_tensors", "set_tensors");
+    check_request_busy();
     if (tensors.size() == 1) {
         set_tensor(port, tensors[0]);
         return;
@@ -707,6 +723,7 @@ void ZeroInferRequest::sync_zero_tensors_with_graph(const ZeroInferRequest::Foun
 
 ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "get_tensor");
+    check_request_busy();
 
     auto foundPort = find_port(port);
     OPENVINO_ASSERT(foundPort.found(), "Cannot find tensor for port ", port);
@@ -773,6 +790,7 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
 
 std::vector<ov::SoPtr<ov::ITensor>> ZeroInferRequest::get_tensors(const ov::Output<const ov::Node>& port) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::Plugin, "get_tensors");
+    check_request_busy();
 
     auto foundPort = find_port(port);
     OPENVINO_ASSERT(foundPort.found(), "Cannot find input tensors for port ", port);
@@ -900,26 +918,15 @@ void ZeroInferRequest::update_states_if_memory_changed() {
     }
 }
 
-void ZeroInferRequest::infer() {
-    OV_ITT_SCOPED_TASK_BASE(itt::domains::InferenceNPU, "SyncInferenceNPU");
-    if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-        OPENVINO_THROW("Only start async is supported when RUN_INFERENCES_SEQUENTIALLY is enabled!");
-    }
-
-    infer_async();
-    get_result();
-}
-
-void ZeroInferRequest::infer_async() {
-    _logger.debug("infer_async - started");
-    // TASK_BASE marker is always on by default
+void ZeroInferRequest::start_impl() {
+    _logger.debug("start_impl - started");
     OV_ITT_SCOPED_TASK_BASE(itt::domains::InferenceNPU, "Inference::start");
-    // This task chain marker will only be available when ENABLE_PROFILING_ITT=FULL
-    OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "infer_async", "start");
+
+    OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "start_impl", "prepare_data");
     prepare_inputs();
     prepare_outputs();
 
-    OV_ITT_TASK_NEXT(ZERO_INFER, "push");
+    OV_ITT_TASK_NEXT(ZERO_INFER, "pipeline_push");
     _pipeline->push();
 }
 
@@ -1067,65 +1074,74 @@ void ZeroInferRequest::prepare_outputs() {
     }
 }
 
-void ZeroInferRequest::get_result() {
-    OV_ITT_SCOPED_TASK_BASE(itt::domains::InferenceNPU, "Inference::get_result");
-    OV_ITT_TASK_CHAIN(ZERO_RESULT, itt::domains::LevelZeroBackend, "get_result", "pull");
-    _logger.debug("get_result - started");
-    _pipeline->pull();
+std::exception_ptr ZeroInferRequest::wait_impl() {
+    std::exception_ptr exceptionPtr;
 
-    size_t outputIndex = 0;
-    for (const auto& userTensor : _userOutputTensors) {
-        const IODescriptor& outputDescriptor = _metadata.outputs.at(outputIndex);
-        if (outputDescriptor.isShapeTensor) {
-            OPENVINO_ASSERT(outputDescriptor.relatedDescriptorIndex.has_value(),
-                            "The link between the dynamic tensor and its shape tensor is missing, entry name: ",
-                            outputDescriptor.nameFromCompiler);
+    try {
+        _logger.debug("wait_impl - started");
+        OV_ITT_SCOPED_TASK_BASE(itt::domains::InferenceNPU, "Inference::wait");
+        OV_ITT_TASK_CHAIN(ZERO_RESULT, itt::domains::LevelZeroBackend, "wait_impl", "pull");
+        _pipeline->pull();
 
-            ov::Shape actualDims;
-            actualDims.reserve(userTensor->get_size());
+        size_t outputIndex = 0;
+        for (const auto& userTensor : _userOutputTensors) {
+            const IODescriptor& outputDescriptor = _metadata.outputs.at(outputIndex);
+            if (outputDescriptor.isShapeTensor) {
+                OPENVINO_ASSERT(outputDescriptor.relatedDescriptorIndex.has_value(),
+                                "The link between the dynamic tensor and its shape tensor is missing, entry name: ",
+                                outputDescriptor.nameFromCompiler);
 
-            for (size_t i = 0; i < userTensor->get_size(); ++i) {
-                const auto reverseIdx = userTensor->get_size() - 1 - i;
-                actualDims.push_back(userTensor->data<uint32_t>()[reverseIdx]);
+                ov::Shape actualDims;
+                actualDims.reserve(userTensor->get_size());
+
+                for (size_t i = 0; i < userTensor->get_size(); ++i) {
+                    const auto reverseIdx = userTensor->get_size() - 1 - i;
+                    actualDims.push_back(userTensor->data<uint32_t>()[reverseIdx]);
+                }
+                auto& tensorToBeReshaped = _userOutputTensors.at(*outputDescriptor.relatedDescriptorIndex);
+                tensorToBeReshaped->set_shape(actualDims);
             }
-            auto& tensorToBeReshaped = _userOutputTensors.at(*outputDescriptor.relatedDescriptorIndex);
-            tensorToBeReshaped->set_shape(actualDims);
+
+            const auto& levelZeroTensor = _levelZeroOutputTensors.at(outputIndex);
+            void* userBuffer = get_tensor_data_ptr(userTensor._ptr);
+            void* levelZeroBuffer = levelZeroTensor->data();
+
+            if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
+                OPENVINO_THROW("Empty buffer");
+            }
+
+            if (userBuffer != levelZeroBuffer) {
+                _logger.info(
+                    "wait_impl - output tensor by index: %zu is not allocated in the current Level Zero context",
+                    outputIndex);
+                OV_ITT_TASK_NEXT(ZERO_RESULT, "memcpy");
+                copy_tensor_with_optional_shape_view(levelZeroTensor,
+                                                     userTensor._ptr,
+                                                     false,
+                                                     has_related_shape_tensor(_metadata.outputs, outputIndex));
+            }
+
+            levelZeroTensor->detach_imported_allocation_for_custom_tensor();
+
+            ++outputIndex;
         }
 
-        const auto& levelZeroTensor = _levelZeroOutputTensors.at(outputIndex);
-        void* userBuffer = get_tensor_data_ptr(userTensor._ptr);
-        void* levelZeroBuffer = levelZeroTensor->data();
-
-        if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
-            OPENVINO_THROW("Empty buffer");
+        for (size_t inputIndex = 0; inputIndex < _levelZeroInputTensors.size(); ++inputIndex) {
+            for (const auto& levelZeroTensor : get_level_zero_inputs(inputIndex)) {
+                if (levelZeroTensor != nullptr) {
+                    levelZeroTensor->detach_imported_allocation_for_custom_tensor();
+                }
+            }
         }
 
-        if (userBuffer != levelZeroBuffer) {
-            _logger.info("get_result - output tensor by index: %zu is not allocated in the current Level Zero context",
-                         outputIndex);
-            OV_ITT_TASK_NEXT(ZERO_RESULT, "memcpy");
-            copy_tensor_with_optional_shape_view(levelZeroTensor,
-                                                 userTensor._ptr,
-                                                 false,
-                                                 has_related_shape_tensor(_metadata.outputs, outputIndex));
-        }
-
-        levelZeroTensor->detach_imported_allocation_for_custom_tensor();
-
-        ++outputIndex;
+        OV_ITT_TASK_NEXT(ZERO_RESULT, "reset_pipeline");
+        _pipeline->reset();
+        _logger.debug("wait_impl - finished");
+    } catch (...) {
+        exceptionPtr = std::current_exception();
     }
 
-    for (size_t inputIndex = 0; inputIndex < _levelZeroInputTensors.size(); ++inputIndex) {
-        for (const auto& levelZeroTensor : get_level_zero_inputs(inputIndex)) {
-            if (levelZeroTensor != nullptr) {
-                levelZeroTensor->detach_imported_allocation_for_custom_tensor();
-            }
-        }
-    }
-
-    OV_ITT_TASK_NEXT(ZERO_RESULT, "reset");
-    _pipeline->reset();
-    _logger.debug("get_result - finished");
+    return exceptionPtr;
 }
 
 void ZeroInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
@@ -1390,9 +1406,294 @@ void ZeroInferRequest::check_network_precision(const ov::element::Type_t precisi
 }
 
 std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
+    check_request_busy();
     OPENVINO_ASSERT(_pipeline, "Profiling information isn't available before running an inference!");
 
     return _pipeline->get_profiling_info();
+}
+
+void ZeroInferRequest::infer() {
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::InferenceNPU, "SyncInferenceNPU");
+    check_tensors();
+    check_request_busy();
+
+    if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        OPENVINO_THROW("Only start async is supported when RUN_INFERENCES_SEQUENTIALLY is enabled!");
+    }
+
+    start_impl();
+    auto exceptionPtr = wait_impl();
+    if (exceptionPtr) {
+        std::rethrow_exception(exceptionPtr);
+    }
+}
+
+void ZeroInferRequest::start_async() {
+    _logger.debug("start_async - started");
+    check_tensors();
+    check_request_busy();
+
+    std::exception_ptr previousException;
+    {
+        std::lock_guard<std::mutex> lock{_syncMutex};
+        previousException = _threadException;
+        _threadException = nullptr;
+    }
+
+    if (previousException) {
+        std::rethrow_exception(previousException);
+    }
+
+    try {
+        start_impl();
+    } catch (...) {
+        _asyncThreadCv.notify_all();
+        throw;
+    }
+
+    bool workerEnabled = false;
+    {
+        std::lock_guard<std::mutex> lock{_syncMutex};
+        _state = ZeroInferState::BUSY;
+        workerEnabled = _waitThreadActive;
+    }
+
+    if (workerEnabled) {
+        _asyncThreadCv.notify_one();
+    }
+}
+
+void ZeroInferRequest::wait_thread_loop(bool callbackRegistered) {
+    do {
+        std::unique_lock<std::mutex> lock(_syncMutex);
+        _asyncThreadCv.wait(lock, [this]() {
+            return _state != ZeroInferState::IDLE;
+        });
+
+        // Exit only when stop is requested and there is no in-flight request to complete.
+        if (_state == ZeroInferState::STOP || _state == ZeroInferState::IDLE) {
+            return;
+        }
+
+        lock.unlock();
+        auto exceptionPtr = wait_impl();
+
+        std::function<void(std::exception_ptr)> callback;
+        std::shared_ptr<ZeroInferRequest> self;
+        bool stopRequested = false;
+        lock.lock();
+        // Move instead of copy so the lambda's captured shared_ptrs have use_count == 1 during invocation.
+        self = shared_from_this();
+        callback = std::move(_callback);
+        if (_state == ZeroInferState::CANCELLED) {
+            exceptionPtr = make_cancelled_exception();
+        }
+        stopRequested = _state == ZeroInferState::STOP;
+        _state = ZeroInferState::IDLE;
+        lock.unlock();
+
+        if (callback) {
+            try {
+                callback(exceptionPtr);
+            } catch (...) {
+                // Callback exception overrides inference exception and is propagated via wait()
+                exceptionPtr = std::current_exception();
+            }
+        }
+
+        lock.lock();
+        // Restore the callback for subsequent start_async calls unless a new one was set meanwhile.
+        if (callback && !_callback) {
+            _callback = std::move(callback);
+        }
+        _threadException = exceptionPtr;
+        _asyncThreadCv.notify_all();
+        lock.unlock();
+
+        // Stop immediately after publishing completion if destruction was requested.
+        if (stopRequested) {
+            return;
+        }
+    } while (callbackRegistered);
+}
+
+void ZeroInferRequest::wait() {
+    bool waitOnWorker = false;
+    std::exception_ptr exceptionPtr;
+
+    {
+        std::lock_guard<std::mutex> lock{_syncMutex};
+        if (_state == ZeroInferState::CANCELLED) {
+            exceptionPtr = make_cancelled_exception();
+        } else if (_state == ZeroInferState::IDLE) {
+            // No pending request: return immediately without blocking worker thread.
+            return;
+        }
+    }
+    if (exceptionPtr) {
+        std::rethrow_exception(exceptionPtr);
+    }
+
+    {
+        std::unique_lock<std::mutex> lock{_syncMutex};
+        waitOnWorker = _waitThreadActive;
+        if (waitOnWorker) {
+            // Background thread is handling wait_impl(); just wait for it to signal completion
+            _asyncThreadCv.wait(lock, [this]() {
+                return _state != ZeroInferState::BUSY;
+            });
+
+            if (_state == ZeroInferState::CANCELLED) {
+                exceptionPtr = make_cancelled_exception();
+            } else {
+                exceptionPtr = _threadException;
+                _threadException = nullptr;
+            }
+        }
+    }
+
+    if (!waitOnWorker) {
+        // No callback; do synchronous wait directly
+        exceptionPtr = wait_impl();
+        {
+            std::lock_guard<std::mutex> lock(_syncMutex);
+            if (_state == ZeroInferState::CANCELLED) {
+                exceptionPtr = make_cancelled_exception();
+            }
+            _state = ZeroInferState::IDLE;
+        }
+        _asyncThreadCv.notify_all();
+    }
+
+    if (exceptionPtr) {
+        std::rethrow_exception(exceptionPtr);
+    }
+}
+
+bool ZeroInferRequest::wait_for(const std::chrono::milliseconds& timeout) {
+    OPENVINO_ASSERT(timeout >= std::chrono::milliseconds{0},
+                    "Timeout can't be less than 0 for InferRequest::wait_for().");
+
+    std::exception_ptr exceptionPtr;
+    {
+        std::unique_lock<std::mutex> lock{_syncMutex};
+
+        if (_state == ZeroInferState::CANCELLED) {
+            exceptionPtr = make_cancelled_exception();
+        } else if (_state == ZeroInferState::IDLE) {
+            // No pending request: return immediately.
+            return true;
+        } else if (timeout == std::chrono::milliseconds{0}) {
+            // Status-only check: return immediately.
+            return false;
+        } else if (!_waitThreadActive) {
+            if (!_waitThread.joinable()) {
+                _waitThreadActive = true;
+                _waitThread = std::thread([this]() {
+                    wait_thread_loop(false);
+                });
+            }
+
+            _threadException = nullptr;
+            _asyncThreadCv.notify_one();
+        }
+
+        if (!exceptionPtr && !_asyncThreadCv.wait_for(lock, timeout, [this]() {
+                return _state == ZeroInferState::IDLE;
+            })) {
+            // timeout expired
+            return false;
+        }
+
+        if (!exceptionPtr) {
+            exceptionPtr = _threadException;
+            _threadException = nullptr;
+        }
+    }
+
+    if (exceptionPtr) {
+        std::rethrow_exception(exceptionPtr);
+    }
+
+    return true;
+}
+
+void ZeroInferRequest::cancel() {
+    std::lock_guard<std::mutex> lock{_syncMutex};
+    if (_state == ZeroInferState::BUSY) {
+        _state = ZeroInferState::CANCELLED;
+        _asyncThreadCv.notify_all();
+    }
+}
+
+void ZeroInferRequest::set_callback(std::function<void(std::exception_ptr)> callback) {
+    OPENVINO_ASSERT(callback, "Callback function cannot be empty");
+    check_request_busy();
+
+    std::lock_guard<std::mutex> lock{_syncMutex};
+    _callback = std::move(callback);
+    _waitThreadActive = true;
+
+    if (!_waitThread.joinable()) {
+        _waitThread = std::thread([this]() {
+            wait_thread_loop(true);
+        });
+    }
+};
+
+void ZeroInferRequest::check_request_busy() const {
+    std::exception_ptr exceptionPtr;
+    bool waitDirectly = false;
+    {
+        std::unique_lock<std::mutex> lock{_syncMutex};
+        if (_state != ZeroInferState::BUSY) {
+            return;
+        }
+
+        if (_waitThreadActive) {
+            // If completion is handled by worker thread, wait for it instead of failing as busy.
+            _asyncThreadCv.wait(lock, [this]() {
+                return _state != ZeroInferState::BUSY;
+            });
+            exceptionPtr = _threadException;
+        } else {
+            // No worker is consuming completion: finish the in-flight request synchronously.
+            waitDirectly = true;
+        }
+    }
+
+    if (waitDirectly) {
+        // No callback; do synchronous wait directly
+        exceptionPtr = const_cast<ZeroInferRequest*>(this)->wait_impl();
+        {
+            std::lock_guard<std::mutex> lock(_syncMutex);
+            _state = ZeroInferState::IDLE;
+        }
+    }
+
+    if (exceptionPtr) {
+        std::rethrow_exception(exceptionPtr);
+    }
+}
+
+ZeroInferRequest::~ZeroInferRequest() {
+    std::thread callbackThread;
+    {
+        std::lock_guard<std::mutex> lock(_syncMutex);
+        _state = ZeroInferState::STOP;
+        _asyncThreadCv.notify_all();
+        if (_waitThread.joinable()) {
+            callbackThread = std::move(_waitThread);
+        }
+    }
+
+    if (callbackThread.joinable()) {
+        if (callbackThread.get_id() == std::this_thread::get_id()) {
+            callbackThread.detach();
+        } else {
+            callbackThread.join();
+        }
+    }
 }
 
 }  // namespace intel_npu

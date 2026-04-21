@@ -186,7 +186,6 @@ Example:
     <skip_config>
         <message>TensorIterator layer is not supported</message>
         <filters>
-            <filter>.*ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout.*</filter>
             <filter>.*OVInferRequestDynamicTests.*</filter>
             <filter>.*OVInferenceChaining.*</filter>
         </filters>
@@ -878,6 +877,13 @@ Example:
         </enable_rules>
         <filters>
             <filter>.*ZeroGraphTest.SetAlignedBlob.*zeGraphNpuExtVersion=(1.13|1.14|1.15|1.16).*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>RANGE_FOR_STREAMS is not supported on NPU.</message>
+        <filters>
+            <filter>.*OVGetMetricPropsOptionalTest.GetMetricAndPrintNoThrow_RANGE_FOR_STREAMS.*</filter>
         </filters>
     </skip_config>
 

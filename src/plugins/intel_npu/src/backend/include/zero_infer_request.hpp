@@ -4,12 +4,18 @@
 
 #pragma once
 
+#include <condition_variable>
+#include <exception>
+#include <functional>
+#include <thread>
+
 #include "intel_npu/common/icompiled_model.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/network_metadata.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_tensor.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
 #include "zero_pipeline.hpp"
 
 namespace intel_npu {
@@ -25,7 +31,7 @@ std::optional<size_t> determine_dynamic_batch_size(const IODescriptor& desc,
 
 void* get_tensor_data_ptr(const std::shared_ptr<ov::ITensor>& tensor);
 
-class ZeroInferRequest : public InferRequest {
+class ZeroInferRequest : public ov::IAsyncInferRequest, public std::enable_shared_from_this<ZeroInferRequest> {
 public:
     explicit ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
                               const std::shared_ptr<const ICompiledModel>& compiledModel,
@@ -38,8 +44,12 @@ public:
                      const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
 
     void infer() override;
-    virtual void infer_async() override;
-    void get_result() override;
+    void start_async() override;
+    void wait() override;
+    bool wait_for(const std::chrono::milliseconds& timeout) override;
+    void cancel() override;
+
+    void set_callback(std::function<void(std::exception_ptr)> callback) override;
 
     const std::vector<ov::Output<const ov::Node>>& get_inputs() const override;
     const std::vector<ov::Output<const ov::Node>>& get_outputs() const override;
@@ -47,6 +57,8 @@ public:
     const std::shared_ptr<const ov::ICompiledModel>& get_compiled_model() const override;
 
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
+
+    ~ZeroInferRequest() override;
 
 protected:
     /**
@@ -140,6 +152,11 @@ protected:
     void check_network_precision(const ov::element::Type_t precision) const;
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
+    virtual void start_impl();
+    std::exception_ptr wait_impl();
+    void wait_thread_loop(bool callbackRegistered);
+    void check_request_busy() const;
+
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
 
     // This is intel_npu::ICompiledModel pointer, but need to use OV base class because
@@ -161,7 +178,7 @@ protected:
     mutable std::vector<std::vector<std::shared_ptr<ZeroTensor>>> _levelZeroInputTensors;
     mutable std::vector<std::shared_ptr<ZeroTensor>> _levelZeroOutputTensors;
 
-    std::unique_ptr<IPipeline> _pipeline;
+    std::unique_ptr<intel_npu::IPipeline> _pipeline;
     bool _pipelineIsCreated = false;
     bool _dynamicBatchValueChanged = false;
 
@@ -176,6 +193,17 @@ protected:
      * @see ov::ISyncInferRequest
      */
     mutable std::mutex _cacheMutex;
+
+    enum ZeroInferState { IDLE, BUSY, CANCELLED, STOP };
+    mutable ZeroInferState _state = ZeroInferState::IDLE;
+    mutable std::mutex _syncMutex;
+    mutable std::condition_variable _asyncThreadCv;
+
+    std::function<void(std::exception_ptr)> _callback;
+
+    std::thread _waitThread;
+    bool _waitThreadActive = false;
+    std::exception_ptr _threadException;
 };
 
 }  //  namespace intel_npu

@@ -180,9 +180,11 @@ std::shared_ptr<ZeroTensor> ZeroDynamicInferRequest::allocate_tensor(
     return tensor;
 }
 
-void ZeroDynamicInferRequest::infer_async() {
-    _logger.debug("infer_async - started");
-    OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "infer_async", "start");
+void ZeroDynamicInferRequest::start_impl() {
+    _logger.debug("start_impl - started");
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::InferenceNPU, "Inference::start");
+
+    OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "start_impl", "prepare_data");
     // Store the predicted output shapes
     std::vector<IDynamicGraph::MemRefType> outputPros;
     predict_shapes(outputPros);
@@ -191,7 +193,7 @@ void ZeroDynamicInferRequest::infer_async() {
     prepare_outputs();
     update_tensor(outputPros);
 
-    OV_ITT_TASK_NEXT(ZERO_INFER, "push");
+    OV_ITT_TASK_NEXT(ZERO_INFER, "pipeline_push");
     _pipeline->push();
 }
 
