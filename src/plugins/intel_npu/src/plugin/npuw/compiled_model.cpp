@@ -26,6 +26,7 @@
 #include "plugin.hpp"
 #include "unfold_sync_infer_request.hpp"
 #include "util.hpp"
+#include "v1/elements/failsafe.hpp"
 
 // required for get_properties_per_device()
 #include "intel_npu/config/config.hpp"
@@ -85,6 +86,17 @@ bool should_use_weightless_flow(const ov::AnyMap& non_npuw_props,
     }
 
     return is_weightless;
+}
+
+std::set<std::string> device_list_to_set(const std::string& device_list) {
+    std::set<std::string> result;
+    if (!device_list.empty()) {
+        const auto devices = ov::DeviceIDParser::get_hetero_devices(device_list);
+        for (auto&& d : devices) {
+            result.insert(std::move(d));
+        }
+    }
+    return result;
 }
 }  // anonymous namespace
 
@@ -435,7 +447,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 if (fcn_template._moe_experts) {
                     m_compiled_submodels[id].moe_experts = compiled::MoEExperts(fcn_template._moe_experts.value());
 
-                    // Point model to first chunk size model (actual compilation handled by compile_moe_models)
+                    // Point model to first chunk size model (actual compilation handled by compile_for_success)
                     const auto& models_to_compile = m_compiled_submodels[id].moe_experts.value()._models_to_compile;
                     NPUW_ASSERT(!models_to_compile.empty() && "Fatal: MoEExperts has no models to compile!");
                     m_compiled_submodels[id].model = models_to_compile.begin()->second;
@@ -520,8 +532,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         fsd_opt.erase(last_pos, 4);
         fsd_opt.insert(last_pos, std::to_string(end_sub_idx));
     }
-
-    forced_sub_devices = ::intel_npu ::OptionParser<std::map<std::size_t, std::string>>::parse(fsd_opt);
+    forced_sub_devices = ::intel_npu::OptionParser<std::map<std::size_t, std::string>>::parse(fsd_opt);
 
     // Exclude optimized out subgraphs from compilation target beforehand - otherwise we might get head and repeated
     // block in the same chunk
@@ -543,34 +554,39 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         NPUW_ASSERT(!subgraph._optimized_out);
 
         const std::size_t real_id = m_compiled_submodels[id].replaced_by.value_or(id);
-        if (!orderedSubgraphs[real_id]._avoid_list.empty()) {
-            const auto devices_to_avoid = ov::DeviceIDParser::get_hetero_devices(orderedSubgraphs[real_id]._avoid_list);
-            for (auto&& d : devices_to_avoid) {
-                m_compiled_submodels[real_id].devices_to_avoid.insert(std::move(d));
-            }
-        }
+        m_compiled_submodels[real_id].devices_to_avoid = device_list_to_set(orderedSubgraphs[real_id]._avoid_list);
 
-        m_compiled_submodels[id].device_it =
-            id != real_id ? m_compiled_submodels[real_id].device_it : m_dev_list.cbegin();
-
+        // Build the filtered device list before passing to compile_for_success.
+        // A forced device (if valid) produces a single-element list; otherwise the full
+        // m_dev_list is used with avoided devices removed.
+        std::vector<std::string> devices;
         if (forced_sub_devices.count(id)) {
-            std::string forced_device = forced_sub_devices[id];
+            const std::string& forced_device = forced_sub_devices[id];
             auto forced_dev_it = std::find(m_dev_list.begin(), m_dev_list.end(), forced_device);
             if (forced_dev_it == m_dev_list.end()) {
                 LOG_WARN("Target device for Subgraph[" << id << "] was set to " << forced_device
                                                        << ", but was not found in the device list: " << "["
                                                        << dev_list_str << "] -- ignoring");
             } else {
-                // FIXME: This is not really a device enforcement as the fallback
-                // procedure will be in place still
                 LOG_INFO("Force Subgraph[" << id << "] target device to " << *forced_dev_it);
-                m_compiled_submodels[real_id].device_it = forced_dev_it;
+                devices.push_back(*forced_dev_it);
             }
-        }  // if(forced_device_opt)
+        }
+        if (devices.empty()) {
+            const auto& avoid = m_compiled_submodels[real_id].devices_to_avoid;
+            for (const auto& device_name : m_dev_list) {
+                if (avoid.count(device_name) > 0) {
+                    LOG_BLOCK();
+                    LOG_INFO(device_name << " was found in the 'Avoid' list for this subgraph, skipping...");
+                } else {
+                    devices.push_back(device_name);
+                }
+            }
+        }
 
         LOG_INFO("Compiling Subgraph[" << id << "]: " << m_compiled_submodels[real_id].model->get_friendly_name()
                                        << "...");
-        if (!compile_for_success(id)) {
+        if (!compile_for_success(id, devices)) {
             OPENVINO_THROW("Failed to compile ",
                            m_compiled_submodels[real_id].model->get_friendly_name(),
                            " for all devices in [",
@@ -598,10 +614,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (par_opt) {
         ov::parallel_for(idx_subgraph_to_compile.size(), compile);
     } else {
-        // TODO: Introduce npuw::serial(i, f) instead where f is a _funcall
-        for (std::size_t i = 0u; i < idx_subgraph_to_compile.size(); i++) {
-            compile(i);
-        }
+        ov::npuw::util::non_parallel_for(idx_subgraph_to_compile.size(), compile);
     }
 
     // Finalize memory in closures and weight banks
@@ -1265,8 +1278,12 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s1
             auto real_idx = subm.replaced_by.value_or(i);
             // Write device idx
             // FIXME: if there is no compiled submodel, device_it is not set.
-            std::size_t device_idx = m_compiled_submodels[real_idx].device_it - m_dev_list.begin();
-            write(model_stream, real_idx == i ? device_idx : 0);
+            auto dev_idx = [&]() {
+                auto it = std::find(m_dev_list.begin(), m_dev_list.end(), submodel_device(real_idx));
+                NPUW_ASSERT(it != m_dev_list.end());
+                return it - m_dev_list.begin();
+            };
+            write(model_stream, real_idx == i ? dev_idx() : 0);
             // Write ICompiledModel if it's there
             if (subm.compiled_model) {
                 write(model_stream, true);
@@ -1464,7 +1481,6 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
                 compiled->m_compiled_submodels[i].compiled_model =
                     plugin->get_core()->import_model(buffer, device, import_config);
             }
-            compiled->m_compiled_submodels[i].device_it = compiled->m_dev_list.begin() + device_idx;
 
             // Create unified deserialization context for submodels with dynamic mechanisms
             // (Pyramid Attention, Host Flash Attention, etc.)
@@ -1506,7 +1522,6 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
         }
 
         const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-        auto& func_desc = m_compiled_submodels[real_idx];
         auto& desc_closure = comp_model_desc.closure.get();
 
         for (std::size_t cidx = 0; cidx < desc_closure.closure.size(); ++cidx) {
@@ -1516,7 +1531,7 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
                 continue;
             }
             NPUW_ASSERT(desc_closure.closure_uid[cidx] != -1);
-            desc_closure.closure[cidx] = m_weights_bank->get(desc_closure.closure_uid[cidx], *func_desc.device_it);
+            desc_closure.closure[cidx] = m_weights_bank->get(desc_closure.closure_uid[cidx], submodel_device(real_idx));
         }
     }
 }
@@ -1546,14 +1561,13 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             }
 
             const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-            auto& func_desc = m_compiled_submodels[real_idx];
 
             for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
                 if (comp_model_desc.closure.unsafe_get().closure[tidx]) {
                     continue;  // host-side closure
                 }
                 comp_model_desc.closure.unsafe_get().closure_uid[tidx] =
-                    m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], *func_desc.device_it);
+                    m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], submodel_device(real_idx));
             }
         }
 
@@ -1570,7 +1584,6 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             }
 
             const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-            auto& func_desc = m_compiled_submodels[real_idx];
             auto& desc_closure = comp_model_desc.closure.unsafe_get();
 
             for (std::size_t tidx = 0; tidx < desc_closure.closure.size(); ++tidx) {
@@ -1581,7 +1594,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
                 }
                 const auto& uid = desc_closure.closure_uid[tidx];
                 NPUW_ASSERT(uid != -1);  // All tensors should be registered at this point
-                desc_closure.closure[tidx] = m_weights_bank->get(uid, *func_desc.device_it);
+                desc_closure.closure[tidx] = m_weights_bank->get(uid, submodel_device(real_idx));
                 // FIXME: find a more reliable way to do so
                 desc_closure.is_remote[tidx] = m_weights_bank->is_remote(uid);
             }
@@ -1638,9 +1651,23 @@ void ov::npuw::CompiledModel::detach_memory() {
         if (!proto_comp_model_desc.model || !proto_comp_model_desc.compiled_model) {
             continue;  // optimized-out OR already cleared - skip
         }
-        if ((proto_comp_model_desc.device_it + 1 == m_dev_list.end()) || no_runtime_fallback) {
+
+        // Ask the failsafe wrapper whether runtime fallover to another device is still
+        // possible.  If it is, keep the ov::Model alive so the factory (which captures
+        // it by weak_ptr) can recompile.  For non-failsafe compiled models (single
+        // device) there is no fallback, so we can always release.
+        bool can_clear = true;
+        auto failsafe =
+            std::dynamic_pointer_cast<ov::npuw::failsafe::CompiledModel>(proto_comp_model_desc.compiled_model._ptr);
+        if (failsafe && !failsafe->is_at_last_device() && !no_runtime_fallback) {
+            can_clear = false;
+        }
+
+        if (can_clear) {
             LOG_INFO("No fallback expected - clear the OV model for Subgraph[" << idx << "]");
             proto_comp_model_desc.model.reset();
+        } else {
+            LOG_INFO("Runtime fallback still possible - keeping OV model for Subgraph[" << idx << "]");
         }
 
         // No need to clear pyramid attention data - it's self-contained!
@@ -1663,7 +1690,7 @@ std::string ov::npuw::CompiledModel::global_mem_device() const {
         if (!comp_model_desc.compiled_model) {
             continue;
         }
-        if (ov::npuw::util::starts_with(*comp_model_desc.device_it, "NPU")) {
+        if (ov::npuw::util::starts_with(submodel_device(idx), "NPU")) {
             return "NPU";
         }
     }
@@ -1678,8 +1705,7 @@ std::string ov::npuw::CompiledModel::funcall_mem_device(const std::size_t idx) c
         return device_alloc;
     }
 
-    auto& comp_model_desc = m_compiled_submodels[idx];
-    return *comp_model_desc.device_it;
+    return submodel_device(idx);
 }
 
 void ov::npuw::CompiledModel::remove_long_output_names(const std::shared_ptr<ov::Model>& model) {
@@ -1746,9 +1772,7 @@ void ov::npuw::CompiledModel::report_io() const {
     }
 }
 
-bool ov::npuw::CompiledModel::compile_for_success(std::size_t id) {
-    // Assume device_it is some always-valid starting point.
-    // FIXME: And who guarantees it? Abstraction leaks are everywhere
+bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vector<std::string>& devices) {
     if (m_compiled_submodels[id].replaced_by && m_compiled_submodels[id].replaced_by != id) {
         LOG_BLOCK();
         LOG_INFO("Skip compilation for Subgraph[" << id
@@ -1757,259 +1781,171 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id) {
         return true;
     }
 
-    for (auto iter = m_compiled_submodels[id].device_it; iter != m_dev_list.cend(); ++iter) {
-        LOG_BLOCK();
-        const auto& device_name = *iter;
-        if (m_compiled_submodels[id].devices_to_avoid.count(device_name) > 0) {
-            LOG_INFO(device_name << " was found in the 'Avoid' list for this subgraph, skipping...");
-        } else if (compile_for_device(id, device_name)) {
-            m_compiled_submodels[id].device_it = iter;
-            return true;  // success!
-        }
+    auto& desc = m_compiled_submodels[id];
+    if (devices.empty()) {
+        return false;
     }
-    return false;
-}
 
-bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::string& device_to_try) {
-    // The API of this method is ugly but it is what it is
-    // NOTE(dm): Hetero plugin disables caching here, but we'll keep this to be done
-    // at the individual plugins level.
-    auto plugin = get_npuw_plugin();
-
-    LOG_INFO("Trying to compile for " << device_to_try << "...");
-
-    // Only function bodies can reach this point.
-    // compile_for_device() behavior is not specified for funcalls.
-    NPUW_ASSERT(m_compiled_submodels[id].replaced_by.value_or(id) == id);
-
-    // Early exit conditions for NPU devices where try..catch doesn't work
-    // These are workarounds for known compilation issues that cause crashes
-    if (npuw::util::starts_with(device_to_try, "NPU")) {
-        // Check for empty input models - NPU plugin crashes on models without inputs
-        // Note: Ideally these should be eliminated via constant folding, but with offline partitioning
-        // it is not possible + not clear what to do with dynamic shapes.
-        // So for now, skip this case explicitly.
-        if (m_compiled_submodels[id].model->inputs().empty()) {
-            LOG_INFO("Avoid compilation for " << device_to_try << " as the model should be constant-folded");
-            dump_on_fail(id, device_to_try, "Avoided due to workaround");
-            return false;
-        }
-
-        // Check for dynamic shapes in attention models
-        // Skip this case explicitly because dynamic shapes in attention models trigger LLVM abort and try..catch
-        // doesn't work.
-        if (m_compiled_submodels[id].attention.has_value()) {
-            for (const auto& input : m_compiled_submodels[id].model->inputs()) {
-                if (input.get_partial_shape().is_dynamic()) {
-                    LOG_INFO("Avoid compilation for " << device_to_try << " as attention model has dynamic shapes");
-                    dump_on_fail(id, device_to_try, "Avoided due to dynamic shapes");
-                    return false;
+    // Apply NPU workarounds: pre-filter devices that would trigger unrecoverable failures.
+    // These checks apply only to the main model compilation (not MoE/pyramid/HFA sub-models).
+    std::vector<std::string> main_candidates;
+    for (const auto& device : devices) {
+        if (npuw::util::starts_with(device, "NPU")) {
+            if (desc.model->inputs().empty()) {
+                LOG_INFO("Avoid compilation for " << device << " as the model should be constant-folded");
+                dump_on_fail(id, device, "Avoided due to workaround");
+                continue;
+            }
+            if (desc.attention.has_value()) {
+                bool has_dynamic = false;
+                for (const auto& input : desc.model->inputs()) {
+                    if (input.get_partial_shape().is_dynamic()) {
+                        has_dynamic = true;
+                        break;
+                    }
+                }
+                if (has_dynamic) {
+                    LOG_INFO("Avoid compilation for " << device << " as attention model has dynamic shapes");
+                    dump_on_fail(id, device, "Avoided due to dynamic shapes");
+                    continue;
                 }
             }
         }
+        main_candidates.push_back(device);
     }
-
-    try {
-        // WARNING: These requests can be issued in parallel, so timer should be thread-safe
-
-        // Compile main model (normal models only)
-        compile_main_model(id, device_to_try);
-
-        // Compile special model types
-        compile_moe_models(id, device_to_try);
-        compile_pyramid_attention_models(id, device_to_try);
-        compile_host_flash_attention_model(id, device_to_try);
-    } catch (const std::exception& ex) {
-        LOG_ERROR("Subgraph [" << id << "] Failed to compile: " << std::endl << ex.what());
-        dump_on_fail(id, device_to_try, ex.what());
-        return false;
-    } catch (...) {
-        LOG_ERROR("Subgraph [" << id << "] Failed to compile: Unknown error");
-        dump_on_fail(id, device_to_try, "Unknown error");
+    if (main_candidates.empty()) {
         return false;
     }
-    // Reached this point - all ok, stop the search
-    LOG_INFO("Done (" << device_to_try << ")");
-    return true;
-}
 
-void ov::npuw::CompiledModel::compile_main_model(std::size_t id, const std::string& device) {
-    // Skip if this is a MoE model - handled separately
-    if (m_compiled_submodels[id].moe_experts.has_value() ||
-        m_compiled_submodels[id].moe_experts_downstream.has_value()) {
-        return;
-    }
+    // Factory builder: returns a failsafe::CompiledModel::Factory for the given model+suffix.
+    // Captures the model as weak_ptr so that detach_memory() can truly release it when
+    // no runtime fallback is expected. If the model has been cleared and failover fires
+    // anyway, the lock() fails and the factory throws, which failsafe propagates correctly.
+    auto make_factory = [this](const std::shared_ptr<ov::Model>& model,
+                               const std::string& profile_suffix) -> ov::npuw::failsafe::CompiledModel::Factory {
+        std::weak_ptr<ov::Model> weak_model = model;
+        return [this, weak_model, profile_suffix](const std::string& device) -> ov::SoPtr<ov::ICompiledModel> {
+            auto locked_model = weak_model.lock();
+            OPENVINO_ASSERT(locked_model, "Failsafe factory: ov::Model was released before recompilation");
+            ov::SoPtr<ov::ICompiledModel> compiled;
+            // FIXME: Concurrent write access to the profile map, if compiled in parallel
+            m_profile["compile/" + device + profile_suffix].record([&]() {
+                compiled = compile_submodel(locked_model, device);
+            });
+            return compiled;
+        };
+    };
 
-    // Normal compilation for standard models
-    m_profile["compile/" + device].record([&]() {
-        m_compiled_submodels[id].compiled_model = compile_submodel(m_compiled_submodels[id].model, device);
-    });
-}
+    auto make_wrapped = [&](const std::shared_ptr<ov::Model>& model,
+                            const std::string& profile_suffix,
+                            const std::vector<std::string>& devs) -> ov::SoPtr<ov::ICompiledModel> {
+        return ov::npuw::failsafe::CompiledModel::create(model,
+                                                         get_plugin(),
+                                                         devs,
+                                                         make_factory(model, profile_suffix));
+    };
 
-void ov::npuw::CompiledModel::compile_moe_models(std::size_t id, const std::string& device) {
-    // Check if we have MoE experts to compile
-    if (auto& moe_experts_opt = m_compiled_submodels[id].moe_experts; moe_experts_opt.has_value()) {
-        LOG_INFO("Compiling MoE expert models for different chunk sizes...");
+    if (auto& moe_experts_opt = desc.moe_experts; moe_experts_opt.has_value()) {
+        LOG_INFO("Compiling MoE expert models for Subgraph[" << id << "]...");
         LOG_BLOCK();
 
         auto& moe_experts = moe_experts_opt.value();
-        const auto& models_to_compile = moe_experts._models_to_compile;
+        LOG_INFO("Total MoE models to compile: " << moe_experts._models_to_compile.size());
 
-        LOG_INFO("Total MoE models to compile: " << models_to_compile.size());
-
-        // Compile each chunk size model
-        for (const auto& entry : models_to_compile) {
+        for (const auto& entry : moe_experts._models_to_compile) {
             LOG_INFO("Compiling MoE expert model for chunk_size=" << entry.first);
-
-            m_profile["compile/" + device + "/moe_chunk_" + std::to_string(entry.first)].record([&, entry]() {
-                auto compiled = compile_submodel(entry.second, device);
-                moe_experts.set_compiled_model(entry.first, std::move(compiled));
-            });
-
+            moe_experts.set_compiled_model(
+                entry.first,
+                make_wrapped(entry.second, "/moe_chunk_" + std::to_string(entry.first), devices));
             LOG_INFO("Successfully compiled MoE expert model for chunk_size=" << entry.first);
         }
 
-        // Set compiled_model to first compiled model for backward compatibility
-        // Inference requests will be created from _compiled_models in MoEExperts
         const auto& compiled_models = moe_experts._compiled_models;
-        if (!compiled_models.empty()) {
-            m_compiled_submodels[id].compiled_model = compiled_models.begin()->second;
-        }
-
+        OPENVINO_ASSERT(!compiled_models.empty(), "Expected at least one compiled MoE expert model");
+        desc.compiled_model = compiled_models.begin()->second;
         LOG_INFO("MoE expert compilation complete for Subgraph[" << id << "]");
-        return;
+    } else {
+        desc.compiled_model = make_wrapped(desc.model, "", main_candidates);
     }
 
-    // Check if we have MoE downstream to compile
-    if (auto& moe_downstream_opt = m_compiled_submodels[id].moe_experts_downstream; moe_downstream_opt.has_value()) {
-        LOG_INFO("Compiling MoE downstream model for Subgraph[" << id << "]...");
-
-        m_profile["compile/" + device].record([&]() {
-            auto compiled = compile_submodel(m_compiled_submodels[id].model, device);
-            m_compiled_submodels[id].compiled_model = compiled;
-            moe_downstream_opt->set_compiled_model(std::move(compiled));
-        });
-
-        LOG_INFO("MoE downstream compilation complete for Subgraph[" << id << "]");
-    }
-}
-
-void ov::npuw::CompiledModel::compile_pyramid_attention_models(std::size_t id, const std::string& device) {
-    // Check if we have pyramid attention to compile
-    if (!m_compiled_submodels[id].pyramid_attention.has_value()) {
-        return;
+    if (auto& moe_downstream_opt = desc.moe_experts_downstream; moe_downstream_opt.has_value()) {
+        LOG_INFO("Wrapping compiled model into MoE downstream for Subgraph[" << id << "]...");
+        OPENVINO_ASSERT(desc.compiled_model, "Expected compiled model before wrapping MoE downstream");
+        moe_downstream_opt->set_compiled_model(std::move(desc.compiled_model));
+        desc.compiled_model = moe_downstream_opt->_compiled_model;
     }
 
-    LOG_INFO("Compiling pyramid attention submodels for Subgraph[" << id << "]...");
-    LOG_BLOCK();
+    if (desc.pyramid_attention.has_value()) {
+        LOG_INFO("Compiling pyramid attention submodels for Subgraph[" << id << "]...");
+        LOG_BLOCK();
 
-    auto& pyramid_attn = m_compiled_submodels[id].pyramid_attention.value();
-    const auto& pyramid_attn_models = pyramid_attn._models_to_compile;
-    const size_t total_models = pyramid_attn_models.size();
+        auto& pyramid_attn = desc.pyramid_attention.value();
+        const auto& pyramid_attn_models = pyramid_attn._models_to_compile;
+        const size_t total_models = pyramid_attn_models.size();
+        const size_t models_to_compile = total_models > 0 ? total_models - 1 : 0;
 
-    LOG_INFO("Total pyramid models to compile: " << total_models);
+        std::vector<ov::SoPtr<ov::ICompiledModel>> compiled_models(total_models);
 
-    // Pre-allocate the compiled models vector
-    std::vector<ov::SoPtr<ov::ICompiledModel>> compiled_models(total_models);
-
-    // Compile all pyramid models except the last one in parallel
-    // The last model will reuse the already compiled original model
-    const size_t models_to_compile = total_models > 0 ? total_models - 1 : 0;
-
-    if (models_to_compile > 0) {
-        LOG_INFO("Compiling " << models_to_compile << " pyramid models in parallel...");
-
-        auto compile_one_model = [&](size_t model_id) {
-            try {
-                const auto& model = pyramid_attn_models[model_id];
-                LOG_DEBUG("Compiling pyramid attention submodel[" << model_id << "]: " << model->get_friendly_name());
-
-                auto compiled = compile_submodel(model, device);
-                OPENVINO_ASSERT(compiled, "Failed to compile pyramid attention submodel");
-
-                compiled_models[model_id] = compiled;
-
-                LOG_INFO("Compiled pyramid attention submodel[" << model_id << "]");
-            } catch (const std::exception& ex) {
-                OPENVINO_THROW("Pyramid attention submodel[", model_id, "] compilation failed: ", ex.what());
-            } catch (...) {
-                OPENVINO_THROW("Pyramid attention submodel[", model_id, "] compilation failed with unknown error");
-            }
+        auto compile_one = [&](size_t model_id) {
+            compiled_models[model_id] =
+                make_wrapped(pyramid_attn_models[model_id], "/pyramid_" + std::to_string(model_id), devices);
         };
 
         const bool par_opt = m_cfg.get<::intel_npu::NPUW_PARALLEL_COMPILE>();
-        if (par_opt) {
-            ov::parallel_for(models_to_compile, compile_one_model);
+        if (par_opt && models_to_compile > 0) {
+            ov::parallel_for(models_to_compile, compile_one);
         } else {
-            for (std::size_t model_id = 0u; model_id < models_to_compile; model_id++) {
-                compile_one_model(model_id);
+            for (size_t model_id = 0; model_id < models_to_compile; ++model_id) {
+                compile_one(model_id);
             }
+        }
+
+        if (total_models > 0) {
+            OPENVINO_ASSERT(desc.compiled_model, "Original compiled model should exist");
+            compiled_models[total_models - 1] = desc.compiled_model;
+        }
+
+        pyramid_attn.set_compiled_models(std::move(compiled_models));
+        LOG_INFO("Pyramid attention compilation complete for Subgraph[" << id << "]");
+    }
+
+    if (desc.host_flash_attention.has_value()) {
+        LOG_INFO("Compiling host flash attention tile models for Subgraph[" << id << "]...");
+        LOG_BLOCK();
+
+        auto& hfa = desc.host_flash_attention.value();
+        if (!hfa._tile_model_to_compile) {
+            LOG_WARN("Host flash attention tile model is null, skipping compilation");
+        } else {
+            for (const auto& device : devices) {
+                if (!ov::npuw::util::starts_with(device, "NPU")) {
+                    continue;
+                }
+
+                const auto supported_properties =
+                    get_npuw_plugin()->get_core()->get_property(device, ov::supported_properties);
+                const auto support_strides_for =
+                    std::find(supported_properties.begin(),
+                              supported_properties.end(),
+                              ov::intel_npu::enable_strides_for.name()) != supported_properties.end();
+                if (!support_strides_for) {
+                    continue;
+                }
+
+                hfa._can_use_tensor_view = true;
+                auto strided_inputs_name = std::string(hfa_tile_input_id_to_string(HFATileInputId::K_TILE)) + "," +
+                                           std::string(hfa_tile_input_id_to_string(HFATileInputId::V_TILE));
+                m_meta_devices[device][ov::intel_npu::enable_strides_for.name()] = strided_inputs_name;
+                LOG_INFO("Enabled using tensor view for device: " << device << " for inputs: " << strided_inputs_name);
+            }
+
+            hfa.set_compiled_tile_model(make_wrapped(hfa._tile_model_to_compile, "/hfa_tile", devices));
+            hfa.set_compiled_final_tile_model(desc.compiled_model);
+            LOG_INFO("Host flash attention compilation complete for Subgraph[" << id << "]");
         }
     }
 
-    // Handle the last model: reuse the already compiled original model
-    if (total_models > 0) {
-        LOG_INFO("Reusing already compiled original model for pyramid attention submodel[" << (total_models - 1)
-                                                                                           << "] (optimization)");
-        OPENVINO_ASSERT(m_compiled_submodels[id].compiled_model, "Original compiled model should exist");
-        compiled_models[total_models - 1] = m_compiled_submodels[id].compiled_model;
-    }
-
-    // Set compiled models - this also clears _models_to_compile internally
-    LOG_INFO("Setting compiled models into compiled::PyramidAttention...");
-    pyramid_attn.set_compiled_models(std::move(compiled_models));
-
-    LOG_INFO("Pyramid attention compilation complete for Subgraph[" << id << "]");
-}
-
-void ov::npuw::CompiledModel::compile_host_flash_attention_model(std::size_t id, const std::string& device) {
-    // Check if we have host flash attention to compile
-    if (!m_compiled_submodels[id].host_flash_attention.has_value()) {
-        return;
-    }
-
-    LOG_INFO("Compiling host flash attention tile models for Subgraph[" << id << "]...");
-    LOG_BLOCK();
-
-    auto& hfa = m_compiled_submodels[id].host_flash_attention.value();
-
-    // Check if we have tile model to compile
-    if (!hfa._tile_model_to_compile) {
-        LOG_WARN("Host flash attention tile model is null, skipping compilation");
-        return;
-    }
-
-    // Note: The final tile model has already been compiled via compile_submodel(m_compiled_submodels[id].model, ...)
-    // because m_compiled_submodels[id].model points to _final_tile_model for HFA
-    // So we only need to compile the regular tile model here
-
-    // Compile regular tile model
-    LOG_INFO("Compiling flash attention regular tile model on " << device);
-    try {
-        auto compiled_tile_model = compile_submodel(hfa._tile_model_to_compile, device);
-        OPENVINO_ASSERT(compiled_tile_model, "Failed to compile host flash attention tile model");
-
-        hfa.set_compiled_tile_model(std::move(compiled_tile_model));
-
-        LOG_INFO("Successfully compiled host flash attention regular tile model");
-    } catch (const std::exception& ex) {
-        LOG_ERROR("Failed to compile host flash attention tile model: " << ex.what());
-        OPENVINO_THROW("Host flash attention tile model compilation failed: ", ex.what());
-    } catch (...) {
-        LOG_ERROR("Failed to compile host flash attention tile model: Unknown error");
-        OPENVINO_THROW("Host flash attention tile model compilation failed with unknown error");
-    }
-
-    // Store the already-compiled final tile model reference
-    // The final tile model was compiled at line ~1676 and stored in compiled_model
-    hfa.set_compiled_final_tile_model(m_compiled_submodels[id].compiled_model);
-
-    LOG_INFO("Host flash attention compilation complete for Subgraph[" << id << "]");
-
-    // Memory cleanup notes:
-    // 1. _tile_model_to_compile is released by set_compiled_tile_model()
-    // 2. _final_tile_model_to_compile is released by set_compiled_final_tile_model()
-    // 3. m_compiled_submodels[id].model points to _final_tile_model and will be managed by detach_memory()
+    return true;
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const std::shared_ptr<ov::Model>& submodel,
@@ -2019,7 +1955,8 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
 
     // set exclusive_async_requests in case when model is split
     // NOTE(dm): Not sure if it is required for the NPUW plugin, but likely it is
-    auto& device_config = m_meta_devices[device];
+    // Make a device config COPY here!
+    auto device_config = m_meta_devices[device];
 
     if (ov::npuw::util::starts_with(device, "NPU") && m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>()) {
         device_config["NPU_RUN_INFERENCES_SEQUENTIALLY"] = "YES";
@@ -2150,7 +2087,7 @@ void ov::npuw::CompiledModel::dump_subgraph_composition(const std::vector<ov::np
     LOG_BLOCK();
 
     const std::string dump_dir = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS_DIR>();
-    const std::string sg_file = "npuw_" + m_name + ".sg";
+    const std::string sg_file = "npuw_" + m_name + ".xml.sg";
     const std::string sg_path = ov::util::path_join({dump_dir, sg_file}).string();
 
     // Collect unique subgraphs via replaced_by()
@@ -2288,8 +2225,16 @@ std::shared_ptr<ov::npuw::IBaseInferRequest> ov::npuw::CompiledModel::create_bas
         return true;  // no spatial & subgraphs requiring unpack found
     };
 
+    // UnfoldInferRequest caches direct references into compiled submodels; it is not safe
+    // to use when runtime device failover is in play (failsafe wrapper may swap the inner
+    // compiled model mid-inference).  Safe when either: only one device is configured,
+    // or the user has explicitly disabled runtime fallback.
+    auto no_failsafe_concern = [&]() {
+        return m_dev_list.size() == 1 || !m_cfg.get<::intel_npu::NPUW_FALLBACK_EXEC>();
+    };
+
     std::shared_ptr<ov::npuw::IBaseInferRequest> result;
-    if (m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() && no_spatial_unpack()) {
+    if (m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() && no_spatial_unpack() && no_failsafe_concern()) {
         result = std::make_shared<ov::npuw::UnfoldInferRequest>(non_const_this_sptr);
     } else {
         result = std::make_shared<ov::npuw::JustInferRequest>(non_const_this_sptr);
@@ -2354,8 +2299,9 @@ std::string ov::npuw::CompiledModel::submodel_device(const std::size_t idx) cons
         return m_ref_device;
     }
 
-    NPUW_ASSERT(comp_subm_desc.device_it != m_dev_list.end());
-    return *comp_subm_desc.device_it;
+    const auto exec_devs =
+        comp_subm_desc.compiled_model->get_property(ov::execution_devices.name()).as<std::vector<std::string>>();
+    return exec_devs.empty() ? "" : exec_devs.front();
 }
 
 bool ov::npuw::CompiledModel::unpack_required(const std::size_t idx) const {

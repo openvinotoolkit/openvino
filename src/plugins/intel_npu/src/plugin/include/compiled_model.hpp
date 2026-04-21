@@ -58,6 +58,8 @@ public:
 
     const FilteredConfig& get_config() const override;
 
+    void release_memory() override;
+
 private:
     void configure_stream_executors();
 

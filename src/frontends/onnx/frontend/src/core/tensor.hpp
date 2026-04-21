@@ -354,7 +354,7 @@ private:
 
     size_t get_data_size() const {
         if (m_tensor_place != nullptr) {
-            if (m_tensor_place->is_raw()) {
+            if (m_tensor_place->is_raw() || m_tensor_place->get_data_location()) {
                 return m_tensor_place->get_data_size() /
                        get_onnx_data_size(ov_to_onnx_data_type(m_tensor_place->get_element_type()));
             } else {

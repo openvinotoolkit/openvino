@@ -301,10 +301,9 @@ public:
         return make_deep_copy<ScatterNDUpdateImpl>(this);
     }
 
-    std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& instance) const override {
+    std::vector<size_t> get_stages_execution_order(const cldnn::kernel_impl_params& impl_params) const override {
         std::vector<size_t> stages_order = {KernelsTypes::COPY_ALL};
-        auto params = instance.get_impl_params();
-        stages_order.emplace_back(support_opt_kernel(*params) ? KernelsTypes::UPDATE_OPT : KernelsTypes::UPDATE_REF);
+        stages_order.emplace_back(support_opt_kernel(impl_params) ? KernelsTypes::UPDATE_OPT : KernelsTypes::UPDATE_REF);
         return stages_order;
     }
 };
