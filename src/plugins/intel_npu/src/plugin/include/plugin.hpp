@@ -88,8 +88,6 @@ private:
 
     mutable Logger _logger;
     std::unique_ptr<Properties> _propertiesManager;
-    mutable std::mutex _encryptionCallbacksMutex;
-    std::optional<ov::EncryptionCallbacks> _encryptionCallbacksOpt;
 
     static std::atomic<int> _compiledModelLoadCounter;
 };

@@ -86,9 +86,7 @@ ze_graph_handle_t Graph::get_handle() const {
     return _graphDesc._handle;
 }
 
-std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(
-    std::ostream& stream,
-    const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt) const {
+std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std::ostream& stream) const {
     const uint8_t* blobPtr = nullptr;
     size_t blobSize;
     std::vector<uint8_t> blobVec;  // plugin needs to keep a copy of the blob for older drivers
@@ -104,29 +102,6 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(
     } else {  // in all other cases, the blob is handled by the plugin
         blobPtr = static_cast<const uint8_t*>(_blob->data());
         blobSize = _blob->get_byte_size();
-    }
-
-    size_t paddingSize = utils::align_size_to_standard_page_size(blobSize) - blobSize;
-    std::string encryptedBlobStr;
-    if (encryptionCallbackOpt.has_value()) {
-        {
-            std::string tmpBlobStr(reinterpret_cast<const char*>(blobPtr), blobSize);
-            if (paddingSize > 0) {
-                // Pad plaintext before encryption so decrypting the full serialized buffer remains symmetric.
-                std::fill_n(std::back_inserter(tmpBlobStr), paddingSize, 0);
-            }
-
-            encryptedBlobStr = encryptionCallbackOpt.value()(tmpBlobStr);
-        }
-
-        blobPtr = reinterpret_cast<decltype(blobPtr)>(encryptedBlobStr.c_str());
-        blobSize = encryptedBlobStr.size();
-
-        if (blobSize % utils::STANDARD_PAGE_SIZE != 0) {
-            _logger.warning("Encrypted blob size %zu is not page aligned, memory optimization when reading this blob "
-                            "won't be applied",
-                            blobSize);
-        }
     }
 
     if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
@@ -147,22 +122,21 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(
         _logger.info("Blob size: %zu, hash: %x", blobSize, result);
     }
 
+    size_t size = utils::align_size_to_standard_page_size(blobSize);
+    size_t paddingSize = size - blobSize;
     if (paddingSize > 0) {
-        if (!encryptionCallbackOpt.has_value()) {
-            std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
+        std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
 
-            if (!stream) {
-                _logger.error("Write padding to stream failed. Blob is broken!");
-                return std::make_pair(0, std::nullopt);
-            }
-
-            blobSize += paddingSize;
-            _logger.info("Blob size with padding: %zu", blobSize);
+        if (!stream) {
+            _logger.error("Write padding to stream failed. Blob is broken!");
+            return std::make_pair(0, std::nullopt);
         }
+
+        _logger.info("Blob size with padding: %zu", size);
     }
 
     _logger.info("Write blob to stream successfully.");
-    return std::make_pair(blobSize, std::nullopt);
+    return std::make_pair(size, std::nullopt);
 }
 
 std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData) const {

@@ -107,23 +107,22 @@ Metadata<METADATA_VERSION_2_4>::Metadata(uint64_t blobSize,
     _version = METADATA_VERSION_2_4;
 }
 
-Metadata<METADATA_VERSION_2_5>::Metadata(
-    uint64_t blobSize,
-    const std::optional<OpenvinoVersion>& ovVersion,
-    const std::optional<std::vector<uint64_t>>& initSizes,
-    const std::optional<int64_t>& batchSize,
-    const std::optional<std::vector<ov::Layout>>& inputLayouts,
-    const std::optional<std::vector<ov::Layout>>& outputLayouts,
-    const std::optional<uint32_t>& compilerVersion,
-    const std::optional<std::function<std::string(const std::string&)>>& encryptionCallback)
-    : Metadata<METADATA_VERSION_2_4>{blobSize,
+Metadata<METADATA_VERSION_2_5>::Metadata(uint64_t blobSize,
+                                         const std::optional<OpenvinoVersion>& ovVersion,
+                                         const std::optional<std::vector<uint64_t>>& initSizes,
+                                         const std::optional<int64_t>& batchSize,
+                                         const std::optional<std::vector<ov::Layout>>& inputLayouts,
+                                         const std::optional<std::vector<ov::Layout>>& outputLayouts,
+                                         const std::optional<uint32_t>& compilerVersion,
+                                         const std::optional<uint64_t>& blobSizeAfterEncryption)
+    : Metadata<METADATA_VERSION_2_4>{blobSizeAfterEncryption.has_value() ? blobSizeAfterEncryption.value() : blobSize,
                                      ovVersion,
                                      initSizes,
                                      batchSize,
                                      inputLayouts,
                                      outputLayouts,
                                      compilerVersion},
-      _isEncryptedBlob{encryptionCallback != std::nullopt} {
+      _isEncryptedBlob{blobSizeAfterEncryption.has_value()} {
     _version = METADATA_VERSION_2_5;
 }
 

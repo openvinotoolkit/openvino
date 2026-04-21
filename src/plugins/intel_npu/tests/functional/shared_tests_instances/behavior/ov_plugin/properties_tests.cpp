@@ -5,6 +5,7 @@
 #include "behavior/ov_plugin/properties_tests.hpp"
 
 #include <array>
+#include <openvino/util/codec_xor.hpp>
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
@@ -46,6 +47,7 @@ const std::vector<ov::AnyMap> compat_CorrectPluginMutableProperties = {
     {{ov::log::level.name(), ov::log::Level::ERR}},
     {{ov::device::id.name(), removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3720"))}},
     {{ov::enable_profiling.name(), true}},
+    {{ov::cache_encryption_callbacks.name(), ov::EncryptionCallbacks{ov::util::codec_xor, ov::util::codec_xor}}},
 };
 
 const std::vector<ov::AnyMap> CorrectPluginMutableProperties = {

@@ -259,8 +259,7 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
         device,
         graph,
         *npu_config,
-        batch,
-        /* encryptionCallbackOpt = */ std::nullopt);
+        batch);
     OPENVINO_ASSERT(compiledModel->inputs()[0].get_element_type() == element_type);
     OPENVINO_ASSERT(compiledModel->inputs()[1].get_element_type() == element_type);
 

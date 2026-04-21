@@ -5,11 +5,8 @@
 #pragma once
 
 #include <atomic>
-#include <functional>
 #include <memory>
 #include <mutex>
-#include <optional>
-#include <string>
 #include <vector>
 
 #include "intel_npu/common/filtered_config.hpp"
@@ -33,9 +30,7 @@ public:
      * @return A pair made of the size of the main binary object and an optional variable. The optional variable
      * constitues the size of each init binary object if weights separation is enabled.
      */
-    virtual std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(
-        std::ostream& stream,
-        const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt) const;
+    virtual std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const;
 
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData) const;
 
