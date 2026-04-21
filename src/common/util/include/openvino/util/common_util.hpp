@@ -9,6 +9,7 @@
 #include <cctype>
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
 #include <numeric>
 #include <sstream>
 #include <string>
@@ -94,8 +95,8 @@ constexpr uint64_t u64_hash_combine(uint64_t h, uint64_t k) {
     return h + 0xe6546b64;
 }
 
-constexpr uint64_t u64_hash_combine(std::initializer_list<uint64_t>&& values) {
-    uint64_t h = 0;
+constexpr uint64_t u64_hash_combine(uint64_t seed, std::initializer_list<uint64_t>&& values) {
+    uint64_t h = seed;
     for (uint64_t k : values) {
         h = u64_hash_combine(h, k);
     }
@@ -306,6 +307,5 @@ constexpr bool mul_overflow(T x, T y, T& result) {
     return false;
 #endif
 }
-
 }  // namespace util
 }  // namespace ov
