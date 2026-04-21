@@ -87,7 +87,7 @@ void convert<int32_t, float16>(const int32_t* arg, float16* out, size_t count);
 /// original precision (FP32 / FP64 — acts as a tensor-wide veto in
 /// check_f16_compression()).
 inline constexpr double f16_compression_max_abs_error = 1.0;
-/// Maximum tolerated relative round-trip error |abs_diff / src| for an
+/// Maximum tolerated relative round-trip error abs_diff / |src| for an
 /// in-range element. Elements above this threshold are accumulated into the
 /// combined rejection count used together with f16_compression_keep_threshold.
 inline constexpr double f16_compression_max_rel_error = 1e-4;
@@ -104,12 +104,11 @@ struct CompressionCheckResult {
     /// range PLUS in-range values whose FP16 conversion exceeds
     /// f16_compression_max_rel_error. Compared against
     /// f16_compression_keep_threshold to keep the Constant in its original
-    /// precision. NOT a pure out-of-range count — see count_out_of_f16_range()
-    /// for that.
-    size_t out_of_range_count;
+    /// precision. For a pure out-of-range count, use count_out_of_f16_range().
+    size_t rejected_count;
     /// Early-bail flag: true iff any in-range element has |abs error| greater
     /// than f16_compression_max_abs_error after the FP16 round-trip. When set,
-    /// out_of_range_count is not guaranteed to be complete.
+    /// rejected_count is not guaranteed to be complete.
     bool has_lossy;
 };
 
@@ -119,7 +118,7 @@ struct CompressionCheckResult {
 /// (|round-trip error| > f16_compression_max_abs_error), setting
 /// CompressionCheckResult::has_lossy. Otherwise accumulates a combined
 /// rejection count (out-of-FP16-range + high relative-error) in
-/// CompressionCheckResult::out_of_range_count, to be compared against
+/// CompressionCheckResult::rejected_count, to be compared against
 /// f16_compression_keep_threshold. JIT/AVX-512 (or AVX2+F16C) accelerated on
 /// x86; falls back to a scalar loop elsewhere.
 CompressionCheckResult check_f16_compression(const float* arg, size_t count);

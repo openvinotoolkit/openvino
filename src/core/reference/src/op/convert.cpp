@@ -409,7 +409,7 @@ class jit_check_f16_compression_avx512 : public jit::Generator {
 public:
     typedef struct {
         const void* src;
-        void* oor_dst;    // size_t* — output: combined out-of-range + high-relative-error count
+        void* rejected_dst;    // size_t* — output: combined out-of-range + high-relative-error count
         void* lossy_dst;  // size_t* — output: lossy count (0 or non-zero)
         const size_t count;
     } args_t;
@@ -436,10 +436,10 @@ private:
 
         // GP register allocation
         const auto& reg_src = rax;
-        const auto& reg_oor_dst = rbx;    // callee-saved
+        const auto& reg_rejected_dst = rbx;    // callee-saved
         const auto& reg_lossy_dst = r12;  // callee-saved
         const auto& reg_count = rdx;
-        const auto& reg_oor_accum = r14;  // callee-saved — 64-bit OOR + RelErr accumulator
+        const auto& reg_rejected_accum = r14;  // callee-saved — 64-bit combined rejection accumulator (OOR + high-rel-err)
         const auto& reg_main_iters = r8;
         const auto& reg_idx = rsi;
         const auto& reg_tmp = r9;
@@ -471,7 +471,7 @@ private:
         Label main_loop, tail_block, normal_exit, lossy_exit, done;
 
         preamble();
-        xor_(reg_oor_accum, reg_oor_accum);
+        xor_(reg_rejected_accum, reg_rejected_accum);
 
         auto bcast = [&, this](const Xbyak::Zmm& vec, const void* p) {
             mov(reg_addr, reinterpret_cast<size_t>(p));
@@ -489,7 +489,7 @@ private:
 
         // --- Load args ---
         mov(reg_src, ptr[param + offsetof(args_t, src)]);
-        mov(reg_oor_dst, ptr[param + offsetof(args_t, oor_dst)]);
+        mov(reg_rejected_dst, ptr[param + offsetof(args_t, rejected_dst)]);
         mov(reg_lossy_dst, ptr[param + offsetof(args_t, lossy_dst)]);
         mov(reg_count, ptr[param + offsetof(args_t, count)]);
 
@@ -546,7 +546,7 @@ private:
                 kandw(k_oor, k_oor, k_tail);
             }
 
-            // === Accumulate popcount(k_oor) into reg_oor_accum ===
+            // === Accumulate popcount(k_oor) into reg_rejected_accum ===
             // Branchless 16-bit SWAR popcount — avoids POPCNT (not gated by mayiuse(avx512_core)).
             kmovw(reg_tmp.cvt32(), k_oor);           // x = k_oor (16 bits in low word)
             mov(reg_addr.cvt32(), reg_tmp.cvt32());  // tmp2 = x
@@ -566,7 +566,7 @@ private:
             shr(reg_addr.cvt32(), 8);
             add(reg_tmp.cvt32(), reg_addr.cvt32());  // low byte = popcount (max 16)
             and_(reg_tmp, 0xFF);                     // zero upper bits before 64-bit add
-            add(reg_oor_accum, reg_tmp);
+            add(reg_rejected_accum, reg_tmp);
         };
 
         // --- Main loop: 16 elements per iteration ---
@@ -603,7 +603,7 @@ private:
 
         // --- Normal exit: write OOR accumulator and lossy=0 ---
         L(normal_exit);
-        mov(qword[reg_oor_dst], reg_oor_accum);
+        mov(qword[reg_rejected_dst], reg_rejected_accum);
         xor_(reg_tmp, reg_tmp);
         mov(qword[reg_lossy_dst], reg_tmp);
         jmp(done, T_NEAR);
@@ -611,7 +611,7 @@ private:
         // --- Lossy exit: partial OOR count is meaningless, write 0; lossy=1 ---
         L(lossy_exit);
         xor_(reg_tmp, reg_tmp);
-        mov(qword[reg_oor_dst], reg_tmp);
+        mov(qword[reg_rejected_dst], reg_tmp);
         mov(reg_tmp, 1);
         mov(qword[reg_lossy_dst], reg_tmp);
 
@@ -627,7 +627,7 @@ class jit_check_f16_compression : public jit::Generator {
 public:
     typedef struct {
         const void* src;
-        void* oor_dst;    // size_t* — output: combined out-of-range + high-relative-error count
+        void* rejected_dst;    // size_t* — output: combined out-of-range + high-relative-error count
         void* lossy_dst;  // size_t* — output: lossy count (0 or non-zero)
         const size_t count;
     } args_t;
@@ -654,7 +654,7 @@ private:
 
         // GP register allocation
         const auto& reg_src = rax;
-        const auto& reg_oor_dst = rbx;
+        const auto& reg_rejected_dst = rbx;
         const auto& reg_lossy_dst = r12;  // callee-saved, preserved by preamble
         const auto& reg_sz = rdx;
         const auto& reg_saved_rsp = r13;  // callee-saved, for stack cleanup on lossy exit
@@ -665,8 +665,8 @@ private:
         const auto& mask_vec = ymm2;  // OOR mask per chunk
         const auto& mask_vec_xmm = xmm2;
         const auto& tmp_vec = ymm3;
-        const auto& oor_accum = ymm4;
-        const auto& oor_accum_xmm = xmm4;
+        const auto& rejected_accum = ymm4;
+        const auto& rejected_accum_xmm = xmm4;
         const auto& f16_max_pos_vec = ymm5;
         const auto& f16_max_neg_vec = ymm6;
         const auto& f16_min_pos_vec = ymm7;
@@ -732,11 +732,11 @@ private:
         load_vec(rel_err_vec, reinterpret_cast<size_t>(rel_errs));
         load_vec(abs_mask_vec, reinterpret_cast<size_t>(abs_masks));
         vxorps(f16_zero_vec, f16_zero_vec, f16_zero_vec);
-        vxorps(oor_accum, oor_accum, oor_accum);
+        vxorps(rejected_accum, rejected_accum, rejected_accum);
 
         // Load args
         mov(reg_src, ptr[param + offsetof(args_t, src)]);
-        mov(reg_oor_dst, ptr[param + offsetof(args_t, oor_dst)]);
+        mov(reg_rejected_dst, ptr[param + offsetof(args_t, rejected_dst)]);
         mov(reg_lossy_dst, ptr[param + offsetof(args_t, lossy_dst)]);
         mov(reg_sz, ptr[param + offsetof(args_t, count)]);
 
@@ -796,7 +796,7 @@ private:
             vphaddd(mask_vec, mask_vec, mask_vec);
             vpermq(mask_vec, mask_vec, 0x08);
             vpmovsxdq(mask_vec, mask_vec_xmm);
-            vpaddq(oor_accum, oor_accum, mask_vec);
+            vpaddq(rejected_accum, rejected_accum, mask_vec);
         };
 
         // --- Main loop: 8 elements per iteration ---
@@ -836,15 +836,15 @@ private:
         // --- Normal exit: no lossy elements found ---
         L(exit_normal);
         {
-            // Horizontal sum of oor_accum (4 x i64) -> single i64
+            // Horizontal sum of rejected_accum (4 x i64) -> single i64
             const auto& tmp0 = xmm2;  // reuse mask_vec
             const auto& tmp1 = xmm3;  // reuse tmp_vec
-            vextractf128(tmp0, oor_accum, 0);
-            vextractf128(tmp1, oor_accum, 1);
-            vpaddq(oor_accum_xmm, tmp0, tmp1);
-            vpermilpd(tmp0, oor_accum_xmm, 0x01);
-            vpaddq(oor_accum_xmm, oor_accum_xmm, tmp0);
-            vmovq(qword[reg_oor_dst], oor_accum_xmm);
+            vextractf128(tmp0, rejected_accum, 0);
+            vextractf128(tmp1, rejected_accum, 1);
+            vpaddq(rejected_accum_xmm, tmp0, tmp1);
+            vpermilpd(tmp0, rejected_accum_xmm, 0x01);
+            vpaddq(rejected_accum_xmm, rejected_accum_xmm, tmp0);
+            vmovq(qword[reg_rejected_dst], rejected_accum_xmm);
 
             // lossy = 0
             xor_(rsi, rsi);
@@ -856,7 +856,7 @@ private:
         L(exit_lossy);
         mov(rsp, reg_saved_rsp);  // restore rsp (handles both main loop and tail cases)
         xor_(rsi, rsi);
-        mov(qword[reg_oor_dst], rsi);  // oor_count = 0 (meaningless, caller checks lossy first)
+        mov(qword[reg_rejected_dst], rsi);  // rejected_count = 0 (meaningless, caller checks lossy first)
         mov(rsi, 1);
         mov(qword[reg_lossy_dst], rsi);  // lossy = 1
 
@@ -952,7 +952,7 @@ template <typename Jit>
 CompressionCheckResult run_check_f16_compression_jit(typename Jit::fn_t fn, const float* arg, size_t count) {
     CompressionCheckResult result{0, false};
     size_t lossy_count = 0;
-    typename Jit::args_t args = {arg, &result.out_of_range_count, &lossy_count, count};
+    typename Jit::args_t args = {arg, &result.rejected_count, &lossy_count, count};
     fn(&args);
     result.has_lossy = lossy_count > 0;
     return result;
@@ -975,7 +975,7 @@ CompressionCheckResult check_f16_compression(const float* arg, size_t count) {
     for (size_t i = 0; i < count; ++i) {
         const float v = arg[i];
         if (is_out_of_f16_range(v)) {
-            ++result.out_of_range_count;
+            ++result.rejected_count;
         } else {
             const double roundtripped = static_cast<double>(static_cast<float>(static_cast<float16>(v)));
             const double abs_diff = std::abs(v - roundtripped);
@@ -983,7 +983,7 @@ CompressionCheckResult check_f16_compression(const float* arg, size_t count) {
                 return {0, true};
             }
             if (v != 0.0f && abs_diff / std::abs(v) > f16_compression_max_rel_error) {
-                ++result.out_of_range_count;
+                ++result.rejected_count;
             }
         }
     }

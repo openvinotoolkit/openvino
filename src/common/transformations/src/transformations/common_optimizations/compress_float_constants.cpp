@@ -64,18 +64,18 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<v0::
     if (!dst_data || !size)
         return nullptr;
 
-    size_t num_out_of_range = 0;
+    size_t num_rejected = 0;
     for (size_t i = 0; i < size; ++i) {
         // if abs value is smaller than the smallest positive fp16, but not zero
         if (std::abs(src_data[i]) < ov::float16::from_bits(0x0001) && src_data[i] != 0.0f) {
             dst_data[i] = static_cast<ov::float16>(src_data[i]);
-            num_out_of_range++;
+            num_rejected++;
         } else if (src_data[i] > std::numeric_limits<ov::float16>::max()) {
             dst_data[i] = std::numeric_limits<ov::float16>::max();
-            num_out_of_range++;
+            num_rejected++;
         } else if (src_data[i] < std::numeric_limits<ov::float16>::lowest()) {
             dst_data[i] = std::numeric_limits<ov::float16>::lowest();
-            num_out_of_range++;
+            num_rejected++;
         } else {
             constexpr double max_relative_error = ov::reference::f16_compression_max_rel_error;
             constexpr double max_abs_error = ov::reference::f16_compression_max_abs_error;
@@ -89,7 +89,7 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<v0::
             }
 
             if (src_val != 0.0 && abs_diff / std::abs(src_val) > max_relative_error) {
-                num_out_of_range++;
+                num_rejected++;
             }
             dst_data[i] = f16_val;
         }
@@ -99,9 +99,9 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<v0::
     // range PLUS in-range values whose FP16 round-trip relative error exceeds
     // f16_compression_max_rel_error) reaches f16_compression_keep_threshold
     // (inclusive, 75% by default), keep the Constant in its original precision.
-    const double out_of_range_proportion = static_cast<double>(num_out_of_range) / static_cast<double>(size);
+    const double rejected_proportion = static_cast<double>(num_rejected) / static_cast<double>(size);
 
-    if (out_of_range_proportion >= ov::reference::f16_compression_keep_threshold) {
+    if (rejected_proportion >= ov::reference::f16_compression_keep_threshold) {
         return nullptr;
     }
 
@@ -216,9 +216,9 @@ CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
             // range PLUS in-range values whose FP16 round-trip relative error exceeds
             // f16_compression_max_rel_error) reaches f16_compression_keep_threshold
             // (inclusive, 75% by default), keep the Constant in FP32.
-            const float out_of_range_proportion =
-                static_cast<float>(check.out_of_range_count) / static_cast<float>(size);
-            if (out_of_range_proportion >= ov::reference::f16_compression_keep_threshold)
+            const float rejected_proportion =
+                static_cast<float>(check.rejected_count) / static_cast<float>(size);
+            if (rejected_proportion >= ov::reference::f16_compression_keep_threshold)
                 return false;
 
             if (postponed) {
