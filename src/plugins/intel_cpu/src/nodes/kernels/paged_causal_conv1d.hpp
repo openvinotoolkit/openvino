@@ -11,6 +11,8 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "cpu/x64/cpu_isa_traits.hpp"
@@ -21,8 +23,35 @@
 
 namespace ov::intel_cpu::node::kernels {
 
+// Convert state block from StateType to float (for reading from state table)
+template <typename StateType>
+inline void read_state_to_float(float* dst, const StateType* src, size_t count) {
+    for (size_t i = 0; i < count; i++) {
+        dst[i] = static_cast<float>(src[i]);
+    }
+}
+
+template <>
+inline void read_state_to_float<float>(float* dst, const float* src, size_t count) {
+    std::memcpy(dst, src, count * sizeof(float));
+}
+
+// Convert float to StateType (for writing back to state table)
+template <typename StateType>
+inline void write_state_from_float(StateType* dst, const float* src, size_t count) {
+    for (size_t i = 0; i < count; i++) {
+        dst[i] = static_cast<StateType>(src[i]);
+    }
+}
+
+template <>
+inline void write_state_from_float<float>(float* dst, const float* src, size_t count) {
+    std::memcpy(dst, src, count * sizeof(float));
+}
+
+template <typename StateType>
 inline void paged_causal_conv1d_ref(const float* input_embeds,
-                                    float* conv_state_table,
+                                    StateType* conv_state_table,
                                     const float* conv_weight,
                                     const float* conv_bias,
                                     bool has_bias,
@@ -84,9 +113,9 @@ inline void paged_causal_conv1d_ref(const float* input_embeds,
                         " for sequence ",
                         s);
 
-        std::memcpy(local_state,
+        read_state_to_float(local_state,
                     conv_state_table + static_cast<size_t>(read_physical_block) * state_stride,
-                    state_stride * sizeof(float));
+                    state_stride);
 
         ov::parallel_nt_static(0, [&](const int ithr, const int nthr) {
             size_t blk_start = 0;
@@ -130,10 +159,10 @@ inline void paged_causal_conv1d_ref(const float* input_embeds,
                                                 "PagedCausalConv1D has invalid physical block index ",
                                                 physical_block,
                                                 " while updating intermediate cache state.");
-                                std::memcpy(conv_state_table + static_cast<size_t>(physical_block) * state_stride +
+                                write_state_from_float(conv_state_table + static_cast<size_t>(physical_block) * state_stride +
                                                 state_off,
                                             local_state + state_off,
-                                            h_count * kernel_size * sizeof(float));
+                                            h_count * kernel_size);
                             }
                         }
                     }
@@ -155,16 +184,17 @@ inline void paged_causal_conv1d_ref(const float* input_embeds,
                                 final_physical_block,
                                 " while updating final cache state.");
 
-                std::memcpy(conv_state_table + static_cast<size_t>(final_physical_block) * state_stride + state_off,
+                write_state_from_float(conv_state_table + static_cast<size_t>(final_physical_block) * state_stride + state_off,
                             local_state + state_off,
-                            h_count * kernel_size * sizeof(float));
+                            h_count * kernel_size);
             }
         });
     }
 }
 
+template <typename StateType>
 inline void paged_causal_conv1d_optimized(const float* input_embeds,
-                                          float* conv_state_table,
+                                          StateType* conv_state_table,
                                           const float* conv_weight,
                                           const float* conv_bias,
                                           bool has_bias,
@@ -295,9 +325,9 @@ inline void paged_causal_conv1d_optimized(const float* input_embeds,
                         " for sequence ",
                         s);
 
-        std::memcpy(local_state,
+        read_state_to_float(local_state,
                     conv_state_table + static_cast<size_t>(read_physical_block) * state_stride,
-                    state_stride * sizeof(float));
+                    state_stride);
 
         ov::parallel_nt_static(0, [&](const int ithr, const int nthr) {
             size_t blk_start = 0;
@@ -497,10 +527,10 @@ inline void paged_causal_conv1d_optimized(const float* input_embeds,
                                                 "PagedCausalConv1D has invalid physical block index ",
                                                 physical_block,
                                                 " while updating intermediate cache state.");
-                                std::memcpy(conv_state_table + static_cast<size_t>(physical_block) * state_stride +
+                                write_state_from_float(conv_state_table + static_cast<size_t>(physical_block) * state_stride +
                                                 state_off,
                                             local_state + state_off,
-                                            h_count * kernel_size * sizeof(float));
+                                            h_count * kernel_size);
                             }
                         }
                     }
@@ -522,9 +552,9 @@ inline void paged_causal_conv1d_optimized(const float* input_embeds,
                                 final_physical_block,
                                 " while updating final cache state.");
 
-                std::memcpy(conv_state_table + static_cast<size_t>(final_physical_block) * state_stride + state_off,
+                write_state_from_float(conv_state_table + static_cast<size_t>(final_physical_block) * state_stride + state_off,
                             local_state + state_off,
-                            h_count * kernel_size * sizeof(float));
+                            h_count * kernel_size);
             }
         });
     }
