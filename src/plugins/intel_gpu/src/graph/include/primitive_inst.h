@@ -15,6 +15,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "program_node.h"
 #include "primitive_type.h"
+#include "kernel_dump_info.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/helpers.hpp"
 #include "intel_gpu/graph/serialization/cl_kernel_data_serializer.hpp"
@@ -127,9 +128,10 @@ struct primitive_impl {
             ib >> dummy;
         }
     }
-    // returns a pair of batch program hash and kernel entry of each ocl impl. Returns "" for other impl types.
-    virtual std::pair<std::string, std::string> get_kernels_dump_info() const {
-        return std::make_pair("", "");
+    // Returns a KernelDumpInfo object that contains a batch program hash and a kernel entry of each ocl impl. Returns empty object for other impl types.
+    // If static impl_params is provided, then only actually executed kernel entries are returned.
+    virtual KernelDumpInfo get_kernels_dump_info(const cldnn::kernel_impl_params& impl_params) const {
+        return KernelDumpInfo{};
     }
 
     // If this flag is set as false, the memory allocated for this primitive is not allowed to be reused
@@ -366,6 +368,7 @@ public:
     std::shared_ptr<const PType> get_typed_desc() const { return _impl_params->typed_desc<PType>(); }
 
     virtual void update_output_memory() {}
+    void clear_output_memory();
 
     virtual int32_t get_prealloc_iter_num() { return -1; }
     virtual void update_shape_info_tensor(const kernel_impl_params& params);
@@ -466,6 +469,8 @@ protected:
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
     void update_impl(bool use_async_compilation);
     void realloc_if_needed(bool prev_execution_skipped = false);
+    void realloc_outputs(bool prev_execution_skipped = false);
+    void realloc_intermediates();
 
     cldnn::network::ptr get_unfused_subgraph();
 
@@ -504,8 +509,6 @@ protected:
     }
 
     virtual bool need_reset_output_memory() const;
-
-    void clear_output_memory();
 
     // This could be implemented via single map std::unordered_map<instrumentation::perf_counter_key, std::tuple<int64_t, size_t>>
     // but the overhead on using perf_counter_key as map key is too big, thus we use hash as map key

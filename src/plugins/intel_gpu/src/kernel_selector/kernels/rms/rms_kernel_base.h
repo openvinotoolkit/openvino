@@ -14,6 +14,7 @@ struct rms_params : public base_params {
     rms_params() : base_params(KernelType::RMS) {}
     float epsilon = 0.0f;
     int32_t ov_input_rank = -1;
+    bool elementwise_affine = true;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

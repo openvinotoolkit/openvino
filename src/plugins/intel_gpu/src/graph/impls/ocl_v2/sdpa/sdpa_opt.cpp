@@ -113,6 +113,7 @@ public:
         bool is_indirect = need_indirect_load(static_cast<scaled_dot_product_attention_inst&>(instance));
         GPU_DEBUG_TRACE_DETAIL << "execute indirect = " << is_indirect << ", prefill = " << is_prefill << "\n";
         update_rt_params(instance);
+        kernel_dump_info.clear_entries();
 #ifdef ENABLE_ONEDNN_FOR_GPU
         if (has_stage(regular_micro_multi_tokens) && is_prefill && !is_indirect) {
             GPU_DEBUG_TRACE_DETAIL << "execute regular_micro_multi_tokens for prefill \n";
@@ -209,7 +210,7 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
 
     auto K_head_size = get_head_size(k_layout, extended_input_k_transpose_order);
     auto V_head_size = get_head_size(v_layout, extended_input_v_transpose_order);
-    if (K_head_size != V_head_size || K_head_size > 256 || V_head_size > 256) {
+    if (K_head_size != V_head_size || K_head_size > 512 || V_head_size > 512) {
         return false;
     }
 
@@ -220,7 +221,7 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
         params.get_input_layout(mask_idx).count() == 1) {
         return false;
     }
-    if (q_layout.get_partial_shape()[mask_idx].get_length() > 256) {
+    if (q_layout.get_partial_shape()[mask_idx].get_length() > 512) {
         return false;
     }
 

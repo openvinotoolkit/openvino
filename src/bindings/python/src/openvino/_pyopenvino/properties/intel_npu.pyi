@@ -5,7 +5,7 @@ import typing
 """
 openvino.properties.intel_npu submodule that simulates ov::intel_npu
 """
-__all__: list[str] = ['CompilerType', 'bypass_umd_caching', 'compilation_mode_params', 'compiler_dynamic_quantization', 'compiler_type', 'compiler_version', 'defer_weights_load', 'device_alloc_mem_size', 'device_total_mem_size', 'disable_idle_memory_prunning', 'driver_version', 'max_tiles', 'platform', 'qdq_optimization', 'qdq_optimization_aggressive', 'run_inferences_sequentially', 'tiles', 'turbo']
+__all__: list[str] = ['CompilerType', 'bypass_umd_caching', 'compilation_mode_params', 'compiler_dynamic_quantization', 'compiler_type', 'compiler_version', 'defer_weights_load', 'device_alloc_mem_size', 'device_total_mem_size', 'disable_idle_memory_prunning', 'driver_version', 'enable_strides_for', 'max_tiles', 'platform', 'qdq_optimization', 'qdq_optimization_aggressive', 'run_inferences_sequentially', 'tiles', 'turbo']
 class CompilerType:
     """
     Members:
@@ -13,10 +13,13 @@ class CompilerType:
       DRIVER
     
       PLUGIN
+    
+      PREFER_PLUGIN
     """
     DRIVER: typing.ClassVar[CompilerType]  # value = <CompilerType.DRIVER: 1>
     PLUGIN: typing.ClassVar[CompilerType]  # value = <CompilerType.PLUGIN: 0>
-    __members__: typing.ClassVar[dict[str, CompilerType]]  # value = {'DRIVER': <CompilerType.DRIVER: 1>, 'PLUGIN': <CompilerType.PLUGIN: 0>}
+    PREFER_PLUGIN: typing.ClassVar[CompilerType]  # value = <CompilerType.PREFER_PLUGIN: 2>
+    __members__: typing.ClassVar[dict[str, CompilerType]]  # value = {'DRIVER': <CompilerType.DRIVER: 1>, 'PLUGIN': <CompilerType.PLUGIN: 0>, 'PREFER_PLUGIN': <CompilerType.PREFER_PLUGIN: 2>}
     def __eq__(self, other: typing.Any) -> bool:
         ...
     def __ge__(self, other: typing.Any) -> bool:
@@ -29,7 +32,7 @@ class CompilerType:
         ...
     def __index__(self) -> int:
         ...
-    def __init__(self, value: typing.SupportsInt) -> None:
+    def __init__(self, value: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
     def __int__(self) -> int:
         ...
@@ -41,7 +44,7 @@ class CompilerType:
         ...
     def __repr__(self) -> str:
         ...
-    def __setstate__(self, state: typing.SupportsInt) -> None:
+    def __setstate__(self, state: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
     def __str__(self) -> str:
         ...
@@ -96,10 +99,12 @@ def disable_idle_memory_prunning(arg0: bool) -> tuple[str, openvino._pyopenvino.
 def driver_version() -> str:
     ...
 @typing.overload
-def max_tiles() -> str:
+def enable_strides_for() -> str:
     ...
 @typing.overload
-def max_tiles(arg0: typing.SupportsInt) -> tuple[str, openvino._pyopenvino.OVAny]:
+def enable_strides_for(arg0: str) -> tuple[str, openvino._pyopenvino.OVAny]:
+    ...
+def max_tiles() -> str:
     ...
 @typing.overload
 def platform() -> str:
@@ -129,7 +134,7 @@ def run_inferences_sequentially(arg0: bool) -> tuple[str, openvino._pyopenvino.O
 def tiles() -> str:
     ...
 @typing.overload
-def tiles(arg0: typing.SupportsInt) -> tuple[str, openvino._pyopenvino.OVAny]:
+def tiles(arg0: typing.SupportsInt | typing.SupportsIndex) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...
 @typing.overload
 def turbo() -> str:

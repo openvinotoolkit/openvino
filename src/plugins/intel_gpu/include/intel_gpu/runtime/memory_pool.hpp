@@ -205,12 +205,12 @@ private:
 #ifdef GPU_DEBUG_CONFIG
     std::vector<memory_record> _no_reusable_mems;
 
-    float total_mem_size_non_padded_pool        = 0.f;
-    float total_mem_size_padded_pool            = 0.f;
-    float total_mem_size_no_reusable            = 0.f;
-    float mem_size_non_padded_pool_host         = 0.f;
-    float mem_size_padded_pool_host             = 0.f;
-    float mem_size_no_reusable_host             = 0.f;
+    size_t total_mem_size_non_padded_pool        = 0;
+    size_t total_mem_size_padded_pool            = 0;
+    size_t total_mem_size_no_reusable            = 0;
+    size_t mem_size_non_padded_pool_host         = 0;
+    size_t mem_size_padded_pool_host             = 0;
+    size_t mem_size_no_reusable_host             = 0;
 #endif
 };
 

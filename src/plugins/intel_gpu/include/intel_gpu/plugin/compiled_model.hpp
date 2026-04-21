@@ -61,6 +61,12 @@ public:
     RemoteContextImpl::Ptr get_context_impl() const {
         return m_context;
     }
+
+    // Helper function to return the model name for ITT tracing
+    std::string_view get_model_name() const {
+        return m_model_name;
+    }
+
     const std::vector<std::shared_ptr<Graph>>& get_graphs() const;
     std::shared_ptr<Graph> get_graph(size_t n) const;
 

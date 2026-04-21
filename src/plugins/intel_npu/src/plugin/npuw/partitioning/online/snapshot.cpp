@@ -8,6 +8,7 @@
 #include "../../util.hpp"
 #include "../patterns/avoid.hpp"
 #include "../patterns/compute.hpp"
+#include "../patterns/moe.hpp"
 #include "../patterns/sdpa.hpp"
 #include "group.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -171,27 +172,106 @@ bool isRegularParameterCase(const std::unordered_map<std::shared_ptr<Repeated>, 
             continue;
         }
 
-        auto firstGroup = *(gset.begin());
-        for (auto input_layer : firstGroup->getInputs()) {
-            // this is the reference mask expected from all other matched layers
-            // in the remaining groups of the repeated block
-            auto expected_producers_mask = getProducersMask(input_layer);
+        // Iterate over ALL groups' input layers instead of only the first group's.
+        // A group whose boundary node reads exclusively from ov::Parameters (e.g.
+        // the first transformer layer reading inputs_embeds) may not expose that
+        // node via getInputs() — getInputs() filters out nodes whose only external
+        // producers satisfy !isOp() (Parameter/Constant). Any sibling group in the
+        // repeated set will have the corresponding boundary node in its getInputs()
+        // (its producer is a computation node from the preceding group). That node's
+        // match bank also contains the first-layer node, which will show a different
+        // producers mask — exactly the mismatch we need to detect.
+        for (const auto& gptr : gset) {
+            for (auto input_layer : gptr->getInputs()) {
+                // this is the reference mask expected from all other matched layers
+                // in the remaining groups of the repeated block
+                auto expected_producers_mask = getProducersMask(input_layer);
 
-            auto this_layer_name = input_layer->get_friendly_name();
-            auto layer_bank_iter = std::find_if(matches.begin(), matches.end(), [&](const std::set<std::string>& lrs) {
-                return lrs.count(this_layer_name) > 0;
-            });
+                auto this_layer_name = input_layer->get_friendly_name();
+                auto layer_bank_iter =
+                    std::find_if(matches.begin(), matches.end(), [&](const std::set<std::string>& lrs) {
+                        return lrs.count(this_layer_name) > 0;
+                    });
 
-            NPUW_ASSERT(layer_bank_iter != matches.end());
+                NPUW_ASSERT(layer_bank_iter != matches.end());
 
-            // match input layers across all groups in the repeated block
-            // and compare their producers mask
-            for (const auto& layer_name : *layer_bank_iter) {
+                // match input layers across all groups in the repeated block
+                // and compare their producers mask
+                for (const auto& layer_name : *layer_bank_iter) {
+                    auto layer_ptr = node_id_cache.at(layer_name);
+                    auto actual_producers_mask = getProducersMask(layer_ptr);
+                    if (actual_producers_mask != expected_producers_mask) {
+                        LOG_INFO("This is NOT a regular parameter case. Producers mask mismatch found for "
+                                 << layer_name << " and " << this_layer_name << " input layers.");
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+bool isRegularCrossGroupConsumerCase(const std::unordered_map<std::shared_ptr<Repeated>, GPtrSet>& reptag_to_gset,
+                                     const std::unordered_map<std::string, NodeSPtr>& node_id_cache,
+                                     const std::map<std::string, std::vector<std::set<std::string>>>& m_layer_matches) {
+    // Build a map: node name -> group, covering all nodes that belong to a repeated block group.
+    std::unordered_map<std::string, std::shared_ptr<ov::npuw::online::Group>> node_name_to_group;
+    for (const auto& reptag_and_gset : reptag_to_gset) {
+        for (const auto& gptr : reptag_and_gset.second) {
+            for (const auto& node : gptr->getContent()) {
+                node_name_to_group[node->get_friendly_name()] = gptr;
+            }
+            for (const auto& node : gptr->getOutputs()) {
+                node_name_to_group[node->get_friendly_name()] = gptr;
+            }
+            for (const auto& node : gptr->getInputs()) {
+                node_name_to_group[node->get_friendly_name()] = gptr;
+            }
+        }
+    }
+
+    // For each repeated block, check that the "has external non-Result reader" flag
+    // is consistent across all instances within each operation bank.
+    for (const auto& reptag_and_gset : reptag_to_gset) {
+        const auto& reptag = reptag_and_gset.first;
+
+        if (reptag_and_gset.second.size() <= 1) {
+            continue;
+        }
+
+        for (const auto& bank : m_layer_matches.at(reptag->id())) {
+            // Compute the mask per bank entry: vector<bool> per output port indicating
+            // whether that port has at least one reader outside the node's own group.
+            std::optional<std::vector<bool>> expected_mask;
+            for (const auto& layer_name : bank) {
                 auto layer_ptr = node_id_cache.at(layer_name);
-                auto actual_producers_mask = getProducersMask(layer_ptr);
-                if (actual_producers_mask != expected_producers_mask) {
-                    LOG_INFO("This is NOT a regular parameter case. Producers mask mismatch found for "
-                             << layer_name << " and " << this_layer_name << " input layers.");
+                auto group_it = node_name_to_group.find(layer_name);
+                auto this_group = (group_it != node_name_to_group.end()) ? group_it->second : nullptr;
+
+                std::vector<bool> mask;
+                for (auto&& output_desc : layer_ptr->outputs()) {
+                    bool has_external = false;
+                    for (auto&& r : output_desc.get_target_inputs()) {
+                        auto reader_ptr = r.get_node()->shared_from_this();
+                        if (ov::op::util::is_output(reader_ptr)) {
+                            continue;  // ov::Result readers are handled by isRegularResultCase
+                        }
+                        auto reader_group_it = node_name_to_group.find(reader_ptr->get_friendly_name());
+                        if (reader_group_it == node_name_to_group.end() || reader_group_it->second != this_group) {
+                            has_external = true;
+                            break;
+                        }
+                    }
+                    mask.push_back(has_external);
+                }
+
+                if (!expected_mask.has_value()) {
+                    expected_mask = mask;
+                } else if (*expected_mask != mask) {
+                    LOG_INFO("This is NOT a regular cross-group consumer case. "
+                             << "Cross-group consumer pattern mismatch for layer " << layer_name << " in bank.");
                     return false;
                 }
             }
@@ -577,8 +657,13 @@ void Snapshot::earlyAvoids() {
         }
         case PatternType::PATTERN: {
             // FIXME: refactor as more patterns are supported
-            if (avoid.pattern != "RMSNorm" && avoid.pattern != "SinCos" && avoid.pattern != "GemmaRoPE") {
-                LOG_WARN("OPENVINO_NPUW_AVOID only supports RMSNorm, SinCos and GemmaRoPE as patterns "
+            if (avoid.pattern != "RMSNorm" && avoid.pattern != "SinCos" && avoid.pattern != "GemmaRoPE" &&
+                avoid.pattern != "DownsampleInterpolate" && avoid.pattern != "FloorModFP32" &&
+                avoid.pattern != "CumSumSinGen" && avoid.pattern != "BoxMullerNoise" &&
+                avoid.pattern != "AngleComplex") {
+                LOG_WARN("OPENVINO_NPUW_AVOID only supports RMSNorm, SinCos, GemmaRoPE, "
+                         "DownsampleInterpolate, FloorModFP32, CumSumSinGen, BoxMullerNoise "
+                         "and AngleComplex as patterns "
                          "(don't confuse with operations). "
                          "Avoid pattern "
                          << avoid.pattern << " is skipped!");
@@ -591,6 +676,16 @@ void Snapshot::earlyAvoids() {
                 rewr.add_matcher<ov::npuw::patterns::avoid::SinCos>(shared_from_this(), avoid.device);
             } else if (avoid.pattern == "GemmaRoPE") {
                 rewr.add_matcher<ov::npuw::patterns::avoid::GemmaRoPE>(shared_from_this(), avoid.device);
+            } else if (avoid.pattern == "DownsampleInterpolate") {
+                rewr.add_matcher<ov::npuw::patterns::avoid::DownsampleInterpolate>(shared_from_this(), avoid.device);
+            } else if (avoid.pattern == "FloorModFP32") {
+                rewr.add_matcher<ov::npuw::patterns::avoid::FloorModFP32>(shared_from_this(), avoid.device);
+            } else if (avoid.pattern == "CumSumSinGen") {
+                rewr.add_matcher<ov::npuw::patterns::avoid::CumSumSinGen>(shared_from_this(), avoid.device);
+            } else if (avoid.pattern == "BoxMullerNoise") {
+                rewr.add_matcher<ov::npuw::patterns::avoid::BoxMullerNoise>(shared_from_this(), avoid.device);
+            } else if (avoid.pattern == "AngleComplex") {
+                rewr.add_matcher<ov::npuw::patterns::avoid::AngleComplex>(shared_from_this(), avoid.device);
             }
 
             break;
@@ -643,6 +738,11 @@ void Snapshot::earlyRegroup() {
         rewr.add_matcher<ov::npuw::patterns::attn::p>(shared_from_this(), isolate.tag); \
         handle_patterns = true;                                                         \
     }
+#define HNDL_MOE(p)                                                                    \
+    if (isolate.pattern == #p) {                                                       \
+        rewr.add_matcher<ov::npuw::patterns::moe::p>(shared_from_this(), isolate.tag); \
+        handle_patterns = true;                                                        \
+    }
             HNDL(RMSNorm);
             HNDL(RMSNorm2);
             HNDL(RMSNorm3);
@@ -654,10 +754,13 @@ void Snapshot::earlyRegroup() {
             HNDL(DQMatMulConv);
             HNDL(VocabMatMul);
             HNDL(VariadicSplit);
+            HNDL_MOE(GPTOSSExpert);
+            HNDL_MOE(GPTOSSRouter);
             HNDL_FAKE(FakeConvert);
             HNDL_FAKE(FakeQuantize);
             HNDL_ATTN(SDPA);
             HNDL_ATTN(SDPADecomposed);
+#undef HNDL_MOE
 #undef HNDL_ATTN
 #undef HNDL_FAKE
 #undef HNDL
@@ -1455,6 +1558,16 @@ bool Snapshot::isRegularIOCase() const {
     if (!isRegularParameterCase(reptag_to_gset, node_id_cache, m_layer_matches)) {
         LOG_INFO("This is not a regular parameter case");
         LOG_INFO("DONE");
+        return false;
+    }
+
+    // Checks that cross-group (non-Result) consumer patterns are symmetric across all
+    // instances of each repeated block. F16IC inserts Convert nodes only on cross-group
+    // connections, so asymmetric connectivity (e.g. KV-sharing in Gemma4 where non-head
+    // layers have no external consumer for an output that head layers forward to K/V
+    // projection) would produce different Convert counts per instance and break folding.
+    if (!isRegularCrossGroupConsumerCase(reptag_to_gset, node_id_cache, m_layer_matches)) {
+        LOG_INFO("This is not a regular cross-group consumer case");
         return false;
     }
 

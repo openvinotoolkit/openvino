@@ -13,6 +13,7 @@
 #include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
@@ -41,12 +42,14 @@
 
 using ov::pass::pattern::any_input;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::optional;
 using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::op::Or;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
+namespace v6 = ov::op::v6;
 namespace v8 = ov::op::v8;
 namespace v13 = ov::op::v13;
 namespace v15 = ov::op::v15;
@@ -69,10 +72,13 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> general_
 
 static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> jais_13b_alibi_pattern() {
     auto jais_13b_alibi = any_input();
+    auto alibi_opt_conv = optional<v0::Convert>(jais_13b_alibi);
     auto mirroring_abs = wrap_type<v0::Abs>({any_input()});
     auto unsqueeze = wrap_type<v0::Unsqueeze>({mirroring_abs, any_input()});
-    auto jais_alibi_mask = wrap_type<v1::Multiply>({jais_13b_alibi, unsqueeze});
-    jais_alibi_mask = wrap_type<v3::Broadcast>({jais_alibi_mask, any_input()});
+    auto broadcast = optional<ov::op::util::BroadcastBase>({unsqueeze, any_input()});
+    broadcast = optional<v0::Convert>(broadcast);
+    auto jais_alibi_mask = wrap_type<v1::Multiply>({alibi_opt_conv, broadcast});
+    jais_alibi_mask = optional<ov::op::util::BroadcastBase>({jais_alibi_mask, any_input()});
     jais_alibi_mask = wrap_type<v0::Unsqueeze>({jais_alibi_mask, any_input()});
     jais_alibi_mask = wrap_type<v1::Add>({any_input(), jais_alibi_mask});
     return {jais_13b_alibi, jais_alibi_mask};
@@ -211,7 +217,7 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> phi3_sli
     return {mask, offset};
 }
 
-static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gpt_oss_sliding_window_pattern() {
+static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gptoss_gemma3_sliding_window_pattern() {
     auto q_idx = any_input();
     auto kv_idx = any_input();
 
@@ -232,8 +238,7 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gpt_oss_
     return {mask, offset};
 }
 
-// Exactly copied the function from another file. Maybe should be moved to some general file
-static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> node, const std::string& name) {
+static std::shared_ptr<v0::Parameter> named_parameter(std::shared_ptr<v0::Parameter> node, const std::string& name) {
     // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a
     // given single name)
     node->set_friendly_name(name);
@@ -247,19 +252,15 @@ typedef std::
         node_tuple;
 
 static node_tuple kv_read_and_concat(ov::Output<ov::Node> kv_current) {
-    auto kv_past_var = wrap_type<ov::op::v6::ReadValue>({any_input()});
-    auto kv_past_par = wrap_type<v0::Parameter>();
-    auto kv_past =
-        std::make_shared<Or>(OutputVector{wrap_type<v8::Gather>({kv_past_var, any_input(), any_input()}), kv_past_par});
-    kv_past = std::make_shared<Or>(
-        OutputVector{kv_past,
-                     wrap_type<v1::Transpose>({kv_past, any_input()})});  // Transpose is used when kv-cache is stored
-                                                                          // in a not usual layout, example: bloom
+    auto kv_past_var = wrap_type<ov::op::util::ReadValueBase>({any_input()});
+    auto kv_past = wrap_type<v8::Gather>({kv_past_var, any_input(), any_input()});
+    kv_past = optional<v1::Transpose>({kv_past, any_input()});  // Transpose is used when kv-cache is stored
+                                                                // in a not usual layout, example: bloom
     auto kv_current2 = any_input();
     auto kv_current_reshaped = wrap_type<v1::Reshape>({kv_current2, any_input()});
     auto kv_concat =
         wrap_type<v0::Concat>({kv_past, std::make_shared<Or>(OutputVector{kv_current_reshaped, kv_current})});
-    return node_tuple(kv_past_par, kv_current2, kv_current_reshaped, kv_concat);
+    return node_tuple(kv_past_var, kv_current2, kv_current_reshaped, kv_concat);
 }
 
 static ov::Dimension extract_num_kv_heads(const std::shared_ptr<ov::Node>& unsqueeze_pattern,
@@ -268,7 +269,7 @@ static ov::Dimension extract_num_kv_heads(const std::shared_ptr<ov::Node>& unsqu
     // Deduce number of k/v heads from Unsqueeze-Broadcast-Reshape (UBR pattern, if present)
     // pattern that appears in case of MQA/GQA.
     // In case if UBR pattern doesn't appear, the default number of heads is used passed as default_heads_num.
-    if (pattern_map.find(unsqueeze_pattern) != pattern_map.end()) {
+    if (pattern_map.count(unsqueeze_pattern)) {
         // based on unsqueeze index determine the dimension that will be broadcased
         // if there is no expected dimension for any reason, return dynamic dimension
         auto unsqueeze = pattern_map.at(unsqueeze_pattern).get_node_shared_ptr();
@@ -303,7 +304,6 @@ static ov::Dimension extract_num_kv_heads(const std::shared_ptr<ov::Node>& unsqu
 ov::pass::StateManagementPattern::StateManagementPattern(
     ParameterVector& kv_parameters,
     ParameterVector& model_wide_params,
-    ParameterVector& parameters_to_remove,
     int& layer_index,
     Output<Node> max_context_len,
     ParameterVector& block_indices_inputs_for_each_layer,
@@ -314,22 +314,24 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     bool allow_score_aggregation,
     bool allow_xattention,
     bool allow_adaptive_rkv,
+    bool allow_qq_bias,
     ParameterVector& rotated_block_indices_inputs_for_each_layer,
     ParameterVector& rotation_deltas_inputs_for_each_layer,
     ParameterVector& xattention_threshold_inputs_for_each_layer,
     ParameterVector& adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer,
     ParameterVector& adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
     ResultVector& adaptive_rkv_diversity_results,
-    const std::map<std::string, std::shared_ptr<op::v0::Parameter>>& optional_model_wide_params) {
+    const std::map<std::string, std::shared_ptr<op::v0::Parameter>>& optional_model_wide_params,
+    std::unordered_set<std::string>& var_ids_to_remove) {
     MATCHER_SCOPE(StateManagementPattern);
 
     auto k_current = any_input();
-    std::shared_ptr<ov::Node> k_past_par, k_current2, k_concat, k_current_reshaped;
-    std::tie(k_past_par, k_current2, k_current_reshaped, k_concat) = kv_read_and_concat(k_current);
+    std::shared_ptr<ov::Node> k_past_var, k_current2, k_concat, k_current_reshaped;
+    std::tie(k_past_var, k_current2, k_current_reshaped, k_concat) = kv_read_and_concat(k_current);
 
     auto v_current = any_input();
-    std::shared_ptr<ov::Node> v_past_par, v_current2, v_concat, v_current_reshaped;
-    std::tie(v_past_par, v_current2, v_current_reshaped, v_concat) = kv_read_and_concat(v_current);
+    std::shared_ptr<ov::Node> v_past_var, v_current2, v_concat, v_current_reshaped;
+    std::tie(v_past_var, v_current2, v_current_reshaped, v_concat) = kv_read_and_concat(v_current);
 
     // There are models where K and V merged into a single tensor and splited apart after K/V past and current
     // concatenation The following part in the pattern covers this case.
@@ -339,8 +341,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     auto qkv_current_split_node = wrap_type<v1::VariadicSplit>({any_input(), any_input(), any_input()});
     qkv_current_split_node->set_output_size(2);
     auto kv_current = qkv_current_split_node->output(1);
-    std::shared_ptr<ov::Node> kv_past_par, kv_current2, kv_concat, kv_current_reshaped;
-    std::tie(kv_past_par, kv_current2, kv_current_reshaped, kv_concat) = kv_read_and_concat(kv_current);
+    std::shared_ptr<ov::Node> kv_past_var, kv_current2, kv_concat, kv_current_reshaped;
+    std::tie(kv_past_var, kv_current2, kv_current_reshaped, kv_concat) = kv_read_and_concat(kv_current);
     auto kv_concat_split = wrap_type<v1::VariadicSplit>({kv_concat, any_input(), any_input()});
     kv_concat_split->set_output_size(2);
 
@@ -356,8 +358,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         interim = wrap_type<v1::StridedSlice>({unsqueeze, any_input(), any_input(), any_input()});
         interim = wrap_type<v1::StridedSlice>({interim, any_input(), any_input(), any_input()});
         interim = wrap_type<v3::Broadcast>({std::make_shared<Or>(OutputVector{unsqueeze, interim}), any_input()});
-        interim = std::make_shared<Or>(OutputVector{wrap_type<v1::Reshape>({interim, any_input()}),
-                                                    interim});  // Reshape is missing sometimes in MQA case
+        interim = optional<v1::Reshape>({interim, any_input()});  // Reshape is missing sometimes in MQA case
         return interim;
     };
 
@@ -394,9 +395,9 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     std::shared_ptr<ov::Node> phi3_mask, phi3_offset;
     std::tie(phi3_mask, phi3_offset) = phi3_sliding_window_pattern();
 
-    // gpt-oss case
-    std::shared_ptr<ov::Node> gpt_oss_mask, gpt_oss_offset;
-    std::tie(gpt_oss_mask, gpt_oss_offset) = gpt_oss_sliding_window_pattern();
+    // gpt-oss and gemma3 cases
+    std::shared_ptr<ov::Node> gptoss_gemma3_mask, gptoss_gemma3_offset;
+    std::tie(gptoss_gemma3_mask, gptoss_gemma3_offset) = gptoss_gemma3_sliding_window_pattern();
 
     // Scale's shape limitations according to SDPA specification
     auto scale_predicate = [=](const Output<Node>& output) -> bool {
@@ -415,7 +416,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                                           general_alibi_mask,
                                                           jais_alibi_mask,
                                                           baichuan2_13b_alibi_mask,
-                                                          gpt_oss_mask,
+                                                          gptoss_gemma3_mask,
                                                           any_input()});
 
     auto sdpa_with_4_inputs = wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa});
@@ -426,10 +427,15 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
     auto sdpa_variants = std::make_shared<Or>(OutputVector{sdpa_with_4_inputs, sdpa_with_5_inputs, sdpa_with_6_inputs});
 
+    // Set to true once a sliding_attention layer matching the gptoss_gemma3 pattern is found
+    // alongside a token_type_ids model input - the combination that uniquely identifies Gemma3
+    // since pattern for full attention mask in Gemma3 is different than sliding window
+    // it has to be persistent in the callback, so shared_ptr is used
+    auto has_token_type_ids = std::make_shared<bool>(false);
+
     ov::matcher_pass_callback callback = [=,
                                           &kv_parameters,
                                           &model_wide_params,
-                                          &parameters_to_remove,
                                           &block_indices_inputs_for_each_layer,
                                           &score_results,
                                           &layer_index,
@@ -438,7 +444,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                           &xattention_threshold_inputs_for_each_layer,
                                           &adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer,
                                           &adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
-                                          &adaptive_rkv_diversity_results](Matcher& m) {
+                                          &adaptive_rkv_diversity_results,
+                                          &var_ids_to_remove](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& real_q = pattern_map.at(q);
 
@@ -468,10 +475,12 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         auto num_v_heads = num_v_heads_dim.get_length();
 
         std::string layer_index_str = std::to_string(layer_index);
-        auto k_parameter = setName(std::make_shared<v0::Parameter>(element::dynamic, ov::PartialShape::dynamic(4)),
-                                   "key_cache." + layer_index_str);
-        auto v_parameter = setName(std::make_shared<v0::Parameter>(element::dynamic, ov::PartialShape::dynamic(4)),
-                                   "value_cache." + layer_index_str);
+        auto k_parameter =
+            named_parameter(std::make_shared<v0::Parameter>(element::dynamic, ov::PartialShape::dynamic(4)),
+                            "key_cache." + layer_index_str);
+        auto v_parameter =
+            named_parameter(std::make_shared<v0::Parameter>(element::dynamic, ov::PartialShape::dynamic(4)),
+                            "value_cache." + layer_index_str);
 
         layer_index += 1;
         kv_parameters.push_back(k_parameter);
@@ -507,10 +516,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             auto take_4d = [=](const std::shared_ptr<Node>& option1,
                                const std::shared_ptr<Node>& option2,
                                const std::shared_ptr<Node>& option3) {
-                if (pattern_map.find(option1) != pattern_map.end() &&
+                if (pattern_map.count(option1) && pattern_map.at(option1).get_partial_shape().rank().is_static() &&
                     pattern_map.at(option1).get_partial_shape().rank().get_length() == 4) {
                     return pattern_map.at(option1);
-                } else if (pattern_map.at(option2).get_partial_shape().rank().get_length() == 4) {
+                } else if (pattern_map.at(option2).get_partial_shape().rank().is_static() &&
+                           pattern_map.at(option2).get_partial_shape().rank().get_length() == 4) {
                     return pattern_map.at(option2);
                 } else {
                     return pattern_map.at(option3);
@@ -521,18 +531,16 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             auto real_v = take_4d(v_current, v_current_reshaped, v_current2);
 
             std::shared_ptr<Node> k_transpose_order = kv_transpose_order;
-            if (pattern_map.find(k_order) !=
-                pattern_map
-                    .end()) {  // reapply transpose found in the graph by manipulating of indices of our Transpose
+            if (pattern_map.count(
+                    k_order)) {  // reapply transpose found in the graph by manipulating of indices of our Transpose
                 k_transpose_order = std::make_shared<v8::Gather>(pattern_map.at(k_order),
                                                                  kv_transpose_order,
                                                                  v0::Constant::create(element::i64, Shape{}, {0}));
             }
             k_target_layout = std::make_shared<v1::Transpose>(real_k, k_transpose_order);
             std::shared_ptr<Node> v_transpose_order = kv_transpose_order;
-            if (pattern_map.find(v_order) !=
-                pattern_map
-                    .end()) {  // reapply transpose found in the graph by manipulating of indices of our Transpose
+            if (pattern_map.count(
+                    v_order)) {  // reapply transpose found in the graph by manipulating of indices of our Transpose
                 v_transpose_order = std::make_shared<v8::Gather>(pattern_map.at(v_order),
                                                                  kv_transpose_order,
                                                                  v0::Constant::create(element::i64, Shape{}, {0}));
@@ -573,14 +581,23 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         }
 
         std::shared_ptr<Node> alibi_slopes;
-        if (pattern_map.find(general_alibi) != pattern_map.end()) {
+        if (pattern_map.count(general_alibi)) {
             alibi_slopes = handle_general_alibi(pattern_map.at(general_alibi).get_node_shared_ptr());
-        } else if (pattern_map.find(jais_13b_alibi) != pattern_map.end()) {
+        } else if (pattern_map.count(jais_13b_alibi)) {
             alibi_slopes = handle_jais_13b_alibi(pattern_map.at(jais_13b_alibi).get_node_shared_ptr());
-        } else if (pattern_map.find(baichuan2_13b_alibi) != pattern_map.end()) {
+        } else if (pattern_map.count(baichuan2_13b_alibi)) {
             alibi_slopes = handle_baichuan2_13b_alibi(pattern_map.at(baichuan2_13b_alibi).get_node_shared_ptr());
         } else {
             alibi_slopes = v0::Constant::create(element::f32, Shape{0}, {});
+        }
+
+        for (const auto& read_value : {k_past_var, v_past_var, kv_past_var}) {
+            if (pattern_map.count(read_value)) {
+                if (auto rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(
+                        pattern_map.at(read_value).get_node_shared_ptr())) {
+                    var_ids_to_remove.insert(rv->get_variable_id());
+                }
+            }
         }
 
         OutputVector pa_arguments = {q_reshape, k_reshape, v_reshape, k_parameter, v_parameter};
@@ -593,9 +610,12 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                 offset = std::make_shared<v0::Convert>(offset, element::i32);
             }
             sliding_window = std::make_shared<v1::Subtract>(v0::Constant::create(element::i32, Shape{}, {2}), offset);
-        } else if (pattern_map.count(gpt_oss_offset)) {
-            auto offset = pattern_map.at(gpt_oss_offset).get_node_shared_ptr();
-            if (pattern_map.at(gpt_oss_offset).get_partial_shape().rank() != 0) {
+        } else if (pattern_map.count(gptoss_gemma3_offset)) {
+            // gptoss_gemma3 pattern + token_type_ids input uniquely identifies Gemma3;
+            // gpt-oss shares this sliding window pattern but has no token_type_ids.
+            *has_token_type_ids = optional_model_wide_params.count("token_type_ids");
+            auto offset = pattern_map.at(gptoss_gemma3_offset).get_node_shared_ptr();
+            if (pattern_map.at(gptoss_gemma3_offset).get_partial_shape().rank() != 0) {
                 offset = std::make_shared<v15::Squeeze>(offset);
             }
             if (offset->get_element_type() != element::i32) {
@@ -613,15 +633,15 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         pa_arguments.insert(pa_arguments.end(), additional_params.begin(), additional_params.end());
 
         if (use_per_layer_block_indices_inputs) {
-            auto block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
-                                         "block_indices." + std::to_string(layer_index - 1));
+            auto block_indices = named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
+                                                 "block_indices." + std::to_string(layer_index - 1));
             pa_arguments.insert(pa_arguments.begin() + 7, block_indices);
             block_indices_inputs_for_each_layer.push_back(block_indices);
         }
 
         if (allow_score_aggregation) {
             OPENVINO_ASSERT(
-                optional_model_wide_params.find("score_aggregation_window") != optional_model_wide_params.end(),
+                optional_model_wide_params.count("score_aggregation_window"),
                 "No score_aggregation_window input found. For using score aggregation mode, the model have to contain "
                 "an additional input (Parameter) called score_aggregation_window.");
             pa_arguments.insert(pa_arguments.end(), optional_model_wide_params.at("score_aggregation_window"));
@@ -632,13 +652,14 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
         if (allow_cache_rotation) {
             OPENVINO_ASSERT(
-                optional_model_wide_params.find("model_rotation_trig_lut") != optional_model_wide_params.end(),
+                optional_model_wide_params.count("model_rotation_trig_lut"),
                 "No model_rotation_trig_lut input found. For using cache rotation, the model have to contain "
                 "an additional input (Parameter) called model_rotation_trig_lut.");
-            auto rotated_block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
-                                                 "rotated_block_indices." + std::to_string(layer_index - 1));
-            auto rotation_deltas = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1, -1}),
-                                           "rotation_deltas." + std::to_string(layer_index - 1));
+            auto rotated_block_indices =
+                named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
+                                "rotated_block_indices." + std::to_string(layer_index - 1));
+            auto rotation_deltas = named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1, -1}),
+                                                   "rotation_deltas." + std::to_string(layer_index - 1));
 
             pa_arguments.insert(pa_arguments.begin() + 14, rotated_block_indices);
             pa_arguments.insert(pa_arguments.begin() + 15, rotation_deltas);
@@ -656,15 +677,14 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
         OPENVINO_ASSERT(pa_arguments.size() == 17);
         if (allow_xattention) {
-            OPENVINO_ASSERT(
-                optional_model_wide_params.find("xattention_block_size") != optional_model_wide_params.end(),
-                "No xattention_block_size input found. For using XAttention, the model have to contain "
-                "an additional input (Parameter) called xattention_block_size.");
-            OPENVINO_ASSERT(optional_model_wide_params.find("xattention_stride") != optional_model_wide_params.end(),
+            OPENVINO_ASSERT(optional_model_wide_params.count("xattention_block_size"),
+                            "No xattention_block_size input found. For using XAttention, the model have to contain "
+                            "an additional input (Parameter) called xattention_block_size.");
+            OPENVINO_ASSERT(optional_model_wide_params.count("xattention_stride"),
                             "No xattention_stride input found. For using XAttention, the model have to contain "
                             "an additional input (Parameter) called xattention_stride.");
-            auto xattention_threshold = setName(std::make_shared<v0::Parameter>(element::f32, PartialShape{-1}),
-                                                "xattention_threshold." + std::to_string(layer_index - 1));
+            auto xattention_threshold = named_parameter(std::make_shared<v0::Parameter>(element::f32, PartialShape{-1}),
+                                                        "xattention_threshold." + std::to_string(layer_index - 1));
             pa_arguments.insert(pa_arguments.begin() + 17, xattention_threshold);
             pa_arguments.insert(pa_arguments.begin() + 18, optional_model_wide_params.at("xattention_block_size"));
             pa_arguments.insert(pa_arguments.begin() + 19, optional_model_wide_params.at("xattention_stride"));
@@ -691,15 +711,13 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                 v0::Constant::create(real_q.get_element_type(), Shape{0, 0, 0, 0}, {}));
         }
 
-        OPENVINO_ASSERT(pa_arguments.size() == 21);
-
         if (allow_adaptive_rkv) {
             OPENVINO_ASSERT(
-                optional_model_wide_params.find("adaptive_rkv_start_size") != optional_model_wide_params.end(),
+                optional_model_wide_params.count("adaptive_rkv_start_size"),
                 "No adaptive_rkv_start_size input found. For using Adaptive R-KV, the model have to contain "
                 "an additional input (Parameter) called adaptive_rkv_start_size.");
             OPENVINO_ASSERT(
-                optional_model_wide_params.find("adaptive_rkv_evictable_sizes") != optional_model_wide_params.end(),
+                optional_model_wide_params.count("adaptive_rkv_evictable_sizes"),
                 "No adaptive_rkv_evictable_sizes input found. For using Adaptive R-KV, the model have to contain "
                 "an additional input (Parameter) called adaptive_rkv_evictable_sizes.");
             pa_arguments.insert(pa_arguments.begin() + 21, optional_model_wide_params.at("adaptive_rkv_start_size"));
@@ -707,15 +725,15 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                 optional_model_wide_params.at("adaptive_rkv_evictable_sizes"));
 
             auto adaptive_rkv_diversity_block_set_indices =
-                setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
-                        "adaptive_rkv_diversity_block_set_indices." + std::to_string(layer_index - 1));
+                named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
+                                "adaptive_rkv_diversity_block_set_indices." + std::to_string(layer_index - 1));
             pa_arguments.insert(pa_arguments.begin() + 23, adaptive_rkv_diversity_block_set_indices);
             adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer.push_back(
                 adaptive_rkv_diversity_block_set_indices);
 
             auto adaptive_rkv_diversity_block_set_indices_begins =
-                setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
-                        "adaptive_rkv_diversity_block_set_indices_begins." + std::to_string(layer_index - 1));
+                named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
+                                "adaptive_rkv_diversity_block_set_indices_begins." + std::to_string(layer_index - 1));
             pa_arguments.insert(pa_arguments.begin() + 24, adaptive_rkv_diversity_block_set_indices_begins);
             adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer.push_back(
                 adaptive_rkv_diversity_block_set_indices_begins);
@@ -726,7 +744,28 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             pa_arguments.insert(pa_arguments.begin() + 23, v0::Constant::create(element::i32, Shape{0}, {}));
             pa_arguments.insert(pa_arguments.begin() + 24, v0::Constant::create(element::i32, Shape{0}, {}));
         }
-        OPENVINO_ASSERT(pa_arguments.size() == 25);
+
+        if (*has_token_type_ids) {
+            std::shared_ptr<ov::Node> token_type_ids = optional_model_wide_params.at("token_type_ids");
+            if (token_type_ids->get_element_type() != element::i32) {
+                token_type_ids = std::make_shared<v0::Convert>(token_type_ids, element::i32);
+            }
+            pa_arguments.insert(pa_arguments.begin() + 25, token_type_ids);
+        } else {
+            pa_arguments.insert(pa_arguments.begin() + 25, v0::Constant::create(element::i32, Shape{0}, {}));
+        }
+
+        if (allow_qq_bias) {
+            OPENVINO_ASSERT(optional_model_wide_params.find("qq_bias") != optional_model_wide_params.end(),
+                            "No qq_bias input found. For using QQ bias, the model have to contain "
+                            "an additional input (Parameter) called qq_bias.");
+            pa_arguments.insert(pa_arguments.begin() + 26, optional_model_wide_params.at("qq_bias"));
+            pa_arguments.insert(pa_arguments.begin() + 27, optional_model_wide_params.at("qq_bias_begins"));
+        } else {
+            pa_arguments.insert(pa_arguments.begin() + 26, v0::Constant::create(element::u8, Shape{0}, {}));
+            pa_arguments.insert(pa_arguments.begin() + 27, v0::Constant::create(element::i32, Shape{0}, {}));
+        }
+        OPENVINO_ASSERT(pa_arguments.size() == 28);
 
         auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
         paged_attention->get_rt_info()[NUM_K_HEADS] = num_k_heads;
@@ -761,30 +800,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             similarity_result->get_output_tensor(0).set_names(
                 {"adaptive_rkv_diversity." + std::to_string(layer_index - 1)});
             adaptive_rkv_diversity_results.push_back(similarity_result);
-        }
-
-        // TODO: Complete this part to work with stateless models as well as will stateful
-        //  def add_kv_parameter(past_node):
-        //      if past_node.get_type_info().name == 'Parameter':
-        //          parameters_to_remove.append(past_node)
-
-        //  add_kv_parameter(mapping[k_gather])
-        //  add_kv_parameter(mapping[v_gather])
-
-        if (pattern_map.find(v_past_par) != pattern_map.end()) {
-            auto param = ov::as_type_ptr<v0::Parameter>(pattern_map.at(v_past_par).get_node_shared_ptr());
-            if (param) {
-                return false;
-            }
-            parameters_to_remove.push_back(param);
-        }
-
-        if (pattern_map.find(k_past_par) != pattern_map.end()) {
-            auto param = ov::as_type_ptr<v0::Parameter>(pattern_map.at(k_past_par).get_node_shared_ptr());
-            if (param) {
-                return false;
-            }
-            parameters_to_remove.push_back(param);
         }
 
         pa_transpose->set_friendly_name(sdpa_node->get_friendly_name());

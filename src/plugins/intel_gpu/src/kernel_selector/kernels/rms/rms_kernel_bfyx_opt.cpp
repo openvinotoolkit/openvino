@@ -197,12 +197,14 @@ bool RMSKernelBfyxOpt::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     const rms_params& params = static_cast<const rms_params&>(p);
-    const auto& gamma = params.inputs[1];
+    if (params.elementwise_affine) {
+        const auto& gamma = params.inputs[1];
 
-    if (!gamma.is_dynamic()) {
-        size_t data_size = gamma.LogicalSize();
-        if (data_size < subgroup_size) {
-            DO_NOT_USE_THIS_KERNEL(p.layerID);
+        if (!gamma.is_dynamic()) {
+            size_t data_size = gamma.LogicalSize();
+            if (data_size < subgroup_size) {
+                DO_NOT_USE_THIS_KERNEL(p.layerID);
+            }
         }
     }
     return true;

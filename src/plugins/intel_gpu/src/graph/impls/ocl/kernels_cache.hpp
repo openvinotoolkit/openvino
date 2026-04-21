@@ -7,6 +7,7 @@
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/device.hpp"
 #include "intel_gpu/runtime/kernel.hpp"
+#include "intel_gpu/runtime/kernel_builder.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 
@@ -97,6 +98,7 @@ public:
 private:
     static std::mutex _mutex;
     const device::ptr _device;
+    std::shared_ptr<kernel_builder> _builder;
     std::shared_ptr<ov::threading::ITaskExecutor> _task_executor;
     ExecutionConfig _config;
     uint32_t _prog_id = 0;
@@ -126,8 +128,6 @@ public:
 
     void set_kernels_reuse(bool reuse_kernels) { _reuse_kernels = reuse_kernels; }
     bool get_kernels_reuse() const { return _reuse_kernels; }
-
-    bool validate_simple_kernel_execution(kernel::ptr kernel);
 
     // forces compilation of all pending kernels/programs
     void build_all();

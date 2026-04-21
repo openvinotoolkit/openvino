@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <set>
+#include <vector>
 
 #include "emitters/utils.hpp"
 #include "node.h"
@@ -14,6 +15,7 @@
 #include "snippets/generator.hpp"
 
 #ifdef SNIPPETS_DEBUG_CAPS
+#    include "emitters/snippets/common/jit_debug_emitter_base.hpp"
 #    include "emitters/snippets/riscv64/verbose.hpp"
 #endif
 
@@ -25,6 +27,34 @@ enum emitter_in_out_map : uint8_t {
     gpr_to_vec,
     gpr_to_gpr,
 };
+
+inline void set_vector_length(ov::intel_cpu::riscv64::jit_generator_t* h,
+                              const size_t vector_length,
+                              const Xbyak_riscv::SEW sew,
+                              const std::vector<size_t>& aux_gpr_idxs,
+                              const Xbyak_riscv::LMUL lmul = Xbyak_riscv::LMUL::m1,
+                              const Xbyak_riscv::Reg* avl = nullptr) {
+    // RVV exposes two ways to program VL:
+    // - `vsetivli` for small compile-time AVL values encoded directly in the instruction
+    // - `vsetvli` for runtime AVL values, or constants that do not fit that immediate field
+    if (avl != nullptr) {
+        h->vsetvli(Xbyak_riscv::zero, *avl, sew, lmul);
+        return;
+    }
+
+    OV_CPU_JIT_EMITTER_ASSERT(vector_length > 0, "set_vector_length requires either vector_length or avl register");
+    if (vector_length <= 31) {
+        h->vsetivli(Xbyak_riscv::zero, vector_length, sew, lmul);
+        return;
+    }
+
+    // `vsetivli` only has a 5-bit AVL immediate, so larger fixed lengths still need the
+    // register-based form and therefore a temporary GPR.
+    OV_CPU_JIT_EMITTER_ASSERT(!aux_gpr_idxs.empty(), "Large vector length requires an auxiliary GPR register");
+    const auto vector_length_reg = Xbyak_riscv::Reg(static_cast<int>(aux_gpr_idxs.back()));
+    h->uni_li(vector_length_reg, vector_length);
+    h->vsetvli(Xbyak_riscv::zero, vector_length_reg, sew, lmul);
+}
 
 class jit_emitter : public ov::snippets::Emitter {
 public:
@@ -166,9 +196,16 @@ protected:
     virtual void register_table_entries() {}
 
     void load_table_addr() const {
-        const auto address = reinterpret_cast<uintptr_t>(l_table->getAddress());
-        OPENVINO_ASSERT(address != 0, "Address of data section is missed!");
-        h->uni_li(p_table, address);
+        // Use a local literal pool with a forward label reference so we don't require the data
+        // label to be defined before code emission.
+        constexpr int32_t literal_offset = 16;  // 4 insns * 4 bytes -> 8-byte aligned literal
+        Xbyak_riscv::Label after_literal;
+        h->auipc(p_table, 0);
+        h->ld(p_table, p_table, literal_offset);
+        h->nop();
+        h->j_(after_literal);
+        h->putL(*l_table);
+        h->L(after_literal);
     }
 
     void load_table_val(const std::string& key, const Xbyak_riscv::FReg& freg, size_t key_off_val_shift = 0) const {
@@ -210,6 +247,10 @@ private:
     mutable std::vector<size_t> preserved_fp_gpr_idxs;
 
 #ifdef SNIPPETS_DEBUG_CAPS
+    template <typename>
+    friend class ov::intel_cpu::jit_debug_emitter_base_common;
+    template <typename>
+    friend class jit_debug_emitter_riscv_base;
     friend class jit_debug_emitter;
 #endif
 

@@ -16,6 +16,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rms.hpp"
 #include "transformations/utils/utils.hpp"
@@ -26,34 +27,27 @@ namespace op_util = ov::op::util;
 
 namespace ov::pass {
 
-namespace {
-std::function<bool(ov::Output<ov::Node>)> constant_value(const float target_value) {
-    return [=](const ov::Output<ov::Node>& output) -> bool {
-        auto node = ov::as_type_ptr<v0::Constant>(output.get_node_shared_ptr());
-        if (!node) {
-            return false;
-        }
-        float value;
-        if (!op_util::get_single_value(node, value)) {
-            return false;
-        }
-        return value == target_value;
-    };
-}
-}  // namespace
-
-RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x) {
+RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x, bool enable_without_gamma) {
     // Detect RMS decomposition pattern
     //  x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma
     auto x = pattern::any_input();
 
     // x^2
-    auto const_power = pattern::wrap_type<v0::Constant>(constant_value(2));
+    auto const_power = pattern::wrap_type<v0::Constant>(pattern::value_matches("2"));
     auto const_power_convert = pattern::optional<v0::Convert>(const_power);
     auto power = pattern::wrap_type<v1::Power>({x, const_power_convert});
 
     // ReduceMean(x^2,axes)
-    auto mean_axes = pattern::wrap_type<v0::Constant>(constant_value(-1));
+    auto mean_axes = pattern::wrap_type<v0::Constant>([](const ov::Output<ov::Node>& output) {
+        auto const_node = ov::as_type_ptr<v0::Constant>(output.get_node_shared_ptr());
+        if (!const_node) {
+            return false;
+        }
+        const auto& axes_shape = const_node->get_output_shape(0);
+        const auto num_elems = ov::shape_size(axes_shape);
+        // RMS fusion is only valid when ReduceMean has exactly one axis.
+        return num_elems == 1;
+    });
     auto mean = pattern::wrap_type<v1::ReduceMean>({power, mean_axes});
 
     // ReduceMean(x^2,axes)+eps
@@ -65,11 +59,11 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x) {
     auto sqrt = pattern::wrap_type<v0::Sqrt>({add_eps});
 
     // 1/Sqrt(ReduceMean(x^2,axes)+eps)
-    auto const_pow = pattern::wrap_type<v0::Constant>(constant_value(-1));
+    auto const_pow = pattern::wrap_type<v0::Constant>(pattern::value_matches("-1"));
     auto const_pow_convert = pattern::optional<v0::Convert>(const_pow);
     auto pow = pattern::wrap_type<v1::Power>({sqrt, const_pow_convert});
 
-    auto const_div = pattern::wrap_type<v0::Constant>(constant_value(1));
+    auto const_div = pattern::wrap_type<v0::Constant>(pattern::value_matches("1"));
     auto const_div_convert = pattern::optional<v0::Convert>(const_div);
     auto div = pattern::wrap_type<v1::Divide>({const_div_convert, sqrt});
     auto div_or_pow = std::make_shared<pattern::op::Or>(OutputVector{div, pow});
@@ -87,16 +81,28 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x) {
         mul_or_div = std::make_shared<pattern::op::Or>(OutputVector{mul1});
     }
 
-    // x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma
+    // Pattern 1: RMS with gamma (learnable parameter)
+    // x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma (gamma is constant)
     auto gamma = pattern::wrap_type<v0::Constant>();
     auto gamma_convert = pattern::optional<v0::Convert>(gamma);
+    auto mul_with_gamma = pattern::wrap_type<v1::Multiply>({gamma_convert, mul_or_div});
 
-    auto mul2 = pattern::wrap_type<v1::Multiply>({gamma_convert, mul_or_div});
+    std::shared_ptr<ov::Node> rms_mul;
+    if (enable_without_gamma) {
+        // Pattern 2: RMS without gamma, but multiplied with dynamic input
+        // RMS(x) * scale where scale is non-constant (e.g., gate, activation, residual)
+        // This allows partial fusion: only fuse up to mul_or_div
+        auto scale = pattern::any_input(pattern::class_other_than<v0::Constant>());
+        auto mul_with_scale = pattern::wrap_type<v1::Multiply>({mul_or_div, scale});
+        rms_mul = std::make_shared<pattern::op::Or>(OutputVector{mul_with_gamma, mul_with_scale});
+    } else {
+        rms_mul = mul_with_gamma;
+    }
 
-    std::shared_ptr<ov::Node> comp = mul2;
+    std::shared_ptr<ov::Node> comp = rms_mul;
     if (force_tail_convert) {
         // compress RMS result
-        comp = pattern::wrap_type<v0::Convert>({mul2});
+        comp = pattern::wrap_type<v0::Convert>({rms_mul});
     }
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
@@ -114,9 +120,15 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x) {
             return false;
         }
 
-        auto gamma_node = pattern_map.at(gamma).get_node_shared_ptr();
-        if (pattern_map.find(gamma_convert) != pattern_map.end()) {
-            gamma_node = pattern_map.at(gamma_convert).get_node_shared_ptr();
+        auto mul_or_div_node = pattern_map.at(mul_or_div).get_node_shared_ptr();
+        bool elementwise_affine = pattern_map.count(mul_with_gamma);
+
+        std::shared_ptr<ov::Node> gamma_node;
+        if (elementwise_affine) {
+            gamma_node = pattern_map.at(gamma).get_node_shared_ptr();
+            if (pattern_map.count(gamma_convert)) {
+                gamma_node = pattern_map.at(gamma_convert).get_node_shared_ptr();
+            }
         }
 
         const auto& mean_node = pattern_map.at(mean).get_node_shared_ptr();
@@ -129,11 +141,27 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x) {
             return false;
         }
 
-        auto output_type = m.get_match_root()->get_output_element_type(0);
-        auto rms = std::make_shared<ov::op::internal::RMS>(x_output, gamma_node, eps_value, output_type);
-        rms->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ov::copy_runtime_info(m.get_matched_nodes(), rms);
-        ov::replace_node(m.get_match_root(), rms);
+        auto output_type = elementwise_affine ? m.get_match_root()->get_output_element_type(0)
+                                              : mul_or_div_node->get_output_element_type(0);
+        std::shared_ptr<ov::op::internal::RMS> rms =
+            elementwise_affine ? std::make_shared<ov::op::internal::RMS>(x_output, gamma_node, eps_value, output_type)
+                               : std::make_shared<ov::op::internal::RMS>(x_output, eps_value, output_type);
+        if (elementwise_affine) {
+            rms->set_friendly_name(m.get_match_root()->get_friendly_name());
+            ov::copy_runtime_info(m.get_matched_nodes(), rms);
+            ov::replace_node(m.get_match_root(), rms);
+        } else {
+            rms->set_friendly_name(mul_or_div_node->get_friendly_name());
+            NodeVector nodes_to_fuse;
+            auto mul_with_scale_node = m.get_match_root();
+            for (const auto& matched_node : m.get_matched_nodes()) {
+                if (matched_node != mul_with_scale_node) {
+                    nodes_to_fuse.push_back(matched_node);
+                }
+            }
+            ov::copy_runtime_info(nodes_to_fuse, rms);
+            ov::replace_node(mul_or_div_node, rms);
+        }
 
         return true;
     };
