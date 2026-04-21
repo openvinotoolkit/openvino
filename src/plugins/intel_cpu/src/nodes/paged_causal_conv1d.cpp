@@ -89,6 +89,18 @@ void PagedCausalConv1D::execute([[maybe_unused]] const dnnl::stream& strm) {
                     hidden_size,
                     ").");
 
+    // Linear attention models use depthwise convolution where group_size == hidden_size,
+    // i.e. conv_weight[1] (in_channels per group) must be 1.
+    OPENVINO_ASSERT(weight_shape.size() == 3 && weight_shape[1] == 1,
+                    "PagedCausalConv1D only supports depthwise convolution (conv_weight[1] must be 1). "
+                    "Got conv_weight shape [",
+                    weight_shape[0],
+                    ", ",
+                    weight_shape[1],
+                    ", ",
+                    weight_shape[2],
+                    "].");
+
     const bool has_bias = bias_shape[0] != 0;
 
     const auto* input_embeds = getSrcDataAtPortAs<const float>(0);
