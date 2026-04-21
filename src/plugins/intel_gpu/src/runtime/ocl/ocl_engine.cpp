@@ -148,7 +148,7 @@ memory::ptr ocl_engine::create_subbuffer(const memory& memory, const layout& new
                                      memory.get_mem_tracker());
         } else {
             auto buffer = reinterpret_cast<const ocl::gpu_buffer&>(memory).get_buffer();
-            cl_buffer_region sub_buffer_region = { byte_offset, new_layout.get_linear_size() };
+            cl_buffer_region sub_buffer_region = {byte_offset, new_layout.get_linear_size()};
             auto sub_buffer = buffer.createSubBuffer({}, CL_BUFFER_CREATE_TYPE_REGION, &sub_buffer_region);
 
             return std::make_shared<ocl::gpu_buffer>(this,
@@ -160,6 +160,24 @@ memory::ptr ocl_engine::create_subbuffer(const memory& memory, const layout& new
         OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
     }
 }
+
+memory_ptr ocl_engine::pin_mmapped_host_buffer(const void* mmapped_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) {
+    auto tracker = std::make_shared<MemoryTracker>(this,
+                                                   const_cast<void*>(mmapped_address),  // Point directly to mmap'd memory
+                                                   data_size,
+                                                   _allocation_type);
+    std::uintptr_t mmap_address = reinterpret_cast<std::uintptr_t>(mmapped_address);
+    std::uintptr_t aligned_addr = mmap_address & ~(4096 - 1);
+    void* mmap_aligned_address = reinterpret_cast<void*>(aligned_addr);
+
+    cl_int err = CL_SUCCESS;
+    cl::Buffer buffer(get_cl_context(), {CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR | CL_MEM_FORCE_HOST_MEMORY_INTEL}, data_size, mmap_aligned_address, &err);
+    if (err != CL_SUCCESS) {
+        OPENVINO_ASSERT(false, "clcreatebuffer with CL_MEM_USE_HOST_PTR and CL_MEM_FORCE_HOST_MEMORY_INTEL failed!");
+    }
+    return std::make_shared<ocl::gpu_buffer>(this, output_layout, buffer, tracker);
+}
+
 memory::ptr ocl_engine::reinterpret_buffer(const memory& memory, const layout& new_layout) {
     OPENVINO_ASSERT(memory.get_engine() == this, "[GPU] trying to reinterpret buffer allocated by a different engine");
     OPENVINO_ASSERT(new_layout.format.is_image() == memory.get_layout().format.is_image(),

@@ -46,6 +46,8 @@
 
 ov::ICore::~ICore() = default;
 
+constexpr std::size_t STANDARD_PAGE_SIZE = 4096;
+
 namespace {
 
 #ifdef PROXY_PLUGIN_ENABLED
@@ -1534,7 +1536,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
             }
             // write compiled blob
             cache_content.m_cache_manager->write_cache_entry(cache_content.m_blob_id, [&](std::ostream& stream) {
-                uint32_t header_size_alignment{};
+                uint32_t header_size_alignment = STANDARD_PAGE_SIZE;
                 if (device_supports_internal_property(plugin, ov::internal::cache_header_alignment.name())) {
                     header_size_alignment =
                         plugin.get_property(ov::internal::cache_header_alignment.name(), {}).as<uint32_t>();
@@ -1649,11 +1651,19 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
 
                 ov::util::VariantVisitor model_importer{
                     [&](const ov::Tensor& compiled_blob) -> ov::SoPtr<ov::ICompiledModel> {
-                        const ov::Tensor compiled_blob_without_header{compiled_blob,
+                        /*static const ov::Tensor compiled_blob_without_header{compiled_blob,
                                                                       {compiled_blob_offset},
                                                                       {compiled_blob.get_size()}};
                         return context ? plugin.import_model(compiled_blob_without_header, context, update_config)
-                                       : plugin.import_model(compiled_blob_without_header, update_config);
+                                       : plugin.import_model(compiled_blob_without_header, update_config);*/
+                        auto compiled_blob_without_header =
+                            std::make_shared<ov::Tensor>(compiled_blob,
+                                                         ov::Coordinate{compiled_blob_offset},
+                                                         ov::Coordinate{compiled_blob.get_size()});
+                        auto imported_model =
+                            context ? plugin.import_model(*compiled_blob_without_header, context, update_config)
+                                    : plugin.import_model(*compiled_blob_without_header, update_config);
+                        return ov::SoPtr<ov::ICompiledModel>(imported_model._ptr, compiled_blob_without_header);
                     },
                     [&](std::reference_wrapper<std::istream> stream) -> ov::SoPtr<ov::ICompiledModel> {
                         return context ? plugin.import_model(stream, context, update_config)

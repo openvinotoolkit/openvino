@@ -61,6 +61,8 @@ public:
     /// Created subbuffer memory object from the other @p memory and reinterpred the data using specified @p new_layout
     virtual memory_ptr create_subbuffer(const memory& memory, const layout& new_layout, size_t byte_offset) = 0;
 
+    virtual memory_ptr pin_mmapped_host_buffer(const void* mmapped_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) = 0;
+
     /// Created memory object from the other @p memory and reinterpred the data using specified @p new_layout
     virtual memory_ptr reinterpret_buffer(const memory& memory, const layout& new_layout) = 0;
 

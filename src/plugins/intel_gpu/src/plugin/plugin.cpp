@@ -53,6 +53,7 @@
 
 using ms = std::chrono::duration<double, std::ratio<1, 1000>>;
 using Time = std::chrono::high_resolution_clock;
+thread_local const size_t* g_current_tensor_base = nullptr;
 
 namespace ov::intel_gpu {
 
@@ -412,10 +413,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     ov::EncryptionCallbacks encryption_callbacks = config.get_cache_encryption_callbacks();
 
     std::unique_ptr<cldnn::BinaryInputBuffer> ib_ptr =
-        encryption_callbacks.decrypt ? std::make_unique<cldnn::EncryptedBinaryInputBuffer>(model,
-                                                                                 context_impl->get_engine(),
-                                                                                 encryption_callbacks.decrypt)
-                           : std::make_unique<cldnn::BinaryInputBuffer>(model, context_impl->get_engine());
+        encryption_callbacks.decrypt ? std::make_unique<cldnn::EncryptedBinaryInputBuffer>(model, context_impl->get_engine(), encryption_callbacks.decrypt)
+                                     : std::make_unique<cldnn::BinaryInputBuffer>(model, context_impl->get_engine(), g_current_tensor_base);
     auto& ib = *ib_ptr;
 
     ov::CacheMode loaded_cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
@@ -459,9 +458,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& config) const{
+    // Store tensor base in thread-local storage
+    g_current_tensor_base = static_cast<const size_t*>(model.data());
     SharedStreamBuffer buf{model.data(), model.get_byte_size()};
     std::istream stream(&buf);
-    return import_model(stream, context, config);
+    auto result = import_model(stream, context, config);
+
+    // Clear thread-local storage
+    g_current_tensor_base = nullptr;
+    
+    return result;
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options) const {

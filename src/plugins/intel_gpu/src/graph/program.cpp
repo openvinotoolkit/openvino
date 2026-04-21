@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include "intel_gpu/graph/fused_primitive_desc.hpp"
 #include "registry/implementation_manager.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
@@ -1944,7 +1943,7 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
     }
 
     ob << allocating_order.size();
-    for (auto const& node_id : allocating_order) {
+    for (const auto& node_id : allocating_order) {
         ob << node_id;
     }
 
@@ -1952,6 +1951,14 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
     for (auto& state_initializer : state_initializers) {
         ob << state_initializer.first;
         ob << state_initializer.second;
+    }
+    
+    size_t padding_rem = ob.get_current_offset() % 4096;
+    size_t padding_alignment = padding_rem ? 4096 - padding_rem : 0;
+    if (padding_alignment > 0) {
+        // Write padding (zeros or dummy data)
+        std::vector<uint8_t> pad_buf(padding_alignment, 0);
+        ob << make_data(pad_buf.data(), padding_alignment);
     }
 }
 
@@ -1976,6 +1983,10 @@ void program::load(cldnn::BinaryInputBuffer& ib,
             OPENVINO_THROW("Weights path or model is required for cache mode OPTIMIZE_SIZE");
         }
     }
+    memory_ptr model_tensor_base_ptr = ib.get_engine().pin_mmapped_host_buffer(ib.get_tensor_base_ptr(),
+                                                                           ib.get_stream_size(),
+                                                                           allocation_type::usm_host,
+                                                                           layout({{ib.get_stream_size(), 1, 1, 1}, data_types::u8, format::bfyx}));
 
     size_t num_nodes;
     ib >> num_nodes;
@@ -1988,11 +1999,10 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         std::shared_ptr<cldnn::primitive> prim;
         ib >> prim;
         if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
-            data_prim->load_weights(ib, weights_memory);
+            data_prim->load_weights(ib, weights_memory, model_tensor_base_ptr);
         }
         get_or_create(prim);
     }
-
     size_t num_output_sharing_mutable_datas;
     ib >> num_output_sharing_mutable_datas;
     for (size_t i = 0; i < num_output_sharing_mutable_datas; ++i) {
