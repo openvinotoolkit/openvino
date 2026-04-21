@@ -32,6 +32,25 @@ namespace ov::pass {
 
 namespace {
 
+/// Slow (non-JIT) FP32/FP64 -> FP16 compression for a single Constant node.
+///
+/// Returns either:
+///   * the new `v0::Constant` with FP16 data (fully converted and approved), or
+///   * `constant` unchanged when `postponed == true` (the Constant is kept in the
+///     graph and compressed later during serialization), or
+///   * `nullptr` if the tensor must stay in its original precision.
+///
+/// The tensor is rejected (returns `nullptr`) when:
+///   * any in-range element has absolute round-trip error above
+///     `f16_compression_max_abs_error` (RoPE-like high-magnitude values), or
+///   * the combined count of elements outside the finite FP16 range *plus*
+///     elements whose relative round-trip error exceeds
+///     `f16_compression_max_rel_error` reaches
+///     `f16_compression_keep_threshold` (75% by default).
+///
+/// Used by `CompressFloatConstantsImpl` for f64 constants on all platforms and
+/// for both f32/f64 on non-x86 architectures where the JIT fast-path
+/// `ov::reference::check_f16_compression` is unavailable.
 template <ov::element::Type_t PREC_FROM>
 std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<v0::Constant>& constant,
                                                             bool postponed = false) {
@@ -45,7 +64,6 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<v0::
     if (!dst_data || !size)
         return nullptr;
 
-    // slow implementation: is used when optimized ones are not available: f64 or for ARM (both for f64 and f32)
     size_t num_out_of_range = 0;
     for (size_t i = 0; i < size; ++i) {
         // if abs value is smaller than the smallest positive fp16, but not zero
@@ -61,7 +79,7 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<v0::
         } else {
             constexpr double max_relative_error = ov::reference::f16_compression_max_rel_error;
             constexpr double max_abs_error = ov::reference::f16_compression_max_abs_error;
-            const ov::float16 f16_val = static_cast<ov::float16>(src_data[i]);
+            const auto f16_val = static_cast<ov::float16>(src_data[i]);
             const double src_val = static_cast<double>(src_data[i]);
             const double roundtripped = static_cast<double>(static_cast<src_type>(f16_val));
             const double abs_diff = std::abs(src_val - roundtripped);

@@ -25,7 +25,21 @@ namespace {
 // bit-identical to static_cast<ov::float16>(float). Equivalent to
 // _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC from <immintrin.h>.
 // (Not 0x04 — that is _MM_FROUND_CUR_DIRECTION, i.e. "use MXCSR".)
-static constexpr uint8_t kVcvtps2phRneNoExc = 0x08;
+inline constexpr uint8_t kVcvtps2phRneNoExc = 0x08;
+
+// Shared FP16 range constants used by multiple JIT kernels (fp32<->fp16 conversion,
+// fp16 compression check). ov::float16::operator float() is not constexpr so the
+// ov::float16-derived values must be initialised at runtime; the scalar-error /
+// mask thresholds are plain literals and stay constexpr. We keep them as named
+// file-scope constants to avoid duplicating std::numeric_limits<> lookups and
+// literal values across every JIT body.
+inline const float kF16MaxPos = std::numeric_limits<ov::float16>::max();
+inline const float kF16MaxNeg = std::numeric_limits<ov::float16>::lowest();
+inline const float kF16MinPos = ov::float16::from_bits(0x0001);
+inline const float kF16MinNeg = -ov::float16::from_bits(0x0001);
+inline constexpr float kF16CompressionAbsErrVal = static_cast<float>(ov::reference::f16_compression_max_abs_error);
+inline constexpr float kF16CompressionRelErrVal = static_cast<float>(ov::reference::f16_compression_max_rel_error);
+inline constexpr uint32_t kAbsMaskVal = 0x7FFFFFFFu;
 
 template <typename src_t, typename dst_t, bool clamp = false>
 void jit_convert_vec(jit::Generator&, const Xbyak::RegExp&, const Xbyak::RegExp&) {}
@@ -110,14 +124,14 @@ void jit_convert_vec_prepare<float, float16, true>(jit::Generator& gen) {
     auto lower_bound = gen.ymm6;
     auto addr = gen.r15;
 
-    static const float f16_max = std::numeric_limits<ov::float16>::max();
-    static const float f16_min = std::numeric_limits<ov::float16>::lowest();
-    static const float upper_bounds[8] = {f16_max, f16_max, f16_max, f16_max, f16_max, f16_max, f16_max, f16_max};
-    static const float lower_bounds[8] = {f16_min, f16_min, f16_min, f16_min, f16_min, f16_min, f16_min, f16_min};
+    static const float upper_bounds[8] =
+        {kF16MaxPos, kF16MaxPos, kF16MaxPos, kF16MaxPos, kF16MaxPos, kF16MaxPos, kF16MaxPos, kF16MaxPos};
+    static const float lower_bounds[8] =
+        {kF16MaxNeg, kF16MaxNeg, kF16MaxNeg, kF16MaxNeg, kF16MaxNeg, kF16MaxNeg, kF16MaxNeg, kF16MaxNeg};
 
-    gen.mov(addr, (size_t)upper_bounds);
+    gen.mov(addr, reinterpret_cast<size_t>(upper_bounds));
     gen.vmovdqu(upper_bound, gen.yword[addr]);
-    gen.mov(addr, (size_t)lower_bounds);
+    gen.mov(addr, reinterpret_cast<size_t>(lower_bounds));
     gen.vmovdqu(lower_bound, gen.yword[addr]);
 }
 
@@ -145,11 +159,11 @@ void jit_convert_vec_prepare<float, int8_t>(jit::Generator& gen) {
     auto order = gen.ymm1;
     auto addr = gen.r15;
 
-    static const int8_t offsets[32] = {0,  4,  8,  12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-                                       -1, -1, -1, -1, 0,  4,  8,  12, -1, -1, -1, -1, -1, -1, -1, -1};
+    static constexpr int8_t offsets[32] = {0,  4,  8,  12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+                                           -1, -1, -1, -1, 0,  4,  8,  12, -1, -1, -1, -1, -1, -1, -1, -1};
 
-    gen.mov(addr, (size_t)offsets);       // get offsets[] address
-    gen.vmovdqu(order, gen.yword[addr]);  // save offsets[] to ymm register
+    gen.mov(addr, reinterpret_cast<size_t>(offsets));  // get offsets[] address
+    gen.vmovdqu(order, gen.yword[addr]);               // save offsets[] to ymm register
 }
 
 template <>
@@ -460,27 +474,18 @@ private:
         preamble();
         xor_(reg_oor_accum, reg_oor_accum);
 
-        // --- Broadcast constants ---
-        static const float f16_max_pos = std::numeric_limits<ov::float16>::max();
-        static const float f16_max_neg = std::numeric_limits<ov::float16>::lowest();
-        static const float f16_min_pos = ov::float16::from_bits(0x0001);
-        static const float f16_min_neg = -ov::float16::from_bits(0x0001);
-        static const float abs_err_val = static_cast<float>(ov::reference::f16_compression_max_abs_error);
-        static const float rel_err_val = static_cast<float>(ov::reference::f16_compression_max_rel_error);
-        static const uint32_t abs_mask_val = 0x7FFFFFFF;
-
         auto bcast = [&, this](const Xbyak::Zmm& vec, const void* p) {
             mov(reg_addr, reinterpret_cast<size_t>(p));
             vbroadcastss(vec, dword[reg_addr]);
         };
 
-        bcast(f16_max_pos_vec, &f16_max_pos);
-        bcast(f16_max_neg_vec, &f16_max_neg);
-        bcast(f16_min_pos_vec, &f16_min_pos);
-        bcast(f16_min_neg_vec, &f16_min_neg);
-        bcast(abs_err_vec, &abs_err_val);
-        bcast(rel_err_vec, &rel_err_val);
-        bcast(abs_mask_vec, &abs_mask_val);
+        bcast(f16_max_pos_vec, &kF16MaxPos);
+        bcast(f16_max_neg_vec, &kF16MaxNeg);
+        bcast(f16_min_pos_vec, &kF16MinPos);
+        bcast(f16_min_neg_vec, &kF16MinNeg);
+        bcast(abs_err_vec, &kF16CompressionAbsErrVal);
+        bcast(rel_err_vec, &kF16CompressionRelErrVal);
+        bcast(abs_mask_vec, &kAbsMaskVal);
         vpxorq(zero_vec, zero_vec, zero_vec);
 
         // --- Load args ---
@@ -679,50 +684,50 @@ private:
         mov(reg_saved_rsp, rsp);  // save rsp for lossy exit stack cleanup
 
         // --- Load constants ---
-        static const float f16_max_pos = std::numeric_limits<ov::float16>::max();
-        static const float f16_max_neg = std::numeric_limits<ov::float16>::lowest();
-        static const float f16_min_pos = ov::float16::from_bits(0x0001);
-        static const float f16_min_neg = -ov::float16::from_bits(0x0001);
-        static const int32_t i32_one = 1;
-        static const float abs_err_val = static_cast<float>(ov::reference::f16_compression_max_abs_error);
-        static const float rel_err_val = static_cast<float>(ov::reference::f16_compression_max_rel_error);
-        static const uint32_t abs_mask_val = 0x7FFFFFFF;
-
+        // 256-bit (8-lane) broadcast arrays for AVX2 (no vbroadcastss on ymm here; we use vmovdqu).
+        // Arrays filled from FP16-derived constants (non-constexpr — see kF16* above) are static const;
+        // arrays filled from literal/constexpr thresholds are static constexpr.
         static const float max_pos_bounds[8] =
-            {f16_max_pos, f16_max_pos, f16_max_pos, f16_max_pos, f16_max_pos, f16_max_pos, f16_max_pos, f16_max_pos};
+            {kF16MaxPos, kF16MaxPos, kF16MaxPos, kF16MaxPos, kF16MaxPos, kF16MaxPos, kF16MaxPos, kF16MaxPos};
         static const float max_neg_bounds[8] =
-            {f16_max_neg, f16_max_neg, f16_max_neg, f16_max_neg, f16_max_neg, f16_max_neg, f16_max_neg, f16_max_neg};
+            {kF16MaxNeg, kF16MaxNeg, kF16MaxNeg, kF16MaxNeg, kF16MaxNeg, kF16MaxNeg, kF16MaxNeg, kF16MaxNeg};
         static const float min_pos_bounds[8] =
-            {f16_min_pos, f16_min_pos, f16_min_pos, f16_min_pos, f16_min_pos, f16_min_pos, f16_min_pos, f16_min_pos};
+            {kF16MinPos, kF16MinPos, kF16MinPos, kF16MinPos, kF16MinPos, kF16MinPos, kF16MinPos, kF16MinPos};
         static const float min_neg_bounds[8] =
-            {f16_min_neg, f16_min_neg, f16_min_neg, f16_min_neg, f16_min_neg, f16_min_neg, f16_min_neg, f16_min_neg};
-        static const int32_t i32_ones[8] = {i32_one, i32_one, i32_one, i32_one, i32_one, i32_one, i32_one, i32_one};
-        static const float abs_errs[8] =
-            {abs_err_val, abs_err_val, abs_err_val, abs_err_val, abs_err_val, abs_err_val, abs_err_val, abs_err_val};
-        static const float rel_errs[8] =
-            {rel_err_val, rel_err_val, rel_err_val, rel_err_val, rel_err_val, rel_err_val, rel_err_val, rel_err_val};
-        static const uint32_t abs_masks[8] = {abs_mask_val,
-                                              abs_mask_val,
-                                              abs_mask_val,
-                                              abs_mask_val,
-                                              abs_mask_val,
-                                              abs_mask_val,
-                                              abs_mask_val,
-                                              abs_mask_val};
+            {kF16MinNeg, kF16MinNeg, kF16MinNeg, kF16MinNeg, kF16MinNeg, kF16MinNeg, kF16MinNeg, kF16MinNeg};
+        static constexpr int32_t i32_ones[8] = {1, 1, 1, 1, 1, 1, 1, 1};
+        static constexpr float abs_errs[8] = {kF16CompressionAbsErrVal,
+                                               kF16CompressionAbsErrVal,
+                                               kF16CompressionAbsErrVal,
+                                               kF16CompressionAbsErrVal,
+                                               kF16CompressionAbsErrVal,
+                                               kF16CompressionAbsErrVal,
+                                               kF16CompressionAbsErrVal,
+                                               kF16CompressionAbsErrVal};
+        static constexpr float rel_errs[8] = {kF16CompressionRelErrVal,
+                                               kF16CompressionRelErrVal,
+                                               kF16CompressionRelErrVal,
+                                               kF16CompressionRelErrVal,
+                                               kF16CompressionRelErrVal,
+                                               kF16CompressionRelErrVal,
+                                               kF16CompressionRelErrVal,
+                                               kF16CompressionRelErrVal};
+        static constexpr uint32_t abs_masks[8] =
+            {kAbsMaskVal, kAbsMaskVal, kAbsMaskVal, kAbsMaskVal, kAbsMaskVal, kAbsMaskVal, kAbsMaskVal, kAbsMaskVal};
 
         auto load_vec = [this](Ymm vec, size_t ptr) {
             mov(r15, ptr);
             vmovdqu(vec, yword[r15]);
         };
 
-        load_vec(f16_max_pos_vec, (size_t)max_pos_bounds);
-        load_vec(f16_max_neg_vec, (size_t)max_neg_bounds);
-        load_vec(f16_min_pos_vec, (size_t)min_pos_bounds);
-        load_vec(f16_min_neg_vec, (size_t)min_neg_bounds);
-        load_vec(i32_ones_vec, (size_t)i32_ones);
-        load_vec(abs_err_vec, (size_t)abs_errs);
-        load_vec(rel_err_vec, (size_t)rel_errs);
-        load_vec(abs_mask_vec, (size_t)abs_masks);
+        load_vec(f16_max_pos_vec, reinterpret_cast<size_t>(max_pos_bounds));
+        load_vec(f16_max_neg_vec, reinterpret_cast<size_t>(max_neg_bounds));
+        load_vec(f16_min_pos_vec, reinterpret_cast<size_t>(min_pos_bounds));
+        load_vec(f16_min_neg_vec, reinterpret_cast<size_t>(min_neg_bounds));
+        load_vec(i32_ones_vec, reinterpret_cast<size_t>(i32_ones));
+        load_vec(abs_err_vec, reinterpret_cast<size_t>(abs_errs));
+        load_vec(rel_err_vec, reinterpret_cast<size_t>(rel_errs));
+        load_vec(abs_mask_vec, reinterpret_cast<size_t>(abs_masks));
         vxorps(f16_zero_vec, f16_zero_vec, f16_zero_vec);
         vxorps(oor_accum, oor_accum, oor_accum);
 
@@ -923,6 +928,16 @@ void convert_from_bf16_to_f16_with_clamp(const bfloat16* arg, float16* out, size
     // CVS-125496: duplicate and stub for ARM, provide optimized solution
 }
 
+namespace {
+// Predicate: true iff the FP16 representation of `v` falls outside the finite FP16
+// normal range (subnormal when rounded, or magnitude larger than float16::max()).
+// Shared between check_f16_compression() slow-path and count_out_of_f16_range().
+inline bool is_out_of_f16_range(float v) {
+    return (std::abs(v) < float16::from_bits(0x0001) && v != 0.0f) || v > std::numeric_limits<float16>::max() ||
+           v < std::numeric_limits<float16>::lowest();
+}
+}  // namespace
+
 CompressionCheckResult check_f16_compression(const float* arg, size_t count) {
 #ifdef OV_CORE_USE_XBYAK_JIT
     if (util::may_i_use_dynamic_code()) {
@@ -945,8 +960,7 @@ CompressionCheckResult check_f16_compression(const float* arg, size_t count) {
     size_t out_of_range = 0;
     for (size_t i = 0; i < count; ++i) {
         const float v = arg[i];
-        if ((std::abs(v) < float16::from_bits(0x0001) && v != 0.0f) || v > std::numeric_limits<float16>::max() ||
-            v < std::numeric_limits<float16>::lowest()) {
+        if (is_out_of_f16_range(v)) {
             ++out_of_range;
         } else {
             const double roundtripped = static_cast<double>(static_cast<float>(static_cast<float16>(v)));
@@ -966,11 +980,6 @@ size_t count_out_of_f16_range(const float* arg, size_t count) {
     // Backward-compatible helper: strict FP16-range count only (no relative-error accounting).
     // The in-tree FP16 compression path uses check_f16_compression(); this wrapper exists for
     // external developer-package consumers that linked against the pre-PR symbol.
-    const auto is_out_of_f16_range = [](const float v) {
-        return (std::abs(v) < float16::from_bits(0x0001) && v != 0.0f) || (v > std::numeric_limits<float16>::max()) ||
-               (v < std::numeric_limits<float16>::lowest());
-    };
-
     return std::count_if(arg, arg + count, is_out_of_f16_range);
 }
 
