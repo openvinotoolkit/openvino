@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <unordered_map>
 
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/read_value.hpp"
@@ -18,6 +19,21 @@
 namespace ov {
 namespace test {
 namespace npuw {
+
+namespace {
+void annotate_constants_with_weightless_cache(const std::shared_ptr<ov::Model>& model) {
+    std::size_t offset = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (!ov::op::util::is_constant(node)) {
+            continue;
+        }
+        const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node);
+        c->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+            ov::WeightlessCacheAttribute(c->get_byte_size(), offset, c->get_element_type());
+        offset += c->get_byte_size();
+    }
+}
+}  // namespace
 
 // Named constants for magic values used throughout model construction.
 constexpr float kRoPEBaseFrequency = 10000.0f;
@@ -1030,6 +1046,16 @@ std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks() {
     return get_model_with_repeated_blocks(10);
 }
 
+std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks_with_weightless_cache(std::size_t repetitions) {
+    auto model = get_model_with_repeated_blocks(repetitions);
+    annotate_constants_with_weightless_cache(model);
+    return model;
+}
+
+std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks_with_weightless_cache() {
+    return get_model_with_repeated_blocks_with_weightless_cache(10);
+}
+
 std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks_and_results(
     std::size_t repetitions,
     const std::vector<std::size_t>& block_indices) {
@@ -1173,6 +1199,126 @@ std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks_and_para
     m_nodes.push_back(result);
 
     return std::make_shared<ov::Model>(ov::OutputVector{result->output(0)});
+}
+
+// Builds a model with N identical repeated blocks (using get_block(), same structure as
+// get_model_with_repeated_blocks_and_results) where "head" blocks additionally expose
+// their output via a MatMul to a separate Parameter-weighted projection group, mimicking
+// Gemma4's KV-sharing pattern:
+//   - Non-head blocks: block_output → next_block (only internal consumer)
+//   - Head blocks:     block_output → next_block  (internal)
+// Builds a model with N identical repeated blocks where "head" blocks additionally
+// expose their interior Relu via a cross-group MatMul, reproducing the Gemma4
+// KV-sharing asymmetry pattern.
+//
+// Block structure: Add(bias) → Relu(interior/TAP) → Multiply(scale) → Relu(boundary)
+//
+// Both Relu nodes have identical metadescs (same op type, same f32{1,1,8} I/O shape).
+// When a "head" block's interior Relu gains an external MatMul consumer, it becomes
+// an additional output_layer — but its metadesc ("Relu…") is already present in
+// output_ometa via the boundary Relu.  Therefore ALL blocks retain the same
+// MetaInterconnectIO and remain in one repeated-block family, allowing
+// isRegularCrossGroupConsumerCase to observe the per-bank inconsistency:
+//   - non-head: interior Relu bank → has_external=false (only internal Multiply consumer)
+//   - head:     interior Relu bank → has_external=true  (Multiply + external MatMul)
+// The mask mismatch causes isRegularCrossGroupConsumerCase to return false →
+// irregular_io=true, disabling F16IC for this model.
+std::shared_ptr<ov::Model> ModelBuilder::get_model_with_kv_sharing_repeated_blocks(
+    std::size_t repetitions,
+    const std::vector<std::size_t>& head_block_indices) {
+    clear();
+    if (repetitions == 0)
+        repetitions = 1;
+
+    const std::unordered_set<std::size_t> head_set(head_block_indices.begin(), head_block_indices.end());
+
+    auto input = std::make_shared<ov::opset11::Parameter>(ov::element::f32, ov::Shape{1, 1, 8});
+    auto kv_weight = std::make_shared<ov::opset11::Parameter>(ov::element::f32, ov::Shape{8, 4});
+    m_nodes.push_back(input);
+    m_nodes.push_back(kv_weight);
+    set_name(input);
+    set_name(kv_weight);
+
+    // Shared constants — same pointer → same Constant node used by all blocks,
+    // ensuring identical metadescs for the Add and Multiply ops in every block.
+    auto bias_const = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, 1, 8}, std::vector<float>(8, 0.1f));
+    auto scale_const = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1}, std::vector<float>{0.5f});
+    m_nodes.push_back(bias_const);
+    m_nodes.push_back(scale_const);
+    set_name(bias_const);
+    set_name(scale_const);
+
+    // Non-repeated prefix — distinct structure prevents it from joining the repetitions.
+    auto head_const = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, 1, 8}, std::vector<float>(8, 1.f));
+    auto head_add = std::make_shared<ov::opset11::Add>(input, head_const);
+    auto head_relu = std::make_shared<ov::opset11::Relu>(head_add);
+    m_nodes.push_back(head_const);
+    m_nodes.push_back(head_add);
+    m_nodes.push_back(head_relu);
+    set_name(head_const);
+    set_name(head_add);
+    set_name(head_relu);
+
+    ov::Output<ov::Node> current = head_relu;
+    ov::OutputVector kv_outputs;
+
+    for (std::size_t i = 0; i < repetitions; ++i) {
+        auto add_i = std::make_shared<ov::opset11::Add>(current, bias_const);
+        auto relu_interior_i = std::make_shared<ov::opset11::Relu>(add_i);  // TAP POINT
+        auto mul_i = std::make_shared<ov::opset11::Multiply>(relu_interior_i, scale_const);
+        auto relu_boundary_i = std::make_shared<ov::opset11::Relu>(mul_i);  // boundary output
+        m_nodes.push_back(add_i);
+        m_nodes.push_back(relu_interior_i);
+        m_nodes.push_back(mul_i);
+        m_nodes.push_back(relu_boundary_i);
+        set_name(add_i);
+        set_name(relu_interior_i);
+        set_name(mul_i);
+        set_name(relu_boundary_i);
+
+        if (head_set.count(i)) {
+            // Cross-group edge from the interior Relu, mirroring Gemma4's
+            // Multiply_1 → k/v_proj pattern.  Because relu_interior_i and
+            // relu_boundary_i share the same metadesc, adding relu_interior_i
+            // as a second output_layer leaves output_ometa = {"Relu…"} unchanged.
+            auto kv_mm_i = std::make_shared<ov::opset11::MatMul>(relu_interior_i, kv_weight, false, false);
+            m_nodes.push_back(kv_mm_i);
+            set_name(kv_mm_i);
+            kv_outputs.push_back(kv_mm_i->output(0));
+        }
+
+        current = relu_boundary_i;
+    }
+
+    // Non-repeated tail suffix.
+    auto tail_const = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, 1, 8}, std::vector<float>(8, 2.f));
+    auto tail_mul = std::make_shared<ov::opset11::Multiply>(current, tail_const);
+    auto tail_add = std::make_shared<ov::opset11::Add>(tail_mul, tail_const);
+    m_nodes.push_back(tail_const);
+    m_nodes.push_back(tail_mul);
+    m_nodes.push_back(tail_add);
+    set_name(tail_const);
+    set_name(tail_mul);
+    set_name(tail_add);
+
+    auto main_result = std::make_shared<ov::opset11::Result>(tail_add);
+    m_nodes.push_back(main_result);
+    set_name(main_result);
+    ov::OutputVector outputs{main_result->output(0)};
+
+    // Each head block's KV MatMul connects to an independent Result to avoid
+    // creating asymmetric ov::Result consumer patterns across the repeated family.
+    // If we accumulated kv_outputs into a single Result, only the last block would
+    // indirectly connect to that Result via the accumulation chain, causing
+    // isRegularResultCase to fail.
+    for (auto&& kv_out : kv_outputs) {
+        auto kv_result = std::make_shared<ov::opset11::Result>(kv_out);
+        m_nodes.push_back(kv_result);
+        set_name(kv_result);
+        outputs.push_back(kv_result->output(0));
+    }
+
+    return std::make_shared<ov::Model>(outputs, ov::ParameterVector{input, kv_weight});
 }
 
 std::shared_ptr<ov::Model> ModelBuilder::get_model_with_multi_output_repeating_blocks(
@@ -1350,7 +1496,7 @@ void ModelBuilder::clear() {
     m_name_idx = 0;
 }
 
-ov::Output<ov::Node> ModelBuilder::setup_position_ids(ModelConfig& config, const ov::Output<ov::Node>& seq_source) {
+ov::Output<ov::Node> ModelBuilder::setup_position_ids(LLMConfig& config, const ov::Output<ov::Node>& seq_source) {
     OPENVINO_ASSERT(!(config.internal_position_ids && config.position_ids.get_node()),
                     "internal_position_ids and position_ids are mutually exclusive");
     ov::Output<ov::Node> position_ids_output;
@@ -1392,36 +1538,14 @@ std::shared_ptr<ov::Model> ModelBuilder::make_model(const ov::Output<ov::Node>& 
     return std::make_shared<ov::Model>(ov::OutputVector{res->output(0)}, m_sinks, model_name);
 }
 
-std::shared_ptr<ov::Model> ModelBuilder::build_model(const ModelConfig& config_in) {
-    OPENVINO_ASSERT(
-        static_cast<int>(config_in.use_conv_features) + static_cast<int>(config_in.use_cross_attention) + static_cast<int>(config_in.use_token_type_embedding) <= 1,
-        "At most one structural dispatch flag may be set");
-
-    // Fill in norm/ffn defaults from actual config sizes when the caller left them empty.
-    ModelConfig config = config_in;
-    if (!config.norm) {
-        config.norm = LayerNorm(config.hidden_size, config.precision);
-    }
-    if (!config.ffn) {
-        config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, config.precision, config.weight);
-    }
-
-    if (config.use_conv_features) {
-        return build_whisper_encoder(config);
-    }
-    if (config.use_cross_attention) {
-        return build_whisper_decoder(config);
-    }
-    if (config.use_token_type_embedding) {
-        return build_embedding_encoder(config);
-    }
-    return build_llm(config);
-}
-
-std::shared_ptr<ov::Model> ModelBuilder::build_llm(const ModelConfig& config_in) {
+std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     clear();
 
-    ModelConfig config = config_in;
+    LLMConfig config = config_in;
+    if (!config.norm)
+        config.norm = LayerNorm(config.hidden_size, config.precision);
+    if (!config.ffn)
+        config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, config.precision, config.weight);
     const auto prec = config.precision;
 
     auto attention_mask = parameter(ov::element::i64, ov::PartialShape{-1, -1}, "attention_mask");
@@ -1539,8 +1663,13 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const ModelConfig& config_in)
     return make_model(final_norm, "last_hidden_state", model_name);
 }
 
-std::shared_ptr<ov::Model> ModelBuilder::build_whisper_encoder(const ModelConfig& config) {
+std::shared_ptr<ov::Model> ModelBuilder::build_whisper_encoder(const WhisperConfig& config_in) {
     clear();
+    WhisperConfig config = config_in;
+    if (!config.norm)
+        config.norm = LayerNorm(config.hidden_size, config.precision);
+    if (!config.ffn)
+        config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, config.precision, config.weight);
     const auto prec = config.precision;
     const auto d = config.hidden_size;
 
@@ -1787,8 +1916,13 @@ static ov::Output<ov::Node> make_whisper_positional_embedding(const ov::Output<o
     return hidden_states->output(0);
 }
 
-std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const ModelConfig& config) {
+std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const WhisperConfig& config_in) {
     clear();
+    WhisperConfig config = config_in;
+    if (!config.norm)
+        config.norm = LayerNorm(config.hidden_size, config.precision);
+    if (!config.ffn)
+        config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, config.precision, config.weight);
     const auto prec = config.precision;
     const auto d = config.hidden_size;
     const auto heads = config.num_heads;
@@ -1796,7 +1930,9 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const ModelConfig
 
     auto input_ids = parameter(ov::element::i64, ov::PartialShape{-1, -1}, "input_ids");
     auto encoder_hidden_states =
-        parameter(ov::element::f32, ov::PartialShape{-1, -1, static_cast<int64_t>(d)}, "encoder_hidden_states");
+        parameter(ov::element::f32,
+                  ov::PartialShape{-1, static_cast<int64_t>(config.get_encoder_seq_len()), static_cast<int64_t>(d)},
+                  "encoder_hidden_states");
     auto beam_idx = parameter(ov::element::i32, ov::PartialShape{-1}, "beam_idx");
 
     ov::Output<ov::Node> enc_hs = encoder_hidden_states->output(0);
@@ -1922,8 +2058,13 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const ModelConfig
     return make_model(logits_out, "logits", "synthetic_whisper_decoder");
 }
 
-std::shared_ptr<ov::Model> ModelBuilder::build_embedding_encoder(const ModelConfig& config) {
+std::shared_ptr<ov::Model> ModelBuilder::build_embedding_encoder(const BertConfig& config_in) {
     clear();
+    BertConfig config = config_in;
+    if (!config.norm)
+        config.norm = LayerNorm(config.hidden_size, config.precision);
+    if (!config.ffn)
+        config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, config.precision, config.weight);
 
     const auto prec = config.precision;
     const auto hs = config.hidden_size;

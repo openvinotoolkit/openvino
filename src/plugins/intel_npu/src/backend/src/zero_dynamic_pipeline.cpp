@@ -4,7 +4,7 @@
 
 #include "zero_dynamic_pipeline.hpp"
 
-#include <ze_api.h>
+#include <level_zero/ze_api.h>
 #include <ze_graph_ext.h>
 
 #include <sstream>
@@ -14,6 +14,7 @@
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
 
@@ -77,9 +78,8 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
 
     if (_sync_output_with_fences) {
         _fences.reserve(_batch_size);
-
         for (size_t i = 0; i < _batch_size; i++) {
-            _fences.emplace_back(std::make_unique<Fence>(_graph->get_command_queue()));
+            _fences.emplace_back(std::make_unique<Fence>(_command_queue));
         }
     }
 
@@ -181,7 +181,19 @@ void DynamicPipeline::push() {
     auto* dynamicGraph = dynamic_cast<IDynamicGraph*>(_graph.get());
     OPENVINO_ASSERT(dynamicGraph != nullptr, "Failed to cast graph to IDynamicGraph");
 
-    auto commandQueueHandle = _graph->get_command_queue()->handle();
+    const auto command_queue_desc = _graph->get_command_queue_desc();
+    const bool command_queue_version_changed = (command_queue_desc.key() != _command_queue->desc().key());
+    if (command_queue_version_changed) {
+        _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, command_queue_desc);
+
+        if (_sync_output_with_fences) {
+            for (size_t i = 0; i < _fences.size(); i++) {
+                _fences[i] = std::make_unique<Fence>(_command_queue);
+            }
+        }
+    }
+
+    auto commandQueueHandle = _command_queue->handle();
     for (size_t i = 0; i < _command_lists.size(); ++i) {
         OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
 
@@ -298,19 +310,11 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
                     "Command list index is higher than the number of Command lists ",
                     batch_index);
 
-    if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
-        _command_lists.at(batch_index)
-            ->updateMutableCommandList(index,
-                                       zeroTensor->data(),
-                                       get_strides(tensor->get_strides(), elementSize),
-                                       tensor->get_shape());
-    } else {
-        _command_lists.at(batch_index)
-            ->updateMutableCommandList(index,
-                                       zeroTensor->data(),
-                                       get_strides(tensor->get_strides(), elementSize),
-                                       tensor->get_shape());
-    }
+    _command_lists.at(batch_index)
+        ->updateMutableCommandList(index,
+                                   zeroTensor->data(),
+                                   get_strides(tensor->get_strides(), elementSize),
+                                   tensor->get_shape());
 }
 
 }  // namespace intel_npu

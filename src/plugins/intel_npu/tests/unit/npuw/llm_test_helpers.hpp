@@ -13,14 +13,17 @@
 #include "compiled_model.hpp"
 #include "llm_compiled_model.hpp"
 #include "model_builder.hpp"
+#include "openvino/op/fake_convert.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "serialization.hpp"
 #include "weights_bank.hpp"
 
 namespace ov::test::npuw {
 
-inline ModelConfig make_llm_test_model_config() {
-    ModelConfig cfg;
+template <typename Config = LLMConfig>
+inline Config make_test_model_config() {
+    Config cfg;
     cfg.num_layers = 2;
     cfg.hidden_size = 64;
     cfg.num_heads = 4;
@@ -32,21 +35,45 @@ inline ModelConfig make_llm_test_model_config() {
 
 inline std::shared_ptr<ov::Model> build_llm_test_model() {
     ModelBuilder mb;
-    return mb.build_model(make_llm_test_model_config());
+    return mb.build_llm(make_test_model_config());
+}
+
+inline std::shared_ptr<ov::Model> build_llm_test_model_with_kv_fake_convert(const ov::element::Type fake_convert_type) {
+    auto model = build_llm_test_model();
+    auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
+
+    for (const auto& op : model->get_ordered_ops()) {
+        auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(op);
+        if (!sdpa) {
+            continue;
+        }
+
+        auto inject_fake_convert = [&](size_t input_idx, const std::string& suffix) {
+            auto fake_convert_1 =
+                std::make_shared<ov::op::v13::FakeConvert>(sdpa->input_value(input_idx), scale, fake_convert_type);
+            auto fake_convert_2 =
+                std::make_shared<ov::op::v13::FakeConvert>(fake_convert_1, scale, fake_convert_type);
+            fake_convert_1->set_friendly_name(sdpa->get_friendly_name() + "/" + suffix + "_1");
+            fake_convert_2->set_friendly_name(sdpa->get_friendly_name() + "/" + suffix + "_2");
+            sdpa->input(input_idx).replace_source_output(fake_convert_2);
+        };
+
+        inject_fake_convert(1, "key_fake_convert");
+        inject_fake_convert(2, "value_fake_convert");
+    }
+
+    model->validate_nodes_and_infer_types();
+    return model;
 }
 
 inline std::shared_ptr<ov::Model> build_whisper_decoder_test_model() {
-    auto cfg = make_llm_test_model_config();
-    cfg.use_cross_attention = true;
     ModelBuilder mb;
-    return mb.build_model(cfg);
+    return mb.build_whisper_decoder(make_test_model_config<WhisperConfig>());
 }
 
 inline std::shared_ptr<ov::Model> build_embedding_test_model() {
-    auto cfg = make_llm_test_model_config();
-    cfg.use_token_type_embedding = true;
     ModelBuilder mb;
-    return mb.build_model(cfg);
+    return mb.build_embedding_encoder(make_test_model_config<BertConfig>());
 }
 
 class NullPlugin : public ov::IPlugin {
@@ -159,10 +186,23 @@ public:
         });
     }
 
+    std::size_t count_contains(std::string_view fragment) const {
+        return std::count_if(m_calls.begin(), m_calls.end(), [fragment](const CompileCall& call) {
+            return call.friendly_name.find(fragment) != std::string::npos;
+        });
+    }
+
     const CompileCall* find_suffix(std::string_view suffix) const {
         const auto it = std::find_if(m_calls.begin(), m_calls.end(), [suffix](const CompileCall& call) {
             return call.friendly_name.size() >= suffix.size() &&
                    call.friendly_name.compare(call.friendly_name.size() - suffix.size(), suffix.size(), suffix) == 0;
+        });
+        return it == m_calls.end() ? nullptr : &(*it);
+    }
+
+    const CompileCall* find_contains(std::string_view fragment) const {
+        const auto it = std::find_if(m_calls.begin(), m_calls.end(), [fragment](const CompileCall& call) {
+            return call.friendly_name.find(fragment) != std::string::npos;
         });
         return it == m_calls.end() ? nullptr : &(*it);
     }

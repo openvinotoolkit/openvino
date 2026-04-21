@@ -400,24 +400,6 @@ function(ov_link_system_libraries TARGET_NAME)
 endfunction()
 
 #
-# ov_try_use_gold_linker()
-#
-# Tries to use gold linker in current scope (directory, function)
-#
-function(ov_try_use_gold_linker)
-    # don't use the gold linker, if the mold linker is set
-    if(CMAKE_EXE_LINKER_FLAGS MATCHES "mold" OR CMAKE_MODULE_LINKER_FLAGS MATCHES "mold" OR CMAKE_SHARED_LINKER_FLAGS MATCHES "mold")
-        return()
-    endif()
-
-    # gold linker on ubuntu20.04 may fail to link binaries build with sanitizer
-    if(CMAKE_COMPILER_IS_GNUCXX AND NOT ENABLE_SANITIZER AND NOT CMAKE_CROSSCOMPILING)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold" PARENT_SCOPE)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold" PARENT_SCOPE)
-    endif()
-endfunction()
-
-#
 # ov_target_link_libraries_as_system(<TARGET NAME> <PUBLIC | PRIVATE | INTERFACE> <target1 target2 ...>)
 #
 function(ov_target_link_libraries_as_system TARGET_NAME LINK_TYPE)
