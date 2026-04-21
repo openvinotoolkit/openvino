@@ -147,7 +147,7 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
         throw std::logic_error("Incorrect API. Please set -api option to `sync` or `async` value.");
     }
     if (FLAGS_api == "sync") {
-        if ((FLAGS_t == 0) && (FLAGS_nireq > FLAGS_niter)) {
+        if ((FLAGS_t == 0) && FLAGS_niter != 0 && (FLAGS_nireq > FLAGS_niter)) {
             throw std::logic_error(
                 "Number of iterations should be greater than number of infer requests when using sync API.");
         }
@@ -636,6 +636,11 @@ int main(int argc, char* argv[]) {
             });
         };
 
+        // When -niter 0 is explicitly passed, compile the model and exit without running inference.
+        // This is useful for validating compilation of models with dynamic shapes that would otherwise
+        // require -shape, -data_shape, or -i to be specified.
+        const bool compile_only = isFlagSetInCommandLine("niter") && FLAGS_niter == 0;
+
         if (FLAGS_load_from_file && !isNetworkCompiled) {
             if (!FLAGS_mean_values.empty() || !FLAGS_scale_values.empty()) {
                 throw std::runtime_error("--mean_values and --scale_values aren't supported with --load_from_file. "
@@ -675,7 +680,8 @@ int main(int argc, char* argv[]) {
                                               inputFiles,
                                               FLAGS_scale_values,
                                               FLAGS_mean_values,
-                                              compiledModel.inputs());
+                                              compiledModel.inputs(),
+                                              compile_only);
             if (batchSize == 0) {
                 batchSize = 1;
             }
@@ -723,7 +729,8 @@ int main(int argc, char* argv[]) {
                                               FLAGS_scale_values,
                                               FLAGS_mean_values,
                                               inputInfo,
-                                              reshape);
+                                              reshape,
+                                              compile_only);
             if (reshape) {
                 benchmark_app::PartialShapes shapes = {};
                 for (auto& item : app_inputs_info[0])
@@ -829,9 +836,13 @@ int main(int argc, char* argv[]) {
 
             topology_name = model->get_friendly_name();
 
-            batchSize = get_batch_size(app_inputs_info.at(0));
-            warn_if_no_batch(app_inputs_info.at(0));
-            slog::info << "Model batch size: " << batchSize << slog::endl;
+            // In compile_only mode dataShape is left empty (no inference will run), so
+            // get_batch_size() would crash. batchSize is only needed for steps 8-10 anyway.
+            if (!compile_only) {
+                batchSize = get_batch_size(app_inputs_info.at(0));
+                warn_if_no_batch(app_inputs_info.at(0));
+                slog::info << "Model batch size: " << batchSize << slog::endl;
+            }
 
             printInputAndOutputsInfoShort(*model);
             // ----------------- 7. Loading the model to the device
@@ -903,16 +914,39 @@ int main(int argc, char* argv[]) {
                                               inputFiles,
                                               FLAGS_scale_values,
                                               FLAGS_mean_values,
-                                              compiledModel.inputs());
+                                              compiledModel.inputs(),
+                                              compile_only);
             isDynamicNetwork = areNetworkInputsDynamic(app_inputs_info.at(0));
 
-            batchSize = get_batch_size(app_inputs_info.at(0));
-            warn_if_no_batch(app_inputs_info.at(0));
-            slog::info << "Model batch size: " << batchSize << slog::endl;
+            // In compile_only mode dataShape is left empty (no inference will run), so
+            // get_batch_size() would crash. batchSize is only needed for steps 8-10 anyway.
+            if (!compile_only) {
+                batchSize = get_batch_size(app_inputs_info.at(0));
+                warn_if_no_batch(app_inputs_info.at(0));
+                slog::info << "Model batch size: " << batchSize << slog::endl;
+            }
 
             if (batchSize == 0) {
                 batchSize = 1;
             }
+        }
+
+        if (compile_only) {
+            slog::info << "Model compiled successfully. Skipping inference due to -niter 0." << slog::endl;
+            next_step("skipped");  // 8 - Querying optimal runtime parameters
+            next_step("skipped");  // 9 - Creating infer requests and preparing input tensors
+            next_step("skipped");  // 10 - Measuring performance
+            // ----------------- 11. Dumping statistics report
+            // -------------------------------------------------------------
+            next_step();
+            if (!FLAGS_dump_config.empty()) {
+                dump_config(FLAGS_dump_config, config);
+                slog::info << "OpenVINO Runtime configuration settings were dumped to " << FLAGS_dump_config
+                           << slog::endl;
+            }
+            if (statistics)
+                statistics->dump();
+            return 0;
         }
 
         bool allow_inference_only_or_sync = can_measure_as_static(app_inputs_info);

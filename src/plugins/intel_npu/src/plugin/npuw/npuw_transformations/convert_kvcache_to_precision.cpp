@@ -5,6 +5,8 @@
 #include "convert_kvcache_to_precision.hpp"
 
 #include "../logging.hpp"
+#include "../util.hpp"
+#include "kv_cache_compressed.hpp"
 #include "low_precision/concat.hpp"
 #include "low_precision/kv_cache_concat.hpp"
 #include "low_precision/low_precision.hpp"
@@ -66,21 +68,52 @@ public:
 
 std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov::Model>& model,
                                                         const ov::element::Type lptype) {
+    // Resolve storage types first and apply them through PPP for both inputs and outputs.
+    // Default path keeps KV cache in f16; integer hint uses key=i8/u8 and value=i4.
+    auto key_storage_type = lptype;
+    auto value_storage_type = lptype;
+
+    const bool use_integer_kv_storage = (lptype == ov::element::i8 || lptype == ov::element::u8);
+    if (use_integer_kv_storage) {
+        key_storage_type = lptype;
+        // TODO: int4 precision for value-cache lead to compilation failure for now
+        value_storage_type = ov::element::i8;
+    }
+
     ov::preprocess::PrePostProcessor ppp(model);
 
     for (const auto& tensor : model->inputs()) {
-        if (tensor.get_any_name().find("past_key") != std::string::npos) {
-            ppp.input(tensor.get_any_name()).tensor().set_element_type(lptype);
+        const auto& name = tensor.get_any_name();
+        if (ov::npuw::util::isPastKeyValuesKey(name).has_value()) {
+            ppp.input(name).tensor().set_element_type(key_storage_type);
+        } else if (ov::npuw::util::isPastKeyValuesValue(name).has_value()) {
+            ppp.input(name).tensor().set_element_type(value_storage_type);
         }
     }
 
     for (const auto& tensor : model->outputs()) {
-        if (tensor.get_any_name().find("present") != std::string::npos) {
-            ppp.output(tensor.get_any_name()).tensor().set_element_type(lptype);
+        const auto& name = tensor.get_any_name();
+        if (ov::npuw::util::isPresentKeyValuesKey(name).has_value()) {
+            ppp.output(name).tensor().set_element_type(key_storage_type);
+        } else if (ov::npuw::util::isPresentKeyValuesValue(name).has_value()) {
+            ppp.output(name).tensor().set_element_type(value_storage_type);
         }
     }
+    auto new_model = ppp.build();
 
-    return ppp.build();
+    if (use_integer_kv_storage) {
+        ov::npuw::KVCacheCompressionParams dq_params;
+        dq_params.key.quantization_dt = key_storage_type;
+        dq_params.key.quantization_type = ov::npuw::KVCacheCompressionConfig::QuantizationType::Asymmetric;
+        dq_params.value.quantization_dt = value_storage_type;
+        dq_params.value.quantization_type = ov::npuw::KVCacheCompressionConfig::QuantizationType::Symmetric;
+
+        LOG_DEBUG("Running KV-cache compression passes: key=" << key_storage_type << ", value=" << value_storage_type
+                                                              << " on model[" << model->get_friendly_name() << "]");
+        ov::npuw::run_kv_cache_dynamic_quantization_passes(new_model, dq_params);
+    }
+
+    return new_model;
 }
 
 }  // namespace
