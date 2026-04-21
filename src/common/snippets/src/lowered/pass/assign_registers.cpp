@@ -54,7 +54,11 @@ AssignRegisters::RegMap AssignRegisters::assign_regs_manually(const LinearIR& li
         gpr_pool.erase(gpr_pool.begin());
     }
     for (const auto& result : linear_ir.get_results()) {
-        manually_assigned[result->get_input_port_descriptor(0)->get_reg()] = *gpr_pool.begin();
+        const auto& in_reg = result->get_input_port_descriptor(0)->get_reg();
+        manually_assigned[in_reg] = *gpr_pool.begin();
+        for (const auto& pd : result->get_input_port_descriptors()) {
+            OPENVINO_ASSERT(pd->get_reg() == in_reg, "Snippets result operation must have same register on all inputs");
+        }
         gpr_pool.erase(gpr_pool.begin());
     }
 
@@ -80,6 +84,11 @@ AssignRegisters::RegMap AssignRegisters::assign_regs_manually(const LinearIR& li
             }
             OPENVINO_ASSERT(all_equal, "Buffer must have same register on all inputs and outputs");
         } else if (ov::is_type_any_of<op::HorizonMax, op::HorizonSum>(op)) {
+            const auto& in_reg = expr->get_input_port_descriptor(0)->get_reg();
+            for (const auto& pd : expr->get_input_port_descriptors()) {
+                OPENVINO_ASSERT(pd->get_reg() == in_reg,
+                                "Snippets HorizonMax/HorizonSum operation must have same register on all inputs");
+            }
             // Only in ReduceDecomposition Reduce ops use HorizonMax/HorizonSum and VectorBuffer.
             // We should manually set the one vector register for VectorBuffer and Max/Sum output to simulate a
             // accumulator
@@ -91,6 +100,8 @@ AssignRegisters::RegMap AssignRegisters::assign_regs_manually(const LinearIR& li
             for (const auto& tensor : input.get_expr()->get_input_port_connectors()) {
                 const auto parent = tensor->get_source();
                 const auto parent_expr = parent.get_expr();
+                // Max/Sum output(HMax/HSum input) and Max/Sum accumulator input(Fill -> VectorBuffer) should have the
+                // same register to simulate accumulator behavior
                 if (ov::is_type<op::Fill>(parent_expr->get_node())) {
                     if (ov::is_type<op::VectorBuffer>(parent_expr->get_input_expr_ptr(0)->get_node())) {
                         manually_assigned[parent.get_descriptor_ptr()->get_reg()] =
@@ -98,7 +109,7 @@ AssignRegisters::RegMap AssignRegisters::assign_regs_manually(const LinearIR& li
                     }
                 }
             }
-            manually_assigned[input.get_descriptor_ptr()->get_reg()] = assigned;
+            manually_assigned[in_reg] = assigned;
             vec_pool.erase(vec_pool.begin());
         }
     }

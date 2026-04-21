@@ -13,6 +13,7 @@
 #include "llm_lora_states.hpp"
 #include "llm_prefix_caching.hpp"
 #include "openvino/core/descriptor/output.hpp"
+#include "perf.hpp"
 
 namespace ov {
 namespace npuw {
@@ -78,21 +79,17 @@ protected:
     std::shared_ptr<ov::IAsyncInferRequest> m_lm_head_request;
     ov::SoPtr<ov::ITensor> m_logits;
 
-    std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_in_ports;
-    std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_out_ports;
+    PortsMap m_prefill_in_ports;
+    PortsMap m_prefill_out_ports;
 
     // Ports for the currently selected generate model variant (set once per conversation in
     // prepare_for_new_conversation)
-    std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_in_ports;
-    std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_out_ports;
+    PortsMap m_kvcache_in_ports;
+    PortsMap m_kvcache_out_ports;
 
     // Ports for all generate model variants - maps from request pointer to its input/output ports
-    std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>,
-                       std::unordered_map<std::string, ov::Output<const ov::Node>>>
-        m_generate_variant_in_ports;
-    std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>,
-                       std::unordered_map<std::string, ov::Output<const ov::Node>>>
-        m_generate_variant_out_ports;
+    std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, PortsMap> m_generate_variant_in_ports;
+    std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, PortsMap> m_generate_variant_out_ports;
 
     ov::Output<const ov::Node> m_lm_head_logits_port;
 
@@ -107,7 +104,6 @@ protected:
     bool m_first_run = true;
 
     int64_t m_first_position_id = 0;
-    int32_t m_gemma_sliding_window_size = 0;
 
     uint64_t m_tokens_in_present_chunk = 0;
 
@@ -127,6 +123,10 @@ protected:
 
     // Support prefix caching
     std::unique_ptr<PrefixCachingHelper> m_prefix_caching_helper;
+
+    // LLM-level profiling for 1st token generation analysis
+    using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
+    ov::npuw::perf::Profile<MS> m_llm_profile;
 
     // Friend declarations for PrefixCachingHelper to access protected members
     friend class PrefixCachingHelper;

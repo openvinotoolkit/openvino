@@ -14,9 +14,11 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ov::op;
+namespace v0 = ov::op::v0;
 
-ov::pass::ConcatFusion::ConcatFusion() {
+namespace ov::pass {
+
+ConcatFusion::ConcatFusion() {
     MATCHER_SCOPE(ConcatFusion);
     auto has_same_axis_concat_input = [](const Output<Node>& output) {
         const auto& concat = ov::as_type_ptr<v0::Concat>(output.get_node_shared_ptr());
@@ -56,6 +58,8 @@ ov::pass::ConcatFusion::ConcatFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(concat_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(concat_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

@@ -79,7 +79,7 @@ void OVCompileModelGetExecutionDeviceTests::SetUp() {
 }
 
 TEST_P(OVClassCompiledModelPropertiesTests, CanUseCache) {
-    std::string cache_dir = "./test_cache";
+    std::string cache_dir = "./test_cache_" + ov::test::utils::generateTestFilePrefix();
     core->set_property(ov::cache_dir(cache_dir));
     OV_ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
     OV_ASSERT_NO_THROW(core->compile_model(model, target_device, properties));

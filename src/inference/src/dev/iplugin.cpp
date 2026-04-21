@@ -9,6 +9,8 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "openvino/util/common_util.hpp"
 #include "transformations/common_optimizations/fused_names_cleanup.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 
@@ -40,7 +42,11 @@ bool is_graph_input_node(const std::shared_ptr<ov::Node>& node) {
 
 }  // namespace
 
-ov::IPlugin::IPlugin() : m_executor_manager(ov::threading::executor_manager()) {}
+ov::IPlugin::IPlugin()
+    : m_plugin_name(),
+      m_core(),
+      m_executor_manager(ov::threading::executor_manager()),
+      m_version() {}
 
 void ov::IPlugin::set_version(const ov::Version& version) {
     m_version = version;
@@ -72,7 +78,7 @@ const std::shared_ptr<ov::threading::ExecutorManager>& ov::IPlugin::get_executor
     return m_executor_manager;
 }
 
-std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::string& model_path,
+std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::filesystem::path& model_path,
                                                                const ov::AnyMap& properties) const {
     auto core = get_core();
     OPENVINO_ASSERT(core);
@@ -82,6 +88,11 @@ std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::string
         CoreConfig::remove_core(local_properties);
     }
     return compile_model(model, local_properties);
+}
+
+bool ov::IPlugin::is_property_supported(const std::string& name, const ov::AnyMap& arguments) const {
+    const auto properties = get_property(ov::supported_properties.name(), arguments);
+    return util::contains(properties.as<std::vector<ov::PropertyName>>(), name);
 }
 
 std::unordered_set<std::string> ov::get_supported_nodes(
@@ -479,7 +490,7 @@ std::unordered_set<std::string> ov::get_supported_nodes(
     // and operation names from original model
     for (auto&& name : supported) {
         if (original_ops.count(name)) {
-            res.insert(name);
+            res.insert(std::move(name));
         }
     }
     // Remove parameters (or parameter/constant + convert) which has no supported consumers

@@ -14,20 +14,22 @@
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/transpose_sinking/ts_utils.hpp"
 
-using namespace ov;
-using namespace ov::pass::pattern;
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
+
+namespace v0 = ov::op::v0;
+
+namespace ov::pass {
 
 TSConcatForward::TSConcatForward() {
     MATCHER_SCOPE(TSConcatForward);
 
-    create_pattern<ov::op::v0::Concat>();
+    create_pattern<v0::Concat>();
 
     auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
                                                             const TransposeInputsInfo& transpose_info) -> bool {
         // todo: support dynamic rank case
-        auto concat_node = as_type_ptr<ov::op::v0::Concat>(main_node);
+        auto concat_node = as_type_ptr<v0::Concat>(main_node);
         if (!concat_node) {
             return false;
         }
@@ -64,28 +66,28 @@ TSConcatForward::TSConcatForward() {
 TSConcatBackward::TSConcatBackward() {
     MATCHER_SCOPE(TSConcatBackward);
 
-    auto main_node_label = wrap_type<ov::op::v0::Concat>([](const Output<Node>& output) -> bool {
-        return has_static_rank()(output) && CheckTransposeConsumers(output);
+    auto main_node_label = pattern::wrap_type<v0::Concat>([](const Output<Node>& output) -> bool {
+        return pattern::has_static_rank()(output) && CheckTransposeConsumers(output);
     });
 
-    auto transpose_const_label = wrap_type<ov::op::v0::Constant>();
+    auto transpose_const_label = pattern::wrap_type<v0::Constant>();
 
-    auto transpose_label = wrap_type<ov::op::v1::Transpose>({main_node_label, transpose_const_label},
-                                                            [](const Output<Node>& output) -> bool {
-                                                                return has_static_rank()(output);
-                                                            });
+    auto transpose_label = pattern::wrap_type<ov::op::v1::Transpose>({main_node_label, transpose_const_label},
+                                                                     [](const Output<Node>& output) -> bool {
+                                                                         return pattern::has_static_rank()(output);
+                                                                     });
 
-    matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_const =
-            as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
+            as_type_ptr<v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto main_node = pattern_to_output.at(main_node_label).get_node_shared_ptr();
         if (transformation_callback(main_node)) {
             return false;
         }
 
-        auto concat_node = as_type_ptr<ov::op::v0::Concat>(main_node);
+        auto concat_node = as_type_ptr<v0::Concat>(main_node);
         if (!concat_node) {
             return false;
         }
@@ -118,6 +120,8 @@ TSConcatBackward::TSConcatBackward() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(transpose_label, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(transpose_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
+
+}  // namespace ov::pass

@@ -71,7 +71,8 @@ extern "C" {
 ///       ::NPU_MLIR_RUNTIME_MAJOR_VERSION and ::NPU_MLIR_RUNTIME_MINOR_VERSION
 typedef enum _npu_mlir_runtime_version_t {
     NPU_MLIR_RUNTIME_VERSION_1_0 = ZE_MAKE_VERSION(1, 0),             ///< version 1.0
-    NPU_MLIR_RUNTIME_VERSION_CURRENT = NPU_MLIR_RUNTIME_VERSION_1_0,  ///< latest known version
+    NPU_MLIR_RUNTIME_VERSION_1_1 = ZE_MAKE_VERSION(1, 1),             ///< version 1.1
+    NPU_MLIR_RUNTIME_VERSION_CURRENT = NPU_MLIR_RUNTIME_VERSION_1_1,  ///< latest known version
     NPU_MLIR_RUNTIME_VERSION_FORCE_UINT32 = 0x7fffffff,
 } npu_mlir_runtime_version_t;
 
@@ -82,6 +83,10 @@ typedef struct _npu_mlir_runtime_handle_t* npu_mlir_runtime_handle_t;
 //////////////////////////////////////////////////////////////////////////////
 /// @brief NPU MLIR runtime MemRef handle
 typedef struct _npu_mlir_runtime_mem_ref_handle_t* npu_mlir_runtime_mem_ref_handle_t;
+
+//////////////////////////////////////////////////////////////////////////////
+/// @brief NPU MLIR runtime execution context handle
+typedef struct _npu_mlir_runtime_execution_context_handle_t* npu_mlir_runtime_execution_context_handle_t;
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Defined Return/Error codes
@@ -123,6 +128,7 @@ typedef struct _npu_mlir_runtime_execute_params_t {
     ze_command_queue_handle_t commandQueue;
     ze_fence_handle_t inferenceFence;
     ze_event_handle_t event;
+    npu_mlir_runtime_execution_context_handle_t executionContext;
 } npu_mlir_runtime_execute_params_t;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -180,7 +186,7 @@ NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL np
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Create MemRef handle
 NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL npuMLIRRuntimeCreateMemRef(
-    int64_t dimsCount,                            ///< [in] value of tensor rank
+    int64_t dimsCount,                             ///< [in] value of tensor rank
     npu_mlir_runtime_mem_ref_handle_t* phMemRef);  ///< [out] handle of mlir runtime MemRef object
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -209,6 +215,32 @@ npuMLIRRuntimeParseMemRef(npu_mlir_runtime_mem_ref_handle_t hMemRef,  ///< [in] 
                           int64_t* pSizes,                            ///< [out] pointer to tensor sizes
                           int64_t* pStrides,                          ///< [out] pointer to tensor strides
                           int64_t* pDimsCount);                       ///< [out] value of tensor rank
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// @brief Extension version 1.1
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Init MLIR runtime instance and return handle
+NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL npuMLIRRuntimeCreateExecutionContext(
+    npu_mlir_runtime_handle_t hRuntime,  ///< [in] handle of mlir runtime object
+    npu_mlir_runtime_execution_context_handle_t*
+        phExecutionHandle  ///< [out] pointer to handle of mlir runtime execution context created
+);
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Destroy MLIR runtime instance
+NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL npuMLIRRuntimeDestroyExecutionContext(
+    npu_mlir_runtime_execution_context_handle_t
+        phExecutionHandle  ///< [in][release] handle of execution context object to destroy
+);
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Update mutable command list used in execution and execute
+NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL npuMLIRRuntimeUpdateMutableCommandList(
+    npu_mlir_runtime_handle_t hRuntime,          ///< [in] handle of mlir runtime object
+    npu_mlir_runtime_execute_params_t* pParams,  ///< [in] pointer to execution parameters
+    uint64_t* argIndexArray,                     ///< [in] pointer to argument index list
+    uint64_t argIndexArraySize);                 ///< [in] size of argument index list
 
 #if defined(__cplusplus)
 }  // extern "C"

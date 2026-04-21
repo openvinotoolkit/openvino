@@ -85,6 +85,10 @@ using namespace testing;
 using namespace ov;
 using namespace std;
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v4 = ov::op::v4;
+namespace op_util = ov::op::util;
 template <element::Type_t T>
 bool has_type(std::shared_ptr<Model> f) {
     for (auto& node : f->get_ordered_ops()) {
@@ -360,17 +364,17 @@ TEST(TransformationTests, ConvertPrecision_Range) {
 TEST(TransformationTests, ConvertPrecision_Range_i32_to_i64) {
     std::shared_ptr<Model> model;
     {
-        auto param = std::make_shared<ov::op::v0::Parameter>(element::i64, Shape{1});
-        auto reduction_axes = ov::op::v0::Constant::create(element::i32, {1}, {0});
-        auto stop = std::make_shared<ov::op::v1::ReduceMax>(param, reduction_axes);
-        auto start = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
-        auto step = ov::op::v0::Constant::create(element::i32, {}, {1});
-        auto range = std::make_shared<ov::op::v4::Range>(start, stop, step, element::i64);
-        auto target_shape = ov::op::v0::Constant::create(element::i64, {2}, {1, -1});
-        auto reshape = std::make_shared<ov::op::v1::Reshape>(range, target_shape, false);
-        auto add_const = ov::op::v0::Constant::create(element::i64, {1, 1}, {1});
-        auto add = std::make_shared<ov::op::v1::Add>(reshape, add_const);
-        auto res = std::make_shared<ov::op::v0::Result>(add);
+        auto param = std::make_shared<v0::Parameter>(element::i64, Shape{1});
+        auto reduction_axes = v0::Constant::create(element::i32, {1}, {0});
+        auto stop = std::make_shared<v1::ReduceMax>(param, reduction_axes);
+        auto start = v0::Constant::create(element::i32, Shape{}, {0});
+        auto step = v0::Constant::create(element::i32, {}, {1});
+        auto range = std::make_shared<v4::Range>(start, stop, step, element::i64);
+        auto target_shape = v0::Constant::create(element::i64, {2}, {1, -1});
+        auto reshape = std::make_shared<v1::Reshape>(range, target_shape, false);
+        auto add_const = v0::Constant::create(element::i64, {1, 1}, {1});
+        auto add = std::make_shared<v1::Add>(reshape, add_const);
+        auto res = std::make_shared<v0::Result>(add);
 
         ov::disable_fp16_compression(start);
         ov::disable_fp16_compression(reduction_axes);
@@ -392,17 +396,17 @@ TEST(TransformationTests, ConvertPrecision_Range_i32_to_i64) {
 
     std::shared_ptr<Model> model_ref;
     {
-        auto param = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{1});
-        auto reduction_axes = ov::op::v0::Constant::create(element::i32, {1}, {0});
-        auto stop = std::make_shared<ov::op::v1::ReduceMax>(param, reduction_axes);
-        auto start = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
-        auto step = ov::op::v0::Constant::create(element::i32, {}, {1});
-        auto range = std::make_shared<ov::op::v4::Range>(start, stop, step, element::i32);
-        auto target_shape = ov::op::v0::Constant::create(element::i32, {2}, {1, -1});
-        auto reshape = std::make_shared<ov::op::v1::Reshape>(range, target_shape, false);
-        auto add_const = ov::op::v0::Constant::create(element::i32, {1, 1}, {1});
-        auto add = std::make_shared<ov::op::v1::Add>(reshape, add_const);
-        auto res = std::make_shared<ov::op::v0::Result>(add);
+        auto param = std::make_shared<v0::Parameter>(element::i32, Shape{1});
+        auto reduction_axes = v0::Constant::create(element::i32, {1}, {0});
+        auto stop = std::make_shared<v1::ReduceMax>(param, reduction_axes);
+        auto start = v0::Constant::create(element::i32, Shape{}, {0});
+        auto step = v0::Constant::create(element::i32, {}, {1});
+        auto range = std::make_shared<v4::Range>(start, stop, step, element::i32);
+        auto target_shape = v0::Constant::create(element::i32, {2}, {1, -1});
+        auto reshape = std::make_shared<v1::Reshape>(range, target_shape, false);
+        auto add_const = v0::Constant::create(element::i32, {1, 1}, {1});
+        auto add = std::make_shared<v1::Add>(reshape, add_const);
+        auto res = std::make_shared<v0::Result>(add);
         model_ref = std::make_shared<Model>(OutputVector{res}, ParameterVector{param});
     }
     const auto fc = FunctionsComparator::with_default()
@@ -2135,9 +2139,9 @@ TEST(TransformationTests, Convert_Precision_If_Body) {
         auto else_res = else_body->get_results()[0];
 
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 112, 112, 24});
-        auto cond = std::make_shared<ov::op::v0::Constant>(element::boolean, Shape{1}, true);
+        auto cond = std::make_shared<v0::Constant>(element::boolean, Shape{1}, true);
         auto if_op = std::make_shared<ov::opset8::If>(cond);
-        auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
+        auto if_result = std::make_shared<v0::Result>(if_op);
 
         if_op->set_then_body(then_body);
         if_op->set_else_body(else_body);
@@ -2164,9 +2168,9 @@ TEST(TransformationTests, Convert_Precision_If_Body) {
         auto else_res = else_body->get_results()[0];
 
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f16, ov::Shape{1, 112, 112, 24});
-        auto cond = std::make_shared<ov::op::v0::Constant>(element::boolean, Shape{1}, true);
+        auto cond = std::make_shared<v0::Constant>(element::boolean, Shape{1}, true);
         auto if_op = std::make_shared<ov::opset8::If>(cond);
-        auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
+        auto if_result = std::make_shared<v0::Result>(if_op);
 
         if_op->set_then_body(then_body);
         if_op->set_else_body(else_body);
@@ -2688,15 +2692,15 @@ TEST(TransformationTests, align_mixed_fp16_fp32_with_parameter_for_shape_1) {
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
     {
-        auto input_1 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto shape_input = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2});
+        auto input_1 = make_shared<v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto shape_input = make_shared<v0::Parameter>(element::f32, Shape{2});
 
-        auto upscale_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {2.0f});
-        auto mul_1 = make_shared<ov::op::v1::Multiply>(shape_input, upscale_const);
-        auto axis_const = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
-        auto final_float_shape = make_shared<ov::op::v1::ReduceProd>(mul_1, axis_const, true);
-        auto final_int_shape = make_shared<ov::op::v0::Convert>(final_float_shape, element::i64);
-        auto reshape_1 = make_shared<ov::op::v1::Reshape>(input_1, final_int_shape, false);
+        auto upscale_const = v0::Constant::create(element::f32, Shape{1}, {2.0f});
+        auto mul_1 = make_shared<v1::Multiply>(shape_input, upscale_const);
+        auto axis_const = v0::Constant::create(element::i64, Shape{1}, {0});
+        auto final_float_shape = make_shared<v1::ReduceProd>(mul_1, axis_const, true);
+        auto final_int_shape = make_shared<v0::Convert>(final_float_shape, element::i64);
+        auto reshape_1 = make_shared<v1::Reshape>(input_1, final_int_shape, false);
 
         model = make_shared<Model>(OutputVector{reshape_1}, ParameterVector{input_1, shape_input});
 
@@ -2709,16 +2713,16 @@ TEST(TransformationTests, align_mixed_fp16_fp32_with_parameter_for_shape_1) {
     }
 
     {
-        auto input_1 = make_shared<ov::op::v0::Parameter>(element::f16, Shape{1, 3, 224, 224});
-        auto shape_input = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2});
+        auto input_1 = make_shared<v0::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto shape_input = make_shared<v0::Parameter>(element::f32, Shape{2});
 
         // even for FP16 compressed model shape subgraph should be kept in fp32
-        auto upscale_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {2.0f});
-        auto mul_1 = make_shared<ov::op::v1::Multiply>(shape_input, upscale_const);
-        auto axis_const = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
-        auto final_float_shape = make_shared<ov::op::v1::ReduceProd>(mul_1, axis_const, true);
-        auto final_int_shape = make_shared<ov::op::v0::Convert>(final_float_shape, element::i64);
-        auto reshape_1 = make_shared<ov::op::v1::Reshape>(input_1, final_int_shape, false);
+        auto upscale_const = v0::Constant::create(element::f32, Shape{1}, {2.0f});
+        auto mul_1 = make_shared<v1::Multiply>(shape_input, upscale_const);
+        auto axis_const = v0::Constant::create(element::i64, Shape{1}, {0});
+        auto final_float_shape = make_shared<v1::ReduceProd>(mul_1, axis_const, true);
+        auto final_int_shape = make_shared<v0::Convert>(final_float_shape, element::i64);
+        auto reshape_1 = make_shared<v1::Reshape>(input_1, final_int_shape, false);
 
         model_ref = make_shared<Model>(OutputVector{reshape_1}, ParameterVector{input_1, shape_input});
     }
@@ -2731,15 +2735,15 @@ TEST(TransformationTests, align_mixed_fp16_fp32_with_parameter_for_shape_2) {
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
     {
-        auto input_1 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto shape_input = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2});
+        auto input_1 = make_shared<v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto shape_input = make_shared<v0::Parameter>(element::f32, Shape{2});
 
-        auto upscale_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {2.0f});
-        auto mul_1 = make_shared<ov::op::v1::Multiply>(shape_input, upscale_const);
-        auto axis_const = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
-        auto final_float_shape = make_shared<ov::op::v1::ReduceProd>(mul_1, axis_const, true);
-        auto final_int_shape = make_shared<ov::op::v0::Convert>(final_float_shape, element::i64);
-        auto reshape_1 = make_shared<ov::op::v1::Reshape>(input_1, final_int_shape, false);
+        auto upscale_const = v0::Constant::create(element::f32, Shape{1}, {2.0f});
+        auto mul_1 = make_shared<v1::Multiply>(shape_input, upscale_const);
+        auto axis_const = v0::Constant::create(element::i64, Shape{1}, {0});
+        auto final_float_shape = make_shared<v1::ReduceProd>(mul_1, axis_const, true);
+        auto final_int_shape = make_shared<v0::Convert>(final_float_shape, element::i64);
+        auto reshape_1 = make_shared<v1::Reshape>(input_1, final_int_shape, false);
 
         model = make_shared<Model>(OutputVector{reshape_1}, ParameterVector{input_1, shape_input});
 
@@ -2754,18 +2758,18 @@ TEST(TransformationTests, align_mixed_fp16_fp32_with_parameter_for_shape_2) {
     }
 
     {
-        auto input_1 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto convert_to_f16 = make_shared<ov::op::v0::Convert>(input_1, element::f16);
-        auto shape_input = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2});
+        auto input_1 = make_shared<v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto convert_to_f16 = make_shared<v0::Convert>(input_1, element::f16);
+        auto shape_input = make_shared<v0::Parameter>(element::f32, Shape{2});
 
         // even for FP16 compressed model shape subgraph should be kept in fp32
-        auto upscale_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {2.0f});
-        auto mul_1 = make_shared<ov::op::v1::Multiply>(shape_input, upscale_const);
-        auto axis_const = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
-        auto final_float_shape = make_shared<ov::op::v1::ReduceProd>(mul_1, axis_const, true);
-        auto final_int_shape = make_shared<ov::op::v0::Convert>(final_float_shape, element::i64);
-        auto reshape_1 = make_shared<ov::op::v1::Reshape>(convert_to_f16, final_int_shape, false);
-        auto convert_to_f32 = make_shared<ov::op::v0::Convert>(reshape_1, element::f32);
+        auto upscale_const = v0::Constant::create(element::f32, Shape{1}, {2.0f});
+        auto mul_1 = make_shared<v1::Multiply>(shape_input, upscale_const);
+        auto axis_const = v0::Constant::create(element::i64, Shape{1}, {0});
+        auto final_float_shape = make_shared<v1::ReduceProd>(mul_1, axis_const, true);
+        auto final_int_shape = make_shared<v0::Convert>(final_float_shape, element::i64);
+        auto reshape_1 = make_shared<v1::Reshape>(convert_to_f16, final_int_shape, false);
+        auto convert_to_f32 = make_shared<v0::Convert>(reshape_1, element::f32);
 
         model_ref = make_shared<Model>(OutputVector{convert_to_f32}, ParameterVector{input_1, shape_input});
     }
@@ -2779,8 +2783,8 @@ TEST(TransformationTests, ConvertPrecision_assign_read_value_preserve_orig_types
     pass::Manager manager;
 
     {
-        auto variable = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{ov::PartialShape{10, 10}, ov::element::f32, "variable_name"});
+        auto variable = std::make_shared<op_util::Variable>(
+            op_util::VariableInfo{ov::PartialShape{10, 10}, ov::element::f32, "variable_name"});
 
         auto input = make_shared<opset10::Parameter>(element::f32, Shape{10, 10});
         auto read_value = make_shared<opset10::ReadValue>(input, variable);
@@ -2803,8 +2807,8 @@ TEST(TransformationTests, ConvertPrecision_assign_read_value_preserve_orig_types
     }
 
     {
-        auto variable = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{ov::PartialShape{10, 10}, ov::element::f32, "variable_name"});
+        auto variable = std::make_shared<op_util::Variable>(
+            op_util::VariableInfo{ov::PartialShape{10, 10}, ov::element::f32, "variable_name"});
 
         auto input = make_shared<opset10::Parameter>(element::f32, Shape{10, 10});
         auto convert_1 = make_shared<opset10::Convert>(input, element::f16);
@@ -2834,8 +2838,8 @@ TEST(TransformationTests, ConvertPrecision_assign_read_value_change_variable_typ
     pass::Manager manager;
 
     {
-        auto variable = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{ov::PartialShape{10, 10}, ov::element::f32, "variable_name"});
+        auto variable = std::make_shared<op_util::Variable>(
+            op_util::VariableInfo{ov::PartialShape{10, 10}, ov::element::f32, "variable_name"});
 
         auto input = make_shared<opset10::Parameter>(element::f32, Shape{10, 10});
         auto read_value = make_shared<opset10::ReadValue>(input, variable);
@@ -2858,8 +2862,8 @@ TEST(TransformationTests, ConvertPrecision_assign_read_value_change_variable_typ
     }
 
     {
-        auto variable = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{ov::PartialShape{10, 10}, ov::element::f16, "variable_name"});
+        auto variable = std::make_shared<op_util::Variable>(
+            op_util::VariableInfo{ov::PartialShape{10, 10}, ov::element::f16, "variable_name"});
 
         auto input = make_shared<opset10::Parameter>(element::f16, Shape{10, 10});
         auto read_value = make_shared<opset10::ReadValue>(input, variable);
@@ -2882,8 +2886,8 @@ TEST(TransformationTests, ConvertPrecision_assign_read_value_preserve_orig_types
     pass::Manager manager;
 
     {
-        auto variable = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{ov::PartialShape{10, 10}, ov::element::f32, "variable_name"});
+        auto variable = std::make_shared<op_util::Variable>(
+            op_util::VariableInfo{ov::PartialShape{10, 10}, ov::element::f32, "variable_name"});
 
         auto input = make_shared<opset10::Parameter>(element::f32, Shape{10, 10});
         auto read_value = make_shared<opset10::ReadValue>(input, variable);
@@ -2910,8 +2914,8 @@ TEST(TransformationTests, ConvertPrecision_assign_read_value_preserve_orig_types
     }
 
     {
-        auto variable = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{ov::PartialShape{10, 10}, ov::element::f16, "variable_name"});
+        auto variable = std::make_shared<op_util::Variable>(
+            op_util::VariableInfo{ov::PartialShape{10, 10}, ov::element::f16, "variable_name"});
 
         auto input = make_shared<opset10::Parameter>(element::f32, Shape{10, 10});
         auto convert_1 = make_shared<opset10::Convert>(input, element::f16);
@@ -2941,7 +2945,7 @@ TEST(TransformationTests, ConvertPrecision_assign_read_value_preserve_weightless
 
     ov::ParameterVector inputParams;
     ov::ResultVector results;
-    results.push_back(std::make_shared<ov::op::v0::Result>(some_value->output(0)));
+    results.push_back(std::make_shared<v0::Result>(some_value->output(0)));
     auto model = std::make_shared<ov::Model>(results, inputParams);
 
     type_to_fuse_map empty_type_to_fuse_map = {};
@@ -2957,11 +2961,81 @@ TEST(TransformationTests, ConvertPrecision_assign_read_value_preserve_weightless
 
     const auto& ops = model->get_ops();
     auto it = std::find_if(ops.begin(), ops.end(), [](const std::shared_ptr<Node>& node) {
-        return ov::op::util::is_constant(node);
+        return op_util::is_constant(node);
     });
 
     ASSERT_TRUE(it != ops.end());
     const auto& new_rt_info = (*it)->get_rt_info();
     auto weightless_caching_attr_it = new_rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
     ASSERT_TRUE(weightless_caching_attr_it != new_rt_info.end());
+}
+
+// ConvertPrecision must release each old constant as soon as its consumers
+// have been rewired to the freshly allocated replacement, instead of keeping
+// all originals alive until the end of the constant-replacement loop.
+//
+// Detection strategy: build a chain
+//     param -> Add(c0) -> Add(c1) -> Add(c2) -> Add(c3) -> Result
+// and register an additional type_to_fuse handler for Add. The pass walks
+// nodes in topological order, which yields
+//     param, c0, Add0, c1, Add1, c2, Add2, c3, Add3, Result
+// so by the time the loop reaches Add#i it has already visited (and tried to
+// replace) c0..ci. With the fix in place every old constant c0..ci has been
+// destroyed already, so only the not-yet-visited constants c_{i+1}..c_{N-1}
+// (i.e. N-1-i of them) are still alive when the Add handler fires. Without
+// the fix the local `ops` vector inside ConvertPrecision still owns every
+// original constant for the entire pass, so the handler would observe all N
+// constants alive at every Add visit.
+TEST(TransformationTests, ConvertPrecision_ReleasesOldConstantsDuringLoop) {
+    constexpr size_t kNumConsts = 4;
+
+    auto param = std::make_shared<opset10::Parameter>(element::f32, Shape{4});
+    std::vector<std::weak_ptr<ov::Node>> weak_consts;
+    weak_consts.reserve(kNumConsts);
+
+    std::shared_ptr<Node> chain = param;
+    for (size_t i = 0; i < kNumConsts; ++i) {
+        auto c = opset10::Constant::create(element::f32, Shape{4}, {1.0f + static_cast<float>(i), 2.0f, 3.0f, 4.0f});
+        weak_consts.push_back(c);
+        chain = std::make_shared<opset10::Add>(chain, c);
+    }
+    auto model = std::make_shared<Model>(OutputVector{chain}, ParameterVector{param});
+
+    // Drop test-side strong refs from `chain` so the only owners of the
+    // original constants are the model itself and, transitively,
+    // ConvertPrecision's local `ops` vector while the pass is running.
+    chain.reset();
+
+    std::vector<size_t> alive_when_add_visited;
+    alive_when_add_visited.reserve(kNumConsts);
+
+    type_to_fuse_map handlers;
+    handlers[opset10::Add::get_type_info_static()] =
+        [&weak_consts, &alive_when_add_visited](const std::shared_ptr<Node>&, const precisions_map&) {
+            size_t alive = 0;
+            for (const auto& w : weak_consts) {
+                if (!w.expired()) {
+                    ++alive;
+                }
+            }
+            alive_when_add_visited.push_back(alive);
+            return false;
+        };
+
+    pass::Manager manager;
+    manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}}, handlers);
+    manager.run_passes(model);
+
+    ASSERT_EQ(alive_when_add_visited.size(), kNumConsts);
+    for (size_t i = 0; i < alive_when_add_visited.size(); ++i) {
+        const size_t expected_alive = kNumConsts - 1 - i;
+        EXPECT_EQ(alive_when_add_visited[i], expected_alive)
+            << "At Add #" << i << " the test expected exactly " << expected_alive
+            << " original f32 constant(s) still alive (the not-yet-visited ones), " << "but observed "
+            << alive_when_add_visited[i] << ". A larger value means "
+            << "ConvertPrecision is keeping already-replaced constants alive and " << "doubling peak memory.";
+    }
+
+    // Sanity: after the pass no f32 outputs remain in the converted model.
+    ASSERT_FALSE(has_type<element::Type_t::f32>(model));
 }
