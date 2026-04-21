@@ -188,6 +188,10 @@ std::shared_ptr<ov::Model> create_diverging_paths_model() {
     result2->set_friendly_name("res2");
     return std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{param});
 }
+
+std::shared_ptr<ov::Model> create_submodel_from_collected_subgraph(const ov::hetero::Subgraph& sg) {
+    return std::make_shared<ov::Model>(sg._results, sg._sinks, sg._parameters);
+}
 }  // namespace
 
 class SubgraphCollectorTest : public testing::Test {
@@ -510,7 +514,7 @@ TEST_F(SubgraphCollectorTest, constant_subgraphs_follow_consumer_affinity) {
     const auto& [ordered_subgraphs, actual_mapping_info] = get_model_subgraphs(model, supported_ops, true, false);
     for (const auto& subgraph : ordered_subgraphs) {
         std::set<std::string> node_set;
-        auto sub_model = std::make_shared<ov::Model>(subgraph._results, subgraph._sinks, subgraph._parameters);
+        auto sub_model = create_submodel_from_collected_subgraph(subgraph);
         for (auto& node : sub_model->get_ordered_ops()) {
             node_set.insert(node->get_friendly_name());
         }
@@ -557,8 +561,9 @@ TEST_P(SubgraphCollectorParamTest, split_by_affinity) {
             affinities[node] = param.default_affinity;
         } else {
             const auto& name = node->get_friendly_name();
-            ASSERT_TRUE(param.affinity_map.count(name)) << "Missing affinity for node '" << name << "'";
-            affinities[node] = param.affinity_map.at(name);
+            const auto it = param.affinity_map.find(name);
+            ASSERT_TRUE(it != param.affinity_map.end()) << "Missing affinity for node '" << name << "'";
+            affinities[node] = it->second;
         }
     }
 
@@ -596,7 +601,7 @@ TEST_P(SubgraphCollectorParamTest, split_by_affinity) {
     if (!param.expected_submodel_factories.empty()) {
         std::vector<std::shared_ptr<ov::Model>> actual_submodels;
         for (const auto& sg : subgraphs) {
-            actual_submodels.push_back(std::make_shared<ov::Model>(sg._results, sg._parameters));
+            actual_submodels.push_back(create_submodel_from_collected_subgraph(sg));
         }
         ASSERT_EQ(param.expected_submodel_factories.size(), actual_submodels.size());
 
@@ -618,10 +623,8 @@ TEST_P(SubgraphCollectorParamTest, split_by_affinity) {
                 }
             }
 
-            ASSERT_TRUE(matched) << "Failed to find a matching actual submodel for expected submodel at index "
-                                << i
-                                << (mismatch_details.empty() ? "" : ". Example mismatch: ")
-                                << mismatch_details;
+            ASSERT_TRUE(matched) << "Failed to find a matching actual submodel for expected submodel at index " << i
+                                << (mismatch_details.empty() ? "" : ". Example mismatch: ") << mismatch_details;
         }
     }
 
@@ -639,7 +642,7 @@ TEST_P(SubgraphCollectorParamTest, split_by_affinity) {
     if (param.verify_merge_roundtrip) {
         std::vector<std::shared_ptr<ov::Model>> submodels;
         for (const auto& sg : subgraphs) {
-            submodels.push_back(std::make_shared<ov::Model>(sg._results, sg._sinks, sg._parameters));
+            submodels.push_back(create_submodel_from_collected_subgraph(sg));
         }
         OV_ASSERT_NO_THROW(ov::hetero::merge_submodels(submodels, mapping._submodels_input_to_prev_output));
         ASSERT_EQ(1, submodels.size());
