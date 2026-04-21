@@ -868,10 +868,6 @@ struct COMPILER_VERSION final : OptionBase<COMPILER_VERSION, uint32_t> {
         return ov::intel_npu::compiler_version.name();
     }
 
-    static constexpr std::string_view getTypeName() {
-        return "uint32_t";
-    }
-
     static uint32_t defaultValue() {
         return 0;
     }

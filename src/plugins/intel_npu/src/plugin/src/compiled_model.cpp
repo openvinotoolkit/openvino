@@ -97,7 +97,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
                 std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
         }
 
-        std::optional<uint64_t> compilerVersion = std::nullopt;
+        std::optional<uint32_t> compilerVersion = std::nullopt;
         if (_propertiesManager->getConfig().has(ov::intel_npu::compiler_version.name())) {
             compilerVersion = _propertiesManager->getConfig().get<COMPILER_VERSION>();
         }
