@@ -32,7 +32,6 @@
 
 #include <cmath>
 #include <random>
-#include <regex>
 #include <unordered_map>
 
 #include "npuw_transformations/kv_cache_compressed.hpp"
@@ -46,34 +45,54 @@
 #include "openvino/op/softmax.hpp"
 #include "openvino/openvino.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
+#include "util.hpp"
 
 namespace {
 
 using namespace ov;
 
+inline constexpr const char* kKeyLeaf = "key";
+inline constexpr const char* kValueLeaf = "value";
+
+std::string make_past_key_name(const size_t idx) {
+    return ov::npuw::util::make_past_key_name(idx);
+}
+
+std::string make_past_value_name(const size_t idx) {
+    return ov::npuw::util::make_past_value_name(idx);
+}
+
+std::string make_present_key_name(const size_t idx) {
+    return ov::npuw::util::make_present_key_name(idx);
+}
+
+std::string make_present_value_name(const size_t idx) {
+    return ov::npuw::util::make_present_value_name(idx);
+}
+
+std::string make_dq_kv_name(const char* scope, const char* leaf, const char* suffix) {
+    return "DynamicQuantize/0/" + std::string(scope) + "/" + leaf + "/" + suffix;
+}
+
 std::shared_ptr<Model> apply_kv_cache_io_precision_for_test(const std::shared_ptr<Model>& model,
                                                             const element::Type key_type,
                                                             const element::Type value_type) {
     ov::preprocess::PrePostProcessor ppp(model);
-    const std::regex past_key_re(R"(past_key_values\.\d+\.key)");
-    const std::regex past_value_re(R"(past_key_values\.\d+\.value)");
-    const std::regex present_key_re(R"(present\.\d+\.key)");
-    const std::regex present_value_re(R"(present\.\d+\.value)");
 
     for (const auto& tensor : model->inputs()) {
         const auto& name = tensor.get_any_name();
-        if (std::regex_match(name, past_key_re)) {
+        if (ov::npuw::util::isPastKeyValuesKey(name)) {
             ppp.input(name).tensor().set_element_type(key_type);
-        } else if (std::regex_match(name, past_value_re)) {
+        } else if (ov::npuw::util::isPastKeyValuesValue(name)) {
             ppp.input(name).tensor().set_element_type(value_type);
         }
     }
 
     for (const auto& tensor : model->outputs()) {
         const auto& name = tensor.get_any_name();
-        if (std::regex_match(name, present_key_re)) {
+        if (ov::npuw::util::isPresentKeyValuesKey(name)) {
             ppp.output(name).tensor().set_element_type(key_type);
-        } else if (std::regex_match(name, present_value_re)) {
+        } else if (ov::npuw::util::isPresentKeyValuesValue(name)) {
             ppp.output(name).tensor().set_element_type(value_type);
         }
     }
@@ -105,8 +124,8 @@ std::shared_ptr<Model> build_sdpa_model(size_t num_sdpa) {
             return p;
         };
 
-        auto past_key = make_param("past_key_values." + idx + ".key",   past_shape);
-        auto past_val = make_param("past_key_values." + idx + ".value", past_shape);
+        auto past_key = make_param(make_past_key_name(n), past_shape);
+        auto past_val = make_param(make_past_value_name(n), past_shape);
         auto query    = make_param("query."    + idx, new_token_shape);
         auto new_key  = make_param("new_key."  + idx, new_token_shape);
         auto new_val  = make_param("new_value." + idx, new_token_shape);
@@ -128,8 +147,8 @@ std::shared_ptr<Model> build_sdpa_model(size_t num_sdpa) {
             results.push_back(r);
         };
 
-        make_result(concat_key->output(0), "present." + idx + ".key");
-        make_result(concat_val->output(0), "present." + idx + ".value");
+        make_result(concat_key->output(0), make_present_key_name(n));
+        make_result(concat_val->output(0), make_present_value_name(n));
         make_result(attn_out->output(0),   "attn_out." + idx);
     }
 
@@ -162,8 +181,8 @@ std::shared_ptr<Model> build_sdpa_model_with_hanging_past_consumers() {
         results.push_back(r);
     };
 
-    auto past_key = make_param("past_key_values.0.key", past_shape);
-    auto past_val = make_param("past_key_values.0.value", past_shape);
+    auto past_key = make_param(make_past_key_name(0), past_shape);
+    auto past_val = make_param(make_past_value_name(0), past_shape);
     auto query = make_param("query.0", new_token_shape);
     auto new_key = make_param("new_key.0", new_token_shape);
     auto new_val = make_param("new_value.0", new_token_shape);
@@ -179,12 +198,12 @@ std::shared_ptr<Model> build_sdpa_model_with_hanging_past_consumers() {
 
     // Extra non-concat consumers that must keep reading from original past cache params.
     auto key_shapeof = std::make_shared<op::v3::ShapeOf>(past_key);
-    key_shapeof->set_friendly_name("past_key_values.0.key.shapeof");
+    key_shapeof->set_friendly_name(make_past_key_name(0) + ".shapeof");
     auto val_shapeof = std::make_shared<op::v3::ShapeOf>(past_val);
-    val_shapeof->set_friendly_name("past_key_values.0.value.shapeof");
+    val_shapeof->set_friendly_name(make_past_value_name(0) + ".shapeof");
 
-    make_result(concat_key->output(0), "present.0.key");
-    make_result(concat_val->output(0), "present.0.value");
+    make_result(concat_key->output(0), make_present_key_name(0));
+    make_result(concat_val->output(0), make_present_value_name(0));
     make_result(attn_out->output(0), "attn_out.0");
     make_result(key_shapeof->output(0), "past_key_shapeof.0");
     make_result(val_shapeof->output(0), "past_value_shapeof.0");
@@ -293,7 +312,8 @@ TEST_P(KVCacheCompressionPassTest, PresentCacheOutputIsQuantizedType) {
     for (const auto& result : model->get_results()) {
         const auto& name = result->get_friendly_name();
         // Only check the main quantized cache outputs; skip scale/zp results
-        const bool is_main_cache = (name.find("present.") != std::string::npos) &&
+        const bool is_main_cache = (ov::npuw::util::isPresentKeyValuesKey(name) ||
+                        ov::npuw::util::isPresentKeyValuesValue(name)) &&
                                    (name.find("/scale") == std::string::npos) &&
                                    (name.find("/zp")    == std::string::npos);
         if (!is_main_cache) continue;
@@ -445,8 +465,25 @@ TEST(KVCacheCompressionPassRegressionTest, KeepsNonConcatConsumersOnOriginalPast
         << "ShapeOf(past_value) must stay connected to original past_value parameter, got node '"
         << val_src_name << "'";
 
-    EXPECT_EQ(key_param->get_friendly_name(), "past_key_values.0.key");
-    EXPECT_EQ(val_param->get_friendly_name(), "past_key_values.0.value");
+    EXPECT_EQ(key_param->get_friendly_name(), make_past_key_name(0));
+    EXPECT_EQ(val_param->get_friendly_name(), make_past_value_name(0));
+}
+
+TEST(KVCacheCompressionPassRegressionTest, KvNameHelpersMatchUtilPatterns) {
+    const auto past_key_name = make_past_key_name(3);
+    const auto past_value_name = make_past_value_name(3);
+    const auto present_key_name = make_present_key_name(3);
+    const auto present_value_name = make_present_value_name(3);
+
+    ASSERT_TRUE(ov::npuw::util::isPastKeyValuesKey(past_key_name));
+    ASSERT_TRUE(ov::npuw::util::isPastKeyValuesValue(past_value_name));
+    ASSERT_TRUE(ov::npuw::util::isPresentKeyValuesKey(present_key_name));
+    ASSERT_TRUE(ov::npuw::util::isPresentKeyValuesValue(present_value_name));
+
+    ASSERT_FALSE(ov::npuw::util::isPastKeyValuesKey(present_key_name));
+    ASSERT_FALSE(ov::npuw::util::isPastKeyValuesValue(present_value_name));
+    ASSERT_FALSE(ov::npuw::util::isPresentKeyValuesKey(past_key_name));
+    ASSERT_FALSE(ov::npuw::util::isPresentKeyValuesValue(past_value_name));
 }
 
 // ============================================================================
@@ -516,8 +553,8 @@ std::shared_ptr<Model> build_decode_step_model(size_t window) {
         results.push_back(r);
     };
 
-    auto past_key = make_param("past_key_values.0.key",   past_key_shape);
-    auto past_val = make_param("past_key_values.0.value", past_val_shape);
+    auto past_key = make_param(make_past_key_name(0), past_key_shape);
+    auto past_val = make_param(make_past_value_name(0), past_val_shape);
     auto query    = make_param("query.0",    new_key_shape);
     auto new_key  = make_param("new_key.0",  new_key_shape);
     auto new_val  = make_param("new_value.0", new_value_shape);
@@ -530,8 +567,8 @@ std::shared_ptr<Model> build_decode_step_model(size_t window) {
     auto softmax    = std::make_shared<op::v8::Softmax>(add_node->output(0), -1);
     auto attn_out   = std::make_shared<op::v0::MatMul>(softmax->output(0), concat_val->output(0), false, true);
 
-    make_result(concat_key->output(0), "present.0.key");
-    make_result(concat_val->output(0), "present.0.value");
+    make_result(concat_key->output(0), make_present_key_name(0));
+    make_result(concat_val->output(0), make_present_value_name(0));
     make_result(attn_out->output(0),   "attn_out.0");
 
     auto m = std::make_shared<Model>(results, params, "decode_step");
@@ -713,36 +750,37 @@ TEST_P(KVCacheMultiStepDecodeTest, TransformedModelIoTypesMatchQuantConfig) {
         EXPECT_EQ(it, xform_model->get_results().end()) << "Unexpected result: " << name;
     };
 
-    expect_param_type("past_key_values.0.key", p.key_dt);
-    expect_param_type("past_key_values.0.value", p.val_dt);
-    expect_param_type("DynamicQuantize/0/past_key_values/key/scale", element::f32);
-    expect_param_type("DynamicQuantize/0/past_key_values/value/scale", element::f32);
+    expect_param_type(make_past_key_name(0), p.key_dt);
+    expect_param_type(make_past_value_name(0), p.val_dt);
+    expect_param_type(make_dq_kv_name(ov::npuw::util::constants::past_key_values, kKeyLeaf, "scale"), element::f32);
+    expect_param_type(make_dq_kv_name(ov::npuw::util::constants::past_key_values, kValueLeaf, "scale"),
+                      element::f32);
 
     if (key_asym) {
-        expect_param_type("DynamicQuantize/0/past_key_values/key/zp", p.key_dt);
+        expect_param_type(make_dq_kv_name(ov::npuw::util::constants::past_key_values, kKeyLeaf, "zp"), p.key_dt);
     } else {
-        expect_param_absent("DynamicQuantize/0/past_key_values/key/zp");
+        expect_param_absent(make_dq_kv_name(ov::npuw::util::constants::past_key_values, kKeyLeaf, "zp"));
     }
     if (val_asym) {
-        expect_param_type("DynamicQuantize/0/past_key_values/value/zp", p.val_dt);
+        expect_param_type(make_dq_kv_name(ov::npuw::util::constants::past_key_values, kValueLeaf, "zp"), p.val_dt);
     } else {
-        expect_param_absent("DynamicQuantize/0/past_key_values/value/zp");
+        expect_param_absent(make_dq_kv_name(ov::npuw::util::constants::past_key_values, kValueLeaf, "zp"));
     }
 
-    expect_result_type("present.0.key", p.key_dt);
-    expect_result_type("present.0.value", p.val_dt);
-    expect_result_type("DynamicQuantize/0/present/key/scale", element::f32);
-    expect_result_type("DynamicQuantize/0/present/value/scale", element::f32);
+    expect_result_type(make_present_key_name(0), p.key_dt);
+    expect_result_type(make_present_value_name(0), p.val_dt);
+    expect_result_type(make_dq_kv_name(ov::npuw::util::constants::present, kKeyLeaf, "scale"), element::f32);
+    expect_result_type(make_dq_kv_name(ov::npuw::util::constants::present, kValueLeaf, "scale"), element::f32);
 
     if (key_asym) {
-        expect_result_type("DynamicQuantize/0/present/key/zp", p.key_dt);
+        expect_result_type(make_dq_kv_name(ov::npuw::util::constants::present, kKeyLeaf, "zp"), p.key_dt);
     } else {
-        expect_result_absent("DynamicQuantize/0/present/key/zp");
+        expect_result_absent(make_dq_kv_name(ov::npuw::util::constants::present, kKeyLeaf, "zp"));
     }
     if (val_asym) {
-        expect_result_type("DynamicQuantize/0/present/value/zp", p.val_dt);
+        expect_result_type(make_dq_kv_name(ov::npuw::util::constants::present, kValueLeaf, "zp"), p.val_dt);
     } else {
-        expect_result_absent("DynamicQuantize/0/present/value/zp");
+        expect_result_absent(make_dq_kv_name(ov::npuw::util::constants::present, kValueLeaf, "zp"));
     }
 }
 
@@ -816,8 +854,8 @@ TEST_P(KVCacheMultiStepDecodeTest, DecodeLoopAccuracy) {
         TensorVector ref_inputs;
         for (const auto& param : ref_model->get_parameters()) {
             const std::string& n = param->get_friendly_name();
-            if      (n == "past_key_values.0.key")   ref_inputs.push_back(ref_past_key);
-            else if (n == "past_key_values.0.value") ref_inputs.push_back(ref_past_val);
+            if      (n == make_past_key_name(0))   ref_inputs.push_back(ref_past_key);
+            else if (n == make_past_value_name(0)) ref_inputs.push_back(ref_past_val);
             else if (n == "query.0")     ref_inputs.push_back(t_query);
             else if (n == "new_key.0")   ref_inputs.push_back(t_new_key);
             else if (n == "new_value.0") ref_inputs.push_back(t_new_val);
@@ -835,20 +873,24 @@ TEST_P(KVCacheMultiStepDecodeTest, DecodeLoopAccuracy) {
             rout[ref_model->get_results()[i]->get_friendly_name()] = ref_outputs[i];
 
         // Key present {1,1,W+1,D} -> slice last W rows (axis 2)
-        ref_past_key = slice_last_tokens_h1<float>(rout.at("present.0.key"), WINDOW);
+        ref_past_key = slice_last_tokens_h1<float>(rout.at(make_present_key_name(0)), WINDOW);
         // Value present {1,1,D,W+1} -> slice last W columns (axis 3)
-        ref_past_val = slice_last_cols_h1<float>(rout.at("present.0.value"), WINDOW);
+        ref_past_val = slice_last_cols_h1<float>(rout.at(make_present_value_name(0)), WINDOW);
 
         // -- Compressed inference --
         TensorVector xform_inputs;
         for (const auto& param : xform_model->get_parameters()) {
             const std::string& n = param->get_friendly_name();
-            if      (n == "past_key_values.0.key")                         xform_inputs.push_back(xf_past_key);
-            else if (n == "DynamicQuantize/0/past_key_values/key/scale")   xform_inputs.push_back(xf_key_scale);
-            else if (n == "DynamicQuantize/0/past_key_values/key/zp")      xform_inputs.push_back(xf_key_zp);
-            else if (n == "past_key_values.0.value")                       xform_inputs.push_back(xf_past_val);
-            else if (n == "DynamicQuantize/0/past_key_values/value/scale") xform_inputs.push_back(xf_val_scale);
-            else if (n == "DynamicQuantize/0/past_key_values/value/zp")    xform_inputs.push_back(xf_val_zp);
+            if      (n == make_past_key_name(0)) xform_inputs.push_back(xf_past_key);
+            else if (n == make_dq_kv_name(ov::npuw::util::constants::past_key_values, kKeyLeaf, "scale"))
+                xform_inputs.push_back(xf_key_scale);
+            else if (n == make_dq_kv_name(ov::npuw::util::constants::past_key_values, kKeyLeaf, "zp"))
+                xform_inputs.push_back(xf_key_zp);
+            else if (n == make_past_value_name(0)) xform_inputs.push_back(xf_past_val);
+            else if (n == make_dq_kv_name(ov::npuw::util::constants::past_key_values, kValueLeaf, "scale"))
+                xform_inputs.push_back(xf_val_scale);
+            else if (n == make_dq_kv_name(ov::npuw::util::constants::past_key_values, kValueLeaf, "zp"))
+                xform_inputs.push_back(xf_val_zp);
             else if (n == "query.0")     xform_inputs.push_back(t_query);
             else if (n == "new_key.0")   xform_inputs.push_back(t_new_key);
             else if (n == "new_value.0") xform_inputs.push_back(t_new_val);
@@ -885,15 +927,26 @@ TEST_P(KVCacheMultiStepDecodeTest, DecodeLoopAccuracy) {
 
         // -- Advance compressed past state --
         // Key: {1,1,W+1,D} -> cast + slice rows (axis 2)
-        xf_past_key  = slice_and_cast_key(xout.at("present.0.key"));
+        xf_past_key  = slice_and_cast_key(xout.at(make_present_key_name(0)));
         // Value: {1,1,D,W+1} -> cast + slice cols (axis 3)
-        xf_past_val  = slice_and_cast_val(xout.at("present.0.value"));
+        xf_past_val  = slice_and_cast_val(xout.at(make_present_value_name(0)));
         // Key scale {1,1,W+1,1} -> slice rows (axis 2)
-        xf_key_scale = slice_last_scales_h1(xout.at("DynamicQuantize/0/present/key/scale"), WINDOW);
-        if (key_asym) xf_key_zp = slice_last_zp_h1(xout.at("DynamicQuantize/0/present/key/zp"), WINDOW);
+        xf_key_scale =
+            slice_last_scales_h1(xout.at(make_dq_kv_name(ov::npuw::util::constants::present, kKeyLeaf, "scale")),
+                                 WINDOW);
+        if (key_asym)
+            xf_key_zp =
+                slice_last_zp_h1(xout.at(make_dq_kv_name(ov::npuw::util::constants::present, kKeyLeaf, "zp")),
+                                 WINDOW);
         // Value scale {1,1,1,W+1} -> slice cols (axis 3)
-        xf_val_scale = slice_last_scales_col(xout.at("DynamicQuantize/0/present/value/scale"), WINDOW);
-        if (val_asym) xf_val_zp = slice_last_zp_col(xout.at("DynamicQuantize/0/present/value/zp"), WINDOW);
+        xf_val_scale = slice_last_scales_col(
+            xout.at(make_dq_kv_name(ov::npuw::util::constants::present, kValueLeaf, "scale")),
+            WINDOW);
+        if (val_asym)
+            xf_val_zp = slice_last_zp_col(xout.at(make_dq_kv_name(ov::npuw::util::constants::present,
+                                                                  kValueLeaf,
+                                                                  "zp")),
+                                          WINDOW);
     }
 }
 

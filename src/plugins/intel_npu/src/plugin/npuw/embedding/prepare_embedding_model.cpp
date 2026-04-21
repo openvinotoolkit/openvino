@@ -5,10 +5,12 @@
 #include "prepare_embedding_model.hpp"
 
 #include <cfloat>
+#include <limits>
 #include <optional>
 #include <regex>
 
 #include "../logging.hpp"
+#include "../util.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset13.hpp"
@@ -29,8 +31,8 @@ namespace {
 
 using NodePair = std::pair<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>;
 
-std::string combine_key_value_name(std::string prefix, std::string layer_id, std::string key_or_value) {
-    return prefix + "." + layer_id + "." + key_or_value;
+std::string make_concat_name(const std::size_t layer_id, std::string_view key_or_value) {
+    return std::string("concat.") + std::to_string(layer_id) + "." + std::string(key_or_value);
 }
 
 void set_node_name(std::shared_ptr<ov::Node> node, const std::string& name) {
@@ -149,29 +151,34 @@ public:
                 return false;
             }
 
-            auto layer_id = std::string(match[1]);
+            const auto layer_id_token = match[1].str();
+            const auto layer_id_ull = std::stoull(layer_id_token);
+            OPENVINO_ASSERT(layer_id_ull <= std::numeric_limits<std::size_t>::max(),
+                            "Layer id is out of range for size_t: ",
+                            layer_id_token);
+            const auto layer_id = static_cast<std::size_t>(layer_id_ull);
             auto k_add_out_shape = k_add_node->get_output_partial_shape(0);
             auto k_add_type = k_add_node->get_output_element_type(0);
             auto k_cache = std::make_shared<ov::op::v0::Parameter>(k_add_type, k_add_out_shape);
-            set_node_name(k_cache, combine_key_value_name("past_key_values", layer_id, "key"));
+            set_node_name(k_cache, ov::npuw::util::make_past_key_name(layer_id));
 
             auto k_concat = register_new_node<ov::op::v0::Concat>(ov::OutputVector{k_cache, k_add_node}, seq_len_dim);
-            set_node_name(k_concat, combine_key_value_name("concat", layer_id, "key"));
+            set_node_name(k_concat, make_concat_name(layer_id, "key"));
 
             auto k_cache_out = std::make_shared<ov::op::v0::Result>(k_add_node);
-            set_node_name(k_cache_out, combine_key_value_name("present", layer_id, "key"));
+            set_node_name(k_cache_out, ov::npuw::util::make_present_key_name(layer_id));
 
             auto v_transpose_out_shape = v_transpose_node->get_output_partial_shape(0);
             auto v_transpose_type = v_transpose_node->get_output_element_type(0);
             auto v_cache = std::make_shared<ov::op::v0::Parameter>(v_transpose_type, v_transpose_out_shape);
-            set_node_name(v_cache, combine_key_value_name("past_key_values", layer_id, "value"));
+            set_node_name(v_cache, ov::npuw::util::make_past_value_name(layer_id));
 
             auto v_concat =
                 register_new_node<ov::op::v0::Concat>(ov::OutputVector{v_cache, v_transpose_node}, seq_len_dim);
-            set_node_name(v_concat, combine_key_value_name("concat", layer_id, "value"));
+            set_node_name(v_concat, make_concat_name(layer_id, "value"));
 
             auto v_cache_out = std::make_shared<ov::op::v0::Result>(v_transpose_node);
-            set_node_name(v_cache_out, combine_key_value_name("present", layer_id, "value"));
+            set_node_name(v_cache_out, ov::npuw::util::make_present_value_name(layer_id));
 
             node_pair.push_back(std::pair{k_unsqueeze_node, k_concat});
             node_pair.push_back(std::pair{v_unsqueeze_node, v_concat});
