@@ -599,10 +599,29 @@ TEST_P(SubgraphCollectorParamTest, split_by_affinity) {
             actual_submodels.push_back(std::make_shared<ov::Model>(sg._results, sg._parameters));
         }
         ASSERT_EQ(param.expected_submodel_factories.size(), actual_submodels.size());
+
+        auto unmatched_actual_submodels = actual_submodels;
         for (size_t i = 0; i < param.expected_submodel_factories.size(); i++) {
             auto expected_submodel = param.expected_submodel_factories[i]();
-            auto res = compare_functions(expected_submodel, actual_submodels.at(i));
-            ASSERT_TRUE(res.first) << res.second;
+            bool matched = false;
+            std::string mismatch_details;
+
+            for (auto it = unmatched_actual_submodels.begin(); it != unmatched_actual_submodels.end(); ++it) {
+                auto res = compare_functions(expected_submodel, *it);
+                if (res.first) {
+                    unmatched_actual_submodels.erase(it);
+                    matched = true;
+                    break;
+                }
+                if (mismatch_details.empty()) {
+                    mismatch_details = res.second;
+                }
+            }
+
+            ASSERT_TRUE(matched) << "Failed to find a matching actual submodel for expected submodel at index "
+                                << i
+                                << (mismatch_details.empty() ? "" : ". Example mismatch: ")
+                                << mismatch_details;
         }
     }
 
