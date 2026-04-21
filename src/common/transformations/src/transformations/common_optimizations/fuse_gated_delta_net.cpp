@@ -13,8 +13,10 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -22,6 +24,7 @@
 #include "openvino/op/exp.hpp"
 #include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/gather_nd.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
@@ -30,12 +33,14 @@
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -358,6 +363,194 @@ ov::pass::FuseL2NormIntoGDN::FuseL2NormIntoGDN() {
     register_matcher(m, callback);
 }
 
+namespace {
+
+bool is_allowed_qk_path_node(const std::shared_ptr<ov::Node>& node) {
+    return ov::is_type<v1::Reshape>(node) || ov::is_type<v1::Transpose>(node) || ov::is_type<ov::op::v8::Gather>(node) ||
+           ov::is_type<ov::op::v3::Broadcast>(node) || ov::is_type<v0::Unsqueeze>(node) || ov::is_type<v0::Squeeze>(node) ||
+           ov::is_type<ov::op::v5::GatherND>(node) || ov::is_type<ov::op::v8::GatherND>(node);
+}
+
+bool is_qk_anchor_node(const std::shared_ptr<ov::Node>& node) {
+    return ov::is_type<ov::op::v1::Split>(node) || ov::is_type<ov::op::v1::VariadicSplit>(node) ||
+           ov::is_type<ov::op::v8::Slice>(node) || ov::is_type<ov::op::v0::Concat>(node);
+}
+
+std::shared_ptr<ov::Node> find_qk_anchor(const ov::Output<ov::Node>& start) {
+    std::shared_ptr<ov::Node> current = start.get_node_shared_ptr();
+    for (size_t depth = 0; depth < 32 && current; ++depth) {
+        if (is_qk_anchor_node(current)) {
+            return current;
+        }
+        if (!is_allowed_qk_path_node(current) || current->inputs().empty()) {
+            return nullptr;
+        }
+        current = current->input_value(0).get_node_shared_ptr();
+    }
+    return nullptr;
+}
+
+ov::Output<ov::Node> find_qk_anchor_output(const ov::Output<ov::Node>& start) {
+    ov::Output<ov::Node> current_out = start;
+    for (size_t depth = 0; depth < 32; ++depth) {
+        auto current = current_out.get_node_shared_ptr();
+        if (!current) {
+            return {};
+        }
+        if (is_qk_anchor_node(current)) {
+            return current_out;
+        }
+        if (!is_allowed_qk_path_node(current) || current->inputs().empty()) {
+            return {};
+        }
+        current_out = current->input_value(0);
+    }
+    return {};
+}
+
+std::vector<std::shared_ptr<ov::Node>> collect_qk_path_nodes(const ov::Output<ov::Node>& start) {
+    std::vector<std::shared_ptr<ov::Node>> path;
+    ov::Output<ov::Node> current_out = start;
+    for (size_t depth = 0; depth < 32; ++depth) {
+        auto current = current_out.get_node_shared_ptr();
+        if (!current) {
+            path.clear();
+            return path;
+        }
+        path.push_back(current);
+        if (is_qk_anchor_node(current)) {
+            return path;
+        }
+        if (!is_allowed_qk_path_node(current) || current->inputs().empty()) {
+            path.clear();
+            return path;
+        }
+        current_out = current->input_value(0);
+    }
+    path.clear();
+    return path;
+}
+
+bool have_same_qk_path_nodes(const ov::Output<ov::Node>& q_start, const ov::Output<ov::Node>& k_start) {
+    const auto q_path = collect_qk_path_nodes(q_start);
+    const auto k_path = collect_qk_path_nodes(k_start);
+    if (q_path.empty() || k_path.empty() || q_path.size() != k_path.size()) {
+        return false;
+    }
+
+    for (size_t i = 0; i < q_path.size(); ++i) {
+        if (q_path[i] != k_path[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool has_only_constant_side_inputs(const std::vector<std::shared_ptr<ov::Node>>& path) {
+    if (path.empty()) {
+        return false;
+    }
+
+    for (const auto& node : path) {
+        if (!node || is_qk_anchor_node(node)) {
+            continue;
+        }
+        for (size_t i = 1; i < node->get_input_size(); ++i) {
+            if (!ov::is_type<v0::Constant>(node->input_value(i).get_node_shared_ptr())) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+ov::Output<ov::Node> align_to_reference_shape(const ov::Output<ov::Node>& src,
+                                              const ov::Output<ov::Node>& reference,
+                                              ov::pass::MatcherPass* pass) {
+    const auto& src_ps = src.get_partial_shape();
+    const auto& ref_ps = reference.get_partial_shape();
+    if (src_ps.compatible(ref_ps)) {
+        return src;
+    }
+
+    if (src_ps.is_static() && ref_ps.is_static()) {
+        const auto src_shape = src_ps.to_shape();
+        const auto ref_shape = ref_ps.to_shape();
+        if (ov::shape_size(src_shape) != ov::shape_size(ref_shape)) {
+            return {};
+        }
+    }
+
+    auto ref_shape = std::make_shared<ov::op::v3::ShapeOf>(reference);
+    auto reshaped = std::make_shared<v1::Reshape>(src, ref_shape, false);
+    pass->register_new_node(ref_shape);
+    pass->register_new_node(reshaped);
+    return reshaped;
+}
+
+}  // namespace
+
+ov::pass::VerifySharedQKSourceForGDN::VerifySharedQKSourceForGDN() {
+    auto gdn = pattern::wrap_type<ov::op::internal::GatedDeltaNet>();
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto gdn_node = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(pattern_map.at(gdn).get_node_shared_ptr());
+        if (!gdn_node) {
+            return false;
+        }
+
+        auto q_anchor = find_qk_anchor(gdn_node->input_value(0));
+        auto k_anchor = find_qk_anchor(gdn_node->input_value(1));
+        auto v_anchor = find_qk_anchor(gdn_node->input_value(2));
+        if (!q_anchor || !k_anchor || !v_anchor || q_anchor != k_anchor || k_anchor != v_anchor) {
+            return false;
+        }
+
+        auto q_anchor_output = find_qk_anchor_output(gdn_node->input_value(0));
+        auto k_anchor_output = find_qk_anchor_output(gdn_node->input_value(1));
+        auto v_anchor_output = find_qk_anchor_output(gdn_node->input_value(2));
+        if (!q_anchor_output.get_node_shared_ptr() || !k_anchor_output.get_node_shared_ptr() ||
+            !v_anchor_output.get_node_shared_ptr() ||
+            q_anchor_output.get_node_shared_ptr() != k_anchor_output.get_node_shared_ptr() ||
+            k_anchor_output.get_node_shared_ptr() != v_anchor_output.get_node_shared_ptr()) {
+            return false;
+        }
+
+        // If already directly connected from anchor outputs, skip.
+        if (gdn_node->input_value(0).get_node_shared_ptr() == q_anchor_output.get_node_shared_ptr() &&
+            gdn_node->input_value(1).get_node_shared_ptr() == k_anchor_output.get_node_shared_ptr() &&
+            gdn_node->input_value(2).get_node_shared_ptr() == v_anchor_output.get_node_shared_ptr()) {
+            return false;
+        }
+
+        auto q_aligned = align_to_reference_shape(q_anchor_output, gdn_node->input_value(0), this);
+        auto k_aligned = align_to_reference_shape(k_anchor_output, gdn_node->input_value(1), this);
+        auto v_aligned = align_to_reference_shape(v_anchor_output, gdn_node->input_value(2), this);
+
+        if (!q_aligned.get_node_shared_ptr() || !k_aligned.get_node_shared_ptr() || !v_aligned.get_node_shared_ptr()) {
+            return false;
+        }
+
+        auto new_gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(q_aligned,
+                                                                         k_aligned,
+                                                                         v_aligned,
+                                                                         gdn_node->input_value(3),
+                                                                         gdn_node->input_value(4),
+                                                                         gdn_node->input_value(5),
+                                                                         gdn_node->get_fuse_qk_l2norm(),
+                                                                         gdn_node->get_q_l2_norm_eps(),
+                                                                         gdn_node->get_k_l2_norm_eps());
+        new_gdn->set_friendly_name(gdn_node->get_friendly_name());
+        ov::copy_runtime_info(gdn_node, new_gdn);
+        ov::replace_node(gdn_node, new_gdn);
+        return true;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(gdn, "VerifySharedQKSourceForGDN");
+    register_matcher(m, callback);
+}
+
 bool ov::pass::GatedDeltaNetFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(GatedDeltaNetFusion);
     ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
@@ -367,5 +560,6 @@ bool ov::pass::GatedDeltaNetFusion::run_on_model(const std::shared_ptr<ov::Model
     // remove redundant transpose after loop fusion, which are inserted by FuseGDNLoop
     symbolic_ctx_manager->register_pass<ov::pass::TransposeFuse>();
     symbolic_ctx_manager->register_pass<ov::pass::FuseL2NormIntoGDN>();
+    symbolic_ctx_manager->register_pass<ov::pass::VerifySharedQKSourceForGDN>();
     return symbolic_optimizations.run_on_model(model);
 }

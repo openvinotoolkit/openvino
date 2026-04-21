@@ -246,22 +246,12 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     for (auto& param_name : {"beam_idx", "attention_mask"}) {
         if (auto param = get_parameter(model, param_name)) {
-            model->remove_parameter(param);
-
-            if (param->output(0).get_target_inputs().size() == 0) {
-                std::stringstream consumers;
-                consumers << std::endl;
-                for (auto& input : param->output(0).get_target_inputs()) {
-                    consumers << *input.get_node() << std::endl;
-                }
-                OPENVINO_ASSERT(param->output(0).get_target_inputs().size() == 0,
-                                "PagedAttention transformation failed: couldn't remove ",
-                                param->output(0).get_target_inputs().size(),
-                                " inputs of ",
-                                param_name,
-                                " input: ",
-                                consumers.str());
+            const auto targets = param->output(0).get_target_inputs();
+            if (targets.empty()) {
+                model->remove_parameter(param);
             }
+            // If targets are not empty, the parameter is still used elsewhere;
+            // we simply skip removal as other transforms may still need it
         }
     }
 
