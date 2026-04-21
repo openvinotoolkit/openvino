@@ -245,7 +245,8 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
 
         // Detect 4-bit compressed weights by tracing MatMul weight input
         // through the decompression subgraph (Convert→Subtract→Multiply→Reshape→Convert→Constant)
-        if (!has_4bit_weights && ov::is_type<ov::op::v0::MatMul>(op)) {
+        // WA: blocked default-enable 4bit KV-cache until full-range validation
+        if (false && !has_4bit_weights && ov::is_type<ov::op::v0::MatMul>(op)) {
             auto weight = op->get_input_node_shared_ptr(1);
             // Follow input 0 through the decompression chain to reach the leaf Constant
             for (int depth = 0; depth < 8 && weight->get_input_size() > 0; ++depth) {
