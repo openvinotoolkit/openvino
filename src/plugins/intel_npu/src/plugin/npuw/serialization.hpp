@@ -13,11 +13,17 @@
 #include <optional>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
+#include "attention.hpp"
+#include "host_flash_attention.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/runtime/file_handle.hpp"
+#include "pyramid_attention.hpp"
+#include "spatial.hpp"
 
 namespace ov {
 namespace npuw {
@@ -87,6 +93,7 @@ struct MoEDownstream;
 }  // namespace compiled
 namespace weights {
 class LazyTensor;
+class Bank;
 }  // namespace weights
 
 namespace s11n {
@@ -176,208 +183,252 @@ struct SubmodelDeserializeCtx {
 
 BF16Cache get_bf16_consts(const std::shared_ptr<ov::Model>& model);
 
-// Specific type overloads
-void write(std::ostream& stream, const std::streampos& var);
-void write(std::ostream& stream, const std::string& var);
-void write(std::ostream& stream, const bool& var);
-void write(std::ostream& stream, const float& var);
-void write(std::ostream& stream, const ov::npuw::compiled::Spatial& var);
-void write(std::ostream& stream, const ov::npuw::compiled::Attention& var);
-void write(std::ostream& stream, const ov::npuw::compiled::PyramidAttention& var);
-void write(std::ostream& stream, const ov::npuw::compiled::HostFlashAttention& var);
-void write(std::ostream& stream, const ov::npuw::compiled::MoEExperts& var);
-void write(std::ostream& stream, const ov::npuw::compiled::MoEDownstream& var);
-void write(std::ostream& stream, const ov::Tensor& var);
-void write(std::ostream& stream, const ::intel_npu::Config& var);
-void write(std::ostream& stream, const ov::Output<const ov::Node>& var);
-void write_any(std::ostream& stream, const ov::Any& var);
-void write(std::ostream& stream, const ov::npuw::weights::LazyTensor& var);
-void write(std::ostream& stream, const ov::CacheMode& var);
-void write(std::ostream& stream, const ov::element::Type& var);
-void write(std::ostream& stream, const std::map<std::string, Any>& var);
-void write(std::ostream& stream, const ov::hint::PerformanceMode& var);
+class Stream {
+public:
+    static Stream reader(std::istream& stream) {
+        return Stream(&stream, nullptr);
+    }
 
-void read(std::istream& stream, std::streampos& var);
-void read(std::istream& stream, std::string& var);
-void read(std::istream& stream, bool& var);
-void read(std::istream& stream, float& var);
-void read(std::istream& stream, ov::npuw::compiled::Spatial& var);
-void read(std::istream& stream, ov::npuw::compiled::Attention& var);
-void read(std::istream& stream, ov::npuw::compiled::PyramidAttention& var);
-void read(std::istream& stream, ov::npuw::compiled::HostFlashAttention& var);
-void read(std::istream& stream, ov::npuw::compiled::MoEExperts& var);
-void read(std::istream& stream, ov::npuw::compiled::MoEDownstream& var);
-void read(std::istream& stream, ov::Tensor& var);
-void read(std::istream& stream, ::intel_npu::Config& var);
-void read(std::istream& stream, std::shared_ptr<ov::op::v0::Parameter>& var);
-void read(std::istream& stream, std::shared_ptr<ov::Node>& var);
-void read_any(std::istream& stream, ov::Any& var);
-void read(std::istream& stream, ov::npuw::weights::LazyTensor& var);
-void read(std::istream& stream, ov::CacheMode& var);
-void read(std::istream& stream, ov::element::Type& var);
-void read(std::istream& stream, std::map<std::string, Any>& var);
-void read(std::istream& stream, ov::hint::PerformanceMode& var);
+    static Stream writer(std::ostream& stream) {
+        return Stream(nullptr, &stream);
+    }
+
+    bool input() const {
+        return m_input != nullptr;
+    }
+
+    bool output() const {
+        return m_output != nullptr;
+    }
+
+    template <typename T>
+    Stream& operator&(T&& value) {
+        using plain_type = std::remove_const_t<std::remove_reference_t<T>>;
+        serialize(*this, const_cast<plain_type&>(value));
+        return *this;
+    }
+
+    void operator()() {}
+
+    template <typename T, typename... Ts>
+    void operator()(T&& value, Ts&&... values) {
+        (*this) & std::forward<T>(value);
+        (*this)(std::forward<Ts>(values)...);
+    }
+
+    void bytes(void* data, std::size_t size) {
+        if (output()) {
+            m_output->write(reinterpret_cast<const char*>(data), static_cast<std::streamsize>(size));
+        } else {
+            m_input->read(reinterpret_cast<char*>(data), static_cast<std::streamsize>(size));
+        }
+    }
+
+private:
+    Stream(std::istream* input, std::ostream* output) : m_input(input), m_output(output) {}
+
+    std::istream* m_input = nullptr;
+    std::ostream* m_output = nullptr;
+};
+
+void serialize(Stream& stream, std::streampos& var);
+void serialize(Stream& stream, std::string& var);
+void serialize(Stream& stream, bool& var);
+void serialize(Stream& stream, float& var);
+void serialize(Stream& stream, ov::npuw::compiled::Spatial& var);
+void serialize(Stream& stream, ov::npuw::compiled::Spatial::Param& var);
+void serialize(Stream& stream, ov::npuw::compiled::Attention& var);
+void serialize(Stream& stream, ov::npuw::compiled::Attention::Param& var);
+void serialize(Stream& stream, ov::npuw::compiled::PyramidAttention& var);
+void serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionInfo& var);
+void serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionInfo::Param& var);
+void serialize(Stream& stream, ov::npuw::compiled::HostFlashAttention& var);
+void serialize(Stream& stream, ov::npuw::compiled::MoEExperts& var);
+void serialize(Stream& stream, ov::npuw::compiled::MoEDownstream& var);
+void serialize(Stream& stream, ov::Tensor& var);
+void serialize(Stream& stream, ::intel_npu::Config& var);
+void serialize(Stream& stream, ov::Any& var);
+void serialize(Stream& stream, ov::npuw::weights::LazyTensor& var);
+void serialize(Stream& stream, ov::npuw::weights::Bank& var);
+void serialize(Stream& stream, ov::CacheMode& var);
+void serialize(Stream& stream, ov::element::Type& var);
+void serialize(Stream& stream, ov::hint::PerformanceMode& var);
+void serialize(Stream& stream, std::map<std::string, Any>& var);
+void serialize(Stream& stream, ov::Output<const ov::Node>& var);
+void serialize(Stream& stream, std::shared_ptr<ov::op::v0::Parameter>& var);
+void serialize(Stream& stream, std::shared_ptr<ov::Node>& var);
 
 // Weightless utils
-void write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, const WeightsContext& ctx);
-// No allocation needed
-void read_weightless(std::istream& stream, std::vector<ov::Tensor>& var, const WeightsContext& ctx);
+void serialize_weightless(Stream& stream, std::vector<ov::Tensor>& var, const WeightsContext& ctx);
 
 // Forward declaration
 template <typename T1, typename T2>
-void write(std::ostream& stream, const std::pair<T1, T2>& var);
+void serialize(Stream& stream, std::pair<T1, T2>& var);
 template <typename T>
-void write(std::ostream& stream, const std::vector<T>& var);
+void serialize(Stream& stream, std::vector<T>& var);
 template <typename T, size_t N>
-void write(std::ostream& stream, const std::array<T, N>& var);
-template <typename T1, typename T2>
-void read(std::istream& stream, std::pair<T1, T2>& var);
+void serialize(Stream& stream, std::array<T, N>& var);
+
 template <typename T>
-void read(std::istream& stream, std::vector<T>& var);
-template <typename T, std::size_t N>
-void read(std::istream& stream, std::array<T, N>& var);
+void write(std::ostream& stream, const T& var) {
+    auto stream_io = Stream::writer(stream);
+    auto& mutable_var = const_cast<std::remove_const_t<T>&>(var);
+    serialize(stream_io, mutable_var);
+}
+
+template <typename T>
+void read(std::istream& stream, T& var) {
+    auto stream_io = Stream::reader(stream);
+    serialize(stream_io, var);
+}
+
+inline void write_any(std::ostream& stream, const ov::Any& var) {
+    write(stream, var);
+}
+
+inline void read_any(std::istream& stream, ov::Any& var) {
+    read(stream, var);
+}
+
+inline void write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, const WeightsContext& ctx) {
+    auto stream_io = Stream::writer(stream);
+    auto& mutable_var = const_cast<std::vector<ov::Tensor>&>(var);
+    serialize_weightless(stream_io, mutable_var, ctx);
+}
+
+inline void read_weightless(std::istream& stream, std::vector<ov::Tensor>& var, const WeightsContext& ctx) {
+    auto stream_io = Stream::reader(stream);
+    serialize_weightless(stream_io, var, ctx);
+}
 
 // Serialization
 template <typename T, std::enable_if_t<std::is_integral<T>::value, bool> = true>
-void write(std::ostream& stream, const T& var) {
-    stream.write(reinterpret_cast<const char*>(&var), sizeof var);
+void serialize(Stream& stream, T& var) {
+    stream.bytes(&var, sizeof var);
 }
 
 template <typename T1, typename T2>
-void write(std::ostream& stream, const std::pair<T1, T2>& var) {
-    write(stream, var.first);
-    write(stream, var.second);
+void serialize(Stream& stream, std::pair<T1, T2>& var) {
+    stream & var.first & var.second;
 }
 
 template <typename T>
-void write(std::ostream& stream, const std::vector<T>& var) {
-    write(stream, var.size());
-    for (const auto& el : var) {
-        write(stream, el);
+void serialize(Stream& stream, std::vector<T>& var) {
+    if (stream.output()) {
+        auto size = var.size();
+        stream & size;
+        for (std::size_t i = 0; i < var.size(); ++i) {
+            if constexpr (std::is_same_v<T, bool>) {
+                bool el = var[i];
+                stream & el;
+            } else {
+                auto el = var[i];
+                stream & el;
+            }
+        }
+    } else {
+        var.clear();
+        std::size_t var_size = 0;
+        stream & var_size;
+        var.reserve(var_size);
+        for (std::size_t i = 0; i < var_size; ++i) {
+            T elem;
+            stream & elem;
+            var.push_back(std::move(elem));
+        }
     }
 }
 
 template <typename T, size_t N>
-void write(std::ostream& stream, const std::array<T, N>& var) {
-    for (const auto& el : var) {
-        write(stream, el);
+void serialize(Stream& stream, std::array<T, N>& var) {
+    for (auto& el : var) {
+        stream & el;
     }
 }
 
 template <typename T>
-void write(std::ostream& stream, const std::unordered_set<T>& var) {
-    write(stream, var.size());
-    for (const auto& el : var) {
-        write(stream, el);
-    }
-}
-
-template <typename T, typename H>
-void write(std::ostream& stream, const std::unordered_set<T, H>& var) {
-    write(stream, var.size());
-    for (const auto& el : var) {
-        write(stream, el);
-    }
-}
-
-template <typename K, typename V>
-void write(std::ostream& stream, const std::map<K, V>& var) {
-    write(stream, var.size());
-    for (const auto& el : var) {
-        write(stream, el);
-    }
-}
-
-template <typename T>
-void write(std::ostream& stream, const std::optional<T>& var) {
-    if (var) {
-        write(stream, true);
-        write(stream, var.value());
+void serialize(Stream& stream, std::unordered_set<T>& var) {
+    if (stream.output()) {
+        auto size = var.size();
+        stream & size;
+        for (const auto& el : var) {
+            auto value = el;
+            stream & value;
+        }
     } else {
-        write(stream, false);
-    }
-}
-
-// Deserialization
-template <typename T, std::enable_if_t<std::is_integral<T>::value, bool> = true>
-void read(std::istream& stream, T& var) {
-    stream.read(reinterpret_cast<char*>(&var), sizeof var);
-}
-
-template <typename T1, typename T2>
-void read(std::istream& stream, std::pair<T1, T2>& var) {
-    read(stream, var.first);
-    read(stream, var.second);
-}
-
-template <typename T>
-void read(std::istream& stream, std::vector<T>& var) {
-    var.clear();
-    std::size_t var_size = 0;
-    stream.read(reinterpret_cast<char*>(&var_size), sizeof var_size);
-    var.reserve(var_size);
-    for (std::size_t i = 0; i < var_size; ++i) {
-        T elem;
-        read(stream, elem);
-        var.push_back(std::move(elem));
-    }
-}
-
-template <typename T, std::size_t N>
-void read(std::istream& stream, std::array<T, N>& var) {
-    for (std::size_t i = 0; i < N; ++i) {
-        T elem;
-        read(stream, elem);
-        var[i] = elem;
-    }
-}
-
-template <typename T>
-void read(std::istream& stream, std::unordered_set<T>& var) {
-    var.clear();
-    std::size_t var_size = 0;
-    stream.read(reinterpret_cast<char*>(&var_size), sizeof var_size);
-    for (std::size_t i = 0; i < var_size; ++i) {
-        T elem;
-        read(stream, elem);
-        var.insert(std::move(elem));
+        var.clear();
+        std::size_t var_size = 0;
+        stream & var_size;
+        for (std::size_t i = 0; i < var_size; ++i) {
+            T elem;
+            stream & elem;
+            var.insert(std::move(elem));
+        }
     }
 }
 
 template <typename T, typename H>
-void read(std::istream& stream, std::unordered_set<T, H>& var) {
-    var.clear();
-    std::size_t var_size = 0;
-    stream.read(reinterpret_cast<char*>(&var_size), sizeof var_size);
-    for (std::size_t i = 0; i < var_size; ++i) {
-        T elem;
-        read(stream, elem);
-        var.insert(std::move(elem));
+void serialize(Stream& stream, std::unordered_set<T, H>& var) {
+    if (stream.output()) {
+        auto size = var.size();
+        stream & size;
+        for (const auto& el : var) {
+            auto value = el;
+            stream & value;
+        }
+    } else {
+        var.clear();
+        std::size_t var_size = 0;
+        stream & var_size;
+        for (std::size_t i = 0; i < var_size; ++i) {
+            T elem;
+            stream & elem;
+            var.insert(std::move(elem));
+        }
     }
 }
 
 template <typename K, typename V>
-void read(std::istream& stream, std::map<K, V>& var) {
-    var.clear();
-    std::size_t var_size = 0;
-    stream.read(reinterpret_cast<char*>(&var_size), sizeof var_size);
-    for (std::size_t i = 0; i < var_size; ++i) {
-        std::pair<K, V> elem;
-        read(stream, elem);
-        var[elem.first] = elem.second;
+void serialize(Stream& stream, std::map<K, V>& var) {
+    if (stream.output()) {
+        auto size = var.size();
+        stream & size;
+        for (auto& el : var) {
+            auto pair = el;
+            stream & pair;
+        }
+    } else {
+        var.clear();
+        std::size_t var_size = 0;
+        stream & var_size;
+        for (std::size_t i = 0; i < var_size; ++i) {
+            std::pair<K, V> elem;
+            stream & elem;
+            var[elem.first] = elem.second;
+        }
     }
 }
 
 template <typename T>
-void read(std::istream& stream, std::optional<T>& var) {
-    bool has_value = false;
-    read(stream, has_value);
+void serialize(Stream& stream, std::optional<T>& var) {
+    bool has_value = var.has_value();
+    stream & has_value;
     if (has_value) {
-        T val;
-        read(stream, val);
-        var = val;
+        if (stream.output()) {
+            auto& value = var.value();
+            stream & value;
+        } else {
+            T value;
+            stream & value;
+            var = std::move(value);
+        }
+    } else {
+        var.reset();
     }
 }
+
+using TensorAllocator = std::function<ov::Tensor(const ov::element::Type&, const ov::Shape&)>;
+void transfer_tensor(Stream& stream, ov::Tensor& var, const TensorAllocator& allocator = {});
 
 }  // namespace s11n
 }  // namespace npuw
