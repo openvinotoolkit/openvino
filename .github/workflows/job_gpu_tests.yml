@@ -210,8 +210,6 @@ jobs:
             --self-contained-html -v --tb=short -n 2
         env:
           TEST_DEVICE: GPU
-          HF_HUB_VERBOSITY: debug
-          TRANSFORMERS_VERBOSITY: debug
 
       - name: Upload RoPE Test Results
         if: ${{ inputs.test_type == 'rope' && always() }}
