@@ -571,11 +571,13 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     auto wrap_math_to_preserve_f16 = [](const std::shared_ptr<ov::Node>& node,
                                         const precisions_map& precisions) -> bool {
         auto it = precisions.find(node->get_output_element_type(0));
-        if (it == precisions.end())
+        if (it == precisions.end()) {
             return false;
+        }
         // Only apply for f16->f32 conversion
-        if (it->first != ov::element::f16)
+        if (it->first != ov::element::f16) {
             return false;
+        }
 
         const auto& original_type = it->first;
         const auto& target_type = it->second;
@@ -592,8 +594,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             auto convert = std::make_shared<ov::op::v0::Convert>(node, target_type);
             for (auto& input : consumers) {
                 if (ov::is_type<ov::op::v0::Result>(input.get_node()) ||
-                    ov::is_type<ov::op::v0::Convert>(input.get_node()))
+                    ov::is_type<ov::op::v0::Convert>(input.get_node())) {
                     continue;
+                }
                 input.replace_source_output(convert);
             }
         }
