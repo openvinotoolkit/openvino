@@ -12,14 +12,16 @@
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/softmax.hpp>
+#include <openvino/core/except.hpp>
 #include <openvino/reference/xattention.hpp>
 #include <openvino/reference/adaptive_rkv_diversity.hpp>
-
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "primitive_inst.h"
 #include "random_generator.hpp"
 #include "test_utils.h"
+
+#include <optional>
 
 using namespace cldnn;
 using namespace ov::intel_gpu;
@@ -48,6 +50,8 @@ using namespace ::tests;
  * [18]: adaptive_rkv_evictable_sizes, optional, shape: [batch_size_in_sequences], type: i32
  * [19]: adaptive_rkv_diversity_block_set_indices, optional, shape: [total_blocks], type: i32
  * [20]: adaptive_rkv_diversity_block_set_indices_begins, optional, shape: [batch_size_in_sequences + 1], type: i32
+ * [21]: qq_bias, optional, shape: [total_mask_size], type: u8
+ * [22]: qq_bias_begins, optional, shape: [batch_size_in_sequences + 1], type: i32
  */
 
 enum class ScoresMode {
@@ -69,6 +73,11 @@ struct CacheRotationDescriptor {
     bool per_block;
 };
 
+struct QueryToQueryAttentionDescriptor {
+    std::vector<std::vector<uint8_t>> qq_bias;
+    std::vector<int> qq_bias_begins;
+};
+
 struct PagedAttentionManager {
     int num_heads;
     int num_kv_heads;
@@ -80,7 +89,6 @@ struct PagedAttentionManager {
     ov::internal::CacheQuantMode key_cache_quant_mode;
     ov::element::Type kv_cache_precision = ov::element::dynamic;
     bool has_score_aggregation;
-    bool has_xattention;
     CacheRotationDescriptor rotation_config;
     std::vector<SubsequenceDescriptor> subsequence_descs;
 
@@ -105,6 +113,8 @@ struct PagedAttentionManager {
     std::vector<int> rotation_deltas;
     std::vector<ov::float16> rotation_trig_lut;
 
+    // xattention related inputs
+    bool has_xattention;
     std::vector<ov::float16> xattention_threshold;
     std::vector<int> xattention_block_size;
     std::vector<int> xattention_stride;
@@ -116,6 +126,8 @@ struct PagedAttentionManager {
     std::vector<int> adaptive_rkv_diversity_block_set_indices;
     std::vector<int> adaptive_rkv_diversity_block_set_indices_begins;
 
+    std::vector<std::vector<uint8_t>> qq_bias;
+    std::vector<int> qq_bias_begins;
     cldnn::engine& test_engine;
     cldnn::stream& test_stream;
     tests::random_generator& rg;
@@ -135,7 +147,6 @@ struct PagedAttentionManager {
                           bool has_score_aggregation,
                           bool has_xattention,
                           CacheRotationDescriptor rotation_config,
-                          std::vector<float> threshold,
                           ov::element::Type kv_cache_precision = ov::element::dynamic)
         : num_heads(num_heads)
         , num_kv_heads(num_kv_heads)
@@ -147,18 +158,15 @@ struct PagedAttentionManager {
         , key_cache_quant_mode(key_cache_quant_mode)
         , kv_cache_precision(kv_cache_precision)
         , has_score_aggregation(has_score_aggregation)
-        , has_xattention(has_xattention)
         , rotation_config(rotation_config)
         , subsequence_descs(subsequence_descs)
+        , has_xattention(has_xattention)
         , test_engine(engine)
         , test_stream(stream)
         , rg(rg) {
         // init subsequence_begins and block_indices_begins
         subsequence_begins.push_back(0);
         block_indices_begins.push_back(0);
-        for (int i = 0; i < static_cast<int>(threshold.size()); i++) {
-            xattention_threshold.emplace_back(static_cast<ov::float16>(threshold[i]));
-        }
 
         int max_len = 0;
         for (int i = 0; i < static_cast<int>(subsequence_descs.size()); i++) {
@@ -235,14 +243,24 @@ struct PagedAttentionManager {
     }
 
     memory::ptr get_key_cache_memory_cm() {
+        constexpr int kv_sub_block_size = 16;
         auto key_cache_dt = kv_cache_compression ? data_types::i8 : data_types::f16;
         const int head_size = k_head_size;
-        const int adjusted_head_size = head_size + (kv_cache_compression ? 4 : 0);
+        int adjusted_head_size = head_size;
+        int adjusted_block_size = block_size;
+        if (kv_cache_compression) {
+            if (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
+                OPENVINO_ASSERT(block_size % kv_sub_block_size == 0);
+                adjusted_block_size += block_size / kv_sub_block_size * 4;
+            } else {
+                adjusted_head_size += 4;
+            }
+        }
 
         const auto num_blocks = block_indices.back() + 1;
         auto key_cache_shape = ov::PartialShape{static_cast<int64_t>(num_blocks),
                                                 static_cast<int64_t>(num_kv_heads),
-                                                static_cast<int64_t>(block_size),
+                                                static_cast<int64_t>(adjusted_block_size),
                                                 static_cast<int64_t>(adjusted_head_size)};
         auto key_cache_layout = layout{key_cache_shape, key_cache_dt, format::bfyx};
         auto memory = test_engine.allocate_memory(key_cache_layout);
@@ -269,7 +287,7 @@ struct PagedAttentionManager {
                                                 (static_cast<size_t>(head_idx) * block_size * head_size);
                             const size_t off = base + static_cast<size_t>(token_idx) * head_size;
                             set_values(test_stream, memory, src_ptr, head_size, off);
-                        } else {
+                        } else if (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_TOKEN) {
                             // Compressed Key cache layout:
                             // logical shape: [num_blocks, num_kv_heads, block_size, adjusted_head_size], dt=i8 (adjusted_head_size=head_size+4).
                             // Per (block, head) region starts at block_base_i8, byte-packed as:
@@ -294,6 +312,49 @@ struct PagedAttentionManager {
 
                             set_values(test_stream, memory, &scale, 1, scale_off_f16);
                             set_values(test_stream, memory, &zp, 1, zp_off_f16);
+                        } else {
+                            // Compressed Key cache layout for BY_CHANNEL:
+                            // shape: [num_blocks, num_kv_heads, adjusted_block_size, head_size], dt=i8.
+                            // Per (block, head):
+                            //   data bytes region                            : [block_size * head_size]
+                            //   scale fp16 region per-subblock per-channel   : [(block_size / sub_block) * head_size]
+                            //   zp fp16 region per-subblock per-channel      : [(block_size / sub_block) * head_size]
+                            const size_t block_stride_i8 = static_cast<size_t>(adjusted_block_size) * static_cast<size_t>(head_size);
+                            const size_t block_base_i8 = (static_cast<size_t>(start_block_idx + block_idx) * static_cast<size_t>(num_kv_heads) +
+                                                          static_cast<size_t>(head_idx)) *
+                                                         block_stride_i8;
+
+                            const int subblock_count = block_size / kv_sub_block_size;
+                            const size_t scale_base_i8 = block_base_i8 + static_cast<size_t>(block_size) * static_cast<size_t>(head_size);
+                            const size_t zp_base_i8 = scale_base_i8 +
+                                                      static_cast<size_t>(subblock_count) * static_cast<size_t>(head_size) * sizeof(ov::float16);
+
+                            for (int channel = 0; channel < head_size; channel++) {
+                                for (int sub_start = 0; sub_start < last_token_idx; sub_start += kv_sub_block_size) {
+                                    const int cur_sub_block_size = std::min(kv_sub_block_size, last_token_idx - sub_start);
+                                    std::vector<ov::float16> token_block(cur_sub_block_size);
+
+                                    for (int t = 0; t < cur_sub_block_size; t++) {
+                                        const size_t input_token_offset = static_cast<size_t>(block_idx) * block_size + static_cast<size_t>(sub_start + t);
+                                        token_block[t] = *(key_data[i].data() + input_token_offset * static_cast<size_t>(num_kv_heads) * head_size +
+                                                           static_cast<size_t>(head_idx) * head_size + channel);
+                                    }
+
+                                    auto [quantized_data, scale, zp] = quantize_data(token_block.data(), cur_sub_block_size, true, true);
+
+                                    for (int t = 0; t < cur_sub_block_size; t++) {
+                                        const size_t data_off_i8 = block_base_i8 + static_cast<size_t>(sub_start + t) * head_size + channel;
+                                        set_values(test_stream, memory, quantized_data.data() + t, 1, data_off_i8);
+                                    }
+
+                                    const size_t sub_idx = static_cast<size_t>(sub_start / kv_sub_block_size);
+                                    const size_t scale_off_f16 = scale_base_i8 / 2 + sub_idx * static_cast<size_t>(head_size) + channel;
+                                    const size_t zp_off_f16 = zp_base_i8 / 2 + sub_idx * static_cast<size_t>(head_size) + channel;
+
+                                    set_values(test_stream, memory, &scale, 1, scale_off_f16);
+                                    set_values(test_stream, memory, &zp, 1, zp_off_f16);
+                                }
+                            }
                         }
                     }
                 }
@@ -738,17 +799,7 @@ struct PagedAttentionManager {
     }
 
     memory::ptr get_xattention_threshold_memory() {
-        auto mem = get_memory_from_vec(xattention_threshold);
-        auto layout = mem->get_layout();
-        layout.set_partial_shape(ov::PartialShape{ 1 });
-
-        if (xattention_threshold.empty()) {
-            auto empty_layout = mem->get_layout();
-            empty_layout.set_partial_shape(ov::PartialShape{ 0 });
-            return test_engine.reinterpret_buffer(*mem, empty_layout);
-        }
-
-        return test_engine.reinterpret_buffer(*mem, layout);
+        return get_memory_from_vec(xattention_threshold);
     }
 
     memory::ptr get_xattention_block_size_memory() {
@@ -795,6 +846,20 @@ struct PagedAttentionManager {
     memory::ptr get_token_type_ids_memory() {
         std::vector<int> token_type_ids = { 0 };
         return get_memory_from_vec(token_type_ids);
+    }
+
+    memory::ptr get_qq_bias_memory() {
+        std::vector<uint8_t> flat_qq_bias;
+        for (const auto& matrix : qq_bias) {
+            for (bool val : matrix) {
+                flat_qq_bias.push_back(static_cast<int8_t>(val));
+            }
+        }
+        return get_memory_from_vec(flat_qq_bias);
+    }
+
+    memory::ptr get_qq_bias_begins_memory() {
+        return get_memory_from_vec(qq_bias_begins);
     }
 
     float get_default_scale() {
@@ -991,11 +1056,24 @@ struct PagedAttentionReference {
     , test_engine(pam.test_engine)
     , test_stream(pam.test_stream) {}
 
-    std::tuple<std::vector<ov::float16>, std::vector<ov::float16>, std::vector<ov::float16>> get_reference(bool has_xattention, std::vector<float> threshold, memory::ptr key_cache_mem = nullptr) {
+    std::tuple<std::vector<ov::float16>, std::vector<ov::float16>, std::vector<ov::float16>> get_reference(memory::ptr key_cache_mem = nullptr) {
+        const bool has_xattention = pam.has_xattention;
+        if (has_xattention) {
+            const size_t total_iterations = pam.subsequence_descs.size();
+            if (pam.xattention_threshold.size() != total_iterations) {
+                OPENVINO_THROW("xattention_threshold size (", pam.xattention_threshold.size(),
+                               ") must match number of subsequences (", total_iterations, ")");
+            }
+            if (pam.xattention_block_size.size() != total_iterations) {
+                OPENVINO_THROW("xattention_block_size size (", pam.xattention_block_size.size(),
+                               ") must match number of subsequences (", total_iterations, ")");
+            }
+        }
+
         std::vector<ov::float16> ref_data_output;
         std::vector<ov::float16> ref_scores_output;
         std::vector<ov::float16> ref_diversity_output;
-
+        size_t qq_bias_offset = 0;
         for (size_t i = 0; i < pam.subsequence_descs.size(); i++) {
             const auto& subsequence_desc = pam.subsequence_descs[i];
             const auto kv_seq_len = subsequence_desc.num_tokens + subsequence_desc.past_len;
@@ -1028,7 +1106,26 @@ struct PagedAttentionReference {
             }
 
             auto window_size = pam.has_score_aggregation ? pam.score_aggregation[i] : 1;
-            double th = static_cast<double>(threshold.size() == 1 ? threshold[0] : threshold[i]);
+
+            const std::vector<uint8_t>* qq_bias_ptr = nullptr;
+            if (pam.qq_bias.size() > 0 && pam.subsequence_descs[i].past_len != 0) {
+                qq_bias_ptr = &pam.qq_bias[qq_bias_offset++];
+            }
+
+            double xattn_threshold = 1.0;
+            size_t xattn_block_size = 128;
+            if (has_xattention) {
+                xattn_threshold = static_cast<double>(pam.xattention_threshold[i]);
+
+                //  reference path reflects runtime fallback/validation behavior for block size.
+                if (test_engine.get_device_info().arch < gpu_arch::xe2) {
+                    xattn_block_size = 128;
+                } else {
+                    const int user_value = pam.xattention_block_size[i];
+                    xattn_block_size = (user_value == 128 || user_value == 256) ? static_cast<size_t>(user_value) : 256;
+                }
+            }
+
             auto subsequence_ref_results = run_reference(has_xattention,
                                                          pam.query_data[i],
                                                          key_data,
@@ -1042,7 +1139,9 @@ struct PagedAttentionReference {
                                                          window_size,
                                                          pam.sliding_window_size,
                                                          pam.get_default_scale(),
-                                                         th);
+                                                         xattn_threshold,
+                                                         xattn_block_size,
+                                                         qq_bias_ptr);
 
             // concatenate all subsequences into one vector
             ref_data_output.insert(ref_data_output.end(),
@@ -1074,8 +1173,9 @@ private:
                                                                                 int window_size,
                                                                                 int sliding_window_size,
                                                                                 float scale,
-                                                                                double threshold = 0.9,
-                                                                                size_t block_size = 128,
+                                                                                double xattention_threshold,
+                                                                                size_t block_size,
+                                                                                const std::vector<uint8_t>* qq_bias = nullptr,
                                                                                 size_t stride = 16) {
         auto query_shape = ov::PartialShape{1, num_queries, num_heads, k_head_size};
         auto key_shape = ov::PartialShape{1, num_keys, num_kv_heads, k_head_size};
@@ -1182,7 +1282,7 @@ private:
                     return static_cast<float>(v);
                 });
             }
-            ov::reference::XAttentionBlockSelector<float> selector(threshold, block_size, stride);
+            ov::reference::XAttentionBlockSelector<float> selector(xattention_threshold, block_size, stride);
             retained_blocks = selector.select_blocks(query_padded.data(),
                                                      {static_cast<size_t>(num_heads), padded_q, static_cast<size_t>(k_head_size)},
                                                      key_padded.data(),
@@ -1194,7 +1294,8 @@ private:
                                                          num_kv_heads,
                                                          sliding_window_size,
                                                          retained_blocks,
-                                                         static_cast<int>(block_size));
+                                                         static_cast<int>(block_size),
+                                                         qq_bias);
         topology topology;
         if (num_heads == num_kv_heads) {
             topology.add(input_layout("query", query_layout),
@@ -1296,7 +1397,8 @@ private:
                                                  int num_kv_heads,
                                                  int sliding_window_size,
                                                  const ov::reference::XAttentionRetainedBlockIndicesForAllHeads& retained_blocks,
-                                                 int block_size) {
+                                                 int block_size,
+                                                 const std::vector<uint8_t>* qq_bias) {
         int heads_per_kv = num_heads / num_kv_heads;
 
         ov::PartialShape mask_shape;
@@ -1386,6 +1488,33 @@ private:
                             }
                         }
                     }
+                }
+            }
+        }
+
+        if (qq_bias && !qq_bias->empty()) {
+            OPENVINO_ASSERT(qq_bias->size() == static_cast<size_t>(num_queries * num_queries));
+
+            auto apply_mask_for_head = [&](size_t head_offset) {
+                for (int i = 0; i < num_queries; i++) {
+                    for (int j = 0; j < num_queries; j++) {
+                        if (!(*qq_bias)[static_cast<size_t>(i) * static_cast<size_t>(num_queries) + static_cast<size_t>(j)]) {
+                            mem_ptr[head_offset + static_cast<size_t>(i) * static_cast<size_t>(num_keys) + (num_keys - num_queries) + static_cast<size_t>(j)] =
+                                std::numeric_limits<ov::float16>::lowest();
+                        }
+                    }
+                }
+            };
+
+            if (retained_blocks.empty()) {
+                apply_mask_for_head(0);
+            } else {
+                for (int h = 0; h < num_heads; ++h) {
+                    int kv_idx = (num_heads == num_kv_heads) ? 0 : (h / heads_per_kv);
+                    int head_in_kv = (num_heads == num_kv_heads) ? h : (h % heads_per_kv);
+                    size_t head_offset = (static_cast<size_t>(kv_idx) * static_cast<size_t>(heads_per_kv) + static_cast<size_t>(head_in_kv)) *
+                                         static_cast<size_t>(num_queries) * static_cast<size_t>(num_keys);
+                    apply_mask_for_head(head_offset);
                 }
             }
         }
@@ -1689,7 +1818,7 @@ public:
         rg.set_seed(GET_SUITE_NAME);
     }
 
-    void execute(T& p) {
+    void execute(T& p, bool run_reference = true) {
         ov::element::Type kv_cache_precision = p.kv_cache_precision;
         PagedAttentionManager pam(rg,
                                   get_test_engine(),
@@ -1706,8 +1835,22 @@ public:
                                   p.scores_mode == ScoresMode::SNAPKV,
                                   p.has_xattention,
                                   p.rotation_config,
-                                  p.threshold,
                                   kv_cache_precision);
+        if (p.has_xattention) {
+            pam.xattention_block_size.clear();
+            if (p.xattention_block_size.has_value()) {
+                pam.xattention_block_size = p.xattention_block_size.value();
+            }
+            pam.xattention_threshold.clear();
+            if (p.xattention_threshold.has_value()) {
+                pam.xattention_threshold.reserve(p.xattention_threshold->size());
+                for (const float t : p.xattention_threshold.value()) {
+                    pam.xattention_threshold.emplace_back(static_cast<ov::float16>(t));
+                }
+            }
+            // Keep xattention_stride non-empty and per-sequence, reducing the mismatch risk with always-bound stride input.
+            pam.xattention_stride.assign(p.subsequences.size(), 16);
+        }
 
         if (p.has_adaptive_rkv) {
             pam.adaptive_rkv_diversity_block_set_indices_begins.push_back(0);
@@ -1730,6 +1873,11 @@ public:
                 int prev_begin = pam.adaptive_rkv_diversity_block_set_indices_begins.back();
                 pam.adaptive_rkv_diversity_block_set_indices_begins.push_back(prev_begin + evictable_blocks);
             }
+        }
+
+        if (p.has_qq_bias) {
+            pam.qq_bias = p.qq_bias_config.qq_bias;
+            pam.qq_bias_begins = p.qq_bias_config.qq_bias_begins;
         }
 
         if (p.kv_cache_compression)
@@ -1775,6 +1923,8 @@ public:
         auto adaptive_rkv_diversity_block_set_indices_begins_mem = pam.get_adaptive_rkv_diversity_block_set_indices_begins_memory();
         auto token_type_ids_mem = pam.get_token_type_ids_memory();
 
+        auto qq_bias = pam.get_qq_bias_memory();
+        auto qq_bias_begins = pam.get_qq_bias_begins_memory();
         auto query_layout = query_mem->get_layout();
         auto key_layout = key_mem->get_layout();
         auto value_layout = value_mem->get_layout();
@@ -1801,6 +1951,8 @@ public:
         auto adaptive_rkv_diversity_block_set_indices_layout = adaptive_rkv_diversity_block_set_indices_mem->get_layout();
         auto adaptive_rkv_diversity_block_set_indices_begins_layout = adaptive_rkv_diversity_block_set_indices_begins_mem->get_layout();
         auto token_type_ids_layout = token_type_ids_mem->get_layout();
+        auto qq_bias_layout = qq_bias->get_layout();
+        auto qq_bias_begins_layout = qq_bias_begins->get_layout();
 
         // make layouts dynamic
         query_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads * p.k_head_size });
@@ -1830,6 +1982,8 @@ public:
         adaptive_rkv_evictable_sizes_layout.set_partial_shape(ov::PartialShape{ -1 });
         adaptive_rkv_diversity_block_set_indices_layout.set_partial_shape(ov::PartialShape{ -1 });
         adaptive_rkv_diversity_block_set_indices_begins_layout.set_partial_shape(ov::PartialShape{ -1 });
+        qq_bias_layout.set_partial_shape(ov::PartialShape{ -1 });
+        qq_bias_begins_layout.set_partial_shape(ov::PartialShape{ -1 });
 
         if (p.dynamic_paddings) {
             const auto padding_axis = 1;
@@ -1889,6 +2043,8 @@ public:
             input_info("adaptive_rkv_diversity_block_set_indices"),
             input_info("adaptive_rkv_diversity_block_set_indices_begins"),
             input_info("token_type_ids"),
+            input_info("qq_bias"),
+            input_info("qq_bias_begins")
         };
 
         auto pa_prim = paged_attention("paged_attention", pa_inputs);
@@ -1912,6 +2068,8 @@ public:
         if (p.has_xattention) {
             pa_prim.has_xattention = true;
         }
+
+        pa_prim.has_qq_bias = p.has_qq_bias;
 
         topology topology;
 
@@ -1961,6 +2119,8 @@ public:
             topology.add(input_layout("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_layout));
             topology.add(input_layout("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_layout));
             topology.add(input_layout("token_type_ids", token_type_ids_layout));
+            topology.add(input_layout("qq_bias", qq_bias_layout));
+            topology.add(input_layout("qq_bias_begins", qq_bias_begins_layout));
         }
 
         ExecutionConfig config = get_test_default_config(get_test_engine());
@@ -1992,6 +2152,7 @@ public:
         network->set_input_data("rotation_trig_lut", rotation_trig_lut_mem);
         network->set_input_data("xattention_threshold", xattention_threshold_mem);
         network->set_input_data("xattention_block_size", xattention_block_size_mem);
+
         network->set_input_data("xattention_stride", xattention_stride_mem);
         network->set_input_data("sinks", sinks_mem);
         network->set_input_data("adaptive_rkv_start_size", adaptive_rkv_start_size_mem);
@@ -1999,8 +2160,14 @@ public:
         network->set_input_data("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_mem);
         network->set_input_data("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_mem);
         network->set_input_data("token_type_ids", token_type_ids_mem);
+        network->set_input_data("qq_bias", qq_bias);
+        network->set_input_data("qq_bias_begins", qq_bias_begins);
 
         auto outputs = network->execute();
+
+        if (!run_reference) {
+            return;
+        }
 
         cldnn::memory::ptr output_data_mem = nullptr;
         cldnn::memory::ptr output_scores_mem = nullptr;
@@ -2013,7 +2180,7 @@ public:
         if (p.has_adaptive_rkv) {
             output_diversity_mem = outputs.at("output_diversity").get_memory();
         }
-        auto ref_data = PagedAttentionReference(pam).get_reference(p.has_xattention, p.threshold, key_cache_mem);
+        auto ref_data = PagedAttentionReference(pam).get_reference(key_cache_mem);
         if (p.has_xattention) {
             compare_xattention(output_data_mem, output_scores_mem, ref_data);
         } else {
@@ -2090,9 +2257,7 @@ struct paged_attention_test_params {
     int k_head_size;
     int v_head_size;
     int block_size;
-    std::vector<float> threshold;
     int sliding_window_size;
-    bool has_xattention;
     bool kv_cache_compression;
     ov::internal::CacheQuantMode key_cache_quant_mode;
     bool dynamic_paddings;
@@ -2102,7 +2267,17 @@ struct paged_attention_test_params {
     bool has_adaptive_rkv = false;
     int start_size = 0;                // Common start_size for all sequences
     std::vector<int> evictable_sizes;  // Per-sequence evictable sizes
+
+    // XAttention-related params are grouped below.
+    bool has_xattention = false;
+    std::optional<std::vector<float>> xattention_threshold = std::nullopt;
+    std::optional<std::vector<int>> xattention_block_size = std::nullopt;
+     
     ov::element::Type kv_cache_precision = ov::element::dynamic;
+
+    // test query-to-query attention bias
+    bool has_qq_bias = false;
+    QueryToQueryAttentionDescriptor qq_bias_config = {};
 };
 
 class paged_attention_test : public PagedAttentionTest<paged_attention_test_params> {};
@@ -2121,8 +2296,44 @@ TEST_P(xattention_test, basic) {
     execute(p);
 }
 
+class xattention_invalid_test : public PagedAttentionTest<paged_attention_test_params> {};
+TEST_P(xattention_invalid_test, throws_on_invalid_xattention_inputs) {
+    if (!check_cm_available())
+        GTEST_SKIP();
+    auto p = GetParam();
+
+    std::string expected_error_substr;
+    if (!p.xattention_block_size.has_value() || p.xattention_block_size->empty()) {
+        expected_error_substr = "XAttention block size input";
+    } else if (!p.xattention_threshold.has_value() || p.xattention_threshold->empty()) {
+        expected_error_substr = "XAttention threshold input";
+    } else {
+        expected_error_substr = "XAttention";
+    }
+
+    try {
+        execute(p, false);
+        FAIL() << "Expected exception containing: " << expected_error_substr;
+    } catch (const ov::Exception& e) {
+        const std::string msg = e.what();
+        EXPECT_NE(msg.find(expected_error_substr), std::string::npos)
+            << "Unexpected exception message: " << msg;
+    } catch (const std::exception& e) {
+        FAIL() << "Expected ov::Exception, got std::exception: " << e.what();
+    } catch (...) {
+        FAIL() << "Expected ov::Exception, got unknown exception type";
+    }
+}
+
 class adaptive_rkv_diversity_test : public PagedAttentionTest<paged_attention_test_params> {};
 TEST_P(adaptive_rkv_diversity_test, basic) {
+    auto p = GetParam();
+
+    execute(p);
+}
+
+class qq_bias_test : public PagedAttentionTest<paged_attention_test_params> {};
+TEST_P(qq_bias_test, basic) {
     auto p = GetParam();
 
     execute(p);
@@ -2142,239 +2353,289 @@ const auto ENABLE_FA_V2 = false;
 const auto DISABLE_FA_V2 = true;
 const auto ENABLE_DIVERSITY = true;
 const auto DISABLE_DIVERSITY = false;
+const auto ENABLE_QQ_BIAS = QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 16}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
     /* with scores output, use SnapKV */
-    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES_SNAPKV, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{36, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES_SNAPKV, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES_SNAPKV, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token long
-    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES_SNAPKV, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token + 1st token
-    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES_SNAPKV, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
-    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES_SNAPKV, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token + 1st token
-    paged_attention_test_params{ {{1, 10}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES_SNAPKV, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES_SNAPKV, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES_SNAPKV, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES_SNAPKV, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token
+    paged_attention_test_params{ {{36, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES_SNAPKV, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token
+    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES_SNAPKV, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token long
+    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES_SNAPKV, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token + 1st token
+    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES_SNAPKV, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token + 1st token
+    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES_SNAPKV, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token + 1st token
+    paged_attention_test_params{ {{1, 10}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES_SNAPKV, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES_SNAPKV, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES_SNAPKV, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: 2nd token + 1st token + part of 1st token
     /* with scores output */
-    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{10, 0}}, 2, 2, 16, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{10, 0}}, 2, 2, 128, 96, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN,STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{36, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN,STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{36, 0}}, 2, 2, 64, 48, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN,STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{36, 0}}, 2, 2, 96, 128, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN,STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token long
-    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 32, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN,STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token long
-    paged_attention_test_params{ {{1024, 0}}, 2, 2, 32, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN,STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token long
-    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token + 1st token
-    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 2, 64, 32, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token + 1st token
-    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
-    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 2, 64, 32, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
-    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 2, 48, 96, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
-    paged_attention_test_params{ {{1, 10}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
-    paged_attention_test_params{ {{1, 10}}, 2, 2, 64, 32, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 48, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 16, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token
+    paged_attention_test_params{ {{10, 0}}, 2, 2, 16, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token
+    paged_attention_test_params{ {{10, 0}}, 2, 2, 128, 96, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN,STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token
+    paged_attention_test_params{ {{36, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN,STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token
+    paged_attention_test_params{ {{36, 0}}, 2, 2, 64, 48, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN,STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token
+    paged_attention_test_params{ {{36, 0}}, 2, 2, 96, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN,STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token
+    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token long
+    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 32, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN,STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token long
+    paged_attention_test_params{ {{1024, 0}}, 2, 2, 32, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN,STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token long
+    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token + 1st token
+    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 2, 64, 32, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token + 1st token
+    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token + 1st token
+    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 2, 64, 32, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token + 1st token
+    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 2, 48, 96, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token + 1st token
+    paged_attention_test_params{ {{1, 10}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token
+    paged_attention_test_params{ {{1, 10}}, 2, 2, 64, 32, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 48, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 16, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: 2nd token + 1st token + part of 1st token
     /* without scores output, dynamic input query paddings */
-    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 32, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token long
-    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 32, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token long
-    paged_attention_test_params{ {{10, 0}, {81, 0}, {129, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token + 1st token
-    paged_attention_test_params{ {{10, 0}, {81, 0}, {129, 0}}, 2, 2, 64, 32, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token + 1st token
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 32, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 32, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token
+    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 32, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token
+    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token long
+    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 32, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token long
+    paged_attention_test_params{ {{10, 0}, {81, 0}, {129, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token + 1st token
+    paged_attention_test_params{ {{10, 0}, {81, 0}, {129, 0}}, 2, 2, 64, 32, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token + 1st token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 32, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 32, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: 2nd token + 1st token + part of 1st token
     /* with scores, per_block rotation */
-    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN,STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 32, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{36, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{36, 0}}, 2, 2, 64, 32, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2 }, // 1st token long
-    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 32, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2 }, // 1st token long
-    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 1st token + 1st token
-    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 2, 64, 48, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 1st token + 1st token
-    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
-    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 2, 64, 32, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
-    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 2, 48, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
-    paged_attention_test_params{ {{1, 10}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 2nd token
-    paged_attention_test_params{ {{1, 10}}, 2, 2, 64, 32, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 2nd token
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 32, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 32, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN,STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token
+    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 32, 16, 0, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token
+    paged_attention_test_params{ {{36, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token
+    paged_attention_test_params{ {{36, 0}}, 2, 2, 64, 32, 16, 0, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token
+    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token long
+    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 32, 16, 0, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token long
+    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token + 1st token
+    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 2, 64, 48, 16, 0, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token + 1st token
+    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token + 1st token
+    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 2, 64, 32, 16, 0, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token + 1st token
+    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 2, 48, 64, 16, 0, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token + 1st token
+    paged_attention_test_params{ {{1, 10}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token
+    paged_attention_test_params{ {{1, 10}}, 2, 2, 64, 32, 16, 0, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 32, 16, 0, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 32, 16, 0, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: 2nd token + 1st token + part of 1st token
     /* with scores, per_token rotation */
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 32, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 32, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 128, 192, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 32, 16, 0, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 32, 16, 0, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 128, 192, 16, 0, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: 2nd token + 1st token + part of 1st token
     /* without scores output, dynamic input query paddings, KV-cache compression */
-    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 32, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 32, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64,  16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token long
-    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64,  16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token long
-    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 32,  16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token long
-    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 32,  16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token long
-    paged_attention_test_params{ {{10, 0}, {81, 0}, {129, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
-    paged_attention_test_params{ {{10, 0}, {81, 0}, {129, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
-    paged_attention_test_params{ {{10, 0}, {81, 0}, {129, 0}}, 2, 2, 64, 32, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
-    paged_attention_test_params{ {{10, 0}, {81, 0}, {129, 0}}, 2, 2, 64, 32, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 32, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 32, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 32, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 32, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token
+    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token
+    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 32, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token
+    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 32, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token
+    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64,  16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token long
+    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64,  16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token long
+    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 32,  16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token long
+    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 32,  16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token long
+    paged_attention_test_params{ {{10, 0}, {81, 0}, {129, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token + 1st token
+    paged_attention_test_params{ {{10, 0}, {81, 0}, {129, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token + 1st token
+    paged_attention_test_params{ {{10, 0}, {81, 0}, {129, 0}}, 2, 2, 64, 32, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token + 1st token
+    paged_attention_test_params{ {{10, 0}, {81, 0}, {129, 0}}, 2, 2, 64, 32, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token + 1st token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 32, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 32, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 32, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 32, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: 2nd token + 1st token + part of 1st token
 
     /* with scores, per_block rotation, KV-cache compression */
-    paged_attention_test_params{ {{1, 34}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 2nd token
-    paged_attention_test_params{ {{1, 34}}, 2, 2, 64, 32, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 2nd token
+    paged_attention_test_params{ {{1, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token
+    paged_attention_test_params{ {{1, 34}}, 2, 2, 64, 32, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token
     /* with scores, per_token rotation, KV-cache compression */
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 32, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 32, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 32, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 32, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: 2nd token + 1st token + part of 1st token
     /* With sliding windows */
-    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, {100.0}, 6, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, {100.0}, 6, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{512, 0}}, 2, 2, 64, 32, 16, {100.0}, 20, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{512, 0}}, 2, 2, 64, 32, 16, {100.0}, 20, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 2, 64, 64, 16, {100.0}, 8, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 2, 48, 64, 16, {100.0}, 128, false, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
-    paged_attention_test_params{ {{1, 10}}, 2, 2, 64, 64, 16, {100.0}, 4, false, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
-    paged_attention_test_params{ {{5, 10}}, 2, 2, 64, 64, 16, {100.0}, 2, false, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
-    paged_attention_test_params{ {{248, 16}}, 2, 2, 128, 128, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching
-    paged_attention_test_params{ {{34, 0}}, 2, 2, 32, 32, 16, {100.0}, 2, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{1, 1008}}, 32, 32, 128, 128, 16, {100.0}, 6, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // 2nd token
-    paged_attention_test_params{ {{6, 20}}, 2, 2, 128, 128, 16, {100.0}, 8, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching
-    paged_attention_test_params{ {{1, 288}}, 64, 8, 64, 64, 16, {100.0}, 128, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching, GQA
-    paged_attention_test_params{ {{1, 288}, {1, 38}}, 64, 8, 64, 64, 16, {100.0}, 128, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching, GQA
-    paged_attention_test_params{ {{84, 2}}, 32, 32, 128, 128, 16, {100.0}, 16, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching
-    paged_attention_test_params{ {{1008, 492}}, 32, 32, 32, 32, 16, {100.0}, 32, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching
-    paged_attention_test_params{ {{1008, 492}}, 16, 16, 64, 64, 16, {100.0}, 64, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching
-    paged_attention_test_params{ {{1008, 492}}, 8, 8, 128, 128, 16, {100.0}, 128, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching
-    paged_attention_test_params{ {{2, 30}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching
-    paged_attention_test_params{ {{232, 24}}, 2, 2, 512, 512, 16, {100.0}, 32, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching
-    paged_attention_test_params{ {{1008, 592}}, 32, 32, 128, 128, 16, {100.0}, 64, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching
-    paged_attention_test_params{ {{1008, 692}}, 32, 32, 128, 128, 16, {100.0}, 128, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching
-    paged_attention_test_params{ {{1008, 792}}, 32, 32, 128, 128, 16, {100.0}, 256, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching
-    paged_attention_test_params{ {{1, 34}, {2, 20}, {10, 34}}, 2, 2, 64, 64, 16, {100.0}, 10, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, 6, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token
+    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, 6, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token
+    paged_attention_test_params{ {{512, 0}}, 2, 2, 64, 32, 16, 20, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token
+    paged_attention_test_params{ {{512, 0}}, 2, 2, 64, 32, 16, 20, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token
+    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 2, 64, 64, 16, 8, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 2, 48, 64, 16, 128, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token + 1st token
+    paged_attention_test_params{ {{1, 10}}, 2, 2, 64, 64, 16, 4, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token
+    paged_attention_test_params{ {{5, 10}}, 2, 2, 64, 64, 16, 2, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token
+    paged_attention_test_params{ {{248, 16}}, 2, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: prefix caching
+    paged_attention_test_params{ {{34, 0}}, 2, 2, 32, 32, 16, 2, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token
+    paged_attention_test_params{ {{1, 1008}}, 32, 32, 128, 128, 16, 6, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token
+    paged_attention_test_params{ {{6, 20}}, 2, 2, 128, 128, 16, 8, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: prefix caching
+    paged_attention_test_params{ {{1, 288}}, 64, 8, 64, 64, 16, 128, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: prefix caching, GQA
+    paged_attention_test_params{ {{84, 2}}, 32, 32, 128, 128, 16, 16, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: prefix caching
+    paged_attention_test_params{ {{1008, 492}}, 32, 32, 32, 32, 16, 32, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: prefix caching
+    paged_attention_test_params{ {{1008, 492}}, 16, 16, 64, 64, 16, 64, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: prefix caching
+    paged_attention_test_params{ {{1008, 492}}, 8, 8, 128, 128, 16, 128, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: prefix caching
+    paged_attention_test_params{ {{2, 30}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: prefix caching
+    paged_attention_test_params{ {{232, 24}}, 2, 2, 512, 512, 16, 32, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: prefix caching
+    paged_attention_test_params{ {{1008, 592}}, 32, 32, 128, 128, 16, 64, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: prefix caching
+    paged_attention_test_params{ {{1008, 692}}, 32, 32, 128, 128, 16, 128, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: prefix caching
+    paged_attention_test_params{ {{1008, 792}}, 32, 32, 128, 128, 16, 256, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: prefix caching
+    paged_attention_test_params{ {{1, 34}, {2, 20}, {10, 34}}, 2, 2, 64, 64, 16, 10, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: 2nd token + 1st token + part of 1st token
     /* Per-Block rotation cases with  Per-Channel quantization*/
-    paged_attention_test_params{ {{16, 32}}, 2, 2, 32, 32, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 2nd token, per block rotate
-    paged_attention_test_params{ {{8, 34}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 2nd token, per block rotate
-    paged_attention_test_params{ {{256, 56}}, 2, 2, 64, 32, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 2nd token, per block rotate
-    paged_attention_test_params{ {{48, 1024}}, 8, 8, 128, 128, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 2nd token, per block rotate
-    paged_attention_test_params{ {{2, 34}, {2, 515}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 2nd token, per block rotate
-    paged_attention_test_params{ {{4, 34}, {4, 515}}, 2, 2, 64, 32, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 2nd token, per block rotate
-    paged_attention_test_params{ {{6, 34}, {25, 86}, {10, 64}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 2nd token, per block rotate
-    paged_attention_test_params{ {{8, 34}, {25, 86}, {10, 64}}, 2, 2, 64, 32, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 2nd token, per block rotate
+    paged_attention_test_params{ {{16, 32}}, 2, 2, 32, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token, per block rotate
+    paged_attention_test_params{ {{8, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token, per block rotate
+    paged_attention_test_params{ {{256, 56}}, 2, 2, 64, 32, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token, per block rotate
+    paged_attention_test_params{ {{48, 1024}}, 8, 8, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token, per block rotate
+    paged_attention_test_params{ {{2, 34}, {2, 515}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token, per block rotate
+    paged_attention_test_params{ {{4, 34}, {4, 515}}, 2, 2, 64, 32, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token, per block rotate
+    paged_attention_test_params{ {{6, 34}, {25, 86}, {10, 64}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token, per block rotate
+    paged_attention_test_params{ {{8, 34}, {25, 86}, {10, 64}}, 2, 2, 64, 32, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token, per block rotate
 
     /* Per-Token rotation cases with  Per-Channel quantization*/
-    paged_attention_test_params{ {{8, 38}}, 16, 16, 256, 256, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // 2nd token, per token rotate
-    paged_attention_test_params{ {{34, 34}}, 2, 2, 32, 32, 16, {100.0}, 2, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // 2nd token, per token rotate
-    paged_attention_test_params{ {{2, 1008}}, 32, 32, 128, 128, 16, {100.0}, 6, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // 2nd token, per token rotate
-    paged_attention_test_params{ {{6, 40}}, 2, 2, 128, 128, 16, {100.0}, 8, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // 2nd token, per token rotate
-    paged_attention_test_params{ {{254, 60}}, 32, 8, 128, 128, 16, {100.0}, 10, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // 2nd token, per token rotate
-    paged_attention_test_params{ {{84, 256}}, 32, 32, 128, 128, 16, {100.0}, 16, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // 2nd token, per token rotate
-    paged_attention_test_params{ {{40, 96}, {30, 50}}, 2, 2, 64, 64, 16, {100.0}, 8, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // 2nd token, per token rotate
-    paged_attention_test_params{ {{128, 130}, {256, 60}}, 2, 2, 48, 64, 16, {100.0}, 128, false, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, ENABLE_FA_V2 }, // 2nd token, per token rotate
+    paged_attention_test_params{ {{8, 38}}, 16, 16, 256, 256, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token, per token rotate
+    paged_attention_test_params{ {{34, 34}}, 2, 2, 32, 32, 16, 2, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token, per token rotate
+    paged_attention_test_params{ {{2, 1008}}, 32, 32, 128, 128, 16, 6, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token, per token rotate
+    paged_attention_test_params{ {{6, 40}}, 2, 2, 128, 128, 16, 8, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token, per token rotate
+    paged_attention_test_params{ {{254, 60}}, 32, 8, 128, 128, 16, 10, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token, per token rotate
+    paged_attention_test_params{ {{84, 256}}, 32, 32, 128, 128, 16, 16, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token, per token rotate
+    paged_attention_test_params{ {{40, 96}, {30, 50}}, 2, 2, 64, 64, 16, 8, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token, per token rotate
+    paged_attention_test_params{ {{128, 130}, {256, 60}}, 2, 2, 48, 64, 16, 128, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 2nd token, per token rotate
+
     /* INT4 KV-cache compression (u4+BY_CHANNEL) */
-    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 1st token u4+BY_TOKEN
-    paged_attention_test_params{ {{256, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 1st token long u4+BY_TOKEN
-    paged_attention_test_params{ {{256, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 1st token long u4+BY_CHANNEL
-    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 1st token + 1st token u4+BY_TOKEN
-    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 1st token + 1st token u4+BY_CHANNEL
-    paged_attention_test_params{ {{1, 34}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 2nd token u4+BY_TOKEN
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 2nd token + 2nd token u4+BY_TOKEN
-    paged_attention_test_params{ {{1, 300}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 2nd token, past_len>partition_size u4+BY_TOKEN
-    paged_attention_test_params{ {{1, 300}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 2nd token, past_len>partition_size u4+BY_CHANNEL
+    paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 1st token u4+BY_TOKEN
+    paged_attention_test_params{ {{256, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 1st token long u4+BY_TOKEN
+    paged_attention_test_params{ {{256, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 1st token long u4+BY_CHANNEL
+    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 1st token + 1st token u4+BY_TOKEN
+    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 1st token + 1st token u4+BY_CHANNEL
+    paged_attention_test_params{ {{1, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 2nd token u4+BY_TOKEN
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 2nd token + 2nd token u4+BY_TOKEN
+    paged_attention_test_params{ {{1, 300}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 2nd token, past_len>partition_size u4+BY_TOKEN
+    paged_attention_test_params{ {{1, 300}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 2nd token, past_len>partition_size u4+BY_CHANNEL
     /* u4 MIXED mode (generate+prefill in same batch) - covers pa_multi_token sink_ptr fix */
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // mixed u4+BY_TOKEN
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // mixed u4+BY_CHANNEL
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // mixed u4+BY_TOKEN
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // mixed u4+BY_CHANNEL
     /* u4 with larger head size */
-    paged_attention_test_params{ {{1, 34}}, 2, 2, 128, 128, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 2nd token, head_size=128 u4+BY_TOKEN
-    paged_attention_test_params{ {{1, 34}}, 2, 2, 128, 128, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 2nd token, head_size=128 u4+BY_CHANNEL
+    paged_attention_test_params{ {{1, 34}}, 2, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 2nd token, head_size=128 u4+BY_TOKEN
+    paged_attention_test_params{ {{1, 34}}, 2, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 2nd token, head_size=128 u4+BY_CHANNEL
     /* u4 with GQA (multi query groups) */
-    paged_attention_test_params{ {{1, 34}}, 8, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 2nd token, GQA 8/2 u4+BY_TOKEN
-    paged_attention_test_params{ {{1, 34}}, 8, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, ov::element::u4 }, // 2nd token, GQA 8/2 u4+BY_CHANNEL
+    paged_attention_test_params{ {{1, 34}}, 8, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 2nd token, GQA 8/2 u4+BY_TOKEN
+    paged_attention_test_params{ {{1, 34}}, 8, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 2nd token, GQA 8/2 u4+BY_CHANNEL
 }));
 
 INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention, xattention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
-    paged_attention_test_params{ {{32, 0}},   2, 2, 64, 64, 256, {0.9}, 0, true, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 256, {0.9}, 0, true, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{2048, 0}}, 2, 2, 64, 64, 256, {0.9}, 0, true, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{32, 0}},   4, 2, 64, 64, 256, {0.9}, 0, true, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{1024, 0}}, 4, 2, 64, 64, 256, {0.9}, 0, true, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{2048, 0}}, 4, 2, 64, 64, 256, {0.9}, 0, true, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
+    paged_attention_test_params{ {{32, 0}},   2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+    paged_attention_test_params{ {{2048, 0}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+    paged_attention_test_params{ {{32, 0}},   4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+    paged_attention_test_params{ {{1024, 0}}, 4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+    paged_attention_test_params{ {{2048, 0}}, 4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
 
-    paged_attention_test_params{ {{1, 31}},   2, 2, 64, 64, 256, {0.9}, 0, true, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
-    paged_attention_test_params{ {{1, 32}},   2, 2, 64, 64, 256, {0.9}, 0, true, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
-    paged_attention_test_params{ {{1, 1023}}, 2, 2, 64, 64, 256, {0.9}, 0, true, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
-    paged_attention_test_params{ {{1, 1024}}, 2, 2, 64, 64, 256, {0.9}, 0, true, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
-    paged_attention_test_params{ {{1, 127}},  2, 2, 64, 64, 256, {0.9}, 0, true, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
-    paged_attention_test_params{ {{1, 128}},  2, 2, 64, 64, 256, {0.9}, 0, true, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
-    paged_attention_test_params{ {{1, 129}},  2, 2, 64, 64, 256, {0.9}, 0, true, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
-    paged_attention_test_params{ {{1, 32}},   28, 28, 128, 128, 256, {0.9}, 0, true, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
+    paged_attention_test_params{ {{1, 31}},   2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
+    paged_attention_test_params{ {{1, 32}},   2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
+    paged_attention_test_params{ {{1, 1023}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
+    paged_attention_test_params{ {{1, 1024}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
+    paged_attention_test_params{ {{1, 127}},  2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
+    paged_attention_test_params{ {{1, 128}},  2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
+    paged_attention_test_params{ {{1, 129}},  2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
+    paged_attention_test_params{ {{1, 32}},   28, 28, 128, 128, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
 
-    paged_attention_test_params{ {{32, 0}},   2, 2, 64, 64, 256, {0.9}, 0, true, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 256, {0.9}, 0, true, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{2048, 0}}, 2, 2, 64, 64, 256, {0.9}, 0, true, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{32, 0}},   4, 2, 64, 64, 256, {0.9}, 0, true, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{1024, 0}}, 4, 2, 64, 64, 256, {0.9}, 0, true, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{2048, 0}}, 4, 2, 64, 64, 256, {0.9}, 0, true, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
+    paged_attention_test_params{ {{32, 0}},   2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+    paged_attention_test_params{ {{2048, 0}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+    paged_attention_test_params{ {{32, 0}},   4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+    paged_attention_test_params{ {{1024, 0}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+    paged_attention_test_params{ {{2048, 0}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
 
-    paged_attention_test_params{ {{1, 31}},   2, 2, 64, 64, 256, {0.9}, 0, true, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
-    paged_attention_test_params{ {{1, 32}},   2, 2, 64, 64, 256, {0.9}, 0, true, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd toke
-    paged_attention_test_params{ {{1, 1023}},   2, 2, 64, 64, 256, {0.9}, 0, true, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
-    paged_attention_test_params{ {{1, 1024}}, 2, 2, 64, 64, 256, {0.9}, 0, true, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
+    paged_attention_test_params{ {{1, 31}},   2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
+    paged_attention_test_params{ {{1, 32}},   2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd toke
+    paged_attention_test_params{ {{1, 1023}},   2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
+    paged_attention_test_params{ {{1, 1024}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
+
+    paged_attention_test_params{ {{32, 0}},   2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+    paged_attention_test_params{ {{2048, 0}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+    paged_attention_test_params{ {{32, 0}},   4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+    paged_attention_test_params{ {{1024, 0}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+    paged_attention_test_params{ {{2048, 0}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+
+    paged_attention_test_params{ {{1, 31}},   2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
+    paged_attention_test_params{ {{1, 32}},   2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
+    paged_attention_test_params{ {{1, 1023}},   2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
+    paged_attention_test_params{ {{1, 1024}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
+}));
+
+INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention_block_size, xattention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    // Valid values
+    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} },
+    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{256} },
+    // Any other value
+    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{1000} },
+}));
+
+INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention_block_size_invalid, xattention_invalid_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    // Abnormal: user does not provide xattention_block_size values
+    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::nullopt },
+    // Abnormal: user provides empty xattention_block_size tensor
+    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{} },
+}));
+
+INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention_threshold_invalid, xattention_invalid_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    // Abnormal: user does not provide xattention_threshold values
+    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::nullopt, std::vector<int>{128} },
+    // Abnormal: user provides empty xattention_threshold tensor
+    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{}, std::vector<int>{128} },
 }));
 
 INSTANTIATE_TEST_SUITE_P(smoke_adaptive_rkv, adaptive_rkv_diversity_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
     // Small evictable_size tests (uniform across sequences)
-    paged_attention_test_params{ {{64, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32} },
-    paged_attention_test_params{ {{128, 0}}, 4, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, {64} },
+    paged_attention_test_params{ {{64, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32} },
+    paged_attention_test_params{ {{128, 0}}, 4, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, {64} },
 
     // Edge cases - empty evictable_size (kernel skip test)
-    paged_attention_test_params{ {{64, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 0, {0} },    // Empty - skip kernel
-    paged_attention_test_params{ {{32, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {16} },  // Minimal valid size (block-aligned)
+    paged_attention_test_params{ {{64, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 0, {0} },    // Empty - skip kernel
+    paged_attention_test_params{ {{32, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {16} },  // Minimal valid size (block-aligned)
 
     // Multi-sequence tests - uniform evictable_sizes
-    paged_attention_test_params{ {{128, 0}, {128, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32} },            // 2 sequences: same size
-    paged_attention_test_params{ {{128, 0}, {192, 0}, {160, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32} },  // 3 sequences: same size
+    paged_attention_test_params{ {{128, 0}, {128, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32} },            // 2 sequences: same size
+    paged_attention_test_params{ {{128, 0}, {192, 0}, {160, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32} },  // 3 sequences: same size
 
     // Multi-sequence tests - varying evictable_sizes per sequence
-    paged_attention_test_params{ {{128, 0}, {128, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32, 48} },                              // 2 sequences: different evictable sizes
-    paged_attention_test_params{ {{128, 0}, {192, 0}, {160, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32, 48, 32} },                // 3 sequences: different sizes
-    paged_attention_test_params{ {{128, 0}, {128, 0}, {128, 0}, {128, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {16, 32, 48, 32} },  // 4 sequences: varied sizes
+    paged_attention_test_params{ {{128, 0}, {128, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32, 48} },                              // 2 sequences: different evictable sizes
+    paged_attention_test_params{ {{128, 0}, {192, 0}, {160, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32, 48, 32} },                // 3 sequences: different sizes
+    paged_attention_test_params{ {{128, 0}, {128, 0}, {128, 0}, {128, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {16, 32, 48, 32} },  // 4 sequences: varied sizes
 
     // With KV cache compression - BY_TOKEN
-    paged_attention_test_params{ {{64, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32} },
-    paged_attention_test_params{ {{128, 0}}, 4, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, {64} },
-    paged_attention_test_params{ {{128, 0}, {128, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32, 48} },
-    paged_attention_test_params{ {{128, 0}, {192, 0}, {160, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32, 48, 32} },
+    paged_attention_test_params{ {{64, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32} },
+    paged_attention_test_params{ {{128, 0}}, 4, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, {64} },
+    paged_attention_test_params{ {{128, 0}, {128, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32, 48} },
+    paged_attention_test_params{ {{128, 0}, {192, 0}, {160, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32, 48, 32} },
 
     // With KV cache compression - BY_CHANNEL
-    paged_attention_test_params{ {{64, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32} },
-    paged_attention_test_params{ {{128, 0}}, 4, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, {64} },
-    paged_attention_test_params{ {{128, 0}, {128, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32, 48} },
-    paged_attention_test_params{ {{128, 0}, {192, 0}, {160, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32, 48, 32} },
+    paged_attention_test_params{ {{64, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32} },
+    paged_attention_test_params{ {{128, 0}}, 4, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, {64} },
+    paged_attention_test_params{ {{128, 0}, {128, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32, 48} },
+    paged_attention_test_params{ {{128, 0}, {192, 0}, {160, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 16, {32, 48, 32} },
 
     // Large evictable_size tests
-    paged_attention_test_params{ {{192, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 48, {96} },
-    paged_attention_test_params{ {{256, 0}}, 2, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 64, {128} },
-    paged_attention_test_params{ {{512, 0}}, 4, 2, 128, 128, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 128, {256} },
+    paged_attention_test_params{ {{192, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 48, {96} },
+    paged_attention_test_params{ {{256, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 64, {128} },
+    paged_attention_test_params{ {{512, 0}}, 4, 2, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 128, {256} },
 
     // GQA configurations
-    paged_attention_test_params{ {{128, 0}}, 8, 2, 64, 64, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, {64} },     // heads_num=8, start+evict=96
-    paged_attention_test_params{ {{160, 0}}, 16, 4, 128, 128, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, {48} },  // heads_num=16, start+evict=80
+    paged_attention_test_params{ {{128, 0}}, 8, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, {64} },     // heads_num=8, start+evict=96
+    paged_attention_test_params{ {{160, 0}}, 16, 4, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, {48} },  // heads_num=16, start+evict=80
 
     // Different head sizes
-    paged_attention_test_params{ {{128, 0}}, 2, 2, 128, 128, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, {64} },  // head_size=128, start+evict=96
-    paged_attention_test_params{ {{160, 0}}, 4, 4, 256, 256, 16, {100.0}, 0, false, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, {48} },  // head_size=256, start+evict=80
+    paged_attention_test_params{ {{128, 0}}, 2, 2, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, {64} },  // head_size=128, start+evict=96
+    paged_attention_test_params{ {{160, 0}}, 4, 4, 256, 256, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, ENABLE_DIVERSITY, 32, {48} },  // head_size=256, start+evict=80
+}));
+
+INSTANTIATE_TEST_SUITE_P(smoke_qq_bias, qq_bias_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    // basic tests with 1 sequence
+    paged_attention_test_params{ {{4, 32}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic ,true, ENABLE_QQ_BIAS },
+    paged_attention_test_params{ {{4, 32}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, ENABLE_QQ_BIAS },
+    paged_attention_test_params{ {{4, 32}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, ENABLE_QQ_BIAS },
+
+    // multi sequences tests
+    paged_attention_test_params{ {{4, 32}, {128, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 16, 16}} },
+    paged_attention_test_params{ {{128, 0}, {4, 32}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 0, 16}} },
+    paged_attention_test_params{ {{4, 20}, {4, 32}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}, {1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 16, 32}} },
+
+    // multi sequence with different qq bias patterns
+    paged_attention_test_params{ {{4, 20}, {2, 32}, {4, 25}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}, {1, 0, 1, 1}, {1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 16, 20, 36}} },
 }));

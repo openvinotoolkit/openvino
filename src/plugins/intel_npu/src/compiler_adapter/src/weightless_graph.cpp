@@ -12,6 +12,8 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
@@ -51,7 +53,7 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_consta
                                 "This may indicate a bug in OV model compression.");
                 continue;
             }
-            constant = constantNode;
+            constant = std::move(constantNode);
         }
     }
 
@@ -283,7 +285,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
     return std::make_pair(totalBlobSize, initSizes);
 }
 
-void WeightlessGraph::initialize(const FilteredConfig& config) {
+void WeightlessGraph::initialize_impl(const FilteredConfig& config) {
     if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr || _zeroInitStruct == nullptr) {
         // To ensure that does not throw an issue when subsequently calling `_zeroInitStruct->getDevice()`
         return;
@@ -291,19 +293,12 @@ void WeightlessGraph::initialize(const FilteredConfig& config) {
 
     // Simplified version for init schedules
     const size_t numberOfInits = _initsGraphDesc.size();
-    _initsCommandQueueOrdinals.resize(numberOfInits);
     _initsCommandLists.resize(numberOfInits);
     _initsFences.resize(numberOfInits);
 
     for (size_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
         _wgLogger.debug("WeightlessGraph initialize start, init schedule ", initIndex);
-        uint32_t& initCommandQueueOrdinal = _initsCommandQueueOrdinals.at(initIndex);
-
-        // Code similar to "Graph::initialize"
-        initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
-                                                                          ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
-
-        _zeGraphExt->initializeGraph(_initsGraphDesc.at(initIndex), initCommandQueueOrdinal);
+        _zeGraphExt->initializeGraph(_initsGraphDesc.at(initIndex));
         _wgLogger.debug("WeightlessGraph initialize finish, init schedule ", initIndex);
 
         //  We are allowed to release the original blob because weights were loaded in NPU memory during
@@ -313,10 +308,6 @@ void WeightlessGraph::initialize(const FilteredConfig& config) {
     }
 
     // Create a single command queue for all weights initialization schedules
-    _initsCommandQueueGroupOrdinal =
-        zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
-                                                ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
-
     uint32_t commandQueueOptions = 0;
     if (config.has<TURBO>() && config.get<TURBO>()) {
         if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
@@ -324,24 +315,13 @@ void WeightlessGraph::initialize(const FilteredConfig& config) {
             commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
         }
     }
-
-    _initsCommandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
-                                                        zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                        _initsCommandQueueGroupOrdinal,
-                                                        commandQueueOptions);
-
-    if (config.has<WORKLOAD_TYPE>()) {
-        switch (config.get<WORKLOAD_TYPE>()) {
-        case ov::WorkloadType::DEFAULT:
-            _initsCommandQueue->setWorkloadType(ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_DEFAULT);
-            break;
-        case ov::WorkloadType::EFFICIENT:
-            _initsCommandQueue->setWorkloadType(ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_BACKGROUND);
-            break;
-        default:
-            OPENVINO_THROW("Unknown value for WorkloadType!");
-        }
-    }
+    CommandQueueDesc commandQueueDesc{
+        zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
+        config.has<WORKLOAD_TYPE>() ? zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>()) : std::nullopt,
+        commandQueueOptions,
+        this,
+        config.get<SHARED_COMMON_QUEUE>()};
+    _initsCommandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, commandQueueDesc);
 
 #if USE_SINGLE_THREADED_RUN_INIT
     run_init_single_threaded();
@@ -354,14 +334,13 @@ void WeightlessGraph::initialize(const FilteredConfig& config) {
         release_graphs();
     }
 
-    _initsCommandQueueOrdinals.clear();
     _initsCommandLists.clear();
     _initsFences.clear();
     _initsMetadata.clear();
     _initsCommandQueue.reset();
 
     // The main schedule is initialized after the weights initialization ones in order to save some memory
-    Graph::initialize(config);
+    Graph::initialize_impl(config);
 
     set_weights_inputs();
 }
@@ -432,7 +411,7 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
         constants.erase(id);
     }
 
-    return {initInputsViewTensors, initInputsAllocatedTensor};
+    return {std::move(initInputsViewTensors), initInputsAllocatedTensor};
 }
 
 WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initIndex) {
@@ -462,7 +441,7 @@ WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initI
         offset += ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
     }
 
-    return {initOutputsViewTensorsVector, initOutputsAllocatedTensor, initOutputsViewTensorsMap};
+    return {std::move(initOutputsViewTensorsVector), initOutputsAllocatedTensor, std::move(initOutputsViewTensorsMap)};
 }
 
 void WeightlessGraph::run_init_single_threaded() {
@@ -544,8 +523,7 @@ void WeightlessGraph::create_pipeline(const size_t initIndex,
         OPENVINO_THROW("Zero compiler adapter wasn't initialized");
     }
 
-    _initsCommandLists.at(initIndex) =
-        std::make_unique<CommandList>(_zeroInitStruct, _initsCommandQueueOrdinals.at(initIndex));
+    _initsCommandLists.at(initIndex) = std::make_unique<CommandList>(_zeroInitStruct);
     _initsFences.at(initIndex) = std::make_unique<Fence>(_initsCommandQueue);
 
     size_t io_index = 0;

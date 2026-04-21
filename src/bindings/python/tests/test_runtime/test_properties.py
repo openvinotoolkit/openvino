@@ -204,6 +204,7 @@ def test_conflicting_enum(proxy_enums, expected_values):
         (intel_npu.device_total_mem_size, "NPU_DEVICE_TOTAL_MEM_SIZE"),
         (intel_npu.driver_version, "NPU_DRIVER_VERSION"),
         (intel_npu.compiler_version, "NPU_COMPILER_VERSION"),
+        (intel_npu.max_tiles, "NPU_MAX_TILES")
     ],
 )
 def test_properties_ro(ov_property_ro, expected_value):
@@ -477,11 +478,6 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             intel_npu.tiles,
             "NPU_TILES",
-            ((128, 128),),
-        ),
-        (
-            intel_npu.max_tiles,
-            "NPU_MAX_TILES",
             ((128, 128),),
         ),
         (

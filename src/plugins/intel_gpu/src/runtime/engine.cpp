@@ -309,8 +309,9 @@ bool engine::check_allocatable(const layout& layout, allocation_type type) {
         OPENVINO_ASSERT(!exceed_allocatable_mem_size,
                         "[GPU] Exceeded max size of memory object allocation: ",
                         "requested ", layout.bytes_count(), " bytes, "
-                        "but max alloc size supported by device is ", get_device_info().max_alloc_mem_size, " bytes.",
-                        "Please try to reduce batch size or use lower precision.");
+                        "but max alloc size supported by device is ", get_device_info().max_alloc_mem_size, " bytes. ",
+                        "Please try to reduce batch size, use lower precision, "
+                        "or set ov::intel_gpu::hint::enable_large_allocations config property to true.");
     }
 
     auto used_mem = get_used_device_memory(allocation_type::usm_device) + get_used_device_memory(allocation_type::usm_host);
@@ -341,6 +342,7 @@ bool engine::check_allocatable(const layout& layout, allocation_type type) {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 dnnl::engine& engine::get_onednn_engine() const {
+    const std::lock_guard<std::mutex> lock(onednn_mutex);
     OPENVINO_ASSERT(_onednn_engine, "[GPU] Can't get onednn engine handle as it was not initialized. Please check that create_onednn_engine() was called");
     return *_onednn_engine;
 }
