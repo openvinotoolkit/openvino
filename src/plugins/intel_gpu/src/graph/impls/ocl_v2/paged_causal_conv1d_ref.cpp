@@ -90,11 +90,10 @@ protected:
             const int32_t output_token_stride = read_pitch(out_layout, 0);
             const int32_t output_hidden_stride = read_pitch(out_layout, 1);
 
-            wgs.global = {static_cast<size_t>(seq_count), static_cast<size_t>(hidden_size), 1};
-            wgs.local = {1, 256, 1};
-            if (wgs.local[1] > static_cast<size_t>(hidden_size)) {
-                wgs.local[1] = static_cast<size_t>(hidden_size);
-            }
+            const size_t lws_y = std::min<size_t>(256, static_cast<size_t>(hidden_size));
+            const size_t gws_y = ((static_cast<size_t>(hidden_size) + lws_y - 1) / lws_y) * lws_y;
+            wgs.global = {static_cast<size_t>(seq_count), gws_y, 1};
+            wgs.local = {1, lws_y, 1};
 
             kd.params.scalars.clear();
             std::vector<int32_t> scalars{
