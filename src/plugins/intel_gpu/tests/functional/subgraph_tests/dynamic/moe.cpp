@@ -4,7 +4,6 @@
 
 #include "common_test_utils/node_builders/moe_builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -200,14 +199,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE2GemmCompressedFusion,
                                             ::testing::Values(128)),
                          MoECompressedFusionTest::getTestCaseName);
 
-// Same MOE IR but with MOE fusion disabled (GPU_DISABLE_MOE_OPT=true).
+// Same MOE IR but with MOE fusion disabled (OV_GPU_DISABLE_MOE_OPT=1).
 // The model stays at GatherMatmulCompressed stage, validating GatherMatmul
 // numerical correctness against CPU reference on the original untransformed model.
+// NOTE: disable_moe_opt is a debug option, so it cannot be set via the
+// properties map — it is only honored when the env var is set before the
+// plugin reads its config.
 class MoEGatherMatmulTest : public MoECompressedFusionTest {
 protected:
     void SetUp() override {
+        ::setenv("OV_GPU_DISABLE_MOE_OPT", "1", 1);
         MoECompressedFusionTest::SetUp();
-        configuration.insert(ov::intel_gpu::disable_moe_opt(true));
+    }
+
+    void TearDown() override {
+        MoECompressedFusionTest::TearDown();
+        ::unsetenv("OV_GPU_DISABLE_MOE_OPT");
     }
 
     void validate() override {
@@ -225,6 +232,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoEGatherMatmul,
                          ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
                                             ::testing::Values(MoePatternType::GEMM3),
                                             ::testing::ValuesIn(routing_types),
+                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::Values(ov::element::f16),  // decompression_precision
+                                            ::testing::Values(ov::element::f16),  // scale_precision
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(true),  // reshape_on_decompression
+                                            ::testing::Values(128)),
+                         MoEGatherMatmulTest::getTestCaseName);
+
+// GPT-OSS-style 2-GEMM pattern with MOE fusion disabled: exercises the
+// GatherMatmul OCL kernel directly with clamp/bias/swiglu via unfused MOE IR.
+// This reproduces the OCL compile path triggered on real gpt-oss models.
+INSTANTIATE_TEST_SUITE_P(smoke_MoE2GemmGatherMatmul,
+                         MoEGatherMatmulTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
+                                            ::testing::Values(MoePatternType::GEMM2),
+                                            ::testing::Values(MoERoutingType::SOFTMAX),
                                             ::testing::ValuesIn(weights_precisions),
                                             ::testing::Values(ov::element::f16),  // decompression_precision
                                             ::testing::Values(ov::element::f16),  // scale_precision
