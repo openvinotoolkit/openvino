@@ -5,7 +5,6 @@ import copy
 import inspect
 from contextlib import contextmanager
 
-
 import numpy as np
 import platform
 import pytest

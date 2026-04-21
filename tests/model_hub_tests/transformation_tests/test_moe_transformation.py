@@ -103,7 +103,8 @@ def create_synthetic_moe_model(tmp_path, num_layers, num_experts, dtype="float32
         str: Path to the saved model
     """
     # Load config from cache to avoid HuggingFace rate limits
-    config_cache = snapshot_download("optimum-internal-testing/tiny-random-qwen3_moe")config = AutoConfig.from_pretrained(config_cache)
+    config_cache = snapshot_download("optimum-internal-testing/tiny-random-qwen3_moe")
+    config = AutoConfig.from_pretrained(config_cache)
     config.num_hidden_layers = num_layers
     config.decoder_sparse_step = 1
     config.num_experts = num_experts
@@ -211,6 +212,7 @@ def run_moe_synthetic(tmp_path,
     # Load tokenizer from cache to avoid HuggingFace rate limits
     tokenizer_cache = snapshot_download("optimum-internal-testing/tiny-random-qwen3_moe")
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_cache, trust_remote_code=True)
+
     # Prepare test input with specified batch size
     if batch_size == 1:
         test_text = "Test input for synthetic MoE model"

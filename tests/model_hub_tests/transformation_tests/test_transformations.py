@@ -104,7 +104,7 @@ def run_test(model_id, ie_device, ts_names, expected_layer_types):
 def run_flux_test(model_id, ie_device, ts_names, expected_layer_types):
     from diffusers import FluxTransformer2DModel
 
-    model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
+    model_cached = snapshot_download(model_id)
     try:
         transformer = FluxTransformer2DModel.from_pretrained(
             model_cached, subfolder="transformer")
