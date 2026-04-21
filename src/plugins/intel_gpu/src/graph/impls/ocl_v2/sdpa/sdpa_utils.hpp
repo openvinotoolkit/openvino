@@ -27,6 +27,26 @@ inline size_t get_data_inputs_num(const cldnn::scaled_dot_product_attention& des
     return data_inputs_num;
 }
 
+inline bool has_runtime_attn_mask_input(const cldnn::kernel_impl_params& params, const cldnn::scaled_dot_product_attention& desc) {
+    if (desc.attn_mask_val.has_value()) {
+        return false;
+    }
+
+    if (get_data_inputs_num(desc) <= cldnn::scaled_dot_product_attention::ScaledDotProductAttentionInputIdx::ATTN_MASK) {
+        return false;
+    }
+
+    const auto& attn_mask_pshape =
+        params.get_input_layout(cldnn::scaled_dot_product_attention::ScaledDotProductAttentionInputIdx::ATTN_MASK).get_partial_shape();
+
+    // Keep scalar and 1D placeholders out of the real attention-mask path.
+    if (attn_mask_pshape.rank().is_static() && attn_mask_pshape.rank().get_length() <= 1) {
+        return false;
+    }
+
+    return true;
+}
+
 inline size_t get_key_cache_id(const cldnn::scaled_dot_product_attention& desc) {
     size_t key_cache_id = desc.input_size();
 
