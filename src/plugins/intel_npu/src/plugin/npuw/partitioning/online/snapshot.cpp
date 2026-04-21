@@ -213,6 +213,74 @@ bool isRegularParameterCase(const std::unordered_map<std::shared_ptr<Repeated>, 
     return true;
 }
 
+bool isRegularCrossGroupConsumerCase(const std::unordered_map<std::shared_ptr<Repeated>, GPtrSet>& reptag_to_gset,
+                                     const std::unordered_map<std::string, NodeSPtr>& node_id_cache,
+                                     const std::map<std::string, std::vector<std::set<std::string>>>& m_layer_matches) {
+    // Build a map: node name -> group, covering all nodes that belong to a repeated block group.
+    std::unordered_map<std::string, std::shared_ptr<ov::npuw::online::Group>> node_name_to_group;
+    for (const auto& reptag_and_gset : reptag_to_gset) {
+        for (const auto& gptr : reptag_and_gset.second) {
+            for (const auto& node : gptr->getContent()) {
+                node_name_to_group[node->get_friendly_name()] = gptr;
+            }
+            for (const auto& node : gptr->getOutputs()) {
+                node_name_to_group[node->get_friendly_name()] = gptr;
+            }
+            for (const auto& node : gptr->getInputs()) {
+                node_name_to_group[node->get_friendly_name()] = gptr;
+            }
+        }
+    }
+
+    // For each repeated block, check that the "has external non-Result reader" flag
+    // is consistent across all instances within each operation bank.
+    for (const auto& reptag_and_gset : reptag_to_gset) {
+        const auto& reptag = reptag_and_gset.first;
+
+        if (reptag_and_gset.second.size() <= 1) {
+            continue;
+        }
+
+        for (const auto& bank : m_layer_matches.at(reptag->id())) {
+            // Compute the mask per bank entry: vector<bool> per output port indicating
+            // whether that port has at least one reader outside the node's own group.
+            std::optional<std::vector<bool>> expected_mask;
+            for (const auto& layer_name : bank) {
+                auto layer_ptr = node_id_cache.at(layer_name);
+                auto group_it = node_name_to_group.find(layer_name);
+                auto this_group = (group_it != node_name_to_group.end()) ? group_it->second : nullptr;
+
+                std::vector<bool> mask;
+                for (auto&& output_desc : layer_ptr->outputs()) {
+                    bool has_external = false;
+                    for (auto&& r : output_desc.get_target_inputs()) {
+                        auto reader_ptr = r.get_node()->shared_from_this();
+                        if (ov::op::util::is_output(reader_ptr)) {
+                            continue;  // ov::Result readers are handled by isRegularResultCase
+                        }
+                        auto reader_group_it = node_name_to_group.find(reader_ptr->get_friendly_name());
+                        if (reader_group_it == node_name_to_group.end() || reader_group_it->second != this_group) {
+                            has_external = true;
+                            break;
+                        }
+                    }
+                    mask.push_back(has_external);
+                }
+
+                if (!expected_mask.has_value()) {
+                    expected_mask = mask;
+                } else if (*expected_mask != mask) {
+                    LOG_INFO("This is NOT a regular cross-group consumer case. "
+                             << "Cross-group consumer pattern mismatch for layer " << layer_name << " in bank.");
+                    return false;
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
 }  // namespace
 
 using ov::npuw::online::detail::getConstsPrecision;
@@ -1490,6 +1558,16 @@ bool Snapshot::isRegularIOCase() const {
     if (!isRegularParameterCase(reptag_to_gset, node_id_cache, m_layer_matches)) {
         LOG_INFO("This is not a regular parameter case");
         LOG_INFO("DONE");
+        return false;
+    }
+
+    // Checks that cross-group (non-Result) consumer patterns are symmetric across all
+    // instances of each repeated block. F16IC inserts Convert nodes only on cross-group
+    // connections, so asymmetric connectivity (e.g. KV-sharing in Gemma4 where non-head
+    // layers have no external consumer for an output that head layers forward to K/V
+    // projection) would produce different Convert counts per instance and break folding.
+    if (!isRegularCrossGroupConsumerCase(reptag_to_gset, node_id_cache, m_layer_matches)) {
+        LOG_INFO("This is not a regular cross-group consumer case");
         return false;
     }
 

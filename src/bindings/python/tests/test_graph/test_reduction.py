@@ -160,3 +160,42 @@ def test_reduce_with_keywork():
     const = ov.constant([-1], np.int64)
     min_op = ov.reduce_min(node=const, reduction_axes=0)
     assert min_op.get_output_size() == 1
+
+
+@pytest.mark.parametrize(
+    "graph_api_helper",
+    [
+        ov.reduce_mean,
+        ov.reduce_max,
+        ov.reduce_min,
+        ov.reduce_sum,
+        ov.reduce_prod,
+    ],
+)
+def test_reduce_invalid_axis_raises_immediately(graph_api_helper):
+    shape = [2]  # 1D tensor, rank=1
+    input_data = np.random.randn(*shape).astype(np.float32)
+    invalid_axes = np.array([1])  # axis 1 is out of range for rank 1 (valid: -1, 0)
+
+    with pytest.raises(RuntimeError) as exc_info:
+        graph_api_helper(input_data, invalid_axes)
+
+    assert "out of the tensor rank range" in str(exc_info.value)
+
+
+@pytest.mark.parametrize(
+    "graph_api_helper",
+    [
+        ov.reduce_logical_and,
+        ov.reduce_logical_or,
+    ],
+)
+def test_reduce_logical_invalid_axis_raises_immediately(graph_api_helper):
+    shape = [2]  # 1D tensor, rank=1
+    input_data = np.random.randn(*shape).astype(bool)
+    invalid_axes = np.array([1])  # axis 1 is out of range for rank 1 (valid: -1, 0)
+
+    with pytest.raises(RuntimeError) as exc_info:
+        graph_api_helper(input_data, invalid_axes)
+
+    assert "out of the tensor rank range" in str(exc_info.value)
