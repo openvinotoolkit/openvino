@@ -80,8 +80,10 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
             d.past_lens.push_back(seq_past_len);
             d.cache_interval.push_back(seq_interval);
 
-            const int32_t write_slots = std::max<int32_t>(1, (seq_tokens + seq_interval - 1) / seq_interval);
-            const int32_t required_slots = 1 + write_slots;
+            const int32_t prev_nums = seq_past_len % seq_interval;
+            const int32_t total_cached = prev_nums + seq_tokens;
+            const int32_t max_slot = 1 + (total_cached - 1) / seq_interval;
+            const int32_t required_slots = 1 + std::max<int32_t>(1, max_slot);
             for (int32_t i = 0; i < required_slots; i++) {
                 d.block_indices.push_back(total_blocks + i);
             }
@@ -128,6 +130,9 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
                 continue;
             }
 
+            const int32_t seq_interval = cache_interval[seq];
+            const int32_t prev_nums = (seq_interval > 0) ? (past_lens[seq] % seq_interval) : 0;
+            const int32_t seq_tokens = token_end - token_begin;
             const int32_t read_physical_block = block_indices[blk_begin];
 
             for (int32_t h = 0; h < hidden_size; h++) {
@@ -138,7 +143,7 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
 
                 const float bias_val = conv_bias.empty() ? 0.0f : static_cast<float>(conv_bias[h]);
 
-                for (int32_t t = 0; t < token_end - token_begin; t++) {
+                for (int32_t t = 0; t < seq_tokens; t++) {
                     for (int32_t k = 0; k + 1 < kernel_size; k++) {
                         state[k] = state[k + 1];
                     }
@@ -154,33 +159,18 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
 
                     output_embeds[token_idx * hidden_size + h] = to_data_type<T>(sum);
 
-                    const int32_t interval = cache_interval[seq];
-                    if (interval > 0) {
-                        const int32_t processed_tokens = t + 1;
-                        if ((processed_tokens % interval) == 0) {
-                            const int32_t logical_block = (processed_tokens + interval - 1) / interval;
-                            if (logical_block >= 1 && logical_block < block_span) {
-                                const int32_t physical_block = block_indices[blk_begin + logical_block];
-                                for (int32_t k = 0; k < kernel_size; k++) {
-                                    conv_state_table[state_off(physical_block, h, k)] = to_data_type<T>(state[k]);
-                                }
+                    const int32_t cached_tokens = prev_nums + (t + 1);
+                    const bool interval_hit = (seq_interval > 0) && ((cached_tokens % seq_interval) == 0);
+                    const bool is_last_token = (t == seq_tokens - 1);
+                    if (interval_hit || is_last_token) {
+                        const int32_t slot = (seq_interval > 0) ? (1 + (cached_tokens - 1) / seq_interval) : 1;
+                        if (slot >= 1 && slot < block_span) {
+                            const int32_t physical_block = block_indices[blk_begin + slot];
+                            for (int32_t k = 0; k < kernel_size; k++) {
+                                conv_state_table[state_off(physical_block, h, k)] = to_data_type<T>(state[k]);
                             }
                         }
                     }
-                }
-
-                int32_t final_logical_block = 1;
-                const int32_t interval = cache_interval[seq];
-                const int32_t seq_tokens = token_end - token_begin;
-                if (interval > 0) {
-                    final_logical_block = (seq_tokens + interval - 1) / interval;
-                }
-                if (final_logical_block >= block_span) {
-                    final_logical_block = block_span - 1;
-                }
-                const int32_t final_physical_block = block_indices[blk_begin + final_logical_block];
-                for (int32_t k = 0; k < kernel_size; k++) {
-                    conv_state_table[state_off(final_physical_block, h, k)] = to_data_type<T>(state[k]);
                 }
             }
         }
@@ -223,17 +213,16 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
         return topo;
     }
 
-    std::tuple<cldnn::memory::ptr, cldnn::network::ptr>
-    run_network(topology& topo,
-                cldnn::memory::ptr input_mem,
-                cldnn::memory::ptr state_mem,
-                cldnn::memory::ptr weight_mem,
-                cldnn::memory::ptr bias_mem,
-                cldnn::memory::ptr subseq_mem,
-                cldnn::memory::ptr block_idx_mem,
-                cldnn::memory::ptr block_idx_begins_mem,
-                cldnn::memory::ptr past_lens_mem,
-                cldnn::memory::ptr cache_interval_mem) {
+    std::tuple<cldnn::memory::ptr, cldnn::network::ptr> run_network(topology& topo,
+                                                                    cldnn::memory::ptr input_mem,
+                                                                    cldnn::memory::ptr state_mem,
+                                                                    cldnn::memory::ptr weight_mem,
+                                                                    cldnn::memory::ptr bias_mem,
+                                                                    cldnn::memory::ptr subseq_mem,
+                                                                    cldnn::memory::ptr block_idx_mem,
+                                                                    cldnn::memory::ptr block_idx_begins_mem,
+                                                                    cldnn::memory::ptr past_lens_mem,
+                                                                    cldnn::memory::ptr cache_interval_mem) {
         auto& engine = get_test_engine();
 
         ExecutionConfig config = get_test_default_config(engine);
@@ -330,16 +319,8 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
                                     cache_interval_layout,
                                     data_type);
 
-        auto [out_mem, net] = run_network(topo,
-                                          input_mem,
-                                          state_mem,
-                                          weight_mem,
-                                          bias_mem,
-                                          subseq_mem,
-                                          block_idx_mem,
-                                          block_idx_begins_mem,
-                                          past_lens_mem,
-                                          cache_interval_mem);
+        auto [out_mem, net] =
+            run_network(topo, input_mem, state_mem, weight_mem, bias_mem, subseq_mem, block_idx_mem, block_idx_begins_mem, past_lens_mem, cache_interval_mem);
 
         ASSERT_TRUE(out_mem != nullptr);
         ASSERT_EQ(out_mem->count(), ref_output.size());
@@ -378,9 +359,8 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
 
     static std::string PrintToStringParamName(const testing::TestParamInfo<paged_causal_conv1d_test_params>& info) {
         const auto& p = info.param;
-         return "paged_causal_conv1d_gpu_test_" + p.precision.to_string() + "_tokens_" + std::to_string(p.tokens) + "_seq_" +
-             std::to_string(p.num_sequences) + "_hidden_" + std::to_string(p.hidden_size) + "_kernel_" +
-             std::to_string(p.kernel_size) + (p.with_bias ? "_bias" : "_no_bias");
+        return "paged_causal_conv1d_gpu_test_" + p.precision.to_string() + "_tokens_" + std::to_string(p.tokens) + "_seq_" + std::to_string(p.num_sequences) +
+               "_hidden_" + std::to_string(p.hidden_size) + "_kernel_" + std::to_string(p.kernel_size) + (p.with_bias ? "_bias" : "_no_bias");
     }
 };
 
@@ -391,13 +371,12 @@ TEST_P(paged_causal_conv1d_gpu_test, basic) {
 
 INSTANTIATE_TEST_SUITE_P(smoke_paged_causal_conv1d_gpu_test,
                          paged_causal_conv1d_gpu_test,
-                         ::testing::Values(
-                             paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f16, true},
-                             paged_causal_conv1d_test_params{12, 3, 32, 5, ov::element::f16, true},
-                             paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f32, true},
-                             paged_causal_conv1d_test_params{12, 3, 32, 5, ov::element::f32, true},
-                             paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f16, false},
-                             paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f32, false}),
+                         ::testing::Values(paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f16, true},
+                                           paged_causal_conv1d_test_params{12, 3, 32, 5, ov::element::f16, true},
+                                           paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f32, true},
+                                           paged_causal_conv1d_test_params{12, 3, 32, 5, ov::element::f32, true},
+                                           paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f16, false},
+                                           paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f32, false}),
                          paged_causal_conv1d_gpu_test::PrintToStringParamName);
 
 }  // namespace

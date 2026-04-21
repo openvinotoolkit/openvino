@@ -22,8 +22,7 @@ protected:
         const auto& input_shape = params.get_input_layout(paged_causal_conv1d::INPUT_EMBEDS).get_partial_shape();
         const auto& state_shape = params.get_input_layout(paged_causal_conv1d::CONV_STATE_TABLE).get_partial_shape();
         const auto& bias_shape = params.get_input_layout(paged_causal_conv1d::CONV_BIAS).get_partial_shape();
-        const bool has_bias = bias_shape.rank().is_static() && bias_shape.size() == 1 && bias_shape[0].is_static() &&
-                              bias_shape[0].get_length() != 0;
+        const bool has_bias = bias_shape.rank().is_static() && bias_shape.size() == 1 && bias_shape[0].is_static() && bias_shape[0].get_length() != 0;
 
         jit.make("HIDDEN_SIZE", static_cast<int>(input_shape[1].get_length()));
         jit.make("KERNEL_SIZE", static_cast<int>(state_shape[2].get_length()));
@@ -73,8 +72,7 @@ protected:
             const auto& bias_layout = params.input_layouts[paged_causal_conv1d::CONV_BIAS];
             const auto& out_layout = params.output_layouts[0];
             const auto& bias_shape = bias_layout.get_partial_shape();
-            const bool has_bias = bias_shape.rank().is_static() && bias_shape.size() == 1 && bias_shape[0].is_static() &&
-                                  bias_shape[0].get_length() != 0;
+            const bool has_bias = bias_shape.rank().is_static() && bias_shape.size() == 1 && bias_shape[0].is_static() && bias_shape[0].get_length() != 0;
 
             const int32_t input_token_stride = read_pitch(in_layout, 0);
             const int32_t input_hidden_stride = read_pitch(in_layout, 1);

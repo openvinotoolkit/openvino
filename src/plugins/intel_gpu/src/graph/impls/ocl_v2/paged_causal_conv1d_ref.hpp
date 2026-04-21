@@ -17,8 +17,7 @@ namespace ov::intel_gpu::ocl {
 
 struct PagedCausalConv1DRef : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("ocl::paged_causal_conv1d::ref")
-    explicit PagedCausalConv1DRef(shape_types shape_type, ValidateFunc vf = nullptr)
-        : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
+    explicit PagedCausalConv1DRef(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
     [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
 
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
