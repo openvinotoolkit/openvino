@@ -73,9 +73,20 @@ no new Copilot agent slot is consumed.**
 | `skills/add-fusion-transformation/step1-analysis.md` | Analyse the target sub-graph, identify fusion pattern, classify transformation type |
 | `skills/add-fusion-transformation/step2-implementation.md` | Write `MatcherPass` / `FunctionPass`, register in pass pipeline |
 | `skills/add-fusion-transformation/workflow.md` | End-to-end workflow: design → implement → register → test (PR #40 pattern) |
+| `.agents/skills/debug-matcher-pass/SKILL.md` | **Debug only** — diagnose why a MatcherPass is not firing: pattern not matched, callback never triggers, opset version mismatch. Load this skill when a transformation silently produces no effect. |
 
 > **Upstream skill spec:** `skills/add-fusion-transformation/SKILL.md`
 > The skill files above are the agent-executable versions of that specification.
+
+## Code Quality
+
+Before writing any code, read [`.github/copilot-instructions.md`](.github/copilot-instructions.md)
+and apply its conventions. Key points for this agent:
+- `MatcherPass` / `FunctionPass` classes in `ov::pass` namespace, `OPENVINO_RTTI` macro required
+- Filenames: `snake_case`; class names: `CamelCase`
+- Run `clang-format -i <file>` (config: `src/.clang-format`) before committing
+- Every new pass must have positive, negative, and type-propagation unit tests in
+  `src/common/transformations/tests/`
 
 ---
 

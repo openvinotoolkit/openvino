@@ -45,6 +45,35 @@ frontend conversion failure, transformation issue, or plugin problem.
 
 ---
 
+## Code Quality Mandate
+
+**Every sub-agent invoked by this orchestrator MUST follow the project coding standards** defined in
+[`.github/copilot-instructions.md`](.github/copilot-instructions.md) before producing any patch or PR.
+
+Pass this instruction explicitly when invoking each sub-agent:
+
+> "Before writing or modifying any code, read `.github/copilot-instructions.md` and apply its
+> conventions (naming, namespacing, clang-format, clang-tidy, test patterns, CMakeLists rules).
+> Code that does not conform will be rejected in code review."
+
+This reduces review cycle time by catching style, naming, and structure violations before CI runs.
+
+---
+
+## Debug Skills
+
+When a sub-agent reports failure or unexpected behavior, use the following skills to diagnose
+before re-invoking or escalating:
+
+| Symptom | Skill | Path |
+|---------|-------|------|
+| MatcherPass transformation not firing, pattern not matched, callback never triggers | `debug-matcher-pass` | `.agents/skills/debug-matcher-pass/SKILL.md` |
+| CPU/GPU crashes, wrong accuracy, performance regression, IR serialization issues | `debug` | `.agents/skills/debug/SKILL.md` |
+
+Load the relevant skill and include its diagnosis steps in the sub-agent's retry prompt.
+
+---
+
 ## State File
 
 Reads and writes the same `agent-results/pipeline_state.json` as the Common Orchestrator.

@@ -63,6 +63,16 @@ skill file. The original monolithic skill is preserved as reference.
 
 > **Reference:** `skills/add-core-op/SKILL.md` (original monolithic skill)
 
+## Code Quality
+
+Before writing any code, read [`.github/copilot-instructions.md`](.github/copilot-instructions.md)
+and apply its conventions. Key points for this agent:
+- Op class in `ov::op::vN` namespace; registered in the matching opset header
+- Filenames: `snake_case`; class names: `CamelCase`
+- `OPENVINO_OP` macro required; `visit_attributes` must cover all attributes
+- Run `clang-format -i <file>` (config: `src/.clang-format`) before committing
+- Every new op must include `type_prop`, `visitors`, and `op_reference` tests
+
 > **Step 0 guard:** Before Step 1, check whether the target opset exists:
 > ```bash
 > ls ./src/core/include/openvino/opsets/opsetX.hpp 2>/dev/null \
