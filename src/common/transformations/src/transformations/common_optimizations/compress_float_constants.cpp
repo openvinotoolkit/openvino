@@ -95,8 +95,10 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<v0::
         }
     }
 
-    // if more than 75% of elements are rejected (outside FP16 range or FP16
-    // round-trip relative error exceeds the threshold), keep the Constant in FP32
+    // If the combined count of rejected elements (values outside the finite FP16
+    // range PLUS in-range values whose FP16 round-trip relative error exceeds
+    // f16_compression_max_rel_error) reaches f16_compression_keep_threshold
+    // (inclusive, 75% by default), keep the Constant in its original precision.
     const double out_of_range_proportion = static_cast<double>(num_out_of_range) / static_cast<double>(size);
 
     if (out_of_range_proportion >= ov::reference::f16_compression_keep_threshold) {
@@ -210,8 +212,10 @@ CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
             if (check.has_lossy)
                 return false;
 
-            // if more than 75% of elements are rejected (outside FP16 range or FP16
-    // round-trip relative error exceeds the threshold), keep the Constant in FP32
+            // If the combined count of rejected elements (values outside the finite FP16
+            // range PLUS in-range values whose FP16 round-trip relative error exceeds
+            // f16_compression_max_rel_error) reaches f16_compression_keep_threshold
+            // (inclusive, 75% by default), keep the Constant in FP32.
             const float out_of_range_proportion =
                 static_cast<float>(check.out_of_range_count) / static_cast<float>(size);
             if (out_of_range_proportion >= ov::reference::f16_compression_keep_threshold)

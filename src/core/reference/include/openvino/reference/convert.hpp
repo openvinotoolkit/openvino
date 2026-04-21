@@ -83,39 +83,51 @@ template <>
 void convert<int32_t, float16>(const int32_t* arg, float16* out, size_t count);
 
 /// Maximum tolerated |abs(src - round_trip_f16(src))| for an in-range element.
-/// If any element exceeds this threshold, the whole tensor is kept in FP32
-/// (acts as a tensor-wide veto in check_f16_compression()).
+/// If any element exceeds this threshold, the whole tensor is kept in its
+/// original precision (FP32 / FP64 — acts as a tensor-wide veto in
+/// check_f16_compression()).
 inline constexpr double f16_compression_max_abs_error = 1.0;
 /// Maximum tolerated relative round-trip error |abs_diff / src| for an
 /// in-range element. Elements above this threshold are accumulated into the
 /// combined rejection count used together with f16_compression_keep_threshold.
 inline constexpr double f16_compression_max_rel_error = 1e-4;
 /// Proportion of combined rejections (out-of-FP16-range + high relative-error)
-/// at which the Constant is kept in FP32 (no FP16 compression).
+/// at which the Constant is kept in its original precision (FP32 / FP64), i.e.
+/// no FP16 compression is applied.
 inline constexpr float f16_compression_keep_threshold = 0.75f;
 
-// Single-pass combined check for FP16 compression feasibility.
-// Bails immediately if any in-range value has significant precision loss
-// (|round-trip error| > f16_compression_max_abs_error). Otherwise accumulates a
-// combined rejection count used by CompressFloatConstantsImpl to decide whether
-// to keep the Constant in FP32 via the f16_compression_keep_threshold.
-// JIT/AVX2+F16C accelerated on x86.
+/// Result of a single-pass FP16-compression feasibility check produced by
+/// check_f16_compression(). Used by CompressFloatConstantsImpl to decide
+/// whether a floating-point Constant may be safely compressed to FP16.
 struct CompressionCheckResult {
-    // Combined count of rejected elements: values outside finite FP16 range PLUS
-    // in-range values whose FP16 conversion exceeds f16_compression_max_rel_error.
-    // This is NOT a pure out-of-range count — see count_out_of_f16_range() for
-    // that.
+    /// Combined count of rejected elements: values outside the finite FP16
+    /// range PLUS in-range values whose FP16 conversion exceeds
+    /// f16_compression_max_rel_error. Compared against
+    /// f16_compression_keep_threshold to keep the Constant in its original
+    /// precision. NOT a pure out-of-range count — see count_out_of_f16_range()
+    /// for that.
     size_t out_of_range_count;
-    // Early-bail flag: true iff any in-range element has |abs error| greater
-    // than f16_compression_max_abs_error after the FP16 round-trip. When set,
-    // out_of_range_count is not guaranteed to be complete.
+    /// Early-bail flag: true iff any in-range element has |abs error| greater
+    /// than f16_compression_max_abs_error after the FP16 round-trip. When set,
+    /// out_of_range_count is not guaranteed to be complete.
     bool has_lossy;
 };
+
+/// Single-pass combined FP16-compression feasibility check.
+///
+/// Bails immediately if any in-range value has significant precision loss
+/// (|round-trip error| > f16_compression_max_abs_error), setting
+/// CompressionCheckResult::has_lossy. Otherwise accumulates a combined
+/// rejection count (out-of-FP16-range + high relative-error) in
+/// CompressionCheckResult::out_of_range_count, to be compared against
+/// f16_compression_keep_threshold. JIT/AVX-512 (or AVX2+F16C) accelerated on
+/// x86; falls back to a scalar loop elsewhere.
 CompressionCheckResult check_f16_compression(const float* arg, size_t count);
 
-// Counts elements in `arg` that fall outside the finite FP16 range (subnormal
-// when rounded, or larger in magnitude than float16::max()). Distinct from
-// check_f16_compression(), which also accounts for relative-error rejections.
+/// Counts elements in `arg` that fall outside the finite FP16 range (subnormal
+/// when rounded, or larger in magnitude than float16::max()). Distinct from
+/// check_f16_compression(), which also accounts for relative-error rejections.
+/// Kept as a backward-compatible helper for external consumers of this header.
 size_t count_out_of_f16_range(const float* arg, size_t count);
 
 // Convert values from f32 to f16 with clamping to f16 min/max when value is out of normal finite numbers range

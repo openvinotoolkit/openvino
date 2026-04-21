@@ -289,7 +289,7 @@ public:
             // Since the JIT code always resides in memory, and ASAN's memory management may remove executable
             // permissions, we need to restore executable permissions for the generated code.
             generator.setProtectModeRE(false);
-            return (fn_t)generator.getCode();
+            return generator.getCode<fn_t>();
         }
         return nullptr;
     }
@@ -396,7 +396,7 @@ public:
             // Since the JIT code always resides in memory, and ASAN's memory management may remove executable
             // permissions, we need to restore executable permissions for the generated code.
             generator.setProtectModeRE(false);
-            return (fn_t)generator.getCode();
+            return generator.getCode<fn_t>();
         }
         return nullptr;
     }
@@ -423,7 +423,7 @@ public:
             // Since the JIT code always resides in memory, and ASAN's memory management may remove executable
             // permissions, we need to restore executable permissions for the generated code.
             generator.setProtectModeRE(false);
-            return (fn_t)generator.getCode();
+            return generator.getCode<fn_t>();
         }
         return nullptr;
     }
@@ -467,9 +467,8 @@ private:
         const auto& k_rel = k3;    // (abs_diff > |data|*1e-4) AND NOT k_oor
         const auto& k_tail = k4;   // tail mask (built once before tail iteration)
         const auto& k_tmp1 = k5;
-        const auto& k_tmp2 = k6;
 
-        Label main_loop, tail_block, normal_exit, lossy_exit;
+        Label main_loop, tail_block, normal_exit, lossy_exit, done;
 
         preamble();
         xor_(reg_oor_accum, reg_oor_accum);
@@ -494,9 +493,9 @@ private:
         mov(reg_lossy_dst, ptr[param + offsetof(args_t, lossy_dst)]);
         mov(reg_count, ptr[param + offsetof(args_t, count)]);
 
-        const unsigned char _cmp_lt_os = 1;
-        const unsigned char _cmp_neq_uq = 4;
-        const unsigned char _cmp_gt_os = 6;
+        constexpr uint8_t cmp_lt_os = 1;
+        constexpr uint8_t cmp_neq_uq = 4;
+        constexpr uint8_t cmp_gt_os = 6;
 
         // Per-chunk emission. If `masked` is true, all opmasks are AND-ed with k_tail
         // to defensively clear out-of-tail lanes (masked load already zeroed them, but
@@ -504,15 +503,14 @@ private:
         auto emit_chunk = [&, this](bool masked) {
             // === Build OOR mask in k_oor ===
             // subnormal-when-rounded: |data| < min_pos AND data != 0
-            vcmpps(k_tmp1, data_vec, f16_min_pos_vec, _cmp_lt_os);  // data < min_pos
-            vcmpps(k_tmp2, data_vec, f16_min_neg_vec, _cmp_gt_os);  // data > min_neg
-            kandw(k_oor, k_tmp1, k_tmp2);                           // in (-min_pos, min_pos)
-            vcmpps(k_tmp1, data_vec, zero_vec, _cmp_neq_uq);        // data != 0
+            vcmpps(k_tmp1, data_vec, f16_min_pos_vec, cmp_lt_os);             // data < min_pos
+            vcmpps(k_oor | k_tmp1, data_vec, f16_min_neg_vec, cmp_gt_os);     // merge-masked: k_oor = k_tmp1 & (data > min_neg)
+            vcmpps(k_tmp1, data_vec, zero_vec, cmp_neq_uq);                   // data != 0
             kandw(k_oor, k_oor, k_tmp1);
             // overflow: data > max_pos OR data < max_neg
-            vcmpps(k_tmp1, data_vec, f16_max_pos_vec, _cmp_gt_os);
+            vcmpps(k_tmp1, data_vec, f16_max_pos_vec, cmp_gt_os);
             korw(k_oor, k_oor, k_tmp1);
-            vcmpps(k_tmp1, data_vec, f16_max_neg_vec, _cmp_lt_os);
+            vcmpps(k_tmp1, data_vec, f16_max_neg_vec, cmp_lt_os);
             korw(k_oor, k_oor, k_tmp1);
             if (masked) {
                 kandw(k_oor, k_oor, k_tail);
@@ -527,7 +525,7 @@ private:
             vpandd(diff_vec, diff_vec, abs_mask_vec);  // mask off sign bit
 
             // === Lossy check: (abs_diff > 1.0) AND NOT k_oor -> early exit ===
-            vcmpps(k_lossy, diff_vec, abs_err_vec, _cmp_gt_os);
+            vcmpps(k_lossy, diff_vec, abs_err_vec, cmp_gt_os);
             kandnw(k_lossy, k_oor, k_lossy);  // k_lossy = ~k_oor & k_lossy
             if (masked) {
                 kandw(k_lossy, k_lossy, k_tail);
@@ -538,7 +536,7 @@ private:
             // === Relative-error check: (abs_diff > |data| * 1e-4) AND NOT k_oor ===
             vpandd(abs_data_vec, data_vec, abs_mask_vec);
             vmulps(rel_thresh_vec, abs_data_vec, rel_err_vec);
-            vcmpps(k_rel, diff_vec, rel_thresh_vec, _cmp_gt_os);
+            vcmpps(k_rel, diff_vec, rel_thresh_vec, cmp_gt_os);
             kandnw(k_rel, k_oor, k_rel);
             korw(k_oor, k_oor, k_rel);
             if (masked) {
@@ -605,7 +603,7 @@ private:
         mov(qword[reg_oor_dst], reg_oor_accum);
         xor_(reg_tmp, reg_tmp);
         mov(qword[reg_lossy_dst], reg_tmp);
-        postamble();
+        jmp(done, T_NEAR);
 
         // --- Lossy exit: partial OOR count is meaningless, write 0; lossy=1 ---
         L(lossy_exit);
@@ -613,6 +611,8 @@ private:
         mov(qword[reg_oor_dst], reg_tmp);
         mov(reg_tmp, 1);
         mov(qword[reg_lossy_dst], reg_tmp);
+
+        L(done);
         postamble();
     }
 };
@@ -638,7 +638,7 @@ public:
             // Since the JIT code always resides in memory, and ASAN's memory management may remove executable
             // permissions, we need to restore executable permissions for the generated code.
             generator.setProtectModeRE(false);
-            return (fn_t)generator.getCode();
+            return generator.getCode<fn_t>();
         }
         return nullptr;
     }
@@ -678,7 +678,7 @@ private:
         const auto& diff_vec = ymm14;
         const auto& rt_vec_xmm = xmm15;  // for f32->f16->f32 roundtrip
 
-        Label exit_lossy, exit_normal;
+        Label exit_lossy, exit_normal, done;
 
         preamble();
         mov(reg_saved_rsp, rsp);  // save rsp for lossy exit stack cleanup
@@ -697,21 +697,21 @@ private:
             {kF16MinNeg, kF16MinNeg, kF16MinNeg, kF16MinNeg, kF16MinNeg, kF16MinNeg, kF16MinNeg, kF16MinNeg};
         static constexpr int32_t i32_ones[8] = {1, 1, 1, 1, 1, 1, 1, 1};
         static constexpr float abs_errs[8] = {kF16CompressionAbsErrVal,
-                                               kF16CompressionAbsErrVal,
-                                               kF16CompressionAbsErrVal,
-                                               kF16CompressionAbsErrVal,
-                                               kF16CompressionAbsErrVal,
-                                               kF16CompressionAbsErrVal,
-                                               kF16CompressionAbsErrVal,
-                                               kF16CompressionAbsErrVal};
+                                              kF16CompressionAbsErrVal,
+                                              kF16CompressionAbsErrVal,
+                                              kF16CompressionAbsErrVal,
+                                              kF16CompressionAbsErrVal,
+                                              kF16CompressionAbsErrVal,
+                                              kF16CompressionAbsErrVal,
+                                              kF16CompressionAbsErrVal};
         static constexpr float rel_errs[8] = {kF16CompressionRelErrVal,
-                                               kF16CompressionRelErrVal,
-                                               kF16CompressionRelErrVal,
-                                               kF16CompressionRelErrVal,
-                                               kF16CompressionRelErrVal,
-                                               kF16CompressionRelErrVal,
-                                               kF16CompressionRelErrVal,
-                                               kF16CompressionRelErrVal};
+                                              kF16CompressionRelErrVal,
+                                              kF16CompressionRelErrVal,
+                                              kF16CompressionRelErrVal,
+                                              kF16CompressionRelErrVal,
+                                              kF16CompressionRelErrVal,
+                                              kF16CompressionRelErrVal,
+                                              kF16CompressionRelErrVal};
         static constexpr uint32_t abs_masks[8] =
             {kAbsMaskVal, kAbsMaskVal, kAbsMaskVal, kAbsMaskVal, kAbsMaskVal, kAbsMaskVal, kAbsMaskVal, kAbsMaskVal};
 
@@ -737,9 +737,9 @@ private:
         mov(reg_lossy_dst, ptr[param + offsetof(args_t, lossy_dst)]);
         mov(reg_sz, ptr[param + offsetof(args_t, count)]);
 
-        const unsigned char _cmp_lt_os = 1;
-        const unsigned char _cmp_neq_uq = 4;
-        const unsigned char _cmp_gt_os = 6;
+        constexpr uint8_t cmp_lt_os = 1;
+        constexpr uint8_t cmp_neq_uq = 4;
+        constexpr uint8_t cmp_gt_os = 6;
 
         // Kernel lambda: emits the combined check code for 8 elements at src_ptr.
         // Called twice (main loop + tail) — each call emits a copy of the instructions.
@@ -749,15 +749,15 @@ private:
 
             // === Out-of-range check (same algorithm as jit_count_out_of_range_vec) ===
             // subnormal: data in (-f16_min_pos, f16_min_pos) and != 0
-            vcmpps(tmp_vec, data_vec, f16_min_pos_vec, _cmp_lt_os);
-            vcmpps(mask_vec, data_vec, f16_min_neg_vec, _cmp_gt_os);
+            vcmpps(tmp_vec, data_vec, f16_min_pos_vec, cmp_lt_os);
+            vcmpps(mask_vec, data_vec, f16_min_neg_vec, cmp_gt_os);
             vandps(mask_vec, mask_vec, tmp_vec);
-            vcmpps(tmp_vec, data_vec, f16_zero_vec, _cmp_neq_uq);
+            vcmpps(tmp_vec, data_vec, f16_zero_vec, cmp_neq_uq);
             vandps(mask_vec, mask_vec, tmp_vec);
             // overflow: data > f16_max or data < f16_lowest
-            vcmpps(tmp_vec, data_vec, f16_max_pos_vec, _cmp_gt_os);
+            vcmpps(tmp_vec, data_vec, f16_max_pos_vec, cmp_gt_os);
             vorps(mask_vec, mask_vec, tmp_vec);
-            vcmpps(tmp_vec, data_vec, f16_max_neg_vec, _cmp_lt_os);
+            vcmpps(tmp_vec, data_vec, f16_max_neg_vec, cmp_lt_os);
             vorps(mask_vec, mask_vec, tmp_vec);
             // mask_vec now has per-element OOR mask (0xFFFFFFFF for OOR, 0 for in-range)
 
@@ -771,7 +771,7 @@ private:
             vandps(diff_vec, diff_vec, abs_mask_vec);  // diff_vec = |diff|
 
             // lossy = |diff| > abs_error (1.0)
-            vcmpps(tmp_vec, diff_vec, abs_err_vec, _cmp_gt_os);  // |diff| > 1.0
+            vcmpps(tmp_vec, diff_vec, abs_err_vec, cmp_gt_os);  // |diff| > 1.0
 
             // Exclude out-of-range elements: keep only in-range lossy
             vandnps(tmp_vec, mask_vec, tmp_vec);  // tmp_vec = NOT(oor) AND lossy
@@ -784,7 +784,7 @@ private:
             // (equivalent to abs_diff / |value| > 1e-4, but avoids division)
             vandps(tmp_vec, data_vec, abs_mask_vec);         // tmp_vec = |data|
             vmulps(tmp_vec, tmp_vec, rel_err_vec);           // tmp_vec = |data| * 1e-4
-            vcmpps(tmp_vec, diff_vec, tmp_vec, _cmp_gt_os);  // 1 where |diff| > |data|*1e-4
+            vcmpps(tmp_vec, diff_vec, tmp_vec, cmp_gt_os);  // 1 where |diff| > |data|*1e-4
             vandnps(tmp_vec, mask_vec, tmp_vec);             // exclude OOR (avoid double-count)
             vorps(mask_vec, mask_vec, tmp_vec);              // combine OOR + relative-error
 
@@ -847,7 +847,7 @@ private:
             xor_(rsi, rsi);
             mov(qword[reg_lossy_dst], rsi);
         }
-        postamble();
+        jmp(done, T_NEAR);
 
         // --- Lossy exit: bail immediately (jumped from kernel via jnz) ---
         L(exit_lossy);
@@ -856,6 +856,8 @@ private:
         mov(qword[reg_oor_dst], rsi);  // oor_count = 0 (meaningless, caller checks lossy first)
         mov(rsi, 1);
         mov(qword[reg_lossy_dst], rsi);  // lossy = 1
+
+        L(done);
         postamble();
     }
 };
@@ -938,30 +940,39 @@ inline bool is_out_of_f16_range(float v) {
 }
 }  // namespace
 
+#ifdef OV_CORE_USE_XBYAK_JIT
+namespace {
+// Invoke a compiled FP16-compression JIT kernel (AVX-512 or AVX2+F16C) and
+// marshal its two size_t outputs into a CompressionCheckResult. Shared by
+// both JIT dispatches in check_f16_compression().
+template <typename Jit>
+CompressionCheckResult run_check_f16_compression_jit(typename Jit::fn_t fn, const float* arg, size_t count) {
+    CompressionCheckResult result{0, false};
+    size_t lossy_count = 0;
+    typename Jit::args_t args = {arg, &result.out_of_range_count, &lossy_count, count};
+    fn(&args);
+    result.has_lossy = lossy_count > 0;
+    return result;
+}
+}  // namespace
+#endif  // OV_CORE_USE_XBYAK_JIT
+
 CompressionCheckResult check_f16_compression(const float* arg, size_t count) {
 #ifdef OV_CORE_USE_XBYAK_JIT
     if (util::may_i_use_dynamic_code()) {
         if (auto fn = jit_check_f16_compression_avx512::get()) {
-            size_t oor_count = 0;
-            size_t lossy_count = 0;
-            jit_check_f16_compression_avx512::args_t args = {arg, &oor_count, &lossy_count, count};
-            fn(&args);
-            return {oor_count, lossy_count > 0};
+            return run_check_f16_compression_jit<jit_check_f16_compression_avx512>(fn, arg, count);
         }
         if (auto fn = jit_check_f16_compression::get()) {
-            size_t oor_count = 0;
-            size_t lossy_count = 0;
-            jit_check_f16_compression::args_t args = {arg, &oor_count, &lossy_count, count};
-            fn(&args);
-            return {oor_count, lossy_count > 0};
+            return run_check_f16_compression_jit<jit_check_f16_compression>(fn, arg, count);
         }
     }
 #endif  // OV_CORE_USE_XBYAK_JIT
-    size_t out_of_range = 0;
+    CompressionCheckResult result{0, false};
     for (size_t i = 0; i < count; ++i) {
         const float v = arg[i];
         if (is_out_of_f16_range(v)) {
-            ++out_of_range;
+            ++result.out_of_range_count;
         } else {
             const double roundtripped = static_cast<double>(static_cast<float>(static_cast<float16>(v)));
             const double abs_diff = std::abs(v - roundtripped);
@@ -969,11 +980,11 @@ CompressionCheckResult check_f16_compression(const float* arg, size_t count) {
                 return {0, true};
             }
             if (v != 0.0f && abs_diff / std::abs(v) > f16_compression_max_rel_error) {
-                ++out_of_range;
+                ++result.out_of_range_count;
             }
         }
     }
-    return {out_of_range, false};
+    return result;
 }
 
 size_t count_out_of_f16_range(const float* arg, size_t count) {
