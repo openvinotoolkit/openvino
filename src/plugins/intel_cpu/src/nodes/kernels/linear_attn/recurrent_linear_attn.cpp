@@ -86,7 +86,7 @@ void recurrent_linear_attn(const ov::intel_cpu::PlainTensor& query,
                            const ov::intel_cpu::PlainTensor& beta,
                            float q_l2_norm_eps,
                            float k_l2_norm_eps,
-                           bool fuse_qk_l2norm,
+                           bool use_qk_l2norm,
                            ov::intel_cpu::PlainTensor& output_attn,
                            ov::intel_cpu::PlainTensor& output_recurrent_state,
                            float* temp_buffer,
@@ -122,7 +122,7 @@ void recurrent_linear_attn(const ov::intel_cpu::PlainTensor& query,
                 b_k[j] = k_ptr[i * H * K_HEAD_DIMS + j];
                 b_q[j] = q_ptr[i * H * K_HEAD_DIMS + j];
             }
-            if (fuse_qk_l2norm) {
+            if (use_qk_l2norm) {
                 l2norm(b_k, K_HEAD_DIMS, k_l2_norm_eps);
                 l2norm(b_q, K_HEAD_DIMS, q_l2_norm_eps);
             }
@@ -161,7 +161,7 @@ static void recurrent_linear_attn_paged_impl(const ov::intel_cpu::PlainTensor& q
                                              const ov::intel_cpu::PlainTensor& cache_interval,
                                              float q_l2_norm_eps,
                                              float k_l2_norm_eps,
-                                             bool fuse_qk_l2norm,
+                                             bool use_qk_l2norm,
                                              ov::intel_cpu::PlainTensor& output_attn,
                                              float* temp_buffer,
                                              const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
@@ -214,7 +214,7 @@ static void recurrent_linear_attn_paged_impl(const ov::intel_cpu::PlainTensor& q
                 b_q[j] = static_cast<float>(query.at<T>({token_u, hk, j}));
             }
 
-            if (fuse_qk_l2norm) {
+            if (use_qk_l2norm) {
                 l2norm(b_k, k_head_dims, k_l2_norm_eps);
                 l2norm(b_q, k_head_dims, q_l2_norm_eps);
             }
@@ -255,7 +255,6 @@ static void recurrent_linear_attn_paged_impl(const ov::intel_cpu::PlainTensor& q
     });
 }
 
-// TODO merge 2 functions since original gdn is a special case of paged gdn
 void recurrent_linear_attn_paged(const ov::intel_cpu::PlainTensor& query,
                                  const ov::intel_cpu::PlainTensor& key,
                                  const ov::intel_cpu::PlainTensor& value,
@@ -269,7 +268,7 @@ void recurrent_linear_attn_paged(const ov::intel_cpu::PlainTensor& query,
                                  const ov::intel_cpu::PlainTensor& cache_interval,
                                  float q_l2_norm_eps,
                                  float k_l2_norm_eps,
-                                 bool fuse_qk_l2norm,
+                                 bool use_qk_l2norm,
                                  ov::intel_cpu::PlainTensor& output_attn,
                                  float* temp_buffer,
                                  const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
@@ -278,6 +277,7 @@ void recurrent_linear_attn_paged(const ov::intel_cpu::PlainTensor& query,
                         recurrent_state_table.get_precision() == data_prc && gate.get_precision() == data_prc &&
                         beta.get_precision() == data_prc && output_attn.get_precision() == data_prc,
                     "[CPU] paged_gdn: q/k/v/state/gate/beta/output precisions must match");
+    OPENVINO_ASSERT(temp_buffer != nullptr, "[CPU] paged_gdn: temp_buffer must not be null");
 
     if (data_prc == ov::element::f32) {
         recurrent_linear_attn_paged_impl<float>(query,
@@ -293,7 +293,7 @@ void recurrent_linear_attn_paged(const ov::intel_cpu::PlainTensor& query,
                                                 cache_interval,
                                                 q_l2_norm_eps,
                                                 k_l2_norm_eps,
-                                                fuse_qk_l2norm,
+                                                use_qk_l2norm,
                                                 output_attn,
                                                 temp_buffer,
                                                 cpu_parallel);
@@ -311,7 +311,7 @@ void recurrent_linear_attn_paged(const ov::intel_cpu::PlainTensor& query,
                                                       cache_interval,
                                                       q_l2_norm_eps,
                                                       k_l2_norm_eps,
-                                                      fuse_qk_l2norm,
+                                                      use_qk_l2norm,
                                                       output_attn,
                                                       temp_buffer,
                                                       cpu_parallel);
@@ -329,7 +329,7 @@ void recurrent_linear_attn_paged(const ov::intel_cpu::PlainTensor& query,
                                                        cache_interval,
                                                        q_l2_norm_eps,
                                                        k_l2_norm_eps,
-                                                       fuse_qk_l2norm,
+                                                       use_qk_l2norm,
                                                        output_attn,
                                                        temp_buffer,
                                                        cpu_parallel);
