@@ -819,6 +819,23 @@ TEST(SerializationTest, OVTypes_LazyTensor_const_roundtrip) {
     expect_tensors_equal(var.eval(), res.eval());
 }
 
+TEST(SerializationTest, OVTypes_LazyTensor_const_with_embedded_weight_roundtrip) {
+    using namespace ov::npuw::s11n;
+
+    auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2}, std::vector<float>{1.0f, 2.0f});
+    ov::npuw::weights::LazyTensor var(constant);
+    ov::npuw::weights::LazyTensor res;
+
+    std::stringstream ss;
+    write(ss, var);
+    read(ss, res);
+
+    expect_lazy_tensor_transform_types_equal(var, res);
+    EXPECT_EQ(var.eval_meta().shape, res.eval_meta().shape);
+    EXPECT_EQ(var.eval_meta().type, res.eval_meta().type);
+    expect_tensors_equal(var.eval(), res.eval());
+}
+
 TEST(SerializationTest, OVTypes_LazyTensor_concat_permute_convert_roundtrip) {
     using namespace ov::npuw::s11n;
 

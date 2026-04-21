@@ -439,9 +439,11 @@ void Const::serialize(ov::npuw::s11n::Stream& stream) {
     bool contains_weight = static_cast<bool>(m_copied_if_not_in_model);
     stream & contains_weight;
     if (contains_weight) {
-        stream & m_copied_if_not_in_model;
         if (stream.output()) {
+            stream & m_copied_if_not_in_model;
             m_copied_if_not_in_model = ov::Tensor();
+        } else {
+            stream & m_read_from_bin;
         }
     }
 }
