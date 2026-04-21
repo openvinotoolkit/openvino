@@ -102,9 +102,14 @@ JitConstants GatherMatmulBatchedGemmGenerator::get_jit_constants(const kernel_im
         }
     }
 
-    // Input/output layout JIT for weight type resolution in kernel
+    // Input/output layout JIT for weight type resolution in kernel.
+    // INPUT0 must be defined because expert_gemm_compute.cl (included below)
+    // references INPUT0_TYPE in its signature even though this kernel hardcodes
+    // `half` for gathered_input_ptr.
     const auto& in_offsets_map = params.in_port_to_shape_info_offset;
     const auto& out_offsets_map = params.out_port_to_shape_info_offset;
+    jit.add(
+        make_layout_jit_constants("INPUT0", params.input_layouts[gather_matmul::BGMInputIdx::INPUT], in_offsets_map.at(gather_matmul::BGMInputIdx::INPUT)));
     jit.add(
         make_layout_jit_constants("INPUT1", params.input_layouts[gather_matmul::BGMInputIdx::WEIGHT], in_offsets_map.at(gather_matmul::BGMInputIdx::WEIGHT)));
     jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
