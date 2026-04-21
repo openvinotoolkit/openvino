@@ -59,8 +59,8 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const PartialShape& y_shape,
-                                                  const PartialShape& x_shape,
-                                                  const element::Type& type) {
+                                                 const PartialShape& x_shape,
+                                                 const element::Type& type) {
         const auto y = std::make_shared<op::v0::Parameter>(type, y_shape);
         const auto x = std::make_shared<op::v0::Parameter>(type, x_shape);
         const auto atan2 = std::make_shared<op::v17::Atan2>(y, x);
@@ -87,7 +87,7 @@ std::vector<Atan2Params> generateParams() {
                                    static_cast<T>(pi / 2),
                                    0.f,
                                    static_cast<T>(std::atan2(pi / 2, pi / 2))}),
-        // Quadrant II: y>0, x<0 
+        // Quadrant II: y>0, x<0
         Atan2Params(PartialShape{2},
                     PartialShape{2},
                     ET,

@@ -3,6 +3,7 @@
 //
 
 #include "openvino/op/atan2.hpp"
+
 #include "utils.hpp"
 
 namespace ov {
