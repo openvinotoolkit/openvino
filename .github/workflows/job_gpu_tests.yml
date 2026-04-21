@@ -190,6 +190,17 @@ jobs:
           OV_LIBS_DIR=$(python3 -c "import openvino, os; print(os.path.join(os.path.dirname(openvino.__file__), 'libs'))")
           export LD_LIBRARY_PATH="${OV_LIBS_DIR}:${LD_LIBRARY_PATH}"
 
+          # Fail fast if the iGPU runner did not expose a GPU (clinfo earlier
+          # is informational and does not fail the step when 0 platforms are
+          # found). Without this gate, all 35 pytest cases would fail with the
+          # same cryptic error instead of one clear assertion.
+          python3 -c "
+          from openvino import Core
+          devs = Core().available_devices
+          print('Available devices:', devs)
+          assert 'GPU' in devs, 'iGPU runner did not expose GPU — likely infra flake, rerun the job'
+          "
+
           python3 -m pip install \
             -r ${INSTALL_TEST_DIR}/requirements_pytorch \
             -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/rope.txt
