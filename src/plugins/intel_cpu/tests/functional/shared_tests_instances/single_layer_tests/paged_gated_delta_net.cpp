@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph_tests/paged_gated_delta_net.hpp"
+#include "single_op_tests/paged_gated_delta_net.hpp"
 
 namespace ov::test {
 
