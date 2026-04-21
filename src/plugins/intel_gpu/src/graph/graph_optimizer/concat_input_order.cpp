@@ -17,7 +17,7 @@ using namespace cldnn;
 
 namespace {
 
-using shuffle_range = std::pair<int32_t, int32_t>;
+using shuffle_range = std::pair<tensor::value_type, tensor::value_type>;
 
 bool can_shuffle_features(program_node& node, program_node& concat_node, stream& stream) {
     if (node.is_type<convolution>()) {
@@ -73,7 +73,7 @@ void shuffle_weights(data_node& node, const std::vector<shuffle_range>& ranges, 
     for (int32_t ofi = 0; ofi < wei_layout.batch(); ++ofi) {
         int32_t new_ifi = 0;
         for (auto& range : ranges) {
-            for (int32_t ifi = range.first; ifi < range.second; ++ifi, ++new_ifi) {
+            for (int32_t ifi = static_cast<int32_t>(range.first); ifi < range.second; ++ifi, ++new_ifi) {
                 for (int32_t wi = 0; wi < wei_layout.spatial(3); ++wi) {
                     for (int32_t zi = 0; zi < wei_layout.spatial(2); ++zi) {
                         for (int32_t yi = 0; yi < wei_layout.spatial(1); ++yi) {
@@ -134,20 +134,20 @@ void concat_input_order::run(program& p) {
 
         auto out_format = concat_node.get_output_layout().format;
         bool correct_format = (out_format == format::b_fs_yx_fsv16) || (out_format == format::b_fs_yx_fsv32);
-        int32_t alignment = 1;
+        tensor::value_type alignment = 1;
         if (out_format == format::b_fs_yx_fsv16)
             alignment = 16;
         else if (out_format == format::b_fs_yx_fsv32)
             alignment = 32;
 
         bool single_format = true;
-        std::vector<int32_t> feature_sizes;
+        std::vector<tensor::value_type> feature_sizes;
         feature_sizes.reserve(inputs_count);
         for (size_t input_idx = 0; input_idx < inputs_count; ++input_idx) {
             const auto dep = concat_node.get_dependency_with_port(input_idx);
             auto dep_layout = dep.first->get_output_layout(false, dep.second);
             single_format &= dep_layout.format == out_format;
-            feature_sizes.push_back(static_cast<int32_t>(dep_layout.feature()));
+            feature_sizes.push_back(dep_layout.feature());
         }
 
         // Alignment is not optimal if aligned input follows unaligned one
@@ -179,7 +179,7 @@ void concat_input_order::run(program& p) {
                 new_order.push_back(i);
         }
         // Calculate new ranges
-        int32_t current_offset = 0;
+        tensor::value_type current_offset = 0;
         std::vector<shuffle_range> original_ranges;
         original_ranges.reserve(inputs_count);
         for (auto& feature_size : feature_sizes) {

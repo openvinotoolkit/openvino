@@ -691,7 +691,7 @@ NetworkDebugHelper::~NetworkDebugHelper() {
     }
 
     if (!config.get_dump_graphs_path().empty() && is_target_iteration(m_iter, config.get_dump_iterations())) {
-        auto get_fixed_str = [](size_t value, int length = 2) -> std::string {
+        auto get_fixed_str = [](int64_t value, int length = 2) -> std::string {
             std::ostringstream ss;
             ss << std::setw(length) << std::setfill('0') << std::to_string(value);
             return ss.str();
@@ -722,7 +722,7 @@ NetworkDebugHelper::~NetworkDebugHelper() {
 }
 
 void NetworkDebugHelper::dump_memory_pool(std::string dump_path, int64_t curr_iter) const {
-    m_network.get_memory_pool().dump(m_network.get_id(), static_cast<uint32_t>(curr_iter), dump_path);
+    m_network.get_memory_pool().dump(m_network.get_id(), curr_iter, dump_path);
     auto get_constants_mem_size = [&](allocation_type type) -> size_t {
         size_t mem_size = 0;
         for (auto& prim : m_network._primitives) {

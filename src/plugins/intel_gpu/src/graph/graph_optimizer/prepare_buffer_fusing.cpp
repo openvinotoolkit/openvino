@@ -706,7 +706,7 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                     // output_pattern[0] == -1 means the batch dim is absorbed (squeezed).
                     reshape_axis = 0;
                 } else {
-                    int64_t mul = 1;
+                    ov::Dimension::value_type mul = 1;
                     auto reshape_ps = user_info.second.get_partial_shape();
                     reshape_axis = reshape_ps.size() - 1;
                     auto crop_dim_val = crop_layout.get_partial_shape()[crop_axis].get_length();
