@@ -66,7 +66,7 @@ KERNEL(paged_causal_conv1d_ref)
     bias_val = convert_float(conv_bias[h * bias_hidden_stride]);
 #endif
 
-    for (int t = 0; t < token_end - token_begin; t++) {
+    for (int t = 0; t < seq_tokens; t++) {
         const int token_idx = token_begin + t;
 
         for (int k = 0; k + 1 < KERNEL_SIZE; k++) {

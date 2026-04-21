@@ -40,7 +40,8 @@ protected:
 
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
-        for (size_t i = 0; i < 13; i++) {
+        constexpr size_t num_scalars = 13;  // Must match scalars count in get_dispatch_data_func
+        for (size_t i = 0; i < num_scalars; i++) {
             args.push_back({ArgumentDescriptor::Types::SCALAR, static_cast<uint32_t>(i)});
         }
 

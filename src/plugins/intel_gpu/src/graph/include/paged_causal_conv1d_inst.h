@@ -16,8 +16,12 @@ struct typed_program_node<paged_causal_conv1d> : public typed_program_node_base<
 public:
     using parent::parent;
 
-    program_node& input(size_t index = 0) const { return get_dependency(index); }
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+    program_node& input(size_t index = 0) const {
+        return get_dependency(index);
+    }
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        return {};
+    }
 };
 using paged_causal_conv1d_node = typed_program_node<paged_causal_conv1d>;
 

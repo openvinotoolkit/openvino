@@ -33,9 +33,7 @@ struct paged_causal_conv1d : public primitive_base<paged_causal_conv1d> {
     paged_causal_conv1d() : primitive_base("", {}) {}
 
     paged_causal_conv1d(const primitive_id& id, const std::vector<input_info>& inputs) : primitive_base(id, inputs) {
-        OPENVINO_ASSERT((inputs.size() == 9),
-                        "[GPU] Unexpected inputs number for paged_causal_conv1d primitive: ",
-                        inputs.size());
+        OPENVINO_ASSERT((inputs.size() == 9), "[GPU] Unexpected inputs number for paged_causal_conv1d primitive: ", inputs.size());
     }
 
     size_t hash() const override {

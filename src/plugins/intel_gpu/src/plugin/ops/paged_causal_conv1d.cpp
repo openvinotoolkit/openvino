@@ -9,14 +9,6 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 
-namespace ov {
-namespace op {
-namespace internal {
-using PagedCausalConv1D = ov::op::internal::PagedCausalConv1D;
-}  // namespace internal
-}  // namespace op
-}  // namespace ov
-
 namespace ov::intel_gpu {
 
 static void CreatePagedCausalConv1DOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::PagedCausalConv1D>& op) {

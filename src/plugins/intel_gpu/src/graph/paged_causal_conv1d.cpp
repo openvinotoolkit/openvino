@@ -21,8 +21,7 @@ layout paged_causal_conv1d_inst::calc_output_layout(const paged_causal_conv1d_no
 }
 
 template <typename ShapeType>
-std::vector<layout> paged_causal_conv1d_inst::calc_output_layouts(const paged_causal_conv1d_node& node,
-                                                                   const kernel_impl_params& impl_param) {
+std::vector<layout> paged_causal_conv1d_inst::calc_output_layouts(const paged_causal_conv1d_node& node, const kernel_impl_params& impl_param) {
     const auto& all_inputs = node.get_input_layouts();
     OPENVINO_ASSERT(all_inputs.size() == 9, "paged_causal_conv1d must have 9 inputs");
 
@@ -40,9 +39,8 @@ std::vector<layout> paged_causal_conv1d_inst::calc_output_layouts(const paged_ca
     return {layout(output_shapes[0], input_layout.data_type, input_layout.format)};
 }
 
-template std::vector<layout> paged_causal_conv1d_inst::calc_output_layouts<ov::PartialShape>(
-    const paged_causal_conv1d_node& node,
-    const kernel_impl_params& impl_param);
+template std::vector<layout> paged_causal_conv1d_inst::calc_output_layouts<ov::PartialShape>(const paged_causal_conv1d_node& node,
+                                                                                             const kernel_impl_params& impl_param);
 
 std::string paged_causal_conv1d_inst::to_string(const paged_causal_conv1d_node& node) {
     auto node_info = node.desc_to_json();
