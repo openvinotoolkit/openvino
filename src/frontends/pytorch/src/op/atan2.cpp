@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/frontend/pytorch/node_context.hpp"
-
 #include "openvino/op/atan2.hpp"
+
+#include "openvino/frontend/pytorch/node_context.hpp"
 #include "utils.hpp"
 
 namespace ov {
