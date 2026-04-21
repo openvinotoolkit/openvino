@@ -863,6 +863,11 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
     }
 };
 
+/**
+ * @details The compiler version is stored as a packed 32-bit integer. The major and minor
+ * components can be extracted using the ONEAPI_VERSION_MAJOR and ONEAPI_VERSION_MINOR macros.
+ * Alternatively, toString() returns the human-readable form "major.minor".
+ */
 struct COMPILER_VERSION final : OptionBase<COMPILER_VERSION, uint32_t> {
     static std::string_view key() {
         return ov::intel_npu::compiler_version.name();
@@ -873,7 +878,7 @@ struct COMPILER_VERSION final : OptionBase<COMPILER_VERSION, uint32_t> {
     }
 
     static std::string toString(const uint32_t& val) {
-        return std::to_string(val >> 16) + "." + std::to_string(val & 0xffff);
+        return std::to_string(ONEAPI_VERSION_MAJOR(val)) + "." + std::to_string(ONEAPI_VERSION_MINOR(val));
     }
 
     static OptionMode mode() {
