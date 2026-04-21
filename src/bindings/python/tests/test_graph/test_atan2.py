@@ -10,9 +10,9 @@ import openvino.opset17 as ov
 
 @pytest.mark.parametrize("dtype", [Type.f32, Type.f16, Type.bf16, Type.f64])
 def test_atan2_same_shape(dtype):
-    y = parameter([2, 3], name="y", dtype=dtype)
-    x = parameter([2, 3], name="x", dtype=dtype)
-    node = ov.atan2(y, x)
+    input_y = parameter([2, 3], name="y", dtype=dtype)
+    input_x = parameter([2, 3], name="x", dtype=dtype)
+    node = ov.atan2(input_y, input_x)
 
     assert node.get_type_name() == "Atan2"
     assert node.get_output_size() == 1
@@ -21,9 +21,9 @@ def test_atan2_same_shape(dtype):
 
 
 def test_atan2_numpy_broadcast():
-    y = parameter([8, 1, 6, 1], name="y", dtype=Type.f32)
-    x = parameter([7, 1, 5], name="x", dtype=Type.f32)
-    node = ov.atan2(y, x)
+    input_y = parameter([8, 1, 6, 1], name="y", dtype=Type.f32)
+    input_x = parameter([7, 1, 5], name="x", dtype=Type.f32)
+    node = ov.atan2(input_y, input_x)
 
     assert node.get_type_name() == "Atan2"
     assert node.get_output_partial_shape(0) == PartialShape([8, 7, 6, 5])

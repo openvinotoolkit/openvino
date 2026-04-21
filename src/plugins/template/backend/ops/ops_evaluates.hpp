@@ -585,5 +585,5 @@ extern template bool evaluate_node<ov::op::v1::Subtract>(std::shared_ptr<ov::Nod
                                                          const ov::TensorVector& inputs);
 
 extern template bool evaluate_node<ov::op::v17::Atan2>(std::shared_ptr<ov::Node> node,
-                                                        ov::TensorVector& outputs,
-                                                        const ov::TensorVector& inputs);
+                                                       ov::TensorVector& outputs,
+                                                       const ov::TensorVector& inputs);

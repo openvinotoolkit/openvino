@@ -22,12 +22,7 @@ struct Evaluate : element::NoAction<bool> {
                              const Shape& y_shape,
                              const Shape& x_shape,
                              const AutoBroadcastSpec& broadcast_spec) {
-        reference::atan2(in_y.data<const T>(),
-                         in_x.data<const T>(),
-                         out.data<T>(),
-                         y_shape,
-                         x_shape,
-                         broadcast_spec);
+        reference::atan2(in_y.data<const T>(), in_x.data<const T>(), out.data<T>(), y_shape, x_shape, broadcast_spec);
         return true;
     }
 };

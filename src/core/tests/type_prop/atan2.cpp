@@ -85,4 +85,3 @@ TEST(type_prop, atan2_integer_input_throws) {
                     ov::NodeValidationFailure,
                     HasSubstr("Atan2 inputs must be floating-point type"));
 }
-
