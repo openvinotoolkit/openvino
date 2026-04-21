@@ -302,6 +302,13 @@ std::shared_ptr<Node> u3_compression_stack(const OutputVector& list_elems, int64
     // w7 = torch.bitwise_and(b2, 7)
     // unpacked = torch.stack([w0, w1, w2, w3, w4, w5, w6, w7], dim=1)
 
+    FRONT_END_OP_CONVERSION_CHECK(list_elems.size() == 8, "Expected 8 elements in the list for u3 compression pattern.");
+
+    std::cout << "Number of elements in list: " << list_elems.size() << std::endl;
+    for (auto &elem : list_elems) {
+        std::cout << "Element: " << elem.get_node_shared_ptr()->get_friendly_name() << " of type "
+                  << elem.get_node_shared_ptr()->get_type_name() << std::endl;
+    }
     if (list_elems.size() != 8)
         return nullptr;
 

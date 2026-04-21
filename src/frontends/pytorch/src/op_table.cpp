@@ -370,6 +370,7 @@ OP_CONVERTER(translate_embedding_ext);
 OP_CONVERTER(translate_linear_awq);
 OP_CONVERTER(translate_linear_bitnet);
 OP_CONVERTER(translate_linear_ext);
+OP_CONVERTER(translate_linear_nncf);
 }  // namespace op
 
 // Supported ops for TorchScript
@@ -792,6 +793,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"ov_ext::awq_gemm", op::translate_linear_awq},
         {"ov_ext::bit_linear", op::translate_linear_bitnet},
         {"ov_ext::bmm", op::translate_bmm_ext},
+        {"ov_ext::nncf_qlinear", op::translate_linear_nncf},
         {"ov_ext::embedding", op::translate_embedding_ext},
         {"ov_ext::conv1d", op::translate_conv1d_ext},
         {"ov_ext::linear", op::translate_linear_ext},

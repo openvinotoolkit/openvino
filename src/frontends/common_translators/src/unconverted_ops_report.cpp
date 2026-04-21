@@ -138,6 +138,7 @@ void check_unconverted_ops(const UnconvertedOpsReport& report,
     }
 
     if (throw_on_issues && (report.has_issues() || !additional_error.empty())) {
+        std::cerr << "Unconverted operations report aanuf:\n" << std::endl;
         FRONT_END_OP_CONVERSION_CHECK(false,
                                       format_unconverted_ops_report(report, additional_error, additional_callback));
     }

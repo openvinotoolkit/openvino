@@ -171,6 +171,8 @@ OutputVector translate_quantized_cat(const NodeContext& context) {
 };
 
 OutputVector translate_stack(const NodeContext& context) {
+    throw std::invalid_argument( "received negative value" );
+    std::cout << "translate_stack skip" << std::endl;
     num_inputs_check(context, 2, 3);
     auto input = context.get_input(0);
     auto axis = context.const_input<int64_t>(1);
@@ -184,6 +186,13 @@ OutputVector translate_stack(const NodeContext& context) {
     }
     const auto&& list_elems = get_list_as_outputs(input);
     OutputVector stack_inputs(list_elems.begin(), list_elems.end());
+
+    std::cout << "translate_stack Number of elements in list: " << list_elems.size() << std::endl;
+    for (auto &elem : stack_inputs) {
+        std::cout << "Element: " << elem.get_node_shared_ptr()->get_friendly_name() << " of type "
+                  << elem.get_node_shared_ptr()->get_type_name() << std::endl;
+    }
+
     // GPTQ u4 decompression pattern
     if (const auto& u4_const = u4_compression_stack(stack_inputs, axis))
         return {u4_const};
@@ -206,6 +215,7 @@ OutputVector translate_stack(const NodeContext& context) {
 }
 
 OutputVector translate_stack_fx(const NodeContext& context) {
+    std::cout << "translate_stack_fx skip" << std::endl;
     num_inputs_check(context, 1, context.get_input_size());
     int64_t axis = 0;
     std::deque<Output<Node>> list_elems;
@@ -225,6 +235,12 @@ OutputVector translate_stack_fx(const NodeContext& context) {
     list_elems = get_list_as_outputs(input);
 
     OutputVector stack_inputs(list_elems.begin(), list_elems.end());
+
+    std::cout << "translate_stack_fx Number of elements in list: " << list_elems.size() << std::endl;
+    for (auto &elem : stack_inputs) {
+        std::cout << "Element: " << elem.get_node_shared_ptr()->get_friendly_name() << " of type "
+                  << elem.get_node_shared_ptr()->get_type_name() << std::endl;
+    }
 
     // returns the u4 constant if the stack operation is a part of the decompression pattern
     if (const auto& u4_const = u4_compression_stack(stack_inputs, axis))

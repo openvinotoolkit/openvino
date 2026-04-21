@@ -71,6 +71,19 @@ def patch_quantized(model: torch.nn.Module) -> None:
         model._openvino_gptq_patched = True  # type: ignore[assignment]
         gptq.patch_model(model)  # type: ignore
         return
+    elif quant_type == "nncf":
+        try:
+            from nncf.experimental.torch.qlinear import NNCFQLinear
+            extensions[NNCFQLinear] = ModuleExtension(
+                NNCFQLinear, "ov_ext::nncf_qlinear",
+                convert=lambda module, target_op, *args, **kwargs: target_op(
+                    args[0], module.qweight, module.qzeros, module.scales,
+                    torch.tensor(module.group_size),
+                    torch.tensor(module.w_bit), module.bias),
+                evaluate=lambda module, *args, **kwargs: fp32_tensor(
+                    *args[0].shape[:-1], module.out_features))  # type: ignore
+        except ImportError:
+            pass
     else:
         raise RuntimeError(f"Unknown quantization type: {quant_type}.")
 
