@@ -15,6 +15,8 @@ Produce two deliverables before finishing:
 
 The only filesystem change should be the test file edit. Do not create additional output files.
 
+**Early exit — all passes fired:** If Step 2a shows `CALLBACK SUCCEDED > 0` for every pass under investigation, skip Steps 3–6. Post a lightweight confirmation summary (use the "all fired" variant in the Diagnosis Report Template) and do not write a reproducer test. There is no bug to reproduce.
+
 ---
 
 ## Step 0: Gather Prerequisites
@@ -67,6 +69,42 @@ OV_MATCHERS_TO_LOG=TransformationName \
 Additional env vars:
 - **`OV_MATCHERS_TO_LOG`** — comma-separated list of matcher names to filter (omit to log all matchers, which produces very large output).
 - **`OV_VERBOSE_LOGGING=true`** — prints additional node details (element type, shape, attributes); use when the basic log does not identify the failure clearly.
+
+### Wait for the command to complete
+
+Matcher logs are interleaved with normal output. If the command is long-running (e.g., model compilation on GPU), **wait for it to finish before analyzing**. Parsing a partial log will produce incorrect statistics (e.g., undercounting successful callbacks). Verify completion by checking for the final your_run_command output line or the process exit code.
+
+---
+
+## Step 2a: Collect Per-Pass Statistics
+
+Before diving into detailed log analysis, run a quick tally to build an overview of which passes fired and how many times. This is especially important for **pipeline cascade** investigations with multiple passes.
+
+Use this Python snippet (adjust the `pass_names` list):
+
+```bash
+python3 -c "
+import re, sys
+pass_names = ['PassA', 'PassB']  # <-- replace with actual pass names
+with open('matcher.log') as f:
+    content = f.read()
+for p in pass_names:
+    s = len(re.findall(rf'\[{p}\] END: PATTERN MATCHED, CALLBACK SUCCEDED', content))
+    m = len(re.findall(rf'\[{p}\] END: PATTERN MATCHED', content))
+    d = len(re.findall(rf'\[{p}\] END: PATTERN DIDN.T MATCH', content))
+    print(f'{p}:  CALLBACK SUCCEDED={s}  MATCHED={m}  DIDN\'T MATCH={d}')
+"
+```
+
+Interpret the output:
+- **CALLBACK SUCCEDED > 0** → pass fired and transformed nodes.
+- **MATCHED > 0 but SUCCEDED = 0** → pattern matched but the callback returned `false` (check callback logic).
+- **DIDN'T MATCH > 0 and MATCHED = 0** → pattern was attempted but never matched any node (proceed to Step 3 for root cause).
+- **All counts = 0** → pass name not found in the log at all (not registered, or the pass is a `GraphRewrite` wrapper — log the inner `MatcherPass` names instead).
+
+> **Note on `GraphRewrite` wrappers:** If a pass is a `GraphRewrite` that calls `add_matcher<InnerPass>()`, the matcher log will use the inner pass names, not the wrapper name. Check the header for inner pass names and use those in `OV_MATCHERS_TO_LOG`.
+
+For pipeline cascades, use the tally to quickly classify each pass as ✅ fired / ❌ root cause / ❌ downstream casualty before spending time on detailed log analysis.
 
 ---
 
@@ -128,6 +166,7 @@ Work inward through the nested blocks to find the deepest `}` labeled with a fai
 7. **Attribute value mismatch** — Pattern constrains an attribute (e.g., `group == 1`, `axis == 0`) that doesn't match the actual node.
 8. **Transformation was already applied** — Graph was modified by a symmetric or overlapping pass earlier; the target op no longer exists.
 9. **Wrong opset version** — Pattern uses `opset::OpX` but the frontend or a prior pass has already replaced it with a different version or a decomposed form.
+10. **Argument count mismatch** — The graph node has a different number of inputs than the pattern expects (e.g., an op with shared-expert inputs has 23 inputs but the pattern only covers the 11-input or 13-input variant). Common when ops have multiple configurations (with/without bias, with/without shared experts).
 
 ### 3e. No output at all from OV_MATCHER_LOGGING
 
@@ -280,11 +319,11 @@ See [references/example-diagnosis-report.md](references/example-diagnosis-report
 
 <!-- If multiple passes were investigated, add this table: -->
 ## Summary of passes
-| Pass | Result |
-|---|---|
-| `PassA` | ✅ Fired (`CALLBACK SUCCEEDED`) |
-| `PassB` | ❌ Did not fire — root cause |
-| `PassC` | ❌ Did not fire — downstream: PassB never produced its expected input |
+| Pass | Result | Callbacks | Matches |
+|---|---|---|---|
+| `PassA` | ✅ Fired | 40 | 40 |
+| `PassB` | ❌ Did not fire — root cause | 0 | 0 |
+| `PassC` | ❌ Did not fire — downstream casualty | 0 | 0 |
 
 **Root cause:** <one-sentence summary>
 **Log evidence:** `<exact log phrase that identified the failure>`
@@ -295,6 +334,25 @@ See [references/example-diagnosis-report.md](references/example-diagnosis-report
 File: <path to test file>
 Test name: `<TEST_F name>`
 Status before fix: PASS (transformation did not fire — model unchanged, matches auto-cloned ref; confirms bug reproduced)
+```
+
+### All-fired variant (early exit)
+
+When all passes fired successfully (Step 2a), use this shorter template instead:
+
+```
+## MatcherPass Diagnosis: <TransformationName(s)>
+
+## Summary of passes
+| Pass | Result | Callbacks | Matches |
+|---|---|---|---|
+| `PassA` | ✅ Fired | <N> | <N> |
+| `PassB` | ✅ Fired | <N> | <N> |
+
+**All transformations fired successfully.** No issues found.
+
+## Reproducer Test
+Not needed — no bug to reproduce.
 ```
 
 ---
