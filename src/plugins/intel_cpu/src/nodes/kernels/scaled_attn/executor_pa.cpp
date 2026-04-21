@@ -532,7 +532,6 @@ struct MHAHelper {
             return sw_start;
         }
         if (_token_type.ptr<int32_t>()[q_global_idx] == 1) {
-            // Union: take the earlier (smaller) start to cover both ranges.
             return std::min(static_cast<size_t>(_image_group_begin[q_global_idx]), sw_start);
         }
         return sw_start;
