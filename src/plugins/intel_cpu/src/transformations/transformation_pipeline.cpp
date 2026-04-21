@@ -631,12 +631,12 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // This ensures data type and dimension order consistency between main model and reorder subgraph
     CPU_REGISTER_PASS_COMMON(manager,
                              PaKVReorderFusion,
-                             cacheConfig.keyCacheQuantBychannel,    // key_cache_quant_by_channel
-                             cacheConfig.keyCacheDimOrder,          // key_cache_dim_order
-                             cacheConfig.valueCacheDimOrder,        // value_cache_dim_order
-                             cacheConfig.keyCachePrecision,         // key_cache_precision
-                             cacheConfig.valueCachePrecision,       // value_cache_precision
-                             cacheConfig.inferencePrecision);       // inference_precision
+                             cacheConfig.keyCacheQuantBychannel,  // key_cache_quant_by_channel
+                             cacheConfig.keyCacheDimOrder,        // key_cache_dim_order
+                             cacheConfig.valueCacheDimOrder,      // value_cache_dim_order
+                             cacheConfig.keyCachePrecision,       // key_cache_precision
+                             cacheConfig.valueCachePrecision,     // value_cache_precision
+                             cacheConfig.inferencePrecision);     // inference_precision
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);

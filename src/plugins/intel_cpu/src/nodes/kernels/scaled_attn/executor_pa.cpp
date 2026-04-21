@@ -559,8 +559,10 @@ struct MHAHelper {
         return qq_bias_info;
     }
 
-    bool query_to_query_is_masked(const QueryToQueryBiasInfo* cache, size_t query_spec_idx,
-                                  size_t key_idx, size_t past_len) const {
+    bool query_to_query_is_masked(const QueryToQueryBiasInfo* cache,
+                                  size_t query_spec_idx,
+                                  size_t key_idx,
+                                  size_t past_len) const {
         if (!_has_qq_bias || key_idx < past_len || cache == nullptr || cache->spec_num == 0) {
             return false;
         }
@@ -1873,7 +1875,7 @@ struct MHA {
 
                 QueryToQueryBiasInfo* query_to_query_info_ptr = nullptr;
                 if (_helper._has_qq_bias) {
-                    auto query_to_query_bias= _helper.precompute_qq_bias_info(batch_in_seq);
+                    auto query_to_query_bias = _helper.precompute_qq_bias_info(batch_in_seq);
                     query_to_query_info_ptr = &query_to_query_bias;
                 }
 #    if defined(OPENVINO_ARCH_ARM64)

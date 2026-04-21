@@ -121,7 +121,8 @@ std::optional<CacheReorderPath> parse_cache_reorder_path(const std::shared_ptr<o
     return path;
 }
 
-std::shared_ptr<ov::op::v0::Parameter> get_parameter_by_name(const std::shared_ptr<ov::Model>& m, const std::string& parameter_name) {
+std::shared_ptr<ov::op::v0::Parameter> get_parameter_by_name(const std::shared_ptr<ov::Model>& m,
+                                                             const std::string& parameter_name) {
     for (const auto& parameter : m->get_parameters()) {
         if (parameter && parameter->get_friendly_name() == parameter_name) {
             return parameter;
@@ -131,8 +132,9 @@ std::shared_ptr<ov::op::v0::Parameter> get_parameter_by_name(const std::shared_p
     return nullptr;
 }
 
-std::vector<std::shared_ptr<ov::op::v0::Concat>> get_joint_concat_consumers(const ov::Output<ov::Node>& key_scatter_output,
-                                                                            const ov::Output<ov::Node>& value_scatter_output) {
+std::vector<std::shared_ptr<ov::op::v0::Concat>> get_joint_concat_consumers(
+    const ov::Output<ov::Node>& key_scatter_output,
+    const ov::Output<ov::Node>& value_scatter_output) {
     std::vector<std::shared_ptr<ov::op::v0::Concat>> concats;
     for (const auto& target_input : key_scatter_output.get_target_inputs()) {
         auto concat = ov::as_type_ptr<ov::op::v0::Concat>(target_input.get_node()->shared_from_this());
@@ -206,17 +208,18 @@ bool PaKVReorderFusion::run_on_model(const std::shared_ptr<ov::Model>& m) {
             continue;
         }
 
-        const auto concat_consumers = get_joint_concat_consumers(key_path.scatter->output(0), value_path.scatter->output(0));
+        const auto concat_consumers =
+            get_joint_concat_consumers(key_path.scatter->output(0), value_path.scatter->output(0));
         if (concat_consumers.empty()) {
             continue;
         }
 
         auto pa_kv_reorder = std::make_shared<ov::intel_cpu::op::PaKVReorder>(key_path.cache->output(0),
-                                                                               value_path.cache->output(0),
-                                                                               key_path.block_indices,
-                                                                               block_indices_begins->output(0),
-                                                                               key_path.block_update_indices,
-                                                                               block_update_indices_begins->output(0));
+                                                                              value_path.cache->output(0),
+                                                                              key_path.block_indices,
+                                                                              block_indices_begins->output(0),
+                                                                              key_path.block_update_indices,
+                                                                              block_update_indices_begins->output(0));
 
         // Format cache precision: use inference precision if cache is f16 and inference is bf16
         auto format_cache_precision = [](ov::element::Type cache_precision, ov::element::Type infer_precision) {

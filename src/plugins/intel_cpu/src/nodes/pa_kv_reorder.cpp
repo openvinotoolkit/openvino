@@ -81,12 +81,8 @@ void PaKVReorder::createPrimitive() {
     auto keyCachePrecision = getOriginalInputPrecisionAtPort(0);
     auto valueCachePrecision = getOriginalInputPrecisionAtPort(1);
 
-    m_key_by_channel = PagedAttention::isQuantByChannel(cpuConfig.keyCacheQuantMode,
-                                                        keyCachePrecision,
-                                                        true);
-    m_value_by_channel = PagedAttention::isQuantByChannel(cpuConfig.valueCacheQuantMode,
-                                                          valueCachePrecision,
-                                                          false);
+    m_key_by_channel = PagedAttention::isQuantByChannel(cpuConfig.keyCacheQuantMode, keyCachePrecision, true);
+    m_value_by_channel = PagedAttention::isQuantByChannel(cpuConfig.valueCacheQuantMode, valueCachePrecision, false);
 }
 
 void PaKVReorder::execute([[maybe_unused]] const dnnl::stream& strm) {
@@ -105,7 +101,8 @@ void PaKVReorder::execute([[maybe_unused]] const dnnl::stream& strm) {
     CPU_NODE_ASSERT(key_cache.m_rank == 4, "expects 4D key cache tensor");
     CPU_NODE_ASSERT(value_cache.m_rank == 4, "expects 4D value cache tensor");
 
-    CPU_NODE_ASSERT(key_cache.size(1) == value_cache.size(1), "expects key/value cache to have identical kv head count");
+    CPU_NODE_ASSERT(key_cache.size(1) == value_cache.size(1),
+                    "expects key/value cache to have identical kv head count");
 
     CPU_NODE_ASSERT(block_indices_begins.size(0) == block_update_indices_begins.size(0),
                     "expects block_indices_begins and block_update_indices_begins to have same length");
@@ -114,14 +111,14 @@ void PaKVReorder::execute([[maybe_unused]] const dnnl::stream& strm) {
     // Quantization configuration (m_key_by_channel, m_value_by_channel) was determined at createPrimitive time
     // Thread-local buffers are used internally for quantization scratch space
     ov::Extensions::Cpu::XARCH::reorder_kv_cache(key_cache,
-                                                  value_cache,
-                                                  block_indices,
-                                                  block_indices_begins,
-                                                  block_update_indices,
-                                                  block_update_indices_begins,
-                                                  m_key_by_channel,
-                                                  m_value_by_channel,
-                                                  context->getCpuParallel());
+                                                 value_cache,
+                                                 block_indices,
+                                                 block_indices_begins,
+                                                 block_update_indices,
+                                                 block_update_indices_begins,
+                                                 m_key_by_channel,
+                                                 m_value_by_channel,
+                                                 context->getCpuParallel());
 
     if (getChildEdges().empty()) {
         return;

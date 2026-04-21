@@ -15,7 +15,12 @@ PaKVReorder::PaKVReorder(const Output<Node>& key_cache,
                          const Output<Node>& block_indices_begins,
                          const Output<Node>& block_update_indices,
                          const Output<Node>& block_update_indices_begins)
-    : Op({key_cache, value_cache, block_indices, block_indices_begins, block_update_indices, block_update_indices_begins}) {
+    : Op({key_cache,
+          value_cache,
+          block_indices,
+          block_indices_begins,
+          block_update_indices,
+          block_update_indices_begins}) {
     constructor_validate_and_infer_types();
 }
 

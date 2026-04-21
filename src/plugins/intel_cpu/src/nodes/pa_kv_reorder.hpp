@@ -5,6 +5,7 @@
 #pragma once
 
 #include <node.h>
+
 #include <vector>
 
 namespace ov::intel_cpu::node {
