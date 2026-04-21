@@ -26,6 +26,9 @@ jobs:
       labels: [ 'self-hosted', 'dgpu', 'Arc-B50', 'Battlemage' ]
     container:
       image: ubuntu:24.04
+      volumes:
+        - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro
+        - ${{ github.workspace }}:${{ github.workspace }}
       options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
     defaults:
       run:
@@ -37,6 +40,7 @@ jobs:
       BUILD_DIR: ${{ github.workspace }}/openvino_build
       INSTALL_DIR: ${{ github.workspace }}/openvino_install
       INSTALL_TEST_DIR: ${{ github.workspace }}/tests_install
+      NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
 
     steps:
       - name: Install Prerequisites
@@ -103,6 +107,9 @@ jobs:
       labels: [ 'self-hosted', 'dgpu', 'Arc-B50', 'Battlemage' ]
     container:
       image: ubuntu:24.04
+      volumes:
+        - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro
+        - ${{ github.workspace }}:${{ github.workspace }}
       options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
     defaults:
       run:
