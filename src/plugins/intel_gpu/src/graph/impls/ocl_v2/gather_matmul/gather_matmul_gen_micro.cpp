@@ -65,6 +65,13 @@ gathermatmul_config GatherMatmulMicroGenerator::get_config(const kernel_impl_par
         const auto& weight_shape = params.input_layouts[gather_matmul::BGMInputIdx::WEIGHT].get_shape();
         auto k = (weight_shape.size() == 4) ? weight_shape[2] * weight_shape[3] : weight_shape[2];
         // Scale shape is [E, N, G] or [E, N, G, 1] — num groups is always at index 2
+        // Scales come from CompressedWeightsBlock as [E, N, G, 1], reshaped by process_compressed_weights
+        // to [E, N, G] (N outer, G inner). Kernel reads them with gemmstone A_scale.layout=T
+        // (leading_dim = NUM_GROUPS — see below), so per-expert [N, G] slab is interpreted correctly.
+        // Note: this layout means SIMD scale reads at each group boundary are strided by G rather than
+        // contiguous — a minor perf ceiling that can be lifted later by transposing scales to [E, G, N]
+        // upstream, but the obvious attempt (explicit Transpose op in the transformation) triggered
+        // CL_OUT_OF_RESOURCES during microkernel selection; needs gemmstone-side investigation.
         const auto& scale_shape_for_groups = params.input_layouts[cfg.weight_scale_idx].get_shape();
         OPENVINO_ASSERT(scale_shape_for_groups.size() > 2 && scale_shape_for_groups[2] > 0,
                         "GatherMatmul: weight scale shape must have a positive group dim at index 2, got ",
@@ -116,7 +123,6 @@ JitConstants GatherMatmulMicroGenerator::get_jit_constants(const kernel_impl_par
             input_ids.push_back(static_cast<size_t>(cfg.weight_zp_idx));
 
         jit.make("WEIGHT_SCALE_DT", to_ocl_type(data_types::f16));
-        jit.make("SCALE_ZP_NO_TRANSPOSE", 1);
         if (cfg.weight_group_size > 0)
             jit.make("NUM_GROUPS", scale_shape[2]);
         else
@@ -249,7 +255,11 @@ void GatherMatmulMicroGenerator::init_microkernels(const kernel_impl_params& par
 
         problem.Ta_scale = convert_type(params.get_input_layout(bgm_cfg.weight_scale_idx).data_type);
         problem.A_scale.setAlignment(2);
-        problem.A_scale.layout = micro::MatrixLayout::N;
+        // Scales arrive in [E, G, N] layout after ConvertGatherMatmulToGatherMatmulCompressed's
+        // transpose. The [G, N] per-expert slab with N contiguous maps to gemmstone's T layout
+        // (leading_dim for group dim = NUM_GROUPS), enabling SIMD sub-group block-reads of the
+        // N-row of scales at each group boundary.
+        problem.A_scale.layout = micro::MatrixLayout::T;
         problem.asPtrDims = static_cast<int>(MICRO_DIMENSIONALITY::MATRIX);
 
         problem.aqGroupM = 1;

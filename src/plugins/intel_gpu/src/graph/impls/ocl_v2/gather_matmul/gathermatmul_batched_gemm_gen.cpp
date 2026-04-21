@@ -69,7 +69,6 @@ JitConstants GatherMatmulBatchedGemmGenerator::get_jit_constants(const kernel_im
         }
 
         jit.make("WEIGHT_SCALE_DT", to_ocl_type(data_types::f16));
-        jit.make("SCALE_ZP_NO_TRANSPOSE", 1);
         if (cfg.weight_group_size > 0)
             jit.make("NUM_GROUPS", scale_shape[2]);
         else
