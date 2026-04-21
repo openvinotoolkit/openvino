@@ -1,5 +1,6 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include "node/include/helper.hpp"
 
@@ -149,6 +150,13 @@ ov::preprocess::ResizeAlgorithm js_to_cpp<ov::preprocess::ResizeAlgorithm>(const
     } else {
         OPENVINO_THROW("Not supported resizeAlgorithm.");
     }
+}
+
+template <>
+std::filesystem::path js_to_cpp<std::filesystem::path>(const Napi::CallbackInfo& info, const size_t idx) {
+    const auto& path = info[idx];
+    OPENVINO_ASSERT(path.IsString(), "Passed argument must be of type String.");
+    return std::filesystem::path(path.ToString().Utf8Value());
 }
 
 template <>

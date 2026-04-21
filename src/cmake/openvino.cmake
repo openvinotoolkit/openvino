@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -49,14 +49,18 @@ target_include_directories(${TARGET_NAME} INTERFACE
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/tensorflow/include>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/tensorflow_lite/include>)
 
-target_link_libraries(${TARGET_NAME} 
+target_link_libraries(${TARGET_NAME}
     PRIVATE openvino::reference
-            openvino::shape_inference
-            openvino::pugixml
-            ${CMAKE_DL_LIBS}
-            Threads::Threads
+    openvino::shape_inference
+    openvino::pugixml
+    ${CMAKE_DL_LIBS}
+    Threads::Threads
     PUBLIC $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.1>>:stdc++fs>
-           $<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:c++fs>)
+    $<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:c++fs>)
+
+if(BUILD_SHARED_LIBS)
+    target_link_libraries(${TARGET_NAME} PRIVATE openvino::shutdown)
+endif()
 
 if (TBBBIND_2_5_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
@@ -82,8 +86,28 @@ if(TBB_FOUND)
     if(NOT TBB_LIB_INSTALL_DIR)
         message(FATAL_ERROR "Internal error: variable 'TBB_LIB_INSTALL_DIR' is not defined")
     endif()
-    # set RPATH / LC_RPATH to TBB library directory
+
+    # set RPATH / LC_RPATH to TBB library directory (no-op on Windows)
     ov_set_install_rpath(${TARGET_NAME} ${OV_CPACK_RUNTIMEDIR} ${TBB_LIB_INSTALL_DIR})
+
+    if(WIN32 AND BUILD_SHARED_LIBS AND NOT ENABLE_SYSTEM_TBB)
+        # On Windows there is no RPATH, so copy downloaded/custom TBB DLLs next to openvino.dll.
+        # System TBB is already findable by the loader, so no copying is needed in that case.
+        _ov_get_tbb_location(TBB::tbb _ov_tbb_dll_location)
+        cmake_path(GET _ov_tbb_dll_location PARENT_PATH _ov_tbb_dll_dir)
+        file(GLOB _ov_tbb_dlls "${_ov_tbb_dll_dir}/*.dll")
+        if(_ov_tbb_dlls)
+            add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    ${_ov_tbb_dlls}
+                    $<TARGET_FILE_DIR:${TARGET_NAME}>
+                COMMENT "Copying TBB DLLs to ${TARGET_NAME} output directory"
+                VERBATIM)
+        endif()
+        unset(_ov_tbb_dll_location)
+        unset(_ov_tbb_dll_dir)
+        unset(_ov_tbb_dlls)
+    endif()
 endif()
 
 # must be called after all target_link_libraries

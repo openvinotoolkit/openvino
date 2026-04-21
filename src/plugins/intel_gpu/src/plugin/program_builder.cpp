@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -107,6 +107,8 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
     CustomLayer::LoadFromFile(custom_layers_config, m_custom_layers, custom_layers_config.empty());
 
     auto ops = model->get_ordered_ops();
+
+    GPU_DEBUG_LOG << "Build model name: " << m_model->get_name() << " friendly name: " << m_model->get_friendly_name() << std::endl;
     m_program = build(ops, is_inner_program);
 }
 
@@ -244,6 +246,12 @@ std::vector<cldnn::input_info> ProgramBuilder::GetInputInfo(const std::shared_pt
                                           || ov::is_type<ov::op::v1::Split>(prevOp)
                                           || ov::is_type<ov::op::v1::VariadicSplit>(prevOp)
                                           || ov::is_type<ov::op::v4::LSTMCell>(prevOp);
+
+        // Custom op need to maintain output port index for multiple outputs.
+        if (m_custom_layers.find(prevOp->get_type_name()) != m_custom_layers.end()) {
+            is_legacy_multiple_outputs = false;
+        }
+
         if (prevOp->get_output_size() > 1 && is_legacy_multiple_outputs) {
             prevName += ".out" + std::to_string(op->get_input_source_output(i).get_index());
         }

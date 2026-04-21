@@ -15,7 +15,7 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Poland"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 20
     assignees:
       - "p-wysocki"
       - "akuporos"
@@ -30,7 +30,7 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Poland"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     assignees:
       - "p-wysocki"
       - "akuporos"
@@ -46,7 +46,7 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Poland"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     assignees:
       - "p-wysocki"
       - "akuporos"
@@ -60,7 +60,7 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Asia/Dubai"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     assignees:
       - "rkazants"
       - "andrei-kochin"
@@ -82,7 +82,7 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Asia/Dubai"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     assignees:
       - "Wovchena"
       - "p-wysocki"
@@ -96,7 +96,7 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Asia/Dubai"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     assignees:
       - "Wovchena"
       - "p-wysocki"
@@ -110,7 +110,7 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Asia/Dubai"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     assignees:
       - "Wovchena"
       - "p-wysocki"
@@ -124,7 +124,7 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Asia/Dubai"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     assignees:
       - "Wovchena"
       - "p-wysocki"
@@ -132,11 +132,61 @@ updates:
       - "rkazants"
     versioning-strategy: increase-if-necessary
 
+  # JavaScript API (Node.js bindings)
+  - package-ecosystem: npm
+    directory: "/src/bindings/js/node/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Poland"
+    open-pull-requests-limit: 3
+    assignees:
+      - "mlukasze"
+      - "Retribution98"
+      - "almilosz"
+    versioning-strategy: lockfile-only
+    groups:
+      npm-packages:
+        patterns:
+          - "*"
+
+  # JavaScript samples (Node.js)
+  - package-ecosystem: npm
+    directory: "/samples/js/node/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Poland"
+    open-pull-requests-limit: 3
+    assignees:
+      - "mlukasze"
+      - "Retribution98"
+      - "almilosz"
+    versioning-strategy: lockfile-only
+    groups:
+      npm-packages:
+        patterns:
+          - "*"
+
   #
   # Github actions - CI
   #
 
-  # Github actions
+  # Custom Github actions (Node.js)
+  - package-ecosystem: npm
+    directories:
+      - "/.github/actions/**/*"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    assignees:
+      - "akashchi"
+      - "mryzhov"
+      - "akladiev"
+    open-pull-requests-limit: 10
+
+  # Github action workflows
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
@@ -147,7 +197,7 @@ updates:
       - "akashchi"
       - "mryzhov"
       - "akladiev"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
 
   # Docker images
   - package-ecosystem: docker
@@ -163,4 +213,4 @@ updates:
       - "akashchi"
       - "mryzhov"
       - "akladiev"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10

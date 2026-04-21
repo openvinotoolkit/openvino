@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,11 +27,11 @@ ParamsKey ResampleKernelRef::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
-    k.EnableReampleType(ResampleType::NEAREST_NEIGHBOR);
-    k.EnableReampleType(ResampleType::CAFFE_BILINEAR_INTERP);
-    k.EnableReampleType(ResampleType::BILINEAR_INTERP);
-    k.EnableReampleType(ResampleType::CUBIC);
-    k.EnableReampleType(ResampleType::LINEAR_ONNX);
+    k.EnableResampleType(ResampleType::NEAREST_NEIGHBOR);
+    k.EnableResampleType(ResampleType::CAFFE_BILINEAR_INTERP);
+    k.EnableResampleType(ResampleType::BILINEAR_INTERP);
+    k.EnableResampleType(ResampleType::CUBIC);
+    k.EnableResampleType(ResampleType::LINEAR_ONNX);
     return k;
 }
 

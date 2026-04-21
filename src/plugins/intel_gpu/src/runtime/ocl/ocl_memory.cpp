@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/utils.hpp"
+#include "runtime_common.hpp"
 #include "ocl_memory.hpp"
 #include "ocl_engine.hpp"
 #include "ocl_stream.hpp"
@@ -26,30 +27,6 @@
 
 namespace cldnn {
 namespace ocl {
-
-static inline void check_boundaries(size_t src_size,
-                                    size_t src_offset,
-                                    size_t dst_size,
-                                    size_t dst_offset,
-                                    size_t copy_size,
-                                    const std::string& func_str = "") {
-    OPENVINO_ASSERT(src_offset + copy_size <= src_size && dst_offset + copy_size <= dst_size,
-                    "[GPU] Incorrect buffer sizes for ",
-                    func_str,
-                    " call. ",
-                    "Parameters provided are",
-                    ": src_size=",
-                    src_size,
-                    ", src_offset=",
-                    src_offset,
-                    ", dst_size=",
-                    dst_size,
-                    ", dst_offset=",
-                    dst_offset,
-                    ", copy_size=",
-                    copy_size,
-                    ".");
-}
 
 static inline cldnn::event::ptr create_event(stream& stream, size_t bytes_count, bool need_user_event) {
     if (bytes_count == 0) {
@@ -229,8 +206,16 @@ event::ptr gpu_buffer::copy_to(stream& stream, void* data_ptr, size_t src_offset
 dnnl::memory gpu_buffer::get_onednn_memory(dnnl::memory::desc desc, int64_t offset) const {
     auto onednn_engine = _engine->get_onednn_engine();
     dnnl::memory dnnl_mem(desc, onednn_engine, DNNL_MEMORY_NONE);
+#ifdef OV_GPU_WITH_ZE_RT
+    OPENVINO_THROW("[GPU] Using OCL OneDNN API with L0 runtime");
+#else
     dnnl::ocl_interop::set_mem_object(dnnl_mem, _buffer.get());
+#endif
     return dnnl_mem;
+}
+
+dnnl::memory gpu_buffer::get_onednn_grouped_memory(dnnl::memory::desc desc, const memory& offsets) const {
+    OPENVINO_THROW("[GPU] Grouped memory is not supported for gpu_buffer.");
 }
 #endif
 
@@ -661,9 +646,26 @@ event::ptr gpu_usm::copy_to(stream& stream, void* data_ptr, size_t src_offset, s
 #ifdef ENABLE_ONEDNN_FOR_GPU
 dnnl::memory gpu_usm::get_onednn_memory(dnnl::memory::desc desc, int64_t offset) const {
     auto onednn_engine = _engine->get_onednn_engine();
+#ifdef OV_GPU_WITH_ZE_RT
+        OPENVINO_THROW("[GPU] Using OCL OneDNN API with L0 runtime");
+#else
     dnnl::memory dnnl_mem = dnnl::ocl_interop::make_memory(desc, onednn_engine, dnnl::ocl_interop::memory_kind::usm,
         reinterpret_cast<uint8_t*>(_buffer.get()) + offset);
     return dnnl_mem;
+#endif
+}
+
+dnnl::memory gpu_usm::get_onednn_grouped_memory(dnnl::memory::desc desc, const memory& offsets) const {
+    auto onednn_engine = _engine->get_onednn_engine();
+#ifdef OV_GPU_WITH_ZE_RT
+        OPENVINO_THROW("[GPU] Using OCL OneDNN API with L0 runtime");
+#else
+    OPENVINO_ASSERT(memory_capabilities::is_usm_type(offsets.get_allocation_type()));
+    OPENVINO_ASSERT(offsets.get_engine() == this->_engine);
+    dnnl::memory dnnl_mem = dnnl::ocl_interop::make_memory(desc, onednn_engine, dnnl::ocl_interop::memory_kind::usm,
+        {reinterpret_cast<uint8_t*>(_buffer.get()), reinterpret_cast<uint8_t*>(offsets.buffer_ptr())});
+    return dnnl_mem;
+#endif
 }
 #endif
 

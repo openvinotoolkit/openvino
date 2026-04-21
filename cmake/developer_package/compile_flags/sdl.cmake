@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -27,7 +27,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (UNIX AND OV_COMPILER_IS_
         endif()
         if (NOT ENABLE_SANITIZER)
             # Remove all symbol table and relocation information from the executable
-            set(OV_C_CXX_FLAGS "${OV_C_CXX_FLAGS} -s")
+            set(OV_LINKER_FLAGS "${OV_LINKER_FLAGS} -s")
         endif()
         if(NOT MINGW AND NOT APPLE)
             set(OV_LINKER_FLAGS "${OV_LINKER_FLAGS} -z noexecstack -z relro -z now")

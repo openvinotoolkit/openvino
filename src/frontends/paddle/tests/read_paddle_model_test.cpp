@@ -1,21 +1,70 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
 #include <fstream>
+#include <limits>
 #include <openvino/util/file_util.hpp>
 #include <set>
+#include <sstream>
 #include <string>
+#include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 #include "frontend/shared/include/utils.hpp"
+#include "openvino/frontend/manager.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/serialize.hpp"
+
+namespace {
+void append_varint(std::string& out, uint64_t value) {
+    while (value > 0x7F) {
+        out.push_back(static_cast<char>((value & 0x7F) | 0x80));
+        value >>= 7;
+    }
+    out.push_back(static_cast<char>(value));
+}
+
+void append_key(std::string& out, uint32_t field_number, uint8_t wire_type) {
+    append_varint(out, (static_cast<uint64_t>(field_number) << 3) | wire_type);
+}
+
+std::string make_tensor_desc_bytes(const std::vector<int64_t>& dims, int32_t data_type) {
+    std::string out;
+    append_key(out, 1, 0);
+    append_varint(out, static_cast<uint64_t>(data_type));
+    for (const auto& dim : dims) {
+        append_key(out, 2, 0);
+        append_varint(out, static_cast<uint64_t>(dim));
+    }
+    return out;
+}
+
+std::string make_weights_with_tensor_desc(const std::string& desc_bytes) {
+    std::string out;
+    out.reserve(16 + sizeof(int32_t) + desc_bytes.size());
+    out.append(16, '\0');
+    int32_t desc_size = static_cast<int32_t>(desc_bytes.size());
+    out.append(reinterpret_cast<const char*>(&desc_size), sizeof(desc_size));
+    out.append(desc_bytes);
+    return out;
+}
+
+std::string make_invalid_weights_with_bad_desc_size() {
+    constexpr int32_t kMaxTensorDescSize = 64 * 1024 * 1024;
+    std::string out;
+    out.reserve(16 + sizeof(int32_t));
+    out.append(16, '\0');
+    int32_t desc_size = kMaxTensorDescSize + 1;
+    out.append(reinterpret_cast<const char*>(&desc_size), sizeof(desc_size));
+    return out;
+}
+}  // namespace
 
 TEST(Paddle_Reader_Tests, LoadModelMemoryToCore) {
     auto model = FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) +
@@ -132,6 +181,101 @@ TEST(Paddle_Reader_Tests, ImportBasicModelToCore) {
     ASSERT_TRUE(res.valid) << res.message;
 }
 
+TEST(Paddle_Reader_Tests, LoadModelWithInvalidTensorDescSize) {
+    auto model_path = FrontEndTestUtils::make_model_path(
+        std::string(TEST_PADDLE_MODELS_DIRNAME) + "conv2d_relu/conv2d_relu" + std::string(TEST_PADDLE_MODEL_EXT));
+
+    std::ifstream model_ifs(model_path, std::ios::in | std::ios::binary);
+    ASSERT_TRUE(model_ifs.is_open()) << "Cannot open model file: " << model_path;
+
+    const auto weights_bytes = make_invalid_weights_with_bad_desc_size();
+    std::istringstream weights_is(weights_bytes, std::ios::in | std::ios::binary);
+
+    auto fem = ov::frontend::FrontEndManager();
+    std::istream* model_stream = &model_ifs;
+    std::istream* weights_stream = &weights_is;
+    auto fe = fem.load_by_model(model_stream, weights_stream);
+    ASSERT_NE(fe, nullptr);
+
+    model_ifs.clear();
+    model_ifs.seekg(0, std::ios::beg);
+    weights_is.clear();
+    weights_is.seekg(0, std::ios::beg);
+
+    try {
+        fe->load(model_stream, weights_stream);
+        FAIL() << "Expected load to fail due to invalid TensorDesc size";
+    } catch (const std::exception& ex) {
+        const std::string msg = ex.what();
+        ASSERT_NE(msg.find("TensorDesc size is invalid"), std::string::npos) << msg;
+    }
+}
+
+TEST(Paddle_Reader_Tests, LoadModelWithNegativeDimInTensorDesc) {
+    auto model_path = FrontEndTestUtils::make_model_path(
+        std::string(TEST_PADDLE_MODELS_DIRNAME) + "conv2d_relu/conv2d_relu" + std::string(TEST_PADDLE_MODEL_EXT));
+
+    std::ifstream model_ifs(model_path, std::ios::in | std::ios::binary);
+    ASSERT_TRUE(model_ifs.is_open()) << "Cannot open model file: " << model_path;
+
+    const auto desc_bytes = make_tensor_desc_bytes({-1}, 5);
+    const auto weights_bytes = make_weights_with_tensor_desc(desc_bytes);
+    std::istringstream weights_is(weights_bytes, std::ios::in | std::ios::binary);
+
+    auto fem = ov::frontend::FrontEndManager();
+    std::istream* model_stream = &model_ifs;
+    std::istream* weights_stream = &weights_is;
+    auto fe = fem.load_by_model(model_stream, weights_stream);
+    ASSERT_NE(fe, nullptr);
+
+    model_ifs.clear();
+    model_ifs.seekg(0, std::ios::beg);
+    weights_is.clear();
+    weights_is.seekg(0, std::ios::beg);
+
+    try {
+        fe->load(model_stream, weights_stream);
+        FAIL() << "Expected load to fail due to negative dimension";
+    } catch (const std::exception& ex) {
+        const std::string msg = ex.what();
+        ASSERT_NE(msg.find("Negative dimension in Paddle weight tensor"), std::string::npos) << msg;
+    }
+}
+
+TEST(Paddle_Reader_Tests, LoadModelWithOverflowingTensorSize) {
+    auto model_path = FrontEndTestUtils::make_model_path(
+        std::string(TEST_PADDLE_MODELS_DIRNAME) + "conv2d_relu/conv2d_relu" + std::string(TEST_PADDLE_MODEL_EXT));
+
+    std::ifstream model_ifs(model_path, std::ios::in | std::ios::binary);
+    ASSERT_TRUE(model_ifs.is_open()) << "Cannot open model file: " << model_path;
+
+    const auto desc_bytes = make_tensor_desc_bytes({std::numeric_limits<int64_t>::max(), 2}, 5);
+    const auto weights_bytes = make_weights_with_tensor_desc(desc_bytes);
+    std::istringstream weights_is(weights_bytes, std::ios::in | std::ios::binary);
+
+    auto fem = ov::frontend::FrontEndManager();
+    std::istream* model_stream = &model_ifs;
+    std::istream* weights_stream = &weights_is;
+    auto fe = fem.load_by_model(model_stream, weights_stream);
+    ASSERT_NE(fe, nullptr);
+
+    model_ifs.clear();
+    model_ifs.seekg(0, std::ios::beg);
+    weights_is.clear();
+    weights_is.seekg(0, std::ios::beg);
+
+    try {
+        fe->load(model_stream, weights_stream);
+        FAIL() << "Expected load to fail due to overflowing tensor size";
+    } catch (const std::exception& ex) {
+        const std::string msg = ex.what();
+        const bool has_weight_overflow = msg.find("Weight tensor size overflow for constant") != std::string::npos;
+        const bool has_dim_overflow =
+            msg.find("Dimension is too large for size_t in Paddle weight tensor.") != std::string::npos;
+        ASSERT_TRUE(has_weight_overflow || has_dim_overflow) << msg;
+    }
+}
+
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 TEST(Paddle_Reader_Tests, ImportBasicModelToCoreWstring) {
     std::string win_dir_path{TEST_PADDLE_MODELS_DIRNAME "relu/relu" + std::string(TEST_PADDLE_MODEL_EXT)};
@@ -163,3 +307,18 @@ TEST(Paddle_Reader_Tests, ImportBasicModelToCoreWstring) {
     ASSERT_TRUE(res.valid) << res.message;
 }
 #endif
+
+TEST(Paddle_Reader_Tests, LoadModelWithPartialOpsInsufficientInputs) {
+    auto model =
+        FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) + "partial_sum_oob/partial_sum_oob" +
+                                           std::string(TEST_PADDLE_MODEL_EXT));
+
+    ov::Core core;
+    try {
+        core.read_model(model);
+        FAIL() << "Expected load to fail due to insufficient X inputs for partial_sum";
+    } catch (const std::exception& ex) {
+        const std::string msg = ex.what();
+        ASSERT_NE(msg.find("partial_ops requires exactly 2 inputs in X."), std::string::npos) << msg;
+    }
+}

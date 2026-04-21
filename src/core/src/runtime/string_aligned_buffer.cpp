@@ -1,67 +1,133 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/runtime/string_aligned_buffer.hpp"
 
+#include <limits>
 #include <numeric>
 
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace {
-void aux_unpack_string_tensor(const char* data, size_t size, std::shared_ptr<ov::StringAlignedBuffer>& string_buffer) {
-    // unpack string tensor
-    // packed format is the following:
-    // <num_string>, <1st string offset>,..., <nth string offset>, <1st string raw format>,..., <nth string raw format>
-    // check the format of the input bitstream representing the string tensor
-    OPENVINO_ASSERT(size >= 4, "Incorrect packed string tensor format: no batch size in the packed string tensor");
-    const int32_t* pindices = reinterpret_cast<const int32_t*>(data);
-    int32_t num_strings = pindices[0];
-    OPENVINO_ASSERT(int32_t(size) >= 4 + 4 + 4 * num_strings,
-                    "Incorrect packed string tensor format: the packed string tensor must contain first "
-                    "string offset and end indices");
-    const int32_t* begin_ids = pindices + 1;
-    const int32_t* end_ids = pindices + 2;
-    const char* symbols = reinterpret_cast<const char*>(pindices + 2 + num_strings);
+void aux_unpack_string_tensor(const char* const data,
+                              const size_t size,
+                              std::shared_ptr<ov::StringAlignedBuffer>& string_buffer) {
+    // Packed format is the following:
+    // <strings_count>, <1st string offset>,..., <nth string offset>, <1st string raw contents>,..., <nth string raw
+    // contents>
 
-    // allocate StringAlignedBuffer to store unpacked strings in std::string objects
+    using header_element_t = int32_t;  // Type of a single element in the header (strings_count and offsets)
+
+    static_assert(sizeof(header_element_t) <= sizeof(size_t),
+                  "size_t must be at least as wide as header_element_t for safe casting of header values");
+
+    OPENVINO_ASSERT(size >= sizeof(header_element_t),
+                    "Incorrect packed string tensor format: no strings count in the packed string tensor");
+
+    const auto header = reinterpret_cast<const header_element_t*>(data);
+    const auto strings_count_signed = header[0];
+    OPENVINO_ASSERT(strings_count_signed >= 0, "Incorrect packed string tensor format: negative number of strings");
+
+    const auto strings_count = static_cast<size_t>(strings_count_signed);
+
+    constexpr size_t strings_count_elements = 1;  // Header size occupied by strings_count
+    constexpr size_t last_end_elements = 1;       // Header size occupied by last end offset
+
+    const size_t header_elems = strings_count + strings_count_elements + last_end_elements;
+
+    constexpr size_t element_size = sizeof(header_element_t);
+
+    size_t header_size = 0;
+    const bool is_overflow = ov::util::mul_overflow(header_elems, element_size, header_size);
+    OPENVINO_ASSERT(!is_overflow, "Incorrect packed string tensor format: header size overflow detected");
+
+    OPENVINO_ASSERT(header_size <= size, "Incorrect packed string tensor format: header exceeds provided buffer size");
+
+    const auto data_region_size = size - header_size;
+
+    // Allocate StringAlignedBuffer to store unpacked strings in std::string objects
     // SharedBuffer to read byte stream is not applicable because we need unpacked format for strings
-    string_buffer = std::make_shared<ov::StringAlignedBuffer>(
-        num_strings,
-        ov::element::string.size() * num_strings,
-        64,  // host alignment used the same as in creation of buffer for Constant
-        true);
-    std::string* src_strings = static_cast<std::string*>(string_buffer->get_ptr());
-    for (int32_t idx = 0; idx < num_strings; ++idx) {
-        src_strings[idx] = std::string(symbols + begin_ids[idx], symbols + end_ids[idx]);
+    constexpr size_t alignment = 64;   // host alignment used the same as in creation of buffer for Constant
+    constexpr bool initialize = true;  // initialize std::string objects to be able to assign to them later
+    string_buffer = std::make_shared<ov::StringAlignedBuffer>(strings_count,
+                                                              ov::element::string.size() * strings_count,
+                                                              alignment,
+                                                              initialize);
+
+    std::string* strings = static_cast<std::string*>(string_buffer->get_ptr());
+
+    const header_element_t* begin_offsets = header + 1;
+    const header_element_t* end_offsets = header + 2;
+    const char* const data_region = reinterpret_cast<const char*>(header + header_elems);
+
+    for (size_t idx = 0; idx < strings_count; ++idx, ++strings, ++begin_offsets, ++end_offsets) {
+        const auto begin_signed = *begin_offsets;
+        const auto end_signed = *end_offsets;
+
+        OPENVINO_ASSERT(begin_signed >= 0,
+                        "Incorrect packed string tensor format: negative string offset in the packed string tensor");
+
+        OPENVINO_ASSERT(begin_signed <= end_signed,
+                        "Incorrect packed string tensor format: begin offset greater than end offset");
+
+        const size_t begin = static_cast<size_t>(begin_signed);
+        const size_t end = static_cast<size_t>(end_signed);
+
+        OPENVINO_ASSERT(end <= data_region_size,
+                        "Incorrect packed string tensor format: string offset exceeds buffer bounds");
+
+        strings->assign(data_region + begin, data_region + end);
     }
 }
 
 void aux_get_header(const std::shared_ptr<ov::StringAlignedBuffer>& string_aligned_buffer_ptr,
-                    std::shared_ptr<uint8_t>& header,
+                    std::shared_ptr<uint8_t>& data,
                     size_t& header_size) {
     OPENVINO_ASSERT(string_aligned_buffer_ptr, "StringAlignedBuffer pointer is nullptr");
-    // packed format is the following:
-    // <num_string>, <1st string offset>,..., <nth string offset>, <1st string raw format>,..., <nth rawformat>
-    auto num_elements = string_aligned_buffer_ptr->get_num_elements();
+    // Packed format is the following:
+    // <strings_count>, <1st string offset>,..., <nth string offset>, <1st string raw contents>,..., <nth string raw
+    // contents>
+    using header_element_t = int32_t;  // Type of a single element in the header (strings_count and offsets)
+
+    const auto strings_count = string_aligned_buffer_ptr->get_num_elements();
+
+    constexpr size_t strings_count_elements = 1;  // Header size occupied by strings_count
+    constexpr size_t last_end_elements = 1;       // Header size occupied by last end offset
+
+    constexpr auto header_elements_max = static_cast<size_t>(std::numeric_limits<header_element_t>::max());
+
+    OPENVINO_ASSERT(strings_count <= header_elements_max - strings_count_elements - last_end_elements,
+                    "Incorrect StringAlignedBuffer format: header element count overflow");
+
+    const size_t header_elems = strings_count + strings_count_elements + last_end_elements;
+
+    constexpr size_t element_size = sizeof(header_element_t);
+
+    size_t header_size_bytes = 0;
+    const bool is_overflow = ov::util::mul_overflow(header_elems, element_size, header_size_bytes);
+    OPENVINO_ASSERT(!is_overflow, "Incorrect StringAlignedBuffer format: header size overflow detected");
+
+    header_size = header_size_bytes;
+    data = std::shared_ptr<uint8_t>(new uint8_t[header_size], std::default_delete<uint8_t[]>());
+
+    header_element_t* header = reinterpret_cast<header_element_t*>(data.get());
+    header[0] = static_cast<header_element_t>(strings_count);
+
+    header[1] = 0;
+    header += 2;
+    size_t current_string_end = 0;
+
     auto strings = reinterpret_cast<std::string*>(string_aligned_buffer_ptr->get_ptr());
 
-    // first run over all elements: calculate total memory required to hold all strings
-    header_size = sizeof(int32_t) * (1 + 1 + num_elements);
-    header = std::shared_ptr<uint8_t>(new uint8_t[header_size], std::default_delete<uint8_t[]>());
-
-    int32_t* pindices = reinterpret_cast<int32_t*>(header.get());
-    pindices[0] = int32_t(num_elements);
-    pindices[1] = 0;
-    pindices += 2;
-    size_t current_symbols_pos = 0;
-
-    for (size_t ind = 0; ind < num_elements; ++ind) {
-        const auto& str = strings[ind];
-        current_symbols_pos += str.size();
-        *pindices = int32_t(current_symbols_pos);
-        ++pindices;
+    for (size_t idx = 0; idx < strings_count; ++idx, ++header, ++strings) {
+        current_string_end += strings->size();
+        OPENVINO_ASSERT(
+            current_string_end <= header_elements_max,
+            "Incorrect StringAlignedBuffer format: total string data size exceeds header element type capacity");
+        *header = static_cast<header_element_t>(current_string_end);
     }
 }
 

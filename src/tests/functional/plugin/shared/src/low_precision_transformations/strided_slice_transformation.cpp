@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ void StridedSliceTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ov::builder::subgraph::StridedSliceFunction::getOriginal(
+    function = ov::builder::subgraph::StridedSliceFunction::get(
         netPrecision,
         inputShape,
         param.fakeQuantize,

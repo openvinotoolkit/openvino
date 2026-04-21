@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pickle
@@ -56,6 +56,17 @@ def clear_all_stat():
 # ---------- FrontEnd tests ---------------
 def test_pickle():
     pickle.dumps(fem)
+
+
+@mock_needed
+def test_register_front_end_path():
+    fem2 = FrontEndManager()
+    fem2.register_front_end(MOCK_PY_FRONTEND_NAME, Path(mock_py_fe_path_l[0]))
+    fe = fem2.load_by_framework(framework=MOCK_PY_FRONTEND_NAME)
+    assert fe is not None
+    assert fe.get_name() == MOCK_PY_FRONTEND_NAME
+
+    del fe
 
 
 def test_load_by_unknown_framework():

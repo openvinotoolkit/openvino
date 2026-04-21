@@ -1,5 +1,7 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
+
 #include <iostream>
 #include <numeric>
 #include "test_utils.h"
@@ -90,7 +92,8 @@ void test_moe_scatter_reduction(bool is_caching_test, size_t k) {
                                             input_info("experts_info_offsets"),
                                             input_info("tokens_len_per_expert"),
                                             input_info("experts_ids"),
-                                            moe_config));
+                                            moe_config,
+                                            true));
     auto input_data_shape = ov::PartialShape{ov::Dimension(num_tokens * num_active_experts_per_token), 1, ov::Dimension(hidden_size)};
     auto input_data_layout = create_layout<T>(input_data_shape);
 
@@ -132,9 +135,10 @@ void test_moe_scatter_reduction(bool is_caching_test, size_t k) {
         }
     }
 
-    std::vector<int32_t> expert_info_start_idx(tokens_len_per_expert_data.size(), 0);
-    for (size_t i = 1; i < tokens_len_per_expert_data.size(); ++i) {
-        expert_info_start_idx[i] = static_cast<int32_t>(expert_info_start_idx[i - 1] + tokens_len_per_expert_data[i - 1]);
+    std::vector<int32_t> expert_info_start_idx(num_total_experts, 0);
+    expert_info_start_idx[0] = static_cast<int32_t>(tokens_per_expert_tmp[0].size());
+    for (size_t i = 1; i < num_total_experts; ++i) {
+        expert_info_start_idx[i] = static_cast<int32_t>(expert_info_start_idx[i - 1] + tokens_per_expert_tmp[i].size());
     }
 
     // tokens per expert
@@ -198,14 +202,10 @@ void test_moe_scatter_reduction(bool is_caching_test, size_t k) {
         for (size_t j = 0; j < num_active_experts_per_token; j++) {
             size_t expert_idx = experts_per_token[i][j];
             float expert_weight = expert_weights_per_token[i][j];
-            auto it = std::find(experts_ids_data.begin(), experts_ids_data.end(), expert_idx);
-            size_t start_idx_pos = -1;
-            if (it != experts_ids_data.end())
-                start_idx_pos = std::distance(experts_ids_data.begin(), it);
 
             for (size_t k = 0; k < tokens_per_expert_tmp[expert_idx].size(); k++) {
                 if (i == tokens_per_expert_tmp[expert_idx][k]) {
-                    size_t input_idx = expert_info_start_idx[start_idx_pos] + k;
+                    size_t input_idx = (expert_idx == 0) ? k : (expert_info_start_idx[expert_idx - 1] + k);
                     // copy out the data and multiply the weight then add to token output
                     std::vector<T> token_data(hidden_size);
                     std::copy(input_data.begin() + input_idx * hidden_size, input_data.begin() + (input_idx + 1)*hidden_size, token_data.begin());

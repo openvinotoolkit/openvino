@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,14 +6,12 @@
 #include <memory>
 
 #include "common/pass/align_matmul_input_ranks.hpp"
-#include "common/pass/convert_batch_gather_matmul_to_compressed.hpp"
 #include "common/pass/convert_matmul_to_fc.hpp"
 #include "common/pass/convert_tile_to_seq_tiles.hpp"
 #include "common/pass/convert_to_leaky_relu.hpp"
 #include "common/pass/convert_to_power_static.hpp"
 #include "common/pass/convert_to_swish_cpu.hpp"
 #include "common/pass/fc_bias_fusion.hpp"
-#include "common/pass/moe_matmuls_fusion.hpp"
 #include "common/pass/move_fc_reshape_to_weights.hpp"
 #include "common/pass/move_readvalue_inputs_to_subgraph.hpp"
 #include "common/pass/rnn_sequences_optimization.hpp"
@@ -27,12 +25,14 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/validate.hpp"
 #include "ov_ops/fully_connected.hpp"
+#include "transformations/common_optimizations/convert_tiled_moe_block_to_gather_matmuls.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/defs.hpp"
 #include "transformations/op_conversions/convert_fc_to_compressed.hpp"
 #include "transformations/op_conversions/convert_fc_to_quantized_legacy.hpp"
+#include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
 
 namespace ov::intel_cpu {
 
@@ -42,14 +42,15 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
     ov::pass::Manager manager("CPU:ConvertToCPUSpecificOpset");
     manager.set_per_pass_validation(false);
 
-    CPU_REGISTER_PASS_X64(manager, MoEMatMulsFusion);
+    // TransformMoeBlockToGatherMatmuls
+    CPU_REGISTER_PASS_X64(manager, ov::pass::ConvertTiledMoeBlockToGatherMatmuls);
     CPU_REGISTER_PASS_X64(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_X64(
         manager,
-        ConvertBatchGatherMatmulToBatchGatherMatmulCompressed,
+        ov::pass::ConvertGatherMatmulToGatherMatmulCompressed,
         ov::intel_cpu::node::GatherMatmul::getSupportedCompressedActivationsTypes(),
         ov::intel_cpu::node::GatherMatmul::getSupportedCompressedWeightsTypes(),
-        [&](const std::shared_ptr<ov::intel_cpu::BatchGatherMatmulCompressed>& gather_matmul,
+        [&](const std::shared_ptr<ov::op::internal::GatherMatmulCompressed>& gather_matmul,
             size_t IC,
             size_t OC,
             size_t G) {
@@ -70,7 +71,6 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
 
     CPU_REGISTER_PASS_X64(manager, pass::ConvertFCToFCQuantizedLegacy);
     CPU_REGISTER_PASS_COMMON(manager, MoveFCReshapeToWeights);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, AlignMatMulInputRanks);
     CPU_REGISTER_PASS_COMMON(manager, ConvertTileToSeqTiles);
     CPU_REGISTER_PASS_COMMON(manager, ConvertToPowerStatic);
@@ -90,6 +90,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);  // Need to clean up after the ConvertPrecision.
     CPU_REGISTER_PASS_COMMON(manager, MoveReadValueInputsToSubgraph);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
 
     manager.run_passes(model);
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,6 +37,7 @@
 #include "nodes/extract_image_patches.h"
 #include "nodes/eye.h"
 #include "nodes/fullyconnected.h"
+#include "nodes/gated_delta_net.h"
 #include "nodes/gather.h"
 #include "nodes/gather_elements.h"
 #include "nodes/gather_nd.h"
@@ -242,6 +243,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(SegmentMax, Type::SegmentMax);
     INTEL_CPU_NODE(LoRA, Type::LoRA);
     INTEL_CPU_NODE(GatherMatmul, Type::GatherMatmul);
+    INTEL_CPU_NODE(GatedDeltaNet, Type::GatedDeltaNet);
 #if defined(OPENVINO_ARCH_X86_64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(GridSample, Type::GridSample);

@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
 import numpy as np
 import os
+from pathlib import Path
 
 import openvino as ov
 import openvino.properties as props
@@ -203,6 +204,7 @@ def test_conflicting_enum(proxy_enums, expected_values):
         (intel_npu.device_total_mem_size, "NPU_DEVICE_TOTAL_MEM_SIZE"),
         (intel_npu.driver_version, "NPU_DRIVER_VERSION"),
         (intel_npu.compiler_version, "NPU_COMPILER_VERSION"),
+        (intel_npu.max_tiles, "NPU_MAX_TILES")
     ],
 )
 def test_properties_ro(ov_property_ro, expected_value):
@@ -452,6 +454,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((False, False),),
         ),
         (
+            intel_gpu_hint.enable_large_allocations,
+            "GPU_ENABLE_LARGE_ALLOCATIONS",
+            ((True, True),),
+        ),
+        (
             intel_npu.compilation_mode_params,
             "NPU_COMPILATION_MODE_PARAMS",
             (("dummy-op-replacement=true", "dummy-op-replacement=true"),),
@@ -462,13 +469,15 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((True, True),),
         ),
         (
-            intel_npu.tiles,
-            "NPU_TILES",
-            ((128, 128),),
+            intel_npu.platform,
+            "NPU_PLATFORM",
+            (("3720", "3720"),
+             ("4000", "4000"),
+             ("5010", "5010"),),
         ),
         (
-            intel_npu.max_tiles,
-            "NPU_MAX_TILES",
+            intel_npu.tiles,
+            "NPU_TILES",
             ((128, 128),),
         ),
         (
@@ -495,6 +504,23 @@ def test_properties_ro(ov_property_ro, expected_value):
             intel_npu.qdq_optimization_aggressive,
             "NPU_QDQ_OPTIMIZATION_AGGRESSIVE",
             ((True, True),),
+        ),
+        (
+            intel_npu.disable_idle_memory_prunning,
+            "NPU_DISABLE_IDLE_MEMORY_PRUNING",
+            ((True, True),),
+        ),
+        (
+            intel_npu.enable_strides_for,
+            "NPU_ENABLE_STRIDES_FOR",
+            (("inputs,outputs", "inputs,outputs"),),
+        ),
+        (
+            intel_npu.compiler_type,
+            "NPU_COMPILER_TYPE",
+            ((intel_npu.CompilerType.DRIVER, intel_npu.CompilerType.DRIVER),
+             (intel_npu.CompilerType.PLUGIN, intel_npu.CompilerType.PLUGIN),
+             (intel_npu.CompilerType.PREFER_PLUGIN, intel_npu.CompilerType.PREFER_PLUGIN),),
         ),
         (props.enable_weightless, "ENABLE_WEIGHTLESS", ((True, True), (False, False))),
     ],
@@ -615,6 +641,13 @@ def test_single_property_setting(device):
 
     assert props.streams.Num.AUTO.to_integer() == -1
     assert isinstance(core.get_property(device, streams.num()), int)
+
+
+def test_property_pathlib_path(device):
+    core = Core()
+
+    core.set_property(device, {"CACHE_DIR": Path("./test_cache")})
+    assert core.get_property(device, props.cache_dir) == str(Path("./test_cache"))
 
 
 @pytest.mark.skipif(

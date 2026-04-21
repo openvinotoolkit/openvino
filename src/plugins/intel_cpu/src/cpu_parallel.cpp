@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,9 @@ CpuParallel::CpuParallel(ov::intel_cpu::TbbPartitioner partitioner, size_t multi
       m_multiplier(multiplier) {
     m_partitioner =
         m_partitioner == ov::intel_cpu::TbbPartitioner::NONE ? ov::intel_cpu::TbbPartitioner::STATIC : m_partitioner;
+    if (ov::intel_cpu::TbbPartitioner::STATIC == m_partitioner) {
+        m_multiplier = 1;
+    }
     m_thread_pool = std::make_shared<ThreadPool>(*this);
 }
 

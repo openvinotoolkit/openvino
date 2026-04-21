@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -7,6 +7,8 @@ if (NOT ENABLE_INTEL_GPU)
 endif()
 
 set (TARGET_NAME "openvino_intel_gpu_plugin")
+
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/utils.cmake)
 
 if(OV_COMPILER_IS_INTEL_LLVM)
     # For windows we need to disable warning as error option to make FindSYCL.cmake work
@@ -32,8 +34,13 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # '<': signed/unsigned mismatch
     ov_add_compiler_flags(/wd4018)
 
+    add_compile_definitions(_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING)
     # see https://github.com/oneapi-src/oneDNN/issues/2028
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:__cplusplus")
+endif()
+
+if(WIN32)
+    add_definitions(-DNOMINMAX)
 endif()
 
 if(ENABLE_GPU_DEBUG_CAPS)
@@ -77,6 +84,7 @@ target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 
 ov_set_threading_interface_for(${TARGET_NAME})
+ov_gpu_set_runtime_interface_for(${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -559,6 +559,10 @@ extern template bool evaluate_node<ov::op::v15::StringTensorPack>(std::shared_pt
 extern template bool evaluate_node<ov::op::v15::SearchSorted>(std::shared_ptr<ov::Node> node,
                                                               ov::TensorVector& outputs,
                                                               const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v17::ErfInv>(std::shared_ptr<ov::Node> node,
+                                                        ov::TensorVector& outputs,
+                                                        const ov::TensorVector& inputs);
 
 extern template bool evaluate_node<ov::op::v16::Identity>(std::shared_ptr<ov::Node> node,
                                                           ov::TensorVector& outputs,

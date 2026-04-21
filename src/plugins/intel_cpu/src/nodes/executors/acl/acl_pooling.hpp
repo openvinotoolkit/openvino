@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,31 +50,33 @@ private:
 
 class AclPoolingExecutorBuilder : public PoolingExecutorBuilder {
 public:
-    [[nodiscard]] bool isSupported([[maybe_unused]] const PoolingAttrs& poolingAttrs,
+    [[nodiscard]] bool isSupported(const PoolingAttrs& poolingAttrs,
                                    const std::vector<MemoryDescPtr>& srcDescs,
                                    const std::vector<MemoryDescPtr>& dstDescs) const override {
-        if ((srcDescs[0]->getPrecision() != ov::element::f32 && dstDescs[0]->getPrecision() != ov::element::f32) &&
-            (srcDescs[0]->getPrecision() != ov::element::f16 && dstDescs[0]->getPrecision() != ov::element::f16)) {
-            DEBUG_LOG("AclPoolingExecutor does not support precisions:",
-                      " src[0]=",
-                      srcDescs[0]->getPrecision(),
-                      " dst[0]=",
-                      dstDescs[0]->getPrecision());
-            return false;
-        }
+        auto isSupportedPrecision = [](const ov::element::Type precision) {
+            return any_of(precision, ov::element::f32, ov::element::f16, ov::element::u8, ov::element::i8);
+        };
+        const bool hasSecondSrc = srcDescs.size() == 2U;
+        const bool isSrc0PrecisionSupported = isSupportedPrecision(srcDescs[0]->getPrecision());
+        const bool isSrc1PrecisionSupported = !hasSecondSrc || isSupportedPrecision(srcDescs[1]->getPrecision());
+        const bool isDst0PrecisionSupported = isSupportedPrecision(dstDescs[0]->getPrecision());
 
-        if (srcDescs.size() == 2U &&
-            (srcDescs[1]->getPrecision() != ov::element::f32 && srcDescs[0]->getPrecision() != ov::element::f32 &&
-             dstDescs[0]->getPrecision() != ov::element::f32) &&
-            (srcDescs[1]->getPrecision() != ov::element::f16 && srcDescs[0]->getPrecision() != ov::element::f16 &&
-             dstDescs[0]->getPrecision() != ov::element::f16)) {
-            DEBUG_LOG("AclPoolingExecutor does not support precisions:",
-                      " src[0]=",
-                      srcDescs[0]->getPrecision(),
-                      " src[1]=",
-                      srcDescs[1]->getPrecision(),
-                      " dst[0]=",
-                      dstDescs[0]->getPrecision());
+        if (!isSrc0PrecisionSupported || !isSrc1PrecisionSupported || !isDst0PrecisionSupported) {
+            if (hasSecondSrc) {
+                DEBUG_LOG("AclPoolingExecutor does not support precisions:",
+                          " src[0]=",
+                          srcDescs[0]->getPrecision(),
+                          " src[1]=",
+                          srcDescs[1]->getPrecision(),
+                          " dst[0]=",
+                          dstDescs[0]->getPrecision());
+            } else {
+                DEBUG_LOG("AclPoolingExecutor does not support precisions:",
+                          " src[0]=",
+                          srcDescs[0]->getPrecision(),
+                          " dst[0]=",
+                          dstDescs[0]->getPrecision());
+            }
             return false;
         }
 
@@ -119,6 +121,11 @@ public:
                           dstDescs[0]->serializeFormat());
                 return false;
             }
+        }
+        if (poolingAttrs.postOps.size() > 1U ||
+            (poolingAttrs.postOps.size() == 1U && !std::any_cast<FakeQuantizePostOp>(poolingAttrs.postOps.data()))) {
+            DEBUG_LOG("AclPoolingExecutor supports only one post op of type FakeQuantize.");
+            return false;
         }
 
         return true;

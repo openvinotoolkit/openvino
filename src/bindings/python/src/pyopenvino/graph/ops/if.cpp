@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -160,7 +160,7 @@ void regclass_graph_op_If(py::module m) {
 
             :param index: sub-graph's index in op.
             :type index: int
-            
+
             :return: Model with sub-graph.
             :rtype: openvino.Model
         )");

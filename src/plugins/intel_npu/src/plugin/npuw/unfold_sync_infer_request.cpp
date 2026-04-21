@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,6 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
         auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
         // NB: UnfoldInferRequest is _NOT_ fail-safe! Fail means fail here
         m_subrequests[i] = proto_comp_model_desc.compiled_model->create_infer_request();
-        m_subrequest_devices[i] = *proto_comp_model_desc.device_it;
         LOG_INFO("DONE");
     }  // for(submodels)
 

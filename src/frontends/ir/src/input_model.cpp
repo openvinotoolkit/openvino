@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -85,9 +85,6 @@ void parse_pre_process(pugi::xml_node& root,
     ov::Shape mean_shape;         // [1, H, W] - for 4D case
 
     const auto inputDims = input_shape.to_shape();
-
-    OPENVINO_ASSERT(inputDims.size() >= 2, "network did not define input dimensions properly");
-
     if (inputDims.size() == 2) {  // NC
         mean_scalar_shape = {inputDims[1]};
         mean_shape = {1};
@@ -100,6 +97,12 @@ void parse_pre_process(pugi::xml_node& root,
     } else if (inputDims.size() == 5) {  // NCDHW
         mean_scalar_shape = {inputDims[1], 1, 1, 1};
         mean_shape = {1, inputDims[2], inputDims[3], inputDims[4]};
+    } else {
+        OPENVINO_THROW("Unsupported input dimensions rank ",
+                       inputDims.size(),
+                       " for pre-process input '",
+                       inputName,
+                       "'");
     }
     const size_t channels = mean_scalar_shape[0];
 
@@ -205,13 +208,13 @@ class InputModel::InputModelIRImpl {
     std::unordered_map<std::string, ov::OpSet> m_opsets;
     pugi::xml_node m_root;
     pugi::xml_document m_xml_doc;
-    std::string m_weights_path;
+    std::filesystem::path m_weights_path;
 
 public:
     InputModelIRImpl(std::istream& model,
                      const std::shared_ptr<ov::AlignedBuffer>& weights,
                      const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                     std::string weights_path)
+                     std::filesystem::path weights_path)
         : m_weights(weights),
           m_extensions(extensions),
           m_weights_path(std::move(weights_path)) {
@@ -223,7 +226,7 @@ public:
     InputModelIRImpl(const std::shared_ptr<ov::AlignedBuffer>& model,
                      const std::shared_ptr<ov::AlignedBuffer>& weights,
                      const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                     std::string weights_path)
+                     std::filesystem::path weights_path)
         : m_weights(weights),
           m_extensions(extensions),
           m_weights_path(std::move(weights_path)) {
@@ -246,14 +249,14 @@ private:
 InputModel::InputModel(std::istream& model,
                        const std::shared_ptr<ov::AlignedBuffer>& weights,
                        const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                       std::string weights_path) {
+                       std::filesystem::path weights_path) {
     _impl = std::make_shared<InputModelIRImpl>(model, weights, extensions, std::move(weights_path));
 }
 
 InputModel::InputModel(const std::shared_ptr<ov::AlignedBuffer>& model,
                        const std::shared_ptr<ov::AlignedBuffer>& weights,
                        const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                       std::string weights_path) {
+                       std::filesystem::path weights_path) {
     _impl = std::make_shared<InputModelIRImpl>(model, weights, extensions, std::move(weights_path));
 }
 
@@ -271,7 +274,7 @@ std::shared_ptr<ov::Model> InputModel::InputModelIRImpl::convert() {
     visitor.on_attribute("net", model);
     model->get_rt_info()["version"] = int64_t(version);
     if (!m_weights_path.empty())
-        model->get_rt_info()["__weights_path"] = m_weights_path;
+        model->get_rt_info()["__weights_path"] = ov::util::path_to_string(m_weights_path);
     parse_pre_process(m_root, m_weights, model);
 
     return model;

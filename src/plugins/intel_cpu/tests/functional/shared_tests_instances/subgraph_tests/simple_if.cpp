@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -126,6 +126,26 @@ INSTANTIATE_TEST_SUITE_P(smoke_If,
                          SimpleIfNotConstConditionUnusedOutputPortsTest::getTestCaseName);
 
 TEST_P(SimpleIfNotConstConditionUnusedOutputPortsTest, CompareWithRefs) {
+    run();
+};
+
+std::vector<std::vector<ov::test::InputShape>> inputShapes_no_redefine = {
+    {
+        {{-1, 3, 10, 10}, {{2, 3, 10, 10}, {2, 3, 10, 10}, {2, 3, 10, 10}}},
+        {{-1, 3, 10, 10}, {{2, 3, 10, 10}, {2, 3, 10, 10}, {2, 3, 10, 10}}},
+        {{}, {{}, {}, {}}},
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_If,
+                         SimpleIfNoRedefinePathTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes_no_redefine),
+                                            ::testing::Values(ov::test::ElementType::bf16),
+                                            ::testing::Values(true),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         SimpleIfNoRedefinePathTest::getTestCaseName);
+
+TEST_P(SimpleIfNoRedefinePathTest, CompareWithRefs) {
     run();
 };
 

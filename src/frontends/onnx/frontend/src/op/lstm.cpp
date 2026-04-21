@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/util/common_util.hpp"
 #include "utils/reshape.hpp"
 #include "utils/split.hpp"
@@ -38,10 +39,12 @@ enum class LSTMInput {
     LSTM_INPUT_P
 };
 
-// Normalize tensor rank to target_rank by squeezing leading dimensions of size 1.
-// This handles models where upstream Unsqueeze operations add extra leading dimensions.
-// Static validation: if leading dims are statically known and != 1, emit clear error at conversion time.
-// If extra dimensions are != 1 at runtime, Squeeze will fail with a clear error.
+// Normalize tensor rank to target_rank:
+// - If rank > target: squeeze leading dimensions of size 1 (handles upstream Unsqueeze ops).
+//   Static validation rejects leading dims that are statically != 1.
+// - If rank < target by exactly 1: unsqueeze a leading dimension of size 1
+//   (handles models that omit the num_directions=1 dimension for unidirectional LSTMs).
+// - If rank differs by more than the above, throw an error for malformed input.
 ov::Output<ov::Node> normalize_tensor_rank(const ov::Output<ov::Node>& input,
                                            int64_t target_rank,
                                            const std::string& input_name) {
@@ -86,14 +89,23 @@ ov::Output<ov::Node> normalize_tensor_rank(const ov::Output<ov::Node>& input,
         return std::make_shared<v0::Squeeze>(input, axes_const);
     }
 
-    // input_rank < target_rank: reject non-conformant models with missing num_directions dimension
-    OPENVINO_THROW("LSTM input '",
-                   input_name,
-                   "' has rank ",
-                   input_rank.get_length(),
-                   " but expected ",
-                   target_rank,
-                   ". Missing num_directions dimension cannot be automatically inferred.");
+    // input_rank < target_rank: only allow exactly 1 missing dimension (the num_directions dim).
+    // For unidirectional LSTM (forward/reverse), num_directions=1, so some models omit it.
+    // A larger rank deficiency indicates a genuinely malformed model.
+    const auto dims_to_unsqueeze = target_rank - input_rank.get_length();
+    if (dims_to_unsqueeze != 1) {
+        OPENVINO_THROW("LSTM input '",
+                       input_name,
+                       "' has rank ",
+                       input_rank.get_length(),
+                       " but expected ",
+                       target_rank,
+                       ". Rank difference is ",
+                       dims_to_unsqueeze,
+                       " but only 1 (missing num_directions) is supported.");
+    }
+    auto axes_const = v0::Constant::create(ov::element::i64, Shape{1}, std::vector<int64_t>{0});
+    return std::make_shared<v0::Unsqueeze>(input, axes_const);
 }
 
 struct LSTMNgInputMap {
@@ -115,6 +127,24 @@ struct LSTMNgInputMap {
         input_x = ov::op::util::reorder_axes(input_x, {1, 0, 2});
 
         m_input_map[LSTMInput::LSTM_INPUT_X] = input_x;
+
+        // Detect if num_directions dimension is missing from W.
+        // Some models omit the leading num_directions dimension when it equals 1.
+        // normalize_tensor_rank will unsqueeze it, but we need to squeeze the
+        // corresponding dimension from outputs to match the original model's expectations.
+        const auto& w_rank = ng_inputs.at(1).get_partial_shape().rank();
+        if (w_rank.is_static() && w_rank.get_length() < 3) {
+            // Unsqueezing adds num_directions=1, which is only valid for forward/reverse.
+            // For bidirectional LSTMs, num_directions=2 and cannot be inferred.
+            const std::string direction =
+                ov::util::to_lower(node.get_attribute_value<std::string>("direction", "forward"));
+            OPENVINO_ASSERT(direction != "bidirectional",
+                            "LSTM input 'W' has rank ",
+                            w_rank.get_length(),
+                            " but expected 3. Cannot add num_directions dimension for bidirectional LSTM "
+                            "because num_directions=2 cannot be inferred from the data.");
+            m_num_directions_unsqueezed = true;
+        }
 
         // Weight tensor for the gates.
         // ONNX Shape: [num_directions, 4*hidden_size, input_size]
@@ -252,6 +282,9 @@ struct LSTMNgInputMap {
         return m_input_map.at(key);
     }
     std::map<LSTMInput, ov::Output<ov::Node>> m_input_map;
+    // True when num_directions dimension was missing from inputs and was added via Unsqueeze.
+    // In this case, outputs need the num_directions dimension squeezed to match the original model.
+    bool m_num_directions_unsqueezed = false;
 };
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ATTRIBUTES PARSING ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -307,6 +340,21 @@ ov::OutputVector lstm(const ov::frontend::onnx::Node& node) {
     const auto Y = lstm_sequence->output(0);
     const auto Y_h = lstm_sequence->output(1);
     const auto Y_c = lstm_sequence->output(2);
+
+    if (input_map.m_num_directions_unsqueezed) {
+        // The num_directions dimension was added to inputs via Unsqueeze.
+        // Squeeze it from outputs so downstream consumers see the original ranks.
+        // Y: OV [batch_size, num_directions(1), seq_length, hidden_size] -> ONNX [seq_length, batch_size, hidden_size]
+        // Y_h: OV [batch_size, num_directions(1), hidden_size] -> ONNX [batch_size, hidden_size]
+        // Y_c: OV [batch_size, num_directions(1), hidden_size] -> ONNX [batch_size, hidden_size]
+        auto num_dir_axis = v0::Constant::create(ov::element::i64, Shape{1}, {1});
+        auto Y_squeezed = std::make_shared<v0::Squeeze>(Y, num_dir_axis);
+        auto Y_h_squeezed = std::make_shared<v0::Squeeze>(Y_h, num_dir_axis);
+        auto Y_c_squeezed = std::make_shared<v0::Squeeze>(Y_c, num_dir_axis);
+
+        // Y: [batch_size, seq_length, hidden_size] -> [seq_length, batch_size, hidden_size]
+        return {ov::op::util::reorder_axes(Y_squeezed, {1, 0, 2}), Y_h_squeezed, Y_c_squeezed};
+    }
 
     return {ov::op::util::reorder_axes(Y, {2, 1, 0, 3}),
             ov::op::util::reorder_axes(Y_h, {1, 0, 2}),

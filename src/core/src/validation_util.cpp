@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ std::string normalize_axis_error_msg(const int64_t axis, const int64_t rank) {
     return std::string("Axis ")
         .append(std::to_string(axis))
         .append(" out of the tensor rank range [")
-        .append(std::to_string(-rank))
+        .append(std::to_string(rank == 0 ? -1 : -rank))
         .append(", ")
         .append(std::to_string(rank == 0 ? 0 : rank - 1))
         .append("].");
@@ -107,14 +107,13 @@ std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const ov::
         }
 
         auto original_node = node;
-        const auto inputs = get_inputs_from_map(node, node_map);
 
         if (ov::util::node_requires_precision_conversion(node.get())) {
-            node = ov::util::convert_to_supported_precision(node.get(), inputs);
+            node = ov::util::convert_to_supported_precision(node.get(), get_inputs_from_map(node, node_map));
         }
 
-        OutputVector outputs(node->get_output_size());
-        if (node->constant_fold(outputs, inputs)) {
+        if (OutputVector outputs(node->get_output_size());
+            node->constant_fold(outputs, get_inputs_from_map(node, node_map))) {
             stack.pop();
             for (size_t i = 0; i < outputs.size(); i++) {
                 node_map[original_node->output(i)] = outputs[i].get_node_shared_ptr();
@@ -127,9 +126,9 @@ std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const ov::
                     stack.push(input.get_node_shared_ptr());
                 }
             }
-            // if none of the inputs was pushed to stack, it means the node that was not constantfolded
-            // is processed the second time. If that case - the node is not constfoldable.
-            // A good example would be a node that all of its inputs are constants and yet it cannot be constantfolded
+            // if none of the inputs was pushed to stack, it means the node that was not constant folded
+            // is processed the second time. If that case - the node is not constant foldable.
+            // A good example would be a node that all of its inputs are constants and yet it cannot be constant folded
             // for some reason (like lack of evaluate, it's a op::util::FrameworkNode, etc.).
             if (stack_size_before == stack.size()) {
                 return nullptr;
@@ -324,7 +323,7 @@ bool has_no_symbols(const ov::TensorSymbol& symbols) {
 }
 
 bool is_axis_valid(int64_t axis, int64_t rank) {
-    return (axis == 0) || (-rank <= axis && axis < rank);
+    return (axis == 0) || (axis == -1) || (-rank <= axis && axis < rank);
 }
 
 void validate_axis(const int64_t axis, const Rank& rank, const Node& node) {
@@ -333,7 +332,7 @@ void validate_axis(const int64_t axis, const Rank& rank, const Node& node) {
 }
 
 size_t normalize_axis(const int64_t axis, const int64_t rank) {
-    return static_cast<size_t>(normalize(axis, rank));
+    return rank > 0 ? static_cast<size_t>(normalize(axis, rank)) : 0U;
 }
 
 size_t try_normalize_axis(const int64_t axis, const Rank& rank) {
@@ -355,7 +354,7 @@ void validate_axes(const std::vector<int64_t>& axes, const Rank& rank, const Nod
 
 void normalize_axes(std::vector<int64_t>& axes, const int64_t rank) {
     for (auto&& axis : axes) {
-        axis = normalize(axis, rank);
+        axis = rank > 0 ? normalize(axis, rank) : 0;
     }
 }
 

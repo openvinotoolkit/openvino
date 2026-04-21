@@ -1,12 +1,13 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 import sys
 import subprocess
+import platform
 import pytest
 import torch
-from models_hub_common.utils import get_models_list, compare_two_tensors
+from models_hub_common.utils import get_models_list, compare_two_tensors, retry
 
 from torch_utils import TestTorchConvertModel, process_pytest_marks
 
@@ -22,9 +23,11 @@ class TestDetectron2ConvertModel(TestTorchConvertModel):
         self.image = Image.open(response.raw)
         self.image = self.image.resize([640, 480])
 
-        subprocess.run([sys.executable, "-m", "pip", "install",
-                       "git+https://github.com/facebookresearch/detectron2.git@017abbfa5f2c2a2afa045200c2af9ccf2fc6227f"])
+        subprocess.check_call([sys.executable, "-m", "pip", "install",
+                              "setuptools<78",  # detectron2 needs pkg_resources, removed in setuptools>=78
+                              "git+https://github.com/facebookresearch/detectron2.git@017abbfa5f2c2a2afa045200c2af9ccf2fc6227f"])
 
+    @retry(3, exceptions=(OSError,), delay=10, exponential_backoff=True, backoff_multiplier=2, max_delay=120)
     def load_model(self, model_name, model_link):
         from detectron2 import model_zoo, export
         from detectron2.modeling import build_model, PanopticFPN
@@ -96,6 +99,8 @@ class TestDetectron2ConvertModel(TestTorchConvertModel):
                              get_models_list(os.path.join(os.path.dirname(__file__), "detectron2_precommit")))
     @pytest.mark.precommit
     def test_detectron2_precommit(self, name, type, mark, reason, ie_device):
+        if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+            pytest.skip("Detectron2 models are not enabled on ARM")
         self.run(name, None, ie_device)
 
     @pytest.mark.parametrize("name",

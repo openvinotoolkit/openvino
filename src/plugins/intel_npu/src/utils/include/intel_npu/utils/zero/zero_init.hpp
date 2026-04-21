@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,9 +12,15 @@
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_mem_pool.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
 
 namespace intel_npu {
+
+namespace zero_mem {
+class ZeroMemPoolManager;
+}  // namespace zero_mem
+
 /**
  * Holder for the level zero structures which must be initialized via call to the driver once zero backend is loaded,
  * and de-initialized after their last use is over.
@@ -71,6 +77,12 @@ public:
     inline bool isExternalMemoryFdWin32Supported() const {
         return _external_memory_fd_win32_supported;
     }
+    inline uint32_t getCommandQueueGroupOrdinal() const {
+        return _command_queue_group_ordinal;
+    }
+
+    void setContextOptions(const uint32_t options);
+    void clearContextOptions(const uint32_t options);
 
     static const std::shared_ptr<ZeroInitStructsHolder> getInstance();
 
@@ -79,8 +91,16 @@ public:
     uint32_t getCompilerVersion();
 
 private:
+    friend class zero_mem::ZeroMemPoolManager;
+
     void initNpuDriver();
+    void initCompilerPropertiesLocked();
     void getExtensionFunctionAddress(const std::string& name, const uint32_t version, void** function_address);
+    void setContextProperties();
+
+    inline ZeroMemPool& getZeroMemPool() {
+        return _zero_mem_pool;
+    }
 
     // keep zero_api alive until context is destroyed
     std::shared_ptr<ZeroApi> _zero_api;
@@ -96,6 +116,7 @@ private:
     std::unique_ptr<ze_command_queue_npu_dditable_ext_decorator> _command_queue_npu_dditable_ext_decorator;
     std::unique_ptr<ze_graph_profiling_dditable_ext_decorator> _graph_profiling_npu_dditable_ext_decorator;
     std::unique_ptr<ze_driver_npu_dditable_ext_decorator> _driver_npu_dditable_ext_decorator;
+    std::unique_ptr<ze_context_npu_dditable_ext_decorator> _context_npu_dditable_ext_decorator;
 
     ze_driver_properties_t _driver_properties = {};
     uint32_t _mutable_command_list_ext_version = 0;
@@ -106,6 +127,16 @@ private:
 
     bool _external_memory_standard_allocation_supported = false;
     bool _external_memory_fd_win32_supported = false;
+
+    uint32_t _context_options = 0;
+
+    uint32_t _command_queue_group_ordinal = 0;
+
+    // Per-context global registry for ZeroMem tracking.
+    // The pool object lives in the context holder, while all create/import/look-up operations
+    // are performed through zero_mem helper APIs (and their manager), which also synchronize
+    // updates and cleanup.
+    ZeroMemPool _zero_mem_pool;
 
     std::mutex _mutex;
 };

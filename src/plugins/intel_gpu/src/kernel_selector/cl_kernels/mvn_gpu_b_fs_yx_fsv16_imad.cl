@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -356,13 +356,10 @@ KERNEL(mvn_mean_var_bsv32)(
     const uint sglid = get_sub_group_local_id();
     const uint data_sets_offset = INPUT0_GET_INDEX(b, f, 0, 0);
 
-#if SG_NUM != 1
-    __local MEAN_TYPE slm_acc[(SG_NUM - 1) * FSV];
-#endif
-
     ACC_PACKED_TYPE partial_sum = FUNC_CALL(accumulate_sum_input)(input, data_sets_offset, get_local_id(0));
 #if SG_NUM != 1
-    MEAN_TYPE mean = FUNC_CALL(reduce_mean)(TO_MEAN_PACKED_TYPE(partial_sum), slm_acc);
+    __local MEAN_TYPE slm_mean_acc[(SG_NUM - 1) * FSV];
+    MEAN_TYPE mean = FUNC_CALL(reduce_mean)(TO_MEAN_PACKED_TYPE(partial_sum), slm_mean_acc);
 #else
     MEAN_TYPE mean = FUNC_CALL(reduce_mean)(TO_MEAN_PACKED_TYPE(partial_sum));
 #endif
@@ -370,7 +367,8 @@ KERNEL(mvn_mean_var_bsv32)(
 #if NORMALIZE_VARIANCE
     MEAN_PACKED_TYPE partial_dev = FUNC_CALL(accumulate_sum_sq_dev)(input, data_sets_offset, get_local_id(0), mean);
     #if SG_NUM != 1
-        MEAN_TYPE inv_variance = FUNC_CALL(reduce_inverse_variance)(partial_dev, slm_acc);
+        __local MEAN_TYPE slm_var_acc[(SG_NUM - 1) * FSV];
+        MEAN_TYPE inv_variance = FUNC_CALL(reduce_inverse_variance)(partial_dev, slm_var_acc);
     #else
         MEAN_TYPE inv_variance = FUNC_CALL(reduce_inverse_variance)(partial_dev);
     #endif
@@ -453,16 +451,13 @@ KERNEL(mvn_final)(
 #endif
     uint input_offset;
 
-#if (!PRECALC_MEAN || (NORMALIZE_VARIANCE && !PRECALC_VARIANCE)) && SG_NUM != 1
-    __local MEAN_TYPE slm_acc[(SG_NUM - 1) * FSV];
-#endif
-
 #if PRECALC_MEAN
     MEAN_TYPE mean = means[flat_data_set_group * FSV + sglid];
 #else
     INT_PACKED_TYPE partial_sum = FUNC_CALL(accumulate_sum_input)(input, data_sets_offset, get_local_id(0));
 #   if SG_NUM != 1
-    MEAN_TYPE mean = FUNC_CALL(reduce_mean)(TO_MEAN_PACKED_TYPE(partial_sum), slm_acc);
+    __local MEAN_TYPE slm_mean_acc[(SG_NUM - 1) * FSV];
+    MEAN_TYPE mean = FUNC_CALL(reduce_mean)(TO_MEAN_PACKED_TYPE(partial_sum), slm_mean_acc);
 #   else
     MEAN_TYPE mean = FUNC_CALL(reduce_mean)(TO_MEAN_PACKED_TYPE(partial_sum));
 #   endif
@@ -474,9 +469,10 @@ KERNEL(mvn_final)(
 #   else
     MEAN_PACKED_TYPE partial_dev = FUNC_CALL(accumulate_sum_sq_dev)(input, data_sets_offset, get_local_id(0), mean);
 #       if SG_NUM != 1
-    MEAN_TYPE inv_variance = FUNC_CALL(reduce_inverse_variance)(partial_dev, slm_acc);
+            __local MEAN_TYPE slm_var_acc[(SG_NUM - 1) * FSV];
+            MEAN_TYPE inv_variance = FUNC_CALL(reduce_inverse_variance)(partial_dev, slm_var_acc);
 #       else
-    MEAN_TYPE inv_variance = FUNC_CALL(reduce_inverse_variance)(partial_dev);
+            MEAN_TYPE inv_variance = FUNC_CALL(reduce_inverse_variance)(partial_dev);
 #       endif
 #   endif
 #else

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1701,6 +1701,79 @@ TEST(concat_gpu_onednn, impl_selection_unaligned_feature_axis) {
     ASSERT_NO_THROW(network.execute());
 }
 
+TEST(concat_gpu_onednn, dynamic_non_block_aligned_feature) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    const int32_t b = 2, f = 24, y = 16, x = 256;
+    const int32_t fsv = 16;
+    const int32_t f_slices = (f + fsv - 1) / fsv;
+    const int32_t f_real_in_last = f - (f_slices - 1) * fsv;
+
+    layout in_layout_dyn = { ov::PartialShape{ -1, f, x, y }, data_types::f16, format::b_fs_yx_fsv16 };
+
+    topology topology(
+            input_layout("input0", in_layout_dyn),
+            input_layout("input1", in_layout_dyn),
+            concatenation("concat",
+                          { input_info("input0"), input_info("input1") },
+                          1,
+                          data_types::f16),
+            reorder("reorder_out", input_info("concat"), { ov::PartialShape{ -1, f * 2, x, y }, data_types::f16, format::bfyx })
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    auto network = cldnn::network::build_network(engine, topology, config);
+
+    layout actual_layout = { data_types::f16, format::b_fs_yx_fsv16, { b, f, x, y } };
+    auto input0 = engine.allocate_memory(actual_layout);
+    auto input1 = engine.allocate_memory(actual_layout);
+
+    auto data0_5d = rg.generate_random_5d<ov::float16>(b, f_slices, y, x, fsv, -1, 1);
+    auto data1_5d = rg.generate_random_5d<ov::float16>(b, f_slices, y, x, fsv, -1, 1);
+
+    ov::float16 nan_val(std::numeric_limits<float>::quiet_NaN());
+    for (int bi = 0; bi < b; bi++) {
+        for (int yi = 0; yi < y; yi++) {
+            for (int xi = 0; xi < x; xi++) {
+                for (int vi = f_real_in_last; vi < fsv; vi++) {
+                    data0_5d[bi][f_slices-1][yi][xi][vi] = nan_val;
+                    data1_5d[bi][f_slices-1][yi][xi][vi] = nan_val;
+                }
+            }
+        }
+    }
+
+    set_values<ov::float16>(input0, flatten_5d(format::bfzyx, data0_5d));
+    set_values<ov::float16>(input1, flatten_5d(format::bfzyx, data1_5d));
+
+    network->set_input_data("input0", input0);
+    network->set_input_data("input1", input1);
+
+    auto outputs = network->execute();
+
+    auto concat_inst = network->get_primitive("concat");
+    auto impl = concat_inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->m_manager != nullptr);
+    EXPECT_NE(impl->m_manager->get_impl_type(), impl_types::onednn)
+        << "Dynamic non-block-aligned concat should NOT use onednn";
+
+    auto output_memory = outputs.at("reorder_out").get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output_memory, get_test_stream());
+
+    for (size_t i = 0; i < output_memory->get_layout().count(); ++i) {
+        ASSERT_FALSE(std::isnan(static_cast<float>(output_ptr[i])))
+            << "NaN detected at index " << i;
+    }
+}
+
 TEST(concat_gpu_onednn, b_fs_yx_fsv16_input_types) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
@@ -2182,3 +2255,135 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                         ),
                         concat_gpu_implicit::PrintToStringParamName);
 #endif
+// ============================================================================
+// Tests for concatenation_gpu_b_fs_yx_fsv32 kernel (int8/uint8, feature axis)
+// Forces OCL impl with b_fs_yx_fsv32 format to ensure the optimized kernel
+// is selected instead of falling back to ref kernel.
+// ============================================================================
+using TestParamType_concat_fsv32 = ::testing::tuple<
+    size_t,                   // 0 - Batch
+    std::vector<size_t>,      // 1 - Input feature sizes
+    size_t,                   // 2 - Input Y
+    size_t,                   // 3 - Input X
+    data_types>;              // 4 - Data type (i8/u8)
+
+struct concat_gpu_b_fs_yx_fsv32_force : public ::testing::TestWithParam<TestParamType_concat_fsv32> {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
+    static std::string PrintToStringParamName(testing::TestParamInfo<TestParamType_concat_fsv32> param_info) {
+        auto batch = testing::get<0>(param_info.param);
+        auto& feats = testing::get<1>(param_info.param);
+        auto y = testing::get<2>(param_info.param);
+        auto x = testing::get<3>(param_info.param);
+        auto dt = testing::get<4>(param_info.param);
+        std::string feat_str;
+        for (size_t i = 0; i < feats.size(); i++)
+            feat_str += (i ? "_" : "") + std::to_string(feats[i]);
+        return "b" + std::to_string(batch) + "_f" + feat_str +
+               "_y" + std::to_string(y) + "_x" + std::to_string(x) +
+               "_" + ov::element::Type(dt).get_type_name();
+    }
+
+    void test() {
+        auto& engine = get_test_engine();
+        const auto batch_num = testing::get<0>(GetParam());
+        const auto& in_features = testing::get<1>(GetParam());
+        const auto input_y = testing::get<2>(GetParam());
+        const auto input_x = testing::get<3>(GetParam());
+        const auto dt = testing::get<4>(GetParam());
+
+        topology topology;
+        std::vector<memory::ptr> in_memory;
+        std::vector<input_info> input_ids;
+
+        for (size_t i = 0; i < in_features.size(); i++) {
+            auto sz = tensor(static_cast<int32_t>(batch_num), static_cast<int32_t>(in_features[i]),
+                             static_cast<int32_t>(input_x), static_cast<int32_t>(input_y));
+            auto in_lay = layout(dt, format::b_fs_yx_fsv32, sz);
+            auto in_mem = engine.allocate_memory(in_lay);
+            auto count = static_cast<int>(batch_num * in_features[i] * input_y * input_x);
+            if (dt == data_types::i8)
+                set_values<int8_t>(in_mem, rg.generate_random_1d<int8_t>(count, -50, 50));
+            else
+                set_values<uint8_t>(in_mem, rg.generate_random_1d<uint8_t>(count, 0, 200));
+            in_memory.push_back(in_mem);
+            topology.add(input_layout("input" + std::to_string(i), in_lay));
+            input_ids.push_back(input_info("input" + std::to_string(i)));
+        }
+
+        topology.add(concatenation("concat", input_ids, 1, dt));
+        topology.add(reorder("output", input_info("concat"), format::bfyx, dt));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv32, "concatenation_gpu_b_fs_yx_fsv32", impl_types::ocl };
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "concat", impl } }));
+
+        network network(engine, topology, config);
+        for (size_t i = 0; i < in_features.size(); i++)
+            network.set_input_data(input_ids[i].pid, in_memory[i]);
+
+        auto outputs = network.execute();
+        auto out_mem = outputs.at("output").get_memory();
+        auto out_lay = out_mem->get_layout();
+        size_t total_f = 0;
+        for (auto f : in_features) total_f += f;
+        ASSERT_EQ(out_lay.feature(), static_cast<int>(total_f));
+
+        // Verify element-by-element against inputs read in logical order
+        size_t f_offset = 0;
+        for (size_t in_i = 0; in_i < in_features.size(); in_i++) {
+            for (size_t b = 0; b < batch_num; b++) {
+                for (size_t f = 0; f < in_features[in_i]; f++) {
+                    for (size_t y = 0; y < input_y; y++) {
+                        for (size_t x = 0; x < input_x; x++) {
+                            auto in_coords = tensor(batch(b), feature(f), spatial(x, y, 0, 0));
+                            auto out_coords = tensor(batch(b), feature(f_offset + f), spatial(x, y, 0, 0));
+                            if (dt == data_types::i8) {
+                                cldnn::mem_lock<int8_t> in_ptr(in_memory[in_i], get_test_stream());
+                                cldnn::mem_lock<int8_t> out_ptr(out_mem, get_test_stream());
+                                ASSERT_EQ(in_ptr[in_memory[in_i]->get_layout().get_linear_offset(in_coords)],
+                                          out_ptr[out_lay.get_linear_offset(out_coords)])
+                                    << " b=" << b << " f=" << f_offset + f << " y=" << y << " x=" << x;
+                            } else {
+                                cldnn::mem_lock<uint8_t> in_ptr(in_memory[in_i], get_test_stream());
+                                cldnn::mem_lock<uint8_t> out_ptr(out_mem, get_test_stream());
+                                ASSERT_EQ(in_ptr[in_memory[in_i]->get_layout().get_linear_offset(in_coords)],
+                                          out_ptr[out_lay.get_linear_offset(out_coords)])
+                                    << " b=" << b << " f=" << f_offset + f << " y=" << y << " x=" << x;
+                            }
+                        }
+                    }
+                }
+            }
+            f_offset += in_features[in_i];
+        }
+    }
+};
+
+TEST_P(concat_gpu_b_fs_yx_fsv32_force, feature_axis) {
+    ASSERT_NO_FATAL_FAILURE(test());
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+    concat_gpu_b_fs_yx_fsv32_force,
+    ::testing::Values(
+        // Aligned features (all 32-aligned)
+        TestParamType_concat_fsv32(1, { 32, 64, 32 }, 2, 2, data_types::i8),
+        TestParamType_concat_fsv32(1, { 32, 64, 32 }, 2, 2, data_types::u8),
+        // Unaligned features
+        TestParamType_concat_fsv32(1, { 24, 48, 17 }, 3, 3, data_types::i8),
+        TestParamType_concat_fsv32(1, { 24, 48, 17 }, 3, 3, data_types::u8),
+        // Mixed aligned/unaligned, batch > 1
+        TestParamType_concat_fsv32(2, { 64, 33, 15 }, 2, 2, data_types::i8),
+        TestParamType_concat_fsv32(2, { 64, 33, 15 }, 2, 2, data_types::u8),
+        // Single small unaligned input
+        TestParamType_concat_fsv32(1, { 3, 5 }, 4, 4, data_types::i8),
+        // Large aligned
+        TestParamType_concat_fsv32(1, { 64, 64, 64, 64 }, 1, 1, data_types::i8)
+    ),
+    concat_gpu_b_fs_yx_fsv32_force::PrintToStringParamName);

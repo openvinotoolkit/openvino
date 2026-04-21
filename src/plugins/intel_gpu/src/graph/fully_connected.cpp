@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "fully_connected_inst.h"
@@ -277,6 +277,11 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
 
     auto prim = orig_impl_param.typed_desc<fully_connected>();
     if (prim != nullptr && prim->weights_rank > 2) {
+        can_apply_fake_alignment = false;
+    }
+
+    // Don't apply fake alignment for f32 data type due to memory usage issues
+    if (orig_output_layout.data_type == data_types::f32) {
         can_apply_fake_alignment = false;
     }
 

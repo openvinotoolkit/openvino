@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,16 +6,8 @@
 
 #if OUTPUT_DIMS == 5
     #define INPUT_0 input0[INPUT0_GET_INDEX_SAFE(b, f, z, y, x)]
-    #if INPUT1_DIMS == 4
-        #define INPUT_1 input1[INPUT1_GET_INDEX_SAFE(b, f, y, x)]
-    #else
-        #define INPUT_1 input1[INPUT1_GET_INDEX_SAFE(b, f, z, y, x)]
-    #endif
-    #if INPUT2_DIMS == 4
-        #define INPUT_2 input2[INPUT2_GET_INDEX_SAFE(b, f, y, x)]
-    #else
-        #define INPUT_2 input2[INPUT2_GET_INDEX_SAFE(b, f, z, y, x)]
-    #endif
+    #define INPUT_1 input1[INPUT1_GET_INDEX_SAFE(b, f, z, y, x)]
+    #define INPUT_2 input2[INPUT2_GET_INDEX_SAFE(b, f, z, y, x)]
 #elif OUTPUT_DIMS == 4
     #define INPUT_0 input0[INPUT0_GET_INDEX_SAFE(b, f, y, x)]
     #define INPUT_1 input1[INPUT1_GET_INDEX_SAFE(b, f, y, x)]

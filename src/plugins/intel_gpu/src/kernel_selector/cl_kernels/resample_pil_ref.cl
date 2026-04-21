@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,7 +58,7 @@ KERNEL (calculate_coefficients_gpu_ref)(__global float* coefficients, __global i
         ww += w;
     }
     for (x = 0; x < xmax; x++) {
-        if (ww != 0.0) {
+        if (ww != 0.0f) {
             k[x] /= ww;
         }
     }
@@ -75,7 +75,7 @@ KERNEL (calculate_coefficients_gpu_ref)(__global float* coefficients, __global i
 KERNEL (resample_horizontal_gpu_ref)(  __global INPUT0_TYPE* input
                                      , __global float* coefficients
                                      , __global int* bounds
-                                     , __global OUTPUT_TYPE* output
+                                     , __global RESAMPLE_HORIZONTAL_OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
                                      , FUSED_OPS_DECLS
 #endif
@@ -97,7 +97,7 @@ KERNEL (resample_horizontal_gpu_ref)(  __global INPUT0_TYPE* input
 #endif
     int horizontal_min, horizontal_max;
     float* k;
-    OUTPUT_TYPE ss = 0.f;
+    ACCUMULATOR_TYPE ss = 0.f;
 #if BATCH_IS_HORIZONTAL_AXIS == 1
     horizontal_min = bounds[b * 2 + 0];
     horizontal_max = bounds[b * 2 + 1];
@@ -152,12 +152,21 @@ KERNEL (resample_horizontal_gpu_ref)(  __global INPUT0_TYPE* input
 #else
     int out_idx = OUTPUT_GET_INDEX(b, f, y, x);
 #endif
-    output[out_idx] = ss;
+    #if HAS_FUSED_OPS
+        FUSED_OPS;
+        output[out_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT);
+    #else
+        #if ENABLE_VERTICAL_PASS
+            output[out_idx] = TO_INTERMEDIATE_BUF_TYPE(ACTIVATION(ss, ACTIVATION_PARAMS));
+        #else
+            output[out_idx] = TO_OUTPUT_TYPE(ACTIVATION(ss, ACTIVATION_PARAMS));
+        #endif
+    #endif
 }
 
 #else // RESAMPLE_PILLOW_STAGE == STAGE_RESAMPLE_VERTICAL
 
-KERNEL (resample_vertical_gpu_ref)(  __global INPUT0_TYPE* input
+KERNEL (resample_vertical_gpu_ref)(  __global RESAMPLE_VERTICAL_INPUT_TYPE* input
                                      , __global float* coefficients
                                      , __global int* bounds
                                      , __global OUTPUT_TYPE* output
@@ -194,7 +203,7 @@ KERNEL (resample_vertical_gpu_ref)(  __global INPUT0_TYPE* input
     vertical_max = bounds[x * 2 + 1];
 #endif
 
-    OUTPUT_TYPE ss = 0.f;
+    ACCUMULATOR_TYPE ss = 0.f;
     for (int vertical_dim = 0; vertical_dim < vertical_max; vertical_dim++) {
 #if ENABLE_HORIZONTAL_PASS
 
@@ -243,9 +252,20 @@ KERNEL (resample_vertical_gpu_ref)(  __global INPUT0_TYPE* input
 #endif // ENABLE_HORIZONTAL_PASS
     }
     int out_idx = OUTPUT_GET_INDEX(b, f, y, x);
-    output[out_idx] = ss;
+    #if HAS_FUSED_OPS
+        FUSED_OPS;
+        output[out_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT);
+    #else
+        output[out_idx] = TO_OUTPUT_TYPE(ACTIVATION(ss, ACTIVATION_PARAMS));
+    #endif
 }
 
 #endif
 
 #undef PILLOW_SUPPORT
+#ifdef RESAMPLE_HORIZONTAL_OUTPUT_TYPE
+#undef RESAMPLE_HORIZONTAL_OUTPUT_TYPE
+#endif
+#ifdef RESAMPLE_VERTICAL_INPUT_TYPE
+#undef RESAMPLE_VERTICAL_INPUT_TYPE
+#endif

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ TokenizationConfig get_default_tokenization_config() {
 }
 
 CommonOptimizations::Config get_default_common_optimizations_config() {
-    static CommonOptimizations::Config conf(1, true);
+    static CommonOptimizations::Config conf(1);
     static bool initialized = false;
     if (!initialized) {
         conf.set_transpose_support_callback(ov::snippets::utils::make_transpose_support_callback(true));
