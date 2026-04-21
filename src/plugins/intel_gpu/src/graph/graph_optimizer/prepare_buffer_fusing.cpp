@@ -778,7 +778,7 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                     reshape_upper_sizes[0] = upper_sizes[0] * batch_stride_factor;
                     reshape_dyn_pad_mask[0] = 1;
                 } else {
-                    int64_t divider = 1;
+                    ov::Dimension::value_type divider = 1;
                     auto reshape_axis = reshape_ps.size();
                     for (size_t i = reshape_ps.size(); i > 1; i--) {
                         const auto& dim_value = reshape_ps[i - 1].get_length();

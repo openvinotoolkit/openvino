@@ -83,14 +83,14 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
     auto mem_output_scale = p.get_engine().allocate_memory(scales_layout, false);
     auto mem_output_shift = p.get_engine().allocate_memory(scales_layout, false);
 
-    auto get_offset_safe = [](const layout& l, const tensor& idx) -> int {
+    auto get_offset_safe = [](const layout& l, const tensor& idx) -> tensor::value_type {
         auto sizes = l.get_tensor();
         auto pitches = l.get_pitches();
 
-        return static_cast<int>((idx.batch[0] % sizes.batch[0])*pitches[0]
-                        + (idx.feature[0] % sizes.feature[0])*pitches[1]
-                        + (idx.spatial[1] % sizes.spatial[1])*pitches[2 + 0]   // y
-                        + (idx.spatial[0] % sizes.spatial[0])*pitches[2 + 1]);  // x
+        return (idx.batch[0] % sizes.batch[0])*pitches[0]
+                    + (idx.feature[0] % sizes.feature[0])*pitches[1]
+                    + (idx.spatial[1] % sizes.spatial[1])*pitches[2 + 0]   // y
+                    + (idx.spatial[0] % sizes.spatial[0])*pitches[2 + 1];  // x
     };
 
     auto lock_memory = [&stream] (memory::ptr memory, std::function<void(std::size_t, float)>& set_data,
