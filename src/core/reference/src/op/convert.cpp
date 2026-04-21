@@ -388,14 +388,14 @@ public:
     }
 };
 
-// Single-pass JIT kernel for AVX-512: counts out-of-range AND detects lossy f16 compression.
+// Combined single-pass JIT kernel for AVX-512: counts out-of-range AND detects lossy f16 compression.
 // Processes 16 floats per iteration using zmm + opmask + F16C (vcvtps2ph/vcvtph2ps). Bails immediately
 // if any in-range element has significant precision loss (abs error > 1.0). Tail handled via masked load.
 class jit_check_f16_compression_avx512 : public jit::Generator {
 public:
     typedef struct {
         const void* src;
-        void* oor_dst;    // size_t* — output: strict FP16 out-of-range count
+        void* oor_dst;    // size_t* — output: combined out-of-range + high-relative-error count
         void* lossy_dst;  // size_t* — output: lossy count (0 or non-zero)
         const size_t count;
     } args_t;
@@ -432,12 +432,15 @@ private:
         const auto& reg_addr = r15;  // callee-saved — used to load constants
 
         // ZMM register allocation
-        const auto& data_vec = zmm0;      // chunk of 16 floats
-        const auto& rt_vec = zmm1;        // f32->f16->f32 roundtripped
-        const auto& rt_ymm = ymm1;        // low 256-bit alias for vcvtps2ph dest
-        const auto& diff_vec = zmm2;      // |data - roundtripped|
-        const auto& abs_mask_vec = zmm5;  // 0x7FFFFFFF broadcast
-        const auto& abs_err_vec = zmm6;   // 1.0f broadcast
+        const auto& data_vec = zmm0;        // chunk of 16 floats
+        const auto& rt_vec = zmm1;          // f32->f16->f32 roundtripped
+        const auto& rt_ymm = ymm1;          // low 256-bit alias for vcvtps2ph dest
+        const auto& diff_vec = zmm2;        // |data - roundtripped|
+        const auto& abs_data_vec = zmm3;    // |data|
+        const auto& rel_thresh_vec = zmm4;  // |data| * 1e-4
+        const auto& abs_mask_vec = zmm5;    // 0x7FFFFFFF broadcast
+        const auto& abs_err_vec = zmm6;     // 1.0f broadcast
+        const auto& rel_err_vec = zmm7;     // 1e-4f broadcast
         const auto& f16_max_pos_vec = zmm8;
         const auto& f16_max_neg_vec = zmm9;
         const auto& f16_min_pos_vec = zmm10;
@@ -445,8 +448,9 @@ private:
         const auto& zero_vec = zmm12;
 
         // Opmasks (k0 reserved by ISA — represents "no mask")
-        const auto& k_oor = k1;    // strict FP16 OOR per chunk (subnormal | overflow)
+        const auto& k_oor = k1;    // OOR per chunk (subnormal | overflow), then |= relative-error
         const auto& k_lossy = k2;  // (abs_diff > 1.0) AND NOT k_oor — early exit
+        const auto& k_rel = k3;    // (abs_diff > |data|*1e-4) AND NOT k_oor
         const auto& k_tail = k4;   // tail mask (built once before tail iteration)
         const auto& k_tmp1 = k5;
         const auto& k_tmp2 = k6;
@@ -462,6 +466,7 @@ private:
         static const float f16_min_pos = ov::float16::from_bits(0x0001);
         static const float f16_min_neg = -ov::float16::from_bits(0x0001);
         static const float abs_err_val = static_cast<float>(ov::reference::f16_compression_max_abs_error);
+        static const float rel_err_val = static_cast<float>(ov::reference::f16_compression_max_rel_error);
         static const uint32_t abs_mask_val = 0x7FFFFFFF;
 
         auto bcast = [&, this](const Xbyak::Zmm& vec, const void* p) {
@@ -474,6 +479,7 @@ private:
         bcast(f16_min_pos_vec, &f16_min_pos);
         bcast(f16_min_neg_vec, &f16_min_neg);
         bcast(abs_err_vec, &abs_err_val);
+        bcast(rel_err_vec, &rel_err_val);
         bcast(abs_mask_vec, &abs_mask_val);
         vpxorq(zero_vec, zero_vec, zero_vec);
 
@@ -523,6 +529,16 @@ private:
             }
             kortestw(k_lossy, k_lossy);
             jnz(lossy_exit, T_NEAR);
+
+            // === Relative-error check: (abs_diff > |data| * 1e-4) AND NOT k_oor ===
+            vpandd(abs_data_vec, data_vec, abs_mask_vec);
+            vmulps(rel_thresh_vec, abs_data_vec, rel_err_vec);
+            vcmpps(k_rel, diff_vec, rel_thresh_vec, _cmp_gt_os);
+            kandnw(k_rel, k_oor, k_rel);
+            korw(k_oor, k_oor, k_rel);
+            if (masked) {
+                kandw(k_oor, k_oor, k_tail);
+            }
 
             // === Accumulate popcount(k_oor) into reg_oor_accum ===
             // Branchless 16-bit SWAR popcount — avoids POPCNT (not gated by mayiuse(avx512_core)).
@@ -596,14 +612,14 @@ private:
     }
 };
 
-// Single-pass JIT kernel: counts out-of-range AND detects lossy f16 compression.
+// Combined single-pass JIT kernel: counts out-of-range AND detects lossy f16 compression.
 // Processes 8 floats per iteration using AVX2+F16C. Bails immediately if any in-range
 // element has significant precision loss (abs error > 1.0).
 class jit_check_f16_compression : public jit::Generator {
 public:
     typedef struct {
         const void* src;
-        void* oor_dst;    // size_t* — output: strict FP16 out-of-range count
+        void* oor_dst;    // size_t* — output: combined out-of-range + high-relative-error count
         void* lossy_dst;  // size_t* — output: lossy count (0 or non-zero)
         const size_t count;
     } args_t;
@@ -652,6 +668,7 @@ private:
         // Lossy check constants
         const auto& abs_err_vec = ymm11;  // 1.0f broadcast
         const auto& abs_mask_vec = ymm0;  // 0x7FFFFFFF broadcast (for fabs)
+        const auto& rel_err_vec = ymm12;  // 1e-4f broadcast (for relative error threshold)
         // Temps for lossy computation (reused per chunk)
         const auto& diff_vec = ymm14;
         const auto& rt_vec_xmm = xmm15;  // for f32->f16->f32 roundtrip
@@ -668,6 +685,7 @@ private:
         static const float f16_min_neg = -ov::float16::from_bits(0x0001);
         static const int32_t i32_one = 1;
         static const float abs_err_val = static_cast<float>(ov::reference::f16_compression_max_abs_error);
+        static const float rel_err_val = static_cast<float>(ov::reference::f16_compression_max_rel_error);
         static const uint32_t abs_mask_val = 0x7FFFFFFF;
 
         static const float max_pos_bounds[8] =
@@ -681,6 +699,8 @@ private:
         static const int32_t i32_ones[8] = {i32_one, i32_one, i32_one, i32_one, i32_one, i32_one, i32_one, i32_one};
         static const float abs_errs[8] =
             {abs_err_val, abs_err_val, abs_err_val, abs_err_val, abs_err_val, abs_err_val, abs_err_val, abs_err_val};
+        static const float rel_errs[8] =
+            {rel_err_val, rel_err_val, rel_err_val, rel_err_val, rel_err_val, rel_err_val, rel_err_val, rel_err_val};
         static const uint32_t abs_masks[8] = {abs_mask_val,
                                               abs_mask_val,
                                               abs_mask_val,
@@ -701,6 +721,7 @@ private:
         load_vec(f16_min_neg_vec, (size_t)min_neg_bounds);
         load_vec(i32_ones_vec, (size_t)i32_ones);
         load_vec(abs_err_vec, (size_t)abs_errs);
+        load_vec(rel_err_vec, (size_t)rel_errs);
         load_vec(abs_mask_vec, (size_t)abs_masks);
         vxorps(f16_zero_vec, f16_zero_vec, f16_zero_vec);
         vxorps(oor_accum, oor_accum, oor_accum);
@@ -754,7 +775,15 @@ private:
             vtestps(tmp_vec, tmp_vec);  // ZF=1 if all zeros
             jnz(exit_lossy, T_NEAR);    // bail if any lossy
 
-            // === Accumulate strict OOR count ===
+            // === Relative error check: count elements where |diff| > |value| * 1e-4 ===
+            // (equivalent to abs_diff / |value| > 1e-4, but avoids division)
+            vandps(tmp_vec, data_vec, abs_mask_vec);         // tmp_vec = |data|
+            vmulps(tmp_vec, tmp_vec, rel_err_vec);           // tmp_vec = |data| * 1e-4
+            vcmpps(tmp_vec, diff_vec, tmp_vec, _cmp_gt_os);  // 1 where |diff| > |data|*1e-4
+            vandnps(tmp_vec, mask_vec, tmp_vec);             // exclude OOR (avoid double-count)
+            vorps(mask_vec, mask_vec, tmp_vec);              // combine OOR + relative-error
+
+            // === Accumulate combined OOR + relative-error count ===
             vandps(mask_vec, mask_vec, i32_ones_vec);
             vphaddd(mask_vec, mask_vec, mask_vec);
             vpermq(mask_vec, mask_vec, 0x08);
@@ -924,6 +953,9 @@ CompressionCheckResult check_f16_compression(const float* arg, size_t count) {
             const double abs_diff = std::abs(v - roundtripped);
             if (abs_diff > f16_compression_max_abs_error) {
                 return {0, true};
+            }
+            if (v != 0.0f && abs_diff / std::abs(v) > f16_compression_max_rel_error) {
+                ++out_of_range;
             }
         }
     }

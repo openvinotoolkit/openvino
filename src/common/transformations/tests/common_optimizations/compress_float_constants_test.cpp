@@ -656,12 +656,9 @@ TEST_F(TransformationTestsF, CompressConstants_compress_scalar_exact_f16) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
-// Non-scalar constants are compressed regardless of per-element relative FP16 error. FP16's
-// natural per-binade relative error is ~2^-11 ≈ 4.88e-4; treating that as rejection would
-// reject almost every dense weight tensor. Scalar scale factors are protected separately.
-TEST_F(TransformationTestsF, CompressConstants_compress_non_scalar_with_high_rel_error) {
+TEST_F(TransformationTestsF, CompressConstants_skip_non_scalar_with_high_error_more_than_75) {
     // Model: Parameter -> Multiply(input, Const({2.7725887, 2.7725887, 2.7725887, 2.7725887})) -> Result
-    // Non-scalar (numel=4) with high per-element rel error, but abs error < 1.0 -> still compressed.
+    // Non-scalar (numel=4) with high per-element error in more than 75% of elements -> skipped (not compressed).
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 4});
         auto scale =
@@ -675,10 +672,10 @@ TEST_F(TransformationTestsF, CompressConstants_compress_non_scalar_with_high_rel
 
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 4});
+        // Stays FP32: relative round-trip error exceeds threshold for all 4 elements (>75%).
         auto scale =
-            v0::Constant::create(ov::element::f16, ov::Shape{4}, {2.7725887f, 2.7725887f, 2.7725887f, 2.7725887f});
-        auto convert = std::make_shared<v0::Convert>(scale, ov::element::f32);
-        auto mul = std::make_shared<ov::opset8::Multiply>(input, convert);
+            v0::Constant::create(ov::element::f32, ov::Shape{4}, {2.7725887f, 2.7725887f, 2.7725887f, 2.7725887f});
+        auto mul = std::make_shared<ov::opset8::Multiply>(input, scale);
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
