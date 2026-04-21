@@ -26,26 +26,55 @@ namespace test {
  *   Parameter -> FakeQuantize(scalar) -> Conv(1x1, i8->f32 dequantized weights)
  *             -> Add(bias) -> Relu -> Result
  */
-using QuantizedConvPatternParams = std::tuple<ov::Shape, uint32_t, uint32_t, uint32_t>;
+using QuantizedConvPatternParams = std::tuple<ov::Shape>;
 
 class Conv1x1Quantized : public testing::WithParamInterface<QuantizedConvPatternParams>,
                                  virtual public SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<QuantizedConvPatternParams>& obj) {
-        const auto& [inputShape, weightSeed, scaleSeed, biasSeed] = obj.param;
+        const auto& [inputShape] = obj.param;
         std::ostringstream result;
         result << "IS=" << ov::test::utils::vec2str(inputShape);
-        result << "_WSeed=" << weightSeed;
-        result << "_SSeed=" << scaleSeed;
-        result << "_BSeed=" << biasSeed;
         return result.str();
     }
 
-    static std::shared_ptr<ov::Node> make_dequantized_i8_weights(const ov::Shape& weightShape,
+    // Helper function to create dequantized weights from i8 data and scales.
+    // fomula: float_wei = convert(i8_wei) * scales
+    static std::shared_ptr<ov::Node> make_dequantized_i8_weights(const std::vector<int8_t>& i8Data,
+                                                                 const ov::Shape& weightShape,
                                                                  const std::vector<float>& scales,
-                                                                 uint32_t weightSeed) {
-        (void)weightSeed;
-        const std::vector<int8_t> i8Data = {
+                                                                 const ov::Shape& wScalesShape) {
+        auto w_i8 = ov::op::v0::Constant::create(ov::element::i8, weightShape, i8Data);
+        auto w_f32 = std::make_shared<ov::op::v0::Convert>(w_i8, ov::element::f32);
+        auto w_scale = ov::op::v0::Constant::create(ov::element::f32, wScalesShape, scales);
+        return std::make_shared<ov::op::v1::Multiply>(w_f32, w_scale);
+    }
+
+protected:
+    void SetUp() override {
+        const auto& [inputShape] = this->GetParam();
+
+        // This pattern is intentionally stressy for low-precision accumulation; allow small numeric drift.
+        abs_threshold = 0.02f;
+        rel_threshold = 0.02f;
+
+        targetDevice = ov::test::utils::DEVICE_CPU;
+        const auto netPrecision = ov::element::f32;
+
+        auto input = std::make_shared<ov::op::v0::Parameter>(netPrecision, inputShape);
+        input->set_friendly_name("input_param");
+
+        auto fq = ov::test::utils::make_fake_quantize(input,
+                                                      netPrecision,
+                                                      256,
+                                                      {},
+                                                      {-11.913918495178223f},
+                                                      {11.820840835571289f},
+                                                      {-11.913918495178223f},
+                                                      {11.820840835571289f});
+        fq->set_friendly_name("Fq");
+
+        const std::vector<int8_t> weiDataI8 = {
             36, -4, -86, -1, -33, 9, -41, -76, 89, -59, -18, 89, 127, -122, -14, -76,
             7, -95, 58, -72, -7, 26, -31, -10, -14, -21, 34, 5, -1, 73, -7, -127,
             0, 70, -12, 0, 18, -2, -40, -127, 11, 0, 72, 6, -11, 93, 2, 0,
@@ -112,38 +141,6 @@ public:
             -127, 5, 41, 52, 18, 3, 23, 11, -11, -34, 18, 0, 2, 4, 2, -17
         };
 
-        auto w_i8 = ov::op::v0::Constant::create(ov::element::i8, weightShape, i8Data);
-        auto w_f32 = std::make_shared<ov::op::v0::Convert>(w_i8, ov::element::f32);
-        auto w_scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{64, 1, 1, 1}, scales);
-        return std::make_shared<ov::op::v1::Multiply>(w_f32, w_scale);
-    }
-
-protected:
-    void SetUp() override {
-        const auto& [inputShape, weightSeed, scaleSeed, biasSeed] = this->GetParam();
-        (void)scaleSeed;
-        (void)biasSeed;
-
-        // This pattern is intentionally stressy for low-precision accumulation; allow small numeric drift.
-        abs_threshold = 0.02f;
-        rel_threshold = 0.02f;
-
-        targetDevice = ov::test::utils::DEVICE_CPU;
-        const auto netPrecision = ov::element::f32;
-
-        auto input = std::make_shared<ov::op::v0::Parameter>(netPrecision, inputShape);
-        input->set_friendly_name("input_param");
-
-        auto fq = ov::test::utils::make_fake_quantize(input,
-                                                      netPrecision,
-                                                      256,
-                                                      {},
-                                                      {-11.913918495178223f},
-                                                      {11.820840835571289f},
-                                                      {-11.913918495178223f},
-                                                      {11.820840835571289f});
-        fq->set_friendly_name("Fq");
-
         const std::vector<float> wScales = {
             0.000423641643f, 0.0015503891f, 0.00310077821f, 0.00190122111f, 0.000630055845f, 0.00273168366f, 0.00154846674f, 0.00150425232f,
             0.00226454856f, 0.000881885935f, 0.000511349645f, 0.0010198158f, 0.00212229323f, 0.00188103621f, 0.000167005637f, 0.000399371784f,
@@ -155,7 +152,9 @@ protected:
             0.000291959499f, 0.000529612124f, 0.00108998211f, 0.00163977919f, 0.00192813424f, 0.00107364205f, 0.000431331136f, 0.00405234983f
         };
 
-        auto convWeights = make_dequantized_i8_weights({64, 16, 1, 1}, wScales, weightSeed);
+        const auto weiShape = ov::Shape{64, 16, 1, 1};
+        const auto wScalesShape = ov::Shape{64, 1, 1, 1};
+        auto convWeights = make_dequantized_i8_weights(weiDataI8, weiShape, wScales, wScalesShape);
         convWeights->set_friendly_name("Multiply_fq_weights");
         auto conv = std::make_shared<ov::op::v1::Convolution>(fq,
                                                               convWeights,
@@ -176,9 +175,14 @@ protected:
             -0.13659668f, 0.58203125f, -0.771972656f, 1.40917969f, 0.484130859f, 0.211914062f, 0.391357422f, -0.106567383f,
             0.488037109f, 0.333496094f, 0.134521484f, 0.352050781f, -0.614257812f, 0.660644531f, 0.229125977f, 0.371337891f
         };
-        auto bias = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 64, 1, 1}, biasData);
+        const auto biasShape = ov::Shape{1, 64, 1, 1};
+        auto bias = ov::op::v0::Constant::create(ov::element::f32, biasShape, biasData);
+
+        // add operation with bias
         auto add = std::make_shared<ov::op::v1::Add>(conv, bias);
         add->set_friendly_name("Add");
+
+        // relu op
         auto relu = ov::test::utils::make_activation(add, netPrecision, ov::test::utils::ActivationTypes::Relu);
         relu->set_friendly_name("Relu");
 
@@ -198,9 +202,9 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_Conv1x1Quantized,
     Conv1x1Quantized,
     ::testing::Values(
-        QuantizedConvPatternParams{ov::Shape{1, 16, 112, 112}, 9114u, 329u, 328u},
-        QuantizedConvPatternParams{ov::Shape{1, 16, 56, 56}, 1001u, 1002u, 1003u},
-        QuantizedConvPatternParams{ov::Shape{1, 16, 28, 28}, 2021u, 2022u, 2023u}),
+        QuantizedConvPatternParams{ov::Shape{1, 16, 112, 112}},
+        QuantizedConvPatternParams{ov::Shape{1, 16, 56, 56}},
+        QuantizedConvPatternParams{ov::Shape{1, 16, 28, 28}}),
     Conv1x1Quantized::getTestCaseName);
 
 }  // namespace test
