@@ -373,14 +373,17 @@ struct PagedAttentionManager {
         auto adjusted_block_size = block_size;
         if (kv_cache_compression) {
             key_cache_dt = is_int4_kv_cache() ? data_types::u8 : data_types::i8;
-            const int scale_zp_bytes = is_int4_kv_cache() ? 8 : 4;
+            const int scale_zp_bytes = 4;  // 2 fp16 values (scale + zp) = 4 bytes
             if (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
                 if (is_int4_kv_cache()) {
-                    // u4/i4: stored as u8/i8 with head_size halved (2 u4 packed per byte).
-                    // Scale/zp for BY_CHANNEL: 4 fp16 values = 8 bytes appended to block_size dim.
-                    adjusted_head_size = k_head_size / 2;  // pack 2 u4 into 1 u8 byte
+                    // u4/i4 BY_CHANNEL: block_size dim is packed (2 u4 tokens per byte) + scale/zp.
+                    // Shape: [num_blocks, kv_heads, k_head_size, block_size/2 + 4]
+                    // head_size is NOT packed (outer dim), block_size IS packed (inner dim).
+                    adjusted_head_size = k_head_size;  // NOT packed
+                    adjusted_block_size = block_size / 2 + scale_zp_bytes;  // packed + scale/zp
+                } else {
+                    adjusted_block_size += scale_zp_bytes;
                 }
-                adjusted_block_size += scale_zp_bytes;
             } else {
                 if (is_int4_kv_cache()) {
                     // Scale/zp for BY_TOKEN: 2 fp16 values = 4 bytes appended to head_size dim.
@@ -406,68 +409,58 @@ struct PagedAttentionManager {
                     // quantize by channel
                     if (kv_cache_compression && key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
                         if (is_int4_kv_cache()) {
-                            // INT4 BY_CHANNEL: packed layout [num_blocks, kv_heads, k_head_size/2, block_size+8]
-                            // Each packed dim p corresponds to orig dims p*2 (even) and p*2+1 (odd).
-                            // Each byte holds two u4 values: lower nibble = even dim, upper nibble = odd dim.
-                            // Comp region at [block_size..block_size+7]: 4 fp16 = inv_scale0,zp0,inv_scale1,zp1
-                            const int packed_head_size = k_head_size / 2;
+                            // INT4 BY_CHANNEL: packed layout [num_blocks, kv_heads, k_head_size, block_size/2+4]
+                            // block_size dim is packed: 2 u4 tokens per byte along innermost dim.
+                            // Comp region at [d, block_size/2..block_size/2+3]: 2 fp16 = inv_scale, zp per head dim d.
+                            const int packed_block = block_size / 2;
                             for (int head_idx = 0; head_idx < num_kv_heads; head_idx++) {
-                                for (int p = 0; p < packed_head_size; p++) {
-                                    const int dim0 = p * 2;
-                                    const int dim1 = p * 2 + 1;
-                                    // Quantize both dims across tokens in this block
-                                    std::vector<float> vals0(block_size, 0.f), vals1(block_size, 0.f);
+                                for (int d = 0; d < k_head_size; d++) {
+                                    // Gather values for this head dim across all tokens in this block
+                                    std::vector<float> vals(block_size, 0.f);
                                     for (int t = 0; t < last_token_idx; ++t) {
                                         size_t in_off = (static_cast<size_t>(block_idx) * block_size + t) * num_kv_heads * k_head_size
                                                       + head_idx * k_head_size;
-                                        vals0[t] = static_cast<float>(key_data[i].data()[in_off + dim0]);
-                                        vals1[t] = static_cast<float>(key_data[i].data()[in_off + dim1]);
+                                        vals[t] = static_cast<float>(key_data[i].data()[in_off + d]);
                                     }
-                                    auto quantize_u4 = [&](const std::vector<float>& vals, int n_vals) {
-                                        float min_v = vals[0], max_v = vals[0];
-                                        for (int t = 1; t < n_vals; ++t) {
-                                            min_v = std::min(min_v, vals[t]);
-                                            max_v = std::max(max_v, vals[t]);
-                                        }
-                                        float range = (max_v == min_v) ? 0.001f : (max_v - min_v);
-                                        const float min_range = std::abs(max_v) * 0.1f;
-                                        if (range <= min_range) range += std::max(1.0f, min_range);
-                                        float scale = 15.0f / range;
-                                        float zp = -min_v * scale;
-                                        std::vector<uint8_t> q(n_vals);
-                                        for (int t = 0; t < n_vals; ++t) {
-                                            int v = static_cast<int>(std::nearbyint(vals[t] * scale + zp));
-                                            v = std::max(0, std::min(15, v));
-                                            q[t] = static_cast<uint8_t>(v);
-                                        }
-                                        return std::make_tuple(q, scale, zp);
-                                    };
-                                    auto [q0, scale0, zp_val0] = quantize_u4(vals0, last_token_idx);
-                                    auto [q1, scale1, zp_val1] = quantize_u4(vals1, last_token_idx);
+                                    // Quantize to u4
+                                    float min_v = vals[0], max_v = vals[0];
+                                    for (int t = 1; t < last_token_idx; ++t) {
+                                        min_v = std::min(min_v, vals[t]);
+                                        max_v = std::max(max_v, vals[t]);
+                                    }
+                                    float range = (max_v == min_v) ? 0.001f : (max_v - min_v);
+                                    const float min_range = std::abs(max_v) * 0.1f;
+                                    if (range <= min_range) range += std::max(1.0f, min_range);
+                                    float scale = 15.0f / range;
+                                    float zp_val = -min_v * scale;
+                                    std::vector<uint8_t> q(last_token_idx);
+                                    for (int t = 0; t < last_token_idx; ++t) {
+                                        int v = static_cast<int>(std::nearbyint(vals[t] * scale + zp_val));
+                                        q[t] = static_cast<uint8_t>(std::max(0, std::min(15, v)));
+                                    }
 
-                                    const size_t output_block_offset =
-                                        static_cast<size_t>(start_block_idx + block_idx) * num_kv_heads * packed_head_size * adjusted_block_size
-                                        + head_idx * packed_head_size * adjusted_block_size;
-                                    const size_t output_offset = output_block_offset + p * adjusted_block_size;
+                                    const size_t block_offset =
+                                        static_cast<size_t>(start_block_idx + block_idx) * num_kv_heads * k_head_size * adjusted_block_size
+                                        + head_idx * k_head_size * adjusted_block_size;
+                                    const size_t row_offset = block_offset + d * adjusted_block_size;
 
-                                    // Pack and write u4 data
-                                    std::vector<uint8_t> packed(last_token_idx);
-                                    for (int t = 0; t < last_token_idx; ++t)
-                                        packed[t] = static_cast<uint8_t>((q0[t] & 0xFu) | ((q1[t] & 0xFu) << 4));
-                                    set_values(test_stream, memory, packed.data(), static_cast<size_t>(last_token_idx), output_offset);
+                                    // Pack 2 u4 tokens per byte: token t0 in lower nibble, t1 in upper nibble
+                                    std::vector<uint8_t> packed_data(packed_block, 0);
+                                    for (int t = 0; t < last_token_idx; ++t) {
+                                        int byte_idx = t / 2;
+                                        if (t % 2 == 0)
+                                            packed_data[byte_idx] = q[t] & 0xFu;
+                                        else
+                                            packed_data[byte_idx] |= (q[t] & 0xFu) << 4;
+                                    }
+                                    set_values(test_stream, memory, packed_data.data(), static_cast<size_t>(packed_block), row_offset);
 
-                                    // Write 4 fp16 comp values: inv_scale0, zp0, inv_scale1, zp1
-                                    // Comp region starts at output_offset + block_size (in u8 elements)
-                                    // Accessed via fp16 lock: divide u8 offset by 2 to get fp16 index
-                                    const size_t comp_offset_fp16 = (output_offset + block_size) / 2;
-                                    ov::float16 inv_scale0 = static_cast<float>(1.0f / scale0);
-                                    ov::float16 fp16_zp0   = static_cast<float>(zp_val0);
-                                    ov::float16 inv_scale1 = static_cast<float>(1.0f / scale1);
-                                    ov::float16 fp16_zp1   = static_cast<float>(zp_val1);
-                                    set_values(test_stream, memory, &inv_scale0, 1, comp_offset_fp16 + 0);
-                                    set_values(test_stream, memory, &fp16_zp0,   1, comp_offset_fp16 + 1);
-                                    set_values(test_stream, memory, &inv_scale1, 1, comp_offset_fp16 + 2);
-                                    set_values(test_stream, memory, &fp16_zp1,   1, comp_offset_fp16 + 3);
+                                    // Write comp: 2 fp16 (inv_scale, zp) at row_offset + packed_block
+                                    const size_t comp_offset_fp16 = (row_offset + packed_block) / 2;
+                                    ov::float16 inv_scale_val = static_cast<float>(1.0f / scale);
+                                    ov::float16 fp16_zp       = static_cast<float>(zp_val);
+                                    set_values(test_stream, memory, &inv_scale_val, 1, comp_offset_fp16 + 0);
+                                    set_values(test_stream, memory, &fp16_zp,       1, comp_offset_fp16 + 1);
                                 }
                             }
                         } else {
@@ -598,11 +591,11 @@ struct PagedAttentionManager {
         int scale_zp_bytes = 0;
         if (kv_cache_compression) {
             value_cache_dt = is_int4_kv_cache() ? data_types::u8 : data_types::i8;
-            scale_zp_bytes = is_int4_kv_cache() ? 8 : 4;
+            scale_zp_bytes = 4;  // 2 fp16 values (scale + zp) = 4 bytes
         }
 
         // For u4 (INT4), values are packed 2 per byte; the physical head size is halved.
-        // PACKED_ADJUSTED_V_HEAD_SIZE = v_head_size/2 + scales_zp_size = 64 + 8 = 72.
+        // PACKED_ADJUSTED_V_HEAD_SIZE = v_head_size/2 + scales_zp_size = 32 + 4 = 36.
         const int adjusted_head_size = is_int4_kv_cache() ? (head_size / 2 + scale_zp_bytes) : (head_size + scale_zp_bytes);
 
         const auto num_blocks = block_indices.back() + 1;
@@ -638,16 +631,11 @@ struct PagedAttentionManager {
                             const size_t off = base + static_cast<size_t>(token_idx) * static_cast<size_t>(head_size);
                             set_values(test_stream, memory, src_ptr, head_size, off);
                         } else if (is_int4_kv_cache()) {
-                            // INT4 (u4) BY_TOKEN value cache layout:
+                            // INT4 (u4) BY_TOKEN value cache: inline per-token comp layout.
                             // [num_blocks, kv_heads, block_size, PACKED_ADJUSTED_V_HEAD_SIZE] u8
-                            // where PACKED_ADJUSTED_V_HEAD_SIZE = v_head_size/2 + scales_zp_size = 64 + 8 = 72.
-                            // Data: block_base + token * packed_head_size + p (p = 0..packed_head_size-1)
-                            //   Each byte packs pair: byte = (q_even_group & 0xF) | ((q_odd_group & 0xF) << 4)
-                            //   Even group g*2 and odd group g*2+1 of 16 dims each → packed group g of 16 bytes.
-                            // Comp: block_base + packed_head_size * block_size bytes:
-                            //   Scale (inv_scale = 1.0/scale): fp16[token]
-                            //   ZP: fp16[block_size + token]
-                            const int packed_head_size = head_size / 2;  // = 64
+                            // PACKED_ADJUSTED_V_HEAD_SIZE = v_head_size/2 + 4 = 36 (for v_head_size=64).
+                            // Per token: [packed_data (32 bytes) | scale (fp16) | zp (fp16)] = 36 bytes.
+                            const int packed_head_size = head_size / 2;
 
                             // Quantize entire token: one scale/zp for all head dims (BY_TOKEN)
                             float min_val = std::numeric_limits<float>::max();
@@ -658,11 +646,10 @@ struct PagedAttentionManager {
                                 max_val = std::max(max_val, v);
                             }
                             float diff = (max_val == min_val) ? 0.001f : (max_val - min_val);
-                            // Expand range if too small (matches kernel logic)
                             float min_range = std::abs(max_val * 0.1f);
                             if (diff <= min_range)
                                 diff += std::max(1.0f, min_range);
-                            float scale_val = 15.0f / diff;  // INT4_RANGE = 15 for u4
+                            float scale_val = 15.0f / diff;
                             float zp_val = -min_val * scale_val;
                             ov::float16 inv_scale_fp16 = ov::float16(1.0f / scale_val);
                             ov::float16 zp_fp16 = ov::float16(zp_val);
@@ -672,10 +659,11 @@ struct PagedAttentionManager {
                                 (static_cast<size_t>(start_block_idx + block_idx) * static_cast<size_t>(num_kv_heads) + static_cast<size_t>(head_idx)) *
                                 block_stride;
 
+                            // Token base: each token occupies adjusted_head_size bytes (inline comp)
+                            const size_t token_base = block_base + static_cast<size_t>(token_idx) * static_cast<size_t>(adjusted_head_size);
+
                             // Pack pairs of groups: group (g*2) and (g*2+1), each 16 dims wide.
-                            // Packed byte = (q0 & 0xF) | ((q1 & 0xF) << 4)
-                            // Written at: block_base + token * packed_head_size + p, using u8 element offsets.
-                            const int num_packed_groups = packed_head_size / 16;  // = 4
+                            const int num_packed_groups = packed_head_size / 16;
                             for (int g = 0; g < num_packed_groups; g++) {
                                 for (int lane = 0; lane < 16; lane++) {
                                     int dim_even = (g * 2) * 16 + lane;
@@ -686,19 +674,15 @@ struct PagedAttentionManager {
                                     q1 = std::max(0, std::min(15, q1));
                                     uint8_t packed_byte = static_cast<uint8_t>((q0 & 0xFu) | (static_cast<uint8_t>(q1 & 0xFu) << 4));
                                     const size_t packed_pos = g * 16 + lane;
-                                    const size_t byte_off = block_base + static_cast<size_t>(token_idx) * packed_head_size + packed_pos;
-                                    // set_values for u8 memory: element index = byte offset
-                                    set_values(test_stream, memory, &packed_byte, 1, byte_off);
+                                    set_values(test_stream, memory, &packed_byte, 1, token_base + packed_pos);
                                 }
                             }
 
-                            // Write scale and zp into comp region
-                            const size_t scale_base_bytes = block_base + static_cast<size_t>(packed_head_size) * static_cast<size_t>(block_size);
-                            const size_t zp_base_bytes = scale_base_bytes + static_cast<size_t>(block_size) * sizeof(ov::float16);
-                            const size_t scale_off_f16 = (scale_base_bytes >> 1) + static_cast<size_t>(token_idx);
-                            const size_t zp_off_f16    = (zp_base_bytes >> 1) + static_cast<size_t>(token_idx);
-                            set_values(test_stream, memory, &inv_scale_fp16, 1, scale_off_f16);
-                            set_values(test_stream, memory, &zp_fp16, 1, zp_off_f16);
+                            // Write inline comp: scale (fp16) and zp (fp16) right after packed data
+                            const size_t comp_byte_off = token_base + static_cast<size_t>(packed_head_size);
+                            const size_t comp_f16_off = comp_byte_off / 2;
+                            set_values(test_stream, memory, &inv_scale_fp16, 1, comp_f16_off);
+                            set_values(test_stream, memory, &zp_fp16, 1, comp_f16_off + 1);
                         } else {
                             // Compressed Value cache layout:
                             // logical shape: [num_blocks, num_kv_heads, block_size, adjusted_head_size], dt=i8 (adjusted_head_size=head_size+4).
@@ -1595,44 +1579,37 @@ private:
         } else {
             if (pam.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
                 if (pam.is_int4_kv_cache()) {
-                    // INT4 BY_CHANNEL: [num_blocks, kv_heads, k_head_size/2, block_size+8] u8
-                    // Each packed dim p: byte holds two u4 values (lower=even dim, upper=odd dim).
-                    // Comp at [p, block_size..block_size+7]: 4 fp16 = inv_scale0, zp0, inv_scale1, zp1
+                    // INT4 BY_CHANNEL: [num_blocks, kv_heads, k_head_size, block_size/2+4] u8
+                    // block_size dim is packed: 2 u4 tokens per byte.
+                    // Comp at [d, packed_block..packed_block+3]: 2 fp16 = inv_scale, zp per head dim.
                     mem_lock<uint8_t, mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
-                    const int packed_head_size = pam.k_head_size / 2;
-                    const int adj_block_size = pam.block_size + 8;
+                    const int packed_block = pam.block_size / 2;
+                    const int adj_block_size = packed_block + 4;  // block_size/2 + sizeof(fp16)*2
 
                     for (int block_idx = 0; block_idx < num_blocks; block_idx++) {
                         const int physical_block = pam.block_indices[blocks_start + block_idx];
                         const int tokens_in_block = std::min(pam.block_size, total_tokens - block_idx * pam.block_size);
 
                         for (int head_idx = 0; head_idx < pam.num_kv_heads; head_idx++) {
-                            const size_t cache_base = static_cast<size_t>(physical_block) * pam.num_kv_heads * packed_head_size * adj_block_size
-                                                    + static_cast<size_t>(head_idx) * packed_head_size * adj_block_size;
+                            const size_t cache_base = static_cast<size_t>(physical_block) * pam.num_kv_heads * pam.k_head_size * adj_block_size
+                                                    + static_cast<size_t>(head_idx) * pam.k_head_size * adj_block_size;
 
-                            for (int p = 0; p < packed_head_size; p++) {
-                                const int dim0 = p * 2;
-                                const int dim1 = p * 2 + 1;
-                                // Read inv_scale and zp for both dims from comp region
-                                const size_t comp_byte_off = cache_base + static_cast<size_t>(p) * adj_block_size + pam.block_size;
+                            for (int d = 0; d < pam.k_head_size; d++) {
+                                // Read inv_scale and zp from comp region
+                                const size_t comp_byte_off = cache_base + static_cast<size_t>(d) * adj_block_size + packed_block;
                                 const ov::float16* comp = reinterpret_cast<const ov::float16*>(&cache_ptr[comp_byte_off]);
-                                float inv_scale0 = static_cast<float>(comp[0]);
-                                float zp0        = static_cast<float>(comp[1]);
-                                float inv_scale1 = static_cast<float>(comp[2]);
-                                float zp1        = static_cast<float>(comp[3]);
+                                float inv_scale = static_cast<float>(comp[0]);
+                                float zp_val    = static_cast<float>(comp[1]);
 
                                 for (int token_offset = 0; token_offset < tokens_in_block; token_offset++) {
                                     const int token_idx = block_idx * pam.block_size + token_offset;
-                                    const size_t byte_off = cache_base + static_cast<size_t>(p) * adj_block_size + token_offset;
+                                    const size_t byte_off = cache_base + static_cast<size_t>(d) * adj_block_size + token_offset / 2;
                                     uint8_t packed_byte = cache_ptr[byte_off];
-                                    uint8_t q0 = packed_byte & 0xFu;
-                                    uint8_t q1 = (packed_byte >> 4) & 0xFu;
-                                    float dq0 = (static_cast<float>(q0) - zp0) * inv_scale0;
-                                    float dq1 = (static_cast<float>(q1) - zp1) * inv_scale1;
+                                    uint8_t q = (token_offset % 2 == 0) ? (packed_byte & 0xFu) : ((packed_byte >> 4) & 0xFu);
+                                    float dq = (static_cast<float>(q) - zp_val) * inv_scale;
                                     const size_t out_base = static_cast<size_t>(head_idx) * total_tokens * pam.k_head_size
                                                           + static_cast<size_t>(token_idx) * pam.k_head_size;
-                                    key_data[out_base + dim0] = ov::float16(dq0);
-                                    key_data[out_base + dim1] = ov::float16(dq1);
+                                    key_data[out_base + d] = ov::float16(dq);
                                 }
                             }
                         }
@@ -1880,8 +1857,10 @@ public:
             pam.qq_bias_begins = p.qq_bias_config.qq_bias_begins;
         }
 
-        if (p.kv_cache_compression)
-            tolerance = 25e-3;
+        if (p.kv_cache_compression) {
+            // INT4 quantization has larger error than INT8 (~17x larger step size)
+            tolerance = (kv_cache_precision == ov::element::u4 || kv_cache_precision == ov::element::i4) ? 75e-3 : 25e-3;
+        }
 
         auto query_mem = pam.get_query_memory();
         auto key_mem = pam.get_key_memory();

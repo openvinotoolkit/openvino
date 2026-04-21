@@ -49,7 +49,7 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
     const bool is_int4 = data_type_traits::is_i4_u4(key_cache_dt);
     if (key_cache_compressed && key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
         if (is_int4) {
-            // INT4 BY_CHANNEL: block_size dim stores packed tokens + 2 scale/zp = block/2 + 4 = 12
+            // INT4 BY_CHANNEL: block_size dim is packed (u4→u8) + scale/zp = block_size/2 + sizeof(fp16)*2
             expected_block_size = expected_block_size / 2 + 4;
         } else {
             constexpr size_t kv_sub_block_size = 16;

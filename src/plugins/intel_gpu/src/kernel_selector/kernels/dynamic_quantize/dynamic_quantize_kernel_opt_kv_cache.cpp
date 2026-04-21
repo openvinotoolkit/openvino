@@ -188,19 +188,6 @@ CommonDispatchData DynamicQuantizeKernelKVCache::SetDefault(const dynamic_quanti
     const auto total_grouped_elements = get_elements_number_per_group(params);
     const auto total_subgroups_number = total_grouped_elements / input_dims.back().v;
 
-    // [DEBUG]
-    // {
-    //     size_t total_elements_number = 1;
-    //     const auto& group_sizes = params.group_sizes;
-    //     for (size_t i = 0; i < group_sizes.size(); i++) {
-    //         if (group_sizes[i] != UINT64_MAX) {
-    //             total_elements_number *= input_dims[i].v;
-    //         }
-    //     }
-    //     std::cout << "  >> group_sizes : " << group_sizes[0] << ", " << group_sizes[1] << ", " << group_sizes[2] << ", " << group_sizes[3]
-    //                 << " => total_elements_number : " << total_elements_number << ", total_batched_elements : " << total_batched_elements << std::endl;
-    // }
-
     dispatchData.gws = {subgroup_size, total_subgroups_number, total_batched_elements};
     dispatchData.lws = {subgroup_size, total_subgroups_number, 1};
 
