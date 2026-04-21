@@ -34,21 +34,34 @@ bool has_related_shape_tensor(const std::vector<intel_npu::IODescriptor>& metada
 
 void copy_tensor_with_optional_shape_view(const std::shared_ptr<ov::ITensor>& srcTensor,
                                           const std::shared_ptr<ov::ITensor>& dstTensor,
+                                          bool srcTensorIsUserTensor,
                                           bool hasRelatedShapeTensor) {
     if (hasRelatedShapeTensor && srcTensor->get_shape() != dstTensor->get_shape()) {
         // With dynamic bounds (shape tensor present), Level Zero tensor is allocated for max shape.
         // User tensor can be smaller for the current inference, so we create a smaller view over
         // the same Level Zero buffer and copy using the user-visible shape.
-        OPENVINO_ASSERT(srcTensor->get_byte_size() <= dstTensor->get_byte_size(),
+        if (srcTensorIsUserTensor) {
+            OPENVINO_ASSERT(srcTensor->get_byte_size() <= dstTensor->get_byte_size(),
+                            "Source byte size exceeds destination tensor allocation for dynamic-shape view copy");
+
+            auto viewTensor = ov::make_tensor(dstTensor->get_element_type(),
+                                              srcTensor->get_shape(),
+                                              static_cast<unsigned char*>(dstTensor->data()));
+            srcTensor->copy_to(viewTensor);
+            return;
+        }
+
+        OPENVINO_ASSERT(dstTensor->get_byte_size() <= srcTensor->get_byte_size(),
                         "Source byte size exceeds destination tensor allocation for dynamic-shape view copy");
 
-        auto viewTensor = ov::make_tensor(dstTensor->get_element_type(),
-                                          srcTensor->get_shape(),
-                                          static_cast<unsigned char*>(dstTensor->data()));
-        srcTensor->copy_to(viewTensor);
-    } else {
-        srcTensor->copy_to(dstTensor);
+        auto viewTensor = ov::make_tensor(srcTensor->get_element_type(),
+                                          dstTensor->get_shape(),
+                                          static_cast<unsigned char*>(srcTensor->data()));
+        viewTensor->copy_to(dstTensor);
+        return;
     }
+
+    srcTensor->copy_to(dstTensor);
 }
 
 }  // namespace
@@ -1033,6 +1046,7 @@ void ZeroInferRequest::prepare_inputs() {
             OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
             copy_tensor_with_optional_shape_view(userTensor.at(SINGLE_TENSOR)._ptr,
                                                  levelZeroTensor,
+                                                 true,
                                                  has_related_shape_tensor(_metadata.inputs, inputIndex));
         }
 
@@ -1092,6 +1106,7 @@ void ZeroInferRequest::get_result() {
             OV_ITT_TASK_NEXT(ZERO_RESULT, "memcpy");
             copy_tensor_with_optional_shape_view(levelZeroTensor,
                                                  userTensor._ptr,
+                                                 false,
                                                  has_related_shape_tensor(_metadata.outputs, outputIndex));
         }
 
