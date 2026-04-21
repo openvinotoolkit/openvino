@@ -373,7 +373,7 @@ public:
                 ds_data_type = convert_data_type(scale_layout.data_type);
                 auto ifm = arg.get_dependency(1).get_output_layout().get_dim(weight_rank - 1);
                 auto ngroups = scale_layout.get_dim(weight_rank - 1);
-                group_size = ifm / ngroups;
+                group_size = static_cast<int>(ifm / ngroups);
                 OPENVINO_ASSERT((group_size == 1 || ngroups == 1 || group_size % 16 == 0),
                     "[GPU] group_size should be aligned to 16 if it is not a single scale group or the group_size is not one.");
                 if (scale_layout.count() == 1) {

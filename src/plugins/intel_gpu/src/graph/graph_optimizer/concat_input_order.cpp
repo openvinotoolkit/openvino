@@ -70,10 +70,13 @@ void shuffle_weights(data_node& node, const std::vector<shuffle_range>& ranges, 
     mem_lock<uint8_t, mem_lock_type::write> new_weights_memory_lock{new_weights_memory, stream};
     auto old_ptr = old_weights_memory_lock.data();
     auto new_ptr = new_weights_memory_lock.data();
+
     for (int32_t ofi = 0; ofi < wei_layout.batch(); ++ofi) {
         int32_t new_ifi = 0;
         for (auto& range : ranges) {
-            for (int32_t ifi = static_cast<int32_t>(range.first); ifi < range.second; ++ifi, ++new_ifi) {
+            const int32_t range_begin = static_cast<int32_t>(range.first);
+            const int32_t range_end = static_cast<int32_t>(range.second);
+            for (int32_t ifi = range_begin; ifi < range_end; ++ifi, ++new_ifi) {
                 for (int32_t wi = 0; wi < wei_layout.spatial(3); ++wi) {
                     for (int32_t zi = 0; zi < wei_layout.spatial(2); ++zi) {
                         for (int32_t yi = 0; yi < wei_layout.spatial(1); ++yi) {

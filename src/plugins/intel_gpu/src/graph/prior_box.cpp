@@ -124,8 +124,8 @@ void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout c
                             continue;
                         }
 
-                        box_width = fixed_size * sqrt(ar);
-                        box_height = fixed_size / sqrt(ar);
+                        box_width = fixed_size * sqrtf(ar);
+                        box_height = fixed_size / sqrtf(ar);
 
                         for (size_t r = 0; r < density; ++r) {
                             for (size_t c = 0; c < density; ++c) {
@@ -161,7 +161,7 @@ void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout c
                 if (argument.max_sizes.size() > 0) {
                     float max_size_ = argument.max_sizes[s];
                     // second prior: aspect_ratio = 1, size = sqrt(min_size * max_size)
-                    box_width = box_height = sqrt(min_size * max_size_);
+                    box_width = box_height = sqrtf(min_size * max_size_);
                     // xmin
                     out_ptr[idx++] = (dtype)((center_x - box_width / 2.f) / img_width);
                     // ymin
@@ -180,8 +180,8 @@ void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout c
                         if (fabs(ar - 1.) < 1e-6) {
                             continue;
                         }
-                        box_width = min_size * sqrt(ar);
-                        box_height = min_size / sqrt(ar);
+                        box_width = min_size * sqrtf(ar);
+                        box_height = min_size / sqrtf(ar);
                         // xmin
                         out_ptr[idx++] = (dtype)((center_x - box_width / 2.f) / img_width);
                         // ymin
