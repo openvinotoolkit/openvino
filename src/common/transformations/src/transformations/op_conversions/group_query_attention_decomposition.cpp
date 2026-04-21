@@ -109,7 +109,10 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         ov::Output<ov::Node> position_ids =
             register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
         if (node->get_input_size() > 9 && !is_null(node->input_value(9))) {
-            position_ids = node->input_value(9).get_node_shared_ptr();
+            // Flatten position_ids to 1D so that Gather produces 2D [seqlen, head_size/2] output,
+            // ensuring correct 4D shapes after Unsqueeze in rotaryEmbedding.
+            const auto neg_one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
+            position_ids = register_new_node<v1::Reshape>(node->input_value(9), neg_one, false);
         } else {
             position_ids = register_new_node<v1::Add>(position_ids, past_seqlen);
         }
