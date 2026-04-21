@@ -163,7 +163,7 @@ std::shared_ptr<ov::Model> create_merge_independent_model() {
     auto add1 = std::make_shared<ov::op::v1::Add>(param1, const_value1);
     add1->set_friendly_name("add1");
     auto const_value2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, {1});
-    const_value2->set_friendly_name("const_val1");  // same name as const_value1 (matches original test)
+    const_value2->set_friendly_name("const_val2");  // same name as const_value1 (matches original test)
     auto add2 = std::make_shared<ov::op::v1::Add>(add1, const_value2);
     add2->set_friendly_name("add2");
     auto result = std::make_shared<ov::op::v0::Result>(add2);
