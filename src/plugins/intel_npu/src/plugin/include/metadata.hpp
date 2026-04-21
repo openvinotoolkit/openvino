@@ -49,15 +49,6 @@ public:
      */
     virtual std::optional<std::vector<uint64_t>> get_init_sizes() const;
 
-<<<<<<< HEAD
-=======
-    virtual std::optional<std::vector<ov::Layout>> get_input_layouts() const;
-
-    virtual std::optional<std::vector<ov::Layout>> get_output_layouts() const;
-
-    virtual bool is_encrypted_blob() const;
-
->>>>>>> 124ac5a5d3 (Store encryption state of a blob within its metadata)
     /**
      * @returns Batch size. Populated in case of plugin batching.
      */
@@ -68,6 +59,8 @@ public:
     virtual std::optional<std::vector<ov::Layout>> get_output_layouts() const;
 
     virtual std::optional<uint32_t> get_compiler_version() const;
+
+    virtual bool is_encrypted_blob() const;
 
     virtual ~MetadataBase() = default;
 
@@ -356,7 +349,8 @@ private:
 
 /**
  * @brief Checks whether raw blob is encrypted or not.
-*/
+ * @details Ignores unencrypted main blob size and stores the size after encryption instead if it is not nullopt.
+ */
 template <>
 class Metadata<METADATA_VERSION_2_5> : public Metadata<METADATA_VERSION_2_4> {
 public:
@@ -367,7 +361,7 @@ public:
              const std::optional<std::vector<ov::Layout>>& inputLayouts = std::nullopt,
              const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt,
              const std::optional<uint32_t> compilerVersion = std::nullopt,
-             const std::optional<std::function<std::string(const std::string&)>>& encryptionCallback = std::nullopt);
+             const std::optional<uint64_t>& blobSizeAfterEncryption = std::nullopt);
 
     void read() override;
 

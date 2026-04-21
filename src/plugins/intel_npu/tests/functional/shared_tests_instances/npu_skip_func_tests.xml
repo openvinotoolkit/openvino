@@ -739,7 +739,7 @@ Example:
 
     <!-- E###### -->
     <skip_config>
-        <message>NPU cannot set properties for compiled models</message>
+        <message>NPU cannot set properties for compiled models except CACHE_ENCRYPTION_CALLBACKS, but is not convertible to string</message>
         <filters>
             <filter>.*OVClassCompiledModelSetCorrectConfigTest.canSetConfig.*</filter>
         </filters>

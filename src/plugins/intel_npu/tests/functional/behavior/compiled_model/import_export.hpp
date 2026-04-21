@@ -113,11 +113,11 @@ TEST_P(OVCompiledGraphImportExportTestNPU, ImportingEncryptedBlobThrows) {
 
     OV_EXPECT_THROW(core.import_model(encrypted_blob_stream, target_device, configuration),
                     ov::Exception,
-                    ::testing::HasSubstr("Cannot parse encrypted blob"));
+                    ::testing::HasSubstr("Blob is encrypted, but no decryption callback was provided"));
 
     OV_EXPECT_THROW(core.import_model(encrypted_blob_tensor, target_device, configuration),
                     ov::Exception,
-                    ::testing::HasSubstr("Cannot parse encrypted blob"));
+                    ::testing::HasSubstr("Blob is encrypted, but no decryption callback was provided"));
 
     encrypted_blob_stream.seekg(0, std::ios::beg);
 
@@ -171,6 +171,48 @@ TEST_P(OVCompiledGraphImportExportTestNPU, SameEncryptedBlobViaExportAndManualFu
     std::string encrypted_blob_str = encrypted_blob_stream.str();
 
     ASSERT_EQ(manual_encrypted_blob_str, encrypted_blob_str);
+}
+
+TEST_P(OVCompiledGraphImportExportTestNPU, DifferentSizesOfEncryptedVsDecryptedBlobWorks) {
+    ov::Core core;
+    std::stringstream encrypted_blob_stream;
+
+    std::stringstream model_xml, model_bin;
+    {
+        // Serialize generated model into stringstream to later populate `WeightlessCacheAttribute` runtime information
+        // of constant nodes
+        auto model = ov::test::utils::make_conv_pool_relu();
+        ov::pass::Serialize serializer(model_xml, model_bin);
+        serializer.run_on_model(model);
+    }
+    auto model_bin_str = model_bin.str();
+    ov::Tensor model_weights(ov::element::u8, ov::Shape{model_bin_str.size()});
+    std::memcpy(model_weights.data<char>(), model_bin_str.data(), model_bin_str.size());
+    auto model = core.read_model(model_xml.str(), model_weights);
+
+    configuration.insert(ov::cache_encryption_callbacks(
+        ov::EncryptionCallbacks{[](const std::string& unencrypted_blob) {
+                                    std::string copy_blob = unencrypted_blob;
+                                    copy_blob += "<application_flag_to_mark_encryption>";
+                                    return ov::util::codec_xor(copy_blob);
+                                },
+                                [](const std::string& encrypted_blob) {
+                                    std::string decrypted_blob = ov::util::codec_xor(encrypted_blob);
+                                    decrypted_blob += "<application_flag_to_mark_decryption>";
+                                    return decrypted_blob;
+                                }}));
+
+    auto supported_properties = core.get_property(target_device, ov::supported_properties);
+    if (std::find(supported_properties.begin(), supported_properties.end(), ov::enable_weightless.name()) !=
+        supported_properties.end()) {
+        configuration.insert(ov::enable_weightless(true));
+    }
+    OV_ASSERT_NO_THROW(core.compile_model(model, target_device, configuration).export_model(encrypted_blob_stream));
+
+    auto encrypted_blob_str = encrypted_blob_stream.str();
+    ov::Tensor encrypted_blob_tensor(ov::element::u8, ov::Shape{encrypted_blob_str.size()}, encrypted_blob_str.c_str());
+    OV_ASSERT_NO_THROW(core.import_model(encrypted_blob_stream, target_device, configuration));
+    OV_ASSERT_NO_THROW(core.import_model(encrypted_blob_tensor, target_device, configuration));
 }
 
 }  // namespace behavior

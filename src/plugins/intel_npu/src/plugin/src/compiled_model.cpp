@@ -4,6 +4,7 @@
 
 #include "compiled_model.hpp"
 
+#include <cinttypes>
 #include <fstream>
 #include <string_view>
 
@@ -11,6 +12,7 @@
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "metadata.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -27,14 +29,12 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<IDevice>& device,
                              const std::shared_ptr<IGraph>& graph,
                              const FilteredConfig& config,
-                             const std::optional<int64_t>& batchSize,
-                             const std::optional<std::function<std::string(const std::string&)>>& encryptionCallback)
+                             const std::optional<int64_t>& batchSize)
     : ICompiledModel(model, plugin),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
       _graph(graph),
-      _batchSize(batchSize),
-      _encryptionCallback(encryptionCallback) {
+      _batchSize(batchSize) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
 
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
@@ -84,7 +84,36 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
-    auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(stream, _encryptionCallback);
+    uint64_t blobSizesBeforeVersioning;
+    std::optional<uint64_t> blobSizeAfterEncryption = std::nullopt;
+    std::optional<std::vector<uint64_t>> initBlobSizes;
+
+    if (_propertiesManager->getConfig().get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
+        std::string encryptedBlobStr;
+        {
+            std::string tmpBlobStr;
+            {
+                std::stringstream tmpStringStream;
+                std::tie(blobSizesBeforeVersioning, initBlobSizes) =
+                    _graph->export_blob(tmpStringStream);  // +1x blob size
+                tmpBlobStr = tmpStringStream.str();        // +2x blob size
+            }  // -1x blob size when deallocating temporary stringstream
+            encryptedBlobStr =
+                _propertiesManager->getConfig().get<CACHE_ENCRYPTION_CALLBACKS>().encrypt(tmpBlobStr);  // +2x blob size
+            blobSizeAfterEncryption = encryptedBlobStr.size();
+            if (blobSizeAfterEncryption.value() % utils::STANDARD_PAGE_SIZE != 0) {
+                _logger.warning("Encrypted blob size %" PRIu64
+                                " is not page aligned, memory optimization when reading this blob "
+                                "won't be applied",
+                                blobSizeAfterEncryption.value());
+            }
+        }  // -1x blob size when deallocating temporary blob string
+        stream.write(encryptedBlobStr.c_str(), encryptedBlobStr.size());
+    }  // -1x blob size when deallocating encrypted blob string
+    else {
+        //  Write blob directly to user's output stream
+        std::tie(blobSizesBeforeVersioning, initBlobSizes) = _graph->export_blob(stream);
+    }
 
     if (!_propertiesManager->getConfig().get<EXPORT_RAW_BLOB>()) {
         std::optional<std::vector<ov::Layout>> inputLayouts = std::vector<ov::Layout>();
@@ -111,7 +140,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
                                            inputLayouts,
                                            outputLayouts,
                                            compilerVersion,
-                                           _encryptionCallback)
+                                           blobSizeAfterEncryption)
             .write(stream);
     }
 }

@@ -192,9 +192,7 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
     initialize(config);
 }
 
-std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::export_blob(
-    std::ostream& stream,
-    const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt) const {
+std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::export_blob(std::ostream& stream) const {
     if (_blobIsReleased) {
         OPENVINO_THROW("Model was optimized away. Try importing it using `ov::hint::compiled_blob` property to extend "
                        "its lifetime.");
@@ -218,29 +216,6 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
             // in all other cases, the blob is handled by the plugin
             blobRawPtr = static_cast<const uint8_t*>(blobTensor->data());
             blobSize = blobTensor->get_byte_size();
-        }
-
-        size_t paddingSize = utils::align_size_to_standard_page_size(blobSize) - blobSize;
-        std::string encryptedBlobStr;
-        if (encryptionCallbackOpt.has_value()) {
-            {
-                std::string tmpBlobStr(reinterpret_cast<const char*>(blobRawPtr), blobSize);
-                if (paddingSize > 0) {
-                    // Pad plaintext before encryption so decrypting the full serialized buffer remains symmetric.
-                    std::fill_n(std::back_inserter(tmpBlobStr), paddingSize, 0);
-                }
-
-                encryptedBlobStr = encryptionCallbackOpt.value()(tmpBlobStr);
-            }
-
-            blobRawPtr = reinterpret_cast<decltype(blobRawPtr)>(encryptedBlobStr.c_str());
-            blobSize = encryptedBlobStr.size();
-
-            if (blobSize % utils::STANDARD_PAGE_SIZE != 0) {
-                _wgLogger.warning("Encrypted blob size %zu is not page aligned, memory optimization when reading this "
-                                  "blob won't be applied",
-                                  blobSize);
-            }
         }
 
         if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
@@ -268,21 +243,20 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
             }
         }
 
+        size_t size = utils::align_size_to_standard_page_size(blobSize);
+        size_t paddingSize = size - blobSize;
         if (paddingSize > 0) {
-            if (!encryptionCallbackOpt.has_value()) {
-                std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
+            std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
 
-                if (!stream) {
-                    _wgLogger.error("Write padding to stream failed. Blob is broken!");
-                    return 0;
-                }
-
-                blobSize += paddingSize;
-                _wgLogger.info("Blob size with padding: %" PRIu64, blobSize);
+            if (!stream) {
+                _wgLogger.error("Write padding to stream failed. Blob is broken!");
+                return 0;
             }
+
+            _wgLogger.info("Blob size with padding: %zu", size);
         }
 
-        return blobSize;
+        return size;
     };
 
     // By convention, first write the main part
@@ -302,9 +276,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
         ++blobIndex;
     }
 
-    std::stringstream str;
-    str << "Blob size: " << totalBlobSize << ", hash: " << std::hex << totalResult;
-    _wgLogger.info(str.str().c_str());
+    _wgLogger.info("Blob size: %" PRIu64 ", hash: %x", totalBlobSize, totalResult);
 
     _wgLogger.info("Write blob to stream successfully.");
     return std::make_pair(totalBlobSize, initSizes);

@@ -111,9 +111,7 @@ public:
                  bool blobAllocatedByPlugin,
                  const FilteredConfig& config);
 
-    std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(
-        std::ostream& stream,
-        const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt) const override;
+    std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
     void set_argument_value(uint32_t argi, const void* argv) const override;
 

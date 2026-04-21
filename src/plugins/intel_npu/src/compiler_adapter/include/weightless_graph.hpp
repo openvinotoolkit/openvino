@@ -36,9 +36,7 @@ public:
     /**
      * @brief The main schedule along with the weights initialization ones are exported.
      */
-    std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(
-        std::ostream& stream,
-        const std::optional<std::function<std::string(const std::string&)>>& encryptionCallbackOpt) const override;
+    std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
     /**
      * @brief Implementation hook for "IGraph::initialize" that initializes all underlying graph handles.

@@ -961,6 +961,7 @@ void Properties::setProperty(const ov::AnyMap& properties) {
     }
 
     std::map<std::string, std::string> cfgs_to_set;
+    ov::AnyMap special_cfgs_to_set;
     for (auto&& value : properties) {
         if (_properties.find(value.first) == _properties.end()) {
             // property doesn't exist
@@ -978,6 +979,8 @@ void Properties::setProperty(const ov::AnyMap& properties) {
         } else {
             if (std::get<1>(_properties[value.first]) == ov::PropertyMutability::RO) {
                 OPENVINO_THROW("READ-ONLY configuration key: ", value.first);
+            } else if (value.first == ov::cache_encryption_callbacks.name()) {
+                special_cfgs_to_set.emplace(value.first, value.second);
             } else {
                 cfgs_to_set.emplace(value.first, value.second.as<std::string>());
             }
@@ -986,6 +989,10 @@ void Properties::setProperty(const ov::AnyMap& properties) {
 
     if (!cfgs_to_set.empty()) {
         _config.update(cfgs_to_set);
+    }
+
+    if (!special_cfgs_to_set.empty()) {
+        _config.updateAny(special_cfgs_to_set);
     }
 }
 
@@ -1101,6 +1108,7 @@ FilteredConfig Properties::getConfigForSpecificCompiler(const ov::AnyMap& proper
 
     const std::map<std::string, std::string> rawConfig = any_copy(properties);
     std::map<std::string, std::string> cfgsToSet;
+    ov::AnyMap specialCfgsToSet;
     for (const auto& [key, value] : rawConfig) {
         if (!updatedConfig.hasOpt(key)) {
             // not a known config key
@@ -1109,12 +1117,15 @@ FilteredConfig Properties::getConfigForSpecificCompiler(const ov::AnyMap& proper
             } else {
                 updatedConfig.addOrUpdateInternal(key, value);
             }
+        } else if (key == ov::cache_encryption_callbacks.name()) {
+            specialCfgsToSet.emplace(key, properties.at(key));
         } else {
             cfgsToSet.emplace(key, value);
         }
     }
 
     updatedConfig.update(cfgsToSet);
+    updatedConfig.updateAny(specialCfgsToSet);
 
     return updatedConfig;
 }
@@ -1135,6 +1146,7 @@ FilteredConfig Properties::getConfigWithCompilerPropertiesDisabled(const ov::Any
 
     const std::map<std::string, std::string> rawConfig = any_copy(properties);
     std::map<std::string, std::string> cfgsToSet;
+    ov::AnyMap specialCfgsToSet;
     for (const auto& [key, value] : rawConfig) {
         if (updatedConfig.hasOpt(key)) {
             const auto optionMode = updatedConfig.getOpt(key).mode();
@@ -1153,10 +1165,15 @@ FilteredConfig Properties::getConfigWithCompilerPropertiesDisabled(const ov::Any
             }
         }
 
-        cfgsToSet.emplace(key, value);
+        if (key == ov::cache_encryption_callbacks.name()) {
+            specialCfgsToSet.emplace(key, properties.at(key));
+        } else {
+            cfgsToSet.emplace(key, value);
+        }
     }
 
     updatedConfig.update(cfgsToSet);
+    updatedConfig.updateAny(specialCfgsToSet);
 
     return std::move(updatedConfig);
 }
