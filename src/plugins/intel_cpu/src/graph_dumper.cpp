@@ -16,6 +16,7 @@
 #include <iterator>
 #include <map>
 #include <memory>
+#include <unordered_map>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <sstream>
 #include <string>
@@ -277,7 +278,7 @@ void serialize(const Graph& graph, bool isPostInference) {
     static std::unordered_map<std::string, int> numPerModel;
     static std::unordered_map<const Graph*, int> graphToIdx;
 
-    int assignedIdx;
+    int assignedIdx = 0;
     if (!isPostInference) {
         assignedIdx = numPerModel[graph.GetName()]++;
         graphToIdx[&graph] = assignedIdx;
