@@ -321,7 +321,7 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
 JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_impl_params& params) const {
     auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
     const auto desc = params.typed_desc<paged_attention>();
-    const float scale_factor = 1.0 / std::sqrt(static_cast<double>(desc->k_head_size));
+    const float scale_factor = 1.0f / std::sqrt(static_cast<float>(desc->k_head_size));
     OPENVINO_ASSERT(_xattn_block_size == 1 || _xattn_block_size == 128 || _xattn_block_size == 256,
                     "Unsupported xattention block size for multi token kernel: ",
                     _xattn_block_size);
@@ -396,7 +396,7 @@ JitConstants PagedAttentionGeneratorSingleToken::get_jit_constants(const kernel_
     auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
     // jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
     auto desc = params.typed_desc<paged_attention>();
-    const float scale_factor = 1.0 / std::sqrt(static_cast<double>(desc->k_head_size));
+    const float scale_factor = 1.0f / std::sqrt(static_cast<float>(desc->k_head_size));
     const size_t kv_partition_size = get_partition_size(desc->has_xattention);
     jit.make("KV_PARTITION_SIZE", kv_partition_size);
     if (desc->has_xattention) {
