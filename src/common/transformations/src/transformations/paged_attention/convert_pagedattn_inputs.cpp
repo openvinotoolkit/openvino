@@ -45,7 +45,7 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
                 return false;
             }
 
-            auto conv_cache_precision = m_config.keyCachePrecision;
+            auto conv_cache_precision = m_config.inferencePrecision;
             if (m_update_precision_func) {
                 m_update_precision_func(conv_cache_precision);
             }
@@ -61,7 +61,7 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
                 return false;
             }
 
-            auto gated_delta_cache_precision = m_config.valueCachePrecision;
+            auto gated_delta_cache_precision = m_config.inferencePrecision;
             if (m_update_precision_func) {
                 m_update_precision_func(gated_delta_cache_precision);
             }
