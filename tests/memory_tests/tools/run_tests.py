@@ -13,10 +13,9 @@ import json
 import time
 import sys
 
+from typing import Any
 from pathlib import Path
-from datetime import datetime, timedelta
 from dataclasses import dataclass, asdict
-from collections import defaultdict
 
 try:
     import requests
@@ -25,43 +24,43 @@ except ImportError:
 
 
 INTEL_FAMILIES = {
-    (0x06, 0x5E): "Sky Lake",
-    (0x06, 0x55): "Sky Lake",
-    (0x06, 0x8E): "Kaby Lake",
-    (0x06, 0x9E): "Kaby Lake",
-    (0x06, 0xA5): "Comet Lake",
-    (0x06, 0xA6): "Comet Lake",
-    (0x06, 0x66): "Cannon Lake",
-    (0x06, 0x6A): "Ice Lake",
-    (0x06, 0x6C): "Ice Lake",
-    (0x06, 0x7D): "Ice Lake",
-    (0x06, 0x7E): "Ice Lake",
-    (0x06, 0x9D): "Ice Lake NNPI",
-    (0x06, 0xA7): "Rocket Lake",
-    (0x06, 0x8C): "Tiger Lake",
-    (0x06, 0x8D): "Tiger Lake",
-    (0x06, 0x8F): "Sapphire Rapids",
-    (0x06, 0xCF): "Emerald Rapids",
-    (0x06, 0xAD): "Granite Rapids",
-    (0x06, 0xAE): "Granite Rapids",
-    (0x13, 0x01): "Diamond Rapids",
-    (0x06, 0xD7): "Bartlett Lake",
-    (0x06, 0x8A): "Lakefield",
-    (0x06, 0x97): "Alder Lake",
-    (0x06, 0x9A): "Alder Lake",
-    (0x06, 0xB7): "Raptor Lake",
-    (0x06, 0xBA): "Raptor Lake P",
-    (0x06, 0xBF): "Raptor Lake",
-    (0x06, 0xAC): "Meteor Lake",
-    (0x06, 0xAA): "Meteor Lake",
-    (0x06, 0xC5): "Arrow Lake",
-    (0x06, 0xC6): "Arrow Lake",
-    (0x06, 0xB5): "Arrow Lake U",
-    (0x06, 0xBD): "Lunar Lake M",
-    (0x06, 0xCC): "Panther Lake",
-    (0x06, 0xD5): "Wildcat Lake",
-    (0x12, 0x01): "Nova Lake",
-    (0x12, 0x03): "Nova Lake"
+    (0x06, 0x5E): "skylake",
+    (0x06, 0x55): "skylake",
+    (0x06, 0x8E): "kabylake",
+    (0x06, 0x9E): "kabylake",
+    (0x06, 0xA5): "cometlake",
+    (0x06, 0xA6): "cometlake",
+    (0x06, 0x66): "cannonlake",
+    (0x06, 0x6A): "icelake",
+    (0x06, 0x6C): "icelake",
+    (0x06, 0x7D): "icelake",
+    (0x06, 0x7E): "icelake",
+    (0x06, 0x9D): "icelake",
+    (0x06, 0xA7): "rocketlake",
+    (0x06, 0x8C): "tigerlake",
+    (0x06, 0x8D): "tigerlake",
+    (0x06, 0x8F): "sapphirerapids-server",
+    (0x06, 0xCF): "emeraldrapids-server",
+    (0x06, 0xAD): "graniterapids",
+    (0x06, 0xAE): "graniterapids",
+    (0x13, 0x01): "diamondrapids",
+    (0x06, 0xD7): "bartlettlake",
+    (0x06, 0x8A): "lakefield",
+    (0x06, 0x97): "alderlake",
+    (0x06, 0x9A): "alderlake",
+    (0x06, 0xB7): "raptorlake",
+    (0x06, 0xBA): "raptorlake",
+    (0x06, 0xBF): "raptorlake",
+    (0x06, 0xAC): "meteorlake",
+    (0x06, 0xAA): "meteorlake",
+    (0x06, 0xC5): "arrowlake",
+    (0x06, 0xC6): "arrowlake",
+    (0x06, 0xB5): "arrowlake",
+    (0x06, 0xBD): "lunarlake",
+    (0x06, 0xCC): "pantherlake",
+    (0x06, 0xD5): "wildcatlake",
+    (0x12, 0x01): "novalake",
+    (0x12, 0x03): "novalake"
 }
 
 
@@ -90,13 +89,14 @@ def get_cpu_family():
         elif system == "Linux":
             with open("/proc/cpuinfo") as cpuinfofile:
                 cpuinfo = cpuinfofile.read().strip().split("\n\n")[0]
-            cpuinfo = dict([
+            cpuinfo = (
                 map(str.strip, line.split(":", 1))
                 for line in cpuinfo.split("\n")
-            ])
+            )
+            cpuinfo = {k: v for k, v in cpuinfo}
             try:
-                family = int(cpuinfo.get("cpu family"))
-                model = int(cpuinfo.get("model"))
+                family = int(cpuinfo.get("cpu family", ""))
+                model = int(cpuinfo.get("model", ""))
             except ValueError:
                 return "Unknown x86_64"
         elif system == "Darwin":
@@ -234,7 +234,7 @@ class TestSession:
         return result
 
     def api(self, method, data=None, **kwargs):
-        extra_args = {"timeout": 30}
+        extra_args: dict[str, Any] = {"timeout": 30}
         extra_args.update(kwargs)
         if self.report_api is None:
             raise Exception("Report API was not specified")
@@ -322,7 +322,11 @@ class TestSession:
             for (modelid, path) in paths:
                 weights_path, _ = os.path.splitext(path)
                 weights_path = f"{weights_path}.bin"
-                weights_size = os.path.getsize(weights_path)
+                if os.path.isfile(weights_path):
+                    weights_size = os.path.getsize(weights_path)
+                else:
+                    # weights file does not exist -> invalid test case
+                    continue
                 yield modelid, path, weights_size
         for ir_cache_dir in self.ir_cache_dirs:
             yield from itertools.product(
