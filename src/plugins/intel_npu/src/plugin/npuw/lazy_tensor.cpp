@@ -494,12 +494,13 @@ void LazyTensorImpl::serialize(ov::npuw::s11n::Stream& stream) {
 
     int op_type = 0;
     if (stream.output()) {
-        std::visit([&](auto& op) {
-            op_type = static_cast<int>(get_transform_type(op));
-            stream & op_type;
-            op.serialize(stream);
-        },
-                   m_transform);
+        std::visit(
+            [&](auto& op) {
+                op_type = static_cast<int>(get_transform_type(op));
+                stream & op_type;
+                op.serialize(stream);
+            },
+            m_transform);
         return;
     }
 
