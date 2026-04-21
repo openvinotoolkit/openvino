@@ -59,7 +59,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(std::vector<ov::element::Type>{}),
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(true),  // Need to support False for graph builder in tests
-                       ::testing::Values(MHA::default_thread_count),
                        ::testing::Values(1),
                        ::testing::Values(1),
                        ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -73,7 +72,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(precision_f32(3)),
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(true),  // Need to support False for graph builder in tests
-                       ::testing::Values(MHA::default_thread_count),
                        ::testing::Values(1),
                        ::testing::Values(1),
                        ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -87,7 +85,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(precision_bf16_if_supported(3)),
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(true),  // Need to support False for graph builder in tests
-                       ::testing::Values(MHA::default_thread_count),
                        ::testing::Values(5),  // MHA + 4 extra Converts on inputs and output
                        ::testing::Values(5),  // MHA + 4 extra Converts on inputs and output
                        ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -102,7 +99,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(precision_f32(3)),
                        ::testing::Values(ov::element::bf16),
                        ::testing::Values(true),  // Need to support False for graph builder in tests
-                       ::testing::Values(MHA::default_thread_count),
                        ::testing::Values(5),  // MHA + 4 extra Converts on inputs and output
                        ::testing::Values(5),  // MHA + 4 extra Converts on inputs and output
                        ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -117,7 +113,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(precision_f32(3)),
                        ::testing::Values(ov::element::f16),
                        ::testing::Values(true),  // Need to support False for graph builder in tests
-                       ::testing::Values(MHA::default_thread_count),
                        ::testing::Values(1),
                        ::testing::Values(1),
                        ::testing::Values(ov::test::utils::DEVICE_CPU),

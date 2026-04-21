@@ -17,11 +17,17 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::pass;
-using namespace ov::op;
 
-ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, UpdateShapeFunc func)
+namespace v0 = ov::op::v0;
+
+namespace ov::pass {
+
+ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
+                                               UpdateShapeFunc func,
+                                               UpdatePrecisionFunc update_precision_func)
     : m_config(config),
-      m_update_shape_func(std::move(func)) {
+      m_update_shape_func(std::move(func)),
+      m_update_precision_func(std::move(update_precision_func)) {
     MATCHER_SCOPE(ConvertPagedAttnInputs);
 
     auto Q = pattern::any_input(pattern::has_static_rank());
@@ -49,33 +55,38 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
     auto adaptive_rkv_evictable_sizes = pattern::any_input(pattern::has_static_rank());
     auto adaptive_rkv_diversity_block_set_indices = pattern::any_input(pattern::has_static_rank());
     auto adaptive_rkv_diversity_block_set_indices_begins = pattern::any_input(pattern::has_static_rank());
+    auto token_type_ids = pattern::any_input(pattern::has_static_rank());
 
-    auto result =
-        pattern::wrap_type<ov::op::PagedAttentionExtension>({Q,
-                                                             K,
-                                                             V,
-                                                             key_cache_0,
-                                                             value_cache_0,
-                                                             past_lens,
-                                                             subsequence_begins,
-                                                             block_indices,
-                                                             block_indices_begins,
-                                                             scale,
-                                                             sliding_window,
-                                                             alibi_slopes,
-                                                             max_context_len,
-                                                             score_aggregation_window,
-                                                             rotated_block_indices,
-                                                             rotation_deltas,
-                                                             rotation_trig_lut,
-                                                             xattention_threshold,
-                                                             xattention_block_size,
-                                                             xattention_stride,
-                                                             sinks,
-                                                             adaptive_rkv_start_size,
-                                                             adaptive_rkv_evictable_sizes,
-                                                             adaptive_rkv_diversity_block_set_indices,
-                                                             adaptive_rkv_diversity_block_set_indices_begins});
+    auto qq_bias = pattern::any_input(pattern::has_static_rank());
+    auto qq_bias_begins = pattern::any_input(pattern::has_static_rank());
+    auto result = pattern::wrap_type<ov::op::PagedAttentionExtension>({Q,
+                                                                       K,
+                                                                       V,
+                                                                       key_cache_0,
+                                                                       value_cache_0,
+                                                                       past_lens,
+                                                                       subsequence_begins,
+                                                                       block_indices,
+                                                                       block_indices_begins,
+                                                                       scale,
+                                                                       sliding_window,
+                                                                       alibi_slopes,
+                                                                       max_context_len,
+                                                                       score_aggregation_window,
+                                                                       rotated_block_indices,
+                                                                       rotation_deltas,
+                                                                       rotation_trig_lut,
+                                                                       xattention_threshold,
+                                                                       xattention_block_size,
+                                                                       xattention_stride,
+                                                                       sinks,
+                                                                       adaptive_rkv_start_size,
+                                                                       adaptive_rkv_evictable_sizes,
+                                                                       adaptive_rkv_diversity_block_set_indices,
+                                                                       adaptive_rkv_diversity_block_set_indices_begins,
+                                                                       token_type_ids,
+                                                                       qq_bias,
+                                                                       qq_bias_begins});
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto pa_op = m.get_match_root();
         auto key_cache = ov::as_type_ptr<v0::Parameter>(pa_op->get_input_node_shared_ptr(3));
@@ -84,6 +95,7 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
             return cache_precision == ov::element::f16 && infer_precision == ov::element::bf16 ? infer_precision
                                                                                                : cache_precision;
         };
+
         auto init_cache_shape = [&](const size_t head_nums,
                                     const size_t head_size,
                                     const size_t block_size,
@@ -102,6 +114,7 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
                 }
             }
             size_t group_num = _head_size / _group_size;
+            // Update head_size and block_size by precision and quantizing channel mode
             m_update_shape_func(precision, bychannel, group_num, _head_size, _block_size);
 
             auto block_shape = ov::PartialShape::dynamic(4);
@@ -144,6 +157,13 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
             status = false;
         }
 
+        if (m_update_precision_func) {
+            m_update_precision_func(key_cache_precision);
+            m_update_precision_func(value_cache_precision);
+            key_cache->set_element_type(key_cache_precision);
+            value_cache->set_element_type(value_cache_precision);
+        }
+
         key_cache->validate_and_infer_types();
         value_cache->validate_and_infer_types();
         return status;
@@ -153,10 +173,12 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
     this->register_matcher(m, callback);
 }
 
-void ov::pass::ConvertPagedAttnInputs::setKVCacheConfig(const KVCacheConfig& config) {
+void ConvertPagedAttnInputs::setKVCacheConfig(const KVCacheConfig& config) {
     m_config = config;
 }
 
-const ov::pass::ConvertPagedAttnInputs::KVCacheConfig& ov::pass::ConvertPagedAttnInputs::getKVCacheConfig() const {
+const ConvertPagedAttnInputs::KVCacheConfig& ConvertPagedAttnInputs::getKVCacheConfig() const {
     return m_config;
 }
+
+}  // namespace ov::pass

@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "openvino_npu_driver_compiler_adapter")
+set(TARGET_NAME "openvino_npu_compiler_adapter")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
+
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
-add_library(${TARGET_NAME} STATIC ${SOURCES})
+add_library(${TARGET_NAME} STATIC ${SOURCES} $<TARGET_OBJECTS:openvino_npu_vcl_utils>)
 
 ov_build_target_faster(${TARGET_NAME}
     PCH_HEADER "src/precomp.hpp"
@@ -26,7 +27,9 @@ target_link_libraries(${TARGET_NAME}
         openvino_npu_common
         openvino::npu_al
         openvino::xml_util
+        openvino::npu_vm_runtime_api
 )
+
 #
 # targets install
 #

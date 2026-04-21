@@ -31,52 +31,57 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
+namespace v5 = ov::op::v5;
+namespace op_util = ov::op::util;
+
+namespace ov::pass {
+
 namespace {
 ov::Output<ov::Node> get_current_iter(ov::ParameterVector& body_params,
                                       ov::ResultVector& body_results,
                                       const ov::Output<ov::Node>& seq_lengths) {
-    auto curr_iter_body_param = std::make_shared<ov::op::v0::Parameter>(seq_lengths.get_element_type(), ov::Shape{1});
+    auto curr_iter_body_param = std::make_shared<v0::Parameter>(seq_lengths.get_element_type(), ov::Shape{1});
     // increment current iteration
-    auto one = ov::op::v0::Constant::create(seq_lengths.get_element_type(), ov::Shape{1}, {1});
-    auto add = std::make_shared<ov::op::v1::Add>(curr_iter_body_param, one);
-    auto curr_iter_result = std::make_shared<ov::op::v0::Result>(add);
+    auto one = v0::Constant::create(seq_lengths.get_element_type(), ov::Shape{1}, {1});
+    auto add = std::make_shared<v1::Add>(curr_iter_body_param, one);
+    auto curr_iter_result = std::make_shared<v0::Result>(add);
     body_params.push_back(curr_iter_body_param);
     body_results.push_back(curr_iter_result);
     return curr_iter_body_param;
 }
 
-ov::Output<ov::Node> get_masked_value(const std::shared_ptr<ov::op::v0::TensorIterator>& ti,
+ov::Output<ov::Node> get_masked_value(const std::shared_ptr<v0::TensorIterator>& ti,
                                       ov::ParameterVector& body_params,
                                       ov::ResultVector& body_results,
                                       const ov::Output<ov::Node>& current_iter,
                                       const ov::Output<ov::Node>& data,
                                       const ov::Output<ov::Node>& seq_lengths) {
     // body parameters
-    auto aggregated_Y_h_body_param =
-        std::make_shared<ov::op::v0::Parameter>(data.get_element_type(), data.get_partial_shape());
+    auto aggregated_Y_h_body_param = std::make_shared<v0::Parameter>(data.get_element_type(), data.get_partial_shape());
 
     body_params.push_back(aggregated_Y_h_body_param);
 
     // Create mask node deciding whether or not to mask batch data.
-    auto data_shape = ov::op::util::make_try_fold<ov::op::v3::ShapeOf>(data);
-    auto axis = ov::op::v0::Constant::create(data_shape->get_element_type(), {1}, {0});
-    auto batch_seq_length = ov::op::util::make_try_fold<ov::op::v3::Broadcast>(seq_lengths,
-                                                                               data_shape,
-                                                                               axis,
-                                                                               ov::op::BroadcastType::EXPLICIT);
+    auto data_shape = op_util::make_try_fold<v3::ShapeOf>(data);
+    auto axis = v0::Constant::create(data_shape->get_element_type(), {1}, {0});
+    auto batch_seq_length =
+        op_util::make_try_fold<v3::Broadcast>(seq_lengths, data_shape, axis, ov::op::BroadcastType::EXPLICIT);
 
-    auto mask_condition = std::make_shared<ov::op::v1::Greater>(current_iter, batch_seq_length);
-    auto mask_Y_h = std::make_shared<ov::op::v1::Equal>(current_iter, batch_seq_length);
+    auto mask_condition = std::make_shared<v1::Greater>(current_iter, batch_seq_length);
+    auto mask_Y_h = std::make_shared<v1::Equal>(current_iter, batch_seq_length);
 
     // Select values depending on mask.
     // Select(<condition>, <true_value>, <false_value>)
-    auto select_aggregated_H = std::make_shared<ov::op::v1::Select>(mask_Y_h, data, aggregated_Y_h_body_param);
-    auto aggregated_result = std::make_shared<ov::op::v0::Result>(select_aggregated_H);
+    auto select_aggregated_H = std::make_shared<v1::Select>(mask_Y_h, data, aggregated_Y_h_body_param);
+    auto aggregated_result = std::make_shared<v0::Result>(select_aggregated_H);
     body_results.push_back(aggregated_result);
 
-    auto scalar_mask_value = ov::op::v0::Constant::create(data.get_element_type(), {}, {0.f});
-    auto mask_value = ov::op::util::make_try_fold<ov::op::v3::Broadcast>(scalar_mask_value, data_shape);
-    return ov::op::util::make_try_fold<ov::op::v1::Select>(mask_condition, mask_value, data);
+    auto scalar_mask_value = v0::Constant::create(data.get_element_type(), {}, {0.f});
+    auto mask_value = op_util::make_try_fold<v3::Broadcast>(scalar_mask_value, data_shape);
+    return op_util::make_try_fold<v1::Select>(mask_condition, mask_value, data);
 }
 
 bool convert_sequence_to_ti(const std::shared_ptr<ov::Node>& sequence,
@@ -93,57 +98,57 @@ bool convert_sequence_to_ti(const std::shared_ptr<ov::Node>& sequence,
         return false;
     }
 
-    bool enable_mask = ov::op::util::is_seq_len_provided(X.get_node_shared_ptr(), seq_lengths.get_node_shared_ptr());
+    bool enable_mask = op_util::is_seq_len_provided(X.get_node_shared_ptr(), seq_lengths.get_node_shared_ptr());
 
     const bool is_reverse = direction == ov::op::RecurrentSequenceDirection::REVERSE;
     std::shared_ptr<ov::Node> reverse_seq_before;
     if (is_reverse && enable_mask) {
-        reverse_seq_before = std::make_shared<ov::op::v0::ReverseSequence>(X, seq_lengths, 0, 1);
+        reverse_seq_before = std::make_shared<v0::ReverseSequence>(X, seq_lengths, 0, 1);
     }
 
-    auto axis_0 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
-    auto axis_1 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto axis_0 = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+    auto axis_1 = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
 
     // TensorIterator Body: begin
     auto X_param_pshape = X_pshape;
     X_param_pshape[1] = 1;  // split by seq_lengths dimension
-    auto X_body_param = std::make_shared<ov::op::v0::Parameter>(X.get_element_type(), X_param_pshape);
+    auto X_body_param = std::make_shared<v0::Parameter>(X.get_element_type(), X_param_pshape);
 
-    const auto squeezed_h = ov::op::util::make_try_fold<ov::op::v0::Squeeze>(H_t, axis_1);
-    auto H_body_param = std::make_shared<ov::op::v0::Parameter>(squeezed_h->get_element_type(),
-                                                                squeezed_h->get_output_partial_shape(0));
+    const auto squeezed_h = op_util::make_try_fold<v0::Squeeze>(H_t, axis_1);
+    auto H_body_param =
+        std::make_shared<v0::Parameter>(squeezed_h->get_element_type(), squeezed_h->get_output_partial_shape(0));
     auto seq_body_param =
-        std::make_shared<ov::op::v0::Parameter>(seq_lengths.get_element_type(), seq_lengths.get_partial_shape());
+        std::make_shared<v0::Parameter>(seq_lengths.get_element_type(), seq_lengths.get_partial_shape());
 
     // LSTM sequence case
     const bool cell_state_defined = C_t.get_node_shared_ptr() != nullptr;
-    std::shared_ptr<ov::op::v0::Parameter> C_body_param = nullptr;
+    std::shared_ptr<v0::Parameter> C_body_param = nullptr;
     std::shared_ptr<ov::Node> squeezed_c = nullptr;
     if (cell_state_defined) {
-        squeezed_c = ov::op::util::make_try_fold<ov::op::v0::Squeeze>(C_t, axis_1);
-        C_body_param = std::make_shared<ov::op::v0::Parameter>(squeezed_c->get_element_type(),
-                                                               squeezed_c->get_output_partial_shape(0));
+        squeezed_c = op_util::make_try_fold<v0::Squeeze>(C_t, axis_1);
+        C_body_param =
+            std::make_shared<v0::Parameter>(squeezed_c->get_element_type(), squeezed_c->get_output_partial_shape(0));
     }
 
-    const auto squeezed_x = ov::op::util::make_try_fold<ov::op::v0::Squeeze>(X_body_param, axis_1);
-    const auto squeezed_w = ov::op::util::make_try_fold<ov::op::v0::Squeeze>(W, axis_0);
-    std::shared_ptr<ov::op::v0::Parameter> W_body_param;
-    if (!ov::op::util::is_on_path<ov::op::v0::Constant>(squeezed_w))
-        W_body_param = std::make_shared<ov::op::v0::Parameter>(squeezed_w->get_element_type(),
-                                                               squeezed_w->get_output_partial_shape(0));
-    const auto squeezed_r = ov::op::util::make_try_fold<ov::op::v0::Squeeze>(R, axis_0);
-    std::shared_ptr<ov::op::v0::Parameter> R_body_param;
-    if (!ov::op::util::is_on_path<ov::op::v0::Constant>(squeezed_r))
-        R_body_param = std::make_shared<ov::op::v0::Parameter>(squeezed_r->get_element_type(),
-                                                               squeezed_r->get_output_partial_shape(0));
-    const auto squeezed_b = ov::op::util::make_try_fold<ov::op::v0::Squeeze>(B, axis_0);
-    std::shared_ptr<ov::op::v0::Parameter> B_body_param;
-    if (!ov::op::util::is_on_path<ov::op::v0::Constant>(squeezed_b))
-        B_body_param = std::make_shared<ov::op::v0::Parameter>(squeezed_b->get_element_type(),
-                                                               squeezed_b->get_output_partial_shape(0));
+    const auto squeezed_x = op_util::make_try_fold<v0::Squeeze>(X_body_param, axis_1);
+    const auto squeezed_w = op_util::make_try_fold<v0::Squeeze>(W, axis_0);
+    std::shared_ptr<v0::Parameter> W_body_param;
+    if (!op_util::is_on_path<v0::Constant>(squeezed_w))
+        W_body_param =
+            std::make_shared<v0::Parameter>(squeezed_w->get_element_type(), squeezed_w->get_output_partial_shape(0));
+    const auto squeezed_r = op_util::make_try_fold<v0::Squeeze>(R, axis_0);
+    std::shared_ptr<v0::Parameter> R_body_param;
+    if (!op_util::is_on_path<v0::Constant>(squeezed_r))
+        R_body_param =
+            std::make_shared<v0::Parameter>(squeezed_r->get_element_type(), squeezed_r->get_output_partial_shape(0));
+    const auto squeezed_b = op_util::make_try_fold<v0::Squeeze>(B, axis_0);
+    std::shared_ptr<v0::Parameter> B_body_param;
+    if (!op_util::is_on_path<v0::Constant>(squeezed_b))
+        B_body_param =
+            std::make_shared<v0::Parameter>(squeezed_b->get_element_type(), squeezed_b->get_output_partial_shape(0));
 
     std::shared_ptr<ov::Node> cell;
-    if (const auto lstm_sequence = ov::as_type_ptr<ov::op::v5::LSTMSequence>(sequence)) {
+    if (const auto lstm_sequence = ov::as_type_ptr<v5::LSTMSequence>(sequence)) {
         cell = std::make_shared<ov::op::v4::LSTMCell>(squeezed_x,
                                                       H_body_param,
                                                       C_body_param,
@@ -155,29 +160,29 @@ bool convert_sequence_to_ti(const std::shared_ptr<ov::Node>& sequence,
                                                       lstm_sequence->get_activations_alpha(),
                                                       lstm_sequence->get_activations_beta(),
                                                       lstm_sequence->get_clip());
-    } else if (const auto rnn_sequence = ov::as_type_ptr<ov::op::v5::RNNSequence>(sequence)) {
-        cell = std::make_shared<ov::op::v0::RNNCell>(squeezed_x,
-                                                     H_body_param,
-                                                     W_body_param ? W_body_param : squeezed_w,
-                                                     R_body_param ? R_body_param : squeezed_r,
-                                                     B_body_param ? B_body_param : squeezed_b,
-                                                     rnn_sequence->get_hidden_size(),
-                                                     rnn_sequence->get_activations(),
-                                                     rnn_sequence->get_activations_alpha(),
-                                                     rnn_sequence->get_activations_beta(),
-                                                     rnn_sequence->get_clip());
-    } else if (const auto gnn_sequence = ov::as_type_ptr<ov::op::v5::GRUSequence>(sequence)) {
-        cell = std::make_shared<ov::op::v3::GRUCell>(squeezed_x,
-                                                     H_body_param,
-                                                     W_body_param ? W_body_param : squeezed_w,
-                                                     R_body_param ? R_body_param : squeezed_r,
-                                                     B_body_param ? B_body_param : squeezed_b,
-                                                     gnn_sequence->get_hidden_size(),
-                                                     gnn_sequence->get_activations(),
-                                                     gnn_sequence->get_activations_alpha(),
-                                                     gnn_sequence->get_activations_beta(),
-                                                     gnn_sequence->get_clip(),
-                                                     gnn_sequence->get_linear_before_reset());
+    } else if (const auto rnn_sequence = ov::as_type_ptr<v5::RNNSequence>(sequence)) {
+        cell = std::make_shared<v0::RNNCell>(squeezed_x,
+                                             H_body_param,
+                                             W_body_param ? W_body_param : squeezed_w,
+                                             R_body_param ? R_body_param : squeezed_r,
+                                             B_body_param ? B_body_param : squeezed_b,
+                                             rnn_sequence->get_hidden_size(),
+                                             rnn_sequence->get_activations(),
+                                             rnn_sequence->get_activations_alpha(),
+                                             rnn_sequence->get_activations_beta(),
+                                             rnn_sequence->get_clip());
+    } else if (const auto gnn_sequence = ov::as_type_ptr<v5::GRUSequence>(sequence)) {
+        cell = std::make_shared<v3::GRUCell>(squeezed_x,
+                                             H_body_param,
+                                             W_body_param ? W_body_param : squeezed_w,
+                                             R_body_param ? R_body_param : squeezed_r,
+                                             B_body_param ? B_body_param : squeezed_b,
+                                             gnn_sequence->get_hidden_size(),
+                                             gnn_sequence->get_activations(),
+                                             gnn_sequence->get_activations_alpha(),
+                                             gnn_sequence->get_activations_beta(),
+                                             gnn_sequence->get_clip(),
+                                             gnn_sequence->get_linear_before_reset());
     } else {
         return false;
     }
@@ -190,7 +195,7 @@ bool convert_sequence_to_ti(const std::shared_ptr<ov::Node>& sequence,
     if (cell_state_defined)
         cell_state = cell->output(1);
 
-    auto tensor_iterator = std::make_shared<ov::op::v0::TensorIterator>();
+    auto tensor_iterator = std::make_shared<v0::TensorIterator>();
     if (enable_mask) {
         const auto current_iter = get_current_iter(body_params, body_results, seq_body_param);
         hidden_state =
@@ -200,10 +205,10 @@ bool convert_sequence_to_ti(const std::shared_ptr<ov::Node>& sequence,
                 get_masked_value(tensor_iterator, body_params, body_results, current_iter, cell_state, seq_body_param);
     }
 
-    auto H_res = std::make_shared<ov::op::v0::Result>(hidden_state);
-    auto C_res = cell_state_defined ? std::make_shared<ov::op::v0::Result>(cell_state) : nullptr;
-    auto hidden_state_unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(hidden_state, axis_1);
-    auto concat_res = std::make_shared<ov::op::v0::Result>(hidden_state_unsqueezed);
+    auto H_res = std::make_shared<v0::Result>(hidden_state);
+    auto C_res = cell_state_defined ? std::make_shared<v0::Result>(cell_state) : nullptr;
+    auto hidden_state_unsqueezed = std::make_shared<v0::Unsqueeze>(hidden_state, axis_1);
+    auto concat_res = std::make_shared<v0::Result>(hidden_state_unsqueezed);
 
     body_params.push_back(X_body_param);
     body_params.push_back(H_body_param);
@@ -257,12 +262,11 @@ bool convert_sequence_to_ti(const std::shared_ptr<ov::Node>& sequence,
     if (enable_mask) {
         // create initial values for body_parameters in outer graph
         // aggregated Y_h - concatenation of the last non-zero values for each batch
-        auto H_body_param_shape = ov::op::util::make_try_fold<ov::op::v3::ShapeOf>(squeezed_h);
-        auto aggregated_Y_h_scalar = ov::op::v0::Constant::create(squeezed_h->get_element_type(), {}, {0.f});
-        auto aggregated_Y_h =
-            ov::op::util::make_try_fold<ov::op::v3::Broadcast>(aggregated_Y_h_scalar, H_body_param_shape);
+        auto H_body_param_shape = op_util::make_try_fold<v3::ShapeOf>(squeezed_h);
+        auto aggregated_Y_h_scalar = v0::Constant::create(squeezed_h->get_element_type(), {}, {0.f});
+        auto aggregated_Y_h = op_util::make_try_fold<v3::Broadcast>(aggregated_Y_h_scalar, H_body_param_shape);
 
-        auto init_val_curr_iter = ov::op::v0::Constant::create(seq_lengths.get_element_type(), ov::Shape{1}, {1});
+        auto init_val_curr_iter = v0::Constant::create(seq_lengths.get_element_type(), ov::Shape{1}, {1});
         ov::copy_runtime_info(sequence, {aggregated_Y_h, init_val_curr_iter});
 
         // set initial value and back edge for current iteration
@@ -273,10 +277,9 @@ bool convert_sequence_to_ti(const std::shared_ptr<ov::Node>& sequence,
         H_out = tensor_iterator->get_function()->get_results()[1];
 
         if (cell_state_defined) {
-            auto C_body_param_shape = ov::op::util::make_try_fold<ov::op::v3::ShapeOf>(squeezed_c);
-            auto aggregated_Y_c_scalar = ov::op::v0::Constant::create(squeezed_c->get_element_type(), {}, {0.f});
-            auto aggregated_Y_c =
-                ov::op::util::make_try_fold<ov::op::v3::Broadcast>(aggregated_Y_c_scalar, C_body_param_shape);
+            auto C_body_param_shape = op_util::make_try_fold<v3::ShapeOf>(squeezed_c);
+            auto aggregated_Y_c_scalar = v0::Constant::create(squeezed_c->get_element_type(), {}, {0.f});
+            auto aggregated_Y_c = op_util::make_try_fold<v3::Broadcast>(aggregated_Y_c_scalar, C_body_param_shape);
             ov::copy_runtime_info(sequence, aggregated_Y_c);
 
             // set initial value and back edge for aggregated C
@@ -294,8 +297,7 @@ bool convert_sequence_to_ti(const std::shared_ptr<ov::Node>& sequence,
         new_nodes.push_back(squeezed_c);
     ov::OutputVector nodes_to_replace;
     if (enable_mask && is_reverse) {
-        auto reverse_seq_after =
-            std::make_shared<ov::op::v0::ReverseSequence>(tensor_iterator->output(0), seq_lengths, 0, 1);
+        auto reverse_seq_after = std::make_shared<v0::ReverseSequence>(tensor_iterator->output(0), seq_lengths, 0, 1);
         // Resolve a collision of names data nodes in CNN Network in Reverse case with mask.
         /*
          *   Before transformation (no collisions)
@@ -332,7 +334,7 @@ bool convert_sequence_to_ti(const std::shared_ptr<ov::Node>& sequence,
     }
 
     for (size_t i = 0; i < nodes_to_replace.size(); i++) {
-        auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(nodes_to_replace[i], axis_1);
+        auto unsqueeze = std::make_shared<v0::Unsqueeze>(nodes_to_replace[i], axis_1);
         unsqueeze->set_friendly_name(sequence->get_friendly_name() + "." + std::to_string(i));
         nodes_to_replace[i] = unsqueeze;
         new_nodes.push_back(unsqueeze);
@@ -344,7 +346,7 @@ bool convert_sequence_to_ti(const std::shared_ptr<ov::Node>& sequence,
 }
 }  // namespace
 
-ov::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIterator() {
+ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIterator() {
     MATCHER_SCOPE(ConvertRNNSequenceToTensorIterator);
     auto X_m = pattern::any_input(pattern::has_static_rank());
     auto H_t_m = pattern::any_input();
@@ -352,10 +354,10 @@ ov::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIterator
     auto W_m = pattern::any_input();
     auto R_m = pattern::any_input();
     auto B_m = pattern::any_input();
-    auto rnn_seq = ov::pass::pattern::wrap_type<ov::op::v5::RNNSequence>({X_m, H_t_m, seq_lengths_m, W_m, R_m, B_m});
+    auto rnn_seq = pattern::wrap_type<v5::RNNSequence>({X_m, H_t_m, seq_lengths_m, W_m, R_m, B_m});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        auto sequence = ov::as_type_ptr<ov::op::v5::RNNSequence>(m.get_match_root());
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+        auto sequence = ov::as_type_ptr<v5::RNNSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward
         // (e.g. apply BidirectionalRNNSequenceDecomposition transformation before this one)
@@ -383,11 +385,11 @@ ov::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIterator
                                       sequence->get_direction());
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(rnn_seq, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(rnn_seq, matcher_name);
     register_matcher(m, callback);
 }
 
-ov::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIterator() {
+ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIterator() {
     MATCHER_SCOPE(ConvertGRUSequenceToTensorIterator);
     auto X_m = pattern::any_input(pattern::has_static_rank());
     auto H_t_m = pattern::any_input();
@@ -395,10 +397,10 @@ ov::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIterator
     auto W_m = pattern::any_input();
     auto R_m = pattern::any_input();
     auto B_m = pattern::any_input();
-    auto gru_seq = ov::pass::pattern::wrap_type<ov::op::v5::GRUSequence>({X_m, H_t_m, seq_lengths_m, W_m, R_m, B_m});
+    auto gru_seq = pattern::wrap_type<v5::GRUSequence>({X_m, H_t_m, seq_lengths_m, W_m, R_m, B_m});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        auto sequence = ov::as_type_ptr<ov::op::v5::GRUSequence>(m.get_match_root());
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+        auto sequence = ov::as_type_ptr<v5::GRUSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward
         // (e.g. apply BidirectionalRNNSequenceDecomposition transformation before this one)
@@ -426,11 +428,11 @@ ov::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIterator
                                       sequence->get_direction());
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(gru_seq, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(gru_seq, matcher_name);
     register_matcher(m, callback);
 }
 
-ov::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIterator() {
+ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIterator() {
     MATCHER_SCOPE(ConvertLSTMSequenceToTensorIterator);
     auto X_m = pattern::any_input(pattern::has_static_rank());
     auto H_t_m = pattern::any_input();
@@ -439,11 +441,10 @@ ov::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIterat
     auto W_m = pattern::any_input();
     auto R_m = pattern::any_input();
     auto B_m = pattern::any_input();
-    auto lstm_seq =
-        ov::pass::pattern::wrap_type<ov::op::v5::LSTMSequence>({X_m, H_t_m, C_t_m, seq_lengths_m, W_m, R_m, B_m});
+    auto lstm_seq = pattern::wrap_type<v5::LSTMSequence>({X_m, H_t_m, C_t_m, seq_lengths_m, W_m, R_m, B_m});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        auto sequence = ov::as_type_ptr<ov::op::v5::LSTMSequence>(m.get_match_root());
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+        auto sequence = ov::as_type_ptr<v5::LSTMSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward
         // (e.g. apply BidirectionalRNNSequenceDecomposition transformation before this one)
@@ -464,12 +465,14 @@ ov::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIterat
         return convert_sequence_to_ti(sequence, X, H_t, C_t, seq_lengths, W, R, B, sequence->get_direction());
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(lstm_seq, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(lstm_seq, matcher_name);
     register_matcher(m, callback);
 }
 
-ov::pass::ConvertSequenceToTensorIterator::ConvertSequenceToTensorIterator() {
+ConvertSequenceToTensorIterator::ConvertSequenceToTensorIterator() {
     add_matcher<ConvertLSTMSequenceToTensorIterator>();
     add_matcher<ConvertRNNSequenceToTensorIterator>();
     add_matcher<ConvertGRUSequenceToTensorIterator>();
 }
+
+}  // namespace ov::pass

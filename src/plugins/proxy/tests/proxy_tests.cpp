@@ -371,7 +371,7 @@ public:
         return std::make_shared<MockCompiledModel>(model, shared_from_this(), properties);
     }
 
-    std::shared_ptr<ov::ICompiledModel> compile_model(const std::string& model_path,
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::filesystem::path& model_path,
                                                       const ov::AnyMap& properties) const override {
         OPENVINO_NOT_IMPLEMENTED;
     }

@@ -19,22 +19,26 @@
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/squeeze.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v3 = ov::op::v3;
 ov::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
     MATCHER_SCOPE(ConvertScatterElementsToScatter);
-    auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
-    auto indices = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
-    auto updates = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
-    auto axis = ov::op::v0::Constant::create(element::i64, {1}, {0});
+    auto data = std::make_shared<ov::pass::pattern::op::Label>(element::f32, Shape{1});
+    auto indices = std::make_shared<ov::pass::pattern::op::Label>(element::i64, Shape{1});
+    auto updates = std::make_shared<ov::pass::pattern::op::Label>(element::f32, Shape{1});
+    auto axis = v0::Constant::create(element::i64, {1}, {0});
 
-    auto broadcast_shape = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
-    auto broadcast = std::make_shared<ov::op::v3::Broadcast>(indices, broadcast_shape);
+    auto broadcast_shape = std::make_shared<ov::pass::pattern::op::Label>(element::i64, Shape{1});
+    auto broadcast = std::make_shared<v3::Broadcast>(indices, broadcast_shape);
 
-    auto scatter = std::make_shared<ov::op::v3::ScatterElementsUpdate>(data, broadcast, updates, axis);
+    auto scatter = std::make_shared<v3::ScatterElementsUpdate>(data, broadcast, updates, axis);
 
-    matcher_pass_callback callback = [](pattern::Matcher& m) {
+    matcher_pass_callback callback = [](Matcher& m) {
         auto scatter = m.get_match_root();
         auto broadcast = scatter->input_value(1).get_node_shared_ptr();
-        auto axis_const = ov::as_type_ptr<ov::op::v0::Constant>(scatter->input_value(3).get_node_shared_ptr());
+        auto axis_const = ov::as_type_ptr<v0::Constant>(scatter->input_value(3).get_node_shared_ptr());
 
         if (!axis_const) {
             return false;
@@ -179,7 +183,7 @@ ov::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
             if (indices_shape != indices_new_shape) {
                 indices_input = std::make_shared<ov::op::v1::Reshape>(
                     indices_input,
-                    ov::op::v0::Constant::create(element::i64, Shape{indices_new_shape.size()}, indices_new_shape),
+                    v0::Constant::create(element::i64, Shape{indices_new_shape.size()}, indices_new_shape),
                     false);
                 new_ops.push_back(indices_input.get_node_shared_ptr());
             }
@@ -201,17 +205,17 @@ ov::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
             if (indices_rank > 1) {
                 std::vector<int64_t> squeeze_axes(indices_rank - 1ul);
                 std::iota(squeeze_axes.begin(), squeeze_axes.end(), 1);
-                indices_input = std::make_shared<ov::op::v0::Squeeze>(
+                indices_input = std::make_shared<v0::Squeeze>(
                     indices_input,
-                    ov::op::v0::Constant::create(element::i64, Shape{squeeze_axes.size()}, squeeze_axes));
+                    v0::Constant::create(element::i64, Shape{squeeze_axes.size()}, squeeze_axes));
                 new_ops.push_back(indices_input.get_node_shared_ptr());
             }
         }
 
-        auto scatter_update = std::make_shared<ov::op::v3::ScatterUpdate>(scatter->input_value(0),
-                                                                          indices_input,
-                                                                          scatter->input_value(2),
-                                                                          scatter->input_value(3));
+        auto scatter_update = std::make_shared<v3::ScatterUpdate>(scatter->input_value(0),
+                                                                  indices_input,
+                                                                  scatter->input_value(2),
+                                                                  scatter->input_value(3));
         new_ops.push_back(scatter_update);
         scatter_update->set_friendly_name(scatter->get_friendly_name());
         ov::copy_runtime_info({scatter, broadcast}, {new_ops});
@@ -219,6 +223,6 @@ ov::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
         return true;
     };
 
-    auto m = std::make_shared<pass::pattern::Matcher>(scatter, matcher_name);
+    auto m = std::make_shared<Matcher>(scatter, matcher_name);
     register_matcher(m, callback);
 }

@@ -18,6 +18,8 @@
 #include "common_test_utils/subgraph_builders/read_concat_split_assign.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
+#include "openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp"
 
 namespace {
 typedef std::tuple<
@@ -338,7 +340,12 @@ TEST(VariablesTest, smoke_padded_tensor_set_get_state_with_convert) {
     }
 }
 
+#if defined(_WIN32)
+// Issue: 126388
+TEST(TensorTest, DISABLED_outputTensorShapesForDynamicInput) {
+#else
 TEST(TensorTest, smoke_outputTensorShapesForDynamicInput) {
+#endif
     auto core = ov::Core();
     using namespace ov::preprocess;
     auto p = PrePostProcessor(ov::test::utils::make_split_multi_conv_concat());
@@ -393,4 +400,15 @@ TEST(TensorTest, smoke_canShareTensorIfModelsFromDifferentCores) {
     OV_ASSERT_NO_THROW(request1.infer());
     OV_ASSERT_NO_THROW(request2.infer());
 }
+
+TEST(CoreTest, smoke_singletonOclContext) {
+    auto core1 = ov::Core();
+    auto ctx1 = core1.get_default_context("GPU");
+    auto& oclContext1 = static_cast<ov::intel_gpu::ocl::ClContext&>(ctx1);
+    auto core2 = ov::Core();
+    auto ctx2 = core2.get_default_context("GPU");
+    auto& oclContext2 = static_cast<ov::intel_gpu::ocl::ClContext&>(ctx2);
+    ASSERT_EQ(oclContext1.get(), oclContext2.get());
+}
+
 } // namespace

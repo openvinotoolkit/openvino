@@ -25,8 +25,6 @@ cldnn::format default_fmt_for_dims(size_t dims, bool is_grouped = false);
 
 // cldnn -> onednn
 dnnl::memory::dims convert_tensor(cldnn::tensor t, size_t dims = 2, bool is_grouped = false);
-dnnl::memory::dims convert_gemm_tensor(cldnn::tensor t, size_t dims, bool batched_dims_can_be_removed);
-dnnl::memory::dims convert_gemm_dims(const std::vector<ov::Dimension::value_type> &sizes, size_t dims, bool batched_dims_can_be_removed);
 dnnl::memory::dims convert_spatials(cldnn::tensor t, size_t dims = 2);
 dnnl::memory::dims flatten_tensor(cldnn::tensor t);
 dnnl::memory::dims get_strides(dnnl::memory::dims dims);
@@ -82,6 +80,7 @@ int get_prelu_mask_from_layouts(const std::function<layout()>& get_output_layout
                                 int32_t slope_input_idx);
 
 std::string memory_desc_to_string(const dnnl::memory::desc& desc);
+std::string dnnl_status_to_string(dnnl_status_t status);
 
 }  // namespace onednn
 }  // namespace cldnn

@@ -38,7 +38,6 @@ enum class ExecutorType : uint8_t {
     Dnnl,
     Acl,
     Mlas,
-    Shl,
     Kleidiai,
 };
 
@@ -91,6 +90,10 @@ public:
 
     [[nodiscard]] WeightsSharing::Ptr getWeightsCache() const {
         return weightsCache;
+    }
+
+    [[nodiscard]] std::shared_ptr<CpuParallel> getCpuParallel() const {
+        return cpuParallel;
     }
 
     [[nodiscard]] std::shared_ptr<ThreadPool> getThreadPool() const {

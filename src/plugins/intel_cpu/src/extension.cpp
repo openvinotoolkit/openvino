@@ -20,6 +20,7 @@
 #include "openvino/op/depth_to_space.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/group_conv.hpp"
@@ -92,6 +93,7 @@
 #include "snippets/op/rank_normalization.hpp"
 #include "snippets/op/reduce.hpp"
 #include "snippets/op/reshape.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/op/scalar.hpp"
 #include "snippets/op/store.hpp"
 #include "snippets/op/subgraph.hpp"
@@ -196,6 +198,7 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     std::make_shared<ov::OpExtension<ov::op::internal::FullyConnectedQuantizedLegacy>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::FullyConnectedQuantized>>(),
     std::make_shared<ov::OpExtension<ov::op::PagedAttentionExtension>>(),
+    std::make_shared<ov::OpExtension<ov::op::internal::GatedDeltaNet>>(),
     // clang-format off
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::InteractionNode>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::LLMMLPNode>>())
@@ -290,6 +293,7 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     std::make_shared<ov::OpExtension<ov::snippets::op::ReduceMax>>(),
     std::make_shared<ov::OpExtension<ov::snippets::op::ReduceSum>>(),
     std::make_shared<ov::OpExtension<ov::snippets::op::Reshape>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::Result>>(),
     // clang-format off
     OP_EXTENSION_SNIPPETS_DEBUG_CAPS(std::make_shared<ov::OpExtension<ov::snippets::op::PerfCountBegin>>())
     OP_EXTENSION_SNIPPETS_DEBUG_CAPS(std::make_shared<ov::OpExtension<ov::snippets::op::PerfCountEnd>>())

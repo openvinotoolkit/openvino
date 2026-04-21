@@ -4,16 +4,13 @@
 
 #pragma once
 
+#include <filesystem>
 #include <fstream>
-#if defined(__MINGW32__) || defined(__MINGW64__)
-#    include <filesystem>
-#endif
 
 #include "openvino/core/any.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/tensorflow_lite/decoder.hpp"
 #include "openvino/frontend/tensorflow_lite/graph_iterator.hpp"
-#include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "schema_generated.h"
 
@@ -26,16 +23,6 @@ struct TensorInfo {
     const tflite::Buffer* buffer;
 };
 
-template <typename T>
-std::basic_string<T> get_model_extension() {}
-template <>
-std::basic_string<char> get_model_extension<char>();
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-template <>
-std::basic_string<wchar_t> get_model_extension<wchar_t>();
-#endif
-
 class GraphIteratorFlatBuffer : public GraphIterator {
     size_t node_index = 0;
     std::vector<uint8_t> m_data;
@@ -46,25 +33,18 @@ class GraphIteratorFlatBuffer : public GraphIterator {
 
 public:
     GraphIteratorFlatBuffer() = default;
-    explicit GraphIteratorFlatBuffer(const std::string& path);
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    explicit GraphIteratorFlatBuffer(const std::wstring& path);
-#endif
+    explicit GraphIteratorFlatBuffer(const std::filesystem::path& path);
 
     using Ptr = std::shared_ptr<GraphIteratorFlatBuffer>;
 
     ~GraphIteratorFlatBuffer() = default;
 
     /// Verifies file is supported
-    template <typename T>
-    static bool is_supported(const std::basic_string<T>& path) {
-        FRONT_END_GENERAL_CHECK(util::file_exists(path),
-                                "Could not open the file: \"",
-                                util::path_to_string(path),
-                                '"');
+    static bool is_supported(const std::filesystem::path& path) {
+        FRONT_END_GENERAL_CHECK(util::file_exists(path), "Could not open the file: ", path);
+
         try {
-            if (!ov::util::ends_with<T>(path, get_model_extension<T>())) {
+            if (path.extension() != std::filesystem::path("." + std::string(::tflite::ModelExtension()))) {
                 return false;
             }
             const std::streamsize offset_size = static_cast<std::streamsize>(sizeof(::flatbuffers::uoffset_t));
@@ -73,14 +53,10 @@ public:
             if (file_size < offset_size) {
                 return false;
             }
-#if defined(__MINGW32__) || defined(__MINGW64__)
-            std::ifstream tflite_stream(std::filesystem::path(path), std::ios::in | std::ifstream::binary);
-#else
             std::ifstream tflite_stream(path, std::ios::in | std::ifstream::binary);
-#endif
             char buf[offset_size * 2 + 1] = {};  // +1 is used to overcome gcc's -Wstringop-overread warning
             tflite_stream.read(buf, offset_size * 2);
-            // If we have enough readed bytes - try to detect prefixed identifier, else try without size prefix
+            // If we have enough read bytes - try to detect prefixed identifier, else try without size prefix
             if ((tflite_stream.gcount() == offset_size * 2) && ::tflite::ModelBufferHasIdentifier(buf + offset_size)) {
                 return true;
             } else if (tflite_stream.gcount() >= offset_size && ::tflite::ModelBufferHasIdentifier(buf)) {

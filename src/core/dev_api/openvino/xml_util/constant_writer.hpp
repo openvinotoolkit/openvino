@@ -6,20 +6,14 @@
 
 #include <iostream>
 #include <map>
+#include <string_view>
+#include <vector>
 
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/visibility.hpp"
 
 namespace ov::util {
-
-class OstreamHashWrapperBin final : public std::streambuf {
-    uint64_t m_res = 0lu;
-
-public:
-    uint64_t get_result() const;
-    std::streamsize xsputn(const char* s, std::streamsize n) override;
-};
 
 class OPENVINO_API ConstantWriter {
 public:
@@ -37,16 +31,23 @@ public:
                                ov::element::Type src_type = ov::element::dynamic,
                                bool ptr_is_temporary = false);
 
+    virtual FilePosition write(const std::vector<std::string_view>& chunks, size_t& new_size);
+
+    uint64_t get_data_hash() const {
+        return m_data_hash;
+    }
+
 private:
     static std::unique_ptr<char[]> compress_data_to_fp16(const char* ptr,
                                                          size_t size,
-                                                         ov::element::Type src_type,
+                                                         const element::Type& src_type,
                                                          size_t& compressed_size);
 
     ConstWritePositions m_hash_to_file_positions;
+    std::vector<std::vector<char>> m_packed_string_data;
     std::reference_wrapper<std::ostream> m_binary_output;
     bool m_enable_compression;
-    bool m_write_hash_value;
     FilePosition m_blob_offset;  // blob offset inside output stream
+    uint64_t m_data_hash;
 };
 }  // namespace ov::util

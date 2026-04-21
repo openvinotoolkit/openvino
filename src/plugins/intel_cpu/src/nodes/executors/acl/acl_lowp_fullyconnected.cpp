@@ -79,13 +79,9 @@ ACLLowpFullyConnectedExecutor::ACLLowpFullyConnectedExecutor(const FCAttrs& attr
 }
 
 bool ACLLowpFullyConnectedExecutor::supports(const FCConfig& config) {
-    const auto src0 = srcType(config);
-    const auto src1 = weiType(config);
-    const auto dst = dstType(config);
-    if ((src0 != ov::element::i8) || (src1 != ov::element::i8) || (dst != ov::element::f32)) {
-        return false;
-    }
-
+    VERIFY(any_of(srcType(config), ov::element::u8, ov::element::i8), UNSUPPORTED_SRC_PRECISIONS);
+    VERIFY(weiType(config) == ov::element::i8, UNSUPPORTED_WEI_PRECISIONS);
+    VERIFY(dstType(config) == ov::element::f32, UNSUPPORTED_DST_PRECISIONS);
     VERIFY(checkPostOps(config.attrs.postOps), UNSUPPORTED_TYPE_OF_POSTOPS);
     VERIFY(any_of(srcRank(config), 2U, 3U, 4U), UNSUPPORTED_SRC_RANK);
     VERIFY(any_of(weiRank(config), 2U, 3U, 4U), UNSUPPORTED_WEI_RANK);
@@ -134,18 +130,7 @@ std::shared_ptr<arm_compute::TensorInfo> ACLLowpFullyConnectedExecutor::initTens
     const arm_compute::TensorShape& tensorShape,
     const arm_compute::DataType& dataType,
     const arm_compute::DataLayout& dataLayout) {
-    const auto result = [&]() {
-        switch (dataType) {
-        case arm_compute::DataType::S8:
-            return arm_compute::DataType::QASYMM8_SIGNED;
-        case arm_compute::DataType::U8:
-            return arm_compute::DataType::QASYMM8;
-        default:
-            return dataType;
-        }
-    }();
-
-    return ACLCommonExecutor::initTensorInfo(tensorShape, result, dataLayout);
+    return ACLCommonExecutor::initTensorInfo(tensorShape, convertToQuantizedType(dataType), dataLayout);
 }
 
 }  // namespace ov::intel_cpu

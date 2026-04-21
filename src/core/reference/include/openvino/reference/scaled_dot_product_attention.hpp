@@ -44,7 +44,7 @@ std::vector<T> create_attention_mask_from_ov_boolean(const char* mask_bool, cons
     return mask_data;
 }
 
-void slice_last_dimension(const char* input, char* output, const Shape& input_shape, size_t element_size) {
+inline void slice_last_dimension(const char* input, char* output, const Shape& input_shape, size_t element_size) {
     std::vector<int64_t> start_indices(input_shape.size(), 0);
     std::vector<int64_t> steps(input_shape.size(), 1);
     Shape output_shape = input_shape;
@@ -153,7 +153,7 @@ void scaled_dot_product_attention(const T* query,
             gk_softmax_shape,
             qk_shape.size() - 1,
             sizeof(T));
-        qk_data = qk_data_with_sink;
+        qk_data = std::move(qk_data_with_sink);
     }
     std::vector<T> qk_data_softmax(qk_data.size(), 0);
     ov::reference::softmax<T>(qk_data.data(),
@@ -167,7 +167,7 @@ void scaled_dot_product_attention(const T* query,
                                                      reinterpret_cast<char*>(qk_data_sliced.data()),
                                                      gk_softmax_shape,
                                                      sizeof(T));
-        qk_data_softmax = qk_data_sliced;
+        qk_data_softmax = std::move(qk_data_sliced);
     }
     ov::reference::matmul<T>(qk_data_softmax.data(), value, output, qk_shape, value_shape, output_shape, false, false);
 }

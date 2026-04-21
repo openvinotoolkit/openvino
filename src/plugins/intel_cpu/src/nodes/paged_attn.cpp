@@ -99,7 +99,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_V)));
 
-    CPU_NODE_ASSERT(orgInputNumber == 25U, "The input number of PagedAttention should be 25.");
+    CPU_NODE_ASSERT(orgInputNumber == 28U, "The input number of PagedAttention should be 28.");
     // kvcache, float, []
     auto past_key_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
     auto past_value_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
@@ -207,8 +207,22 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
                 ov::element::i32,
                 getInputShapeAtPort(PagedAttentionExecutor::ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS)));
 
+    // token_type_ids, i32, [B_token | 0] or [1, B_token]
+    config.inConfs[PagedAttentionExecutor::ID_TOKEN_TYPE_IDS].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_TOKEN_TYPE_IDS)));
+
     config.outConfs[2].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, getOutputShapeAtPort(2)));
+
+    // qq_bias, uint8, [batch_mask_size_in_sequences]
+    config.inConfs[PagedAttentionExecutor::ID_QQ_BIAS].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::u8, getInputShapeAtPort(PagedAttentionExecutor::ID_QQ_BIAS)));
+    // qq_bias_begins, int32, [B_seq + 1]
+    config.inConfs[PagedAttentionExecutor::ID_QQ_BIAS_BEGINS].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_QQ_BIAS_BEGINS)));
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
@@ -250,7 +264,7 @@ void PagedAttention::createPrimitive() {
                                     quantKeybyChannel,
                                     quantValuebyChannel,
                                     cpuConfig.enableSageAttn};
-        return make_pa_executor(rtPrecision, kCachePrecision, vCachePrecision, params);
+        return make_pa_executor(rtPrecision, kCachePrecision, vCachePrecision, params, context->getCpuParallel());
 #else
         return nullptr;
 #endif

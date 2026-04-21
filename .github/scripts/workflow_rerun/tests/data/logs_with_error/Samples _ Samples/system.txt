@@ -1,0 +1,14 @@
+2026-01-12T09:11:37.7200000Z Evaluating Samples.if
+2026-01-12T09:11:37.7200000Z Evaluating: (success() && (fromJSON(needs.smart_ci.outputs.affected_components).samples))
+2026-01-12T09:11:37.7200000Z Expanded: (true && Object)
+2026-01-12T09:11:37.7200000Z Result: Object
+2026-01-12T09:11:37.7200000Z Evaluating Samples.Samples.if
+2026-01-12T09:11:37.7200000Z Evaluating: success()
+2026-01-12T09:11:37.7200000Z Result: true
+2026-01-12T09:11:37.7270000Z Requested labels: aks-linux-4-cores-16gb
+2026-01-12T09:11:37.7270000Z Job defined at: openvinotoolkit/openvino/.github/workflows/job_samples_tests.yml@refs/pull/33540/merge
+2026-01-12T09:11:37.7270000Z Reusable workflow chain:
+2026-01-12T09:11:37.7270000Z openvinotoolkit/openvino/.github/workflows/ubuntu_22.yml@refs/pull/33540/merge (4a047279a51135cf69f1113f9682335d3f75cf75)
+2026-01-12T09:11:37.7270000Z -> openvinotoolkit/openvino/.github/workflows/job_samples_tests.yml@refs/pull/33540/merge (4a047279a51135cf69f1113f9682335d3f75cf75)
+2026-01-12T09:11:37.7270000Z Waiting for a runner to pick up this job...
+2026-01-12T09:11:44.4120000Z Job is about to start running on the runner: aks-linux-4-cores-16gb

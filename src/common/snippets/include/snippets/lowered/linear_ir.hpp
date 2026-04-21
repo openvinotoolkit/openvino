@@ -206,7 +206,14 @@ public:
 
     bool is_dynamic() const;
 
+    /**
+     * @brief Updates m_is_dynamic flag by checking parameter/result shapes and loop work amounts.
+     */
+    void update_dynamic_state();
+
     void enumerate_expressions() const;
+
+    void sort_results();
 
     /* ------ Helpers for work with LinearIR ----- */
     /**
@@ -378,7 +385,7 @@ private:
     // Creates inputs for expression using parent output port connectors
     std::vector<PortConnectorPtr> get_expression_inputs_by_node(const std::shared_ptr<Node>& n) const;
 
-    void register_expression(const ExpressionPtr& expr, bool io_allowed, double exec_num);
+    void register_expression(const ExpressionPtr& expr, bool parameter_allowed, double exec_num);
     void unregister_expression(const ExpressionPtr& expr);
 
     // return execution number for new expression which will be inserted before `insert_pos`
