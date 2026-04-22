@@ -363,12 +363,20 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
             // TODO is this good?
             return true;
         }
-
-        ov::Tensor encodedTensor = arguments.at(ov::runtime_requirements.name()).as<ov::Tensor>();
-        const std::string encodedString(reinterpret_cast<char*>(encodedTensor.data()), encodedTensor.get_byte_size());
+        const auto& encodedTensor = arguments.at(ov::runtime_requirements.name()).as<const ov::Tensor&>();
+        std::string encodedString;
+        if (encodedTensor.get_element_type() == ov::element::string) {
+            OPENVINO_ASSERT(encodedTensor.get_size() == 1,
+                            "Expected a string tensor in ov::runtime_requirements");
+            encodedString = encodedTensor.data<const std::string>()[0];
+        } else {
+            OPENVINO_THROW("Unsupported ov::runtime_requirements tensor element type");
+        }
+        _logger.debug("Received encoded compatibility string: %s length: %zu", encodedString.c_str(), encodedString.length());
         std::string decodedString = decode_compatibility_string(encodedString);
+
         const ov::Tensor viewTensor =
-            ov::Tensor(ov::element::Type_t::u8, ov::Shape(decodedString.length()), decodedString.data());
+            ov::Tensor(ov::element::Type_t::u8, ov::Shape{decodedString.length()}, decodedString.data());
 
         std::unique_ptr<MetadataBase> metadata = nullptr;
         try {
@@ -379,6 +387,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         } catch (const std::exception& ex) {
             // Unsupported version, could not read the metadata or an unknown error has occured. Report that the
             // requirements are not met.
+            _logger.debug("Failed to read metadata from the compatibility string. The requirements are not met. %s", ex.what());
             return false;
         }
 
@@ -387,18 +396,31 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         const size_t compilerStringSize = metadata->get_blob_size();
         // Discard everything else but the compiler section
         decodedString = decodedString.substr(0, compilerStringSize);
+        _logger.debug("Decoded compiler compatibility string: %s length: %zu", decodedString.c_str(), decodedString.length());
 
         // Create a compiler to get the type and fetch version and supported options if needed
         std::unique_ptr<ICompilerAdapter> compiler = nullptr;
         CompilerAdapterFactory factory;
         try {
             // TODO consider using backend directly
-            compiler = factory.getCompiler(_backend, ov::intel_npu::CompilerType::DRIVER);
-        } catch (const std::exception& ex) {
             compiler = factory.getCompiler(_backend, ov::intel_npu::CompilerType::PLUGIN);
+        } catch (const std::exception&) {
+            _logger.error("Failed to create compiler for compatibility check. The requirements are not met.");
         }
         OPENVINO_ASSERT(compiler != nullptr);
-        return compiler->validate_compatibility_descriptor(decodedString);
+
+        // Implement only the fallback path for now through the PLUGIN compiler type
+        std::shared_ptr<IDevice> device = _backend->getDevice();
+        OPENVINO_ASSERT(device != nullptr);
+        _logger.debug("Checking compatibility with device: %s, devId: %x, subDevId: %u, maxNumSlices: %u",
+                      device->getName().c_str(),
+                      device->getDevId(),
+                      device->getSubDevId(),
+                      device->getMaxNumSlices());
+        auto result = compiler->validate_compatibility_descriptor(decodedString, device->getDevId(),
+                                                                  device->getMaxNumSlices(), device->getSubDevId());
+        _logger.debug("Compatibility check result: %s", result ? "met" : "not met");
+        return result;
     }
 
     if (!arguments.empty()) {
