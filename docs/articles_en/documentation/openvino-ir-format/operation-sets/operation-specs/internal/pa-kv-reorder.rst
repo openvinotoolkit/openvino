@@ -46,46 +46,82 @@ For each update operation ``(src_token_idx, dst_token_idx)``:
 .. code-block:: py
     :force:
 
-    for s in range(num_sequences):
-    # Get update operations for this sequence
-    op_start = block_update_indices_begins[s]
-    op_end   = block_update_indices_begins[s + 1]
+    # Parallel processing across sequences
+    for s in parallel(num_sequences):
+        # Get update operations for this sequence
+        op_start = block_update_indices_begins[s]
+        op_end   = block_update_indices_begins[s + 1]
 
-    # Get block mapping for this sequence
-    blk_start = block_indices_begins[s]
-    blk_end   = block_indices_begins[s + 1]
-    seq_blocks = block_indices[blk_start:blk_end]
+        # Get block mapping for this sequence
+        blk_start = block_indices_begins[s]
+        blk_end   = block_indices_begins[s + 1]
+        seq_blocks = block_indices[blk_start:blk_end]
 
-    for op_idx in range(op_start, op_end):
-        src_logical = block_update_indices[op_idx * 2 + 0]
-        dst_logical = block_update_indices[op_idx * 2 + 1]
+        # Process operations in batches with same (src_block, dst_block) pair
+        op_idx = op_start
+        while op_idx < op_end:
+            src_logical = block_update_indices[op_idx * 2 + 0]
+            dst_logical = block_update_indices[op_idx * 2 + 1]
 
-        # Convert logical indices to (block, token) pairs
-        src_block_local = src_logical // block_size
-        dst_block_local = dst_logical // block_size
-        src_token = src_logical % block_size
-        dst_token = dst_logical % block_size
+            # Convert to (block, token) pairs
+            src_block_local = src_logical // block_size
+            dst_block_local = dst_logical // block_size
+            src_block = seq_blocks[src_block_local]
+            dst_block = seq_blocks[dst_block_local]
 
-        # Get physical block indices
-        src_block = seq_blocks[src_block_local]
-        dst_block = seq_blocks[dst_block_local]
+            # Collect all operations with same (src_block, dst_block) into batch
+            batch_end = op_idx + 1
+            while batch_end < op_end:
+                next_src = block_update_indices[batch_end * 2 + 0]
+                next_dst = block_update_indices[batch_end * 2 + 1]
+                next_src_block = seq_blocks[next_src // block_size]
+                next_dst_block = seq_blocks[next_dst // block_size]
+                if next_src_block != src_block or next_dst_block != dst_block:
+                    break
+                batch_end += 1
 
-        # Process each head independently
-        for h in range(num_kv_heads):
-            if by_channel_quantized:
-                # Dequantize source token
-                src_token_data = dequantize_by_channel(key_cache[src_block, h, src_token])
-                # Dequantize destination block
-                dst_block_data = dequantize_by_channel(key_cache[dst_block, h])
-                # Copy token in float space
-                dst_block_data[dst_token] = src_token_data
-                # Requantize destination block
-                key_cache[dst_block, h] = quantize_by_channel(dst_block_data)
-            else:
-                # Direct copy
-                key_cache[dst_block, h, dst_token] = key_cache[src_block, h, src_token]
+            # Process batch: [op_idx, batch_end)
+            same_block = (src_block == dst_block)
 
-            # Repeat for value_cache
+            # Parallel processing across heads
+            for h in parallel(num_kv_heads):
+                if by_channel_quantized:
+                    if same_block:
+                        # Same block: direct copy without requantization
+                        for op in range(op_idx, batch_end):
+                            src_token = block_update_indices[op * 2 + 0] % block_size
+                            dst_token = block_update_indices[op * 2 + 1] % block_size
+                            key_cache[src_block, h, dst_token] = key_cache[src_block, h, src_token]
+                            value_cache[src_block, h, dst_token] = value_cache[src_block, h, src_token]
+                    else:
+                        # Cross-block: dequantize dst once, copy all, requantize once
+                        # Key cache
+                        dst_block_data = dequantize_by_channel(key_cache[dst_block, h])
+                        for op in range(op_idx, batch_end):
+                            src_token = block_update_indices[op * 2 + 0] % block_size
+                            dst_token = block_update_indices[op * 2 + 1] % block_size
+                            src_token_data = dequantize_by_channel(key_cache[src_block, h, src_token])
+                            dst_block_data[dst_token] = src_token_data
+                        key_cache[dst_block, h] = quantize_by_channel(dst_block_data)
+
+                        # Value cache (same process)
+                        dst_block_data = dequantize_by_channel(value_cache[dst_block, h])
+                        for op in range(op_idx, batch_end):
+                            src_token = block_update_indices[op * 2 + 0] % block_size
+                            dst_token = block_update_indices[op * 2 + 1] % block_size
+                            src_token_data = dequantize_by_channel(value_cache[src_block, h, src_token])
+                            dst_block_data[dst_token] = src_token_data
+                        value_cache[dst_block, h] = quantize_by_channel(dst_block_data)
+                else:
+                    # Non-by-channel: direct copy for all operations in batch
+                    for op in range(op_idx, batch_end):
+                        src_token = block_update_indices[op * 2 + 0] % block_size
+                        dst_token = block_update_indices[op * 2 + 1] % block_size
+                        key_cache[dst_block, h, dst_token] = key_cache[src_block, h, src_token]
+                        value_cache[dst_block, h, dst_token] = value_cache[src_block, h, src_token]
+
+            # Move to next batch
+            op_idx = batch_end
 
 
 **Attributes**: *PaKVReorder* operation has no attributes.
