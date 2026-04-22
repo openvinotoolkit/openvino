@@ -21,15 +21,13 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
-#include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
-#include "transformations/paged_attention/paged_causal_conv1d_fusion.hpp"
-#include "transformations/paged_attention/paged_gated_delta_net_fusion.hpp"
-#include "transformations/paged_attention/position_ids_replacer.hpp"
 #include "transformations/paged_attention/prev_sequence_length_pattern.hpp"
 #include "transformations/paged_attention/state_management_pattern.hpp"
 #include "transformations/paged_attention/total_sequence_length_pattern.hpp"
+#include "transformations/sdpa_to_paged_attention/position_ids_replacer.hpp"
 #include "transformations/utils/print_model.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -235,7 +233,6 @@ static PARepresentationContext prepare_sdpa_to_pa_representation(const std::shar
     manager.register_pass<TotalSequenceLengthPatternCodeGen2>(context.max_context_len);
     manager.register_pass<PositionIDsReplacer>(context.unsqueezed_position_ids);
     manager.register_pass<PositionIDsReplacerQwen>(context.unsqueezed_position_ids);
-    manager.register_pass<PositionIDsReplacerLFM2>(context.position_ids);
     manager.register_pass<PositionIDsReplacerCodeGen2>(context.position_ids);
     manager.run_passes(model);
 
@@ -414,9 +411,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     }
 
     model->add_parameters(kv_parameters);
-    PagedCausalConv1DFusion().run_on_model(model);
-    GatedDeltaNetFusion().run_on_model(model);
-    PagedGatedDeltaNetFusion().run_on_model(model);
     model->validate_nodes_and_infer_types();
 
     PagedExtensionsPostCleanup().run_on_model(model);
