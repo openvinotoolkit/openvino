@@ -145,7 +145,7 @@ This agent always ends by printing an `agent-complete` marker (from `build-repor
 - Conversion + inference OK → `next_agent: wwb`
 
 ### Partial path (`status: partial`)
-- IR produced but inference failed → `next_agent: openvino-orchestrator`
+- IR produced but inference failed → `next_agent: enable-operator`
 - With `error_class: inference_runtime_error`
 
 ### Failure paths (`status: failed`)
@@ -156,10 +156,10 @@ This agent always ends by printing an `agent-complete` marker (from `build-repor
 | `optimum_export_bug` | `optimum-intel` | full error excerpt |
 | `missing_model_dependency` | `optimum-intel` | missing package name |
 | `unknown_arch_transformers_too_old` | `optimum-intel` | `requires_transformers_upgrade=true`, `transformers_override` |
-| `missing_conversion_rule` | `openvino-orchestrator` | op name from traceback |
-| `frontend_error` | `openvino-orchestrator` | error excerpt |
-| `ir_validation_error` | `openvino-orchestrator` | IR validation error |
-| `inference_runtime_error` | `openvino-orchestrator` | runtime exception |
+| `missing_conversion_rule` | `enable-operator` | op name from traceback |
+| `frontend_error` | `enable-operator` | error excerpt |
+| `ir_validation_error` | `enable-operator` | IR validation error |
+| `inference_runtime_error` | `enable-operator` | runtime exception |
 | `genai_unsupported` | `openvino-genai` | pipeline error detail |
 | `tokenizer_error` | `openvino-tokenizers` | tokenizer error detail |
 | `unknown` | `optimum-intel` | full error log |
