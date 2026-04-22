@@ -53,22 +53,31 @@ The ``num_processed_tokens[s]`` value indicates how many tokens have already bee
 the most recent cached block before ``num_processed_tokens[s]`` is loaded, and the remaining
 tokens up to ``num_processed_tokens[s]`` are replayed from that checkpoint.
 
-Use cases:
+Denote ``num_current_tokens[s]`` as the number of current tokens to process.
+It can be computed as: ``subsequence_begins[s+1] - subsequence_begins[s]``.
+Then `N`, the number of blocks for writing, is computed as: ``(num_current_tokens[s] + cache_interval[s] - 1) // cache_interval[s]``
+Let the blocks passed through `la_block_indices` be indexed as block `0, 1, ..., N`.
+Cases for reading and updating blocks:
 
 1. **Prefill with no past**  
-   Read from block 0, write to block 1...N
+   Read from block 0 and write to blocks 1...N.  
+   Block 0 and block 1 refer to the same block, so block 0 is updated in-place.
 
 2. **Prefill with `past_len % cache_interval == 0`**  
-   Read from block 0, write to block 1...N
+   Read from block 0 and write to blocks 1...N.  
+   Block 0 and block 1 refer to different blocks.
 
 3. **Prefill with `past_len % cache_interval != 0`**  
-   Read from block 0, write to block 1...N
+   Read from block 0 and write to blocks 1...N.  
+   Block 0 and block 1 refer to the same block, so block 0 is updated in-place.
 
 4. **Decode with `past_len % cache_interval == 0`**  
-   Read from block 0, write to block 1
+   Read from block 0 and write to block 1.  
+   Block 0 and block 1 refer to different blocks.
 
 5. **Decode with `past_len % cache_interval != 0`**  
-   Read from block 0, write to block 1
+   Read from block 0 and write to block 1.  
+   Block 0 and block 1 refer to the same block, so block 0 is updated in-place.
 
 
 .. code-block:: py
