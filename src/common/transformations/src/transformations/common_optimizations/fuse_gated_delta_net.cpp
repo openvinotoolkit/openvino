@@ -8,6 +8,8 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <unordered_set>
+#include <vector>
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -376,60 +378,49 @@ bool is_qk_anchor_node(const std::shared_ptr<ov::Node>& node) {
            ov::is_type<ov::op::v8::Slice>(node) || ov::is_type<ov::op::v0::Concat>(node);
 }
 
-std::shared_ptr<ov::Node> find_qk_anchor(const ov::Output<ov::Node>& start) {
-    std::shared_ptr<ov::Node> current = start.get_node_shared_ptr();
-    for (size_t depth = 0; depth < 32 && current; ++depth) {
-        if (is_qk_anchor_node(current)) {
-            return current;
+struct QKPathInfo {
+    ov::Output<ov::Node> anchor_output;
+    std::vector<std::shared_ptr<ov::Node>> visited_path;
+};
+
+QKPathInfo analyze_qk_path(const ov::Output<ov::Node>& start) {
+    QKPathInfo info;
+
+    // Traverse backward along input(0) only, collecting nodes and finding anchor.
+    ov::Output<ov::Node> current = start;
+    while (true) {
+        const auto node = current.get_node_shared_ptr();
+        if (!node) {
+            break;
         }
-        if (!is_allowed_qk_path_node(current) || current->inputs().empty()) {
-            return nullptr;
+        if (is_qk_anchor_node(node)) {
+            info.anchor_output = current;
+            break;
         }
-        current = current->input_value(0).get_node_shared_ptr();
+        if (!is_allowed_qk_path_node(node) || node->inputs().empty()) {
+            break;
+        }
+        info.visited_path.push_back(node);
+        current = node->input_value(0);
     }
-    return nullptr;
+
+    if (!info.anchor_output.get_node_shared_ptr()) {
+        info.visited_path.clear();
+    }
+    return info;
 }
 
-ov::Output<ov::Node> find_qk_anchor_output(const ov::Output<ov::Node>& start) {
-    ov::Output<ov::Node> current_out = start;
-    for (size_t depth = 0; depth < 32; ++depth) {
-        auto current = current_out.get_node_shared_ptr();
-        if (!current) {
-            return {};
-        }
-        if (is_qk_anchor_node(current)) {
-            return current_out;
-        }
-        if (!is_allowed_qk_path_node(current) || current->inputs().empty()) {
-            return {};
-        }
-        current_out = current->input_value(0);
-    }
-    return {};
+bool has_valid_path(const QKPathInfo& info) {
+    return info.anchor_output.get_node_shared_ptr() && !info.visited_path.empty();
 }
 
-std::vector<std::shared_ptr<ov::Node>> collect_qk_path_nodes(const ov::Output<ov::Node>& start) {
-    std::vector<std::shared_ptr<ov::Node>> path;
-    ov::Output<ov::Node> current_out = start;
-    for (size_t depth = 0; depth < 32; ++depth) {
-        auto current = current_out.get_node_shared_ptr();
-        if (!current) {
-            path.clear();
-            return path;
-        }
-        path.push_back(current);
-        if (is_qk_anchor_node(current)) {
-            return path;
-        }
-        if (!is_allowed_qk_path_node(current) || current->inputs().empty()) {
-            path.clear();
-            return path;
-        }
-        current_out = current->input_value(0);
-    }
-    path.clear();
-    return path;
+bool have_same_anchor(const QKPathInfo& q_info, const QKPathInfo& k_info, const QKPathInfo& v_info) {
+    return q_info.anchor_output.get_node_shared_ptr() && k_info.anchor_output.get_node_shared_ptr() &&
+           v_info.anchor_output.get_node_shared_ptr() &&
+           q_info.anchor_output.get_node_shared_ptr() == k_info.anchor_output.get_node_shared_ptr() &&
+           k_info.anchor_output.get_node_shared_ptr() == v_info.anchor_output.get_node_shared_ptr();
 }
+
 
 ov::Output<ov::Node> align_to_reference_shape(const ov::Output<ov::Node>& src,
                                               const ov::Output<ov::Node>& reference,
@@ -505,33 +496,29 @@ ov::pass::FuseGroupedQueryIntoGDN::FuseGroupedQueryIntoGDN() {
             return false;
         }
 
-        auto q_anchor = find_qk_anchor(gdn_node->input_value(0));
-        auto k_anchor = find_qk_anchor(gdn_node->input_value(1));
-        auto v_anchor = find_qk_anchor(gdn_node->input_value(2));
-        if (!q_anchor || !k_anchor || !v_anchor || q_anchor != k_anchor || k_anchor != v_anchor) {
+        const auto q_path = analyze_qk_path(gdn_node->input_value(0));
+        const auto k_path = analyze_qk_path(gdn_node->input_value(1));
+        const auto v_path = analyze_qk_path(gdn_node->input_value(2));
+
+        // Step 2. Compare anchors and visited nodes collected for all Q/K/V inputs.
+        if (!have_same_anchor(q_path, k_path, v_path)) {
             return false;
         }
 
-        auto q_anchor_output = find_qk_anchor_output(gdn_node->input_value(0));
-        auto k_anchor_output = find_qk_anchor_output(gdn_node->input_value(1));
-        auto v_anchor_output = find_qk_anchor_output(gdn_node->input_value(2));
-        if (!q_anchor_output.get_node_shared_ptr() || !k_anchor_output.get_node_shared_ptr() ||
-            !v_anchor_output.get_node_shared_ptr() ||
-            q_anchor_output.get_node_shared_ptr() != k_anchor_output.get_node_shared_ptr() ||
-            k_anchor_output.get_node_shared_ptr() != v_anchor_output.get_node_shared_ptr()) {
+        if (!has_valid_path(q_path) || !has_valid_path(k_path) || !has_valid_path(v_path)) {
             return false;
         }
 
         // If already directly connected from anchor outputs, skip.
-        if (gdn_node->input_value(0).get_node_shared_ptr() == q_anchor_output.get_node_shared_ptr() &&
-            gdn_node->input_value(1).get_node_shared_ptr() == k_anchor_output.get_node_shared_ptr() &&
-            gdn_node->input_value(2).get_node_shared_ptr() == v_anchor_output.get_node_shared_ptr()) {
+        if (gdn_node->input_value(0).get_node_shared_ptr() == q_path.anchor_output.get_node_shared_ptr() &&
+            gdn_node->input_value(1).get_node_shared_ptr() == k_path.anchor_output.get_node_shared_ptr() &&
+            gdn_node->input_value(2).get_node_shared_ptr() == v_path.anchor_output.get_node_shared_ptr()) {
             return false;
         }
 
-        auto q_aligned = align_to_reference_shape(q_anchor_output, gdn_node->input_value(0), this);
-        auto k_aligned = align_to_reference_shape(k_anchor_output, gdn_node->input_value(1), this);
-        auto v_aligned = align_to_reference_shape(v_anchor_output, gdn_node->input_value(2), this);
+        auto q_aligned = align_to_reference_shape(q_path.anchor_output, gdn_node->input_value(0), this);
+        auto k_aligned = align_to_reference_shape(k_path.anchor_output, gdn_node->input_value(1), this);
+        auto v_aligned = align_to_reference_shape(v_path.anchor_output, gdn_node->input_value(2), this);
 
         if (!q_aligned.get_node_shared_ptr() || !k_aligned.get_node_shared_ptr() || !v_aligned.get_node_shared_ptr()) {
             return false;
