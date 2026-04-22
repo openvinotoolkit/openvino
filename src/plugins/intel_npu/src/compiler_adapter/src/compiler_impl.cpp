@@ -178,7 +178,9 @@ const std::shared_ptr<VCLCompilerImpl> VCLCompilerImpl::getInstance() {
     return compiler;
 }
 
-VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerImpl", Logger::global().level()) {
+VCLCompilerImpl::VCLCompilerImpl(const vcl_device_desc_t* deviceDesc)
+    : _logHandle(nullptr),
+      _logger("VCLCompilerImpl", Logger::global().level()) {
     _logger.debug("VCLCompilerImpl constructor start");
 
     // Load VCL library
@@ -209,16 +211,21 @@ VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerIm
 
     // This information cannot be determined during the initialization phase; set device desc default value, the related
     // info will be processed in compile phase if passed by user.
-    _logger.info("Device description is not provided, using default values");
-    uint32_t defaultTileCount = std::numeric_limits<uint32_t>::max();
-    if (_vclVersion.major == 7 && _vclVersion.minor < 6) {
-        // For vcl <= 7.5, need to use smaller value to pass check
-        defaultTileCount = std::numeric_limits<uint16_t>::max();
+    vcl_device_desc_t device_desc = {};
+    if (deviceDesc == nullptr) {
+        _logger.info("Device description is not provided, using default values");
+        uint32_t defaultTileCount = std::numeric_limits<uint32_t>::max();
+        if (_vclVersion.major == 7 && _vclVersion.minor < 6) {
+            // For vcl <= 7.5, need to use smaller value to pass check
+            defaultTileCount = std::numeric_limits<uint16_t>::max();
+        }
+        device_desc = {sizeof(vcl_device_desc_t), 0x00, std::numeric_limits<uint16_t>::max(), defaultTileCount};
+    } else {
+        _logger.info("Device description is provided, device ID: %x, max tiles: %u",
+                     deviceDesc->deviceID,
+                     deviceDesc->tileCount);
+        device_desc = *deviceDesc;
     }
-    vcl_device_desc_t device_desc = {sizeof(vcl_device_desc_t),
-                                     0x00,
-                                     std::numeric_limits<uint16_t>::max(),
-                                     defaultTileCount};
     THROW_ON_FAIL_FOR_VCL("vclCompilerCreate",
                           vclCompilerCreate(&compilerDesc, &device_desc, &_compilerHandle, &_logHandle),
                           nullptr);
