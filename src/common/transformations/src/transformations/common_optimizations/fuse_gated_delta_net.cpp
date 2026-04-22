@@ -481,6 +481,44 @@ ov::Output<ov::Node> align_to_reference_shape(const ov::Output<ov::Node>& src,
         }
     }
 
+    // Accumulate product of all static source dimensions: n.
+    uint64_t n = 1;
+    bool has_static_dims = false;
+    for (const auto& dim : src_ps) {
+        if (!dim.is_static()) {
+            continue;
+        }
+        has_static_dims = true;
+        n *= static_cast<uint64_t>(dim.get_length());
+    }
+
+    const auto ref_rank = ref_ps.rank();
+    if (has_static_dims && ref_rank.is_static() && ref_rank.get_length() >= 2) {
+        const auto last_dim_idx = ref_rank.get_length() - 1;
+        const auto replace_dim_idx = ref_rank.get_length() - 2;
+        const auto& last_dim = ref_ps[last_dim_idx];
+
+        if (last_dim.is_static()) {
+            const auto last_dim_value = static_cast<uint64_t>(last_dim.get_length());
+            if (last_dim_value == 0 || n % last_dim_value != 0) {
+                return {};
+            }
+
+            const auto n_div_last_dim = static_cast<int64_t>(n / last_dim_value);
+            auto ref_shape = std::make_shared<ov::op::v3::ShapeOf>(reference);
+            auto indices = v0::Constant::create(ov::element::i64, {1}, {replace_dim_idx});
+            auto updates = v0::Constant::create(ov::element::i64, {1}, {n_div_last_dim});
+            auto axis = v0::Constant::create(ov::element::i64, {}, {0});
+            auto updated_shape = std::make_shared<ov::op::v3::ScatterUpdate>(ref_shape, indices, updates, axis);
+            auto reshaped = std::make_shared<v1::Reshape>(src, updated_shape, false);
+
+            pass->register_new_node(ref_shape);
+            pass->register_new_node(updated_shape);
+            pass->register_new_node(reshaped);
+            return reshaped;
+        }
+    }
+
     auto ref_shape = std::make_shared<ov::op::v3::ShapeOf>(reference);
     auto reshaped = std::make_shared<v1::Reshape>(src, ref_shape, false);
     pass->register_new_node(ref_shape);
