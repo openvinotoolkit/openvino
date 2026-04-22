@@ -110,10 +110,10 @@ if(ENABLE_ONEDNN_FOR_GPU)
         # oneDNN may still pick different bundled ZE headers depending on its internal CMake logic.
         # Do not fail whole build on ODR diagnostics emitted during LTO for those external headers.
         if(CMAKE_COMPILER_IS_GNUCXX)
-            list(APPEND cmake_extra_args "-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} -Wno-error=odr")
-            list(APPEND cmake_extra_args "-DCMAKE_C_FLAGS=${CMAKE_C_FLAGS} -Wno-error=odr")
-            list(APPEND cmake_extra_args "-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} -Wno-ignored-attributes -Wno-error=ignored-attributes")
-            list(APPEND cmake_extra_args "-DCMAKE_C_FLAGS=${CMAKE_C_FLAGS} -Wno-ignored-attributes -Wno-error=ignored-attributes")
+            set(_onednn_gpu_cxx_flags "${CMAKE_CXX_FLAGS} -Wno-error=odr -Wno-ignored-attributes -Wno-error=ignored-attributes")
+            set(_onednn_gpu_c_flags "${CMAKE_C_FLAGS} -Wno-error=odr -Wno-ignored-attributes -Wno-error=ignored-attributes")
+            list(APPEND cmake_extra_args "-DCMAKE_CXX_FLAGS=${_onednn_gpu_cxx_flags}")
+            list(APPEND cmake_extra_args "-DCMAKE_C_FLAGS=${_onednn_gpu_c_flags}")
         endif()
 
         set(onednn_gpu_lib "${CMAKE_STATIC_LIBRARY_PREFIX}${DNNL_GPU_LIBRARY_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
