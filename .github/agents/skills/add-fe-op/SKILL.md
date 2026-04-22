@@ -6,58 +6,33 @@ description: Adds a new operation to OpenVINO Frontend pipelines with translator
 # Agent Skill: Add New Operation to OpenVINO Frontend
 
 ## Goal
-Provide a clear instruction-only workflow to enable a new operation in the OpenVINO Frontend (FE) pipeline.
+Enable a new operation in an OpenVINO Frontend (FE) pipeline — translator creation, registration, conversion validation, and tests.
 
-Expected outcome:
+## Framework-Specific Workflows
 
-- Operation translation
-- Conversion to OpenVINO graph
-- Unit and functional validation
+Each frontend has its own detailed workflow. Read the one matching the target framework:
 
----
+| Frontend | Skill file | What it covers |
+|---|---|---|
+| **PyTorch** | [pytorch.md](pytorch.md) | NodeContext API, `op_table.cpp` registration (TorchScript + FX/Export), `translate_1to1_match_*` wrappers, Python layer tests, Mark operations |
+| **ONNX** | [onnx.md](onnx.md) | `ov::frontend::onnx::Node` API, `ONNX_OP` macro registration with `OPSET_SINCE`/`OPSET_RANGE`, `.prototxt` test models, C++ GTest cases, normalize-step transformations |
 
-## Scope
+## Related Skills (investigation & debugging)
 
-This instruction applies to these frontends:
+| Frontend | Skill file | When to use |
+|---|---|---|
+| ONNX | [conversion-issues/onnx.md](../conversion-issues/onnx.md) | Conversion failures, accuracy bugs, shape/type mismatches, opset version gaps |
+| PyTorch | [conversion-issues/pytorch.md](../conversion-issues/pytorch.md) | Conversion failures, accuracy bugs, tracing mode issues, normalize-step failures |
 
-- `pytorch`
-- `tf` (TensorFlow)
-- `onnx`
+## Notes
 
-The workflow covers:
-
-1. Translator creation/update
-2. Translator registration in op mapping tables
-3. Conversion validation
-4. Test updates
+- Keep this skill instruction-only in markdown.
 
 ---
 
-## Architecture
+## Instruction Workflow (TensorFlow and generic fallback)
 
-Agent → Skill → FE Translator → OpenVINO Core Graph
-
----
-
-## Expected Repository Layout
-
-openvino/
-├─ src/frontends/<framework>/
-│  ├─ src/
-│  │  ├─ op/
-│  │  │  └─ <new_op>.cpp
-│  │  ├─ op_table.cpp
-│  │  └─ CMakeLists.txt
-│  └─ tests/
-│     └─ test_<new_op>.cpp
-├─ tests/
-│  └─ layer_tests/
-│     └─ <framework>/
-│        └─ test_<new_op>_conversion.py
-
----
-
-## Instruction Workflow
+The following sections apply to frontends **not** covered by the framework-specific files above (e.g., TensorFlow), or as a general reference when no framework-specific skill is available.
 
 ### 1) Check current support state
 - Verify whether translator file already exists.
