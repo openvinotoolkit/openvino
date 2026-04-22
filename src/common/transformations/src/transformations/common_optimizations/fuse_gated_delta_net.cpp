@@ -528,7 +528,7 @@ ov::Output<ov::Node> align_to_reference_shape(const ov::Output<ov::Node>& src,
 
 }  // namespace
 
-ov::pass::VerifySharedQKSourceForGDN::VerifySharedQKSourceForGDN() {
+ov::pass::FuseGroupedQueryIntoGDN::FuseGroupedQueryIntoGDN() {
     auto gdn = pattern::wrap_type<ov::op::internal::GatedDeltaNet>();
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
@@ -585,7 +585,7 @@ ov::pass::VerifySharedQKSourceForGDN::VerifySharedQKSourceForGDN() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(gdn, "VerifySharedQKSourceForGDN");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(gdn, "FuseGroupedQueryIntoGDN");
     register_matcher(m, callback);
 }
 
@@ -598,6 +598,6 @@ bool ov::pass::GatedDeltaNetFusion::run_on_model(const std::shared_ptr<ov::Model
     // remove redundant transpose after loop fusion, which are inserted by FuseGDNLoop
     symbolic_ctx_manager->register_pass<ov::pass::TransposeFuse>();
     symbolic_ctx_manager->register_pass<ov::pass::FuseL2NormIntoGDN>();
-    symbolic_ctx_manager->register_pass<ov::pass::VerifySharedQKSourceForGDN>();
+    symbolic_ctx_manager->register_pass<ov::pass::FuseGroupedQueryIntoGDN>();
     return symbolic_optimizations.run_on_model(model);
 }

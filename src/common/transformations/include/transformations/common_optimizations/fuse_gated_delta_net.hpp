@@ -55,10 +55,10 @@ public:
  *        ancestor through a chain of Reshape/Transpose/Gather/Broadcast/Unsqueeze/Squeeze operations.
  */
 
-class TRANSFORMATIONS_API VerifySharedQKSourceForGDN : public ov::pass::MatcherPass {
+class TRANSFORMATIONS_API FuseGroupedQueryIntoGDN : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("VerifySharedQKSourceForGDN");
-    VerifySharedQKSourceForGDN();
+    OPENVINO_MATCHER_PASS_RTTI("FuseGroupedQueryIntoGDN");
+    FuseGroupedQueryIntoGDN();
 };
 
 /// This pass transforms a loop-based Gated Delta Net sub-graph to a single internal `GatedDeltaNet` operation.

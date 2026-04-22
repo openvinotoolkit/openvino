@@ -412,10 +412,10 @@ std::shared_ptr<ov::Model> build_gdn_with_shared_qk_anchor(bool shared_anchor) {
 
 }  // namespace
 
-TEST(TransformationTests, VerifySharedQKSourceForGDN_Positive) {
+TEST(TransformationTests, FuseGroupedQueryIntoGDN_Positive) {
     auto model = build_gdn_with_shared_qk_anchor(true);
     ov::pass::Manager manager;
-    manager.register_pass<ov::pass::VerifySharedQKSourceForGDN>();
+    manager.register_pass<ov::pass::FuseGroupedQueryIntoGDN>();
     manager.run_passes(model);
 
     auto gdn = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(model->get_results().at(0)->input_value(0).get_node_shared_ptr());
@@ -463,10 +463,10 @@ TEST(TransformationTests, VerifySharedQKSourceForGDN_Positive) {
     ASSERT_EQ(k_split, v_split);
 }
 
-TEST(TransformationTests, VerifySharedQKSourceForGDN_NegativeDifferentAnchors) {
+TEST(TransformationTests, FuseGroupedQueryIntoGDN_NegativeDifferentAnchors) {
     auto model = build_gdn_with_shared_qk_anchor(false);
     ov::pass::Manager manager;
-    manager.register_pass<ov::pass::VerifySharedQKSourceForGDN>();
+    manager.register_pass<ov::pass::FuseGroupedQueryIntoGDN>();
     manager.run_passes(model);
 
     auto gdn = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(model->get_results().at(0)->input_value(0).get_node_shared_ptr());
@@ -492,7 +492,7 @@ TEST(TransformationTests, VerifySharedQKSourceForGDN_NegativeDifferentAnchors) {
                  k_input_node == v_input_node);
 }
 
-TEST(TransformationTests, VerifySharedQKSourceForGDN_Qwen3NextModel) {
+TEST(TransformationTests, FuseGroupedQueryIntoGDN_Qwen3NextModel) {
     const char* model_path_env = std::getenv("OV_GDN_TEST_MODEL_PATH");
     if (!model_path_env || std::string(model_path_env).empty()) {
         GTEST_SKIP() << "OV_GDN_TEST_MODEL_PATH is not set";
