@@ -6,7 +6,6 @@
 
 #include <cstdint>
 #include <memory>
-#include <string>
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -44,7 +43,7 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
             }
             auto format_cache_precision = [](ov::element::Type cache_precision, ov::element::Type infer_precision) {
                 return cache_precision == ov::element::f16 && infer_precision == ov::element::bf16 ? infer_precision
-                                                                                                : cache_precision;
+                                                                                                   : cache_precision;
             };
 
             auto init_cache_shape = [&](const size_t head_nums,
@@ -77,18 +76,19 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
                 return block_shape;
             };
             auto key_cache_precision = format_cache_precision(m_config.keyCachePrecision, m_config.inferencePrecision);
-            auto value_cache_precision = format_cache_precision(m_config.valueCachePrecision, m_config.inferencePrecision);
+            auto value_cache_precision =
+                format_cache_precision(m_config.valueCachePrecision, m_config.inferencePrecision);
             key_cache->set_element_type(key_cache_precision);
             value_cache->set_element_type(value_cache_precision);
             if (pa_op->get_rt_info().count("num_k_heads") && pa_op->get_rt_info().count("k_head_size") &&
                 pa_op->get_rt_info().count("num_v_heads") && pa_op->get_rt_info().count("v_head_size")) {
                 const auto key_cache_shape = init_cache_shape(pa_op->get_rt_info()["num_k_heads"].as<size_t>(),
-                                                            pa_op->get_rt_info()["k_head_size"].as<size_t>(),
-                                                            m_config.keyCacheBlockSize,
-                                                            key_cache_precision,
-                                                            m_config.keyCacheGroupSize,
-                                                            m_config.keyCacheQuantBychannel,
-                                                            m_config.keyCacheDimOrder);
+                                                              pa_op->get_rt_info()["k_head_size"].as<size_t>(),
+                                                              m_config.keyCacheBlockSize,
+                                                              key_cache_precision,
+                                                              m_config.keyCacheGroupSize,
+                                                              m_config.keyCacheQuantBychannel,
+                                                              m_config.keyCacheDimOrder);
                 const auto value_cache_shape = init_cache_shape(pa_op->get_rt_info()["num_v_heads"].as<size_t>(),
                                                                 pa_op->get_rt_info()["v_head_size"].as<size_t>(),
                                                                 m_config.valueCacheBlockSize,
@@ -102,8 +102,8 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
                 status = true;
             } else {
                 OPENVINO_DEBUG("PagedAttn ",
-                            pa_op->get_friendly_name(),
-                            " doesn't have rtinfo for num_k_heads/k_head_size/num_v_heads/v_head_size");
+                               pa_op->get_friendly_name(),
+                               " doesn't have rtinfo for num_k_heads/k_head_size/num_v_heads/v_head_size");
                 status = false;
             }
 
@@ -117,7 +117,7 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
             key_cache->validate_and_infer_types();
             value_cache->validate_and_infer_types();
         }
-        
+
         return status;
     };
 
