@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <functional>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <memory>
 #include <optional>
@@ -217,14 +218,22 @@ public:
     }
 
     void bytes(void* data, std::size_t size) {
+        const auto stream_size = to_streamsize(size);
         if (output()) {
-            m_output->write(reinterpret_cast<const char*>(data), static_cast<std::streamsize>(size));
+            m_output->write(reinterpret_cast<const char*>(data), stream_size);
         } else {
-            m_input->read(reinterpret_cast<char*>(data), static_cast<std::streamsize>(size));
+            m_input->read(reinterpret_cast<char*>(data), stream_size);
         }
     }
 
 private:
+    static std::streamsize to_streamsize(std::size_t size) {
+        if (size > static_cast<std::size_t>(std::numeric_limits<std::streamsize>::max())) {
+            throw std::overflow_error("Stream::bytes() size exceeds std::streamsize range");
+        }
+        return static_cast<std::streamsize>(size);
+    }
+
     Stream(std::istream* input, std::ostream* output) : m_input(input), m_output(output) {}
 
     std::istream* m_input = nullptr;
@@ -322,7 +331,7 @@ void serialize(Stream& stream, std::vector<T>& var) {
                 bool el = var[i];
                 stream & el;
             } else {
-                auto el = var[i];
+                auto& el = var[i];
                 stream & el;
             }
         }
