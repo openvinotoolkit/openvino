@@ -6,6 +6,8 @@
 
 #include <onnx/onnx_pb.h>
 
+#include <vector>
+
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
@@ -20,14 +22,54 @@ using Buffer = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<T>>>;
 using MappedMemoryHandles = std::shared_ptr<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>;
 using LocalStreamHandles = std::shared_ptr<std::map<std::string, std::shared_ptr<std::ifstream>>>;
 
-/// \brief Remove leading path components that would allow traversing up a directory tree.
+/// \brief Remove path components that would allow traversing up a directory tree.
 /// \note The ONNX Runtime shared-memory marker "*/_ORT_MEM_ADDR_/*" is also accepted here.
 inline std::string sanitize_external_data_location(const std::string& location) {
+    if (location == "*/_ORT_MEM_ADDR_/*") {
+        return location;
+    }
+
+    // Strip an optional drive/scheme prefix (everything up to and including the first ':').
     const auto colon_pos = location.find(':');
-    const auto sanitized_location = location.substr(colon_pos == std::string::npos ? 0 : colon_pos + 1);
-    const std::string leading_components = "/.\\";
-    const auto start = sanitized_location.find_first_not_of(leading_components);
-    return (start == std::string::npos) ? "" : sanitized_location.substr(start);
+    const auto stripped = colon_pos == std::string::npos ? location : location.substr(colon_pos + 1);
+
+    // Pick the separator style based on which slash appears first in the input.
+    const auto fwd = stripped.find('/');
+    const auto bwd = stripped.find('\\');
+    const char separator =
+        (bwd != std::string::npos && (fwd == std::string::npos || bwd < fwd)) ? '\\' : '/';
+
+    std::vector<std::string> components;
+    size_t start = 0;
+    for (size_t pos = 0; pos <= stripped.size(); ++pos) {
+        if (pos != stripped.size() && stripped[pos] != '/' && stripped[pos] != '\\') {
+            continue;
+        }
+        const auto token = stripped.substr(start, pos - start);
+        start = pos + 1;
+
+        if (token.empty() || token == ".") {
+            continue;
+        }
+        if (token == "..") {
+            if (!components.empty()) {
+                components.pop_back();
+            }
+            continue;
+        }
+        components.push_back(token);
+    }
+
+    if (components.empty()) {
+        return "";
+    }
+
+    std::string normalized = components.front();
+    for (size_t i = 1; i < components.size(); ++i) {
+        normalized += separator;
+        normalized += components[i];
+    }
+    return normalized;
 }
 
 /// \brief  Helper class used to load tensor data from external files
