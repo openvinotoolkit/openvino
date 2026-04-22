@@ -128,6 +128,20 @@ def _build_quantized_extensions(
         # GPTQ is handled separately — not via ModuleExtension for TorchScript,
         # and via attribute-based patching for torch.export (see _patch_gptq_for_export).
         return None
+    elif quant_type == "nncf":
+        try:
+            from nncf.experimental.torch.qlinear import NNCFQLinear
+            extensions[NNCFQLinear] = ModuleExtension(
+                NNCFQLinear, "ov_ext::nncf_qlinear",
+                convert=lambda module, target_op, *args, **kwargs: target_op(
+                    args[0], module.qweight, module.qzeros, module.scales,
+                    torch.tensor(module.group_size),
+                    torch.tensor(module.bits), torch.tensor(module.sym),
+                    module.bias),
+                evaluate=lambda module, *args, **kwargs: fp32_tensor(
+                    *args[0].shape[:-1], module.out_features))  # type: ignore
+        except ImportError:
+            pass
     else:
         raise RuntimeError(f"Unknown quantization type: {quant_type}.")
     return extensions
