@@ -61,6 +61,11 @@ struct ModelState {
     float output_bias = 0.f;
     float last_input_value = 0.f;
     float last_output_value = 0.f;
+    // Optional glitch: from call number glitch_at_call onwards, output_bias is
+    // replaced with glitch_bias.  Set glitch_at_call <= 0 to disable.
+    int infer_count = 0;
+    int glitch_at_call = 0;
+    float glitch_bias = 0.f;
 };
 
 class TestCompiledModel;
@@ -134,12 +139,16 @@ void TestInferRequest::infer() {
     if (m_state->events) {
         m_state->events->push_back("infer:" + m_state->name);
     }
+    ++m_state->infer_count;
+    const float bias = (m_state->glitch_at_call > 0 && m_state->infer_count >= m_state->glitch_at_call)
+                           ? m_state->glitch_bias
+                           : m_state->output_bias;
     const auto& input_port = get_compiled_model()->inputs().front();
     const auto& output_port = get_compiled_model()->outputs().front();
     const auto& in_tensor = ov::ISyncInferRequest::get_tensor(input_port);
     const auto& out_tensor = ov::ISyncInferRequest::get_tensor(output_port);
     m_state->last_input_value = in_tensor->data<const float>()[0];
-    m_state->last_output_value = m_state->last_input_value + m_state->output_bias;
+    m_state->last_output_value = m_state->last_input_value + bias;
     out_tensor->data<float>()[0] = m_state->last_output_value;
 }
 
@@ -423,4 +432,74 @@ TEST(AccuracyCheckedCompiledModelTest, ExecutionDevicesReflectsActiveModel) {
     // After switch: reports reference device.
     auto devs_after = compiled->get_property(ov::execution_devices.name()).as<std::vector<std::string>>();
     EXPECT_EQ(devs_after, (std::vector<std::string>{"CPU"}));
+}
+
+TEST(AccuracyCheckedCompiledModelTest, RepeatingBlockAccuracyFailsAtThirdCall) {
+    // In NPUW a function body (repeating block) is compiled once and its infer
+    // request pair (main + ref) is *reused* for every call-site invocation
+    // within a single forward pass.  The AccuracyChecked::InferRequest wraps
+    // that pair and is called once per instance.  The shared
+    // m_switched_to_reference flag ensures that once any instance detects an
+    // accuracy failure, all subsequent invocations automatically use reference.
+    //
+    // Scenario: main is accurate on calls 1 and 2, but "glitches" from call 3
+    // onwards (output bias shifts by 1).  Reference is always stable.
+    // Threshold = 0.5, so |glitch| = 1 triggers the permanent switch on call 3.
+    auto model = make_test_model();
+    auto plugin = std::make_shared<NullPlugin>();
+    std::vector<std::string> events;
+
+    auto main_state = std::make_shared<ModelState>(ModelState{"main", &events, 10.f});
+    main_state->glitch_at_call = 3;
+    main_state->glitch_bias    = 11.f;  // diverges from ref by 1 on call 3+
+
+    auto ref_state = std::make_shared<ModelState>(ModelState{"ref", &events, 10.f});
+
+    auto main_cm = make_test_compiled_model(model, plugin, main_state);
+    auto ref_cm  = make_test_compiled_model(model, plugin, ref_state);
+
+    auto so = ov::npuw::accuracy_checked::CompiledModel::create(
+        model, plugin, main_cm, ref_cm, make_threshold_checker(0.5f));
+    auto compiled = std::dynamic_pointer_cast<ov::npuw::accuracy_checked::CompiledModel>(so._ptr);
+    ASSERT_NE(compiled, nullptr);
+
+    // One AccuracyChecked::InferRequest reused for all N instances of the block.
+    auto request = compiled->create_sync_infer_request();
+    auto input   = ov::get_tensor_impl(ov::Tensor(ov::element::f32, ov::Shape{1}));
+    request->set_tensor(model->inputs().front(), input);
+
+    // -- Forward pass 1, instance 1: main call #1, bias=10. Accurate. ---------
+    input->data<float>()[0] = 1.f;
+    ASSERT_NO_THROW(request->infer());
+    EXPECT_FALSE(compiled->has_switched_to_reference());
+    EXPECT_FLOAT_EQ(request->get_tensor(model->outputs().front())->data<const float>()[0], 11.f);  // 1+10
+
+    // -- Forward pass 1, instance 2: main call #2, bias=10. Accurate. ---------
+    input->data<float>()[0] = 2.f;
+    ASSERT_NO_THROW(request->infer());
+    EXPECT_FALSE(compiled->has_switched_to_reference());
+    EXPECT_FLOAT_EQ(request->get_tensor(model->outputs().front())->data<const float>()[0], 12.f);  // 2+10
+
+    // -- Forward pass 1, instance 3: main call #3, bias glitches to 11.
+    //    main=3+11=14, ref=3+10=13, |14-13|=1 > 0.5 → permanent switch. ------
+    input->data<float>()[0] = 3.f;
+    ASSERT_NO_THROW(request->infer());
+    EXPECT_TRUE(compiled->has_switched_to_reference());
+    // Output must be the reference result (3+10=13), not the glitched main (14).
+    EXPECT_FLOAT_EQ(request->get_tensor(model->outputs().front())->data<const float>()[0], 13.f);
+
+    // -- Forward pass 2: all instances use reference directly. -----------------
+    events.clear();
+    input->data<float>()[0] = 10.f;
+    ASSERT_NO_THROW(request->infer());  // instance 1
+    input->data<float>()[0] = 20.f;
+    ASSERT_NO_THROW(request->infer());  // instance 2
+    input->data<float>()[0] = 30.f;
+    ASSERT_NO_THROW(request->infer());  // instance 3
+
+    for (const auto& ev : events) {
+        EXPECT_NE(ev, "infer:main") << "main must not be invoked after permanent reference switch";
+    }
+    // Last output via reference: 30+10=40.
+    EXPECT_FLOAT_EQ(request->get_tensor(model->outputs().front())->data<const float>()[0], 40.f);
 }
