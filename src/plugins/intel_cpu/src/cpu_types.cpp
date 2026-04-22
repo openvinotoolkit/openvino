@@ -262,8 +262,8 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"RMS", Type::RMS},
         {"SearchSorted", Type::SearchSorted},
         {"LoraSubgraph", Type::LoRA},
-        {"BatchGatherMatmul", Type::GatherMatmul},
-        {"BatchGatherMatmulCompressed", Type::GatherMatmul},
+        {"GatherMatmul", Type::GatherMatmul},
+        {"GatherMatmulCompressed", Type::GatherMatmul},
         {"GatedDeltaNet", Type::GatedDeltaNet}};
     return type_to_name_tbl;
 }

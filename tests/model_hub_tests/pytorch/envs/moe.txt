@@ -1,0 +1,5 @@
+# MoE Fusion test environment overrides
+optimum-intel==1.25.2
+transformers==4.53.3
+# transformers 4.53 needs huggingface-hub>=0.30,<1.0; override hf_transformers pin
+huggingface-hub>=0.30.0,<1.0

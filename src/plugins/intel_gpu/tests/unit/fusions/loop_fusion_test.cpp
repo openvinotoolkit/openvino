@@ -19,7 +19,7 @@ using namespace ::tests;
 
 namespace {
 struct loop_params {
-    size_t loop_trip_count;
+    int32_t loop_trip_count;
     tensor in_shape;
     tensor loop_input_shape;
     tensor loop_eltwise_shape;

@@ -1156,6 +1156,10 @@ public:
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::ALIBI});  // alibi
         }
 
+        if (desc->has_token_type_ids) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::TOKEN_TYPE_IDS});  // token_type_ids
+        }
+
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
@@ -1223,6 +1227,10 @@ public:
         // }
         // jit.make("TARGET_SEQ_LEN", target_seq_len);
         jit.make("IS_KV_COMPRESSED", 0);
+
+        if (desc->has_token_type_ids) {
+            jit.make("HAS_TOKEN_TYPE_IDS", 1);
+        }
 
         return jit;
     }
@@ -1426,7 +1434,7 @@ public:
         }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        rt_params->use_micro_sdpa = supports_micro_sdpa(params) && valid_micro_stage(rt_params->stage);
+        rt_params->use_micro_sdpa = supports_micro_sdpa(params) && valid_micro_stage(rt_params->stage) && desc->has_token_type_ids == false;
 #else
         rt_params->use_micro_sdpa = false;
 #endif
@@ -1460,6 +1468,7 @@ public:
         const bool has_adaptive_rkv = desc->has_adaptive_rkv;
 
         update_stages_flags(instance);
+        kernel_dump_info.clear_entries();
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         assert(rt_params != nullptr);
         prepare_internal_buffers(static_cast<paged_attention_inst&>(instance), rt_params->stage, rt_params->use_micro_sdpa, rt_params->query_block_size);
