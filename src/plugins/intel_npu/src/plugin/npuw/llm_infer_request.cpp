@@ -857,13 +857,6 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
     auto attn_mask_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask));
     auto pos_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
 
-    const auto visual_pos_masks_it = m_prefill_in_ports.find("visual_pos_masks");
-    if (visual_pos_masks_it != m_prefill_in_ports.end()) {
-        auto visual_pos_masks_local = m_prefill_request->get_tensor(visual_pos_masks_it->second);
-        set_visual_pos_masks_input(visual_pos_masks, visual_pos_masks_local);
-        m_visual_pos_masks_nonzero_cache.clear();
-    }
-
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
 
     uint64_t remaining_prompts = input_prompt_len;
@@ -940,6 +933,24 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
             // Copy with proper stride handling
             actual_position_ids_slice->copy_to(pos_ids_slice._ptr);
+
+            // NB: visual_pos_masks is a Qwen3-VL specific input [2, seq_len].
+            // In chunk prefill mode, slice the current chunk's portion and set it.
+            if (const auto vpm_it = m_prefill_in_ports.find("visual_pos_masks");
+                vpm_it != m_prefill_in_ports.end()) {
+                auto visual_pos_masks_local = m_prefill_request->get_tensor(vpm_it->second);
+                if (visual_pos_masks) {
+                    auto chunk_slice = ov::npuw::util::make_tensor_slice(
+                        visual_pos_masks,
+                        1u,  // slice along seq_len dim
+                        static_cast<uint32_t>(kvcache_desc.num_stored_tokens),
+                        static_cast<uint32_t>(kvcache_desc.num_stored_tokens + current_prompts_len));
+                    set_visual_pos_masks_input(chunk_slice._ptr, visual_pos_masks_local);
+                } else {
+                    set_visual_pos_masks_input(ov::npuw::util::TensorPtr(), visual_pos_masks_local);
+                }
+                m_visual_pos_masks_nonzero_cache.clear();
+            }
 
             if (m_eagle3_ext.is_eagle3_model()) {
                 m_eagle3_ext.prepare_inputs_for_chunk(m_prefill_request,
