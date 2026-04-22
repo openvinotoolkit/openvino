@@ -16,10 +16,10 @@ namespace ov::npuw::accuracy_checked {
 // ============================================================================
 
 ov::SoPtr<ov::ICompiledModel> CompiledModel::create(const std::shared_ptr<ov::Model>& model,
-                                                     const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                     ov::SoPtr<ov::ICompiledModel> main_compiled,
-                                                     ov::SoPtr<ov::ICompiledModel> ref_compiled,
-                                                     Checker checker) {
+                                                    const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                    ov::SoPtr<ov::ICompiledModel> main_compiled,
+                                                    ov::SoPtr<ov::ICompiledModel> ref_compiled,
+                                                    Checker checker) {
     OPENVINO_ASSERT(main_compiled._ptr != nullptr, "AccuracyChecked: main compiled model must not be null");
     OPENVINO_ASSERT(static_cast<bool>(checker), "AccuracyChecked: checker function must not be null");
 
@@ -27,7 +27,11 @@ ov::SoPtr<ov::ICompiledModel> CompiledModel::create(const std::shared_ptr<ov::Mo
         return main_compiled;
     }
 
-    auto cm = std::make_shared<CompiledModel>(model, plugin, std::move(main_compiled), std::move(ref_compiled), std::move(checker));
+    auto cm = std::make_shared<CompiledModel>(model,
+                                              plugin,
+                                              std::move(main_compiled),
+                                              std::move(ref_compiled),
+                                              std::move(checker));
     return {cm, {}};
 }
 

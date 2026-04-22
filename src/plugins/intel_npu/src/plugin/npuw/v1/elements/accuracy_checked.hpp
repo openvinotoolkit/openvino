@@ -37,10 +37,10 @@ public:
     // Factory method.  Returns main_compiled unwrapped when ref_compiled is
     // null (no-op wrapper) to keep the zero-overhead path trivial.
     static ov::SoPtr<ov::ICompiledModel> create(const std::shared_ptr<ov::Model>& model,
-                                                 const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                 ov::SoPtr<ov::ICompiledModel> main_compiled,
-                                                 ov::SoPtr<ov::ICompiledModel> ref_compiled,
-                                                 Checker checker);
+                                                const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                ov::SoPtr<ov::ICompiledModel> main_compiled,
+                                                ov::SoPtr<ov::ICompiledModel> ref_compiled,
+                                                Checker checker);
 
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
