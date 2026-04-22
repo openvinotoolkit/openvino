@@ -932,6 +932,7 @@ public:
     int _down_group_size;
     size_t _lru_expert_num = 0;
     std::shared_ptr<LRUCache> _lru_cache;
+    std::shared_ptr<ov::intel_gpu::ocl::CpuExpertCache> _cpu_cache;
 
     bool _has_shared_expert = false;
     // Shared expert primitives
@@ -986,6 +987,41 @@ public:
         _lru_expert_num = params.typed_desc<moe_3gemm_fused_compressed>()->_lru_expert_num;
         if (_lru_expert_num > 0) {
             _lru_cache = std::make_shared<LRUCache>(_lru_expert_num);
+
+            // CPU L2 cache is enabled by default in OTD mode.
+            // Set MOE_OTD_CPU_CACHE_MB=0 to disable, or to a specific value to override the default budget.
+            const auto& config = params.typed_desc<moe_3gemm_fused_compressed>()->_config;
+            size_t h = static_cast<size_t>(config.hidden_size);
+            size_t inter = static_cast<size_t>(config.inter_size);
+            size_t gs = static_cast<size_t>(config.group_size);
+            size_t groups_gate_up = (gs > 0 && gs < h) ? h / gs : 1;
+            size_t groups_down = (gs > 0 && gs < inter) ? inter / gs : 1;
+            size_t w_bytes = inter * h / 2;
+            size_t s_gate_up = groups_gate_up * inter * 2;
+            size_t s_down = groups_down * h * 2;
+            size_t z_gate_up = groups_gate_up * inter / 2;
+            size_t z_down = groups_down * h / 2;
+            size_t per_expert = 2 * w_bytes + w_bytes + 2 * s_gate_up + s_down + 2 * z_gate_up + z_down;
+
+            // Default: cache the offloaded experts (total - GPU cached), capped at 2048 MB.
+            size_t total_experts = config.num_expert;
+            size_t offloaded = total_experts > _lru_expert_num ? total_experts - _lru_expert_num : total_experts;
+            size_t default_budget_mb = per_expert > 0 ? (offloaded * per_expert + 1024ULL * 1024ULL - 1) / (1024ULL * 1024ULL) : 2048;
+            default_budget_mb = std::min(default_budget_mb, size_t{2048});
+
+            size_t budget_mb = default_budget_mb;
+            auto cpu_cache_mb_str = std::getenv("MOE_OTD_CPU_CACHE_MB");
+            if (cpu_cache_mb_str) {
+                budget_mb = std::stoul(cpu_cache_mb_str);
+            }
+
+            if (budget_mb > 0) {
+                size_t max_cpu_experts = per_expert > 0 ? (budget_mb * 1024ULL * 1024ULL) / per_expert : total_experts;
+                max_cpu_experts = std::max(max_cpu_experts, size_t{1});
+                _cpu_cache = std::make_shared<ov::intel_gpu::ocl::CpuExpertCache>(max_cpu_experts);
+                GPU_DEBUG_TRACE_DETAIL << "[OTD] CPU cache enabled: budget=" << budget_mb
+                                       << "MB, per_expert~" << per_expert / 1024 << "KB, max_entries=" << max_cpu_experts << std::endl;
+            }
         }
         if (_lru_expert_num > 0 && use_micro_gemm_prefill) {
             use_micro_gemm_prefill = false;
@@ -1232,6 +1268,7 @@ public:
         cur_moe->_down_group_size = _down_group_size;
         cur_moe->_lru_expert_num = _lru_expert_num;
         cur_moe->_lru_cache = _lru_cache;  // shared across clones within the same network
+        cur_moe->_cpu_cache = _cpu_cache;
         return cur_moe;
     }
 
@@ -1525,7 +1562,7 @@ public:
             uint32_t* p_expert_index = (uint32_t*)scratch._expert_index_buffer->buffer_ptr();
             for (int i = 0; i < max_topk; i++) {
                 auto expert_no = experts_list[i];
-                auto lru_expert_no = moe_otd::get_lru_expert_no(instance, static_cast<uint32_t>(expert_no), cache);
+                auto lru_expert_no = moe_otd::get_lru_expert_no(instance, static_cast<uint32_t>(expert_no), cache, _cpu_cache.get());
                 *p_expert_index++ = lru_expert_no;  // update batch_mem_ptr as re-map
             }
             batch_mem_ptr = scratch._expert_index_buffer;
@@ -1670,7 +1707,7 @@ public:
                 OPENVINO_ASSERT(expert_no < static_cast<uint32_t>(num_total_experts), "expert_no ", expert_no, " exceed max_expert_num ", num_total_experts);
                 auto it = expert_to_lru.find(expert_no);
                 if (it == expert_to_lru.end()) {
-                    auto lru_expert_no = moe_otd::get_lru_expert_no(instance, expert_no, cache);
+                    auto lru_expert_no = moe_otd::get_lru_expert_no(instance, expert_no, cache, _cpu_cache.get());
                     it = expert_to_lru.emplace(expert_no, lru_expert_no).first;
                 }
                 expert_ids[i] = it->second;
@@ -2077,7 +2114,7 @@ public:
                 dnn_stream.wait();
 
                 auto& dnnl_weights = _dnnl_weights[expert_no];
-                auto lru_expert_no = moe_otd::get_lru_expert_no(instance, static_cast<uint32_t>(expert_no), cache);
+                auto lru_expert_no = moe_otd::get_lru_expert_no(instance, static_cast<uint32_t>(expert_no), cache, _cpu_cache.get());
                 auto& params = instance._weights;
 
 #    define CONVERT_DNNL(name, i)                                                                                                                      \
