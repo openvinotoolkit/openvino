@@ -2,6 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+# Suppress warnings in all test code (applies to unit and functional tests)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    ov_add_compiler_flags(/wd4018)  # signed/unsigned mismatch
+    ov_add_compiler_flags(/wd4267)  # conversion from 'size_t' to smaller type
+    ov_add_compiler_flags(/wd4244)  # narrowing conversion
+    ov_add_compiler_flags(/wd5051)  # attribute warning
+elseif (OV_COMPILER_IS_INTEL_LLVM AND WIN32)
+    ov_add_compiler_flags("/Wno-microsoft-include")
+endif()
+
 add_subdirectory(unit)
 
 if(ENABLE_FUNCTIONAL_TESTS)
