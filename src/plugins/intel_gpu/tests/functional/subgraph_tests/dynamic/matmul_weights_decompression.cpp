@@ -405,6 +405,7 @@ const std::vector<bool> transpose_weights = {true, false};
 const std::vector<bool> param_weights = {true, false};
 const std::vector<ShapeParams> input_shapes_basic = {
     {{{-1, -1, -1}, {{1, 4, 16}, {10, 16, 16}}}, {16, 32}},
+    {{{}, {{1, 4, 16}}}, {16, 32}, 2ul},
     {{{}, {{1, 4, 16}}}, {1, 16, 32}},
     {{{}, {{1, 4, 48}}}, {48, 256}},
     {{{}, {{11, 339, 377}}}, {377, 335}}
@@ -412,6 +413,7 @@ const std::vector<ShapeParams> input_shapes_basic = {
 
 const std::vector<ShapeParams> input_shapes_extra_multiply = {
     {{{}, {{1, 4, 2}}}, {2, 32}, 2ul},
+    {{{}, {{1, 4, 16}}}, {1, 16, 32}},
 };
 
 const std::vector<ShapeParams> input_shapes_extra_multiply_non_trivial_batch_broadcast = {
