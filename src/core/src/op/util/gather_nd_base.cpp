@@ -7,6 +7,7 @@
 #include "element_visitor.hpp"
 #include "gather_nd_shape_inference.hpp"
 #include "itt.hpp"
+#include "openvino/op/gather_nd.hpp"
 #include "openvino/reference/gather_nd.hpp"
 
 namespace ov {
@@ -127,8 +128,15 @@ bool GatherNDBase::evaluate(TensorVector& outputs, const TensorVector& inputs) c
     const auto& indices = inputs[1];
     auto& output = outputs[0];
 
-    const auto out_shapes =
-        gather_nd::gather_nd_base_shape_infer(this, std::vector<PartialShape>{data.get_shape(), indices.get_shape()});
+    const auto input_shapes = std::vector<PartialShape>{data.get_shape(), indices.get_shape()};
+    std::vector<PartialShape> out_shapes;
+    if (const auto* op_v5 = ov::as_type<const ov::op::v5::GatherND>(this)) {
+        out_shapes = ov::op::v5::shape_infer(op_v5, input_shapes);
+    } else if (const auto* op_v8 = ov::as_type<const ov::op::v8::GatherND>(this)) {
+        out_shapes = ov::op::v8::shape_infer(op_v8, input_shapes);
+    } else {
+        out_shapes = gather_nd::gather_nd_base_shape_infer(this, input_shapes);
+    }
     output.set_shape(out_shapes[0].to_shape());
 
     using namespace ov::element;

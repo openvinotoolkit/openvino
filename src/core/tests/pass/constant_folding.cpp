@@ -3840,6 +3840,41 @@ TEST(constant_folding, constant_loop) {
     range_test_check(result_node_1->cast_vector<float>(), expected_1);
 }
 
+TEST(constant_folding, constant_loop_with_gather_nd) {
+    std::vector<float> data_vals(2 * 3);
+    std::iota(data_vals.begin(), data_vals.end(), 0.f);
+    auto X = op::v0::Constant::create(element::f32, Shape{2, 3}, data_vals);
+
+    auto Xi = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto idx_body = op::v0::Constant::create(element::i32, Shape{2, 1}, {1, 0});
+    auto gather_nd = make_shared<op::v8::GatherND>(Xi, idx_body, 0);
+    auto body_condition = make_shared<op::v0::Constant>(element::boolean, Shape{1}, true);
+
+    auto trip_count = make_shared<op::v0::Constant>(element::i64, Shape{1}, 1);
+    auto exec_condition = make_shared<op::v0::Constant>(element::boolean, Shape{1}, true);
+
+    auto body = make_shared<Model>(OutputVector{body_condition, gather_nd}, ParameterVector{Xi});
+    auto loop = make_shared<op::v5::Loop>(trip_count, exec_condition);
+    loop->set_function(body);
+    loop->set_special_body_ports(op::v5::Loop::SpecialBodyPorts{-1, 0});
+    loop->set_invariant_input(Xi, X);
+
+    auto out0 = loop->get_iter_value(gather_nd, -1);
+    auto result0 = make_shared<op::v0::Result>(out0);
+    auto f = make_shared<Model>(ResultVector{result0}, ParameterVector{});
+
+    run_constant_folding(f);
+
+    ASSERT_EQ(count_ops_of_type<op::v5::Loop>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::v0::Constant>(f), 1);
+
+    auto result_node = get_result_constant(f);
+    ASSERT_TRUE(result_node);
+    ASSERT_EQ((Shape{2, 3}), result_node->get_output_shape(0));
+    std::vector<float> expected{3.f, 4.f, 5.f, 0.f, 1.f, 2.f};
+    range_test_check(result_node->cast_vector<float>(), expected);
+}
+
 TEST(constant_folding, disable_constant_folding_for_shapeof) {
     auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 22, 22});
     auto shapeof = std::make_shared<op::v3::ShapeOf>(data);
