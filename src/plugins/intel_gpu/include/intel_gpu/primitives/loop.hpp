@@ -192,7 +192,7 @@ struct loop : public primitive_base<loop> {
          const std::vector<io_primitive_map>& input_primitive_maps,
          const std::vector<io_primitive_map>& output_primitive_maps,
          const std::vector<backedge_mapping>& back_edges,
-         int64_t max_num_iterations = -1,
+         int32_t max_num_iterations = -1,
          const primitive_id& body_current_iteration_id = primitive_id(),
          const primitive_id& body_execution_condition_id = primitive_id(),
          const size_t num_outputs = 1)
