@@ -63,19 +63,19 @@ Cases for reading and updating blocks:
    Read from block 0 and write to blocks 1...N.  
    Block 0 and block 1 refer to the same block, so block 0 is updated in-place.
 
-2. **Prefill with `past_len % cache_interval == 0`**  
+2. **Prefill with `num_processed_tokens[s] % cache_interval[s] == 0`**  
    Read from block 0 and write to blocks 1...N.  
    Block 0 and block 1 refer to different blocks.
 
-3. **Prefill with `past_len % cache_interval != 0`**  
+3. **Prefill with `num_processed_tokens[s] % cache_interval[s] != 0`**  
    Read from block 0 and write to blocks 1...N.  
    Block 0 and block 1 refer to the same block, so block 0 is updated in-place.
 
-4. **Decode with `past_len % cache_interval == 0`**  
+4. **Decode with `num_processed_tokens[s] % cache_interval[s] == 0`**  
    Read from block 0 and write to block 1.  
    Block 0 and block 1 refer to different blocks.
 
-5. **Decode with `past_len % cache_interval != 0`**  
+5. **Decode with `num_processed_tokens[s] % cache_interval[s] != 0`**  
    Read from block 0 and write to block 1.  
    Block 0 and block 1 refer to the same block, so block 0 is updated in-place.
 
