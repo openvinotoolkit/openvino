@@ -97,6 +97,19 @@ if(ENABLE_ONEDNN_FOR_GPU)
             list(APPEND cmake_extra_args "-DOpenCL_INCLUDE_DIR=${OpenCL_INCLUDE_DIR}")
         endif()
 
+        # Keep Level Zero headers consistent between OpenVINO and oneDNN to avoid ODR issues with LTO.
+        if(TARGET LevelZero::Headers)
+            list(APPEND cmake_extra_args "-DLevelZero_INCLUDE_DIR=$<TARGET_PROPERTY:LevelZero::Headers,INTERFACE_INCLUDE_DIRECTORIES>")
+            list(APPEND cmake_extra_args "-DLevelZero_INCLUDE_DIRS=$<TARGET_PROPERTY:LevelZero::Headers,INTERFACE_INCLUDE_DIRECTORIES>")
+        endif()
+
+        # oneDNN may still pick different bundled ZE headers depending on its internal CMake logic.
+        # Do not fail whole build on ODR diagnostics emitted during LTO for those external headers.
+        if(CMAKE_COMPILER_IS_GNUCXX)
+            list(APPEND cmake_extra_args "-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} -Wno-error=odr")
+            list(APPEND cmake_extra_args "-DCMAKE_C_FLAGS=${CMAKE_C_FLAGS} -Wno-error=odr")
+        endif()
+
         set(onednn_gpu_lib "${CMAKE_STATIC_LIBRARY_PREFIX}${DNNL_GPU_LIBRARY_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
         set(ONEDNN_GPU_LIB_PATH ${ONEDNN_INSTALL_DIR}/lib/${onednn_gpu_lib} CACHE FILEPATH "Path to oneDNN GPU library")
         set(ONEDNN_GPU_DIR ${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu CACHE FILEPATH "Path to oneDNN GPU repository")
