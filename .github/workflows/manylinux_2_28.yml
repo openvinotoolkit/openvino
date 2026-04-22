@@ -173,13 +173,13 @@ jobs:
           /usr/bin/cmake -DPython3_EXECUTABLE=/usr/local/bin/python3.12 \
                          -DENABLE_NCC_STYLE=OFF \
                          -DENABLE_TESTS=ON \
-                         -DCMAKE_VERBOSE_MAKEFILE=ON \
+                         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
                          -DENABLE_OV_JAX_FRONTEND=OFF \
                          -DENABLE_PYTHON=ON \
                          -DENABLE_WHEEL=ON \
                          -S ${{ env.OPENVINO_REPO }} \
                          -B ${{ env.BUILD_DIR }}
-          /usr/bin/cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
+          /usr/bin/cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
           /usr/bin/cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
           /usr/bin/cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_TEST_DIR }} --component tests
         env:
@@ -209,7 +209,7 @@ jobs:
               /usr/bin/cmake -DPython3_EXECUTABLE=${python_path} -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${py_build_dir}
             fi
 
-            /usr/bin/cmake --build ${py_build_dir} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
+            /usr/bin/cmake --build ${py_build_dir} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
             /usr/bin/cmake --install ${py_build_dir} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
             /usr/bin/cmake --install ${py_build_dir} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }} --component pyopenvino_python${PY_VER}
 
@@ -221,7 +221,7 @@ jobs:
                 -DCPACK_GENERATOR=NPM \
                 -DENABLE_SYSTEM_TBB=OFF \
                 -DENABLE_WHEEL=OFF
-          /usr/bin/cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc)
+          /usr/bin/cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc) -- --quiet
           /usr/bin/cmake --install ${{ env.BUILD_DIR }} --prefix ${{ env.OPENVINO_REPO }}/src/bindings/js/node/bin
 
       - name: Pack Artifacts
