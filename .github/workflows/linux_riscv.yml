@@ -188,7 +188,7 @@ jobs:
           -DENABLE_PYTHON=OFF
           -DENABLE_TESTS=ON
           -DENABLE_STRICT_DEPENDENCIES=OFF
-          -DCMAKE_VERBOSE_MAKEFILE=ON
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
           -DENABLE_WHEEL=OFF
           -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
           -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/toolchains/riscv64.linux.toolchain.cmake
@@ -196,7 +196,7 @@ jobs:
           -B ${BUILD_DIR}
 
       - name: Cmake - Build
-        run: cmake --build ${BUILD_DIR} --parallel $(nproc)
+        run: cmake --build ${BUILD_DIR} --parallel $(nproc) -- --quiet
 
       - name: Show ccache stats and cleanup
         run: |
