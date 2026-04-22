@@ -24,10 +24,13 @@ meaning each block in ``conv_state_table`` stores exactly one convolution state 
 For each sequence, the operation:
 
 1. Loads the current convolution state (a window of the last ``kernel_size`` input vectors) from paged memory using the block table.
+
 2. For each token, shifts the state window and inserts the new token, then applies a grouped causal 1D convolution to produce
 the output embedding.
+
 3. Caches intermediate states to paged memory blocks at intervals controlled by ``cache_interval``
 (used during prefill to support prefix caching and chunked prefill).
+
 4. Saves the final state for each sequence into the last assigned block.
 
 The convolution state is initially a zero tensor.
@@ -40,23 +43,32 @@ The convolutional state table is organized as non-contiguous pages (blocks). Eac
 complete state snapshot at a particular token position in the sequence.
 
 For sequence ``s``, the assigned physical block indices are
-``block_indices[block_indices_begins[s] : block_indices_begins[s+1]]``.
+``la_block_indices[la_block_indices_begins[s] : la_block_indices_begins[s+1]]``.
 These indices address rows in ``conv_state_table``. The first block stores the state after
 ``cache_interval[s]`` tokens, the second after ``2 * cache_interval[s]`` tokens, and so on.
 When ``cache_interval[s] <= 0``, no state caching is performed for that sequence.
 
-The ``past_lens[s]`` value indicates how many tokens have already been processed for sequence
+The ``num_processed_tokens[s]`` value indicates how many tokens have already been processed for sequence
 ``s``. Combined with the cached blocks, it determines the starting state for new tokens:
-the most recent cached block before ``past_lens[s]`` is loaded, and the remaining
-tokens up to ``past_lens[s]`` are replayed from that checkpoint.
+the most recent cached block before ``num_processed_tokens[s]`` is loaded, and the remaining
+tokens up to ``num_processed_tokens[s]`` are replayed from that checkpoint.
 
 Use cases:
-	
-1. prefill with no past. Read from block 0, write to block 1...N
-2. prefill with past_len % cache_interval == 0. Read from block 0, write to block 1...N
-3. prefill with past_len % cache_interval !=0. Read from block 0, write to block 1...N
-4. decode with past_len % cache_interval == 0. Read from block 0, write to block 1
-5. decode with past_len % cache_interval !=0. Read from block 0, write to block 1
+
+1. **Prefill with no past**  
+   Read from block 0, write to block 1...N
+
+2. **Prefill with `past_len % cache_interval == 0`**  
+   Read from block 0, write to block 1...N
+
+3. **Prefill with `past_len % cache_interval != 0`**  
+   Read from block 0, write to block 1...N
+
+4. **Decode with `past_len % cache_interval == 0`**  
+   Read from block 0, write to block 1
+
+5. **Decode with `past_len % cache_interval != 0`**  
+   Read from block 0, write to block 1
 
 
 .. code-block:: py
@@ -68,9 +80,9 @@ Use cases:
         seq_len     = token_end - token_start
 
         # Physical block indices for this sequence
-        blk_start  = block_indices_begins[s]
-        blk_end    = block_indices_begins[s + 1]
-        seq_blocks = block_indices[blk_start:blk_end]  # list of physical block indices
+        blk_start  = la_block_indices_begins[s]
+        blk_end    = la_block_indices_begins[s + 1]
+        seq_blocks = la_block_indices[blk_start:blk_end]  # list of physical block indices
 
         # Load current convolution state from the last assigned block.
         # state shape: [hidden_size, kernel_size], where state[:, -1] is
@@ -88,7 +100,7 @@ Use cases:
             output_embeds[token_start + t] = grouped_conv1d(state, conv_weight, conv_bias)
 
             # Cache state at regular intervals (for prefix caching / chunked prefill)
-            abs_pos = past_lens[s] + t  # 0-based absolute position of the token
+            abs_pos = num_processed_tokens[s] + t  # 0-based absolute position of the token
             if cache_interval[s] > 0 and (abs_pos + 1) % cache_interval[s] == 0:
                 blk = (abs_pos + 1) // cache_interval[s] - 1
                 conv_state_table[seq_blocks[blk]] = copy(state)
@@ -114,8 +126,6 @@ the constraint ``out_channels == hidden_size``), and ``out_channels`` must equal
         #
         # group_size:  number of input channels per convolution group
         #              (equals hidden_size for depthwise; 1 for channel-wise)
-        # groups:      hidden_size // group_size  (total number of groups)
-        # ic_per_group: hidden_size // groups == group_size
         groups       = hidden_size // group_size   # total number of groups (== out_channels / ic_per_group, given out_channels == hidden_size)
         ic_per_group = hidden_size // groups       # == group_size
         output = zeros(out_channels)
@@ -141,7 +151,7 @@ the constraint ``out_channels == hidden_size``), and ``out_channels`` must equal
   Paged block table holding the convolution cache states. The paged memory block size is fixed at ``BLOCK_SIZE=1``,
   meaning each physical block stores exactly one convolution state of shape ``[hidden_size, kernel_size]``,
   representing the last ``kernel_size`` input vectors seen by the corresponding sequence.
-  ``num_blocks`` equals the total number of blocks allocated across all sequences (i.e. ``block_indices_begins[-1]``).
+  ``num_blocks`` equals the total number of blocks allocated across all sequences (i.e. ``la_block_indices_begins[-1]``).
   The table is updated in-place: during prefill by the plugin, during decoding by GenAI. Initially all states are zero tensors.
   **Required.**
 
@@ -163,23 +173,23 @@ the constraint ``out_channels == hidden_size``), and ``out_channels`` must equal
   The tokens for sequence ``s`` are ``input_embeds[subsequence_begins[s] : subsequence_begins[s+1]]``.
   The first element is always ``0`` and the last element equals ``batch_size_in_tokens``. **Required.**
 
-* **5**: ``block_indices``
+* **5**: ``la_block_indices``
   A 1D tensor of type *T_IND* with shape ``[num_blocks]``.
   Physical block indices into ``conv_state_table`` assigned across all sequences,
-  where ``num_blocks = block_indices_begins[-1]`` is the total number of blocks allocated.
+  where ``num_blocks = la_block_indices_begins[-1]`` is the total number of blocks allocated.
   The logical-to-physical mapping for sequence ``s`` is given
-  by ``block_indices[block_indices_begins[s] : block_indices_begins[s+1]]``.
-  For example, ``block_indices = [0, 1, 3, 2, 4]`` with ``block_indices_begins = [0, 3, 5]`` means
+  by ``la_block_indices[la_block_indices_begins[s] : la_block_indices_begins[s+1]]``.
+  For example, ``la_block_indices = [0, 1, 3, 2, 4]`` with ``la_block_indices_begins = [0, 3, 5]`` means
   that sequence 0 uses physical blocks ``{0, 1, 3}`` and sequence 1 uses physical blocks ``{2, 4}``.
   The number of blocks is determined by GenAI based on scheduled tokens. **Required.**
 
-* **6**: ``block_indices_begins``
+* **6**: ``la_block_indices_begins``
   A 1D tensor of type *T_IND* with shape ``[batch_size_in_sequences + 1]``.
-  Splits ``block_indices`` among sequences.
-  The block indices for sequence ``s`` are ``block_indices[block_indices_begins[s] : block_indices_begins[s+1]]``.
+  Splits ``la_block_indices`` among sequences.
+  The block indices for sequence ``s`` are ``la_block_indices[la_block_indices_begins[s] : la_block_indices_begins[s+1]]``.
   The last block in each sequence's range always holds the sequence's most recent (current) state. **Required.**
   
-* **7**: ``past_lens``
+* **7**: ``num_processed_tokens``
   A 1D tensor of type *T_IND* with shape ``[batch_size_in_sequences]``.
   Number of tokens already processed for each sequence prior to this invocation.
   Used to compute the absolute token position needed for ``cache_interval`` alignment. **Required.**
@@ -237,13 +247,13 @@ token's state to be cached.
            <port id="4">   <!-- subsequence_begins: [batch_size_in_sequences+1] -->
                <dim>3</dim>
            </port>
-           <port id="5">   <!-- block_indices: [num_blocks] -->
+           <port id="5">   <!-- la_block_indices: [num_blocks] -->
                <dim>5</dim>
            </port>
-           <port id="6">   <!-- block_indices_begins: [batch_size_in_sequences+1] -->
+           <port id="6">   <!-- la_block_indices_begins: [batch_size_in_sequences+1] -->
                <dim>3</dim>
            </port>
-           <port id="7">   <!-- past_lens: [batch_size_in_sequences] -->
+           <port id="7">   <!-- num_processed_tokens: [batch_size_in_sequences] -->
                <dim>2</dim>
            </port>
            <port id="8">   <!-- cache_interval: [batch_size_in_sequences] -->
