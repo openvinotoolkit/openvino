@@ -368,8 +368,9 @@ ov::pass::FuseL2NormIntoGDN::FuseL2NormIntoGDN() {
 namespace {
 
 bool is_allowed_qk_path_node(const std::shared_ptr<ov::Node>& node) {
-    return ov::is_type<v1::Reshape>(node) || ov::is_type<v1::Transpose>(node) || ov::is_type<ov::op::v8::Gather>(node) ||
-           ov::is_type<ov::op::v3::Broadcast>(node) || ov::is_type<v0::Unsqueeze>(node) || ov::is_type<v0::Squeeze>(node) ||
+    return ov::is_type<v1::Reshape>(node) || ov::is_type<v1::Transpose>(node) ||
+           ov::is_type<ov::op::v8::Gather>(node) || ov::is_type<ov::op::v3::Broadcast>(node) ||
+           ov::is_type<v0::Unsqueeze>(node) || ov::is_type<v0::Squeeze>(node) ||
            ov::is_type<ov::op::v5::GatherND>(node) || ov::is_type<ov::op::v8::GatherND>(node);
 }
 
@@ -420,7 +421,6 @@ bool have_same_anchor(const QKPathInfo& q_info, const QKPathInfo& k_info, const 
            q_info.anchor_output.get_node_shared_ptr() == k_info.anchor_output.get_node_shared_ptr() &&
            k_info.anchor_output.get_node_shared_ptr() == v_info.anchor_output.get_node_shared_ptr();
 }
-
 
 ov::Output<ov::Node> align_to_reference_shape(const ov::Output<ov::Node>& src,
                                               const ov::Output<ov::Node>& reference,

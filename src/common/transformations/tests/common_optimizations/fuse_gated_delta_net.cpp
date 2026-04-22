@@ -8,14 +8,13 @@
 
 #include <algorithm>
 #include <climits>
-#include <cstring>
 #include <cstdlib>
+#include <cstring>
 #include <memory>
 #include <queue>
 #include <set>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/runtime/core.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -40,6 +39,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/runtime/core.hpp"
 #include "transformations/convert_precision.hpp"
 
 namespace ov::test {
@@ -392,7 +392,7 @@ std::shared_ptr<ov::Model> build_gdn_with_shared_qk_anchor(bool shared_anchor) {
     auto q_unsq = std::make_shared<Unsqueeze>(q_transpose, unsq_axis);
     auto k_unsq = std::make_shared<Unsqueeze>(k_transpose, unsq_axis);
     auto v_unsq = std::make_shared<Unsqueeze>(v_transpose, unsq_axis);
-    
+
     auto sq_axis = Constant::create(ov::element::i32, {1}, {0});
     auto q = std::make_shared<Squeeze>(q_unsq, sq_axis);
     auto k = std::make_shared<Squeeze>(k_unsq, sq_axis);
@@ -418,7 +418,8 @@ TEST(TransformationTests, FuseGroupedQueryIntoGDN_Positive) {
     manager.register_pass<ov::pass::FuseGroupedQueryIntoGDN>();
     manager.run_passes(model);
 
-    auto gdn = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(model->get_results().at(0)->input_value(0).get_node_shared_ptr());
+    auto gdn = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(
+        model->get_results().at(0)->input_value(0).get_node_shared_ptr());
     ASSERT_NE(gdn, nullptr);
 
     auto q_input = gdn->input_value(0);
@@ -432,18 +433,19 @@ TEST(TransformationTests, FuseGroupedQueryIntoGDN_Positive) {
         std::set<std::shared_ptr<ov::Node>> visited;
         std::queue<std::shared_ptr<ov::Node>> to_visit;
         to_visit.push(node);
-        
+
         while (!to_visit.empty()) {
             auto current = to_visit.front();
             to_visit.pop();
-            
-            if (visited.count(current)) continue;
+
+            if (visited.count(current))
+                continue;
             visited.insert(current);
-            
+
             if (ov::is_type<ov::op::v1::Split>(current)) {
                 return current;
             }
-            
+
             // Continue searching upwards
             for (size_t i = 0; i < current->get_input_size(); ++i) {
                 to_visit.push(current->input_value(i).get_node_shared_ptr());
@@ -455,7 +457,7 @@ TEST(TransformationTests, FuseGroupedQueryIntoGDN_Positive) {
     auto q_split = find_split_ancestor(q_input);
     auto k_split = find_split_ancestor(k_input);
     auto v_split = find_split_ancestor(v_input);
-    
+
     ASSERT_NE(q_split, nullptr);
     ASSERT_NE(k_split, nullptr);
     ASSERT_NE(v_split, nullptr);
@@ -469,7 +471,8 @@ TEST(TransformationTests, FuseGroupedQueryIntoGDN_NegativeDifferentAnchors) {
     manager.register_pass<ov::pass::FuseGroupedQueryIntoGDN>();
     manager.run_passes(model);
 
-    auto gdn = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(model->get_results().at(0)->input_value(0).get_node_shared_ptr());
+    auto gdn = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(
+        model->get_results().at(0)->input_value(0).get_node_shared_ptr());
     ASSERT_NE(gdn, nullptr);
 
     auto q_input_node = gdn->input_value(0).get_node_shared_ptr();
@@ -487,8 +490,7 @@ TEST(TransformationTests, FuseGroupedQueryIntoGDN_NegativeDifferentAnchors) {
     }
 
     // With different anchors, transformation should not apply, so at least one should not be Split
-    ASSERT_FALSE(ov::is_type<ov::op::v1::Split>(q_input_node) && 
-                 q_input_node == k_input_node && 
+    ASSERT_FALSE(ov::is_type<ov::op::v1::Split>(q_input_node) && q_input_node == k_input_node &&
                  k_input_node == v_input_node);
 }
 
@@ -605,10 +607,10 @@ namespace {
 // After FuseGroupedQueryIntoGDN the Transposes are removed and GDN is directly fed from Split outputs.
 std::shared_ptr<ov::Model> build_grouped_query_gdn_before() {
     // src: {1, 4, 4, 8} — Split along H into 2 groups → outputs {1, 2, 4, 8}
-    auto src   = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 4, 8});
+    auto src = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 4, 8});
     auto state = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 8, 8});
-    auto gate  = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 4});
-    auto beta  = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 4});
+    auto gate = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 4});
+    auto beta = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 4});
 
     auto split_axis = ov::op::v0::Constant::create(ov::element::i64, {}, {1});
     auto split = std::make_shared<ov::op::v1::Split>(src, split_axis, 2);
@@ -620,29 +622,31 @@ std::shared_ptr<ov::Model> build_grouped_query_gdn_before() {
     auto v = std::make_shared<ov::op::v1::Transpose>(split->output(0), identity_perm);
 
     auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(q, k, v, state, gate, beta);
-    return std::make_shared<ov::Model>(
-        ov::ResultVector{std::make_shared<ov::op::v0::Result>(gdn->output(0)),
-                         std::make_shared<ov::op::v0::Result>(gdn->output(1))},
-        ov::ParameterVector{src, state, gate, beta});
+    return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(gdn->output(0)),
+                                                        std::make_shared<ov::op::v0::Result>(gdn->output(1))},
+                                       ov::ParameterVector{src, state, gate, beta});
 }
 
 // Reference "after" model: GDN directly fed from Split outputs (Transposes removed).
 // align_to_reference_shape: {1,2,4,8} compatible with {1,2,4,8} → no Reshape inserted.
 std::shared_ptr<ov::Model> build_grouped_query_gdn_after() {
-    auto src   = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 4, 8});
+    auto src = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 4, 8});
     auto state = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 8, 8});
-    auto gate  = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 4});
-    auto beta  = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 4});
+    auto gate = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 4});
+    auto beta = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 4});
 
     auto split_axis = ov::op::v0::Constant::create(ov::element::i64, {}, {1});
     auto split = std::make_shared<ov::op::v1::Split>(src, split_axis, 2);
 
-    auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(
-        split->output(0), split->output(1), split->output(0), state, gate, beta);
-    return std::make_shared<ov::Model>(
-        ov::ResultVector{std::make_shared<ov::op::v0::Result>(gdn->output(0)),
-                         std::make_shared<ov::op::v0::Result>(gdn->output(1))},
-        ov::ParameterVector{src, state, gate, beta});
+    auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(split->output(0),
+                                                                 split->output(1),
+                                                                 split->output(0),
+                                                                 state,
+                                                                 gate,
+                                                                 beta);
+    return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(gdn->output(0)),
+                                                        std::make_shared<ov::op::v0::Result>(gdn->output(1))},
+                                       ov::ParameterVector{src, state, gate, beta});
 }
 
 // Build a model where Q, K, V each come from their own Split → anchors differ → no transformation.
@@ -651,8 +655,8 @@ std::shared_ptr<ov::Model> build_grouped_query_gdn_different_anchors() {
     auto src_k = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 4, 8});
     auto src_v = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 4, 8});
     auto state = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 8, 8});
-    auto gate  = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 4});
-    auto beta  = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 4});
+    auto gate = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 4});
+    auto beta = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 4});
 
     auto split_axis = ov::op::v0::Constant::create(ov::element::i64, {}, {1});
     auto q_split = std::make_shared<ov::op::v1::Split>(src_q, split_axis, 2);
@@ -665,10 +669,9 @@ std::shared_ptr<ov::Model> build_grouped_query_gdn_different_anchors() {
     auto v = std::make_shared<ov::op::v1::Transpose>(v_split->output(0), identity_perm);
 
     auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(q, k, v, state, gate, beta);
-    return std::make_shared<ov::Model>(
-        ov::ResultVector{std::make_shared<ov::op::v0::Result>(gdn->output(0)),
-                         std::make_shared<ov::op::v0::Result>(gdn->output(1))},
-        ov::ParameterVector{src_q, src_k, src_v, state, gate, beta});
+    return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(gdn->output(0)),
+                                                        std::make_shared<ov::op::v0::Result>(gdn->output(1))},
+                                       ov::ParameterVector{src_q, src_k, src_v, state, gate, beta});
 }
 
 }  // namespace
