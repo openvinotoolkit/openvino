@@ -703,13 +703,15 @@ TEST(SerializationTest, OVTypes_Tensor_weightless_bf16_to_f16) {
                  static_cast<std::streamsize>(bf16_values.size() * sizeof(ov::bfloat16)));
     }
 
-    auto mapped = ov::load_mmap_object(file_path);
-    ASSERT_NE(mapped, nullptr);
-    auto weights = std::make_shared<Weights>(reinterpret_cast<char*>(mapped->data()), mapped->size(), mapped);
-
     std::vector<ov::Tensor> res;
-    WeightsContext import_ctx(weights, file_path.string(), {}, {{0, var.get_byte_size()}});
-    read_weightless(ss, res, import_ctx);
+    {
+        auto mapped = ov::load_mmap_object(file_path);
+        ASSERT_NE(mapped, nullptr);
+        auto weights = std::make_shared<Weights>(reinterpret_cast<char*>(mapped->data()), mapped->size(), mapped);
+
+        WeightsContext import_ctx(weights, file_path.string(), {}, {{0, var.get_byte_size()}});
+        read_weightless(ss, res, import_ctx);
+    }  // mapped + weights released here, file handle closed on Windows
 
     ASSERT_EQ(res.size(), 1);
     expect_tensors_equal(var, res.front());
