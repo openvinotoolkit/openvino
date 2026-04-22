@@ -134,12 +134,25 @@ public:
     void deallocate(void* handle, const size_t bytes, size_t alignment = 4096) noexcept {
         ::operator delete(static_cast<uint8_t*>(handle) - _offset, std::align_val_t(alignment));
     }
-    bool is_equal(const DefaultAllocatorNotAligned& other) const {
+    bool is_equal(const DefaultAllocatorNotAligned&) const {
         return false;
     }
 
 private:
     size_t _offset = 16;
+};
+
+class DefaultAllocatorAligned final {
+public:
+    void* allocate(const size_t bytes, const size_t) {
+        return ::operator new(bytes, std::align_val_t(4096));
+    }
+    void deallocate(void* handle, const size_t, size_t) noexcept {
+        ::operator delete(static_cast<uint8_t*>(handle), std::align_val_t(4096));
+    }
+    bool is_equal(const DefaultAllocatorAligned&) const {
+        return false;
+    }
 };
 
 std::tuple</* importMemoryBatched */ ov::Tensor,
