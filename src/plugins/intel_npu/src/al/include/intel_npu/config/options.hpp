@@ -1574,7 +1574,7 @@ struct CACHE_ENCRYPTION_CALLBACKS final : OptionBase<CACHE_ENCRYPTION_CALLBACKS,
         return true;
     }
 
-    static std::string toString(const ov::EncryptionCallbacks& val) {
+    static std::string toString(const ov::EncryptionCallbacks&) {
         OPENVINO_THROW("Option ", ov::cache_encryption_callbacks.name(), " cannot be converted to string");
     }
 
