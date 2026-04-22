@@ -431,39 +431,6 @@ std::vector<std::shared_ptr<ov::Node>> collect_qk_path_nodes(const ov::Output<ov
     return path;
 }
 
-bool have_same_qk_path_nodes(const ov::Output<ov::Node>& q_start, const ov::Output<ov::Node>& k_start) {
-    const auto q_path = collect_qk_path_nodes(q_start);
-    const auto k_path = collect_qk_path_nodes(k_start);
-    if (q_path.empty() || k_path.empty() || q_path.size() != k_path.size()) {
-        return false;
-    }
-
-    for (size_t i = 0; i < q_path.size(); ++i) {
-        if (q_path[i] != k_path[i]) {
-            return false;
-        }
-    }
-    return true;
-}
-
-bool has_only_constant_side_inputs(const std::vector<std::shared_ptr<ov::Node>>& path) {
-    if (path.empty()) {
-        return false;
-    }
-
-    for (const auto& node : path) {
-        if (!node || is_qk_anchor_node(node)) {
-            continue;
-        }
-        for (size_t i = 1; i < node->get_input_size(); ++i) {
-            if (!ov::is_type<v0::Constant>(node->input_value(i).get_node_shared_ptr())) {
-                return false;
-            }
-        }
-    }
-    return true;
-}
-
 ov::Output<ov::Node> align_to_reference_shape(const ov::Output<ov::Node>& src,
                                               const ov::Output<ov::Node>& reference,
                                               ov::pass::MatcherPass* pass) {
