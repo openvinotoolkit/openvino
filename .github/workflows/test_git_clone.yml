@@ -49,8 +49,8 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
-      - name: Install git
-        run: apt-get install -y git-lfs
+#      - name: Install git
+#        run: apt-get install -y git-lfs
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
