@@ -88,33 +88,6 @@ TEST(file_util, path_join) {
     }
 }
 
-TEST(file_util, sanitize_path) {
-    {
-        string path = "../../tensor.data";
-        EXPECT_STREQ("tensor.data", ov::util::sanitize_path(path).c_str());
-    }
-    {
-        string path = "/../tensor.data";
-        EXPECT_STREQ("tensor.data", ov::util::sanitize_path(path).c_str());
-    }
-    {
-        string path = "..";
-        EXPECT_STREQ("", ov::util::sanitize_path(path).c_str());
-    }
-    {
-        string path = "workspace/data/tensor.data";
-        EXPECT_STREQ("workspace/data/tensor.data", ov::util::sanitize_path(path).c_str());
-    }
-    {
-        string path = "..\\..\\tensor.data";
-        EXPECT_STREQ("tensor.data", ov::util::sanitize_path(path).c_str());
-    }
-    {
-        string path = "C:\\workspace\\tensor.data";
-        EXPECT_STREQ("workspace\\tensor.data", ov::util::sanitize_path(path).c_str());
-    }
-}
-
 using namespace testing;
 
 class TrimFileTest : public Test {

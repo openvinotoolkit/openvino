@@ -18,7 +18,7 @@ namespace detail {
 TensorExternalData::TensorExternalData(const TensorProto& tensor) {
     for (const auto& entry : tensor.external_data()) {
         if (entry.key() == "location") {
-            m_data_location = ov::util::sanitize_path(entry.value());
+            m_data_location = sanitize_external_data_location(entry.value());
         } else if (entry.key() == "offset") {
             m_offset = std::stoull(entry.value());
         } else if (entry.key() == "length") {

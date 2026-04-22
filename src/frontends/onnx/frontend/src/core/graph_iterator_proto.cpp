@@ -23,6 +23,7 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/wstring_convert_util.hpp"
 #include "transform.hpp"
+#include "utils/tensor_external_data.hpp"
 
 namespace {
 // THis is copied from utils/common.hpp
@@ -255,7 +256,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
     std::string m_sha1_digest{};  // for future use
     for (const auto& entry : tensor_info->external_data()) {
         if (entry.key() == "location") {
-            ext_location = ov::util::sanitize_path(entry.value());
+            ext_location = detail::sanitize_external_data_location(entry.value());
         } else if (entry.key() == "offset") {
             ext_data_offset = std::stoull(entry.value());
         } else if (entry.key() == "length") {

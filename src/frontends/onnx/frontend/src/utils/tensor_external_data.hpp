@@ -19,6 +19,17 @@ template <class T>
 using Buffer = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<T>>>;
 using MappedMemoryHandles = std::shared_ptr<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>;
 using LocalStreamHandles = std::shared_ptr<std::map<std::string, std::shared_ptr<std::ifstream>>>;
+
+/// \brief Remove leading path components that would allow traversing up a directory tree.
+/// \note The ONNX Runtime shared-memory marker "*/_ORT_MEM_ADDR_/*" is also accepted here.
+inline std::string sanitize_external_data_location(const std::string& location) {
+    const auto colon_pos = location.find(':');
+    const auto sanitized_location = location.substr(colon_pos == std::string::npos ? 0 : colon_pos + 1);
+    const std::string leading_components = "/.\\";
+    const auto start = sanitized_location.find_first_not_of(leading_components);
+    return (start == std::string::npos) ? "" : sanitized_location.substr(start);
+}
+
 /// \brief  Helper class used to load tensor data from external files
 class TensorExternalData {
 public:
