@@ -151,7 +151,7 @@ if SUCCEEDED and winning.get("inference_ok"):
 elif SUCCEEDED and not winning.get("inference_ok", True):
     lines += [
         "Export succeeded but inference check failed.",
-        f"Route to **{signals.get('target_agent', 'openvino-orchestrator')}** for inference debugging.",
+        f"Route to **{signals.get('target_agent', 'enable-operator')}** for inference debugging.",
         "",
         f"- `next_agent: {signals.get('target_agent')}`",
         f"- `status: partial`",
