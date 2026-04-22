@@ -92,7 +92,6 @@ protected:
     // their inference requests anymore - they must be stored
     // only once in the subrequests list
     RqPtrs create_infer_requests(std::size_t id, size_t nireq = 1);
-    void ensure_subrequest_is_accurate(std::size_t idx);
     virtual void update_subrequest_links(std::size_t idx) = 0;
 
     std::shared_ptr<ov::npuw::CompiledModel> m_npuw_model;
@@ -231,8 +230,6 @@ protected:
     bool needs_copy(std::size_t idx, std::size_t cidx) const;
     std::size_t next(std::size_t idx_base) const;
     std::size_t real(std::size_t idx) const;
-
-    RqPtrs m_ref_subrequests;
 
     using now_t = std::optional<std::size_t>;
     now_t now_idx() const;

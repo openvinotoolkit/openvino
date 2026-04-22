@@ -279,10 +279,6 @@ private:
 
         bool forced_to_fcall = false;
 
-        // FIXME: Take it out of structure
-        ov::SoPtr<ov::ICompiledModel> ref_compiled_model;
-        bool switched_to_ref = false;
-
         // Metrics
         execution_stats stat;
 
