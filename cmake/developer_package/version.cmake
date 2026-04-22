@@ -186,8 +186,10 @@ macro (ov_add_version_defines FILE TARGET)
     target_include_directories(${TARGET}_version PRIVATE
         $<TARGET_PROPERTY:${TARGET},INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:${TARGET},INCLUDE_DIRECTORIES>)
-    target_link_libraries(${TARGET}_version PRIVATE
-        $<TARGET_PROPERTY:${TARGET},LINK_LIBRARIES>)
+    if (NOT __target_type STREQUAL "STATIC_LIBRARY")
+        target_link_libraries(${TARGET}_version PRIVATE
+            $<TARGET_PROPERTY:${TARGET},LINK_LIBRARIES>)
+    endif()
     target_compile_options(${TARGET}_version PRIVATE
         $<TARGET_PROPERTY:${TARGET},INTERFACE_COMPILE_OPTIONS>
         $<TARGET_PROPERTY:${TARGET},COMPILE_OPTIONS>)
