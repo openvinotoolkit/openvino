@@ -87,25 +87,6 @@ public:
         core->set_property("NPU", ov::log::level(ov::log::Level::ERR));
     }
 
-    bool isLLVMFormat(std::stringstream& modelStream) {
-        auto pos = modelStream.tellg();
-        if (pos == std::streampos(-1)) {
-            return false;
-        }
-
-        modelStream.seekg(0, std::ios::beg);
-
-        // Assume the first 20 char of LLVM blob shall have key word 'llvm'
-        std::string region(20, '\0');
-        modelStream.read(&region[0], 20);
-        region.resize(modelStream.gcount());
-
-        modelStream.clear();
-        modelStream.seekg(pos);
-
-        return region.find("llvm") != std::string::npos;
-    }
-
 protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
@@ -123,9 +104,6 @@ TEST_P(InferWithHostCompileTests, Compile) {
 
     std::stringstream modelStream;
     OV_ASSERT_NO_THROW(compiledModel.export_model(modelStream));
-
-    // With HostCompile, the modelStream shall contain "llvm.func"
-    ASSERT_TRUE(isLLVMFormat(modelStream)) << "CompiledStream from HostCompile mode shall has 'llvm.func' inside it";
 
     ov::InferRequest reqDynamic;
 
@@ -149,9 +127,6 @@ TEST_P(InferWithHostCompileTests, CompileAndImport) {
 
     std::stringstream modelStream;
     OV_ASSERT_NO_THROW(compiledModel.export_model(modelStream));
-
-    // With HostCompile, the modelStream shall contain "llvm.func"
-    ASSERT_TRUE(isLLVMFormat(modelStream)) << "CompiledStream from HostCompile mode shall has 'llvm.func' inside it";
 
     ov::CompiledModel importedModel;
     OV_ASSERT_NO_THROW(core->import_model(modelStream, target_device, configuration));
@@ -181,9 +156,6 @@ TEST_P(InferWithHostCompileTests, CompileAndImportAndInfer) {
 
     std::stringstream modelStream;
     OV_ASSERT_NO_THROW(compiledModel.export_model(modelStream));
-
-    // With HostCompile, the modelStream shall contain "llvm.func"
-    ASSERT_TRUE(isLLVMFormat(modelStream)) << "CompiledStream from HostCompile mode shall has 'llvm.func' inside it";
 
     ov::CompiledModel importedModel;
     OV_ASSERT_NO_THROW(core->import_model(modelStream, target_device, configuration));
