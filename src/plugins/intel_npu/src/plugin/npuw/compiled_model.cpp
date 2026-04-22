@@ -2222,8 +2222,19 @@ std::shared_ptr<ov::npuw::IBaseInferRequest> ov::npuw::CompiledModel::create_bas
         return m_dev_list.size() == 1 || !m_cfg.get<::intel_npu::NPUW_FALLBACK_EXEC>();
     };
 
+    auto no_subgraph_behavior_concern = [&]() {
+        for (std::size_t idx = 0u; idx < m_compiled_submodels.size(); idx++) {
+            if (m_compiled_submodels[idx].pipeline.runtime_behavior.has_value()) {
+                LOG_WARN("Subgraph[" << idx << "] has a runtime behavior, unfold can't be done");
+                return false;
+            }
+        }
+        return true;
+    };
+
     std::shared_ptr<ov::npuw::IBaseInferRequest> result;
-    if (m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() && no_spatial_unpack() && no_failsafe_concern()) {
+    if (m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() && no_spatial_unpack() && no_failsafe_concern() &&
+        no_subgraph_behavior_concern()) {
         result = std::make_shared<ov::npuw::UnfoldInferRequest>(non_const_this_sptr);
     } else {
         result = std::make_shared<ov::npuw::JustInferRequest>(non_const_this_sptr);

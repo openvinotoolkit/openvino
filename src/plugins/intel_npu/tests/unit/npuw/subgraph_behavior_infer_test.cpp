@@ -16,9 +16,11 @@
 #define private public
 #include "compiled_model.hpp"
 #undef private
+#include "just_sync_infer_request.hpp"
 #include "llm_test_helpers.hpp"
 #include "model_builder.hpp"
 #include "plugin.hpp"
+#include "unfold_sync_infer_request.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
@@ -220,6 +222,12 @@ protected:
                 {"NPUW_ONLINE_PIPELINE", "REP"},
                 {"NPUW_ONLINE_ISOLATE", "ATTN"}};
     }
+
+    ov::AnyMap unfold_props() const {
+        auto props = base_props();
+        props["NPUW_UNFOLD_IREQS"] = "YES";
+        return props;
+    }
     std::shared_ptr<testing::NiceMock<ov::MockICore>> make_core(const std::shared_ptr<const ov::IPlugin>& plugin) const {
         auto core = std::make_shared<testing::NiceMock<ov::MockICore>>();
 
@@ -320,6 +328,52 @@ TEST_F(SubgraphBehaviorInferTest, SdpaBehaviorCanOverrideStaticLlmSubgraphExecut
     behavior_request->infer();
 
     ASSERT_FALSE(hits->values.empty()) << "The SDPA stub behavior was not invoked during inference";
+}
+
+TEST_F(SubgraphBehaviorInferTest, RuntimeBehaviorForcesJustInferRequestWhenUnfoldIsEnabled) {
+    auto plugin = std::make_shared<intel_npu::Plugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    auto baseline_model = build_static_llm_model();
+    auto baseline_compiled = std::make_shared<ov::npuw::CompiledModel>(baseline_model, plugin, unfold_props());
+    auto baseline_request = baseline_compiled->create_sync_infer_request();
+    ASSERT_NE(baseline_request, nullptr);
+    EXPECT_NE(std::dynamic_pointer_cast<ov::npuw::UnfoldInferRequest>(baseline_request), nullptr);
+
+    auto behavior_model = build_static_llm_model();
+    auto hits = std::make_shared<BehaviorHits>();
+    ov::npuw::v1::subgraphs::PatternRegistry behavior_registry;
+    auto behavior_compiled = std::make_shared<ov::npuw::CompiledModel>(behavior_model, plugin, unfold_props(), &behavior_registry);
+
+    bool attached_behavior = false;
+    for (auto& desc : behavior_compiled->m_compiled_submodels) {
+        if (!desc.compiled_model) {
+            continue;
+        }
+
+        ov::npuw::v1::subgraphs::RuntimeBehaviorSpec spec;
+        spec.registration.group = "test";
+        spec.registration.name = "record-hit";
+        spec.context.put<std::shared_ptr<BehaviorHits>>(hits);
+        spec.factory = [](const ov::npuw::v1::subgraphs::Context& ctx) -> ov::npuw::v1::subgraphs::ISubgraphBehavior::Ptr {
+            const auto recorder = ctx.get<std::shared_ptr<BehaviorHits>>();
+            return std::make_unique<ov::npuw::v1::subgraphs::DirectBehavior>(
+                [recorder](ov::npuw::v1::subgraphs::InferContext& infer_ctx) {
+                    infer_ctx.legacy_infer();
+                    std::lock_guard<std::mutex> lock(recorder->mutex);
+                    recorder->values.emplace_back(infer_ctx.subgraph_idx, infer_ctx.real_subgraph_idx);
+                });
+        };
+        desc.pipeline.runtime_behavior = std::move(spec);
+        attached_behavior = true;
+    }
+    ASSERT_TRUE(attached_behavior);
+
+    auto behavior_request = behavior_compiled->create_sync_infer_request();
+    ASSERT_NE(behavior_request, nullptr);
+    EXPECT_NE(std::dynamic_pointer_cast<ov::npuw::JustInferRequest>(behavior_request), nullptr);
+    EXPECT_EQ(std::dynamic_pointer_cast<ov::npuw::UnfoldInferRequest>(behavior_request), nullptr);
 }
 
 }  // namespace
