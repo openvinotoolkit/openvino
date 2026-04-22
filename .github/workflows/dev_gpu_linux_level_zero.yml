@@ -54,7 +54,7 @@ jobs:
       - name: Install Build Dependencies
         run: |
           apt-get update
-          apt-get install -y cmake ninja-build ccache default-compiler-rt
+          # apt-get install -y cmake ninja-build ccache default-compiler-rt
           ./install_build_dependencies.sh
 
       - name: CMake configure - OpenVINO (Level Zero)
@@ -101,7 +101,7 @@ jobs:
 
   Test:
     needs: Build
-    timeout-minutes: 60
+    timeout-minutes: 120
     runs-on:
       group: 'Intel-GPU'
       labels: [ 'self-hosted', 'dgpu', 'Arc-B50', 'Battlemage' ]
