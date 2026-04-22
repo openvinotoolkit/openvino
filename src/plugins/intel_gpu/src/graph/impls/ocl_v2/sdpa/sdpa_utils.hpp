@@ -27,7 +27,13 @@ inline size_t get_data_inputs_num(const cldnn::scaled_dot_product_attention& des
     return data_inputs_num;
 }
 
-inline bool has_runtime_attn_mask_input(const cldnn::kernel_impl_params& params, const cldnn::scaled_dot_product_attention& desc) {
+inline bool sdpa_has_runtime_attn_mask_input(const cldnn::kernel_impl_params& params) {
+    if (!params.is_type<cldnn::scaled_dot_product_attention>()) {
+        return false;
+    }
+
+    const auto& desc = *params.typed_desc<cldnn::scaled_dot_product_attention>();
+
     if (desc.attn_mask_val.has_value()) {
         return false;
     }
