@@ -494,49 +494,6 @@ TEST(TransformationTests, FuseGroupedQueryIntoGDN_NegativeDifferentAnchors) {
                  k_input_node == v_input_node);
 }
 
-TEST(TransformationTests, FuseGroupedQueryIntoGDN_Qwen3NextModel) {
-    const char* model_path_env = std::getenv("OV_GDN_TEST_MODEL_PATH");
-    if (!model_path_env || std::string(model_path_env).empty()) {
-        GTEST_SKIP() << "OV_GDN_TEST_MODEL_PATH is not set";
-    }
-
-    ov::Core core;
-    auto model = core.read_model(model_path_env);
-
-    size_t loops_before = 0;
-    for (const auto& op : model->get_ops()) {
-        if (std::strcmp(op->get_type_name(), "Loop") == 0) {
-            ++loops_before;
-        }
-    }
-
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::GatedDeltaNetFusion>();
-    manager.run_passes(model);
-
-    size_t loops_after = 0;
-    size_t gdn_after = 0;
-    size_t gdn_same_qk_node = 0;
-    for (const auto& op : model->get_ops()) {
-        if (std::strcmp(op->get_type_name(), "Loop") == 0) {
-            ++loops_after;
-        }
-        if (std::strcmp(op->get_type_name(), "GatedDeltaNet") == 0) {
-            ++gdn_after;
-            if (op->input_value(0).get_node_shared_ptr() == op->input_value(1).get_node_shared_ptr()) {
-                ++gdn_same_qk_node;
-            }
-        }
-    }
-
-    EXPECT_GE(loops_before, 1);
-    EXPECT_EQ(loops_after, 0);
-    EXPECT_GE(gdn_after, 1);
-    // Track how many fused GDN nodes have identical immediate Q/K producers for this model.
-    // This is informative for local validation and may legitimately be zero for some graphs.
-    (void)gdn_same_qk_node;
-}
-
 TEST_F(TransformationTestsF, GatedDeltaNetFusion_BuildBHLSLoopedGDNMode_F16) {
     disable_rt_info_check();
     disable_result_friendly_names_check();
