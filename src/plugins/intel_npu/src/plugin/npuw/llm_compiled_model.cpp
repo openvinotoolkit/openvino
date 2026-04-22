@@ -197,7 +197,13 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
     if (!plugin->get_core()) {
         return std::nullopt;
     }
-    const auto all_devices = plugin->get_core()->get_property("NPU", ov::available_devices);
+    std::vector<std::string> all_devices;
+    try {
+        all_devices = plugin->get_core()->get_property("NPU", ov::available_devices);
+    } catch (const ov::Exception& ex) {
+        LOG_WARN("Failed to query NPU capabilities, defaulting LLM config to backend-agnostic path: " << ex.what());
+        return std::nullopt;
+    }
     if (all_devices.empty()) {
         return std::nullopt;
     }
@@ -812,14 +818,17 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         ov::npuw::ReshapeToStatic(static_cast<uint32_t>(m_prefill_chunk_size),
                                   m_kvcache_desc.max_prompt_size,
                                   axes,
-                                  m_max_lora_rank)
+                                  m_max_lora_rank,
+                                  0,
+                                  true)
             .run_on_model(prefill_model);
     } else {
         ov::npuw::ReshapeToStatic(m_kvcache_desc.max_prompt_size,
                                   m_kvcache_desc.max_prompt_size,
                                   axes,
                                   m_max_lora_rank,
-                                  whisper_lhs_seq_size)
+                                  whisper_lhs_seq_size,
+                                  true)
             .run_on_model(prefill_model);
     }
     LOG_DEBUG("Make kvcache model with static shapes");

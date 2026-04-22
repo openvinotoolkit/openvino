@@ -440,7 +440,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // available devices (if any)
     const auto compilationPlatform =
         utils::getCompilationPlatform(_propertiesManager->determinePlatform(localProperties),
-                                      device == nullptr ? deviceId : device->getName(),
+                                      device == nullptr ? std::move(deviceId) : device->getName(),
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
     CompilerAdapterFactory factory;
@@ -560,7 +560,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         _logger.debug("performing compile");
 
         // Determine which model to use
-        auto modelToCompile = successfullyDebatched ? batchedModel : model->clone();
+        auto modelToCompile = successfullyDebatched ? std::move(batchedModel) : model->clone();
 
         const bool performanceHintSetByUser = localConfig.has(ov::hint::performance_mode.name());
         const bool shouldForceThroughput = successfullyDebatched && !performanceHintSetByUser;
@@ -786,7 +786,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
     const auto compilationPlatform =
         utils::getCompilationPlatform(_propertiesManager->determinePlatform(localProperties),
-                                      device == nullptr ? deviceId : device->getName(),
+                                      device == nullptr ? std::move(deviceId) : device->getName(),
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
     CompilerAdapterFactory factory;
