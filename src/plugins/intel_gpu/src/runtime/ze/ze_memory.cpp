@@ -150,13 +150,14 @@ event::ptr gpu_usm::fill(stream& stream, unsigned char pattern, const std::vecto
     auto ev = _ze_stream.create_base_event();
     auto ev_ze = downcast<ze::ze_base_event>(ev.get())->get_handle();
     auto ze_dep_events = get_ze_events(dep_events);
+    const auto num_ze_dep_events = static_cast<uint32_t>(ze_dep_events.size());
     OV_ZE_EXPECT(ze::zeCommandListAppendMemoryFill(_ze_stream.get_queue(),
         _buffer.get(),
         &pattern,
         sizeof(unsigned char),
         _bytes_count,
         ev_ze,
-        ze_dep_events.size(),
+        num_ze_dep_events,
         ze_dep_events.data()));
     if (blocking) {
         ev->wait();
