@@ -944,13 +944,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(prefill_config, prefill_config_addition_value);
     merge_config_with(generate_config, generate_config_addition_value);
 
-    // Convert LLM-specific attention hints to NPUW_ATTN
-    if (npuw_llm_props.count("NPUW_LLM_PREFILL_ATTENTION_HINT")) {
-        prefill_config["NPUW_ATTN"] = npuw_llm_props["NPUW_LLM_PREFILL_ATTENTION_HINT"];
-    }
-    if (npuw_llm_props.count("NPUW_LLM_GENERATE_ATTENTION_HINT")) {
-        generate_config["NPUW_ATTN"] = npuw_llm_props["NPUW_LLM_GENERATE_ATTENTION_HINT"];
-    }
+    // Dispatch LLM-specific attention hints to the downstream models via NPUW_ATTN
+    prefill_config["NPUW_ATTN"] = ::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT::toString(prefill_attn_hint);
+    generate_config["NPUW_ATTN"] = ::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT::toString(generate_attn_hint);
 
     // Generate a random weights bank name unique to this LLMCompiledModel object
     auto weights_bank_name = ov::npuw::util::generate_random_string();
@@ -966,10 +962,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
         {"NPUW_UNFOLD_IREQS", "NO"},
     };
-    if (prefill_attn_dyn || prefill_attn_pyramid || prefill_attn_hfa) {
+    const bool prefill_needs_attn_isolation =
+        prefill_attn_pyramid || prefill_attn_hfa || (prefill_attn_dyn && m_use_chunk_prefill);
+    const bool generate_needs_attn_isolation = generate_attn_dyn || generate_attn_pyramid || generate_attn_hfa;
+
+    if (prefill_needs_attn_isolation) {
         merge_config_with(prefill_config, dyn_attn_opts);
     }
-    if (generate_attn_dyn || generate_attn_pyramid || generate_attn_hfa) {
+    if (generate_needs_attn_isolation) {
         merge_config_with(generate_config, dyn_attn_opts);
     }
     if (is_moe) {
@@ -996,7 +996,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // in a higher memory consumption. This behavior should be reworked!
     // The reason here is that NPUW_DEVICES may come as a global setting,
     // impacting all the stages.
-    if (prefill_attn_dyn || generate_attn_dyn) {
+    if (prefill_needs_attn_isolation || generate_needs_attn_isolation) {
         const ov::AnyMap no_runtime_fallback = {{"NPUW_FALLBACK_EXEC", "NO"}};
         merge_config_with(prefill_config, no_runtime_fallback);
         merge_config_with(generate_config, no_runtime_fallback);

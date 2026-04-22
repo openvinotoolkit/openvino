@@ -259,9 +259,16 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, DefaultStageConfigsCarryBaselineNpuwO
 
     expect_prop(prefill.props, "NPUW_SLICE_OUT", "YES");
     expect_prop(prefill.props, "NPUW_FUNCALL_ASYNC", "YES");
+    expect_prop(prefill.props, "NPUW_ATTN", "PYRAMID");
+    expect_prop(prefill.props, "NPUW_ONLINE_PIPELINE", "REP");
+    expect_prop(prefill.props, "NPUW_ONLINE_ISOLATE", "ATTN");
+    expect_prop(prefill.props, "NPUW_ONLINE_KEEP_BLOCK_SIZE", "4");
+    expect_prop(prefill.props, "NPUW_UNFOLD_IREQS", "NO");
+    expect_prop(prefill.props, "NPUW_FALLBACK_EXEC", "NO");
 
     expect_missing_prop(generate.props, "NPUW_SLICE_OUT");
     expect_prop(generate.props, "NPUW_FUNCALL_ASYNC", "YES");
+    expect_prop(generate.props, "NPUW_ATTN", "STATIC");
 
     expect_missing_prop(head.props, "NPUW_SLICE_OUT");
     expect_missing_prop(head.props, "NPUW_FUNCALL_ASYNC");
@@ -269,6 +276,13 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, DefaultStageConfigsCarryBaselineNpuwO
 
     EXPECT_EQ(prop_string(prefill.props, "NPUW_WEIGHTS_BANK"), prop_string(generate.props, "NPUW_WEIGHTS_BANK"));
     EXPECT_EQ(prop_string(prefill.props, "NPUW_WEIGHTS_BANK"), prop_string(head.props, "NPUW_WEIGHTS_BANK"));
+}
+
+TEST(NPUWAttentionHintOptionDefaultsTest, PrefillAndGenerateAttentionHintsHaveIndependentDefaults) {
+    EXPECT_EQ(::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT::defaultValue(),
+              ::intel_npu::npuw::llm::AttentionHint::PYRAMID);
+    EXPECT_EQ(::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT::defaultValue(),
+              ::intel_npu::npuw::llm::AttentionHint::STATIC);
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, CommonRuntimeAndDebugOptionsForwardToAllStages) {
