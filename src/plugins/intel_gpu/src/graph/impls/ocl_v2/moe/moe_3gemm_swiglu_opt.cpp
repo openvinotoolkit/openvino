@@ -9,7 +9,7 @@
 
 #define DEBUG_MOE_LOG 0
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#if defined(ENABLE_ONEDNN_FOR_GPU) && !defined(OV_GPU_WITH_ZE_RT)
 #    include <algorithm>
 #    include <initializer_list>
 #    include <oneapi/dnnl/dnnl.hpp>
