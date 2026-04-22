@@ -401,7 +401,7 @@ struct BaseModelConfig {
 struct LLMConfig : public BaseModelConfig {
     bool use_kv_cache = true;
     bool use_inputs_embeds = false;
-    bool internal_position_ids = false; ///< embedding model
+    bool internal_position_ids = false;  ///< embedding model
     bool pre_norm = true;
 };
 
@@ -446,6 +446,15 @@ public:
     std::shared_ptr<ov::Model> get_model_with_repeated_blocks_and_parameters(
         std::size_t repetitions,
         const std::vector<std::size_t>& block_indices);
+    // Builds a model with N repeated blocks using a 4-op structure
+    // (Add→Relu→Multiply→Relu) where both Relu nodes share the same metadesc.
+    // "Head" blocks additionally expose their interior Relu via a cross-group MatMul.
+    // Because the interior and boundary Relu share the same metadesc, ALL blocks stay
+    // in one repeated-block family regardless of head/non-head status, allowing
+    // isRegularCrossGroupConsumerCase to detect the per-bank connectivity asymmetry.
+    std::shared_ptr<ov::Model> get_model_with_kv_sharing_repeated_blocks(
+        std::size_t repetitions,
+        const std::vector<std::size_t>& head_block_indices);
     std::shared_ptr<ov::Model> get_model_with_multi_output_repeating_blocks(std::size_t repetitions,
                                                                             bool last_block_has_direct_result);
 

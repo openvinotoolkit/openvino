@@ -1,0 +1,5 @@
+# Build dependencies for gptqmodel sdist.
+# gptqmodel's setup.py imports pcre at module level, so pypcre must be
+# installed before gptqmodel can be built with --no-build-isolation.
+# Install this file BEFORE llm.txt.
+pypcre==0.3.0
