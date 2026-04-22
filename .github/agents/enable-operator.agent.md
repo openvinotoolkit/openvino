@@ -29,7 +29,7 @@ When calling sub-agents, use paths relative to `.github/agents/`:
 
 | Priority | Agent | Agent file | Purpose |
 |----------|-------|-----------|---------|
-| 1 | **FE Agent** | `.github/agents/pytorch-fe.agent.md` | Frontend conversion: framework op → OV graph nodes |
+| 1 | **Frontend Agent** | `.github/agents/frontend.agent.md` | Frontend conversion: framework op → OV graph nodes |
 | 2 | **Core OpSpec** | `.github/agents/core-opspec.agent.md` | New core op spec + implementation (on FE escalation) |
 | 3 (parallel) | **Transformation** | `.github/agents/transformation.agent.md` | Graph fusion transformation — starts from Core op spec |
 | 3 (parallel) | **CPU** | `.github/agents/cpu.agent.md` | CPU plugin kernel — starts from Core op spec |
@@ -195,7 +195,7 @@ Log before invocation:
 [OV-ORCH] [phase=FE] Invoking FE Agent — component=frontend op=<op_name>
 ```
 
-The FE Agent writes its result to `agent-results/pytorch-fe/fe_result.json`:
+The Frontend Agent writes its result to `agent-results/frontend/fe_result.json`:
 ```json
 {
   "status": "success|partial|escalate_to_core|failed",
@@ -371,7 +371,7 @@ Collect all patch files produced by sub-agents:
 ```bash
 mkdir -p agent-results/enable-operator/patches/openvino
 
-for RESULT_FILE in agent-results/pytorch-fe/fe_result.json agent-results/core-opspec/core_opspec_result.json agent-results/transformation/transformation_result.json agent-results/cpu/cpu_result.json agent-results/gpu/gpu_result.json agent-results/npu/npu_result.json; do
+for RESULT_FILE in agent-results/frontend/fe_result.json agent-results/core-opspec/core_opspec_result.json agent-results/transformation/transformation_result.json agent-results/cpu/cpu_result.json agent-results/gpu/gpu_result.json agent-results/npu/npu_result.json; do
   [ -f "$RESULT_FILE" ] || continue
   python3 -c "
 import json, sys, shutil, os

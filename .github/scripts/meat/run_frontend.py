@@ -2,15 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
 #!/usr/bin/env python3
-"""Run the PyTorch Frontend agent.
+"""Run the Frontend agent.
 
-Writes OpenVINO frontend conversion rules for a PyTorch operator
-(framework op → OV graph nodes). Invoked when the Deployer or
+Writes OpenVINO frontend conversion rules for a framework operator
+(PyTorch, ONNX, TensorFlow → OV graph nodes). Invoked when the Deployer or
 Analyze-and-Convert agent classifies the failure as `missing_conversion_rule`
 or `frontend_error`.
 
 Usage:
-    python .github/scripts/meat/run_pytorch_fe.py <context-file>
+    python .github/scripts/meat/run_frontend.py <context-file>
 
 Run from the openvino repo root.
 
@@ -25,7 +25,7 @@ Example context file:
     erfinv computes the element-wise inverse error function.
     PyTorch docs: https://pytorch.org/docs/stable/generated/torch.erfinv.html
 
-Output goes to agent-results/pytorch-fe/.
+Output goes to agent-results/frontend/.
 
 Copilot CLI reference:
   https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference
@@ -35,7 +35,7 @@ import os
 import subprocess
 import sys
 
-AGENT_FILE = ".github/agents/pytorch-fe.agent.md"
+AGENT_FILE = ".github/agents/frontend.agent.md"
 
 
 def main() -> None:
@@ -57,7 +57,7 @@ def main() -> None:
         )
         sys.exit(1)
 
-    output_dir = "agent-results/pytorch-fe"
+    output_dir = "agent-results/frontend"
     os.makedirs(output_dir, exist_ok=True)
 
     with open(context_file_path) as f:
@@ -65,7 +65,7 @@ def main() -> None:
 
     cmd = [
         "copilot",
-        "--agent", "pytorch-fe",
+        "--agent", "frontend",
         "--share", f"{output_dir}/session.md",
         "--allow-all",
         "--no-ask-user",

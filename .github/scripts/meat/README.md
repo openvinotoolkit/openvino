@@ -60,7 +60,7 @@ python .github/scripts/meat/run_deployer.py my_context.md
 python .github/scripts/meat/run_analyze_and_convert.py my_context.md
 
 # OpenVINO core pipeline
-python .github/scripts/meat/run_pytorch_fe.py my_context.md
+python .github/scripts/meat/run_frontend.py my_context.md
 python .github/scripts/meat/run_core_opspec.py my_context.md
 python .github/scripts/meat/run_transformation.py my_context.md
 python .github/scripts/meat/run_cpu.py my_context.md
@@ -92,7 +92,7 @@ git apply --whitespace=fix agent-results/enable-operator/patches/openvino/*.patc
 ```
 enable_operator.py
     │
-    ├─ run_pytorch_fe.py       ← missing_conversion_rule / frontend_error
+    ├─ run_frontend.py         ← missing_conversion_rule / frontend_error
     ├─ run_core_opspec.py      ← FE escalates (no existing OV op)
     │   └─ (parallel)
     │       ├─ run_transformation.py
