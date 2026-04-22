@@ -351,15 +351,13 @@ void Plugin::set_property(const ov::AnyMap& properties) {
     if (properties.empty()) {
         return;
     }
-
-    auto npuPluginProperties = properties;
-    update_log_level(npuPluginProperties);
+    update_log_level(properties);
 
     if (_backend != nullptr) {
-        _backend->updateInfo(npuPluginProperties);
+        _backend->updateInfo(properties);
     }
 
-    _propertiesManager->setProperty(npuPluginProperties);
+    _propertiesManager->setProperty(properties);
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
@@ -609,7 +607,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
-    if (!localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt) {
+    if (localConfig.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
+        !localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt) {
         _logger.warning("Encryption callbacks were provided for compiled model creation, but the encrypt "
                         "callback is null. Proceeding with unencrypted compilation; encrypted blob export "
                         "will be disabled.");
