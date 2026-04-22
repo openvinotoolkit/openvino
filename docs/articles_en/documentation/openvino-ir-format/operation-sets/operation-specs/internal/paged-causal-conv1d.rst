@@ -25,10 +25,7 @@ For each sequence, the operation:
 
 1. Loads the current convolution state (a window of the last `kernel_size` input vectors) from paged memory using the block table.
 
-2. For each token:
-   - Shifts the state window
-   - Inserts the new token
-   - Applies a grouped causal 1D convolution to produce the output embedding
+2. For each token, shifts the state window, inserts the new token, and applies a grouped causal 1D convolution to produce the output embedding.
 
 3. Caches intermediate states to paged memory blocks at intervals controlled by `cache_interval`  
    (used during prefill to support prefix caching and chunked prefill).
