@@ -235,14 +235,17 @@ Output<Node> rearrange_constant_nncf(const Output<Node>& c,
     FRONT_END_OP_CONVERSION_CHECK(constant, "weight must be Constant.");
     auto src = constant->get_data_ptr<uint8_t>();
     auto initial_shape = constant->get_shape();
-    FRONT_END_OP_CONVERSION_CHECK(initial_shape.size() == 2, "Only 2D constants are supported.");
+    FRONT_END_OP_CONVERSION_CHECK(initial_shape.size() == 2 || initial_shape.size() == 3, "Only 2D or 3D constants are supported.");
     // group_size == 0 means that weights are not grouped, so we can treat them as if group size is 1.
     FRONT_END_OP_CONVERSION_CHECK(initial_shape[0] % (group_size == 0 ? 1 : group_size) == 0,
                                   "NNCF qweight first dimension must be divisible by group size.");
     const size_t values_per_byte = src_bits == 8 ? 1 : 2;
-    const size_t unpacked_last_dim = initial_shape[1] * values_per_byte;
-    auto new_shape = group_size < 2 ? Shape{initial_shape[0], unpacked_last_dim}
-                                 : Shape{initial_shape[0] / group_size, group_size, unpacked_last_dim};
+    auto new_shape = initial_shape.size() == 2 ? Shape{initial_shape[0], initial_shape[1] * values_per_byte}
+                                 : Shape{initial_shape[0], initial_shape[1], initial_shape[2] * values_per_byte};
+    if (group_size > 1) {
+         FRONT_END_OP_CONVERSION_CHECK(new_shape.back() == group_size, "Last dimension must match group size.");
+    }
+
 
     auto element_type = getElementTypeForBits(dst_bits, sym);
     const size_t packed_bytes_count = shape_size(initial_shape);
@@ -275,8 +278,6 @@ Output<Node> rearrange_constant_nncf(const Output<Node>& c,
     }
 
     auto new_qweight = std::make_shared<v0::Constant>(element_type, new_shape, values);
-
-    std::cout << "Data type: " << element_type << ", new shape: " << new_qweight->get_shape() << std::endl;
     new_qweight->set_friendly_name(constant->get_friendly_name());
     return new_qweight;
 }
@@ -461,14 +462,9 @@ OutputVector translate_linear_nncf(const NodeContext& context) {
     auto qweight = context.get_input(1);
     auto qzeros = context.get_input(2);
     auto scales = context.get_input(3);
-    auto groups = context.const_input<int64_t>(4);
+    auto group_size = context.const_input<int64_t>(4);
     auto bits = context.const_input<int64_t>(5);
     bool sym = context.const_input<bool>(6);
-
-    std::cout << "NNCF linear with groups=" << groups << ", bits=" << bits << ", sym=" << sym << std::endl;
-    std::cout << qweight.get_shape() << std::endl;
-    std::cout << scales.get_shape() << std::endl;
-    std::cout << "Input data shape: "  <<  x.get_partial_shape() << std::endl;
 
     FRONT_END_OP_CONVERSION_CHECK(bits == 8 || bits == 4 || bits == 3 || bits == 2,
                                   "Only {8, 4, 3, 2} bit NNCF is supported.");
@@ -476,36 +472,21 @@ OutputVector translate_linear_nncf(const NodeContext& context) {
         FRONT_END_OP_CONVERSION_CHECK(bits == 4 || bits == 8, "Only 4 bit or 8 bit NNCF is supported for symmetric quantization.");
     }
 
-    auto new_qweight = rearrange_constant_nncf(qweight, static_cast<uint32_t>(groups),
+    auto new_qweight = rearrange_constant_nncf(qweight, static_cast<uint32_t>(group_size),
                                                static_cast<uint32_t>(bits), static_cast<uint32_t>(bits),
                                                sym);
 
     FRONT_END_OP_CONVERSION_CHECK(scales.get_partial_shape().is_static(), "Scales must be constant.");
     auto scales_shape = scales.get_shape();
-    Output<Node> new_scales;
-
-    // For ungrouped NNCF (groups=0), scales shape is [out_features, 1] and should stay 2D for proper broadcasting
-    // For grouped NNCF (groups>0), reshape to [out_features/groups, groups, 1] for 3D weight broadcasting
-    if (groups == 0) {
-        new_scales = scales;
-    } else {
-        auto new_scales_shape =
-            v0::Constant::create(element::i32, {3}, std::vector<uint64_t>{scales_shape[0] / groups, groups, scales_shape[1]});
-        new_scales = context.mark_node(std::make_shared<v1::Reshape>(scales, new_scales_shape, false));
-    }
+    Output<Node> new_scales = scales;
 
     auto out_shape =
         v0::Constant::create(element::i32, {2}, std::vector<int32_t>{static_cast<int32_t>(qweight.get_shape()[0]), -1});
 
     Output<Node> weight;
     if (sym) {
-        std::cout << "Using symmetric quantization subgraph for NNCF linear." << std::endl;
-        std::cout << "Rearranged weight shape: " << new_qweight.get_shape() << std::endl;
-        std::cout << "out shape: " << static_cast<int32_t>(qweight.get_shape()[0]) << ", -1" << std::endl;
-
         weight = low_precision_subgraph_sym(context, x, new_qweight, new_scales, out_shape);
     } else {
-        std::cout << "QZeros shape: " << qzeros.get_shape() << std::endl;
         auto new_qzeros = rearrange_constant_nncf(qzeros, 1, static_cast<uint32_t>(bits), static_cast<uint32_t>(8), false);
         weight = low_precision_subgraph(context, x, new_qweight, new_qzeros, new_scales, out_shape);
     }
