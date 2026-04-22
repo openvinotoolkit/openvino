@@ -80,6 +80,8 @@ struct vcl_allocator_2 : vcl_allocator2_t {
         }
         memset(allocatedPtr + size, 0, alignedSize - size);
         vclAllocator->m_info.emplace_back(std::make_pair(allocatedPtr, alignedSize));
+        std::cout << "[vcl_allocator_2] allocate requested size:" << size << " alignedSize:" << alignedSize
+                  << " ptr:" << static_cast<void*>(allocatedPtr) << std::endl;
         return allocatedPtr;
     }
 
@@ -310,7 +312,9 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                                      buildFlags.c_str(),
                                      buildFlags.size()};
 
-    if (usedVersion.Major >= 8 && usedVersion.Minor >= 1) {
+    std::cout << "[VCLCompilerImpl] Checking compilerVersion.major=" << compilerVersion.major
+              << " minor=" << compilerVersion.minor << std::endl;
+    if (compilerVersion.major > 8 || (compilerVersion.major == 8 && compilerVersion.minor >= 1)) {
         // support the lastest vcl api
         // For VCL 8.1 and later, we can use vclAllocatedExecutableCreate3
         _logger.debug("Using vclAllocatedExecutableCreate3 for 8.1 <= VCL");
@@ -363,11 +367,18 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
             compatibilityString =
                 std::string(reinterpret_cast<char*>(compatibilityStringBuffer), compatibilityStringSize);
 
+            _logger.debug("compatibilityStringBuffer ptr:%p size:%zu content:%s",
+                          static_cast<void*>(compatibilityStringBuffer),
+                          compatibilityStringSize,
+                          compatibilityString->c_str());
+
             // Free the memory allocated by vclAllocatedExecutableCreate3 for the compatibility string
             allocator.deallocate(&allocator, compatibilityStringBuffer);
         }
 
-        _logger.debug("compile end, blob size:%d", alignedBlobSize);
+        _logger.debug("compile end, blob size:%zu", *alignedBlobSize);
+        _logger.debug("compile end, compatibilityString:%s",
+                      compatibilityString.has_value() ? compatibilityString->c_str() : "<none>");
         return std::make_pair<ov::Tensor, std::optional<std::string>>(std::move(alignedBlob),
                                                                       std::move(compatibilityString));
     } else {
