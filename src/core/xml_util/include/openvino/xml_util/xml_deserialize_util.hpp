@@ -40,7 +40,7 @@ void str_to_container(const std::string& value, T& res) {
 template <>
 void str_to_container<std::vector<std::string>>(const std::string& value, std::vector<std::string>& res);
 
-class OPENVINO_API WeightsProvider {
+class WeightsProvider {
 public:
     virtual ~WeightsProvider() = default;
 
@@ -48,7 +48,7 @@ public:
     virtual size_t size() const = 0;
 };
 
-class OPENVINO_API FileWeightsProvider : public WeightsProvider {
+class FileWeightsProvider : public WeightsProvider {
 public:
     explicit FileWeightsProvider(std::filesystem::path weights_path);
 
