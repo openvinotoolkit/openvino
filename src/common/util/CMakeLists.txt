@@ -49,16 +49,8 @@ if (WIN32)
     target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${MONITORS_WIN_INCLUDE_DIR}>)
 
     # IPF (Intel Platform Framework) SDK for device monitoring
-    set(IPF_SDK_ROOT "" CACHE PATH "Path to Intel Platform Framework (IPF) SDK root directory")
-    if (IPF_SDK_ROOT)
-        target_include_directories(${TARGET_NAME} PRIVATE
-            "${IPF_SDK_ROOT}/include"
-            "${IPF_SDK_ROOT}/include/thirdparty")
-        target_link_libraries(${TARGET_NAME} PRIVATE
-            "$<$<CONFIG:Debug>:${IPF_SDK_ROOT}/lib/Debug/ClientApiLib.lib>"
-            "$<$<CONFIG:Release>:${IPF_SDK_ROOT}/lib/Release/ClientApiLib.lib>")
-    else()
-        message(WARNING "IPF_SDK_ROOT is not set. Device monitoring on Windows requires the IPF SDK.")
+    if(TARGET IPF::ClientApi)
+        target_link_libraries(${TARGET_NAME} PRIVATE IPF::ClientApi)
     endif()
 endif()
 
