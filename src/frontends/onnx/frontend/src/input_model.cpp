@@ -16,30 +16,17 @@
 using namespace ov;
 using namespace ov::frontend::onnx;
 
-InputModel::InputModel(const std::string& path, const bool enable_mmap, frontend::ExtensionHolder extensions)
+InputModel::InputModel(const std::filesystem::path& path, const bool enable_mmap, frontend::ExtensionHolder extensions)
     : m_editor{std::make_shared<ONNXModelEditor>(path, enable_mmap, std::move(extensions))} {}
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-InputModel::InputModel(const std::wstring& path, const bool enable_mmap, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<ONNXModelEditor>(path, enable_mmap, std::move(extensions))} {}
-#endif
 
 InputModel::InputModel(std::istream& model_stream, const bool enable_mmap, frontend::ExtensionHolder extensions)
     : m_editor{std::make_shared<ONNXModelEditor>(model_stream, "", enable_mmap, std::move(extensions))} {}
 
 InputModel::InputModel(std::istream& model_stream,
-                       const std::string& path,
+                       const std::filesystem::path& path,
                        const bool enable_mmap,
                        frontend::ExtensionHolder extensions)
     : m_editor{std::make_shared<ONNXModelEditor>(model_stream, path, enable_mmap, std::move(extensions))} {}
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-InputModel::InputModel(std::istream& model_stream,
-                       const std::wstring& path,
-                       const bool enable_mmap,
-                       frontend::ExtensionHolder extensions)
-    : InputModel(model_stream, ov::util::wstring_to_string(path), enable_mmap, std::move(extensions)) {}
-#endif
 
 InputModel::InputModel(std::shared_ptr<ModelProto> model_proto, frontend::ExtensionHolder extensions)
     : m_editor{std::make_shared<ONNXModelEditor>(model_proto, std::move(extensions))} {}
@@ -865,11 +852,11 @@ InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& gra
         m_model_dir = graph_iterator->get_model_dir();
     }
     if (m_enable_mmap) {
-        m_mmap_cache = std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>();
+        m_mmap_cache = std::make_shared<std::map<std::filesystem::path, std::shared_ptr<ov::MappedMemory>>>();
         m_stream_cache = nullptr;
     } else {
         m_mmap_cache = nullptr;
-        m_stream_cache = std::make_shared<std::map<std::string, std::shared_ptr<std::ifstream>>>();
+        m_stream_cache = std::make_shared<std::map<std::filesystem::path, std::shared_ptr<std::ifstream>>>();
     }
     load_model();
 }
