@@ -8637,7 +8637,11 @@ public:
                         tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
                         size_t offset = out_lay.get_linear_offset(coords);
                         if (is_output_fp) {
-                            ASSERT_NEAR(out_ptr[offset], expected[bi][fi][yi][xi], 1e-5f)
+                            // Use relative tolerance for large values where absolute 1e-5 is too tight.
+                            // IMAD kernels may reorder f32 accumulation, causing magnitude-proportional diffs.
+                            auto ref_val = expected[bi][fi][yi][xi];
+                            auto abs_tol = std::max(1e-5, static_cast<double>(std::abs(ref_val)) * 1e-7);
+                            ASSERT_NEAR(out_ptr[offset], ref_val, abs_tol)
                                 << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
                                 << description.str();
                         } else {
