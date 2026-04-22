@@ -34,6 +34,7 @@
 #include <algorithm>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -71,6 +72,15 @@ protected:
         merge_props(props, extra_props);
         return std::make_unique<ov::npuw::LLMCompiledModel>(
             build_llm_test_model(), m_plugin, props, recorder.make_factory());
+    }
+
+    std::unique_ptr<ov::npuw::LLMCompiledModel> create_compiled_model(const std::shared_ptr<ov::Model>& model,
+                                                                       const ov::AnyMap& extra_props,
+                                                                       RecordingFactory& recorder) const {
+        auto props = base_props();
+        merge_props(props, extra_props);
+        return std::make_unique<ov::npuw::LLMCompiledModel>(
+            model, m_plugin, props, recorder.make_factory());
     }
 
     std::unique_ptr<ov::npuw::LLMCompiledModel> create_whisper_compiled_model(const ov::AnyMap& extra_props,
@@ -146,23 +156,72 @@ protected:
         return ps.to_shape();
     }
 
+    // Helper to format a port's type and names for error messages.
+    template <class Port>
+    static void append_port_info(std::ostringstream& ss, const Port& port) {
+        ss << "\n  - type=" << port.get_element_type() << ", names={";
+        bool first = true;
+        for (const auto& name : port.get_names()) {
+            if (!first) ss << ", ";
+            ss << name;
+            first = false;
+        }
+        if (first) ss << "<none>";
+        ss << "}";
+    }
+
+    // Generic helper: check ports against a predicate. Throws if no match found.
+    // Predicate returns false if a port fails the check (causes mismatch).
+    template <class PortRange, class Predicate>
+    static bool check_ports_with_name(const std::shared_ptr<ov::Model>& model,
+                                      const PortRange& ports,
+                                      std::string_view needle,
+                                      std::string_view port_kind,
+                                      const Predicate& predicate,
+                                      std::string_view failure_msg_verb) {
+        bool found_any = false;
+        std::ostringstream mismatch;
+        bool has_mismatch = false;
+
+        for (const auto& port : ports) {
+            if (port_has_name(port, needle)) {
+                found_any = true;
+                if (!predicate(port)) {
+                    has_mismatch = true;
+                    append_port_info(mismatch, port);
+                }
+            }
+        }
+
+        if (!found_any) {
+            std::ostringstream ss;
+            ss << "No " << port_kind << " matching needle '" << needle << "' found in model '"
+               << model->get_friendly_name() << "'. Available " << port_kind << "s:";
+            for (const auto& port : ports) {
+                append_port_info(ss, port);
+            }
+            throw std::runtime_error(ss.str());
+        }
+
+        if (has_mismatch) {
+            ADD_FAILURE() << port_kind << "s matching needle '" << needle << "' in model '"
+                          << model->get_friendly_name() << "' " << failure_msg_verb << "."
+                          << " Mismatched " << port_kind << "s:" << mismatch.str();
+            return false;
+        }
+
+        return true;
+    }
+
     // Returns true iff every input whose name contains `needle` has `expected_type`.
     // Throws std::runtime_error if no input matching `needle` is found.
     static bool all_inputs_with_name_have_type(const std::shared_ptr<ov::Model>& model,
                                                std::string_view needle,
                                                ov::element::Type expected_type) {
-        bool found_any = false;
-        for (const auto& input : model->inputs()) {
-            if (port_has_name(input, needle)) {
-                found_any = true;
-                if (input.get_element_type() != expected_type)
-                    return false;
-            }
-        }
-        if (!found_any)
-            throw std::runtime_error(std::string("No input matching needle '") + std::string(needle) +
-                                     "' found in model '" + model->get_friendly_name() + "'");
-        return true;
+        return check_ports_with_name(
+            model, model->inputs(), needle, "input",
+            [expected_type](const auto& port) { return port.get_element_type() == expected_type; },
+            "do not all have expected type " + std::string(ov::element::Type(expected_type).to_string()));
     }
 
     // Returns true iff every output whose name contains `needle` has `expected_type`.
@@ -170,18 +229,10 @@ protected:
     static bool all_outputs_with_name_have_type(const std::shared_ptr<ov::Model>& model,
                                                 std::string_view needle,
                                                 ov::element::Type expected_type) {
-        bool found_any = false;
-        for (const auto& output : model->outputs()) {
-            if (port_has_name(output, needle)) {
-                found_any = true;
-                if (output.get_element_type() != expected_type)
-                    return false;
-            }
-        }
-        if (!found_any)
-            throw std::runtime_error(std::string("No output matching needle '") + std::string(needle) +
-                                     "' found in model '" + model->get_friendly_name() + "'");
-        return true;
+        return check_ports_with_name(
+            model, model->outputs(), needle, "output",
+            [expected_type](const auto& port) { return port.get_element_type() == expected_type; },
+            "do not all have expected type " + std::string(ov::element::Type(expected_type).to_string()));
     }
 
     // Returns true iff no input whose name contains `needle` has `excluded_type`.
@@ -189,18 +240,10 @@ protected:
     static bool no_inputs_with_name_have_type(const std::shared_ptr<ov::Model>& model,
                                               std::string_view needle,
                                               ov::element::Type excluded_type) {
-        bool found_any = false;
-        for (const auto& input : model->inputs()) {
-            if (port_has_name(input, needle)) {
-                found_any = true;
-                if (input.get_element_type() == excluded_type)
-                    return false;
-            }
-        }
-        if (!found_any)
-            throw std::runtime_error(std::string("No input matching needle '") + std::string(needle) +
-                                     "' found in model '" + model->get_friendly_name() + "'");
-        return true;
+        return check_ports_with_name(
+            model, model->inputs(), needle, "input",
+            [excluded_type](const auto& port) { return port.get_element_type() != excluded_type; },
+            "should not have type " + std::string(ov::element::Type(excluded_type).to_string()));
     }
 
     // -- Sub-model lookup ----------------------------------------------------------
