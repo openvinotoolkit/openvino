@@ -7,12 +7,10 @@
 #include <any>
 #include <atomic>
 #include <cstring>
-#include <filesystem>
-#include <fstream>
 #include <functional>
 #include <map>
 #include <numeric>
-#include <unistd.h>
+#include <mutex>
 #include <vector>
 
 #define private public
@@ -93,8 +91,9 @@ using ov::test::npuw::build_llm_test_model;
 constexpr std::size_t kSeqLen = 4u;
 constexpr std::size_t kPastKvLen = 4u;
 constexpr std::size_t kKVCacheSize = kSeqLen + kPastKvLen;
-struct MarkerPath {
-    std::string value;
+struct BehaviorHits {
+    std::mutex mutex;
+    std::vector<std::pair<std::size_t, std::size_t>> values;
 };
 
 std::shared_ptr<ov::Model> build_static_llm_model() {
@@ -221,12 +220,6 @@ protected:
                 {"NPUW_ONLINE_PIPELINE", "REP"},
                 {"NPUW_ONLINE_ISOLATE", "ATTN"}};
     }
-
-    static std::filesystem::path marker_path() {
-        return std::filesystem::temp_directory_path() /
-               ("npuw-subgraph-behavior-" + std::to_string(::getpid()) + ".log");
-    }
-
     std::shared_ptr<testing::NiceMock<ov::MockICore>> make_core(const std::shared_ptr<const ov::IPlugin>& plugin) const {
         auto core = std::make_shared<testing::NiceMock<ov::MockICore>>();
 
@@ -282,8 +275,7 @@ protected:
 TEST_F(SubgraphBehaviorInferTest, SdpaBehaviorCanOverrideStaticLlmSubgraphExecution) {
     auto baseline_model = build_static_llm_model();
     ASSERT_GT(count_sdpa_nodes(baseline_model), 0u) << "The synthesized LLM model must contain SDPA nodes";
-    const auto marker = marker_path();
-    std::filesystem::remove(marker);
+    auto hits = std::make_shared<BehaviorHits>();
 
     auto plugin = std::make_shared<intel_npu::Plugin>();
     auto core = make_core(plugin);
@@ -294,7 +286,7 @@ TEST_F(SubgraphBehaviorInferTest, SdpaBehaviorCanOverrideStaticLlmSubgraphExecut
     auto baseline_request = baseline_compiled->create_infer_request();
     ASSERT_NE(baseline_request, nullptr);
     baseline_request->infer();
-    EXPECT_FALSE(std::filesystem::exists(marker));
+    EXPECT_TRUE(hits->values.empty());
 
     auto behavior_model = build_static_llm_model();
     ASSERT_GT(count_sdpa_nodes(behavior_model), 0u);
@@ -308,15 +300,15 @@ TEST_F(SubgraphBehaviorInferTest, SdpaBehaviorCanOverrideStaticLlmSubgraphExecut
 
         ov::npuw::v1::subgraphs::RuntimeBehaviorSpec spec;
         spec.registration.group = "test";
-        spec.registration.name = "write-marker";
-        spec.context.put<MarkerPath>({marker.string()});
+        spec.registration.name = "record-hit";
+        spec.context.put<std::shared_ptr<BehaviorHits>>(hits);
         spec.factory = [](const ov::npuw::v1::subgraphs::Context& ctx) -> ov::npuw::v1::subgraphs::ISubgraphBehavior::Ptr {
-            const auto path = ctx.get<MarkerPath>().value;
+            const auto recorder = ctx.get<std::shared_ptr<BehaviorHits>>();
             return std::make_unique<ov::npuw::v1::subgraphs::DirectBehavior>(
-                [path](ov::npuw::v1::subgraphs::InferContext& infer_ctx) {
+                [recorder](ov::npuw::v1::subgraphs::InferContext& infer_ctx) {
                     infer_ctx.legacy_infer();
-                    std::ofstream out(path, std::ios::app);
-                    out << "hit:" << infer_ctx.subgraph_idx << ':' << infer_ctx.real_subgraph_idx << '\n';
+                    std::lock_guard<std::mutex> lock(recorder->mutex);
+                    recorder->values.emplace_back(infer_ctx.subgraph_idx, infer_ctx.real_subgraph_idx);
                 });
         };
         desc.pipeline.runtime_behavior = std::move(spec);
@@ -327,11 +319,7 @@ TEST_F(SubgraphBehaviorInferTest, SdpaBehaviorCanOverrideStaticLlmSubgraphExecut
     ASSERT_NE(behavior_request, nullptr);
     behavior_request->infer();
 
-    ASSERT_TRUE(std::filesystem::exists(marker)) << "The SDPA stub behavior was not invoked during inference";
-    std::ifstream input(marker);
-    const std::string contents((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-    EXPECT_NE(contents.find("hit:"), std::string::npos);
-    std::filesystem::remove(marker);
+    ASSERT_FALSE(hits->values.empty()) << "The SDPA stub behavior was not invoked during inference";
 }
 
 }  // namespace
