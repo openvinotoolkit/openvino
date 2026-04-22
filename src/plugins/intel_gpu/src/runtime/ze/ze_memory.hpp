@@ -34,15 +34,11 @@ public:
     UsmHolder& operator=(const UsmHolder&) = delete;
 
     void* ptr() { return _ptr; }
-    void memFree() {
-        if (!_shared_memory && _ptr != nullptr) {
-            OV_ZE_WARN(ze::zeMemFree(_context, _ptr));
-            _ptr = nullptr;
-        }
-    }
 
     ~UsmHolder() {
-        memFree();
+        if (!_shared_memory) {
+            OV_ZE_WARN(ze::zeMemFree(_context, _ptr));
+        }
     }
 private:
     ze_context_handle_t _context;
@@ -61,7 +57,14 @@ public:
         , _device(device)
         , _usm_pointer(std::make_shared<UsmHolder>(_context, reinterpret_cast<uint8_t*>(usm_ptr) + offset, true)) {}
 
-    void* get() const { return _usm_pointer->ptr(); }
+    void* get() const {
+        if (is_empty()) {
+            return nullptr;
+        }
+        return _usm_pointer->ptr();
+    }
+
+    bool is_empty() const { return _usm_pointer.get() == nullptr; }
 
     void allocateHost(size_t size) {
         ze_host_mem_alloc_desc_t host_desc = {};
@@ -104,9 +107,7 @@ public:
     }
 
     void freeMem() {
-        if (!_usm_pointer)
-            OPENVINO_THROW("[GPU] Can not free memory of empty UsmHolder");
-        _usm_pointer->memFree();
+        _usm_pointer.reset();
     }
 
     virtual ~UsmMemory() = default;
@@ -146,6 +147,51 @@ struct gpu_usm : public lockable_gpu_mem, public memory {
 protected:
     ze::UsmMemory _buffer;
     ze::UsmMemory _host_buffer;
+};
+
+struct image_holder {
+public:
+    image_holder(ze_image_handle_t buffer, bool is_shared = false) : _buffer(buffer), _is_shared(is_shared) {
+        OPENVINO_ASSERT(buffer != nullptr, "[GPU] Can not create image_holder with nullptr");
+    }
+    image_holder(const image_holder&) = delete;
+    image_holder& operator=(const image_holder&) = delete;
+    ~image_holder() {
+        if (!_is_shared) {
+            OV_ZE_WARN(ze::zeImageDestroy(_buffer));
+        }
+    }
+
+    ze_image_handle_t get_handle() const { return _buffer; }
+private:
+    ze_image_handle_t _buffer;
+    bool _is_shared;
+};
+
+struct gpu_image2d : public lockable_gpu_mem, public memory {
+    gpu_image2d(ze_engine* engine, const layout& new_layout, ze_image_handle_t image, std::shared_ptr<MemoryTracker> mem_tracker);
+    gpu_image2d(ze_engine* engine, const layout& layout);
+
+    void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
+    void unlock(const stream& stream) override;
+    event::ptr fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) override;
+    shared_mem_params get_internal_params() const override;
+    const ze_image_handle_t get_handle() const {
+        OPENVINO_ASSERT(0 == _lock_count, "[GPU] Cannot get image handle when memory is locked");
+        return _image->get_handle();
+    }
+
+    event::ptr copy_from(stream& stream, const void* data_ptr, size_t src_offset = 0, size_t dst_offset = 0, size_t size = 0, bool blocking = true) override;
+    event::ptr copy_from(stream& stream, const memory& src_mem, size_t src_offset = 0, size_t dst_offset = 0, size_t size = 0, bool blocking = true) override;
+    event::ptr copy_to(stream& stream, void* data_ptr, size_t src_offset = 0, size_t dst_offset = 0, size_t size = 0, bool blocking = true) const override;
+
+protected:
+    std::shared_ptr<image_holder> _image;
+    ze::UsmMemory _host_buffer;
+    ze::UsmMemory _fill_buffer;
+    size_t _width;
+    size_t _height;
+    bool _needs_write_back;
 };
 
 }  // namespace ze
