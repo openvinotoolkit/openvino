@@ -89,8 +89,10 @@ public:
 
     std::shared_ptr<void> getLinkedLibrary() const;
 
-    ov::RuntimeRequirementCheckResult validate_compatibility_descriptor(
-        const std::string& compatibilityDescriptor) const;
+    ov::RuntimeRequirementCheckResult validate_compatibility_descriptor(const std::string& compatibilityDescriptor,
+                                                                        uint32_t deviceId,
+                                                                        int64_t numTiles,
+                                                                        int64_t stepping) const;
 
 private:
     /**

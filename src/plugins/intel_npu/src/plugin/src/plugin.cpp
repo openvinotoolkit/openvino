@@ -364,14 +364,18 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         if (arguments.empty()) {
             return ov::RuntimeRequirementCheckResult::COMPATIBILITY_FAILED;
         }
-
-        ov::Tensor encodedTensor = arguments.at(ov::runtime_requirements.name()).as<ov::Tensor>();
-        const std::string encodedString(reinterpret_cast<char*>(encodedTensor.data()), encodedTensor.get_byte_size());
+        const auto& encodedTensor = arguments.at(ov::runtime_requirements.name()).as<const ov::Tensor&>();
+        std::string encodedString;
+        if (encodedTensor.get_element_type() == ov::element::string) {
+            OPENVINO_ASSERT(encodedTensor.get_size() == 1, "Expected a string tensor in ov::runtime_requirements");
+            encodedString = encodedTensor.data<const std::string>()[0];
+        } else {
+            OPENVINO_THROW("Unsupported ov::runtime_requirements tensor element type");
+        }
+        _logger.debug("Received encoded compatibility string: %s length: %zu",
+                      encodedString.c_str(),
+                      encodedString.length());
         std::string decodedString = decode_compatibility_string(encodedString);
-
-        std::cout << "[DEBUG] ov::runtime_requirements_met check started." << std::endl;
-        std::cout << "[DEBUG] encodedTensor byte size: " << encodedTensor.get_byte_size() << std::endl;
-        std::cout << "[DEBUG] decodedString length: " << decodedString.length() << std::endl;
 
         const ov::Tensor viewTensor =
             ov::Tensor(ov::element::Type_t::u8, ov::Shape{decodedString.length()}, decodedString.data());
@@ -385,7 +389,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         } catch (const std::exception& e) {
             // Unsupported version, could not read the metadata or an unknown error has occured. Report that the
             // requirements are not met.
-            std::cout << "[DEBUG] Exception reading metadata: " << e.what() << std::endl;
+            _logger.debug("Failed to read metadata from the compatibility string. The requirements are not met. %s",
+                          ex.what());
             return ov::RuntimeRequirementCheckResult::COMPATIBILITY_FAILED;
         }
 
@@ -396,30 +401,35 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
 
         // Discard everything else but the compiler section
         decodedString = decodedString.substr(0, compilerStringSize);
+        _logger.debug("Decoded compiler compatibility string: %s length: %zu",
+                      decodedString.c_str(),
+                      decodedString.length());
 
         // Create a compiler to get the type and fetch version and supported options if needed
         std::unique_ptr<ICompilerAdapter> compiler = nullptr;
         CompilerAdapterFactory factory;
         try {
             // TODO consider using backend directly
-            compiler = factory.getCompiler(_backend, ov::intel_npu::CompilerType::DRIVER);
-            std::cout << "[DEBUG] Created DRIVER compiler adapter" << std::endl;
-            std::cout << "[DEBUG] Calling driver compiler->validate_compatibility_descriptor..." << std::endl;
-            auto result = compiler->validate_compatibility_descriptor(decodedString);
-            std::cout << "[DEBUG] DRIVER validate_compatibility_descriptor finished, result enum: " << (int)result
-                      << std::endl;
-            return result;
-        } catch (const std::exception& e) {
-            std::cout << "[DEBUG] Exception creating or validating against DRIVER adapter: " << e.what()
-                      << ". Falling back to PLUGIN." << std::endl;
             compiler = factory.getCompiler(_backend, ov::intel_npu::CompilerType::PLUGIN);
+        } catch (const std::exception&) {
+            _logger.error("Failed to create compiler for compatibility check. The requirements are not met.");
         }
 
         OPENVINO_ASSERT(compiler != nullptr);
-        std::cout << "[DEBUG] Calling plugin compiler->validate_compatibility_descriptor..." << std::endl;
-        auto result = compiler->validate_compatibility_descriptor(decodedString);
-        std::cout << "[DEBUG] PLUGIN validate_compatibility_descriptor finished, result enum: " << (int)result
-                  << std::endl;
+
+        // Implement only the fallback path for now through the PLUGIN compiler type
+        std::shared_ptr<IDevice> device = _backend->getDevice();
+        OPENVINO_ASSERT(device != nullptr);
+        _logger.debug("Checking compatibility with device: %s, devId: %x, subDevId: %u, maxNumSlices: %u",
+                      device->getName().c_str(),
+                      device->getDevId(),
+                      device->getSubDevId(),
+                      device->getMaxNumSlices());
+        auto result = compiler->validate_compatibility_descriptor(decodedString,
+                                                                  device->getDevId(),
+                                                                  device->getMaxNumSlices(),
+                                                                  device->getSubDevId());
+        _logger.debug("Compatibility check result: %d", static_cast<int>(result));
         return result;
     }
 

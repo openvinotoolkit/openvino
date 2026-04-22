@@ -628,16 +628,39 @@ bool VCLCompilerImpl::is_option_supported(std::string option, std::optional<std:
 }
 
 ov::RuntimeRequirementCheckResult VCLCompilerImpl::validate_compatibility_descriptor(
-    const std::string& compatibilityDescriptor) const {
-    std::cout << "[DEBUG] VCLCompilerImpl::validate_compatibility_descriptor called." << std::endl;
-    std::cout << "[DEBUG] Passed string size = " << compatibilityDescriptor.size() << std::endl;
+    const std::string& compatibilityDescriptor,
+    uint32_t deviceId,
+    int64_t numTiles,
+    int64_t stepping) const {
+    vcl_device_desc_t device_desc = {sizeof(vcl_device_desc_t),
+                                     deviceId,
+                                     static_cast<uint16_t>(stepping),
+                                     static_cast<uint32_t>(numTiles)};
+    vcl_compiler_desc_t compilerDesc;
+    compilerDesc.version = _vclVersion;
+    compilerDesc.debugLevel = static_cast<__vcl_log_level_t>(static_cast<int>(Logger::global().level()) + 1);
 
-    if (is_option_supported(ov::runtime_requirements_met.name(), compatibilityDescriptor)) {
-        std::cout << "[DEBUG] is_option_supported returned TRUE -> PARTIAL_CHECK_PASSED" << std::endl;
+    const char* optname_ch = ov::runtime_requirements_met.name();
+    const char* optvalue_ch = compatibilityDescriptor.c_str();
+
+    vcl_log_handle_t logHandle = nullptr;
+    vcl_compiler_handle_t compilerHandle = nullptr;
+    try {
+        THROW_ON_FAIL_FOR_VCL("vclCompilerCreate",
+                              vclCompilerCreate(&compilerDesc, &device_desc, &compilerHandle, &logHandle),
+                              nullptr);
+
+        _logger.debug("is_option_supported start for option: %s, value: %s", optname_ch, optvalue_ch);
+        THROW_ON_FAIL_FOR_VCL("vclGetCompilerIsOptionSupported",
+                              vclGetCompilerIsOptionSupported(compilerHandle, optname_ch, optvalue_ch),
+                              logHandle);
         return ov::RuntimeRequirementCheckResult::PARTIAL_CHECK_PASSED;
+        ;
+    } catch (const std::exception& e) {
+        // The API is only supported in new version, just add log here
+        _logger.debug("Exception in is_option_supported: %s", e.what());
     }
 
-    std::cout << "[DEBUG] is_option_supported returned FALSE -> COMPATIBILITY_FAILED" << std::endl;
     return ov::RuntimeRequirementCheckResult::COMPATIBILITY_FAILED;
 }
 
