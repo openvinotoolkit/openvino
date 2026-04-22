@@ -50,7 +50,7 @@ jobs:
 
     steps:
       - name: Install git
-        run: sudo apt-get install -y git-lfs
+        run: apt-get install -y git-lfs
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
