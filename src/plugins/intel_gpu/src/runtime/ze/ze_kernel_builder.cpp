@@ -5,14 +5,8 @@
 #include "ze_kernel_builder.hpp"
 
 // To be removed once OCL compilation is no longer required
-#ifdef _MSC_VER
-#pragma warning(push, 0)
-#endif
 #include "ocl/ocl_kernel_builder.hpp"
 #include "ocl/ocl_device_detector.hpp"
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
 
 #include <unordered_map>
 
