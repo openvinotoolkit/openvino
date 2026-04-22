@@ -1033,8 +1033,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     size_t scale_input_idx = 4;
     jit.make("IS_CAUSAL", config.is_causal);
     if (!config.is_paged_attention) {
-        const auto desc = params.typed_desc<scaled_dot_product_attention>();
-        const bool has_attn_mask_input = has_runtime_attn_mask_input(params, *desc);
+        const bool has_attn_mask_input = sdpa_has_runtime_attn_mask_input(params);
         if (config.has_const_attn_mask_val) {
             jit.make("WITH_ATTN_MASK", 0);
             jit.make("STATIC_SCALAR_ATTN_MASK_VALUE", config.attn_mask_val);
@@ -1262,7 +1261,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     jit.add(unit_parameters("VAL"));
     jit.add(unit_parameters("DST"));
 
-    if (data_inputs_num > 3 && !config.is_paged_attention && has_runtime_attn_mask_input(params, *params.typed_desc<scaled_dot_product_attention>())) {
+    if (data_inputs_num > 3 && !config.is_paged_attention && sdpa_has_runtime_attn_mask_input(params)) {
         jit.add(convert_strides("MSK", "INPUT3", {0, 1, 2, 3}));
         jit.add(unit_parameters("MSK"));
     }
@@ -1326,9 +1325,8 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
         args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::VALUE});  // V
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});                                        // A
 
-        const auto desc = params.typed_desc<scaled_dot_product_attention>();
         const uint32_t attn_mask_idx = ScaledDotProductAttentionInputIdx::ATTN_MASK;
-        if (has_runtime_attn_mask_input(params, *desc))
+        if (sdpa_has_runtime_attn_mask_input(params))
             args.push_back({ArgumentDescriptor::Types::INPUT, attn_mask_idx});  // mask
         const uint32_t scale_idx = ScaledDotProductAttentionInputIdx::SCALE;
         if (config.input_num > scale_idx && !config.has_const_scale_val)
