@@ -1292,8 +1292,15 @@ void ov::npuw::LLMInferRequest::infer() {
 
     auto token_type_ids = ov::npuw::util::TensorPtr();
 
-    auto visual_pos_masks = get_tensor(ov::npuw::util::find_port_by_name(inputs, "visual_pos_masks").value());
-    auto deepstack_visual_embeds = get_tensor(ov::npuw::util::find_port_by_name(inputs, "deepstack_visual_embeds").value());
+    auto visual_pos_masks = ov::npuw::util::TensorPtr();
+    if (auto port = ov::npuw::util::find_port_by_name(inputs, "visual_pos_masks"); port.has_value()) {
+        visual_pos_masks = get_tensor(port.value());
+    }
+
+    auto deepstack_visual_embeds = ov::npuw::util::TensorPtr();
+    if (auto port = ov::npuw::util::find_port_by_name(inputs, "deepstack_visual_embeds"); port.has_value()) {
+        deepstack_visual_embeds = get_tensor(port.value());
+    }
 
     if (auto type_ids_port = ov::npuw::util::find_port_by_name(inputs, layer_names::token_type_ids);
         type_ids_port.has_value()) {

@@ -103,7 +103,8 @@ std::shared_ptr<ov::Model> run_replace_nonzero(std::shared_ptr<ov::Model>& model
         if (auto nonzero = std::dynamic_pointer_cast<ov::op::v3::NonZero>(op)) {
             auto old_param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(
                 nonzero->input_value(0).get_node_shared_ptr());
-            if (old_param) {
+            if (old_param &&
+                old_param->get_friendly_name().find("visual_pos_masks") != std::string::npos) {
                 to_replace.push_back({old_param, nonzero});
             }
         }
