@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,18 +17,14 @@
 using namespace ov::frontend::tensorflow;
 
 namespace {
-std::vector<std::string> list_files_in_dir(const std::string& directory_path) {
-    std::vector<std::string> res;
+std::vector<std::filesystem::path> list_files_in_dir(const std::filesystem::path& directory_path) {
+    std::vector<std::filesystem::path> res;
     try {
         ov::util::iterate_files(
             directory_path,
-            [&res](const std::string& file_path, bool is_dir) {
-                auto file = ov::util::get_file_name(file_path);
-                if (!is_dir) {
-                    res.push_back(file_path);
-                }
+            [&res](const std::filesystem::path& file_path) {
+                res.push_back(file_path);
             },
-            false,
             true);
     } catch (...) {
         // Ignore exceptions
@@ -37,11 +33,11 @@ std::vector<std::string> list_files_in_dir(const std::string& directory_path) {
 }
 }  // namespace
 
-CheckpointV1Reader::CheckpointV1Reader(const std::string& checkpoints) : m_checkpoints(checkpoints) {}
+CheckpointV1Reader::CheckpointV1Reader(const std::filesystem::path& checkpoints) : m_checkpoints(checkpoints) {}
 
 void CheckpointV1Reader::initialize() {
     // figure out if the input is a file or a directory of checkpoints
-    std::vector<std::string> checkpoints_paths;
+    std::vector<std::filesystem::path> checkpoints_paths;
     if (ov::util::directory_exists(m_checkpoints)) {
         checkpoints_paths = list_files_in_dir(m_checkpoints);
     } else if (ov::util::file_exists(m_checkpoints)) {
@@ -52,18 +48,20 @@ void CheckpointV1Reader::initialize() {
 
     m_variables_info_map.clear();
 
-    for (auto checkpoint_path : checkpoints_paths) {
+    for (const auto& checkpoint_path : checkpoints_paths) {
         // create ifstream for each shard
         std::shared_ptr<std::ifstream> shard_stream =
             std::make_shared<std::ifstream>(checkpoint_path, std::ifstream::in | std::ifstream::binary);
-        FRONT_END_GENERAL_CHECK(
-            shard_stream && shard_stream->is_open(),
-            "[TensorFlow Frontend] incorrect model: checkpoint file " + checkpoint_path + "does not exist");
+        FRONT_END_GENERAL_CHECK(shard_stream && shard_stream->is_open(),
+                                "[TensorFlow Frontend] incorrect model: checkpoint file ",
+                                checkpoint_path,
+                                " does not exist");
         const int32_t shard_ind = static_cast<int32_t>(m_shards.size());
         m_shards.push_back(shard_stream);
-        m_shard_names.push_back(checkpoint_path);
+        const std::string shard_name = ov::util::path_to_string(checkpoint_path);
+        m_shard_names.push_back(shard_name);
         std::string value;
-        find_entry(shard_stream, checkpoint_path, SAVED_TENSOR_SLICES_KEY, value);
+        find_entry(shard_stream, shard_name, SAVED_TENSOR_SLICES_KEY, value);
 
         // parse empty index block
         // This is only present at the first item of each checkpoint file and serves
@@ -80,15 +78,15 @@ void CheckpointV1Reader::initialize() {
             var_info.variable_shape = saved_slice_meta.shape();
             var_info.variable_type = saved_slice_meta.type();
 
-            // save starts and lenghts of slices for variable name encoding
+            // save starts and lengths of slices for variable name encoding
             for (const auto& slice : saved_slice_meta.slice()) {
                 // var_info.starts.push_back(slice.extent())
                 for (const auto& extent : slice.extent()) {
                     var_info.starts.push_back(extent.start());
                     if (extent.has_length()) {
-                        var_info.lenghts.push_back(extent.length());
+                        var_info.lengths.push_back(extent.length());
                     } else {
-                        var_info.lenghts.push_back(-1);
+                        var_info.lengths.push_back(-1);
                     }
                 }
             }
@@ -248,7 +246,7 @@ void CheckpointV1Reader::read_variable(const std::string& variable_name, ov::Any
         "[TensorFlow Frontend] internal error: number of shards does not match a number of their names");
     auto shard_ptr = m_shards[shard_id];
     auto shard_name = m_shard_names[shard_id];
-    auto encoded_name = encode_tensor_name_slice(variable_name, var_info.starts, var_info.lenghts);
+    auto encoded_name = encode_tensor_name_slice(variable_name, var_info.starts, var_info.lengths);
     std::string raw_data;
     find_entry(shard_ptr, shard_name, encoded_name, raw_data);
 

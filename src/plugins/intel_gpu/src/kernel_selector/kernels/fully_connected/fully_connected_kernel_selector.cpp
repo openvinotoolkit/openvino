@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@
 #include "fully_connected_kernel_imad.h"
 #include "fully_connected_kernel_fs_byx_fsv32.h"
 #include "fully_connected_kernel_bf_tiled.h"
+#include "fully_connected_kernel_bf_tiled_dyn_b.h"
 #include "fully_connected_kernel_gemv.h"
 
 namespace kernel_selector {
@@ -42,6 +43,9 @@ fully_connected_kernel_selector::fully_connected_kernel_selector() {
     Attach<FullyConnectedKernelIMAD>();
     Attach<FullyConnected_fs_byx_fsv32>();
     Attach<FullyConnected_bf_tiled>();
+    // dyn_b is integrated into bf_tiled as a runtime-switchable sub-kernel.
+    // Standalone is kept at low priority for force_implementations test support.
+    Attach<FullyConnected_bf_tiled_dyn_b>();
     Attach<FullyConnected_GEMV>();
 }
 

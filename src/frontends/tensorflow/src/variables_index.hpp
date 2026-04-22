@@ -1,9 +1,10 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <filesystem>
 #include <map>
 
 #include "graph_iterator_proto.hpp"
@@ -52,15 +53,7 @@ public:
     /// \param path A path to file with variables data
     /// \param is_saved_model Flag shows variables index is a part of Saved Model format
     /// \returns Returns true in case of everything loads successfully, false otherwise
-    bool read_variables(std::ifstream& vi_stream, const std::string& path, const bool is_saved_model = true);
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    /// \brief Reads variables from opened variable index file. Can cause an asserts in case of issues.
-    /// \param vi_stream Opened stream file, file pointer doesn't matter, it will be rewind internally.
-    /// \param path A path to file with variables data
-    /// \param is_saved_model Flag shows variables index is a part of Saved Model format
-    /// \returns Returns true in case of everything loads successfully, false otherwise
-    bool read_variables(std::ifstream& vi_stream, const std::wstring& path, const bool is_saved_model = true);
-#endif
+    bool read_variables(std::ifstream& vi_stream, const std::filesystem::path& path, const bool is_saved_model = true);
 
     /// \brief Returns data and size of data of stored variable
     /// \param name Name of variable
@@ -160,7 +153,7 @@ private:
                                     uint32_t& offset,
                                     uint32_t& offset_end);
     /// \brief Reads key=value pair from provided pointer
-    /// \param[in,out] ptr Actual pointer, will be moved to the end of readed pair (to read next)
+    /// \param[in,out] ptr Actual pointer, will be moved to the end of read pair (to read next)
     /// \param[in] ptr_end End of memory which shouldn't be passed in case of broken structure
     /// \param[out] key Key name
     /// \param[out] value Stored value for key (isn't a pure string, data block)

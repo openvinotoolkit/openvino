@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -288,7 +288,7 @@ void test_loop_gpu_basic_concat_nested(bool is_caching_test)
         1.f, -2.f, 3.f, -4.f
     };
 
-    size_t inner_trip_count = input_data.size() / inner_eltwise_operand.size();
+    int32_t inner_trip_count = static_cast<int32_t>(input_data.size() / inner_eltwise_operand.size());
     int inner_initial_condition = 1;
     int outer_trip_count = 8;
     int outer_initial_condition = 1;

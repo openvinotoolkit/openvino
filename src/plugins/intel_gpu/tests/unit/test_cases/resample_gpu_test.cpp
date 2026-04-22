@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -2486,6 +2486,299 @@ TEST_P(resample_opt_random_test, random_cached) {
     execute_compare(param, true, true);
 }
 #endif
+
+TEST(resample_gpu, interpolate_in2x2x3x2_cubic_opt) {
+    // Verify optimized cubic kernel produces same results as reference
+    // Input  : 2x2x3x2  (b=2, f=2, y=3, x=2)
+    // Output : 2x2x2x3
+
+    auto& engine = get_test_engine();
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"interpolate", {format::bfyx, "resample_bfyx_cubic_opt"}}}));
+
+    int b = 2;
+    int f = 2;
+    int y = 3;
+    int x = 2;
+    tensor shape = tensor{batch(b), feature(f), spatial(x, y)};
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, shape });
+
+    y = 2;
+    x = 3;
+    std::vector<int64_t> output_pattern {b, f, y, x};
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    int32_t antialias = 0;
+    float cube_coeff = -0.75f;
+    auto mode = resample::InterpolateOp::InterpolateMode::CUBIC;
+    auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
+    topology.add(resample("interpolate", input_info("input"), output_pattern, std::vector<float>{}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode));
+
+    set_values(input, {
+        0.f, 1.f, 2.f,
+        3.f, 4.f, 5.f,
+        6.f, 7.f, 8.f,
+        9.f, 10.f, 11.f,
+        12.f, 13.f, 14.f,
+        15.f, 16.f, 17.f,
+        18.f, 19.f, 20.f,
+        21.f, 22.f, 23.f,
+    });
+
+    cldnn::network net{ engine, topology, config };
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+    auto output = outputs.at("interpolate").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    std::vector<float> answers = {
+         0.29600694f,  0.8828125f,  1.46961806f,
+         3.53038194f,  4.1171875f,  4.70399306f,
+
+         6.29600694f,  6.8828125f,  7.46961806f,
+         9.53038194f, 10.1171875f, 10.70399306f,
+
+        12.29600694f, 12.8828125f, 13.46961806f,
+        15.53038194f, 16.1171875f, 16.70399306f,
+
+        18.29600694f, 18.8828125f, 19.46961806f,
+        21.53038194f, 22.1171875f, 22.70399306f,
+    };
+
+    ASSERT_EQ(answers.size(), output_ptr.size());
+    for (size_t i = 0; i < answers.size(); ++i) {
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+    }
+}
+
+TEST(resample_gpu, interpolate_in1x1x3x2_cubic_opt) {
+    // Single batch/feature cubic test
+    // Input  : 1x1x3x2  (b=1, f=1, y=3, x=2)
+    // Output : 1x1x3x3
+
+    auto& engine = get_test_engine();
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"interpolate", {format::bfyx, "resample_bfyx_cubic_opt"}}}));
+
+    int b = 1;
+    int f = 1;
+    int y = 3;
+    int x = 2;
+    tensor shape = tensor{batch(b), feature(f), spatial(x, y)};
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, shape });
+
+    x = 3;
+    std::vector<int64_t> output_pattern {b, f, y, x};
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    int32_t antialias = 0;
+    float cube_coeff = -0.75f;
+    auto mode = resample::InterpolateOp::InterpolateMode::CUBIC;
+    auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
+    topology.add(resample("interpolate", input_info("input"), output_pattern, std::vector<float>{}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode));
+
+    set_values(input, {
+        5.f, 1.f, 2.f,
+        3.f, 4.f, 5.f,
+    });
+
+    cldnn::network net{ engine, topology, config };
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+    auto output = outputs.at("interpolate").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    std::vector<float> answers = {
+          5.34722222f,  3.f, 0.65277778f,
+          1.91319444f, 2.5f, 3.08680556f,
+          3.91319444f, 4.5f, 5.08680556f,
+    };
+
+    ASSERT_EQ(answers.size(), output_ptr.size());
+    for (size_t i = 0; i < answers.size(); ++i) {
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+    }
+}
+
+// Parametrized random test: compare optimized cubic bfyx kernel against reference
+struct resample_cubic_random_test_params {
+    data_types input_type;
+    tensor input_size;
+    tensor output_size;
+};
+
+struct resample_cubic_random_test : testing::TestWithParam<resample_cubic_random_test_params> {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
+    template <typename T>
+    void fill_random_typed(memory::ptr mem, int min, int max, int k) {
+        auto l = mem->get_layout();
+        size_t b = l.batch();
+        size_t f = l.feature();
+        size_t x = l.spatial(0);
+        size_t y = l.spatial(1);
+
+        auto data = rg.generate_random_4d<T>(b, f, y, x, min, max, k);
+        mem_lock<T> ptr{mem, get_test_stream()};
+        for (size_t bi = 0; bi < b; ++bi) {
+            for (size_t fi = 0; fi < f; ++fi) {
+                for (size_t yi = 0; yi < y; ++yi) {
+                    for (size_t xi = 0; xi < x; ++xi) {
+                        auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        auto offset = mem->get_layout().get_linear_offset(coords);
+                        ptr[offset] = data[bi][fi][yi][xi];
+                    }
+                }
+            }
+        }
+    }
+
+    void fill_random(memory::ptr mem) {
+        auto dt = mem->get_layout().data_type;
+        switch (dt) {
+        case data_types::f32:
+            fill_random_typed<float>(mem, -127, 127, 2);
+            break;
+        case data_types::f16:
+            fill_random_typed<ov::float16>(mem, -127, 127, 2);
+            break;
+        default:
+            break;
+        }
+    }
+
+    template <typename T>
+    void compare_outputs(const memory::ptr out_ref, const memory::ptr out_opt, float tolerance) {
+        auto ref_lay = out_ref->get_layout();
+        auto opt_lay = out_opt->get_layout();
+
+        size_t b = ref_lay.batch();
+        size_t f = ref_lay.feature();
+        size_t x = ref_lay.spatial(0);
+        size_t y = ref_lay.spatial(1);
+        mem_lock<T> ref_ptr{out_ref, get_test_stream()};
+        mem_lock<T> opt_ptr{out_opt, get_test_stream()};
+        for (size_t bi = 0; bi < b; ++bi) {
+            for (size_t fi = 0; fi < f; ++fi) {
+                for (size_t yi = 0; yi < y; ++yi) {
+                    for (size_t xi = 0; xi < x; ++xi) {
+                        auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        auto ref_offset = ref_lay.get_linear_offset(coords);
+                        auto opt_offset = opt_lay.get_linear_offset(coords);
+                        auto ref_val = static_cast<float>(ref_ptr[ref_offset]);
+                        auto opt_val = static_cast<float>(opt_ptr[opt_offset]);
+                        ASSERT_NEAR(opt_val, ref_val, tolerance)
+                            << " at b=" << bi << ", f=" << fi << ", y=" << yi << ", x=" << xi;
+                    }
+                }
+            }
+        }
+    }
+
+    void execute_compare(const resample_cubic_random_test_params& params) {
+        auto& engine = get_test_engine();
+
+        auto in_layout = layout(params.input_type, format::bfyx, params.input_size);
+        auto in_mem = engine.allocate_memory(in_layout);
+        fill_random(in_mem);
+
+        int b = params.output_size.batch[0];
+        int f = params.output_size.feature[0];
+        int y = params.output_size.spatial[1];
+        int x = params.output_size.spatial[0];
+        std::vector<int64_t> output_pattern {b, f, y, x};
+
+        // Reference network (uses resample_ref kernel)
+        cldnn::topology topo_ref;
+        topo_ref.add(input_layout("in", in_layout));
+        auto prim_ref = resample("resample", input_info("in"), output_pattern, std::vector<float>{}, {},
+                                 {0, 0, 0, 0}, {0, 0, 0, 0}, 0, -0.75f,
+                                 resample::InterpolateOp::InterpolateMode::CUBIC,
+                                 resample::InterpolateOp::ShapeCalcMode::SIZES);
+        topo_ref.add(prim_ref);
+
+        ExecutionConfig config_ref = get_test_default_config(engine);
+        config_ref.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config_ref.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{{"resample", {format::bfyx, "resample_ref"}}}));
+
+        network net_ref(engine, topo_ref, config_ref);
+        net_ref.set_input_data("in", in_mem);
+        auto result_ref = net_ref.execute();
+        auto output_ref = result_ref.at("resample").get_memory();
+
+        // Optimized network (uses resample_cubic kernel)
+        cldnn::topology topo_opt;
+        topo_opt.add(input_layout("in", in_layout));
+        auto prim_opt = resample("resample", input_info("in"), output_pattern, std::vector<float>{}, {},
+                                 {0, 0, 0, 0}, {0, 0, 0, 0}, 0, -0.75f,
+                                 resample::InterpolateOp::InterpolateMode::CUBIC,
+                                 resample::InterpolateOp::ShapeCalcMode::SIZES);
+        topo_opt.add(prim_opt);
+
+        ExecutionConfig config_opt = get_test_default_config(engine);
+        config_opt.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config_opt.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{{"resample", {format::bfyx, "resample_bfyx_cubic_opt"}}}));
+
+        network net_opt(engine, topo_opt, config_opt);
+        net_opt.set_input_data("in", in_mem);
+        auto result_opt = net_opt.execute();
+        auto output_opt = result_opt.at("resample").get_memory();
+
+        // Compare results
+        // Bicubic overshoot from [-127,127] inputs can reach ~179 (FP16 ULP=0.125 in [128,256)).
+        // 16 fma accumulations in different order between ref/opt can diverge by 2-3 ULPs.
+        float tolerance = (params.input_type == data_types::f16) ? 5.e-1f : 1.e-4f;
+        if (params.input_type == data_types::f32) {
+            compare_outputs<float>(output_ref, output_opt, tolerance);
+        } else if (params.input_type == data_types::f16) {
+            compare_outputs<ov::float16>(output_ref, output_opt, tolerance);
+        }
+    }
+};
+
+TEST_P(resample_cubic_random_test, random) {
+    execute_compare(GetParam());
+}
+
+INSTANTIATE_TEST_SUITE_P(resample_cubic_bfyx_smoke,
+                         resample_cubic_random_test,
+                         testing::ValuesIn(
+                            std::vector<resample_cubic_random_test_params>{
+                                // Upscale cases
+                                { data_types::f32, {1, 1, 3, 2},    {1, 1, 6, 4} },
+                                { data_types::f32, {1, 1, 5, 5},    {1, 1, 10, 10} },
+                                { data_types::f32, {2, 3, 4, 4},    {2, 3, 8, 8} },
+                                { data_types::f32, {1, 16, 7, 7},   {1, 16, 14, 14} },
+                                { data_types::f32, {1, 32, 16, 16}, {1, 32, 32, 32} },
+                                // Downscale cases
+                                { data_types::f32, {1, 1, 8, 8},    {1, 1, 4, 4} },
+                                { data_types::f32, {2, 3, 16, 16},  {2, 3, 8, 8} },
+                                // Non-power-of-2 sizes
+                                { data_types::f32, {1, 3, 13, 13},  {1, 3, 26, 26} },
+                                { data_types::f32, {1, 3, 7, 11},   {1, 3, 21, 33} },
+                                { data_types::f32, {1, 1, 3, 2},    {1, 1, 2, 3} },
+                                // f16 cases
+                                { data_types::f16, {1, 1, 5, 5},    {1, 1, 10, 10} },
+                                { data_types::f16, {2, 3, 4, 4},    {2, 3, 8, 8} },
+                                { data_types::f16, {1, 16, 7, 7},   {1, 16, 14, 14} },
+                                { data_types::f16, {1, 3, 13, 13},  {1, 3, 26, 26} },
+                            }
+                        ));
+
 TEST(resample_gpu, basic_in2x3x2x2_nearest_cached) {
     test_basic_in2x3x2x2_nearest<float>(true);
 }

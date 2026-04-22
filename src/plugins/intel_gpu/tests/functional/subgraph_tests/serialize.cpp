@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,7 +46,7 @@ public:
 
 class GRUSequenceTest : virtual public SerializeBaseTest {
 public:
-    void SetUp() {
+    void SetUp() override {
         std::string cacheDirName = "cache_gru";
         auto init_shape = ov::PartialShape({1, 30, 512});
         auto batch_size = static_cast<size_t>(init_shape[0].get_length());

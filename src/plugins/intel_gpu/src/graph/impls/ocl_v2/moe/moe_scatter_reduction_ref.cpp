@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "moe_scatter_reduction_ref.hpp"
@@ -27,6 +27,7 @@ protected:
 
         jit.make("ACTIVE_EXPERTS", desc->num_active_experts_per_token);
         jit.make("HIDDEN_SIZE", hidden_size);
+        jit.make("ONEDNN_GROUPED_GEMM_USED", desc->onednn_grouped_gemm_used);
         return jit;
     }
 

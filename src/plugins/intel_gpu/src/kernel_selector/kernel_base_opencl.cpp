@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -177,6 +177,8 @@ std::shared_ptr<KernelString> KernelBaseOpenCL::GetKernelString(const std::strin
                 kernel_string->options += " -DOPT_HINTS_SUPPORTED=1";
             if (engine_info.enable_large_allocations)
                 kernel_string->options += " -cl-intel-greater-than-4GB-buffer-required";
+            if (engine_info.supports_register_file_size_option)
+                kernel_string->options += " -ze-exp-register-file-size 128";
         }
 
         if (engine_info.supports_work_group_collective_functions)

@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -445,6 +445,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
               OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
               OV_CASE(Algorithm::EltwiseErf, jit_erf_emitter),
               OV_CASE(Algorithm::EltwiseSoftSign, jit_soft_sign_emitter),
+              OV_CASE(Algorithm::EltwiseErfInv, jit_erfinv_emitter),
               OV_CASE(Algorithm::EltwiseIsFinite, jit_is_finite_emitter),
               OV_CASE(Algorithm::EltwiseIsInf, jit_is_inf_emitter),
               OV_CASE(Algorithm::EltwiseIsNaN, jit_is_nan_emitter),
@@ -549,7 +550,20 @@ void jit_uni_eltwise_generic<isa>::load_vector(Vmm vmm_src,
     if (src_prc == dst_prc) {
         if (broadcast) {
             load_scalar(xmm_src, op, src_prc, dst_prc);
-            uni_vbroadcastss(vmm_src, xmm_src);
+            switch (src_prc.size()) {
+            case 1:
+                if (isa == x64::sse41) {
+                    punpcklbw(xmm_src, xmm_src);
+                    punpcklbw(xmm_src, xmm_src);
+                    pshufd(xmm_src, xmm_src, 0);
+                } else {
+                    vpbroadcastb(vmm_src, xmm_src);
+                }
+                break;
+            default:
+                uni_vbroadcastss(vmm_src, xmm_src);
+                break;
+            }
         } else {
             uni_vmovups(vmm_src, op);
         }
@@ -938,6 +952,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
               OV_CASE(Algorithm::EltwiseErf, jit_erf_emitter),
               OV_CASE(Algorithm::EltwiseSoftSign, jit_soft_sign_emitter),
+              OV_CASE(Algorithm::EltwiseErfInv, jit_erfinv_emitter),
               OV_CASE(Algorithm::EltwiseIsFinite, jit_is_finite_emitter),
               OV_CASE(Algorithm::EltwiseIsInf, jit_is_inf_emitter),
               OV_CASE(Algorithm::EltwiseIsNaN, jit_is_nan_emitter),

@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -483,6 +483,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
               data.algo,
               OV_CASE(Algorithm::EltwiseAbs, jit_abs_emitter),
               OV_CASE(Algorithm::EltwiseAdd, jit_add_emitter),
+              OV_CASE(Algorithm::EltwiseCeiling, jit_ceil_emitter),
               OV_CASE(Algorithm::EltwiseClamp, jit_clamp_emitter),
               OV_CASE(Algorithm::EltwiseDivide, jit_divide_emitter),
               OV_CASE(Algorithm::EltwiseElu, jit_elu_emitter),
@@ -491,6 +492,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
               OV_CASE(Algorithm::EltwiseExp, jit_exp_emitter),
               OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
               OV_CASE(Algorithm::EltwiseSoftSign, jit_softsign_emitter),
+              OV_CASE(Algorithm::EltwiseErfInv, jit_erfinv_emitter),
               OV_CASE(Algorithm::EltwiseGreater, jit_greater_emitter),
               OV_CASE(Algorithm::EltwiseFloorMod, jit_floor_mod_emitter),
               OV_CASE(Algorithm::EltwiseGeluTanh, jit_gelu_tanh_emitter),
@@ -643,6 +645,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               algo,
               OV_CASE(Algorithm::EltwiseAbs, jit_abs_emitter),
               OV_CASE(Algorithm::EltwiseAdd, jit_add_emitter),
+              OV_CASE(Algorithm::EltwiseCeiling, jit_ceil_emitter),
               OV_CASE(Algorithm::EltwiseClamp, jit_clamp_emitter),
               OV_CASE(Algorithm::EltwiseDivide, jit_divide_emitter),
               OV_CASE(Algorithm::EltwiseElu, jit_elu_emitter),
@@ -651,6 +654,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
               OV_CASE(Algorithm::EltwiseFloorMod, jit_floor_mod_emitter),
               OV_CASE(Algorithm::EltwiseSoftSign, jit_softsign_emitter),
+              OV_CASE(Algorithm::EltwiseErfInv, jit_erfinv_emitter),
               OV_CASE(Algorithm::EltwiseGreater, jit_greater_emitter),
               OV_CASE(Algorithm::EltwiseGeluErf, jit_gelu_erf_emitter),
               OV_CASE(Algorithm::EltwiseGeluTanh, jit_gelu_tanh_emitter),

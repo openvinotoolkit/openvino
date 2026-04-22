@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,8 +45,19 @@ void embeddingBagOffsets(const T* emb_table,
 
             if (emb_index == offsets_size - 1lu)
                 indices_num = indices_count - offsets[emb_index];
-            else
+            else {
+                // Guard against non-monotonic offsets: a decrease would underflow size_t
+                OPENVINO_ASSERT(offsets[emb_index + 1lu] >= offsets[emb_index],
+                                "Offsets must be monotonically non-decreasing: offsets[",
+                                emb_index + 1lu,
+                                "]=",
+                                offsets[emb_index + 1lu],
+                                " < offsets[",
+                                emb_index,
+                                "]=",
+                                offsets[emb_index]);
                 indices_num = offsets[emb_index + 1lu] - offsets[emb_index];
+            }
 
             if (indices_num != 0lu) {
                 indices_ref = indices + offsets[emb_index];

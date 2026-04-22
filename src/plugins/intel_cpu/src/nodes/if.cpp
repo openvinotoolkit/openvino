@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,9 +67,8 @@ void If::PortMapHelper::redefineTo() {
             // Only the shape is updated, the memory type remains unchanged
             dstMemPtrs[j]->redefineDesc(originalDstMemDescs[j]->cloneWithNewDims(newShape));
         }
-
-        size = srcMemPtr->getShape().getElementsCount();
     }
+    size = srcMemPtr->getShape().getElementsCount();
 }
 
 bool If::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {

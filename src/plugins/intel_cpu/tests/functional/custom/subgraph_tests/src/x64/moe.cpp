@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,9 +8,9 @@
 #include <sstream>
 #include <vector>
 
+#include "common_test_utils/node_builders/moe_builders.hpp"
 #include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/subgraph/moe_builders.hpp"
 #include "shared_test_classes/subgraph/weights_decompression_params.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
@@ -32,11 +32,18 @@ inline std::ostream& operator<<(std::ostream& os, const MoEType& type) {
     }
 }
 
-using MoeTestParams = std::tuple<MoePatternParams,
+struct MoeTestShapeParams {
+    InputShape data_shape;
+    size_t topk;
+    size_t number_of_experts;
+    size_t intermediate_size;
+};
+
+using MoeTestParams = std::tuple<MoeTestShapeParams,
                                  MoEType,      // MoE builder type
                                  ov::AnyMap>;  // additional config
 
-using MoeCompressedWeightsTestParams = std::tuple<MoePatternParams,
+using MoeCompressedWeightsTestParams = std::tuple<MoeTestShapeParams,
                                                   MoEType,                             // MoE builder type
                                                   ov::test::ElementType,               // weights precision
                                                   ov::test::ElementType,               // decompression precision
@@ -52,7 +59,7 @@ class MoESubgraphTest : public testing::WithParamInterface<MoeTestParams>,
                         virtual public SubgraphBaseTest,
                         public CpuTestWithFusing {
 public:
-    static std::string generateBaseMoeTestName(const MoePatternParams& moe_params,
+    static std::string generateBaseMoeTestName(const MoeTestShapeParams& moe_params,
                                                const MoEType& moe_type,
                                                const ov::AnyMap& additional_config) {
         std::ostringstream result;
@@ -105,10 +112,14 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        const auto& [shape_params, moe_type, additional_config] = GetParam();
+        const auto& [moe_params, moe_type, additional_config] = GetParam();
 
         configuration.insert(additional_config.begin(), additional_config.end());
-        init_input_shapes({shape_params.data_shape});
+        init_input_shapes({moe_params.data_shape});
+        const MoePatternParams shape_params{moe_params.data_shape.first,
+                                            moe_params.topk,
+                                            moe_params.number_of_experts,
+                                            moe_params.intermediate_size};
         inType = outType = ov::element::f32;
 
         auto itr = configuration.find(ov::hint::inference_precision.name());
@@ -171,7 +182,7 @@ protected:
         rel_threshold = 5e-4f;
         abs_threshold = 5e-4f;
 
-        const auto& [shape_params,
+        const auto& [moe_params,
                      moe_type,
                      weights_precision,
                      decompression_precision,
@@ -184,7 +195,11 @@ protected:
                      use_matmul_decompression_impl] = GetParam();
 
         configuration.insert(additional_config.begin(), additional_config.end());
-        init_input_shapes({shape_params.data_shape});
+        init_input_shapes({moe_params.data_shape});
+        const MoePatternParams shape_params{moe_params.data_shape.first,
+                                            moe_params.topk,
+                                            moe_params.number_of_experts,
+                                            moe_params.intermediate_size};
         inType = outType = ov::element::f32;
 
         auto itr = configuration.find(ov::hint::inference_precision.name());
@@ -270,7 +285,7 @@ TEST_P(MoECompressedWeightsSubgraphTest, CompareWithRefs) {
 namespace {
 const std::vector<MoEType> moe_types = {MoEType::MoE2GeMM, MoEType::MoE3GeMM};
 
-const std::vector<MoePatternParams> moe_params_smoke = {
+const std::vector<MoeTestShapeParams> moe_params_smoke = {
     {
         {{-1, -1, 256}, {{2, 15, 256}, {2, 1, 256}, {3, 8, 256}}},  // data_shape,
                                                                     // seq_len=dynamic, hidden_size=256

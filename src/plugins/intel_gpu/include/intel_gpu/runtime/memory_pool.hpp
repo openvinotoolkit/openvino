@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -205,12 +205,12 @@ private:
 #ifdef GPU_DEBUG_CONFIG
     std::vector<memory_record> _no_reusable_mems;
 
-    float total_mem_size_non_padded_pool        = 0.f;
-    float total_mem_size_padded_pool            = 0.f;
-    float total_mem_size_no_reusable            = 0.f;
-    float mem_size_non_padded_pool_host         = 0.f;
-    float mem_size_padded_pool_host             = 0.f;
-    float mem_size_no_reusable_host             = 0.f;
+    size_t total_mem_size_non_padded_pool        = 0;
+    size_t total_mem_size_padded_pool            = 0;
+    size_t total_mem_size_no_reusable            = 0;
+    size_t mem_size_non_padded_pool_host         = 0;
+    size_t mem_size_padded_pool_host             = 0;
+    size_t mem_size_no_reusable_host             = 0;
 #endif
 };
 

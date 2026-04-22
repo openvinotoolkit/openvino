@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -27,7 +27,7 @@ from openvino import (
     save_model,
     OVAny,
 )
-from openvino import Output
+from openvino import Output, get_version
 from openvino.op.util import VariableInfo, Variable
 
 from tests.utils.helpers import (
@@ -900,6 +900,7 @@ def test_model_with_statement():
 
         with Core().read_model(f"{model_save_dir}/model.xml") as model:
             assert mem_model.friendly_name == model.friendly_name
+            assert model.get_rt_info("OpenVINO Runtime") == get_version()
 
         with pytest.raises(AttributeError):
             save_model(model, f"{model_save_dir}/model.xml")

@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,10 +23,16 @@ public:
         std::set<size_t> input_ports = { PagedAttentionInputIdx::PAST_LENS,
                                          PagedAttentionInputIdx::SUBSEQUENCE_BEGINS,
                                          PagedAttentionInputIdx::XATTENTION_THRESHOLD,
+                                         PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE,
                                          PagedAttentionInputIdx::MAX_CONTEXT_LEN };
 
         if (typed_desc()->has_score_aggregation)
             input_ports.insert(PagedAttentionInputIdx::SCORE_AGGREGATION);
+
+        if (typed_desc()->has_adaptive_rkv) {
+            input_ports.insert(PagedAttentionInputIdx::ADAPTIVE_RKV_START_SIZE);
+            input_ports.insert(PagedAttentionInputIdx::ADAPTIVE_RKV_EVICTABLE_SIZES);
+        }
 
         return input_ports;
     }
@@ -77,6 +83,8 @@ public:
     memory::ptr adaptive_rkv_evictable_sizes_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::ADAPTIVE_RKV_EVICTABLE_SIZES); }
     memory::ptr adaptive_rkv_diversity_block_set_indices_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES); }
     memory::ptr adaptive_rkv_diversity_block_set_indices_begins_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS); }
+    memory::ptr qq_bias_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::QQ_BIAS); }
+    memory::ptr qq_bias_begins_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::QQ_BIAS_BEGINS); }
 };
 
 using paged_attention_inst = typed_primitive_inst<paged_attention>;

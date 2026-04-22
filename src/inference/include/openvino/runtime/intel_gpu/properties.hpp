@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -159,8 +159,8 @@ static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization
     "GPU_DYNAMIC_QUANTIZATION_GROUP_SIZE_MAX"};
 
 /**
- * @brief Turning on this key switches addressing mode to allow allocations larger than 4GB
- * as described here:
+ * @brief Turning on this key bypasses the device max allocation size check and switches
+ * addressing mode to allow allocations larger than 4GB as described here:
  * https://github.com/intel/compute-runtime/blob/master/programmers-guide/ALLOCATIONS_GREATER_THAN_4GB.md#creating-allocations-greater-than-4GB
  * Note: Performance may be lower with this option enabled.
  * @ingroup ov_runtime_ocl_gpu_prop_cpp_api

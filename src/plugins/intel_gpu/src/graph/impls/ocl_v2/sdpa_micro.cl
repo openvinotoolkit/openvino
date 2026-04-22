@@ -142,10 +142,14 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         const global KEY_DATA_T *K,
         const global QRY_DATA_T *Q,
         const global VAL_DATA_T *V,
+#if IS_PAGED_ATTENTION && !IS_PREFILL
+        const global QRY_DATA_T *Kc,
+        const global QRY_DATA_T *Vc,
+#endif
         global half *A,
 #if IS_PAGED_ATTENTION
         const __global INPUT3_TYPE* subsequence_begins,
-    #if IS_PREFILL == 0
+    #if !IS_PREFILL
         const __global INPUT3_TYPE* past_lens,
         const __global INPUT3_TYPE* block_indices,
         const __global INPUT3_TYPE* block_indices_begins,
@@ -159,6 +163,10 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 #ifdef HAS_SINK_INPUT
         const global SINK_DATA_T *sink_ptr,
+#endif
+#if HAS_QQ_BIAS
+        const global QQ_BIAS_DATA_T *qq_bias,
+        const global QQ_BIAS_BEGINS_DATA_T *qq_bias_begins,
 #endif
 #if IS_PAGED_ATTENTION
         const __global int* blocked_indexes_start_and_gws_mapping
@@ -180,10 +188,16 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     const uint subsequence_end = subsequence_begins[gws_mapping + 1];
     const uint subsequence_query_block_idx = block_start_pos - subsequence_begin;
     int q = subsequence_end - subsequence_begin;
+    #if HAS_QQ_BIAS
+        const uint qq_bias_num = qq_bias_begins[gws_mapping + 1] - qq_bias_begins[gws_mapping];
+        const uint cumulated_spec_num = qq_bias_begins[gws_mapping];
+    #endif
 #if IS_PREFILL
+    const int past_len = 0;
     const int k = q;
 #else
-    const int k = q + past_lens[gws_mapping];
+    const int past_len = past_lens[gws_mapping];
+    const int k = q + past_len;
 #endif
     const int d = HEAD_SIZE;
 #if IS_GQA_SINGLE_TOKEN
@@ -219,6 +233,8 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #else
         uint ldk = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
         uint ldv = HEAD_SIZE;
+        uint ldkc = HEAD_SIZE * KV_HEADS_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM + INPUT1_PAD_AFTER_FEATURE_NUM;
+        uint ldvc = HEAD_SIZE * KV_HEADS_NUM + INPUT2_PAD_BEFORE_FEATURE_NUM + INPUT2_PAD_AFTER_FEATURE_NUM;
         #if IS_KV_COMPRESSED_PA
             #if IS_KEY_BY_CHANNEL
                 uint ldkq = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE / 2;
@@ -275,9 +291,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     /* Locate K/Q/V/A matrices within batch */
 #if IS_PAGED_ATTENTION
     #if IS_GQA_SINGLE_TOKEN
-        Q += subsequence_begin * ldq
+        Q += subsequence_begin * ldq * HEADS_NUM * KV_GROUP_SIZE
            + b0 * HEAD_SIZE * KV_GROUP_SIZE + INPUT0_PAD_BEFORE_FEATURE_NUM;
-        A += subsequence_begin * lda
+        A += subsequence_begin * lda * HEADS_NUM * KV_GROUP_SIZE
            + b0 * HEAD_SIZE * KV_GROUP_SIZE;
     #else
         Q += subsequence_begin * ldq
@@ -295,6 +311,10 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
         K += b0_kv * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
         V += b0_kv * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+        Kc += subsequence_begin * ldkc
+            + b0_kv * HEAD_SIZE + INPUT1_PAD_BEFORE_FEATURE_NUM;
+        Vc += subsequence_begin * ldvc
+            + b0_kv * HEAD_SIZE + INPUT2_PAD_BEFORE_FEATURE_NUM;
     #endif
 #else
     K += (KEY_OFF(b1, b0_kv, 0, 0) + INPUT1_OFFSET) / KEY_ELEMENTS_PER_BYTE;
@@ -495,26 +515,49 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
         /* Calculate S = (K^T) * Q */
-#if IS_PAGED_ATTENTION && IS_PREFILL == 0
-        int k_block_num = k0 / PAGED_ATTENTION_BLOCK_SIZE + sg_i_kq;
-        global KEY_DATA_T *K0 = K + KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE * block_indices[base_block_index + k_block_num]
-                               - PAGED_ATTENTION_BLOCK_SIZE * sg_i_kq;
-        #if IS_KV_COMPRESSED_PA
-            #if IS_KEY_BY_CHANNEL
-                global KEY_DATA_T *K0_scales = K0 + PAGED_ATTENTION_BLOCK_SIZE * (sg_i_kq + 1);
-                global KEY_DATA_T *K0_zp = K0_scales + 2;
-            #else
-                global KEY_DATA_T *K0_scales = K0 + PAGED_ATTENTION_BLOCK_SIZE * (HEAD_SIZE - sg_i_kq);
-                global KEY_DATA_T *K0_zp = K0_scales + 2 * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
-            #endif
-        #endif
+#if IS_PAGED_ATTENTION && !IS_PREFILL
+    #if !IS_GQA_SINGLE_TOKEN
+        s_tile_type S_tile;
+        tile_fill(S_tile, 0.0f);
 
-        s_tile_type S_tile
-                = ugemm_kq(K0, ldk, Q_slm, D_MAX, k_chunk, ugemm_kq_wg_tile_n, d, 0,
-                        0, 0, sg_i_kq, sg_j_kq, (local char *)ugemm_slm
-        #if IS_KV_COMPRESSED_PA
-                        , (global half *)K0_scales, (global half *)K0_zp, ldkq
+        for (;k0 < past_lens[gws_mapping];) {
+    #endif
+            int k_block_num = k0 / PAGED_ATTENTION_BLOCK_SIZE + sg_i_kq;
+            global KEY_DATA_T *K0 = K + KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE * block_indices[base_block_index + k_block_num]
+                                - PAGED_ATTENTION_BLOCK_SIZE * sg_i_kq;
+            #if IS_KV_COMPRESSED_PA
+                #if IS_KEY_BY_CHANNEL
+                    global KEY_DATA_T *K0_scales = K0 + PAGED_ATTENTION_BLOCK_SIZE * (sg_i_kq + 1);
+                    global KEY_DATA_T *K0_zp = K0_scales + 2;
+                #else
+                    global KEY_DATA_T *K0_scales = K0 + PAGED_ATTENTION_BLOCK_SIZE * (HEAD_SIZE - sg_i_kq);
+                    global KEY_DATA_T *K0_zp = K0_scales + 2 * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
+                #endif
+            #endif
+
+        #if IS_GQA_SINGLE_TOKEN
+            s_tile_type S_tile =
+        #else
+            s_tile_type S_tile1 =
         #endif
+            ugemm_kq(K0, ldk, Q_slm, D_MAX, k_chunk, ugemm_kq_wg_tile_n, d, 0,
+                           0, 0, sg_i_kq, sg_j_kq, (local char *)ugemm_slm
+            #if IS_KV_COMPRESSED_PA
+                           , (global half *)K0_scales, (global half *)K0_zp, ldkq
+            #endif
+                    );
+    #if !IS_GQA_SINGLE_TOKEN
+            tile_binary(S_tile, S_tile1, binary_add);
+            break;
+        }
+
+        for (; k0 >= past_lens[gws_mapping];) {
+            s_tile_type S_tile1 = ugemm_kcq(Kc, ldkc, Q_slm, D_MAX, (k - past_lens[gws_mapping]), ugemm_kq_wg_tile_n, d, (k0 - past_lens[gws_mapping]),
+                        0, 0, sg_i_kq, sg_j_kq, (local char *)ugemm_slm);
+            tile_binary(S_tile, S_tile1, binary_add);
+            break;
+        }
+    #endif
 #else
         s_tile_type S_tile
                 = ugemm_kq(K, ldk, Q_slm, D_MAX, k, ugemm_kq_wg_tile_n, d, k0,
@@ -531,8 +574,8 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                         ,
                         ldkq
         #endif
-#endif
                 );
+#endif
 
 #if KEY_SCALES == QUANTIZE_COMMON
 #define k_scale_op(x) ((x)*k_scale)
@@ -572,7 +615,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #endif
                              
         int col_offset = wg_j0 + sg_j0_kq;
-    #if IS_PAGED_ATTENTION && IS_PREFILL == 0
+    #if IS_PAGED_ATTENTION && !IS_PREFILL
         #if IS_GQA_SINGLE_TOKEN
             col_offset += k - 1 - get_sub_group_local_id();
         #else
@@ -585,6 +628,36 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                 greater_than, -FLT_MAX, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
                 ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0,
                 ugemm_kq_c_type_nblock1);
+#endif
+
+#if HAS_QQ_BIAS && IS_PAGED_ATTENTION && (IS_PREFILL == 0)
+        // Apply speculative tree mask (QQ_BIAS) for key tokens that belong to the "new" part of K.
+        // qq_bias is interpreted as [subsequence, QQ_BIAS_NUM (query_spec), QQ_BIAS_NUM (key_spec)].
+        // - query_spec is the query index within the current subsequence (new tokens).
+        // - key_spec is the key index within the new tokens region: (key_idx - past_len).
+        const uint spec_num = (uint)native_sqrt((float)qq_bias_num);
+        const int query_base_local = (int)(wg_j0 + sg_j0_kq);
+        for (int j = 0; j < ugemm_kq_c_type_block1 * ugemm_kq_c_type_nblock1; j++) {
+            const int key_idx = k0 + sg_i0_kq + j;
+            if (key_idx < past_len)
+                    continue;
+
+            const int key_spec = key_idx - past_len;
+            if (qq_bias_num <= 0 || key_spec < 0 || key_spec >= qq_bias_num)
+                    continue;
+
+            for (int i0 = 0; i0 < ugemm_kq_c_type_block0 * ugemm_kq_c_type_nblock0; i0 += SUBGROUP_SIZE) {
+                const int i = i0 + get_sub_group_local_id();
+                const int query_spec = query_base_local + i;
+                if (query_spec < 0 || query_spec >= qq_bias_num)
+                    continue;
+                const uint qq_off = cumulated_spec_num + (query_spec - subsequence_begin) * spec_num + key_spec;
+                if (qq_bias[qq_off] == (QQ_BIAS_DATA_T)0) {
+                    tile_access(S_tile, i0, j, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
+                                ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0) = -FLT_MAX;
+                }
+            }
+        }
 #endif
 
         /* Before softmax, we will need to scale columns by maximum values to avoid overflow. */
@@ -818,8 +891,14 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             intel_work_group_barrier_arrive(CLK_LOCAL_MEM_FENCE);
 
         /* Accumulate A += V * S */
-#if IS_PAGED_ATTENTION && IS_PREFILL == 0
-        for (int kb0 = 0; kb0 < k_chunk; kb0 += PAGED_ATTENTION_BLOCK_SIZE) {
+#if IS_PAGED_ATTENTION && !IS_PREFILL
+        int kb0 = 0;
+        for (; kb0 < k_chunk; kb0 += PAGED_ATTENTION_BLOCK_SIZE) {
+            #if !IS_GQA_SINGLE_TOKEN
+                if ((k0 + kb0) >= past_lens[gws_mapping]) {
+                    break;
+                }
+            #endif
             uint s_block_num = kb0 / PAGED_ATTENTION_BLOCK_SIZE;
             local half *Sb0 = S_slm + s_block_num * ugemm_kq_sg_tile_m * ugemm_kq_sg_tile_n;
             uint v_block_num = (k0 + kb0) / PAGED_ATTENTION_BLOCK_SIZE;
@@ -842,6 +921,22 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
             tile_binary(A_tile, A_tile1, binary_add);
         }
+    #if !IS_GQA_SINGLE_TOKEN
+        for (; kb0 < k_chunk; kb0 += k_chunk) {
+            global QRY_DATA_T *Vb0 = Vc + ldvc * (k0 + kb0 - past_lens[gws_mapping]);
+            uint s_block_num = kb0 / PAGED_ATTENTION_BLOCK_SIZE;
+            local half *Sb0 = S_slm + s_block_num * ugemm_kq_sg_tile_m * ugemm_kq_sg_tile_n;
+            int kb_chunk = k_chunk - kb0;
+
+            a_tile_type A_tile1 = ugemm_vcs(
+                    Vb0, ldvc, Sb0, ugemm_kq_wg_tile_m,
+                    d, ugemm_kq_wg_tile_n, kb_chunk,
+                    0, 0, 0,
+                    sg_i_vs, sg_j_vs, (local char *)ugemm_slm);
+
+            tile_binary(A_tile, A_tile1, binary_add);
+        }
+    #endif
 #else
         a_tile_type A_tile1 = ugemm_vs(
                 V, ldv, S_slm, ugemm_kq_wg_tile_m, d, ugemm_kq_wg_tile_n,
@@ -869,7 +964,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #if VAL_ZERO_POINTS == QUANTIZE_2D
         V_zp += ldvq * ugemm_kq_wg_tile_m / VAL_ZP_ELEMENTS_PER_BYTE;
 #endif
-#if IS_PAGED_ATTENTION && IS_PREFILL == 0
+#if IS_PAGED_ATTENTION && !IS_PREFILL
         // already done
 #else
         tile_binary(A_tile, A_tile1, binary_add);

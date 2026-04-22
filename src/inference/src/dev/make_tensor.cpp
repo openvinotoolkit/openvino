@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -120,6 +120,14 @@ public:
         return m_strides;
     }
 
+    std::optional<uint64_t> get_source_id() const {
+        return m_source_id;
+    }
+
+    void set_source_id(uint64_t id) {
+        m_source_id = id;
+    }
+
 protected:
     bool is_pointer_representable(const element::Type& element_type) const {
         if (element_type.is_dynamic()) {
@@ -157,6 +165,7 @@ protected:
     mutable Strides m_strides;
     mutable std::once_flag m_strides_once;
     void* m_ptr;
+    std::optional<uint64_t> m_source_id;
 };
 
 /**
@@ -621,6 +630,19 @@ size_t get_tensor_data_offset(const ov::ITensor& tensor) {
         return tensor_impl->get_offset();
     }
     return 0;
+}
+
+std::optional<uint64_t> get_tensor_source_id(const ov::Tensor& tensor) {
+    if (auto itensor = std::dynamic_pointer_cast<ViewTensor>(get_tensor_impl(tensor)._ptr)) {
+        return itensor->get_source_id();
+    }
+    return std::nullopt;
+}
+
+void set_tensor_source_id(ov::Tensor& tensor, uint64_t id) {
+    if (auto itensor = std::dynamic_pointer_cast<ViewTensor>(get_tensor_impl(tensor)._ptr)) {
+        itensor->set_source_id(id);
+    }
 }
 
 }  // namespace ov

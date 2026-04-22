@@ -1,15 +1,8 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
-
-#ifndef __ARM_FEATURE_FP16_SCALAR_ARITHMETIC
-#    define __ARM_FEATURE_FP16_SCALAR_ARITHMETIC  // NOLINT(bugprone-reserved-identifier)
-#endif
-#ifndef __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-#    define __ARM_FEATURE_FP16_VECTOR_ARITHMETIC  // NOLINT(bugprone-reserved-identifier)
-#endif
 
 #include <memory>
 

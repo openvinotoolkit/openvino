@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,6 +27,10 @@ InputRepacker::InputRepacker(std::shared_ptr<const InputRepackerKernel> kernel,
 
 const CpuBlockedMemoryDescPtr& InputRepacker::desc() const {
     return m_desc;
+}
+
+bool InputRepacker::already_repacked() const {
+    return m_desc != nullptr;
 }
 
 const VectorDims& InputRepacker::in_offsets() const {

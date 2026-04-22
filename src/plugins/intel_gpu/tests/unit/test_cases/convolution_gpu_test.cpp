@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,6 +27,9 @@
 #include <tuple>
 
 #include "convolution_inst.h"
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include "graph/impls/onednn/utils.hpp"
+#endif
 
 using namespace cldnn;
 using namespace ::tests;
@@ -4999,9 +5002,7 @@ TEST(convolution_gpu, basic_yxfb_4_4_yxfb_2_2_b16_if2_of16_st2_2_p0_sp1_fp16)
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const auto input_format   = format::yxfb;
@@ -5395,9 +5396,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32, fs_byx_fsv32)
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     if (engine.get_device_info().supports_immad) {
@@ -5551,9 +5550,7 @@ TEST(convolution_f16_fsv_gpu, convolution_f16_fsv_gpu_padding) {
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const int batch_num = 2;
@@ -5660,9 +5657,7 @@ TEST(convolution_f16_fsv16, preload_groups_when_groups_is_not_greater_than_one) 
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
     const int batch_num = 1;
     const int input_xy = 5;
@@ -5769,9 +5764,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32_crop, fs_byx_fsv32_crop)
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const int batch_num = 4;
@@ -6068,9 +6061,7 @@ TEST(convolution_gpu, bfyx_iyxo_5x5_fp16)
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const int batch_num = 1;
@@ -6444,9 +6435,7 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp16)
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const int batch_num = testing::get<0>(GetParam());
@@ -6759,9 +6748,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32)
 
     if (batch_num <= 16)
     {
-        std::cout << "[ SKIPPED ] The test is skipped (for bs_fs_yx_bsv16_fsv16 batch should be greater than 16)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (for bs_fs_yx_bsv16_fsv16 batch should be greater than 16).";
     }
 
     auto input_size = tensor(batch_num, input_f, input_xy, input_xy);
@@ -6881,9 +6868,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp16)
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const int batch_num = testing::get<0>(GetParam());
@@ -6898,9 +6883,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp16)
 
     if (batch_num % 32 != 0)
     {
-        std::cout << "[ SKIPPED ] The test is skipped (for fp16 batch should be multiple of 32)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (for fp16 batch should be multiple of 32).";
     }
 
     tests::random_generator rg(GET_SUITE_NAME);
@@ -7022,9 +7005,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32_fused_ops)
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const int batch_num = testing::get<0>(GetParam()) * 2;
@@ -7197,9 +7178,7 @@ TEST_P(convolution_depthwise_gpu, depthwise_conv_fs_b_yx_fsv32)
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
     if (engine.get_device_info().supports_immad) {
         // This test is not targeting for onednn case
@@ -7344,9 +7323,7 @@ TEST_P(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16)
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const int batch_num = 2;
@@ -7475,9 +7452,7 @@ TEST_P(convolution_depthwise_gpu_fsv16_xy, depthwise_conv_b_fs_yx_fsv16)
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const int batch_num = 2;
@@ -7692,9 +7667,7 @@ TEST_P(convolution_depthwise_gpu_bfyx, depthwise_conv_bfyx)
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const int batch_num = 2;
@@ -8145,14 +8118,10 @@ TEST_P(convolution_general_gpu, conv_fp16_cases) {
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
     if (engine.get_device_info().supports_immad) {
-        std::cout << "[ SKIPPED ] The test is skipped (not targeting for onednn path)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (not targeting for onednn path).";
     }
 
     const int input_x = testing::get<0>(GetParam()),
@@ -8314,9 +8283,7 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_padding)
 
     if (!engine.get_device_info().supports_fp16)
     {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const int input_b = testing::get<10>(GetParam());
@@ -8414,9 +8381,7 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_different_type)
 
     if (!engine.get_device_info().supports_fp16)
     {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const int input_b = testing::get<10>(GetParam());
@@ -9863,9 +9828,7 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
 
     if (!engine.get_device_info().supports_fp16)
     {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const int input_x = testing::get<0>(GetParam()),
@@ -11225,9 +11188,7 @@ TEST(convolution_gpu_onednn, dyn_conv4d_reshape6d_pattern) {
 
     if (!engine.get_device_info().supports_fp16)
     {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const int input_x = 8, input_y = 8, input_f = 32, output_f = 32, filter_x = 3, filter_y = 3, groups = 1, batch_num = 1;
@@ -11281,7 +11242,7 @@ TEST(convolution_gpu_onednn, dyn_conv4d_reshape6d_pattern) {
     conv_fsv.output_paddings = {padding({ 0, 0, 0, 0 }, 0.f)};
     topology.add(conv_fsv);
 
-    
+
     auto const_shape = engine.allocate_memory({ov::PartialShape{6}, data_types::i32, format::bfwzyx});
     set_values<int32_t>(const_shape, {1, 32, 1, 1, 6, 6});
     topology.add(data("const", const_shape));
@@ -11332,6 +11293,55 @@ TEST(convolution_gpu_onednn, dyn_conv4d_reshape6d_pattern) {
                     ASSERT_TRUE(equal);
                 }
 }
+
+TEST(convolution_gpu_onednn, alloc_intermediate_when_concat_optimized) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    auto input_pshape = ov::PartialShape{ov::Dimension::dynamic(), 32,
+                                         ov::Dimension::dynamic(), ov::Dimension::dynamic()};
+    auto in_layout = layout{input_pshape, data_types::f16, format::bfyx};
+    auto weights_layout = layout{{32, 32, 3, 3}, data_types::f16, format::bfyx};
+
+    auto input_mem1 = engine.allocate_memory({ov::PartialShape{1, 32, 320, 320}, data_types::f16, format::bfyx});
+    auto input_mem2 = engine.allocate_memory({ov::PartialShape{1, 32, 320, 320}, data_types::f16, format::bfyx});
+    set_values<ov::float16>(input_mem1, std::vector<ov::float16>(input_mem1->get_layout().count(), ov::float16(0.5f)));
+    set_values<ov::float16>(input_mem2, std::vector<ov::float16>(input_mem2->get_layout().count(), ov::float16(0.25f)));
+
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    set_values<ov::float16>(weights_mem, std::vector<ov::float16>(weights_layout.count(), ov::float16(0.1f)));
+
+    topology topology(
+        input_layout("input1", in_layout),
+        input_layout("input2", in_layout),
+        data("weights1", weights_mem),
+        data("weights2", weights_mem),
+        convolution("conv1", input_info("input1"), "weights1", "", 1,
+                    {1, 1}, {1, 1}, {1, 1}, {1, 1}, false),
+        convolution("conv2", input_info("input2"), "weights2", "", 1,
+                    {1, 1}, {1, 1}, {1, 1}, {1, 1}, false),
+        concatenation("concat", { input_info("conv1"), input_info("conv2") }, 1),
+        reorder("reorder", input_info("concat"), format::bfyx, data_types::f16)
+    );
+
+    ExecutionConfig onednn_config = get_test_default_config(engine);
+    onednn_config.set_property(ov::intel_gpu::optimize_data(true));
+    onednn_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplementationDesc onednn_impl_desc = {format::bfyx, "", impl_types::onednn};
+    onednn_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"conv1", onednn_impl_desc},
+        {"conv2", onednn_impl_desc},
+        {"concat", onednn_impl_desc},
+    }));
+
+    network network(engine, topology, onednn_config);
+    network.set_input_data("input1", input_mem1);
+    network.set_input_data("input2", input_mem2);
+
+    auto outputs = network.execute();
+}
+
 #endif   // ENABLE_ONEDNN_FOR_GPU
 
 template <typename T>
@@ -11451,6 +11461,104 @@ TEST(export_import_convolution_f32_gpu, convolution_gpu_bfyx_f16_depthwise_x_blo
     test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_block_size_1<ov::float16>(true);
 }
 
+TEST(convolution_f32_fw_gpu, convolution_gpu_f32_convolution_gpu_bfyx_f16_depthwise) {
+    auto& engine = get_test_engine();
+
+    if (engine.get_device_info().supports_immad) {
+        return;
+    }
+
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    // Tail case for X-blocked path (8 + tail)
+    constexpr int b = 1;
+    constexpr int f = 16;
+    constexpr int y = 1;
+    constexpr int x = 9;
+    constexpr int filter_size = 3;
+
+    auto input_data = rg.generate_random_4d<float>(b, f, y, x, -1, 1);
+    auto weights_data = rg.generate_random_4d<float>(f, 1, filter_size, filter_size, -1, 1);
+
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{b, f, x, y}});
+    auto weights = engine.allocate_memory({
+        data_types::f32,
+        format::goiyx,
+        tensor{group(f), batch(1), feature(1), spatial(filter_size, filter_size)}
+    });
+
+    set_values(input, flatten_4d<float>(format::bfyx, input_data));
+    set_values(weights, flatten_4d<float>(format::bfyx, weights_data));
+
+    auto run_depthwise = [&]() -> std::vector<float> {
+        topology topology(
+            input_layout("input", input->get_layout()),
+            reorder("input_fsv16", input_info("input"), {data_types::f32, format::b_fs_yx_fsv16, tensor{b, f, x, y}}),
+            data("weights", weights),
+            convolution("conv",
+                        input_info("input_fsv16"),
+                        "weights",
+                        no_bias,
+                        f,        // groups
+                        {1, 1},   // stride
+                        {1, 1},   // dilation
+                        {1, 1},   // pad begin
+                        {1, 1},   // pad end
+                        true),    // grouped
+            reorder("out", input_info("conv"), {data_types::f32, format::bfyx, tensor{b, f, x, y}})
+        );
+
+        ExecutionConfig cfg = get_test_default_config(engine);
+        cfg.set_property(ov::intel_gpu::optimize_data(true));
+        cfg.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{
+                {"conv", {format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_depthwise", impl_types::ocl}}
+            }));
+
+        network net(engine, topology, cfg);
+        net.set_input_data("input", input);
+
+        auto outputs = net.execute();
+        auto out_mem = outputs.at("out").get_memory();
+        cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+
+        std::vector<float> out(out_mem->count());
+        for (size_t i = 0; i < out.size(); ++i) {
+            out[i] = out_ptr[i];
+        }
+        return out;
+    };
+
+    auto run_ref = [&]() -> std::vector<float> {
+        VVVVF<float> ref(b, VVVF<float>(f));
+        for (int bi = 0; bi < b; ++bi) {
+            for (int ofi = 0; ofi < f; ++ofi) {
+                ref[bi][ofi] = reference_convolve<float, float, float>(
+                    input_data[bi],        // [ifm][y][x]
+                    weights_data[ofi],     // [1][ky][kx] for depthwise
+                    1, 1,                  // stride y, x
+                    0.0f,                  // bias
+                    1, 1,                  // dilation y, x
+                    1, 1,                  // input padding y, x
+                    0, 0,                  // output padding y, x
+                    ofi, ofi + 1,          // f_begin, f_end
+                    true,                  // depthwise
+                    false                  // grouped
+                );
+            }
+        }
+        return flatten_4d<float>(format::bfyx, ref);
+    };
+
+    std::vector<float> out_depthwise, out_ref;
+    ASSERT_NO_THROW(out_depthwise = run_depthwise());
+    ASSERT_NO_THROW(out_ref = run_ref());
+
+    ASSERT_EQ(out_depthwise.size(), out_ref.size());
+    for (size_t i = 0; i < out_depthwise.size(); ++i) {
+        ASSERT_EQ(out_depthwise[i], out_ref[i]);
+    }
+}
 
 TEST(convolution_f32_fw_gpu, basic_convolution_no_bias_swap_xy) {
     //  Filter : 2x2x1x3
@@ -11651,9 +11759,7 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv32_no_bias) {
     auto p = GetParam();
 
     if (p.groups > 1) {
-        std::cout << "[ SKIPPED ] The test is skipped (group convolution is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (group convolution is not supported).";
     }
 
     auto groups_num = 1;
@@ -11754,9 +11860,7 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_1x1_no_bias) {
     auto is_grouped = p.wei_shape.size() == 5;
 
     if (is_grouped) {
-        std::cout << "[ SKIPPED ] The test is skipped (group convolution is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (group convolution is not supported).";
     }
     auto groups_num = 1;
 
@@ -11767,16 +11871,12 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_1x1_no_bias) {
         && std::all_of(p.pad_end.begin(), p.pad_end.end(), [](int i) { return i == 0; });
 
     if (!is_weight_1x1 || !is_valid_output || !is_valid_strid || !is_valid_padding) {
-        std::cout << "[ SKIPPED ] The test is skipped (is_weight_1x1: " << is_weight_1x1 << ", is_valid_output: " << is_valid_output
-                  << ", is_valid_strid: " << is_valid_strid << ", is_valid_padding: " << is_valid_padding << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (is_weight_1x1: " << is_weight_1x1 << ", is_valid_output: " << is_valid_output
+                  << ", is_valid_strid: " << is_valid_strid << ", is_valid_padding: " << is_valid_padding;
     }
 
     if (!engine.get_device_info().supports_immad && p.in_shape[1] > 16) {
-        std::cout << "[ SKIPPED ] The test is skipped (convolution_fsv16_1x1 static kernel has accuracy issue with input feature > 16 in igpu)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (convolution_fsv16_1x1 static kernel has accuracy issue with input feature > 16 in igpu).";
     }
 
     auto calculate_ref = [&](memory::ptr input, memory::ptr weights, ExecutionConfig config) {
@@ -11883,9 +11983,7 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_depthwise_quantized) {
     auto is_depthwise = p.in_shape[1] == p.groups;
 
     if (!is_depthwise) {
-        std::cout << "[ SKIPPED ] The test is skipped (convolution is not depthwise)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (convolution is not depthwise).";
     }
 
     auto is_valid_output = p.wei_shape[0] % 16 == 0;
@@ -11893,12 +11991,10 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_depthwise_quantized) {
     auto is_valid_padding = all_zeroes(p.pad_begin) && all_zeroes(p.pad_end);
     auto is_valid_ranks = p.in_shape.size() == p.wei_shape.size() - 1;
     if (!is_valid_output || !is_valid_strid || !is_valid_padding || !is_valid_ranks) {
-        std::cout << "[ SKIPPED ] The test is skipped (is_valid_output: " << is_valid_output
+        GTEST_SKIP() << "The test is skipped (is_valid_output: " << is_valid_output
                   << ", is_valid_strid: " << is_valid_strid
                   << ", is_valid_padding: " << is_valid_padding
-                  << ", is_valid_ranks: " << is_valid_ranks << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+                  << ", is_valid_ranks: " << is_valid_ranks;
     }
 
     auto calculate_ref = [&](memory::ptr input, memory::ptr weights,
@@ -12303,7 +12399,7 @@ TEST(group_convolution_f16_fw_gpu, with_weights_as_input) {
 
     // Input: 1x64x31x31 to get 23x23 output with 9x9 kernel and no padding
     auto input = engine.allocate_memory({{ 1, 64, 31, 31 }, data_types::f16, format::bfyx });
-    
+
     // Weights input: [64, 1, 9, 9] - 64 groups, 1 output per group, 1 input per group, 9x9 kernel
     auto input_weights = engine.allocate_memory({ {64, 1, 9, 9}, data_types::f32, format::bfyx });
 
@@ -12602,3 +12698,38 @@ TEST_P(conv_3d_test_mmad, convolution_gpu_b_fs_zyx_mmad) {
         ASSERT_EQ(output_ptr[i], output_ptr_ref[i]);
     }
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+TEST(convolution_gpu, onednn_custom_format_3d_weights) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    ov::PartialShape weights_shape{192, 1, 1};
+
+    format_traits custom_traits;
+    custom_traits.str = "custom";
+    custom_traits.order = "oiy";
+    custom_traits.internal_order = "oixyz";
+    custom_traits.batch_num = 0;
+    custom_traits.feature_num = 1;
+    custom_traits.spatial_num = 1;
+    custom_traits.group_num = 0;
+    custom_traits._order = {0, 1, 2};
+    custom_traits.block_sizes = {};
+    custom_traits.logic_block_sizes = {};
+
+    cldnn::format custom_fmt(format::custom);
+    custom_fmt.custom_traits = custom_traits;
+    layout custom_layout(weights_shape, data_types::f16, custom_fmt);
+
+    ASSERT_NO_THROW({
+        auto md = onednn::layout_to_memory_desc(custom_layout, dnnl::memory::format_tag::undef);
+        ASSERT_EQ(md.get_ndims(), 3);
+        ASSERT_EQ(md.get_dims()[0], 192);
+        ASSERT_EQ(md.get_dims()[1], 1);
+        ASSERT_EQ(md.get_dims()[2], 1);
+    });
+}
+#endif  // ENABLE_ONEDNN_FOR_GPU

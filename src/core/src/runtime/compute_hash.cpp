@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -117,6 +117,9 @@ public:
     virtual void generate() = 0;
 
     void operator()(const ComputeHashCallArgs* args) {
+        // Since the JIT code always resides in memory, and ASAN's memory management may remove executable
+        // permissions, we need to restore executable permissions for the generated code.
+        setProtectModeRE(false);
         ker_fn(args);
     }
 

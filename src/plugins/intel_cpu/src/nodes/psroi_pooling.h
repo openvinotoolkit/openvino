@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,6 +47,8 @@ private:
     int nc = 0;
     int nh = 0;
     int nw = 0;
+
+    int inBatchNum = 0;
 
     // for Deformable PSROIPolling
     bool noTrans;

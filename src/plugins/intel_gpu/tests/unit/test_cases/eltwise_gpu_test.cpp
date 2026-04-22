@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -251,7 +251,7 @@ void generic_eltwise_int_test(cldnn::format test_input_fmt,
                               int input2_max_val) {
     static_assert(std::is_integral<T>::value, "T must be an integral type");
     static_assert(std::is_integral<TOut>::value, "TOut must be an integral type");
-    
+
     tests::random_generator rg(GET_SUITE_NAME);
 
     VVVVF<T> input1_rnd = rg.generate_random_4d<T>(input_b, input_f, input_y, input_x, input1_min_val, input1_max_val);
@@ -301,7 +301,7 @@ void generic_eltwise_int_test(cldnn::format test_input_fmt,
     bool test_is_correct = true;
     VF<TOut> output_cpu_vec = flatten_4d<TOut>(test_input_fmt, output_cpu);
     for (size_t i = 0; i < output_cpu_vec.size(); ++i) {
-        const TOut cpu_val = output_cpu_vec[i]; 
+        const TOut cpu_val = output_cpu_vec[i];
         const TOut gpu_val = output_ptr[i];
         if (cpu_val != gpu_val) {
             test_is_correct = false;
@@ -3598,8 +3598,7 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast_bfyx)
     auto& engine = get_test_engine();
     bool f16_supported = engine.get_device_info().supports_fp16;
     if (!f16_supported) {
-        std::cout << "[ SKIPPED ] float16 combinations are skipped (cl_khr_fp16 is not supported)." << std::endl;
-        return;
+        GTEST_SKIP() << "float16 combinations are skipped (cl_khr_fp16 is not supported).";
     }
 
     tensor::value_type input_b = 2;

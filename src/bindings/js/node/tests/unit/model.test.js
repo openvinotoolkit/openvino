@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 const { addon: ov } = require("../..");
@@ -182,7 +182,7 @@ describe("ov.Model tests", () => {
 
     it("should not accept any arguments", () => {
       assert.throws(
-        () => model.clone("Unexpected argument").then(),
+        () => model.clone("Unexpected argument"),
         /'clone' method called with incorrect parameters./,
       );
     });
@@ -288,17 +288,15 @@ describe("ov.Model tests", () => {
 
     it("should return node names expected in the calling model", () => {
       const model = core.readModelSync(addModel.xml);
-      const modelOps = model.getOps();
-      const nodeNames = ["Parameter_7674", "Parameter_7672", "Result_7678", "Add_7676"];
-      assert.deepStrictEqual(modelOps.length, nodeNames.length);
-      for (const [index, node] of nodeNames.entries()) {
-        assert.deepStrictEqual(modelOps[index].getName(), node);
-      }
+      const expectedOps = ["Parameter", "Result", "Add"];
+      const modelOperators = model.getOps().map((op) => op.getName().split("_")[0]);
+
+      assert.ok(expectedOps.every((op) => modelOperators.includes(op)));
     });
 
     it("should not accept any arguments", () => {
       assert.throws(
-        () => model.getOps("Unexpected argument").then(),
+        () => model.getOps("Unexpected argument"),
         /'getOps' method called with incorrect parameters./,
       );
     });

@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,7 +63,12 @@ KERNEL(moe_scatter_reduction_ref)(
             continue;
 
         INPUT5_TYPE token_len = tokens_len_per_expert[start_offset_index[i]];
-        INPUT4_TYPE expert_offset = experts_start_offset[start_offset_index[i]];
+        #if ONEDNN_GROUPED_GEMM_USED
+            INPUT6_TYPE expert_id = experts_ids[start_offset_index[i]];
+            INPUT4_TYPE expert_offset = expert_id == 0 ? 0 : experts_start_offset[expert_id - 1];
+        #else
+            INPUT4_TYPE expert_offset = experts_start_offset[start_offset_index[i]];
+        #endif
 
         // Hybrid search: use single thread for short sequences to benefit from early exit,
         // and parallel search for long sequences to utilize memory bandwidth.

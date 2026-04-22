@@ -1,18 +1,21 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_engine/models/find_model.hpp"
-#include "test_engine/comparators/nrmse.hpp"
-#include "test_engine/simple_llm_pipeline.hpp"
-#include "intel_npu/npuw_private_properties.hpp"
-#include "openvino/util/shared_object.hpp"
-#include "openvino/util/file_util.hpp"
-
-#include <filesystem>
-#include <algorithm>
-
 #include <gtest/gtest.h>
+
+#include <algorithm>
+#include <filesystem>
+#include <optional>
+#include <vector>
+
+#include "functional_test_utils/skip_tests_config.hpp"
+#include "intel_npu/npuw_private_properties.hpp"
+#include "openvino/util/file_util.hpp"
+#include "openvino/util/shared_object.hpp"
+#include "test_engine/comparators/nrmse.hpp"
+#include "test_engine/models/find_model.hpp"
+#include "test_engine/simple_llm_pipeline.hpp"
 
 using namespace testing;
 using namespace ov::npuw::tests;
@@ -41,7 +44,27 @@ using LLMTestParams = std::tuple<std::string, ov::AnyMap, GroundTruth>;
 
 class LLMSmokeAccuracyTestsNPUW : public ::testing::TestWithParam<LLMTestParams> {
 public:
-    void SetUp() override {      
+    void SetUp() override {
+        auto param = GetParam();
+        std::string model_name;
+        ov::AnyMap config;
+        GroundTruth input_and_reference_ids;
+        std::tie(model_name, config, input_and_reference_ids) = param;
+
+        // Resolve the model before any Core/plugin work in this fixture. In backend-less
+        // environments the NPU test infrastructure may touch backend-dependent paths during
+        // generic setup, but this CPU-only smoke test is expected to skip cleanly when the
+        // model is unavailable.
+        model_path = find_model(model_name);
+        if (model_path == "") {
+            GTEST_SKIP() << "Test model is not found, skipping the test!";
+        }
+
+        input_ids = input_and_reference_ids.prompt;
+        reference_ids = input_and_reference_ids.answer;
+
+        core.emplace();
+
         // NOTE: TEMPLATE plugin in OpenVINO works for ~20 minute to generate
         //       first token from prefill model and crashes on launch of
         //       3rd subrequest in generate model.
@@ -53,7 +76,7 @@ public:
         const char* cpu_plugin_file_name = "openvino_intel_cpu_plugin";
         // Register CPU plugin in OpenVINO:
         try {
-            core.register_plugin(std::string(cpu_plugin_file_name) + OV_BUILD_POSTFIX, "CPU");
+            core->register_plugin(std::string(cpu_plugin_file_name) + OV_BUILD_POSTFIX, "CPU");
         } catch (ov::Exception& ex) {
             if (std::string{ex.what()}.find("Device with \"CPU\"  is already registered in the OpenVINO Runtime")
                 == std::string::npos) {
@@ -65,28 +88,14 @@ public:
 #endif // not OPENVINO_STATIC_LIBRARY && WITH_CPU_PLUGIN &&
        // (defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64))
 
-        auto param = GetParam();
-        std::string model_name;
-        ov::AnyMap config;
-        GroundTruth input_and_reference_ids;
-        std::tie(model_name, config, input_and_reference_ids) = param;
-
-        model_path = find_model(model_name);
-        if (model_path == "") {
-            GTEST_SKIP() << "Test model is not found, skipping the test!";
-        }
-
-        input_ids = input_and_reference_ids.prompt;
-        reference_ids = input_and_reference_ids.answer;
-
         config["NPUW_DEVICES"] = "CPU";
         config["NPUW_LLM_MAX_PROMPT_LEN"] = 128;
         config["NPUW_LLM_MIN_RESPONSE_LEN"] = 4;
-        simple_llm.initialize(model_path, core, config);
+        simple_llm.initialize(model_path, *core, config);
     }
 
 protected:
-    ov::Core core;
+    std::optional<ov::Core> core;
     SimpleLLMPipeline simple_llm;
     std::string model_path;
     std::vector<int64_t> input_ids;

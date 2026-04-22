@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,7 @@ public:
     OPENVINO_OP("HorizonMax", "SnippetsOpset");
 
     explicit HorizonMax(const Output<Node>& x);
+    explicit HorizonMax(const OutputVector& x);
     HorizonMax() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;

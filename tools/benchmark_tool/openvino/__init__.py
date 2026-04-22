@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 __path__ = __import__("pkgutil").extend_path(__path__, __name__)
@@ -90,6 +90,7 @@ from openvino import opset13
 from openvino import opset14
 from openvino import opset15
 from openvino import opset16
+from openvino import opset17
 
 # libva related:
 from openvino._pyopenvino import VAContext

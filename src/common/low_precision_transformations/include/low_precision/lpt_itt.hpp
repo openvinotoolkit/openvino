@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,8 @@ namespace low_precision {
 namespace itt {
 namespace domains {
 
-OV_ITT_DOMAIN(LPT);
-OV_ITT_DOMAIN(LPT_LT);
+OV_ITT_DOMAIN(LPT, "ov::lpt");
+OV_ITT_DOMAIN(LPT_LT, "ov::lpt::lt");
 
 } // namespace domains
 } // namespace itt

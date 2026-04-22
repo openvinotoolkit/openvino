@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,14 @@
 
 #include "llm_lora_states.hpp"
 #include "logging.hpp"
-#include "openvino/op/transpose.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
 #include "util_xarch.hpp"
@@ -110,48 +117,6 @@ void unpack_nf4f16(const ov::SoPtr<ov::ITensor>& from,
     });
     if (size % 2 != 0) {
         to_ptr[size - 1] = ov::ConvertNF4::dequantize(lo4(from_ptr[size / 2 + 1]));
-    }
-}
-
-void unpack_f8f16(const ov::SoPtr<ov::ITensor>& from,
-                  const ov::SoPtr<ov::ITensor>& scale,
-                  const ov::SoPtr<ov::ITensor>& to,
-                  const ov::npuw::util::UnpackOptions& unpack_options) {
-    auto from_shape = from->get_shape();
-    auto scale_shape = scale->get_shape();
-
-    NPUW_ASSERT(from->is_continuous());
-    NPUW_ASSERT(to->is_continuous());
-    NPUW_ASSERT(scale->is_continuous());
-    NPUW_ASSERT(from->get_size() == to->get_size());
-    NPUW_ASSERT(from_shape[0] == scale_shape[0]);
-    NPUW_ASSERT(scale_shape[1] == 1);
-    NPUW_ASSERT(from->get_element_type() == ov::element::f8e4m3 || from->get_element_type() == ov::element::f8e5m2 ||
-                from->get_element_type() == ov::element::f8e8m0);
-    NPUW_ASSERT(scale->get_element_type() == ov::element::f32);
-    NPUW_ASSERT(to->get_element_type() == ov::element::f16);
-
-    const auto* scale_ptr = scale->data<float>();
-    auto* to_ptr = to->data<ov::float16>();
-
-    const auto size = from->get_size();
-
-    // FIXME: copypaste with a different type
-    if (from->get_element_type() == ov::element::f8e4m3) {
-        const auto* from_ptr = from->data<ov::float8_e4m3>();
-        ov::parallel_for(size, [&](size_t idx) {
-            to_ptr[idx] = static_cast<float>(from_ptr[idx]) * scale_ptr[idx / from_shape[1]];
-        });
-    } else if (from->get_element_type() == ov::element::f8e5m2) {
-        const auto* from_ptr = from->data<ov::float8_e5m2>();
-        ov::parallel_for(size, [&](size_t idx) {
-            to_ptr[idx] = static_cast<float>(from_ptr[idx]) * scale_ptr[idx / from_shape[1]];
-        });
-    } else {
-        const auto* from_ptr = from->data<ov::float8_e8m0>();
-        ov::parallel_for(size, [&](size_t idx) {
-            to_ptr[idx] = static_cast<float>(from_ptr[idx]) * scale_ptr[idx / from_shape[1]];
-        });
     }
 }
 
@@ -280,8 +245,7 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         unpack_nf4f16(from, scale, to, unpack_options);
     } else if (type_from == ov::element::f8e4m3 || type_from == ov::element::f8e5m2 ||
                type_from == ov::element::f8e8m0) {
-        // FIXME: Implement XARCH::unpack
-        unpack_f8f16(from, scale, to, unpack_options);
+        ov::npuw::util::XARCH::unpack_f8f16_scale(from, scale, to, unpack_options);
     } else if (type_from == ov::element::f16) {
         // FIXME: Implement XARCH::unpack
         unpack_f16f16(from, scale, to, unpack_options);
@@ -955,12 +919,166 @@ void ov::npuw::util::fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fi
     std::memset(tensor_data, fill_val, byte_size);
 }
 
-bool ov::npuw::util::isPastKeyValuesKey(const std::string& str) {
-    std::regex pattern(R"(past_key_values\.\d+\.key)");
-    return std::regex_match(str, pattern);
+std::optional<int> ov::npuw::util::isPastKeyValuesKey(const std::string& str) {
+    // Capture the number in parentheses
+    std::regex pattern(R"(past_key_values\.(\d+)\.key)");
+    std::smatch match;
+    if (std::regex_match(str, match, pattern)) {
+        // match[1] contains the number
+        int index = std::stoi(match[1].str());
+        return index;
+    }
+    return std::nullopt;
 }
 
-bool ov::npuw::util::isPastKeyValuesValue(const std::string& str) {
-    std::regex pattern(R"(past_key_values\.\d+\.value)");
-    return std::regex_match(str, pattern);
+std::optional<int> ov::npuw::util::isPastKeyValuesValue(const std::string& str) {
+    // Capture the number in parentheses
+    std::regex pattern(R"(past_key_values\.(\d+)\.value)");
+    std::smatch match;
+    if (std::regex_match(str, match, pattern)) {
+        // match[1] contains the number
+        int index = std::stoi(match[1].str());
+        return index;
+    }
+    return std::nullopt;
+}
+
+std::optional<int> ov::npuw::util::isPresentKeyValuesKey(const std::string& str) {
+    // Capture the number in parentheses
+    std::regex pattern(R"(present\.(\d+)\.key)");
+    std::smatch match;
+    if (std::regex_match(str, match, pattern)) {
+        // match[1] contains the number
+        int index = std::stoi(match[1].str());
+        return index;
+    }
+    return std::nullopt;
+}
+
+std::optional<int> ov::npuw::util::isPresentKeyValuesValue(const std::string& str) {
+    // Capture the number in parentheses
+    std::regex pattern(R"(present\.(\d+)\.value)");
+    std::smatch match;
+    if (std::regex_match(str, match, pattern)) {
+        // match[1] contains the number
+        int index = std::stoi(match[1].str());
+        return index;
+    }
+    return std::nullopt;
+}
+
+namespace {
+
+std::vector<ov::npuw::util::SDPAPatternNodes> find_sdpa_pattern_nodes_internal(const std::shared_ptr<ov::Model>& model,
+                                                                               bool findAll) {
+    // Find decomposed SDPA pattern components
+    std::vector<ov::npuw::util::SDPAPatternNodes> pattern_nodes;
+
+    // Helper lambda to trace from MatMul to find Concat node
+    auto find_concat_from_matmul = [](const std::shared_ptr<ov::Node>& matmul_node,
+                                      size_t input_idx) -> std::shared_ptr<ov::Node> {
+        if (!matmul_node)
+            return nullptr;
+
+        auto current_node = matmul_node->input(input_idx).get_source_output().get_node_shared_ptr();
+
+        // Traverse backwards through reshape/transpose operations to find Concat
+        while (current_node) {
+            if (ov::is_type<ov::op::v0::Concat>(current_node)) {
+                return current_node;
+            }
+
+            // Allow traversing through Reshape and Transpose
+            if (ov::is_type<ov::op::v1::Reshape>(current_node) || ov::is_type<ov::op::v3::Broadcast>(current_node) ||
+                ov::is_type<ov::op::v0::Unsqueeze>(current_node)) {
+                if (current_node->get_input_size() > 0) {
+                    current_node = current_node->input(0).get_source_output().get_node_shared_ptr();
+                } else {
+                    break;
+                }
+            } else {
+                // Stop at other operations
+                break;
+            }
+        }
+
+        return nullptr;
+    };
+
+    LOG_DEBUG("Entering find_sdpa_pattern_nodes_internal");
+    LOG_BLOCK();
+    // Search for the pattern: MatMul -> Add -> Softmax -> MatMul
+    auto ops = model->get_ordered_ops();
+    for (auto&& node : ops) {
+        if (!ov::is_type<ov::op::v8::Softmax>(node))
+            continue;
+        LOG_DEBUG("Examining node: " << node->get_friendly_name() << " (" << node->get_type_name() << ")");
+
+        ov::npuw::util::SDPAPatternNodes candidate;
+        auto& current_node = candidate;
+        current_node.softmax_node = node;
+
+        // Check if softmax is fed by Add - TODO: how optional is add?
+        auto softmax_input = node->input(0).get_source_output().get_node_shared_ptr();
+        if (!ov::is_type<ov::op::v1::Add>(softmax_input)) {
+            LOG_DEBUG("Softmax input is not Add(" << softmax_input->get_friendly_name() << "), skipping pattern check");
+            continue;
+        }
+        current_node.add_node = softmax_input;
+
+        // Check if add is fed by MatMul (first MatMul)
+        auto add_input0 = current_node.add_node->input(0).get_source_output().get_node_shared_ptr();
+        if (!ov::is_type<ov::op::v0::MatMul>(add_input0)) {
+            LOG_DEBUG("Add input is not MatMul(" << add_input0->get_friendly_name() << "), skipping pattern check");
+            continue;
+        }
+        current_node.matmul1_node = add_input0;
+
+        // Find Concat node for past key (input 1 of MatMul1)
+        current_node.past_key_concat_node = find_concat_from_matmul(current_node.matmul1_node, 1);
+
+        // Check if softmax feeds into MatMul (second MatMul)
+        for (auto&& output : node->outputs()) {
+            for (auto&& target_input : output.get_target_inputs()) {
+                auto target_node = target_input.get_node()->shared_from_this();
+                if (ov::is_type<ov::op::v0::MatMul>(target_node)) {
+                    current_node.matmul2_node = target_node;
+
+                    // Find Concat node for past value (input 1 of MatMul2)
+                    current_node.past_value_concat_node = find_concat_from_matmul(current_node.matmul2_node, 1);
+                    break;
+                }
+            }
+            if (current_node.matmul2_node)
+                break;
+        }
+        if (!current_node.matmul2_node) {
+            LOG_DEBUG("Softmax does not feed into MatMul, skipping pattern check");
+            continue;
+        }
+
+        // pattern might be not full, say missed concats for example
+        current_node.log_pattern(std::to_string(pattern_nodes.size()));
+
+        pattern_nodes.push_back(candidate);
+        if (!findAll) {
+            break;
+        }
+    }
+
+    return pattern_nodes;
+}
+}  // namespace
+
+std::vector<ov::npuw::util::SDPAPatternNodes> ov::npuw::util::find_all_sdpa_pattern_nodes(
+    const std::shared_ptr<ov::Model>& model) {
+    return find_sdpa_pattern_nodes_internal(model, true);
+}
+
+ov::npuw::util::SDPAPatternNodes ov::npuw::util::find_sdpa_pattern_nodes(const std::shared_ptr<ov::Model>& model) {
+    auto internal_nodes = find_sdpa_pattern_nodes_internal(model, false);
+    if (internal_nodes.size() != 1) {
+        return {};
+    }
+    return internal_nodes.front();
 }

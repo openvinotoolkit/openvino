@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/op/log_softmax.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 
@@ -21,14 +22,9 @@ bool op::v5::LogSoftmax::visit_attributes(AttributeVisitor& visitor) {
 void op::v5::LogSoftmax::validate_and_infer_types() {
     OV_OP_SCOPE(v5_LogSoftmax_validate_and_infer_types);
     const ov::PartialShape& input_shape = get_input_partial_shape(0);
-    if (input_shape.rank().is_static())
-        NODE_VALIDATION_CHECK(this,
-                              m_axis < input_shape.rank().get_length() && m_axis >= -input_shape.rank().get_length(),
-                              "Reduction axis (",
-                              m_axis,
-                              ") is out of bounds (argument shape: ",
-                              input_shape,
-                              ").");
+    if (const auto& rank = input_shape.rank(); rank.is_static()) {
+        ov::util::validate_axis(m_axis, rank, *this);
+    }
 
     set_output_type(0, get_input_element_type(0), input_shape);
 }

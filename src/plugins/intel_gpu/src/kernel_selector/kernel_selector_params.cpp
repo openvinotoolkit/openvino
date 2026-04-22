@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -344,7 +344,7 @@ void ParamsKey::EnableConcatAxis(ConcatAxis a) {
     }
 }
 
-void ParamsKey::EnableReampleType(ResampleType a) {
+void ParamsKey::EnableResampleType(ResampleType a) {
     switch (a) {
         case ResampleType::NEAREST_NEIGHBOR:
             key.restrict.val.dedicated.resample.nearest_neighbor = 1;

@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ using namespace ::tests;
 
 namespace {
 struct loop_params {
-    size_t loop_trip_count;
+    int32_t loop_trip_count;
     tensor in_shape;
     tensor loop_input_shape;
     tensor loop_eltwise_shape;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -146,6 +146,16 @@ void EmbeddingBagOffset::getIndices(size_t embIndex,
     if (embIndex == _offsetsLen - 1LU) {
         size = _indicesLen - offsetsData_[embIndex];
     } else {
+        // Guard against non-monotonic offsets: a decrease would underflow size_t
+        CPU_NODE_ASSERT(offsetsData_[embIndex + 1LU] >= offsetsData_[embIndex],
+                        "Offsets must be monotonically non-decreasing: offsets[",
+                        embIndex + 1LU,
+                        "]=",
+                        offsetsData_[embIndex + 1LU],
+                        " < offsets[",
+                        embIndex,
+                        "]=",
+                        offsetsData_[embIndex]);
         size = offsetsData_[embIndex + 1LU] - offsetsData_[embIndex];
     }
 
