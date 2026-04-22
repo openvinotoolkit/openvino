@@ -5,6 +5,7 @@
 #include "openvino/frontend/ir/frontend.hpp"
 
 #include <array>
+#include <cstdlib>
 #include <optional>
 #include <pugixml.hpp>
 #include <vector>
@@ -18,6 +19,7 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
+#include "openvino/xml_util/xml_deserialize_util.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "utils.hpp"
 
@@ -40,6 +42,19 @@ size_t get_ir_version(const pugi::xml_document& doc) {
 }
 
 constexpr size_t HEADER_SIZE_LIM = 512lu;
+
+bool use_separate_const_weights_loading() {
+    const auto* flag = std::getenv("OV_IR_SEPARATE_CONST_WEIGHTS");
+    if (!flag) {
+        return false;
+    }
+
+    std::string value(flag);
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char character) {
+        return std::tolower(character);
+    });
+    return value == "1" || value == "true" || value == "yes" || value == "on";
+}
 
 /**
  * @brief Extracts IR version from model stream
@@ -151,8 +166,9 @@ void FrontEnd::add_extension(const ov::Extension::Ptr& ext) {
 InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
     std::ifstream local_model_stream;
     std::istream* provided_model_stream = nullptr;
-    std::shared_ptr<ov::AlignedBuffer> model_buf;
-    std::shared_ptr<ov::AlignedBuffer> weights;
+    std::shared_ptr<ov::AlignedBuffer> model_buf;  //
+    std::shared_ptr<ov::AlignedBuffer> weights;    //
+    std::shared_ptr<ov::util::WeightsProvider> weights_provider;
 
     auto create_extensions_map = [&]() -> std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> {
         std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> exts;
@@ -168,16 +184,22 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
             return std::make_shared<InputModel>(*provided_model_stream,
                                                 weights,
                                                 create_extensions_map(),
-                                                std::move(weights_path));
+                                                std::move(weights_path),
+                                                weights_provider);
         } else if (local_model_stream.is_open()) {
             auto input_model = std::make_shared<InputModel>(local_model_stream,
                                                             weights,
                                                             create_extensions_map(),
-                                                            std::move(weights_path));
+                                                            std::move(weights_path),
+                                                            weights_provider);
             local_model_stream.close();
             return input_model;
         } else if (model_buf) {
-            return std::make_shared<InputModel>(model_buf, weights, create_extensions_map(), std::move(weights_path));
+            return std::make_shared<InputModel>(model_buf,
+                                                weights,
+                                                create_extensions_map(),
+                                                std::move(weights_path),
+                                                weights_provider);
         }
         return nullptr;
     };
@@ -215,31 +237,36 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     }
 
     if (!weights_path.empty()) {
-        const auto enable_mmap = variants.back().is<bool>() ? variants.back().as<bool>() : false;
-        if (enable_mmap) {
-            auto mapped_memory = ov::load_mmap_object(weights_path);
-            weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mapped_memory->data(),
-                                                                                        mapped_memory->size(),
-                                                                                        mapped_memory);
-        } else if (std::ifstream bin_stream(weights_path, std::ios::binary); bin_stream.is_open()) {
-            bin_stream.seekg(0, std::ios::end);
-            size_t file_size = bin_stream.tellg();
-            bin_stream.seekg(0, std::ios::beg);
-
-            auto aligned_weights_buffer = std::make_shared<ov::AlignedBuffer>(file_size);
-            bin_stream.read(aligned_weights_buffer->get_ptr<char>(), aligned_weights_buffer->size());
-
-            weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
-                aligned_weights_buffer->get_ptr<char>(),
-                aligned_weights_buffer->size(),
-                aligned_weights_buffer,
-                ov::create_base_descriptor(
-                    std::hash<std::decay_t<decltype(weights_path.native())>>{}(weights_path.native()),
-                    0,
-                    aligned_weights_buffer));
-
+        const auto separate_const_weights_loading = use_separate_const_weights_loading() && !weights;
+        if (separate_const_weights_loading) {
+            weights_provider = std::make_shared<ov::util::FileWeightsProvider>(weights_path);
         } else {
-            OPENVINO_THROW("Weights file ", weights_path, " cannot be opened!");
+            const auto enable_mmap = variants.back().is<bool>() ? variants.back().as<bool>() : false;
+            if (enable_mmap) {
+                auto mapped_memory = ov::load_mmap_object(weights_path);
+                weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mapped_memory->data(),
+                                                                                            mapped_memory->size(),
+                                                                                            mapped_memory);
+            } else if (std::ifstream bin_stream(weights_path, std::ios::binary); bin_stream.is_open()) {
+                bin_stream.seekg(0, std::ios::end);
+                size_t file_size = bin_stream.tellg();
+                bin_stream.seekg(0, std::ios::beg);
+
+                auto aligned_weights_buffer = std::make_shared<ov::AlignedBuffer>(file_size);
+                bin_stream.read(aligned_weights_buffer->get_ptr<char>(), aligned_weights_buffer->size());
+
+                weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+                    aligned_weights_buffer->get_ptr<char>(),
+                    aligned_weights_buffer->size(),
+                    aligned_weights_buffer,
+                    ov::create_base_descriptor(
+                        std::hash<std::decay_t<decltype(weights_path.native())>>{}(weights_path.native()),
+                        0,
+                        aligned_weights_buffer));
+
+            } else {
+                OPENVINO_THROW("Weights file ", weights_path, " cannot be opened!");
+            }
         }
     }
 
