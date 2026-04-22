@@ -1828,24 +1828,19 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
     auto make_wrapped = [&](const std::shared_ptr<ov::Model>& model,
                             const std::string& profile_suffix,
                             const std::vector<std::string>& devs) -> ov::SoPtr<ov::ICompiledModel> {
-        auto main_cm = ov::npuw::failsafe::CompiledModel::create(model,
-                                                                  get_plugin(),
-                                                                  devs,
-                                                                  make_factory(model, profile_suffix));
+        auto main_cm =
+            ov::npuw::failsafe::CompiledModel::create(model, get_plugin(), devs, make_factory(model, profile_suffix));
         if (m_acc_check) {
-            const auto exec_devs =
-                main_cm->get_property(ov::execution_devices.name()).as<std::vector<std::string>>();
+            const auto exec_devs = main_cm->get_property(ov::execution_devices.name()).as<std::vector<std::string>>();
             const std::string actual_device = exec_devs.empty() ? "" : exec_devs.front();
             if (actual_device != m_ref_device) {
-                LOG_INFO("Wrapping with AccuracyChecked (main: " << actual_device << ", ref: " << m_ref_device
-                                                                 << ").");
+                LOG_INFO("Wrapping with AccuracyChecked (main: " << actual_device << ", ref: " << m_ref_device << ").");
                 auto ref_cm = compile_submodel(model, m_ref_device);
-                return ov::npuw::accuracy_checked::CompiledModel::create(
-                    model,
-                    get_plugin(),
-                    std::move(main_cm),
-                    std::move(ref_cm),
-                    m_acc_check);
+                return ov::npuw::accuracy_checked::CompiledModel::create(model,
+                                                                         get_plugin(),
+                                                                         std::move(main_cm),
+                                                                         std::move(ref_cm),
+                                                                         m_acc_check);
             }
         }
         return main_cm;
