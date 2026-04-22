@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+//
 
 #include "base_sync_infer_request.hpp"
 
@@ -21,7 +22,6 @@ ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::C
       m_npuw_model(compiled_model),
       m_num_submodels(m_npuw_model->m_compiled_submodels.size()) {
     m_subrequests.resize(m_num_submodels, {});
-    m_subrequest_devices.resize(m_num_submodels, {});
     m_completion_cbs.resize(m_num_submodels, {});
     if (m_npuw_model->m_acc_check) {
         m_ref_subrequests.resize(m_num_submodels);
@@ -50,8 +50,7 @@ ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::C
 }
 
 ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_requests(std::size_t id,
-                                                                                       std::size_t nireq,
-                                                                                       bool* recompiled) {
+                                                                                       std::size_t nireq) {
     NPUW_ASSERT(nireq > 0);
     RqPtrs rqs;
     rqs.reserve(nireq);
@@ -60,39 +59,9 @@ ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_re
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[id];
     NPUW_ASSERT(comp_model_desc.replaced_by.value_or(id) == id);
 
-    bool successful = false;
-    bool can_try_again = true;
-
-    // Altering iterators here!! Contracts should be changed!
-    while (!successful && can_try_again) {
-        bool should_recompile = false;
-        try {
-            // FIXME: As the model may recompile, reference
-            // shouldn't be lifted from the loop
-            auto& comp_model = comp_model_desc.compiled_model;
-            rqs.clear();
-            for (std::size_t i = 0u; i < nireq; i++) {
-                rqs.emplace_back(comp_model->create_infer_request(), comp_model._so);
-            }
-            successful = true;
-        } catch (const std::exception& ex) {
-            LOG_WARN("Subgraph [" << id << "] - Failed to create infer request:" << std::endl << ex.what());
-            should_recompile = true;
-        } catch (...) {
-            LOG_WARN("Subgraph [" << id << "] - Failed to create infer request: REASON UNKNOWN");
-            should_recompile = true;
-        }
-        if (should_recompile) {
-            LOG_INFO("- Trying next device...");
-            comp_model_desc.device_it++;
-            can_try_again = m_npuw_model->compile_for_success(id);
-            if (can_try_again && recompiled) {
-                *recompiled = true;
-            }
-        }
-    }  // while(!new_ireq && can_try_again)
-    if (!successful) {
-        OPENVINO_THROW("NPUW: Fatal - couldn't create infer request for Subgraph[", id, "]");
+    auto& comp_model = comp_model_desc.compiled_model;
+    for (std::size_t i = 0u; i < nireq; i++) {
+        rqs.emplace_back(comp_model->create_infer_request(), comp_model._so);
     }
     NPUW_ASSERT(rqs.size() == nireq);
 
@@ -121,10 +90,9 @@ ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_re
     return rqs;
 }
 
-void ov::npuw::IBaseInferRequest::ensure_subrequest_is_accurate(std::size_t idx, bool& failover) {
+void ov::npuw::IBaseInferRequest::ensure_subrequest_is_accurate(std::size_t idx) {
     LOG_INFO("Check if subrequest[" << idx << "] is accurate...");
     LOG_BLOCK();
-    failover = false;
     if (m_ref_subrequests.at(idx) != nullptr && m_subrequests.at(idx)._ptr != m_ref_subrequests.at(idx)._ptr) {
         NPUW_ASSERT(m_npuw_model->m_compiled_submodels.at(idx).switched_to_ref == false);
         NPUW_ASSERT(m_npuw_model->m_compiled_submodels.at(idx).replaced_by.value_or(idx) == idx);
@@ -164,7 +132,6 @@ void ov::npuw::IBaseInferRequest::ensure_subrequest_is_accurate(std::size_t idx,
             m_npuw_model->m_compiled_submodels.at(idx).switched_to_ref = true;
             m_subrequests.at(idx) = m_ref_subrequests.at(idx);
             update_subrequest_links(idx);
-            failover = true;
         }
 
         LOG_INFO("Done");
@@ -314,40 +281,29 @@ std::vector<ov::ProfilingInfo> ov::npuw::IBaseInferRequest::get_profiling_info()
 
 std::string ov::npuw::IBaseInferRequest::profile_tag(std::size_t idx) const {
     // So far accumulate over devices involved
-    const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real(idx)];
-    return *proto_comp_model_desc.device_it;
+    return m_npuw_model->submodel_device(real(idx));
 }
 
 void ov::npuw::IBaseInferRequest::infer() {
     m_now_idx.reset();
     prepare_for_infer();
-    bool failover_happened = false;
     for (std::size_t idx = 0u; idx < m_num_submodels; idx++) {
         m_now_idx = idx;
         if (!valid_subrequest(idx)) {
             continue;
         }
         subscribe_subrequest(idx, [](std::exception_ptr) {});
-        bool failover = false;
         m_profile[profile_tag(idx)].record([&]() {
-            run_subrequest_for_success(idx, failover);
+            run_subrequest_for_success(idx);
         });
-        failover_happened |= failover;
         complete_subrequest(idx);
         if (m_npuw_model->m_acc_check) {
-            ensure_subrequest_is_accurate(idx, failover);
-            failover_happened |= failover;
+            ensure_subrequest_is_accurate(idx);
         }
     }
 
     // Increment counter regardless if dumps etc are enabled or not.
     m_run_iter++;
-
-    if (failover_happened) {
-        LOG_INFO("Refined device distribution:");
-        LOG_BLOCK();
-        m_npuw_model->log_device_dist();
-    }
     m_now_idx.reset();
 }
 
@@ -378,8 +334,7 @@ std::string ov::npuw::IBaseInferRequest::global_input_mem_device(std::size_t idx
 
     const auto& to_submodel = m_npuw_model->m_inputs_to_submodels_inputs.at(idx);
     if (to_submodel != CompiledModel::NO_LINK) {
-        const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real(to_submodel.first)];
-        return *proto_comp_model_desc.device_it;
+        return m_npuw_model->submodel_device(real(to_submodel.first));
     }
 
     // Resort to global again
@@ -389,8 +344,7 @@ std::string ov::npuw::IBaseInferRequest::global_input_mem_device(std::size_t idx
 std::string ov::npuw::IBaseInferRequest::global_output_mem_device(std::size_t idx) const {
     // Pick the affinitiy based on the producer subgraph
     const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(idx);
-    const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real(from_submodel.first)];
-    return *proto_comp_model_desc.device_it;
+    return m_npuw_model->submodel_device(real(from_submodel.first));
 }
 
 void ov::npuw::IBaseInferRequest::alloc_quant_gather() {
@@ -809,7 +763,7 @@ void ov::npuw::IBaseInferRequest::bind_attention_inputs(std::size_t idx, RqPtr r
                 dst->set_shape(shape);
                 const auto new_ptr = dst->data();
                 if (old_ptr != new_ptr) {
-                    m_footprint[*comp_model_desc.device_it] += dst->get_byte_size();
+                    m_footprint[m_npuw_model->submodel_device(real(idx))] += dst->get_byte_size();
                 }
                 LOG_DEBUG("Do copy: " << shape << "...");
                 view->copy_to(dst._ptr);
@@ -1119,7 +1073,7 @@ bool ov::npuw::IBaseInferRequest::needs_copy(std::size_t idx) const {
     // the set/get_ tensor API
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-    if (ov::npuw::util::starts_with(m_subrequest_devices[real_idx], "CPU")) {
+    if (ov::npuw::util::starts_with(m_npuw_model->submodel_device(real_idx), "CPU")) {
         return false;
     }
 

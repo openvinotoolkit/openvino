@@ -274,6 +274,40 @@ protected:
 };
 
 /**
+ * @brief Adds two integral values
+ *
+ * The result value is not valid if overflow detected.
+ *
+ * @param T       Type of values to add. Must be an integral type.
+ * @param x       First value to add.
+ * @param y       Second value to add.
+ * @param result  Reference to store result value.
+ * @return True if overflow occurs, false otherwise
+ */
+template <class T>
+constexpr bool add_overflow(T x, T y, T& result) {
+    static_assert(std::is_integral_v<T>, "T must be an integral type");
+#if defined(__GNUC__) || defined(__clang__)
+    return __builtin_add_overflow(x, y, &result);
+#else
+    constexpr auto max = std::numeric_limits<T>::max();
+
+    if constexpr (std::is_unsigned_v<T>) {
+        if (x > max - y) {
+            return true;
+        }
+    } else {
+        constexpr auto min = std::numeric_limits<T>::lowest();
+        if ((y > 0 && x > max - y) || (y < 0 && x < min - y)) {
+            return true;
+        }
+    }
+    result = x + y;
+    return false;
+#endif
+}
+
+/**
  * @brief Multiplies two integral values
  *
  * The result value is not valid if overflow detected.

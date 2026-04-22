@@ -21,7 +21,6 @@
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/onnx/graph_iterator.hpp"
 #include "openvino/util/file_util.hpp"
-#include "openvino/util/wstring_convert_util.hpp"
 #include "transform.hpp"
 
 namespace {
@@ -264,8 +263,8 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
             m_sha1_digest = entry.value();
         }
     }
-    const auto full_path =
-        ov::util::get_absolute_file_path(ov::util::path_join({graph_iterator->get_model_dir(), ext_location}));
+    const auto full_path = ov::util::get_absolute_file_path(
+        ov::util::path_join({graph_iterator->get_model_dir(), ov::util::make_path(ext_location)}));
     const int64_t file_size = ov::util::file_size(full_path);
     if ((file_size <= 0 && ext_data_length > 0) || ext_data_length > static_cast<uint64_t>(file_size) ||
         ext_data_offset > static_cast<uint64_t>(file_size) - ext_data_length) {
@@ -279,8 +278,6 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
                                             ? static_cast<size_t>(ext_data_length)
                                             : static_cast<size_t>(file_size) - static_cast<size_t>(ext_data_offset);
     auto memory_mode = graph_iterator->get_memory_management_mode();
-    // Remove when cache map will use path instead string.
-    const auto full_path_str = ov::util::path_to_string(full_path);
     if (ext_location == "*/_ORT_MEM_ADDR_/*") {
         // Specific ONNX Runtime Case when it passes a model with self-managed data
         tensor_meta_info.m_is_raw = true;
@@ -290,13 +287,13 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
         return true;
     } else if (memory_mode == External_MMAP) {
         auto cache = graph_iterator->get_mmap_cache();
-        auto cached_mapped_memory = cache->find(full_path_str);
+        auto cached_mapped_memory = cache->find(full_path);
         std::shared_ptr<ov::MappedMemory> mapped_memory;
         if (cached_mapped_memory != cache->end()) {
             mapped_memory = cached_mapped_memory->second;
         } else {
             mapped_memory = ov::load_mmap_object(full_path);
-            (*cache)[full_path_str] = mapped_memory;
+            (*cache)[full_path] = mapped_memory;
         }
         tensor_meta_info.m_is_raw = true;
         tensor_meta_info.m_tensor_data =
@@ -306,7 +303,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
     } else if (memory_mode == External_Stream) {
         auto cache = graph_iterator->get_stream_cache();
         FRONT_END_GENERAL_CHECK(cache, "Stream cache is not initialized for external stream mode");
-        auto cached_stream = cache->find(full_path_str);
+        auto cached_stream = cache->find(full_path);
         std::shared_ptr<std::ifstream> external_data_stream;
         if (cached_stream != cache->end()) {
             external_data_stream = cached_stream->second;
@@ -316,7 +313,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
                                         p->close();
                                         delete p;
                                     }};
-            (*cache)[full_path_str] = external_data_stream;
+            (*cache)[full_path] = external_data_stream;
         }
 
         if (external_data_stream->fail() || !external_data_stream->good()) {
@@ -335,7 +332,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
                                    tensor_meta_info.m_tensor_data_size);
         return true;
     } else if (memory_mode == Internal_MMAP || memory_mode == Internal_Stream) {
-        tensor_meta_info.m_external_location = std::make_shared<std::string>(full_path_str);
+        tensor_meta_info.m_external_location = std::make_shared<std::string>(ov::util::path_to_string(full_path));
         tensor_meta_info.m_tensor_data = reinterpret_cast<uint8_t*>(ext_data_offset);
         tensor_meta_info.m_tensor_data_size = ext_data_length;
         return true;
@@ -457,10 +454,12 @@ GraphIteratorProto::GraphIteratorProto(const GraphIteratorProtoMemoryManagementM
     : m_graph(nullptr),
       m_parent(nullptr),
       m_mode(mode),
-      m_mmap_cache{mode == External_MMAP ? std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>()
-                                         : nullptr},
-      m_stream_cache{mode == External_Stream ? std::make_shared<std::map<std::string, std::shared_ptr<std::ifstream>>>()
-                                             : nullptr},
+      m_mmap_cache{mode == External_MMAP
+                       ? std::make_shared<std::map<std::filesystem::path, std::shared_ptr<ov::MappedMemory>>>()
+                       : nullptr},
+      m_stream_cache{mode == External_Stream
+                         ? std::make_shared<std::map<std::filesystem::path, std::shared_ptr<std::ifstream>>>()
+                         : nullptr},
       m_data_holder{mode == External_Stream ? std::make_shared<std::vector<std::shared_ptr<uint8_t>>>() : nullptr} {}
 
 GraphIteratorProto::GraphIteratorProto(GraphIteratorProto* parent, const GraphProto* graph_def) {
@@ -476,10 +475,9 @@ GraphIteratorProto::GraphIteratorProto(GraphIteratorProto* parent, const GraphPr
 
 void GraphIteratorProto::initialize(const std::filesystem::path& path) {
     m_model_dir = ov::util::get_directory(path);
-    const auto path_string = ov::util::path_to_string(path);
     try {
         std::ifstream model_file(path, std::ios::binary | std::ios::in);
-        FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Could not open the file: \"", path_string, "\"");
+        FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Could not open the file: ", path);
 
         m_model = std::make_shared<ModelProto>();
         FRONT_END_GENERAL_CHECK(m_model->ParseFromIstream(&model_file), "Model can't be parsed");

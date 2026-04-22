@@ -7,6 +7,7 @@
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "openvino/util/parallel_read_streambuf.hpp"
 #include "openvino/util/variant_visitor.hpp"
 
 namespace ov::runtime {
@@ -259,8 +260,9 @@ void SingleFileStorage::read_cache_entry(const std::string& blob_id, bool enable
                                                                blob_pos)};
             reader(compiled_blob);
         } else {
-            std::ifstream stream(m_file_path, std::ios::binary);
-            stream.seekg(blob_pos);
+            // Use parallel file I/O to saturate NVMe bandwidth instead of single-threaded ifstream.
+            ov::util::ParallelReadStreamBuf par_buf(m_file_path, static_cast<std::streamoff>(blob_pos));
+            std::istream stream(&par_buf);
             CompiledBlobVariant compiled_blob{std::in_place_index<1>, std::ref(stream)};
             reader(compiled_blob);
         }
