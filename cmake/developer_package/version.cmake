@@ -186,7 +186,7 @@ macro (ov_add_version_defines FILE TARGET)
     target_include_directories(${TARGET}_version PRIVATE
         $<TARGET_PROPERTY:${TARGET},INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:${TARGET},INCLUDE_DIRECTORIES>)
-    if (NOT __target_type STREQUAL "STATIC_LIBRARY")
+    if (__target_type STREQUAL "SHARED_LIBRARY" OR __target_type STREQUAL "MODULE_LIBRARY")
         target_link_libraries(${TARGET}_version PRIVATE
             $<TARGET_PROPERTY:${TARGET},LINK_LIBRARIES>)
     endif()
