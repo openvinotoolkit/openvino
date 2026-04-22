@@ -106,7 +106,7 @@ protected:
      * @note This operation was detached from "write" since "write" writes at the beginning of the stream, while this
      * method writes at the end. This change allows better extension of class hierarchy.
      */
-    void append_padding_blob_size_and_magic(std::ostream& stream);
+    void append_blob_size_and_magic(std::ostream& stream);
 
     uint32_t _version;
     uint64_t _blobDataSize;
