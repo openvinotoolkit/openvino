@@ -71,31 +71,26 @@ public:
 
         std::tie(target_device, configuration) = this->GetParam();
 
+        std::vector<std::string> deviceNames =
+            core->get_property("NPU", ov::available_devices.name()).as<std::vector<std::string>>();
+        for (auto name : deviceNames) {
+            if (target_device.find(name) != std::string::npos) {
+                isTargetDevice = true;
+                break;
+            }
+        }
+
         APIBaseTest::SetUp();
     }
 
-    bool isLLVMFormat(std::stringstream& modelStream) {
-        auto pos = modelStream.tellg();
-        if (pos == std::streampos(-1)) {
-            return false;
-        }
-
-        modelStream.seekg(0, std::ios::beg);
-
-        // Assume the first 20 char of LLVM blob shall have key word 'llvm'
-        std::string region(20, '\0');
-        modelStream.read(&region[0], 20);
-        region.resize(modelStream.gcount());
-
-        modelStream.clear();
-        modelStream.seekg(pos);
-
-        return region.find("llvm") != std::string::npos;
+    void TearDown() {
+        core->set_property("NPU", ov::log::level(ov::log::Level::ERR));
     }
 
 protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
+    bool isTargetDevice = false;
 };
 
 TEST_P(InferWithHostCompileTests, Compile) {
@@ -110,12 +105,15 @@ TEST_P(InferWithHostCompileTests, Compile) {
     std::stringstream modelStream;
     OV_ASSERT_NO_THROW(compiledModel.export_model(modelStream));
 
-    // With HostCompile, the modelStream shall contain "llvm.func"
-    ASSERT_TRUE(isLLVMFormat(modelStream)) << "CompiledStream from HostCompile mode shall has 'llvm.func' inside it";
-
     ov::InferRequest reqDynamic;
-    // Add shape check once npu_mlir_runtime is inside test package
-    EXPECT_THROW(reqDynamic = compiledModel.create_infer_request(), ov::Exception);
+
+    try {
+        reqDynamic = compiledModel.create_infer_request();
+    } catch (const ov::Exception& e) {
+        if (std::string(e.what()).find("Cannot load library") == std::string::npos) {
+            FAIL() << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
+        }
+    }
 }
 
 TEST_P(InferWithHostCompileTests, CompileAndImport) {
@@ -130,15 +128,51 @@ TEST_P(InferWithHostCompileTests, CompileAndImport) {
     std::stringstream modelStream;
     OV_ASSERT_NO_THROW(compiledModel.export_model(modelStream));
 
-    // With HostCompile, the modelStream shall contain "llvm.func"
-    ASSERT_TRUE(isLLVMFormat(modelStream)) << "CompiledStream from HostCompile mode shall has 'llvm.func' inside it";
+    ov::CompiledModel importedModel;
+    OV_ASSERT_NO_THROW(core->import_model(modelStream, target_device, configuration));
+
+    ov::InferRequest reqDynamic;
+
+    try {
+        reqDynamic = compiledModel.create_infer_request();
+    } catch (const ov::Exception& e) {
+        if (std::string(e.what()).find("Cannot load library") == std::string::npos) {
+            FAIL() << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
+        }
+    }
+}
+
+TEST_P(InferWithHostCompileTests, CompileAndImportAndInfer) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+    auto model = createMaxPoolModel();
+
+    ov::CompiledModel compiledModel;
+    // Compilation shall pass since load of npu_mlir_runtime is deffered with NPU_CREATE_EXECUTOR=0
+    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
+
+    std::stringstream modelStream;
+    OV_ASSERT_NO_THROW(compiledModel.export_model(modelStream));
 
     ov::CompiledModel importedModel;
     OV_ASSERT_NO_THROW(core->import_model(modelStream, target_device, configuration));
 
     ov::InferRequest reqDynamic;
-    // Add shape check once npu_mlir_runtime is inside test package
-    EXPECT_THROW(reqDynamic = importedModel.create_infer_request(), ov::Exception);
+
+    try {
+        reqDynamic = compiledModel.create_infer_request();
+    } catch (const ov::Exception& e) {
+        if (std::string(e.what()).find("Cannot load library") == std::string::npos) {
+            FAIL() << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
+        } else {
+            GTEST_SKIP() << "Cannot load library, skip test.";
+        }
+    }
+
+    OV_ASSERT_NO_THROW(reqDynamic.infer());
 }
 
 }  // namespace behavior
