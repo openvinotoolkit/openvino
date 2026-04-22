@@ -1995,3 +1995,76 @@ TEST(prepare_buffer_fusing, in_place_crop_dynamic_batch_axis_split_with_reshape_
     for (size_t i = 0; i < slice_elems; i++)
         ASSERT_FLOAT_EQ(v_out[i], input_data[2 * slice_elems + i]) << "V mismatch at " << i;
 }
+
+// When reshape is optimized out (in-place), its output aliases dependency-0's buffer.
+// The memory pool must not recycle that buffer while the reshape's downstream users still
+// need it, so can_share_buffer must be set to false on the data input (dep 0).
+// For the dynamic-pattern variant the shape tensor at dep 1 is never aliased
+// and must keep can_share_buffer == true.
+TEST(prepare_buffer_fusing, optimized_reshape_pins_data_input_buffer) {
+    auto& engine = get_test_engine();
+    auto in_layout = layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
+    auto pattern_layout = layout{ov::PartialShape::dynamic(4), data_types::i64, format::bfyx};
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(input_layout("pattern", pattern_layout));
+    topology.add(permute("permute1", input_info("input"), {0, 2, 3, 1}));
+    topology.add(reshape("reshape", input_info("permute1"), input_info("pattern"),
+                         false, ov::PartialShape::dynamic(4)));
+    topology.add(permute("permute2", input_info("reshape"), {0, 3, 2, 1}));
+    topology.add(reorder("reorder", input_info("permute2"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+    ASSERT_NE(prog, nullptr);
+
+    program_wrapper::apply_opt_pass<prepare_buffer_fusing>(*prog);
+
+    auto& reshape_node = prog->get_node("reshape").as<reshape>();
+    ASSERT_TRUE(reshape_node.can_be_optimized());
+
+    // Dep 0 (data input) must be pinned — its buffer is aliased by the optimized reshape.
+    auto& data_dep = reshape_node.get_dependency(0);
+    ASSERT_FALSE(data_dep.can_share_buffer())
+        << "Data input (dep 0) of an optimized reshape must have can_share_buffer == false";
+
+    // Dep 1 (shape pattern) exists but is an input_layout whose can_share_buffer
+    // is already false by default (user-provided buffer). Verify the reshape has 2 deps.
+    ASSERT_EQ(reshape_node.get_dependencies().size(), 2u);
+}
+
+// Same verification for a static-pattern reshape (single dependency).
+TEST(prepare_buffer_fusing, optimized_static_reshape_pins_data_input_buffer) {
+    auto& engine = get_test_engine();
+    auto in_layout = layout{ov::PartialShape{1, 2, -1}, data_types::f32, format::bfyx};
+    auto weights_layout = layout{ov::PartialShape{2, 4}, data_types::f32, format::bfyx};
+    auto weights_memory = engine.allocate_memory(weights_layout);
+    set_values<float>(weights_memory, {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(data("weights", weights_memory));
+    topology.add(permute("permute1", input_info("input"), {0, 2, 1}));
+    topology.add(reshape("reshape", input_info("permute1"), false,
+                         {2, 4}, ov::PartialShape{2, 4}));
+    topology.add(fully_connected("fc", input_info("reshape"), "weights", "", 2));
+    topology.add(reorder("reorder", input_info("fc"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+    ASSERT_NE(prog, nullptr);
+
+    prog->get_node("reorder").get_output_layout(true);
+    program_wrapper::apply_opt_pass<prepare_buffer_fusing>(*prog);
+
+    auto& reshape_node = prog->get_node("reshape").as<reshape>();
+    ASSERT_TRUE(reshape_node.can_be_optimized());
+
+    // Single dependency (data input at index 0) must be pinned.
+    auto& data_dep = reshape_node.get_dependency(0);
+    ASSERT_FALSE(data_dep.can_share_buffer())
+        << "Data input (dep 0) of an optimized static reshape must have can_share_buffer == false";
+}
