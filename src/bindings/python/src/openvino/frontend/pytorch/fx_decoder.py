@@ -280,7 +280,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         if version.parse(torch.__version__) >= version.parse("2.6"):
             if cls._decomp_table is None:
                 from torch.export.decomp_utils import CustomDecompTable
-                from openvino.frontend.pytorch.torchdynamo.decompositions import ops_to_not_decompose
+                from openvino.frontend.pytorch.torchdynamo.export_decompositions import ops_to_not_decompose
                 cls._decomp_table = CustomDecompTable()
                 for op in ops_to_not_decompose():
                     try:
@@ -290,7 +290,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             exported_program = exported_program.run_decompositions(cls._decomp_table)
         elif version.parse(torch.__version__) >= version.parse("2.2"):
             from torch._decomp import get_decompositions
-            from openvino.frontend.pytorch.torchdynamo.decompositions import get_export_decomposition_list
+            from openvino.frontend.pytorch.torchdynamo.export_decompositions import get_export_decomposition_list
             decomp = get_decompositions(get_export_decomposition_list())
             exported_program = exported_program.run_decompositions(decomp_table=decomp)
         gm = exported_program.module()

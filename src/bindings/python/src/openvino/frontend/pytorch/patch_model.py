@@ -260,7 +260,7 @@ def patch_model_for_export(model, module_extensions, orig_forward_name):
 
         # Reuse if already auto-registered (e.g. two extensions sharing a name).
         try:
-            op_fn = getattr(getattr(torch.ops, "ov_ext"), safe_op_name)
+            op_fn = getattr(torch.ops.ov_ext, safe_op_name)
             op_type_mapping[registered_name] = target_op
             return op_fn
         except (AttributeError, RuntimeError):
@@ -287,8 +287,9 @@ def patch_model_for_export(model, module_extensions, orig_forward_name):
             # Count tensor inputs from the module's forward signature
             # (exclude 'self') to register the op with the right arity.
             sig = inspect.signature(module.forward)
-            num_inputs = sum(1 for p in sig.parameters.values()
-                            if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD))
+            num_inputs = sum(
+                1 for p in sig.parameters.values()
+                if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD))
             target_op = _resolve_target_op(extension, num_inputs)
 
             def new_forward(*args, **kwargs):
