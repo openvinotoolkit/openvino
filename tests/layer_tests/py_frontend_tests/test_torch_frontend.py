@@ -539,6 +539,32 @@ def test_module_extension_dynamo():
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
         "Parameter", "Sin", "Result"]
 
+    # Multi-input module: op schema is generated with correct arity
+    class AddModule(torch.nn.Module):
+        def forward(self, x, y):
+            return x + y
+
+    class ModelWithAdd(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.add_mod = AddModule()
+
+        def forward(self, a, b):
+            return self.add_mod(a, b)
+
+    def mul_op(context):
+        return ops.multiply(context.get_input(0), context.get_input(1)).outputs()
+
+    model = ModelWithAdd()
+    converted_model = convert_model(
+        model, example_input=[torch.randn(100), torch.randn(100)], dynamo=True,
+        extension=[
+            ModuleExtension(AddModule, "MyMulOp"),
+            ConversionExtension("MyMulOp", mul_op)])
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Parameter", "Multiply", "Result"]
+
 
 def test_module_extension_dynamo_custom_callbacks():
     """Verify ModuleExtension with non-default evaluate, convert, and condition."""

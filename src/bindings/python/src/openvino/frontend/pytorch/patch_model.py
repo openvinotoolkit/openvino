@@ -5,6 +5,7 @@
 # mypy: ignore-errors
 
 import functools
+import inspect
 import logging
 import threading
 import torch
@@ -173,12 +174,11 @@ def _unpatch_torch_functions():
 _auto_registered_libs = []
 
 
-def _auto_register_module_extension_op(namespace, op_name):
+def _auto_register_module_extension_op(namespace, op_name, num_inputs=1):
     """Auto-register a ``torch.library`` op for a ``ModuleExtension`` target.
 
-    Creates a simple ``(Tensor x) -> Tensor`` passthrough op so that
-    ``torch.export`` can capture the call in the FX graph.  Works for
-    modules whose default ``convert`` callback forwards a single tensor.
+    Creates a passthrough op with ``num_inputs`` Tensor arguments and a single
+    Tensor output so that ``torch.export`` can capture the call in the FX graph.
     """
     # Use FRAGMENT if the namespace already has a DEF library (e.g. ov_ext
     # from ov_custom_ops.py), otherwise create a new DEF library.
@@ -186,15 +186,16 @@ def _auto_register_module_extension_op(namespace, op_name):
     lib = torch.library.Library(namespace, kind)
     _auto_registered_libs.append(lib)
 
-    lib.define(f"{op_name}(Tensor x) -> Tensor")
+    args = ", ".join(f"Tensor x{i}" for i in range(num_inputs))
+    lib.define(f"{op_name}({args}) -> Tensor")
 
     @torch.library.impl(lib, op_name, "Meta")
-    def _meta(x):
-        return torch.empty_like(x)
+    def _meta(*xs):
+        return torch.empty_like(xs[0])
 
     @torch.library.impl(lib, op_name, "CPU")
-    def _cpu(x):
-        return x
+    def _cpu(*xs):
+        return xs[0]
 
     return getattr(getattr(torch.ops, namespace), op_name)
 
@@ -217,7 +218,7 @@ def patch_model_for_export(model, module_extensions, orig_forward_name):
 
     op_type_mapping = {}  # registered_name → user target_op
 
-    def _resolve_target_op(extension):
+    def _resolve_target_op(extension, num_inputs=1):
         """Resolve ``target_op`` to a passthrough ``torch.ops`` callable.
 
         Always registers a passthrough op under the ``ov_ext`` namespace.
@@ -268,7 +269,7 @@ def patch_model_for_export(model, module_extensions, orig_forward_name):
         # Auto-register a passthrough op under ov_ext.
         log.debug("Auto-registering torch.library op ov_ext::%s for "
                   "ModuleExtension (target_op='%s')", safe_op_name, target_op)
-        op_fn = _auto_register_module_extension_op("ov_ext", safe_op_name)
+        op_fn = _auto_register_module_extension_op("ov_ext", safe_op_name, num_inputs)
         op_type_mapping[registered_name] = target_op
         return op_fn
 
@@ -283,7 +284,12 @@ def patch_model_for_export(model, module_extensions, orig_forward_name):
 
         if extension and extension.condition(module):
             log.debug("Patching module %s for torch.export", module)
-            target_op = _resolve_target_op(extension)
+            # Count tensor inputs from the module's forward signature
+            # (exclude 'self') to register the op with the right arity.
+            sig = inspect.signature(module.forward)
+            num_inputs = sum(1 for p in sig.parameters.values()
+                            if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD))
+            target_op = _resolve_target_op(extension, num_inputs)
 
             def new_forward(*args, **kwargs):
                 return extension.convert(module, target_op, *args, **kwargs)
