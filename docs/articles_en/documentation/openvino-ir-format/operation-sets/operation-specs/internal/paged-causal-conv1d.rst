@@ -33,6 +33,7 @@ the output embedding.
 
 4. Saves the final state for each sequence into the last assigned block.
 
+
 The convolution state is initially a zero tensor.
 Paged memory management allows states to be shared across sequences (prefix caching) and allocated on demand.
 
