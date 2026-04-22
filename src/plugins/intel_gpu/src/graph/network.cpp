@@ -48,6 +48,11 @@
 #include <map>
 #include <functional>
 #include <fstream>
+#include <mutex>
+#include <condition_variable>
+#include <cstdlib>
+#include <iostream>
+#include <atomic>
 
 #include "debug_helper.hpp"
 #ifdef GPU_DEBUG_CONFIG
@@ -148,6 +153,31 @@ static uint32_t get_unique_net_id() {
     static std::atomic<uint32_t> id_gen{0};
     return ++id_gen;
 }
+
+static int g_round_robin = 0;
+static std::once_flag g_rr_flag;
+
+struct CyclicBarrier {
+    std::mutex mtx;
+    std::condition_variable cv;
+    int count = 0;
+    int generation = 0;
+    int threshold = 0;
+
+    void arrive_and_wait() {
+        std::unique_lock<std::mutex> lk(mtx);
+        int gen = generation;
+        if (++count >= threshold) {
+            count = 0;
+            generation++;
+            cv.notify_all();
+        } else {
+            cv.wait(lk, [&] { return generation != gen; });
+        }
+    }
+};
+
+static CyclicBarrier g_barrier;
 
 /*
 Network will always have net_id = 0 when it will be cldnn internal micronetwork (created i.e by propagate_constants
@@ -827,12 +857,22 @@ bool network::has_event(const primitive_id& id) const {
 void network::execute_impl(const std::vector<event::ptr>& events) {
     set_arguments();
 
+    std::call_once(g_rr_flag, [] {
+        if (auto* val = std::getenv("ROUND_ROBIN")) {
+            g_round_robin = std::atoi(val);
+        }
+        std::cout << "[GPU] ROUND_ROBIN=" << g_round_robin << std::endl;
+        g_barrier.threshold = g_round_robin;
+    });
+
     // This extra flush command is needed for dynamic models in both cases of out_of_order / in_order operating mode
     // since it reduces `bubbles` number in pipeline and GPU's idle time by timely flushing new kernels to device.
     // The freqency of flushing (16) is selected empirically, see details in tickets 116365, 116287, 139931.
     const bool needs_flushing = _is_dynamic;
     const size_t flush_frequency = needs_flushing ? 16 : 0;
     size_t executed_prims = 0;
+    static std::atomic<size_t> exec_count{0};
+    exec_count++;
 
     for (auto& inst : _exec_order) {
         NODE_DEBUG(*inst);
@@ -850,6 +890,9 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         executed_prims++;
         if (needs_flushing && executed_prims % flush_frequency == 0)
             get_stream().flush();
+
+        if (exec_count > 2 && g_round_robin > 1)
+            g_barrier.arrive_and_wait();
     }
 
     // Using output of previous network as input to another one may cause hazard (in OOOQ mode) if user would not
