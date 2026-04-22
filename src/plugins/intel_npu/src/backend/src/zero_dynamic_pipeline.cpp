@@ -4,7 +4,7 @@
 
 #include "zero_dynamic_pipeline.hpp"
 
-#include <ze_api.h>
+#include <level_zero/ze_api.h>
 #include <ze_graph_ext.h>
 
 #include <sstream>
@@ -182,7 +182,7 @@ void DynamicPipeline::push() {
     OPENVINO_ASSERT(dynamicGraph != nullptr, "Failed to cast graph to IDynamicGraph");
 
     const auto command_queue_desc = _graph->get_command_queue_desc();
-    const bool command_queue_version_changed = (command_queue_desc.key != _command_queue->desc().key);
+    const bool command_queue_version_changed = (command_queue_desc.key() != _command_queue->desc().key());
     if (command_queue_version_changed) {
         _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, command_queue_desc);
 
@@ -310,19 +310,11 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
                     "Command list index is higher than the number of Command lists ",
                     batch_index);
 
-    if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
-        _command_lists.at(batch_index)
-            ->updateMutableCommandList(index,
-                                       zeroTensor->data(),
-                                       get_strides(tensor->get_strides(), elementSize),
-                                       tensor->get_shape());
-    } else {
-        _command_lists.at(batch_index)
-            ->updateMutableCommandList(index,
-                                       zeroTensor->data(),
-                                       get_strides(tensor->get_strides(), elementSize),
-                                       tensor->get_shape());
-    }
+    _command_lists.at(batch_index)
+        ->updateMutableCommandList(index,
+                                   zeroTensor->data(),
+                                   get_strides(tensor->get_strides(), elementSize),
+                                   tensor->get_shape());
 }
 
 }  // namespace intel_npu

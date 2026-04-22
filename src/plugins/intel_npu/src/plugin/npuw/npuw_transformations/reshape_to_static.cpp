@@ -16,7 +16,8 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
                        const uint32_t kvcache_size,
                        const ov::npuw::KVAxesPosition& kv_axes_position,
                        const uint32_t lora_rank,
-                       const uint32_t lhs_seq_size = 0) {
+                       const uint32_t lhs_seq_size = 0,
+                       const bool is_prefill = false) {
     std::map<std::string, ov::PartialShape> new_shapes;
     for (const auto& input : model->inputs()) {
         const auto& input_name = input.get_any_name();
@@ -51,8 +52,9 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
             new_shape[0] = 1;  // batch_dim
-        } else if (ov::npuw::matchEagle3HiddenStatesString(input_name)) {
-            new_shape = ov::npuw::Eagle3Extension::get_static_input(model, input, input_size);
+        } else if (ov::npuw::matchEagle3HiddenStatesString(input_name) ||
+                   ov::npuw::matchEagle3TreeMaskString(input_name)) {
+            new_shape = ov::npuw::Eagle3Extension::get_static_input(model, input, input_size, kvcache_size, is_prefill);
         } else if (ov::npuw::util::matchLoRAMatMulAString(input_name)) {
             new_shape = ov::PartialShape({lora_rank, input.get_partial_shape()[1]});
         } else if (ov::npuw::util::matchLoRAMatMulAlphaString(input_name)) {
@@ -84,15 +86,23 @@ ReshapeToStatic::ReshapeToStatic(const uint32_t input_size,
                                  const uint32_t kvcache_size,
                                  const KVAxesPosition& kv_axes_position,
                                  const uint32_t lora_rank,
-                                 const uint32_t lhs_seq_size)
+                                 const uint32_t lhs_seq_size,
+                                 const bool is_prefill)
     : m_input_size(input_size),
       m_kvcache_size(kvcache_size),
       m_kv_axes_position(kv_axes_position),
       m_lora_rank(lora_rank),
-      m_lhs_seq_size(lhs_seq_size) {}
+      m_lhs_seq_size(lhs_seq_size),
+      m_is_prefill(is_prefill) {}
 
 bool ReshapeToStatic::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    reshape_to_static(model, m_input_size, m_kvcache_size, m_kv_axes_position, m_lora_rank, m_lhs_seq_size);
+    reshape_to_static(model,
+                      m_input_size,
+                      m_kvcache_size,
+                      m_kv_axes_position,
+                      m_lora_rank,
+                      m_lhs_seq_size,
+                      m_is_prefill);
 
     return true;
 }

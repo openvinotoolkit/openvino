@@ -11,6 +11,7 @@
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/profiling.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "model_serializer.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/file_util.hpp"
@@ -97,87 +98,19 @@ ov::Tensor make_tensor_from_aligned_addr(uint8_t* allocated, size_t size) {
     ov::Allocator allocator;
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{size}, allocated);
     auto impl = ov::get_tensor_impl(std::move(tensor));
-    std::shared_ptr<void> ptr(allocated, [allocator, size](uint8_t* p) mutable {
+    std::shared_ptr<void> ptr(allocated, [allocator = std::move(allocator), size](uint8_t* p) mutable {
         if (p == nullptr) {
             OPENVINO_THROW("Pointer is nullptr in memory deallocation of make_tensor_from_aligned_addr!");
         }
         allocator.deallocate(p, size, intel_npu::utils::STANDARD_PAGE_SIZE);
     });
-    impl._so = ptr;
+    impl._so = std::move(ptr);
     return ov::make_tensor(impl);
 }
 
 }  // namespace
 
 namespace intel_npu {
-
-// clang-format off
-#define vcl_symbols_list()                                  \
-    vcl_symbol_statement(vclGetVersion)                     \
-    vcl_symbol_statement(vclCompilerCreate)                 \
-    vcl_symbol_statement(vclCompilerDestroy)                \
-    vcl_symbol_statement(vclCompilerGetProperties)          \
-    vcl_symbol_statement(vclQueryNetworkCreate)             \
-    vcl_symbol_statement(vclQueryNetwork)                   \
-    vcl_symbol_statement(vclQueryNetworkDestroy)            \
-    vcl_symbol_statement(vclExecutableCreate)               \
-    vcl_symbol_statement(vclAllocatedExecutableCreate)      \
-    vcl_symbol_statement(vclExecutableDestroy)              \
-    vcl_symbol_statement(vclExecutableGetSerializableBlob)  \
-    vcl_symbol_statement(vclProfilingCreate)                \
-    vcl_symbol_statement(vclGetDecodedProfilingBuffer)      \
-    vcl_symbol_statement(vclProfilingDestroy)               \
-    vcl_symbol_statement(vclProfilingGetProperties)         \
-    vcl_symbol_statement(vclLogHandleGetString)             \
-    vcl_symbol_statement(vclAllocatedExecutableCreate2)     \
-    vcl_symbol_statement(vclGetCompilerSupportedOptions)    \
-    vcl_symbol_statement(vclGetCompilerIsOptionSupported)   \
-
-
-// symbols that may not be supported in older versions of vcl
-#define vcl_weak_symbols_list()                             \
-    vcl_symbol_statement(vclAllocatedExecutableCreateWSOneShot)
-// clang-format on
-
-class VCLApi {
-public:
-    VCLApi();
-    VCLApi(const VCLApi& other) = delete;
-    VCLApi(VCLApi&& other) = delete;
-    void operator=(const VCLApi&) = delete;
-    void operator=(VCLApi&&) = delete;
-
-    static const std::shared_ptr<VCLApi> getInstance();
-    std::shared_ptr<void> getLibrary() const {
-        return lib;
-    }
-
-#define vcl_symbol_statement(vcl_symbol) decltype(&::vcl_symbol) vcl_symbol;
-    vcl_symbols_list();
-    vcl_weak_symbols_list();
-#undef vcl_symbol_statement
-
-private:
-    std::shared_ptr<void> lib;
-    Logger _logger;
-};
-
-#define vcl_symbol_statement(vcl_symbol)                                                                            \
-    template <typename... Args>                                                                                     \
-    inline typename std::invoke_result<decltype(&::vcl_symbol), Args...>::type wrapped_##vcl_symbol(Args... args) { \
-        const auto& ptr = VCLApi::getInstance();                                                                    \
-        if (ptr->vcl_symbol == nullptr) {                                                                           \
-            OPENVINO_THROW("Unsupported vcl_symbol " #vcl_symbol);                                                  \
-        }                                                                                                           \
-        return ptr->vcl_symbol(std::forward<Args>(args)...);                                                        \
-    }
-vcl_symbols_list();
-vcl_weak_symbols_list();
-#undef vcl_symbol_statement
-#define vcl_symbol_statement(vcl_symbol) inline decltype(&::vcl_symbol) vcl_symbol = wrapped_##vcl_symbol;
-vcl_symbols_list();
-vcl_weak_symbols_list();
-#undef vcl_symbol_statement
 
 static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
     Logger _logger("VCLAPI", Logger::global().level());
@@ -228,60 +161,6 @@ static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
                            getLatestVCLLog(logHandle)); \
         }                                               \
     }
-
-VCLApi::VCLApi() : _logger("VCLApi", Logger::global().level()) {
-    std::filesystem::path baseName = "openvino_intel_npu_compiler_loader";
-    std::filesystem::path libpath{};
-
-    try {
-        libpath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName);
-        _logger.debug("Try to load %s", baseName.string().c_str());
-        this->lib = ov::util::load_shared_object(libpath);
-    } catch (const std::runtime_error& error) {
-        _logger.debug("Failed to load %s: %s", baseName.string().c_str(), error.what());
-
-        // TODO: remove fallback loading logic after all components switch to "openvino_intel_npu_compiler_loader"
-        baseName = "openvino_intel_npu_compiler";
-        _logger.debug("Trying to load %s", baseName.string().c_str());
-        try {
-            libpath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName);
-            this->lib = ov::util::load_shared_object(libpath);
-        } catch (const std::runtime_error& error) {
-            _logger.debug("Failed to load a fallback library: %s", baseName.string().c_str());
-            OPENVINO_THROW(error.what());
-        }
-    }
-
-    try {
-#define vcl_symbol_statement(vcl_symbol) \
-    this->vcl_symbol = reinterpret_cast<decltype(&::vcl_symbol)>(ov::util::get_symbol(lib, #vcl_symbol));
-        vcl_symbols_list();
-#undef vcl_symbol_statement
-    } catch (const std::runtime_error& error) {
-        _logger.debug("Failed to get formal symbols from %s", baseName.string().c_str());
-        OPENVINO_THROW(error.what());
-    }
-
-#define vcl_symbol_statement(vcl_symbol)                                                                      \
-    try {                                                                                                     \
-        this->vcl_symbol = reinterpret_cast<decltype(&::vcl_symbol)>(ov::util::get_symbol(lib, #vcl_symbol)); \
-    } catch (const std::runtime_error&) {                                                                     \
-        _logger.debug("Failed to get %s from %s", #vcl_symbol, baseName.string().c_str());                    \
-        this->vcl_symbol = nullptr;                                                                           \
-    }
-    vcl_weak_symbols_list();
-#undef vcl_symbol_statement
-
-#define vcl_symbol_statement(vcl_symbol) vcl_symbol = this->vcl_symbol;
-    vcl_symbols_list();
-    vcl_weak_symbols_list();
-#undef vcl_symbol_statement
-}
-
-const std::shared_ptr<VCLApi> VCLApi::getInstance() {
-    static std::shared_ptr<VCLApi> instance = std::make_shared<VCLApi>();
-    return instance;
-}
 
 const std::shared_ptr<VCLCompilerImpl> VCLCompilerImpl::getInstance() {
     static std::mutex mutex;
