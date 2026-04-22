@@ -35,6 +35,9 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
+    bool has_evaluate() const override;
+
 protected:
     size_t m_batch_dims = 0;
 };
