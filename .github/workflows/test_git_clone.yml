@@ -25,7 +25,8 @@ jobs:
       run:
         shell: bash
     runs-on: aks-linux-8-cores-32gb-st
-#    container:
+    container:
+      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04'
 #      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
 #      volumes:
 #        - /mount/caches:/mount/caches
