@@ -12,6 +12,10 @@ namespace ov::op::internal {
 ///
 /// Computes gated delta net attention over input tokens using a block-based recurrent state table
 /// managed by the paged execution pipeline. The recurrent state table is updated in-place by the kernel.
+///
+/// This operation uses grouped-query linear attention. The number of groups is
+/// ``num_groups = v_num_heads / num_heads``. Each query and key head is shared by
+/// ``num_groups`` consecutive value heads, with the mapping ``h_q = h_v / num_groups``.
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API PagedGatedDeltaNet : public ov::op::Op {
 public:
@@ -21,8 +25,10 @@ public:
     /// \brief Constructs a PagedGatedDeltaNet operation.
     ///
     /// \param query Query tensor [batch_size_in_tokens, num_heads, key_head_dim].
+    ///        num_heads is the number of query/key heads; v_num_heads must be divisible by num_heads.
     /// \param key Key tensor [batch_size_in_tokens, num_heads, key_head_dim].
     /// \param value Value tensor [batch_size_in_tokens, v_num_heads, value_head_dim].
+    ///        v_num_heads >= num_heads; the ratio v_num_heads/num_heads gives the number of GQA groups.
     /// \param recurrent_state_table Block table containing recurrent states
     ///        [num_blocks, v_num_heads, key_head_dim, value_head_dim].
     /// \param gate Gate tensor [batch_size_in_tokens, v_num_heads].
