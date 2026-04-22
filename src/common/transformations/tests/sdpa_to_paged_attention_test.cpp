@@ -18,7 +18,7 @@
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/sdpa_to_paged_attention/total_sequence_length_pattern.hpp"
+#include "transformations/paged_attention/total_sequence_length_pattern.hpp"
 
 using namespace ov;
 

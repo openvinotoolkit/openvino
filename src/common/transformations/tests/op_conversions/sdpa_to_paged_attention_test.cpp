@@ -60,9 +60,9 @@
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "transformations/sdpa_to_paged_attention/position_ids_replacer.hpp"
-#include "transformations/sdpa_to_paged_attention/prev_sequence_length_pattern.hpp"
-#include "transformations/sdpa_to_paged_attention/state_management_pattern.hpp"
-#include "transformations/sdpa_to_paged_attention/total_sequence_length_pattern.hpp"
+#include "transformations/paged_attention/prev_sequence_length_pattern.hpp"
+#include "transformations/paged_attention/state_management_pattern.hpp"
+#include "transformations/paged_attention/total_sequence_length_pattern.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 
 using namespace ov;
