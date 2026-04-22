@@ -624,7 +624,7 @@ TEST_P(SubgraphCollectorParamTest, split_by_affinity) {
             }
 
             ASSERT_TRUE(matched) << "Failed to find a matching actual submodel for expected submodel at index " << i
-                                << (mismatch_details.empty() ? "" : ". Example mismatch: ") << mismatch_details;
+                                 << (mismatch_details.empty() ? "" : ". Example mismatch: ") << mismatch_details;
         }
     }
 
