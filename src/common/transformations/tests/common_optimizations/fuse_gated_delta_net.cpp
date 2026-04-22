@@ -598,4 +598,97 @@ TEST_F(TransformationTestsF, GatedDeltaNetFusion_BuildBLHSLoopedGDNMode_F16) {
     model_ref =
         build_fused_gdn_ref(batch, seq_len, qk_head_num, v_head_num, qk_head_size, v_head_size, ov::element::f16);
 }
+
+namespace {
+
+// Build a model where Q, K, V share one Split anchor, each connected via a single Transpose.
+// After FuseGroupedQueryIntoGDN the Transposes are removed and GDN is directly fed from Split outputs.
+std::shared_ptr<ov::Model> build_grouped_query_gdn_before() {
+    // src: {1, 4, 4, 8} — Split along H into 2 groups → outputs {1, 2, 4, 8}
+    auto src   = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 4, 8});
+    auto state = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 8, 8});
+    auto gate  = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 4});
+    auto beta  = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 4});
+
+    auto split_axis = ov::op::v0::Constant::create(ov::element::i64, {}, {1});
+    auto split = std::make_shared<ov::op::v1::Split>(src, split_axis, 2);
+    // split->output(0) and split->output(1) are both {1, 2, 4, 8}
+
+    auto identity_perm = ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 1, 2, 3});
+    auto q = std::make_shared<ov::op::v1::Transpose>(split->output(0), identity_perm);
+    auto k = std::make_shared<ov::op::v1::Transpose>(split->output(1), identity_perm);
+    auto v = std::make_shared<ov::op::v1::Transpose>(split->output(0), identity_perm);
+
+    auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(q, k, v, state, gate, beta);
+    return std::make_shared<ov::Model>(
+        ov::ResultVector{std::make_shared<ov::op::v0::Result>(gdn->output(0)),
+                         std::make_shared<ov::op::v0::Result>(gdn->output(1))},
+        ov::ParameterVector{src, state, gate, beta});
+}
+
+// Reference "after" model: GDN directly fed from Split outputs (Transposes removed).
+// align_to_reference_shape: {1,2,4,8} compatible with {1,2,4,8} → no Reshape inserted.
+std::shared_ptr<ov::Model> build_grouped_query_gdn_after() {
+    auto src   = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 4, 8});
+    auto state = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 8, 8});
+    auto gate  = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 4});
+    auto beta  = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 4});
+
+    auto split_axis = ov::op::v0::Constant::create(ov::element::i64, {}, {1});
+    auto split = std::make_shared<ov::op::v1::Split>(src, split_axis, 2);
+
+    auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(
+        split->output(0), split->output(1), split->output(0), state, gate, beta);
+    return std::make_shared<ov::Model>(
+        ov::ResultVector{std::make_shared<ov::op::v0::Result>(gdn->output(0)),
+                         std::make_shared<ov::op::v0::Result>(gdn->output(1))},
+        ov::ParameterVector{src, state, gate, beta});
+}
+
+// Build a model where Q, K, V each come from their own Split → anchors differ → no transformation.
+std::shared_ptr<ov::Model> build_grouped_query_gdn_different_anchors() {
+    auto src_q = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 4, 8});
+    auto src_k = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 4, 8});
+    auto src_v = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 4, 8});
+    auto state = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 8, 8});
+    auto gate  = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 4});
+    auto beta  = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 4});
+
+    auto split_axis = ov::op::v0::Constant::create(ov::element::i64, {}, {1});
+    auto q_split = std::make_shared<ov::op::v1::Split>(src_q, split_axis, 2);
+    auto k_split = std::make_shared<ov::op::v1::Split>(src_k, split_axis, 2);
+    auto v_split = std::make_shared<ov::op::v1::Split>(src_v, split_axis, 2);
+
+    auto identity_perm = ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 1, 2, 3});
+    auto q = std::make_shared<ov::op::v1::Transpose>(q_split->output(0), identity_perm);
+    auto k = std::make_shared<ov::op::v1::Transpose>(k_split->output(0), identity_perm);
+    auto v = std::make_shared<ov::op::v1::Transpose>(v_split->output(0), identity_perm);
+
+    auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(q, k, v, state, gate, beta);
+    return std::make_shared<ov::Model>(
+        ov::ResultVector{std::make_shared<ov::op::v0::Result>(gdn->output(0)),
+                         std::make_shared<ov::op::v0::Result>(gdn->output(1))},
+        ov::ParameterVector{src_q, src_k, src_v, state, gate, beta});
+}
+
+}  // namespace
+
+// Positive: all Q/K/V share one Split anchor via a Transpose each → transformation fuses them.
+TEST_F(TransformationTestsF, FuseGroupedQueryIntoGDN_SharedAnchor_Applied) {
+    disable_rt_info_check();
+    disable_result_friendly_names_check();
+    model = build_grouped_query_gdn_before();
+    manager.register_pass<ov::pass::FuseGroupedQueryIntoGDN>();
+    model_ref = build_grouped_query_gdn_after();
+}
+
+// Negative: Q, K, V each come from a distinct Split node → anchors mismatch → transformation skipped.
+TEST_F(TransformationTestsF, FuseGroupedQueryIntoGDN_DifferentAnchors_NotApplied) {
+    disable_rt_info_check();
+    disable_result_friendly_names_check();
+    model = build_grouped_query_gdn_different_anchors();
+    manager.register_pass<ov::pass::FuseGroupedQueryIntoGDN>();
+    model_ref = build_grouped_query_gdn_different_anchors();
+}
+
 }  // namespace ov::test
