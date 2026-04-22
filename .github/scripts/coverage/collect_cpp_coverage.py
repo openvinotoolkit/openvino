@@ -199,17 +199,17 @@ def _classify_unwanted_source(rel_path: Path) -> str | None:
     return None
 
 
-def _classify_profile_unwanted_source(rel_path: Path, *, run_gpu_tests: bool, run_npu_tests: bool) -> str | None:
+def _classify_profile_unwanted_source(rel_path: Path, *, run_gpu_tests: bool) -> str | None:
     """Return profile-specific exclusion reasons for source paths."""
     rel = rel_path.as_posix()
     if not run_gpu_tests and rel.startswith("src/plugins/intel_gpu/"):
         return "gpu-plugin-disabled"
-    if not run_npu_tests and rel.startswith("src/plugins/intel_npu/"):
+    if rel.startswith("src/plugins/intel_npu/"):
         return "npu-plugin-disabled"
     return None
 
 
-def _prune_unwanted_gcda(root: Path, *, label: str, run_gpu_tests: bool, run_npu_tests: bool) -> None:
+def _prune_unwanted_gcda(root: Path, *, label: str, run_gpu_tests: bool) -> None:
     """Delete gcda files that are known to be excluded from the final report.
 
     This reduces lcov capture time by removing whole classes of files that we
@@ -224,7 +224,7 @@ def _prune_unwanted_gcda(root: Path, *, label: str, run_gpu_tests: bool, run_npu
         rel = gcda.relative_to(root)
         reason = _classify_unwanted_gcda(rel)
         if reason is None:
-            reason = _classify_profile_unwanted_source(rel, run_gpu_tests=run_gpu_tests, run_npu_tests=run_npu_tests)
+            reason = _classify_profile_unwanted_source(rel, run_gpu_tests=run_gpu_tests)
         if reason is None:
             continue
         try:
@@ -292,7 +292,6 @@ def _normalize_and_filter_tracefile(
     workspace: Path,
     debug_dir: Path,
     run_gpu_tests: bool,
-    run_npu_tests: bool,
 ) -> dict[str, int]:
     """Normalize ``SF:`` paths and drop records that should not be uploaded."""
     stats: dict[str, int] = {
@@ -342,7 +341,6 @@ def _normalize_and_filter_tracefile(
             exclude_reason = _classify_profile_unwanted_source(
                 rel_source,
                 run_gpu_tests=run_gpu_tests,
-                run_npu_tests=run_npu_tests,
             )
         if exclude_reason is not None:
             stats["dropped_excluded"] += 1
@@ -669,14 +667,12 @@ def run(ctx: CoverageContext) -> None:
         ctx.paths.build_dir,
         label="main build",
         run_gpu_tests=ctx.run_gpu_tests,
-        run_npu_tests=ctx.run_npu_tests,
     )
     if ctx.paths.build_js_dir.exists():
         _prune_unwanted_gcda(
             ctx.paths.build_js_dir,
             label="js build",
             run_gpu_tests=ctx.run_gpu_tests,
-            run_npu_tests=ctx.run_npu_tests,
         )
 
     _prefilter_incompatible_gcda(ctx.paths.build_dir, label="main build")
@@ -760,7 +756,6 @@ def run(ctx: CoverageContext) -> None:
         workspace=src_dir,
         debug_dir=trace_dir,
         run_gpu_tests=ctx.run_gpu_tests,
-        run_npu_tests=ctx.run_npu_tests,
     )
 
     if not merged_info.exists() or merged_info.stat().st_size == 0:
