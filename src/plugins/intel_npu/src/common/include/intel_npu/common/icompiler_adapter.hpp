@@ -37,7 +37,8 @@ public:
     virtual std::optional<std::vector<std::string>> get_supported_options() const = 0;
     virtual bool is_option_supported(std::string optName, std::optional<std::string> optValue = std::nullopt) const = 0;
 
-    virtual bool validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const = 0;
+    virtual bool validate_compatibility_descriptor(const std::string& compatibilityDescriptor,
+                                                        uint32_t deviceId, int64_t numTiles, int64_t stepping) const = 0;
 
     virtual ~ICompilerAdapter() = default;
 };

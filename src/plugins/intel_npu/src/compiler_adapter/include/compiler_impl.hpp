@@ -89,7 +89,8 @@ public:
 
     std::shared_ptr<void> getLinkedLibrary() const;
 
-    bool validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const;
+    bool validate_compatibility_descriptor(const std::string& compatibilityDescriptor,
+                                           uint32_t deviceId, int64_t numTiles, int64_t stepping) const;
 
 private:
     /**

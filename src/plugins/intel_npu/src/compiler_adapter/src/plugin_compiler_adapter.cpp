@@ -295,8 +295,9 @@ bool PluginCompilerAdapter::is_option_supported(std::string optname, std::option
     }
 }
 
-bool PluginCompilerAdapter::validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const {
-    return _compiler->validate_compatibility_descriptor(compatibilityDescriptor);
+bool PluginCompilerAdapter::validate_compatibility_descriptor(const std::string& compatibilityDescriptor,
+                                                              uint32_t deviceId, int64_t numTiles, int64_t stepping) const {
+    return _compiler->validate_compatibility_descriptor(compatibilityDescriptor, deviceId, numTiles, stepping);
 }
 
 }  // namespace intel_npu
