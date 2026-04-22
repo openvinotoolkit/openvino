@@ -44,3 +44,5 @@ unset(_ipf_include_dir)
 unset(_ipf_include_thirdparty_dir)
 unset(_ipf_lib_release)
 unset(_ipf_lib_debug)
+
+message(STATUS "IPF SDK found at: ${IPF_SDK_ROOT}")
