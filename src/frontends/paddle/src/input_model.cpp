@@ -206,6 +206,28 @@ std::filesystem::path get_model_path(std::filesystem::path model_file, std::ifst
 }  // namespace
 
 std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelImpl::get_op_places(const int32_t blck_idx) const {
+    if (m_graph_changed) {
+        return determine_cut_nodes();
+    }
+    if (static_cast<size_t>(blck_idx) < m_op_places.size())
+        return m_op_places[blck_idx];
+    return {};
+}
+
+std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelImpl::determine_cut_nodes() const {
+    std::queue<OpPlace*> q;
+    std::unordered_set<OpPlace*> visited;
+    std::vector<std::shared_ptr<OpPlace>> new_op_places;
+    new_op_places.reserve(m_op_places[0].size());
+    // Marking nodes from outputs to inputs/constants
+    for (const auto& output : get_outputs()) {
+        if (!output->is_input()) {
+            auto paddle_output_op = std::dynamic_pointer_cast<OpPlace>(output->get_producing_operation());
+            FRONT_END_GENERAL_CHECK(paddle_output_op != nullptr, "Output doesn't have producing operation");
+            if (!visited.count(paddle_output_op.get())) {
+                visited.insert(paddle_output_op.get());
+                q.push(paddle_output_op.get());
+                new_op_places.push_back(paddle_output_op);
             }
         }
     }
