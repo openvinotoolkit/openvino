@@ -99,8 +99,12 @@ if(ENABLE_ONEDNN_FOR_GPU)
 
         # Keep Level Zero headers consistent between OpenVINO and oneDNN to avoid ODR issues with LTO.
         if(TARGET LevelZero::Headers)
-            list(APPEND cmake_extra_args "-DLevelZero_INCLUDE_DIR=$<TARGET_PROPERTY:LevelZero::Headers,INTERFACE_INCLUDE_DIRECTORIES>")
-            list(APPEND cmake_extra_args "-DLevelZero_INCLUDE_DIRS=$<TARGET_PROPERTY:LevelZero::Headers,INTERFACE_INCLUDE_DIRECTORIES>")
+            get_target_property(levelzero_include_dirs LevelZero::Headers INTERFACE_INCLUDE_DIRECTORIES)
+            if(levelzero_include_dirs AND NOT levelzero_include_dirs STREQUAL "levelzero_include_dirs-NOTFOUND")
+                string(REPLACE ";" "\\;" levelzero_include_dirs_escaped "${levelzero_include_dirs}")
+                list(APPEND cmake_extra_args "-DLevelZero_INCLUDE_DIR=${levelzero_include_dirs_escaped}")
+                list(APPEND cmake_extra_args "-DLevelZero_INCLUDE_DIRS=${levelzero_include_dirs_escaped}")
+            endif()
         endif()
 
         # oneDNN may still pick different bundled ZE headers depending on its internal CMake logic.
