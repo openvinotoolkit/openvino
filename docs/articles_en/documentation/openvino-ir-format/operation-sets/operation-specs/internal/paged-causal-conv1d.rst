@@ -21,6 +21,7 @@ making it suitable for time-series and autoregressive models.
 *PagedCausalConv1D* processes a flat batch of tokens that may belong to multiple independent sequences.
 The token sequences are described by ``subsequence_begins``. Paged memory uses a fixed ``BLOCK_SIZE=1``,
 meaning each block in ``conv_state_table`` stores exactly one convolution state snapshot of shape ``[hidden_size, kernel_size]``.
+
 For each sequence, the operation:
 
 1. Loads the current convolution state (a window of the last ``kernel_size`` input vectors) from paged memory using the block table.
