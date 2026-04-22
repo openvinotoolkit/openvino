@@ -36,12 +36,59 @@
 #    include <unistd.h>
 #endif
 
+#include <atomic>
+#include <chrono>
+#include <iostream>
+
 #include "LRUCache.hpp"
 #include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "moe_3gemm_fused_inst.h"
 
 namespace ov::intel_gpu::ocl::moe_otd {
+
+// Lightweight perf counters for OTD profiling.
+// Enabled by setting MOE_OTD_PERF_LOG=1 environment variable.
+// Counters are printed to stderr on process exit.
+struct OtdPerfCounters {
+    std::atomic<uint64_t> gpu_hits{0};
+    std::atomic<uint64_t> gpu_misses{0};
+    std::atomic<uint64_t> disk_io_ns{0};
+    std::atomic<uint64_t> transpose_ns{0};
+    std::atomic<uint64_t> gpu_copy_ns{0};
+    std::atomic<uint64_t> tensor_load_count{0};  // number of individual tensor loads (for averaging)
+
+    void dump() const {
+        const auto hits = gpu_hits.load(std::memory_order_relaxed);
+        const auto misses = gpu_misses.load(std::memory_order_relaxed);
+        const auto total = hits + misses;
+        const auto loads = tensor_load_count.load(std::memory_order_relaxed);
+
+        std::cerr << "[OTD_PERF] gpu_hits=" << hits
+                  << ", gpu_misses=" << misses
+                  << ", hit_rate=" << (total > 0 ? 100.0 * hits / total : 0.0) << "%"
+                  << ", tensor_loads=" << loads
+                  << ", avg_disk_io_us=" << (loads > 0 ? disk_io_ns.load(std::memory_order_relaxed) / 1000 / loads : 0)
+                  << ", avg_transpose_us=" << (loads > 0 ? transpose_ns.load(std::memory_order_relaxed) / 1000 / loads : 0)
+                  << ", avg_gpu_copy_us=" << (loads > 0 ? gpu_copy_ns.load(std::memory_order_relaxed) / 1000 / loads : 0)
+                  << ", total_disk_io_ms=" << disk_io_ns.load(std::memory_order_relaxed) / 1000000
+                  << ", total_gpu_copy_ms=" << gpu_copy_ns.load(std::memory_order_relaxed) / 1000000
+                  << std::endl;
+    }
+};
+
+inline OtdPerfCounters* get_perf_counters() {
+    static bool enabled = std::getenv("MOE_OTD_PERF_LOG") != nullptr;
+    if (!enabled) return nullptr;
+
+    static OtdPerfCounters counters;
+    static bool registered = [] {
+        std::atexit([] { counters.dump(); });
+        return true;
+    }();
+    (void)registered;
+    return &counters;
+}
 
 inline size_t get_layer_from_id(const std::string& id) {
     if (id == "moe:moe_router") {
@@ -334,13 +381,26 @@ inline void fill_weights_memory(cldnn::stream& exec_stream,
         return plan;
     };
 
+    auto* perf = get_perf_counters();
+
     auto copy_tensor_to_memory = [&](cldnn::memory_ptr mem, const tensor_fill_plan& plan, std::vector<uint8_t>& payload, const char* tensor_name) {
         if (!mem || plan.per_expert_size == 0) {
             return;
         }
 
-        maybe_transpose_scale_zp(desc, tensor_name, mem->get_layout(), payload, plan.per_expert_size);
-        mem->copy_from(exec_stream, payload.data(), 0, plan.dst_offset, plan.per_expert_size, true);
+        if (perf) {
+            auto t0 = std::chrono::steady_clock::now();
+            maybe_transpose_scale_zp(desc, tensor_name, mem->get_layout(), payload, plan.per_expert_size);
+            auto t1 = std::chrono::steady_clock::now();
+            mem->copy_from(exec_stream, payload.data(), 0, plan.dst_offset, plan.per_expert_size, true);
+            auto t2 = std::chrono::steady_clock::now();
+            perf->transpose_ns.fetch_add(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()), std::memory_order_relaxed);
+            perf->gpu_copy_ns.fetch_add(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()), std::memory_order_relaxed);
+            perf->tensor_load_count.fetch_add(1, std::memory_order_relaxed);
+        } else {
+            maybe_transpose_scale_zp(desc, tensor_name, mem->get_layout(), payload, plan.per_expert_size);
+            mem->copy_from(exec_stream, payload.data(), 0, plan.dst_offset, plan.per_expert_size, true);
+        }
     };
 
     size_t index = 0;
@@ -354,7 +414,14 @@ inline void fill_weights_memory(cldnn::stream& exec_stream,
 
             if (plan.per_expert_size != 0) {
                 payload.resize(plan.per_expert_size);
-                weight_reader.read(reinterpret_cast<char*>(payload.data()), plan.per_expert_size, plan.src_offset);
+                if (perf) {
+                    auto t0 = std::chrono::steady_clock::now();
+                    weight_reader.read(reinterpret_cast<char*>(payload.data()), plan.per_expert_size, plan.src_offset);
+                    auto t1 = std::chrono::steady_clock::now();
+                    perf->disk_io_ns.fetch_add(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()), std::memory_order_relaxed);
+                } else {
+                    weight_reader.read(reinterpret_cast<char*>(payload.data()), plan.per_expert_size, plan.src_offset);
+                }
             }
 
             copy_tensor_to_memory(tensors_by_offset[offset_pos], plan, payload, tensor_names[offset_pos]);
@@ -371,7 +438,12 @@ inline uint32_t get_lru_expert_no(typed_primitive_inst<cldnn::moe_3gemm_fused_co
     auto item = cache.get_lru_item(layer, expert);
     OPENVINO_ASSERT(item.first <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()), "LRU slot index overflow: ", item.first);
     const auto lru_slot = static_cast<uint32_t>(item.first);
-    if (!item.second) {
+
+    auto* perf = get_perf_counters();
+    if (item.second) {
+        if (perf) perf->gpu_hits.fetch_add(1, std::memory_order_relaxed);
+    } else {
+        if (perf) perf->gpu_misses.fetch_add(1, std::memory_order_relaxed);
         std::vector<uint32_t> experts_list_single;
         experts_list_single.push_back(expert);
         std::vector<uint32_t> lru_experts_list_single;
