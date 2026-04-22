@@ -472,8 +472,8 @@ struct MHAHelper {
 
     // Speculative tree mask (qq_bias)
     bool _has_qq_bias = false;
-    PlainTensor _qq_bias;         // [sum(spec_num_i * spec_num_i)], u8
-    PlainTensor _qq_bias_begins;  // [B_seq + 1], i32
+    PlainTensor _qq_bias;
+    std::vector<QueryToQueryBiasInfo> _qq_bias_infos;  // Precomputed info for each sequence
 
     // Precompute image group boundaries from token_type_ids.
     // For each image token, _image_group_end[i] = index past the last contiguous image token in the same group.
@@ -519,44 +519,42 @@ struct MHAHelper {
         return default_ncausal;
     }
 
-    void set_qq_bias(const PlainTensor& qq_bias, const PlainTensor& qq_bias_begins) {
-        _has_qq_bias = true;
-        _qq_bias = qq_bias;
-        _qq_bias_begins = qq_bias_begins;
-    }
-
     void clear_qq_bias() {
         _has_qq_bias = false;
         _qq_bias = PlainTensor();
-        _qq_bias_begins = PlainTensor();
+        _qq_bias_infos.clear();
     }
 
-    // Precompute qq_bias metadata for a given batch_in_seq to avoid redundant computation
-    QueryToQueryBiasInfo precompute_qq_bias_info(size_t batch_in_seq) const {
-        QueryToQueryBiasInfo qq_bias_info;
+    // Initialize and precompute query-to-query bias info for all sequences
+    void init_query_to_query_mask(const PlainTensor& qq_bias, const PlainTensor& qq_bias_begins) {
+        _has_qq_bias = true;
+        _qq_bias = qq_bias;
 
-        if (!_has_qq_bias || !_qq_bias_begins || !_qq_bias) {
-            return qq_bias_info;  // is_valid = false
+        // Precompute QueryToQueryBiasInfo for each sequence
+        const auto num_seqs = qq_bias_begins.m_dims[0] - 1;
+        _qq_bias_infos.resize(num_seqs);
+
+        for (size_t batch_in_seq = 0; batch_in_seq < num_seqs; batch_in_seq++) {
+            QueryToQueryBiasInfo qq_bias_info;
+
+            const auto qq_begin = static_cast<size_t>(qq_bias_begins.ptr<int32_t>()[batch_in_seq]);
+            const auto qq_end = static_cast<size_t>(qq_bias_begins.ptr<int32_t>()[batch_in_seq + 1]);
+
+            OPENVINO_ASSERT(qq_begin <= qq_end && qq_end <= qq_bias.size(0),
+                            "PagedAttention: qq_bias_begins contains invalid range");
+
+            const auto qq_num = qq_end - qq_begin;
+            if (qq_num > 0) {
+                const auto spec_num = static_cast<size_t>(std::sqrt(static_cast<float>(qq_num)));
+
+                OPENVINO_ASSERT(spec_num * spec_num == qq_num, "PagedAttention: qq_bias range length incorrect ");
+
+                qq_bias_info.qq_begin_offset = qq_begin;
+                qq_bias_info.spec_num = spec_num;
+            }
+
+            _qq_bias_infos[batch_in_seq] = qq_bias_info;
         }
-
-        const auto qq_begin = static_cast<size_t>(_qq_bias_begins.ptr<int32_t>()[batch_in_seq]);
-        const auto qq_end = static_cast<size_t>(_qq_bias_begins.ptr<int32_t>()[batch_in_seq + 1]);
-
-        OPENVINO_ASSERT(qq_begin <= qq_end && qq_end <= _qq_bias.size(0),
-                        "PagedAttention: qq_bias_begins contains invalid range");
-
-        const auto qq_num = qq_end - qq_begin;
-        if (qq_num == 0) {
-            return qq_bias_info;
-        }
-
-        const auto spec_num = static_cast<size_t>(std::sqrt(static_cast<float>(qq_num)));
-
-        OPENVINO_ASSERT(spec_num * spec_num == qq_num, "PagedAttention: qq_bias range length incorrect ");
-
-        qq_bias_info.qq_begin_offset = qq_begin;
-        qq_bias_info.spec_num = spec_num;
-        return qq_bias_info;
     }
 
     bool query_to_query_is_masked(const QueryToQueryBiasInfo* cache,
@@ -1874,9 +1872,8 @@ struct MHA {
                 sub_query = sub_query.permute({1, 0, 2});
 
                 QueryToQueryBiasInfo* query_to_query_info_ptr = nullptr;
-                if (_helper._has_qq_bias) {
-                    auto query_to_query_bias = _helper.precompute_qq_bias_info(batch_in_seq);
-                    query_to_query_info_ptr = &query_to_query_bias;
+                if (_helper._has_qq_bias && static_cast<size_t>(batch_in_seq) < _helper._qq_bias_infos.size()) {
+                    query_to_query_info_ptr = &_helper._qq_bias_infos[batch_in_seq];
                 }
 #    if defined(OPENVINO_ARCH_ARM64)
                 if constexpr (q_is_xf16) {
@@ -1990,13 +1987,19 @@ struct MHA {
                     const PlainTensor& alibi_slopes,
                     const PlainTensor& score_aggregation_window,
                     const PlainTensor& sinks,
-                    const std::vector<PlainTensor>& sparse_attention_mask) {
+                    const std::vector<PlainTensor>& sparse_attention_mask,
+                    const PlainTensor& qq_bias,
+                    const PlainTensor& qq_bias_begins) {
         _workitems
             .reset(query, past_lens, subsequence_begins, block_indices, block_indices_begins, _helper._block_size);
         if (output_score) {
             _helper.init_score_buffers(past_lens, subsequence_begins, score_aggregation_window);
         }
-
+        if (qq_bias) {
+            _helper.init_query_to_query_mask(qq_bias, qq_bias_begins);
+        } else {
+            _helper.clear_qq_bias();
+        }
         auto nthr = static_cast<size_t>(parallel_get_max_threads());
 
         if (past_lens.m_dims[0] >= nthr || _workitems.get_reorder_max_batch_size() > 0) {
@@ -2513,12 +2516,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             _helper._has_image_tokens = false;
         }
 
-        if (qq_bias) {
-            _helper.set_qq_bias(qq_bias, qq_bias_begins);
-        } else {
-            _helper.clear_qq_bias();
-        }
-
         if (rotated_block_indices) {
             // Rotate kv cache currently doesn't support quantized cache.
             // for u8 it only supports compilation but throws exception in the runtime
@@ -2545,7 +2542,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                 alibi_slopes,
                 score_aggregation_window,
                 sinks,
-                sparse_attention_mask);
+                sparse_attention_mask,
+                qq_bias,
+                qq_bias_begins);
     }
 };
 #endif
