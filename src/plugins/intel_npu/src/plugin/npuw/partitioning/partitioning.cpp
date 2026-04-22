@@ -35,6 +35,90 @@ inline bool operator==(const std::reference_wrapper<Subgraph>& lhs, const std::r
 }  // namespace npuw
 }  // namespace ov
 
+void ov::npuw::v1::subgraphs::PatternRegistry::apply(ov::npuw::Function& function) const {
+    for (const auto& registration : m_registrations) {
+        if (function.gettag() != registration.tag) {
+            continue;
+        }
+
+        auto& func_pipeline = function._pipeline;
+        if (func_pipeline.registration.group.empty()) {
+            func_pipeline.registration.group = registration.group;
+        }
+        if (func_pipeline.registration.name.empty()) {
+            func_pipeline.registration.name = registration.name;
+        }
+        if (std::find(func_pipeline.registration.patterns.begin(),
+                      func_pipeline.registration.patterns.end(),
+                      registration.pattern) == func_pipeline.registration.patterns.end()) {
+            func_pipeline.registration.patterns.push_back(registration.pattern);
+        }
+
+        if (registration.partition_stage) {
+            registration.partition_stage(function, func_pipeline.context);
+        }
+
+        auto previous_compile_stage = func_pipeline.compile_stage;
+        func_pipeline.compile_stage = [previous_compile_stage, registration](
+                                          ov::npuw::v1::subgraphs::CompiledPipeline& compiled_pipeline,
+                                          ov::npuw::v1::subgraphs::Context& compiled_context) {
+            if (previous_compile_stage) {
+                previous_compile_stage(compiled_pipeline, compiled_context);
+            }
+            if (registration.compile_stage) {
+                registration.compile_stage(compiled_pipeline, compiled_context);
+            }
+            if (registration.runtime_factory) {
+                ov::npuw::v1::subgraphs::RuntimeBehaviorSpec spec;
+                spec.registration = compiled_pipeline.registration;
+                spec.context = compiled_context;
+                spec.factory = registration.runtime_factory;
+                compiled_pipeline.runtime_behavior = std::move(spec);
+            }
+        };
+    }
+}
+
+void ov::npuw::v1::subgraphs::PatternRegistry::apply(ov::npuw::Subgraph& subgraph) const {
+    for (const auto& registration : m_registrations) {
+        if (subgraph.gettag() != registration.tag) {
+            continue;
+        }
+
+        auto& subgraph_pipeline = subgraph._pipeline;
+        if (subgraph_pipeline.registration.group.empty()) {
+            subgraph_pipeline.registration.group = registration.group;
+        }
+        if (subgraph_pipeline.registration.name.empty()) {
+            subgraph_pipeline.registration.name = registration.name;
+        }
+        if (std::find(subgraph_pipeline.registration.patterns.begin(),
+                      subgraph_pipeline.registration.patterns.end(),
+                      registration.pattern) == subgraph_pipeline.registration.patterns.end()) {
+            subgraph_pipeline.registration.patterns.push_back(registration.pattern);
+        }
+
+        auto previous_compile_stage = subgraph_pipeline.compile_stage;
+        subgraph_pipeline.compile_stage = [previous_compile_stage, registration](
+                                              ov::npuw::v1::subgraphs::CompiledPipeline& compiled_pipeline,
+                                              ov::npuw::v1::subgraphs::Context& compiled_context) {
+            if (previous_compile_stage) {
+                previous_compile_stage(compiled_pipeline, compiled_context);
+            }
+            if (registration.compile_stage) {
+                registration.compile_stage(compiled_pipeline, compiled_context);
+            }
+            if (registration.runtime_factory) {
+                ov::npuw::v1::subgraphs::RuntimeBehaviorSpec spec;
+                spec.registration = compiled_pipeline.registration;
+                spec.context = compiled_context;
+                spec.factory = registration.runtime_factory;
+                compiled_pipeline.runtime_behavior = std::move(spec);
+            }
+        };
+    }
+}
+
 template <typename T2>
 struct std::hash<std::pair<ov::npuw::Subgraph::Ref, T2>> {
     std::size_t operator()(const std::pair<ov::npuw::Subgraph::Ref, T2>& p) const noexcept {
@@ -437,6 +521,9 @@ void Partitioner::identifySubgraphs() {
 
         group.sg._avoid_list = group.avoid_list;
         group.sg.settag(group.gettag());
+        if (part_ctx.subgraph_patterns != nullptr) {
+            part_ctx.subgraph_patterns->apply(group.sg);
+        }
         // Note inputs and outputs are included in the above set, so if
         // we are here, those nodes should be present in the model.
 
@@ -1658,6 +1745,9 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
     function._model = func_ggg.mdls.front();
     function._param_offset = body_sg._parameters.size();
     function.settag(body_sg.gettag());
+    if (part_ctx.subgraph_patterns != nullptr) {
+        part_ctx.subgraph_patterns->apply(function);
+    }
     std::size_t new_param_idx = function._param_offset;
 
     for (auto&& node_ptr : function._model->get_ordered_ops()) {

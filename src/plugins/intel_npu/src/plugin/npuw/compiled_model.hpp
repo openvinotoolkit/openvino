@@ -23,6 +23,7 @@
 #include "pyramid_attention.hpp"
 #include "serialization.hpp"
 #include "spatial.hpp"
+#include "v1/subgraph_pipeline.hpp"
 #include "weights_bank.hpp"
 
 namespace intel_npu {
@@ -83,6 +84,10 @@ public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const ov::AnyMap& properties);
+    CompiledModel(const std::shared_ptr<ov::Model>& model,
+                  const std::shared_ptr<const ov::IPlugin>& plugin,
+                  const ov::AnyMap& properties,
+                  const ov::npuw::v1::subgraphs::PatternRegistry* subgraph_patterns);
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const bool serialized);
@@ -226,6 +231,7 @@ private:
         std::optional<ov::npuw::compiled::HostFlashAttention> host_flash_attention;
         std::optional<ov::npuw::compiled::MoEExperts> moe_experts;
         std::optional<ov::npuw::compiled::MoEDownstream> moe_experts_downstream;
+        ov::npuw::v1::subgraphs::CompiledPipeline pipeline;
 
         // Infer requests for pyramid attention models (if pyramid_attention is present)
         std::vector<ov::SoPtr<ov::IAsyncInferRequest>> pyramid_infer_requests;

@@ -14,7 +14,9 @@ namespace ov {
 namespace npuw {
 namespace online {
 
-ov::npuw::Ensemble buildPartitioning(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg);
+ov::npuw::Ensemble buildPartitioning(const std::shared_ptr<ov::Model>& model,
+                                     ::intel_npu::Config& cfg,
+                                     const ov::npuw::v1::subgraphs::PatternRegistry* subgraph_patterns = nullptr);
 
 }  // namespace online
 }  // namespace npuw

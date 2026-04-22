@@ -5,6 +5,8 @@
 #include "just_sync_infer_request.hpp"
 
 #include <algorithm>
+#include <cstring>
+#include <fstream>
 #include <memory>
 #include <string>
 
@@ -422,6 +424,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
     alloc_quant_gather();
     connect_subrequests();
+    initialize_subgraph_behaviors();
     init_gio();
 
     for (size_t i = 0; i < m_num_submodels; i++) {
@@ -514,6 +517,49 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     if (has_moe) {
         initialize_moe_executor();
     }
+}
+
+void ov::npuw::JustInferRequest::initialize_subgraph_behaviors() {
+    m_subgraph_behaviors.resize(m_num_submodels);
+    for (std::size_t idx = 0; idx < m_num_submodels; idx++) {
+        const auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+        if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
+            continue;
+        }
+        if (!comp_model_desc.pipeline.runtime_behavior.has_value()) {
+            continue;
+        }
+        const auto& spec = comp_model_desc.pipeline.runtime_behavior.value();
+        if (spec.factory) {
+            m_subgraph_behaviors[idx] = spec.factory(spec.context);
+        }
+        if (m_subgraph_behaviors[idx]) {
+            continue;
+        }
+        const auto* post_legacy_hook = spec.context.get_if<ov::npuw::v1::subgraphs::PostLegacyHook>();
+        if (!post_legacy_hook) {
+            continue;
+        }
+        m_subgraph_behaviors[idx] = std::make_unique<ov::npuw::v1::subgraphs::DirectBehavior>(
+            [post_legacy_hook = *post_legacy_hook](ov::npuw::v1::subgraphs::InferContext& ctx) {
+                ctx.legacy_infer();
+                post_legacy_hook(ctx);
+            });
+    }
+}
+
+ov::npuw::v1::subgraphs::InferContext ov::npuw::JustInferRequest::make_behavior_context(std::size_t real_idx,
+                                                                                        std::size_t idx) {
+    return ov::npuw::v1::subgraphs::InferContext{*m_npuw_model, *this, idx, real_idx, [this, real_idx, idx]() {
+                                                     legacy_infer(real_idx, idx);
+                                                 }};
+}
+
+ov::npuw::v1::subgraphs::ISubgraphBehavior* ov::npuw::JustInferRequest::get_subgraph_behavior(std::size_t idx) const {
+    if (idx >= m_subgraph_behaviors.size()) {
+        return nullptr;
+    }
+    return m_subgraph_behaviors[idx].get();
 }
 
 void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
@@ -1254,6 +1300,7 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
     bool next_prepared = false;
+    auto* behavior = get_subgraph_behavior(idx);
 
     // Feeding the global Parameters is now part of the common
     // execution pipeline: See how it is done in
@@ -1264,6 +1311,10 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx) {
     if (comp_model_desc.replaced_by) {
         function_prologue(idx);
     }
+    if (behavior != nullptr) {
+        auto ctx = make_behavior_context(real_idx, idx);
+        behavior->prologue(ctx);
+    }
     dump_input_tensors(idx);
 
     LOG_DEBUG("Trying to run subrequest[" << idx << "]...");
@@ -1273,6 +1324,10 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx) {
     LOG_DEBUG("Done: " << idx << "(exec subrequest)");
 
     dump_output_tensors(idx);  // FIXME: Called here unconditionally, need to refactor
+    if (behavior != nullptr) {
+        auto ctx = make_behavior_context(real_idx, idx);
+        behavior->epilogue(ctx);
+    }
     if (is_pipelined(idx) && m_funcall_pipeline[idx].next) {
         // Swap the next (pipelined, semi-prepared) infer request in the chain
         // with the default (to be accessed next) one.
@@ -1754,7 +1809,7 @@ void ov::npuw::JustInferRequest::unsafe_infer_spatial(std::size_t real_idx, std:
     }
 }
 
-void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t idx) {
+void ov::npuw::JustInferRequest::legacy_infer(std::size_t real_idx, std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     auto& r = m_subrequests[real_idx];
     if (comp_model_desc.spatial) {
@@ -1767,6 +1822,15 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
     } else {
         r->infer();  // Run normally
     }
+}
+
+void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t idx) {
+    if (auto* behavior = get_subgraph_behavior(idx)) {
+        auto ctx = make_behavior_context(real_idx, idx);
+        behavior->run(ctx);
+        return;
+    }
+    legacy_infer(real_idx, idx);
 }
 
 void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared) {

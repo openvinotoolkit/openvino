@@ -3,8 +3,7 @@
 //
 #include "compiled_model.hpp"
 
-#include <fstream>
-#include <iostream>
+#include <algorithm>
 #include <memory>
 #include <set>
 #include <string>
@@ -226,6 +225,12 @@ ov::npuw::ICompiledModel::ICompiledModel(const std::shared_ptr<ov::Model>& model
 ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                        const std::shared_ptr<const ov::IPlugin>& plugin,
                                        const ov::AnyMap& properties)
+    : CompiledModel(model, plugin, properties, nullptr) {}
+
+ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
+                                       const std::shared_ptr<const ov::IPlugin>& plugin,
+                                       const ov::AnyMap& properties,
+                                       const ov::npuw::v1::subgraphs::PatternRegistry* subgraph_patterns)
     : ov::npuw::ICompiledModel_v0(model, plugin),
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
       m_cfg(m_options_desc),
@@ -286,6 +291,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     ov::npuw::PartitioningContext ctx;
     // Identify based on compiler version, user config and pattern
     ctx.use_host_gather_quant = should_use_quantized_host_gather(model, npuw_props);
+    ctx.subgraph_patterns = subgraph_patterns;
 
     ov::npuw::Partitioning partitioning;
     m_profile["partitioning"].record([&]() {
@@ -415,6 +421,12 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                                          subgraph._sinks,
                                                                          subgraph._parameters,
                                                                          m_name + '_' + std::to_string(id));
+            m_compiled_submodels[id].pipeline.registration = subgraph._pipeline.registration;
+            m_compiled_submodels[id].pipeline.context = subgraph._pipeline.context;
+            if (subgraph._pipeline.compile_stage) {
+                subgraph._pipeline.compile_stage(m_compiled_submodels[id].pipeline,
+                                                 m_compiled_submodels[id].pipeline.context);
+            }
         } else {
             LOG_BLOCK();
             auto& fcn_template = partitioning.functions.at(subgraph._funcall);
@@ -485,6 +497,18 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             }
             auto& closure_desc = m_compiled_submodels[id].closure.get();
 
+            m_compiled_submodels[id].pipeline.registration = fcn_template._pipeline.registration;
+            m_compiled_submodels[id].pipeline.context = fcn_template._pipeline.context;
+            if (compiled_fcn_iter == compiledFunctions.end()) {
+                if (fcn_template._pipeline.compile_stage) {
+                    fcn_template._pipeline.compile_stage(m_compiled_submodels[id].pipeline,
+                                                         m_compiled_submodels[id].pipeline.context);
+                }
+            } else {
+                const auto real_id = m_compiled_submodels[id].replaced_by.value();
+                m_compiled_submodels[id].pipeline.runtime_behavior =
+                    m_compiled_submodels[real_id].pipeline.runtime_behavior;
+            }
             m_compiled_submodels[id].host_gather = subgraph._host_gather;
             m_compiled_submodels[id].quant_unpack_gather = subgraph._quant_unpack_gather;
             m_compiled_submodels[id].param_base = fcn_template._param_offset;
@@ -501,6 +525,10 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             OPENVINO_THROW("Fatal: submodel ", id, " is neither a model nor a function call!");
         }
         const std::size_t real_id = m_compiled_submodels[id].replaced_by.value_or(id);
+        auto& pipeline = m_compiled_submodels[id].pipeline;
+        pipeline.is_function_call =
+            m_compiled_submodels[id].replaced_by.has_value() && m_compiled_submodels[id].replaced_by.value() != id;
+        pipeline.function_body_subgraph_idx = m_compiled_submodels[id].replaced_by;
 
         // FIXME: a hotfix for a crash where we have too many names in submodel's output
         // Do it just once if that's a function
