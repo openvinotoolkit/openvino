@@ -21,7 +21,8 @@ static inline std::string encode_compatibility_string(const std::string& decoded
     std::ostringstream encoded_stringstream;
     for (const auto unit : decoded_string) {
         // setw + setfill will make sure the values within the range 0-F are padded (e.g. a->0a)
-        encoded_stringstream << std::hex << std::setw(HEX_BYTE_LENGTH) << std::setfill('0') << int(unit);
+        encoded_stringstream << std::hex << std::setw(HEX_BYTE_LENGTH) << std::setfill('0')
+                             << static_cast<int>(static_cast<unsigned char>(unit));
     }
     return encoded_stringstream.str();
 }

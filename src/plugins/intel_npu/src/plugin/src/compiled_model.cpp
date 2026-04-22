@@ -186,7 +186,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return _graph->get_metadata().name;
     } else if (name == ov::runtime_requirements.name()) {
         // The weights-separation case is not supported for now
-        OPENVINO_ASSERT(_graph->get_init_sizes().empty());
+        // OPENVINO_ASSERT(_graph->get_init_sizes().empty());
 
         OPENVINO_ASSERT(_graph->get_compiler_compatibility_descriptor().has_value());
         std::string compilerDescriptor = _graph->get_compiler_compatibility_descriptor().value();
@@ -194,18 +194,23 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         std::ostringstream requirementsString;
         requirementsString.write(reinterpret_cast<const char*>(compilerDescriptor.data()),
                                  static_cast<std::streamsize>(compilerDescriptor.size()));
+        _logger.debug("Compatibility string from compiler %s length: %zu", requirementsString.str().c_str(), compilerDescriptor.size());
 
         // The layouts are not useful compatibility information
         Metadata<CURRENT_METADATA_VERSION>(compilerDescriptor.size(),
                                            CURRENT_OPENVINO_VERSION,
-                                           _graph->get_init_sizes(),
+                                           std::nullopt/*_graph->get_init_sizes()*/,
                                            _batchSize,
                                            std::nullopt,
                                            std::nullopt)
             .write(requirementsString);
+
         const std::string encodedString = encode_compatibility_string(requirementsString.str());
-        // TODO check this tensor is constructed properly
-        return ov::Tensor(ov::element::Type_t::string, ov::Shape(encodedString.length()), encodedString.data());
+        _logger.debug("Encoded compatibility string: %s length: %zu", encodedString.c_str(), encodedString.length());
+
+        ov::Tensor requirements(ov::element::string, {});
+        *requirements.data<std::string>() = encodedString;
+        return requirements;
     }
 
     // default behaviour

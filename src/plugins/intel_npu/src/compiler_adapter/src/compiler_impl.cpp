@@ -309,10 +309,10 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                                      buildFlags.c_str(),
                                      buildFlags.size()};
 
-    if (usedVersion.Major >= 7 && usedVersion.Minor >= 7) {
+    if (usedVersion.Major >= 7 && usedVersion.Minor >= 6) {
         // support the lastest vcl api
         // For VCL 7.7 and later, we can use vclAllocatedExecutableCreate3
-        _logger.debug("Using vclAllocatedExecutableCreate3 for 7.7 <= VCL");
+        _logger.debug("Using vclAllocatedExecutableCreate3 for 7.6 <= VCL");
         vcl_allocator_2 allocator;
         uint8_t* blob = nullptr;
         size_t blobSize = 0;
