@@ -9,6 +9,8 @@
 
 namespace intel_npu {
 
+class IDevice;
+
 class ICompilerAdapter {
 public:
     virtual std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
@@ -39,9 +41,7 @@ public:
 
     virtual ov::RuntimeRequirementCheckResult validate_compatibility_descriptor(
         const std::string& compatibilityDescriptor,
-        uint32_t deviceId,
-        int64_t numTiles,
-        int64_t stepping) const = 0;
+        const std::shared_ptr<IDevice>& device) const = 0;
 
     virtual ~ICompilerAdapter() = default;
 };

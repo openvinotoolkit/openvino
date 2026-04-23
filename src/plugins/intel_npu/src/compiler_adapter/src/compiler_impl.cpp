@@ -8,6 +8,7 @@
 #include <limits>
 #include <mutex>
 
+#include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/profiling.hpp"
@@ -629,13 +630,11 @@ bool VCLCompilerImpl::is_option_supported(std::string option, std::optional<std:
 
 ov::RuntimeRequirementCheckResult VCLCompilerImpl::validate_compatibility_descriptor(
     const std::string& compatibilityDescriptor,
-    uint32_t deviceId,
-    int64_t numTiles,
-    int64_t stepping) const {
+    const std::shared_ptr<IDevice>& device) const {
     vcl_device_desc_t device_desc = {sizeof(vcl_device_desc_t),
-                                     deviceId,
-                                     static_cast<uint16_t>(stepping),
-                                     static_cast<uint32_t>(numTiles)};
+                                     device->getDevId(),
+                                     static_cast<uint16_t>(device->getSubDevId()),
+                                     static_cast<uint32_t>(device->getMaxNumSlices())};
     vcl_compiler_desc_t compilerDesc;
     compilerDesc.version = _vclVersion;
     compilerDesc.debugLevel = static_cast<__vcl_log_level_t>(static_cast<int>(Logger::global().level()) + 1);
@@ -654,11 +653,17 @@ ov::RuntimeRequirementCheckResult VCLCompilerImpl::validate_compatibility_descri
         THROW_ON_FAIL_FOR_VCL("vclGetCompilerIsOptionSupported",
                               vclGetCompilerIsOptionSupported(compilerHandle, optname_ch, optvalue_ch),
                               logHandle);
+
+        if (compilerHandle) {
+            vclCompilerDestroy(compilerHandle);
+        }
         return ov::RuntimeRequirementCheckResult::PARTIAL_CHECK_PASSED;
-        ;
     } catch (const std::exception& e) {
         // The API is only supported in new version, just add log here
         _logger.debug("Exception in is_option_supported: %s", e.what());
+        if (compilerHandle) {
+            vclCompilerDestroy(compilerHandle);
+        }
     }
 
     return ov::RuntimeRequirementCheckResult::COMPATIBILITY_FAILED;
