@@ -1563,11 +1563,17 @@ struct RUNTIME_REQUIREMENTS final : OptionBase<RUNTIME_REQUIREMENTS, std::string
     }
 
     static OptionMode mode() {
-        return OptionMode::RunTime;
+        // This is a read-only option, marking it as CompileTime to have the corresponding property
+        // registered only when the selected compiler (adapter) supports it.
+        return OptionMode::CompileTime;
     }
 
     static bool isPublic() {
         return true;
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RO;
     }
 };
 

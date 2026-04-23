@@ -293,6 +293,13 @@ std::optional<std::vector<std::string>> DriverCompilerAdapter::get_supported_opt
 }
 
 bool DriverCompilerAdapter::is_option_supported(std::string optName, std::optional<std::string> optValue) const {
+    if(optName == RUNTIME_REQUIREMENTS::key()) {
+        // This is a special case, as RUNTIME_REQUIREMENTS is a read-only compiler property
+        // used to retrieve a compatibility string through a dedicated VCL compiler method, and not a regular settable option.
+        // Therefore, we cannot rely on the compiler's usual option support checking method
+        return _zeGraphExt->isCompatibilityDescriptorSupported();
+    }
+
     auto isOptionSupported = _zeGraphExt->isOptionSupported(std::move(optName), std::move(optValue));
     return isOptionSupported.value_or(false);
 }
