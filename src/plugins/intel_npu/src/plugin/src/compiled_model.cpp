@@ -39,7 +39,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     // Support for specific properties might depend on the characteristics of the compiled model.
     // Adjust lower level config availability to influence the supported properties list if needed
     FilteredConfig localConfig = config;
-    if(!_graph->get_compiler_compatibility_descriptor().has_value()) {
+    if(!_graph->get_compatibility_descriptor().has_value()) {
         localConfig.enable(ov::runtime_requirements.name(), false);
     }
 
@@ -199,7 +199,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         // The weights-separation case is not supported for now
         // OPENVINO_ASSERT(_graph->get_init_sizes().empty());
 
-        auto compatibilityDescriptorOpt = _graph->get_compiler_compatibility_descriptor();
+        auto compatibilityDescriptorOpt = _graph->get_compatibility_descriptor();
         OPENVINO_ASSERT(compatibilityDescriptorOpt.has_value());
         std::string compilerDescriptor = compatibilityDescriptorOpt.value();
 
