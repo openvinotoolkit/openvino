@@ -10,6 +10,8 @@
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/util/weights_path.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/parallel_read_streambuf.hpp"
+#include "common_utils/parallel_mem_streambuf.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -1980,6 +1982,22 @@ void program::load(cldnn::BinaryInputBuffer& ib,
     size_t num_nodes;
     ib >> num_nodes;
     bool is_valid_data_node;
+
+    // Prefetch hook: if the backing streambuf is ParallelReadStreamBuf (or
+    // ParallelMemStreamBuf wrapping one for a file-backed mmap), ask it to
+    // collapse the upcoming thousands of small ib >> ... reads for data
+    // primitives into one bulk parallel pread.  The cap keeps the up-front
+    // dispatch/allocation cost bounded; reads that fall outside the prefetched
+    // window transparently fall back to file I/O.
+    {
+        auto* rdbuf = ib.get_streambuf();
+        if (auto* prs = dynamic_cast<ov::util::ParallelReadStreamBuf*>(rdbuf)) {
+            prs->prefetch(ov::util::default_parallel_io_prefetch_cap);
+        } else if (auto* pms = dynamic_cast<ov::intel_gpu::ParallelMemStreamBuf*>(rdbuf)) {
+            pms->prefetch(ov::util::default_parallel_io_prefetch_cap);
+        }
+    }
+
     for (size_t i = 0; i < num_nodes; ++i) {
         ib >> is_valid_data_node;
         if (!is_valid_data_node)
@@ -2005,6 +2023,18 @@ void program::load(cldnn::BinaryInputBuffer& ib,
 
         md_node2.typed_desc()->mem = md_node1.typed_desc()->mem;
         md_node2.replace_memory(md_node2.typed_desc()->mem);
+    }
+
+    // Same prefetch hook for the post-load loop: node_post_load is dominated by
+    // ~15 small ib >> ... calls per node across thousands of nodes, which maps
+    // to thousands of single_read dispatches if left unbatched.
+    {
+        auto* rdbuf = ib.get_streambuf();
+        if (auto* prs = dynamic_cast<ov::util::ParallelReadStreamBuf*>(rdbuf)) {
+            prs->prefetch(ov::util::default_parallel_io_prefetch_cap);
+        } else if (auto* pms = dynamic_cast<ov::intel_gpu::ParallelMemStreamBuf*>(rdbuf)) {
+            pms->prefetch(ov::util::default_parallel_io_prefetch_cap);
+        }
     }
 
     for (size_t i = 0; i < num_nodes; ++i) {
