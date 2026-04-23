@@ -232,6 +232,10 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
 
 #ifdef CPU_DEBUG_CAPS
 void serialize(const Graph& graph) {
+    if (!graph.getGraphContext()) {
+        return;
+    }
+
     const std::string& pathStr = graph.getConfig().debugCaps.execGraphPath;
 
     if (pathStr.empty()) {
