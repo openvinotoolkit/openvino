@@ -118,36 +118,79 @@ public:
     }
 };
 
+class MockSubCompiledModel;
+
+class MockSyncInferRequest final : public ov::ISyncInferRequest {
+public:
+    explicit MockSyncInferRequest(std::shared_ptr<const MockSubCompiledModel> compiled_model);
+
+    void infer() override {}
+
+    ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override {
+        return ov::ISyncInferRequest::get_tensor(port);
+    }
+
+    void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override {
+        ov::ISyncInferRequest::set_tensor(port, tensor);
+    }
+
+    std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& port) const override {
+        return ov::ISyncInferRequest::get_tensors(port);
+    }
+
+    void set_tensors(const ov::Output<const ov::Node>& port,
+                     const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override {
+        ov::ISyncInferRequest::set_tensors(port, tensors);
+    }
+
+    void check_tensors() const override {}
+
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
+        return {};
+    }
+
+    std::vector<ov::ProfilingInfo> get_profiling_info() const override {
+        return {};
+    }
+};
+
 class MockSubCompiledModel : public ov::npuw::ICompiledModel_v0 {
 public:
     MockSubCompiledModel(const std::shared_ptr<ov::Model>& model,
                          const std::shared_ptr<const ov::IPlugin>& plugin,
                          const ov::AnyMap&)
-        : ov::npuw::ICompiledModel_v0(model, plugin) {}
+                : ov::npuw::ICompiledModel_v0(model, plugin),
+                    m_model(model) {}
 
     void export_model(std::ostream&) const override {}
     std::shared_ptr<const ov::Model> get_runtime_model() const override {
-        return {};
+        return m_model;
     }
     void set_property(const ov::AnyMap&) override {}
     ov::Any get_property(const std::string&) const override {
-        return {};
+        return std::string{"NPU"};
+    }
+    std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override {
+        return std::make_shared<ov::IAsyncInferRequest>(create_sync_infer_request(),
+                                                        get_task_executor(),
+                                                        get_callback_executor());
     }
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
-        return {};
+        auto self = std::static_pointer_cast<const MockSubCompiledModel>(shared_from_this());
+        return std::make_shared<MockSyncInferRequest>(std::move(self));
     }
     std::shared_ptr<ov::npuw::IBaseInferRequest> create_base_infer_request() const override {
         return {};
     }
     std::shared_ptr<ov::IAsyncInferRequest> wrap_async_infer_request(
         std::shared_ptr<ov::npuw::IBaseInferRequest>) const override {
-        return {};
+        return create_infer_request();
     }
     std::string submodel_device(std::size_t) const override {
-        return "CPU";
+        return "NPU";
     }
     std::size_t num_submodels() const override {
-        return 0;
+        return 1;
     }
     std::shared_ptr<ov::npuw::weights::Bank> get_weights_bank() const override {
         return {};
@@ -156,7 +199,22 @@ public:
     void finalize_weights_bank() override {}
     void reconstruct_closure() override {}
     void serialize(std::ostream&, const ov::npuw::s11n::CompiledContext&) const override {}
+
+private:
+    std::shared_ptr<ov::Model> m_model;
 };
+
+inline MockSyncInferRequest::MockSyncInferRequest(std::shared_ptr<const MockSubCompiledModel> compiled_model)
+    : ov::ISyncInferRequest(std::move(compiled_model)) {
+    for (const auto& input : get_compiled_model()->inputs()) {
+        ov::ISyncInferRequest::set_tensor(input,
+                                          ov::get_tensor_impl(ov::Tensor(input.get_element_type(), input.get_shape())));
+    }
+    for (const auto& output : get_compiled_model()->outputs()) {
+        ov::ISyncInferRequest::set_tensor(output,
+                                          ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
+    }
+}
 
 struct CompileCall {
     std::string                friendly_name;

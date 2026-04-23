@@ -7,6 +7,7 @@
 #include <regex>
 
 #include "../llm_compiled_model_utils.hpp"
+#include "../util.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset13.hpp"
@@ -312,7 +313,7 @@ void expose_runtime_states_as_outputs(const std::shared_ptr<ov::Model>& model) {
                 auto [result, assign] = remove_encoder_attn_read_value(rv_node, rv_in.get_source_output(), sdpa_in);
                 auto normalized_name =
                     transform_key_value_name(rv_node->inputs()[0].get_source_output().get_node()->get_friendly_name(),
-                                             "present",
+                                             ov::npuw::util::constants::present,
                                              ".encoder.",
                                              key_or_value);
                 set_name(result, normalized_name);
@@ -396,7 +397,7 @@ void expose_runtime_states_as_inputs(const std::shared_ptr<ov::Model>& model) {
 
                 auto key_or_value = (sdpa_in.get_index() == 1 || is_fc_key_tensor) ? "key" : "value";
                 auto normalized_name = transform_key_value_name(sdpa_in.get_node()->get_friendly_name(),
-                                                                "past_key_values",
+                                                                ov::npuw::util::constants::past_key_values,
                                                                 ".encoder.",
                                                                 key_or_value);
                 set_name(new_param, normalized_name);
@@ -421,9 +422,22 @@ void normalize_input_key_value_names(const std::shared_ptr<ov::Model>& model) {
             continue;
         }
 
-        auto key_or_value = (in.get_any_name().find(".key") != std::string::npos) ? "key" : "value";
-        auto normalized_name =
-            transform_key_value_name(in.get_any_name(), "past_key_values", ".decoder.", key_or_value);
+        const auto key_idx = ov::npuw::util::isPastKeyValuesKey(in.get_any_name());
+        const auto value_idx = ov::npuw::util::isPastKeyValuesValue(in.get_any_name());
+        const auto normalized_name = [&]() {
+            if (key_idx.has_value() || value_idx.has_value()) {
+                const auto idx = key_idx.has_value() ? key_idx.value() : value_idx.value();
+                const auto key_or_value = key_idx.has_value() ? "key" : "value";
+                return std::string(ov::npuw::util::constants::past_key_values) + "." + std::to_string(idx) +
+                       ".decoder." + key_or_value;
+            }
+
+            const auto key_or_value = (in.get_any_name().find(".key") != std::string::npos) ? "key" : "value";
+            return transform_key_value_name(in.get_any_name(),
+                                            ov::npuw::util::constants::past_key_values,
+                                            ".decoder.",
+                                            key_or_value);
+        }();
         set_name(in.get_node_shared_ptr(), normalized_name);
     }
 
@@ -437,8 +451,22 @@ void normalize_output_key_value_names(const std::shared_ptr<ov::Model>& model) {
             continue;
         }
 
-        auto key_or_value = (out.get_any_name().find(".key") != std::string::npos) ? "key" : "value";
-        auto normalized_name = transform_key_value_name(out.get_any_name(), "present", ".decoder.", key_or_value);
+        const auto key_idx = ov::npuw::util::isPresentKeyValuesKey(out.get_any_name());
+        const auto value_idx = ov::npuw::util::isPresentKeyValuesValue(out.get_any_name());
+        const auto normalized_name = [&]() {
+            if (key_idx.has_value() || value_idx.has_value()) {
+                const auto idx = key_idx.has_value() ? key_idx.value() : value_idx.value();
+                const auto key_or_value = key_idx.has_value() ? "key" : "value";
+                return std::string(ov::npuw::util::constants::present) + "." + std::to_string(idx) + ".decoder." +
+                       key_or_value;
+            }
+
+            const auto key_or_value = (out.get_any_name().find(".key") != std::string::npos) ? "key" : "value";
+            return transform_key_value_name(out.get_any_name(),
+                                            ov::npuw::util::constants::present,
+                                            ".decoder.",
+                                            key_or_value);
+        }();
         set_name(out.get_node_shared_ptr(), normalized_name);
     }
 

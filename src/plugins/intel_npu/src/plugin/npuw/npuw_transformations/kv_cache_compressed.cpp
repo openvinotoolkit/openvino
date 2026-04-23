@@ -27,8 +27,7 @@ namespace opp = ov::pass::pattern;
 namespace {
 constexpr auto g_key_cache_name = "key";
 constexpr auto g_value_cache_name = "value";
-constexpr auto g_past_name = "past_key_values";
-constexpr auto g_present_name = "present";
+
 
 bool isKey(const std::string& n) {
     return n.find(g_key_cache_name) != std::string::npos;
@@ -459,11 +458,11 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
         kv_dyn_quant->set_friendly_name(make_name("DynamicQuantize") + "/" + kv_name);
 
         create_result_with_name(kv_dyn_quant->output(1),
-                                make_name("DynamicQuantize") + "/" + g_present_name + "/" + kv_name + "/scale");
+                                make_name("DynamicQuantize") + "/" + ov::npuw::util::constants::present + "/" + kv_name + "/scale");
 
         if (is_asym) {
             create_result_with_name(kv_dyn_quant->output(2),
-                                    make_name("DynamicQuantize") + "/" + g_present_name + "/" + kv_name + "/zp");
+                                    make_name("DynamicQuantize") + "/" + ov::npuw::util::constants::present + "/" + kv_name + "/zp");
         }
 
         return kv_dyn_quant;
@@ -483,7 +482,7 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
             return make_name("DynamicQuantize") + node_name + "/" + base_name;
         };
         auto make_dq_param_name = [&make_name, &node_name](auto base_name) {
-            return make_name("DynamicQuantize") + "/" + g_past_name + "/" + node_name + "/" + base_name;
+            return make_name("DynamicQuantize") + "/" + ov::npuw::util::constants::past_key_values + "/" + node_name + "/" + base_name;
         };
 
         // Take snapshot of the ORIGINAL concat edge BEFORE building new nodes.

@@ -7,8 +7,20 @@
 #include "embedding/remove_empty_kv_inputs.hpp"
 #include "llm_pass_test_fixture.hpp"
 #include "openvino/opsets/opset13.hpp"
+#include "util.hpp"
 
 namespace {
+
+using ov::npuw::util::constants::past_key_values;
+using ov::npuw::util::constants::present;
+
+std::string make_past_key_name(const size_t idx) {
+    return std::string(past_key_values) + "." + std::to_string(idx) + ".key";
+}
+
+std::string make_present_key_name(const size_t idx) {
+    return std::string(present) + "." + std::to_string(idx) + ".key";
+}
 
 class RemoveEmptyKVInputsPassTest : public ov::test::npuw::LLMPassTestFixture {};
 
@@ -18,8 +30,8 @@ TEST_F(RemoveEmptyKVInputsPassTest, HandlesDownUpProjSubgraph) {
     using namespace ov::opset13;
 
     auto past_k = std::make_shared<Parameter>(ov::element::f8e4m3, ov::Shape{1, 4, 0, 16});
-    past_k->set_friendly_name("past_key_values.0.key");
-    past_k->output(0).set_names({"past_key_values.0.key"});
+    past_k->set_friendly_name(make_past_key_name(0));
+    past_k->output(0).set_names({make_past_key_name(0)});
 
     auto current_k = std::make_shared<Parameter>(ov::element::f8e4m3, ov::Shape{1, 4, 1, 16});
     current_k->set_friendly_name("current_key_values.0.key");
@@ -33,12 +45,12 @@ TEST_F(RemoveEmptyKVInputsPassTest, HandlesDownUpProjSubgraph) {
     auto downconvert = std::make_shared<Convert>(downmul, ov::element::f8e4m3);
 
     auto concat = std::make_shared<Concat>(ov::OutputVector{downconvert, current_k}, 2);
-    concat->set_friendly_name("past_key_values.0.keypresent.0.key_concat");
+    concat->set_friendly_name(make_past_key_name(0) + make_present_key_name(0) + "_concat");
 
     // ShapeOf on the original parameter exercises the replacement-to-constant path.
     auto shapeof = std::make_shared<ShapeOf>(past_k, ov::element::i64);
     auto concat_result = std::make_shared<Result>(concat);
-    concat_result->output(0).set_names({"present.0.key"});
+    concat_result->output(0).set_names({make_present_key_name(0)});
     auto shape_result = std::make_shared<Result>(shapeof);
     auto model = std::make_shared<ov::Model>(ov::ResultVector{concat_result, shape_result},
                                              ov::ParameterVector{past_k, current_k},
@@ -72,8 +84,8 @@ TEST_F(RemoveEmptyKVInputsPassTest, SharedParam_TwoConcats_BothEliminated) {
     using namespace ov::opset13;
 
     auto past_k = std::make_shared<Parameter>(ov::element::f32, ov::Shape{1, 4, 0, 16});
-    past_k->set_friendly_name("past_key_values.0.key");
-    past_k->output(0).set_names({"past_key_values.0.key"});
+    past_k->set_friendly_name(make_past_key_name(0));
+    past_k->output(0).set_names({make_past_key_name(0)});
 
     auto current_k1 = std::make_shared<Parameter>(ov::element::f32, ov::Shape{1, 4, 1, 16});
     current_k1->set_friendly_name("current_key_values.0.key");
@@ -85,15 +97,15 @@ TEST_F(RemoveEmptyKVInputsPassTest, SharedParam_TwoConcats_BothEliminated) {
 
     // Both concat nodes share the same empty past_k (Gemma4 shared KV-cache pattern).
     auto concat1 = std::make_shared<Concat>(ov::OutputVector{past_k, current_k1}, 2);
-    concat1->set_friendly_name("past_key_values.0.key_concat1");
+    concat1->set_friendly_name(make_past_key_name(0) + "_concat1");
 
     auto concat2 = std::make_shared<Concat>(ov::OutputVector{past_k, current_k2}, 2);
-    concat2->set_friendly_name("past_key_values.0.key_concat2");
+    concat2->set_friendly_name(make_past_key_name(0) + "_concat2");
 
     auto result1 = std::make_shared<Result>(concat1);
-    result1->output(0).set_names({"present.0.key"});
+    result1->output(0).set_names({make_present_key_name(0)});
     auto result2 = std::make_shared<Result>(concat2);
-    result2->output(0).set_names({"present.1.key"});
+    result2->output(0).set_names({make_present_key_name(1)});
 
     auto model = std::make_shared<ov::Model>(ov::ResultVector{result1, result2},
                                              ov::ParameterVector{past_k, current_k1, current_k2},
@@ -121,8 +133,8 @@ TEST_F(RemoveEmptyKVInputsPassTest, SharedParam_TwoConcats_LptSubgraph_BothElimi
     using namespace ov::opset13;
 
     auto past_k = std::make_shared<Parameter>(ov::element::f8e4m3, ov::Shape{1, 4, 0, 16});
-    past_k->set_friendly_name("past_key_values.0.key");
-    past_k->output(0).set_names({"past_key_values.0.key"});
+    past_k->set_friendly_name(make_past_key_name(0));
+    past_k->output(0).set_names({make_past_key_name(0)});
 
     auto current_k1 = std::make_shared<Parameter>(ov::element::f8e4m3, ov::Shape{1, 4, 1, 16});
     current_k1->set_friendly_name("current_key_values.0.key");
@@ -147,14 +159,14 @@ TEST_F(RemoveEmptyKVInputsPassTest, SharedParam_TwoConcats_LptSubgraph_BothElimi
     auto lpt1   = make_lpt(past_k);
     auto lpt2   = make_lpt(past_k);
     auto concat1 = std::make_shared<Concat>(ov::OutputVector{lpt1, current_k1}, 2);
-    concat1->set_friendly_name("past_key_values.0.key_concat1");
+    concat1->set_friendly_name(make_past_key_name(0) + "_concat1");
     auto concat2 = std::make_shared<Concat>(ov::OutputVector{lpt2, current_k2}, 2);
-    concat2->set_friendly_name("past_key_values.0.key_concat2");
+    concat2->set_friendly_name(make_past_key_name(0) + "_concat2");
 
     auto result1 = std::make_shared<Result>(concat1);
-    result1->output(0).set_names({"present.0.key"});
+    result1->output(0).set_names({make_present_key_name(0)});
     auto result2 = std::make_shared<Result>(concat2);
-    result2->output(0).set_names({"present.1.key"});
+    result2->output(0).set_names({make_present_key_name(1)});
 
     auto model = std::make_shared<ov::Model>(ov::ResultVector{result1, result2},
                                              ov::ParameterVector{past_k, current_k1, current_k2},

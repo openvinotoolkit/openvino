@@ -4,9 +4,19 @@
 
 #include "llm_infer_base_request.hpp"
 
-#include <regex>
-
 #include "infer_request_utils.hpp"
+
+namespace {
+
+std::optional<std::string> resolve_kv_input_name(
+    const std::string& output_name,
+    const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports) {
+    return ov::npuw::util::resolveKVInputName(output_name, [&in_ports](const std::string& name) {
+        return in_ports.find(name) != in_ports.end();
+    });
+}
+
+}  // namespace
 
 void ov::npuw::LLMInferBaseRequest::update_kvcache_for(
     std::shared_ptr<ov::IAsyncInferRequest> request,
@@ -20,13 +30,13 @@ void ov::npuw::LLMInferBaseRequest::update_kvcache_for(
     // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
     for (std::size_t i = layer_ids::kStartOutputKVCacheLayers; i < compiled->outputs().size(); ++i) {
         const auto& output_name = compiled->outputs()[i].get_any_name();
-        const auto& input_name = std::regex_replace(output_name, std::regex("present"), layer_names::past_key_values);
-        if (in_ports.find(input_name) == in_ports.end()) {
+        const auto input_name = resolve_kv_input_name(output_name, in_ports);
+        if (!input_name.has_value()) {
             // FIXME: Totally wrong debug message. input_name is an invalid name of input layer.
-            LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
+            LOG_DEBUG("Output name " << output_name << " has no matching past kv-cache input. Skipping.");
             continue;
         }
-        auto dst_tensor = request->get_tensor(in_ports.at(input_name));
+        auto dst_tensor = request->get_tensor(in_ports.at(input_name.value()));
         const auto& kv_dim = (output_name.find("value") != std::string::npos && v_transposed) ? 3u : kvcache_desc.dim;
         auto dst_slice = uu::make_tensor_slice(dst_tensor,
                                                kv_dim,

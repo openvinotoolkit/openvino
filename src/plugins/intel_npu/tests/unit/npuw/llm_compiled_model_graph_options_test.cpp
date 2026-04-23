@@ -14,11 +14,14 @@
 
 #include "llm_test_helpers.hpp"
 #include "openvino/op/slice.hpp"
+#include "util.hpp"
 
 namespace {
 using ov::test::npuw::CompileCall;
 using ov::test::npuw::NullPlugin;
 using ov::test::npuw::RecordingFactory;
+using ov::npuw::util::constants::past_key_values;
+using ov::npuw::util::constants::present;
 
 class LLMCompiledModelGraphOptionsTest : public ::testing::Test {
 protected:
@@ -177,8 +180,8 @@ TEST_F(LLMCompiledModelGraphOptionsTest, DynamicChunkPrefillKeepsPastKvInputsAnd
 
     const auto* prefill = recorder.find_suffix("_prefill");
     ASSERT_NE(prefill, nullptr);
-    EXPECT_GT(count_inputs(prefill->model, "past_key_values"), 0u);
-    EXPECT_GT(count_outputs(prefill->model, "present"), 0u);
+    EXPECT_GT(count_inputs(prefill->model, past_key_values), 0u);
+    EXPECT_GT(count_outputs(prefill->model, present), 0u);
     const auto ids = find_input(prefill->model, "input_ids");
     ASSERT_TRUE(ids.has_value());
     EXPECT_EQ(ids->get_shape(), (ov::Shape{1, 32}));
@@ -197,8 +200,8 @@ TEST_F(LLMCompiledModelGraphOptionsTest, StaticPrefillRemovesPastKvInputsAndKeep
 
     const auto* prefill = recorder.find_suffix("_prefill");
     ASSERT_NE(prefill, nullptr);
-    EXPECT_EQ(count_inputs(prefill->model, "past_key_values"), 0u);
-    EXPECT_GT(count_outputs(prefill->model, "present"), 0u);
+    EXPECT_EQ(count_inputs(prefill->model, past_key_values), 0u);
+    EXPECT_GT(count_outputs(prefill->model, present), 0u);
     const auto ids = find_input(prefill->model, "input_ids");
     ASSERT_TRUE(ids.has_value());
     EXPECT_EQ(ids->get_shape(), (ov::Shape{1, 128}));
