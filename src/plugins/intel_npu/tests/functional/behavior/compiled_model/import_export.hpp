@@ -150,7 +150,7 @@ TEST_P(OVCompiledGraphImportExportTestNPU, SameUnencryptedBlobAfterDecryption) {
     core.import_model(encrypted_blob_stream, target_device, configuration).export_model(decrypted_blob_stream);
     ASSERT_EQ(unencrypted_blob_stream.str(), decrypted_blob_stream.str());
 
-    decrypted_blob_stream = {};
+    decrypted_blob_stream.str(std::string());
     auto encrypted_blob_str = encrypted_blob_stream.str();
     ov::Tensor encrypted_blob_tensor(ov::element::u8, ov::Shape{encrypted_blob_str.size()}, encrypted_blob_str.c_str());
     core.import_model(encrypted_blob_tensor, target_device, configuration).export_model(decrypted_blob_stream);
