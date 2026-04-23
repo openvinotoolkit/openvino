@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/sdpa_to_paged_attention/state_management_pattern.hpp"
+#include "transformations/paged_attention/state_management_pattern.hpp"
 
 #include <tuple>
 
