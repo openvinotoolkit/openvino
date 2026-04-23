@@ -41,9 +41,9 @@
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
 
+namespace pattern = ov::pass::pattern;
 using ov::pass::pattern::any_input;
 using ov::pass::pattern::Matcher;
-using ov::pass::pattern::optional;
 using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::op::Or;
 
@@ -75,13 +75,13 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> general_
 
 static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> jais_13b_alibi_pattern() {
     auto jais_13b_alibi = any_input();
-    auto alibi_opt_conv = optional<v0::Convert>(jais_13b_alibi);
+    auto alibi_opt_conv = pattern::optional<v0::Convert>(jais_13b_alibi);
     auto mirroring_abs = wrap_type<v0::Abs>({any_input()});
     auto unsqueeze = wrap_type<v0::Unsqueeze>({mirroring_abs, any_input()});
-    auto broadcast = optional<ov::op::util::BroadcastBase>({unsqueeze, any_input()});
-    broadcast = optional<v0::Convert>(broadcast);
+    auto broadcast = pattern::optional<ov::op::util::BroadcastBase>({unsqueeze, any_input()});
+    broadcast = pattern::optional<v0::Convert>(broadcast);
     auto jais_alibi_mask = wrap_type<v1::Multiply>({alibi_opt_conv, broadcast});
-    jais_alibi_mask = optional<ov::op::util::BroadcastBase>({jais_alibi_mask, any_input()});
+    jais_alibi_mask = pattern::optional<ov::op::util::BroadcastBase>({jais_alibi_mask, any_input()});
     jais_alibi_mask = wrap_type<v0::Unsqueeze>({jais_alibi_mask, any_input()});
     jais_alibi_mask = wrap_type<v1::Add>({any_input(), jais_alibi_mask});
     return {jais_13b_alibi, jais_alibi_mask};
@@ -204,13 +204,13 @@ static std::shared_ptr<ov::Node> handle_baichuan2_13b_alibi(
 static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> phi3_sliding_window_pattern() {
     auto offset = wrap_type<v0::Constant>();
     auto t196 = wrap_type<v1::Add>({any_input(), offset});
-    auto t197 = ov::pass::pattern::optional<v0::Convert>(t196);
+    auto t197 = pattern::optional<v0::Convert>(t196);
     auto t200 = wrap_type<ov::op::v4::Range>({t197, any_input(), any_input()});
     auto t201 = wrap_type<v0::Unsqueeze>({t200, any_input()});
     auto t202 = wrap_type<v1::GreaterEqual>({any_input(), t201});
     auto t208 = wrap_type<v1::Select>({t202, any_input(), any_input()});
     auto t209 = wrap_type<v1::Subtract>({any_input(), t208});
-    auto t210 = ov::pass::pattern::optional<v0::Convert>(t209);
+    auto t210 = pattern::optional<v0::Convert>(t209);
     auto t211 = wrap_type<v1::Select>({t210, any_input(), any_input()});
     auto t213 = wrap_type<v0::Unsqueeze>({t211, any_input()});
     auto t214 = wrap_type<v0::Unsqueeze>({t213, any_input()});
@@ -224,7 +224,7 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gptoss_g
     auto q_idx = any_input();
     auto kv_idx = any_input();
 
-    auto kv_idx_opt_conv = ov::pass::pattern::optional<v0::Convert>(kv_idx);
+    auto kv_idx_opt_conv = pattern::optional<v0::Convert>(kv_idx);
 
     auto offset = wrap_type<v0::Constant>();
 
@@ -248,8 +248,8 @@ typedef std::
 static node_tuple kv_read_and_concat(ov::Output<ov::Node> kv_current) {
     auto kv_past_var = wrap_type<ov::op::util::ReadValueBase>({any_input()});
     auto kv_past = wrap_type<v8::Gather>({kv_past_var, any_input(), any_input()});
-    kv_past = optional<v1::Transpose>({kv_past, any_input()});  // Transpose is used when kv-cache is stored
-                                                                // in a not usual layout, example: bloom
+    kv_past = pattern::optional<v1::Transpose>({kv_past, any_input()});  // Transpose is used when kv-cache is stored
+                                                                         // in a not usual layout, example: bloom
     auto kv_current2 = any_input();
     auto kv_current_reshaped = wrap_type<v1::Reshape>({kv_current2, any_input()});
     auto kv_concat =
@@ -335,7 +335,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         interim = wrap_type<v1::StridedSlice>({unsqueeze, any_input(), any_input(), any_input()});
         interim = wrap_type<v1::StridedSlice>({interim, any_input(), any_input(), any_input()});
         interim = wrap_type<v3::Broadcast>({std::make_shared<Or>(OutputVector{unsqueeze, interim}), any_input()});
-        interim = optional<v1::Reshape>({interim, any_input()});  // Reshape is missing sometimes in MQA case
+        interim = pattern::optional<v1::Reshape>({interim, any_input()});  // Reshape is missing sometimes in MQA case
         return interim;
     };
 
