@@ -200,16 +200,16 @@ def _auto_register_module_extension_op(namespace, op_name, schema_args):
 
     @torch.library.impl(_module_ext_lib, op_name, "Meta")
     def _meta(*xs):
-        for x in xs:
-            if isinstance(x, torch.Tensor):
-                return torch.empty_like(x)
+        for arg in xs:
+            if isinstance(arg, torch.Tensor):
+                return torch.empty_like(arg)
         return torch.empty(1)
 
     @torch.library.impl(_module_ext_lib, op_name, "CPU")
     def _cpu(*xs):
-        for x in xs:
-            if isinstance(x, torch.Tensor):
-                return x
+        for arg in xs:
+            if isinstance(arg, torch.Tensor):
+                return arg
         return torch.empty(1)
 
     _module_ext_registered_ops.add(op_name)
