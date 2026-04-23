@@ -249,7 +249,7 @@ static node_tuple kv_read_and_concat(ov::Output<ov::Node> kv_current) {
     auto kv_past_var = wrap_type<ov::op::util::ReadValueBase>({any_input()});
     auto kv_past = wrap_type<v8::Gather>({kv_past_var, any_input(), any_input()});
     kv_past = pattern::optional<v1::Transpose>({kv_past, any_input()});  // Transpose is used when kv-cache is stored
-                                                                // in a not usual layout, example: bloom
+                                                                         // in a not usual layout, example: bloom
     auto kv_current2 = any_input();
     auto kv_current_reshaped = wrap_type<v1::Reshape>({kv_current2, any_input()});
     auto kv_concat =

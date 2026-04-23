@@ -208,6 +208,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     model->add_results(m_results.items());
     model->add_parameters(m_params.items());
     model->validate_nodes_and_infer_types();
-    
+
     return true;
 }
