@@ -2266,12 +2266,10 @@ std::shared_ptr<const ov::Model> ov::npuw::CompiledModel::get_runtime_model() co
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<const ::intel_npu::Plugin> ov::npuw::CompiledModel::get_npuw_plugin() const {
+std::shared_ptr<const ov::IPlugin> ov::npuw::CompiledModel::get_npuw_plugin() const {
     auto plugin = get_plugin();
     OPENVINO_ASSERT(plugin);
-    auto npuw_plugin = std::dynamic_pointer_cast<const ::intel_npu::Plugin>(plugin);
-    OPENVINO_ASSERT(npuw_plugin);
-    return npuw_plugin;
+    return plugin;
 }
 
 ov::Any ov::npuw::CompiledModel::get_property(const std::string& name) const {

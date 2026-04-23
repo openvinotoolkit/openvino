@@ -19,72 +19,11 @@
 #include "just_sync_infer_request.hpp"
 #include "llm_test_helpers.hpp"
 #include "model_builder.hpp"
-#include "plugin.hpp"
 #include "unfold_sync_infer_request.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
-
-namespace intel_npu {
-
-std::atomic<int> Plugin::_compiledModelLoadCounter{0};
-
-Plugin::Plugin() : _logger("test_npu_plugin", ov::log::Level::NO) {}
-
-void Plugin::set_property(const ov::AnyMap&) {}
-
-ov::Any Plugin::get_property(const std::string&, const ov::AnyMap&) const {
-    OPENVINO_THROW("Test plugin does not expose properties");
-}
-
-bool Plugin::is_property_supported(const std::string&, const ov::AnyMap&) const {
-    return false;
-}
-
-std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>&, const ov::AnyMap&) const {
-    OPENVINO_THROW("Unexpected Plugin::compile_model call in subgraph behavior test");
-}
-
-std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>&,
-                                                          const ov::AnyMap&,
-                                                          const ov::SoPtr<ov::IRemoteContext>&) const {
-    OPENVINO_THROW("Unexpected Plugin::compile_model(context) call in subgraph behavior test");
-}
-
-ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap&) const {
-    OPENVINO_THROW("Unexpected Plugin::create_context call in subgraph behavior test");
-}
-
-ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) const {
-    OPENVINO_THROW("Unexpected Plugin::get_default_context call in subgraph behavior test");
-}
-
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream&, const ov::AnyMap&) const {
-    OPENVINO_THROW("Unexpected Plugin::import_model(stream) call in subgraph behavior test");
-}
-
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream&,
-                                                         const ov::SoPtr<ov::IRemoteContext>&,
-                                                         const ov::AnyMap&) const {
-    OPENVINO_THROW("Unexpected Plugin::import_model(stream, context) call in subgraph behavior test");
-}
-
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor&, const ov::AnyMap&) const {
-    OPENVINO_THROW("Unexpected Plugin::import_model(blob) call in subgraph behavior test");
-}
-
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor&,
-                                                         const ov::SoPtr<ov::IRemoteContext>&,
-                                                         const ov::AnyMap&) const {
-    OPENVINO_THROW("Unexpected Plugin::import_model(blob, context) call in subgraph behavior test");
-}
-
-ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>&, const ov::AnyMap&) const {
-    OPENVINO_THROW("Unexpected Plugin::query_model call in subgraph behavior test");
-}
-
-}  // namespace intel_npu
 
 namespace {
 
@@ -96,6 +35,51 @@ constexpr std::size_t kKVCacheSize = kSeqLen + kPastKvLen;
 struct BehaviorHits {
     std::mutex mutex;
     std::vector<std::pair<std::size_t, std::size_t>> values;
+};
+
+class TestPlugin final : public ov::IPlugin {
+public:
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,
+                                                      const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected TestPlugin::compile_model call in subgraph behavior test");
+    }
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,
+                                                      const ov::AnyMap&,
+                                                      const ov::SoPtr<ov::IRemoteContext>&) const override {
+        OPENVINO_THROW("Unexpected TestPlugin::compile_model(context) call in subgraph behavior test");
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream&, const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected TestPlugin::import_model(stream) call in subgraph behavior test");
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream&,
+                                                     const ov::SoPtr<ov::IRemoteContext>&,
+                                                     const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected TestPlugin::import_model(stream, context) call in subgraph behavior test");
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor&, const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected TestPlugin::import_model(blob) call in subgraph behavior test");
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor&,
+                                                     const ov::SoPtr<ov::IRemoteContext>&,
+                                                     const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected TestPlugin::import_model(blob, context) call in subgraph behavior test");
+    }
+    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>&, const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected TestPlugin::query_model call in subgraph behavior test");
+    }
+    void set_property(const ov::AnyMap&) override {}
+    ov::Any get_property(const std::string&, const ov::AnyMap&) const override {
+        OPENVINO_THROW("Test plugin does not expose properties");
+    }
+    bool is_property_supported(const std::string&, const ov::AnyMap&) const override {
+        return false;
+    }
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected TestPlugin::create_context call in subgraph behavior test");
+    }
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected TestPlugin::get_default_context call in subgraph behavior test");
+    }
 };
 
 std::shared_ptr<ov::Model> build_static_llm_model() {
@@ -285,7 +269,7 @@ TEST_F(SubgraphBehaviorInferTest, SdpaBehaviorCanOverrideStaticLlmSubgraphExecut
     ASSERT_GT(count_sdpa_nodes(baseline_model), 0u) << "The synthesized LLM model must contain SDPA nodes";
     auto hits = std::make_shared<BehaviorHits>();
 
-    auto plugin = std::make_shared<intel_npu::Plugin>();
+    auto plugin = std::make_shared<TestPlugin>();
     auto core = make_core(plugin);
     plugin->set_core(core);
 
@@ -331,7 +315,7 @@ TEST_F(SubgraphBehaviorInferTest, SdpaBehaviorCanOverrideStaticLlmSubgraphExecut
 }
 
 TEST_F(SubgraphBehaviorInferTest, RuntimeBehaviorForcesJustInferRequestWhenUnfoldIsEnabled) {
-    auto plugin = std::make_shared<intel_npu::Plugin>();
+    auto plugin = std::make_shared<TestPlugin>();
     auto core = make_core(plugin);
     plugin->set_core(core);
 
