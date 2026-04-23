@@ -41,6 +41,7 @@
 #include "openvino/op/elu.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/erf.hpp"
+#include "openvino/op/erfinv.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/floor.hpp"
 #include "openvino/op/floor_mod.hpp"
@@ -195,7 +196,7 @@ static bool is_segfault_detector_emitter(const intel_cpu::aarch64::jit_emitter* 
          OPENVINO_THROW("Unsupported Round mode");                                                \
      }}
 
-class jit_snippet : public dnnl::impl::cpu::aarch64::jit_generator {
+class jit_snippet : public dnnl::impl::cpu::aarch64::jit_generator_t {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_snippet)
 
@@ -306,6 +307,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     jitters[ov::op::v0::Clamp::get_type_info_static()] = emitter_factory.from_node<jit_clamp_emitter>();
     jitters[ov::op::v0::Elu::get_type_info_static()] = emitter_factory.from_node<jit_elu_emitter>();
     jitters[ov::op::v0::Erf::get_type_info_static()] = emitter_factory.from_node<jit_erf_emitter>();
+    jitters[ov::op::v17::ErfInv::get_type_info_static()] = emitter_factory.from_node<jit_erfinv_emitter>();
     jitters[ov::op::v0::Exp::get_type_info_static()] = emitter_factory.from_node<jit_exp_emitter>();
     jitters[ov::op::v0::Floor::get_type_info_static()] = emitter_factory.from_node<jit_floor_emitter>();
     jitters[ov::op::v1::FloorMod::get_type_info_static()] = emitter_factory.from_node<jit_floor_mod_emitter>();
@@ -380,7 +382,7 @@ snippets::CompiledSnippetPtr CPUTargetMachine::get_snippet() {
     OPENVINO_ASSERT(h->create_kernel() == dnnl::impl::status::success, "Failed to create jit_kernel in get_snippet()");
 
     const auto& result =
-        std::make_shared<CompiledSnippetCPU>(std::unique_ptr<dnnl::impl::cpu::aarch64::jit_generator>(h.release()));
+        std::make_shared<CompiledSnippetCPU>(std::unique_ptr<dnnl::impl::cpu::aarch64::jit_generator_t>(h.release()));
     // Note that we reset all the generated code, since it was copied into CompiledSnippetCPU
     h = std::make_unique<jit_snippet>();
     return result;

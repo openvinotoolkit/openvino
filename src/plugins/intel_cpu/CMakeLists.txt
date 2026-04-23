@@ -256,12 +256,6 @@ if (ENABLE_SNIPPETS_LIBXSMM_TPP)
 endif ()
 if(ENABLE_KLEIDIAI_FOR_CPU)
     target_link_libraries(${TARGET_NAME} PRIVATE kleidiai)
-    set_source_files_properties(
-        src/emitters/snippets/aarch64/jit_gemm_emitter.cpp
-        src/emitters/snippets/aarch64/jit_gemm_copy_b_emitter.cpp
-        PROPERTIES
-            COMPILE_OPTIONS -march=armv8.2-a+fp16
-            SKIP_PRECOMPILE_HEADERS ON)
 endif()
 
 if(RISCV64)
@@ -315,14 +309,14 @@ cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 SVE ANY
                     src/nodes/kernels/scaled_attn/attn_memcpy.cpp
         API         src/nodes/kernels/scaled_attn/attn_memcpy.hpp
-        NAME        attn_memcpy paged_attn_memcpy attn_memcpy2d_kernel
+        NAME        attn_memcpy paged_attn_memcpy attn_memcpy2d attn_memcpy2d_kernel
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 SVE NEON_FP16 ANY
                     src/nodes/kernels/scaled_attn/attn_quant.cpp
         API         src/nodes/kernels/scaled_attn/attn_quant.hpp
-        NAME        attn_quantkv paged_attn_quantkv attn_quant_u8 attn_dequant_u8 attn_quant_by_channel_u8 attn_dequant_by_channel_u8
+        NAME        paged_attn_quantkv attn_quant_u8 attn_dequant_u8 attn_quant_by_token attn_quant_by_channel attn_quant_by_channel_u8 attn_dequant_by_channel_u8
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 
@@ -331,6 +325,14 @@ cross_compiled_file(${TARGET_NAME}
                     src/nodes/kernels/x64/mlp_utils.cpp
         API         src/nodes/kernels/x64/mlp_utils.hpp
         NAME        llm_mlp_transpose_epi32_16x16  llm_mlp_quantize_bf16_i8 llm_mlp_quantize_f16_i8 llm_mlp_dequantize_i32_f32
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
+                    src/nodes/kernels/linear_attn/recurrent_linear_attn.cpp
+        API         src/nodes/kernels/linear_attn/recurrent_linear_attn.hpp
+        NAME        recurrent_linear_attn
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 

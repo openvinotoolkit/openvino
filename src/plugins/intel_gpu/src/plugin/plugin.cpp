@@ -38,6 +38,7 @@
 #include "openvino/runtime/plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "common_utils/parallel_mem_streambuf.hpp"
 #include "openvino/runtime/weightless_properties_utils.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/weights_path.hpp"
@@ -234,12 +235,7 @@ Plugin::Plugin() {
     set_device_name("GPU");
     register_primitives();
 
-    // Set OCL runtime which should be always available
-#ifdef OV_GPU_WITH_SYCL
-    cldnn::device_query device_query(cldnn::engine_types::sycl, cldnn::runtime_types::ocl);
-#else
-    cldnn::device_query device_query(cldnn::engine_types::ocl, cldnn::runtime_types::ocl);
-#endif
+    cldnn::device_query device_query;
     m_device_map = device_query.get_available_devices();
 
     // Set default configs for each device
@@ -464,8 +460,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& config) const{
-    SharedStreamBuffer buf{model.data(), model.get_byte_size()};
-    std::istream stream(&buf);
+    ov::intel_gpu::ParallelMemStreamBuf par_buf(model.data(), model.get_byte_size());
+    std::istream stream(&par_buf);
     return import_model(stream, context, config);
 }
 

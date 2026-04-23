@@ -4,17 +4,46 @@
 
 #pragma once
 
+#include <memory>
 #include <openvino/runtime/intel_npu/properties.hpp>
 #include <vector>
 
 #include "behavior/compiled_model/properties.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "openvino/core/log.hpp"
+#include "zero_backend.hpp"
 
 using namespace ov::test::behavior;
 
 namespace {
+
+class LogCallbackGuard {
+public:
+    explicit LogCallbackGuard(const std::function<void(std::string_view)>& callback) {
+        ov::util::set_log_callback(callback);
+    }
+
+    ~LogCallbackGuard() {
+        ov::util::reset_log_callback();
+    }
+
+    LogCallbackGuard(const LogCallbackGuard&) = delete;
+    LogCallbackGuard& operator=(const LogCallbackGuard&) = delete;
+};
+
+bool has_non_negative_numeric_suffix(const std::string& value) {
+    const auto dot_pos = value.find('.');
+    if (dot_pos == std::string::npos || dot_pos + 1 >= value.size()) {
+        return false;
+    }
+
+    const auto suffix = value.substr(dot_pos + 1);
+    return std::all_of(suffix.begin(), suffix.end(), [](const char ch) {
+        return ch >= '0' && ch <= '9';
+    });
+}
 
 // ExecutableNetwork Properties tests
 class ClassExecutableNetworkGetPropertiesTestNPU
@@ -225,6 +254,21 @@ using ClassExecutableNetworkInvalidDeviceIDTestSuite = ClassExecutableNetworkGet
 
 TEST_P(ClassExecutableNetworkInvalidDeviceIDTestSuite, InvalidNPUdeviceIDTest) {
     deviceName = configValue.as<std::string>();
+    const bool is_non_negative_numeric_device_id = has_non_negative_numeric_suffix(deviceName);
+
+    auto backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
+    auto device = backend->getDevice();
+    if (device != nullptr && device->getName() == ov::intel_npu::Platform::AUTO_DETECT) {
+        if (is_non_negative_numeric_device_id) {
+            GTEST_SKIP()
+                << "Skip since AUTO_DETECT platform should ignore numeric suffix and find the device successfully\n";
+        }
+
+        OV_EXPECT_THROW_HAS_SUBSTRING(ov::CompiledModel compiled_model = ie.compile_model(model, deviceName),
+                                      ov::Exception,
+                                      "Compilation failed.");
+        return;
+    }
 
     OV_EXPECT_THROW_HAS_SUBSTRING(ov::CompiledModel compiled_model = ie.compile_model(model, deviceName),
                                   ov::Exception,
@@ -235,15 +279,21 @@ using CheckCompilerTypeProperty = ClassExecutableNetworkGetPropertiesTestNPU;
 
 TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyFromCompiledModel) {
     std::string platform = ov::test::utils::getTestsPlatformFromEnvironmentOr(deviceName);
-    size_t pos0 = platform.find("5010");
-    size_t pos1 = platform.find("4000");
+    const std::vector<std::string> plugin_compiler_platforms = {"4000", "5010", "5020"};
+    bool is_plugin_compiler_platform = false;
+    for (const auto& p : plugin_compiler_platforms) {
+        if (platform.find(p) != std::string::npos) {
+            is_plugin_compiler_platform = true;
+            break;
+        }
+    }
     ov::Core core;
 
     ov::CompiledModel compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, deviceName));
     auto compiler_type = compiled_model.get_property(ov::intel_npu::compiler_type);
 
-    if (pos0 != std::string::npos || pos1 != std::string::npos) {
+    if (is_plugin_compiler_platform) {
         ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::PLUGIN);
     } else {
         ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::DRIVER);
@@ -255,7 +305,7 @@ TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyFromCompiledModel) {
     compiler_type = compiled_model.get_property(ov::intel_npu::compiler_type);
     ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::DRIVER);
 
-    if (pos0 != std::string::npos || pos1 != std::string::npos) {
+    if (is_plugin_compiler_platform) {
         OV_ASSERT_NO_THROW(compiled_model =
                                core.compile_model(model,
                                                   deviceName,
@@ -267,8 +317,14 @@ TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyFromCompiledModel) {
 
 TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyAfterSettingExtraConfigToGetProperty) {
     std::string platform = ov::test::utils::getTestsPlatformFromEnvironmentOr(deviceName);
-    size_t pos0 = platform.find("5010");
-    size_t pos1 = platform.find("4000");
+    const std::vector<std::string> plugin_compiler_platforms = {"4000", "5010", "5020"};
+    bool is_plugin_compiler_platform = false;
+    for (const auto& p : plugin_compiler_platforms) {
+        if (platform.find(p) != std::string::npos) {
+            is_plugin_compiler_platform = true;
+            break;
+        }
+    }
     ov::Core core;
 
     auto test_custom_compiler_type =
@@ -278,7 +334,7 @@ TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyAfterSettingExtraConf
     ASSERT_TRUE(test_custom_compiler_type == ov::intel_npu::CompilerType::DRIVER);
 
     test_custom_compiler_type = core.get_property(deviceName, ov::intel_npu::compiler_type);
-    if (pos0 != std::string::npos || pos1 != std::string::npos) {
+    if (is_plugin_compiler_platform) {
         ASSERT_TRUE(test_custom_compiler_type == ov::intel_npu::CompilerType::PREFER_PLUGIN);
     } else {
         ASSERT_TRUE(test_custom_compiler_type == ov::intel_npu::CompilerType::DRIVER);
@@ -288,7 +344,7 @@ TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyAfterSettingExtraConf
     OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, deviceName));
     auto compiler_type = compiled_model.get_property(ov::intel_npu::compiler_type);
 
-    if (pos0 != std::string::npos || pos1 != std::string::npos) {
+    if (is_plugin_compiler_platform) {
         ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::PLUGIN);
     } else {
         ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::DRIVER);
@@ -310,12 +366,14 @@ TEST_P(CheckCompilerTypeProperty, CheckLogAfterSettingExtraConfigToGetProperty) 
     core.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
     core.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN));
 
-    ov::util::set_log_callback(log_cb);
-    auto compiler_type = core.get_property(
-        deviceName,
-        ov::intel_npu::compiler_type,
-        {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER), ov::intel_npu::qdq_optimization(true)});
-    ov::util::reset_log_callback();
+    auto compiler_type = ov::intel_npu::CompilerType::PLUGIN;
+    {
+        LogCallbackGuard log_callback_guard(log_cb);
+        compiler_type = core.get_property(
+            deviceName,
+            ov::intel_npu::compiler_type,
+            {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER), ov::intel_npu::qdq_optimization(true)});
+    }
 
     ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::DRIVER);
     ASSERT_NE(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
@@ -338,22 +396,24 @@ TEST_P(CheckCompilerTypeProperty, CheckLogAfterGettingPropertyWithExtraConfig) {
         logs.push_back('\n');
     };
 
-    ov::util::set_log_callback(log_cb);
-    OV_ASSERT_NO_THROW(core.get_property(deviceName,
-                                         ov::intel_npu::defer_weights_load,
-                                         {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}));
-    ov::util::reset_log_callback();
+    {
+        LogCallbackGuard log_callback_guard(log_cb);
+        OV_ASSERT_NO_THROW(core.get_property(deviceName,
+                                             ov::intel_npu::defer_weights_load,
+                                             {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}));
+    }
 
     ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
 
     logs.clear();
 
-    ov::util::set_log_callback(log_cb);
-    OV_ASSERT_NO_THROW(core.get_property(
-        deviceName,
-        ov::intel_npu::defer_weights_load,
-        {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER), ov::intel_npu::qdq_optimization(true)}));
-    ov::util::reset_log_callback();
+    {
+        LogCallbackGuard log_callback_guard(log_cb);
+        OV_ASSERT_NO_THROW(core.get_property(deviceName,
+                                             ov::intel_npu::defer_weights_load,
+                                             {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
+                                              ov::intel_npu::qdq_optimization(true)}));
+    }
 
     ASSERT_NE(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
 }
@@ -372,19 +432,21 @@ TEST_P(CheckCompilerTypeProperty, SetRuntimeProperty) {
         logs.push_back('\n');
     };
 
-    ov::util::set_log_callback(log_cb);
-    OV_ASSERT_NO_THROW(
-        core.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)));
-    OV_ASSERT_NO_THROW(core.get_property(deviceName, ov::intel_npu::defer_weights_load));
-    ov::util::reset_log_callback();
+    {
+        LogCallbackGuard log_callback_guard(log_cb);
+        OV_ASSERT_NO_THROW(
+            core.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)));
+        OV_ASSERT_NO_THROW(core.get_property(deviceName, ov::intel_npu::defer_weights_load));
+    }
 
     ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
 
     logs.clear();
 
-    ov::util::set_log_callback(log_cb);
-    OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::intel_npu::qdq_optimization(true)));
-    ov::util::reset_log_callback();
+    {
+        LogCallbackGuard log_callback_guard(log_cb);
+        OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::intel_npu::qdq_optimization(true)));
+    }
 
     ASSERT_NE(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
 }
@@ -403,34 +465,38 @@ TEST_P(CheckCompilerTypeProperty, SetCompilerPropertyForDifferentCompiler) {
         logs.push_back('\n');
     };
 
-    ov::util::set_log_callback(log_cb);
-    OV_ASSERT_NO_THROW(
-        core.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)));
-    OV_ASSERT_NO_THROW(core.get_property(deviceName, ov::intel_npu::defer_weights_load));
-    ov::util::reset_log_callback();
+    {
+        LogCallbackGuard log_callback_guard(log_cb);
+        OV_ASSERT_NO_THROW(
+            core.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)));
+        OV_ASSERT_NO_THROW(core.get_property(deviceName, ov::intel_npu::defer_weights_load));
+    }
     ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
 
     logs.clear();
 
-    ov::util::set_log_callback(log_cb);
-    OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::intel_npu::qdq_optimization(true)));
-    ov::util::reset_log_callback();
+    {
+        LogCallbackGuard log_callback_guard(log_cb);
+        OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::intel_npu::qdq_optimization(true)));
+    }
     ASSERT_NE(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
 
     logs.clear();
 
-    ov::util::set_log_callback(log_cb);
-    OV_ASSERT_NO_THROW(
-        core.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)));
-    ov::util::reset_log_callback();
+    {
+        LogCallbackGuard log_callback_guard(log_cb);
+        OV_ASSERT_NO_THROW(
+            core.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)));
+    }
     ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
     ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
 
     logs.clear();
 
-    ov::util::set_log_callback(log_cb);
-    OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::intel_npu::qdq_optimization(true)));
-    ov::util::reset_log_callback();
+    {
+        LogCallbackGuard log_callback_guard(log_cb);
+        OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::intel_npu::qdq_optimization(true)));
+    }
     ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
 }
 
@@ -450,9 +516,10 @@ TEST_P(CheckCompilerTypeProperty, GetCompilerVersion) {
 
     OV_ASSERT_NO_THROW(
         core.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)));
-    ov::util::set_log_callback(log_cb);
-    OV_ASSERT_NO_THROW(core.get_property(deviceName, ov::intel_npu::compiler_version));
-    ov::util::reset_log_callback();
+    {
+        LogCallbackGuard log_callback_guard(log_cb);
+        OV_ASSERT_NO_THROW(core.get_property(deviceName, ov::intel_npu::compiler_version));
+    }
     ASSERT_NE(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
     ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
 
@@ -460,23 +527,236 @@ TEST_P(CheckCompilerTypeProperty, GetCompilerVersion) {
 
     OV_ASSERT_NO_THROW(
         core.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)));
-    ov::util::set_log_callback(log_cb);
-    OV_ASSERT_NO_THROW(core.get_property(deviceName, ov::intel_npu::compiler_version));
-    ov::util::reset_log_callback();
+    {
+        LogCallbackGuard log_callback_guard(log_cb);
+        OV_ASSERT_NO_THROW(core.get_property(deviceName, ov::intel_npu::compiler_version));
+    }
     ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
     ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
 
     logs.clear();
 
-    ov::util::set_log_callback(log_cb);
-    OV_ASSERT_NO_THROW(core.get_property(deviceName,
-                                         ov::intel_npu::compiler_version,
-                                         {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}));
-    ov::util::reset_log_callback();
+    {
+        LogCallbackGuard log_callback_guard(log_cb);
+        OV_ASSERT_NO_THROW(core.get_property(deviceName,
+                                             ov::intel_npu::compiler_version,
+                                             {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}));
+    }
     ASSERT_NE(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
     ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
 
     logs.clear();
+}
+
+using CheckCompilerVersionProperty = ClassExecutableNetworkGetPropertiesTestNPU;
+
+TEST_P(CheckCompilerVersionProperty, GetCompilerVersionFromCompiledModel) {
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, deviceName));
+
+    uint32_t compiled_model_version = 0;
+    OV_ASSERT_NO_THROW(compiled_model_version = compiled_model.get_property(ov::intel_npu::compiler_version));
+
+    uint32_t plugin_version = 0;
+    OV_ASSERT_NO_THROW(plugin_version = core.get_property(deviceName, ov::intel_npu::compiler_version));
+    ASSERT_EQ(compiled_model_version, plugin_version);
+}
+
+TEST_P(CheckCompilerVersionProperty, CompilerVersionAvailableAfterImport) {
+    ov::Core core_compile, core_import;
+    ov::CompiledModel compiled_model, imported_model;
+    std::stringstream export_stream;
+
+    OV_ASSERT_NO_THROW(compiled_model = core_compile.compile_model(model, deviceName));
+
+    uint32_t compiled_version = 0;
+    OV_ASSERT_NO_THROW(compiled_version = compiled_model.get_property(ov::intel_npu::compiler_version));
+
+    OV_ASSERT_NO_THROW(compiled_model.export_model(export_stream));
+    compiled_model = {};
+
+    OV_ASSERT_NO_THROW(imported_model = core_import.import_model(export_stream, deviceName));
+
+    uint32_t imported_version = 0;
+    OV_ASSERT_NO_THROW(imported_version = imported_model.get_property(ov::intel_npu::compiler_version));
+    ASSERT_EQ(imported_version, compiled_version);
+}
+
+using CheckCompilerPropertyWhenImporting = ClassExecutableNetworkGetPropertiesTestNPU;
+
+TEST_P(CheckCompilerPropertyWhenImporting, ExpectedThrowFromImportWithUnsupportedProperty) {
+    ov::Core core_compile, core_import;
+    ov::CompiledModel compiled_model;
+    std::stringstream export_stream;
+
+    OV_ASSERT_NO_THROW(compiled_model = core_compile.compile_model(model, deviceName));
+    OV_ASSERT_NO_THROW(compiled_model.export_model(export_stream));
+    compiled_model = {};
+
+    ASSERT_THROW(core_import.import_model(export_stream, deviceName, {{{"DUMMY_PROPERTY", ov::Any("DUMMY_VALUE")}}}),
+                 ov::Exception);  // Expect to throw due to unsupported property
+}
+
+TEST_P(CheckCompilerPropertyWhenImporting, ExpectedNoThrowFromImportWithCompilerProperty) {
+    std::string logs;
+    std::mutex logs_mutex;
+    ov::Core core_compile, core_import;
+    ov::CompiledModel compiled_model;
+    std::stringstream export_stream;
+
+    OV_ASSERT_NO_THROW(compiled_model = core_compile.compile_model(model, deviceName));
+    OV_ASSERT_NO_THROW(compiled_model.export_model(export_stream));
+    compiled_model = {};
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    {
+        LogCallbackGuard log_callback_guard(log_cb);
+        core_import.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
+        OV_ASSERT_NO_THROW(
+            core_import.import_model(export_stream, deviceName, {{ov::intel_npu::qdq_optimization(true)}}));
+    }
+
+    ASSERT_NE(logs.find("Config key 'NPU_QDQ_OPTIMIZATION' is recognized as a compiler option, will not be used"),
+              std::string::npos);
+}
+
+TEST_P(CheckCompilerPropertyWhenImporting, ExpectedNoThrowFromImportWithBothProperty) {
+    ov::Core core_compile, core_import;
+    ov::CompiledModel compiled_model, imported_model;
+    std::stringstream export_stream0, export_stream1;
+
+    OV_ASSERT_NO_THROW(compiled_model = core_compile.compile_model(model, deviceName));
+    OV_ASSERT_NO_THROW(compiled_model.export_model(export_stream0));
+    OV_ASSERT_NO_THROW(compiled_model.export_model(export_stream1));
+    compiled_model = {};
+
+    OV_ASSERT_NO_THROW(imported_model =
+                           core_import.import_model(export_stream0, deviceName, {{ov::intel_npu::turbo(true)}}));
+    bool turbo = false;
+    OV_ASSERT_NO_THROW(turbo = imported_model.get_property(ov::intel_npu::turbo));
+    ASSERT_TRUE(turbo == true);
+
+    OV_ASSERT_NO_THROW(imported_model = core_import.import_model(
+                           export_stream1,
+                           deviceName,
+                           {{ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}}));
+    ASSERT_THROW(imported_model.get_property(ov::intel_npu::turbo),
+                 ov::Exception);  // Expect to throw due to unsupported property
+
+    ov::hint::PerformanceMode perf_mode = ov::hint::PerformanceMode::LATENCY;
+    OV_ASSERT_NO_THROW(perf_mode = imported_model.get_property(ov::hint::performance_mode));
+    ASSERT_TRUE(perf_mode == ov::hint::PerformanceMode::THROUGHPUT);
+}
+
+TEST_P(CheckCompilerPropertyWhenImporting, ExpectedNoThrowFromImportWithRuntimeProperty) {
+    ov::Core core_compile, core_import;
+    ov::CompiledModel compiled_model, imported_model;
+    std::stringstream export_stream;
+
+    OV_ASSERT_NO_THROW(compiled_model = core_compile.compile_model(model, deviceName));
+    OV_ASSERT_NO_THROW(compiled_model.export_model(export_stream));
+    compiled_model = {};
+
+    OV_ASSERT_NO_THROW(imported_model =
+                           core_import.import_model(export_stream,
+                                                    deviceName,
+                                                    {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
+                                                      ov::workload_type(ov::WorkloadType::EFFICIENT)}}));
+
+    ov::intel_npu::CompilerType compiler_type = ov::intel_npu::CompilerType::PLUGIN;
+    OV_ASSERT_NO_THROW(compiler_type = imported_model.get_property(ov::intel_npu::compiler_type));
+    ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::DRIVER);
+
+    ov::WorkloadType workload_type = ov::WorkloadType::DEFAULT;
+    OV_ASSERT_NO_THROW(workload_type = imported_model.get_property(ov::workload_type));
+    ASSERT_TRUE(workload_type == ov::WorkloadType::EFFICIENT);
+}
+
+TEST_P(CheckCompilerPropertyWhenImporting, CheckImportWithCompilerProperty) {
+    std::string logs;
+    std::mutex logs_mutex;
+    ov::Core core_for_compiler;
+    ov::Core core_for_importing;
+    ov::CompiledModel compiled_model;
+    std::stringstream export_stream;
+
+    OV_ASSERT_NO_THROW(compiled_model = core_for_compiler.compile_model(model, deviceName));
+    OV_ASSERT_NO_THROW(compiled_model.export_model(export_stream));
+    compiled_model = {};
+
+    core_for_importing.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    {
+        LogCallbackGuard log_callback_guard(log_cb);
+        OV_ASSERT_NO_THROW(
+            core_for_importing.import_model(export_stream,
+                                            deviceName,
+                                            {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
+                                              ov::intel_npu::platform("5010"),
+                                              ov::intel_npu::qdq_optimization(true)}}));
+    }
+
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+    ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+    ASSERT_NE(logs.find("Config key 'NPU_PLATFORM' is recognized as a compiler option, will not be used for current "
+                        "configuration."),
+              std::string::npos);
+    ASSERT_NE(logs.find("Config key 'NPU_QDQ_OPTIMIZATION' is recognized as a compiler option, will not be used for "
+                        "current configuration."),
+              std::string::npos);
+}
+
+TEST_P(CheckCompilerPropertyWhenImporting, CheckImportWithCompilerPropertyAfterCompiling) {
+    std::string logs;
+    std::mutex logs_mutex;
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+    std::stringstream export_stream;
+
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, deviceName));
+    OV_ASSERT_NO_THROW(compiled_model.export_model(export_stream));
+    compiled_model = {};
+
+    core.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    {
+        LogCallbackGuard log_callback_guard(log_cb);
+        OV_ASSERT_NO_THROW(core.import_model(export_stream,
+                                             deviceName,
+                                             {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
+                                               ov::intel_npu::platform("5010"),
+                                               ov::intel_npu::qdq_optimization(true)}}));
+    }
+
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+    ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+    ASSERT_NE(logs.find("Config key 'NPU_PLATFORM' is recognized as a compiler option, will not be used for current "
+                        "configuration."),
+              std::string::npos);
+    ASSERT_NE(logs.find("Config key 'NPU_QDQ_OPTIMIZATION' is recognized as a compiler option, will not be used for "
+                        "current configuration."),
+              std::string::npos);
 }
 
 }  // namespace

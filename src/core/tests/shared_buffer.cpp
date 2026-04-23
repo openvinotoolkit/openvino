@@ -345,65 +345,6 @@ TEST_F(SharedBufferTest, aligned_buffer_interface) {
     EXPECT_EQ(aligned->get_ptr(), test_data);
 }
 
-// ==================== MappedMemory get_id Tests ====================
-
-TEST(MappedMemory, get_id_unique_per_file) {
-    // Create two temporary files
-    std::filesystem::path file1 = ov::test::utils::generateTestFilePrefix() + "_file1";
-    std::filesystem::path file2 = ov::test::utils::generateTestFilePrefix() + "_file2";
-
-    const char test_data[] = "Test data for MappedMemory";
-
-    // Write same data to both files
-    {
-        std::ofstream os1(file1, std::ios::binary);
-        os1.write(test_data, sizeof(test_data));
-
-        std::ofstream os2(file2, std::ios::binary);
-        os2.write(test_data, sizeof(test_data));
-    }
-
-    {
-        // Load both files
-        auto mapped1 = ov::load_mmap_object(file1);
-        auto mapped2 = ov::load_mmap_object(file2);
-
-        ASSERT_NE(mapped1, nullptr);
-        ASSERT_NE(mapped2, nullptr);
-
-        // IDs should be different even though content is the same (ID is hash of file path)
-        EXPECT_NE(mapped1->get_id(), mapped2->get_id());
-    }
-    // Clean up
-    std::filesystem::remove(file1);
-    std::filesystem::remove(file2);
-}
-
-TEST(MappedMemory, get_id_same_for_same_file) {
-    std::filesystem::path file_path = ov::test::utils::generateTestFilePrefix() + "_same_file";
-    const char test_data[] = "Test data for same file";
-
-    // Create file
-    {
-        std::ofstream os(file_path, std::ios::binary);
-        os.write(test_data, sizeof(test_data));
-    }
-
-    {
-        // Load the same file twice
-        auto mapped1 = ov::load_mmap_object(file_path);
-        auto mapped2 = ov::load_mmap_object(file_path);
-
-        ASSERT_NE(mapped1, nullptr);
-        ASSERT_NE(mapped2, nullptr);
-
-        // IDs should be the same for the same file path
-        EXPECT_EQ(mapped1->get_id(), mapped2->get_id());
-    }
-    // Clean up
-    std::filesystem::remove(file_path);
-}
-
 // ==================== SharedBuffer with explicit descriptor Tests ====================
 
 TEST_F(SharedBufferTest, shared_ptr_void_with_explicit_descriptor) {
@@ -471,4 +412,105 @@ TEST_F(SharedBufferTest, mmap_with_offset) {
     auto parent_desc = parent->get_descriptor();
     ASSERT_NE(parent_desc, nullptr);
     EXPECT_EQ(parent_desc->get_offset(), offset);
+}
+
+TEST_F(SharedBufferTest, mmap_source_buffer) {
+    auto mapped_memory = ov::load_mmap_object(m_file_path);
+
+    const auto offset = 10u;
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data() + offset,
+                                                                                        mapped_memory->size() - offset,
+                                                                                        mapped_memory);
+    auto buffer_desc = buffer->get_descriptor();
+    auto source_buffer = buffer_desc->get_source_buffer();
+    ASSERT_NE(buffer_desc, nullptr);
+    EXPECT_EQ(buffer_desc->get_id(), mapped_memory->get_id());
+    EXPECT_EQ(buffer_desc->get_offset(), offset);
+    ASSERT_NE(source_buffer, nullptr);
+
+    auto source_desc = source_buffer->get_descriptor();
+    ASSERT_NE(source_desc, nullptr);
+    EXPECT_EQ(source_desc->get_id(), mapped_memory->get_id());
+    EXPECT_EQ(source_desc->get_offset(), 0u);
+}
+
+TEST_F(SharedBufferTest, mmap_nested_buffer) {
+    auto mapped_memory = ov::load_mmap_object(m_file_path);
+
+    const auto offset = 10u;
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data() + offset,
+                                                                                        mapped_memory->size() - offset,
+                                                                                        mapped_memory);
+    auto nested_buffer =
+        std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(buffer->get_ptr<char>() + offset,
+                                                                               buffer->size() - offset,
+                                                                               buffer);
+
+    auto nested_buffer_desc = nested_buffer->get_descriptor();
+    auto source_buffer = nested_buffer_desc->get_source_buffer();
+    ASSERT_NE(nested_buffer_desc, nullptr);
+    EXPECT_EQ(nested_buffer_desc->get_id(), mapped_memory->get_id());
+    EXPECT_EQ(nested_buffer_desc->get_offset(), offset * 2);
+    ASSERT_NE(source_buffer, nullptr);
+
+    auto source_desc = source_buffer->get_descriptor();
+    ASSERT_NE(source_desc, nullptr);
+    EXPECT_EQ(source_desc->get_id(), mapped_memory->get_id());
+    EXPECT_EQ(source_desc->get_offset(), 0u);
+}
+
+TEST_F(SharedBufferTest, specialization_overload_resolution) {
+    // Test various SharedBuffer constructor variants to ensure SFINAE and overload resolution work correctly
+    {
+        auto src_buffer = std::make_shared<ov::AlignedBuffer>(sizeof(float) * 4000);
+        {
+            auto sh_buff = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+                src_buffer->get_ptr<char>(),
+                src_buffer->size(),
+                src_buffer,
+                ov::create_base_descriptor(10, 5, src_buffer));
+
+            auto desc = sh_buff->get_descriptor();
+            ASSERT_NE(desc, nullptr);
+            EXPECT_EQ(desc->get_id(), 10u);
+            EXPECT_EQ(desc->get_offset(),
+                      0u);  // offset is calculated from source buffer pointer, not constructor argument
+            EXPECT_EQ(desc->get_source_buffer(), src_buffer);
+        }
+        {
+            auto sh_buff =
+                std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(src_buffer->get_ptr<char>(),
+                                                                                       src_buffer->size(),
+                                                                                       src_buffer);
+
+            EXPECT_EQ(sh_buff->get_descriptor(), nullptr);  // no descriptor to inherit
+        }
+    }
+    {
+        auto mapped_memory = ov::load_mmap_object(m_file_path);
+        {
+            auto sh_buff = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
+                mapped_memory->data(),
+                mapped_memory->size(),
+                mapped_memory,
+                ov::create_base_descriptor(10, 5, nullptr));
+
+            auto desc = sh_buff->get_descriptor();
+            ASSERT_NE(desc, nullptr);
+            EXPECT_EQ(desc->get_id(), 10u);
+            EXPECT_EQ(desc->get_offset(), 0u);              // no source buffer provided, so offset should be 0
+            EXPECT_EQ(desc->get_source_buffer(), nullptr);  // no source buffer provided
+        }
+        {
+            auto sh_buff = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data(),
+                                                                                                 mapped_memory->size(),
+                                                                                                 mapped_memory);
+
+            auto desc = sh_buff->get_descriptor();
+            ASSERT_NE(desc, nullptr);
+            EXPECT_EQ(desc->get_id(), mapped_memory->get_id());
+            EXPECT_EQ(desc->get_offset(), 0u);
+            EXPECT_NE(desc->get_source_buffer(), nullptr);
+        }
+    }
 }

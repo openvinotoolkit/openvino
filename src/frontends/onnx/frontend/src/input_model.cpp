@@ -16,30 +16,17 @@
 using namespace ov;
 using namespace ov::frontend::onnx;
 
-InputModel::InputModel(const std::string& path, const bool enable_mmap, frontend::ExtensionHolder extensions)
+InputModel::InputModel(const std::filesystem::path& path, const bool enable_mmap, frontend::ExtensionHolder extensions)
     : m_editor{std::make_shared<ONNXModelEditor>(path, enable_mmap, std::move(extensions))} {}
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-InputModel::InputModel(const std::wstring& path, const bool enable_mmap, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<ONNXModelEditor>(path, enable_mmap, std::move(extensions))} {}
-#endif
 
 InputModel::InputModel(std::istream& model_stream, const bool enable_mmap, frontend::ExtensionHolder extensions)
     : m_editor{std::make_shared<ONNXModelEditor>(model_stream, "", enable_mmap, std::move(extensions))} {}
 
 InputModel::InputModel(std::istream& model_stream,
-                       const std::string& path,
+                       const std::filesystem::path& path,
                        const bool enable_mmap,
                        frontend::ExtensionHolder extensions)
     : m_editor{std::make_shared<ONNXModelEditor>(model_stream, path, enable_mmap, std::move(extensions))} {}
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-InputModel::InputModel(std::istream& model_stream,
-                       const std::wstring& path,
-                       const bool enable_mmap,
-                       frontend::ExtensionHolder extensions)
-    : InputModel(model_stream, ov::util::wstring_to_string(path), enable_mmap, std::move(extensions)) {}
-#endif
 
 InputModel::InputModel(std::shared_ptr<ModelProto> model_proto, frontend::ExtensionHolder extensions)
     : m_editor{std::make_shared<ONNXModelEditor>(model_proto, std::move(extensions))} {}
@@ -865,11 +852,11 @@ InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& gra
         m_model_dir = graph_iterator->get_model_dir();
     }
     if (m_enable_mmap) {
-        m_mmap_cache = std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>();
+        m_mmap_cache = std::make_shared<std::map<std::filesystem::path, std::shared_ptr<ov::MappedMemory>>>();
         m_stream_cache = nullptr;
     } else {
         m_mmap_cache = nullptr;
-        m_stream_cache = std::make_shared<std::map<std::string, std::shared_ptr<std::ifstream>>>();
+        m_stream_cache = std::make_shared<std::map<std::filesystem::path, std::shared_ptr<std::ifstream>>>();
     }
     load_model();
 }
@@ -977,7 +964,27 @@ void InputModel::InputModelONNXImpl::override_all_inputs(const std::vector<ov::f
 }
 
 void InputModel::InputModelONNXImpl::override_all_outputs(const std::vector<ov::frontend::Place::Ptr>& outputs) {
-    FRONT_END_NOT_IMPLEMENTED(override_all_outputs);
+    // Only support reducing the number of outputs or changing their order.
+    // Graph editing (e.g. promoting intermediate tensors to outputs) is not supported.
+    FRONT_END_GENERAL_CHECK(!outputs.empty(), "override_all_outputs: at least one output place must be provided");
+    std::vector<ov::frontend::Place::Ptr> new_outputs;
+    new_outputs.reserve(outputs.size());
+    for (const auto& output : outputs) {
+        FRONT_END_GENERAL_CHECK(output, "override_all_outputs: null place provided");
+        auto it = std::find_if(m_outputs.begin(), m_outputs.end(), [&output](const ov::frontend::Place::Ptr& existing) {
+            return existing->is_equal(output);
+        });
+        if (it != m_outputs.end()) {
+            new_outputs.push_back(*it);
+            continue;
+        }
+        // The place is not an existing model output — model editing is not supported.
+        const auto& names = output->get_names();
+        FRONT_END_THROW("override_all_outputs: place '" + (names.empty() ? std::string("<unnamed>") : names[0]) +
+                        "' is not an existing model output. "
+                        "Only reducing or reordering existing model outputs is supported");
+    }
+    m_outputs = std::move(new_outputs);
 }
 
 void InputModel::InputModelONNXImpl::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,

@@ -10,6 +10,7 @@
 
 #ifdef GPU_DEBUG_CONFIG
 
+#include "impls/ocl/kernels_cache.hpp"
 #include "to_string_utils.h"
 #include "loop_inst.h"
 #include "condition_inst.h"
@@ -614,9 +615,13 @@ NodeDebugHelper::~NodeDebugHelper() {
     }
 }
 
-NetworkDebugHelper::NetworkDebugHelper(const network& net)
+NetworkDebugHelper::NetworkDebugHelper(network& net)
     : m_network(net)
     , m_iter(net.iteration) {
+    if (m_network.get_config().get_network_marker()) {
+        NetworkMarkerHelper::enqueue_start_marker(m_network);
+    }
+
     auto net_id = m_network.get_id();
     const auto& config = m_network.get_config();
     if (config.get_dump_memory_pool()) {
@@ -686,7 +691,7 @@ NetworkDebugHelper::~NetworkDebugHelper() {
     }
 
     if (!config.get_dump_graphs_path().empty() && is_target_iteration(m_iter, config.get_dump_iterations())) {
-        auto get_fixed_str = [](int value, int length = 2) -> std::string {
+        auto get_fixed_str = [](size_t value, int length = 2) -> std::string {
             std::ostringstream ss;
             ss << std::setw(length) << std::setfill('0') << std::to_string(value);
             return ss.str();
@@ -707,6 +712,10 @@ NetworkDebugHelper::~NetworkDebugHelper() {
             dump_memory_pool(config.get_dump_memory_pool_path(), m_iter);
             GPU_DEBUG_COUT << "============================================================================" << std::endl;
         }
+    }
+
+    if (m_network.get_config().get_network_marker()) {
+        NetworkMarkerHelper::enqueue_finish_marker(m_network);
     }
 
     m_network.iteration++;
@@ -763,6 +772,53 @@ void NetworkDebugHelper::dump_memory_pool(std::string dump_path, int64_t curr_it
     GPU_DEBUG_COUT << " * Variable              : " << get_mb_size(usm_device_var_mem_size)     << std::endl;
     GPU_DEBUG_COUT << " * ETC                   : " << get_mb_size(usm_device_etc_size)         << std::endl;
     GPU_DEBUG_COUT << "------------------------------------------------------------------------" << std::endl;
+}
+
+// --- NetworkMarkerHelper ---
+
+std::mutex NetworkMarkerHelper::_mutex;
+std::unordered_map<std::string, kernel::ptr> NetworkMarkerHelper::_compiled_kernels;
+
+kernel::ptr NetworkMarkerHelper::get_or_compile_marker(network& net, const std::string& kernel_name) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    auto it = _compiled_kernels.find(kernel_name);
+    if (it != _compiled_kernels.end())
+        return it->second;
+
+    auto kernel_src = std::make_shared<kernel_string>();
+    kernel_src->str = "__kernel void " + kernel_name + "() {}";
+    kernel_src->entry_point = kernel_name;
+
+    kernel_impl_params dummy_params;
+    auto& cache = net.get_program()->get_kernels_cache();
+    auto compiled = cache.compile(dummy_params, {kernel_src});
+    auto kptr = compiled[dummy_params][0].first;
+    _compiled_kernels[kernel_name] = kptr;
+    return kptr;
+}
+
+void NetworkMarkerHelper::enqueue_start_marker(network& net) {
+    auto name = "network_marker_start_p" + std::to_string(net.get_program()->get_id()) + "_n" + std::to_string(net.get_id());
+    auto kptr = get_or_compile_marker(net, name);
+
+    auto iter = static_cast<size_t>(net.get_current_iteration_num()) + 1;
+    kernel_arguments_desc args_desc;
+    args_desc.workGroups.global = {iter, 1, 1};
+    args_desc.workGroups.local = {iter, 1, 1};
+    kernel_arguments_data args_data;
+    net.get_stream().enqueue_kernel(*kptr, args_desc, args_data, {});
+}
+
+void NetworkMarkerHelper::enqueue_finish_marker(network& net) {
+    auto name = "network_marker_finish_p" + std::to_string(net.get_program()->get_id()) + "_n" + std::to_string(net.get_id());
+    auto kptr = get_or_compile_marker(net, name);
+
+    auto iter = static_cast<size_t>(net.get_current_iteration_num()) + 1;
+    kernel_arguments_desc args_desc;
+    args_desc.workGroups.global = {iter, 1, 1};
+    args_desc.workGroups.local = {iter, 1, 1};
+    kernel_arguments_data args_data;
+    net.get_stream().enqueue_kernel(*kptr, args_desc, args_data, {});
 }
 
 }  // namespace cldnn

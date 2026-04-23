@@ -57,6 +57,13 @@ TYPE_PRINTER(std::size_t)
 #ifndef ONEAPI_MAKE_VERSION
 /// @brief Generates generic 'oneAPI' API versions
 #    define ONEAPI_MAKE_VERSION(_major, _minor) ((_major << 16) | (_minor & 0x0000ffff))
+
+/// @brief extract 'oneAPI' API major version
+#    define ONEAPI_VERSION_MAJOR(_version) ((_version) >> 16)
+
+/// @brief extract 'oneAPI' API minor version
+#    define ONEAPI_VERSION_MINOR(_version) ((_version) & 0x0000ffff)
+
 #endif  // ONEAPI_MAKE_VERSION
 
 //
@@ -430,7 +437,7 @@ public:
     std::vector<ov::PropertyName> getSupportedOptions(bool includePrivate = false) const;
     std::string getSupportedAsString(bool includePrivate = false) const;
 
-    details::OptionConcept get(std::string_view key, OptionMode mode = OptionMode::Both) const;
+    details::OptionConcept get(std::string_view key) const;
     void walk(std::function<void(const details::OptionConcept&)> cb) const;
 
 private:
@@ -464,7 +471,7 @@ public:
 
     explicit Config(const std::shared_ptr<const OptionsDesc>& desc);
 
-    virtual void update(const ConfigMap& options, OptionMode mode = OptionMode::Both);
+    virtual void update(const ConfigMap& options);
 
     void parseEnvVars();
 
@@ -521,7 +528,7 @@ typename Opt::ValueType Config::get() const {
     OPENVINO_ASSERT(it->second != nullptr, "Got NULL OptionValue for :", Opt::key().data());
 
     const auto optVal = std::dynamic_pointer_cast<details::OptionValueImpl<Opt, ValueType>>(it->second);
-#if defined(__CHROMIUMOS__)
+#if defined(__CHROMIUMOS__) || defined(__ANDROID__)
     if (optVal == nullptr) {
         if (Opt::getTypeName() == it->second->getTypeName()) {
             const auto val = std::static_pointer_cast<details::OptionValueImpl<Opt, ValueType>>(it->second);
