@@ -953,6 +953,16 @@ void prepare_buffer_fusing::run(program& p) {
                 node.adjust_output_padding();
 
             node.can_be_optimized(can_reshape_be_optimized(node));
+            // When reshape is optimized out, its output aliases the input buffer.
+            // Extend the input's memory dependency to reshape's consumers so the
+            // pool won't recycle the input buffer while those consumers still need it.
+            if (node.can_be_optimized()) {
+                auto& dep0 = node.get_dependency(0);
+                for (auto* user : node.get_users()) {
+                    user->add_memory_dependency(dep0);
+                    dep0.add_memory_dependency(*user);
+                }
+            }
             GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << node.id() << " can be optimized" << std::endl;
         });
         program_helpers::do_for_types<kv_cache>(*node, [](kv_cache_node& node) {

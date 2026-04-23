@@ -346,6 +346,27 @@ void reshape_inst::update_output_memory() {
     }
     _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout())};
     _mem_allocated = false;
+
+    // When reshape is optimized out (aliases input buffer via reinterpret_buffer),
+    // the memory pool doesn't know that downstream consumers still need the input buffer.
+    // Propagate the input dependency's unique_id into consumers' runtime restriction sets
+    // so the pool won't hand out the input buffer to unrelated nodes.
+    // Gated by _runtime_deps_patched: set insertion is idempotent but the traversal
+    // on every on_execute() is unnecessary overhead.
+    if (!_runtime_deps_patched && !get_user_insts().empty()) {
+        auto dep0_uid = static_cast<uint32_t>(get_node().get_dependency(0).get_unique_id());
+        std::function<void(const std::vector<primitive_inst*>&)> propagate;
+        propagate = [&](const std::vector<primitive_inst*>& users) {
+            for (auto* user : users) {
+                user->add_runtime_memory_dependency(dep0_uid);
+                if (user->can_be_optimized())
+                    propagate(user->get_user_insts());
+            }
+        };
+        propagate(get_user_insts());
+        _runtime_deps_patched = true;
+
+    }
 }
 
 }  // namespace cldnn

@@ -259,6 +259,7 @@ public:
     }
 
     const memory_restricter<uint32_t>& get_runtime_memory_dependencies() const { return _runtime_memory_dependencies; }
+    void add_runtime_memory_dependency(uint32_t uid) { _runtime_memory_dependencies.insert(uid); }
 
     const kernel_impl_params* get_impl_params() const { return _impl_params.get(); }
     // return pointer to const to prevent arbitrary 'execute' call -> use primitive_inst.execute() instead
