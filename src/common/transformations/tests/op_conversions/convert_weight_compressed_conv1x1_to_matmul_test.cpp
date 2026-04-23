@@ -53,6 +53,9 @@ std::shared_ptr<ov::Model> gen_model(const Conv1x1ToMatmulTestParams& p) {
     if (p.activation_op_type == "Transpose") {
         auto transpose_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 3, 1, 2});
         act_node = std::make_shared<ov::opset1::Transpose>(input, transpose_const);
+    } else if (p.activation_op_type == "TransposeWrong") {
+        auto transpose_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 3, 1, 2});
+        act_node = std::make_shared<ov::opset1::Transpose>(input, transpose_const);
     } else {
         auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {1, 10, 1, 1});
         act_node = std::make_shared<ov::opset1::Reshape>(input, reshape_const, false);
@@ -116,6 +119,9 @@ std::shared_ptr<ov::Model> gen_model(const Conv1x1ToMatmulTestParams& p) {
     std::shared_ptr<ov::Node> out_node;
     if (p.activation_op_type == "Transpose") {
         auto transpose_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
+        out_node = std::make_shared<ov::opset1::Transpose>(current_node, transpose_const);
+    } else if (p.activation_op_type == "TransposeWrong") {
+        auto transpose_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 1, 3, 2});
         out_node = std::make_shared<ov::opset1::Transpose>(current_node, transpose_const);
     } else {
         auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {1, 1, 1, 15});
@@ -239,23 +245,26 @@ protected:
                                          with_act_new_reshape,
                                          activation_op_type};
         model = gen_model(params);
-        model_ref = gen_model_ref(params);
+        if (activation_op_type != "TransposeWrong") {
+            model_ref = gen_model_ref(params);
+        }
         manager.register_pass<ov::pass::ConvertWeightCompressedConv1x1ToMatmul>();
     }
 };
 
 TEST_P(ConvertWeightCompressedConv1x1ToMatmulTest, CompareFunctions) {}
 
-INSTANTIATE_TEST_SUITE_P(TransformationTests,
-                         ConvertWeightCompressedConv1x1ToMatmulTest,
-                         ::testing::Combine(::testing::Bool(),
-                                            ::testing::Bool(),
-                                            ::testing::Bool(),
-                                            ::testing::Bool(),
-                                            ::testing::Bool(),
-                                            ::testing::Bool(),
-                                            ::testing::Values("Transpose", "Reshape")),
-                         ConvertWeightCompressedConv1x1ToMatmulTest::get_test_case_name);
+INSTANTIATE_TEST_SUITE_P(
+    TransformationTests,
+    ConvertWeightCompressedConv1x1ToMatmulTest,
+    ::testing::Combine(::testing::Bool(),
+                       ::testing::Bool(),
+                       ::testing::Bool(),
+                       ::testing::Bool(),
+                       ::testing::Bool(),
+                       ::testing::Bool(),
+                       ::testing::Values("Transpose", "TransposeWrong", "Reshape")),
+    ConvertWeightCompressedConv1x1ToMatmulTest::get_test_case_name);
 
 // Checked blocked cases
 class ConvertWeightCompressedConv1x1ToMatmulTest_Blocked : public TransformationTestsF {

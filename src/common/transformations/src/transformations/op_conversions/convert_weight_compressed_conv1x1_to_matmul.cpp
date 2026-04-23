@@ -29,6 +29,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/common_util.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::pass::pattern;
@@ -109,6 +110,37 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
         auto scale = pattern_map.at(weights_scales_m).get_node_shared_ptr();
         auto zp = (pattern_map.count(weights_zp_m) > 0) ? pattern_map.at(weights_zp_m).get_node_shared_ptr() : nullptr;
         auto activation = pattern_map.at(first_input_m).get_node_shared_ptr();
+
+        const auto ensure_transpose_order = [](const std::shared_ptr<ov::op::v0::Constant>& order_node,
+                                               const std::array<size_t, 3>& order_offset) {
+            OPENVINO_ASSERT(order_node);
+            const auto order_data = order_node->cast_vector<int64_t>();
+            const auto order_rank = order_data.size();
+            OPENVINO_ASSERT(order_rank >= 3);  // to make an input to conv2/3d, rank should be at least 3
+            // 0,3,1,2
+            if (order_data[order_rank - 3] != static_cast<int64_t>(order_rank - order_offset[0]) ||
+                order_data[order_rank - 2] != static_cast<int64_t>(order_rank - order_offset[1]) ||
+                order_data[order_rank - 1] != static_cast<int64_t>(order_rank - order_offset[2])) {
+                return false;
+            }
+            return true;
+        };
+        if (pattern_map.count(transpose_activations_m) > 0) {
+            const auto act_order =
+                ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(a_order_m).get_node_shared_ptr());
+            // expects NHWC -> NCHW transpose on activation, 4 - [0,3,1,2]
+            if (!ensure_transpose_order(act_order, {1, 3, 2})) {
+                return false;
+            }
+        }
+        if (pattern_map.count(transpose_output_m) > 0) {
+            const auto out_order =
+                ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(c_order_m).get_node_shared_ptr());
+            // expects NCHW -> NHWC transpose on result, 4 - [0,2,3,1]
+            if (!ensure_transpose_order(out_order, {2, 1, 3})) {
+                return false;
+            }
+        }
 
         auto reshape_const_to_2d = [](std::shared_ptr<ov::Node> node) {
             auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
