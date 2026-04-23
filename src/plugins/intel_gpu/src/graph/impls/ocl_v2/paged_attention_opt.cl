@@ -486,14 +486,18 @@ KERNEL(pa_sdpa_opt)(
             // TODO: const uint global_data_idx = partition_idx * SEQ_LEN_PARTITION_SIZE + local_data_idx
             const uint global_data_idx = partition_idx * SEQ_LEN_PARTITION_SIZE + qk_idx * (SUBGROUPS_PER_WG * SUBGROUP_SIZE) + sgid * SUBGROUP_SIZE + sglid;
 
-#if SEQ_LEN_PARTITION_SIZE % SUBGROUPS_PER_WG * SUBGROUP_SIZE == 0
+#if (SEQ_LEN_PARTITION_SIZE % (SUBGROUPS_PER_WG * SUBGROUP_SIZE)) == 0
             if (global_data_idx < seq_len) {
 #else
             if (global_data_idx < seq_len && local_data_idx < SEQ_LEN_PARTITION_SIZE) {
 #endif
                 unroll_for(uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
                     const uint slm_idx = q_idx * SEQ_LEN_PARTITION_SIZE + local_data_idx;
-                    SOFTMAX_ACCUMULATOR_TYPE qk_new = native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(slm_qk_vals[slm_idx]) - GET_VECTOR_ELEMENT(qk_max, q_idx));
+                    const SOFTMAX_ACCUMULATOR_TYPE qk_old = TO_SOFTMAX_ACCUMULATOR_TYPE(slm_qk_vals[slm_idx]);
+                    SOFTMAX_ACCUMULATOR_TYPE qk_new = SOFTMAX_ACCUMULATOR_VAL_ZERO;
+                    if (qk_old != SOFTMAX_ACCUMULATOR_VAL_MIN) {
+                        qk_new = native_exp(qk_old - GET_VECTOR_ELEMENT(qk_max, q_idx));
+                    }
                     slm_qk_vals[slm_idx] = qk_new;
                     GET_VECTOR_ELEMENT(exp_sum, q_idx) += qk_new;
                 }
@@ -534,14 +538,18 @@ KERNEL(pa_sdpa_opt)(
             const uint local_data_idx = qk_idx * (SUBGROUPS_PER_WG * SUBGROUP_SIZE) + sgid * SUBGROUP_SIZE + sglid;
             const uint global_data_idx = partition_idx * SEQ_LEN_PARTITION_SIZE + qk_idx * (SUBGROUPS_PER_WG * SUBGROUP_SIZE) + sgid * SUBGROUP_SIZE + sglid;
 
-#if SEQ_LEN_PARTITION_SIZE % SUBGROUPS_PER_WG * SUBGROUP_SIZE == 0
+#if (SEQ_LEN_PARTITION_SIZE % (SUBGROUPS_PER_WG * SUBGROUP_SIZE)) == 0
             if (global_data_idx < seq_len) {
 #else
             if (global_data_idx < seq_len && local_data_idx < SEQ_LEN_PARTITION_SIZE) {
 #endif
                 unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
                     const uint slm_idx = q_idx * SEQ_LEN_PARTITION_SIZE + local_data_idx;
-                    SOFTMAX_ACCUMULATOR_TYPE qk_new = TO_SOFTMAX_ACCUMULATOR_TYPE(slm_qk_vals[slm_idx]) / GET_VECTOR_ELEMENT(exp_sum, q_idx);
+                    const SOFTMAX_ACCUMULATOR_TYPE exp_sum_val = GET_VECTOR_ELEMENT(exp_sum, q_idx);
+                    SOFTMAX_ACCUMULATOR_TYPE qk_new = SOFTMAX_ACCUMULATOR_VAL_ZERO;
+                    if (exp_sum_val > SOFTMAX_ACCUMULATOR_VAL_ZERO) {
+                        qk_new = TO_SOFTMAX_ACCUMULATOR_TYPE(slm_qk_vals[slm_idx]) / exp_sum_val;
+                    }
                     slm_qk_vals[slm_idx] = qk_new;
                 }
             }
@@ -603,9 +611,9 @@ KERNEL(pa_sdpa_opt)(
 #if HAS_SCORE_AGGREGATION && MULTI_TOKENS_PROCESSING
                         // In case of multi tokens processing we have to fill the buffer with zeros to guarantee correct result
                         // for reduction operation
-                        softmax_results[output_offset + i] = partition_idx * SEQ_LEN_PARTITION_SIZE + i >= seq_len ? SOFTMAX_ACCUMULATOR_VAL_ZERO : slm_qk_vals[i];
+                        softmax_results[output_offset + i] = partition_idx * SEQ_LEN_PARTITION_SIZE + i >= seq_len ? SOFTMAX_ACCUMULATOR_VAL_ZERO : slm_qk_vals[q_idx * SEQ_LEN_PARTITION_SIZE + i];
 #else
-                        softmax_results[output_offset + i] = slm_qk_vals[i];
+                        softmax_results[output_offset + i] = slm_qk_vals[q_idx * SEQ_LEN_PARTITION_SIZE + i];
 #endif
                     }
                 }
