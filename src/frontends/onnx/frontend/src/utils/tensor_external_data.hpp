@@ -6,6 +6,7 @@
 
 #include <onnx/onnx_pb.h>
 
+#include <filesystem>
 #include <vector>
 
 #include "openvino/runtime/aligned_buffer.hpp"
@@ -19,8 +20,8 @@ namespace detail {
 using ::ONNX_NAMESPACE::TensorProto;
 template <class T>
 using Buffer = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<T>>>;
-using MappedMemoryHandles = std::shared_ptr<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>;
-using LocalStreamHandles = std::shared_ptr<std::map<std::string, std::shared_ptr<std::ifstream>>>;
+using MappedMemoryHandles = std::shared_ptr<std::map<std::filesystem::path, std::shared_ptr<ov::MappedMemory>>>;
+using LocalStreamHandles = std::shared_ptr<std::map<std::filesystem::path, std::shared_ptr<std::ifstream>>>;
 
 /// \brief Remove path components that would allow traversing up a directory tree.
 /// \note The ONNX Runtime shared-memory marker "*/_ORT_MEM_ADDR_/*" is also accepted here.
@@ -36,8 +37,7 @@ inline std::string sanitize_external_data_location(const std::string& location) 
     // Pick the separator style based on which slash appears first in the input.
     const auto fwd = stripped.find('/');
     const auto bwd = stripped.find('\\');
-    const char separator =
-        (bwd != std::string::npos && (fwd == std::string::npos || bwd < fwd)) ? '\\' : '/';
+    const char separator = (bwd != std::string::npos && (fwd == std::string::npos || bwd < fwd)) ? '\\' : '/';
 
     std::vector<std::string> components;
     size_t start = 0;
@@ -85,7 +85,7 @@ public:
     ///             the invalid_external_data exception is thrown.
     ///
     /// \return     External binary data loaded into the SharedBuffer
-    Buffer<ov::AlignedBuffer> load_external_data(const std::string& model_dir) const;
+    Buffer<ov::AlignedBuffer> load_external_data(const std::filesystem::path& model_dir) const;
 
     /// \brief      Map (mmap for lin, MapViewOfFile for win) external data from tensor passed to constructor
     ///
@@ -94,7 +94,8 @@ public:
     ///             the invalid_external_data exception is thrown.
     ///
     /// \return     External binary data loaded into the SharedBuffer
-    Buffer<ov::MappedMemory> load_external_mmap_data(const std::string& model_dir, MappedMemoryHandles cache) const;
+    Buffer<ov::MappedMemory> load_external_mmap_data(const std::filesystem::path& model_dir,
+                                                     MappedMemoryHandles cache) const;
 
     /// \brief      Load external data from existing shared memory when m_data_location is ORT_MEM_ADDR
     ///

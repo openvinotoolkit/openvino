@@ -81,7 +81,10 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
             auto input_node = broadcast->get_input_node_shared_ptr(0);
             if (input_node && input_node->get_output_partial_shape(0).is_static()) {
                 auto pshape = input_node->get_output_shape(0);
-                return std::vector<int32_t>(pshape.begin(), pshape.end());
+                std::vector<int32_t> result(pshape.size());
+                std::transform(pshape.begin(), pshape.end(), result.begin(),
+                               [](size_t v) { return static_cast<int32_t>(v); });
+                return result;
             }
             return {};
         };
