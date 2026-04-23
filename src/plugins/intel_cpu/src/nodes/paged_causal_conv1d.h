@@ -33,6 +33,16 @@ public:
         return getType() == Type::PagedCausalConv1D;
     }
 
+    // conv_bias (port 3) may have zero dimension when bias is absent
+    bool neverExecute() const override {
+        return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0);
+    }
+
+    // conv_bias (port 3) may have zero dimension when bias is absent
+    bool isExecutable() const override {
+        return !isInputTensorAtPortEmpty(0);
+    }
+
     bool needPrepareParams() const override {
         return false;
     }

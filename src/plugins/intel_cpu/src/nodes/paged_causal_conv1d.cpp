@@ -72,10 +72,10 @@ void PagedCausalConv1D::initSupportedPrimitiveDescriptors() {
 }
 
 void PagedCausalConv1D::execute([[maybe_unused]] const dnnl::stream& strm) {
-    const auto input_embeds_shape = getSrcMemoryAtPort(0)->getStaticDims();
-    const auto state_table_shape = getSrcMemoryAtPort(1)->getStaticDims();
-    const auto weight_shape = getSrcMemoryAtPort(2)->getStaticDims();
-    const auto bias_shape = getSrcMemoryAtPort(3)->getStaticDims();
+    const auto& input_embeds_shape = getSrcMemoryAtPort(0)->getStaticDims();
+    const auto& state_table_shape = getSrcMemoryAtPort(1)->getStaticDims();
+    const auto& weight_shape = getSrcMemoryAtPort(2)->getStaticDims();
+    const auto& bias_shape = getSrcMemoryAtPort(3)->getStaticDims();
 
     const size_t batch_size_in_tokens = input_embeds_shape[0];
     const size_t hidden_size = input_embeds_shape[1];
@@ -116,7 +116,7 @@ void PagedCausalConv1D::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     auto* output_embeds = getDstDataAtPortAs<float>(0);
 
-    const auto subseq_shape = getSrcMemoryAtPort(4)->getStaticDims();
+    const auto& subseq_shape = getSrcMemoryAtPort(4)->getStaticDims();
     OPENVINO_ASSERT(!subseq_shape.empty(), "PagedCausalConv1D expects non-empty subsequence_begins input.");
     OPENVINO_ASSERT(subseq_shape[0] >= 1, "PagedCausalConv1D expects subsequence_begins shape[0] >= 1.");
 
