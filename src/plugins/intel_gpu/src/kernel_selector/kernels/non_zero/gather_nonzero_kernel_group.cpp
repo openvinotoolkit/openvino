@@ -121,8 +121,6 @@ bool GatherNonzeroKernelGroup::Validate(const Params& p) const {
     if (!KernelBaseOpenCL::Validate(p))
         DO_NOT_USE_THIS_KERNEL(p.layerID);
 
-    const auto& rp = static_cast<const gather_nonzero_params&>(p);
-
-    return Tensor::SimpleLayout(rp.inputs[0].GetLayout());
+    return true;
 }
 }  // namespace kernel_selector
