@@ -849,7 +849,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
             "The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead!");
     }
 
-    const bool isNotNullDecryption = localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().decrypt != nullptr;
+    const bool isNotNullDecryption = localConfig.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
+                                     localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().decrypt != nullptr;
     if (!metadata && isNotNullDecryption) {
         _logger.warning(
             "Received decryption callback, but metadata parsing is skipped and cannot determine if blob was "
