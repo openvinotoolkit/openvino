@@ -170,8 +170,11 @@ def _unpatch_torch_functions():
             del _patched_torch_functions[key]
 
 
-# Prevent garbage collection of auto-registered torch.library.Library objects.
-_auto_registered_libs = []
+# Single FRAGMENT library handle for auto-registered ModuleExtension ops.
+# Created lazily on first use; reused for all subsequent registrations to
+# avoid unbounded Library object accumulation in long-lived processes.
+_module_ext_lib = None
+_module_ext_registered_ops = set()
 
 
 def _auto_register_module_extension_op(namespace, op_name, num_inputs=1):
@@ -179,24 +182,31 @@ def _auto_register_module_extension_op(namespace, op_name, num_inputs=1):
 
     Creates a passthrough op with ``num_inputs`` Tensor arguments and a single
     Tensor output so that ``torch.export`` can capture the call in the FX graph.
+
+    Uses a single shared ``FRAGMENT`` library handle for the ``ov_ext``
+    namespace to avoid creating a new ``Library`` object per op.
     """
-    # Use FRAGMENT if the namespace already has a DEF library (e.g. ov_ext
-    # from ov_custom_ops.py), otherwise create a new DEF library.
-    kind = "FRAGMENT" if hasattr(torch.ops, namespace) else "DEF"
-    lib = torch.library.Library(namespace, kind)
-    _auto_registered_libs.append(lib)
+    global _module_ext_lib
+
+    if _module_ext_lib is None:
+        kind = "FRAGMENT" if hasattr(torch.ops, namespace) else "DEF"
+        _module_ext_lib = torch.library.Library(namespace, kind)
+
+    if op_name in _module_ext_registered_ops:
+        return getattr(getattr(torch.ops, namespace), op_name)
 
     args = ", ".join(f"Tensor x{i}" for i in range(num_inputs))
-    lib.define(f"{op_name}({args}) -> Tensor")
+    _module_ext_lib.define(f"{op_name}({args}) -> Tensor")
 
-    @torch.library.impl(lib, op_name, "Meta")
+    @torch.library.impl(_module_ext_lib, op_name, "Meta")
     def _meta(*xs):
         return torch.empty_like(xs[0])
 
-    @torch.library.impl(lib, op_name, "CPU")
+    @torch.library.impl(_module_ext_lib, op_name, "CPU")
     def _cpu(*xs):
         return xs[0]
 
+    _module_ext_registered_ops.add(op_name)
     return getattr(getattr(torch.ops, namespace), op_name)
 
 
@@ -257,6 +267,15 @@ def patch_model_for_export(model, module_extensions, orig_forward_name):
         # Sanitize dots in op_name (torch.library rejects them).
         safe_op_name = op_name.replace(".", "_")
         registered_name = f"ov_ext::{safe_op_name}"
+
+        # Detect mapping collisions: same registered_name but different target_op.
+        if (registered_name in op_type_mapping
+                and op_type_mapping[registered_name] != target_op):
+            raise RuntimeError(
+                f"ModuleExtension target_op collision: '{target_op}' and "
+                f"'{op_type_mapping[registered_name]}' both map to "
+                f"registered name '{registered_name}' (after dot "
+                "sanitization). Use distinct target_op names.")
 
         # Reuse if already auto-registered (e.g. two extensions sharing a name).
         try:

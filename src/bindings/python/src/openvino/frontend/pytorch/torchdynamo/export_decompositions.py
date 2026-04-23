@@ -14,7 +14,7 @@ before ``torch._inductor`` is imported.
 import torch
 
 
-def get_export_decomposition_list():
+def get_export_decomposition_list() -> list:
     # list of decompositions from torch._decomp.core_aten_decompositions
     # removed _backward ops and ops supported without decomposition
     decomp = [
@@ -192,7 +192,7 @@ def get_export_decomposition_list():
     return decomp
 
 
-def ops_to_not_decompose():
+def ops_to_not_decompose() -> list:
     # list of operations that shouldn't be decomposed because
     # OpenVINO frontend handles them directly and more efficiently
     return [

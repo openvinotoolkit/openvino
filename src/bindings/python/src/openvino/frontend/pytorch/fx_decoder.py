@@ -271,10 +271,13 @@ class TorchFXPythonDecoder (BaseFXDecoder):
     ) -> "TorchFXPythonDecoder":
         """Create a TorchFXPythonDecoder instance from an exported PyTorch program.
 
-        :param op_type_mapping: Optional mapping from FX graph op names
-            (e.g. ``"aten.sin.default"``) to canonical ``target_op`` names
-            (e.g. ``"aten::sin"``).  Used by ``get_op_type()`` so the C++
-            frontend sees the same names as the TorchScript path.
+        :param op_type_mapping: Optional mapping from registered
+            ``namespace::op_name`` strings (e.g. ``"ov_ext::MySinOp"``) to the
+            user-provided ``target_op`` labels from ``ModuleExtension``
+            (e.g. ``"MySinOp"``).  Built by ``patch_model_for_export()`` and
+            used by ``get_op_type()`` to translate the FX graph node name back
+            to the ``target_op`` that the C++ frontend expects for
+            ``ConversionExtension`` lookup.
         """
         from packaging import version
         if version.parse(torch.__version__) >= version.parse("2.6"):
@@ -334,16 +337,13 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 op_type_mapping = patch_model_for_export(
                     model, module_extensions, orig_forward_name)
                 ext_patched = True
-            except Exception as error:
-                logger.warning(
-                    "Failed to apply ModuleExtension for torch.export. "
-                    "Conversion may be unsuccessful or incorrect",
-                    exc_info=error)
+            except Exception:
+                # Clean up any partial patches before re-raising.
                 try:
                     unpatch_model(model, orig_forward_name)
                 except Exception:
                     pass
-                ext_patched = False
+                raise
 
         quant_patched = False
         if quantized.detect_quantized_model(model) is not None:
