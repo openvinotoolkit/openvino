@@ -22,6 +22,15 @@ inline constexpr FileHandle INVALID_HANDLE_VALUE = -1;
 
 inline constexpr size_t default_parallel_io_threshold = 4UL * 1024 * 1024;  ///< 4 MB default threshold for parallel I/O
 inline constexpr size_t default_parallel_io_min_chunk = 2UL * 1024 * 1024;  ///< 2 MB minimum chunk size per thread
+///< Default upper bound for ParallelReadStreamBuf::prefetch() requests.  32 MiB was
+///< selected via PTLH cap-tuning sweep (4, 8, 16, 32, 64, 128, 256, 512, 1024 MiB)
+///< on Qwen3-VL-4B INT4 (cache-hit): p50 is flat across 16-64 MiB (2.09-2.10 s) and
+///< rises steadily for >=128 MiB as prefetch dispatch/allocation dominates.  32 MiB
+///< is the smallest cap that still covers the largest sub-program's node_post_load
+///< burst in a single window, leaving headroom for models larger than Qwen3-VL-4B
+///< (e.g. 7-8B class LLMs) without re-tuning.  Caps <=8 MiB exhaust the window
+///< mid-loop and trigger a fallback pread burst, erasing the amortisation gain.
+inline constexpr size_t default_parallel_io_prefetch_cap = 32UL * 1024 * 1024;
 
 /**
  * @brief Open a file for reading and retrieve its size.
