@@ -198,8 +198,9 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
         }
 
         // Precompute per-bit metadata used for the per-node classification step.
-        std::vector<SubgraphId> bit_owner_subgraph(S);     // subgraph of subgraph_input.get_node()
-        std::vector<SubgraphId> bit_producer_subgraph(S);  // subgraph of producing node (only meaningful when not graph input)
+        std::vector<SubgraphId> bit_owner_subgraph(S);  // subgraph of subgraph_input.get_node()
+        std::vector<SubgraphId> bit_producer_subgraph(
+            S);  // subgraph of producing node (only meaningful when not graph input)
         std::vector<uint8_t> bit_is_graph_input(S);
         for (size_t b = 0; b < S; ++b) {
             const auto& in = bit_to_input[b];
@@ -207,9 +208,8 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
             bit_owner_subgraph[b] = subgraph_id_by_index[get_index_by_node(owner)];
             const bool gi = is_graph_input_node(owner);
             bit_is_graph_input[b] = gi ? 1 : 0;
-            bit_producer_subgraph[b] =
-                gi ? static_cast<SubgraphId>(-1)
-                   : subgraph_id_by_index[get_index_by_node(in.get_source_output().get_node())];
+            bit_producer_subgraph[b] = gi ? static_cast<SubgraphId>(-1)
+                                          : subgraph_id_by_index[get_index_by_node(in.get_source_output().get_node())];
         }
 
         // Forward-propagate subgraph-input dependencies in topological order.
