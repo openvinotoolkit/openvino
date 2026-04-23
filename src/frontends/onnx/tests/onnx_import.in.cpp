@@ -1141,8 +1141,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum_exp_18_large_values) {
 
     // output data shape (4) - each element reduces 4 values along axis 2
     // Expected: 100 + log(4) = 100 + 1.38629... = 101.38629
-    auto expected_output =
-        ov::test::NDArray<float, 1>({101.38629f, 101.38629f, 101.38629f, 101.38629f}).get_vector();
+    auto expected_output = ov::test::NDArray<float, 1>({101.38629f, 101.38629f, 101.38629f, 101.38629f}).get_vector();
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_multiple_inputs(inputs);
