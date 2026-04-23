@@ -110,8 +110,8 @@ jobs:
         if: runner.os == 'Windows'
         env:
           PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
-          PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"        
-        run: ${{ env.PIP_INSTALL_COMMAND }} --no-cache-dir -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch
+          PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
+        run: python3 -m pip install --no-cache-dir -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch
 
       - name: Install Pytorch Layer tests dependencies
         if: runner.os != 'Windows'
