@@ -219,6 +219,12 @@ ov_add_plugin(NAME ${TARGET_NAME}
               ADD_CLANG_FORMAT
               ADD_CLANG_TIDY)
 
+# Suppress warnings from thirdparty headers in version target
+# (flags are exported from thirdparty/CMakeLists.txt)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND OV_CPU_THIRDPARTY_MSVC_SUPPRESS_FLAGS)
+    target_compile_options(${TARGET_NAME}_version PRIVATE ${OV_CPU_THIRDPARTY_MSVC_SUPPRESS_FLAGS})
+endif()
+
 # give a different file name depending on target platform architecture
 if(ARM OR AARCH64)
     set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "openvino_arm_cpu_plugin")
@@ -365,6 +371,12 @@ if(BUILD_SHARED_LIBS)
     ov_link_system_libraries(${TARGET_NAME}_obj PUBLIC ${CPU_OBJ_LINK_SYSTEM})
 
     ov_add_version_defines(src/plugin.cpp ${TARGET_NAME}_obj)
+
+    # Suppress warnings from thirdparty headers in version targets
+    # (flags are exported from thirdparty/CMakeLists.txt)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND OV_CPU_THIRDPARTY_MSVC_SUPPRESS_FLAGS)
+        target_compile_options(${TARGET_NAME}_obj_version PRIVATE ${OV_CPU_THIRDPARTY_MSVC_SUPPRESS_FLAGS})
+    endif()
 
     target_include_directories(${TARGET_NAME}_obj
         PRIVATE
