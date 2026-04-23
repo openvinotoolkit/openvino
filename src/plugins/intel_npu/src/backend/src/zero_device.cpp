@@ -122,10 +122,6 @@ ov::device::LUID ZeroDevice::getLUID() const {
     return luidstruct;
 }
 
-uint32_t ZeroDevice::getDevId() const {
-    return _device_properties.deviceId;
-}
-
 uint32_t ZeroDevice::getSubDevId() const {
     return _device_properties.subdeviceId;
 }
