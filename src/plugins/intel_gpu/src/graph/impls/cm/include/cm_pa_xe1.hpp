@@ -249,7 +249,6 @@ void pa_lsc_u8(
 
             //# St = k @ Qt
             matrix<float, kv_step, q_step> St = ugemm_KQ(slm_K, rQ, slm_offset);
-            // Post-scale QK scores in fp32 (avoids (half)scale_factor truncation)
             St = cm_mul<float>(St, (float)scale_factor);
             if constexpr (use_causal_mask) {
                 if constexpr (kv_step == q_step) {
@@ -416,6 +415,15 @@ void pa_kernel_lsc_prefetch_f16(
                         CacheHint::Cached>(q_gather, gather_offsets, gather_pred);
             rQ[ri].format<uint>()  = gathered;
         }
+
+        // For high GQA ratio (e.g. MLA 64:1), skip pre-scale and use fp32 post-scale instead
+        // For low GQA ratio (e.g. GQA 4:1), half pre-scale is sufficient
+        if constexpr (num_heads / num_kv_heads <= 8) {
+            #pragma unroll
+            for (int ri = 0; ri < head_size / REG_K; ri++) {
+                rQ[ri] = cm_mul<half>(rQ[ri], (half)scale_factor);
+            }
+        }
     }
     constexpr int blk_stride = CMFLA_NUM_KV_HEADS * CMFLA_HEAD_SIZE*CMPA_BLOCK_SZ;
     int causal_left = q_start+past_lens;
@@ -492,8 +500,10 @@ void pa_kernel_lsc_prefetch_f16(
                 }
             }
         }
-        // Post-scale QK scores in fp32 (avoids (half)scale_factor truncation)
-        St = cm_mul<float>(St, (float)scale_factor);
+        // Post-scale only for high GQA ratio (pre-scale already applied for low ratio)
+        if constexpr (num_heads / num_kv_heads > 8) {
+            St = cm_mul<float>(St, (float)scale_factor);
+        }
         if constexpr (use_causal_mask) {
             if constexpr (kv_step == q_step) {
             // since kv_step == q_step == 16, causal_left is n * kv_step
