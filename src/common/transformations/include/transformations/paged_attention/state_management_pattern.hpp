@@ -7,6 +7,7 @@
 #include <unordered_set>
 
 #include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/sdpa_to_paged_attention.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -26,13 +27,7 @@ public:
                            ov::Output<Node> max_context_len,
                            ParameterVector& block_indices_inputs_for_each_layer,
                            ResultVector& score_results,
-                           bool use_per_layer_block_indices_inputs,
-                           bool use_score_outputs,
-                           bool allow_cache_rotation,
-                           bool allow_score_aggregation,
-                           bool allow_xattention,
-                           bool allow_adaptive_rkv,
-                           bool allow_qq_bias,
+                           const ov::pass::paged_attention::Options& options,
                            ParameterVector& rotated_block_indices_inputs_for_each_layer,
                            ParameterVector& rotation_deltas_inputs_for_each_layer,
                            ParameterVector& xattention_threshold_inputs_for_each_layer,

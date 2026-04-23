@@ -11,6 +11,17 @@
 
 namespace ov {
 namespace pass {
+namespace paged_attention {
+struct Options {
+    bool use_per_layer_block_indices_inputs;
+    bool use_score_outputs;
+    bool allow_score_aggregation;
+    bool allow_cache_rotation;
+    bool allow_xattention;
+    bool allow_adaptive_rkv;
+    bool allow_qq_bias;
+};
+}  // namespace paged_attention
 /**
  * @brief The transformation replaces KV-cache processing part in LLMs by PagedAttention operation.
  * NOTE:
@@ -34,13 +45,7 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:
-    bool m_use_per_layer_block_indices_inputs;
-    bool m_use_score_outputs;
-    bool m_allow_score_aggregation;
-    bool m_allow_cache_rotation;
-    bool m_allow_xattention;
-    bool m_allow_adaptive_rkv;
-    bool m_allow_qq_bias;
+    paged_attention::Options m_options;
 };
 }  // namespace pass
 }  // namespace ov

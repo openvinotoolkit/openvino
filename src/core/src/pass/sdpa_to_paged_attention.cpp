@@ -30,13 +30,13 @@ ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_in
                                                      bool allow_xattention,
                                                      bool allow_adaptive_rkv,
                                                      bool allow_qq_bias)
-    : m_use_per_layer_block_indices_inputs(use_per_layer_block_indices_inputs),
-      m_use_score_outputs(use_score_outputs),
-      m_allow_score_aggregation(allow_score_aggregation),
-      m_allow_cache_rotation(allow_cache_rotation),
-      m_allow_xattention(allow_xattention),
-      m_allow_adaptive_rkv(allow_adaptive_rkv),
-      m_allow_qq_bias(allow_qq_bias) {}
+        : m_options{use_per_layer_block_indices_inputs,
+                                use_score_outputs,
+                                allow_score_aggregation,
+                                allow_cache_rotation,
+                                allow_xattention,
+                                allow_adaptive_rkv,
+                                allow_qq_bias} {}
 
 static std::shared_ptr<v0::Parameter> named_parameter(std::shared_ptr<v0::Parameter> node, const char* name) {
     // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a
@@ -69,31 +69,31 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "subsequence_begins"),
         named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices_begins"),
     };
-    if (!m_use_per_layer_block_indices_inputs) {
+    if (!m_options.use_per_layer_block_indices_inputs) {
         auto block_indices =
             named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices");
         model_wide_params.insert(model_wide_params.begin() + 2, block_indices);
     }
 
-    if (m_allow_score_aggregation) {
+    if (m_options.allow_score_aggregation) {
         optional_model_wide_params["score_aggregation_window"] =
             named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
                             "score_aggregation_window");
     }
 
-    if (m_allow_cache_rotation) {
+    if (m_options.allow_cache_rotation) {
         optional_model_wide_params["model_rotation_trig_lut"] =
             named_parameter(std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1}), "rotation_trig_lut");
     }
 
-    if (m_allow_xattention) {
+    if (m_options.allow_xattention) {
         optional_model_wide_params["xattention_block_size"] =
             named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "xattention_block_size");
         optional_model_wide_params["xattention_stride"] =
             named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "xattention_stride");
     }
 
-    if (m_allow_adaptive_rkv) {
+    if (m_options.allow_adaptive_rkv) {
         optional_model_wide_params["adaptive_rkv_start_size"] =
             named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "adaptive_rkv_start_size");
         optional_model_wide_params["adaptive_rkv_evictable_sizes"] =
@@ -101,7 +101,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                             "adaptive_rkv_evictable_sizes");
     }
 
-    if (m_allow_qq_bias) {
+    if (m_options.allow_qq_bias) {
         optional_model_wide_params["qq_bias"] =
             named_parameter(std::make_shared<v0::Parameter>(element::u8, PartialShape{-1}), "qq_bias");
         optional_model_wide_params["qq_bias_begins"] =
@@ -205,13 +205,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   max_context_len->output(0),
                                                   block_indices_inputs_for_each_layer,
                                                   score_results,
-                                                  m_use_per_layer_block_indices_inputs,
-                                                  m_use_score_outputs,
-                                                  m_allow_cache_rotation,
-                                                  m_allow_score_aggregation,
-                                                  m_allow_xattention,
-                                                  m_allow_adaptive_rkv,
-                                                  m_allow_qq_bias,
+                                                  m_options,
                                                   rotated_block_indices_inputs_for_each_layer,
                                                   rotation_deltas_inputs_for_each_layer,
                                                   xattention_threshold_inputs_for_each_layer,
@@ -265,30 +259,30 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         }
     }
 
-    if (m_use_per_layer_block_indices_inputs) {
+    if (m_options.use_per_layer_block_indices_inputs) {
         model->add_parameters(block_indices_inputs_for_each_layer);
     }
 
-    if (m_use_score_outputs) {
+    if (m_options.use_score_outputs) {
         model->add_results(score_results);
     }
 
-    if (m_allow_score_aggregation) {
+    if (m_options.allow_score_aggregation) {
         model->add_parameters({optional_model_wide_params["score_aggregation_window"]});
     }
 
-    if (m_allow_cache_rotation) {
+    if (m_options.allow_cache_rotation) {
         model->add_parameters(rotated_block_indices_inputs_for_each_layer);
         model->add_parameters(rotation_deltas_inputs_for_each_layer);
         model->add_parameters({optional_model_wide_params["model_rotation_trig_lut"]});
     }
 
-    if (m_allow_xattention) {
+    if (m_options.allow_xattention) {
         model->add_parameters(xattention_threshold_inputs_for_each_layer);
         model->add_parameters({optional_model_wide_params["xattention_block_size"]});
         model->add_parameters({optional_model_wide_params["xattention_stride"]});
     }
-    if (m_allow_adaptive_rkv) {
+    if (m_options.allow_adaptive_rkv) {
         model->add_parameters({optional_model_wide_params["adaptive_rkv_start_size"]});
         model->add_parameters({optional_model_wide_params["adaptive_rkv_evictable_sizes"]});
         model->add_parameters(adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer);
@@ -296,7 +290,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         model->add_results(adaptive_rkv_diversity_results);
     }
 
-    if (m_allow_qq_bias) {
+    if (m_options.allow_qq_bias) {
         model->add_parameters({optional_model_wide_params["qq_bias"]});
         model->add_parameters({optional_model_wide_params["qq_bias_begins"]});
     }

@@ -309,13 +309,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     Output<Node> max_context_len,
     ParameterVector& block_indices_inputs_for_each_layer,
     ResultVector& score_results,
-    bool use_per_layer_block_indices_inputs,
-    bool use_score_outputs,
-    bool allow_cache_rotation,
-    bool allow_score_aggregation,
-    bool allow_xattention,
-    bool allow_adaptive_rkv,
-    bool allow_qq_bias,
+    const ov::pass::paged_attention::Options& options,
     ParameterVector& rotated_block_indices_inputs_for_each_layer,
     ParameterVector& rotation_deltas_inputs_for_each_layer,
     ParameterVector& xattention_threshold_inputs_for_each_layer,
@@ -638,14 +632,14 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                                                           max_context_len.get_node_shared_ptr()};
         pa_arguments.insert(pa_arguments.end(), additional_params.begin(), additional_params.end());
 
-        if (use_per_layer_block_indices_inputs) {
+        if (options.use_per_layer_block_indices_inputs) {
             auto block_indices = named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
                                                  "block_indices." + std::to_string(layer_index - 1));
             pa_arguments.insert(pa_arguments.begin() + 7, block_indices);
             block_indices_inputs_for_each_layer.push_back(block_indices);
         }
 
-        if (allow_score_aggregation) {
+        if (options.allow_score_aggregation) {
             OPENVINO_ASSERT(
                 optional_model_wide_params.count("score_aggregation_window"),
                 "No score_aggregation_window input found. For using score aggregation mode, the model have to contain "
@@ -656,7 +650,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         }
         OPENVINO_ASSERT(pa_arguments.size() == 14);
 
-        if (allow_cache_rotation) {
+        if (options.allow_cache_rotation) {
             OPENVINO_ASSERT(
                 optional_model_wide_params.count("model_rotation_trig_lut"),
                 "No model_rotation_trig_lut input found. For using cache rotation, the model have to contain "
@@ -682,7 +676,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         }
 
         OPENVINO_ASSERT(pa_arguments.size() == 17);
-        if (allow_xattention) {
+        if (options.allow_xattention) {
             OPENVINO_ASSERT(optional_model_wide_params.count("xattention_block_size"),
                             "No xattention_block_size input found. For using XAttention, the model have to contain "
                             "an additional input (Parameter) called xattention_block_size.");
@@ -717,7 +711,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                 v0::Constant::create(real_q.get_element_type(), Shape{0, 0, 0, 0}, {}));
         }
 
-        if (allow_adaptive_rkv) {
+        if (options.allow_adaptive_rkv) {
             OPENVINO_ASSERT(
                 optional_model_wide_params.count("adaptive_rkv_start_size"),
                 "No adaptive_rkv_start_size input found. For using Adaptive R-KV, the model have to contain "
@@ -761,7 +755,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             pa_arguments.insert(pa_arguments.begin() + 25, v0::Constant::create(element::i32, Shape{0}, {}));
         }
 
-        if (allow_qq_bias) {
+        if (options.allow_qq_bias) {
             OPENVINO_ASSERT(optional_model_wide_params.find("qq_bias") != optional_model_wide_params.end(),
                             "No qq_bias input found. For using QQ bias, the model have to contain "
                             "an additional input (Parameter) called qq_bias.");
@@ -795,13 +789,13 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             0);
         auto pa_reshape = std::make_shared<v1::Reshape>(paged_attention->output(0), pa_shape, true);
         auto pa_transpose = std::make_shared<v1::Transpose>(pa_reshape, kv_transpose_order);
-        if (use_score_outputs) {
+        if (options.use_score_outputs) {
             auto score_result = std::make_shared<v0::Result>(paged_attention->output(1));
             score_result->get_output_tensor(0).set_names({"scores." + std::to_string(layer_index - 1)});
             score_results.push_back(score_result);
         }
 
-        if (allow_adaptive_rkv) {
+        if (options.allow_adaptive_rkv) {
             auto similarity_result = std::make_shared<v0::Result>(paged_attention->output(2));
             similarity_result->get_output_tensor(0).set_names(
                 {"adaptive_rkv_diversity." + std::to_string(layer_index - 1)});
