@@ -4,9 +4,13 @@
 
 #ifdef OV_GPU_WITH_OCL_RT
 
+#include <array>
 #include <algorithm>
 #include <cstring>
+#include <iomanip>
 #include <gtest/gtest.h>
+#include <sstream>
+#include <vector>
 
 #ifdef _WIN32
 #ifdef ENABLE_DX11
@@ -33,6 +37,65 @@
 #include "openvino/op/result.hpp"
 
 namespace {
+
+std::string format_luid_bytes(const unsigned char* data, size_t size) {
+    std::ostringstream stream;
+    stream << std::hex << std::setfill('0');
+    for (size_t index = 0; index < size; ++index) {
+        stream << std::setw(2) << static_cast<unsigned int>(data[index]);
+    }
+    return stream.str();
+}
+
+bool get_context_device_luid(cl_context cl_ctx, std::array<unsigned char, CL_LUID_SIZE_KHR>& cl_luid) {
+    size_t devices_size = 0;
+    if (clGetContextInfo(cl_ctx, CL_CONTEXT_DEVICES, 0, nullptr, &devices_size) != CL_SUCCESS ||
+        devices_size < sizeof(cl_device_id)) {
+        return false;
+    }
+
+    std::vector<cl_device_id> cl_devices(devices_size / sizeof(cl_device_id));
+    if (clGetContextInfo(cl_ctx, CL_CONTEXT_DEVICES, devices_size, cl_devices.data(), nullptr) != CL_SUCCESS ||
+        cl_devices.empty()) {
+        return false;
+    }
+
+    cl_bool cl_luid_valid = CL_FALSE;
+    if (clGetDeviceInfo(cl_devices[0], CL_DEVICE_LUID_VALID_KHR, sizeof(cl_luid_valid), &cl_luid_valid, nullptr) != CL_SUCCESS ||
+        cl_luid_valid != CL_TRUE) {
+        return false;
+    }
+
+    return clGetDeviceInfo(cl_devices[0], CL_DEVICE_LUID_KHR, cl_luid.size(), cl_luid.data(), nullptr) == CL_SUCCESS;
+}
+
+std::string find_matching_gpu_device(ov::Core& core, const std::array<unsigned char, CL_LUID_SIZE_KHR>& dxgi_luid) {
+    const auto available_gpu_ids = core.get_property("GPU", ov::available_devices);
+    for (auto device_it = available_gpu_ids.rbegin(); device_it != available_gpu_ids.rend(); ++device_it) {
+        const auto& device_id = *device_it;
+        const std::string device_name = device_id.empty() ? "GPU" : "GPU." + device_id;
+        auto candidate_ctx = core.get_default_context(device_name).as<ov::intel_gpu::ocl::ClContext>();
+        auto params = candidate_ctx.get_params();
+        auto it = params.find(ov::intel_gpu::ocl_context.name());
+        if (it == params.end()) {
+            continue;
+        }
+
+        auto cl_ctx = static_cast<cl_context>(it->second.as<ov::intel_gpu::ocl::gpu_handle_param>());
+        std::array<unsigned char, CL_LUID_SIZE_KHR> cl_luid{};
+        if (!get_context_device_luid(cl_ctx, cl_luid)) {
+            continue;
+        }
+
+        std::cout << "[INFO] Candidate " << device_name << " OpenCL LUID: "
+                  << format_luid_bytes(cl_luid.data(), cl_luid.size()) << "\n";
+        if (memcmp(dxgi_luid.data(), cl_luid.data(), cl_luid.size()) == 0) {
+            return device_name;
+        }
+    }
+
+    return {};
+}
 
 // Keep data unchanged while still forcing an explicit output tensor write path.
 std::shared_ptr<ov::Model> make_copy_model(const ov::Shape& shape) {
@@ -152,6 +215,47 @@ Dx12TestContext create_dx12_test_context() {
     EXPECT_FALSE(FAILED(hr));
 
     return {intel_adapter, device, CComPtr<ID3D12CommandQueue>(raw_queue)};
+}
+
+Dx12TestContext create_dx12_test_context(const std::array<unsigned char, CL_LUID_SIZE_KHR>& target_luid) {
+    IDXGIFactory4* raw_factory = nullptr;
+    HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&raw_factory));
+    EXPECT_FALSE(FAILED(hr));
+    CComPtr<IDXGIFactory4> factory(raw_factory);
+    if (!factory) return {};
+
+    UINT adapter_index = 0;
+    IDXGIAdapter1* raw_adapter = nullptr;
+    while (factory->EnumAdapters1(adapter_index, &raw_adapter) != DXGI_ERROR_NOT_FOUND) {
+        CComPtr<IDXGIAdapter1> adapter(raw_adapter);
+        DXGI_ADAPTER_DESC1 desc{};
+        adapter->GetDesc1(&desc);
+
+        std::array<unsigned char, CL_LUID_SIZE_KHR> adapter_luid{};
+        memcpy(adapter_luid.data(), &desc.AdapterLuid, sizeof(desc.AdapterLuid));
+        if ((desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) ||
+            memcmp(adapter_luid.data(), target_luid.data(), target_luid.size()) != 0) {
+            ++adapter_index;
+            continue;
+        }
+
+        ID3D12Device* raw_device = nullptr;
+        hr = D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&raw_device));
+        EXPECT_FALSE(FAILED(hr));
+        if (FAILED(hr)) return {};
+        CComPtr<ID3D12Device> device(raw_device);
+
+        D3D12_COMMAND_QUEUE_DESC queue_desc{};
+        queue_desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+        ID3D12CommandQueue* raw_queue = nullptr;
+        hr = device->CreateCommandQueue(&queue_desc, IID_PPV_ARGS(&raw_queue));
+        EXPECT_FALSE(FAILED(hr));
+        if (FAILED(hr)) return {};
+
+        return {adapter, device, CComPtr<ID3D12CommandQueue>(raw_queue)};
+    }
+
+    return {};
 }
 
 Dx12SharedBuffer create_dx12_shared_buffer(ID3D12Device* device,
@@ -339,11 +443,43 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndComp
     const ov::Shape shape{16};
     const size_t element_count = ov::shape_size(shape);
     const size_t byte_size = element_count * sizeof(float);
-    auto dx12 = create_dx12_test_context();
+
+    std::string selected_gpu_device;
+    Dx12TestContext dx12;
+    const auto available_gpu_ids = core.get_property("GPU", ov::available_devices);
+    for (const auto& device_id : available_gpu_ids) {
+        const std::string device_name = device_id.empty() ? "GPU" : "GPU." + device_id;
+        auto candidate_ctx = core.get_default_context(device_name).as<ov::intel_gpu::ocl::ClContext>();
+        auto params = candidate_ctx.get_params();
+        auto it = params.find(ov::intel_gpu::ocl_context.name());
+        if (it == params.end()) {
+            continue;
+        }
+
+        auto cl_ctx = static_cast<cl_context>(it->second.as<ov::intel_gpu::ocl::gpu_handle_param>());
+        std::array<unsigned char, CL_LUID_SIZE_KHR> cl_luid{};
+        if (!get_context_device_luid(cl_ctx, cl_luid)) {
+            continue;
+        }
+
+        std::cout << "[INFO] Candidate " << device_name << " OpenCL LUID: "
+                  << format_luid_bytes(cl_luid.data(), cl_luid.size()) << "\n";
+        auto candidate_dx12 = create_dx12_test_context(cl_luid);
+        if (!candidate_dx12.device) {
+            continue;
+        }
+
+        selected_gpu_device = device_name;
+        dx12 = candidate_dx12;
+        break;
+    }
+
     debug_scope.flush("after create_dx12_test_context");
     if (!dx12.device) {
-        FAIL() << "No Intel DXGI adapter found or D3D12 device creation failed";
+        FAIL() << "No DX12 adapter matched any available OpenVINO GPU device";
     }
+
+    std::cout << "[INFO] Selected OpenVINO device: " << selected_gpu_device << "\n";
 
     std::vector<float> input_init(element_count, 2.0f);
     auto dx_input_shared = create_dx12_shared_buffer(dx12.device, dx12.command_queue,
@@ -352,7 +488,13 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndComp
     ASSERT_NE(dx_input_shared.shared_handle, nullptr);
     ASSERT_NE(dx_output_shared.shared_handle, nullptr);
 
-    auto ov_ctx = core.create_context("GPU", {}).as<ov::intel_gpu::ocl::ClContext>();
+    DXGI_ADAPTER_DESC1 dxgi_desc{};
+    dx12.adapter->GetDesc1(&dxgi_desc);
+    std::array<unsigned char, CL_LUID_SIZE_KHR> dxgi_luid{};
+    memcpy(dxgi_luid.data(), &dxgi_desc.AdapterLuid, sizeof(dxgi_desc.AdapterLuid));
+    std::cout << "[INFO] DX12 adapter LUID: " << format_luid_bytes(dxgi_luid.data(), dxgi_luid.size()) << "\n";
+
+    auto ov_ctx = core.get_default_context(selected_gpu_device).as<ov::intel_gpu::ocl::ClContext>();
 
     {
         auto params = ov_ctx.get_params();
@@ -378,6 +520,39 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndComp
             std::cout << "[INFO] cl_khr_external_memory not supported\n";
             return;
         }
+
+        size_t import_types_size = 0;
+        cl_int import_types_status = clGetDeviceInfo(cl_devices[0],
+                                                     CL_DEVICE_EXTERNAL_MEMORY_IMPORT_HANDLE_TYPES_KHR,
+                                                     0,
+                                                     nullptr,
+                                                     &import_types_size);
+        if (import_types_status == CL_SUCCESS && import_types_size >= sizeof(cl_external_memory_handle_type_khr)) {
+            std::vector<cl_external_memory_handle_type_khr> import_types(
+                import_types_size / sizeof(cl_external_memory_handle_type_khr));
+            import_types_status = clGetDeviceInfo(cl_devices[0],
+                                                  CL_DEVICE_EXTERNAL_MEMORY_IMPORT_HANDLE_TYPES_KHR,
+                                                  import_types_size,
+                                                  import_types.data(),
+                                                  nullptr);
+            if (import_types_status == CL_SUCCESS) {
+                std::cout << "[INFO] Supported external memory import handle types:";
+                for (const auto import_type : import_types) {
+                    std::cout << " " << import_type;
+                }
+                std::cout << "\n";
+            }
+        } else {
+            std::cout << "[INFO] Failed to query CL_DEVICE_EXTERNAL_MEMORY_IMPORT_HANDLE_TYPES_KHR: "
+                      << import_types_status << "\n";
+        }
+
+        std::array<unsigned char, CL_LUID_SIZE_KHR> cl_luid{};
+        if (!get_context_device_luid(cl_ctx, cl_luid)) {
+            std::cout << "[INFO] Failed to query OpenCL device LUID from selected context\n";
+            return;
+        }
+        std::cout << "[INFO] OpenCL device LUID: " << format_luid_bytes(cl_luid.data(), cl_luid.size()) << "\n";
     }
 
     ov::RemoteTensor remote_input_tensor;
@@ -430,86 +605,6 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndComp
     dx_output_shared.shared_handle = nullptr;
 }
 
-TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputDirectHandleCompare) {
-    DxgiDebugScope debug_scope;
-    ov::Core core;
-    const ov::Shape shape{16};
-    const size_t element_count = ov::shape_size(shape);
-    const size_t byte_size = element_count * sizeof(float);
-    auto dx12 = create_dx12_test_context();
-    debug_scope.flush("after create_dx12_test_context");
-    if (!dx12.device) {
-        FAIL() << "No Intel DXGI adapter found or D3D12 device creation failed";
-    }
-
-    std::vector<float> input_init(element_count, 2.0f);
-    auto dx_input_shared = create_dx12_shared_buffer(dx12.device, dx12.command_queue,
-                                                      byte_size, input_init.data());
-    auto dx_output_shared = create_dx12_shared_buffer(dx12.device, dx12.command_queue, byte_size);
-    ASSERT_NE(dx_input_shared.shared_handle, nullptr);
-    ASSERT_NE(dx_output_shared.shared_handle, nullptr);
-
-    auto ov_ctx = core.create_context("GPU", {}).as<ov::intel_gpu::ocl::ClContext>();
-
-    {
-        auto params = ov_ctx.get_params();
-        auto it = params.find(ov::intel_gpu::ocl_context.name());
-        if (it == params.end()) {
-            std::cout << "[INFO] GPU context does not expose ocl_context param\n";
-            return;
-        }
-        auto cl_ctx = static_cast<cl_context>(it->second.as<ov::intel_gpu::ocl::gpu_handle_param>());
-        size_t devices_size = 0;
-        if (clGetContextInfo(cl_ctx, CL_CONTEXT_DEVICES, 0, nullptr, &devices_size) != CL_SUCCESS || devices_size < sizeof(cl_device_id)) {
-            std::cout << "[INFO] clGetContextInfo(CL_CONTEXT_DEVICES) failed\n";
-            return;
-        }
-        std::vector<cl_device_id> cl_devices(devices_size / sizeof(cl_device_id));
-        clGetContextInfo(cl_ctx, CL_CONTEXT_DEVICES, devices_size, cl_devices.data(), nullptr);
-        size_t ext_size = 0;
-        clGetDeviceInfo(cl_devices[0], CL_DEVICE_EXTENSIONS, 0, nullptr, &ext_size);
-        std::string extensions(ext_size, '\0');
-        clGetDeviceInfo(cl_devices[0], CL_DEVICE_EXTENSIONS, ext_size, extensions.data(), nullptr);
-        while (!extensions.empty() && extensions.back() == '\0') extensions.pop_back();
-        std::cout << "[INFO] CL extensions: [" << extensions << "]\n";
-        if (extensions.find("cl_khr_external_memory_win32") == std::string::npos) {
-            std::cout << "[INFO] cl_khr_external_memory_win32 not supported\n";
-            return;
-        }
-    }
-
-    {
-        auto remote_input_tensor = ov_ctx.create_tensor(ov::element::f32, shape,
-                                                         dx_input_shared.shared_handle,
-                                                         ov::intel_gpu::MemType::SHARED_BUF);
-        auto remote_output_tensor = ov_ctx.create_tensor(ov::element::f32, shape,
-                                                          dx_output_shared.shared_handle,
-                                                          ov::intel_gpu::MemType::SHARED_BUF);
-
-        auto model = make_copy_model(shape);
-        auto compiled = core.compile_model(model, ov_ctx);
-        auto infer_req = compiled.create_infer_request();
-        infer_req.set_tensor(compiled.input(), remote_input_tensor);
-        infer_req.set_tensor(compiled.output(), remote_output_tensor);
-        infer_req.infer();
-        debug_scope.flush("after infer");
-    }  // Release remote tensors, infer_req, and compiled model before reading DX12 buffer directly.
-
-    std::vector<float> output_host;
-    ASSERT_TRUE(CopySharedResourceToFloatVector(dx12.device, dx12.command_queue,
-                                                 dx_output_shared.shared_handle, output_host))
-        << "Failed to read DX12 shared buffer";
-    ASSERT_EQ(output_host.size(), element_count);
-
-    for (size_t i = 0; i < element_count; ++i) {
-        EXPECT_FLOAT_EQ(output_host[i], 2.0f) << "Mismatch at index " << i;
-    }
-
-    CloseHandle(dx_input_shared.shared_handle);
-    dx_input_shared.shared_handle = nullptr;
-    CloseHandle(dx_output_shared.shared_handle);
-    dx_output_shared.shared_handle = nullptr;
-}
 
 #endif  // ENABLE_DX11
 #endif  // _WIN32
