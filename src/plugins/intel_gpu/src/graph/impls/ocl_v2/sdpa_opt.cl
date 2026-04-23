@@ -1259,7 +1259,7 @@ KERNEL(sdpa_opt)(
     const SEQ_RANGE this_work_item_seq_range = this_work_item_seq_range_temp;
 #endif //< IS_CAUSAL
 
-    const uint num_read_blocks = K_HEAD_SIZE == V_HEAD_SIZE ? 1 :  CEIL_DIV(K_HEAD_SIZE, SUBGROUPS_PER_WG * SUBGROUP_SIZE);
+    const uint num_read_blocks = K_HEAD_SIZE == V_HEAD_SIZE ? 1 :  CEIL_DIV(K_HEAD_SIZE, V_HEAD_SIZE);
 
     for (int read_blk_idx = 0; read_blk_idx < num_read_blocks; read_blk_idx++)
     {
