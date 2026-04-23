@@ -31,7 +31,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
       _graphDesc(graphDesc),
       _metadata(std::move(metadata)),
       _blob(std::move(blob)),
-      _compiler_compatibility_descriptor(compatibilityDescriptor),
+      _compatibilityDescriptor(compatibilityDescriptor),
       _blobIsPersistent(blobIsPersistent),
       _logger("Graph", config.get<LOG_LEVEL>()) {
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
@@ -271,8 +271,8 @@ uint32_t Graph::get_last_submitted_id() const {
     return _lastSubmittedId;
 }
 
-std::optional<std::string> Graph::get_compiler_compatibility_descriptor() const {
-    return _compiler_compatibility_descriptor;
+std::optional<std::string> Graph::get_compatibility_descriptor() const {
+    return _compatibilityDescriptor;
 }
 
 std::optional<bool> Graph::is_profiling_blob() const {
