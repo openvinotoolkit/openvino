@@ -89,7 +89,7 @@ struct normalize_basic : public testing::Test {
 
         auto output = outputs.at("plane_normalize2").get_memory();
         if (this->data_type == data_types::f16) {
-            cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+            cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
             auto expected_results = this->get_expected_result();
             for (size_t i = 0; i < expected_results.size(); ++i) {
                 ASSERT_NEAR(expected_results[i], output_ptr[i], 0.001);

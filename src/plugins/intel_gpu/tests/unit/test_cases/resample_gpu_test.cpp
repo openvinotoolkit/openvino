@@ -55,7 +55,7 @@ void test_basic_in2x3x2x2_nearest(bool is_caching_test) {
     auto outputs = net->execute();
 
     auto output = outputs.at("upsampling").get_memory();
-    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     T answers[96] = {
         1.f, 1.f, 2.f,   2.f,   -10.f,  -10.f,
@@ -124,7 +124,7 @@ TEST(resample_gpu, basic_in2x3x2x2_bilinear) {
     auto outputs = net.execute();
 
     auto output = outputs.at("upsampling").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(output->get_layout().get_linear_size(), (size_t) 16);
 
@@ -175,7 +175,7 @@ TEST(resample_gpu, nearest_asymmetric) {
     auto outputs = net.execute();
 
     auto output = outputs.at("upsampling").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(output->get_layout().get_linear_size(), (size_t)20);
 
@@ -226,7 +226,7 @@ TEST(resample_gpu, nearest_asymmetric_i8) {
     auto outputs = net.execute();
 
     auto output = outputs.at("upsampling").get_memory();
-    cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(output->get_layout().get_linear_size(), (size_t)20);
 
@@ -277,7 +277,7 @@ TEST(resample_gpu, bilinear_asymmetric) {
     auto outputs = net.execute();
 
     auto output = outputs.at("upsampling").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(output->get_layout().get_linear_size(), (size_t)24);
 
@@ -779,7 +779,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest1) {
     auto outputs = net.execute();
 
     auto output = outputs.at("interpolate").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     float answers[96] = {
          0.f,  1.f,  1.f,  1.f,
@@ -869,7 +869,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest2) {
     auto outputs = net.execute();
 
     auto output = outputs.at("interpolate").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     float answers[96] = {
          0.f,  0.f,  1.f,  1.f,
@@ -959,7 +959,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest3) {
     auto outputs = net.execute();
 
     auto output = outputs.at("interpolate").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     float answers[96] = {
          0.f,  0.f,  1.f,  1.f,
@@ -1049,7 +1049,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest4) {
     auto outputs = net.execute();
 
     auto output = outputs.at("interpolate").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     float answers[96] = {
          0.f,  0.f,  0.f,  1.f,
@@ -1139,7 +1139,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest5) {
     auto outputs = net.execute();
 
     auto output = outputs.at("interpolate").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     float answers[96] = {
          0.f,  0.f,  0.f,  1.f,
@@ -1231,7 +1231,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode1) {
     auto outputs = net.execute();
 
     auto output = outputs.at("interpolate").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> answers = {
          0.f,  0.f,  1.f,
@@ -1301,7 +1301,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode2) {
     auto outputs = net.execute();
 
     auto output = outputs.at("interpolate").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> answers = {
          0.f,  0.f,  1.f,
@@ -1365,7 +1365,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode3) {
     auto outputs = net.execute();
 
     auto output = outputs.at("interpolate").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> answers = {
          0.f,  1.f,  1.f,
@@ -1435,7 +1435,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode4) {
     auto outputs = net.execute();
 
     auto output = outputs.at("interpolate").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> answers = {
          2.f,  3.f,  3.f,
@@ -1505,7 +1505,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode5) {
     auto outputs = net.execute();
 
     auto output = outputs.at("interpolate").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> answers = {
          0.f,  0.f,  1.f,
@@ -1573,7 +1573,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_cubic) {
     auto outputs = net.execute();
 
     auto output = outputs.at("interpolate").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> answers = {
          0.29600694f,  0.8828125f,  1.46961806f,
@@ -1634,7 +1634,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_cubic2) {
     auto outputs = net.execute();
 
     auto output = outputs.at("interpolate").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> answers = {
           5.34722222f,  3.f, 0.65277778f,
@@ -1694,7 +1694,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_linear) {
     auto outputs = net.execute();
 
     auto output = outputs.at("interpolate").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> answers = {
          0.5f,  1.f,  1.5f,
@@ -1863,7 +1863,7 @@ TYPED_TEST(onnx_5d_format, interpolate_linear_onnx5d)
         auto outputs = net.execute();
 
         auto output = outputs.at("output").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(this->expected_results[i].size(), output_ptr.size());
         for (size_t j = 0; j < this->expected_results[i].size(); ++j) {
@@ -1916,7 +1916,7 @@ TEST(resample_gpu, interpolate_in1x1x2x4_linear_scale) {
     auto outputs = net.execute();
 
     auto output = outputs.at("interpolate").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> answers = {
          2.6666665f,  4.3333331f
@@ -1956,7 +1956,7 @@ TEST(resample_gpu, downsampling_u8) {
     auto outputs = net.execute();
 
     auto output = outputs.at("resample").get_memory();
-    cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<uint8_t> ref_out = { 124, 114, 104, 112, 143, 79, 78, 72, 74, 75, 72, 79, 77, 73, 74 };
 
@@ -2533,7 +2533,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_cubic_opt) {
 
     auto outputs = net.execute();
     auto output = outputs.at("interpolate").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> answers = {
          0.29600694f,  0.8828125f,  1.46961806f,
@@ -2594,7 +2594,7 @@ TEST(resample_gpu, interpolate_in1x1x3x2_cubic_opt) {
 
     auto outputs = net.execute();
     auto output = outputs.at("interpolate").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> answers = {
           5.34722222f,  3.f, 0.65277778f,

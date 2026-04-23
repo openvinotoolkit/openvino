@@ -56,7 +56,7 @@ void test_basic(bool is_caching_test) {
     auto output = outputs.at("reorder").get_memory();
     ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *output));
 
-    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < inputVals.size(); ++i) {
         ASSERT_TRUE(are_equal(inputVals[i], output_ptr[i])) << i;
@@ -106,8 +106,8 @@ TEST(set_output_memory_gpu, basic_const) {
     auto output_const = outputs.at("reorder_const").get_memory();
     ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *output_dyn));
 
-    cldnn::mem_lock<float> output_dyn_ptr(output_dyn, get_test_stream());
-    cldnn::mem_lock<float> output_const_ptr(output_const, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_dyn_ptr(output_dyn, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_const_ptr(output_const, get_test_stream());
 
     for (size_t i = 0; i < inputVals.size(); ++i) {
         ASSERT_TRUE(are_equal(inputVals[i], output_dyn_ptr[i])) << i;
@@ -156,7 +156,7 @@ TEST(set_output_memory_gpu, basic_mutable) {
     ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *output_dyn));
     ASSERT_TRUE(engine.is_the_same_buffer(*output_mutable_mem, *output_mutable));
 
-    cldnn::mem_lock<float> output_dyn_ptr(output_dyn, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_dyn_ptr(output_dyn, get_test_stream());
     cldnn::mem_lock<float> output_mutable_mem_ptr(output_mutable_mem, get_test_stream());
 
     for (size_t i = 0; i < inputVals.size(); ++i) {
@@ -205,7 +205,7 @@ TEST(set_output_memory_gpu, top_k1) {
     auto output = outputs.at("reorder").get_memory();
     ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *output));
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> output_mem_ptr(output_mem, get_test_stream());
 
     for (size_t i = 0; i < output_ptr.size(); ++i) {
@@ -251,7 +251,7 @@ TEST(set_output_memory_gpu, top_k2) {
     auto output = outputs.at("reorder").get_memory();
     ASSERT_TRUE(engine.is_the_same_buffer(*second_output_mem, *output));
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> output_mem_ptr(second_output_mem, get_test_stream());
 
     for (size_t i = 0; i < output_ptr.size(); ++i) {

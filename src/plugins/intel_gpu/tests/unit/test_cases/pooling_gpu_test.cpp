@@ -315,7 +315,7 @@ TEST(pooling_forward_gpu, basic_max_pooling_int8) {
     auto outputs = network.execute();
 
     auto interm = outputs.at("reorder2").get_memory();
-    cldnn::mem_lock<float> interm_ptr(interm, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> interm_ptr(interm, get_test_stream());
     unsigned int cntr = 0;
     for (const auto& exp : final_results)
     {
@@ -364,7 +364,7 @@ TEST(pooling_forward_gpu, basic_avg_pooling_int8) {
     auto outputs = network.execute();
 
     auto interm = outputs.at("reorder2").get_memory();
-    cldnn::mem_lock<float> interm_ptr(interm, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> interm_ptr(interm, get_test_stream());
     ASSERT_EQ(final_result, interm_ptr[0]);
 }
 
@@ -603,7 +603,7 @@ TEST(pooling_forward_gpu, offsets_max_yxfb_f32_wsiz2x2_wstr2x2_i3x3x1x1_zeropad)
     auto output_prim = outputs.begin()->second.get_memory();
     ASSERT_EQ((int)output_prim->get_layout().count(), 4);
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
     ASSERT_EQ(1.5f, output_ptr[0]);
     ASSERT_EQ(-0.5f, output_ptr[1]);
     ASSERT_EQ(1.0f, output_ptr[2]);
@@ -1254,7 +1254,7 @@ static void generic_average_wo_padding_test(format fmt, tensor output, tensor in
 
     ASSERT_EQ(output_mem->count(), expected_output.size());
     ASSERT_EQ(output_mem->get_layout().get_tensor(), output);
-    cldnn::mem_lock<DataType> out_ptr(output_mem, get_test_stream());
+    cldnn::mem_lock<DataType, mem_lock_type::read> out_ptr(output_mem, get_test_stream());
 
     for (size_t i = 0; i < expected_output.size(); ++i)
         ASSERT_FLOAT_EQ(out_ptr[i], expected_output[i]);
@@ -1560,7 +1560,7 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_avg_3x3_input_2x2_pool_1x1_stride_2x2_ou
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<ov::float16> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_EQ(1.0f, float(output_ptr[0]));
     ASSERT_EQ(0.625f, float(output_ptr[1]));
@@ -1611,7 +1611,7 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_avg_3x3_input_2x2_pool_2x2_stride)
     ASSERT_EQ(outputs.begin()->first, "reorder_after_pooling");
 
     auto output_prim = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<ov::float16> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_EQ(1.0f, float(output_ptr[0]));
     ASSERT_EQ(0.f, float(output_ptr[1]));
@@ -1681,7 +1681,7 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_avg_2x2x3x3_input_2x2_pool_2x2_stride)
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<ov::float16> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_EQ((int)output_ptr.size(), batch_count * features_count*out_x*out_y);
 
@@ -1766,7 +1766,7 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_max_1x1x3x3_input_2x2_pool_2x2_stride_2x
         ASSERT_EQ((int)output_prim->get_layout().count(), 4);
         ASSERT_EQ((int)output_prim->get_layout().get_linear_size(), 16);
 
-        cldnn::mem_lock<ov::float16> output_ptr(output_prim, get_test_stream());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
         for (size_t i = 0; i < expected.size(); ++i) {
             ASSERT_EQ(expected[i], float(output_ptr[i]));
@@ -1844,7 +1844,7 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_max_1x1x5x5_input_2x2_pool_2x2_stride_2x
     ASSERT_EQ((int)output_prim->get_layout().count(), 9);
     ASSERT_EQ((int)output_prim->get_layout().get_linear_size(), 25);
 
-    cldnn::mem_lock<ov::float16> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     for (size_t i = 0; i < expected.size(); ++i) {
         ASSERT_EQ(expected[i], float(output_ptr[i]));
@@ -1990,7 +1990,7 @@ public:
         auto result = net->execute();
         auto out_mem = result.at(output_id()).get_memory();
         auto out_lay = out_mem->get_layout();
-        cldnn::mem_lock<output_t> out_ptr(out_mem, get_test_stream());
+        cldnn::mem_lock<output_t, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
         if (!is_caching_test) {
             std::string kernel;
@@ -3333,7 +3333,7 @@ TEST(pooling_forward_gpu_onednn, basic_max_pooling_int8) {
     auto outputs = network.execute();
 
     auto interm = outputs.at("reorder2").get_memory();
-    cldnn::mem_lock<float> interm_ptr(interm, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> interm_ptr(interm, get_test_stream());
     unsigned int cntr = 0;
     for (const auto& exp : final_results)     {
         ASSERT_EQ(exp, interm_ptr[cntr++]);

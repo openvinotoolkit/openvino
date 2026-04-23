@@ -186,7 +186,7 @@ public:
             const auto outputs = network->execute();
 
             const auto output_boxes = outputs.at("multiclass_nms").get_memory();
-            const cldnn::mem_lock<T> output_boxes_ptr(output_boxes, get_test_stream());
+            const cldnn::mem_lock<T, mem_lock_type::read> output_boxes_ptr(output_boxes, get_test_stream());
             ASSERT_EQ(output_boxes_ptr.size(), dim * 6) << "format=" << fmt_to_str(target_format);
 
             const auto get_plane_data = [&](const memory::ptr& mem, const data_types data_type,

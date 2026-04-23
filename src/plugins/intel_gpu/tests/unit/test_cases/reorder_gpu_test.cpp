@@ -865,7 +865,7 @@ TEST(reorder_gpu, basic_convert_f16_f32_f16) {
     ASSERT_TRUE(outputs.find("reorder_f32_f16") != outputs.end());
 
     auto interm = outputs.at("reorder_f16_f32").get_memory();
-    cldnn::mem_lock<float> interm_ptr(interm, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> interm_ptr(interm, get_test_stream());
 
     // Sample positive.
     ASSERT_TRUE(are_equal(interm_ptr[0x3400], 0.25f));
@@ -886,7 +886,7 @@ TEST(reorder_gpu, basic_convert_f16_f32_f16) {
     ASSERT_TRUE(std::isnan(interm_ptr[0xF803]));
 
     auto output = outputs.at("reorder_f32_f16").get_memory();
-    cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int i = 0; i < 0xF802; ++i) // NOTE: do not test for possibly ambiguous values of floating point (-0, NaNs).
     {
         ASSERT_TRUE(are_equal(static_cast<uint16_t>(expected_values[i]), static_cast<uint16_t>(output_ptr[i])));
@@ -936,7 +936,7 @@ TEST(reorder_gpu, basic_convert_int8) {
     auto outputs = network.execute();
 
     auto interm = outputs.at("reorder2").get_memory();
-    cldnn::mem_lock<float> interm_ptr(interm, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> interm_ptr(interm, get_test_stream());
     unsigned int cntr = 0;
     for (const auto& exp : final_results)
     {
@@ -986,7 +986,7 @@ TEST(reorder_gpu, basic_convert_uint8) {
     auto outputs = network.execute();
 
     auto interm = outputs.at("reorder2").get_memory();
-    cldnn::mem_lock<float> interm_ptr(interm, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> interm_ptr(interm, get_test_stream());
     unsigned int cntr = 0;
     for (const auto& exp : final_results) {
         EXPECT_EQ(exp, interm_ptr[cntr++]);
@@ -1064,7 +1064,7 @@ TEST(reorder_gpu, basic_convert_uint8rgbabyxf_to_fp32_bfyx) {
     ASSERT_TRUE(outputs.find("crop") != outputs.end());
 
     auto interm = outputs.at("reorder_input").get_memory();
-    cldnn::mem_lock<float> interm_ptr(interm, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> interm_ptr(interm, get_test_stream());
     auto interm_size = outputs.at("reorder_input").get_memory()->count();
     ASSERT_EQ(interm_size,(size_t) (1*feature_size*kernel_size*kernel_size));
 
@@ -1087,7 +1087,7 @@ TEST(reorder_gpu, basic_convert_uint8rgbabyxf_to_fp32_bfyx) {
     }
 
     auto output = outputs.at("crop").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     auto output_size = output->count();
     ASSERT_EQ(output_size,(size_t) (1 * (feature_size-1)*kernel_size*kernel_size));
 
@@ -1381,7 +1381,7 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_bfyx_dynamic_padding_x) {
         1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int i = 0; i < 8; i++) {
         ASSERT_NEAR(answer[i], output_ptr[i], 1e-2f);
     }
@@ -1442,7 +1442,7 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_bfyx_dynamic_padding_f) {
         11.f, 22.f, 33.f, 44.f, 55.f, 66.f
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int i = 0; i < 12; i++) {
         ASSERT_NEAR(answer[i], output_ptr[i], 1e-2f);
     }
@@ -1942,7 +1942,7 @@ TEST(reorder_gpu_opt, mean_mul)
 
     auto outputs = net.execute();
     auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<float> ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> ptr(output, get_test_stream());
     float* a_ptr = answers;
     for (auto& val : ptr)
         ASSERT_FLOAT_EQ(*(a_ptr++), val);
@@ -1977,7 +1977,7 @@ TEST(reorder_gpu_opt, mean_div)
 
     auto outputs = net.execute();
     auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<float> ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> ptr(output, get_test_stream());
     float* a_ptr = answers;
     for (auto& val : ptr)
         ASSERT_FLOAT_EQ(*(a_ptr++), val);
@@ -2008,7 +2008,7 @@ TEST(reorder_gpu_opt, mean_mul_val)
 
     auto outputs = net.execute();
     auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<float> ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> ptr(output, get_test_stream());
     float* a_ptr = answers;
     for (auto& val : ptr)
         ASSERT_FLOAT_EQ(*(a_ptr++), val);
@@ -2038,7 +2038,7 @@ TEST(reorder_gpu_opt, mean_mul_val_float_to_int)
 
     auto outputs = net.execute();
     auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<char> ptr(output, get_test_stream());
+    cldnn::mem_lock<char, mem_lock_type::read> ptr(output, get_test_stream());
     char* a_ptr = answers;
     for (auto& val : ptr)
         ASSERT_EQ(*(a_ptr++), val);
@@ -2126,7 +2126,7 @@ TEST(reorder_weights_gpu_i32, reorder_weights)
     };
 
     auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(output_ptr.size(), ref_output.size());
     for (size_t i = 0; i < ref_output.size(); ++i) {
@@ -2268,7 +2268,7 @@ TEST(reorder_weights_gpu_i32, reorder_weights_opt)
     };
 
     auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(output_ptr.size(), ref_output.size());
     for (size_t i = 0; i < ref_output.size(); ++i) {
@@ -2681,7 +2681,7 @@ TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_allowed)
             16.f, 17.f, 18.f, 19.f, 20.f, 21.f, 22.f, 23.f, 24.f, 25.f, 26.f, 27.f,
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     ASSERT_EQ(output_ptr.size(), 24);
     for (size_t i = 0; i < output_ptr.size(); i++)
     {
@@ -2725,7 +2725,7 @@ TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_not_allowed)
 
     float answers[1] = { 28.f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int i = 0; i < 1; i++)
     {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]) << "i=" << i;
@@ -2784,7 +2784,7 @@ TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_padded)
             16.f, 17.f, 18.f, 19.f,
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     ASSERT_EQ(output_ptr.size(), 8);
     for (size_t i = 0; i < output_ptr.size(); i++) {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]) << "i=" << i;
@@ -2809,7 +2809,7 @@ TEST(reorder_gpu, any_format) {
 
     auto outputs = net.execute();
     auto out_mem = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output(out_mem, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output(out_mem, get_test_stream());
 
     for (size_t i = 0; i < data.size(); ++i) {
         ASSERT_EQ(output[i], data[i]) << "i = " << i;
@@ -2837,7 +2837,7 @@ void reorder_cpu_any_format(bool disable_usm) {
 
     auto outputs = net.execute();
     auto out_mem = outputs.at("reorder").get_memory();
-    cldnn::mem_lock<float> output(out_mem, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output(out_mem, get_test_stream());
 
     for (size_t i = 0; i < data.size(); ++i) {
         ASSERT_EQ(output[i], data[i]) << "i = " << i;
@@ -3469,7 +3469,7 @@ TEST(reorder_onednn_gpu, basic_convert_int8) {
     auto outputs = network.execute();
 
     auto interm = outputs.at("reorder2").get_memory();
-    cldnn::mem_lock<float> interm_ptr(interm, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> interm_ptr(interm, get_test_stream());
     unsigned int cntr = 0;
     for (const auto& exp : final_results)
     {
@@ -3688,7 +3688,7 @@ TEST(reorder_gpu_fp32, test_needs_completion_events) {
     auto outputs = network.execute();
 
     auto output = outputs.at("reorder2").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         ASSERT_EQ(expected_results[i], output_ptr[i]);
@@ -3863,7 +3863,7 @@ static void run_reorder_int4(const ov::Shape in_shape) {
     auto output = outputs.begin()->second.get_memory();
 
 
-    cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(expected_data.size(), output_ptr.size());
     for (size_t idx = 0; idx < output_ptr.size(); idx++)
@@ -3897,7 +3897,7 @@ void run_reorder_test_i4(data_types input_type, data_types output_type, const st
 
     auto outputs = network.execute();
     auto output_mem = outputs.at("reorder").get_memory();
-    cldnn::mem_lock<uint8_t> output_ptr(output_mem, get_test_stream());
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
 
     for (size_t i = 0; i < expected.size(); ++i) {
         ASSERT_EQ(expected[i], output_ptr[i]);

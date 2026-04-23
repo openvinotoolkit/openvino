@@ -58,7 +58,7 @@ TEST(activation_f32_fw_gpu, dynamic) {
 
         auto output_memory = outputs.at("activation").get_memory();
         auto output_layout = output_memory->get_layout();
-        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
         cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
         int y_size = output_layout.spatial(1);
@@ -134,7 +134,7 @@ TEST(activation_f32_fw_cpu_impl, dynamic_8d) {
 
         auto output_memory = outputs.at("activation").get_memory();
         auto output_layout = output_memory->get_layout();
-        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
         cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
         ASSERT_EQ(output_layout.format, format::bfvuwzyx);
@@ -201,7 +201,7 @@ TEST(activation_f32_fw_cpu, not_basic_yxfb_disable_usm) {
 
     auto output_memory = outputs.at("not").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -256,7 +256,7 @@ TEST(activation_f32_fw_gpu, not_basic_yxfb) {
 
     auto output_memory = outputs.at("not").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -300,7 +300,7 @@ TEST(activation_f32_fw_gpu, erf_basic_yxfb) {
 
     auto output_memory = outputs.at("not").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
     int y_size = output_layout.spatial(1);
@@ -346,7 +346,7 @@ TEST(activation_f32_fw_gpu, hard_sigmoid_basic_yxfb) {
 
     auto output_memory = outputs.at("not").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
     int y_size = output_layout.spatial(1);
@@ -392,7 +392,7 @@ TEST(activation_f32_fw_gpu, reciprocal_basic_yxfb) {
 
     auto output_memory = outputs.at("not").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
     int y_size = output_layout.spatial(1);
@@ -439,7 +439,7 @@ TEST(activation_f32_fw_gpu, selu_basic_yxfb) {
 
     auto output_memory = outputs.at("not").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
     int y_size = output_layout.spatial(1);
@@ -486,7 +486,7 @@ TEST(activation_f32_fw_gpu, softplus_basic_yxfb) {
 
     auto output_memory = outputs.at("not").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
     int y_size = output_layout.spatial(1);
@@ -532,7 +532,7 @@ TEST(activation_f32_fw_gpu, softsign_basic_yxfb) {
 
     auto output_memory = outputs.at("not").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
     int y_size = output_layout.spatial(1);
@@ -568,7 +568,7 @@ TEST(activation_f16_fw_gpu, softsign_basic_yxfb) {
 
     auto output_memory = outputs.at("not").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<ov::float16> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<ov::float16> input_ptr(input, get_test_stream());
 
     int y_size = output_layout.spatial(1);
@@ -613,7 +613,7 @@ TEST(activation_f32_fw_gpu, sign_basic_yxfb) {
 
     auto output_memory = outputs.at("not").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
     int y_size = output_layout.spatial(1);
@@ -651,7 +651,7 @@ TEST(activation_f32_fw_gpu, pow_basic_yxfb) {
 
     auto output_memory = outputs.at("pow").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -687,7 +687,7 @@ TEST(activation_f16_fw_gpu, pow_basic_yxfb) {
 
     auto output_memory = outputs.at("pow").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<ov::float16> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -835,7 +835,7 @@ TEST(activation_f32_fw_gpu, relu_basic_yxfb) {
 
     auto output_memory = outputs.at("relu").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -911,7 +911,7 @@ TEST(activation_f32_fw_gpu, relu_basic_bfzyx) {
 
     auto output_memory = outputs.at("relu").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int z_size = output_layout.spatial(2);
     int y_size = output_layout.spatial(1);
@@ -1008,7 +1008,7 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
 
             auto output_memory = outputs.at("activation").get_memory();
             auto output_layout = output_memory->get_layout();
-            cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+            cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
             cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
             int y_size = output_layout.spatial(1);
@@ -1236,7 +1236,7 @@ TEST(activation_f32_fw_gpu, basic_yxfb_asin_acos_log_atan)
 
         auto output_memory = outputs.at("activation").get_memory();
         auto output_layout = output_memory->get_layout();
-        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
         cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
         int y_size = output_layout.spatial(1);
@@ -1321,7 +1321,7 @@ TEST(activation_f32_fw_gpu, relu_basic_acosh_yxfb) {
 
     auto output_memory = outputs.at("relu").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
     int y_size = output_layout.spatial(1);
@@ -1387,7 +1387,7 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_yxfb) {
 
     auto output_memory = outputs.at("relu").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -1475,7 +1475,7 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_bfzyx) {
     auto output_memory = outputs.at("relu").get_memory();
 
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int z_size = output_layout.spatial(2);
     int y_size = output_layout.spatial(1);
@@ -1550,7 +1550,7 @@ TEST(activation_f32_fw_gpu, relu_basic_output_padding_yxfb) {
     auto output_memory = outputs.at("relu").get_memory();
     auto output_layout = output_memory->get_layout();
     auto output_size = output_layout.get_padded_dims();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_size[2 + 0];
     int x_size = output_size[2 + 1];
@@ -1592,7 +1592,7 @@ TEST(activation_f32_fw_gpu, basic_yxfb_floor_ceil)
 
         auto output_memory = outputs.at("activation").get_memory();
         auto output_layout = output_memory->get_layout();
-        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
         cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
         int y_size = output_layout.spatial(1);
@@ -1657,7 +1657,7 @@ TEST(activation_i8_fw_gpu, basic_yxfb_all_funcs)
 
         auto output_memory = outputs.at("activation").get_memory();
         auto output_layout = output_memory->get_layout();
-        cldnn::mem_lock<int8_t> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
         cldnn::mem_lock<int8_t> input_ptr(input, get_test_stream());
 
         for (size_t i = 0; i < output_layout.get_linear_size(); ++i) {
@@ -1705,7 +1705,7 @@ TEST(activation_i8_fw_gpu, clamp_basic_bfzyx)
 
     auto output_memory = outputs.at("activation").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<int8_t> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<int8_t> input_ptr(input, get_test_stream());
 
     for (size_t i = 0; i < output_layout.get_linear_size(); ++i) {
@@ -1751,7 +1751,7 @@ TEST(activation_i32_fw_gpu, basic_yxfb_i32_funcs) {
 
         auto output_memory = outputs.at("activation").get_memory();
         auto output_layout = output_memory->get_layout();
-        cldnn::mem_lock<int32_t> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
         cldnn::mem_lock<int32_t> input_ptr(input, get_test_stream());
 
         for (size_t i = 0; i < output_layout.get_linear_size(); ++i) {
@@ -2281,7 +2281,7 @@ TEST(activation_gpu, has_proper_synchronization) {
     ASSERT_EQ(res_test->get_layout().get_linear_size(), res_ref->get_layout().get_linear_size());
 
     cldnn::mem_lock<float> test_mem(res_test, get_test_stream());
-    cldnn::mem_lock<float> ref_mem(res_ref, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> ref_mem(res_ref, get_test_stream());
 
     for (size_t i = 0; i < res_ref->get_layout().get_linear_size(); ++i) {
         ASSERT_EQ(test_mem[i], ref_mem[i]);

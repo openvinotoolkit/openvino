@@ -118,7 +118,7 @@ void generic_eltwise_test(cldnn::format test_input_fmt, int input_b, int input_f
 
     auto output_memory = outputs.at(out_id).get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<T> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     VVVVF<T> output_cpu = eltwise_reference<T>(input1_rnd, input2_rnd, mode, relu, slope, input_padding_y, input_padding_x, output_padding_y, output_padding_x);
     ASSERT_EQ(output_layout.format.value, test_input_fmt.value);
@@ -283,7 +283,7 @@ void generic_eltwise_int_test(cldnn::format test_input_fmt,
 
     auto output_memory = outputs.at("eltwise").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<TOut> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<TOut, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     VVVVF<TOut> output_cpu = eltwise_int_reference<T, TOut>(input1_rnd, input2_rnd, mode, input_padding_y, input_padding_x, output_padding_y, output_padding_x);
     ASSERT_EQ(output_layout.format.value, test_input_fmt.value);
@@ -454,7 +454,7 @@ TEST(eltwise_gpu_f32, equal_in2_float_out1_int) {
     ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
-    cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int8_t> answers = { 0, 1, 0, 1,
                                     0, 0, 1, 0,
@@ -524,7 +524,7 @@ TEST(eltwise_gpu_f32, not_equal_in2_float_out1_int) {
     ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
-    cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int8_t> answers = { 1, 0, 1, 0,
                                     1, 1, 0, 1,
@@ -594,7 +594,7 @@ TEST(eltwise_gpu_f32, less_in2_float_out1_int) {
     ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
-    cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int8_t> answers = { 0, 0, 0, 0,
                                     1, 1, 0, 0,
@@ -664,7 +664,7 @@ TEST(eltwise_gpu_f32, less_equal_in2_float_out1_int) {
     ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
-    cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int8_t> answers = { 0, 1, 0, 1,
                                     1, 1, 1, 0,
@@ -734,7 +734,7 @@ TEST(eltwise_gpu_f32, greater_in2_float_out1_int) {
     ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
-    cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int8_t> answers = { 1, 0, 1, 0,
                                     0, 0, 0, 1,
@@ -804,7 +804,7 @@ TEST(eltwise_gpu_f32, greater_equal_in2_float_out1_int) {
     ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
-    cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int8_t> answers = { 1, 1, 1, 1,
                                     0, 0, 1, 1,
@@ -874,7 +874,7 @@ TEST(eltwise_gpu_f32, logicalAND_in2_float_out1_int) {
     ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
-    cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int8_t> answers = { 1, 1, 1, 1,
                                     1, 0, 1, 1,
@@ -961,7 +961,7 @@ TEST(eltwise_gpu_f32, logicalAND_in3_float_out1_int) {
     ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
-    cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int8_t> answers = { 0, 0, 0, 0,
                                     0, 0, 0, 0,
@@ -1031,7 +1031,7 @@ TEST(eltwise_gpu_f32, logicalOR_in2_float_out1_int) {
     ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
-    cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int8_t> answers = { 1, 1, 1, 1,
                                     1, 1, 1, 1,
@@ -1118,7 +1118,7 @@ TEST(eltwise_gpu_f32, logicalOR_in3_float_out1_int) {
     ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
-    cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int8_t> answers = { 1, 1, 1, 1,
                                     1, 1, 1, 1,
@@ -1188,7 +1188,7 @@ TEST(eltwise_gpu_f32, logicalXOR_in2_float_out1_int) {
     ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
-    cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int8_t> answers = { 0, 0, 0, 0,
                                     0, 1, 0, 0,
@@ -1236,7 +1236,7 @@ TEST(eltwise_gpu_f32, isfinite_in1_float_out1_int) {
     ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     const auto output = outputs.at("eltwise").get_memory();
-    const cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+    const cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     const std::vector<int8_t> answers = {1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0};
     for (size_t i = 0; i < answers.size(); ++i) {
@@ -1291,7 +1291,7 @@ TEST(eltwise_gpu_f32, isinf_in1_float_out1_int) {
         ASSERT_EQ(outputs.begin()->first, "eltwise");
 
         const auto output = outputs.at("eltwise").get_memory();
-        const cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+        const cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i) {
             ASSERT_EQ(answers[i], output_ptr[i]);
@@ -1335,7 +1335,7 @@ TEST(eltwise_gpu_f32, isnan_in1_float_out1_int) {
     ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     const auto output = outputs.at("eltwise").get_memory();
-    const cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+    const cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     const std::vector<int8_t> answers = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1};
     for (size_t i = 0; i < answers.size(); ++i) {
@@ -1393,7 +1393,7 @@ TEST(eltwise_gpu_f32, dynamic_kernel_no_broadcast) {
                           18.f,17.5f,   15.f,   22.f,
                           2.f,   6.f,   7.5f,  5.5f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++) {
         ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
@@ -1449,7 +1449,7 @@ TEST(eltwise_gpu_f32, dynamic_kernel_broadcast) {
                           3.5f,  1.0f, 7.5f, 12.5f,
                           3.5f, -1.0f, 7.5f, 7.5f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++) {
         ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
@@ -1508,7 +1508,7 @@ TEST(eltwise_gpu_f32, dynamic_kernel_broadcast_mixed_ranks_3d_2d) {
                           0.5f,  5.5f, 6.2f,  2.f, 2.5f,
                           7.5f, 11.5f, 5.f,  -1.5f, 10.f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 15; i++) {
         ASSERT_EQ(answers[i], output_ptr[i]) << "i = " << i;
@@ -1567,7 +1567,7 @@ TEST(eltwise_gpu_f32, dynamic_kernel_broadcast_mixed_ranks_5d_2d) {
                           0.5f,  5.5f, 6.2f,  2.f, 2.5f,
                           7.5f, 11.5f, 5.f,  -1.5f, 10.f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 15; i++) {
         ASSERT_EQ(answers[i], output_ptr[i]) << "i = " << i;
@@ -1628,7 +1628,7 @@ TEST(eltwise_cpu_impl_f32, dynamic_kernel_broadcast_mixed_ranks_5d_2d) {
                           0.5f,  5.5f, 6.2f,  2.f, 2.5f,
                           7.5f, 11.5f, 5.f,  -1.5f, 10.f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 15; i++) {
         ASSERT_EQ(answers[i], output_ptr[i]) << "i = " << i;
@@ -1705,7 +1705,7 @@ TEST(eltwise_gpu_f32, dynamic_padding) {
                           22.5f,  21.25f,  28.f,  300.f,
                           -4.f,   -8.125f, -2.f,  -50.f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++) {
         ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
@@ -1746,7 +1746,7 @@ TEST(eltwise_gpu_f32, add_basic_8d) {
     ov::PartialShape expected_shape = {1, 3, 2, 2, 2, 3, 2, 3};
     ASSERT_EQ(output->get_layout().get_partial_shape(), expected_shape);
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < output->count(); i++) {
         ASSERT_EQ(2.f*i, output_ptr[i]) << " i = " << i;
@@ -1790,7 +1790,7 @@ void eltwise_cpu_impl_f32(bool disable_usm) {
     ov::PartialShape expected_shape = {1, 3, 2, 2, 2, 3, 2, 3};
     ASSERT_EQ(output->get_layout().get_partial_shape(), expected_shape);
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < output->count(); i++) {
         ASSERT_EQ(2.f*i, output_ptr[i]) << " i = " << i;
@@ -1868,7 +1868,7 @@ TEST(eltwise_gpu_f32, add_basic_in4x4x2x2) {
                           18.f,17.5f,   15.f,   22.f,
                           2.f,   6.f,   7.5f,  5.5f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -1931,7 +1931,7 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_channel) {
                           1.f,   7.f,
                           3.5f, -3.f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -2000,7 +2000,7 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_x) {
                           2.f,   10.5f,
                           -1.f, -3.f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -2063,7 +2063,7 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_y) {
                           1.f,   7.f,
                           3.5f, -3.f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -2128,7 +2128,7 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_batch) {
                           2.f,   6.f,
                           3.5f, -3.f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -2187,7 +2187,7 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_multiple_dims) {
                           0.f,   8.5f,
                           1.5f, -0.5f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -2244,7 +2244,7 @@ TEST(eltwise_gpu_f32, pow_in2x2x2x2_broadcast_all) {
                           169.f, 196.f,
                           225.f, 256.f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -2322,7 +2322,7 @@ TEST(eltwise_gpu_f32, add_basic_in2x2x2x2_broadcast_2_inputs_same_dim) {
                           -2.f,  6.5f,
                           -0.5f, -2.5f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -2398,7 +2398,7 @@ TEST(eltwise_gpu_f32, add_basic_in2x2x2x2_broadcast_2_inputs_diff_dim) {
                            0.f,   7.5f,
                           -0.5f, -2.5f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -2469,7 +2469,7 @@ TEST(eltwise_gpu_f32, max_basic_in4x4x4x4) {
         15.f,  17.f,   8.f,  12.f,
          6.f,   8.f,   8.f,   8.f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -2540,7 +2540,7 @@ TEST(eltwise_gpu_f32, sub_basic_in4x4x4x4) {
        -12.f,  -16.5f,  -1.f,    3.5f,
         -2.f,   -8.5f,   8.5f,  -2.5f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -2604,7 +2604,7 @@ TEST(eltwise_gpu_int, basic_in4x4x4x4) {
 
             auto output = outputs.at("eltwise_reorder").get_memory();
 
-            cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+            cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
             for (int i = 0; i < 16; i++)
             {
@@ -2686,7 +2686,7 @@ TEST(eltwise_gpu_int, div_gather_fusing) {
     auto outputs = network.execute();
 
     auto output = outputs.at("eltwise_reorder").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int32_t> gather_expected_results = {
         5, 6, 7, 8,
@@ -2752,7 +2752,7 @@ TEST(eltwise_gpu_f32_int, basic_in4x4x4x4) {
 
             auto output = outputs.at("eltwise_reorder").get_memory();
 
-            cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+            cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
             for (int i = 0; i < 16; i++)
             {
@@ -2840,7 +2840,7 @@ TEST(eltwise_gpu_f32, prod_basic_in4x4x4x4) {
         7.5f,   3.5f,   119.f,   96.0f,
        10.0f,  -2.0f,    80.f, -18.75f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -2914,7 +2914,7 @@ TEST(eltwise_gpu_f32, max_basic_in4x4x4x4_input_padding) {
         15.f,  17.f,   8.f,  12.f,
         6.f,   8.f,   8.f,   8.f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -2985,7 +2985,7 @@ TEST(eltwise_gpu_f32, add_basic_in4x4x2x2_with_coefficients) {
                           9.f, 8.75f,  7.5f, 11.f,
                           1.f,   3.f, 3.75f, 2.75f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -3102,7 +3102,7 @@ TEST(eltwise_gpu_f32, add_basic_in4x4x2x2_with_coefficients_3inputs) {
                           12.f, 8.75f,  8.5f, 11.f,
                           3.5f,  3.5f, 4.25f, 3.25f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -3193,7 +3193,7 @@ TEST(eltwise_gpu_f32, max_3inputs_in4x4x4x4_input_padding) {
         15.f,  17.f,   9.f,  12.f,
         6.f,   8.f,   8.f,   8.f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -3282,7 +3282,7 @@ TEST(eltwise_gpu_f32, stride_test_2x2) {
         9,  25,  41,  57,
         11, 27,  43,  59 };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -3350,7 +3350,7 @@ TEST(eltwise_gpu_f32, broadcast_test_in4x4x2x2) {
         3.5f,    3.f,   7.5f,  14.5f,
         4.5f,    2.f,   8.5f,  10.5f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
@@ -3408,7 +3408,7 @@ TEST(eltwise_gpu_f32, broadcast_test_dim3_dim4) {
 
         auto output = outputs.at("eltwise").get_memory();
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (int i = 0; i < 16; i++)
         {
@@ -3441,7 +3441,7 @@ TEST(eltwise_gpu_f32, broadcast_test_dim3_dim4) {
 
         auto output = outputs.at("eltwise").get_memory();
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (int i = 0; i < 16; i++)
         {
@@ -3499,7 +3499,7 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_basic)
 
     auto golden_outputs = golden_network.execute();
     auto golden_output = golden_outputs.at("eltwise").get_memory();
-    cldnn::mem_lock<ov::float16> golden_ptr(golden_output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> golden_ptr(golden_output, get_test_stream());
     // GOLDEN BFYX ELTWISE - END
     // FS_B_YX_FSV32 ELTWISE
     topology FSV32_topology;
@@ -3516,7 +3516,7 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_basic)
 
     auto FSV32_outputs = FSV32_network.execute();
     auto FSV32_output = FSV32_outputs.at("reorderOutput").get_memory();
-    cldnn::mem_lock<ov::float16> FSV32_ptr(FSV32_output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> FSV32_ptr(FSV32_output, get_test_stream());
     // FS_B_YX_FSV32 ELTWISE - END
 
     ASSERT_EQ(golden_ptr.size(), FSV32_ptr.size());
@@ -3567,7 +3567,7 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast)
 
     auto ref_outputs = ref_network.execute();
     auto ref_output = ref_outputs.at("eltwise").get_memory();
-    cldnn::mem_lock<ov::float16> ref_ptr(ref_output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_ptr(ref_output, get_test_stream());
 
     topology fsv32_topology;
     fsv32_topology.add(input_layout("input1", input1->get_layout()));
@@ -3583,7 +3583,7 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast)
 
     auto fsv32_outputs = fsv32_network.execute();
     auto fsv32_output = fsv32_outputs.at("reorder_bfyx").get_memory();
-    cldnn::mem_lock<ov::float16> fsv32_ptr(fsv32_output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> fsv32_ptr(fsv32_output, get_test_stream());
 
     ASSERT_EQ(ref_ptr.size(), fsv32_ptr.size());
 
@@ -3631,7 +3631,7 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast_bfyx)
 
     auto ref_outputs = ref_network.execute();
     auto ref_output = ref_outputs.at("eltwise").get_memory();
-    cldnn::mem_lock<ov::float16> ref_ptr(ref_output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_ptr(ref_output, get_test_stream());
 
     topology fsv32_topology;
     fsv32_topology.add(input_layout("input1", input1->get_layout()));
@@ -3646,7 +3646,7 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast_bfyx)
 
     auto fsv32_outputs = fsv32_network.execute();
     auto fsv32_output = fsv32_outputs.at("reorder_bfyx").get_memory();
-    cldnn::mem_lock<ov::float16> fsv32_ptr(fsv32_output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> fsv32_ptr(fsv32_output, get_test_stream());
 
     ASSERT_EQ(ref_ptr.size(), fsv32_ptr.size());
 
@@ -3742,7 +3742,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_basic)
 
     auto golden_outputs = golden_network.execute();
     auto golden_output = golden_outputs.at("eltwise").get_memory();
-    cldnn::mem_lock<ov::float16> golden_ptr(golden_output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> golden_ptr(golden_output, get_test_stream());
     // GOLDEN BFYX ELTWISE - END
     // MIXED INPUT, FS_B_YX_FSV32 OUTPUT
     topology FS_B_YX_FSV32_OUTPUT_topology;
@@ -3759,7 +3759,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_basic)
 
     auto FS_B_YX_FSV32_OUTPUT_outputs = FS_B_YX_FSV32_OUTPUT_network.execute();
     auto FS_B_YX_FSV32_OUTPUT_output = FS_B_YX_FSV32_OUTPUT_outputs.at("reorderOutput").get_memory();
-    cldnn::mem_lock<ov::float16> FS_B_YX_FSV32_OUTPUT_ptr(FS_B_YX_FSV32_OUTPUT_output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> FS_B_YX_FSV32_OUTPUT_ptr(FS_B_YX_FSV32_OUTPUT_output, get_test_stream());
     // MIXED INPUT, FS_B_YX_FSV32 OUTPUT - END
     // MIXED INPUT, BYXF OUTPUT
     topology BYXF_OUTPUT_topology;
@@ -3776,7 +3776,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_basic)
 
     auto BYXF_OUTPUT_outputs = BYXF_OUTPUT_network.execute();
     auto BYXF_OUTPUT_output = BYXF_OUTPUT_outputs.at("reorderOutput").get_memory();
-    cldnn::mem_lock<ov::float16> BYXF_OUTPUT_ptr(BYXF_OUTPUT_output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> BYXF_OUTPUT_ptr(BYXF_OUTPUT_output, get_test_stream());
     // MIXED INPUT, BYXF OUTPUT - END
 
     ASSERT_EQ(golden_ptr.size(), FS_B_YX_FSV32_OUTPUT_ptr.size());
@@ -3913,7 +3913,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_input_padding)
 
     auto golden_outputs = golden_network.execute();
     auto golden_output = golden_outputs.at("eltwise").get_memory();
-    cldnn::mem_lock<ov::float16> golden_ptr(golden_output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> golden_ptr(golden_output, get_test_stream());
     // GOLDEN BFYX ELTWISE - END
     // MIXED INPUT, FS_B_YX_FSV32 OUTPUT
     topology FS_B_YX_FSV32_OUTPUT_topology;
@@ -3930,7 +3930,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_input_padding)
 
     auto FS_B_YX_FSV32_OUTPUT_outputs = FS_B_YX_FSV32_OUTPUT_network.execute();
     auto FS_B_YX_FSV32_OUTPUT_output = FS_B_YX_FSV32_OUTPUT_outputs.at("reorderOutput").get_memory();
-    cldnn::mem_lock<ov::float16> FS_B_YX_FSV32_OUTPUT_ptr(FS_B_YX_FSV32_OUTPUT_output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> FS_B_YX_FSV32_OUTPUT_ptr(FS_B_YX_FSV32_OUTPUT_output, get_test_stream());
     // MIXED INPUT, FS_B_YX_FSV32 OUTPUT - END
     // MIXED INPUT, BYXF OUTPUT
     topology BYXF_OUTPUT_topology;
@@ -3947,7 +3947,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_input_padding)
 
     auto BYXF_OUTPUT_outputs = BYXF_OUTPUT_network.execute();
     auto BYXF_OUTPUT_output = BYXF_OUTPUT_outputs.at("reorderOutput").get_memory();
-    cldnn::mem_lock<ov::float16> BYXF_OUTPUT_ptr(BYXF_OUTPUT_output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> BYXF_OUTPUT_ptr(BYXF_OUTPUT_output, get_test_stream());
     // MIXED INPUT, BYXF OUTPUT - END
 
     ASSERT_EQ(golden_ptr.size(), FS_B_YX_FSV32_OUTPUT_ptr.size());
@@ -4103,7 +4103,7 @@ TEST(eltwise_gpu, b_fs_yx_fsv4_wo_callib) {
             auto searchC = outputs.find("eltw_GOLD");
             EXPECT_NE(searchC, outputs.end());
             auto output = outputs.begin()->second.get_memory();
-            cldnn::mem_lock<char> output_ptr(output, get_test_stream());
+            cldnn::mem_lock<char, mem_lock_type::read> output_ptr(output, get_test_stream());
             vGoldOutput.reserve(output_ptr.size());
             for (size_t i = 0; i < output_ptr.size(); i++)
                 vGoldOutput.push_back(output_ptr[i]);
@@ -4159,7 +4159,7 @@ TEST(eltwise_gpu, b_fs_yx_fsv4_wo_callib) {
             auto searchC = outputs.find("reorder_UnSwizzelled");
             EXPECT_NE(searchC, outputs.end());
             auto output = outputs.begin()->second.get_memory();
-            cldnn::mem_lock<char> output_ptr(output, get_test_stream());
+            cldnn::mem_lock<char, mem_lock_type::read> output_ptr(output, get_test_stream());
             vTestOutput.reserve(output_ptr.size());
             for (size_t i = 0; i < output_ptr.size(); i++)
                 vTestOutput.push_back(output_ptr[i]);
@@ -4491,7 +4491,7 @@ TEST_P(eltwise_test, fsv16) {
     ASSERT_EQ(outputs.begin()->first, out_id);
 
     auto output_memory = outputs.at(out_id).get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     VF<float> output_cpu_vec = eltwise_ref(input1_rnd, input2_rnd, in0_size, in1_size, mode);
     for (size_t i = 0; i < output_cpu_vec.size(); ++i) {
@@ -4598,7 +4598,7 @@ TEST_P(eltwise_test_6d, bfwzyx) {
     ASSERT_EQ(outputs.begin()->first, out_id);
 
     auto output_memory = outputs.at(out_id).get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     VF<float> output_cpu_vec = eltwise_ref(input1_rnd, input2_rnd, in0_size, in1_size, mode);
     for (size_t i = 0; i < output_cpu_vec.size(); ++i) {
@@ -4684,7 +4684,7 @@ TEST_P(eltwise_test_mixed_precision, fsv16) {
     ASSERT_EQ(outputs.begin()->first, out_id);
 
     auto output_memory = outputs.at(out_id).get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     VF<float> output_cpu_vec = eltwise_ref(input1_rnd, input2_rnd, in0_size, in1_size, mode);
     for (size_t i = 0; i < output_cpu_vec.size(); ++i) {
@@ -4795,7 +4795,7 @@ TEST_P(eltwise_test_mixed_layout, mixed_layout) {
     ASSERT_TRUE(network.get_primitive_info("eltwise").find(selected_kernel) != std::string::npos);
 
     auto output_memory = outputs.at(out_id).get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     VF<float> output_cpu_vec = eltwise_ref(input1_rnd, input2_rnd, in0_size, in1_size, mode);
     for (size_t i = 0; i < output_cpu_vec.size(); ++i) {

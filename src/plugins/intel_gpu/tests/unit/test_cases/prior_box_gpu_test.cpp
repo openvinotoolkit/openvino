@@ -98,7 +98,7 @@ public:
         const auto outputs = network->execute();
         const auto output = outputs.at("prior_box").get_memory();
 
-        cldnn::mem_lock<OutputType> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<OutputType, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), expected_values.size());
         for (size_t i = 0; i < output_ptr.size(); ++i) {

@@ -75,7 +75,7 @@ TEST(concat_gpu, mixed_input_types) {
 
     auto output_memory = outputs.at("concat").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -140,7 +140,7 @@ TEST(concat_cpu, disable_usm) {
 
     auto output_memory = outputs.at("concat").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<int8_t> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -228,7 +228,7 @@ void start_concat_test_dynamic(impl_types impl_type) {
 
         auto output_memory = outputs.at("concat").get_memory();
         auto output_layout = outputs.at("concat").get_layout();
-        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
         ov::PartialShape expected_shape = layout0.get_partial_shape();
         expected_shape[1] = layout0.get_partial_shape()[1] +
@@ -315,7 +315,7 @@ TEST(concat_gpu, dynamic_2d_bfyx_and_b_fs_yx_fsv32) {
 
     auto output_memory = outputs.at("concat").get_memory();
     auto output_layout = outputs.at("concat").get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     ov::PartialShape expected_shape = layout0.get_partial_shape();
     expected_shape[1] = layout0.get_partial_shape()[1] +
@@ -368,7 +368,7 @@ TEST(concat_gpu, dynamic_4d_bfyx_and_b_fs_yx_fsv32) {
 
     auto output_memory = outputs.at("concat").get_memory();
     auto output_layout = outputs.at("concat").get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     ov::PartialShape expected_shape = layout0.get_partial_shape();
     expected_shape[1] = layout0.get_partial_shape()[1] +
@@ -445,7 +445,7 @@ TEST(concat_gpu, dynamic_6d_f) {
 
         auto output_memory = outputs.at("concat").get_memory();
         auto output_layout = output_memory->get_layout();
-        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
         ov::PartialShape expected_shape = layout0.get_partial_shape();
         expected_shape[1] = layout0.get_partial_shape()[1] +
@@ -531,7 +531,7 @@ TEST(concat_gpu, mixed_input_types_5d) {
 
     auto output_memory = outputs.at("concat").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int z_size = output_layout.spatial(2);
     int y_size = output_layout.spatial(1);
@@ -662,7 +662,7 @@ TEST(concat_gpu, i8_optimization_with_pool) {
 
     auto output_memory = outputs.at("reorder").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<int8_t> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(0);
     int x_size = output_layout.spatial(1);
@@ -764,7 +764,7 @@ TEST(concat_gpu, i8_optimization_with_conv) {
 
     auto output_memory = outputs.at("output").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<int8_t> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -863,7 +863,7 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
 
     auto output_memory = outputs.at("output").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<int8_t> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(0);
     int x_size = output_layout.spatial(1);
@@ -1100,7 +1100,7 @@ public:
         auto outputs = network.execute();
 
         auto out_mem = outputs.at("concat").get_memory();
-        cldnn::mem_lock<Type> out_ptr(out_mem, get_test_stream());
+        cldnn::mem_lock<Type, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
         for (size_t bi = 0; bi < batch_num; bi++) {
             size_t f_sum = 0;
@@ -1186,7 +1186,7 @@ public:
         auto outputs = network.execute();
 
         auto out_mem = outputs.at("concat").get_memory();
-        cldnn::mem_lock<Type> out_ptr(out_mem, get_test_stream());
+        cldnn::mem_lock<Type, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
         for (size_t bi = 0; bi < batch_num; bi++) {
             for (size_t fi = 0; fi < in_feature; fi++) {
@@ -1352,7 +1352,7 @@ public:
         auto outputs = network.execute();
 
         auto out_mem = outputs.at("conv").get_memory();
-        cldnn::mem_lock<OutputT> out_ptr(out_mem, get_test_stream());
+        cldnn::mem_lock<OutputT, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
         ASSERT_EQ(out_mem->get_layout().format, fmt);
 
         for (size_t bi = 0; bi < batch_num; bi++) {
@@ -1649,7 +1649,7 @@ TEST(concat_gpu_onednn, basic_input_types) {
 
     auto output_memory = outputs.at("concat").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -1766,7 +1766,7 @@ TEST(concat_gpu_onednn, dynamic_non_block_aligned_feature) {
         << "Dynamic non-block-aligned concat should NOT use onednn";
 
     auto output_memory = outputs.at("reorder_out").get_memory();
-    cldnn::mem_lock<ov::float16> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     for (size_t i = 0; i < output_memory->get_layout().count(); ++i) {
         ASSERT_FALSE(std::isnan(static_cast<float>(output_ptr[i])))

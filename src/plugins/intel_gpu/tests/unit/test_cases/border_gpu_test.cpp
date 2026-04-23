@@ -97,7 +97,7 @@ public:
         cldnn::network::ptr target_network = get_network(engine, target_topology,  get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         target_network->set_input_data("input", input);
         auto target_output = target_network->execute().at("output").get_memory();
-        cldnn::mem_lock<T> target_output_ptr(target_output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> target_output_ptr(target_output, get_test_stream());
 
         topology base_topology;
         base_topology.add(input_layout("input", input->get_layout()));
@@ -113,7 +113,7 @@ public:
         cldnn::network base_network(engine, base_topology, get_test_default_config(engine));
         base_network.set_input_data("input", input);
         auto base_output = base_network.execute().at("border").get_memory();
-        cldnn::mem_lock<T> base_output_ptr(base_output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> base_output_ptr(base_output, get_test_stream());
 
         ASSERT_TRUE(!memcmp(target_output_ptr.data(), base_output_ptr.data(), sizeof(T) * mult(sh_out)));
     }
@@ -263,7 +263,7 @@ TEST(border_gpu, bsv16fsv16_without_reorder) {
     cldnn::network target_network(engine, target_topology, get_test_default_config(engine));
     target_network.set_input_data("input", input_b16f16);
     auto target_output = target_network.execute().at("border").get_memory();
-    cldnn::mem_lock<T> target_output_ptr(target_output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> target_output_ptr(target_output, get_test_stream());
 
     topology base_topology;
     base_topology.add(input_layout("input", input->get_layout()));
@@ -277,7 +277,7 @@ TEST(border_gpu, bsv16fsv16_without_reorder) {
     cldnn::network base_network(engine, base_topology, get_test_default_config(engine));
     base_network.set_input_data("input", input);
     auto base_output = base_network.execute().at("border").get_memory();
-    cldnn::mem_lock<T> base_output_ptr(base_output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> base_output_ptr(base_output, get_test_stream());
 
     std::vector<T> b16f16_to_bfyx(mult(sh_out));
     for (int b = 0; b < sh_out[0]; b++)
@@ -321,7 +321,7 @@ TEST(border_gpu, zyx_bsv16fsv16) {
     cldnn::network target_network(engine, target_topology, get_test_default_config(engine));
     target_network.set_input_data("input", input);
     auto target_output = target_network.execute().at("output").get_memory();
-    cldnn::mem_lock<T> target_output_ptr(target_output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> target_output_ptr(target_output, get_test_stream());
 
     topology base_topology;
     base_topology.add(input_layout("input", input->get_layout()));
@@ -335,7 +335,7 @@ TEST(border_gpu, zyx_bsv16fsv16) {
     cldnn::network base_network(engine, base_topology, get_test_default_config(engine));
     base_network.set_input_data("input", input);
     auto base_output = base_network.execute().at("border").get_memory();
-    cldnn::mem_lock<T> base_output_ptr(base_output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> base_output_ptr(base_output, get_test_stream());
 
     ASSERT_TRUE(!memcmp(target_output_ptr.data(), base_output_ptr.data(), sizeof(T) * mult(sh_out)));
 }
@@ -397,7 +397,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_constant) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(out_data.size(), static_cast<std::size_t>(out_size_b * out_size_f * out_size_y * out_size_x));
 
@@ -474,7 +474,7 @@ TEST(border_gpu, basic_fsv16_0x0x1x2_0x0x3x4_border_constant) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(out_data.size(), static_cast<std::size_t>(out_size_b * out_size_f * out_size_y * out_size_x));
 
@@ -574,7 +574,7 @@ TEST(border_gpu, basic_bfzyx_0x0x1x01_0x0x0x0x3_border_constant) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(out_data.size(), static_cast<std::size_t>(out_size_b * out_size_f * out_size_y * out_size_x * out_size_z));
 
@@ -680,7 +680,7 @@ TEST(border_gpu, basic_bfwzyx_0x0x0x1x0x1_0x0x0x1x0x1_border_constant) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(out_data.size(), static_cast<std::size_t>(out_size_b * out_size_f * out_size_y * out_size_x * out_size_z * out_size_w));
 
@@ -758,7 +758,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_constant_non_constant) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(out_data.size(), static_cast<std::size_t>(out_size_b * out_size_f * out_size_y * out_size_x));
 
@@ -831,7 +831,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_mirror) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(out_data.size(), static_cast<std::size_t>(out_size_b * out_size_f * out_size_y * out_size_x));
 
@@ -895,7 +895,7 @@ TEST(border_gpu, basic_bfzyx_0x0x0x0x1_0x0x0x0x1_border_mirror) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (auto b = 0; b < out_size_b; ++b) {             // B
         for (auto f = 0; f < out_size_f; ++f) {         // F
@@ -973,7 +973,7 @@ TEST(border_gpu, basic_bfzyxw_0x0x0x0x1_0x0x0x0x1_border_mirror) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (auto b = 0; b < out_size_b; ++b) {             // B
         for (auto f = 0; f < out_size_f; ++f) {         // F
@@ -1059,7 +1059,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_mirror_101) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(out_data.size(), static_cast<std::size_t>(out_size_b * out_size_f * out_size_y * out_size_x));
 
@@ -1136,7 +1136,7 @@ TEST(border_gpu, basic_bfzyx_0x0x0x0x1_0x0x0x0x1_border_mirror_101) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(out_data.size(), static_cast<std::size_t>(out_size_b * out_size_f * out_size_y * out_size_x * out_size_z));
 
@@ -1230,7 +1230,7 @@ TEST(border_gpu, basic_bfwzyx_0x0x0x0x1x1_0x0x0x0x1x1_border_mirror_101) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(out_data.size(), static_cast<std::size_t>(out_size_b * out_size_f * out_size_y * out_size_x * out_size_z * out_size_w));
 
@@ -1309,7 +1309,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_edge) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(out_data.size(), static_cast<std::size_t>(out_size_b * out_size_f * out_size_y * out_size_x));
 
@@ -1369,7 +1369,7 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_constant) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (auto b = 0; b < out_size_b; ++b) {             // B
         for (auto f = 0; f < out_size_f; ++f) {         // F
@@ -1434,7 +1434,7 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_mirror) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (auto b = 0; b < out_size_b; ++b) {             // B
         for (auto f = 0; f < out_size_f; ++f) {         // F
@@ -1497,7 +1497,7 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_mirror_101) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (auto b = 0; b < out_size_b; ++b) {             // B
         for (auto f = 0; f < out_size_f; ++f) {         // F
@@ -1560,7 +1560,7 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_edge) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (auto b = 0; b < out_size_b; ++b) {             // B
         for (auto f = 0; f < out_size_f; ++f) {         // F
@@ -1637,7 +1637,7 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_constant_dynamic) {
     ASSERT_EQ(outputs.begin()->first, "border");
 
     auto output = outputs.at("border").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (auto b = 0; b < out_size_b; ++b) {             // B
         for (auto f = 0; f < out_size_f; ++f) {         // F
@@ -1742,7 +1742,7 @@ public:
         ASSERT_EQ(outputs.begin()->first, "output");
 
         const auto output = outputs.at("output").get_memory();
-        const cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        const cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         const auto expected_size = out_size_b * out_size_f * out_size_y * out_size_x;
         ASSERT_EQ(output_ptr.size(), expected_size);
@@ -1865,7 +1865,7 @@ TEST(border_gpu, basic_zero_input_dynamic) {
     ASSERT_EQ(outputs.begin()->first, "border");
 
     auto output = outputs.at("border").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(ref_output.size(), output_ptr.size());
 
@@ -1911,7 +1911,7 @@ TEST(border_gpu, basic_zero_input) {
     auto outputs = network.execute();
 
     auto output = outputs.at("border").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(ref_output.size(), output_ptr.size());
 
@@ -1967,7 +1967,7 @@ TEST(border_gpu, 3d_input) {
     network target_network(engine, target_topology, config);
     target_network.set_input_data("input", input);
     auto target_output = target_network.execute().at("output").get_memory();
-    cldnn::mem_lock<ov::float16> target_output_ptr(target_output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> target_output_ptr(target_output, get_test_stream());
 
     topology base_topology;
     base_topology.add(input_layout("input", input_layout_dynamic));
@@ -1984,7 +1984,7 @@ TEST(border_gpu, 3d_input) {
     network base_network(engine, base_topology, config);
     base_network.set_input_data("input", input);
     auto base_output = base_network.execute().at("border").get_memory();
-    cldnn::mem_lock<ov::float16> base_output_ptr(base_output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> base_output_ptr(base_output, get_test_stream());
 
     ASSERT_TRUE(!memcmp(target_output_ptr.data(), base_output_ptr.data(), sizeof(ov::float16) * mult(sh_out)));
 

@@ -341,7 +341,7 @@ TEST(deformable_convolution_f32_fw_gpu, basic_deformable_convolution_def_group1_
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -473,7 +473,7 @@ TEST(deformable_convolution_f32_fw_gpu, basic_deformable_convolution_def_group1)
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -637,7 +637,7 @@ TEST(deformable_convolution_f32_fw_gpu, basic_deformable_convolution) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -776,7 +776,7 @@ TEST(deformable_convolution_f32_fw_gpu, basic_deformable_convolution_group2) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -838,7 +838,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_no_bias) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -909,7 +909,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_no_bias_dynamic) {
 
         auto output_memory = outputs.at("conv").get_memory();
         auto output_layout = output_memory->get_layout();
-        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
         int y_size = output_layout.spatial(1);
         int x_size = output_layout.spatial(0);
@@ -957,7 +957,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_no_bias_dynamic) {
 
         auto output_memory = outputs.at("conv").get_memory();
         auto output_layout = output_memory->get_layout();
-        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
         int y_size = output_layout.spatial(1);
         int x_size = output_layout.spatial(0);
@@ -1033,7 +1033,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_int8_no_bias) {
 
     auto output_memory = outputs.at("output").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -1085,7 +1085,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution3D_no_bias) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int z_size = output_layout.spatial(2);
     int y_size = output_layout.spatial(1);
@@ -1221,7 +1221,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution3D) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int z_size = output_layout.spatial(2);
     int y_size = output_layout.spatial(1);
@@ -1351,7 +1351,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution3D_group2) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int z_size = output_layout.spatial(2);
     int y_size = output_layout.spatial(1);
@@ -1490,7 +1490,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution3D_group2_dynamic) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int z_size = output_layout.spatial(2);
     int y_size = output_layout.spatial(1);
@@ -1556,7 +1556,7 @@ TEST(convolution_f32_fw_gpu, three_convolutions_same_weights) {
 
     auto output_memory = outputs.at("conv3").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -1627,7 +1627,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -1746,7 +1746,7 @@ TEST(convolution_f32_fw_gpu, convolution_big_size_weights) {
 
         auto output_memory = outputs.at("conv").get_memory();
         auto output_layout = output_memory->get_layout();
-        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
         int y_size = output_layout.spatial(1);
         int x_size = output_layout.spatial(0);
@@ -1815,7 +1815,7 @@ TEST(convolution_f16_fw_gpu, convolution_big_size_weights) {
 
         auto output_memory = outputs.at("conv").get_memory();
         auto output_layout = output_memory->get_layout();
-        cldnn::mem_lock<ov::float16> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
         int y_size = output_layout.spatial(1);
         int x_size = output_layout.spatial(0);
@@ -1860,7 +1860,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_bfyx_weights_as_input_layout) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -1909,7 +1909,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_bfyx_weights_as_input_layout_non_
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -2003,7 +2003,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_input_padding) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -2106,7 +2106,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_sym_input_padding) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -2203,7 +2203,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_asym_input_padding) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -2311,7 +2311,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_sym_input_padding_with_pad) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -2422,7 +2422,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_asym_input_padding_with_pad) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -2529,7 +2529,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_input_and_output_padding) {
     auto output_layout = output_memory->get_layout();
     auto padded_dims = output_layout.get_padded_dims();
     auto non_padded_dims = output_layout.get_dims();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int b_size = padded_dims[0];
     int f_size = padded_dims[1];
@@ -2629,7 +2629,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x1x1_nopad_random) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     for (size_t i = 0; i < output_rnd.size(); ++i) {
         float x = float_round(output_rnd_vec[i]), y = float_round(output_ptr[i]);
@@ -2700,7 +2700,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in2x2x1x2_nopad_random) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     for (size_t i = 0; i < output_rnd.size(); ++i) {
         float x = float_round(output_rnd_vec[i]), y = float_round(output_ptr[i]);
@@ -2758,7 +2758,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x1x1_nopad) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_FLOAT_EQ(8.0f, output_ptr[0]);
     ASSERT_FLOAT_EQ(0.5f, output_ptr[1]);
@@ -2812,7 +2812,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in2x2x1x2_nopad) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_FLOAT_EQ(3.65f, output_ptr[0]);
     ASSERT_FLOAT_EQ(-5.36f, output_ptr[1]);
@@ -2864,7 +2864,7 @@ TEST(convolution_f32_fw_gpu, basic_ofm_wsiz2x1x2x1_in1x2x1_nopad) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_FLOAT_EQ(5.1f, output_ptr[0]);
     ASSERT_FLOAT_EQ(-5.2f, output_ptr[1]);
@@ -2923,7 +2923,7 @@ TEST(convolution_f32_fw_gpu, basic_ofm_wsiz3x2x2x1_in2x2x1_nopad) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_FLOAT_EQ(25.0f, output_ptr[0]);
     ASSERT_FLOAT_EQ(64.0f, output_ptr[1]);
@@ -2979,7 +2979,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2x1x3_wstr2x2_in2x2x1x1_nopad) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_TRUE(are_equal(3.08f, output_ptr[0]));
     ASSERT_TRUE(are_equal(2.12f, output_ptr[1]));
@@ -3035,7 +3035,7 @@ TEST(convolution_f32_fw_gpu, wsiz3x3_wstr2x2_in2x2x1x1_zeropad) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_FLOAT_EQ(12.25f, output_ptr[0]);
 }
@@ -3106,7 +3106,7 @@ TEST(convolution_f32_fw_gpu, offsets_wsiz3x3_wstr2x2_in2x2x1x1_zeropad) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_FLOAT_EQ(-7.25f, output_ptr[4]);
 }
@@ -3188,7 +3188,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x1_nopad_split2) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_FLOAT_EQ(8.0f,   output_ptr[0]);
     ASSERT_FLOAT_EQ(3.65f,  output_ptr[1]);
@@ -3288,7 +3288,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_split2) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_FLOAT_EQ(8.0f,   output_ptr[0]);
     ASSERT_FLOAT_EQ(8.0f,   output_ptr[1]);
@@ -3354,7 +3354,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x1_nopad_group2) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_FLOAT_EQ(8.0f, output_ptr[0]);
     ASSERT_FLOAT_EQ(3.65f, output_ptr[1]);
@@ -3414,7 +3414,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x1_nopad_group2_bfyx) 
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_FLOAT_EQ(8.0f, output_ptr[0]);
     ASSERT_FLOAT_EQ(0.5f, output_ptr[1]);
@@ -3473,7 +3473,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_group2) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_FLOAT_EQ(8.0f, output_ptr[0]);
     ASSERT_FLOAT_EQ(8.0f, output_ptr[1]);
@@ -3570,7 +3570,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_split2_depthw
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     std::vector<float> expected_output_vec = {
         8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f,
@@ -3661,7 +3661,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_split2_depthw
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     std::vector<float> expected_output_vec = {
         8.0f, 0.5f,  6.0f,  9.0f, 3.65f,-5.36f, 3.65f, -5.36f,
@@ -3762,7 +3762,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_group16) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     std::vector<float> expected_output_vec = {
         8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f,
@@ -3859,7 +3859,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_group16_bfyx)
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     std::vector<float> expected_output_vec = {
         8.0f, 0.5f,  6.0f,  9.0f, 3.65f,-5.36f, 3.65f, -5.36f,
@@ -3935,7 +3935,7 @@ TEST(convolution_gpu, trivial_convolution_relu) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_FLOAT_EQ(4.0f, output_ptr[0]);
     ASSERT_FLOAT_EQ(0.0f, output_ptr[1]);
@@ -4000,7 +4000,7 @@ TEST(convolution_gpu, relu_with_negative_slope) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_FLOAT_EQ(4.0f, output_ptr[0]);
     ASSERT_FLOAT_EQ(-0.35f, output_ptr[1]);
@@ -4044,7 +4044,7 @@ TEST(convolution_gpu, DISABLED_two_1x1_kernels_after_each_other) {
 
     auto output_prim = outputs.at("conv_2").get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
     auto output_layout = output_prim->get_layout();
 
     int y_size = output_layout.spatial(1);
@@ -4210,7 +4210,7 @@ TEST(convolution_gpu, basic_yxfb_4_4_yxfb_2_2_b16_if2_of16_st2_2_p0_sp1_fp32)
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     // Checking result.
     uint32_t i = 0;
@@ -4318,7 +4318,7 @@ TEST(convolution_f32_fw_gpu, byte_activation) {
 
     auto output_memory = outputs.at("out").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -4386,7 +4386,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_symmetric) {
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_memory = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto output_layout = output_memory->get_layout();
     int y_size = output_layout.spatial(1);
@@ -4453,7 +4453,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8u8f32_symmetric) {
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_memory = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto output_layout = output_memory->get_layout();
     int y_size = output_layout.spatial(1);
@@ -4527,7 +4527,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_weight_an
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_memory = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto output_layout = output_memory->get_layout();
     int y_size = output_layout.spatial(1);
@@ -4598,7 +4598,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activatio
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_memory = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto output_layout = output_memory->get_layout();
     int y_size = output_layout.spatial(1);
@@ -4695,7 +4695,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activatio
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_memory = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto output_layout = output_memory->get_layout();
     int y_size = output_layout.spatial(1);
@@ -4806,7 +4806,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activatio
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_memory = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto output_layout = output_memory->get_layout();
     int y_size = output_layout.spatial(1);
@@ -4906,7 +4906,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activatio
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_memory = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto output_layout = output_memory->get_layout();
     int y_size = output_layout.spatial(1);
@@ -4976,7 +4976,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_weights_p
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_memory = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto output_layout = output_memory->get_layout();
     int y_size = output_layout.spatial(1);
@@ -5148,7 +5148,7 @@ TEST(convolution_gpu, basic_yxfb_4_4_yxfb_2_2_b16_if2_of16_st2_2_p0_sp1_fp16)
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     // Checking result.
     uint32_t i = 0;
@@ -5521,7 +5521,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32, fs_byx_fsv32)
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv_fsv").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::fs_b_yx_fsv32);
 
@@ -5629,7 +5629,7 @@ TEST(convolution_f16_fsv_gpu, convolution_f16_fsv_gpu_padding) {
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv_fsv").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::fs_b_yx_fsv32);
 
@@ -5717,7 +5717,7 @@ TEST(convolution_f16_fsv16, preload_groups_when_groups_is_not_greater_than_one) 
     network.set_input_data("input", input_mem);
     auto outputs = network.execute();
     auto out_mem = outputs.at("out").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
     auto flatten_ref = flatten_4d(format::bfyx, reference_result);
     for (size_t i = 0; i < flatten_ref.size(); i++) {
         auto equal = are_equal(flatten_ref[i], out_ptr[i], 1e-3f);
@@ -5927,7 +5927,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32_crop, fs_byx_fsv32_crop)
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("concat").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::bfyx);
 
@@ -6009,7 +6009,7 @@ TEST(convolution_f32_fw_gpu, convolution_int8_b_fs_yx_fsv4_to_bfyx) {
 
     auto output_memory = outputs.at("output").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto conv = convolution("conv", input_info("to_int"), "weights", "biases", 1, { 1, 1 }, { 1, 1 }, { input_padding, input_padding }, { input_padding, input_padding }, false, ov::op::PadType::EXPLICIT);
     conv.output_paddings = { padding{ { 0, 0, output_padding, output_padding }, 0 }};
@@ -6034,7 +6034,7 @@ TEST(convolution_f32_fw_gpu, convolution_int8_b_fs_yx_fsv4_to_bfyx) {
     ASSERT_EQ(outputs_act.begin()->first, "output");
 
     auto output_memory_act = outputs_act.at("output").get_memory();
-    cldnn::mem_lock<float> output_act_ptr(output_memory_act, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_act_ptr(output_memory_act, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -6172,7 +6172,7 @@ TEST(convolution_gpu, bfyx_iyxo_5x5_fp16)
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("out").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     auto output_layout = out_mem->get_layout();
     ASSERT_EQ(output_layout.format, format::bfyx);
@@ -6406,10 +6406,10 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32)
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv_bsv16_fsv16").get_memory();
-    cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     auto out_mem_bfyx = outputs.at("reorder_bfzyx").get_memory();
-    cldnn::mem_lock<float> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
 
     blockedFormatZeroCheck<float>(out_mem);
 
@@ -6544,10 +6544,10 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp16)
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv_bsv16_fsv16").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     auto out_mem_bfyx = outputs.at("reorder_bfzyx").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
 
     blockedFormatZeroCheck<ov::float16>(out_mem);
 
@@ -6681,10 +6681,10 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32_fused_ops)
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv_bsv16_fsv16").get_memory();
-    cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     auto out_mem_bfyx = outputs.at("reorder_bfzyx").get_memory();
-    cldnn::mem_lock<float> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
 
     blockedFormatZeroCheck<float>(out_mem);
 
@@ -6843,10 +6843,10 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32)
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv_bsv16_fsv16").get_memory();
-    cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     auto out_mem_bfyx = outputs.at("reorder_bfyx").get_memory();
-    cldnn::mem_lock<float> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::bs_fs_yx_bsv16_fsv16);
 
@@ -6980,10 +6980,10 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp16)
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv_bsv16_fsv16").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     auto out_mem_bfyx = outputs.at("reorder_bfyx").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::bs_fs_yx_bsv16_fsv16);
 
@@ -7117,10 +7117,10 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32_fused_ops)
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv_bsv16_fsv16").get_memory();
-    cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     auto out_mem_bfyx = outputs.at("reorder_bfyx").get_memory();
-    cldnn::mem_lock<float> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::bs_fs_yx_bsv16_fsv16);
 
@@ -7257,7 +7257,7 @@ TEST_P(convolution_depthwise_gpu, depthwise_conv_fs_b_yx_fsv32)
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv_fsv").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::fs_b_yx_fsv32);
 
@@ -7399,7 +7399,7 @@ TEST_P(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16)
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv_fsv").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::b_fs_yx_fsv16);
 
@@ -7536,7 +7536,7 @@ TEST_P(convolution_depthwise_gpu_fsv16_xy, depthwise_conv_b_fs_yx_fsv16)
 
     auto out_mem = outputs.at("out").get_memory();
 
-    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
     ASSERT_EQ(out_mem->get_layout().format, format::b_fs_yx_fsv16);
 
     for (int bi = 0; bi < batch_num; ++bi) {
@@ -7631,7 +7631,7 @@ TEST(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16_in_feature_pa
 
     auto output_memory = outputs.at("out").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -7740,7 +7740,7 @@ TEST_P(convolution_depthwise_gpu_bfyx, depthwise_conv_bfyx)
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::bfyx);
 
@@ -8233,7 +8233,7 @@ TEST_P(convolution_general_gpu, conv_fp16_cases) {
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv_fsv").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
     auto out_lay = out_mem->get_layout();
 
     ASSERT_EQ(out_mem->get_layout().format, input_data_format);
@@ -8339,7 +8339,7 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_padding)
     auto ref_out = network_ref.execute();
 
     auto ref_out_mem = ref_out.begin()->second.get_memory();
-    cldnn::mem_lock<ov::float16> ref_out_ptr(ref_out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_out_ptr(ref_out_mem, get_test_stream());
 
     // Exec target network (fusing: conv+reorder)
     ExecutionConfig config_target = get_test_default_config(engine);
@@ -8352,7 +8352,7 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_padding)
     auto target_out = network_target.execute();
 
     auto target_out_mem = target_out.begin()->second.get_memory();
-    cldnn::mem_lock<ov::float16> target_out_ptr(target_out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> target_out_ptr(target_out_mem, get_test_stream());
 
     // Compare ref and target result
     for (size_t i = 0; i < ref_out_ptr.size(); i++) {
@@ -8430,7 +8430,7 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_different_type)
     auto ref_out = network_ref.execute();
 
     auto ref_out_mem = ref_out.begin()->second.get_memory();
-    cldnn::mem_lock<float> ref_out_ptr(ref_out_mem, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> ref_out_ptr(ref_out_mem, get_test_stream());
 
     // Exec target network (fusing: conv+reorder)
     ExecutionConfig config_target = get_test_default_config(engine);
@@ -8443,7 +8443,7 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_different_type)
     auto target_out = network_target.execute();
 
     auto target_out_mem = target_out.begin()->second.get_memory();
-    cldnn::mem_lock<float> target_out_ptr(target_out_mem, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> target_out_ptr(target_out_mem, get_test_stream());
 
     // Compare ref and target result
     for (size_t i = 0; i < ref_out_ptr.size(); i++) {
@@ -8572,7 +8572,7 @@ public:
         auto out_mem = result.at(output_primitive_id()).get_memory();
         auto out_lay = out_mem->get_layout();
         bool is_output_fp = (out_lay.data_type == data_types::f32 || out_lay.data_type == data_types::f16);
-        cldnn::mem_lock<OutputT> out_ptr(out_mem, get_test_stream());
+        cldnn::mem_lock<OutputT, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
         std::stringstream description;
         for (auto i : net.get_primitives_info()) {
@@ -9050,7 +9050,7 @@ public:
         auto out_mem = result.at(this->output_primitive_id()).get_memory();
         auto out_lay = out_mem->get_layout();
         bool is_output_fp = (out_lay.data_type == data_types::f32 || out_lay.data_type == data_types::f16);
-        cldnn::mem_lock<OutputT> out_ptr(out_mem, get_test_stream());
+        cldnn::mem_lock<OutputT, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
         std::stringstream description;
         for (auto i : net.get_primitives_info()) {
@@ -10047,11 +10047,11 @@ TEST(convolution_gpu_onednn, padding_for_cldnn_kernel_after_onednn) {
 
     auto output_memory_test = outputs_test.at("reorder").get_memory();
     auto output_layout_test = output_memory_test->get_layout();
-    cldnn::mem_lock<float> output_ptr_test(output_memory_test, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_test(output_memory_test, get_test_stream());
 
     auto output_memory_ref = outputs_ref.at("reorder").get_memory();
     auto output_layout_ref = output_memory_ref->get_layout();
-    cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_ref(output_memory_ref, get_test_stream());
 
     ASSERT_EQ(output_layout_test.spatial(0), output_x);
     ASSERT_EQ(output_layout_test.spatial(1), output_y);
@@ -10141,15 +10141,15 @@ TEST(convolution_gpu_onednn, spatial_1d) {
 
     auto output_memory_test_blocked = outputs_test_blocked.at("reorder").get_memory();
     auto output_layout_test_blocked = output_memory_test_blocked->get_layout();
-    cldnn::mem_lock<float> output_ptr_test_blocked(output_memory_test_blocked, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_test_blocked(output_memory_test_blocked, get_test_stream());
 
     auto output_memory_test_planar = outputs_test_planar.at("reorder").get_memory();
     auto output_layout_test_planar = output_memory_test_planar->get_layout();
-    cldnn::mem_lock<float> output_ptr_test_planar(output_memory_test_planar, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_test_planar(output_memory_test_planar, get_test_stream());
 
     auto output_memory_ref = outputs_ref.at("reorder").get_memory();
     auto output_layout_ref = output_memory_ref->get_layout();
-    cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_ref(output_memory_ref, get_test_stream());
 
     ov::PartialShape expected_shape = {1, 16, 4};
     ASSERT_EQ(output_layout_test_blocked.get_partial_shape(), expected_shape);
@@ -10217,7 +10217,7 @@ TEST(convolution_gpu_onednn, spatial_1d_dynamic) {
     ASSERT_EQ(outputs_ref.begin()->first, "reorder");
     auto output_memory_ref = outputs_ref.at("reorder").get_memory();
     auto output_layout_ref = output_memory_ref->get_layout();
-    cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_ref(output_memory_ref, get_test_stream());
 
     network network_test_dynamic(engine, t, config_test_dynamic);
     network_test_dynamic.set_input_data("input", input_mem);
@@ -10226,7 +10226,7 @@ TEST(convolution_gpu_onednn, spatial_1d_dynamic) {
     ASSERT_EQ(outputs_test_dynamic.begin()->first, "reorder");
     auto output_memory_test_dynamic = outputs_test_dynamic.at("reorder").get_memory();
     auto output_layout_test_dynamic = output_memory_test_dynamic->get_layout();
-    cldnn::mem_lock<float> output_ptr_test_dynamic(output_memory_test_dynamic, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_test_dynamic(output_memory_test_dynamic, get_test_stream());
 
     ov::PartialShape expected_shape = {1, 16, 4};
     ASSERT_EQ(output_layout_test_dynamic.get_partial_shape(), expected_shape);
@@ -10360,7 +10360,7 @@ TEST_P(convolution_gpu_onednn_both_shapes, quantized_onednn_convolution_u8s8f32_
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_memory = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto output_layout = output_memory->get_layout();
     int y_size = output_layout.spatial(1);
@@ -10475,7 +10475,7 @@ TEST_P(convolution_gpu_onednn_both_shapes, quantized_onednn_convolution_u8s8f32_
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_memory = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto output_layout = output_memory->get_layout();
     int y_size = output_layout.spatial(1);
@@ -10593,7 +10593,7 @@ TEST_P(convolution_gpu_onednn_both_shapes, quantized_onednn_convolution_u8s8f32_
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_memory = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto output_layout = output_memory->get_layout();
     int y_size = output_layout.spatial(1);
@@ -10795,7 +10795,7 @@ TEST_P(convolution_gpu_onednn_both_shapes_3d, quantized_onednn_convolution_u8s8f
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_memory = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto output_layout = output_memory->get_layout();
     int z_size = output_layout.spatial(2);
@@ -10908,7 +10908,7 @@ TEST(convolution_gpu_onednn, support_activation_zero_points_for_i32) {
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_memory = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto output_layout = output_memory->get_layout();
     int y_size = output_layout.spatial(1);
@@ -11081,7 +11081,7 @@ TEST(convolution_gpu_onednn, has_proper_synchronization) {
     ASSERT_EQ(res_test->get_layout().get_linear_size(), res_ref->get_layout().get_linear_size());
 
     cldnn::mem_lock<float> test_mem(res_test, get_test_stream());
-    cldnn::mem_lock<float> ref_mem(res_ref, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> ref_mem(res_ref, get_test_stream());
 
     for (size_t i = 0; i < res_ref->get_layout().get_linear_size(); ++i) {
         ASSERT_EQ(test_mem[i], ref_mem[i]);
@@ -11136,7 +11136,7 @@ TEST(convolution_gpu_onednn, grouped_runtime_weights) {
 
     auto output_memory = output.at("reorder").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     ASSERT_EQ(output_layout.get_shape(), ov::Shape({1, 256, 25, 25}));
 }
@@ -11428,7 +11428,7 @@ void test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_block_size_1(
     auto outputs = network->execute();
 
     auto out_mem = outputs.at("conv_fsv").get_memory();
-    cldnn::mem_lock<T> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::b_fs_yx_fsv16);
 
@@ -11520,7 +11520,7 @@ TEST(convolution_f32_fw_gpu, convolution_gpu_f32_convolution_gpu_bfyx_f16_depthw
 
         auto outputs = net.execute();
         auto out_mem = outputs.at("out").get_memory();
-        cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
         std::vector<float> out(out_mem->count());
         for (size_t i = 0; i < out.size(); ++i) {
@@ -11609,7 +11609,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_no_bias_swap_xy) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -11815,7 +11815,7 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv32_no_bias) {
     auto output_memory = outputs.at("conv").get_memory();
     auto output_memory_ref = calculate_ref(input, weights, config);
 
-    cldnn::mem_lock<ov::float16> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<ov::float16> output_ptr_ref(output_memory_ref, get_test_stream());
 
     ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
@@ -11843,7 +11843,7 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv32_no_bias) {
         auto output_memory = outputs.at("conv").get_memory();
         auto output_memory_ref = calculate_ref(input, weights, config);
 
-        cldnn::mem_lock<ov::float16> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
         cldnn::mem_lock<ov::float16> output_ptr_ref(output_memory_ref, get_test_stream());
 
         ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
@@ -11941,7 +11941,7 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_1x1_no_bias) {
 
     auto output_memory_ref = calculate_ref(input, weights, config);
 
-    cldnn::mem_lock<ov::float16> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<ov::float16> output_ptr_ref(output_memory_ref, get_test_stream());
 
 
@@ -11967,7 +11967,7 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_1x1_no_bias) {
         auto output_memory = outputs.at("conv").get_memory();
         auto output_memory_ref = calculate_ref(input, weights, config);
 
-        cldnn::mem_lock<ov::float16> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
         cldnn::mem_lock<ov::float16> output_ptr_ref(output_memory_ref, get_test_stream());
 
         ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
@@ -12076,7 +12076,7 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_depthwise_quantized) {
 
     auto output_memory_ref = calculate_ref(input, weights, a_zp, compensation, config);
 
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
 
     ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
@@ -12100,7 +12100,7 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_depthwise_quantized) {
         auto output_memory = outputs.at("conv").get_memory();
         auto output_memory_ref = calculate_ref(input, weights, a_zp, compensation, config);
 
-        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
         cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
 
         ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
@@ -12272,7 +12272,7 @@ TEST_P(conv_dyn_3d_test, convolution_gpu_b_fs_zyx_fsv16_imad_quantized) {
 
     auto output_memory_ref = calculate_ref(input, weights, a_zp, compensation, config);
 
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
 
     ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
@@ -12296,7 +12296,7 @@ TEST_P(conv_dyn_3d_test, convolution_gpu_b_fs_zyx_fsv16_imad_quantized) {
         auto output_memory = outputs.at("conv").get_memory();
         auto output_memory_ref = calculate_ref(input, weights, a_zp, compensation, config);
 
-        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
         cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
 
         ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
@@ -12384,7 +12384,7 @@ TEST(group_convolution_f16_fw_gpu, basic_1d_group_convolution) {
     auto mem_opt = out_opt.at("output").get_memory();
 
     cldnn::mem_lock<float> output_ptr_ref(mem_ref, get_test_stream());
-    cldnn::mem_lock<float> output_ptr_opt(mem_opt, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_opt(mem_opt, get_test_stream());
 
     ASSERT_EQ(mem_opt->get_layout(), mem_ref->get_layout());
     for (size_t i = 0; i < output_ptr_opt.size(); i++) {
@@ -12458,7 +12458,7 @@ TEST(group_convolution_f16_fw_gpu, with_weights_as_input) {
     auto mem_opt = out_opt.at("output").get_memory();
 
     cldnn::mem_lock<float> output_ptr_ref(mem_ref, get_test_stream());
-    cldnn::mem_lock<float> output_ptr_opt(mem_opt, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_opt(mem_opt, get_test_stream());
 
     ASSERT_EQ(mem_opt->get_layout(), mem_ref->get_layout());
     for (size_t i = 0; i < output_ptr_opt.size(); i++) {
@@ -12690,7 +12690,7 @@ TEST_P(conv_3d_test_mmad, convolution_gpu_b_fs_zyx_mmad) {
 
     auto output_memory_ref = calculate_ref(input, weights, a_zp, compensation, config);
 
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
 
     ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());

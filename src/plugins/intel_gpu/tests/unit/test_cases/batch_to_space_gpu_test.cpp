@@ -45,7 +45,7 @@ TEST(batch_to_space_fp16_gpu, i8111_bs1222_cb0000_ce0000) {
     auto outputs = network.execute();
 
     auto output = outputs.at("batch_to_space").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f
@@ -92,7 +92,7 @@ TEST(batch_to_space_fp16_gpu, i4321_bs1212_cb0000_ce0000) {
     auto outputs = network.execute();
 
     auto output = outputs.at("batch_to_space").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f, 6.f, 1.f, 7.f, 12.f, 18.f,
@@ -142,7 +142,7 @@ TEST(batch_to_space_fp16_gpu, i4321_bs1212_cb0010_ce0101) {
     auto outputs = network.execute();
 
     auto output = outputs.at("batch_to_space").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         1.f, 13.f, 3.f, 15.f, 5.f
@@ -189,7 +189,7 @@ TEST(batch_to_space_fp16_gpu, i62121_bs12311_cb02000_ce00110) {
     auto outputs = network.execute();
 
     auto output = outputs.at("batch_to_space").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         2.f, 6.f, 14.f, 18.f
@@ -238,7 +238,7 @@ TEST(batch_to_space_fp16_gpu, i1212112_bs112321_cb02000_ce00110) {
     auto outputs = network.execute();
 
     auto output = outputs.at("batch_to_space").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         24.f, 25.f, 28.f, 29.f,
@@ -288,7 +288,7 @@ TEST(batch_to_space_fp16_gpu, i21611_bs1112_cb0000_ce0000_b_fs_yx_fsv16) {
     auto outputs = network.execute();
 
     auto output = outputs.at("bts_to_bfyx").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f, 16.f, 1.f, 17.f, 2.f, 18.f, 3.f, 19.f,
@@ -339,7 +339,7 @@ TEST(batch_to_space_fp16_gpu, i2812_bs1112_cb0000_ce0000_b_fs_yx_fsv16) {
     auto outputs = network.execute();
 
     auto output = outputs.at("bts_to_bfyx").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         4.f, 20.f, 5.f, 21.f, 6.f, 22.f, 7.f, 23.f,
@@ -384,7 +384,7 @@ TEST(batch_to_space_fp32_gpu, i8111_bs1222_cb0000_ce0000) {
     auto outputs = network.execute();
 
     auto output = outputs.at("batch_to_space").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f
@@ -431,7 +431,7 @@ TEST(batch_to_space_fp32_gpu, i4321_bs1212_cb0000_ce0000) {
     auto outputs = network.execute();
 
     auto output = outputs.at("batch_to_space").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f, 6.f, 1.f, 7.f, 12.f, 18.f,
@@ -481,7 +481,7 @@ TEST(batch_to_space_fp32_gpu, i4321_bs1212_cb0010_ce0101) {
     auto outputs = network.execute();
 
     auto output = outputs.at("batch_to_space").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         1.f, 13.f, 3.f, 15.f, 5.f
@@ -528,7 +528,7 @@ TEST(batch_to_space_fp32_gpu, i62121_bs12311_cb02000_ce00110) {
     auto outputs = network.execute();
 
     auto output = outputs.at("batch_to_space").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         2.f, 6.f, 14.f, 18.f
@@ -577,7 +577,7 @@ TEST(batch_to_space_fp32_gpu, i1212112_bs112321_cb02000_ce00110) {
     auto outputs = network.execute();
 
     auto output = outputs.at("batch_to_space").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         24.f, 25.f, 28.f, 29.f,
@@ -631,7 +631,7 @@ TEST(batch_to_space_fp32_gpu, i21621_bs1112_cb0201_ce0810_b_fs_yx_fsv16) {
     auto outputs = network.execute();
 
     auto output = outputs.at("bts_to_bfyx").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         36.0f, 38.0f, 40.0f, 42.0f, 44.0f, 46.0f
@@ -684,7 +684,7 @@ void test_batch_to_space_fp32_gpu_i41021_bs1221_cb0201_ce0810_b_fs_yx_fsv16(bool
     auto outputs = network->execute();
 
     auto output = outputs.at("bts_to_bfyx").get_memory();
-    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<T> expected_results = {
         28.0f, 9.0f,  29.0f, 68.0f, 49.0f, 69.0f,
