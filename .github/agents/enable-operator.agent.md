@@ -39,6 +39,10 @@ When calling sub-agents, use paths relative to `.github/agents/`:
 
 > **NPU note:** Invoked for structural completeness but currently non-functional. Always treat
 > NPU result as non-blocking regardless of status.
+>
+> **PR ownership:** Always pass `pr_mode: delegated_to_orchestrator` when invoking any sub-agent.
+> Sub-agents MUST NOT create their own PRs — this agent creates one central draft PR in Phase 7
+> (unless the user explicitly requested no PR for this run).
 
 ---
 
@@ -365,6 +369,9 @@ Log:
 ```
 
 ### Phase 7: Collect Patches + Draft PR
+
+> **Skip this phase** if the user explicitly requested no PR (e.g. "no PR", "skip PR", "no pull
+> request"). Write `ov_orchestrator.pr_url: null` to state and proceed directly to Phase 8.
 
 Collect all patch files produced by sub-agents:
 
