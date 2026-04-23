@@ -1454,7 +1454,7 @@ static constexpr Property<uint64_t, PropertyMutability::RW> value_cache_group_si
  * ov::Tensor requirements = compiled_model.get_property(ov::runtime_requirements);
  * @endcode
  */
-inline constexpr Property<Tensor, PropertyMutability::RW> runtime_requirements{"RUNTIME_REQUIREMENTS"};
+inline constexpr Property<Tensor, PropertyMutability::RO> runtime_requirements{"RUNTIME_REQUIREMENTS"};
 
 /**
  * @brief Read-only property to check whether a device satisfies the runtime requirements of a compiled model blob.

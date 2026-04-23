@@ -254,6 +254,7 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(MODEL_SERIALIZER_VERSION);
     REGISTER_OPTION(ENABLE_STRIDES_FOR);
     REGISTER_OPTION(SHARED_COMMON_QUEUE);
+    REGISTER_OPTION(RUNTIME_REQUIREMENTS);
 
     if (backend) {
         // Options registered only if drivers is present and supports the corresponding extension

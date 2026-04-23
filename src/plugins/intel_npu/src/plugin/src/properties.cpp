@@ -786,6 +786,16 @@ void Properties::registerCompiledModelProperties() {
                                    [](const Config& /* unusedConfig */) {
                                        return std::shared_ptr<const ov::Model>(nullptr);
                                    });
+    TRY_REGISTER_CUSTOM_PROPERTY(ov::runtime_requirements,
+                                 RUNTIME_REQUIREMENTS,
+                                 true,
+                                 ov::PropertyMutability::RO,
+                                 [](const Config& /* unusedConfig */) {
+                                    // TODO: log an error here as the code shouldn't have gotten here
+                                    // this property is implemented in compiled model directly
+                                    // this implementation here serves only to publish it in supported_properties
+                                    return std::string("");
+                                 });
 
     // 2. Metrics (static device and enviroment properties)
     // ========
@@ -795,7 +805,7 @@ void Properties::registerCompiledModelProperties() {
     REGISTER_CUSTOM_METRIC(ov::model_name, true, [](const Config&) {
         // TODO: log an error here as the code shouldn't have gotten here
         // this property is implemented in compiled model directly
-        // this implementation here servers only to publish it in supported_properties
+        // this implementation here serves only to publish it in supported_properties
         return std::string("invalid");
     });
     REGISTER_SIMPLE_METRIC(ov::optimal_number_of_infer_requests,
@@ -804,7 +814,7 @@ void Properties::registerCompiledModelProperties() {
     REGISTER_CUSTOM_METRIC(ov::execution_devices, true, [](const Config&) {
         // TODO: log an error here as the code shouldn't have gotten here
         // this property is implemented in compiled model directly
-        // this implementation here servers only to publish it in supported_properties
+        // this implementation here serves only to publish it in supported_properties
         return std::string("NPU");
     });
 }
