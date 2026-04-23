@@ -24,7 +24,6 @@ public:
     std::string getFullDeviceName() const override;
     Uuid getUuid() const override;
     ov::device::LUID getLUID() const override;
-    uint32_t getDevId() const override;
     uint32_t getSubDevId() const override;
     uint32_t getMaxNumSlices() const override;
     uint64_t getAllocMemSize() const override;

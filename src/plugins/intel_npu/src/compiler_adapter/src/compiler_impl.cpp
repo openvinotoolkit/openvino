@@ -612,13 +612,8 @@ bool VCLCompilerImpl::is_option_supported(std::string option, std::optional<std:
     return false;
 }
 
-bool VCLCompilerImpl::validate_compatibility_descriptor(const std::string& compatibilityDescriptor,
-                                                        uint32_t deviceId, int64_t numTiles, int64_t stepping) const {
+bool VCLCompilerImpl::validate_compatibility_descriptor(const std::string& compatibilityDescriptor, vcl_device_desc_t* in_device_desc) const {
 
-    vcl_device_desc_t device_desc = {sizeof(vcl_device_desc_t),
-                                     deviceId,
-                                     static_cast<uint16_t>(stepping),
-                                     static_cast<uint32_t>(numTiles)};
     vcl_compiler_desc_t compilerDesc;
     compilerDesc.version = _vclVersion;
     compilerDesc.debugLevel = static_cast<__vcl_log_level_t>(static_cast<int>(Logger::global().level()) + 1);
@@ -630,7 +625,7 @@ bool VCLCompilerImpl::validate_compatibility_descriptor(const std::string& compa
     vcl_compiler_handle_t compilerHandle = nullptr;
     try {
         THROW_ON_FAIL_FOR_VCL("vclCompilerCreate",
-                          vclCompilerCreate(&compilerDesc, &device_desc, &compilerHandle, &logHandle),
+                          vclCompilerCreate(&compilerDesc, in_device_desc, &compilerHandle, &logHandle),
                           nullptr);
 
         _logger.debug("is_option_supported start for option: %s, value: %s",
