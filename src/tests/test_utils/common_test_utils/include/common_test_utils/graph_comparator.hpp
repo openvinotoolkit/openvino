@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <limits>
 #include <memory>
 #include <queue>
+#include <unordered_set>
 
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/except.hpp"
@@ -31,7 +31,8 @@ public:
         TENSOR_NAMES = 1 << 6,
         ACCURACY = 1 << 7,
         SUBGRAPH_DESCRIPTORS = 1 << 8,
-        CONSUMERS_COUNT = 1 << 9
+        CONSUMERS_COUNT = 1 << 9,
+        SYMBOLS = 1 << 10
     };
 
     struct Result {
@@ -346,6 +347,8 @@ private:
     Result compare(ov::Node* node1, ov::Node* node2, std::ostream& err_log);
 
     void add_nodes_inputs_to_queue(ov::Node* node1, ov::Node* node2);
+
+    bool compare_symbols(const ov::PartialShape& lhs, const ov::PartialShape& rhs, std::ostream& err_log);
 
     //-- DATA --
     CmpValues m_comparison_flags;
