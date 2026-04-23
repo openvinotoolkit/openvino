@@ -642,7 +642,7 @@ bool ZeGraphExtWrappers::isPluginModelHashSupported() const {
 
 bool ZeGraphExtWrappers::isCompatibilityDescriptorSupported() const {
     // TODO check the version is correct prior to merging this
-    return _graphExtVersion > ZE_MAKE_VERSION(1, 16);
+    return false;
 }
 
 std::string ZeGraphExtWrappers::getCompatibilityDescriptor(const ze_graph_handle_t handle) const {

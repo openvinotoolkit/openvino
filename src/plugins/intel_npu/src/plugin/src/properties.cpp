@@ -590,6 +590,15 @@ void Properties::registerPluginProperties() {
         }
         return false;
     }());
+    TRY_REGISTER_CUSTOM_PROPERTY(ov::runtime_requirements_met, RUNTIME_REQUIREMENTS_MET,
+                                 true,
+                                 ov::PropertyMutability::RO,
+                                 [](const Config& /* unusedConfig */) {
+                                    // TODO: log an error here as the code shouldn't have gotten here
+                                    // this property is implemented in compiled model directly
+                                    // this implementation here serves only to publish it in supported_properties
+                                    return false;
+                                 });
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
 
     FORCE_REGISTER_CUSTOM_PROPERTY(ov::hint::model,
