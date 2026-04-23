@@ -39,7 +39,8 @@ public:
 
     ONNXFrameworkNode(const ov::frontend::onnx::Node& node, const ov::OutputVector& inputs)
         : ov::op::util::FrameworkNode(inputs, node.get_outputs_size()),
-          m_node(node) {
+          m_node(node),
+          m_opset_version(node.opset_version()) {
         ov::op::util::FrameworkNodeAttrs attrs;
         attrs.set_type_name(node.op_type());
         attrs.set_opset_name(node.domain());
@@ -55,7 +56,7 @@ public:
     }
 
     int64_t opset_version() const {
-        return m_node.opset_version();
+        return m_opset_version;
     }
 
     virtual std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override;
@@ -71,6 +72,7 @@ public:
 
 protected:
     ov::frontend::onnx::Node m_node;
+    int64_t m_opset_version;
 };
 
 class ONNXSubgraphFrameworkNode : public ONNXFrameworkNode {
