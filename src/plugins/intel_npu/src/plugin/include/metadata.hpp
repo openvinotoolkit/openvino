@@ -330,10 +330,10 @@ public:
     Metadata(uint64_t blobSize,
              const std::optional<OpenvinoVersion>& ovVersion = std::nullopt,
              const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt,
-             const std::optional<int64_t> batchSize = std::nullopt,
+             const std::optional<int64_t>& batchSize = std::nullopt,
              const std::optional<std::vector<ov::Layout>>& inputLayouts = std::nullopt,
              const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt,
-             const std::optional<uint32_t> compilerVersion = std::nullopt);
+             const std::optional<uint32_t>& compilerVersion = std::nullopt);
 
     void read() override;
 
@@ -360,7 +360,7 @@ public:
              const std::optional<int64_t>& batchSize = std::nullopt,
              const std::optional<std::vector<ov::Layout>>& inputLayouts = std::nullopt,
              const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt,
-             const std::optional<uint32_t> compilerVersion = std::nullopt,
+             const std::optional<uint32_t>& compilerVersion = std::nullopt,
              const std::optional<uint64_t>& blobSizeAfterEncryption = std::nullopt);
 
     void read() override;

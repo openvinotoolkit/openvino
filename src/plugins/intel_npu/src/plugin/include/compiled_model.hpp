@@ -72,7 +72,6 @@ private:
     std::shared_ptr<IGraph> _graph;
 
     std::optional<int64_t> _batchSize;
-    std::function<std::string(const std::string&)> _encryptionCallback;
 };
 
 }  //  namespace intel_npu
