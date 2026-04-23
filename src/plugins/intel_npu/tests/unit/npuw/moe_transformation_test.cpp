@@ -567,8 +567,8 @@ TEST_F(MoETransformationTest, BuildMoELLM_HasExpertAndRouterNodes) {
     auto model = ov::test::npuw::build_moe_llm_test_model();
     ASSERT_NE(model, nullptr);
 
-    bool has_tile = false, has_topk = false, has_reduce_sum = false;
-    size_t topk_router_count = 0, scatter_count = 0;
+    bool has_tile = false, has_topk = false, has_reduce_sum = false, has_softmax = false;
+    size_t topk_router_count = 0, scatter_count = 0, softmax_router_count = 0;
 
     for (const auto& op : model->get_ordered_ops()) {
         if (std::dynamic_pointer_cast<ov::op::v0::Tile>(op))
@@ -582,6 +582,12 @@ TEST_F(MoETransformationTest, BuildMoELLM_HasExpertAndRouterNodes) {
                 topk_router_count++;
             }
         }
+        if (auto softmax = std::dynamic_pointer_cast<ov::op::v8::Softmax>(op)) {
+            has_softmax = true;
+            if (softmax->get_friendly_name().find("router") != std::string::npos) {
+                softmax_router_count++;
+            }
+        }
         if (std::dynamic_pointer_cast<ov::op::v3::ScatterElementsUpdate>(op))
             scatter_count++;
     }
@@ -589,7 +595,9 @@ TEST_F(MoETransformationTest, BuildMoELLM_HasExpertAndRouterNodes) {
     EXPECT_TRUE(has_tile) << "Missing Tile (expert)";
     EXPECT_TRUE(has_topk) << "Missing TopK (router)";
     EXPECT_TRUE(has_reduce_sum) << "Missing ReduceSum (aggregation)";
+    EXPECT_TRUE(has_softmax) << "Missing Softmax (router)";
     EXPECT_EQ(topk_router_count, 2u) << "One router TopK per layer";
+    EXPECT_EQ(softmax_router_count, 2u) << "One router Softmax per layer";
     EXPECT_EQ(scatter_count, 2u) << "One ScatterElementsUpdate per layer";
 }
 
