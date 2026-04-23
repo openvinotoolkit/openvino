@@ -29,9 +29,9 @@
 namespace ov::Extensions::Cpu::XARCH {
 
 // avx512/avx2 register length in byte
-static constexpr size_t vec_len_avx512 = 64lu;
-static constexpr size_t vec_len_avx2 = 32lu;
-static constexpr size_t vec_len_neon = 16lu;
+static constexpr size_t vec_len_avx512 = 64UL;
+static constexpr size_t vec_len_avx2 = 32UL;
+static constexpr size_t vec_len_neon = 16UL;
 // avx512/avx2 register length in float
 static constexpr size_t vec_len_f32_avx512 = vec_len_avx512 / sizeof(float);
 static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
@@ -165,8 +165,8 @@ inline void mm512_uni_storeu_tail_ps(ov::float16* addr, __m512 v, size_t count) 
     _mm256_mask_storeu_epi16(reinterpret_cast<__m256i*>(addr), mask_addr, vec_f16);
 }
 
-inline void mm512_loadu_u4_to_f32(uint8_t* src_data, __m512& first_half, __m512& second_half) {
-    auto data = _mm_loadu_si128(reinterpret_cast<__m128i*>(src_data));
+inline void mm512_loadu_u4_to_f32(const uint8_t* src_data, __m512& first_half, __m512& second_half) {
+    auto data = _mm_loadu_si128(reinterpret_cast<const __m128i*>(src_data));
     auto v_i32 = _mm512_cvtepu8_epi32(data);
 
     auto v_512_low_half = _mm512_srli_epi32(v_i32, 4);
@@ -307,8 +307,8 @@ inline void mm256_uni_storeu_tail_ps(ov::bfloat16* addr, __m256 v, size_t count)
     return _mm_maskmoveu_si128(bf16_o, mask, reinterpret_cast<char*>(addr));
 }
 
-inline void mm256_loadu_u4_to_f32(uint8_t* src, __m256& first_half, __m256& second_half) {
-    auto data = _mm_loadl_epi64(reinterpret_cast<__m128i*>(src));
+inline void mm256_loadu_u4_to_f32(const uint8_t* src, __m256& first_half, __m256& second_half) {
+    auto data = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(src));
 
     auto v_i32 = _mm256_cvtepu8_epi32(data);
     auto v_256_low_half = _mm256_srli_epi32(v_i32, 4);
@@ -395,16 +395,16 @@ inline svfloat32_t exp_ps_sve(svbool_t& pg, svfloat32_t& src) {
     const auto c5 = svreinterpret_f32_u32(svdup_n_u32(0x3c072010));
 
     const auto shift = svreinterpret_f32_u32(svdup_n_u32(0x4b00007f));  // 2^23 + 127 = 0x1.0000fep23f
-    const auto one = svdup_n_f32(1.0f);                                 // 1
-    const auto two = svdup_n_f32(2.0f);                                 // 2
+    const auto one = svdup_n_f32(1.0F);                                 // 1
+    const auto two = svdup_n_f32(2.0F);                                 // 2
     const auto inv_ln2 = svreinterpret_f32_u32(svdup_n_u32(0x3fb8aa3b));
     const auto neg_ln2_hi = svreinterpret_f32_u32(svdup_n_u32(0xbf317200));
     const auto neg_ln2_lo = svreinterpret_f32_u32(svdup_n_u32(0xb5bfbe8e));
 
     const auto inf = svdup_n_f32(std::numeric_limits<float>::infinity());
-    const auto max_input = svdup_n_f32(88.37f);  // Approximately ln(2^127.5)
+    const auto max_input = svdup_n_f32(88.37F);  // Approximately ln(2^127.5)
     const auto zero = svdup_n_f32(0.F);
-    const auto min_input = svdup_n_f32(-86.64f);  // Approximately ln(2^-125)
+    const auto min_input = svdup_n_f32(-86.64F);  // Approximately ln(2^-125)
 
     auto x = svmin_f32_z(pg, src, max_input);
     x = svmax_f32_z(pg, x, min_input);
@@ -445,16 +445,16 @@ inline float32x4_t exp_ps_neon_f32(const float32x4_t& src) {
     const auto c5 = vreinterpretq_f32_u32(vdupq_n_u32(0x3c072010));
 
     const auto shift = vreinterpretq_f32_u32(vdupq_n_u32(0x4b00007f));  // 2^23 + 127 = 0x1.0000fep23f
-    const auto one = vdupq_n_f32(1.0f);                                 // 1
-    const auto two = vdupq_n_f32(2.0f);                                 // 2
+    const auto one = vdupq_n_f32(1.0F);                                 // 1
+    const auto two = vdupq_n_f32(2.0F);                                 // 2
     const auto inv_ln2 = vreinterpretq_f32_u32(vdupq_n_u32(0x3fb8aa3b));
     const auto neg_ln2_hi = vreinterpretq_f32_u32(vdupq_n_u32(0xbf317200));
     const auto neg_ln2_lo = vreinterpretq_f32_u32(vdupq_n_u32(0xb5bfbe8e));
 
     const auto inf = vdupq_n_f32(std::numeric_limits<float>::infinity());
-    const auto max_input = vdupq_n_f32(88.37f);  // Approximately ln(2^127.5)
+    const auto max_input = vdupq_n_f32(88.37F);  // Approximately ln(2^127.5)
     const auto zero = vdupq_n_f32(0.F);
-    const auto min_input = vdupq_n_f32(-86.64f);  // Approximately ln(2^-125)
+    const auto min_input = vdupq_n_f32(-86.64F);  // Approximately ln(2^-125)
 
     auto x = vminq_f32(src, max_input);
     x = vmaxq_f32(x, min_input);
@@ -603,12 +603,12 @@ void cvt_add(TDST* dst, TA* a, TB* b, size_t m, size_t n, size_t a_stride, size_
 }
 
 template <typename TA, typename TB>
-float dot_product(TA* a,
-                  TB* b,
+float dot_product(const TA* a,
+                  const TB* b,
                   size_t n,
-                  float* scale,
-                  float* zp,
-                  float* head_sum,
+                  [[maybe_unused]] const float* scale,
+                  [[maybe_unused]] const float* zp,
+                  [[maybe_unused]] const float* head_sum,
                   [[maybe_unused]] size_t group_size) {
     size_t i = 0;
     float sum = 0.0F;
@@ -655,10 +655,10 @@ float dot_product(TA* a,
     vsum0 = _mm512_add_ps(vsum0, vsum2);
     sum = _mm512_reduce_add_ps(vsum0);
 #elif defined(HAVE_AVX2)
-    auto vsum0 = _mm256_set1_ps(0.0f);
-    auto vsum1 = _mm256_set1_ps(0.0f);
-    auto vsum2 = _mm256_set1_ps(0.0f);
-    auto vsum3 = _mm256_set1_ps(0.0f);
+    auto vsum0 = _mm256_set1_ps(0.0F);
+    auto vsum1 = _mm256_set1_ps(0.0F);
+    auto vsum2 = _mm256_set1_ps(0.0F);
+    auto vsum3 = _mm256_set1_ps(0.0F);
     for (; i + 4 * vec_len_f32_avx2 <= n; i += vec_len_f32_avx2 * 4) {
         auto va0 = mm256_uni_loadu_ps(a + i);
         auto va1 = mm256_uni_loadu_ps(a + i + vec_len_f32_avx2);
@@ -704,10 +704,10 @@ float dot_product(TA* a,
 #    if defined(HAVE_SVE)
     if constexpr (std::is_same_v<TA, float> && std::is_same_v<TB, float>) {
         svbool_t pg = svptrue_b32();
-        svfloat32_t sum0 = svdup_n_f32(0.0f);
-        svfloat32_t sum1 = svdup_n_f32(0.0f);
-        svfloat32_t sum2 = svdup_n_f32(0.0f);
-        svfloat32_t sum3 = svdup_n_f32(0.0f);
+        svfloat32_t sum0 = svdup_n_f32(0.0F);
+        svfloat32_t sum1 = svdup_n_f32(0.0F);
+        svfloat32_t sum2 = svdup_n_f32(0.0F);
+        svfloat32_t sum3 = svdup_n_f32(0.0F);
         auto vec_len = vec_len_f32_sve();
 
         auto _a = reinterpret_cast<float32_t*>(a);
@@ -762,10 +762,10 @@ float dot_product(TA* a,
     } else
 #    endif
     {
-        float32x4_t vsum0 = vdupq_n_f32(0.0f);
-        float32x4_t vsum1 = vdupq_n_f32(0.0f);
-        float32x4_t vsum2 = vdupq_n_f32(0.0f);
-        float32x4_t vsum3 = vdupq_n_f32(0.0f);
+        float32x4_t vsum0 = vdupq_n_f32(0.0F);
+        float32x4_t vsum1 = vdupq_n_f32(0.0F);
+        float32x4_t vsum2 = vdupq_n_f32(0.0F);
+        float32x4_t vsum3 = vdupq_n_f32(0.0F);
 
         for (; i + 4 * vec_len_f32_neon <= n; i += vec_len_f32_neon * 4) {
             float32x4_t va0 = __vld1q_f32(a + i);
@@ -817,15 +817,21 @@ float dot_product(TA* a,
 }
 
 template <typename TA>
-float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, float* head_sum, size_t group_size) {
-    float sum = 0.0f;
+float dot_product(const TA* a,
+                  const uint8_t* b,
+                  size_t n,
+                  const float* scale,
+                  const float* zp,
+                  [[maybe_unused]] const float* head_sum,
+                  size_t group_size) {
+    float sum = 0.0F;
     size_t group_id = 0;
 #if defined(HAVE_AVX512F)
     while (group_id < n / group_size) {
-        auto vsum0 = _mm512_set1_ps(0.0f);
-        auto vsum1 = _mm512_set1_ps(0.0f);
-        auto vsum2 = _mm512_set1_ps(0.0f);
-        auto vsum3 = _mm512_set1_ps(0.0f);
+        auto vsum0 = _mm512_set1_ps(0.0F);
+        auto vsum1 = _mm512_set1_ps(0.0F);
+        auto vsum2 = _mm512_set1_ps(0.0F);
+        auto vsum3 = _mm512_set1_ps(0.0F);
         float group_scale = *(scale + group_id * 2);
         float group_zp = *(zp + group_id * 2);
         auto v_zp = _mm512_set1_ps(group_zp);
@@ -837,10 +843,10 @@ float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, float* h
             auto va2 = mm512_uni_loadu_ps(a + offset + i + vec_len_f32_avx512 * 2);
             auto va3 = mm512_uni_loadu_ps(a + offset + i + vec_len_f32_avx512 * 3);
 
-            auto vb0_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + offset + i));
-            auto vb1_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + offset + i + vec_len_f32_avx512));
-            auto vb2_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + offset + i + vec_len_f32_avx512 * 2));
-            auto vb3_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + offset + i + vec_len_f32_avx512 * 3));
+            auto vb0_128 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(b + offset + i));
+            auto vb1_128 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(b + offset + i + vec_len_f32_avx512));
+            auto vb2_128 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(b + offset + i + vec_len_f32_avx512 * 2));
+            auto vb3_128 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(b + offset + i + vec_len_f32_avx512 * 3));
 
             auto vb0_256 = _mm512_cvtepu8_epi32(vb0_128);
             auto vb1_256 = _mm512_cvtepu8_epi32(vb1_128);
@@ -866,8 +872,8 @@ float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, float* h
             auto va0 = mm512_uni_loadu_ps(a + offset + i);
             auto va1 = mm512_uni_loadu_ps(a + offset + i + vec_len_f32_avx512);
 
-            auto vb0_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + offset + i));
-            auto vb1_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + offset + i + vec_len_f32_avx512));
+            auto vb0_128 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(b + offset + i));
+            auto vb1_128 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(b + offset + i + vec_len_f32_avx512));
 
             auto vb0_256 = _mm512_cvtepu8_epi32(vb0_128);
             auto vb1_256 = _mm512_cvtepu8_epi32(vb1_128);
@@ -884,7 +890,7 @@ float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, float* h
         }
         if (i + vec_len_f32_avx512 <= group_size) {
             auto va0 = mm512_uni_loadu_ps(a + offset + i);
-            auto vb0_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + offset + i));
+            auto vb0_128 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(b + offset + i));
             auto vb0_256 = _mm512_cvtepu8_epi32(vb0_128);
             auto vb0 = _mm512_cvtepi32_ps(vb0_256);
             vb0 = _mm512_sub_ps(vb0, v_zp);
@@ -896,7 +902,7 @@ float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, float* h
         vsum0 = _mm512_add_ps(vsum0, vsum2);
         float group_sum = _mm512_reduce_add_ps(vsum0);
         for (; i < group_size; i++) {
-            group_sum += a[offset + i] * (b[offset + i] - group_zp);
+            group_sum += a[offset + i] * (static_cast<float>(b[offset + i]) - group_zp);
         }
         sum += group_scale * group_sum;
         group_id += 1;
@@ -909,20 +915,20 @@ float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, float* h
         float group_zp = *(zp + group_id * 2);
         size_t offset = group_id * group_size;
         size_t i = 0;
-        auto vsum0 = _mm256_set1_ps(0.0f);
-        auto vsum1 = _mm256_set1_ps(0.0f);
-        auto vsum2 = _mm256_set1_ps(0.0f);
-        auto vsum3 = _mm256_set1_ps(0.0f);
+        auto vsum0 = _mm256_set1_ps(0.0F);
+        auto vsum1 = _mm256_set1_ps(0.0F);
+        auto vsum2 = _mm256_set1_ps(0.0F);
+        auto vsum3 = _mm256_set1_ps(0.0F);
         for (; i + 4 * vec_len_f32_avx2 <= group_size; i += vec_len_f32_avx2 * 4) {
             auto va0 = mm256_uni_loadu_ps(a + offset + i);
             auto va1 = mm256_uni_loadu_ps(a + offset + i + vec_len_f32_avx2);
             auto va2 = mm256_uni_loadu_ps(a + offset + i + vec_len_f32_avx2 * 2);
             auto va3 = mm256_uni_loadu_ps(a + offset + i + vec_len_f32_avx2 * 3);
 
-            auto vb0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + offset + i));
-            auto vb1_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + offset + i + vec_len_f32_avx2));
-            auto vb2_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + offset + i + vec_len_f32_avx2 * 2));
-            auto vb3_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + offset + i + vec_len_f32_avx2 * 3));
+            auto vb0_128 = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(b + offset + i));
+            auto vb1_128 = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(b + offset + i + vec_len_f32_avx2));
+            auto vb2_128 = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(b + offset + i + vec_len_f32_avx2 * 2));
+            auto vb3_128 = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(b + offset + i + vec_len_f32_avx2 * 3));
 
             auto vb0_256 = _mm256_cvtepu8_epi32(vb0_128);
             auto vb1_256 = _mm256_cvtepu8_epi32(vb1_128);
@@ -943,8 +949,8 @@ float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, float* h
             auto va0 = mm256_uni_loadu_ps(a + offset + i);
             auto va1 = mm256_uni_loadu_ps(a + offset + i + vec_len_f32_avx2);
 
-            auto vb0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + offset + i));
-            auto vb1_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + offset + i + vec_len_f32_avx2));
+            auto vb0_128 = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(b + offset + i));
+            auto vb1_128 = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(b + offset + i + vec_len_f32_avx2));
 
             auto vb0_256 = _mm256_cvtepu8_epi32(vb0_128);
             auto vb1_256 = _mm256_cvtepu8_epi32(vb1_128);
@@ -958,7 +964,7 @@ float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, float* h
         }
         if (i + vec_len_f32_avx2 <= group_size) {
             auto va0 = mm256_uni_loadu_ps(a + offset + i);
-            auto vb0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + offset + i));
+            auto vb0_128 = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(b + offset + i));
             auto vb0_256 = _mm256_cvtepu8_epi32(vb0_128);
             auto vb0 = _mm256_cvtepi32_ps(vb0_256);
             vsum0 = _mm256_fmadd_ps(va0, vb0, vsum0);
@@ -1049,7 +1055,7 @@ float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, float* h
             }
         }
         for (; i < group_size; i++) {
-            group_sum += a[i + offset] * (b[i + offset] - group_zp);
+            group_sum += a[i + offset] * (static_cast<float>(b[i + offset]) - group_zp);
         }
         sum += group_scale * group_sum;
         group_id += 1;
@@ -1063,7 +1069,7 @@ float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, float* h
         size_t offset = group_id * group_size;
         float group_sum = 0.0F;
         for (; i < group_size; i++) {
-            group_sum += a[i + offset] * (b[i + offset] - group_zp);
+            group_sum += a[i + offset] * (static_cast<float>(b[i + offset]) - group_zp);
         }
         sum += group_scale * group_sum;
         group_id += 1;
@@ -1072,7 +1078,7 @@ float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, float* h
 #endif
 }
 
-inline void multiply_scalar(float* a, float* a_dst, const float val, const size_t size) {
+inline void multiply_scalar(const float* a, float* a_dst, const float val, const size_t size) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)
     auto v_scale = _mm512_set1_ps(val);
