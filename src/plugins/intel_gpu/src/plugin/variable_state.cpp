@@ -119,21 +119,11 @@ void VariableState::update_device_buffer() {
         const auto alloc_type = m_context->get_engine().use_unified_shared_memory() ? cldnn::allocation_type::usm_device : cldnn::allocation_type::cl_mem;
         const auto current_buf_size = m_layout.get_padded_dims();
         ov::Shape current_shape(current_buf_size.begin(), current_buf_size.end());
-        auto alloc_shape = predict_shape(m_name, cldnn::layout(current_shape, m_layout.data_type, m_layout.format), *m_shape_predictor);
+        const auto alloc_shape = predict_shape(m_name, cldnn::layout(current_shape, m_layout.data_type, m_layout.format), *m_shape_predictor);
 
-        // For INT4 packed KV-cache, halve the innermost dim to reduce physical allocation.
-        // actual_size tracks LOGICAL capacity (un-halved) for correct max_pad calculations.
-        if (m_alloc_inner_dim_divisor > 1 && !alloc_shape.empty()) {
-            auto logical_alloc_shape = alloc_shape;
-            alloc_shape.back() /= m_alloc_inner_dim_divisor;
-            const auto alloc_layout = cldnn::layout(alloc_shape, m_layout.data_type, m_layout.format);
-            m_memory = m_context->get_engine().allocate_memory(alloc_layout, alloc_type, false);
-            actual_size = std::max(actual_size, cldnn::layout(logical_alloc_shape, m_layout.data_type, m_layout.format).bytes_count());
-        } else {
-            const auto alloc_layout = cldnn::layout(alloc_shape, m_layout.data_type, m_layout.format);
-            m_memory = m_context->get_engine().allocate_memory(alloc_layout, alloc_type, false);
-            actual_size = std::max(actual_size, alloc_layout.bytes_count());
-        }
+        const auto alloc_layout = cldnn::layout(alloc_shape, m_layout.data_type, m_layout.format);
+        m_memory = m_context->get_engine().allocate_memory(alloc_layout, alloc_type, false);
+        actual_size = std::max(actual_size, alloc_layout.bytes_count());
     }
 
     OPENVINO_ASSERT(m_memory != nullptr, "m_memory is nullptr!!!");

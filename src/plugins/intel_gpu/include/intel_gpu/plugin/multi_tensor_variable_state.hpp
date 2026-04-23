@@ -71,6 +71,5 @@ public:
 
 private:
     bool m_has_zp_state = false;
-    bool m_is_4bit_kv_cache = false;
 };
 }  // namespace ov::intel_gpu

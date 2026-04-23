@@ -72,8 +72,6 @@ public:
         return m_initial_layout;
     }
 
-    void set_alloc_inner_dim_divisor(size_t divisor) { m_alloc_inner_dim_divisor = divisor; }
-
     ov::element::Type get_user_specified_type() const;
 
 protected:
@@ -84,7 +82,6 @@ protected:
     cldnn::memory::ptr m_memory = nullptr;
     bool m_transpose_required = false;
     size_t actual_size = 0;
-    size_t m_alloc_inner_dim_divisor = 1;
 
     const cldnn::layout m_initial_layout;
 
