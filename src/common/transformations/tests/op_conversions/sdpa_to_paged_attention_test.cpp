@@ -63,6 +63,7 @@
 #include "transformations/paged_attention/prev_sequence_length_pattern.hpp"
 #include "transformations/paged_attention/state_management_pattern.hpp"
 #include "transformations/paged_attention/total_sequence_length_pattern.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 
 using namespace ov;
@@ -663,6 +664,67 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
     // checking the graph structure and names, other checks are temporarily disabled:
     comparator.disable(FunctionsComparator::PRECISIONS);
     disable_rt_info_check();
+}
+
+TEST(SDPAToPAKeepConstPrecisionTest, Qwen7bChat_KVCacheParamsMarkedKeepConstPrecision) {
+    for (const auto& model_precision : std::vector<element::Type>{element::f16, element::f32}) {
+        auto beam_idx = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i64});
+        auto position_ids = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN, DYN}}, el_type_i64});
+        auto attention_mask = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN, DYN}}, el_type_i64});
+        auto input_ids = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN, DYN}}, el_type_i64});
+        NodeVector input_nodes{input_ids, attention_mask, position_ids, beam_idx};
+        auto params = nodes_to_params(input_nodes);
+
+        beam_idx->output(0).add_names({"beam_idx"});
+        position_ids->output(0).add_names({"position_ids"});
+        attention_mask->output(0).add_names({"attention_mask"});
+        input_ids->output(0).add_names({"input_ids"});
+
+        auto embeddings = Qwen7bChatSDPA::gen_embeddings(input_ids);
+        auto qkv_proj = Qwen7bChatSDPA::gen_qkv_proj(embeddings);
+
+        auto k_cache = Qwen7bChatSDPA::gen_cache(input_ids, beam_idx, "K_cache");
+        auto v_cache = Qwen7bChatSDPA::gen_cache(input_ids, beam_idx, "V_cache");
+
+        auto current_seq_len = Qwen7bChatSDPA::gen_current_len(input_ids);
+        auto past_seq_len = Qwen7bChatSDPA::gen_past_len(k_cache);
+        auto total_seq_len = Qwen7bChatSDPA::gen_total_len(current_seq_len, past_seq_len);
+
+        auto neg_cur_seq_len = Qwen7bChatSDPA::neg_mul(current_seq_len);
+        auto head_size = shared_ptr<Node>();
+        auto rope_emb_sin =
+            Qwen7bChatSDPA::gen_rope_emb_sin(total_seq_len, neg_cur_seq_len, head_size, model_precision);
+        auto rope_emb_cos = Qwen7bChatSDPA::gen_rope_emb_cos(total_seq_len, neg_cur_seq_len, model_precision);
+
+        auto rope_q = Qwen7bChatSDPA::gen_rope(QKV::Q, qkv_proj, head_size, rope_emb_sin, rope_emb_cos);
+        auto rope_k = Qwen7bChatSDPA::gen_rope(QKV::K, qkv_proj, head_size, rope_emb_sin, rope_emb_cos);
+
+        auto total_seq_len_2 = Qwen7bChatSDPA::gen_total_seq_len_2(past_seq_len, rope_k);
+        auto past_seq_len_2 = Qwen7bChatSDPA::gen_past_seq_len_2(total_seq_len_2, rope_q);
+
+        auto Q = Qwen7bChatSDPA::gen_Q(past_seq_len_2, total_seq_len_2, rope_q);
+        auto K = Qwen7bChatSDPA::gen_K(k_cache, rope_k);
+        auto V = Qwen7bChatSDPA::gen_V(v_cache, qkv_proj);
+
+        auto attention_mask_to_sdpa = Qwen7bChatSDPA::gen_attention_mask(Q, attention_mask, total_seq_len_2);
+        auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(Q, K, V, attention_mask_to_sdpa, false);
+        auto res = std::make_shared<v0::Result>(sdpa);
+
+        auto transformed_model = std::make_shared<ov::Model>(ResultVector{res}, params);
+        ov::pass::Manager local_manager;
+        local_manager.register_pass<ov::pass::SDPAToPagedAttention>();
+        local_manager.run_passes(transformed_model);
+
+        size_t kv_cache_params_count = 0;
+        for (const auto& parameter : transformed_model->get_parameters()) {
+            const std::string& parameter_name = parameter->get_friendly_name();
+            if (parameter_name.rfind("key_cache.", 0) == 0 || parameter_name.rfind("value_cache.", 0) == 0) {
+                kv_cache_params_count += 1;
+                EXPECT_TRUE(is_keep_const_precision(parameter)) << "Parameter is not marked: " << parameter_name;
+            }
+        }
+        EXPECT_GT(kv_cache_params_count, 0);
+    }
 }
 
 TEST_F(SDPAToPATest, SDPAToPA_Qwen7bChat_TotalSequenceLengthPattern) {
