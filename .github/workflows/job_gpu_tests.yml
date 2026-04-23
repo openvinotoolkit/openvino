@@ -112,15 +112,28 @@ jobs:
       #       apt update
       #       apt-get install -y libze-intel-gpu1 libze1 intel-opencl-icd libze-dev intel-ocloc intel-level-zero-gpu-raytracing
 
+      # - name: Install media & display runtimes for ubuntu24
+      #   if: ${{ inputs.device == 'dgpu' && inputs.image == 'ubuntu:24.04' }}
+      #   run: |
+      #     apt-get update
+      #     add-apt-repository -y ppa:kobuk-team/intel-graphics
+      #     apt-get update && apt-get install -y \
+      #       libze-intel-gpu1 libze1 intel-metrics-discovery intel-opencl-icd clinfo intel-gsc \
+      #       intel-media-va-driver-non-free libmfx-gen1 libvpl2 libvpl-tools libva-glx2 va-driver-all vainfo \
+      #       libze-dev intel-ocloc libze-intel-gpu-raytracing
+
       - name: Install media & display runtimes for ubuntu24
         if: ${{ inputs.device == 'dgpu' && inputs.image == 'ubuntu:24.04' }}
         run: |
-          apt-get update
-          add-apt-repository -y ppa:kobuk-team/intel-graphics
-          apt-get update && apt-get install -y \
-            libze-intel-gpu1 libze1 intel-metrics-discovery intel-opencl-icd clinfo intel-gsc \
-            intel-media-va-driver-non-free libmfx-gen1 libvpl2 libvpl-tools libva-glx2 va-driver-all vainfo \
-            libze-dev intel-ocloc libze-intel-gpu-raytracing
+          # downgrade to 24.39.31294.12
+          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.17791.9/intel-igc-core_1.0.17791.9_amd64.deb
+          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.17791.9/intel-igc-opencl_1.0.17791.9_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.39.31294.12/intel-level-zero-gpu-dbgsym_1.6.31294.12_amd64.ddeb
+          wget https://github.com/intel/compute-runtime/releases/download/24.39.31294.12/intel-level-zero-gpu_1.6.31294.12_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.39.31294.12/intel-opencl-icd-dbgsym_24.39.31294.12_amd64.ddeb
+          wget https://github.com/intel/compute-runtime/releases/download/24.39.31294.12/intel-opencl-icd_24.39.31294.12_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.39.31294.12/libigdgmm12_22.5.2_amd64.deb
+          dpkg -i *.deb
 
       - name: Verify devices
         run: clinfo
