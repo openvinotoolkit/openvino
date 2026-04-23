@@ -684,8 +684,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         std::unique_ptr<MetadataBase> metadata = nullptr;
         size_t blobSize = MetadataBase::getFileSize(stream);
 
-        const bool isNotNullDecryption =
-            _propertiesManager->getConfig().get<CACHE_ENCRYPTION_CALLBACKS>().decrypt != nullptr;
         if (!importRawBlob && !skipCompatibility) {
             // Read only metadata from the stream and check if blob is compatible. Load blob into memory only in case it
             // passes compatibility checks.
@@ -693,10 +691,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             blobSize = metadata->get_blob_size();
         } else {
             _logger.info("Blob compatibility check skipped.");
-            if (isNotNullDecryption) {
-                _logger.warning("Received decryption callback, but metadata parsing is skipped and cannot determine if "
-                                "blob was encrypted or not.");
-            }
         }
         OPENVINO_ASSERT(blobSize > 0, "Parsed blob size is empty from the given stream!");
 
