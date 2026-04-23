@@ -788,7 +788,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg);
 
     if (!m_is_whisper) {
-        LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma4), if it exists.");
+        LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
         ov::npuw::PatchSlidingWindowMask().run_on_model(kvcache_model);
     }
 

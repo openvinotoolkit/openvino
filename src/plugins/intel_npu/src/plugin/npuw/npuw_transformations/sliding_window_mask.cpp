@@ -24,17 +24,21 @@ namespace {
 
 // ============================================================================
 // Shared helper: Rebuild sliding window attention mask for static KV buffers
+//                with different paddings.
 // ============================================================================
-// This function implements the common 4-step transformation used by both
-// Phi3 and Gemma4 sliding window attention patterns:
+// This function implements the common 4-step transformation used by
+// Phi3, Gemma2, Gemma3 or Gemma4 sliding window attention patterns:
 //
-// 1. (K > pos_ids - window) & (K <= cache_pos)    -- Use temporal position for window bound
-// 2. (K > cache_pos - window) | (K < past_kv_len) -- Always allow past tokens
+// 1. (K > pos_ids - window) & (K <= Q_range)
+//    -- Use temporal position_ids for the left window bound to handle right-padded
+//       past tokens, while preserving the causal mask for present tokens.
+// 2. (K > Q_range - window) | (K < past_kv_len)
+//    -- Bound present tokens by window size while always allowing past tokens.
 // 3. Result = 1 & 2
-// 4. Clean = 3 & attention_mask[past_kv_len:].T   -- Remove padding artefacts
-//
-// The only difference between Phi3 and Gemma4 patterns is how they construct
-// cache_position (Q range), which is handled by pattern matching before calling this.
+//    -- Together they form the correct sliding window mask for past and present
+//       tokens and the causal mask for present tokens.
+// 4. Clean = 3 & attention_mask[past_kv_len:].T
+//    -- Remove padding artifacts.
 void rebuild_sliding_window_mask(const std::shared_ptr<ov::Node>& attention_mask_node_ptr,
                                  const std::shared_ptr<ov::Node>& position_ids_node_ptr,
                                  const std::shared_ptr<ov::Node>& matched_past_kv_len,
@@ -54,11 +58,11 @@ void rebuild_sliding_window_mask(const std::shared_ptr<ov::Node>& attention_mask
 
     // Create constants
     auto const_zero = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, 0);
-    auto const_three = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, 3);
 
     // =======================================================================
-    // STEP 1: (K > pos_ids - window) & (K <= cache_pos)
-    //         Use temporal position_ids instead of buffer index for window bound
+    // STEP 1: (K > pos_ids - window) & (K <= Q_range)
+    //         Use temporal position_ids for the left window bound to correctly
+    //         handle right-padded past tokens.
     // =======================================================================
     std::shared_ptr<ov::Node> query_range_as_pos_ids = position_ids_node_ptr;
     if (neg_window_size_const->output(0).get_element_type() == ov::element::f32) {
@@ -66,6 +70,7 @@ void rebuild_sliding_window_mask(const std::shared_ptr<ov::Node>& attention_mask
     }
     auto query_range_as_pos_ids_unsqueezed =
         std::make_shared<ov::op::v0::Unsqueeze>(query_range_as_pos_ids, const_zero);
+    auto const_three = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, 3);
     auto query_range_as_pos_ids_col =
         std::make_shared<ov::op::v0::Unsqueeze>(query_range_as_pos_ids_unsqueezed, const_three);
     auto query_range_as_pos_left_bound =
@@ -75,8 +80,9 @@ void rebuild_sliding_window_mask(const std::shared_ptr<ov::Node>& attention_mask
     matched_sliding_and_causal_mask->input(0).replace_source_output(sliding_mask_for_right_padding);
 
     // =======================================================================
-    // STEP 2: (K > cache_pos - window) | (K < past_kv_len)
-    //         Always allow attending to past prefill tokens
+    // STEP 2: (K > Q_range - window) | (K < past_kv_len)
+    //         Bound present tokens by window size while always allowing
+    //         past prefill tokens.
     // =======================================================================
     std::shared_ptr<ov::Node> past_kv_len_argument = matched_past_kv_len;
     if (neg_window_size_const->output(0).get_element_type() == ov::element::f32) {
@@ -89,6 +95,10 @@ void rebuild_sliding_window_mask(const std::shared_ptr<ov::Node>& attention_mask
     // =======================================================================
     // STEP 3: Result = 1 & 2
     // =======================================================================
+    // NB: target_inputs must be captured BEFORE new_sliding_and_causal_mask is
+    // created, because creating it registers it as a consumer of
+    // matched_sliding_and_causal_mask. Capturing after would include the new
+    // node in target_inputs and cause a graph cycle when replacing outputs.
     auto target_inputs = matched_sliding_and_causal_mask->output(0).get_target_inputs();
     auto new_sliding_and_causal_mask =
         std::make_shared<ov::op::v13::BitwiseAnd>(matched_sliding_and_causal_mask,
@@ -96,7 +106,7 @@ void rebuild_sliding_window_mask(const std::shared_ptr<ov::Node>& attention_mask
 
     // =======================================================================
     // STEP 4: Clean = 3 & attention_mask[past_kv_len:].T
-    //         Remove padding artefacts
+    //         Remove padding artifacts.
     // =======================================================================
     std::vector<int64_t> shape_rank_one{1};
     auto shape_rank_one_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, shape_rank_one);
@@ -122,7 +132,7 @@ void rebuild_sliding_window_mask(const std::shared_ptr<ov::Node>& attention_mask
         input.replace_source_output(clean_sliding_and_causal_mask);
     }
 
-    LOG_INFO(std::string(log_prefix) + " sliding window attention pattern found and replaced.");
+    LOG_INFO(std::string(log_prefix) + " sliding window attention mask pattern found and patched.");
 }
 
 class OldPhi3SlidingMaskMatcher : public ov::pass::MatcherPass {
@@ -329,7 +339,6 @@ public:
         // past tokens and left-padded present tokens. Logic to replace pattern is the same
         // as in Phi3SlidingMask rewriter, but adjusted to another set of operations for
         // creation of mask, obtained from transformers 4.53.
-        // Pattern is the same as in GemmaSlidingMask.
         //
         // Fix is a replace of following pattern:
         // 1. (K range > (Q range - sliding window).T) & (K range <= Q range.T)
@@ -401,7 +410,7 @@ public:
                                         matched_neg_window_size,
                                         matched_sliding_mask,
                                         matched_sliding_and_causal_mask,
-                                        "Phi-3 (4.53)");
+                                        "Phi-3, Gemma-2, Gemma-3");
             return true;
         };
         register_matcher(std::make_shared<opp::Matcher>(sliding_and_causal_mask, "Phi3SlidingMaskMatcher"),
@@ -409,30 +418,36 @@ public:
     }
 };
 
-class GemmaSlidingMaskMatcher : public ov::pass::MatcherPass {
+class Gemma4SlidingMaskMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::patterns::GemmaSlidingMaskMatcher");
+    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::patterns::Gemma4SlidingMaskMatcher");
 
-    GemmaSlidingMaskMatcher(const std::shared_ptr<ov::Node>& attention_mask_node_ptr,
-                            const std::shared_ptr<ov::Node>& position_ids_node_ptr) {
-        // Fix Gemma4 sliding window attention mask for static-shape NPUW inference.
+    Gemma4SlidingMaskMatcher(const std::shared_ptr<ov::Node>& attention_mask_node_ptr,
+                             const std::shared_ptr<ov::Node>& position_ids_node_ptr) {
+        // Fix Gemma-4 sliding window attention mask for static KV
+        // buffers with different paddings for past and present tokens.
         //
-        // Gemma4's generate model computes the Q position (cache_position) as:
-        //   q_range     = Range(0, seq_len, 1)           -- shape [1] for generate step
-        //   cache_pos   = Add(q_range, past_kv_len)      -- = [past_kv_buf_idx]
-        //   q_idx       = Unsqueeze x3(cache_pos)        -- shape [1,1,1,1]
+        // Gemma-4's generate model computes the Q range (cache_position) as:
+        //   q_range      = Range(0, seq_len, 1)       -- seq_len is the statically-compiled Q
+        //                                             -- sequence length (1 for standard generate)
+        //   cache_pos    = Add(q_range, past_kv_len)  -- Q position in the full KV buffer
+        //   q_idx        = Unsqueeze x3(cache_pos)    -- shape [1,1,seq_len,1]
         //
-        // Unlike Phi3's Range(past_kv_len, past_kv_len + seq_len), Gemma4 uses an
+        // Unlike Phi-3's Range(past_kv_len, past_kv_len + seq_len), Gemma-4 uses an
         // explicit Add, causing the pattern in Phi3SlidingMaskMatcher to miss it.
         //
-        // With static KV buffers, past_kv_buf_idx >> actual position_id, so SWA layers
-        // incorrectly exclude past prefill tokens (distance > sliding_window).
+        // With static KV buffers, the Q position >> actual temporal position_id, so
+        // SWA layers incorrectly exclude past prefill tokens (distance > sliding_window).
         //
         // Fix is identical to Phi3SlidingMaskMatcher:
-        // 1. (K > pos_ids - window) & (K <= cache_pos)    -- temporal pos for window bound
-        // 2. (K > cache_pos - window) | (K < past_kv_len) -- always allow past tokens
+        // 1. (K > pos_ids - window) & (K <= Q_range)
+        //    -- temporal position_ids for the left window bound; causal mask for present tokens
+        // 2. (K > Q_range - window) | (K < past_kv_len)
+        //    -- bound present tokens by window size; always allow past tokens
         // 3. Result = 1 & 2
-        // 4. Clean = 3 & attention_mask[past_kv_len:].T   -- remove padding artefacts
+        //    -- correct sliding window + causal mask for past and present tokens
+        // 4. Clean = 3 & attention_mask[past_kv_len:].T
+        //    -- remove padding artifacts
         auto unsqueeze_sequence = [&](std::shared_ptr<ov::Node> node) {
             auto u1 = opp::wrap_type<ov::op::v0::Unsqueeze>({node, opp::any_input()});
             auto u2 = opp::wrap_type<ov::op::v0::Unsqueeze>({u1, opp::any_input()});
@@ -492,7 +507,7 @@ public:
                                         "Gemma4");
             return true;
         };
-        register_matcher(std::make_shared<opp::Matcher>(sliding_and_causal_mask, "GemmaSlidingMaskMatcher"),
+        register_matcher(std::make_shared<opp::Matcher>(sliding_and_causal_mask, "Gemma4SlidingMaskMatcher"),
                          std::move(callback));
     }
 };
@@ -530,7 +545,7 @@ bool SlidingWindowMask::run_on_model(const std::shared_ptr<ov::Model>& model) {
     ov::pass::Manager manager;
     manager.set_per_pass_validation(true);
     const auto rewriter = manager.register_pass<ov::pass::GraphRewrite>();
-    rewriter->add_matcher<GemmaSlidingMaskMatcher>(attention_mask_node_ptr, position_ids_node_ptr);
+    rewriter->add_matcher<Gemma4SlidingMaskMatcher>(attention_mask_node_ptr, position_ids_node_ptr);
     rewriter->add_matcher<Phi3SlidingMaskMatcher>(attention_mask_node_ptr, position_ids_node_ptr);
     rewriter->add_matcher<OldPhi3SlidingMaskMatcher>();
     return manager.run_passes(model);
