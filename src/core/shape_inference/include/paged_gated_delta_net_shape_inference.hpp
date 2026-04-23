@@ -27,7 +27,7 @@ std::vector<TRShape> shape_infer(const OpType* op, const std::vector<T>& input_s
     const auto& key_ps = input_shapes[1];
     // [batch_size_in_tokens, v_num_heads, value_head_dim]
     const auto& value_ps = input_shapes[2];
-    // [num_blocks, v_num_heads, key_head_dim, value_head_dim]
+    // [num_blocks, v_num_heads, value_head_dim, key_head_dim]
     const auto& state_ps = input_shapes[3];
     // [batch_size_in_tokens, v_num_heads]
     const auto& gate_ps = input_shapes[4];
@@ -60,7 +60,7 @@ std::vector<TRShape> shape_infer(const OpType* op, const std::vector<T>& input_s
     }
 
     if (state_rank_is_static && value_rank_is_static && key_rank_is_static) {
-        // [num_blocks, v_num_heads, key_head_dim, value_head_dim]
+        // [num_blocks, v_num_heads, value_head_dim, key_head_dim]
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                state_ps[1].compatible(value_ps[1]),
@@ -69,14 +69,14 @@ std::vector<TRShape> shape_infer(const OpType* op, const std::vector<T>& input_s
         NODE_SHAPE_INFER_CHECK(
             op,
             input_shapes,
-            state_ps[2].compatible(key_ps[2]),
-            "The key dimension of recurrent_state_table and the head size of key input must be equal.");
+            state_ps[2].compatible(value_ps[2]),
+            "The value dimension of recurrent_state_table and the head size of value input must be equal.");
 
         NODE_SHAPE_INFER_CHECK(
             op,
             input_shapes,
-            state_ps[3].compatible(value_ps[2]),
-            "The value dimension of recurrent_state_table and the head size of value input must be equal.");
+            state_ps[3].compatible(key_ps[2]),
+            "The key dimension of recurrent_state_table and the head size of key input must be equal.");
     }
 
     // output: [batch_size_in_tokens, v_num_heads, value_head_dim] — same shape as value input

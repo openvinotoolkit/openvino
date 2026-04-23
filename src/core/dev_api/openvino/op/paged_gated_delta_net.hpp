@@ -30,7 +30,7 @@ public:
     /// \param value Value tensor [batch_size_in_tokens, v_num_heads, value_head_dim].
     ///        v_num_heads >= num_heads; the ratio v_num_heads/num_heads gives the number of GQA groups.
     /// \param recurrent_state_table Block table containing recurrent states
-    ///        [num_blocks, v_num_heads, key_head_dim, value_head_dim].
+    ///        [num_blocks, v_num_heads, value_head_dim, key_head_dim].
     /// \param gate Gate tensor [batch_size_in_tokens, v_num_heads].
     /// \param beta Beta tensor [batch_size_in_tokens, v_num_heads].
     /// \param subsequence_begins Start indices of tokens from current sequences [batch_size_in_sequences+1],

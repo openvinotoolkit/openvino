@@ -18,7 +18,7 @@ TEST_F(TypePropPagedGatedDeltaNetTest, f32_static_shapes) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 16});
-    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 8, 16});
+    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 16, 8});
     const auto gate = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto beta = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
@@ -48,7 +48,7 @@ TEST_F(TypePropPagedGatedDeltaNetTest, f16_static_shapes) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f16, Shape{10, 4, 8});
     const auto key = std::make_shared<op::v0::Parameter>(element::f16, Shape{10, 4, 8});
     const auto value = std::make_shared<op::v0::Parameter>(element::f16, Shape{10, 4, 16});
-    const auto state = std::make_shared<op::v0::Parameter>(element::f16, Shape{5, 4, 8, 16});
+    const auto state = std::make_shared<op::v0::Parameter>(element::f16, Shape{5, 4, 16, 8});
     const auto gate = std::make_shared<op::v0::Parameter>(element::f16, Shape{10, 4});
     const auto beta = std::make_shared<op::v0::Parameter>(element::f16, Shape{10, 4});
     const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
@@ -77,7 +77,7 @@ TEST_F(TypePropPagedGatedDeltaNetTest, bf16_partial_shapes) {
     const auto query = std::make_shared<op::v0::Parameter>(element::bf16, PartialShape{-1, {2, 8}, 64});
     const auto key = std::make_shared<op::v0::Parameter>(element::bf16, PartialShape{-1, {2, 8}, 64});
     const auto value = std::make_shared<op::v0::Parameter>(element::bf16, PartialShape{-1, {2, 8}, {32, 128}});
-    const auto state = std::make_shared<op::v0::Parameter>(element::bf16, PartialShape{-1, {2, 8}, 64, {32, 128}});
+    const auto state = std::make_shared<op::v0::Parameter>(element::bf16, PartialShape{-1, {2, 8}, {32, 128}, 64});
     const auto gate = std::make_shared<op::v0::Parameter>(element::bf16, PartialShape{-1, {2, 8}});
     const auto beta = std::make_shared<op::v0::Parameter>(element::bf16, PartialShape{-1, {2, 8}});
     const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{-1});
@@ -106,7 +106,7 @@ TEST_F(TypePropPagedGatedDeltaNetTest, query_incompatible_rank) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8, 1});  // rank 4 - invalid
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 16});
-    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 8, 16});
+    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 16, 8});
     const auto gate = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto beta = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
@@ -134,7 +134,7 @@ TEST_F(TypePropPagedGatedDeltaNetTest, query_incompatible_type) {
     const auto query = std::make_shared<op::v0::Parameter>(element::i32, Shape{10, 4, 8});
     const auto key = std::make_shared<op::v0::Parameter>(element::i32, Shape{10, 4, 8});
     const auto value = std::make_shared<op::v0::Parameter>(element::i32, Shape{10, 4, 16});
-    const auto state = std::make_shared<op::v0::Parameter>(element::i32, Shape{5, 4, 8, 16});
+    const auto state = std::make_shared<op::v0::Parameter>(element::i32, Shape{5, 4, 16, 8});
     const auto gate = std::make_shared<op::v0::Parameter>(element::i32, Shape{10, 4});
     const auto beta = std::make_shared<op::v0::Parameter>(element::i32, Shape{10, 4});
     const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
@@ -162,7 +162,7 @@ TEST_F(TypePropPagedGatedDeltaNetTest, key_incompatible_head_num) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 6, 8});  // num_heads 6 != 4
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 16});
-    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 8, 16});
+    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 16, 8});
     const auto gate = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto beta = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
@@ -191,7 +191,7 @@ TEST_F(TypePropPagedGatedDeltaNetTest, key_incompatible_head_num_partial) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {2, 4}, 8});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {6, 10}, 8});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {6, 10}, 16});
-    const auto state = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {6, 10}, 8, 16});
+    const auto state = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {6, 10}, 16, 8});
     const auto gate = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {6, 10}});
     const auto beta = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {6, 10}});
     const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{-1});
@@ -219,7 +219,7 @@ TEST_F(TypePropPagedGatedDeltaNetTest, key_incompatible_head_size) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 32});  // key_head_dim 32 != 8
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 16});
-    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 32, 16});
+    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 16, 32});
     const auto gate = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto beta = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
@@ -247,7 +247,7 @@ TEST_F(TypePropPagedGatedDeltaNetTest, gate_incompatible_head_num) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 16});
-    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 8, 16});
+    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 16, 8});
     const auto gate = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 6});  // gate heads 6 != 4
     const auto beta = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
@@ -276,7 +276,7 @@ TEST_F(TypePropPagedGatedDeltaNetTest, state_incompatible_value_dim) {
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 16});
     const auto state =
-        std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 8, 32});  // value_head_dim 32 != 16
+        std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 32, 8});  // value_head_dim 32 != 16
     const auto gate = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto beta = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
@@ -305,7 +305,7 @@ TEST_F(TypePropPagedGatedDeltaNetTest, state_incompatible_num_heads) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 16});
-    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 6, 8, 16});  // num_heads 6 != 4
+    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 6, 16, 8});  // num_heads 6 != 4
     const auto gate = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto beta = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
@@ -363,7 +363,7 @@ TEST_F(TypePropPagedGatedDeltaNetTest, state_incompatible_value_dim_partial) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 4, 8});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 4, 8});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 4, {8, 16}});
-    const auto state = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 4, 8, {32, 64}});
+    const auto state = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 4, {32, 64}, 8});
     const auto gate = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 4});
     const auto beta = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 4});
     const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{-1});
@@ -430,7 +430,7 @@ TEST_F(TypePropPagedGatedDeltaNetTest, dynamic_type) {
     const auto query = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{10, 4, 8});
     const auto key = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{10, 4, 8});
     const auto value = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{10, 4, 16});
-    const auto state = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{5, 4, 8, 16});
+    const auto state = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{5, 4, 16, 8});
     const auto gate = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{10, 4});
     const auto beta = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{10, 4});
     const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
@@ -460,7 +460,7 @@ TEST_F(TypePropPagedGatedDeltaNetTest, dynamic_and_concrete_float_type_merged) {
     const auto query = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{10, 4, 8});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 16});
-    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 8, 16});
+    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 16, 8});
     const auto gate = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto beta = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
@@ -491,7 +491,7 @@ TEST_F(TypePropPagedGatedDeltaNetTest, overlapping_dim_ranges_compatible) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {2, 6}, 8});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {4, 8}, 8});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {4, 6}, {16, 32}});
-    const auto state = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {4, 6}, 8, {16, 32}});
+    const auto state = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {4, 6}, {16, 32}, 8});
     const auto gate = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {4, 6}});
     const auto beta = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {4, 6}});
     const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{-1});
@@ -520,7 +520,7 @@ TEST_F(TypePropPagedGatedDeltaNetTest, mixed_float_types_incompatible) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto key = std::make_shared<op::v0::Parameter>(element::f16, Shape{10, 4, 8});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 16});
-    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 8, 16});
+    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 16, 8});
     const auto gate = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto beta = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
@@ -548,7 +548,7 @@ TEST_F(TypePropPagedGatedDeltaNetTest, i64_integer_inputs) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 16});
-    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 8, 16});
+    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 16, 8});
     const auto gate = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto beta = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
@@ -578,7 +578,7 @@ TEST_F(TypePropPagedGatedDeltaNetTest, subsequence_begins_incompatible_rank) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 16});
-    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 8, 16});
+    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 16, 8});
     const auto gate = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto beta = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{2, 2});  // rank 2 - invalid
@@ -606,7 +606,7 @@ TEST_F(TypePropPagedGatedDeltaNetTest, subsequence_begins_incompatible_type) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 16});
-    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 8, 16});
+    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 16, 8});
     const auto gate = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto beta = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i16, Shape{3});  // i16 - invalid
@@ -634,7 +634,7 @@ TEST_F(TypePropPagedGatedDeltaNetTest, q_l2norm_eps_incompatible_negative) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 16});
-    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 8, 16});
+    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 16, 8});
     const auto gate = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto beta = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
@@ -665,7 +665,7 @@ TEST_F(TypePropPagedGatedDeltaNetTest, q_l2norm_eps_incompatible_zero) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 16});
-    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 8, 16});
+    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 16, 8});
     const auto gate = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto beta = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
@@ -696,7 +696,7 @@ TEST_F(TypePropPagedGatedDeltaNetTest, k_l2norm_eps_incompatible_zero) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 16});
-    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 8, 16});
+    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 4, 16, 8});
     const auto gate = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto beta = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4});
     const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
@@ -728,7 +728,7 @@ TEST_F(TypePropPagedGatedDeltaNetTest, gqa_static_shapes) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 2, 64});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 2, 64});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 8, 32});
-    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 8, 64, 32});
+    const auto state = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 8, 32, 64});
     const auto gate = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 8});
     const auto beta = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 8});
     const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
@@ -759,7 +759,7 @@ TEST_F(TypePropPagedGatedDeltaNetTest, gqa_partial_shapes) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {1, 4}, 64});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {1, 4}, 64});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {4, 16}, {32, 128}});
-    const auto state = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {4, 16}, 64, {32, 128}});
+    const auto state = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {4, 16}, {32, 128}, 64});
     const auto gate = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {4, 16}});
     const auto beta = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {4, 16}});
     const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{-1});
