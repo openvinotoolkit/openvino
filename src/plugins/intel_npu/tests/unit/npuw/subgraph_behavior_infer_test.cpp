@@ -148,6 +148,85 @@ public:
     }
 };
 
+class FakeSubAsyncInferRequest final : public ov::IAsyncInferRequest {
+public:
+    explicit FakeSubAsyncInferRequest(const std::shared_ptr<ov::ISyncInferRequest>& request)
+        : ov::IAsyncInferRequest(nullptr, nullptr, nullptr),
+          m_request(request) {}
+
+    void start_async() override {
+        try {
+            m_request->infer();
+            if (m_callback) {
+                m_callback(nullptr);
+            }
+        } catch (...) {
+            if (m_callback) {
+                m_callback(std::current_exception());
+                return;
+            }
+            throw;
+        }
+    }
+
+    void wait() override {}
+
+    bool wait_for(const std::chrono::milliseconds&) override {
+        return true;
+    }
+
+    void cancel() override {}
+
+    void set_callback(std::function<void(std::exception_ptr)> callback) override {
+        m_callback = std::move(callback);
+    }
+
+    void infer() override {
+        m_request->infer();
+    }
+
+    std::vector<ov::ProfilingInfo> get_profiling_info() const override {
+        return m_request->get_profiling_info();
+    }
+
+    ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override {
+        return m_request->get_tensor(port);
+    }
+
+    void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override {
+        m_request->set_tensor(port, tensor);
+    }
+
+    std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& port) const override {
+        return m_request->get_tensors(port);
+    }
+
+    void set_tensors(const ov::Output<const ov::Node>& port,
+                     const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override {
+        m_request->set_tensors(port, tensors);
+    }
+
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
+        return m_request->query_state();
+    }
+
+    const std::shared_ptr<const ov::ICompiledModel>& get_compiled_model() const override {
+        return m_request->get_compiled_model();
+    }
+
+    const std::vector<ov::Output<const ov::Node>>& get_inputs() const override {
+        return m_request->get_inputs();
+    }
+
+    const std::vector<ov::Output<const ov::Node>>& get_outputs() const override {
+        return m_request->get_outputs();
+    }
+
+private:
+    std::shared_ptr<ov::ISyncInferRequest> m_request;
+    std::function<void(std::exception_ptr)> m_callback;
+};
+
 class FakeSubCompiledModel final : public ov::ICompiledModel {
 public:
     FakeSubCompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin)
@@ -170,7 +249,7 @@ public:
         return std::make_shared<FakeSubInferRequest>(std::move(self));
     }
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override {
-        return std::make_shared<ov::IAsyncInferRequest>(create_sync_infer_request(), get_task_executor(), get_callback_executor());
+        return std::make_shared<FakeSubAsyncInferRequest>(create_sync_infer_request());
     }
 
 private:
