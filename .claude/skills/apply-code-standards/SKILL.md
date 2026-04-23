@@ -11,14 +11,15 @@ Iteratively detect and fix all clang-format, clang-tidy, and copyright violation
 
 ## Step 1: Identify Affected Build Targets
 
-Detect the upstream base branch:
+Ask the user which files to check:
+> "Should I check uncommitted changes only, or all changes on the current branch? If the full branch, what is the upstream branch to diff against (e.g. `origin/master`)?"
 
+For **uncommitted changes** (staged + unstaged):
 ```bash
-git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || git rev-parse --abbrev-ref origin/HEAD 2>/dev/null
+{ git diff --name-only HEAD; git diff --name-only --cached; } | sort -u | grep -v '^thirdparty' | tee /tmp/changed_files.txt
 ```
 
-List changed files (excluding submodules) and write to a temp file for reuse across steps:
-
+For **full branch** (all commits since upstream):
 ```bash
 git diff --name-only <upstream> | grep -v '^thirdparty' | tee /tmp/changed_files.txt
 ```
@@ -28,7 +29,25 @@ Map them to CMake targets. If the mapping is not obvious, ask the user:
 
 ## Step 2: Configure with clang-18 + Style Checks
 
-Configure the project with clang-18 and both style options enabled per [docs/dev/coding_style.md](../../../docs/dev/coding_style.md). If the user already has a configured build directory, re-run cmake in it with just the new flags appended — do not wipe their existing configuration.
+clang-tidy requires the build to use clang-18 as the compiler. Check whether an existing build directory already uses clang-18:
+
+```bash
+grep "CMAKE_CXX_COMPILER" <build_dir>/CMakeCache.txt | grep -i clang
+```
+
+- **If it does**, re-run cmake in it with the style flags appended — do not wipe the existing configuration:
+  ```bash
+  cmake -DENABLE_CLANG_FORMAT=ON -DENABLE_CLANG_TIDY=ON <build_dir>
+  ```
+- **If it doesn't** (or no build directory exists), create a dedicated `build-clang/` directory:
+  ```bash
+  mkdir -p build-clang && cd build-clang
+  cmake -DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_C_COMPILER=clang-18 \
+        -DENABLE_CLANG_FORMAT=ON -DENABLE_CLANG_TIDY=ON \
+        -DCMAKE_BUILD_TYPE=Release ..
+  ```
+
+See [docs/dev/coding_style.md](../../../docs/dev/coding_style.md) for full flag reference.
 
 ## Step 3: Check, Fix, Repeat
 
