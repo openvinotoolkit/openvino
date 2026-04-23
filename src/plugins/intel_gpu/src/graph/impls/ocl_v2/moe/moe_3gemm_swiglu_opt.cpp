@@ -2340,8 +2340,7 @@ public:
                                                        {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
                                                        {DNNL_ARG_HINT_MAX_GROUP_SIZE, hint_mem}};
             if (gk.has_zp) {
-                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS,
-                             scratch.moe_fusion_wei_addr.zp[0]->get_onednn_memory(gk.gate_zp_md)});
+                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, scratch.moe_fusion_wei_addr.zp[0]->get_onednn_memory(gk.gate_zp_md)});
             }
             gk.gate_prim.execute(dnn_stream, args);
         }
@@ -2359,8 +2358,7 @@ public:
                                                        {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
                                                        {DNNL_ARG_HINT_MAX_GROUP_SIZE, hint_mem}};
             if (gk.has_zp) {
-                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS,
-                             scratch.moe_fusion_wei_addr.zp[1]->get_onednn_memory(gk.up_zp_md)});
+                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, scratch.moe_fusion_wei_addr.zp[1]->get_onednn_memory(gk.up_zp_md)});
             }
             gk.up_prim.execute(dnn_stream, args);
         }
@@ -2393,8 +2391,7 @@ public:
                                                        {DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem},
                                                        {DNNL_ARG_HINT_MAX_GROUP_SIZE, hint_mem}};
             if (gk.has_zp) {
-                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS,
-                             scratch.moe_fusion_wei_addr.zp[2]->get_onednn_memory(gk.down_zp_md)});
+                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, scratch.moe_fusion_wei_addr.zp[2]->get_onednn_memory(gk.down_zp_md)});
             }
             gk.down_prim.execute(dnn_stream, args);
         }
