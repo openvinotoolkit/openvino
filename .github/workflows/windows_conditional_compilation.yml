@@ -360,6 +360,13 @@ jobs:
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
 
+      - name: Install Python's certifi for newer ca-certificates bundle for wget
+        run: |
+          python3 c:/pip_diag.py install certifi
+
+      - name: Set SSL_CERT_FILE for model downloading for unit tests
+        run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
+
       - name: CMake configure - CC ON
         run: |
           cmake `
