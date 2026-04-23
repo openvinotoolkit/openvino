@@ -58,7 +58,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: 'openvinotoolkit/testdata'
-          submodules: 'true'
           lfs: 'true'
 
       - name: Sleep for 5 minute
