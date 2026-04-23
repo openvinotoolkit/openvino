@@ -18,7 +18,9 @@ public:
         std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: creating with LUID=\"" << device_luid << "\"" << std::endl;
         try {
             m_ipf = std::make_unique<Ipf::ClientApi>();
-            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: IPF ClientApi created successfully" << std::endl;
+            // Verify IPF connection by querying a known working path
+            auto soc_info = m_ipf->GetValue("Platform.SOC.Info");
+            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: IPF connected, SOC.Info = " << soc_info << std::endl;
         } catch (const std::exception& e) {
             std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: IPF ClientApi creation failed: " << e.what() << std::endl;
             m_ipf = nullptr;

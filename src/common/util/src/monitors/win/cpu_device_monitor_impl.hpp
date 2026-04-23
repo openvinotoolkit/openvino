@@ -17,7 +17,9 @@ public:
     CPUDeviceMonitorImpl() {
         try {
             m_ipf = std::make_unique<Ipf::ClientApi>();
-            std::cerr << "[IPF_DEBUG] CPUDeviceMonitorImpl: IPF ClientApi created successfully" << std::endl;
+            // Verify IPF connection by querying a known working path
+            auto soc_info = m_ipf->GetValue("Platform.SOC.Info");
+            std::cerr << "[IPF_DEBUG] CPUDeviceMonitorImpl: IPF connected, SOC.Info = " << soc_info << std::endl;
         } catch (const std::exception& e) {
             std::cerr << "[IPF_DEBUG] CPUDeviceMonitorImpl: IPF ClientApi creation failed: " << e.what() << std::endl;
             m_ipf = nullptr;
