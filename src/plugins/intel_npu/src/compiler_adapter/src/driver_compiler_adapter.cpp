@@ -293,11 +293,23 @@ std::optional<std::vector<std::string>> DriverCompilerAdapter::get_supported_opt
 }
 
 bool DriverCompilerAdapter::is_option_supported(std::string optName, std::optional<std::string> optValue) const {
+    // This is a special case, as RUNTIME_REQUIREMENTS is a read-only compiler property
+    // used to retrieve a compatibility string through a dedicated VCL compiler method, and not a regular settable option.
+    // Therefore, we cannot rely on the compiler's usual option support checking method
     if(optName == RUNTIME_REQUIREMENTS::key()) {
-        // This is a special case, as RUNTIME_REQUIREMENTS is a read-only compiler property
-        // used to retrieve a compatibility string through a dedicated VCL compiler method, and not a regular settable option.
-        // Therefore, we cannot rely on the compiler's usual option support checking method
-        return _zeGraphExt->isCompatibilityDescriptorSupported();
+        if(optValue.has_value())
+            OPENVINO_THROW("The option '", RUNTIME_REQUIREMENTS::key(), "' is a read-only property and does not accept any value.");
+
+        // Compatibility string generation is not yet supported through the L0 API
+        return false;
+    }
+    // RUNTIME_REQUIREMENTS_MET must signal if compiler adapter supports validateCompatibilityDescriptor
+    if(optName == RUNTIME_REQUIREMENTS_MET::key()) {
+        if(optValue.has_value())
+            OPENVINO_THROW("Compatibility string should be verified with validate_compatibility_descriptor()");
+
+        // Compatibility string validation is not yet supported through the L0 API
+        return false;
     }
 
     auto isOptionSupported = _zeGraphExt->isOptionSupported(std::move(optName), std::move(optValue));
@@ -326,10 +338,9 @@ bool DriverCompilerAdapter::isCompilerOptionSupported(const FilteredConfig& conf
 
 bool DriverCompilerAdapter::validate_compatibility_descriptor(const std::string& compatibilityDescriptor,
                                                               uint32_t deviceId, int64_t numTiles, int64_t stepping) const {
-    if (!_zeGraphExt->isCompatibilityDescriptorSupported()) {
-        OPENVINO_THROW("");
-    }
-    return _zeGraphExt->validateCompatibilityDescriptor(compatibilityDescriptor);
+    OPENVINO_THROW("NOT_IMPLEMENTED: Compatibility descriptor validation is not yet supported through the L0 API");
+
+    return false;
 }
 
 }  // namespace intel_npu
