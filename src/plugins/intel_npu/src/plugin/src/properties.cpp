@@ -893,6 +893,9 @@ ov::Any Properties::getProperty(const std::string& name) {
 
     auto&& configIterator = _properties.find(name);
     if (configIterator != _properties.cend()) {
+        if (std::get<1>(configIterator->second) == ov::PropertyMutability::WO) {
+            OPENVINO_THROW("WRITE-ONLY configuration key: ", name);
+        }
         return std::get<2>(configIterator->second)(_config);
     }
     try {
