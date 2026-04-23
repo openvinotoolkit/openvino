@@ -41,7 +41,6 @@ from tests import (
     skip_bitwise_ui64,
     xfail_issue_99950,
     xfail_issue_99952,
-    xfail_issue_99954,
     xfail_issue_99961,
     xfail_issue_99968,
     xfail_issue_99969,
