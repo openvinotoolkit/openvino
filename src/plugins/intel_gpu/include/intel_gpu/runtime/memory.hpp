@@ -274,30 +274,30 @@ inline std::vector<T> read_vector(cldnn::memory::ptr mem, const cldnn::stream& s
             default: OPENVINO_ASSERT(false, "[GPU] read_vector: unsupported data type");
         }
     } else {
-        auto append_from_lock = [&out_vecs](auto& lock) {
-            out_vecs.reserve(lock.end() - lock.begin());
+        auto append_from_lock = [](auto& lock, std::vector<T>& out) {
+            out.reserve(lock.end() - lock.begin());
             for (auto it = lock.begin(); it != lock.end(); ++it)
-                out_vecs.push_back(static_cast<T>(*it));
+                out.push_back(static_cast<T>(*it));
         };
         switch (mem_dtype) {
             case data_types::i32: {
                 mem_lock<int32_t, mem_lock_type::read> lock{mem, stream};
-                append_from_lock(lock);
+                append_from_lock(lock, out_vecs);
                 break;
             }
             case data_types::i64: {
                 mem_lock<int64_t, mem_lock_type::read> lock{mem, stream};
-                append_from_lock(lock);
+                append_from_lock(lock, out_vecs);
                 break;
             }
             case data_types::f16: {
                 mem_lock<ov::float16, mem_lock_type::read> lock{mem, stream};
-                append_from_lock(lock);
+                append_from_lock(lock, out_vecs);
                 break;
             }
             case data_types::f32: {
                 mem_lock<float, mem_lock_type::read> lock{mem, stream};
-                append_from_lock(lock);
+                append_from_lock(lock, out_vecs);
                 break;
             }
             default: OPENVINO_ASSERT(false, "[GPU] read_vector: unsupported data type");
