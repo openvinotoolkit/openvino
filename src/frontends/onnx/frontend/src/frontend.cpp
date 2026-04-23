@@ -190,7 +190,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
 
     if (const auto path = get_path_from_any(variants[0])) {
         if (!gi_enabled) {
-            return std::make_shared<InputModel>(path.value().native(), enable_mmap, m_extensions);
+            return std::make_shared<InputModel>(path.value(), enable_mmap, m_extensions);
         }
         return create_iterator_model(path.value());
     }
@@ -198,7 +198,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         const auto stream = variants[0].as<std::istream*>();
         if (variants.size() > 1)
             if (const auto path = get_path_from_any(variants[1])) {
-                return std::make_shared<InputModel>(*stream, path.value().native(), enable_mmap, m_extensions);
+                return std::make_shared<InputModel>(*stream, path.value(), enable_mmap, m_extensions);
             }
         return std::make_shared<InputModel>(*stream, enable_mmap, m_extensions);
     }
