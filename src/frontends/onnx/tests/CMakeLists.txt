@@ -74,7 +74,6 @@ set(SRC
     onnx_editor_topological_sort.cpp
     onnx_import_exceptions.cpp
     onnx_importer_test.cpp
-    onnx_reduce_log_sum_exp_numerical_stability.cpp
     onnx_tensor_names.cpp
     onnx_utils.cpp
     onnx_transformations.cpp
