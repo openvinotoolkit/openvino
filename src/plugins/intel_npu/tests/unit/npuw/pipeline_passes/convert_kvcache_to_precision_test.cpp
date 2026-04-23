@@ -36,7 +36,7 @@ bool any_name_contains(const ov::Output<const ov::Node>& port, std::string_view 
 const std::map<ov::element::Type, std::map<std::string, ov::element::Type>>& precision_key_matrix() {
     static const std::map<ov::element::Type, std::map<std::string, ov::element::Type>> matrix = {
         {ov::element::u8, {{"value", ov::element::u8}, {"scale", ov::element::f32}, {"zero_point", ov::element::u8}}},
-        {ov::element::i8, {{"value", ov::element::i8}, {"scale", ov::element::f32}, {"zero_point", ov::element::i8}}}
+        {ov::element::i8, {{"value", ov::element::u8}, {"scale", ov::element::f32}, {"zero_point", ov::element::u8}}}
     };
     return matrix;
 }
@@ -66,8 +66,9 @@ ov::AnyMap make_kv_precision_props(const ov::element::Type kv_type) {
 }
 
 void expect_kv_cache_input_types(const std::shared_ptr<ov::Model>& model, const ov::element::Type kv_type) {
-    // Key cache: asymmetric quantization -> value tensor + scale (f32) + zero_point (same as quant type).
-    // Value cache: symmetric quantization -> value tensor (i4) + scale (f32), no zero_point.
+    // Key cache: asymmetric quantization -> value tensor + scale (f32) + zero_point.
+    // Requested i8 is normalized to u8 for keys until signed zero-points are supported.
+    // Value cache: symmetric quantization -> value tensor (i8) + scale (f32), no zero_point.
     const bool is_quantized = is_quantized_kv_type(kv_type);
 
     constexpr std::string_view past_key_scale_name = "/past_key_values/key/scale";
