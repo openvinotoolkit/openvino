@@ -41,20 +41,25 @@ public:
         return m_byte_size;
     }
     void* get_ptr(size_t offset) const {
+        load();
         return m_aligned_buffer + offset;
     }
     void* get_ptr() {
+        load();
         return m_aligned_buffer;
     }
     const void* get_ptr() const {
+        load();
         return m_aligned_buffer;
     }
     template <typename T>
     T* get_ptr() {
+        load();
         return reinterpret_cast<T*>(m_aligned_buffer);
     }
     template <typename T>
     const T* get_ptr() const {
+        load();
         return reinterpret_cast<const T*>(m_aligned_buffer);
     }
 
@@ -70,9 +75,21 @@ public:
 
 protected:
     char* m_allocated_buffer;
-    char* m_aligned_buffer;
-    size_t m_byte_size;
-};
+    mutable char* m_aligned_buffer;
+    mutable size_t m_byte_size;
+
+    virtual void load() const {}
+    virtual void release() const {}
+/* or even virtual aligned_buffer w/o load
+    char* aligned_buffer(){
+        load();
+        return m_aligned_buffer;
+    }
+    const char* aligned_buffer() const {
+        load();
+        return m_aligned_buffer;
+    }
+ */};
 
 template <>
 class OPENVINO_API AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>
