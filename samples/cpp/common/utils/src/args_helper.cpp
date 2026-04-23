@@ -150,7 +150,6 @@ std::map<std::string, std::string> parseArgMap(std::string argMap) {
     return parsedMap;
 }
 
-// using supported_type_t = std::unordered_map<std::string, ov::element::Type>;
 ov::element::Type getType(std::string value, const supported_type_t& supported_precisions) {
     std::transform(value.begin(), value.end(), value.begin(), ::toupper);
 
