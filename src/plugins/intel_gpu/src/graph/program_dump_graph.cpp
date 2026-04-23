@@ -288,7 +288,7 @@ void dump_graph_init(std::ofstream& graph,
             bool doubled = true;
             auto it = user->get_dependencies().begin();
             while (it != user->get_dependencies().end()) {
-                int input_port = it - user->get_dependencies().begin();
+                int input_port = static_cast<int>(it - user->get_dependencies().begin());
                 if (it->first == node && marked_connection.find({node, input_port}) == marked_connection.end()) {
                     marked_connection.emplace(user, input_port);
                     break;

@@ -731,8 +731,8 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
         const size_t q_len = out_shape[0];
 
         const size_t sum_per_n_token_in_block = static_cast<size_t>(rtp->xattn_block_size / STRIDE);
-        const uint32_t q_block = ceil_div(rtp->M, sum_per_n_token_in_block);
-        const uint32_t k_block = ceil_div(rtp->N, sum_per_n_token_in_block);
+        const size_t q_block = static_cast<size_t>(ceil_div(rtp->M, sum_per_n_token_in_block));
+        const size_t k_block = static_cast<size_t>(ceil_div(rtp->N, sum_per_n_token_in_block));
 
         const float xattn_thresh = get_xattn_thresh(params);
 
