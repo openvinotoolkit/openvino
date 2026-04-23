@@ -253,8 +253,7 @@ if(ENABLE_LTO)
                         LANGUAGES C CXX)
 
     if(NOT IPO_SUPPORTED)
-        set(ENABLE_LTO "OFF" CACHE STRING "Enable Link Time Optimization" FORCE)
-        message(WARNING "IPO / LTO is not supported: ${OUTPUT_MESSAGE}")
+        message(FATAL_ERROR "ENABLE_LTO is ON but IPO / LTO is not supported: ${OUTPUT_MESSAGE}")
     endif()
 endif()
 
