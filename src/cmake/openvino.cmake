@@ -116,12 +116,7 @@ ov_add_api_validator_post_build_step(TARGET ${TARGET_NAME} EXTRA ${TBB_IMPORTED_
 # LTO
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-if(BUILD_SHARED_LIBS)
-    ov_register_plugins(MAIN_TARGET ${TARGET_NAME})
-else()
-    # In static builds, plugins should be linked/registered by the final executable
-    # (or handled via a separate "openvino_plugins" static aggregation target).
-endif()
+ov_register_plugins(MAIN_TARGET ${TARGET_NAME})
 
 # Export for build tree
 
