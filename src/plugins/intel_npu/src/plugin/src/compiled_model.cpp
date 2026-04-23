@@ -88,7 +88,8 @@ void CompiledModel::export_model(std::ostream& stream) const {
     std::optional<uint64_t> blobSizeAfterEncryption = std::nullopt;
     std::optional<std::vector<uint64_t>> initBlobSizes;
 
-    if (_propertiesManager->getConfig().get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
+    if (_propertiesManager->getConfig().has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
+        _propertiesManager->getConfig().get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
         std::string encryptedBlobStr;
         {
             std::string tmpBlobStr;

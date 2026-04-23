@@ -25,6 +25,22 @@ constexpr std::vector<T> operator+(const std::vector<T>& vector1, const std::vec
     return result;
 }
 
+std::vector<ov::AnyMap> operator-(const std::vector<ov::AnyMap>& anyMaps, const std::string& propertyName) {
+    std::vector<ov::AnyMap> result;
+    for (const auto& anyMap : anyMaps) {
+        ov::AnyMap anyMapResult;
+        for (const auto& keyValue : anyMap) {
+            if (keyValue.first != propertyName) {
+                anyMapResult.emplace(keyValue);
+            }
+        }
+        if (!anyMapResult.empty()) {
+            result.push_back(anyMapResult);
+        }
+    }
+    return result;
+}
+
 ov::log::Level getTestsLogLevelFromEnvironmentOr(ov::log::Level instead) {
     if (auto var = std::getenv("OV_NPU_LOG_LEVEL")) {
         std::istringstream stringStream = std::istringstream(var);
@@ -35,6 +51,18 @@ ov::log::Level getTestsLogLevelFromEnvironmentOr(ov::log::Level instead) {
         return level;
     }
     return instead;
+}
+
+const std::vector<std::string> anyMapVecToStringVec(const std::vector<ov::AnyMap>& anyMaps) {
+    std::vector<std::string> result;
+    for (const auto& anyMap : anyMaps) {
+        for (const auto& keyValue : anyMap) {
+            if (std::find(result.begin(), result.end(), keyValue.first) == result.end()) {
+                result.push_back(keyValue.first);
+            }
+        }
+    }
+    return result;
 }
 
 const std::vector<ov::AnyMap> compat_CorrectPluginMutableProperties = {
@@ -157,7 +185,9 @@ const std::vector<ov::AnyMap> IncorrectInexistingProperties = {
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
                          OVPropertiesTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(compat_CorrectPluginMutableProperties)),
+                                            ::testing::ValuesIn(compat_CorrectPluginMutableProperties
+                                                                // cannot get WO property, exclude
+                                                                - ov::cache_encryption_callbacks.name())),
                          (ov::test::utils::appendPlatformTypeTestName<OVPropertiesTests>));
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
@@ -200,7 +230,8 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_BehaviorTests_OVCheckSetSupportedRWMetricsPropsTests,
     OVCheckSetSupportedRWMetricsPropsTests,
     ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                       ::testing::ValuesIn(getRWMandatoryPropertiesValues(compat_CorrectPluginMutableProperties))),
+                       ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWMandatoryPropertiesValues(
+                           anyMapVecToStringVec(compat_CorrectPluginMutableProperties)))),
     (ov::test::utils::appendPlatformTypeTestName<OVCheckSetSupportedRWMetricsPropsTests>));
 
 INSTANTIATE_TEST_SUITE_P(

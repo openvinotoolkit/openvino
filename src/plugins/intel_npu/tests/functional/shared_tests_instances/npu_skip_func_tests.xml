@@ -902,4 +902,27 @@ Example:
         </filters>
     </skip_config>
 
+    <skip_config>
+        <message>Not all supported properties can be get from NPU device e.g. write only cache_encryption_callbacks</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <filter>.*OVSpecificDeviceGetConfigTest.GetConfigSpecificDeviceNoThrow.*</filter>
+            <filter>.*OVPropertiesDefaultSupportedTests.CanSetDefaultValueBackToPlugin.*</filter>
+            <filter>.*OVClassCompiledModelPropertiesDefaultTests.CheckDefaultValues.*</filter>
+            <filter>.*OVClassCompiledModelGetConfigTest.GetConfigNoThrow.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>HETERO plugin does get property on all NPU plugin's supported properties if DEVICE_PROPERTIES property is given, but not all of NPU plugin's supported properties are gettable</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <filter>.*OVClassCompiledModelPropertiesTests.canCompileModelWithPropertiesAndCheckGetProperty.*targetDevice=HETERO.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>

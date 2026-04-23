@@ -83,7 +83,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
     const bool bypassCache = !updatedConfig.get<CACHE_DIR>().empty() || updatedConfig.get<BYPASS_UMD_CACHING>();
     // If blob encryption is requested, enable secure compilation in the driver
-    const bool secureCompile = updatedConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr;
+    const bool secureCompile = updatedConfig.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
+                               updatedConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr;
     auto graphDesc = _zeGraphExt->getGraphDescriptor(std::move(serializedIR), buildFlags, bypassCache, secureCompile);
     _logger.debug("compile end");
 

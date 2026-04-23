@@ -21,8 +21,6 @@ std::string modelPriorityToString(const ov::hint::Priority priority);
 
 std::string removeDeviceNameOnlyID(const std::string& device_name_id);
 
-std::vector<ov::AnyMap> getRWMandatoryPropertiesValues(std::vector<ov::AnyMap> props);
-
 std::shared_ptr<ov::Model> createModelWithStates(ov::element::Type type, const ov::Shape& shape);
 
 template <typename C,

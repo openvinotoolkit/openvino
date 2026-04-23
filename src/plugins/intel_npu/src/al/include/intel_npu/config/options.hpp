@@ -1562,10 +1562,6 @@ struct CACHE_ENCRYPTION_CALLBACKS final : OptionBase<CACHE_ENCRYPTION_CALLBACKS,
         return "ov::EncryptionCallbacks";
     }
 
-    static ov::EncryptionCallbacks defaultValue() {
-        return ov::EncryptionCallbacks{nullptr, nullptr};
-    }
-
     static OptionMode mode() {
         return OptionMode::RunTime;
     }
