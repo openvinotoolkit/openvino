@@ -10,7 +10,6 @@
 
 #include "intel_npu/utils/utils.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
-#include "openvino/util/variant_visitor.hpp"
 
 namespace intel_npu {
 
@@ -94,6 +93,18 @@ Metadata<METADATA_VERSION_2_3>::Metadata(uint64_t blobSize,
       _inputLayouts{inputLayouts},
       _outputLayouts{outputLayouts} {
     _version = METADATA_VERSION_2_3;
+}
+
+Metadata<METADATA_VERSION_2_4>::Metadata(uint64_t blobSize,
+                                         const std::optional<OpenvinoVersion>& ovVersion,
+                                         const std::optional<std::vector<uint64_t>>& initSizes,
+                                         const std::optional<int64_t> batchSize,
+                                         const std::optional<std::vector<ov::Layout>>& inputLayouts,
+                                         const std::optional<std::vector<ov::Layout>>& outputLayouts,
+                                         const std::optional<uint32_t> compilerVersion)
+    : Metadata<METADATA_VERSION_2_3>{blobSize, ovVersion, initSizes, batchSize, inputLayouts, outputLayouts},
+      _compilerVersion{compilerVersion} {
+    _version = METADATA_VERSION_2_4;
 }
 
 void MetadataBase::read(std::istream& tensor) {
@@ -208,6 +219,14 @@ void Metadata<METADATA_VERSION_2_3>::read() {
     _outputLayouts = readNLayouts(numberOfOutputLayouts, "Output");
 }
 
+void Metadata<METADATA_VERSION_2_4>::read() {
+    Metadata<METADATA_VERSION_2_3>::read();
+
+    uint32_t compilerVersion;
+    read_data_from_source(reinterpret_cast<char*>(&compilerVersion), sizeof(compilerVersion));
+    _compilerVersion = compilerVersion != 0 ? std::optional(compilerVersion) : std::nullopt;
+}
+
 void Metadata<METADATA_VERSION_2_0>::write(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(&_version), sizeof(_version));
     _ovVersion.write(stream);
@@ -254,6 +273,13 @@ void Metadata<METADATA_VERSION_2_3>::write(std::ostream& stream) {
 
     writeLayouts(_inputLayouts);
     writeLayouts(_outputLayouts);
+}
+
+void Metadata<METADATA_VERSION_2_4>::write(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_3>::write(stream);
+
+    uint32_t compilerVersion = _compilerVersion.value_or(0);
+    stream.write(reinterpret_cast<const char*>(&compilerVersion), sizeof(compilerVersion));
 
     append_padding_blob_size_and_magic(stream);
 }
@@ -280,6 +306,8 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
         return std::make_unique<Metadata<METADATA_VERSION_2_2>>(blobSize);
     case METADATA_VERSION_2_3:
         return std::make_unique<Metadata<METADATA_VERSION_2_3>>(blobSize);
+    case METADATA_VERSION_2_4:
+        return std::make_unique<Metadata<METADATA_VERSION_2_4>>(blobSize);
     default:
         return nullptr;
     }
@@ -399,6 +427,10 @@ std::optional<std::vector<ov::Layout>> MetadataBase::get_output_layouts() const 
     return std::nullopt;
 }
 
+std::optional<uint32_t> MetadataBase::get_compiler_version() const {
+    return std::nullopt;
+}
+
 std::optional<std::vector<uint64_t>> Metadata<METADATA_VERSION_2_1>::get_init_sizes() const {
     return _initSizes;
 }
@@ -413,6 +445,10 @@ std::optional<std::vector<ov::Layout>> Metadata<METADATA_VERSION_2_3>::get_input
 
 std::optional<std::vector<ov::Layout>> Metadata<METADATA_VERSION_2_3>::get_output_layouts() const {
     return _outputLayouts;
+}
+
+std::optional<uint32_t> Metadata<METADATA_VERSION_2_4>::get_compiler_version() const {
+    return _compilerVersion;
 }
 
 size_t Metadata<METADATA_VERSION_2_0>::get_metadata_size() const {
@@ -453,6 +489,10 @@ size_t Metadata<METADATA_VERSION_2_3>::get_metadata_size() const {
     }
 
     return metadataSize;
+}
+
+size_t Metadata<METADATA_VERSION_2_4>::get_metadata_size() const {
+    return Metadata<METADATA_VERSION_2_3>::get_metadata_size() + sizeof(_compilerVersion.value());
 }
 
 }  // namespace intel_npu
