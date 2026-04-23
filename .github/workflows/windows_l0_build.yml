@@ -12,8 +12,8 @@ on:
       - synchronize
       - reopened
       - ready_for_review
-    paths:
-      - 'src/plugins/intel_gpu/**'
+    # paths:
+    #   - 'src/plugins/intel_gpu/**'
 
 concurrency:
   # github.ref is not unique in post-commit
