@@ -42,7 +42,6 @@
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/validate.hpp"
 #include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "transformations/defs.hpp"
@@ -137,11 +136,13 @@ SharedSdpaSet compute_shared_kv_sdpas(const std::shared_ptr<const ov::Model>& mo
     return shared;
 }
 
+}  // namespace
+
 class StatefulSDPAFusionMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("StatefulSDPAFusionMatcher");
 
-    explicit StatefulSDPAFusionMatcher(SharedSdpaSet shared_sdpas) {
+    explicit StatefulSDPAFusionMatcher(const SharedSdpaSet& shared_sdpas) {
         MATCHER_SCOPE(StatefulSDPAFusion);
         using namespace ov::pass::pattern;
 
@@ -258,7 +259,7 @@ public:
             // crashes at runtime with "null input states" in MatchSdpaKvCache.
             // The shared set is precomputed by the StatefulSDPAFusion ModelPass
             // wrapper via a backward data-path BFS — see compute_shared_kv_sdpas.
-            if (shared_sdpas.count(sdp_node.get())) {
+            if (shared_sdpas.find(sdp_node.get()) != shared_sdpas.end()) {
                 return false;
             }
             if (!check_valid_children_type(past_k_node) || !check_valid_children_type(past_v_node)) {
@@ -436,13 +437,11 @@ public:
     }
 };
 
-}  // namespace
-
 bool StatefulSDPAFusion::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_MODEL_SCOPE(StatefulSDPAFusion);
-    auto shared = compute_shared_kv_sdpas(m);
+    const auto shared = compute_shared_kv_sdpas(m);
     ov::pass::Manager manager(get_pass_config(), "StatefulSDPAFusionImpl");
-    manager.register_pass<StatefulSDPAFusionMatcher>(std::move(shared));
+    manager.register_pass<StatefulSDPAFusionMatcher>(shared);
     return manager.run_passes(m);
 }
 
