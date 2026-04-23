@@ -6,6 +6,11 @@
 # Configure Google Protobuf ...
 #------------------------------------------------------------------------------
 
+if(ENABLE_THREAD_SANITIZER AND OV_COMPILER_IS_CLANG)
+    string(REPLACE "-fsanitize=thread" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    string(REPLACE "-ltsan" "" CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
+endif()
+
 set(BUILD_SHARED_LIBS OFF)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))

@@ -10,8 +10,22 @@ endif()
 
 set(_old_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 set(_old_CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+set(_old_CMAKE_EXE_LINKER_FLAGS ${CMAKE_EXE_LINKER_FLAGS})
+set(_old_CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS})
+set(_old_CMAKE_MODULE_LINKER_FLAGS ${CMAKE_MODULE_LINKER_FLAGS})
 set(_old_CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE})
 set(_old_CMAKE_COMPILE_WARNING_AS_ERROR ${CMAKE_COMPILE_WARNING_AS_ERROR})
+
+if(ENABLE_THREAD_SANITIZER)
+    string(REPLACE "-fsanitize=thread" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+    string(REPLACE "-fsanitize=thread" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    string(REPLACE "-fsanitize=thread" "" CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
+    string(REPLACE "-fsanitize=thread" "" CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
+    string(REPLACE "-fsanitize=thread" "" CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS}")
+    string(REPLACE "-ltsan" "" CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
+    string(REPLACE "-ltsan" "" CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
+    string(REPLACE "-ltsan" "" CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS}")
+endif()
 
 find_package(PkgConfig QUIET)
 # see https://cmake.org/cmake/help/latest/command/add_library.html#alias-libraries
@@ -388,15 +402,6 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         endif()
     else()
         add_subdirectory(thirdparty/protobuf EXCLUDE_FROM_ALL)
-        # protobuf fails to build with -fsanitize=thread by clang
-        if(ENABLE_THREAD_SANITIZER AND OV_COMPILER_IS_CLANG)
-            foreach(proto_target protoc libprotobuf libprotobuf-lite)
-                if(TARGET ${proto_target})
-                    target_compile_options(${proto_target} PUBLIC -fno-sanitize=thread)
-                    target_link_options(${proto_target} PUBLIC -fno-sanitize=thread)
-                endif()
-            endforeach()
-        endif()
     endif()
 
     # forward additional variables used in the other places
@@ -633,5 +638,8 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/json/nlohmann_json
 
 set(CMAKE_CXX_FLAGS "${_old_CMAKE_CXX_FLAGS}")
 set(CMAKE_C_FLAGS "${_old_CMAKE_C_FLAGS}")
+set(CMAKE_EXE_LINKER_FLAGS "${_old_CMAKE_EXE_LINKER_FLAGS}")
+set(CMAKE_SHARED_LINKER_FLAGS "${_old_CMAKE_SHARED_LINKER_FLAGS}")
+set(CMAKE_MODULE_LINKER_FLAGS "${_old_CMAKE_MODULE_LINKER_FLAGS}")
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${_old_CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE})
 set(CMAKE_COMPILE_WARNING_AS_ERROR ${_old_CMAKE_COMPILE_WARNING_AS_ERROR})
