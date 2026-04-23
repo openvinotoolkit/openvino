@@ -401,26 +401,26 @@ struct BaseModelConfig {
 struct LLMConfig : public BaseModelConfig {
     bool use_kv_cache = true;
     bool use_inputs_embeds = false;
-    bool internal_position_ids = false; ///< embedding model
+    bool internal_position_ids = false;  ///< embedding model
     bool pre_norm = true;
 };
 
-struct WhisperEncoderConfig : public BaseModelConfig {
+struct WhisperConfig : public BaseModelConfig {
     size_t encoder_layers = 0;
+    size_t decoder_layers = 0;
     size_t num_mel_bins = 80;
     size_t max_source_positions = 1500;
+    size_t max_target_positions = 448;
 
     size_t get_encoder_layers() const {
         return encoder_layers == 0 ? num_layers : encoder_layers;
     }
-};
-
-struct WhisperDecoderConfig : public BaseModelConfig {
-    size_t decoder_layers = 0;
-    size_t max_target_positions = 448;
-
     size_t get_decoder_layers() const {
         return decoder_layers == 0 ? num_layers : decoder_layers;
+    }
+    /// Encoder output sequence length after Conv1D preprocessing (stride=2 on 2*max_source_positions).
+    size_t get_encoder_seq_len() const {
+        return max_source_positions;
     }
 };
 
@@ -446,6 +446,15 @@ public:
     std::shared_ptr<ov::Model> get_model_with_repeated_blocks_and_parameters(
         std::size_t repetitions,
         const std::vector<std::size_t>& block_indices);
+    // Builds a model with N repeated blocks using a 4-op structure
+    // (Add→Relu→Multiply→Relu) where both Relu nodes share the same metadesc.
+    // "Head" blocks additionally expose their interior Relu via a cross-group MatMul.
+    // Because the interior and boundary Relu share the same metadesc, ALL blocks stay
+    // in one repeated-block family regardless of head/non-head status, allowing
+    // isRegularCrossGroupConsumerCase to detect the per-bank connectivity asymmetry.
+    std::shared_ptr<ov::Model> get_model_with_kv_sharing_repeated_blocks(
+        std::size_t repetitions,
+        const std::vector<std::size_t>& head_block_indices);
     std::shared_ptr<ov::Model> get_model_with_multi_output_repeating_blocks(std::size_t repetitions,
                                                                             bool last_block_has_direct_result);
 
@@ -454,8 +463,8 @@ public:
                                                      const std::string& name);
 
     std::shared_ptr<ov::Model> build_llm(const LLMConfig& config);
-    std::shared_ptr<ov::Model> build_whisper_encoder(const WhisperEncoderConfig& config);
-    std::shared_ptr<ov::Model> build_whisper_decoder(const WhisperDecoderConfig& config);
+    std::shared_ptr<ov::Model> build_whisper_encoder(const WhisperConfig& config);
+    std::shared_ptr<ov::Model> build_whisper_decoder(const WhisperConfig& config);
     std::shared_ptr<ov::Model> build_embedding_encoder(const BertConfig& config);
 
     void clear();

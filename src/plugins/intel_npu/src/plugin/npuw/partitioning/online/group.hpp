@@ -11,6 +11,7 @@
 
 #include "graph.hpp"
 #include "openvino/openvino.hpp"
+#include "repeated.hpp"
 #include "utils/utils.hpp"
 
 namespace ov {
@@ -125,6 +126,11 @@ private:
     std::shared_ptr<Repeated> m_repeated = nullptr;
     // For each layer inside group, store it's history of repeated groups
     detail::ReptrackMap m_reptrack;
+
+    // Cache for the MetaInterconnectIO part of metaInterconnect().
+    // Invalidated whenever m_input_layers or m_output_layers change.
+    mutable bool m_mic_io_valid = false;
+    mutable MetaInterconnectIO m_cached_mic_io;
 };
 
 }  // namespace online

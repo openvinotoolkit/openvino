@@ -12,7 +12,6 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
-#include <memory>
 #include <string>
 #include <variant>
 
@@ -21,6 +20,7 @@
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "openvino/util/parallel_read_streambuf.hpp"
 
 namespace ov {
 
@@ -51,7 +51,16 @@ private:
         // Fix the bug caused by pugixml, which may return unexpected results if the locale is different from "C".
         ScopedLocale plocal_C(LC_ALL, "C");
         const auto blob_path = get_blob_file(id);
-        std::ofstream stream(blob_path, std::ios_base::binary);
+
+        if (ov::util::file_exists(blob_path)) {
+            std::filesystem::permissions(blob_path,
+                                         std::filesystem::perms::owner_write,
+                                         std::filesystem::perm_options::add);
+        }
+
+        std::ofstream stream;
+        stream.exceptions(std::ios_base::failbit | std::ios_base::badbit);
+        stream.open(blob_path, std::ios_base::binary);
         writer(stream);
         stream.close();
         std::filesystem::permissions(blob_path,
@@ -62,12 +71,13 @@ private:
         // Fix the bug caused by pugixml, which may return unexpected results if the locale is different from "C".
         ScopedLocale plocal_C(LC_ALL, "C");
         const auto blob_path = get_blob_file(id);
-        if (std::filesystem::exists(blob_path)) {
+        if (ov::util::file_exists(blob_path)) {
             if (enable_mmap) {
                 CompiledBlobVariant compiled_blob{std::in_place_index<0>, ov::read_tensor_data(blob_path)};
                 reader(compiled_blob);
             } else {
-                std::ifstream stream(blob_path, std::ios_base::binary);
+                ov::util::ParallelReadStreamBuf par_buf(blob_path);
+                std::istream stream(&par_buf);
                 CompiledBlobVariant compiled_blob{std::in_place_index<1>, std::ref(stream)};
                 reader(compiled_blob);
             }
@@ -76,8 +86,7 @@ private:
 
     void remove_cache_entry(const std::string& id) override {
         const auto blob_path = get_blob_file(id);
-
-        if (std::filesystem::exists(blob_path)) {
+        if (ov::util::file_exists(blob_path)) {
             std::ignore = std::filesystem::remove(blob_path);
         }
     }

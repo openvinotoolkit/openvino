@@ -97,12 +97,18 @@ void CompiledModel::export_model(std::ostream& stream) const {
                 std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
         }
 
+        std::optional<uint32_t> compilerVersion = std::nullopt;
+        if (_propertiesManager->getConfig().has(ov::intel_npu::compiler_version.name())) {
+            compilerVersion = _propertiesManager->getConfig().get<COMPILER_VERSION>();
+        }
+
         Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning,
                                            CURRENT_OPENVINO_VERSION,
                                            std::move(initBlobSizes),
                                            _batchSize,
                                            std::move(inputLayouts),
-                                           std::move(outputLayouts))
+                                           std::move(outputLayouts),
+                                           compilerVersion)
             .write(stream);
     }
 }
@@ -163,6 +169,13 @@ void CompiledModel::set_property(const ov::AnyMap& properties) {
             _graph->set_workload_type(workloadType);
         }
     }
+
+    if (properties.count(std::string(MODEL_PRIORITY::key())) != 0) {
+        if (_graph != nullptr) {
+            const auto modelPriority = properties.at(ov::hint::model_priority.name()).as<ov::hint::Priority>();
+            _graph->set_model_priority(modelPriority);
+        }
+    }
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
@@ -182,6 +195,12 @@ const std::shared_ptr<IGraph>& CompiledModel::get_graph() const {
 
 const FilteredConfig& CompiledModel::get_config() const {
     return _propertiesManager->getConfig();
+}
+
+void CompiledModel::release_memory() {
+    if (_graph != nullptr) {
+        _graph->evict_memory();
+    }
 }
 
 void CompiledModel::configure_stream_executors() {

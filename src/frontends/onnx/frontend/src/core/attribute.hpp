@@ -6,6 +6,8 @@
 
 #include <onnx/onnx_pb.h>
 
+#include <filesystem>
+
 #include "core/sparse_tensor.hpp"
 #include "core/tensor.hpp"
 #include "openvino/core/except.hpp"
@@ -185,7 +187,7 @@ public:
 
     Attribute() = delete;
     Attribute(const AttributeProto& attribute_proto,
-              const std::string& model_dir,
+              const std::filesystem::path& model_dir,
               detail::MappedMemoryHandles mmap_cache)
         : m_attribute_proto{&attribute_proto},
           m_model_dir{model_dir},
@@ -339,7 +341,7 @@ public:
 
 private:
     const AttributeProto* m_attribute_proto;
-    std::string m_model_dir;
+    std::filesystem::path m_model_dir;
     detail::MappedMemoryHandles m_mmap_cache;
 };
 
