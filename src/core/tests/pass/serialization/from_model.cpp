@@ -10,6 +10,7 @@
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/clamp.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/split.hpp"
@@ -146,6 +147,32 @@ INSTANTIATE_TEST_SUITE_P(IRSerializationFromModel,
                          SerializationFromModelTest,
                          testing::ValuesIn(get_models()),
                          SerializationFromModelTest::getTestCaseName);
+
+// Clamp with inf bounds: verifies that -inf/inf attributes survive XML round-trip
+TEST(IRSerializationFromModel, ClampWithInfBounds) {
+    using namespace ov;
+    auto param = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 4});
+    param->output(0).get_tensor().set_names({"X"});
+    auto clamp = std::make_shared<op::v0::Clamp>(param,
+                                                 -std::numeric_limits<double>::infinity(),
+                                                 std::numeric_limits<double>::infinity());
+    auto res = std::make_shared<op::v0::Result>(clamp);
+    auto expected = std::make_shared<Model>(OutputVector{res}, ParameterVector{param});
+
+    std::string filePrefix = ov::test::utils::generateTestFilePrefix();
+    auto out_xml_path = filePrefix + ".xml";
+    auto out_bin_path = filePrefix + ".bin";
+
+    pass::Serialize(out_xml_path, out_bin_path).run_on_model(expected);
+    auto result = ov::test::readModel(out_xml_path, out_bin_path);
+
+    std::remove(out_xml_path.c_str());
+    std::remove(out_bin_path.c_str());
+
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto cmp = fc.compare(result, expected);
+    EXPECT_TRUE(cmp.valid) << cmp.message;
+}
 }  // namespace
 
 class SerializationFromModelTest_large : public ov::test::TestsCommon, public testing::WithParamInterface<size_t> {

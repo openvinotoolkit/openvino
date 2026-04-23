@@ -65,12 +65,16 @@ bool getParameters(const pugi::xml_node& node, const std::string& name, std::vec
 
 template <class T>
 T stringToType(const std::string& valStr) {
-    T ret{0};
-    std::istringstream ss(valStr);
-    if (!ss.eof()) {
-        ss >> ret;
+    if constexpr (std::is_floating_point_v<T>) {
+        return static_cast<T>(std::stod(valStr));
+    } else {
+        T ret{0};
+        std::istringstream ss(valStr);
+        if (!ss.eof()) {
+            ss >> ret;
+        }
+        return ret;
     }
-    return ret;
 }
 
 bool get_partial_shape_from_attribute(const pugi::xml_node& node, const std::string& name, PartialShape& value) {
