@@ -11,10 +11,11 @@ namespace ov::intel_gpu {
 // Keeps xattention threshold input in fp32 by marking it as precision-sensitive
 // before ConvertPrecision pass. This avoids down-conversion to fp16 which can
 // make thresholding unstable at certain boundary values.
-class KeepXAttentionThresholdPrecision : public ov::pass::ModelPass {
+class KeepXAttentionThresholdPrecision : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("KeepXAttentionThresholdPrecision");
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+    OPENVINO_MATCHER_PASS_RTTI("ov::intel_gpu::KeepXAttentionThresholdPrecision");
+    KeepXAttentionThresholdPrecision();
 };
+
 
 }  // namespace ov::intel_gpu
