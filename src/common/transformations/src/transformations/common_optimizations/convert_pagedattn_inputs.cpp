@@ -154,7 +154,6 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
             OPENVINO_DEBUG("PagedAttn ",
                            pa_op->get_friendly_name(),
                            " doesn't have rtinfo for num_k_heads/k_head_size/num_v_heads/num_v_heads");
-            status = false;
         }
 
         if (m_update_precision_func) {
@@ -166,6 +165,8 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
 
         key_cache->validate_and_infer_types();
         value_cache->validate_and_infer_types();
+        // Propagate updated cache types to PA outputs so consumers see the correct element type
+        pa_op->validate_and_infer_types();
         return status;
     };
 
