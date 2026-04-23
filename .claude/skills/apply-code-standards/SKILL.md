@@ -1,6 +1,6 @@
 ---
 name: apply-code-standards
-description: Detect and fix clang-format, clang-tidy, and copyright header violations in an OpenVINO C++ codebase. Trigger on: code style/formatting complaints, "cleanup changes", "fix linting", "copyright header missing/wrong", "style check failing", "linting CI failure". DO NOT trigger for build errors, compilation failures, linker errors, test failures, runtime crashes, accuracy issues, or CMake config problems.
+description: Detect and fix clang-format, clang-tidy, and copyright header violations in an OpenVINO C++ codebase. Use when the user complains about code style or formatting, asks to clean up changes, fix linting, add a copyright header, or when a style check or linting CI job is failing. Do not use for build errors, compilation failures, linker errors, test failures, runtime crashes, accuracy issues, or CMake config problems.
 ---
 
 # Apply Code Standards
