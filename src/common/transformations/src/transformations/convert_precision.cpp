@@ -1093,6 +1093,11 @@ bool extend_reverse_type(const std::shared_ptr<ov::Node>& node, const precisions
 
 template <typename src_type, typename dst_type>
 inline dst_type convert_value(src_type val) {
+    // Destination types that support infinity (float, double, f16, bf16) must
+    // preserve IEEE special values. Clamping is only correct for integer destinations.
+    if constexpr (std::numeric_limits<dst_type>::has_infinity) {
+        return static_cast<dst_type>(val);
+    }
     if (val > std::numeric_limits<dst_type>::max()) {
         return std::numeric_limits<dst_type>::max();
     } else if (val < std::numeric_limits<dst_type>::lowest()) {
@@ -1176,7 +1181,7 @@ std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::bf16, ov::e
     if (dst_data == nullptr)
         OPENVINO_THROW("Can't get destination data pointer");
 
-    ov::reference::convert_from_bf16_to_f16_with_clamp(src_data, dst_data, size);
+    ov::reference::convert<src_type, dst_type>(src_data, dst_data, size);
 
     return new_constant;
 }
