@@ -407,3 +407,301 @@ TEST_F(TransformationTestsF, StateConcatSDPAMixedSharedAndExclusive) {
     manager.register_pass<SDPASubgraphFusion>();
 }
 
+// Two SDPAs with independent KV-cache Variables, plus a ShapeOf-rooted subgraph
+// hanging off layer-0's Gather output that fans out into both SDPAs'
+// attention-mask input. Mirrors the fan-out pattern observed in Qwen3-0.6B etc.,
+// where ShapeOf of layer 0's cache-after-beam-gather feeds the global
+// positional-ID / RoPE / attention-mask chain shared by every decoder layer.
+// Expectation: StatefulSDPAFusion MUST fuse both SDPAs — the shape/metadata
+// branch rooted at ShapeOf does not imply a shared KV-cache.
+static std::shared_ptr<ov::Model>
+makeNonSharedKVWithSharedShapeOfRopeModel(const ov::PartialShape& inputShape) {
+    auto make_param = [&](element::Type t, const ov::PartialShape& s) {
+        return std::make_shared<ov::op::v0::Parameter>(t, s);
+    };
+    auto beam_idx = make_param(element::i32, ov::PartialShape{-1});
+
+    // Layer 0
+    auto q0 = make_param(element::f32, inputShape);
+    auto k0 = make_param(element::f32, inputShape);
+    auto v0 = make_param(element::f32, inputShape);
+    auto init_k0 = make_param(element::f32, inputShape);
+    auto init_v0 = make_param(element::f32, inputShape);
+    auto var_k0 = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{inputShape, element::f32, "pastk_0"});
+    auto var_v0 = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{inputShape, element::f32, "pastv_0"});
+    auto rv_k0 = std::make_shared<ov::op::v6::ReadValue>(init_k0, var_k0);
+    auto rv_v0 = std::make_shared<ov::op::v6::ReadValue>(init_v0, var_v0);
+    auto g_k0 =
+        std::make_shared<ov::op::v8::Gather>(rv_k0, beam_idx, op::v0::Constant::create(element::i32, {1}, {0}));
+    auto g_v0 =
+        std::make_shared<ov::op::v8::Gather>(rv_v0, beam_idx, op::v0::Constant::create(element::i32, {1}, {0}));
+    auto c_k0 = std::make_shared<ov::op::v0::Concat>(OutputVector{g_k0, k0}, 2);
+    auto c_v0 = std::make_shared<ov::op::v0::Concat>(OutputVector{g_v0, v0}, 2);
+
+    // Shared shape/metadata subgraph rooted on layer 0's Gather output.
+    // With the data-path allowlist BFS, ShapeOf halts traversal without counting,
+    // so layer 0 cannot "see" layer 1's SDPA through this path.
+    auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(g_k0, element::i64);
+    auto seq_len = std::make_shared<ov::op::v8::Gather>(shape_of,
+                                                       op::v0::Constant::create(element::i64, {1}, {2}),
+                                                       op::v0::Constant::create(element::i64, {}, {0}));
+    auto pos_shape = std::make_shared<ov::op::v0::Concat>(
+        OutputVector{op::v0::Constant::create(element::i64, {1}, {1}),
+                     op::v0::Constant::create(element::i64, {1}, {1}),
+                     op::v0::Constant::create(element::i64, {1}, {1}),
+                     seq_len},
+        0);
+    // Non-zero constant to prevent NopElimination from collapsing the downstream
+    // Add nodes into identities (which would erase the shared fanout entirely).
+    auto pos_const = op::v0::Constant::create(element::f32, {1, 1, 1, 1}, {0.7f});
+    auto pos_bcast = std::make_shared<ov::op::v3::Broadcast>(pos_const, pos_shape);
+
+    auto mask0_param = make_param(element::f32, ov::PartialShape{-1, 8, -1, -1});
+    auto mask1_param = make_param(element::f32, ov::PartialShape{-1, 8, -1, -1});
+    auto mask0 = std::make_shared<op::v1::Add>(mask0_param, pos_bcast);
+    auto mask1 = std::make_shared<op::v1::Add>(mask1_param, pos_bcast);
+
+    auto sdp0 = std::make_shared<ov::opset13::ScaledDotProductAttention>(q0, c_k0, c_v0, mask0, false);
+    auto add0 = std::make_shared<op::v1::Add>(sdp0, op::v0::Constant::create(element::f32, {1}, {1.0f}));
+    auto assign_k0 = std::make_shared<op::v6::Assign>(c_k0, var_k0);
+    auto assign_v0 = std::make_shared<op::v6::Assign>(c_v0, var_v0);
+
+    // Layer 1 — independent Variables, no cache sharing with layer 0
+    auto q1 = make_param(element::f32, inputShape);
+    auto k1 = make_param(element::f32, inputShape);
+    auto v1 = make_param(element::f32, inputShape);
+    auto init_k1 = make_param(element::f32, inputShape);
+    auto init_v1 = make_param(element::f32, inputShape);
+    auto var_k1 = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{inputShape, element::f32, "pastk_1"});
+    auto var_v1 = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{inputShape, element::f32, "pastv_1"});
+    auto rv_k1 = std::make_shared<ov::op::v6::ReadValue>(init_k1, var_k1);
+    auto rv_v1 = std::make_shared<ov::op::v6::ReadValue>(init_v1, var_v1);
+    auto g_k1 =
+        std::make_shared<ov::op::v8::Gather>(rv_k1, beam_idx, op::v0::Constant::create(element::i32, {1}, {0}));
+    auto g_v1 =
+        std::make_shared<ov::op::v8::Gather>(rv_v1, beam_idx, op::v0::Constant::create(element::i32, {1}, {0}));
+    auto c_k1 = std::make_shared<ov::op::v0::Concat>(OutputVector{g_k1, k1}, 2);
+    auto c_v1 = std::make_shared<ov::op::v0::Concat>(OutputVector{g_v1, v1}, 2);
+
+    auto sdp1 = std::make_shared<ov::opset13::ScaledDotProductAttention>(q1, c_k1, c_v1, mask1, false);
+    auto add1 = std::make_shared<op::v1::Add>(sdp1, op::v0::Constant::create(element::f32, {1}, {1.0f}));
+    auto assign_k1 = std::make_shared<op::v6::Assign>(c_k1, var_k1);
+    auto assign_v1 = std::make_shared<op::v6::Assign>(c_v1, var_v1);
+
+    ResultVector results{std::make_shared<ov::op::v0::Result>(add0), std::make_shared<ov::op::v0::Result>(add1)};
+    SinkVector sinks{assign_k0, assign_v0, assign_k1, assign_v1};
+    ParameterVector params{q0,    k0, v0,          init_k0, init_v0, mask0_param, q1, k1,
+                           v1,    init_k1, init_v1, mask1_param, beam_idx};
+    return std::make_shared<Model>(results, sinks, params, "NonSharedKVWithSharedShapeOfRope");
+}
+
+TEST(StateConcatSDPAExtra, NonSharedKVWithSharedShapeOfRope) {
+#if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
+    GTEST_SKIP() << "Skipping NonSharedKVWithSharedShapeOfRope on Android X64";
+#endif
+    auto inputShape = ov::PartialShape{-1, 8, -1, 64};
+    auto model = makeNonSharedKVWithSharedShapeOfRopeModel(inputShape);
+
+    ov::pass::Manager manager;
+    manager.register_pass<SDPASubgraphFusion>();
+    manager.run_passes(model);
+
+    size_t plain_sdpa = 0;
+    size_t fused_sdpa = 0;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(op)) {
+            ++plain_sdpa;
+        }
+        if (ov::is_type<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(op)) {
+            ++fused_sdpa;
+        }
+    }
+    EXPECT_EQ(plain_sdpa, 0u)
+        << "Both SDPAs must be fused despite a shared ShapeOf-rooted fanout into attention-mask inputs.";
+    EXPECT_EQ(fused_sdpa, 2u) << "Both SDPAs must be fused into ScaledDotProductAttentionWithKVCache.";
+}
+
+// Single (RV, SDPA) pair where the K-Concat has a ShapeOf consumer that
+// reads Concat_K's shape into a standalone output (separate from the SDPA's
+// own inputs). Mirrors Gemma3n layer 0's topology: ShapeOf(Concat_K) seeds
+// the global positional-ID / attention-mask chain shared across *other*
+// layers — not this SDPA's own mask. Fusion must apply, and the ShapeOf
+// consumer must be re-routed off the dead Concat so that the ReadValue's
+// MemoryInput post-fusion only has {fused SDPA, ShapeOf} children. Without
+// the re-route the ShapeOf keeps Concat_K (and therefore Gather, and
+// therefore a Gather child on the MemoryInput) alive — MatchSdpaKvCache
+// would reject and the fused kernel would crash with "null input states"
+// at execute time.
+static std::shared_ptr<ov::Model>
+makeSingleSDPAWithShapeOfOnConcatKModel(const ov::PartialShape& inputShape) {
+    auto q = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto k = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto v = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto init_k = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto init_v = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto beam_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, ov::PartialShape{-1});
+
+    auto var_k = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{inputShape, element::f32, "pastk"});
+    auto var_v = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{inputShape, element::f32, "pastv"});
+    auto past_k = std::make_shared<ov::op::v6::ReadValue>(init_k, var_k);
+    auto past_v = std::make_shared<ov::op::v6::ReadValue>(init_v, var_v);
+
+    auto gather_k =
+        std::make_shared<ov::op::v8::Gather>(past_k, beam_idx, op::v0::Constant::create(element::i32, {1}, {0}));
+    auto gather_v =
+        std::make_shared<ov::op::v8::Gather>(past_v, beam_idx, op::v0::Constant::create(element::i32, {1}, {0}));
+    auto concat_k = std::make_shared<ov::op::v0::Concat>(OutputVector{gather_k, k}, 2);
+    auto concat_v = std::make_shared<ov::op::v0::Concat>(OutputVector{gather_v, v}, 2);
+
+    // Case-3 third child of Concat_K: ShapeOf feeding an independent Result
+    // (does NOT feed back into this SDPA's inputs — that would close a
+    // cycle after the matcher re-routes the ShapeOf to the fused node's
+    // K-output, which is the correct behavior in any case since the fused
+    // kernel manages the post-cache shape internally).
+    auto shape_of_ck = std::make_shared<ov::op::v3::ShapeOf>(concat_k, element::i64);
+
+    auto sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(q, concat_k, concat_v, false);
+
+    auto assign_k = std::make_shared<op::v6::Assign>(concat_k, var_k);
+    auto assign_v = std::make_shared<op::v6::Assign>(concat_v, var_v);
+
+    ResultVector results{std::make_shared<ov::op::v0::Result>(sdp),
+                         std::make_shared<ov::op::v0::Result>(shape_of_ck)};
+    SinkVector sinks{assign_k, assign_v};
+    return std::make_shared<Model>(results, sinks,
+                                   ParameterVector{q, k, v, init_k, init_v, beam_idx},
+                                   "SingleSDPAWithShapeOfOnConcatK");
+}
+
+TEST(StateConcatSDPAExtra, ShapeOfOnConcatKRerouteSucceeds) {
+#if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
+    GTEST_SKIP() << "Skipping ShapeOfOnConcatKRerouteSucceeds on Android X64";
+#endif
+    auto inputShape = ov::PartialShape{-1, 8, -1, 64};
+    auto model = makeSingleSDPAWithShapeOfOnConcatKModel(inputShape);
+
+    ov::pass::Manager manager;
+    manager.register_pass<StatefulSDPAFusion>();
+    manager.run_passes(model);
+
+    size_t plain_sdpa = 0;
+    size_t fused_sdpa = 0;
+    std::shared_ptr<ov::Node> fused_node;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(op)) {
+            ++plain_sdpa;
+        }
+        if (ov::is_type<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(op)) {
+            ++fused_sdpa;
+            fused_node = op;
+        }
+    }
+    EXPECT_EQ(plain_sdpa, 0u);
+    EXPECT_EQ(fused_sdpa, 1u);
+    ASSERT_NE(fused_node, nullptr);
+
+    // Every ShapeOf in the model must read from the fused node, not from
+    // the old Concat (which is now dead). This guarantees MatchSdpaKvCache
+    // sees no stray Gather child on the MemoryInput at graph-optimizer time.
+    for (const auto& op : model->get_ordered_ops()) {
+        if (ov::is_type_any_of<ov::op::v0::ShapeOf, ov::op::v3::ShapeOf>(op.get())) {
+            const auto parent = op->get_input_node_shared_ptr(0);
+            EXPECT_FALSE(ov::is_type<ov::op::v0::Concat>(parent))
+                << "ShapeOf " << op->get_friendly_name()
+                << " still reads from Concat " << parent->get_friendly_name()
+                << " — ShapeOf(Concat) re-route to the fused node's K/V output did not happen.";
+        }
+    }
+}
+
+// Positive test modelled after Gemma3n's shared-KV topology: one ReadValue
+// fans out to two Gathers, each feeding its own Concat → multi-query
+// broadcast (Unsqueeze/Broadcast/Reshape) → SDPA. Both SDPAs share the same
+// K-Variable and V-Variable ReadValue. Under the data-path backward BFS in
+// compute_shared_kv_sdpas, both SDPAs' K-input walks converge on the shared
+// ReadValue (through their respective Gathers), so both SDPAs are marked
+// shared and the fusion must be refused for both — otherwise
+// ScaledDotProductAttentionWithKVCache would crash at runtime with "null
+// input states".
+static std::shared_ptr<ov::Model>
+makeGemma3nLikeSharedKVModel(const ov::PartialShape& inputShape) {
+    auto q1 = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto k1 = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto v1 = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto q2 = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto k2 = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto v2 = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto init_k = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto init_v = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto beam_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, ov::PartialShape{-1});
+
+    auto var_k = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{inputShape, element::f32, "shared_pastk"});
+    auto var_v = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{inputShape, element::f32, "shared_pastv"});
+    auto past_k = std::make_shared<ov::op::v6::ReadValue>(init_k, var_k);
+    auto past_v = std::make_shared<ov::op::v6::ReadValue>(init_v, var_v);
+
+    auto build_branch = [&](const std::shared_ptr<ov::op::v0::Parameter>& q,
+                            const std::shared_ptr<ov::op::v0::Parameter>& k_cur,
+                            const std::shared_ptr<ov::op::v0::Parameter>& v_cur) {
+        auto g_k = std::make_shared<ov::op::v8::Gather>(past_k, beam_idx,
+                                                        op::v0::Constant::create(element::i32, {1}, {0}));
+        auto g_v = std::make_shared<ov::op::v8::Gather>(past_v, beam_idx,
+                                                        op::v0::Constant::create(element::i32, {1}, {0}));
+        auto c_k = std::make_shared<ov::op::v0::Concat>(OutputVector{g_k, k_cur}, 2);
+        auto c_v = std::make_shared<ov::op::v0::Concat>(OutputVector{g_v, v_cur}, 2);
+        auto sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(q, c_k, c_v, false);
+        return sdp;
+    };
+
+    auto sdpa1 = build_branch(q1, k1, v1);
+    auto sdpa2 = build_branch(q2, k2, v2);
+
+    // One Assign pair writes back to the shared Variables (from branch 1).
+    auto assign_k =
+        std::make_shared<op::v6::Assign>(sdpa1->get_input_node_shared_ptr(1), var_k);
+    auto assign_v =
+        std::make_shared<op::v6::Assign>(sdpa1->get_input_node_shared_ptr(2), var_v);
+
+    ResultVector results{std::make_shared<ov::op::v0::Result>(sdpa1),
+                         std::make_shared<ov::op::v0::Result>(sdpa2)};
+    SinkVector sinks{assign_k, assign_v};
+    return std::make_shared<Model>(results, sinks,
+                                   ParameterVector{q1, k1, v1, q2, k2, v2, init_k, init_v, beam_idx},
+                                   "Gemma3nLikeSharedKV");
+}
+
+TEST(StateConcatSDPAExtra, Gemma3nLikeSharedKVDetectedByBackwardBFS) {
+#if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
+    GTEST_SKIP() << "Skipping Gemma3nLikeSharedKVDetectedByBackwardBFS on Android X64";
+#endif
+    auto inputShape = ov::PartialShape{-1, 8, -1, 64};
+    auto model = makeGemma3nLikeSharedKVModel(inputShape);
+
+    ov::pass::Manager manager;
+    manager.register_pass<StatefulSDPAFusion>();
+    manager.run_passes(model);
+
+    size_t plain_sdpa = 0;
+    size_t fused_sdpa = 0;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(op)) {
+            ++plain_sdpa;
+        }
+        if (ov::is_type<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(op)) {
+            ++fused_sdpa;
+        }
+    }
+    EXPECT_EQ(plain_sdpa, 2u)
+        << "Both SDPAs share the same ReadValue (K and V) via backward data-path reachability — "
+           "fusion must be refused for both.";
+    EXPECT_EQ(fused_sdpa, 0u) << "No SDPA may fuse when the KV-cache is shared.";
+}
+

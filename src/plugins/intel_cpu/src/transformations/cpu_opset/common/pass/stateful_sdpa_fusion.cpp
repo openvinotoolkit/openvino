@@ -9,8 +9,10 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <memory>
 #include <tuple>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -28,10 +30,14 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/validate.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
@@ -52,281 +58,393 @@ using namespace ov::pass;
 
 namespace ov::intel_cpu {
 
-StatefulSDPAFusion::StatefulSDPAFusion() {
-    MATCHER_SCOPE(StatefulSDPAFusion);
-    using namespace ov::pass::pattern;
+namespace {
 
-    auto beam_idx = any_input(type_matches(element::i32) && shape_matches("[?]"));
-    auto cur_q = any_input();
-    auto cur_k = any_input();
-    auto cur_v = any_input();
-    auto atten_sink = any_input();
+using SharedSdpaSet = std::unordered_set<const ov::Node*>;
 
-    auto past_k = wrap_type<ov::op::v6::ReadValue>();
-    auto past_v = wrap_type<ov::op::v6::ReadValue>();
+// Build the set of v13::SDPA nodes whose KV-cache is shared with another SDPA
+// in the same model.
+//
+// For each v13::ScaledDotProductAttention we walk backward from its K-input
+// (port 1) and V-input (port 2) along data (floating-point) edges only,
+// halting at the boundary ops below. ReadValue nodes encountered on the way
+// are recorded as "source" RVs for that SDPA. After all SDPAs are visited we
+// invert the mapping: if any RV is the source for ≥ 2 SDPAs, every SDPA
+// reading that RV (transitively, via the data path captured here) is shared.
+//
+// Halt boundaries (do not recurse through their inputs):
+//   - ReadValue: target — record as source and stop.
+//   - MatMul:    k_proj / v_proj boundary; the activation residual stream
+//                lives upstream and connects every layer.
+//   - v13::SDPA: prevents re-entering previous layers' attention output
+//                via residual connections.
+//   - Parameter / Constant: DAG leaves.
+//
+// Edge filter: only floating-point input ports are followed. i32 / i64
+// shape / indices / axes / order edges (and the int8 weight Convert chain)
+// are skipped, which structurally excludes the ShapeOf-rooted positional-ID
+// / RoPE fanout that caused CVS-185220 with the original forward BFS.
+SharedSdpaSet compute_shared_kv_sdpas(const std::shared_ptr<const ov::Model>& model) {
+    std::unordered_map<const ov::op::v6::ReadValue*, std::unordered_set<const ov::Node*>>
+        rv_to_sdpas;
 
-    auto convert_past_k = wrap_type<ov::op::v0::Convert>({past_k});
-    auto convert_past_v = wrap_type<ov::op::v0::Convert>({past_v});
-
-    auto gather_input_k =
-        wrap_type<ov::op::v8::Gather>({past_k | convert_past_k, beam_idx, "axis_beam"}, {{"batch_dims", 0}});
-    auto gather_input_v =
-        wrap_type<ov::op::v8::Gather>({past_v | convert_past_v, beam_idx, "axis_beam"}, {{"batch_dims", 0}});
-
-    auto concat_k = wrap_type<ov::op::v0::Concat>({gather_input_k, cur_k});
-    auto concat_v = wrap_type<ov::op::v0::Concat>({gather_input_v, cur_v});
-
-    std::shared_ptr<Node> mq_reshape_k, reshape_k, unsqueeze_k, computed_bcst_k, multiply_k, computed_bcst3_k;
-    std::tie(mq_reshape_k, reshape_k, unsqueeze_k, computed_bcst_k, multiply_k, computed_bcst3_k) =
-        ov::op::util::match_multi_query_bcst(concat_k);
-    std::shared_ptr<Node> mq_reshape_v, reshape_v, unsqueeze_v, computed_bcst_v, multiply_v, computed_bcst3_v;
-    std::tie(mq_reshape_v, reshape_v, unsqueeze_v, computed_bcst_v, multiply_v, computed_bcst3_v) =
-        ov::op::util::match_multi_query_bcst(concat_v);
-    auto present_k = concat_k | mq_reshape_k;
-    auto present_v = concat_v | mq_reshape_v;
-
-    // canonical q/k/v shape definition: [B,H,...L,S]
-    auto sdp0 = wrap_type<ov::op::v13::ScaledDotProductAttention>({cur_q, present_k, present_v});
-    auto sdp1 = wrap_type<ov::op::v13::ScaledDotProductAttention>({cur_q, present_k, present_v, any_input()});
-    auto sdp2 =
-        wrap_type<ov::op::v13::ScaledDotProductAttention>({cur_q, present_k, present_v, any_input(), any_input()});
-    // gpt-oss
-    auto sdp3 = wrap_type<ov::op::v13::ScaledDotProductAttention>(
-        {cur_q, present_k, present_v, any_input(), any_input(), atten_sink});
-
-    // non-canonical q/k/v shape definitions, for example: [L, B, H, S]/[B, L, H, S]
-    auto order_k = wrap_type<ov::op::v0::Constant>();
-    auto order_v = wrap_type<ov::op::v0::Constant>();
-    auto order_q = wrap_type<ov::op::v0::Constant>();
-    auto transpose_q = wrap_type<ov::op::v1::Transpose>({cur_q, order_q});
-    auto transpose_k = wrap_type<ov::op::v1::Transpose>({present_k, order_k});
-    auto transpose_v = wrap_type<ov::op::v1::Transpose>({present_v, order_v});
-
-    auto sdp_trans0 = wrap_type<ov::op::v13::ScaledDotProductAttention>({transpose_q, transpose_k, transpose_v});
-    auto sdp_trans1 =
-        wrap_type<ov::op::v13::ScaledDotProductAttention>({transpose_q, transpose_k, transpose_v, any_input()});
-    auto sdp_trans2 = wrap_type<ov::op::v13::ScaledDotProductAttention>(
-        {transpose_q, transpose_k, transpose_v, any_input(), any_input()});
-    // gpt-oss
-    auto sdp_trans3 = wrap_type<ov::op::v13::ScaledDotProductAttention>(
-        {transpose_q, transpose_k, transpose_v, any_input(), any_input(), atten_sink});
-
-    auto sdp = sdp0 | sdp1 | sdp2 | sdp3 | sdp_trans0 | sdp_trans1 | sdp_trans2 | sdp_trans3;
-
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-        auto root = m.get_match_root();
-
-        // Check concat axes equality first
-        const auto concat_k_node = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_k).get_node_shared_ptr());
-        const auto concat_v_node = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_v).get_node_shared_ptr());
-        if (concat_k_node->get_axis() != concat_v_node->get_axis()) {
-            return false;
+    auto walk_backward = [&](const ov::Node* sdpa, size_t input_idx) {
+        if (input_idx >= sdpa->get_input_size()) {
+            return;
         }
-
-        auto find_assign =
-            [&](const ov::Output<ov::Node>& out, ov::op::v6::Assign*& assign, ov::op::v0::Convert*& cvt) {
-                auto present_to = out.get_target_inputs();
-                for (const auto& to : present_to) {
-                    auto* to_node = to.get_node();
-                    if (auto* convert = ov::as_type<ov::op::v0::Convert>(to_node)) {
-                        auto cvt_targets = convert->get_output_target_inputs(0);
-                        if (cvt_targets.size() == 1) {
-                            to_node = cvt_targets.begin()->get_node();
-                            cvt = convert;
-                        }
-                    }
-                    assign = ov::as_type<ov::op::v6::Assign>(to_node);
-                    if (assign) {
-                        return true;
-                    }
+        std::unordered_set<const ov::Node*> visited;
+        std::deque<const ov::Node*> queue;
+        const auto* start = sdpa->get_input_node_ptr(input_idx);
+        visited.insert(start);
+        queue.push_back(start);
+        while (!queue.empty()) {
+            const auto* n = queue.front();
+            queue.pop_front();
+            if (const auto* rv = ov::as_type<const ov::op::v6::ReadValue>(n)) {
+                rv_to_sdpas[rv].insert(sdpa);
+                continue;
+            }
+            if (ov::is_type_any_of<ov::op::v0::MatMul,
+                                   ov::op::v13::ScaledDotProductAttention,
+                                   ov::op::v0::Parameter,
+                                   ov::op::v0::Constant>(n)) {
+                continue;
+            }
+            for (size_t i = 0; i < n->get_input_size(); ++i) {
+                if (!n->get_input_element_type(i).is_real()) {
+                    continue;
                 }
-                return false;
-            };
-        auto check_valid_children_type = [](const ov::Output<ov::Node>& out) {
-            auto children = out.get_target_inputs();
-            return std::all_of(children.begin(), children.end(), [](const ov::Input<ov::Node>& child) {
-                auto* node = child.get_node();
-                return any_of(node->get_type_info(),
-                              ov::op::v13::ScaledDotProductAttention::get_type_info_static(),
-                              ov::op::v0::ShapeOf::get_type_info_static(),
-                              ov::op::v3::ShapeOf::get_type_info_static(),
-                              ov::op::v0::Convert::get_type_info_static(),
-                              ov::op::v8::Gather::get_type_info_static());
-            });
-        };
-
-        const auto sdp_node = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(root);
-        const auto past_k_node = ov::as_type_ptr<ov::op::v6::ReadValue>(pattern_map.at(past_k).get_node_shared_ptr());
-        const auto past_v_node = ov::as_type_ptr<ov::op::v6::ReadValue>(pattern_map.at(past_v).get_node_shared_ptr());
-        // Skip SDPAs whose KV-cache Variable is shared with another SDPA: the fused
-        // ScaledDotProductAttentionWithKVCache kernel does not support shared KV-cache and
-        // partial fusion leaves the model in an inconsistent state.
-        // Walk forward from past_k / past_v, stopping at SDPA boundaries, and count
-        // how many SDPAs are reachable. Anchoring on the ReadValue (rather than on
-        // direct input node pointers) is robust to intermediate Transpose/Reshape/
-        // Convert/Gather/Broadcast ops between the cache source and the SDPA blocks.
-        auto count_reachable_sdpas = [](ov::Node* start) {
-            size_t cnt = 0;
-            std::unordered_set<ov::Node*> visited;
-            ov::op::util::visit_path_forward(
-                start,
-                visited,
-                [](ov::Node*) {},
-                [&](ov::Node* n) {
-                    if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(n)) {
-                        ++cnt;
-                        return true;
-                    }
-                    return false;
-                });
-            return cnt;
-        };
-        if (count_reachable_sdpas(past_k_node.get()) > 1 || count_reachable_sdpas(past_v_node.get()) > 1) {
-            return false;
-        }
-        if (!check_valid_children_type(past_k_node) || !check_valid_children_type(past_v_node)) {
-            return false;
-        }
-        for (auto&& item : {concat_k_node, concat_v_node}) {
-            auto&& children = item->get_output_target_inputs(0);
-            switch (children.size()) {
-            case 2:
-                // pass, as the existence of Assign will be checked later
-                break;
-            case 3:
-                // the first one leads to SDPA, otherwise the matcher doesn't find the pattern
-                // the second one leads to Assign, and this is checked later
-                // the third child is allowed to be a ShapeOf op only, thus one of them must be ShapeOf
-                if (!std::any_of(children.begin(), children.end(), [](const ov::Input<ov::Node>& child) {
-                        return ov::is_type_any_of<ov::op::v3::ShapeOf, ov::op::v0::ShapeOf>(child.get_node());
-                    })) {
-                    return false;
+                const auto* src = n->get_input_node_ptr(i);
+                if (visited.insert(src).second) {
+                    queue.push_back(src);
                 }
-                break;
-            default:
-                return false;
             }
         }
-
-        ov::op::v6::Assign* assign_k_node = nullptr;
-        ov::op::v6::Assign* assign_v_node = nullptr;
-        ov::op::v0::Convert* assign_cvt_k_node = nullptr;
-        ov::op::v0::Convert* assign_cvt_v_node = nullptr;
-        if (!find_assign(concat_k_node, assign_k_node, assign_cvt_k_node)) {
-            return false;
-        }
-        if (past_k_node->get_variable_id() != assign_k_node->get_variable_id()) {
-            return false;
-        }
-
-        if (!find_assign(concat_v_node, assign_v_node, assign_cvt_v_node)) {
-            return false;
-        }
-        if (past_v_node->get_variable_id() != assign_v_node->get_variable_id()) {
-            return false;
-        }
-
-        auto is_optional_one_child = [&pattern_map](const std::vector<std::shared_ptr<Node>>& nodes) {
-            return std::all_of(nodes.begin(), nodes.end(), [&](const std::shared_ptr<Node>& node) {
-                if (pattern_map.count(node)) {
-                    auto p = pattern_map.at(node).get_node_shared_ptr();
-                    return p->get_output_target_inputs(0).size() == 1;
-                }
-                return true;
-            });
-        };
-        if (!is_optional_one_child({convert_past_k,
-                                    convert_past_v,
-                                    transpose_q,
-                                    transpose_k,
-                                    transpose_v,
-                                    reshape_k,
-                                    unsqueeze_k,
-                                    computed_bcst_k,
-                                    multiply_k,
-                                    reshape_v,
-                                    unsqueeze_v,
-                                    computed_bcst_v,
-                                    multiply_v,
-                                    mq_reshape_k,
-                                    mq_reshape_v,
-                                    computed_bcst3_k,
-                                    computed_bcst3_v})) {
-            return false;
-        }
-
-        // past_k & past_v must be reordered by same beam_idx
-        const auto gather_k_node =
-            ov::as_type_ptr<ov::op::v8::Gather>(pattern_map.at(gather_input_k).get_node_shared_ptr());
-        const auto gather_v_node =
-            ov::as_type_ptr<ov::op::v8::Gather>(pattern_map.at(gather_input_v).get_node_shared_ptr());
-        if (gather_k_node->input_value(1) != gather_v_node->input_value(1) ||
-            gather_k_node->get_output_target_inputs(0).size() != 1 ||
-            gather_v_node->get_output_target_inputs(0).size() != 1) {
-            return false;
-        }
-
-        OutputVector args = sdp_node->input_values();
-        args[0] = pattern_map.at(cur_q);
-        args[1] = pattern_map.at(cur_k);
-        args[2] = pattern_map.at(cur_v);
-        args.push_back(pattern_map.at(beam_idx));
-        args.push_back(gather_k_node->input_value(0));
-        args.push_back(gather_v_node->input_value(0));
-        ov::intel_cpu::ScaledDotProductAttentionWithKVCache::Config config;
-
-        config.is_causal = sdp_node->get_causal();
-        config.fuse_concat = true;
-
-        if (pattern_map.count(order_q) && pattern_map.count(order_k) && pattern_map.count(order_v)) {
-            const auto order_q_node =
-                ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(order_q).get_node_shared_ptr());
-            const auto order_k_node =
-                ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(order_k).get_node_shared_ptr());
-            const auto order_v_node =
-                ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(order_v).get_node_shared_ptr());
-            const auto& permute_q = order_q_node->cast_vector<int32_t>();
-            const auto& permute_k = order_k_node->cast_vector<int32_t>();
-            const auto& permute_v = order_v_node->cast_vector<int32_t>();
-            if (permute_q != permute_k || permute_q != permute_v) {
-                return false;
-            }
-            config.permute_axes.resize(permute_q.size());
-            for (size_t i = 0; i < permute_q.size(); i++) {
-                config.permute_axes[i] = static_cast<size_t>(permute_q[i]);
-            }
-        }
-
-        const auto& old_node = sdp_node;
-        auto new_node = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(args, config);
-        new_node->set_friendly_name(old_node->get_friendly_name());
-        copy_runtime_info(old_node, new_node);
-        ov::replace_node(old_node, {new_node->output(0)});
-        if (assign_cvt_k_node) {
-            assign_cvt_k_node->set_arguments({new_node->output(1)});
-        } else {
-            assign_k_node->set_arguments({new_node->output(1)});
-        }
-
-        if (assign_cvt_v_node) {
-            assign_cvt_v_node->set_arguments({new_node->output(2)});
-        } else {
-            assign_v_node->set_arguments({new_node->output(2)});
-        }
-
-        // Markup pattern:
-        // ReadValue->Convert(Optional)->ScaledDotProductAttentionWithKVCache->Convert(Optional)->Assign, so that
-        // ReadValue can't be replaced with ReadValueWithSubgraph in this pattern.
-        // TODO: Temporarily skip this pattern. If MemoryInputSDPA supports Subgraph in the future, it may be deleted.
-        past_k_node->get_rt_info()["DisableInitSubgraphFusing"] = true;
-        past_v_node->get_rt_info()["DisableInitSubgraphFusing"] = true;
-
-        return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(sdp, matcher_name);
-    this->register_matcher(m, callback);
+    for (const auto& op : model->get_ops()) {
+        if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(op)) {
+            walk_backward(op.get(), 1);  // K
+            walk_backward(op.get(), 2);  // V
+        }
+    }
+
+    SharedSdpaSet shared;
+    for (const auto& [rv, sdpas] : rv_to_sdpas) {
+        if (sdpas.size() > 1) {
+            shared.insert(sdpas.begin(), sdpas.end());
+        }
+    }
+    return shared;
+}
+
+class StatefulSDPAFusionMatcher : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("StatefulSDPAFusionMatcher");
+
+    explicit StatefulSDPAFusionMatcher(SharedSdpaSet shared_sdpas) {
+        MATCHER_SCOPE(StatefulSDPAFusion);
+        using namespace ov::pass::pattern;
+
+        auto beam_idx = any_input(type_matches(element::i32) && shape_matches("[?]"));
+        auto cur_q = any_input();
+        auto cur_k = any_input();
+        auto cur_v = any_input();
+        auto atten_sink = any_input();
+
+        auto past_k = wrap_type<ov::op::v6::ReadValue>();
+        auto past_v = wrap_type<ov::op::v6::ReadValue>();
+
+        auto convert_past_k = wrap_type<ov::op::v0::Convert>({past_k});
+        auto convert_past_v = wrap_type<ov::op::v0::Convert>({past_v});
+
+        auto gather_input_k =
+            wrap_type<ov::op::v8::Gather>({past_k | convert_past_k, beam_idx, "axis_beam"}, {{"batch_dims", 0}});
+        auto gather_input_v =
+            wrap_type<ov::op::v8::Gather>({past_v | convert_past_v, beam_idx, "axis_beam"}, {{"batch_dims", 0}});
+
+        auto concat_k = wrap_type<ov::op::v0::Concat>({gather_input_k, cur_k});
+        auto concat_v = wrap_type<ov::op::v0::Concat>({gather_input_v, cur_v});
+
+        std::shared_ptr<Node> mq_reshape_k, reshape_k, unsqueeze_k, computed_bcst_k, multiply_k, computed_bcst3_k;
+        std::tie(mq_reshape_k, reshape_k, unsqueeze_k, computed_bcst_k, multiply_k, computed_bcst3_k) =
+            ov::op::util::match_multi_query_bcst(concat_k);
+        std::shared_ptr<Node> mq_reshape_v, reshape_v, unsqueeze_v, computed_bcst_v, multiply_v, computed_bcst3_v;
+        std::tie(mq_reshape_v, reshape_v, unsqueeze_v, computed_bcst_v, multiply_v, computed_bcst3_v) =
+            ov::op::util::match_multi_query_bcst(concat_v);
+        auto present_k = concat_k | mq_reshape_k;
+        auto present_v = concat_v | mq_reshape_v;
+
+        // canonical q/k/v shape definition: [B,H,...L,S]
+        auto sdp0 = wrap_type<ov::op::v13::ScaledDotProductAttention>({cur_q, present_k, present_v});
+        auto sdp1 = wrap_type<ov::op::v13::ScaledDotProductAttention>({cur_q, present_k, present_v, any_input()});
+        auto sdp2 = wrap_type<ov::op::v13::ScaledDotProductAttention>(
+            {cur_q, present_k, present_v, any_input(), any_input()});
+        // gpt-oss
+        auto sdp3 = wrap_type<ov::op::v13::ScaledDotProductAttention>(
+            {cur_q, present_k, present_v, any_input(), any_input(), atten_sink});
+
+        // non-canonical q/k/v shape definitions, for example: [L, B, H, S]/[B, L, H, S]
+        auto order_k = wrap_type<ov::op::v0::Constant>();
+        auto order_v = wrap_type<ov::op::v0::Constant>();
+        auto order_q = wrap_type<ov::op::v0::Constant>();
+        auto transpose_q = wrap_type<ov::op::v1::Transpose>({cur_q, order_q});
+        auto transpose_k = wrap_type<ov::op::v1::Transpose>({present_k, order_k});
+        auto transpose_v = wrap_type<ov::op::v1::Transpose>({present_v, order_v});
+
+        auto sdp_trans0 = wrap_type<ov::op::v13::ScaledDotProductAttention>({transpose_q, transpose_k, transpose_v});
+        auto sdp_trans1 = wrap_type<ov::op::v13::ScaledDotProductAttention>(
+            {transpose_q, transpose_k, transpose_v, any_input()});
+        auto sdp_trans2 = wrap_type<ov::op::v13::ScaledDotProductAttention>(
+            {transpose_q, transpose_k, transpose_v, any_input(), any_input()});
+        // gpt-oss
+        auto sdp_trans3 = wrap_type<ov::op::v13::ScaledDotProductAttention>(
+            {transpose_q, transpose_k, transpose_v, any_input(), any_input(), atten_sink});
+
+        auto sdp = sdp0 | sdp1 | sdp2 | sdp3 | sdp_trans0 | sdp_trans1 | sdp_trans2 | sdp_trans3;
+
+        ov::matcher_pass_callback callback = [=](Matcher& m) {
+            const auto& pattern_map = m.get_pattern_value_map();
+            auto root = m.get_match_root();
+
+            // Check concat axes equality first
+            const auto concat_k_node =
+                ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_k).get_node_shared_ptr());
+            const auto concat_v_node =
+                ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_v).get_node_shared_ptr());
+            if (concat_k_node->get_axis() != concat_v_node->get_axis()) {
+                return false;
+            }
+
+            auto find_assign =
+                [&](const ov::Output<ov::Node>& out, ov::op::v6::Assign*& assign, ov::op::v0::Convert*& cvt) {
+                    auto present_to = out.get_target_inputs();
+                    for (const auto& to : present_to) {
+                        auto* to_node = to.get_node();
+                        if (auto* convert = ov::as_type<ov::op::v0::Convert>(to_node)) {
+                            auto cvt_targets = convert->get_output_target_inputs(0);
+                            if (cvt_targets.size() == 1) {
+                                to_node = cvt_targets.begin()->get_node();
+                                cvt = convert;
+                            }
+                        }
+                        assign = ov::as_type<ov::op::v6::Assign>(to_node);
+                        if (assign) {
+                            return true;
+                        }
+                    }
+                    return false;
+                };
+            auto check_valid_children_type = [](const ov::Output<ov::Node>& out) {
+                auto children = out.get_target_inputs();
+                return std::all_of(children.begin(), children.end(), [](const ov::Input<ov::Node>& child) {
+                    auto* node = child.get_node();
+                    return any_of(node->get_type_info(),
+                                  ov::op::v13::ScaledDotProductAttention::get_type_info_static(),
+                                  ov::op::v0::ShapeOf::get_type_info_static(),
+                                  ov::op::v3::ShapeOf::get_type_info_static(),
+                                  ov::op::v0::Convert::get_type_info_static(),
+                                  ov::op::v8::Gather::get_type_info_static());
+                });
+            };
+
+            const auto sdp_node = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(root);
+            const auto past_k_node =
+                ov::as_type_ptr<ov::op::v6::ReadValue>(pattern_map.at(past_k).get_node_shared_ptr());
+            const auto past_v_node =
+                ov::as_type_ptr<ov::op::v6::ReadValue>(pattern_map.at(past_v).get_node_shared_ptr());
+            // Refuse fusion when this SDPA's KV-cache is shared with another
+            // SDPA in the same model. ScaledDotProductAttentionWithKVCache binds
+            // a single MemoryInput per K/V state; a partially-fused shared chain
+            // crashes at runtime with "null input states" in MatchSdpaKvCache.
+            // The shared set is precomputed by the StatefulSDPAFusion ModelPass
+            // wrapper via a backward data-path BFS — see compute_shared_kv_sdpas.
+            if (shared_sdpas.count(sdp_node.get())) {
+                return false;
+            }
+            if (!check_valid_children_type(past_k_node) || !check_valid_children_type(past_v_node)) {
+                return false;
+            }
+            for (auto&& item : {concat_k_node, concat_v_node}) {
+                auto&& children = item->get_output_target_inputs(0);
+                switch (children.size()) {
+                case 2:
+                    // pass, as the existence of Assign will be checked later
+                    break;
+                case 3:
+                    // the first one leads to SDPA, otherwise the matcher doesn't find the pattern
+                    // the second one leads to Assign, and this is checked later
+                    // the third child is allowed to be a ShapeOf op only, thus one of them must be ShapeOf
+                    if (!std::any_of(children.begin(), children.end(), [](const ov::Input<ov::Node>& child) {
+                            return ov::is_type_any_of<ov::op::v3::ShapeOf, ov::op::v0::ShapeOf>(child.get_node());
+                        })) {
+                        return false;
+                    }
+                    break;
+                default:
+                    return false;
+                }
+            }
+
+            ov::op::v6::Assign* assign_k_node = nullptr;
+            ov::op::v6::Assign* assign_v_node = nullptr;
+            ov::op::v0::Convert* assign_cvt_k_node = nullptr;
+            ov::op::v0::Convert* assign_cvt_v_node = nullptr;
+            if (!find_assign(concat_k_node, assign_k_node, assign_cvt_k_node)) {
+                return false;
+            }
+            if (past_k_node->get_variable_id() != assign_k_node->get_variable_id()) {
+                return false;
+            }
+
+            if (!find_assign(concat_v_node, assign_v_node, assign_cvt_v_node)) {
+                return false;
+            }
+            if (past_v_node->get_variable_id() != assign_v_node->get_variable_id()) {
+                return false;
+            }
+
+            auto is_optional_one_child = [&pattern_map](const std::vector<std::shared_ptr<Node>>& nodes) {
+                return std::all_of(nodes.begin(), nodes.end(), [&](const std::shared_ptr<Node>& node) {
+                    if (pattern_map.count(node)) {
+                        auto p = pattern_map.at(node).get_node_shared_ptr();
+                        return p->get_output_target_inputs(0).size() == 1;
+                    }
+                    return true;
+                });
+            };
+            if (!is_optional_one_child({convert_past_k,
+                                        convert_past_v,
+                                        transpose_q,
+                                        transpose_k,
+                                        transpose_v,
+                                        reshape_k,
+                                        unsqueeze_k,
+                                        computed_bcst_k,
+                                        multiply_k,
+                                        reshape_v,
+                                        unsqueeze_v,
+                                        computed_bcst_v,
+                                        multiply_v,
+                                        mq_reshape_k,
+                                        mq_reshape_v,
+                                        computed_bcst3_k,
+                                        computed_bcst3_v})) {
+                return false;
+            }
+
+            // past_k & past_v must be reordered by same beam_idx
+            const auto gather_k_node =
+                ov::as_type_ptr<ov::op::v8::Gather>(pattern_map.at(gather_input_k).get_node_shared_ptr());
+            const auto gather_v_node =
+                ov::as_type_ptr<ov::op::v8::Gather>(pattern_map.at(gather_input_v).get_node_shared_ptr());
+            if (gather_k_node->input_value(1) != gather_v_node->input_value(1) ||
+                gather_k_node->get_output_target_inputs(0).size() != 1 ||
+                gather_v_node->get_output_target_inputs(0).size() != 1) {
+                return false;
+            }
+
+            OutputVector args = sdp_node->input_values();
+            args[0] = pattern_map.at(cur_q);
+            args[1] = pattern_map.at(cur_k);
+            args[2] = pattern_map.at(cur_v);
+            args.push_back(pattern_map.at(beam_idx));
+            args.push_back(gather_k_node->input_value(0));
+            args.push_back(gather_v_node->input_value(0));
+            ov::intel_cpu::ScaledDotProductAttentionWithKVCache::Config config;
+
+            config.is_causal = sdp_node->get_causal();
+            config.fuse_concat = true;
+
+            if (pattern_map.count(order_q) && pattern_map.count(order_k) && pattern_map.count(order_v)) {
+                const auto order_q_node =
+                    ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(order_q).get_node_shared_ptr());
+                const auto order_k_node =
+                    ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(order_k).get_node_shared_ptr());
+                const auto order_v_node =
+                    ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(order_v).get_node_shared_ptr());
+                const auto& permute_q = order_q_node->cast_vector<int32_t>();
+                const auto& permute_k = order_k_node->cast_vector<int32_t>();
+                const auto& permute_v = order_v_node->cast_vector<int32_t>();
+                if (permute_q != permute_k || permute_q != permute_v) {
+                    return false;
+                }
+                config.permute_axes.resize(permute_q.size());
+                for (size_t i = 0; i < permute_q.size(); i++) {
+                    config.permute_axes[i] = static_cast<size_t>(permute_q[i]);
+                }
+            }
+
+            const auto& old_node = sdp_node;
+            auto new_node = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(args, config);
+            new_node->set_friendly_name(old_node->get_friendly_name());
+            copy_runtime_info(old_node, new_node);
+            ov::replace_node(old_node, {new_node->output(0)});
+            if (assign_cvt_k_node) {
+                assign_cvt_k_node->set_arguments({new_node->output(1)});
+            } else {
+                assign_k_node->set_arguments({new_node->output(1)});
+            }
+
+            if (assign_cvt_v_node) {
+                assign_cvt_v_node->set_arguments({new_node->output(2)});
+            } else {
+                assign_v_node->set_arguments({new_node->output(2)});
+            }
+
+            // Re-route any ShapeOf consumer of the (now-obsolete) K/V Concat
+            // to the fused node's new K/V output. The Concat has the same
+            // post-cache tensor shape as the fused output, so this rewrite
+            // is semantically a no-op. Without it, the ShapeOf keeps the
+            // old Concat -> Gather chain reachable via the global
+            // positional-ID / attention-mask computation in models that
+            // take this case-3 path (Gemma3n layer 0), which in turn leaves
+            // the old Gather as a child of the ReadValue's MemoryInput;
+            // MatchSdpaKvCache rejects non-{SDPA,ShapeOf} children and the
+            // fused kernel then crashes with "null input states" at execute
+            // time. In the Mixtral multi-query-broadcast case the ShapeOf's
+            // consumers are themselves absorbed by the matcher pattern, so
+            // after this re-route the entire multi-query chain is dead and
+            // gets collapsed by subsequent dead-code elimination.
+            auto reroute_shape_of_consumers = [&](const std::shared_ptr<Node>& concat_node,
+                                                   const ov::Output<ov::Node>& replacement) {
+                std::vector<ov::Input<Node>> shape_of_inputs;
+                for (const auto& target : concat_node->get_output_target_inputs(0)) {
+                    auto* child = target.get_node();
+                    if (ov::is_type_any_of<ov::op::v0::ShapeOf, ov::op::v3::ShapeOf>(child)) {
+                        shape_of_inputs.push_back(target);
+                    }
+                }
+                for (const auto& inp : shape_of_inputs) {
+                    inp.replace_source_output(replacement);
+                }
+            };
+            reroute_shape_of_consumers(concat_k_node, new_node->output(1));
+            reroute_shape_of_consumers(concat_v_node, new_node->output(2));
+
+            // Markup pattern:
+            // ReadValue->Convert(Optional)->ScaledDotProductAttentionWithKVCache->Convert(Optional)->Assign, so that
+            // ReadValue can't be replaced with ReadValueWithSubgraph in this pattern.
+            // TODO: Temporarily skip this pattern. If MemoryInputSDPA supports Subgraph in the future, it may be
+            // deleted.
+            past_k_node->get_rt_info()["DisableInitSubgraphFusing"] = true;
+            past_v_node->get_rt_info()["DisableInitSubgraphFusing"] = true;
+            return true;
+        };
+
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(sdp, matcher_name);
+        this->register_matcher(m, callback);
+    }
+};
+
+}  // namespace
+
+bool StatefulSDPAFusion::run_on_model(const std::shared_ptr<ov::Model>& m) {
+    RUN_ON_MODEL_SCOPE(StatefulSDPAFusion);
+    auto shared = compute_shared_kv_sdpas(m);
+    ov::pass::Manager manager(get_pass_config(), "StatefulSDPAFusionImpl");
+    manager.register_pass<StatefulSDPAFusionMatcher>(std::move(shared));
+    return manager.run_passes(m);
 }
 
 bool SDPASubgraphFusion::run_on_model(const std::shared_ptr<ov::Model>& f) {
