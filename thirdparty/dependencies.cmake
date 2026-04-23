@@ -528,6 +528,7 @@ if(ENABLE_SNAPPY_COMPRESSION)
                 # otherwise, snappy's CMakeLists.txt will do it for us
                 ov_add_compiler_flags(-Wextra)
                 ov_add_compiler_flags(-Wno-sign-compare)
+                ov_add_compiler_flags(-Wno-missing-declarations)
             elseif(OV_COMPILER_IS_INTEL_LLVM AND WIN32)
                 ov_add_compiler_flags(/WX-)
             endif()
