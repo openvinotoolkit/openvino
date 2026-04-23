@@ -85,7 +85,6 @@ ov::hetero::SubgraphCollector::SubgraphCollector(const std::shared_ptr<ov::Model
       _intermediate_parameters{},
       _intermediate_results(),
       _affinities{affinities},
-      _node_input_dependencies{},
       _subgraph_inputs{},
       _subgraph_parameter_to_prev_result{} {
     init();
