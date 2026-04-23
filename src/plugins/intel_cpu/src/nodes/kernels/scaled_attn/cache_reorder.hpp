@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "attn_quant_kernel.hpp"
+#include "common.hpp"
 #include "cpu_parallel.hpp"
 #include "openvino/core/except.hpp"
 #include "utils/plain_tensor.hpp"
@@ -22,118 +23,53 @@ using ov::intel_cpu::PlainTensor;
  * @brief Batch reorder context for collecting operations with same block pair
  */
 struct BatchReorderContext {
-    size_t src_block;
-    size_t dst_block;
-    bool same_block;
-    int32_t op_begin;
-    int32_t op_end;
-    size_t block_size;
-    size_t dst_actual_tokens;
-    const int32_t* update_ptr;
+    size_t src_block = 0;
+    size_t dst_block = 0;
+    bool same_block = false;
+    int32_t op_begin = 0;
+    int32_t op_end = 0;
+    size_t block_size = 0;
+    size_t dst_actual_tokens = 0;
+    const int32_t* update_ptr = nullptr;
+    size_t hidden = 0;
 };
 
 /**
- * @brief Process one cache (key or value) for a batch of reorder operations
+ * @brief Process cache batch for quantized types
  */
 template <ov::element::Type_t PREC>
-inline void process_cache_batch(PlainTensor& cache,
-                                const BatchReorderContext& ctx,
-                                bool by_channel,
-                                size_t kv_heads,
-                                const CpuParallelPtr& cpu_parallel) {
-    constexpr bool is_quantized = ov::intel_cpu::any_of(PREC, ov::element::u8, ov::element::u4);
-    constexpr size_t elem_size = sizeof(typename ov::element_type_traits<PREC>::value_type);
-    constexpr size_t sub_byte = get_sub_byte_multiplier(PREC);
-
-    const size_t hidden = cache.size(3);
-    const size_t token_bytes = hidden * elem_size / sub_byte;
+inline void process_cache_batch_quantized(PlainTensor& cache,
+                                          const BatchReorderContext& ctx,
+                                          bool by_channel,
+                                          size_t kv_heads,
+                                          const CpuParallelPtr& cpu_parallel) {
+    using value_type = typename ov::element_type_traits<PREC>::value_type;
+    static constexpr size_t elem_size = sizeof(value_type);
+    static constexpr size_t sub_byte = get_sub_byte_multiplier(PREC);
+    const size_t token_bytes = ctx.hidden * elem_size / sub_byte;
 
     auto process_head = [&](size_t h) {
-        thread_local std::vector<float> local_block_buf;
-        thread_local std::vector<float> local_row_buf;
+        if (by_channel) {
+            // By-channel quantization path
+            thread_local std::vector<float> local_block_buf;
+            thread_local std::vector<float> local_row_buf;
+            local_block_buf.resize(ctx.block_size * ctx.hidden);
+            local_row_buf.resize(ctx.hidden);
 
-        if constexpr (is_quantized) {
-            if (by_channel) {
-                // By-channel quantization path
-                local_block_buf.resize(ctx.block_size * hidden);
-                local_row_buf.resize(hidden);
+            auto* src_base = reinterpret_cast<uint8_t*>(cache.ptr_v(ctx.src_block, h, 0, 0));
+            auto* dst_base = reinterpret_cast<uint8_t*>(cache.ptr_v(ctx.dst_block, h, 0, 0));
+            auto* src_scales = reinterpret_cast<float*>(src_base);
+            auto* src_zps = src_scales + ctx.hidden;
+            auto* dst_scales = reinterpret_cast<float*>(dst_base);
+            auto* dst_zps = dst_scales + ctx.hidden;
 
-                auto* src_base = reinterpret_cast<uint8_t*>(cache.ptr_v(ctx.src_block, h, 0, 0));
-                auto* dst_base = reinterpret_cast<uint8_t*>(cache.ptr_v(ctx.dst_block, h, 0, 0));
-                auto* src_scales = reinterpret_cast<float*>(src_base);
-                auto* src_zps = src_scales + hidden;
-                auto* dst_scales = reinterpret_cast<float*>(dst_base);
-                auto* dst_zps = dst_scales + hidden;
+            const size_t params_offset = 2 * sizeof(float) * ctx.hidden;
+            auto* src_data = src_base + params_offset;
+            auto* dst_data = dst_base + params_offset;
+            const size_t data_stride = cache.stride_bytes(2);
 
-                const size_t params_offset = 2 * sizeof(float) * hidden;
-                auto* src_data = src_base + params_offset;
-                auto* dst_data = dst_base + params_offset;
-                const size_t data_stride = cache.stride_bytes(2);
-
-                if (ctx.same_block) {
-                    // Same block: direct copy without requantization
-                    for (int32_t batch_op = ctx.op_begin; batch_op < ctx.op_end; batch_op++) {
-                        const int32_t b_pair_base = batch_op * 2;
-                        const int32_t b_src_logical = ctx.update_ptr[b_pair_base + 0];
-                        const int32_t b_dst_logical = ctx.update_ptr[b_pair_base + 1];
-                        if (b_src_logical < 0 || b_dst_logical < 0) {
-                            continue;
-                        }
-
-                        const size_t b_src_token = static_cast<size_t>(b_src_logical) % ctx.block_size;
-                        const size_t b_dst_token = static_cast<size_t>(b_dst_logical) % ctx.block_size;
-
-                        std::memcpy(dst_data + b_dst_token * data_stride,
-                                    src_data + b_src_token * data_stride,
-                                    token_bytes);
-                    }
-                } else {
-                    // Cross-block: dequant dst once, copy all, requant dst once
-                    attn_dequant_by_channel_kernel<float, PREC>(dst_data,
-                                                                local_block_buf.data(),
-                                                                ctx.dst_actual_tokens,
-                                                                hidden,
-                                                                data_stride,
-                                                                hidden,
-                                                                dst_scales,
-                                                                dst_zps);
-
-                    for (int32_t batch_op = ctx.op_begin; batch_op < ctx.op_end; batch_op++) {
-                        const int32_t b_pair_base = batch_op * 2;
-                        const int32_t b_src_logical = ctx.update_ptr[b_pair_base + 0];
-                        const int32_t b_dst_logical = ctx.update_ptr[b_pair_base + 1];
-                        if (b_src_logical < 0 || b_dst_logical < 0) {
-                            continue;
-                        }
-
-                        const size_t b_src_token = static_cast<size_t>(b_src_logical) % ctx.block_size;
-                        const size_t b_dst_token = static_cast<size_t>(b_dst_logical) % ctx.block_size;
-
-                        attn_dequant_by_channel_kernel<float, PREC>(src_data + b_src_token * data_stride,
-                                                                    local_row_buf.data(),
-                                                                    1,
-                                                                    hidden,
-                                                                    data_stride,
-                                                                    hidden,
-                                                                    src_scales,
-                                                                    src_zps);
-
-                        std::memcpy(local_block_buf.data() + b_dst_token * hidden,
-                                    local_row_buf.data(),
-                                    hidden * sizeof(float));
-                    }
-
-                    quantize_by_channel<float, PREC>(local_block_buf.data(),
-                                                     dst_data,
-                                                     ctx.dst_actual_tokens,
-                                                     hidden,
-                                                     hidden,
-                                                     data_stride,
-                                                     dst_scales,
-                                                     dst_zps);
-                }
-            } else {
-                // Quantized but not by-channel: simple memcpy
+            if (ctx.same_block) {
+                // Same block: direct copy without requantization
                 for (int32_t batch_op = ctx.op_begin; batch_op < ctx.op_end; batch_op++) {
                     const int32_t b_pair_base = batch_op * 2;
                     const int32_t b_src_logical = ctx.update_ptr[b_pair_base + 0];
@@ -142,16 +78,60 @@ inline void process_cache_batch(PlainTensor& cache,
                         continue;
                     }
 
-                    const size_t b_src_token = static_cast<size_t>(b_src_logical) % ctx.block_size;
-                    const size_t b_dst_token = static_cast<size_t>(b_dst_logical) % ctx.block_size;
+                    const auto b_src_token = static_cast<size_t>(b_src_logical) % ctx.block_size;
+                    const auto b_dst_token = static_cast<size_t>(b_dst_logical) % ctx.block_size;
 
-                    auto* src_ptr = reinterpret_cast<uint8_t*>(cache.ptr_v(ctx.src_block, h, b_src_token, 0));
-                    auto* dst_ptr = reinterpret_cast<uint8_t*>(cache.ptr_v(ctx.dst_block, h, b_dst_token, 0));
-                    std::memcpy(dst_ptr, src_ptr, token_bytes);
+                    std::memcpy(dst_data + b_dst_token * data_stride,
+                                src_data + b_src_token * data_stride,
+                                token_bytes);
                 }
+            } else {
+                // Cross-block: dequant dst once, copy all, requant once
+                attn_dequant_by_channel_kernel<float, PREC>(dst_data,
+                                                            local_block_buf.data(),
+                                                            ctx.dst_actual_tokens,
+                                                            ctx.hidden,
+                                                            data_stride,
+                                                            ctx.hidden,
+                                                            dst_scales,
+                                                            dst_zps);
+
+                for (int32_t batch_op = ctx.op_begin; batch_op < ctx.op_end; batch_op++) {
+                    const int32_t b_pair_base = batch_op * 2;
+                    const int32_t b_src_logical = ctx.update_ptr[b_pair_base + 0];
+                    const int32_t b_dst_logical = ctx.update_ptr[b_pair_base + 1];
+                    if (b_src_logical < 0 || b_dst_logical < 0) {
+                        continue;
+                    }
+
+                    const auto b_src_token = static_cast<size_t>(b_src_logical) % ctx.block_size;
+                    const auto b_dst_token = static_cast<size_t>(b_dst_logical) % ctx.block_size;
+
+                    attn_dequant_by_channel_kernel<float, PREC>(src_data + b_src_token * data_stride,
+                                                                local_row_buf.data(),
+                                                                1,
+                                                                ctx.hidden,
+                                                                data_stride,
+                                                                ctx.hidden,
+                                                                src_scales,
+                                                                src_zps);
+
+                    std::memcpy(local_block_buf.data() + b_dst_token * ctx.hidden,
+                                local_row_buf.data(),
+                                ctx.hidden * sizeof(float));
+                }
+
+                quantize_by_channel<float, PREC>(local_block_buf.data(),
+                                                 dst_data,
+                                                 ctx.dst_actual_tokens,
+                                                 ctx.hidden,
+                                                 ctx.hidden,
+                                                 data_stride,
+                                                 dst_scales,
+                                                 dst_zps);
             }
         } else {
-            // Non-quantized: simple memcpy
+            // Quantized but not by-channel: simple memcpy
             for (int32_t batch_op = ctx.op_begin; batch_op < ctx.op_end; batch_op++) {
                 const int32_t b_pair_base = batch_op * 2;
                 const int32_t b_src_logical = ctx.update_ptr[b_pair_base + 0];
@@ -160,8 +140,8 @@ inline void process_cache_batch(PlainTensor& cache,
                     continue;
                 }
 
-                const size_t b_src_token = static_cast<size_t>(b_src_logical) % ctx.block_size;
-                const size_t b_dst_token = static_cast<size_t>(b_dst_logical) % ctx.block_size;
+                const auto b_src_token = static_cast<size_t>(b_src_logical) % ctx.block_size;
+                const auto b_dst_token = static_cast<size_t>(b_dst_logical) % ctx.block_size;
 
                 auto* src_ptr = reinterpret_cast<uint8_t*>(cache.ptr_v(ctx.src_block, h, b_src_token, 0));
                 auto* dst_ptr = reinterpret_cast<uint8_t*>(cache.ptr_v(ctx.dst_block, h, b_dst_token, 0));
@@ -174,16 +154,61 @@ inline void process_cache_batch(PlainTensor& cache,
 }
 
 /**
- * @brief Dispatch to template based on precision
+ * @brief Process cache batch for non-quantized types
  */
-template <typename Func>
-inline void dispatch_and_process(ov::element::Type_t prec, Func&& func) {
+template <ov::element::Type_t PREC>
+inline void process_cache_batch_non_quantized(PlainTensor& cache,
+                                              const BatchReorderContext& ctx,
+                                              size_t kv_heads,
+                                              const CpuParallelPtr& cpu_parallel) {
+    using value_type = typename ov::element_type_traits<PREC>::value_type;
+    static constexpr size_t elem_size = sizeof(value_type);
+    static constexpr size_t sub_byte = get_sub_byte_multiplier(PREC);
+    const size_t token_bytes = ctx.hidden * elem_size / sub_byte;
+
+    auto process_head = [&](size_t h) {
+        for (int32_t batch_op = ctx.op_begin; batch_op < ctx.op_end; batch_op++) {
+            const int32_t b_pair_base = batch_op * 2;
+            const int32_t b_src_logical = ctx.update_ptr[b_pair_base + 0];
+            const int32_t b_dst_logical = ctx.update_ptr[b_pair_base + 1];
+            if (b_src_logical < 0 || b_dst_logical < 0) {
+                continue;
+            }
+
+            const auto b_src_token = static_cast<size_t>(b_src_logical) % ctx.block_size;
+            const auto b_dst_token = static_cast<size_t>(b_dst_logical) % ctx.block_size;
+
+            auto* src_ptr = reinterpret_cast<uint8_t*>(cache.ptr_v(ctx.src_block, h, b_src_token, 0));
+            auto* dst_ptr = reinterpret_cast<uint8_t*>(cache.ptr_v(ctx.dst_block, h, b_dst_token, 0));
+            std::memcpy(dst_ptr, src_ptr, token_bytes);
+        }
+    };
+
+    cpu_parallel->parallel_for(kv_heads, process_head);
+}
+
+/**
+ * @brief Dispatch and process based on precision
+ */
+inline void dispatch_and_process_cache(ov::element::Type_t prec,
+                                       PlainTensor& cache,
+                                       const BatchReorderContext& ctx,
+                                       bool by_channel,
+                                       size_t kv_heads,
+                                       const CpuParallelPtr& cpu_parallel) {
     if (prec == ov::element::u8) {
-        func(std::integral_constant<ov::element::Type_t, ov::element::u8>{});
+        process_cache_batch_quantized<ov::element::u8>(cache, ctx, by_channel, kv_heads, cpu_parallel);
     } else if (prec == ov::element::u4) {
-        func(std::integral_constant<ov::element::Type_t, ov::element::u4>{});
+        process_cache_batch_quantized<ov::element::u4>(cache, ctx, by_channel, kv_heads, cpu_parallel);
     } else {
-        func(std::integral_constant<ov::element::Type_t, ov::element::f32>{});
+        // f32, bf16, f16 - non-quantized
+        if (prec == ov::element::f32) {
+            process_cache_batch_non_quantized<ov::element::f32>(cache, ctx, kv_heads, cpu_parallel);
+        } else if (prec == ov::element::bf16) {
+            process_cache_batch_non_quantized<ov::element::bf16>(cache, ctx, kv_heads, cpu_parallel);
+        } else if (prec == ov::element::f16) {
+            process_cache_batch_non_quantized<ov::element::f16>(cache, ctx, kv_heads, cpu_parallel);
+        }
     }
 }
 
@@ -206,6 +231,8 @@ inline void reorder_kv_cache(PlainTensor& key_cache,
     }
 
     const size_t kv_heads = key_cache.size(1);
+    const size_t key_hidden = key_cache.size(3);
+    const size_t value_hidden = value_cache.size(3);
     const size_t key_sub_byte = get_sub_byte_multiplier(key_cache.get_precision());
     const size_t block_size =
         key_by_channel ? (key_cache.size(2) - 2 * sizeof(float) * key_sub_byte) : key_cache.size(2);
@@ -222,13 +249,15 @@ inline void reorder_kv_cache(PlainTensor& key_cache,
     cpu_parallel->parallel_for(seq_count, [&](size_t seq) {
         const int32_t op_begin = update_begins_ptr[seq];
         const int32_t op_end = update_begins_ptr[seq + 1];
-        if (op_end <= op_begin)
+        if (op_end <= op_begin) {
             return;
+        }
 
         const int32_t block_indices_base = block_idx_begins_ptr[seq];
         const int32_t blocks_in_seq = block_idx_begins_ptr[seq + 1] - block_indices_base;
-        if (blocks_in_seq <= 0)
+        if (blocks_in_seq <= 0) {
             return;
+        }
 
         // Find max destination token for actual_tokens calculation
         int32_t max_dst_logical = -1;
@@ -244,10 +273,12 @@ inline void reorder_kv_cache(PlainTensor& key_cache,
         }
 
         auto get_block_actual_tokens = [&](size_t block_local) -> size_t {
-            if (block_local < max_dst_block_local)
+            if (block_local < max_dst_block_local) {
                 return block_size;
-            if (block_local == max_dst_block_local)
+            }
+            if (block_local == max_dst_block_local) {
                 return max_dst_token + 1;
+            }
             return block_size;
         };
 
@@ -262,8 +293,8 @@ inline void reorder_kv_cache(PlainTensor& key_cache,
                 continue;
             }
 
-            const size_t src_block_local = static_cast<size_t>(src_logical) / block_size;
-            const size_t dst_block_local = static_cast<size_t>(dst_logical) / block_size;
+            const auto src_block_local = static_cast<size_t>(src_logical) / block_size;
+            const auto dst_block_local = static_cast<size_t>(dst_logical) / block_size;
 
             if (src_block_local >= static_cast<size_t>(blocks_in_seq) ||
                 dst_block_local >= static_cast<size_t>(blocks_in_seq)) {
@@ -271,8 +302,8 @@ inline void reorder_kv_cache(PlainTensor& key_cache,
                 continue;
             }
 
-            const size_t src_block = static_cast<size_t>(block_idx_ptr[block_indices_base + src_block_local]);
-            const size_t dst_block = static_cast<size_t>(block_idx_ptr[block_indices_base + dst_block_local]);
+            const auto src_block = static_cast<size_t>(block_idx_ptr[block_indices_base + src_block_local]);
+            const auto dst_block = static_cast<size_t>(block_idx_ptr[block_indices_base + dst_block_local]);
 
             // Collect batch: all operations with same (src_block, dst_block) pair
             int32_t batch_end = op + 1;
@@ -286,8 +317,8 @@ inline void reorder_kv_cache(PlainTensor& key_cache,
                     continue;
                 }
 
-                const size_t n_src_block_local = static_cast<size_t>(n_src_logical) / block_size;
-                const size_t n_dst_block_local = static_cast<size_t>(n_dst_logical) / block_size;
+                const auto n_src_block_local = static_cast<size_t>(n_src_logical) / block_size;
+                const auto n_dst_block_local = static_cast<size_t>(n_dst_logical) / block_size;
 
                 if (n_src_block_local >= static_cast<size_t>(blocks_in_seq) ||
                     n_dst_block_local >= static_cast<size_t>(blocks_in_seq)) {
@@ -295,8 +326,8 @@ inline void reorder_kv_cache(PlainTensor& key_cache,
                     continue;
                 }
 
-                const size_t n_src_block = static_cast<size_t>(block_idx_ptr[block_indices_base + n_src_block_local]);
-                const size_t n_dst_block = static_cast<size_t>(block_idx_ptr[block_indices_base + n_dst_block_local]);
+                const auto n_src_block = static_cast<size_t>(block_idx_ptr[block_indices_base + n_src_block_local]);
+                const auto n_dst_block = static_cast<size_t>(block_idx_ptr[block_indices_base + n_dst_block_local]);
 
                 if (n_src_block != src_block || n_dst_block != dst_block) {
                     break;
@@ -304,28 +335,35 @@ inline void reorder_kv_cache(PlainTensor& key_cache,
                 batch_end++;
             }
 
-            // Build batch context
-            BatchReorderContext ctx;
-            ctx.src_block = src_block;
-            ctx.dst_block = dst_block;
-            ctx.same_block = (src_block == dst_block);
-            ctx.op_begin = op;
-            ctx.op_end = batch_end;
-            ctx.block_size = block_size;
-            ctx.dst_actual_tokens = get_block_actual_tokens(dst_block_local);
-            ctx.update_ptr = update_ptr;
+            // Build batch context for key cache
+            BatchReorderContext key_ctx;
+            key_ctx.src_block = src_block;
+            key_ctx.dst_block = dst_block;
+            key_ctx.same_block = (src_block == dst_block);
+            key_ctx.op_begin = op;
+            key_ctx.op_end = batch_end;
+            key_ctx.block_size = block_size;
+            key_ctx.dst_actual_tokens = get_block_actual_tokens(dst_block_local);
+            key_ctx.update_ptr = update_ptr;
+            key_ctx.hidden = key_hidden;
 
             // Process key cache
-            dispatch_and_process(key_prec, [&](auto prec_tag) {
-                constexpr auto PREC = decltype(prec_tag)::value;
-                process_cache_batch<PREC>(key_cache, ctx, key_by_channel, kv_heads, cpu_parallel);
-            });
+            dispatch_and_process_cache(key_prec, key_cache, key_ctx, key_by_channel, kv_heads, cpu_parallel);
+
+            // Build batch context for value cache
+            BatchReorderContext value_ctx;
+            value_ctx.src_block = src_block;
+            value_ctx.dst_block = dst_block;
+            value_ctx.same_block = (src_block == dst_block);
+            value_ctx.op_begin = op;
+            value_ctx.op_end = batch_end;
+            value_ctx.block_size = block_size;
+            value_ctx.dst_actual_tokens = get_block_actual_tokens(dst_block_local);
+            value_ctx.update_ptr = update_ptr;
+            value_ctx.hidden = value_hidden;
 
             // Process value cache
-            dispatch_and_process(value_prec, [&](auto prec_tag) {
-                constexpr auto PREC = decltype(prec_tag)::value;
-                process_cache_batch<PREC>(value_cache, ctx, value_by_channel, kv_heads, cpu_parallel);
-            });
+            dispatch_and_process_cache(value_prec, value_cache, value_ctx, value_by_channel, kv_heads, cpu_parallel);
 
             op = batch_end;
         }
