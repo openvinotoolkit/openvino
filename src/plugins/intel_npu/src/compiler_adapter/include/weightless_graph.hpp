@@ -38,8 +38,6 @@ public:
      */
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
-    std::vector<uint64_t> get_init_sizes() const override;
-
     /**
      * @brief Implementation hook for "IGraph::initialize" that initializes all underlying graph handles.
      * In addition to this, the init schedules are run and the result of this is set as inputs to the main
