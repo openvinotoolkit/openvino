@@ -11,7 +11,17 @@
 
 namespace ov::intel_gpu {
 
-bool KeepXAttentionThresholdPrecision::run_on_model(const std::shared_ptr<ov::Model>& model) {
+KeepXAttentionThresholdPrecision::KeepXAttentionThresholdPrecision() {
+    auto pa_m = ov::pass::pattern::wrap_type<ov::op::PagedAttentionExtension>();
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+        auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(m.get_match_root());
+        if (transformation_callback(pa))
+            return false;
+        const size_t thr_idx = cldnn::paged_attention::PagedAttentionInputIdx::XATTENTION_THRESHOLD;
+        ov::mark_as_precision_sensitive(pa->input(thr_idx));
+        return true;
+    }
+}
     bool changed = false;
 
     for (const auto& node : model->get_ops()) {
