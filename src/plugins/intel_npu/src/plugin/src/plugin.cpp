@@ -425,7 +425,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
                       device->getDevId(),
                       device->getSubDevId(),
                       device->getMaxNumSlices());
-        auto result = compiler->validate_compatibility_descriptor(decodedString, device);
+        auto result = compiler->validate_compatibility_descriptor(decodedString);
         _logger.debug("Compatibility check result: %d", static_cast<int>(result));
         return result;
     }

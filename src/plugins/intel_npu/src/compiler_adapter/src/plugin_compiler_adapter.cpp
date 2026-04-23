@@ -295,9 +295,28 @@ bool PluginCompilerAdapter::is_option_supported(std::string optname, std::option
 }
 
 ov::RuntimeRequirementCheckResult PluginCompilerAdapter::validate_compatibility_descriptor(
-    const std::string& compatibilityDescriptor,
-    const std::shared_ptr<IDevice>& device) const {
-    return _compiler->validate_compatibility_descriptor(compatibilityDescriptor, device);
+    const std::string& compatibilityDescriptor) const {
+    if (_zeroInitStruct && _zeroInitStruct->getDevice()) {
+        ze_device_properties_t device_properties = {};
+        device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
+        auto result = zeDeviceGetProperties(_zeroInitStruct->getDevice(), &device_properties);
+
+        if (result == ZE_RESULT_SUCCESS) {
+            vcl_device_desc_t vcl_desc = {sizeof(vcl_device_desc_t),
+                                          device_properties.deviceId,
+                                          static_cast<uint16_t>(device_properties.subdeviceId),
+                                          device_properties.numSlices};
+
+            _logger.info(
+                "Validating compatibility logic using specialized deviceID: 0x%X, maxTiles: %u for checkstring",
+                vcl_desc.deviceID,
+                vcl_desc.tileCount);
+
+            return _compiler->validate_compatibility_descriptor(compatibilityDescriptor, &vcl_desc);
+        }
+    }
+
+    return _compiler->validate_compatibility_descriptor(compatibilityDescriptor);
 }
 
 }  // namespace intel_npu

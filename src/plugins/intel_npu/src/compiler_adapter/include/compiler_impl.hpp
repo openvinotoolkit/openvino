@@ -17,8 +17,6 @@
 
 namespace intel_npu {
 
-class IDevice;
-
 class VCLCompilerImpl final : public std::enable_shared_from_this<VCLCompilerImpl> {
 public:
     VCLCompilerImpl();
@@ -91,8 +89,9 @@ public:
 
     std::shared_ptr<void> getLinkedLibrary() const;
 
-    ov::RuntimeRequirementCheckResult validate_compatibility_descriptor(const std::string& compatibilityDescriptor,
-                                                                        const std::shared_ptr<IDevice>& device) const;
+    ov::RuntimeRequirementCheckResult validate_compatibility_descriptor(
+        const std::string& compatibilityDescriptor,
+        const vcl_device_desc_t* in_device_desc = nullptr) const;
 
 private:
     /**

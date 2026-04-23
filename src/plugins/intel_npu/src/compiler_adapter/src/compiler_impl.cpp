@@ -630,11 +630,14 @@ bool VCLCompilerImpl::is_option_supported(std::string option, std::optional<std:
 
 ov::RuntimeRequirementCheckResult VCLCompilerImpl::validate_compatibility_descriptor(
     const std::string& compatibilityDescriptor,
-    const std::shared_ptr<IDevice>& device) const {
-    vcl_device_desc_t device_desc = {sizeof(vcl_device_desc_t),
-                                     device->getDevId(),
-                                     static_cast<uint16_t>(device->getSubDevId()),
-                                     static_cast<uint32_t>(device->getMaxNumSlices())};
+    const vcl_device_desc_t* in_device_desc) const {
+    if (in_device_desc == nullptr) {
+        _logger.error("Device description is required for validating compatibility descriptor");
+        return ov::RuntimeRequirementCheckResult::COMPATIBILITY_FAILED;
+    }
+
+    vcl_device_desc_t device_desc = *in_device_desc;
+
     vcl_compiler_desc_t compilerDesc;
     compilerDesc.version = _vclVersion;
     compilerDesc.debugLevel = static_cast<__vcl_log_level_t>(static_cast<int>(Logger::global().level()) + 1);

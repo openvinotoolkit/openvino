@@ -33,8 +33,7 @@ public:
     uint32_t get_version() const override;
 
     ov::RuntimeRequirementCheckResult validate_compatibility_descriptor(
-        const std::string& compatibilityDescriptor,
-        const std::shared_ptr<IDevice>& device) const override;
+        const std::string& compatibilityDescriptor) const override;
 
 private:
     bool isCompilerOptionSupported(const FilteredConfig& config,
