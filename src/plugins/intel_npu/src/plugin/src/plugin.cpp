@@ -405,7 +405,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         decodedString = decodedString.substr(0, compilerStringSize);
         _logger.debug("Decoded compiler compatibility string: %s length: %zu", decodedString.c_str(), decodedString.length());
 
-        // Create a compiler to get the type and fetch version and supported options if needed
+        // Implement only the fallback path for now through the PLUGIN compiler type
         std::unique_ptr<ICompilerAdapter> compiler = nullptr;
         CompilerAdapterFactory factory;
         try {
@@ -416,16 +416,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         }
         OPENVINO_ASSERT(compiler != nullptr);
 
-        // Implement only the fallback path for now through the PLUGIN compiler type
-        std::shared_ptr<IDevice> device = _backend->getDevice();
-        OPENVINO_ASSERT(device != nullptr);
-        _logger.debug("Checking compatibility with device: %s, devId: %x, subDevId: %u, maxNumSlices: %u",
-                      device->getName().c_str(),
-                      device->getDevId(),
-                      device->getSubDevId(),
-                      device->getMaxNumSlices());
-        auto result = compiler->validate_compatibility_descriptor(decodedString, device->getDevId(),
-                                                                  device->getMaxNumSlices(), device->getSubDevId());
+        auto result = compiler->validate_compatibility_descriptor(decodedString);
         _logger.debug("Compatibility check result: %s", result ? "met" : "not met");
         return result;
     }
