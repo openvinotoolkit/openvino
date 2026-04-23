@@ -55,8 +55,7 @@ public:
                                            const std::vector<cldnn::layout>& output_layouts,
                                            size_t beam_idx,
                                            size_t concat_idx,
-                                           bool has_zp_state,
-                                           bool is_4bit_kv_cache = false);
+                                           bool has_zp_state);
     using Ptr = std::shared_ptr<VariableStateIndirectKVCacheCompressed>;
 
     void set_state(const ov::SoPtr<ov::ITensor>& state) override;
