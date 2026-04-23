@@ -9,6 +9,7 @@
 #include "itt.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/sdpa_to_paged_attention.hpp"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/batch_to_space_fusion.hpp"
 #include "transformations/common_optimizations/binarize_weights.hpp"
@@ -121,6 +122,7 @@
 #include "transformations/op_conversions/softmax_decomposition.hpp"
 #include "transformations/op_conversions/softsign_decomposition.hpp"
 #include "transformations/op_conversions/unique_decomposition.hpp"
+#include "transformations/paged_attention/paged_causal_conv1d_fusion.hpp"
 #include "transformations/symbolic_transformations/dereshape_matmul.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 

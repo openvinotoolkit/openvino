@@ -111,7 +111,7 @@
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
-#include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
+#include "transformations/paged_attention/convert_pagedattn_inputs.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
@@ -1495,6 +1495,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         const size_t zp_pad_size = device_info.supports_immad ? 16 : 32;
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size, device_info.supports_immad);
 
+        manager.register_pass<ov::pass::TransposeToReshape>();        
         manager.register_pass<ov::intel_gpu::OptimizeSubsequentReshapes>();
 
         manager.register_pass<ov::intel_gpu::SinkReshape>();

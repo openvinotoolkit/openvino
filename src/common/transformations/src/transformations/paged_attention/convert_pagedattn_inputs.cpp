@@ -2,16 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
+#include "transformations/paged_attention/convert_pagedattn_inputs.hpp"
 
 #include <cstdint>
 #include <memory>
+#include <string>
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_causal_conv1d.hpp"
+#include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
@@ -30,67 +33,54 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
       m_update_precision_func(std::move(update_precision_func)) {
     MATCHER_SCOPE(ConvertPagedAttnInputs);
 
-    auto Q = pattern::any_input(pattern::has_static_rank());
-    auto K = pattern::any_input(pattern::has_static_rank());
-    auto V = pattern::any_input(pattern::has_static_rank());
-    auto key_cache_0 = pattern::wrap_type<v0::Parameter>({});
-    auto value_cache_0 = pattern::wrap_type<v0::Parameter>({});
-    auto past_lens = pattern::any_input(pattern::has_static_rank());
-    auto subsequence_begins = pattern::any_input(pattern::has_static_rank());
-    auto block_indices = pattern::any_input(pattern::has_static_rank());
-    auto block_indices_begins = pattern::any_input(pattern::has_static_rank());
-    auto scale = pattern::any_input(pattern::has_static_rank());
-    auto sliding_window = pattern::any_input(pattern::has_static_rank());
-    auto alibi_slopes = pattern::any_input(pattern::has_static_rank());
-    auto max_context_len = pattern::any_input(pattern::has_static_rank());
-    auto score_aggregation_window = pattern::any_input(pattern::has_static_rank());
-    auto rotated_block_indices = pattern::any_input(pattern::has_static_rank());
-    auto rotation_deltas = pattern::any_input(pattern::has_static_rank());
-    auto rotation_trig_lut = pattern::any_input(pattern::has_static_rank());
-    auto xattention_threshold = pattern::any_input(pattern::has_static_rank());
-    auto xattention_block_size = pattern::any_input(pattern::has_static_rank());
-    auto xattention_stride = pattern::any_input(pattern::has_static_rank());
-    auto sinks = pattern::any_input(pattern::has_static_rank());
-    auto adaptive_rkv_start_size = pattern::any_input(pattern::has_static_rank());
-    auto adaptive_rkv_evictable_sizes = pattern::any_input(pattern::has_static_rank());
-    auto adaptive_rkv_diversity_block_set_indices = pattern::any_input(pattern::has_static_rank());
-    auto adaptive_rkv_diversity_block_set_indices_begins = pattern::any_input(pattern::has_static_rank());
-    auto token_type_ids = pattern::any_input(pattern::has_static_rank());
-
-    auto qq_bias = pattern::any_input(pattern::has_static_rank());
-    auto qq_bias_begins = pattern::any_input(pattern::has_static_rank());
-    auto result = pattern::wrap_type<ov::op::PagedAttentionExtension>({Q,
-                                                                       K,
-                                                                       V,
-                                                                       key_cache_0,
-                                                                       value_cache_0,
-                                                                       past_lens,
-                                                                       subsequence_begins,
-                                                                       block_indices,
-                                                                       block_indices_begins,
-                                                                       scale,
-                                                                       sliding_window,
-                                                                       alibi_slopes,
-                                                                       max_context_len,
-                                                                       score_aggregation_window,
-                                                                       rotated_block_indices,
-                                                                       rotation_deltas,
-                                                                       rotation_trig_lut,
-                                                                       xattention_threshold,
-                                                                       xattention_block_size,
-                                                                       xattention_stride,
-                                                                       sinks,
-                                                                       adaptive_rkv_start_size,
-                                                                       adaptive_rkv_evictable_sizes,
-                                                                       adaptive_rkv_diversity_block_set_indices,
-                                                                       adaptive_rkv_diversity_block_set_indices_begins,
-                                                                       token_type_ids,
-                                                                       qq_bias,
-                                                                       qq_bias_begins});
+    auto result = pattern::wrap_type<ov::op::PagedAttentionExtension,
+                                     ov::op::internal::PagedCausalConv1D,
+                                     ov::op::internal::PagedGatedDeltaNet>();
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
-        const auto pa_op = m.get_match_root();
+        const auto root = m.get_match_root();
+
+        if (const auto paged_conv = ov::as_type_ptr<ov::op::internal::PagedCausalConv1D>(root)) {
+            auto conv_state_table = ov::as_type_ptr<v0::Parameter>(paged_conv->get_input_node_shared_ptr(1));
+            if (!conv_state_table) {
+                return false;
+            }
+
+            auto conv_cache_precision = m_config.inferencePrecision;
+            if (m_update_precision_func) {
+                m_update_precision_func(conv_cache_precision);
+            }
+
+            conv_state_table->set_element_type(conv_cache_precision);
+            conv_state_table->validate_and_infer_types();
+            return true;
+        }
+
+        if (const auto paged_gdn = ov::as_type_ptr<ov::op::internal::PagedGatedDeltaNet>(root)) {
+            auto gated_delta_state_table = ov::as_type_ptr<v0::Parameter>(paged_gdn->get_input_node_shared_ptr(3));
+            if (!gated_delta_state_table) {
+                return false;
+            }
+
+            auto gated_delta_cache_precision = m_config.inferencePrecision;
+            if (m_update_precision_func) {
+                m_update_precision_func(gated_delta_cache_precision);
+            }
+
+            gated_delta_state_table->set_element_type(gated_delta_cache_precision);
+            gated_delta_state_table->validate_and_infer_types();
+            return true;
+        }
+
+        const auto pa_op = ov::as_type_ptr<ov::op::PagedAttentionExtension>(root);
+        if (!pa_op) {
+            return false;
+        }
+
         auto key_cache = ov::as_type_ptr<v0::Parameter>(pa_op->get_input_node_shared_ptr(3));
         auto value_cache = ov::as_type_ptr<v0::Parameter>(pa_op->get_input_node_shared_ptr(4));
+        if (!key_cache || !value_cache) {
+            return false;
+        }
         auto format_cache_precision = [](ov::element::Type cache_precision, ov::element::Type infer_precision) {
             return cache_precision == ov::element::f16 && infer_precision == ov::element::bf16 ? infer_precision
                                                                                                : cache_precision;
