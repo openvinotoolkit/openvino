@@ -131,13 +131,6 @@ void MetadataBase::read_data_from_source(char* destination, const size_t size) {
 }
 
 void MetadataBase::append_padding_blob_size_and_magic(std::ostream& stream) {
-    size_t metadataSize = get_metadata_size() + sizeof(_blobDataSize) + MAGIC_BYTES.size();
-    size_t size = utils::align_size_to_standard_page_size(metadataSize);
-    size_t paddingSize = size - metadataSize;
-    if (paddingSize > 0) {
-        std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
-    }
-
     stream.write(reinterpret_cast<const char*>(&_blobDataSize), sizeof(_blobDataSize));
     stream.write(MAGIC_BYTES.data(), MAGIC_BYTES.size());
 }
