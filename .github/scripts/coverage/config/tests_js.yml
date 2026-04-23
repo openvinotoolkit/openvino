@@ -1,0 +1,67 @@
+schema_version: 1
+suite: js
+tests:
+  - name: node tests/setup.js (covered)
+    kind: command
+    profiles: [cpu]
+    command: "npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=true --exclude 'tests/**' --exclude 'thirdparty/**' node ./tests/setup.js"
+
+  - name: node scripts/download-runtime.js --ignore-if-exists (covered)
+    kind: command
+    profiles: [cpu]
+    command: "npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=false --exclude 'tests/**' --exclude 'thirdparty/**' node ./scripts/download-runtime.js --ignore-if-exists"
+
+  - name: node unit core.test.js
+    kind: command
+    profiles: [cpu]
+    command: "npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=false --exclude 'tests/**' --exclude 'thirdparty/**' node --test ./tests/unit/core.test.js"
+
+  - name: node unit model.test.js
+    kind: command
+    profiles: [cpu]
+    command: "npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=false --exclude 'tests/**' --exclude 'thirdparty/**' node --test ./tests/unit/model.test.js"
+
+  - name: node unit read_model.test.js
+    kind: command
+    profiles: [cpu]
+    command: "npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=false --exclude 'tests/**' --exclude 'thirdparty/**' node --test ./tests/unit/read_model.test.js"
+
+  - name: node unit basic.test.js
+    kind: command
+    profiles: [cpu]
+    command: "npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=false --exclude 'tests/**' --exclude 'thirdparty/**' node --test ./tests/unit/basic.test.js"
+
+  - name: node unit compiled_model.test.js
+    kind: command
+    profiles: [cpu]
+    command: "npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=false --exclude 'tests/**' --exclude 'thirdparty/**' node --test ./tests/unit/compiled_model.test.js"
+
+  - name: node unit infer_request.test.js
+    kind: command
+    profiles: [cpu]
+    command: "npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=false --exclude 'tests/**' --exclude 'thirdparty/**' node --test ./tests/unit/infer_request.test.js"
+
+  - name: node unit async_infer_queue.test.js
+    kind: command
+    profiles: [cpu]
+    command: "npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=false --exclude 'tests/**' --exclude 'thirdparty/**' node --test ./tests/unit/async_infer_queue.test.js"
+
+  - name: node unit tensor.test.js
+    kind: command
+    profiles: [cpu]
+    command: "npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=false --exclude 'tests/**' --exclude 'thirdparty/**' node --test ./tests/unit/tensor.test.js"
+
+  - name: node unit partial_shape.test.js
+    kind: command
+    profiles: [cpu]
+    command: "npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=false --exclude 'tests/**' --exclude 'thirdparty/**' node --test ./tests/unit/partial_shape.test.js"
+
+  - name: node unit pre_post_processor.test.js
+    kind: command
+    profiles: [cpu]
+    command: "npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=false --exclude 'tests/**' --exclude 'thirdparty/**' node --test ./tests/unit/pre_post_processor.test.js"
+
+  - name: npm run test:e2e
+    kind: command
+    profiles: [cpu]
+    command: "npx c8 --reporter=lcov --reporter=text --report-dir ${OV_WORKSPACE}/js-coverage --clean=false --exclude 'tests/**' --exclude 'thirdparty/**' npm run test:e2e --loglevel=silly"

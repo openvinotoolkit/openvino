@@ -1791,3 +1791,432 @@ class TestConvertModelDynamo:
             inp = np.random.randn(batch, 3, 32, 32).astype(np.float32)
             res = cm([inp])
             assert res[0].shape[0] == batch
+
+# ──────────────────────────────────────────────────────────────────────
+#  Tests for torch.export path with ov_ext custom ops (quantized models)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_ov_ext_ops_meta_dispatch():
+    """Verify quantized ov_ext ops produce correct shapes and dtypes on meta device."""
+    import openvino.frontend.pytorch.ov_custom_ops  # noqa: F401
+
+    # awq_gemm
+    r = torch.ops.ov_ext.awq_gemm(
+        torch.empty(2, 64, dtype=torch.float16, device="meta"),
+        torch.empty(64, 16, device="meta"),
+        torch.empty(2, 16, device="meta"),
+        torch.empty(2, 128, device="meta"),
+        32, 4, None)
+    assert r.shape == (2, 128) and r.dtype == torch.float16
+
+    # bit_linear
+    r = torch.ops.ov_ext.bit_linear(
+        torch.empty(2, 3, 32, dtype=torch.bfloat16, device="meta"),
+        torch.empty(64, 32, device="meta"),
+        torch.empty(64, device="meta"), None)
+    assert r.shape == (2, 3, 64) and r.dtype == torch.bfloat16
+
+    # gptq_gemm  — qweight is [in_features/8, out_features]
+    r = torch.ops.ov_ext.gptq_gemm(
+        torch.empty(2, 64, dtype=torch.float16, device="meta"),
+        torch.empty(8, 16, device="meta"),
+        torch.empty(2, 2, device="meta"),
+        torch.empty(2, 16, device="meta"),
+        32, 4, False, None)
+    assert r.shape == (2, 16) and r.dtype == torch.float16
+
+
+def test_ov_ext_awq_gemm_output_shape():
+    """ov_ext.awq_gemm produces correct output shape."""
+    import openvino.frontend.pytorch.ov_custom_ops  # noqa: F401
+    batch, in_f, w_bit, group_size = 2, 64, 4, 32
+    pack_num = 32 // w_bit
+    packed_out = 16  # out_features = packed_out * pack_num = 128
+    data = torch.randn(batch, in_f)
+    qweight = torch.randint(0, 255, (in_f, packed_out), dtype=torch.int32)
+    qzeros = torch.randint(0, 255, (in_f // group_size, packed_out), dtype=torch.int32)
+    scales = torch.randn(in_f // group_size, packed_out * pack_num)
+    result = torch.ops.ov_ext.awq_gemm(data, qweight, qzeros, scales, group_size, w_bit, None)
+    assert result.shape == (batch, packed_out * pack_num)
+
+
+def test_ov_ext_bit_linear_output_shape():
+    """ov_ext.bit_linear produces correct output shape."""
+    import openvino.frontend.pytorch.ov_custom_ops  # noqa: F401
+    out_features = 64
+    data = torch.randn(2, 3, 32)
+    weight = torch.randn(out_features, 32)
+    weight_scale = torch.randn(out_features)
+    result = torch.ops.ov_ext.bit_linear(data, weight, weight_scale, None)
+    assert result.shape == (2, 3, out_features)
+
+
+def test_ov_ext_gptq_gemm_output_shape():
+    """ov_ext.gptq_gemm produces correct output shape."""
+    import openvino.frontend.pytorch.ov_custom_ops  # noqa: F401
+    batch, in_f, w_bit, group_size = 2, 64, 4, 32
+    pack_num = 32 // w_bit
+    out_features = 64
+    data = torch.randn(batch, in_f)
+    # GPTQ packs along input dim: qweight = [in_features/pack_num, out_features]
+    qweight = torch.randint(0, 255, (in_f // pack_num, out_features), dtype=torch.int32)
+    # qzeros packs along output dim: qzeros = [n_groups, out_features/pack_num]
+    qzeros = torch.randint(0, 255, (in_f // group_size, out_features // pack_num), dtype=torch.int32)
+    scales = torch.randn(in_f // group_size, out_features)
+    # Asymmetric
+    result = torch.ops.ov_ext.gptq_gemm(data, qweight, qzeros, scales,
+                                         group_size, w_bit, False, None)
+    assert result.shape == (batch, out_features)
+    # Symmetric
+    result_sym = torch.ops.ov_ext.gptq_gemm(data, qweight, qzeros, scales,
+                                             group_size, w_bit, True, None)
+    assert result_sym.shape == (batch, out_features)
+
+
+@pytest.mark.skipif(sys.platform.lower().startswith("win"), reason="CVS-174725")
+def test_gptq_export_pipeline():
+    """Patch a GPTQ model with patch_quantized_for_export, export, convert, verify."""
+    try:
+        from auto_gptq.nn_modules.qlinear.qlinear_cuda_old import (
+            QuantLinear as GPTQQuantLinear)
+    except ImportError:
+        pytest.skip("auto_gptq not installed")
+
+    from openvino import convert_model, compile_model
+    from openvino.frontend.pytorch.quantized import (
+        patch_quantized_for_export, unpatch_quantized_for_export)
+
+    rng = torch.Generator().manual_seed(42)
+    in_features, out_features, group_size, bits = 32, 64, 32, 4
+    pack_num = 32 // bits
+
+    class FakeQuantConfig:
+        quant_method = "gptq"
+        sym = False
+
+    class FakeConfig:
+        quantization_config = FakeQuantConfig()
+
+    class GPTQModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.config = FakeConfig()
+            self.linear = GPTQQuantLinear(
+                bits, group_size, in_features, out_features, True)
+            # Fill with random quantized data
+            self.linear.qweight = torch.nn.Parameter(
+                torch.randint(0, 2**31, (in_features // pack_num, out_features),
+                              dtype=torch.int32, generator=rng),
+                requires_grad=False)
+            self.linear.qzeros = torch.nn.Parameter(
+                torch.randint(0, 2**31, (in_features // group_size,
+                              out_features // pack_num),
+                              dtype=torch.int32, generator=rng),
+                requires_grad=False)
+            self.linear.scales = torch.nn.Parameter(
+                torch.randn(in_features // group_size, out_features,
+                            dtype=torch.float16, generator=rng),
+                requires_grad=False)
+            self.linear.bias = torch.nn.Parameter(
+                torch.randn(out_features, dtype=torch.float16, generator=rng),
+                requires_grad=False)
+
+        def forward(self, x):
+            return self.linear(x)
+
+    model = GPTQModel()
+    x = torch.randn(1, in_features, generator=rng)
+
+    patch_quantized_for_export(model)
+    try:
+        with torch.no_grad():
+            ep = torch.export.export(model, (x,))
+        # Verify custom op in graph
+        ops = [str(n.target) for n in ep.module().graph.nodes if n.op == "call_function"]
+        assert "ov_ext.gptq_gemm.default" in ops
+
+        ov_model = convert_model(ep)
+        assert ov_model
+        cm = compile_model(ov_model, "CPU", default_cfg)
+        res = cm([x.numpy()])
+        assert res[0].shape == (1, out_features)
+    finally:
+        unpatch_quantized_for_export(model)
+
+    # Verify model was unpatched
+    for _, m in model.named_modules():
+        assert not hasattr(m, "_openvino_quantized_patch_orig_forward")
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  Tests for dynamo=True auto-patching of quantized models
+# ──────────────────────────────────────────────────────────────────────
+
+def test_dynamo_auto_patches_quantized_awq():
+    """Verify convert_model(dynamo=True) auto-patches AWQ quantized models."""
+    try:
+        from awq.modules.linear import WQLinear_GEMM
+    except ImportError:
+        pytest.skip("awq not installed")
+
+    from openvino import convert_model
+
+    class FakeQuantConfig:
+        quant_method = "awq"
+
+    class FakeConfig:
+        quantization_config = FakeQuantConfig()
+
+    # Build a model with a WQLinear_GEMM submodule
+    class FakeAWQModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.config = FakeConfig()
+            in_f, out_f, w_bit, group_size = 64, 128, 4, 32
+            pack_num = 32 // w_bit
+            self.linear = WQLinear_GEMM(w_bit, group_size, in_f, out_f, bias=False, dev="cpu")
+            # Provide properly shaped fake weights
+            self.linear.qweight = torch.nn.Parameter(
+                torch.randint(0, 255, (in_f, out_f // pack_num), dtype=torch.int32),
+                requires_grad=False)
+            self.linear.qzeros = torch.nn.Parameter(
+                torch.randint(0, 255, (in_f // group_size, out_f // pack_num), dtype=torch.int32),
+                requires_grad=False)
+            self.linear.scales = torch.nn.Parameter(
+                torch.randn(in_f // group_size, out_f), requires_grad=False)
+
+        def forward(self, x):
+            return self.linear(x)
+
+    model = FakeAWQModel()
+    example_input = torch.randn(2, 64)
+    ov_model = convert_model(model, example_input=[example_input], dynamo=True)
+    assert ov_model is not None
+
+    # Verify the model was unpatched (no leftover attributes)
+    for _, m in model.named_modules():
+        assert not hasattr(m, "_openvino_quantized_patch_orig_forward")
+
+    # Verify model has expected output shape
+    assert ov_model.output(0).get_partial_shape()[-1].get_length() == 128
+
+
+def test_dynamo_auto_patches_gptq_graceful_fallback():
+    """Verify convert_model(dynamo=True) handles GPTQ model with plain Linear (no QUANT_TYPE)."""
+    from openvino import convert_model
+
+    class FakeQuantConfig:
+        quant_method = "gptq"
+
+    class FakeConfig:
+        quantization_config = FakeQuantConfig()
+
+    class FakeGPTQModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.config = FakeConfig()
+            self.linear = torch.nn.Linear(4, 2)
+
+        def forward(self, x):
+            return self.linear(x)
+
+    model = FakeGPTQModel()
+    example_input = torch.randn(2, 4)
+    # Model uses plain Linear (no QUANT_TYPE), so GPTQ patching finds
+    # nothing to patch and the model exports as-is
+    ov_model = convert_model(model, example_input=[example_input], dynamo=True)
+    assert ov_model is not None
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  BitNet export pipeline tests
+# ──────────────────────────────────────────────────────────────────────
+
+@pytest.mark.skipif(sys.platform.lower().startswith("win"), reason="CVS-174725")
+def test_bitnet_export_pipeline():
+    """Patch a BitNet model with patch_quantized_for_export, export, convert, verify."""
+    from openvino import convert_model, compile_model
+    from openvino.frontend.pytorch.quantized import (
+        patch_quantized_for_export, unpatch_quantized_for_export)
+    from transformers.integrations.bitnet import AutoBitLinear, pack_weights
+    from transformers import PretrainedConfig, BitNetQuantConfig
+
+    rng = torch.Generator().manual_seed(42)
+    size = (32, 64)
+
+    class BitNetModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.config = PretrainedConfig(
+                quantization_config=BitNetQuantConfig(linear_class="autobitlinear"))
+            self.linear = AutoBitLinear(size[0], size[1], bias=True, use_rms_norm=True)
+            w = torch.randint(-1, 2, (size[1], size[0]), dtype=torch.float32, generator=rng)
+            self.linear.weight = torch.nn.Parameter(w)
+            self.linear.original_weight = pack_weights(self.linear.weight.data.clone())
+
+        def forward(self, x):
+            return self.linear(x)
+
+    model = BitNetModel()
+    x = torch.randn(1, size[0], generator=rng)
+    with torch.no_grad():
+        res_ref = model(x)
+
+    patch_quantized_for_export(model)
+    try:
+        with torch.no_grad():
+            ep = torch.export.export(model, (x,))
+        # Verify custom ops in graph
+        ops = [str(n.target) for n in ep.module().graph.nodes if n.op == "call_function"]
+        assert "ov_ext.bit_linear.default" in ops
+
+        ov_model = convert_model(ep)
+        assert ov_model
+        cm = compile_model(ov_model, "CPU", default_cfg)
+        res = cm([x.numpy()])
+        rtol, atol = 1e-4, 1e-4
+        if platform.machine() in ('arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'):
+            rtol, atol = 0.5, 0.1
+        np.testing.assert_allclose(res[0], res_ref.numpy(), rtol=rtol, atol=atol)
+    finally:
+        unpatch_quantized_for_export(model)
+
+    # Verify model was unpatched
+    for _, m in model.named_modules():
+        assert not hasattr(m, "_openvino_quantized_patch_orig_forward")
+
+
+@pytest.mark.skipif(sys.platform.lower().startswith("win"), reason="CVS-174725")
+def test_dynamo_auto_patches_bitnet():
+    """Verify convert_model(dynamo=True) auto-patches BitNet quantized models."""
+    from openvino import convert_model
+    from transformers.integrations.bitnet import AutoBitLinear, pack_weights
+    from transformers import PretrainedConfig, BitNetQuantConfig
+
+    rng = torch.Generator().manual_seed(42)
+    size = (32, 64)
+
+    class BitNetModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.config = PretrainedConfig(
+                quantization_config=BitNetQuantConfig(linear_class="autobitlinear"))
+            self.linear = AutoBitLinear(size[0], size[1], bias=True, use_rms_norm=True)
+            w = torch.randint(-1, 2, (size[1], size[0]), dtype=torch.float32, generator=rng)
+            self.linear.weight = torch.nn.Parameter(w)
+            self.linear.original_weight = pack_weights(self.linear.weight.data.clone())
+
+        def forward(self, x):
+            return self.linear(x)
+
+    model = BitNetModel()
+    x = torch.randn(1, size[0], generator=rng)
+    ov_model = convert_model(model, example_input=[x], dynamo=True)
+    assert ov_model is not None
+
+    # Verify the model was unpatched
+    for _, m in model.named_modules():
+        assert not hasattr(m, "_openvino_quantized_patch_orig_forward")
+
+    # Verify output shape
+    assert ov_model.output(0).get_partial_shape()[-1].get_length() == size[1]
+
+
+def test_dynamo_auto_patches_gptq_converts_without_quantized_ops():
+    """Verify convert_model(dynamo=True) with GPTQ produces valid model (no quant ops)."""
+    from openvino import convert_model, compile_model
+
+    class FakeQuantConfig:
+        quant_method = "gptq"
+
+    class FakeConfig:
+        quantization_config = FakeQuantConfig()
+
+    class FakeGPTQModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.config = FakeConfig()
+            self.linear = torch.nn.Linear(16, 8)
+
+        def forward(self, x):
+            return self.linear(x)
+
+    model = FakeGPTQModel()
+    x = torch.randn(2, 16)
+    with torch.no_grad():
+        res_ref = model(x)
+
+    # GPTQ patching fails gracefully; model is still exported as plain linear
+    ov_model = convert_model(model, example_input=[x], dynamo=True)
+    assert ov_model is not None
+
+    # Verify the model was not patched (no leftover attributes)
+    for _, m in model.named_modules():
+        assert not hasattr(m, "_openvino_quantized_patch_orig_forward")
+
+    # Verify output is numerically correct (plain linear, no quantization)
+    cm = compile_model(ov_model, "CPU", default_cfg)
+    res = cm([x.numpy()])
+    np.testing.assert_allclose(res[0], res_ref.numpy(), atol=1e-5)
+
+
+@pytest.mark.skipif(sys.platform.lower().startswith("win"), reason="CVS-174725")
+def test_dynamo_auto_patches_gptq():
+    """Verify convert_model(dynamo=True) auto-patches GPTQ quantized models."""
+    try:
+        from auto_gptq.nn_modules.qlinear.qlinear_cuda_old import (
+            QuantLinear as GPTQQuantLinear)
+    except ImportError:
+        pytest.skip("auto_gptq not installed")
+
+    from openvino import convert_model
+
+    rng = torch.Generator().manual_seed(42)
+    in_features, out_features, group_size, bits = 32, 64, 32, 4
+    pack_num = 32 // bits
+
+    class FakeQuantConfig:
+        quant_method = "gptq"
+        sym = False
+
+    class FakeConfig:
+        quantization_config = FakeQuantConfig()
+
+    class GPTQModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.config = FakeConfig()
+            self.linear = GPTQQuantLinear(
+                bits, group_size, in_features, out_features, True)
+            self.linear.qweight = torch.nn.Parameter(
+                torch.randint(0, 2**31, (in_features // pack_num, out_features),
+                              dtype=torch.int32, generator=rng),
+                requires_grad=False)
+            self.linear.qzeros = torch.nn.Parameter(
+                torch.randint(0, 2**31, (in_features // group_size,
+                              out_features // pack_num),
+                              dtype=torch.int32, generator=rng),
+                requires_grad=False)
+            self.linear.scales = torch.nn.Parameter(
+                torch.randn(in_features // group_size, out_features,
+                            dtype=torch.float16, generator=rng),
+                requires_grad=False)
+            self.linear.bias = torch.nn.Parameter(
+                torch.randn(out_features, dtype=torch.float16, generator=rng),
+                requires_grad=False)
+
+        def forward(self, x):
+            return self.linear(x)
+
+    model = GPTQModel()
+    x = torch.randn(1, in_features, generator=rng)
+    ov_model = convert_model(model, example_input=[x], dynamo=True)
+    assert ov_model is not None
+
+    # Verify the model was unpatched
+    for _, m in model.named_modules():
+        assert not hasattr(m, "_openvino_quantized_patch_orig_forward")
+
+    # Verify output shape
+    assert ov_model.output(0).get_partial_shape()[-1].get_length() == out_features

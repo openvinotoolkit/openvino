@@ -75,13 +75,19 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
     jit.make("INPUT4_TYPE", to_ocl_type(data_types::i32));             // n_array: i32
     jit.make("WEIGHT_SCALE_DT", to_ocl_type(scale_layout.data_type));  // scale: f16
 
-    if (zp_layout.data_type == ov::element::u4 || zp_layout.data_type == ov::element::i4) {
-        jit.make("WEIGHT_ZP_DT", to_ocl_type(data_types::u8));  // zp: u4/i4
-        jit.make("WEIGHT_COMPRESSED_ZP_INT4", 1);
-    } else {
-        jit.make("WEIGHT_ZP_DT", to_ocl_type(zp_layout.data_type));  // zp type
-        jit.make("WEIGHT_COMPRESSED_ZP_INT4", 0);
+    auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
+    const bool has_zp = desc->_config.has_zp;
+    if (has_zp) {
+        if (zp_layout.data_type == ov::element::u4 || zp_layout.data_type == ov::element::i4) {
+            jit.make("WEIGHT_ZP_DT", to_ocl_type(data_types::u8));  // zp: u4/i4
+            jit.make("WEIGHT_COMPRESSED_ZP_INT4", 1);
+        } else {
+            jit.make("WEIGHT_ZP_DT", to_ocl_type(zp_layout.data_type));  // zp type
+            jit.make("WEIGHT_COMPRESSED_ZP_INT4", 0);
+        }
     }
+    // When has_zp=false (symmetric quantization), WEIGHT_ZP_DT is not defined,
+    // so the OCL kernel skips ZP parameter declaration and ZP computation.
 
     // "IS_GENERATE" is for generate stage, and prefill stage doesn't need set it.
     jit.make("INPUT_SEQ_LEN", 4);  // prefill not use it
@@ -98,7 +104,6 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
         GPU_DEBUG_TRACE_DETAIL << "\t NUM_GROUPS: 1" << std::endl;
     }
 
-    auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
     switch (m_type) {
     case MoE3GemmMicroKernelType::MLP_GATE:
     case MoE3GemmMicroKernelType::MLP_UP:
@@ -232,7 +237,7 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     if (is_weight_quantized) {
         problem_moe.Ta = micro::Type::f16;
         problem_moe.Ta_ext = convert_type(params.get_input_layout(wei_idx).data_type);
-        problem_moe.A.setAlignment(micro::alignment_for_ld(k * problem_moe.Ta_ext));
+        problem_moe.A.setAlignment(micro::alignment_for_ld(static_cast<int>(k * problem_moe.Ta_ext)));
 
         // scale layout example: f16:bfyx:4x8x3072:nopad
         const auto& scale_layout = params.get_input_layout(scale_idx);
@@ -245,7 +250,7 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
         problem_moe.aqGroupK = static_cast<int>(group_size);
 
         opts_moe.scaleA = true;
-        const bool is_weight_symmetric_quantized = false;
+        const bool is_weight_symmetric_quantized = !desc->_config.has_zp;
         if (!is_weight_symmetric_quantized) {
             // zp layout example: u4:bfyx:4x8x3072:nopad
             const auto& zp_layout = params.get_input_layout(zp_idx);
@@ -267,7 +272,7 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     problem_moe.A.layout = micro::MatrixLayout::T;
     problem_moe.B.layout = micro::MatrixLayout::N;
     problem_moe.C.layout = micro::MatrixLayout::N;
-    problem_moe.B.setAlignment(micro::alignment_for_ld(k * problem_moe.Tb));
+    problem_moe.B.setAlignment(micro::alignment_for_ld(static_cast<int>(k * problem_moe.Tb)));
     problem_moe.C.setAlignment(static_cast<int32_t>(problem_moe.Tc.size()));
 
     /* Set up problem_moe size information */
@@ -360,6 +365,7 @@ std::string MoE3GemmMicroGenerator::get_build_options(const kernel_impl_params& 
 Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& params) const {
     Arguments args;
     auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
+    const bool has_zp = desc->_config.has_zp;
 
     switch (m_type) {
     case MoE3GemmMicroKernelType::MLP_GATE:
@@ -377,7 +383,8 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                                            // m
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                                            // k
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_0)});                 // scale
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_0)});                    // zp
+        if (has_zp)
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_0)});  // zp
         break;
     case MoE3GemmMicroKernelType::MLP_UP:
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_GATE_UP_INPUT});  // gather input tensor
@@ -389,7 +396,8 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                                            // m
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                                            // k
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_1)});                 // scale
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_1)});                    // zp
+        if (has_zp)
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_1)});  // zp
         break;
     case MoE3GemmMicroKernelType::MLP_DOWN:
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_GATE_OUTPUT});  // intermediate_mem[6]
@@ -401,7 +409,8 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                                            // m
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                                            // k
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_2)});                 // scale
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_2)});                    // zp
+        if (has_zp)
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_2)});  // zp
         break;
     default:
         OPENVINO_THROW("Unsupported MoE3GemmMicroKernelType");

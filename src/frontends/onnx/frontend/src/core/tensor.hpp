@@ -75,8 +75,8 @@ inline std::vector<T> __get_raw_data(const std::string& raw_data, int onnx_data_
 }  // namespace
 }  // namespace detail
 
-using MappedMemoryHandles = std::shared_ptr<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>;
-using LocalStreamHandles = std::shared_ptr<std::map<std::string, std::shared_ptr<std::ifstream>>>;
+using MappedMemoryHandles = std::shared_ptr<std::map<std::filesystem::path, std::shared_ptr<ov::MappedMemory>>>;
+using LocalStreamHandles = std::shared_ptr<std::map<std::filesystem::path, std::shared_ptr<std::ifstream>>>;
 
 class TensorONNXPlace : public ov::frontend::onnx::TensorPlace {
 public:
@@ -88,14 +88,16 @@ public:
                     const size_t data_size,
                     const ov::Any& data_any,
                     std::shared_ptr<std::string> data_location,
-                    const bool is_raw)
+                    const bool is_raw,
+                    const bool reuse_const_data = false)
         : ov::frontend::onnx::TensorPlace(input_model, pshape, type, names),
           m_input_model(input_model),
           m_data(data),
           m_data_any(data_any),
           m_data_size(data_size),
           m_data_location(data_location),
-          m_is_raw(is_raw) {};
+          m_is_raw(is_raw),
+          m_reuse_const_data(reuse_const_data) {};
 
     void translate(ov::Output<ov::Node>& output);
 
@@ -140,6 +142,10 @@ public:
         return m_is_raw;
     }
 
+    bool is_const_data_reusable() const {
+        return m_reuse_const_data;
+    }
+
     detail::MappedMemoryHandles get_mmap_cache();
     detail::LocalStreamHandles get_stream_cache();
     std::filesystem::path get_model_dir() const;
@@ -152,6 +158,7 @@ protected:
     size_t m_data_size;
     std::shared_ptr<std::string> m_data_location;
     bool m_is_raw;
+    bool m_reuse_const_data;
 };
 
 class Tensor {
@@ -317,9 +324,9 @@ private:
         if (ext_data.data_location() == detail::ORT_MEM_ADDR) {
             buffer = ext_data.load_external_mem_data();
         } else if (m_mmap_cache) {
-            buffer = ext_data.load_external_mmap_data(m_model_dir.string(), m_mmap_cache);
+            buffer = ext_data.load_external_mmap_data(m_model_dir, m_mmap_cache);
         } else {
-            buffer = ext_data.load_external_data(m_model_dir.string());
+            buffer = ext_data.load_external_data(m_model_dir);
         }
         return std::vector<T>(buffer->get_ptr<T>(), buffer->get_ptr<T>() + (buffer->size() / sizeof(T)));
     }
@@ -354,7 +361,7 @@ private:
 
     size_t get_data_size() const {
         if (m_tensor_place != nullptr) {
-            if (m_tensor_place->is_raw()) {
+            if (m_tensor_place->is_raw() || m_tensor_place->get_data_location()) {
                 return m_tensor_place->get_data_size() /
                        get_onnx_data_size(ov_to_onnx_data_type(m_tensor_place->get_element_type()));
             } else {

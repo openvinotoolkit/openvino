@@ -93,22 +93,22 @@ std::size_t GetKernelsNum(const resample_params& params) {
 }
 
 std::size_t GetFirstRow(const resample_params& params) {
-    float scale = static_cast<float>(getInputVerticalSize(params, true)) / getOutputVerticalSize(params);
+    float scale = static_cast<float>(getInputVerticalSize(params, true)) / static_cast<float>(getOutputVerticalSize(params));
     float filter_scale = std::max(1.f, scale);
     float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
-    float center = 0.5 * scale;
-    auto xmin = std::max(0, static_cast<int>(center - support + 0.5));
+    float center = 0.5f * scale;
+    auto xmin = std::max(0, static_cast<int>(center - support + 0.5f));
     return xmin;
 }
 
 std::size_t GetLastRow(const resample_params& params) {
     auto inputVerticalSize = getInputVerticalSize(params, true);
     auto outputVerticalSize = getOutputVerticalSize(params);
-    float scale = static_cast<float>(inputVerticalSize) / outputVerticalSize;
+    float scale = static_cast<float>(inputVerticalSize) / static_cast<float>(outputVerticalSize);
     float filter_scale = std::max(1.f, scale);
     float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
-    float center = (outputVerticalSize - 0.5) * scale;
-    auto xmax = std::min(inputVerticalSize, static_cast<std::size_t>(center + support + 0.5));
+    float center = (outputVerticalSize - 0.5f) * scale;
+    auto xmax = std::min(inputVerticalSize, static_cast<std::size_t>(center + support + 0.5f));
     return xmax;
 }
 
@@ -142,8 +142,8 @@ ParamsKey ResampleKernelPilRef::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
-    k.EnableReampleType(ResampleType::BILINEAR_PILLOW);
-    k.EnableReampleType(ResampleType::BICUBIC_PILLOW);
+    k.EnableResampleType(ResampleType::BILINEAR_PILLOW);
+    k.EnableResampleType(ResampleType::BICUBIC_PILLOW);
     return k;
 }
 
@@ -379,7 +379,7 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
                 MakeJitConstant("ENABLE_VERTICAL_PASS", NeedVerticalPass(params)),
                 MakeJitConstant("ENABLE_HORIZONTAL_PASS", needHorizontalPass),
                 MakeJitConstant("KSIZE", ksize),
-            }); 
+            });
             if (needHorizontalPass) {
                 jit_constants.AddConstant(MakeJitConstant("RESAMPLE_VERTICAL_INPUT_TYPE", "INTERMEDIATE_BUF_TYPE"));
             } else {

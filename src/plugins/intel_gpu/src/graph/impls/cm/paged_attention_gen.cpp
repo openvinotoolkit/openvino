@@ -23,6 +23,7 @@ using namespace ov::intel_gpu::ocl;
 using namespace cldnn;
 namespace {
 constexpr size_t reduce_split_step = 16;
+constexpr size_t KV_SUB_BLOCK_SIZE = 16;
 }  // namespace
 
 #define DEBUG_ENABLED 0
@@ -147,6 +148,20 @@ JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_pa
 
     jit.make("WG_SIZE", WG_SIZE);
     jit.make("CAUSAL_MASK", 1);
+
+    // 0: no compression, 1: per-token compression for both key and value, 2: per-channel compression for key and per-token compression for value
+    if (get_kv_compressed(params)) {
+        const auto desc = params.typed_desc<paged_attention>();
+        if (desc->is_key_by_channel) {
+            jit.make("KV_CACHE_COMPRESSION", 2);
+            jit.make("SUB_BLOCK_SIZE", KV_SUB_BLOCK_SIZE);
+        } else {
+            jit.make("KV_CACHE_COMPRESSION", 1);
+        }
+    } else {
+        jit.make("KV_CACHE_COMPRESSION", 0);
+    }
+
     return jit;
 }
 
@@ -161,17 +176,22 @@ JitConstants PagedAttentionGeneratorKVCacheUpdate::get_jit_constants(const kerne
     jit.make("K_HEAD_SIZE", desc->k_head_size);
     jit.make("V_HEAD_SIZE", desc->v_head_size);
     if (desc->has_xattention) {
-        jit.make("PAGED_ATTENTION_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
+        jit.make("BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
     } else {
-        jit.make("PAGED_ATTENTION_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_LEGACY);
+        jit.make("BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_LEGACY);
     }
 
     if (get_kv_compressed(params)) {
-        jit.make("KV_CACHE_COMPRESSION_PER_TOKEN", 1);
-        jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size + 4);
+        if (desc->is_key_by_channel) {
+            jit.make("ADJUSTED_BLOCK_SIZE",
+                     desc->has_xattention ? PA_KV_CACHE_BLOCK_SIZE_XATTN + PA_KV_CACHE_BLOCK_SIZE_XATTN / KV_SUB_BLOCK_SIZE * 4
+                                          : PA_KV_CACHE_BLOCK_SIZE_LEGACY + PA_KV_CACHE_BLOCK_SIZE_LEGACY / KV_SUB_BLOCK_SIZE * 4);
+            jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
+        } else {
+            jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size + 4);
+        }
         jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size + 4);
     } else {
-        jit.make("KV_CACHE_COMPRESSION_PER_TOKEN", 0);
         jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
         jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size);
     }
@@ -207,7 +227,11 @@ DispatchDataFunc PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func() 
 
         const size_t kv_len = get_input_kv_len(params);
         const size_t kv_heads_num = desc->kv_heads_num;
-        const size_t wg_count = (kv_len + WG_SIZE - 1) / WG_SIZE;
+        size_t kv_items = kv_len;
+        if (get_kv_compressed(params) && desc->is_key_by_channel) {
+            kv_items = ceil_div(kv_len, KV_SUB_BLOCK_SIZE);
+        }
+        const size_t wg_count = ceil_div(kv_items, WG_SIZE);
 
         wgs.global = {1, kv_heads_num, wg_count * WG_SIZE};
         wgs.local = {1, 1, WG_SIZE};
@@ -297,7 +321,7 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
 JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_impl_params& params) const {
     auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
     const auto desc = params.typed_desc<paged_attention>();
-    const float scale_factor = 1.0 / std::sqrt(static_cast<double>(desc->k_head_size));
+    const float scale_factor = 1.0f / std::sqrt(static_cast<float>(desc->k_head_size));
     OPENVINO_ASSERT(_xattn_block_size == 1 || _xattn_block_size == 128 || _xattn_block_size == 256,
                     "Unsupported xattention block size for multi token kernel: ",
                     _xattn_block_size);
@@ -318,13 +342,6 @@ JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_i
     } else {
         jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE_LEGACY);
     }
-
-    if (get_kv_compressed(params)) {
-        jit.make("CMPA_KVCACHE_U8", 1);
-    } else {
-        jit.make("CMPA_KVCACHE_U8", 0);
-    }
-
     jit.make("CMPA_WG_SEQ_LEN", get_wg_seq_len(params));
 
     return jit;
@@ -379,7 +396,7 @@ JitConstants PagedAttentionGeneratorSingleToken::get_jit_constants(const kernel_
     auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
     // jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
     auto desc = params.typed_desc<paged_attention>();
-    const float scale_factor = 1.0 / std::sqrt(static_cast<double>(desc->k_head_size));
+    const float scale_factor = 1.0f / std::sqrt(static_cast<float>(desc->k_head_size));
     const size_t kv_partition_size = get_partition_size(desc->has_xattention);
     jit.make("KV_PARTITION_SIZE", kv_partition_size);
     if (desc->has_xattention) {
@@ -395,13 +412,6 @@ JitConstants PagedAttentionGeneratorSingleToken::get_jit_constants(const kernel_
     const auto q_chunking = get_single_token_q_chunking(params, *desc, kv_partition_size);
     jit.make("Q_head_chunks_per_kv_head", q_chunking.q_head_chunks_per_kv_head);
     jit.make("Q_head_chunk_size", q_chunking.q_head_chunk_size);
-    if (get_kv_compressed(params)) {
-        jit.make("KV_CACHE_COMPRESSION", 1);
-        jit.make("KV_CACHE_COMPRESSION_BY_TOKEN", 1);
-    } else {
-        jit.make("KV_CACHE_COMPRESSION", 0);
-        jit.make("KV_CACHE_COMPRESSION_BY_TOKEN", 0);
-    }
 
     return jit;
 }
@@ -572,10 +582,12 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
     jit.make("WALK_HQ", desc->heads_num != desc->kv_heads_num ? 2 : 1);
     jit.make("IS_CAUSAL", 1);
     if (get_kv_compressed(params)) {
-        jit.make("USE_INT8", 1);
-        jit.make("HEAD_SIZE_KEY", desc->k_head_size + 2 * 2);
+        if (desc->is_key_by_channel) {
+            jit.make("HEAD_SIZE_KEY", desc->k_head_size + desc->k_head_size / 4);
+        } else {
+            jit.make("HEAD_SIZE_KEY", desc->k_head_size + 2 * 2);
+        }
     } else {
-        jit.make("USE_INT8", 0);
         jit.make("HEAD_SIZE_KEY", desc->k_head_size);
     }
     jit.make("SOFTMAX_TYPE", "float");
@@ -719,8 +731,8 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
         const size_t q_len = out_shape[0];
 
         const size_t sum_per_n_token_in_block = static_cast<size_t>(rtp->xattn_block_size / STRIDE);
-        const uint32_t q_block = ceil_div(rtp->M, sum_per_n_token_in_block);
-        const uint32_t k_block = ceil_div(rtp->N, sum_per_n_token_in_block);
+        const size_t q_block = static_cast<size_t>(ceil_div(rtp->M, sum_per_n_token_in_block));
+        const size_t k_block = static_cast<size_t>(ceil_div(rtp->N, sum_per_n_token_in_block));
 
         const float xattn_thresh = get_xattn_thresh(params);
 

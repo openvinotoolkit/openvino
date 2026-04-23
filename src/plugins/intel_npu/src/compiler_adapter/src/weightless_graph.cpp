@@ -12,6 +12,8 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
@@ -51,7 +53,7 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_consta
                                 "This may indicate a bug in OV model compression.");
                 continue;
             }
-            constant = constantNode;
+            constant = std::move(constantNode);
         }
     }
 
@@ -313,23 +315,13 @@ void WeightlessGraph::initialize_impl(const FilteredConfig& config) {
             commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
         }
     }
-
-    _initsCommandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
-                                                        zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                        commandQueueOptions);
-
-    if (config.has<WORKLOAD_TYPE>()) {
-        switch (config.get<WORKLOAD_TYPE>()) {
-        case ov::WorkloadType::DEFAULT:
-            _initsCommandQueue->setWorkloadType(ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_DEFAULT);
-            break;
-        case ov::WorkloadType::EFFICIENT:
-            _initsCommandQueue->setWorkloadType(ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_BACKGROUND);
-            break;
-        default:
-            OPENVINO_THROW("Unknown value for WorkloadType!");
-        }
-    }
+    CommandQueueDesc commandQueueDesc{
+        zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
+        config.has<WORKLOAD_TYPE>() ? zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>()) : std::nullopt,
+        commandQueueOptions,
+        this,
+        config.get<SHARED_COMMON_QUEUE>()};
+    _initsCommandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, commandQueueDesc);
 
 #if USE_SINGLE_THREADED_RUN_INIT
     run_init_single_threaded();
@@ -419,7 +411,7 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
         constants.erase(id);
     }
 
-    return {initInputsViewTensors, initInputsAllocatedTensor};
+    return {std::move(initInputsViewTensors), initInputsAllocatedTensor};
 }
 
 WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initIndex) {
@@ -449,7 +441,7 @@ WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initI
         offset += ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
     }
 
-    return {initOutputsViewTensorsVector, initOutputsAllocatedTensor, initOutputsViewTensorsMap};
+    return {std::move(initOutputsViewTensorsVector), initOutputsAllocatedTensor, std::move(initOutputsViewTensorsMap)};
 }
 
 void WeightlessGraph::run_init_single_threaded() {

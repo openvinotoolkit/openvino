@@ -863,6 +863,28 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
     }
 };
 
+struct COMPILER_VERSION final : OptionBase<COMPILER_VERSION, uint32_t> {
+    static std::string_view key() {
+        return ov::intel_npu::compiler_version.name();
+    }
+
+    static uint32_t defaultValue() {
+        return 0;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RO;
+    }
+};
+
 struct COMPILATION_MODE final : OptionBase<COMPILATION_MODE, std::string> {
     static std::string_view key() {
         return ov::intel_npu::compilation_mode.name();
@@ -1075,7 +1097,7 @@ struct MAX_TILES final : OptionBase<MAX_TILES, int64_t> {
     }
 
     static ov::PropertyMutability mutability() {
-        return ov::PropertyMutability::RW;
+        return ov::PropertyMutability::RO;
     }
 };
 
@@ -1514,6 +1536,20 @@ struct DISABLE_IDLE_MEMORY_PRUNING final : OptionBase<DISABLE_IDLE_MEMORY_PRUNIN
 
     static bool isPublic() {
         return true;
+    }
+};
+
+struct SHARED_COMMON_QUEUE final : OptionBase<SHARED_COMMON_QUEUE, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::shared_common_queue.name();
+    }
+
+    static bool defaultValue() {
+        return true;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
     }
 };
 

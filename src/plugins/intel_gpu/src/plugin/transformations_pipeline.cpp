@@ -79,6 +79,7 @@
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/convert_moe_to_compressed.hpp"
+#include "plugin/transformations/fuse_moe_shared_expert.hpp"
 #include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
 #include "plugin/transformations/decompose_reduce_scalar_output.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
@@ -96,6 +97,7 @@
 #include "plugin/transformations/lora_subgraph_horizontal_fusion.hpp"
 #include "plugin/transformations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
+#include "plugin/transformations/pa_kv_reorder_fusion.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
 #include "plugin/transformations/sink_reshape.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
@@ -109,9 +111,9 @@
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
-#include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
+#include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
 #include "transformations/common_optimizations/glu_fusion.hpp"
 #include "transformations/common_optimizations/group_normalization_fusion.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
@@ -192,6 +194,7 @@
 #include "transformations/op_conversions/softplus_decomposition.hpp"
 #include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
 #include "transformations/opset_conversions/convert_opset3_to_opset2.hpp"
+#include "transformations/paged_attention/convert_pagedattn_inputs.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
@@ -417,8 +420,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             ov::pass::Manager qdq_stripping_manager("Plugin:GPU:QDQ_Stripping");
             using namespace ov::element;
             // QDQ stripping pipeline
+            // 0. Deduplicate identical DQ subgraphs sharing a common Convert node
+            qdq_stripping_manager.register_pass<ov::pass::SharedOpOptimization>();
             // 1. Fuse FQ->Convert->DQ to a single FQ
-            qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16}, TypeVector{f32}, true);
+            qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16}, TypeVector{f32});
             // 2. Strip FQ layers with unsupported levels
             const bool need_weights_adjustment = infer_precision == ov::element::f16;
             qdq_stripping_manager.register_pass<FQStrippingTransformation>(std::set<size_t>{levels::int16}, need_weights_adjustment);
@@ -476,10 +481,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (!disable_moe_opt) {
             manager.register_pass<ov::pass::FuseVectorizedMOE2GEMM>();
             pass_config->set_callback<ov::pass::FuseVectorizedMOE2GEMM>([&](const_node_ptr& root) -> bool {
-                // Currently moe op is only supported by >= xe2
+                // Currently moe op is only supported by systolic-array architectures
                 auto& engine = m_context->get_engine();
                 const auto& info = engine.get_device_info();
-                return (info.arch != cldnn::gpu_arch::xe2) && (info.arch != cldnn::gpu_arch::xe3);
+                return (!info.supports_immad);
             });
 
             manager.register_pass<ov::pass::FuseVectorizedMOE3GEMM>();
@@ -497,10 +502,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     break;
                 }
             }
+            manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
             manager.register_pass<ov::intel_gpu::ConvertMOEToMOECompressed>(is_pa);
             manager.register_pass<ov::intel_gpu::FuseMOE3GemmCompressed>();
         }
-
+        manager.register_pass<ov::pass::GatedDeltaNetFusion>();
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<EinsumDecomposition>();
 
@@ -656,7 +662,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // k: [num_blocks, num_kv_heads, block_size(256), head_size]
             // v: [num_blocks, num_kv_heads, block_size(256), head_size]
             ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
-            const auto kv_cache_precision = config.get_kv_cache_precision();
+            const auto key_cache_quant_mode = config.get_key_cache_quant_mode();
+            auto kv_cache_precision = config.get_kv_cache_precision();
+            // Plain PA already falls back to compressed KV cache for BY_TOKEN on GPU.
+            // XAttention builds its dedicated KV layout in this pass, so normalize the
+            // precision here before ConvertPagedAttnInputs materializes that layout.
+            if (use_xattention && key_cache_quant_mode == ov::internal::CacheQuantMode::BY_TOKEN) {
+                kv_cache_precision = ov::element::i8;
+            }
             kv_cache_config.keyCachePrecision = kv_cache_precision;
             kv_cache_config.valueCachePrecision = kv_cache_precision;
             kv_cache_config.inferencePrecision = infer_precision;
@@ -667,13 +680,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size;
                 kv_cache_config.keyCacheDimOrder = {0, 1, 3, 2};
             }
-            kv_cache_config.keyCacheQuantBychannel = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL);
-            kv_cache_config.keyCacheGroupSize = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
+            kv_cache_config.keyCacheQuantBychannel = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
+            kv_cache_config.keyCacheGroupSize = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
             if (use_xattention) {
-                if (kv_cache_config.keyCacheQuantBychannel &&
-                    ((kv_cache_precision == ov::element::i8 || kv_cache_precision == ov::element::u8)) )
-                    OPENVINO_THROW("[GPU] XAttention does not currently support per-channel quantized key cache.");
-
                 kv_cache_config.valueCacheBlockSize = cldnn::paged_attention::block_size_xattn;
                 kv_cache_config.valueCacheDimOrder = {0, 1, 2, 3};
             } else {
@@ -693,7 +702,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     if (bychannel) {
                         // TODO: need to handle group size != block size case
                         if (precision == ov::element::i8 || precision == ov::element::u8) {
-                            block_size += infer_precision.size() * 2;
+                            constexpr int64_t kv_sub_block_size = 16;
+                            OPENVINO_ASSERT(block_size % kv_sub_block_size == 0,
+                                            "[GPU] Invalid key cache block size for BY_CHANNEL quantization: ",
+                                            block_size);
+                            block_size += (block_size / kv_sub_block_size) * infer_precision.size() * 2;
                         } else if (precision == ov::element::i4 || precision == ov::element::u4) {
                             head_size = align_to(head_size / 2, 16);
                             block_size += infer_precision.size() * 4;
@@ -714,6 +727,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         precision = (config.get_kv_cache_precision() == ov::element::i4) ? ov::element::i8 : ov::element::u8;
                     }
                 });
+            manager.register_pass<ov::intel_gpu::PaKVReorderFusion>(kv_cache_config.keyCacheQuantBychannel,
+                                                                    kv_cache_config.keyCacheDimOrder,
+                                                                    kv_cache_config.valueCacheDimOrder,
+                                                                    kv_cache_config.keyCachePrecision,
+                                                                    kv_cache_config.valueCachePrecision,
+                                                                    kv_cache_config.inferencePrecision);
         }
 
         pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node> node){
