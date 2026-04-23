@@ -155,6 +155,12 @@ static uint32_t get_unique_net_id() {
 }
 
 static int g_round_robin = 0;
+static int g_round_robin_step = 1;
+static int g_round_robin_max_barriers = -1;
+static int g_round_robin_stage2_step = -1;
+static int g_round_robin_stage2_after_barriers = -1;
+static int g_round_robin_window_start_pct = 0;
+static int g_round_robin_window_end_pct = 100;
 static std::once_flag g_rr_flag;
 
 struct CyclicBarrier {
@@ -861,7 +867,37 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         if (auto* val = std::getenv("ROUND_ROBIN")) {
             g_round_robin = std::atoi(val);
         }
-        std::cout << "[GPU] ROUND_ROBIN=" << g_round_robin << std::endl;
+        if (auto* val = std::getenv("ROUND_ROBIN_STEP")) {
+            g_round_robin_step = std::max(1, std::atoi(val));
+        } else if (g_round_robin > 1) {
+            // Use lighter default synchronization cadence for RR mode.
+            g_round_robin_step = 2;
+        }
+        if (auto* val = std::getenv("ROUND_ROBIN_MAX_BARRIERS")) {
+            g_round_robin_max_barriers = std::atoi(val);
+        }
+        if (auto* val = std::getenv("ROUND_ROBIN_STAGE2_STEP")) {
+            g_round_robin_stage2_step = std::max(1, std::atoi(val));
+        }
+        if (auto* val = std::getenv("ROUND_ROBIN_STAGE2_AFTER_BARRIERS")) {
+            g_round_robin_stage2_after_barriers = std::max(0, std::atoi(val));
+        }
+        if (auto* val = std::getenv("ROUND_ROBIN_WINDOW_START_PCT")) {
+            g_round_robin_window_start_pct = std::clamp(std::atoi(val), 0, 100);
+        }
+        if (auto* val = std::getenv("ROUND_ROBIN_WINDOW_END_PCT")) {
+            g_round_robin_window_end_pct = std::clamp(std::atoi(val), 0, 100);
+        }
+        if (g_round_robin_window_start_pct > g_round_robin_window_end_pct) {
+            std::swap(g_round_robin_window_start_pct, g_round_robin_window_end_pct);
+        }
+        std::cout << "[GPU] ROUND_ROBIN=" << g_round_robin
+                  << " ROUND_ROBIN_STEP=" << g_round_robin_step
+                  << " ROUND_ROBIN_MAX_BARRIERS=" << g_round_robin_max_barriers
+                  << " ROUND_ROBIN_STAGE2_STEP=" << g_round_robin_stage2_step
+                  << " ROUND_ROBIN_STAGE2_AFTER_BARRIERS=" << g_round_robin_stage2_after_barriers
+                  << " ROUND_ROBIN_WINDOW_START_PCT=" << g_round_robin_window_start_pct
+                  << " ROUND_ROBIN_WINDOW_END_PCT=" << g_round_robin_window_end_pct << std::endl;
         g_barrier.threshold = g_round_robin;
     });
 
@@ -870,7 +906,11 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     // The freqency of flushing (16) is selected empirically, see details in tickets 116365, 116287, 139931.
     const bool needs_flushing = _is_dynamic;
     const size_t flush_frequency = needs_flushing ? 16 : 0;
+    const size_t total_prims = _exec_order.size();
+    const size_t window_start_prim = (total_prims * static_cast<size_t>(g_round_robin_window_start_pct)) / 100;
+    const size_t window_end_prim = (total_prims * static_cast<size_t>(g_round_robin_window_end_pct)) / 100;
     size_t executed_prims = 0;
+    size_t rr_barrier_calls = 0;
     static std::atomic<size_t> exec_count{0};
     exec_count++;
 
@@ -891,8 +931,21 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         if (needs_flushing && executed_prims % flush_frequency == 0)
             get_stream().flush();
 
-        if (exec_count > 2 && g_round_robin > 1)
+        int rr_step = g_round_robin_step;
+        if (g_round_robin_stage2_step > 0 &&
+            g_round_robin_stage2_after_barriers >= 0 &&
+            rr_barrier_calls >= static_cast<size_t>(g_round_robin_stage2_after_barriers)) {
+            rr_step = g_round_robin_stage2_step;
+        }
+        const bool step_hit = (executed_prims % static_cast<size_t>(rr_step) == 0);
+        const bool in_barrier_window = (executed_prims >= window_start_prim) &&
+                                       (window_end_prim == 0 || executed_prims <= window_end_prim);
+        const bool under_barrier_cap = (g_round_robin_max_barriers < 0) ||
+                                       (rr_barrier_calls < static_cast<size_t>(g_round_robin_max_barriers));
+        if (exec_count > 2 && g_round_robin > 1 && step_hit && in_barrier_window && under_barrier_cap) {
             g_barrier.arrive_and_wait();
+            rr_barrier_calls++;
+        }
     }
 
     // Using output of previous network as input to another one may cause hazard (in OOOQ mode) if user would not
