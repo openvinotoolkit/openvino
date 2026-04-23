@@ -24,8 +24,7 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("StateManagementPattern");
     StateManagementPattern(ov::pass::paged_attention::PaParams& pa_params,
                            int& layer_index,
-                           ResultVector& score_results,
+                           ov::pass::paged_attention::PaResults& results,
                            const ov::pass::paged_attention::Options& options,
-                           ResultVector& adaptive_rkv_diversity_results,
                            std::unordered_set<std::string>& var_ids_to_remove);
 };

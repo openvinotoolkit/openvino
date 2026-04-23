@@ -23,6 +23,7 @@
 
 using namespace ov::op;
 using ov::pass::paged_attention::PaParams;
+using ov::pass::paged_attention::PaResults;
 
 ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_indices_inputs,
                                                      bool use_score_outputs,
@@ -52,7 +53,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                     "No ScaledDotProductAttention operation observed in the graph, cannot perform "
                     "the SDPAToPagedAttention transformation.");
 
-    m_params = PaParams{};
+    m_params = PaParams{model->get_parameters()};
+    m_results = PaResults{model->get_results()};
     auto max_context_len = m_params.add("max_context_len", element::i32, PartialShape{});
     m_params.add("past_lens", element::i32, PartialShape{-1});
     m_params.add("subsequence_begins", element::i32, PartialShape{-1});
@@ -126,14 +128,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     std::unordered_set<std::string> var_ids_to_remove;
 
-    ResultVector score_results;
-    ResultVector adaptive_rkv_diversity_results;
-
-    if (auto token_type_ids_param = get_parameter(model, "token_type_ids")) {
-        token_type_ids_param->validate_and_infer_types();
-        m_params.add("token_type_ids", std::move(token_type_ids_param));
-    }
-
     std::shared_ptr<v0::Parameter> position_ids;
     if (!get_parameter(model, "position_ids")) {
         position_ids = m_params.add("position_ids", element::i64, PartialShape{-1});
@@ -167,12 +161,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     ov::pass::Manager manager("SDPA to PA");
     manager.set_per_pass_validation(false);
-    manager.register_pass<StateManagementPattern>(m_params,
-                                                  layer_index,
-                                                  score_results,
-                                                  m_options,
-                                                  adaptive_rkv_diversity_results,
-                                                  var_ids_to_remove);
+    manager.register_pass<StateManagementPattern>(m_params, layer_index, m_results, m_options, var_ids_to_remove);
     manager.register_pass<PrevSequenceLengthPattern>(processed_input_ids, max_context_len, position_ids);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
     manager.register_pass<TotalSequenceLengthPatternQwen>(max_context_len);
@@ -218,28 +207,11 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         }
     }
 
-    if (m_options.use_score_outputs) {
-        model->add_results(score_results);
-    }
-    if (m_options.allow_adaptive_rkv) {
-        model->add_results(adaptive_rkv_diversity_results);
+    if (!m_results.items().empty()) {
+        model->add_results(m_results.items());
     }
 
-    std::unordered_set<const ov::op::v0::Parameter*> existing_parameters;
-    existing_parameters.reserve(model->get_parameters().size());
-    for (const auto& param : model->get_parameters()) {
-        existing_parameters.insert(param.get());
-    }
-
-    ov::ParameterVector parameters_to_add;
-    parameters_to_add.reserve(m_params.parameters.size());
-    for (const auto& param : m_params.parameters) {
-        if (existing_parameters.count(param.get()) == 0) {
-            parameters_to_add.push_back(param);
-        }
-    }
-
-    model->add_parameters(parameters_to_add);
+    model->add_parameters(m_params.items());
     model->validate_nodes_and_infer_types();
     return true;
 }

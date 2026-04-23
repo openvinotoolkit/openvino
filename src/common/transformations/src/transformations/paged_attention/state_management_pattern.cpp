@@ -297,9 +297,8 @@ static ov::Dimension extract_num_kv_heads(const std::shared_ptr<ov::Node>& unsqu
 
 ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
                                                          int& layer_index,
-                                                         ResultVector& score_results,
+                                                         ov::pass::paged_attention::PaResults& results,
                                                          const ov::pass::paged_attention::Options& options,
-                                                         ResultVector& adaptive_rkv_diversity_results,
                                                          std::unordered_set<std::string>& var_ids_to_remove) {
     MATCHER_SCOPE(StateManagementPattern);
 
@@ -411,12 +410,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
     // it has to be persistent in the callback, so shared_ptr is used
     auto has_token_type_ids = std::make_shared<bool>(false);
 
-    ov::matcher_pass_callback callback = [=,
-                                          &pa_params,
-                                          &score_results,
-                                          &layer_index,
-                                          &adaptive_rkv_diversity_results,
-                                          &var_ids_to_remove](Matcher& m) {
+    ov::matcher_pass_callback callback = [=, &pa_params, &results, &layer_index, &var_ids_to_remove](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& real_q = pattern_map.at(q);
 
@@ -768,16 +762,13 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         auto pa_reshape = std::make_shared<v1::Reshape>(paged_attention->output(0), pa_shape, true);
         auto pa_transpose = std::make_shared<v1::Transpose>(pa_reshape, kv_transpose_order);
         if (options.use_score_outputs) {
-            auto score_result = std::make_shared<v0::Result>(paged_attention->output(1));
-            score_result->get_output_tensor(0).set_names({"scores." + std::to_string(layer_index - 1)});
-            score_results.push_back(score_result);
+            auto score_name = "scores." + std::to_string(layer_index - 1);
+            results.add(score_name, paged_attention->output(1));
         }
 
         if (options.allow_adaptive_rkv) {
-            auto similarity_result = std::make_shared<v0::Result>(paged_attention->output(2));
-            similarity_result->get_output_tensor(0).set_names(
-                {"adaptive_rkv_diversity." + std::to_string(layer_index - 1)});
-            adaptive_rkv_diversity_results.push_back(similarity_result);
+            auto similarity_name = "adaptive_rkv_diversity." + std::to_string(layer_index - 1);
+            results.add(similarity_name, paged_attention->output(2));
         }
 
         pa_transpose->set_friendly_name(sdpa_node->get_friendly_name());
