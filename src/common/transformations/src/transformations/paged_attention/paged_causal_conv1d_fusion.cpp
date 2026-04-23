@@ -33,6 +33,7 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 
 using ov::pass::pattern::any_input;
 using ov::pass::pattern::wrap_type;
@@ -271,6 +272,7 @@ public:
                         make_conv_state_table_name(m_cache_to_state_table.size()),
                         cache_param->get_output_element_type(0),
                         make_conv_state_table_shape(cache_param->get_output_partial_shape(0)));
+                    enable_keep_const_precision(conv_state_table.parameter);
                     m_cache_to_state_table[cache_param] = conv_state_table.parameter;
                 }
 

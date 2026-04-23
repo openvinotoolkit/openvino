@@ -30,6 +30,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 
 using ov::pass::pattern::any_input;
 using ov::pass::pattern::wrap_type;
@@ -241,6 +242,7 @@ public:
             }
 
             const auto state_table = m_state_to_state_table.at(state_table_source);
+            enable_keep_const_precision(state_table);
 
             ov::NodeVector reshape_nodes;
             reshape_nodes.reserve(24);
