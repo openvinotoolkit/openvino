@@ -5,7 +5,6 @@
 # mypy: ignore-errors
 
 import functools
-import inspect
 import logging
 import threading
 import torch
@@ -177,11 +176,12 @@ _module_ext_lib = None
 _module_ext_registered_ops = set()
 
 
-def _auto_register_module_extension_op(namespace, op_name, num_inputs=1):
+def _auto_register_module_extension_op(namespace, op_name, schema_args):
     """Auto-register a ``torch.library`` op for a ``ModuleExtension`` target.
 
-    Creates a passthrough op with ``num_inputs`` Tensor arguments and a single
-    Tensor output so that ``torch.export`` can capture the call in the FX graph.
+    ``schema_args`` is a list of schema-argument strings understood by
+    ``torch.library`` (e.g. ``["Tensor x0", "int x1", "Tensor? x2"]``).
+    The op returns a single ``Tensor``.
 
     Uses a single shared ``FRAGMENT`` library handle for the ``ov_ext``
     namespace to avoid creating a new ``Library`` object per op.
@@ -195,19 +195,55 @@ def _auto_register_module_extension_op(namespace, op_name, num_inputs=1):
     if op_name in _module_ext_registered_ops:
         return getattr(getattr(torch.ops, namespace), op_name)
 
-    args = ", ".join(f"Tensor x{i}" for i in range(num_inputs))
+    args = ", ".join(schema_args)
     _module_ext_lib.define(f"{op_name}({args}) -> Tensor")
 
     @torch.library.impl(_module_ext_lib, op_name, "Meta")
     def _meta(*xs):
-        return torch.empty_like(xs[0])
+        for x in xs:
+            if isinstance(x, torch.Tensor):
+                return torch.empty_like(x)
+        return torch.empty(1)
 
     @torch.library.impl(_module_ext_lib, op_name, "CPU")
     def _cpu(*xs):
-        return xs[0]
+        for x in xs:
+            if isinstance(x, torch.Tensor):
+                return x
+        return torch.empty(1)
 
     _module_ext_registered_ops.add(op_name)
     return getattr(getattr(torch.ops, namespace), op_name)
+
+
+def _derive_schema_from_args(call_args, target_op_name):
+    """Derive ``torch.library`` schema-argument strings from actual call arguments.
+
+    Returns a list such as ``["Tensor x0", "int x1", "Tensor? x2"]``.
+    Raises ``RuntimeError`` for unsupported argument types.
+    """
+    schema_parts = []
+    for i, arg in enumerate(call_args):
+        if isinstance(arg, torch.Tensor):
+            schema_parts.append(f"Tensor x{i}")
+        elif arg is None:
+            schema_parts.append(f"Tensor? x{i}")
+        elif isinstance(arg, bool):
+            # bool before int: bool is a subclass of int in Python.
+            schema_parts.append(f"bool x{i}")
+        elif isinstance(arg, int):
+            schema_parts.append(f"int x{i}")
+        elif isinstance(arg, float):
+            schema_parts.append(f"float x{i}")
+        elif isinstance(arg, str):
+            schema_parts.append(f"str x{i}")
+        else:
+            raise RuntimeError(
+                f"ModuleExtension '{target_op_name}': convert() passed "
+                f"unsupported argument type {type(arg).__name__} at position "
+                f"{i} to target_op. Supported types: Tensor, None, bool, "
+                f"int, float, str.")
+    return schema_parts
 
 
 def patch_model_for_export(model, module_extensions, orig_forward_name):
@@ -228,13 +264,14 @@ def patch_model_for_export(model, module_extensions, orig_forward_name):
 
     op_type_mapping = {}  # registered_name → user target_op
 
-    def _resolve_target_op(extension, num_inputs=1):
-        """Resolve ``target_op`` to a passthrough ``torch.ops`` callable.
+    def _resolve_target_op(extension):
+        """Resolve ``target_op`` to a ``torch.ops`` callable.
 
-        Always registers a passthrough op under the ``ov_ext`` namespace.
-        ModuleExtension never calls the real PyTorch op — the ``target_op``
-        name is only a label for the C++ frontend (consistent with TorchScript
-        behavior where the Trampoline wraps the call without invoking the op).
+        If the op is already registered (from ``ov_custom_ops.py`` or a
+        previous call), returns it directly.  Otherwise returns a
+        lazy-registering wrapper that auto-registers the op on its first
+        call during ``torch.export`` tracing, deriving the schema from
+        the actual arguments that ``convert()`` passes.
         """
         target_op = extension.target_op
         parts = target_op.split("::")
@@ -277,7 +314,7 @@ def patch_model_for_export(model, module_extensions, orig_forward_name):
                 f"registered name '{registered_name}' (after dot "
                 "sanitization). Use distinct target_op names.")
 
-        # Reuse if already auto-registered (e.g. two extensions sharing a name).
+        # Reuse if already registered (pre-registered or previous extension).
         try:
             op_fn = getattr(torch.ops.ov_ext, safe_op_name)
             op_type_mapping[registered_name] = target_op
@@ -285,12 +322,19 @@ def patch_model_for_export(model, module_extensions, orig_forward_name):
         except (AttributeError, RuntimeError):
             pass
 
-        # Auto-register a passthrough op under ov_ext.
-        log.debug("Auto-registering torch.library op ov_ext::%s for "
+        # Return a lazy wrapper: the op schema is derived from the actual
+        # arguments that convert() passes on the first call during tracing.
+        log.debug("Will lazily register torch.library op ov_ext::%s for "
                   "ModuleExtension (target_op='%s')", safe_op_name, target_op)
-        op_fn = _auto_register_module_extension_op("ov_ext", safe_op_name, num_inputs)
-        op_type_mapping[registered_name] = target_op
-        return op_fn
+
+        def _lazy_register_and_call(*call_args):
+            schema_args = _derive_schema_from_args(call_args, target_op)
+            op_fn = _auto_register_module_extension_op(
+                "ov_ext", safe_op_name, schema_args)
+            op_type_mapping[registered_name] = target_op
+            return op_fn(*call_args)
+
+        return _lazy_register_and_call
 
     def module_patcher(module, name):
         extension = None
@@ -303,13 +347,7 @@ def patch_model_for_export(model, module_extensions, orig_forward_name):
 
         if extension and extension.condition(module):
             log.debug("Patching module %s for torch.export", module)
-            # Count tensor inputs from the module's forward signature
-            # (exclude 'self') to register the op with the right arity.
-            sig = inspect.signature(module.forward)
-            num_inputs = sum(
-                1 for p in sig.parameters.values()
-                if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD))
-            target_op = _resolve_target_op(extension, num_inputs)
+            target_op = _resolve_target_op(extension)
 
             def new_forward(*args, **kwargs):
                 return extension.convert(module, target_op, *args, **kwargs)

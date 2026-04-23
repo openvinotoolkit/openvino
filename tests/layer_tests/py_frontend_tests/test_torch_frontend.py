@@ -566,6 +566,87 @@ def test_module_extension_dynamo():
         "Parameter", "Parameter", "Multiply", "Result"]
 
 
+def test_module_extension_dynamo_weight_carrying():
+    """Verify ModuleExtension for modules whose convert() passes extra module
+    parameters (weight, bias, scalars) to target_op — not just forward args.
+
+    The auto-registered torch.library schema must match what convert()
+    actually calls, not the module.forward signature.
+    """
+    from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
+    from openvino import convert_model
+
+    class WeightedModule(torch.nn.Module):
+        def __init__(self, out_features):
+            super().__init__()
+            self.weight = torch.nn.Parameter(torch.randn(out_features, 10))
+            self.bias = torch.nn.Parameter(torch.randn(out_features))
+
+        def forward(self, x):
+            return x @ self.weight.t() + self.bias
+
+    class ModelWithWeighted(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.linear = WeightedModule(5)
+
+        def forward(self, x):
+            return self.linear(x)
+
+    # convert passes 3 args to target_op (input, weight, bias)
+    # but forward only has 1 positional param (x).
+    def custom_convert(module, target_op, *args, **kwargs):
+        return target_op(args[0], module.weight, module.bias)
+
+    def matmul_op(context):
+        return ops.matmul(context.get_input(0),
+                          context.get_input(1), False, True).outputs()
+
+    model = ModelWithWeighted()
+    converted_model = convert_model(
+        model, example_input=[torch.randn(2, 10)], dynamo=True,
+        extension=[
+            ModuleExtension(WeightedModule, "WeightedLinear",
+                            convert=custom_convert),
+            ConversionExtension("WeightedLinear", matmul_op)])
+    assert converted_model
+    op_types = [n.get_type_name() for n in converted_model.get_ordered_ops()]
+    assert "MatMul" in op_types
+
+    # Scalar args: convert passes int/bool alongside tensors
+    class ScalarArgModule(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.scale = 2
+            self.negate = True
+
+        def forward(self, x):
+            return x * self.scale * (-1 if self.negate else 1)
+
+    class ModelWithScalar(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.mod = ScalarArgModule()
+
+        def forward(self, x):
+            return self.mod(x)
+
+    def scalar_convert(module, target_op, *args, **kwargs):
+        return target_op(args[0], module.scale, module.negate)
+
+    def pass_op(context):
+        return [context.get_input(0)]
+
+    model = ModelWithScalar()
+    converted_model = convert_model(
+        model, example_input=[torch.randn(100)], dynamo=True,
+        extension=[
+            ModuleExtension(ScalarArgModule, "ScalarOp",
+                            convert=scalar_convert),
+            ConversionExtension("ScalarOp", pass_op)])
+    assert converted_model
+
+
 def test_module_extension_dynamo_custom_callbacks():
     """Verify ModuleExtension with non-default evaluate, convert, and condition."""
     from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
