@@ -37,12 +37,12 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/manager.hpp"
-#include "openvino/pass/validate.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/validate.hpp"
 #include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "transformations/defs.hpp"
@@ -85,8 +85,7 @@ using SharedSdpaSet = std::unordered_set<const ov::Node*>;
 // are skipped, which structurally excludes the ShapeOf-rooted positional-ID
 // / RoPE fanout that caused CVS-185220 with the original forward BFS.
 SharedSdpaSet compute_shared_kv_sdpas(const std::shared_ptr<const ov::Model>& model) {
-    std::unordered_map<const ov::op::v6::ReadValue*, std::unordered_set<const ov::Node*>>
-        rv_to_sdpas;
+    std::unordered_map<const ov::op::v6::ReadValue*, std::unordered_set<const ov::Node*>> rv_to_sdpas;
 
     auto walk_backward = [&](const ov::Node* sdpa, size_t input_idx) {
         if (input_idx >= sdpa->get_input_size()) {
@@ -178,8 +177,8 @@ public:
         // canonical q/k/v shape definition: [B,H,...L,S]
         auto sdp0 = wrap_type<ov::op::v13::ScaledDotProductAttention>({cur_q, present_k, present_v});
         auto sdp1 = wrap_type<ov::op::v13::ScaledDotProductAttention>({cur_q, present_k, present_v, any_input()});
-        auto sdp2 = wrap_type<ov::op::v13::ScaledDotProductAttention>(
-            {cur_q, present_k, present_v, any_input(), any_input()});
+        auto sdp2 =
+            wrap_type<ov::op::v13::ScaledDotProductAttention>({cur_q, present_k, present_v, any_input(), any_input()});
         // gpt-oss
         auto sdp3 = wrap_type<ov::op::v13::ScaledDotProductAttention>(
             {cur_q, present_k, present_v, any_input(), any_input(), atten_sink});
@@ -193,8 +192,8 @@ public:
         auto transpose_v = wrap_type<ov::op::v1::Transpose>({present_v, order_v});
 
         auto sdp_trans0 = wrap_type<ov::op::v13::ScaledDotProductAttention>({transpose_q, transpose_k, transpose_v});
-        auto sdp_trans1 = wrap_type<ov::op::v13::ScaledDotProductAttention>(
-            {transpose_q, transpose_k, transpose_v, any_input()});
+        auto sdp_trans1 =
+            wrap_type<ov::op::v13::ScaledDotProductAttention>({transpose_q, transpose_k, transpose_v, any_input()});
         auto sdp_trans2 = wrap_type<ov::op::v13::ScaledDotProductAttention>(
             {transpose_q, transpose_k, transpose_v, any_input(), any_input()});
         // gpt-oss
@@ -407,7 +406,7 @@ public:
             // after this re-route the entire multi-query chain is dead and
             // gets collapsed by subsequent dead-code elimination.
             auto reroute_shape_of_consumers = [&](const std::shared_ptr<Node>& concat_node,
-                                                   const ov::Output<ov::Node>& replacement) {
+                                                  const ov::Output<ov::Node>& replacement) {
                 std::vector<ov::Input<Node>> shape_of_inputs;
                 for (const auto& target : concat_node->get_output_target_inputs(0)) {
                     auto* child = target.get_node();
