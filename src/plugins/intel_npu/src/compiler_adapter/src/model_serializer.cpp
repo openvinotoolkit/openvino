@@ -435,7 +435,7 @@ public:
 
         OPENVINO_ASSERT(offset == sizeOfSerializedIR);
 
-        return {buffer, sizeOfSerializedIR, ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY, hash};
+        return {std::move(buffer), sizeOfSerializedIR, ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY, hash};
     }
 
 private:
@@ -517,7 +517,7 @@ public:
         std::optional<uint64_t> hash = computeModelHash ? std::make_optional<uint64_t>(0) : std::nullopt;
         serialize_model_to_buffer(model, buffer.get(), hash);
 
-        return {buffer, serializedModelSize, ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY, hash};
+        return {std::move(buffer), serializedModelSize, ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY, hash};
     }
 
 private:

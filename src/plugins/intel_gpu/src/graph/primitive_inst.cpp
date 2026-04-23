@@ -1077,8 +1077,8 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         if (get_node().is_type<kv_cache>() && i != 1) {
             const auto& desc = get_node().as<kv_cache>().get_primitive();
             const auto shape_rank = updated_layouts[i].get_shape().size();
-            const auto seq_axis = i == 0 ? kv_cache_inst::get_sequence_axis(desc->concat_axis, shape_rank)
-                                         : kv_cache_inst::get_scale_zp_sequence_axis();
+            const int32_t seq_axis = static_cast<int32_t>(i == 0 ? kv_cache_inst::get_sequence_axis(desc->concat_axis, shape_rank)
+                                         : kv_cache_inst::get_scale_zp_sequence_axis());
 
             prealloc_info = sp.predict_preallocation_shape(id(), updated_layouts[i], false, i, tmp_prealloc_count, seq_axis);
         } else {
@@ -1332,10 +1332,10 @@ void primitive_inst::fill_shape_info_data(const layout& runtime_layout, const la
         if (dynamic_pad[j] == 1) {
             GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << lower_pads[j]
                                    << "(pad_before for " << j << "-th dim)" << std::endl;
-            shape_info_ptr[offset++] = lower_pads[j];  // pad_before
+            shape_info_ptr[offset++] = static_cast<int32_t>(lower_pads[j]);  // pad_before
             GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << upper_pads[j]
                                    << "(pad_after for " << j << "-th dim)" << std::endl;
-            shape_info_ptr[offset++] = upper_pads[j];  // pad_after
+            shape_info_ptr[offset++] = static_cast<int32_t>(upper_pads[j]);  // pad_after
         }
     }
 }
