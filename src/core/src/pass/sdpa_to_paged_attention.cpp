@@ -22,7 +22,7 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::op;
-using ov::pass::paged_attention::get_or_add_named_parameter;
+using ov::pass::paged_attention::PaParams;
 
 ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_indices_inputs,
                                                      bool use_score_outputs,
@@ -52,46 +52,36 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                     "No ScaledDotProductAttention operation observed in the graph, cannot perform "
                     "the SDPAToPagedAttention transformation.");
 
-    std::map<std::string, std::shared_ptr<v0::Parameter>> pa_parameters;
-    auto max_context_len = get_or_add_named_parameter(pa_parameters, "max_context_len", element::i32, PartialShape{});
-    pa_parameters["past_lens"] = get_or_add_named_parameter(pa_parameters, "past_lens", element::i32, PartialShape{-1});
-    pa_parameters["subsequence_begins"] =
-        get_or_add_named_parameter(pa_parameters, "subsequence_begins", element::i32, PartialShape{-1});
-    pa_parameters["block_indices_begins"] =
-        get_or_add_named_parameter(pa_parameters, "block_indices_begins", element::i32, PartialShape{-1});
+    m_params = PaParams{};
+    auto max_context_len = m_params.add("max_context_len", element::i32, PartialShape{});
+    m_params.add("past_lens", element::i32, PartialShape{-1});
+    m_params.add("subsequence_begins", element::i32, PartialShape{-1});
+    m_params.add("block_indices_begins", element::i32, PartialShape{-1});
     if (!m_options.use_per_layer_block_indices_inputs) {
-        pa_parameters["block_indices"] =
-            get_or_add_named_parameter(pa_parameters, "block_indices", element::i32, PartialShape{-1});
+        m_params.add("block_indices", element::i32, PartialShape{-1});
     }
 
     if (m_options.allow_score_aggregation) {
-        pa_parameters["score_aggregation_window"] =
-            get_or_add_named_parameter(pa_parameters, "score_aggregation_window", element::i32, PartialShape{-1});
+        m_params.add("score_aggregation_window", element::i32, PartialShape{-1});
     }
 
     if (m_options.allow_cache_rotation) {
-        pa_parameters["model_rotation_trig_lut"] =
-            get_or_add_named_parameter(pa_parameters, "model_rotation_trig_lut", element::f32, PartialShape{-1, -1});
+        m_params.add("model_rotation_trig_lut", element::f32, PartialShape{-1, -1});
     }
 
     if (m_options.allow_xattention) {
-        pa_parameters["xattention_block_size"] =
-            get_or_add_named_parameter(pa_parameters, "xattention_block_size", element::i32, PartialShape{});
-        pa_parameters["xattention_stride"] =
-            get_or_add_named_parameter(pa_parameters, "xattention_stride", element::i32, PartialShape{});
+        m_params.add("xattention_block_size", element::i32, PartialShape{});
+        m_params.add("xattention_stride", element::i32, PartialShape{});
     }
 
     if (m_options.allow_adaptive_rkv) {
-        pa_parameters["adaptive_rkv_start_size"] =
-            get_or_add_named_parameter(pa_parameters, "adaptive_rkv_start_size", element::i32, PartialShape{});
-        pa_parameters["adaptive_rkv_evictable_sizes"] =
-            get_or_add_named_parameter(pa_parameters, "adaptive_rkv_evictable_sizes", element::i32, PartialShape{-1});
+        m_params.add("adaptive_rkv_start_size", element::i32, PartialShape{});
+        m_params.add("adaptive_rkv_evictable_sizes", element::i32, PartialShape{-1});
     }
 
     if (m_options.allow_qq_bias) {
-        pa_parameters["qq_bias"] = get_or_add_named_parameter(pa_parameters, "qq_bias", element::u8, PartialShape{-1});
-        pa_parameters["qq_bias_begins"] =
-            get_or_add_named_parameter(pa_parameters, "qq_bias_begins", element::i32, PartialShape{-1});
+        m_params.add("qq_bias", element::u8, PartialShape{-1});
+        m_params.add("qq_bias_begins", element::i32, PartialShape{-1});
     }
 
     auto get_parameter = [=](const std::shared_ptr<ov::Model>& model,
@@ -141,12 +131,12 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     if (auto token_type_ids_param = get_parameter(model, "token_type_ids")) {
         token_type_ids_param->validate_and_infer_types();
-        pa_parameters["token_type_ids"] = std::move(token_type_ids_param);
+        m_params.add("token_type_ids", std::move(token_type_ids_param));
     }
 
     std::shared_ptr<v0::Parameter> position_ids;
     if (!get_parameter(model, "position_ids")) {
-        position_ids = get_or_add_named_parameter(pa_parameters, "position_ids", element::i64, PartialShape{-1});
+        position_ids = m_params.add("position_ids", element::i64, PartialShape{-1});
     } else {
         position_ids = ov::as_type_ptr<v0::Parameter>(model->input("position_ids").get_node_shared_ptr());
         const auto& position_ids_shape = position_ids->get_partial_shape();
@@ -177,7 +167,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     ov::pass::Manager manager("SDPA to PA");
     manager.set_per_pass_validation(false);
-    manager.register_pass<StateManagementPattern>(pa_parameters,
+    manager.register_pass<StateManagementPattern>(m_params,
                                                   layer_index,
                                                   score_results,
                                                   m_options,
@@ -235,18 +225,21 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         model->add_results(adaptive_rkv_diversity_results);
     }
 
-    ParameterVector layer_parameters;
-    std::unordered_set<const ov::Node*> existing_parameters;
+    std::unordered_set<const ov::op::v0::Parameter*> existing_parameters;
+    existing_parameters.reserve(model->get_parameters().size());
     for (const auto& param : model->get_parameters()) {
         existing_parameters.insert(param.get());
     }
-    layer_parameters.reserve(pa_parameters.size());
-    for (const auto& entry : pa_parameters) {
-        if (existing_parameters.count(entry.second.get()) == 0) {
-            layer_parameters.push_back(entry.second);
+
+    ov::ParameterVector parameters_to_add;
+    parameters_to_add.reserve(m_params.parameters.size());
+    for (const auto& param : m_params.parameters) {
+        if (existing_parameters.count(param.get()) == 0) {
+            parameters_to_add.push_back(param);
         }
     }
-    model->add_parameters(layer_parameters);
+
+    model->add_parameters(parameters_to_add);
     model->validate_nodes_and_infer_types();
     return true;
 }

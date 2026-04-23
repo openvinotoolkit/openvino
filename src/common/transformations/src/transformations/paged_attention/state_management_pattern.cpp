@@ -61,7 +61,7 @@ constexpr const char* V_HEAD_SIZE = "v_head_size";
 using namespace ov::pass;
 using ov::OutputVector;
 
-using ov::pass::paged_attention::get_or_add_named_parameter;
+using ov::pass::paged_attention::PaParams;
 
 static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> general_alibi_pattern() {
     // Optional pattern to capture alibi slopes (based on pattern from bloom)
@@ -295,13 +295,12 @@ static ov::Dimension extract_num_kv_heads(const std::shared_ptr<ov::Node>& unsqu
     }
 };
 
-ov::pass::StateManagementPattern::StateManagementPattern(
-    std::map<std::string, std::shared_ptr<ov::op::v0::Parameter>>& pa_params,
-    int& layer_index,
-    ResultVector& score_results,
-    const ov::pass::paged_attention::Options& options,
-    ResultVector& adaptive_rkv_diversity_results,
-    std::unordered_set<std::string>& var_ids_to_remove) {
+ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
+                                                         int& layer_index,
+                                                         ResultVector& score_results,
+                                                         const ov::pass::paged_attention::Options& options,
+                                                         ResultVector& adaptive_rkv_diversity_results,
+                                                         std::unordered_set<std::string>& var_ids_to_remove) {
     MATCHER_SCOPE(StateManagementPattern);
 
     auto k_current = any_input();
@@ -449,10 +448,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         std::string layer_index_str = std::to_string(layer_index);
         auto k_name = "key_cache." + layer_index_str;
         auto v_name = "value_cache." + layer_index_str;
-        auto k_parameter =
-            get_or_add_named_parameter(pa_params, k_name, element::dynamic, ov::PartialShape::dynamic(4));
-        auto v_parameter =
-            get_or_add_named_parameter(pa_params, v_name, element::dynamic, ov::PartialShape::dynamic(4));
+        auto k_parameter = pa_params.add(k_name, element::dynamic, ov::PartialShape::dynamic(4));
+        auto v_parameter = pa_params.add(v_name, element::dynamic, ov::PartialShape::dynamic(4));
 
         // Set parameters to be in the same precision as the original K/V tensors,
         // that allows to avoid unnecessary Convert operations in the graph
@@ -576,12 +573,12 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         }
 
         OutputVector pa_arguments = {q_reshape, k_reshape, v_reshape, k_parameter, v_parameter};
-        pa_arguments.push_back(get_or_add_named_parameter(pa_params, "past_lens"));
-        pa_arguments.push_back(get_or_add_named_parameter(pa_params, "subsequence_begins"));
+        pa_arguments.push_back(pa_params["past_lens"]);
+        pa_arguments.push_back(pa_params["subsequence_begins"]);
         if (!options.use_per_layer_block_indices_inputs) {
-            pa_arguments.push_back(get_or_add_named_parameter(pa_params, "block_indices"));
+            pa_arguments.push_back(pa_params["block_indices"]);
         }
-        pa_arguments.push_back(get_or_add_named_parameter(pa_params, "block_indices_begins"));
+        pa_arguments.push_back(pa_params["block_indices_begins"]);
 
         std::shared_ptr<Node> sliding_window;
         if (pattern_map.count(phi3_offset)) {
@@ -593,7 +590,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         } else if (pattern_map.count(gptoss_gemma3_offset)) {
             // gptoss_gemma3 pattern + token_type_ids input uniquely identifies Gemma3;
             // gpt-oss shares this sliding window pattern but has no token_type_ids.
-            *has_token_type_ids = pa_params.count("token_type_ids");
+            *has_token_type_ids = static_cast<bool>(pa_params.get("token_type_ids"));
             auto offset = pattern_map.at(gptoss_gemma3_offset).get_node_shared_ptr();
             if (pattern_map.at(gptoss_gemma3_offset).get_partial_shape().rank() != 0) {
                 offset = std::make_shared<v15::Squeeze>(offset);
@@ -606,43 +603,42 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             sliding_window = v0::Constant::create(element::i32, Shape{}, {0});
         }
 
-        auto max_context_len_param = get_or_add_named_parameter(pa_params, "max_context_len");
+        auto max_context_len_param = pa_params["max_context_len"];
         OutputVector additional_params = {scale, sliding_window, alibi_slopes, max_context_len_param->output(0)};
         pa_arguments.insert(pa_arguments.end(), additional_params.begin(), additional_params.end());
 
         if (options.use_per_layer_block_indices_inputs) {
             auto block_indices_name = "block_indices." + std::to_string(layer_index - 1);
-            auto block_indices =
-                get_or_add_named_parameter(pa_params, block_indices_name, element::i32, PartialShape{-1});
+            auto block_indices = pa_params.add(block_indices_name, element::i32, PartialShape{-1});
             pa_arguments.insert(pa_arguments.begin() + 7, block_indices);
         }
 
         if (options.allow_score_aggregation) {
+            auto score_aggregation_window = pa_params.get("score_aggregation_window");
             OPENVINO_ASSERT(
-                pa_params.count("score_aggregation_window"),
+                score_aggregation_window,
                 "No score_aggregation_window input found. For using score aggregation mode, the model have to contain "
                 "an additional input (Parameter) called score_aggregation_window.");
-            pa_arguments.insert(pa_arguments.end(), pa_params.at("score_aggregation_window"));
+            pa_arguments.insert(pa_arguments.end(), score_aggregation_window);
         } else {
             pa_arguments.insert(pa_arguments.end(), v0::Constant::create(element::i32, Shape{0}, {}));
         }
         OPENVINO_ASSERT(pa_arguments.size() == 14);
 
         if (options.allow_cache_rotation) {
+            auto model_rotation_trig_lut = pa_params.get("model_rotation_trig_lut");
             OPENVINO_ASSERT(
-                pa_params.count("model_rotation_trig_lut"),
+                model_rotation_trig_lut,
                 "No model_rotation_trig_lut input found. For using cache rotation, the model have to contain "
                 "an additional input (Parameter) called model_rotation_trig_lut.");
             auto rotated_block_indices_name = "rotated_block_indices." + std::to_string(layer_index - 1);
             auto rotation_deltas_name = "rotation_deltas." + std::to_string(layer_index - 1);
-            auto rotated_block_indices =
-                get_or_add_named_parameter(pa_params, rotated_block_indices_name, element::i32, PartialShape{-1});
-            auto rotation_deltas =
-                get_or_add_named_parameter(pa_params, rotation_deltas_name, element::i32, PartialShape{-1, -1});
+            auto rotated_block_indices = pa_params.add(rotated_block_indices_name, element::i32, PartialShape{-1});
+            auto rotation_deltas = pa_params.add(rotation_deltas_name, element::i32, PartialShape{-1, -1});
 
             pa_arguments.insert(pa_arguments.begin() + 14, rotated_block_indices);
             pa_arguments.insert(pa_arguments.begin() + 15, rotation_deltas);
-            pa_arguments.insert(pa_arguments.begin() + 16, pa_params.at("model_rotation_trig_lut"));
+            pa_arguments.insert(pa_arguments.begin() + 16, model_rotation_trig_lut);
 
         } else {
             auto rotated_block_indices = v0::Constant::create(element::i32, Shape{0}, {});
@@ -654,18 +650,19 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
         OPENVINO_ASSERT(pa_arguments.size() == 17);
         if (options.allow_xattention) {
-            OPENVINO_ASSERT(pa_params.count("xattention_block_size"),
+            auto xattention_block_size = pa_params.get("xattention_block_size");
+            OPENVINO_ASSERT(xattention_block_size,
                             "No xattention_block_size input found. For using XAttention, the model have to contain "
                             "an additional input (Parameter) called xattention_block_size.");
-            OPENVINO_ASSERT(pa_params.count("xattention_stride"),
+            auto xattention_stride = pa_params.get("xattention_stride");
+            OPENVINO_ASSERT(xattention_stride,
                             "No xattention_stride input found. For using XAttention, the model have to contain "
                             "an additional input (Parameter) called xattention_stride.");
             auto xattention_threshold_name = "xattention_threshold." + std::to_string(layer_index - 1);
-            auto xattention_threshold =
-                get_or_add_named_parameter(pa_params, xattention_threshold_name, element::f32, PartialShape{-1});
+            auto xattention_threshold = pa_params.add(xattention_threshold_name, element::f32, PartialShape{-1});
             pa_arguments.insert(pa_arguments.begin() + 17, xattention_threshold);
-            pa_arguments.insert(pa_arguments.begin() + 18, pa_params.at("xattention_block_size"));
-            pa_arguments.insert(pa_arguments.begin() + 19, pa_params.at("xattention_stride"));
+            pa_arguments.insert(pa_arguments.begin() + 18, xattention_block_size);
+            pa_arguments.insert(pa_arguments.begin() + 19, xattention_stride);
         } else {
             auto xattention_threshold = v0::Constant::create(element::f32, Shape{0}, {});
             pa_arguments.insert(pa_arguments.begin() + 17, xattention_threshold);
@@ -689,33 +686,29 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         }
 
         if (options.allow_adaptive_rkv) {
+            auto adaptive_rkv_start_size = pa_params.get("adaptive_rkv_start_size");
             OPENVINO_ASSERT(
-                pa_params.count("adaptive_rkv_start_size"),
+                adaptive_rkv_start_size,
                 "No adaptive_rkv_start_size input found. For using Adaptive R-KV, the model have to contain "
                 "an additional input (Parameter) called adaptive_rkv_start_size.");
+            auto adaptive_rkv_evictable_sizes = pa_params.get("adaptive_rkv_evictable_sizes");
             OPENVINO_ASSERT(
-                pa_params.count("adaptive_rkv_evictable_sizes"),
+                adaptive_rkv_evictable_sizes,
                 "No adaptive_rkv_evictable_sizes input found. For using Adaptive R-KV, the model have to contain "
                 "an additional input (Parameter) called adaptive_rkv_evictable_sizes.");
-            pa_arguments.insert(pa_arguments.begin() + 21, pa_params.at("adaptive_rkv_start_size"));
-            pa_arguments.insert(pa_arguments.begin() + 22, pa_params.at("adaptive_rkv_evictable_sizes"));
+            pa_arguments.insert(pa_arguments.begin() + 21, adaptive_rkv_start_size);
+            pa_arguments.insert(pa_arguments.begin() + 22, adaptive_rkv_evictable_sizes);
 
             auto adaptive_rkv_diversity_block_set_indices_name =
                 "adaptive_rkv_diversity_block_set_indices." + std::to_string(layer_index - 1);
             auto adaptive_rkv_diversity_block_set_indices =
-                get_or_add_named_parameter(pa_params,
-                                           adaptive_rkv_diversity_block_set_indices_name,
-                                           element::i32,
-                                           PartialShape{-1});
+                pa_params.add(adaptive_rkv_diversity_block_set_indices_name, element::i32, PartialShape{-1});
             pa_arguments.insert(pa_arguments.begin() + 23, adaptive_rkv_diversity_block_set_indices);
 
             auto adaptive_rkv_diversity_block_set_indices_begins_name =
                 "adaptive_rkv_diversity_block_set_indices_begins." + std::to_string(layer_index - 1);
             auto adaptive_rkv_diversity_block_set_indices_begins =
-                get_or_add_named_parameter(pa_params,
-                                           adaptive_rkv_diversity_block_set_indices_begins_name,
-                                           element::i32,
-                                           PartialShape{-1});
+                pa_params.add(adaptive_rkv_diversity_block_set_indices_begins_name, element::i32, PartialShape{-1});
             pa_arguments.insert(pa_arguments.begin() + 24, adaptive_rkv_diversity_block_set_indices_begins);
 
         } else {
@@ -726,7 +719,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         }
 
         if (*has_token_type_ids) {
-            std::shared_ptr<ov::Node> token_type_ids = pa_params.at("token_type_ids");
+            std::shared_ptr<ov::Node> token_type_ids = pa_params["token_type_ids"];
             if (token_type_ids->get_element_type() != element::i32) {
                 token_type_ids = std::make_shared<v0::Convert>(token_type_ids, element::i32);
             }
@@ -736,11 +729,16 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         }
 
         if (options.allow_qq_bias) {
-            OPENVINO_ASSERT(pa_params.find("qq_bias") != pa_params.end(),
+            auto qq_bias = pa_params.get("qq_bias");
+            OPENVINO_ASSERT(qq_bias,
                             "No qq_bias input found. For using QQ bias, the model have to contain "
                             "an additional input (Parameter) called qq_bias.");
-            pa_arguments.insert(pa_arguments.begin() + 26, pa_params.at("qq_bias"));
-            pa_arguments.insert(pa_arguments.begin() + 27, pa_params.at("qq_bias_begins"));
+            auto qq_bias_begins = pa_params.get("qq_bias_begins");
+            OPENVINO_ASSERT(qq_bias_begins,
+                            "No qq_bias_begins input found. For using QQ bias, the model have to contain "
+                            "an additional input (Parameter) called qq_bias_begins.");
+            pa_arguments.insert(pa_arguments.begin() + 26, qq_bias);
+            pa_arguments.insert(pa_arguments.begin() + 27, qq_bias_begins);
         } else {
             pa_arguments.insert(pa_arguments.begin() + 26, v0::Constant::create(element::u8, Shape{0}, {}));
             pa_arguments.insert(pa_arguments.begin() + 27, v0::Constant::create(element::i32, Shape{0}, {}));

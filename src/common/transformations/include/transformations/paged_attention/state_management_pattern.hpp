@@ -22,7 +22,7 @@ class TRANSFORMATIONS_API StateManagementPattern;
 class ov::pass::StateManagementPattern : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("StateManagementPattern");
-    StateManagementPattern(std::map<std::string, std::shared_ptr<ov::op::v0::Parameter>>& pa_params,
+    StateManagementPattern(ov::pass::paged_attention::PaParams& pa_params,
                            int& layer_index,
                            ResultVector& score_results,
                            const ov::pass::paged_attention::Options& options,

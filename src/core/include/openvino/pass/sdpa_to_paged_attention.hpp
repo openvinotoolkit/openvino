@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <map>
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
@@ -16,6 +16,7 @@
 namespace ov {
 namespace pass {
 namespace paged_attention {
+
 struct Options {
     bool use_per_layer_block_indices_inputs;
     bool use_score_outputs;
@@ -26,36 +27,71 @@ struct Options {
     bool allow_qq_bias;
 };
 
-inline std::shared_ptr<ov::op::v0::Parameter> get_or_add_named_parameter(
-    std::map<std::string, std::shared_ptr<ov::op::v0::Parameter>>& created_params,
-    const std::string& name,
-    const ov::element::Type& element_type,
-    const ov::PartialShape& shape) {
-    auto it = created_params.find(name);
-    if (it != created_params.end()) {
-        const auto& existing = it->second;
-        OPENVINO_ASSERT(existing->get_element_type() == element_type,
-                        "Existing parameter element type mismatch for '",
-                        name,
-                        "'.");
-        OPENVINO_ASSERT(existing->get_partial_shape() == shape, "Existing parameter shape mismatch for '", name, "'.");
-        return existing;
+struct PaParams {
+    std::shared_ptr<ov::op::v0::Parameter> add(const std::string& name,
+                                               const ov::element::Type& element_type,
+                                               const ov::PartialShape& shape) {
+        auto existing = find(name);
+        if (existing) {
+            OPENVINO_ASSERT(existing->get_element_type() == element_type,
+                            "Existing parameter element type mismatch for '",
+                            name,
+                            "'.");
+            OPENVINO_ASSERT(existing->get_partial_shape() == shape,
+                            "Existing parameter shape mismatch for '",
+                            name,
+                            "'.");
+            return existing;
+        }
+        auto param = std::make_shared<ov::op::v0::Parameter>(element_type, shape);
+        param->set_friendly_name(name);
+        OPENVINO_ASSERT(param->get_output_size() == 1);
+        param->get_output_tensor(0).set_names({name});
+        parameters.push_back(param);
+        return param;
     }
-    auto param = std::make_shared<ov::op::v0::Parameter>(element_type, shape);
-    param->set_friendly_name(name);
-    OPENVINO_ASSERT(param->get_output_size() == 1);
-    param->get_output_tensor(0).set_names({name});
-    created_params.emplace(name, param);
-    return param;
-}
 
-inline std::shared_ptr<ov::op::v0::Parameter> get_or_add_named_parameter(
-    std::map<std::string, std::shared_ptr<ov::op::v0::Parameter>>& created_params,
-    const std::string& name) {
-    const auto it = created_params.find(name);
-    OPENVINO_ASSERT(it != created_params.end(), "Missing model parameter: ", name);
-    return it->second;
-}
+    std::shared_ptr<ov::op::v0::Parameter> add(const std::string& name,
+                                               const std::shared_ptr<ov::op::v0::Parameter>& param) {
+        auto existing = find(name);
+        if (existing) {
+            OPENVINO_ASSERT(existing == param, "Existing parameter mismatch for '", name, "'.");
+            return existing;
+        }
+        parameters.push_back(param);
+        return param;
+    }
+
+    std::shared_ptr<ov::op::v0::Parameter> get(const std::string& name) const {
+        return find(name);
+    }
+
+    std::shared_ptr<ov::op::v0::Parameter> operator[](const std::string& name) const {
+        auto param = find(name);
+        OPENVINO_ASSERT(param, "Missing model parameter: ", name);
+        return param;
+    }
+
+    bool remove(const std::string& name) {
+        auto param = find(name);
+        if (!param) {
+            return false;
+        }
+        parameters.erase(std::remove(parameters.begin(), parameters.end(), param), parameters.end());
+        return true;
+    }
+
+    ov::ParameterVector parameters;
+
+    std::shared_ptr<ov::op::v0::Parameter> find(const std::string& name) const {
+        auto it = std::find_if(parameters.begin(),
+                               parameters.end(),
+                               [&](const std::shared_ptr<ov::op::v0::Parameter>& param) {
+                                   return param && param->get_friendly_name() == name;
+                               });
+        return it == parameters.end() ? nullptr : *it;
+    }
+};
 }  // namespace paged_attention
 /**
  * @brief The transformation replaces KV-cache processing part in LLMs by PagedAttention operation.
@@ -80,6 +116,7 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:
+    paged_attention::PaParams m_params;
     paged_attention::Options m_options;
 };
 }  // namespace pass
