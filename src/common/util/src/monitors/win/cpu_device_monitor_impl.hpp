@@ -15,7 +15,7 @@ namespace ov::util {
 class CPUDeviceMonitorImpl : public IDeviceMonitorImpl {
 public:
     CPUDeviceMonitorImpl() {
-        // Step 1: Create IPF ClientApi (tests SDK -> ClientApiProxy.dll -> ipfsvc connection)
+        // Step 1: Create IPF ClientApi
         try {
             m_ipf = std::make_unique<Ipf::ClientApi>();
             std::cerr << "[IPF_DEBUG] CPUDeviceMonitorImpl: IPF ClientApi created successfully" << std::endl;
@@ -28,15 +28,14 @@ public:
             m_ipf = nullptr;
             return;
         }
-        // Step 2: Discover available IPF namespace nodes (diagnostic only, does not affect m_ipf)
+        // Step 2: Verify IPF connection by reading CPU brand string
         try {
-            auto nodes = m_ipf->QueryNode("Platform");
-            std::cerr << "[IPF_DEBUG] CPUDeviceMonitorImpl: QueryNode(\"Platform\") = " << nodes << std::endl;
+            auto brand = m_ipf->GetValue("Platform.SOC.Info.BrandString");
+            std::cerr << "[IPF_DEBUG] CPUDeviceMonitorImpl: SOC.Info.BrandString = " << brand << std::endl;
         } catch (const std::exception& e) {
-            std::cerr << "[IPF_DEBUG] CPUDeviceMonitorImpl: QueryNode(\"Platform\") failed: " << e.what()
-                      << " (no namespace providers registered yet)" << std::endl;
+            std::cerr << "[IPF_DEBUG] CPUDeviceMonitorImpl: SOC.Info.BrandString query failed: " << e.what() << std::endl;
         } catch (...) {
-            std::cerr << "[IPF_DEBUG] CPUDeviceMonitorImpl: QueryNode(\"Platform\") failed (unknown exception)" << std::endl;
+            std::cerr << "[IPF_DEBUG] CPUDeviceMonitorImpl: SOC.Info.BrandString query failed (unknown)" << std::endl;
         }
     }
 
@@ -49,21 +48,17 @@ public:
         }
         try {
             auto value_str = m_ipf->GetValue("Platform.SOC.CPU.Utilization");
-            std::cerr << "[IPF_DEBUG] CPUDeviceMonitorImpl::get_utilization: GetValue(\"Platform.SOC.CPU.Utilization\") = \""
-                      << value_str << "\"" << std::endl;
+            std::cerr << "[IPF_DEBUG] CPUDeviceMonitorImpl::get_utilization: GetValue = \"" << value_str << "\"" << std::endl;
             if (!value_str.empty() && value_str != "null") {
                 float val = std::stof(value_str);
-                std::cerr << "[IPF_DEBUG] CPUDeviceMonitorImpl::get_utilization: parsed value = " << val << std::endl;
                 result["Total"] = val;
             } else {
-                std::cerr << "[IPF_DEBUG] CPUDeviceMonitorImpl::get_utilization: empty/null response, fallback to 0.0" << std::endl;
                 result["Total"] = 0.0f;
             }
         } catch (const std::exception& e) {
             std::cerr << "[IPF_DEBUG] CPUDeviceMonitorImpl::get_utilization: exception: " << e.what() << std::endl;
             result["Total"] = 0.0f;
         } catch (...) {
-            std::cerr << "[IPF_DEBUG] CPUDeviceMonitorImpl::get_utilization: unknown exception" << std::endl;
             result["Total"] = 0.0f;
         }
         return result;

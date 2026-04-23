@@ -16,7 +16,7 @@ class XPUDeviceMonitorImpl : public IDeviceMonitorImpl {
 public:
     XPUDeviceMonitorImpl(const std::string& device_luid) : m_device_luid(device_luid) {
         std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: creating with LUID=\"" << device_luid << "\"" << std::endl;
-        // Step 1: Create IPF ClientApi (tests SDK -> ClientApiProxy.dll -> ipfsvc connection)
+        // Step 1: Create IPF ClientApi
         try {
             m_ipf = std::make_unique<Ipf::ClientApi>();
             std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: IPF ClientApi created successfully" << std::endl;
@@ -29,15 +29,14 @@ public:
             m_ipf = nullptr;
             return;
         }
-        // Step 2: Discover available IPF namespace nodes (diagnostic only, does not affect m_ipf)
+        // Step 2: Verify IPF connection by reading CPU brand string
         try {
-            auto nodes = m_ipf->QueryNode("Platform");
-            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: QueryNode(\"Platform\") = " << nodes << std::endl;
+            auto brand = m_ipf->GetValue("Platform.SOC.Info.BrandString");
+            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: SOC.Info.BrandString = " << brand << std::endl;
         } catch (const std::exception& e) {
-            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: QueryNode(\"Platform\") failed: " << e.what()
-                      << " (no namespace providers registered yet)" << std::endl;
+            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: SOC.Info.BrandString query failed: " << e.what() << std::endl;
         } catch (...) {
-            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: QueryNode(\"Platform\") failed (unknown exception)" << std::endl;
+            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: SOC.Info.BrandString query failed (unknown)" << std::endl;
         }
     }
 
@@ -50,35 +49,22 @@ public:
             return result;
         }
         try {
-            // Try device-specific path first
             std::string device_path = "Platform.GPU." + m_device_luid + ".Utilization";
-            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl::get_utilization: trying device path: \"" << device_path << "\"" << std::endl;
+            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl::get_utilization: trying \"" << device_path << "\"" << std::endl;
             auto value_str = m_ipf->GetValue(device_path);
-            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl::get_utilization: GetValue(\"" << device_path << "\") = \"" << value_str << "\"" << std::endl;
-
             if (!value_str.empty() && value_str != "null") {
-                float val = std::stof(value_str);
-                std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl::get_utilization: device-specific value = " << val << std::endl;
-                result[m_device_luid] = val;
+                result[m_device_luid] = std::stof(value_str);
                 return result;
             }
-
-            // Fallback: try generic GPU utilization path
-            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl::get_utilization: device path empty/null, trying fallback \"Platform.GPU.Utilization\"" << std::endl;
+            // Fallback: generic GPU utilization
             value_str = m_ipf->GetValue("Platform.GPU.Utilization");
-            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl::get_utilization: GetValue(\"Platform.GPU.Utilization\") = \"" << value_str << "\"" << std::endl;
-
             if (!value_str.empty() && value_str != "null") {
-                float val = std::stof(value_str);
-                std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl::get_utilization: fallback value = " << val << std::endl;
-                result[m_device_luid] = val;
-            } else {
-                std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl::get_utilization: all paths returned empty/null, returning empty map" << std::endl;
+                result[m_device_luid] = std::stof(value_str);
             }
         } catch (const std::exception& e) {
-            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl::get_utilization: exception: " << e.what() << ", returning empty map" << std::endl;
+            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl::get_utilization: exception: " << e.what() << std::endl;
         } catch (...) {
-            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl::get_utilization: unknown exception, returning empty map" << std::endl;
+            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl::get_utilization: unknown exception" << std::endl;
         }
         return result;
     }
