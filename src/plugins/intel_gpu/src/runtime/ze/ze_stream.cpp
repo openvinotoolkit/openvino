@@ -348,7 +348,7 @@ std::unique_ptr<surfaces_lock> ze_stream::create_surfaces_lock(const std::vector
 }
 
 void ze_stream::flush() const {
-    // Immediate Command List submits commands immediately - no flush impl
+    GPU_DEBUG_TRACE << "Immediate Command List submits commands immediately - no flush impl" << std::endl;
 }
 
 void ze_stream::finish() const {
@@ -398,6 +398,10 @@ void ze_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output)
         m_last_barrier_ev = std::dynamic_pointer_cast<ze_event>(create_user_event(true));
         m_last_barrier_ev->set_queue_stamp(m_queue_counter.load());
     }
+}
+
+ze_context_handle_t ze_stream::get_context() const {
+    return _engine.get_context();
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU

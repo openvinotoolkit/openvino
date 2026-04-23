@@ -9,5 +9,5 @@ Possible serialization options:
 Serialize to console output.
 * \<path\>_index.xml\
 Serialize graph into .xml and .bin files. Can be opened using, for example, *netron* app.
-* **TBD**: \<path\>.dot\
+* \<path\>_index.dot\
 Serialize graph into .dot file. Can be inspected using, for example, *graphviz* tools.

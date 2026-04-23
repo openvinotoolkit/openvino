@@ -243,14 +243,24 @@ struct PagedAttentionManager {
     }
 
     memory::ptr get_key_cache_memory_cm() {
+        constexpr int kv_sub_block_size = 16;
         auto key_cache_dt = kv_cache_compression ? data_types::i8 : data_types::f16;
         const int head_size = k_head_size;
-        const int adjusted_head_size = head_size + (kv_cache_compression ? 4 : 0);
+        int adjusted_head_size = head_size;
+        int adjusted_block_size = block_size;
+        if (kv_cache_compression) {
+            if (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
+                OPENVINO_ASSERT(block_size % kv_sub_block_size == 0);
+                adjusted_block_size += block_size / kv_sub_block_size * 4;
+            } else {
+                adjusted_head_size += 4;
+            }
+        }
 
         const auto num_blocks = block_indices.back() + 1;
         auto key_cache_shape = ov::PartialShape{static_cast<int64_t>(num_blocks),
                                                 static_cast<int64_t>(num_kv_heads),
-                                                static_cast<int64_t>(block_size),
+                                                static_cast<int64_t>(adjusted_block_size),
                                                 static_cast<int64_t>(adjusted_head_size)};
         auto key_cache_layout = layout{key_cache_shape, key_cache_dt, format::bfyx};
         auto memory = test_engine.allocate_memory(key_cache_layout);
@@ -277,7 +287,7 @@ struct PagedAttentionManager {
                                                 (static_cast<size_t>(head_idx) * block_size * head_size);
                             const size_t off = base + static_cast<size_t>(token_idx) * head_size;
                             set_values(test_stream, memory, src_ptr, head_size, off);
-                        } else {
+                        } else if (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_TOKEN) {
                             // Compressed Key cache layout:
                             // logical shape: [num_blocks, num_kv_heads, block_size, adjusted_head_size], dt=i8 (adjusted_head_size=head_size+4).
                             // Per (block, head) region starts at block_base_i8, byte-packed as:
@@ -302,6 +312,49 @@ struct PagedAttentionManager {
 
                             set_values(test_stream, memory, &scale, 1, scale_off_f16);
                             set_values(test_stream, memory, &zp, 1, zp_off_f16);
+                        } else {
+                            // Compressed Key cache layout for BY_CHANNEL:
+                            // shape: [num_blocks, num_kv_heads, adjusted_block_size, head_size], dt=i8.
+                            // Per (block, head):
+                            //   data bytes region                            : [block_size * head_size]
+                            //   scale fp16 region per-subblock per-channel   : [(block_size / sub_block) * head_size]
+                            //   zp fp16 region per-subblock per-channel      : [(block_size / sub_block) * head_size]
+                            const size_t block_stride_i8 = static_cast<size_t>(adjusted_block_size) * static_cast<size_t>(head_size);
+                            const size_t block_base_i8 = (static_cast<size_t>(start_block_idx + block_idx) * static_cast<size_t>(num_kv_heads) +
+                                                          static_cast<size_t>(head_idx)) *
+                                                         block_stride_i8;
+
+                            const int subblock_count = block_size / kv_sub_block_size;
+                            const size_t scale_base_i8 = block_base_i8 + static_cast<size_t>(block_size) * static_cast<size_t>(head_size);
+                            const size_t zp_base_i8 = scale_base_i8 +
+                                                      static_cast<size_t>(subblock_count) * static_cast<size_t>(head_size) * sizeof(ov::float16);
+
+                            for (int channel = 0; channel < head_size; channel++) {
+                                for (int sub_start = 0; sub_start < last_token_idx; sub_start += kv_sub_block_size) {
+                                    const int cur_sub_block_size = std::min(kv_sub_block_size, last_token_idx - sub_start);
+                                    std::vector<ov::float16> token_block(cur_sub_block_size);
+
+                                    for (int t = 0; t < cur_sub_block_size; t++) {
+                                        const size_t input_token_offset = static_cast<size_t>(block_idx) * block_size + static_cast<size_t>(sub_start + t);
+                                        token_block[t] = *(key_data[i].data() + input_token_offset * static_cast<size_t>(num_kv_heads) * head_size +
+                                                           static_cast<size_t>(head_idx) * head_size + channel);
+                                    }
+
+                                    auto [quantized_data, scale, zp] = quantize_data(token_block.data(), cur_sub_block_size, true, true);
+
+                                    for (int t = 0; t < cur_sub_block_size; t++) {
+                                        const size_t data_off_i8 = block_base_i8 + static_cast<size_t>(sub_start + t) * head_size + channel;
+                                        set_values(test_stream, memory, quantized_data.data() + t, 1, data_off_i8);
+                                    }
+
+                                    const size_t sub_idx = static_cast<size_t>(sub_start / kv_sub_block_size);
+                                    const size_t scale_off_f16 = scale_base_i8 / 2 + sub_idx * static_cast<size_t>(head_size) + channel;
+                                    const size_t zp_off_f16 = zp_base_i8 / 2 + sub_idx * static_cast<size_t>(head_size) + channel;
+
+                                    set_values(test_stream, memory, &scale, 1, scale_off_f16);
+                                    set_values(test_stream, memory, &zp, 1, zp_off_f16);
+                                }
+                            }
                         }
                     }
                 }
@@ -2492,6 +2545,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention, xattention_test, ::testing::Values
     paged_attention_test_params{ {{1, 32}},   2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd toke
     paged_attention_test_params{ {{1, 1023}},   2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
     paged_attention_test_params{ {{1, 1024}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
+
+    paged_attention_test_params{ {{32, 0}},   2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+    paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+    paged_attention_test_params{ {{2048, 0}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+    paged_attention_test_params{ {{32, 0}},   4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+    paged_attention_test_params{ {{1024, 0}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+    paged_attention_test_params{ {{2048, 0}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 1st token
+
+    paged_attention_test_params{ {{1, 31}},   2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
+    paged_attention_test_params{ {{1, 32}},   2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
+    paged_attention_test_params{ {{1, 1023}},   2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
+    paged_attention_test_params{ {{1, 1024}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} }, // 2nd token
 }));
 
 INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention_block_size, xattention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
