@@ -69,15 +69,23 @@ public:
 std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov::Model>& model,
                                                         const ov::element::Type lptype) {
     // Resolve storage types first and apply them through PPP for both inputs and outputs.
-    // Default path keeps KV cache in f16; integer hint uses key=i8/u8 and value=i4.
+    // Default path keeps KV cache in f16.
+    // Integer storage uses asymmetric key quantization and symmetric value quantization.
+    // Signed i8 key quantization would materialize signed zero-points, which the current
+    // NPU compiler path does not accept yet, so normalize key storage to u8 here.
     auto key_storage_type = lptype;
     auto value_storage_type = lptype;
 
     const bool use_integer_kv_storage = (lptype == ov::element::i8 || lptype == ov::element::u8);
     if (use_integer_kv_storage) {
-        key_storage_type = lptype;
+        key_storage_type = (lptype == ov::element::i8) ? ov::element::u8 : lptype;
         // TODO: int4 precision for value-cache lead to compilation failure for now
         value_storage_type = ov::element::i8;
+
+        if (lptype == ov::element::i8) {
+            LOG_WARN("Requested i8 KV-cache precision uses asymmetric key quantization, which currently requires "
+                     "signed zero-points unsupported by the NPU compiler path; using u8 storage for keys instead");
+        }
     }
 
     ov::preprocess::PrePostProcessor ppp(model);
