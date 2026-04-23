@@ -16,17 +16,28 @@ class XPUDeviceMonitorImpl : public IDeviceMonitorImpl {
 public:
     XPUDeviceMonitorImpl(const std::string& device_luid) : m_device_luid(device_luid) {
         std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: creating with LUID=\"" << device_luid << "\"" << std::endl;
+        // Step 1: Create IPF ClientApi (tests SDK -> ClientApiProxy.dll -> ipfsvc connection)
         try {
             m_ipf = std::make_unique<Ipf::ClientApi>();
-            // Verify IPF connection by querying a known working path
-            auto soc_info = m_ipf->GetValue("Platform.SOC.Info");
-            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: IPF connected, SOC.Info = " << soc_info << std::endl;
+            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: IPF ClientApi created successfully" << std::endl;
         } catch (const std::exception& e) {
             std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: IPF ClientApi creation failed: " << e.what() << std::endl;
             m_ipf = nullptr;
+            return;
         } catch (...) {
             std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: IPF ClientApi creation failed (unknown exception)" << std::endl;
             m_ipf = nullptr;
+            return;
+        }
+        // Step 2: Discover available IPF namespace nodes (diagnostic only, does not affect m_ipf)
+        try {
+            auto nodes = m_ipf->QueryNode("Platform");
+            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: QueryNode(\"Platform\") = " << nodes << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: QueryNode(\"Platform\") failed: " << e.what()
+                      << " (no namespace providers registered yet)" << std::endl;
+        } catch (...) {
+            std::cerr << "[IPF_DEBUG] XPUDeviceMonitorImpl: QueryNode(\"Platform\") failed (unknown exception)" << std::endl;
         }
     }
 
