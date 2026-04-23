@@ -384,10 +384,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_col2im_5d_cpu"
     ),
     (
-        xfail_issue_99954,
-        "OnnxBackendNodeModelTest.test_constant_pad_axes_cpu",
-    ),
-    (
         xfail_issue_99961,
         "OnnxBackendNodeModelTest.test_optional_get_element_optional_sequence_cpu",
         "OnnxBackendNodeModelTest.test_optional_get_element_optional_tensor_cpu",
