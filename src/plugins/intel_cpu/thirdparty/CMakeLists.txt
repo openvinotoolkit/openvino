@@ -212,3 +212,8 @@ if(RISCV64)
 endif()
 
 ov_add_onednn()
+
+# Export thirdparty warning suppression flags to parent scope for version targets
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    set(OV_CPU_THIRDPARTY_MSVC_SUPPRESS_FLAGS "/wd4018;/wd4267;/wd4244;/wd4334" PARENT_SCOPE)
+endif()
