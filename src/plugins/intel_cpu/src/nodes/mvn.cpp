@@ -12,6 +12,7 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
@@ -2796,6 +2797,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
     aux_buffer_size += blk_size;
     std::vector<float> mean_buffer(aux_buffer_size * threads_num);
     std::vector<float> variance_buffer(aux_buffer_size * threads_num);
+    const size_t overflow_thread_id = std::numeric_limits<size_t>::max() / aux_buffer_size;
 
     for (size_t b = 0LU; b < N; b++) {
         size_t b_offset = b * C3;
@@ -2816,13 +2818,19 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                 //                      //  |
                 //                      // \|/
                 /////////////////////////////////
-                auto thread_idx = static_cast<size_t>(parallel_get_thread_num());
-                if (thread_idx >= threads_num) {
-                    return mean_internal;
-                }
-                // coverity[INTEGER_OVERFLOW] thread_idx < threads_num and
-                // aux_buffer_size * num_threads <= mean_buffer_size guaranteed
-                auto* mean_buffer_ptr = &mean_buffer[aux_buffer_size * thread_idx];
+                auto raw_tid = parallel_get_thread_num();
+                OPENVINO_ASSERT(raw_tid >= 0, "parallel_get_thread_num() returns negative value in MVNJitExecutor");
+                const auto thread_idx = static_cast<size_t>(raw_tid);
+                OPENVINO_ASSERT(
+                    thread_idx < threads_num,
+                    "parallel_get_thread_num() returns value greater than or equal to max threads in MVNJitExecutor");
+                // Prevent overflow in aux_buffer_size * thread_idx (for static analyzers and safety)
+                OPENVINO_ASSERT(thread_idx <= overflow_thread_id,
+                                "Calculated offset for mean_buffer is too large in MVNJitExecutor");
+                const size_t offset = aux_buffer_size * thread_idx;
+                OPENVINO_ASSERT(offset <= mean_buffer.size(),
+                                "Calculated offset for mean_buffer is out of range in MVNJitExecutor");
+                auto* mean_buffer_ptr = mean_buffer.data() + offset;
                 for (size_t i = 0; i < blk_size; i++) {
                     mean_buffer_ptr[i] = 0.F;
                 }
@@ -2852,8 +2860,20 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                         size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
 
                         float variance_internal = 0.0F;
-                        auto* variance_buffer_ptr =
-                            &variance_buffer[aux_buffer_size * static_cast<size_t>(parallel_get_thread_num())];
+                        auto raw_tid = parallel_get_thread_num();
+                        OPENVINO_ASSERT(raw_tid >= 0,
+                                        "parallel_get_thread_num() returns negative value in MVNJitExecutor");
+                        const auto thread_idx = static_cast<size_t>(raw_tid);
+                        OPENVINO_ASSERT(thread_idx < threads_num,
+                                        "parallel_get_thread_num() returns value greater than or equal to max threads "
+                                        "in MVNJitExecutor");
+                        // Prevent overflow in aux_buffer_size * thread_idx (for static analyzers and safety)
+                        OPENVINO_ASSERT(thread_idx <= overflow_thread_id,
+                                        "Calculated offset for mean_buffer is too large in MVNJitExecutor");
+                        const size_t offset = aux_buffer_size * thread_idx;
+                        OPENVINO_ASSERT(offset <= variance_buffer.size(),
+                                        "Calculated offset for variance_buffer is out of range in MVNJitExecutor");
+                        auto* variance_buffer_ptr = variance_buffer.data() + offset;
                         for (size_t i = 0; i < blk_size; i++) {
                             variance_buffer_ptr[i] = 0.F;
                         }
