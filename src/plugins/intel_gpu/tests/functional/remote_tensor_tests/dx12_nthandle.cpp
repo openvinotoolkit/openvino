@@ -120,45 +120,6 @@ struct Dx12SharedBuffer {
     HANDLE shared_handle = nullptr;  // NT handle; caller must CloseHandle when done
 };
 
-// RAII DXGI debug scope: enables the D3D12 debug layer (must be constructed before
-// any ID3D12Device is created), captures IDXGIInfoQueue messages, and on destruction
-// flushes remaining messages and calls ReportLiveObjects.
-struct DxgiDebugScope {
-    CComPtr<IDXGIInfoQueue> info_queue;
-
-    DxgiDebugScope() {
-        // Enable D3D12 debug layer before device creation.
-        CComPtr<ID3D12Debug> debug_ctrl;
-        if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug_ctrl))))
-            debug_ctrl->EnableDebugLayer();
-
-        DXGIGetDebugInterface1(0, IID_PPV_ARGS(&info_queue));
-    }
-
-    void flush(const char* label = "") const {
-        if (!info_queue)
-            return;
-        const UINT64 count = info_queue->GetNumStoredMessages(DXGI_DEBUG_ALL);
-        for (UINT64 i = 0; i < count; ++i) {
-            SIZE_T msg_len = 0;
-            info_queue->GetMessage(DXGI_DEBUG_ALL, i, nullptr, &msg_len);
-            std::vector<char> buf(msg_len);
-            auto* msg = reinterpret_cast<DXGI_INFO_QUEUE_MESSAGE*>(buf.data());
-            if (SUCCEEDED(info_queue->GetMessage(DXGI_DEBUG_ALL, i, msg, &msg_len)))
-                std::cout << "[DXGI" << (label[0] ? "|" : "") << label << "] " << msg->pDescription << "\n";
-        }
-        info_queue->ClearStoredMessages(DXGI_DEBUG_ALL);
-    }
-
-    ~DxgiDebugScope() {
-        flush("teardown");
-        CComPtr<IDXGIDebug1> dxgi_debug;
-        if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgi_debug))))
-            dxgi_debug->ReportLiveObjects(
-                DXGI_DEBUG_ALL,
-                static_cast<DXGI_DEBUG_RLO_FLAGS>(DXGI_DEBUG_RLO_SUMMARY | DXGI_DEBUG_RLO_IGNORE_INTERNAL));
-    }
-};
 
 static bool gpu_wait(ID3D12CommandQueue* command_queue, ID3D12Device* device) {
     ID3D12Fence* raw_fence = nullptr;
@@ -352,85 +313,6 @@ Dx12SharedBuffer create_dx12_shared_buffer(ID3D12Device* device,
     return {resource, shared_handle};
 }
 
-bool CopySharedResourceToFloatVector(ID3D12Device* device,
-                                      ID3D12CommandQueue* command_queue,
-                                      HANDLE shared_handle,
-                                      std::vector<float>& out_data) {
-    ID3D12Resource* raw_shared = nullptr;
-    HRESULT hr = device->OpenSharedHandle(shared_handle, IID_PPV_ARGS(&raw_shared));
-    if (FAILED(hr)) return false;
-    CComPtr<ID3D12Resource> shared_resource(raw_shared);
-
-    const UINT64 byte_size = shared_resource->GetDesc().Width;
-
-    D3D12_HEAP_PROPERTIES readback_heap{};
-    readback_heap.Type = D3D12_HEAP_TYPE_READBACK;
-
-    D3D12_RESOURCE_DESC readback_desc{};
-    readback_desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    readback_desc.Alignment = 0;
-    readback_desc.Width = byte_size;
-    readback_desc.Height = 1;
-    readback_desc.DepthOrArraySize = 1;
-    readback_desc.MipLevels = 1;
-    readback_desc.Format = DXGI_FORMAT_UNKNOWN;
-    readback_desc.SampleDesc.Count = 1;
-    readback_desc.SampleDesc.Quality = 0;
-    readback_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-    readback_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-    ID3D12Resource* raw_readback = nullptr;
-    hr = device->CreateCommittedResource(&readback_heap,
-                                          D3D12_HEAP_FLAG_NONE,
-                                          &readback_desc,
-                                          D3D12_RESOURCE_STATE_COPY_DEST,
-                                          nullptr,
-                                          IID_PPV_ARGS(&raw_readback));
-    if (FAILED(hr)) return false;
-    CComPtr<ID3D12Resource> readback_resource(raw_readback);
-
-    ID3D12CommandAllocator* raw_allocator = nullptr;
-    device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&raw_allocator));
-    CComPtr<ID3D12CommandAllocator> allocator(raw_allocator);
-
-    ID3D12GraphicsCommandList* raw_cmd_list = nullptr;
-    hr = device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, allocator, nullptr,
-                                   IID_PPV_ARGS(&raw_cmd_list));
-    if (FAILED(hr)) return false;
-    CComPtr<ID3D12GraphicsCommandList> cmd_list(raw_cmd_list);
-
-    D3D12_RESOURCE_BARRIER barrier{};
-    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-    barrier.Transition.pResource = shared_resource;
-    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
-    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
-    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-    cmd_list->ResourceBarrier(1, &barrier);
-
-    cmd_list->CopyBufferRegion(readback_resource, 0, shared_resource, 0, byte_size);
-
-    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
-    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COMMON;
-    cmd_list->ResourceBarrier(1, &barrier);
-    cmd_list->Close();
-
-    ID3D12CommandList* cmd_lists[] = {cmd_list};
-    command_queue->ExecuteCommandLists(1, cmd_lists);
-    gpu_wait(command_queue, device);
-
-    void* mapped = nullptr;
-    D3D12_RANGE read_range{0, static_cast<SIZE_T>(byte_size)};
-    hr = readback_resource->Map(0, &read_range, &mapped);
-    if (FAILED(hr)) return false;
-
-    out_data.resize(static_cast<size_t>(byte_size) / sizeof(float));
-    memcpy(out_data.data(), mapped, static_cast<size_t>(byte_size));
-    D3D12_RANGE write_range{0, 0};
-    readback_resource->Unmap(0, &write_range);
-    return true;
-}
-
 #endif  // ENABLE_DX11
 #endif  // _WIN32
 
@@ -438,7 +320,6 @@ bool CopySharedResourceToFloatVector(ID3D12Device* device,
 #ifdef ENABLE_DX11
 
 TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndCompare) {
-    DxgiDebugScope debug_scope;
     ov::Core core;
     const ov::Shape shape{16};
     const size_t element_count = ov::shape_size(shape);
@@ -474,7 +355,6 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndComp
         break;
     }
 
-    debug_scope.flush("after create_dx12_test_context");
     if (!dx12.device) {
         FAIL() << "No DX12 adapter matched any available OpenVINO GPU device";
     }
@@ -484,6 +364,7 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndComp
     std::vector<float> input_init(element_count, 2.0f);
     auto dx_input_shared = create_dx12_shared_buffer(dx12.device, dx12.command_queue,
                                                       byte_size, input_init.data());
+    std::vector<float> output_init(element_count, 0.0f);
     auto dx_output_shared = create_dx12_shared_buffer(dx12.device, dx12.command_queue, byte_size);
     ASSERT_NE(dx_input_shared.shared_handle, nullptr);
     ASSERT_NE(dx_output_shared.shared_handle, nullptr);
@@ -583,7 +464,6 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndComp
     }
 
     infer_req.infer();
-    debug_scope.flush("after infer");
 
     ov::Tensor host_output(ov::element::f32, shape);
     remote_output_tensor.copy_to(host_output);
@@ -598,7 +478,7 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndComp
     for (size_t i = 0; i < element_count; ++i) {
         EXPECT_FLOAT_EQ(output_values[i], 2.0f) << "Mismatch at index " << i;
     }
-
+    std::cout << "[INFO] Output values match expected input values\n";
     CloseHandle(dx_input_shared.shared_handle);
     dx_input_shared.shared_handle = nullptr;
     CloseHandle(dx_output_shared.shared_handle);

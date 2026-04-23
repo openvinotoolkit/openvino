@@ -11,11 +11,66 @@
 #pragma once
 
 #include <cstdint>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
 
+#ifndef CL_TARGET_OPENCL_VERSION
+#define CL_TARGET_OPENCL_VERSION 300
+#endif
+
 #include <CL/cl_ext.h>
+
+#ifndef CL_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD
+typedef enum _cl_external_mem_handle_type_enum {
+    CL_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD = 1,
+    CL_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32 = 2,
+    CL_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT = 3,
+    CL_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP = 4,
+    CL_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE = 5,
+} cl_external_mem_handle_type;
+
+typedef enum _cl_external_mem_properties {
+    CL_EXTERNAL_MEMORY_HANDLE_TYPE = 1,
+    CL_EXTERNAL_MEMORY_HANDLE_SIZE = 2,
+} cl_external_mem_properties;
+
+typedef struct _cl_external_mem_desc_st {
+    cl_external_mem_handle_type type;
+    void* handle;
+    cl_external_mem_properties* props;
+    unsigned long long size;
+} cl_external_mem_desc;
+#endif
+
+#if defined(CL_VERSION_1_2) && !defined(CL_API_SUFFIX__VERSION_1_2)
+#define CL_API_SUFFIX__VERSION_1_2
+#endif
+
+#if !defined(CL_API_SUFFIX__VERSION_3_0)
+#define CL_API_SUFFIX__VERSION_3_0
+#endif
+
+// Some OpenCL SDKs provide cl_properties but not cl_mem_properties.
+// Keep compatibility with such headers.
+#if !defined(CL_VERSION_3_0)
+typedef cl_properties cl_mem_properties;
+
+extern CL_API_ENTRY cl_mem CL_API_CALL clCreateBufferWithProperties(cl_context context,
+                                                                     const cl_mem_properties* properties,
+                                                                     cl_mem_flags flags,
+                                                                     size_t size,
+                                                                     void* host_ptr,
+                                                                     cl_int* errcode_ret) CL_API_SUFFIX__VERSION_3_0;
+#endif
+
+#ifndef clCreateFromExternalMemoryBufferINTEL_fn
+typedef cl_mem(CL_API_CALL* clCreateFromExternalMemoryBufferINTEL_fn)(cl_context,
+                                                                       cl_mem_flags,
+                                                                       cl_external_mem_desc,
+                                                                       cl_int*);
+#endif
 
 #ifndef CL_DEVICE_HANDLE_LIST_KHR
 #define CL_DEVICE_HANDLE_LIST_KHR 0x2051
@@ -27,6 +82,14 @@
 
 #ifndef CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KMT_KHR
 #define CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KMT_KHR 0x2062
+#endif
+
+#ifndef CL_EXTERNAL_DEVICE_HANDLE_KHR
+#define CL_EXTERNAL_DEVICE_HANDLE_KHR 0x300B
+#endif
+
+#ifndef CL_EXTERNAL_DEVICEGROUP_KHR
+#define CL_EXTERNAL_DEVICEGROUP_KHR 0x300C
 #endif
 
 #include "openvino/runtime/core.hpp"
@@ -195,7 +258,7 @@ protected:
 
     /**
      * @brief Default constructor which can be used in derived classes to avoid multiple create_context() calls
-     */
+    */
     ClContext() = default;
 
 public:
@@ -357,70 +420,82 @@ public:
             byte_size *= dim;
         }
 
-        // External-memory import needs OpenCL 3.0 buffer-properties API in headers.
-#if defined(CL_VERSION_3_0)
+        // External-memory import relies on Intel external-memory extension API.
+    #if defined(CL_VERSION_1_2)
         cl_int errcode_ret = CL_SUCCESS;
         const auto cl_ctx = static_cast<cl_context>(get_params().at(ov::intel_gpu::ocl_context.name()).as<gpu_handle_param>());
 
         size_t devices_size = 0;
         errcode_ret = clGetContextInfo(cl_ctx, CL_CONTEXT_DEVICES, 0, nullptr, &devices_size);
         OPENVINO_ASSERT(errcode_ret == CL_SUCCESS && devices_size >= sizeof(cl_device_id),
-                "Failed to query OpenCL context devices, error code: ",
-                errcode_ret);
+                        "Failed to query OpenCL context devices, error code: ",
+                        errcode_ret);
 
         std::vector<cl_device_id> devices(devices_size / sizeof(cl_device_id));
         errcode_ret = clGetContextInfo(cl_ctx, CL_CONTEXT_DEVICES, devices_size, devices.data(), nullptr);
         OPENVINO_ASSERT(errcode_ret == CL_SUCCESS && !devices.empty(),
-                "Failed to get OpenCL context devices, error code: ",
+                        "Failed to get OpenCL context devices, error code: ",
+                        errcode_ret);
+
+        cl_platform_id platform = nullptr;
+        errcode_ret = clGetDeviceInfo(devices.front(), CL_DEVICE_PLATFORM, sizeof(platform), &platform, nullptr);
+        OPENVINO_ASSERT(errcode_ret == CL_SUCCESS && platform != nullptr,
+                        "Failed to get OpenCL platform from device, error code: ",
+                        errcode_ret);
+
+        size_t ext_size = 0;
+        errcode_ret = clGetDeviceInfo(devices.front(), CL_DEVICE_EXTENSIONS, 0, nullptr, &ext_size);
+        OPENVINO_ASSERT(errcode_ret == CL_SUCCESS && ext_size > 0,
+                "Failed to query OpenCL extensions, error code: ",
+                errcode_ret);
+        std::string extensions(ext_size, '\0');
+        errcode_ret = clGetDeviceInfo(devices.front(), CL_DEVICE_EXTENSIONS, ext_size, extensions.data(), nullptr);
+        OPENVINO_ASSERT(errcode_ret == CL_SUCCESS,
+                "Failed to read OpenCL extensions, error code: ",
                 errcode_ret);
 
-        const auto device_id = devices.front();
+        OPENVINO_ASSERT(extensions.find("cl_khr_external_memory") != std::string::npos,
+                "OpenCL device does not report cl_khr_external_memory support");
 
-        auto try_import_external_mem = [&](cl_mem_properties handle_type) -> cl_mem {
-            const cl_mem_properties ext_mem_properties[] = {
-            handle_type,
-            static_cast<cl_mem_properties>(reinterpret_cast<intptr_t>(shared_buffer)),
-            static_cast<cl_mem_properties>(CL_DEVICE_HANDLE_LIST_KHR),
-            static_cast<cl_mem_properties>(reinterpret_cast<intptr_t>(device_id)),
-            static_cast<cl_mem_properties>(CL_DEVICE_HANDLE_LIST_END_KHR),
-            0
+
+        auto try_import_external_mem = [&](void* shared_buffer) -> cl_mem {
+            const auto shared_handle = static_cast<cl_mem_properties>(reinterpret_cast<intptr_t>(shared_buffer));
+            cl_mem_properties ext_mem_props[] = {
+                static_cast<cl_mem_properties>(CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KHR),
+                shared_handle,
+                0,
             };
 
-            return clCreateBufferWithProperties(cl_ctx,
-                            ext_mem_properties,
-                            CL_MEM_READ_WRITE,
-                            byte_size,
-                            nullptr,
-                            &errcode_ret);
+            auto imported_mem = clCreateBufferWithProperties(cl_ctx,
+                                                             ext_mem_props,
+                                                             CL_MEM_READ_WRITE,
+                                                             byte_size,
+                                                             nullptr,
+                                                             &errcode_ret);
+            return imported_mem;
         };
 
         cl_mem ext_mem_buffer = nullptr;
     #ifdef _WIN32
-        // Win32 sharing can expose either NT or KMT handles depending on DXGI sharing mode.
-        ext_mem_buffer = try_import_external_mem(static_cast<cl_mem_properties>(CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KHR));
-        if ((errcode_ret != CL_SUCCESS || ext_mem_buffer == nullptr)) {
-            ext_mem_buffer = try_import_external_mem(static_cast<cl_mem_properties>(CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KMT_KHR));
-        }
-    #else
-        ext_mem_buffer = try_import_external_mem(static_cast<cl_mem_properties>(CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_FD_KHR));
+        // DX12 shared handles may be exposed either as typed D3D12 handles or opaque Win32 handles.
+        ext_mem_buffer = try_import_external_mem(shared_buffer);
     #endif
 
         if (errcode_ret == CL_SUCCESS && ext_mem_buffer != nullptr) {
-            struct ClMemReleaser {
-                void operator()(cl_mem mem_obj) const {
-                    if (mem_obj != nullptr) {
-                        clReleaseMemObject(mem_obj);
-                    }
-                }
-            };
-
-            std::unique_ptr<_cl_mem, ClMemReleaser> ext_mem_guard(ext_mem_buffer);
-            return create_tensor(type, shape, ext_mem_buffer);
+            auto tensor = create_tensor(type, shape, ext_mem_buffer);
+            clReleaseMemObject(ext_mem_buffer);
+            return tensor;
         }
+
+        OPENVINO_ASSERT(false,
+                        "Failed to import external memory handle via clCreateFromExternalMemoryBufferINTEL, error code: ",
+                        errcode_ret);
+
 #endif
 
-        // Keep compatibility for existing callers that pass cl_mem wrapped as void*.
-        return create_tensor(type, shape, static_cast<cl_mem>(shared_buffer));
+        OPENVINO_ASSERT(false,
+                        "External memory import requires OpenCL 1.2+ headers and clCreateFromExternalMemoryBufferINTEL support");
+        return {};
     }
 
     /**
