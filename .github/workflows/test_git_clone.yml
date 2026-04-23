@@ -57,6 +57,7 @@ jobs:
       - name: Clone OpenVINO
         uses: actions/checkout@v4
         with:
+          repository: 'openvinotoolkit/testdata'
           submodules: 'true'
           lfs: 'true'
 
