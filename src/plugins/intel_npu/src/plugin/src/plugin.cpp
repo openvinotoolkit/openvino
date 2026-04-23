@@ -386,7 +386,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
             // based
             // on other metadata fields can be done following this line.
             metadata = read_metadata_from(viewTensor);
-        } catch (const std::exception& e) {
+        } catch (const std::exception& ex) {
             // Unsupported version, could not read the metadata or an unknown error has occured. Report that the
             // requirements are not met.
             _logger.debug("Failed to read metadata from the compatibility string. The requirements are not met. %s",

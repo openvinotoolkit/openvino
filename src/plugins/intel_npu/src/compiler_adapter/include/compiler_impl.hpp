@@ -17,6 +17,8 @@
 
 namespace intel_npu {
 
+class IDevice;
+
 class VCLCompilerImpl final : public std::enable_shared_from_this<VCLCompilerImpl> {
 public:
     VCLCompilerImpl();

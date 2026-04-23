@@ -207,9 +207,11 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
                                            std::nullopt)
             .write(requirementsString);
         const std::string encodedString = encode_compatibility_string(requirementsString.str());
-        ov::Tensor result(ov::element::Type_t::u8, ov::Shape{encodedString.length()});
-        std::memcpy(result.data(), encodedString.data(), encodedString.length());
-        return result;
+        _logger.debug("Encoded compatibility string: %s length: %zu", encodedString.c_str(), encodedString.length());
+
+        ov::Tensor requirements(ov::element::string, {});
+        *requirements.data<std::string>() = encodedString;
+        return requirements;
     }
 
     // default behaviour
