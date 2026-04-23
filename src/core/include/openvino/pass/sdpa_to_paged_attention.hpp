@@ -4,9 +4,13 @@
 
 #pragma once
 
+#include <map>
 #include <memory>
+#include <string>
 #include <vector>
 
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/pass/pass.hpp"
 
 namespace ov {
@@ -21,6 +25,37 @@ struct Options {
     bool allow_adaptive_rkv;
     bool allow_qq_bias;
 };
+
+inline std::shared_ptr<ov::op::v0::Parameter> get_or_add_named_parameter(
+    std::map<std::string, std::shared_ptr<ov::op::v0::Parameter>>& created_params,
+    const std::string& name,
+    const ov::element::Type& element_type,
+    const ov::PartialShape& shape) {
+    auto it = created_params.find(name);
+    if (it != created_params.end()) {
+        const auto& existing = it->second;
+        OPENVINO_ASSERT(existing->get_element_type() == element_type,
+                        "Existing parameter element type mismatch for '",
+                        name,
+                        "'.");
+        OPENVINO_ASSERT(existing->get_partial_shape() == shape, "Existing parameter shape mismatch for '", name, "'.");
+        return existing;
+    }
+    auto param = std::make_shared<ov::op::v0::Parameter>(element_type, shape);
+    param->set_friendly_name(name);
+    OPENVINO_ASSERT(param->get_output_size() == 1);
+    param->get_output_tensor(0).set_names({name});
+    created_params.emplace(name, param);
+    return param;
+}
+
+inline std::shared_ptr<ov::op::v0::Parameter> get_or_add_named_parameter(
+    std::map<std::string, std::shared_ptr<ov::op::v0::Parameter>>& created_params,
+    const std::string& name) {
+    const auto it = created_params.find(name);
+    OPENVINO_ASSERT(it != created_params.end(), "Missing model parameter: ", name);
+    return it->second;
+}
 }  // namespace paged_attention
 /**
  * @brief The transformation replaces KV-cache processing part in LLMs by PagedAttention operation.

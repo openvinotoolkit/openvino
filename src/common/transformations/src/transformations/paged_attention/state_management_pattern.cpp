@@ -61,6 +61,8 @@ constexpr const char* V_HEAD_SIZE = "v_head_size";
 using namespace ov::pass;
 using ov::OutputVector;
 
+using ov::pass::paged_attention::get_or_add_named_parameter;
+
 static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> general_alibi_pattern() {
     // Optional pattern to capture alibi slopes (based on pattern from bloom)
     auto general_alibi = any_input();
@@ -239,15 +241,6 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gptoss_g
     return {mask, offset};
 }
 
-static std::shared_ptr<v0::Parameter> named_parameter(std::shared_ptr<v0::Parameter> node, const std::string& name) {
-    // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a
-    // given single name)
-    node->set_friendly_name(name);
-    OPENVINO_ASSERT(node->get_output_size() == 1);
-    node->get_output_tensor(0).set_names({name});
-    return node;
-}
-
 typedef std::
     tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>
         node_tuple;
@@ -303,20 +296,11 @@ static ov::Dimension extract_num_kv_heads(const std::shared_ptr<ov::Node>& unsqu
 };
 
 ov::pass::StateManagementPattern::StateManagementPattern(
-    ParameterVector& kv_parameters,
-    ParameterVector& model_wide_params,
+    std::map<std::string, std::shared_ptr<ov::op::v0::Parameter>>& pa_params,
     int& layer_index,
-    Output<Node> max_context_len,
-    ParameterVector& block_indices_inputs_for_each_layer,
     ResultVector& score_results,
     const ov::pass::paged_attention::Options& options,
-    ParameterVector& rotated_block_indices_inputs_for_each_layer,
-    ParameterVector& rotation_deltas_inputs_for_each_layer,
-    ParameterVector& xattention_threshold_inputs_for_each_layer,
-    ParameterVector& adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer,
-    ParameterVector& adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
     ResultVector& adaptive_rkv_diversity_results,
-    const std::map<std::string, std::shared_ptr<op::v0::Parameter>>& optional_model_wide_params,
     std::unordered_set<std::string>& var_ids_to_remove) {
     MATCHER_SCOPE(StateManagementPattern);
 
@@ -429,16 +413,9 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     auto has_token_type_ids = std::make_shared<bool>(false);
 
     ov::matcher_pass_callback callback = [=,
-                                          &kv_parameters,
-                                          &model_wide_params,
-                                          &block_indices_inputs_for_each_layer,
+                                          &pa_params,
                                           &score_results,
                                           &layer_index,
-                                          &rotated_block_indices_inputs_for_each_layer,
-                                          &rotation_deltas_inputs_for_each_layer,
-                                          &xattention_threshold_inputs_for_each_layer,
-                                          &adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer,
-                                          &adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
                                           &adaptive_rkv_diversity_results,
                                           &var_ids_to_remove](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -470,12 +447,12 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         auto num_v_heads = num_v_heads_dim.get_length();
 
         std::string layer_index_str = std::to_string(layer_index);
+        auto k_name = "key_cache." + layer_index_str;
+        auto v_name = "value_cache." + layer_index_str;
         auto k_parameter =
-            named_parameter(std::make_shared<v0::Parameter>(element::dynamic, ov::PartialShape::dynamic(4)),
-                            "key_cache." + layer_index_str);
+            get_or_add_named_parameter(pa_params, k_name, element::dynamic, ov::PartialShape::dynamic(4));
         auto v_parameter =
-            named_parameter(std::make_shared<v0::Parameter>(element::dynamic, ov::PartialShape::dynamic(4)),
-                            "value_cache." + layer_index_str);
+            get_or_add_named_parameter(pa_params, v_name, element::dynamic, ov::PartialShape::dynamic(4));
 
         // Set parameters to be in the same precision as the original K/V tensors,
         // that allows to avoid unnecessary Convert operations in the graph
@@ -483,8 +460,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         enable_keep_const_precision(v_parameter);
 
         layer_index += 1;
-        kv_parameters.push_back(k_parameter);
-        kv_parameters.push_back(v_parameter);
         auto kv_transpose_order = v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3});
 
         auto q_transpose = std::make_shared<v1::Transpose>(real_q, kv_transpose_order);
@@ -601,7 +576,12 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         }
 
         OutputVector pa_arguments = {q_reshape, k_reshape, v_reshape, k_parameter, v_parameter};
-        pa_arguments.insert(pa_arguments.end(), model_wide_params.begin(), model_wide_params.end());
+        pa_arguments.push_back(get_or_add_named_parameter(pa_params, "past_lens"));
+        pa_arguments.push_back(get_or_add_named_parameter(pa_params, "subsequence_begins"));
+        if (!options.use_per_layer_block_indices_inputs) {
+            pa_arguments.push_back(get_or_add_named_parameter(pa_params, "block_indices"));
+        }
+        pa_arguments.push_back(get_or_add_named_parameter(pa_params, "block_indices_begins"));
 
         std::shared_ptr<Node> sliding_window;
         if (pattern_map.count(phi3_offset)) {
@@ -613,7 +593,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         } else if (pattern_map.count(gptoss_gemma3_offset)) {
             // gptoss_gemma3 pattern + token_type_ids input uniquely identifies Gemma3;
             // gpt-oss shares this sliding window pattern but has no token_type_ids.
-            *has_token_type_ids = optional_model_wide_params.count("token_type_ids");
+            *has_token_type_ids = pa_params.count("token_type_ids");
             auto offset = pattern_map.at(gptoss_gemma3_offset).get_node_shared_ptr();
             if (pattern_map.at(gptoss_gemma3_offset).get_partial_shape().rank() != 0) {
                 offset = std::make_shared<v15::Squeeze>(offset);
@@ -626,25 +606,23 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             sliding_window = v0::Constant::create(element::i32, Shape{}, {0});
         }
 
-        std::initializer_list<std::shared_ptr<Node>> additional_params = {scale,
-                                                                          sliding_window,
-                                                                          alibi_slopes,
-                                                                          max_context_len.get_node_shared_ptr()};
+        auto max_context_len_param = get_or_add_named_parameter(pa_params, "max_context_len");
+        OutputVector additional_params = {scale, sliding_window, alibi_slopes, max_context_len_param->output(0)};
         pa_arguments.insert(pa_arguments.end(), additional_params.begin(), additional_params.end());
 
         if (options.use_per_layer_block_indices_inputs) {
-            auto block_indices = named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
-                                                 "block_indices." + std::to_string(layer_index - 1));
+            auto block_indices_name = "block_indices." + std::to_string(layer_index - 1);
+            auto block_indices =
+                get_or_add_named_parameter(pa_params, block_indices_name, element::i32, PartialShape{-1});
             pa_arguments.insert(pa_arguments.begin() + 7, block_indices);
-            block_indices_inputs_for_each_layer.push_back(block_indices);
         }
 
         if (options.allow_score_aggregation) {
             OPENVINO_ASSERT(
-                optional_model_wide_params.count("score_aggregation_window"),
+                pa_params.count("score_aggregation_window"),
                 "No score_aggregation_window input found. For using score aggregation mode, the model have to contain "
                 "an additional input (Parameter) called score_aggregation_window.");
-            pa_arguments.insert(pa_arguments.end(), optional_model_wide_params.at("score_aggregation_window"));
+            pa_arguments.insert(pa_arguments.end(), pa_params.at("score_aggregation_window"));
         } else {
             pa_arguments.insert(pa_arguments.end(), v0::Constant::create(element::i32, Shape{0}, {}));
         }
@@ -652,21 +630,20 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
         if (options.allow_cache_rotation) {
             OPENVINO_ASSERT(
-                optional_model_wide_params.count("model_rotation_trig_lut"),
+                pa_params.count("model_rotation_trig_lut"),
                 "No model_rotation_trig_lut input found. For using cache rotation, the model have to contain "
                 "an additional input (Parameter) called model_rotation_trig_lut.");
+            auto rotated_block_indices_name = "rotated_block_indices." + std::to_string(layer_index - 1);
+            auto rotation_deltas_name = "rotation_deltas." + std::to_string(layer_index - 1);
             auto rotated_block_indices =
-                named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
-                                "rotated_block_indices." + std::to_string(layer_index - 1));
-            auto rotation_deltas = named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1, -1}),
-                                                   "rotation_deltas." + std::to_string(layer_index - 1));
+                get_or_add_named_parameter(pa_params, rotated_block_indices_name, element::i32, PartialShape{-1});
+            auto rotation_deltas =
+                get_or_add_named_parameter(pa_params, rotation_deltas_name, element::i32, PartialShape{-1, -1});
 
             pa_arguments.insert(pa_arguments.begin() + 14, rotated_block_indices);
             pa_arguments.insert(pa_arguments.begin() + 15, rotation_deltas);
-            pa_arguments.insert(pa_arguments.begin() + 16, optional_model_wide_params.at("model_rotation_trig_lut"));
+            pa_arguments.insert(pa_arguments.begin() + 16, pa_params.at("model_rotation_trig_lut"));
 
-            rotated_block_indices_inputs_for_each_layer.push_back(rotated_block_indices);
-            rotation_deltas_inputs_for_each_layer.push_back(rotation_deltas);
         } else {
             auto rotated_block_indices = v0::Constant::create(element::i32, Shape{0}, {});
             auto rotation_deltas = v0::Constant::create(element::i32, Shape{0}, {});
@@ -677,18 +654,18 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
         OPENVINO_ASSERT(pa_arguments.size() == 17);
         if (options.allow_xattention) {
-            OPENVINO_ASSERT(optional_model_wide_params.count("xattention_block_size"),
+            OPENVINO_ASSERT(pa_params.count("xattention_block_size"),
                             "No xattention_block_size input found. For using XAttention, the model have to contain "
                             "an additional input (Parameter) called xattention_block_size.");
-            OPENVINO_ASSERT(optional_model_wide_params.count("xattention_stride"),
+            OPENVINO_ASSERT(pa_params.count("xattention_stride"),
                             "No xattention_stride input found. For using XAttention, the model have to contain "
                             "an additional input (Parameter) called xattention_stride.");
-            auto xattention_threshold = named_parameter(std::make_shared<v0::Parameter>(element::f32, PartialShape{-1}),
-                                                        "xattention_threshold." + std::to_string(layer_index - 1));
+            auto xattention_threshold_name = "xattention_threshold." + std::to_string(layer_index - 1);
+            auto xattention_threshold =
+                get_or_add_named_parameter(pa_params, xattention_threshold_name, element::f32, PartialShape{-1});
             pa_arguments.insert(pa_arguments.begin() + 17, xattention_threshold);
-            pa_arguments.insert(pa_arguments.begin() + 18, optional_model_wide_params.at("xattention_block_size"));
-            pa_arguments.insert(pa_arguments.begin() + 19, optional_model_wide_params.at("xattention_stride"));
-            xattention_threshold_inputs_for_each_layer.push_back(xattention_threshold);
+            pa_arguments.insert(pa_arguments.begin() + 18, pa_params.at("xattention_block_size"));
+            pa_arguments.insert(pa_arguments.begin() + 19, pa_params.at("xattention_stride"));
         } else {
             auto xattention_threshold = v0::Constant::create(element::f32, Shape{0}, {});
             pa_arguments.insert(pa_arguments.begin() + 17, xattention_threshold);
@@ -713,30 +690,33 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
         if (options.allow_adaptive_rkv) {
             OPENVINO_ASSERT(
-                optional_model_wide_params.count("adaptive_rkv_start_size"),
+                pa_params.count("adaptive_rkv_start_size"),
                 "No adaptive_rkv_start_size input found. For using Adaptive R-KV, the model have to contain "
                 "an additional input (Parameter) called adaptive_rkv_start_size.");
             OPENVINO_ASSERT(
-                optional_model_wide_params.count("adaptive_rkv_evictable_sizes"),
+                pa_params.count("adaptive_rkv_evictable_sizes"),
                 "No adaptive_rkv_evictable_sizes input found. For using Adaptive R-KV, the model have to contain "
                 "an additional input (Parameter) called adaptive_rkv_evictable_sizes.");
-            pa_arguments.insert(pa_arguments.begin() + 21, optional_model_wide_params.at("adaptive_rkv_start_size"));
-            pa_arguments.insert(pa_arguments.begin() + 22,
-                                optional_model_wide_params.at("adaptive_rkv_evictable_sizes"));
+            pa_arguments.insert(pa_arguments.begin() + 21, pa_params.at("adaptive_rkv_start_size"));
+            pa_arguments.insert(pa_arguments.begin() + 22, pa_params.at("adaptive_rkv_evictable_sizes"));
 
+            auto adaptive_rkv_diversity_block_set_indices_name =
+                "adaptive_rkv_diversity_block_set_indices." + std::to_string(layer_index - 1);
             auto adaptive_rkv_diversity_block_set_indices =
-                named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
-                                "adaptive_rkv_diversity_block_set_indices." + std::to_string(layer_index - 1));
+                get_or_add_named_parameter(pa_params,
+                                           adaptive_rkv_diversity_block_set_indices_name,
+                                           element::i32,
+                                           PartialShape{-1});
             pa_arguments.insert(pa_arguments.begin() + 23, adaptive_rkv_diversity_block_set_indices);
-            adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer.push_back(
-                adaptive_rkv_diversity_block_set_indices);
 
+            auto adaptive_rkv_diversity_block_set_indices_begins_name =
+                "adaptive_rkv_diversity_block_set_indices_begins." + std::to_string(layer_index - 1);
             auto adaptive_rkv_diversity_block_set_indices_begins =
-                named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
-                                "adaptive_rkv_diversity_block_set_indices_begins." + std::to_string(layer_index - 1));
+                get_or_add_named_parameter(pa_params,
+                                           adaptive_rkv_diversity_block_set_indices_begins_name,
+                                           element::i32,
+                                           PartialShape{-1});
             pa_arguments.insert(pa_arguments.begin() + 24, adaptive_rkv_diversity_block_set_indices_begins);
-            adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer.push_back(
-                adaptive_rkv_diversity_block_set_indices_begins);
 
         } else {
             pa_arguments.insert(pa_arguments.begin() + 21, v0::Constant::create(element::i32, Shape{}, {0}));
@@ -746,7 +726,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         }
 
         if (*has_token_type_ids) {
-            std::shared_ptr<ov::Node> token_type_ids = optional_model_wide_params.at("token_type_ids");
+            std::shared_ptr<ov::Node> token_type_ids = pa_params.at("token_type_ids");
             if (token_type_ids->get_element_type() != element::i32) {
                 token_type_ids = std::make_shared<v0::Convert>(token_type_ids, element::i32);
             }
@@ -756,11 +736,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         }
 
         if (options.allow_qq_bias) {
-            OPENVINO_ASSERT(optional_model_wide_params.find("qq_bias") != optional_model_wide_params.end(),
+            OPENVINO_ASSERT(pa_params.find("qq_bias") != pa_params.end(),
                             "No qq_bias input found. For using QQ bias, the model have to contain "
                             "an additional input (Parameter) called qq_bias.");
-            pa_arguments.insert(pa_arguments.begin() + 26, optional_model_wide_params.at("qq_bias"));
-            pa_arguments.insert(pa_arguments.begin() + 27, optional_model_wide_params.at("qq_bias_begins"));
+            pa_arguments.insert(pa_arguments.begin() + 26, pa_params.at("qq_bias"));
+            pa_arguments.insert(pa_arguments.begin() + 27, pa_params.at("qq_bias_begins"));
         } else {
             pa_arguments.insert(pa_arguments.begin() + 26, v0::Constant::create(element::u8, Shape{0}, {}));
             pa_arguments.insert(pa_arguments.begin() + 27, v0::Constant::create(element::i32, Shape{0}, {}));

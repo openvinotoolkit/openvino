@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <map>
 #include <unordered_set>
 
 #include "openvino/pass/matcher_pass.hpp"
@@ -21,19 +22,10 @@ class TRANSFORMATIONS_API StateManagementPattern;
 class ov::pass::StateManagementPattern : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("StateManagementPattern");
-    StateManagementPattern(ParameterVector& kv_parameters,
-                           ParameterVector& model_wide_params,
+    StateManagementPattern(std::map<std::string, std::shared_ptr<ov::op::v0::Parameter>>& pa_params,
                            int& layer_index,
-                           ov::Output<Node> max_context_len,
-                           ParameterVector& block_indices_inputs_for_each_layer,
                            ResultVector& score_results,
                            const ov::pass::paged_attention::Options& options,
-                           ParameterVector& rotated_block_indices_inputs_for_each_layer,
-                           ParameterVector& rotation_deltas_inputs_for_each_layer,
-                           ParameterVector& xattention_threshold_inputs_for_each_layer,
-                           ParameterVector& adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer,
-                           ParameterVector& adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
                            ResultVector& adaptive_rkv_diversity_results,
-                           const std::map<std::string, std::shared_ptr<op::v0::Parameter>>& optional_model_wide_params,
                            std::unordered_set<std::string>& var_ids_to_remove);
 };
