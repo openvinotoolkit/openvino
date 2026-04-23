@@ -39,6 +39,7 @@
 #include "partitioning/patterns/pre_compute.hpp"
 #include "partitioning/patterns/sdpa.hpp"
 #include "serialization.hpp"
+#include "split_kvcache_into_blocks.hpp"
 #include "transformations/convert_precision.hpp"
 #include "util.hpp"
 #include "whisper/prepare_whisper_model.hpp"
@@ -1053,6 +1054,35 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     }
 
+    // Apply block-based KV cache transformation for chunk prefill after ShapeOfParameter
+    // This ensures ShapeOf nodes are already regularized before transformation
+    if (m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE>() && m_use_chunk_prefill && !m_is_embedding &&
+        (prefill_attn_hfa || prefill_attn_pyramid)) {
+        const uint32_t block_size = static_cast<uint32_t>(m_prefill_chunk_size);
+
+        LOG_DEBUG("Applying SplitKVCacheIntoBlocks (block_size=" << block_size << ")");
+        LOG_BLOCK();
+
+        auto apply_block_kv_transform =
+            [&](std::shared_ptr<ov::Model>& model, bool v_transposed, const std::string& tag) {
+                ov::pass::Manager mgr(tag);
+                mgr.register_pass<ov::npuw::pass::SplitKVCacheIntoBlocks>(block_size, v_transposed);
+                if (mgr.run_passes(model)) {
+                    LOG_INFO("SplitKVCacheIntoBlocks applied: " << tag);
+                } else {
+                    LOG_WARN("SplitKVCacheIntoBlocks had no effect: " << tag);
+                }
+            };
+
+        apply_block_kv_transform(prefill_model, m_kvcache_desc.v_tensors_transposed_pre, "prefill");
+
+        for (size_t i = 0; i < generate_model_variants.size(); ++i) {
+            apply_block_kv_transform(generate_model_variants[i],
+                                     m_kvcache_desc.v_tensors_transposed_gen,
+                                     "generate_" + std::to_string(i));
+        }
+    }
+
     // Compile multiple generate model variants with different sizes
     compile_generate_model_variants(generate_model_variants, plugin, generate_config);
 
@@ -1530,6 +1560,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS, get),
                           BIND(npuw::llm::optimize_fp8, NPUW_LLM_OPTIMIZE_FP8, get),
                           BIND(npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE, get),
+                          BIND(npuw::llm::enable_block_based_kv_cache, NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE, get),
                           BIND(npuw::llm::prefill_moe_hint, NPUW_LLM_PREFILL_MOE_HINT, get),
                           BIND(npuw::llm::generate_moe_hint, NPUW_LLM_GENERATE_MOE_HINT, get),
                           BIND(npuw::llm::generate_pyramid, NPUW_LLM_GENERATE_PYRAMID, get),
