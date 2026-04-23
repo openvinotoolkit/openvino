@@ -3,10 +3,10 @@
 //
 
 #include "accuracy_checked.hpp"
-#include "../../logging.hpp"
 
 #include <utility>
 
+#include "../../logging.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 

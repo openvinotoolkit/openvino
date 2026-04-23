@@ -227,10 +227,10 @@ private:
     std::function<void(std::exception_ptr)> m_callback;
 };
 
-class FakeSubCompiledModel final : public ov::ICompiledModel {
+    class FakeSubCompiledModel final : public ov::ICompiledModel {
 public:
     FakeSubCompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin)
-        : ov::ICompiledModel(model, plugin),
+        : ov::ICompiledModel(model, plugin, nullptr, nullptr),
           m_model(model) {}
 
     void export_model(std::ostream&) const override {}
