@@ -157,11 +157,9 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         target.replace_source_output(unsqueezed_position_ids);
     }
 
-    int layer_index = 0;
-
     ov::pass::Manager manager("SDPA to PA");
     manager.set_per_pass_validation(false);
-    manager.register_pass<StateManagementPattern>(m_params, layer_index, m_results, m_options, var_ids_to_remove);
+    manager.register_pass<StateManagementPattern>(m_params, m_results, m_options, var_ids_to_remove);
     manager.register_pass<PrevSequenceLengthPattern>(processed_input_ids, max_context_len, position_ids);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
     manager.register_pass<TotalSequenceLengthPatternQwen>(max_context_len);

@@ -249,7 +249,7 @@ static node_tuple kv_read_and_concat(ov::Output<ov::Node> kv_current) {
     auto kv_past_var = wrap_type<ov::op::util::ReadValueBase>({any_input()});
     auto kv_past = wrap_type<v8::Gather>({kv_past_var, any_input(), any_input()});
     kv_past = pattern::optional<v1::Transpose>({kv_past, any_input()});  // Transpose is used when kv-cache is stored
-                                                                         // in a not usual layout, example: bloom
+                                                                // in a not usual layout, example: bloom
     auto kv_current2 = any_input();
     auto kv_current_reshaped = wrap_type<v1::Reshape>({kv_current2, any_input()});
     auto kv_concat =
@@ -296,7 +296,6 @@ static ov::Dimension extract_num_kv_heads(const std::shared_ptr<ov::Node>& unsqu
 };
 
 ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
-                                                         int& layer_index,
                                                          ov::pass::paged_attention::PaResults& results,
                                                          const ov::pass::paged_attention::Options& options,
                                                          std::unordered_set<std::string>& var_ids_to_remove) {
@@ -410,7 +409,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
     // it has to be persistent in the callback, so shared_ptr is used
     auto has_token_type_ids = std::make_shared<bool>(false);
 
-    ov::matcher_pass_callback callback = [=, &pa_params, &results, &layer_index, &var_ids_to_remove](Matcher& m) {
+    ov::matcher_pass_callback callback = [=, &pa_params, &results, &var_ids_to_remove, this](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& real_q = pattern_map.at(q);
 
@@ -439,7 +438,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         auto num_k_heads = num_k_heads_dim.get_length();
         auto num_v_heads = num_v_heads_dim.get_length();
 
-        std::string layer_index_str = std::to_string(layer_index);
+        std::string layer_index_str = std::to_string(m_layer_index);
         auto k_name = "key_cache." + layer_index_str;
         auto v_name = "value_cache." + layer_index_str;
         auto k_parameter = pa_params.add(k_name, element::dynamic, ov::PartialShape::dynamic(4));
@@ -450,7 +449,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         enable_keep_const_precision(k_parameter);
         enable_keep_const_precision(v_parameter);
 
-        layer_index += 1;
         auto kv_transpose_order = v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3});
 
         auto q_transpose = std::make_shared<v1::Transpose>(real_q, kv_transpose_order);
@@ -461,7 +459,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         if (pattern_map.count(qkv_current_split_node)) {
             // Fast track for merged K/V caches, based on the currently observed models topologies we don't need to
             // change layout and there is no point in the graph where it is in 4D. So `else` branch below is not
-            // applicable for this case. + std::to_string(layer_index - 1)
+            // applicable for this case. + std::to_string(m_layer_index)
             auto qkv_split = pattern_map.at(qkv_current_split_node).get_node_shared_ptr();
             // TODO: Consider handling Q part as well as KV here, requires more changes in the code and sets
             // VariadicSplit before Concat as essential part of the pattern
@@ -602,7 +600,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         pa_arguments.insert(pa_arguments.end(), additional_params.begin(), additional_params.end());
 
         if (options.use_per_layer_block_indices_inputs) {
-            auto block_indices_name = "block_indices." + std::to_string(layer_index - 1);
+            auto block_indices_name = "block_indices." + std::to_string(m_layer_index);
             auto block_indices = pa_params.add(block_indices_name, element::i32, PartialShape{-1});
             pa_arguments.insert(pa_arguments.begin() + 7, block_indices);
         }
@@ -625,8 +623,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
                 model_rotation_trig_lut,
                 "No model_rotation_trig_lut input found. For using cache rotation, the model have to contain "
                 "an additional input (Parameter) called model_rotation_trig_lut.");
-            auto rotated_block_indices_name = "rotated_block_indices." + std::to_string(layer_index - 1);
-            auto rotation_deltas_name = "rotation_deltas." + std::to_string(layer_index - 1);
+            auto rotated_block_indices_name = "rotated_block_indices." + std::to_string(m_layer_index);
+            auto rotation_deltas_name = "rotation_deltas." + std::to_string(m_layer_index);
             auto rotated_block_indices = pa_params.add(rotated_block_indices_name, element::i32, PartialShape{-1});
             auto rotation_deltas = pa_params.add(rotation_deltas_name, element::i32, PartialShape{-1, -1});
 
@@ -652,7 +650,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
             OPENVINO_ASSERT(xattention_stride,
                             "No xattention_stride input found. For using XAttention, the model have to contain "
                             "an additional input (Parameter) called xattention_stride.");
-            auto xattention_threshold_name = "xattention_threshold." + std::to_string(layer_index - 1);
+            auto xattention_threshold_name = "xattention_threshold." + std::to_string(m_layer_index);
             auto xattention_threshold = pa_params.add(xattention_threshold_name, element::f32, PartialShape{-1});
             pa_arguments.insert(pa_arguments.begin() + 17, xattention_threshold);
             pa_arguments.insert(pa_arguments.begin() + 18, xattention_block_size);
@@ -694,13 +692,13 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
             pa_arguments.insert(pa_arguments.begin() + 22, adaptive_rkv_evictable_sizes);
 
             auto adaptive_rkv_diversity_block_set_indices_name =
-                "adaptive_rkv_diversity_block_set_indices." + std::to_string(layer_index - 1);
+                "adaptive_rkv_diversity_block_set_indices." + std::to_string(m_layer_index);
             auto adaptive_rkv_diversity_block_set_indices =
                 pa_params.add(adaptive_rkv_diversity_block_set_indices_name, element::i32, PartialShape{-1});
             pa_arguments.insert(pa_arguments.begin() + 23, adaptive_rkv_diversity_block_set_indices);
 
             auto adaptive_rkv_diversity_block_set_indices_begins_name =
-                "adaptive_rkv_diversity_block_set_indices_begins." + std::to_string(layer_index - 1);
+                "adaptive_rkv_diversity_block_set_indices_begins." + std::to_string(m_layer_index);
             auto adaptive_rkv_diversity_block_set_indices_begins =
                 pa_params.add(adaptive_rkv_diversity_block_set_indices_begins_name, element::i32, PartialShape{-1});
             pa_arguments.insert(pa_arguments.begin() + 24, adaptive_rkv_diversity_block_set_indices_begins);
@@ -762,17 +760,18 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         auto pa_reshape = std::make_shared<v1::Reshape>(paged_attention->output(0), pa_shape, true);
         auto pa_transpose = std::make_shared<v1::Transpose>(pa_reshape, kv_transpose_order);
         if (options.use_score_outputs) {
-            auto score_name = "scores." + std::to_string(layer_index - 1);
+            auto score_name = "scores." + std::to_string(m_layer_index);
             results.add(score_name, paged_attention->output(1));
         }
 
         if (options.allow_adaptive_rkv) {
-            auto similarity_name = "adaptive_rkv_diversity." + std::to_string(layer_index - 1);
+            auto similarity_name = "adaptive_rkv_diversity." + std::to_string(m_layer_index);
             results.add(similarity_name, paged_attention->output(2));
         }
 
         pa_transpose->set_friendly_name(sdpa_node->get_friendly_name());
         replace_node(m.get_match_root(), pa_transpose);
+        m_layer_index += 1;
         return true;
     };
 
