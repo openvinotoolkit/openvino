@@ -70,18 +70,4 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(const ov::
     }
 }
 
-std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
-    const ov::SoPtr<IEngineBackend>& engineBackend,
-    const ov::intel_npu::CompilerType& compilerType) const {
-    switch (compilerType) {
-    case ov::intel_npu::CompilerType::PREFER_PLUGIN:
-    case ov::intel_npu::CompilerType::PLUGIN:
-        return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs());
-    case ov::intel_npu::CompilerType::DRIVER:
-        return std::make_unique<DriverCompilerAdapter>(engineBackend->getInitStructs());
-    default:
-        OPENVINO_THROW("Invalid NPU_COMPILER_TYPE");
-    }
-}
-
 }  // namespace intel_npu

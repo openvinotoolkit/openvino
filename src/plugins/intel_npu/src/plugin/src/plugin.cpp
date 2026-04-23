@@ -410,7 +410,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         CompilerAdapterFactory factory;
         try {
             // TODO consider using backend directly
-            compiler = factory.getCompiler(_backend, ov::intel_npu::CompilerType::PLUGIN);
+            auto compilerType = ov::intel_npu::CompilerType::PLUGIN;
+            compiler = factory.getCompiler(_backend, compilerType, std::string_view{});
         } catch (const std::exception&) {
             _logger.error("Failed to create compiler for compatibility check. The requirements are not met.");
         }
