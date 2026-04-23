@@ -259,11 +259,13 @@ The patch is available in `agent-results/transformation/` for the OV Orchestrato
 
 ---
 
-## Optional: Draft PR
+## PR Creation
 
-If your context provides a local source path (e.g. `OpenVINO source code: /path/to/openvino`)
-and `gh` CLI is available, attempt to open a **draft PR** to the upstream repo after
-completing your implementation:
+**`pr_mode: delegated_to_orchestrator`** (invoked by Enable Operator Agent): do **not** create a
+PR. Write patches to the result JSON only. The orchestrator creates one central draft PR in Phase 7.
+
+**Standalone invocation** (no `pr_mode` set): create a draft PR by default after completing
+implementation, unless the user explicitly said to skip it (e.g. "no PR", "skip PR"):
 
 ```bash
 cd <source_path>
@@ -282,7 +284,6 @@ gh pr create --draft \
 ```
 
 Skip silently if `gh` is unavailable, not authenticated, or the command fails.
-See `skills/submit-draft-pr.md` for full details.
 
 ---
 
@@ -353,21 +354,3 @@ Place your full Markdown agent report above or below this marker.
 - Transformations must be deterministic and preserve model correctness.
 - Every produced patch must update the manifest before returning.
 
-## Creating Pull Requests
-
-When your work is complete and all tests pass:
-
-1. Create a new branch with a descriptive name: `agent/<short-description>`
-2. Commit all changes with a clear, conventional commit message
-3. Push the branch to the fork
-4. Create a **Draft PR** to the upstream repository using `gh pr create`:
-   ```
-   gh pr create --draft \
-     --title "[Agent] <descriptive title>" \
-     --body "<description of changes, link to related PRs if any>" \
-     --repo <upstream-org>/<repo-name>
-   ```
-5. Add the label `agent-generated` if the label exists
-6. Output the PR URL for tracking
-
-Refer to the [submit-draft-pr](skills/submit-draft-pr.md) skill for detailed instructions.
