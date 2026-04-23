@@ -348,7 +348,7 @@ std::unique_ptr<surfaces_lock> ze_stream::create_surfaces_lock(const std::vector
 }
 
 void ze_stream::flush() const {
-    GPU_DEBUG_INFO << "Immediate Command List submits commands immediately - no flush impl";
+    GPU_DEBUG_TRACE << "Immediate Command List submits commands immediately - no flush impl" << std::endl;
 }
 
 void ze_stream::finish() const {
