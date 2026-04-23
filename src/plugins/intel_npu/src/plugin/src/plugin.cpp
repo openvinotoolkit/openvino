@@ -259,6 +259,8 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(SHARED_COMMON_QUEUE);
     REGISTER_OPTION(CACHE_ENCRYPTION_CALLBACKS);
     REGISTER_OPTION(RUNTIME_REQUIREMENTS);
+    REGISTER_OPTION(RUNTIME_REQUIREMENTS_MET);
+
 
     if (backend) {
         // Options registered only if drivers is present and supports the corresponding extension
@@ -368,6 +370,10 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
             // TODO is this good?
             return true;
         }
+
+        // Reading the (dummy) property content to check if it is supported
+        _propertiesManager->getProperty(name);
+
         const auto& encodedTensor = arguments.at(ov::runtime_requirements.name()).as<const ov::Tensor&>();
         std::string encodedString;
         if (encodedTensor.get_element_type() == ov::element::string) {
