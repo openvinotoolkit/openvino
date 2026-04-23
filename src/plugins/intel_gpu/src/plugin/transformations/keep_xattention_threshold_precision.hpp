@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/pass.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 
 namespace ov::intel_gpu {
 
@@ -16,6 +16,5 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("ov::intel_gpu::KeepXAttentionThresholdPrecision");
     KeepXAttentionThresholdPrecision();
 };
-
 
 }  // namespace ov::intel_gpu
