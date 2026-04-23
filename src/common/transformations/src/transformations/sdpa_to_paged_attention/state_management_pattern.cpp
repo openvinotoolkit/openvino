@@ -38,8 +38,8 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/utils/utils.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
+#include "transformations/utils/utils.hpp"
 
 using ov::pass::pattern::any_input;
 using ov::pass::pattern::Matcher;
@@ -482,8 +482,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         auto v_parameter =
             named_parameter(std::make_shared<v0::Parameter>(element::dynamic, ov::PartialShape::dynamic(4)),
                             "value_cache." + layer_index_str);
-        
-        // Set parameters to be in the same precision as the original K/V tensors, 
+
+        // Set parameters to be in the same precision as the original K/V tensors,
         // that allows to avoid unnecessary Convert operations in the graph
         enable_keep_const_precision(k_parameter);
         enable_keep_const_precision(v_parameter);
