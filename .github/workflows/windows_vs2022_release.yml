@@ -325,6 +325,7 @@ jobs:
         run: |
           python3 -m pip install uv==0.11.7
           echo "UV_CACHE_DIR=C:\\mount\\caches\\uv\\win\\0.11.7" >> $env:GITHUB_ENV
+          echo "UV_SYSTEM_PYTHON=1" >> $env:GITHUB_ENV
 
       - name: Install OpenVINO Python wheels
         uses: ./openvino/.github/actions/install_ov_wheels
