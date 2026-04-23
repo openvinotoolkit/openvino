@@ -610,8 +610,8 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
         size_t f = output_lay.feature();
         size_t x = output_lay.spatial(0);
         size_t y = output_lay.spatial(1);
-        cldnn::mem_lock<T> ref_ptr(out_ref, get_test_stream());
-        cldnn::mem_lock<T> opt_ptr(out_opt, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> ref_ptr(out_ref, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> opt_ptr(out_opt, get_test_stream());
         for (size_t bi = 0; bi < b; ++bi) {
             for (size_t fi = 0; fi < f; ++fi) {
                 for (size_t yi = 0; yi < y; ++yi) {
