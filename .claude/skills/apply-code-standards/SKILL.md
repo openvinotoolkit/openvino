@@ -28,20 +28,7 @@ Map them to CMake targets. If the mapping is not obvious, ask the user:
 
 ## Step 2: Configure with clang-18 + Style Checks
 
-Locate or create a build directory (typically `build/` or `build-clang/` in the repo root).
-
-Run CMake with clang-18 and both style options enabled:
-
-```bash
-cmake -S <repo_root> -B <build_dir> \
-  -DCMAKE_C_COMPILER=clang-18 \
-  -DCMAKE_CXX_COMPILER=clang++-18 \
-  -DENABLE_CLANG_FORMAT=ON \
-  -DENABLE_CLANG_TIDY=ON \
-  [any other flags already in use by the user's build]
-```
-
-If the user already has a configured build directory, re-run cmake in it with just the new flags appended — do not wipe their existing configuration.
+Configure the project with clang-18 and both style options enabled per [docs/dev/coding_style.md](../../../docs/dev/coding_style.md). If the user already has a configured build directory, re-run cmake in it with just the new flags appended — do not wipe their existing configuration.
 
 ## Step 3: Check, Fix, Repeat
 
@@ -49,27 +36,11 @@ Follow the fix order from `coding_style.md`: copyright → clang-tidy → clang-
 
 ### 3a. Copyright headers
 
-```bash
-python3 .github/scripts/check_copyright.py /tmp/changed_files.txt
-```
-
-If non-zero exit, inspect then apply the generated patch:
-```bash
-cat copyright_fixes.diff
-patch -p1 < copyright_fixes.diff
-python3 .github/scripts/check_copyright.py /tmp/changed_files.txt
-```
-
-If the patch looks wrong, fix the copyright header directly in the file.
+Run the check script and patch workflow per [coding_style.md](../../../docs/dev/coding_style.md). If the patch looks wrong, fix the header directly in the file.
 
 ### 3b. clang-tidy
 
-Build affected targets as a background task:
-```bash
-cmake --build <build_dir> --target <target1> --target <target2> -- -j$(nproc) 2>&1 | tee /tmp/ct_check.txt
-```
-
-After completion, separate the two issue categories for your changed files:
+Build the affected targets (pipe to `/tmp/ct_check.txt`), then separate the two issue categories for your changed files:
 ```bash
 # Compilation errors (no check name in brackets)
 grep "error:" /tmp/ct_check.txt | grep -v "\[" | grep -Ff /tmp/changed_files.txt
@@ -78,30 +49,13 @@ grep "error:" /tmp/ct_check.txt | grep -v "\[" | grep -Ff /tmp/changed_files.txt
 grep -E "warning:|error:" /tmp/ct_check.txt | grep "\[" | grep -Ff /tmp/changed_files.txt
 ```
 
-**Fix compilation errors first (manual):** Read each error and fix by hand. Rebuild to confirm clean before proceeding — `ENABLE_CLANG_TIDY_FIX` cannot help with these.
+**Fix compilation errors first:** `ENABLE_CLANG_TIDY_FIX` cannot help with these.
 
-**Auto-fix clang-tidy diagnostics:** Once the code compiles cleanly:
-```bash
-cmake <build_dir> -DENABLE_CLANG_TIDY_FIX=ON
-cmake --build <build_dir> --target <target1> --target <target2> -- -j$(nproc) 2>&1 | tee /tmp/ct_fix.txt
-cmake <build_dir> -DENABLE_CLANG_TIDY_FIX=OFF
-```
-
-**Manual fix (remaining tidy issues):** For diagnostics auto-fix missed or got wrong, fix by hand. If a check cannot be resolved, **do not add `// NOLINT` on your own** — present the diagnostic to the user and ask whether to suppress, refactor, or handle it another way.
+If a tidy diagnostic cannot be resolved, **do not add `// NOLINT` on your own** — present it to the user and ask whether to suppress, refactor, or handle it another way.
 
 ### 3c. clang-format
 
-```bash
-cmake --build <build_dir> --target clang_format_check_all 2>&1 | tee /tmp/cf_check.txt
-grep "Code style check failed" /tmp/cf_check.txt
-```
-
-If failures found, auto-fix:
-```bash
-cmake --build <build_dir> --target clang_format_fix_all 2>&1 | tee /tmp/cf_fix.txt
-```
-
-Re-run the check to confirm clean. If auto-fix still fails, fix the specific file manually.
+Use `clang_format_check_all` to detect violations, `clang_format_fix_all` to auto-fix (see [coding_style.md](../../../docs/dev/coding_style.md)). Pipe output to `/tmp/cf_check.txt` and grep for `"Code style check failed"`. Re-run the check after fixing to confirm clean.
 
 ### 3d. Stop condition
 

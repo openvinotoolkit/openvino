@@ -7,9 +7,8 @@ The majority of OpenVINO components use `clang-format-18` for code style checks.
 The code style is based on the Google Code style with some differences. All the differences are described in the configuration file:
 https://github.com/openvinotoolkit/openvino/blob/69f709028a5f8da596d1d0df9a0101e517c35708/src/.clang-format#L1-L28
 
-To use clang-format locally, install it and enable the CMake option:
+To use clang-format locally, `clang-format-18` should be installed, and the corresponding CMake should be enabled:
 ```bash
-sudo apt install clang-format-18
 cmake -DENABLE_CLANG_FORMAT=ON <other flags> ..
 ```
 
@@ -28,11 +27,8 @@ After that, you can use the `ncc_all` target to check the naming style.
 
 ## Static analysis (clang-tidy)
 
-`clang-tidy-18` is used for static analysis and enforcing modern C++ patterns.
-
-To enable it:
+`clang-tidy-18` is used for static analysis and enforcing modern C++ patterns. To use it locally, `clang-tidy-18` should be installed, and the corresponding CMake should be enabled:
 ```bash
-sudo apt install clang-tidy-18
 cmake -DENABLE_CLANG_TIDY=ON <other flags> ..
 ```
 
@@ -47,7 +43,10 @@ cmake -DENABLE_CLANG_TIDY_FIX=ON .
 cmake --build . --target <your_target> -- -j$(nproc)
 ```
 
-Note: compilation errors must be resolved before clang-tidy diagnostics can be applied.
+Notes:
+- Compilation errors must be resolved before clang-tidy diagnostics can be applied.
+- Auto-fix can occasionally produce incorrect changes — in some cases, the manual fix is required.
+- Use a dedicated build directory for clang-tidy (e.g. `build-clang/`) — clang-tidy rewrites compilation databases and can interfere with incremental builds in a shared directory.
 
 ## Copyright headers
 
