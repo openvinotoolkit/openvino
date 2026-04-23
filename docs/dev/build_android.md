@@ -81,7 +81,7 @@ If `TBB_DIR` is not provided, Android configure fails by design.
 
 Android OpenVINO configuration expects the separately built OneTBB package.
 `TBB_DIR` must be provided when configuring OpenVINO.
-Android configuration with `TBBROOT` is no longer supported.
+
 ### Clone OpenVINO™ GenAI (Optional)
   ```sh
   git clone --recursive https://github.com/openvinotoolkit/openvino.genai $OPV_HOME_DIR/openvino.genai

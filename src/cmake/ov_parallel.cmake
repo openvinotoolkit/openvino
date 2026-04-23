@@ -137,18 +137,13 @@ macro(ov_find_package_tbb)
             unset(_no_cmake_install_prefix)
         endif()
 
-        if(ANDROID)
-            if(DEFINED TBB_DIR)
-                set(_ov_tbb_find_hints HINTS "${TBB_DIR}")
-            elseif(DEFINED ENV{TBB_DIR})
-                set(_ov_tbb_find_hints HINTS "$ENV{TBB_DIR}")
-            endif()
-        endif()
-
         find_package(TBB ${_ov_minimal_tbb_version} QUIET COMPONENTS tbb tbbmalloc
-                     ${_ov_tbb_find_hints}
                      ${_find_package_no_args})
         set(CMAKE_IGNORE_PATH "${_old_CMAKE_IGNORE_PATH}")
+
+        if(ANDROID AND NOT TBB_FOUND)
+            message(FATAL_ERROR "TBB was not found by the configured TBB_DIR path. Use -DTHREADING=SEQ instead.")
+        endif()
 
         if(NOT TBB_FOUND)
             # remove invalid TBB_DIR=TBB_DIR-NOTFOUND from cache
@@ -277,7 +272,6 @@ macro(ov_find_package_tbb)
         endif()
 
         unset(_find_package_no_args)
-        unset(_ov_tbb_find_hints)
     endif()
 endmacro()
 
