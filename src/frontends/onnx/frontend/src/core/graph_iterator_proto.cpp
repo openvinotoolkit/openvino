@@ -103,6 +103,46 @@ void fixup_legacy_nodes(::ONNX_NAMESPACE::ModelProto& model_proto) {
     }
 }
 
+/// \brief Collect all external references from a subgraph, recursing into nested subgraphs.
+/// Returns all tensor names referenced by the subgraph (directly or via nested subgraphs)
+/// that are not defined within the subgraph itself.
+void collect_subgraph_external_refs(const GraphProto& subgraph, std::unordered_set<std::string>& deps) {
+    // Build set of names defined within this subgraph
+    std::unordered_set<std::string> subgraph_defined;
+    for (const auto& input : subgraph.input()) {
+        subgraph_defined.insert(input.name());
+    }
+    for (const auto& init : subgraph.initializer()) {
+        subgraph_defined.insert(init.name());
+    }
+    for (const auto& sub_node : subgraph.node()) {
+        for (const auto& out : sub_node.output()) {
+            subgraph_defined.insert(out);
+        }
+    }
+    // Collect direct references to outer graph tensors
+    for (const auto& sub_node : subgraph.node()) {
+        for (const auto& inp : sub_node.input()) {
+            if (!inp.empty() && subgraph_defined.count(inp) == 0) {
+                deps.insert(inp);
+            }
+        }
+        // Recurse into nested subgraphs
+        for (const auto& attr : sub_node.attribute()) {
+            if (attr.has_g()) {
+                std::unordered_set<std::string> nested_deps;
+                collect_subgraph_external_refs(attr.g(), nested_deps);
+                // Nested external refs that are also external to this subgraph
+                for (const auto& dep : nested_deps) {
+                    if (subgraph_defined.count(dep) == 0) {
+                        deps.insert(dep);
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// \brief Collect all dependencies for a node (direct inputs + subgraph external references).
 void collect_node_dependencies(const NodeProto& node, std::unordered_set<std::string>& deps) {
     // Direct inputs
@@ -116,28 +156,7 @@ void collect_node_dependencies(const NodeProto& node, std::unordered_set<std::st
         if (!attr.has_g()) {
             continue;
         }
-        const auto& subgraph = attr.g();
-        // Build set of names defined within the subgraph
-        std::unordered_set<std::string> subgraph_defined;
-        for (const auto& input : subgraph.input()) {
-            subgraph_defined.insert(input.name());
-        }
-        for (const auto& init : subgraph.initializer()) {
-            subgraph_defined.insert(init.name());
-        }
-        for (const auto& sub_node : subgraph.node()) {
-            for (const auto& out : sub_node.output()) {
-                subgraph_defined.insert(out);
-            }
-        }
-        // Find references to outer graph tensors
-        for (const auto& sub_node : subgraph.node()) {
-            for (const auto& inp : sub_node.input()) {
-                if (!inp.empty() && subgraph_defined.count(inp) == 0) {
-                    deps.insert(inp);
-                }
-            }
-        }
+        collect_subgraph_external_refs(attr.g(), deps);
     }
 }
 
