@@ -26,10 +26,12 @@ public:
 /// on 64 byte alignment will allocate 65 bytes.
 class OPENVINO_API AlignedBuffer {
 public:
+    static constexpr size_t s_default_alignment = 64;
+
     // Allocator objects and the allocation interfaces are owned by the
     // creators of AlignedBuffers. They need to ensure that the lifetime of
     // allocator exceeds the lifetime of this AlignedBuffer.
-    AlignedBuffer(size_t byte_size, size_t alignment = 64);
+    AlignedBuffer(size_t byte_size, size_t alignment = s_default_alignment);
 
     AlignedBuffer();
     virtual ~AlignedBuffer();

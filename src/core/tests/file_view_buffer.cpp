@@ -46,7 +46,7 @@ TEST(FileViewBufferTest, read_file) {
                                                                    {0, test_data.size(), 64},
                                                                    {17, 13, 29}};
     for (const auto& [offset, size, alignment] : test_params) {
-        std::unique_ptr<AlignedBuffer> buffer = std::make_unique<FileViewBuffer>(file_path, offset, size);
+        std::unique_ptr<AlignedBuffer> buffer = std::make_unique<FileViewBuffer>(file_path, offset, size, alignment);
         char* data_ptr = nullptr;
         EXPECT_NO_THROW((data_ptr = buffer->get_ptr<char>()));
         EXPECT_EQ(reinterpret_cast<std::uintptr_t>(data_ptr) % alignment, 0);
