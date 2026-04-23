@@ -173,7 +173,8 @@ def _unpatch_torch_functions():
 # Created lazily on first use; reused for all subsequent registrations to
 # avoid unbounded Library object accumulation in long-lived processes.
 _module_ext_lib = None
-_module_ext_registered_ops = set()
+_module_ext_registered_ops = {}  # op_name → tuple(schema_args)
+_module_ext_lock = threading.Lock()
 
 
 def _auto_register_module_extension_op(namespace, op_name, schema_args):
@@ -185,35 +186,46 @@ def _auto_register_module_extension_op(namespace, op_name, schema_args):
 
     Uses a single shared ``FRAGMENT`` library handle for the ``ov_ext``
     namespace to avoid creating a new ``Library`` object per op.
+
+    Thread-safe: guarded by ``_module_ext_lock``.
     """
     global _module_ext_lib
+    schema_key = tuple(schema_args)
 
-    if _module_ext_lib is None:
-        kind = "FRAGMENT" if hasattr(torch.ops, namespace) else "DEF"
-        _module_ext_lib = torch.library.Library(namespace, kind)
+    with _module_ext_lock:
+        if _module_ext_lib is None:
+            kind = "FRAGMENT" if hasattr(torch.ops, namespace) else "DEF"
+            _module_ext_lib = torch.library.Library(namespace, kind)
 
-    if op_name in _module_ext_registered_ops:
+        if op_name in _module_ext_registered_ops:
+            existing = _module_ext_registered_ops[op_name]
+            if existing != schema_key:
+                raise RuntimeError(
+                    f"ModuleExtension op '{namespace}::{op_name}' was already "
+                    f"registered with schema ({', '.join(existing)}) but is now "
+                    f"requested with ({', '.join(schema_key)}). Use distinct "
+                    f"target_op names for extensions with different signatures.")
+            return getattr(getattr(torch.ops, namespace), op_name)
+
+        args = ", ".join(schema_args)
+        _module_ext_lib.define(f"{op_name}({args}) -> Tensor")
+
+        @torch.library.impl(_module_ext_lib, op_name, "Meta")
+        def _meta(*xs):
+            for arg in xs:
+                if isinstance(arg, torch.Tensor):
+                    return torch.empty_like(arg)
+            return torch.empty(1)
+
+        @torch.library.impl(_module_ext_lib, op_name, "CPU")
+        def _cpu(*xs):
+            for arg in xs:
+                if isinstance(arg, torch.Tensor):
+                    return arg
+            return torch.empty(1)
+
+        _module_ext_registered_ops[op_name] = schema_key
         return getattr(getattr(torch.ops, namespace), op_name)
-
-    args = ", ".join(schema_args)
-    _module_ext_lib.define(f"{op_name}({args}) -> Tensor")
-
-    @torch.library.impl(_module_ext_lib, op_name, "Meta")
-    def _meta(*xs):
-        for arg in xs:
-            if isinstance(arg, torch.Tensor):
-                return torch.empty_like(arg)
-        return torch.empty(1)
-
-    @torch.library.impl(_module_ext_lib, op_name, "CPU")
-    def _cpu(*xs):
-        for arg in xs:
-            if isinstance(arg, torch.Tensor):
-                return arg
-        return torch.empty(1)
-
-    _module_ext_registered_ops.add(op_name)
-    return getattr(getattr(torch.ops, namespace), op_name)
 
 
 def _derive_schema_from_args(call_args, target_op_name):
@@ -221,13 +233,24 @@ def _derive_schema_from_args(call_args, target_op_name):
 
     Returns a list such as ``["Tensor x0", "int x1", "Tensor? x2"]``.
     Raises ``RuntimeError`` for unsupported argument types.
+
+    ``None`` is not accepted because it is ambiguous (could be
+    ``Tensor?``, ``int?``, etc.) and the correct schema type cannot be
+    inferred.  Use an explicit sentinel or avoid passing ``None`` from
+    ``convert()`` for auto-registered ops.
     """
     schema_parts = []
     for i, arg in enumerate(call_args):
         if isinstance(arg, torch.Tensor):
             schema_parts.append(f"Tensor x{i}")
         elif arg is None:
-            schema_parts.append(f"Tensor? x{i}")
+            raise RuntimeError(
+                f"ModuleExtension '{target_op_name}': convert() passed "
+                f"None at position {i} to target_op. None is ambiguous "
+                f"for schema inference (Tensor?, int?, …). For ops with "
+                f"optional arguments, pre-register the op with an "
+                f"explicit schema in ov_custom_ops.py instead of relying "
+                f"on lazy auto-registration.")
         elif isinstance(arg, bool):
             # bool before int: bool is a subclass of int in Python.
             schema_parts.append(f"bool x{i}")
@@ -241,7 +264,7 @@ def _derive_schema_from_args(call_args, target_op_name):
             raise RuntimeError(
                 f"ModuleExtension '{target_op_name}': convert() passed "
                 f"unsupported argument type {type(arg).__name__} at position "
-                f"{i} to target_op. Supported types: Tensor, None, bool, "
+                f"{i} to target_op. Supported types: Tensor, bool, "
                 f"int, float, str.")
     return schema_parts
 
