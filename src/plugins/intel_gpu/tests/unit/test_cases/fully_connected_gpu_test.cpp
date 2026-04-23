@@ -1491,6 +1491,12 @@ public:
         if (engine.get_device_info().dev_type == device_type::discrete_gpu)
             GTEST_SKIP();
 
+        // TODO: program::load crashes with "invalid vector subscript" for static-shape
+        // caching on iGPU with immad (Xe3)
+        // ticket: 185579
+        if (is_caching_test && !is_dynamic && engine.get_device_info().supports_immad)
+            GTEST_SKIP();
+
         long int batch_num = batch;
         long int ifm_num = 1024;
         long int ofm_num = 4096;
