@@ -61,8 +61,8 @@ void rebuild_sliding_window_mask(const std::shared_ptr<ov::Node>& attention_mask
 
     // =======================================================================
     // STEP 1: (K > pos_ids - window) & (K <= Q_range)
-    //         Use temporal position_ids for the left window bound to correctly
-    //         handle right-padded past tokens.
+    //         Use temporal position_ids for the left window bound to correctly handle
+    //         right-padded past tokens, while preserving the causal mask for present tokens.
     // =======================================================================
     std::shared_ptr<ov::Node> query_range_as_pos_ids = position_ids_node_ptr;
     if (neg_window_size_const->output(0).get_element_type() == ov::element::f32) {
