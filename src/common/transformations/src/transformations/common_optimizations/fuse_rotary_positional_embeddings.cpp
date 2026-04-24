@@ -1148,10 +1148,10 @@ RoPEFusionGPTOSS::RoPEFusionGPTOSS() {
     auto t_sin = pattern::any_input(pattern::shape_matches("[?, 1, ?, half_ndims]"));
 
     auto vsplit_out0 = pattern::wrap_type<op::v1::VariadicSplit>(
-        {x, -1, {"half_ndims", "?"}},
+        {x, pattern::wrap_type<v0::Constant>(), {"half_ndims", "?"}},
         pattern::output_index_matches(0) && pattern::shape_matches("[?, ?, ?, half_ndims]"));
     auto vsplit_out1 = pattern::wrap_type<op::v1::VariadicSplit>(
-        {x, -1, {"half_ndims", "?"}},
+        {x, pattern::wrap_type<v0::Constant>(), {"half_ndims", "?"}},
         pattern::output_index_matches(1) && pattern::shape_matches("[?, ?, ?, half_ndims]"));
     auto first_half_mul_cos = pattern::wrap_type<v1::Multiply>({vsplit_out0, t_cos}, {{"auto_broadcast", "numpy"}});
     auto second_half_mul_sin = pattern::wrap_type<v1::Multiply>({vsplit_out1, t_sin}, {{"auto_broadcast", "numpy"}});
@@ -1188,6 +1188,20 @@ RoPEFusionGPTOSS::RoPEFusionGPTOSS() {
         if (!half_ndims.is_integer()) {
             return false;
         }
+
+        // Verify VariadicSplit axis is the last dimension (accepts both -1 and positive equivalent)
+        auto vsplit_node = pattern_map.at(vsplit_out0).get_node_shared_ptr();
+        auto axis_const = ov::as_type_ptr<v0::Constant>(vsplit_node->input_value(1).get_node_shared_ptr());
+        if (!axis_const)
+            return false;
+        auto axis_val = axis_const->cast_vector<int64_t>();
+        if (axis_val.size() != 1)
+            return false;
+        auto input_rank = x_val.get_partial_shape().rank();
+        if (input_rank.is_dynamic())
+            return false;
+        if (axis_val[0] != -1 && axis_val[0] != input_rank.get_length() - 1)
+            return false;
 
         op::internal::RoPE::Config config;
         OutputVector new_args;
