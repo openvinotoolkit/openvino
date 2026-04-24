@@ -50,22 +50,30 @@ protected:
         }
 
         if (moe_cfg.is_weight_quantized) {
+            // cldnn logical shape is [E, N, G]. onednn's set_scales expects scale dims to match
+            // weight dim order [E, K, N] -> [E, G, N]. After prepare_quantization's byfx reorder
+            // physical bytes are [E, G, N, 1]; declare dims swapped to {E, G, N} and use abc so
+            // onednn's walk order matches physical.
             auto& wei_scales = instance.input_memory(moe_cfg.weight_scale_idx);
             auto wei_scales_shape = wei_scales.get_layout().get_shape();
             dnnl::memory::dim d0 = wei_scales_shape[0];
             dnnl::memory::dim d1 = wei_scales_shape[1];
             dnnl::memory::dim d2 = wei_scales_shape[2];
-            dnnl::memory::dims wei_scales_dims = (moe_cfg.weight_group_size == -1) ? dnnl::memory::dims{d0, d2} : dnnl::memory::dims{d0, d1, d2};
-            dnnl::memory::format_tag wei_scales_fmt = (moe_cfg.weight_group_size == -1) ? dnnl::memory::format_tag::ab : dnnl::memory::format_tag::abc;
+            dnnl::memory::dims wei_scales_dims = (moe_cfg.weight_group_size == -1)
+                ? dnnl::memory::dims{d0, d1}
+                : dnnl::memory::dims{d0, d2, d1};
+            dnnl::memory::format_tag wei_scales_fmt = (moe_cfg.weight_group_size == -1)
+                ? dnnl::memory::format_tag::ab
+                : dnnl::memory::format_tag::abc;
             dnnl::memory::desc wei_scales_md(
-                    wei_scales_dims, convert_data_type(wei_scales.get_layout().data_type), wei_scales_fmt);
+                wei_scales_dims, convert_data_type(wei_scales.get_layout().data_type), wei_scales_fmt);
             dnnl::memory wei_scales_mem = wei_scales.get_onednn_memory(wei_scales_md, 0);
             args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, wei_scales_mem});
 
             if (!moe_cfg.is_weight_symmetric_quantized) {
                 auto& wei_zp = instance.input_memory(moe_cfg.weight_zp_idx);
                 dnnl::memory::desc wei_zp_md(
-                        wei_scales_dims, convert_data_type(wei_zp.get_layout().data_type), wei_scales_fmt);
+                    wei_scales_dims, convert_data_type(wei_zp.get_layout().data_type), wei_scales_fmt);
                 dnnl::memory wei_zp_mem = wei_zp.get_onednn_memory(wei_zp_md, 0);
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, wei_zp_mem});
             }

@@ -99,10 +99,14 @@ struct MoEGemmImplementationManager : public ImplementationManager {
         }
 
         if (has_quant_weight) {
+            // prepare_quantization inserts a byfx reorder on the decompression scale/zp to make
+            // them physically [E, G, N]; onednn reads the buffer flat so the cldnn format does
+            // not affect correctness. Accept both here.
+            static const std::vector<format> supported_quant_fmts = {format::bfyx, format::byfx};
             size_t quant_params_idx_start =
                 desc.has_bias ? static_cast<size_t>(moe_gemm::MoEGemmInputIdx::WEIGHT_SCALE) : static_cast<size_t>(moe_gemm::MoEGemmInputIdx::WEIGHT_SCALE - 1);
             for (size_t i = quant_params_idx_start; i < node.get_input_layouts().size(); i++) {
-                if (!one_of(node.get_input_layout(i).format, supported_fmts) || !one_of(node.get_input_layout(i).data_type, supported_quant_param_types)) {
+                if (!one_of(node.get_input_layout(i).format, supported_quant_fmts) || !one_of(node.get_input_layout(i).data_type, supported_quant_param_types)) {
                     DO_NOT_USE_THIS_KERNEL(layer_id);
                 }
             }
@@ -155,11 +159,13 @@ struct MoEGemmImplementationManager : public ImplementationManager {
                 moe_cfg.weight_zp_idx = moe_gemm::MoEGemmInputIdx::WEIGHT_ZP - 1;
             }
             const auto& weight_shape = params.input_layouts[moe_gemm::MoEGemmInputIdx::WEIGHT].get_shape();
-            // experts weight : [#experts, ofm, num_groups, group_size]
+            // Rank-4 experts weight [E, ofm, G, GS] keeps K split; rank-3 [E, ofm, K] is the
+            // collapsed form emitted by ConvertGatherMatmulToGatherMatmulCompressed.
             auto k = (weight_shape.size() == 4) ? weight_shape[2] * weight_shape[3] : weight_shape[2];
-            // weight scales : [#experts, num_groups, ofm, 1]
-            auto scale_group_dim = 1;
-            auto num_scale_groups = (weight_shape.size() == 4) ? params.input_layouts[moe_cfg.weight_scale_idx].get_shape()[scale_group_dim] : 1;
+            // Weight scales are [E, ofm, G] (rank 3) or [E, ofm, G, 1] (rank 4); groups live at
+            // index 2 either way.
+            const auto& scale_shape = params.input_layouts[moe_cfg.weight_scale_idx].get_shape();
+            auto num_scale_groups = (scale_shape.size() >= 3) ? scale_shape[2] : 1;
             moe_cfg.weight_group_size = (num_scale_groups == 1) ? -1 : static_cast<int32_t>(k / num_scale_groups);
             if (static_cast<int32_t>(params.input_layouts.size()) > moe_cfg.weight_zp_idx) {
                 moe_cfg.is_weight_symmetric_quantized = false;
