@@ -592,8 +592,7 @@ TEST_F(ParallelReadStreamBufTest, PrefetchInvalidatedOnSeekOutsideWindow) {
     constexpr size_t k_read = 512;
     std::vector<char> got(k_read);
     ASSERT_TRUE(stream.read(got.data(), static_cast<std::streamsize>(k_read)));
-    std::vector<char> slice(expected.begin() + k_seek_to,
-                            expected.begin() + k_seek_to + k_read);
+    std::vector<char> slice(expected.begin() + k_seek_to, expected.begin() + k_seek_to + k_read);
     EXPECT_EQ(got, slice);
 }
 

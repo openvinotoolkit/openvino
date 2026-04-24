@@ -197,8 +197,7 @@ bool ParallelReadStreamBuf::prefetch(std::streamsize size) {
     // Account for bytes still sitting in the underflow get-area. The logical
     // cursor that the caller cares about is the position of the next byte the
     // caller will consume, which is m_file_offset - (egptr - gptr).
-    const std::streamoff ahead =
-        (gptr() != nullptr) ? static_cast<std::streamoff>(egptr() - gptr()) : 0;
+    const std::streamoff ahead = (gptr() != nullptr) ? static_cast<std::streamoff>(egptr() - gptr()) : 0;
     const std::streamoff abs_begin = m_file_offset - ahead;
 
     if (abs_begin < 0 || abs_begin >= m_file_size) {
@@ -206,8 +205,7 @@ bool ParallelReadStreamBuf::prefetch(std::streamsize size) {
     }
 
     const std::streamoff remaining = m_file_size - abs_begin;
-    const size_t to_load =
-        static_cast<size_t>((std::min)(static_cast<std::streamoff>(size), remaining));
+    const size_t to_load = static_cast<size_t>((std::min)(static_cast<std::streamoff>(size), remaining));
     if (to_load == 0) {
         return false;
     }
@@ -220,9 +218,8 @@ bool ParallelReadStreamBuf::prefetch(std::streamsize size) {
 
     // Use the same parallel_read path as the normal large-read code so that
     // hw_threads, chunking, and per-thread fds all match the tuned behavior.
-    const bool ok = (to_load >= m_threshold)
-                        ? parallel_read(m_prefetch_buf.get(), to_load, abs_begin_sz)
-                        : single_read(m_prefetch_buf.get(), to_load, abs_begin_sz);
+    const bool ok = (to_load >= m_threshold) ? parallel_read(m_prefetch_buf.get(), to_load, abs_begin_sz)
+                                             : single_read(m_prefetch_buf.get(), to_load, abs_begin_sz);
     if (!ok) {
         m_prefetch_buf.reset();
         return false;
@@ -243,8 +240,7 @@ bool ParallelReadStreamBuf::serve_from_prefetch(char* dst, size_t size, std::str
     }
     const std::streamoff begin = m_prefetch_begin;
     const std::streamoff end = begin + static_cast<std::streamoff>(m_prefetch_size);
-    if (abs_offset < begin ||
-        static_cast<std::streamoff>(abs_offset + static_cast<std::streamoff>(size)) > end) {
+    if (abs_offset < begin || static_cast<std::streamoff>(abs_offset + static_cast<std::streamoff>(size)) > end) {
         // Partial overlap falls through to file I/O; serving a partial slice here
         // would force xsgetn to issue a second pread for the tail, negating the
         // amortization benefit we are chasing.
