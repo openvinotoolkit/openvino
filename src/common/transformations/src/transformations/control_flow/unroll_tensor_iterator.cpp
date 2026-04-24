@@ -193,7 +193,8 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
                 for (int64_t idx = 0; idx < num_iter; ++idx) {
                     const auto iter_idx = loop->get_special_body_ports().current_iteration_input_idx;
                     const auto& param_to_delete = body_functions[idx]->get_parameters()[iter_idx];
-                    auto cur_iter_const = std::make_shared<v0::Constant>(ov::element::i64, Shape{}, idx);
+                    auto cur_iter_const =
+                        std::make_shared<v0::Constant>(param_to_delete->get_element_type(), Shape{}, idx);
                     replace_node(param_to_delete, cur_iter_const);
                     body_functions[idx]->remove_parameter(param_to_delete);
                 }

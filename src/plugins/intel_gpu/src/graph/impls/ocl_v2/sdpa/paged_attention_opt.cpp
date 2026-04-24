@@ -1627,9 +1627,10 @@ public:
         const auto indexes_buf_size = static_cast<int64_t>(ceil_div(target_seq_len, target_seq_len_block_size)) * element_size;
 
         const bool lockable = true;
-        internal_buffers.emplace_back(indexes_buf_size, indexes_dt, lockable);  // 0
-        internal_buffers.emplace_back(indexes_buf_size, indexes_dt, lockable);  // 1
-        internal_buffers.emplace_back(indexes_buf_size, indexes_dt, lockable);  // 2
+        const bool not_shareable = false;
+        internal_buffers.emplace_back(indexes_buf_size, indexes_dt, lockable, not_shareable);  // 0
+        internal_buffers.emplace_back(indexes_buf_size, indexes_dt, lockable, not_shareable);  // 1
+        internal_buffers.emplace_back(indexes_buf_size, indexes_dt, lockable, not_shareable);  // 2
 
         const auto& input = params.input_layouts[0];
         const int64_t total_tokens = input.get_partial_shape()[0].get_length();
@@ -1669,11 +1670,11 @@ public:
             // Softmax intermediate output
             internal_buffers.emplace_back(softmax_buf_elements_count, indexes_dt);  // 3
             // Precalculated accumulated sequence length offsets for each subsequence
-            internal_buffers.emplace_back(subsequences_number * element_size, indexes_dt, lockable);  // 4
+            internal_buffers.emplace_back(subsequences_number * element_size, indexes_dt, lockable, not_shareable);  // 4
 
             if (desc->has_score_aggregation) {
                 // Cumulative window size sum buffer
-                internal_buffers.emplace_back((subsequences_number + 1) * element_size, indexes_dt, lockable);  // 5
+                internal_buffers.emplace_back((subsequences_number + 1) * element_size, indexes_dt, lockable, not_shareable);  // 5
             }
 
             if (stage == PagedAttentionStage::PREFILL) {
@@ -1695,7 +1696,7 @@ public:
 
         const auto multi_tokens_mode = stage == PagedAttentionStage::MIXED;
         if (multi_tokens_mode && !can_use_micro_sdpa) {
-            internal_buffers.emplace_back(total_tokens, softmax_accumulator_type, lockable);  // 9
+            internal_buffers.emplace_back(total_tokens, softmax_accumulator_type, lockable, not_shareable);  // 9
         }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -1703,7 +1704,7 @@ public:
             const auto wg_tile_q = 8;  // This is set as the minimum size of query block for sharing between sdpa_micro_prefill and mixed.
             const auto target_seq_len = std::max(paged_attention_aligned_seq_len, static_cast<int64_t>(1));
             const auto indexes_buf_size = ceil_div(target_seq_len, wg_tile_q) * 2;
-            internal_buffers.emplace_back(indexes_buf_size * 4, indexes_dt, lockable);
+            internal_buffers.emplace_back(indexes_buf_size * 4, indexes_dt, lockable, not_shareable);
         }
 #endif
 

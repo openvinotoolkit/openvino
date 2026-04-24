@@ -14,7 +14,6 @@
 #include "intel_npu/npu_private_properties.hpp"
 #include "openvino/core/log.hpp"
 #include "zero_backend.hpp"
-#include "zero_device.hpp"
 
 using namespace ov::test::behavior;
 
@@ -547,6 +546,41 @@ TEST_P(CheckCompilerTypeProperty, GetCompilerVersion) {
     ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
 
     logs.clear();
+}
+
+using CheckCompilerVersionProperty = ClassExecutableNetworkGetPropertiesTestNPU;
+
+TEST_P(CheckCompilerVersionProperty, GetCompilerVersionFromCompiledModel) {
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, deviceName));
+
+    uint32_t compiled_model_version = 0;
+    OV_ASSERT_NO_THROW(compiled_model_version = compiled_model.get_property(ov::intel_npu::compiler_version));
+
+    uint32_t plugin_version = 0;
+    OV_ASSERT_NO_THROW(plugin_version = core.get_property(deviceName, ov::intel_npu::compiler_version));
+    ASSERT_EQ(compiled_model_version, plugin_version);
+}
+
+TEST_P(CheckCompilerVersionProperty, CompilerVersionAvailableAfterImport) {
+    ov::Core core_compile, core_import;
+    ov::CompiledModel compiled_model, imported_model;
+    std::stringstream export_stream;
+
+    OV_ASSERT_NO_THROW(compiled_model = core_compile.compile_model(model, deviceName));
+
+    uint32_t compiled_version = 0;
+    OV_ASSERT_NO_THROW(compiled_version = compiled_model.get_property(ov::intel_npu::compiler_version));
+
+    OV_ASSERT_NO_THROW(compiled_model.export_model(export_stream));
+    compiled_model = {};
+
+    OV_ASSERT_NO_THROW(imported_model = core_import.import_model(export_stream, deviceName));
+
+    uint32_t imported_version = 0;
+    OV_ASSERT_NO_THROW(imported_version = imported_model.get_property(ov::intel_npu::compiler_version));
+    ASSERT_EQ(imported_version, compiled_version);
 }
 
 using CheckCompilerPropertyWhenImporting = ClassExecutableNetworkGetPropertiesTestNPU;
