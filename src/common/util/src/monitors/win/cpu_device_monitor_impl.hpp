@@ -37,6 +37,15 @@ public:
         } catch (...) {
             std::cerr << "[IPF_DEBUG] CPUDeviceMonitorImpl: SOC.Info.BrandString query failed (unknown)" << std::endl;
         }
+        // Step 3: Read CPU IA power (mW, changes with load) to verify dynamic IPF data
+        try {
+            auto power = m_ipf->GetValue("Platform.SOC.Power.IA");
+            std::cerr << "[IPF_DEBUG] CPUDeviceMonitorImpl: SOC.Power.IA = " << power << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "[IPF_DEBUG] CPUDeviceMonitorImpl: SOC.Power.IA query failed: " << e.what() << std::endl;
+        } catch (...) {
+            std::cerr << "[IPF_DEBUG] CPUDeviceMonitorImpl: SOC.Power.IA query failed (unknown)" << std::endl;
+        }
     }
 
     std::map<std::string, float> get_utilization() override {
@@ -47,7 +56,7 @@ public:
             return result;
         }
         try {
-            auto value_str = m_ipf->GetValue("Platform.SOC.CPU.Utilization");
+            auto value_str = m_ipf->GetValue("Platform.SOC.Power.IA");
             std::cerr << "[IPF_DEBUG] CPUDeviceMonitorImpl::get_utilization: GetValue = \"" << value_str << "\"" << std::endl;
             if (!value_str.empty() && value_str != "null") {
                 float val = std::stof(value_str);
