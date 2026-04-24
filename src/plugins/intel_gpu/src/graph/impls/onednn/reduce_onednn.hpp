@@ -47,6 +47,7 @@ struct ReduceImplementationManager : public ImplementationManager {
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
 
     bool validate_impl(const program_node& node) const override {
+        return false;
         assert(node.is_type<reduce>());
         const auto& config = node.get_program().get_config();
         const auto& info = node.get_program().get_engine().get_device_info();
