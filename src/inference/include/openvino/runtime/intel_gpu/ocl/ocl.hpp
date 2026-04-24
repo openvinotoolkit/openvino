@@ -22,27 +22,6 @@
 
 #include <CL/cl_ext.h>
 
-#ifndef CL_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD
-typedef enum _cl_external_mem_handle_type_enum {
-    CL_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD = 1,
-    CL_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32 = 2,
-    CL_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT = 3,
-    CL_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP = 4,
-    CL_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE = 5,
-} cl_external_mem_handle_type;
-
-typedef enum _cl_external_mem_properties {
-    CL_EXTERNAL_MEMORY_HANDLE_TYPE = 1,
-    CL_EXTERNAL_MEMORY_HANDLE_SIZE = 2,
-} cl_external_mem_properties;
-
-typedef struct _cl_external_mem_desc_st {
-    cl_external_mem_handle_type type;
-    void* handle;
-    cl_external_mem_properties* props;
-    unsigned long long size;
-} cl_external_mem_desc;
-#endif
 
 #if defined(CL_VERSION_1_2) && !defined(CL_API_SUFFIX__VERSION_1_2)
 #define CL_API_SUFFIX__VERSION_1_2
@@ -65,32 +44,6 @@ extern CL_API_ENTRY cl_mem CL_API_CALL clCreateBufferWithProperties(cl_context c
                                                                      cl_int* errcode_ret) CL_API_SUFFIX__VERSION_3_0;
 #endif
 
-#ifndef clCreateFromExternalMemoryBufferINTEL_fn
-typedef cl_mem(CL_API_CALL* clCreateFromExternalMemoryBufferINTEL_fn)(cl_context,
-                                                                       cl_mem_flags,
-                                                                       cl_external_mem_desc,
-                                                                       cl_int*);
-#endif
-
-#ifndef CL_DEVICE_HANDLE_LIST_KHR
-#define CL_DEVICE_HANDLE_LIST_KHR 0x2051
-#endif
-
-#ifndef CL_DEVICE_HANDLE_LIST_END_KHR
-#define CL_DEVICE_HANDLE_LIST_END_KHR 0
-#endif
-
-#ifndef CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KMT_KHR
-#define CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KMT_KHR 0x2062
-#endif
-
-#ifndef CL_EXTERNAL_DEVICE_HANDLE_KHR
-#define CL_EXTERNAL_DEVICE_HANDLE_KHR 0x300B
-#endif
-
-#ifndef CL_EXTERNAL_DEVICEGROUP_KHR
-#define CL_EXTERNAL_DEVICEGROUP_KHR 0x300C
-#endif
 
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp"
