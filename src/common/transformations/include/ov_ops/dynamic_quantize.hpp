@@ -95,8 +95,8 @@ public:
             return false;
         }
 
-        if (m_attrs.scales_zp_output_order != attr.scales_zp_output_order) {
-            return false;
+        if (m_attrs.scales_zp_output_order == attr.scales_zp_output_order) {
+            return true;
         }
 
         // Edge case: if zp_output_order is empty, DynamicQuantize constructor generates it with std::iota().
