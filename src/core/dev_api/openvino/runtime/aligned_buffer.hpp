@@ -12,22 +12,7 @@
 
 namespace ov {
 
-template <typename T>
-class SharedBufferBase;
 class AlignedBuffer;
-
-/// \brief Passkey granting any SharedBufferBase<T> (all specializations) the ability
-/// to call AlignedBuffer::hint_evict(key, offset, size).
-class AlignedBufferRangeKey {
-    uint8_t _pad = 0;  // non-empty: suppresses GCC -Werror=abi on empty-class parameters
-
-    template <typename T>
-    friend class SharedBufferBase;
-    constexpr AlignedBufferRangeKey() = default;
-
-public:
-    AlignedBufferRangeKey(const AlignedBufferRangeKey&) = default;
-};
 
 class OPENVINO_API IBufferDescriptor {
 public:
@@ -86,9 +71,11 @@ public:
     AlignedBuffer& operator=(const AlignedBuffer&) = delete;
 
     virtual void hint_evict();
-    virtual void hint_evict(AlignedBufferRangeKey, size_t offset, size_t size);
 
 protected:
+    virtual void hint_evict(size_t offset, size_t size);
+    static void invoke_evict(AlignedBuffer& buffer, size_t offset, size_t size);
+
     char* m_allocated_buffer;
     char* m_aligned_buffer;
     size_t m_byte_size;

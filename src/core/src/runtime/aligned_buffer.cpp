@@ -63,5 +63,9 @@ std::shared_ptr<IBufferDescriptor> AlignedBuffer::get_descriptor() const {
 
 void AlignedBuffer::hint_evict() {}
 
-void AlignedBuffer::hint_evict(AlignedBufferRangeKey, size_t /*offset*/, size_t /*size*/) {}
+void AlignedBuffer::hint_evict(size_t offset, size_t size) {}
+
+void AlignedBuffer::invoke_evict(AlignedBuffer& buffer, size_t offset, size_t size) {
+    buffer.hint_evict(offset, size);
+}
 }  // namespace ov

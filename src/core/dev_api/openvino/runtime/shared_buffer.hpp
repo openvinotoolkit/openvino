@@ -33,7 +33,7 @@ public:
     virtual void hint_evict() override {}
 
 protected:
-    virtual void hint_evict(AlignedBufferRangeKey, size_t offset, size_t size) override {}
+    virtual void hint_evict(size_t offset, size_t size) override {}
 
     // protected to not create SharedBufferBase directly
     SharedBufferBase(char* data,
@@ -87,9 +87,7 @@ template <>
 OPENVINO_API void SharedBufferBase<std::shared_ptr<ov::MappedMemory>>::hint_evict();
 
 template <>
-OPENVINO_API void SharedBufferBase<std::shared_ptr<ov::MappedMemory>>::hint_evict(AlignedBufferRangeKey,
-                                                                                  size_t offset,
-                                                                                  size_t size);
+OPENVINO_API void SharedBufferBase<std::shared_ptr<ov::MappedMemory>>::hint_evict(size_t offset, size_t size);
 
 template <>
 OPENVINO_API void SharedBufferBase<std::shared_ptr<ov::AlignedBuffer>>::hint_evict();
