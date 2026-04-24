@@ -4,12 +4,13 @@
 
 #pragma once
 
+#include "openvino/op/paged_causal_conv1d.hpp"
 #include "utils.hpp"
 
 namespace ov::op::internal {
-template <class OpType, class T, class TRShape = result_shape_t<T>>
-std::vector<TRShape> shape_infer(const OpType* op, const std::vector<T>& input_shapes) {
-    NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shapes.size() == 9);
+template <class T, class TRShape = result_shape_t<T>>
+std::vector<TRShape> shape_infer(const PagedCausalConv1D* op, const std::vector<T>& input_shapes) {
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 9);
 
     NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shapes[0].rank().compatible(2));
     NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shapes[1].rank().compatible(3));
