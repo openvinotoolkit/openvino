@@ -111,7 +111,9 @@ public:
 
     explicit InputModel(const ov::frontend::onnx::GraphIterator::Ptr& graph_iterator,
                         const bool enable_mmap,
-                        const std::shared_ptr<TelemetryExtension>& telemetry = {});
+                        const std::shared_ptr<TelemetryExtension>& telemetry = {},
+                        const bool reuse_const_data = false);
+
     explicit InputModel(const ov::frontend::onnx::GraphIterator::Ptr& graph_iterator,
                         unify::InputModel::Ptr parent_model);
 

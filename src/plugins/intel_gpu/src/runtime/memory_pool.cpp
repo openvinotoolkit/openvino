@@ -441,13 +441,13 @@ size_t memory_pool::get_total_mem_pool_size(allocation_type type) {
 #endif
 }
 
-void memory_pool::dump(uint32_t net_id, uint32_t iter, std::string dump_dir_path) {
+void memory_pool::dump(uint32_t net_id, int64_t iter, std::string dump_dir_path) {
     dump_to_screen(net_id, iter);
     if (!dump_dir_path.empty())
         dump_to_file(net_id, iter, dump_dir_path);
 }
 
-void memory_pool::dump_to_file(uint32_t net_id, uint32_t iter, std::string dump_dir_path) {
+void memory_pool::dump_to_file(uint32_t net_id, int64_t iter, std::string dump_dir_path) {
 #ifdef GPU_DEBUG_CONFIG
     const std::string dump_file_name = "dump_runtime_memory_pool_net_" + std::to_string(net_id) + "_iter_" + std::to_string(iter) + ".csv";
     const std::string desc = "pool_type,layout,mem_ptr,mem_type,mem_pool_size,prim_id,unique_id,mem_size";
@@ -482,7 +482,7 @@ void memory_pool::dump_to_file(uint32_t net_id, uint32_t iter, std::string dump_
 #endif
 }
 
-void memory_pool::dump_to_screen(uint32_t net_id, uint32_t iter) {
+void memory_pool::dump_to_screen(uint32_t net_id, int64_t iter) {
 #ifdef GPU_DEBUG_CONFIG
     GPU_DEBUG_COUT << "Dump memory pool of network (net_id : " << net_id << ", iter : " << iter << ")" << std::endl;
     size_t total_requested_mem_non_padded_pool    = 0;

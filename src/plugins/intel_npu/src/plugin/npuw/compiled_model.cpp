@@ -26,6 +26,7 @@
 #include "plugin.hpp"
 #include "unfold_sync_infer_request.hpp"
 #include "util.hpp"
+#include "v1/elements/accuracy_checked.hpp"
 #include "v1/elements/failsafe.hpp"
 
 // required for get_properties_per_device()
@@ -608,19 +609,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                            "]");
         }
 
-        if (m_acc_check) {
-            if (submodel_device(real_id) != m_ref_device) {
-                LOG_INFO("Compile Subgraph[" << real_id << "] for reference device: " << m_ref_device << ".");
-                LOG_BLOCK();
-                m_compiled_submodels.at(real_id).ref_compiled_model =
-                    compile_submodel(m_compiled_submodels.at(real_id).model, m_ref_device);
-                LOG_INFO("Done (reference)");
-            } else {
-                LOG_INFO("Skip compilation of submodel[" << real_id << "] for reference device: " << m_ref_device
-                                                         << ", as original submodel[" << real_id
-                                                         << "] has been already compiled for it.");
-            }
-        }
+        LOG_INFO("Done (Subgraph[" << id << "]).");
     };  // compile
 
     // Parallel compilation is unstable so is disabled by default.
@@ -1768,9 +1757,9 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
         };
     };
 
-    auto make_wrapped = [&](const std::shared_ptr<ov::Model>& model,
-                            const std::string& profile_suffix,
-                            const std::vector<std::string>& devs) -> ov::SoPtr<ov::ICompiledModel> {
+    auto make_failsafe = [&](const std::shared_ptr<ov::Model>& model,
+                             const std::string& profile_suffix,
+                             const std::vector<std::string>& devs) -> ov::SoPtr<ov::ICompiledModel> {
         if (!m_cfg.get<::intel_npu::NPUW_FALLBACK_EXEC>()) {
             std::exception_ptr last_failure;
             auto factory = make_factory(model, profile_suffix);
@@ -1795,6 +1784,26 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                                                          get_plugin(),
                                                          devs,
                                                          make_factory(model, profile_suffix));
+    };
+
+    auto make_wrapped = [&](const std::shared_ptr<ov::Model>& model,
+                            const std::string& profile_suffix,
+                            const std::vector<std::string>& devs) -> ov::SoPtr<ov::ICompiledModel> {
+        auto main_cm = make_failsafe(model, profile_suffix, devs);
+        if (m_acc_check) {
+            const auto exec_devs = main_cm->get_property(ov::execution_devices.name()).as<std::vector<std::string>>();
+            const std::string actual_device = exec_devs.empty() ? "" : exec_devs.front();
+            if (actual_device != m_ref_device) {
+                LOG_INFO("Wrapping with AccuracyChecked (main: " << actual_device << ", ref: " << m_ref_device << ").");
+                auto ref_cm = compile_submodel(model, m_ref_device);
+                return ov::npuw::accuracy_checked::CompiledModel::create(model,
+                                                                         get_plugin(),
+                                                                         std::move(main_cm),
+                                                                         std::move(ref_cm),
+                                                                         m_acc_check);
+            }
+        }
+        return main_cm;
     };
 
     if (auto& moe_experts_opt = desc.moe_experts; moe_experts_opt.has_value()) {
@@ -2245,10 +2254,6 @@ std::string ov::npuw::CompiledModel::submodel_device(const std::size_t idx) cons
 
     if (!comp_subm_desc.compiled_model) {
         return "";
-    }
-
-    if (comp_subm_desc.switched_to_ref) {
-        return m_ref_device;
     }
 
     const auto exec_devs =

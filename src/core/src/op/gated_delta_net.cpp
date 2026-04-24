@@ -13,11 +13,11 @@
 namespace {
 
 // Validates input rank and type for a node input.
-inline void input_check(const ov::Node* node,
-                        size_t idx,
-                        const std::string_view input_name,
-                        std::initializer_list<ov::Rank>&& allowed_ranks,
-                        const std::vector<ov::element::Type>& allowed_types) {
+inline void gdn_input_check(const ov::Node* node,
+                            size_t idx,
+                            const std::string_view input_name,
+                            std::initializer_list<ov::Rank>&& allowed_ranks,
+                            const std::vector<ov::element::Type>& allowed_types) {
     using namespace ov;
     using namespace ov::util;
     using namespace ov::element;
@@ -91,12 +91,12 @@ void GatedDeltaNet::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, get_input_size() == 6, "GatedDeltaNet expects 6 inputs, but it has ", get_input_size());
 
     // format: Node*, input_idx, name, {rank_list}, {type_list}
-    input_check(this, 0, "query", {4}, {ov::element::f32, ov::element::f16, ov::element::bf16});
-    input_check(this, 1, "key", {4}, {ov::element::f32, ov::element::f16, ov::element::bf16});
-    input_check(this, 2, "value", {4}, {ov::element::f32, ov::element::f16, ov::element::bf16});
-    input_check(this, 3, "recurrent_state", {4}, {ov::element::f32, ov::element::f16, ov::element::bf16});
-    input_check(this, 4, "gate", {3}, {ov::element::f32, ov::element::f16, ov::element::bf16});
-    input_check(this, 5, "beta", {3}, {ov::element::f32, ov::element::f16, ov::element::bf16});
+    gdn_input_check(this, 0, "query", {4}, {ov::element::f32, ov::element::f16, ov::element::bf16});
+    gdn_input_check(this, 1, "key", {4}, {ov::element::f32, ov::element::f16, ov::element::bf16});
+    gdn_input_check(this, 2, "value", {4}, {ov::element::f32, ov::element::f16, ov::element::bf16});
+    gdn_input_check(this, 3, "recurrent_state", {4}, {ov::element::f32, ov::element::f16, ov::element::bf16});
+    gdn_input_check(this, 4, "gate", {3}, {ov::element::f32, ov::element::f16, ov::element::bf16});
+    gdn_input_check(this, 5, "beta", {3}, {ov::element::f32, ov::element::f16, ov::element::bf16});
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
     set_output_type(1, get_input_element_type(3), output_shapes[1]);
