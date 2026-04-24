@@ -2,21 +2,27 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME openvino_npu_vcl_utils)
+set(TARGET_NAME openvino_npu_vm_utils)
 
 file(GLOB_RECURSE SOURCES *.cpp)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${TARGET_NAME} OBJECT ${SOURCES})
-set_target_properties(
-  ${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+set_target_properties(${TARGET_NAME} PROPERTIES
+    INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO}
+    EXPORT_NAME npu_vm_utils)
+
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME}
     PUBLIC
         $<BUILD_INTERFACE:${NPU_UTILS_SOURCE_DIR}/include>
-    PRIVATE
+        $<TARGET_PROPERTY:openvino::util,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:npu_vm_runtime_api,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:openvino_npu_zero_utils,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 if(NOT BUILD_SHARED_LIBS)
