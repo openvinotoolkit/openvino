@@ -57,6 +57,47 @@ bool get_context_device_luid(cl_context cl_ctx, std::array<unsigned char, CL_LUI
     return clGetDeviceInfo(cl_devices[0], CL_DEVICE_LUID_KHR, cl_luid.size(), cl_luid.data(), nullptr) == CL_SUCCESS;
 }
 
+bool get_context_first_device(cl_context cl_ctx, cl_device_id& cl_device) {
+    size_t devices_size = 0;
+    if (clGetContextInfo(cl_ctx, CL_CONTEXT_DEVICES, 0, nullptr, &devices_size) != CL_SUCCESS ||
+        devices_size < sizeof(cl_device_id)) {
+        return false;
+    }
+
+    std::vector<cl_device_id> cl_devices(devices_size / sizeof(cl_device_id));
+    if (clGetContextInfo(cl_ctx, CL_CONTEXT_DEVICES, devices_size, cl_devices.data(), nullptr) != CL_SUCCESS ||
+        cl_devices.empty()) {
+        return false;
+    }
+
+    cl_device = cl_devices[0];
+    return true;
+}
+
+bool supports_external_import_handle_type(cl_device_id cl_device, cl_uint handle_type) {
+    size_t import_types_size = 0;
+    cl_int status = clGetDeviceInfo(cl_device,
+                                    CL_DEVICE_EXTERNAL_MEMORY_IMPORT_HANDLE_TYPES_KHR,
+                                    0,
+                                    nullptr,
+                                    &import_types_size);
+    if (status != CL_SUCCESS || import_types_size < sizeof(cl_uint)) {
+        return false;
+    }
+
+    std::vector<cl_uint> import_types(import_types_size / sizeof(cl_uint));
+    status = clGetDeviceInfo(cl_device,
+                             CL_DEVICE_EXTERNAL_MEMORY_IMPORT_HANDLE_TYPES_KHR,
+                             import_types_size,
+                             import_types.data(),
+                             nullptr);
+    if (status != CL_SUCCESS) {
+        return false;
+    }
+
+    return std::find(import_types.begin(), import_types.end(), handle_type) != import_types.end();
+}
+
 std::shared_ptr<ov::Model> make_copy_model(const ov::Shape& shape) {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
     auto zero = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {0.0f});
@@ -299,6 +340,16 @@ VulkanSharedBuffer create_vulkan_shared_buffer(VulkanTestContext& context, size_
     VulkanSharedBuffer shared_buffer;
     shared_buffer.device = context.device;
 
+    auto get_win32_handle = reinterpret_cast<PFN_vkGetMemoryWin32HandleKHR>(
+        vkGetDeviceProcAddr(context.device, "vkGetMemoryWin32HandleKHR"));
+    if (!get_win32_handle) {
+        ADD_FAILURE() << "Failed to get vkGetMemoryWin32HandleKHR";
+        return {};
+    }
+
+    VkPhysicalDeviceMemoryProperties mem_properties{};
+    vkGetPhysicalDeviceMemoryProperties(context.physical_device, &mem_properties);
+
     VkExternalMemoryBufferCreateInfo external_buffer_info{};
     external_buffer_info.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO;
     external_buffer_info.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
@@ -307,7 +358,8 @@ VulkanSharedBuffer create_vulkan_shared_buffer(VulkanTestContext& context, size_
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     buffer_info.pNext = &external_buffer_info;
     buffer_info.size = byte_size;
-    buffer_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    buffer_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+                        VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     VkResult res = vkCreateBuffer(context.device, &buffer_info, nullptr, &shared_buffer.buffer);
@@ -319,15 +371,10 @@ VulkanSharedBuffer create_vulkan_shared_buffer(VulkanTestContext& context, size_
     VkMemoryRequirements mem_requirements{};
     vkGetBufferMemoryRequirements(context.device, shared_buffer.buffer, &mem_requirements);
 
-    VkPhysicalDeviceMemoryProperties mem_properties{};
-    vkGetPhysicalDeviceMemoryProperties(context.physical_device, &mem_properties);
-
     uint32_t memory_type_index =
-        find_memory_type(mem_requirements.memoryTypeBits,
-                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                         mem_properties);
+        find_memory_type(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, mem_properties);
     if (memory_type_index == UINT32_MAX) {
-        ADD_FAILURE() << "Failed to find Vulkan HOST_VISIBLE memory type for shared buffer";
+        ADD_FAILURE() << "Failed to find DEVICE_LOCAL Vulkan memory type for shared buffer";
         return {};
     }
 
@@ -353,13 +400,6 @@ VulkanSharedBuffer create_vulkan_shared_buffer(VulkanTestContext& context, size_
         return {};
     }
 
-    auto get_win32_handle = reinterpret_cast<PFN_vkGetMemoryWin32HandleKHR>(
-        vkGetDeviceProcAddr(context.device, "vkGetMemoryWin32HandleKHR"));
-    if (!get_win32_handle) {
-        ADD_FAILURE() << "Failed to get vkGetMemoryWin32HandleKHR";
-        return {};
-    }
-
     VkMemoryGetWin32HandleInfoKHR handle_info{};
     handle_info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR;
     handle_info.memory = shared_buffer.memory;
@@ -368,6 +408,9 @@ VulkanSharedBuffer create_vulkan_shared_buffer(VulkanTestContext& context, size_
     res = get_win32_handle(context.device, &handle_info, &shared_buffer.shared_handle);
     EXPECT_EQ(res, VK_SUCCESS);
     EXPECT_NE(shared_buffer.shared_handle, nullptr);
+    if (res == VK_SUCCESS && shared_buffer.shared_handle != nullptr) {
+        std::cout << "[INFO] Vulkan shared buffer config: usage=STORAGE|XFER_SRC|XFER_DST, memory=DEVICE_LOCAL\n";
+    }
 
     return shared_buffer;
 }
@@ -390,6 +433,12 @@ TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCo
     }
 
     auto cl_ctx = static_cast<cl_context>(it->second.as<ov::intel_gpu::ocl::gpu_handle_param>());
+    cl_device_id cl_device = nullptr;
+    ASSERT_TRUE(get_context_first_device(cl_ctx, cl_device));
+    if (!supports_external_import_handle_type(cl_device, CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KHR)) {
+        GTEST_SKIP() << "Device does not support OPAQUE_WIN32 handle import for external memory";
+    }
+
     std::array<unsigned char, CL_LUID_SIZE_KHR> cl_luid{};
     if (!get_context_device_luid(cl_ctx, cl_luid)) {
         FAIL() << "Failed to get LUID for " << selected_gpu_device;
