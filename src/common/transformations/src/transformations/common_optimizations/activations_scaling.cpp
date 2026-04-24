@@ -359,7 +359,6 @@ activations_scaling::MoveDownScalarMul::MoveDownScalarMul() {
     this->register_matcher(m, callback);
 }
 
-
 activations_scaling::DeduplicateScalarMul::DeduplicateScalarMul() {
     MATCHER_SCOPE(DeduplicateScalarMul);
 
@@ -380,15 +379,16 @@ activations_scaling::DeduplicateScalarMul::DeduplicateScalarMul() {
         float mul_const_val = mul_const->cast_vector<float>()[0];
         auto mul_a = pattern_map.at(mul_a_m).get_node_shared_ptr();
         auto siblings = mul_a->input(0).get_source_output().get_target_inputs();
-        
+
         for (auto sibling : siblings) {
             if (sibling.get_node() == mul_a.get())
                 continue;
 
-            if (ov::is_type<v1::Multiply>(sibling.get_node()) and 
-                !is_non_const_node(sibling.get_node()->input(1).get_source_output()) and 
+            if (ov::is_type<v1::Multiply>(sibling.get_node()) and
+                !is_non_const_node(sibling.get_node()->input(1).get_source_output()) and
                 is_scalar_node(sibling.get_node()->input(1).get_source_output())) {
-                auto sibling_const = ov::as_type_ptr<v0::Constant>(sibling.get_node()->input(1).get_source_output().get_node_shared_ptr());
+                auto sibling_const = ov::as_type_ptr<v0::Constant>(
+                    sibling.get_node()->input(1).get_source_output().get_node_shared_ptr());
                 float sibling_const_val = sibling_const->cast_vector<float>()[0];
                 if (mul_const_val != sibling_const_val) {
                     continue;
