@@ -7,15 +7,11 @@
 #include <algorithm>
 #include <vector>
 
+#include "utils/precision_support.h"
+
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "nodes/kernels/aarch64/jit_int8_conv_kernel.hpp"
 #    include "utils/cpu_utils.hpp"
-#    if defined(__linux__)
-#        include <sys/auxv.h>
-#    endif
-#    if defined(__linux__) && defined(__aarch64__)
-#        include <asm/hwcap.h>
-#    endif
 
 namespace {
 void pack_mmla_block(const int8_t* src, size_t K, size_t oc_block, int8_t* dst) {
@@ -31,6 +27,10 @@ void pack_mmla_block(const int8_t* src, size_t K, size_t oc_block, int8_t* dst) 
             offset += 16;
         }
     }
+}
+
+bool has_dotprod_for_test() {
+    return ov::intel_cpu::hasIntDotProductSupport();
 }
 }  // namespace
 #endif
@@ -80,6 +80,45 @@ TEST(JitInt8ConvKernel, DotAccumulateU8S8) {
 #endif
 }
 
+TEST(PrecisionSupportTest, Aarch64IsaResolutionPriority) {
+    using ov::intel_cpu::Aarch64Int8Isa;
+    using ov::intel_cpu::resolveAarch64Int8Isa;
+
+    EXPECT_EQ(resolveAarch64Int8Isa(false, false, false, false, false), Aarch64Int8Isa::scalar_reference);
+    EXPECT_EQ(resolveAarch64Int8Isa(true, false, false, false, false), Aarch64Int8Isa::neon);
+    EXPECT_EQ(resolveAarch64Int8Isa(true, true, false, false, false), Aarch64Int8Isa::neon_dotprod);
+    EXPECT_EQ(resolveAarch64Int8Isa(true, true, true, false, false), Aarch64Int8Isa::neon_i8mm);
+    EXPECT_EQ(resolveAarch64Int8Isa(true, true, false, true, false), Aarch64Int8Isa::sve);
+    EXPECT_EQ(resolveAarch64Int8Isa(true, true, true, true, false), Aarch64Int8Isa::sve_i8mm);
+    EXPECT_EQ(resolveAarch64Int8Isa(true, true, true, true, true), Aarch64Int8Isa::sve2_i8mm);
+}
+
+TEST(PrecisionSupportTest, Aarch64IsaNamesAreStable) {
+    using ov::intel_cpu::Aarch64Int8Isa;
+    using ov::intel_cpu::aarch64Int8IsaName;
+
+    EXPECT_STREQ(aarch64Int8IsaName(Aarch64Int8Isa::scalar_reference), "scalar_reference");
+    EXPECT_STREQ(aarch64Int8IsaName(Aarch64Int8Isa::neon), "neon");
+    EXPECT_STREQ(aarch64Int8IsaName(Aarch64Int8Isa::neon_dotprod), "neon_dotprod");
+    EXPECT_STREQ(aarch64Int8IsaName(Aarch64Int8Isa::neon_i8mm), "neon_i8mm");
+    EXPECT_STREQ(aarch64Int8IsaName(Aarch64Int8Isa::sve), "sve");
+    EXPECT_STREQ(aarch64Int8IsaName(Aarch64Int8Isa::sve_i8mm), "sve_i8mm");
+    EXPECT_STREQ(aarch64Int8IsaName(Aarch64Int8Isa::sve2_i8mm), "sve2_i8mm");
+}
+
+TEST(PrecisionSupportTest, DetectsSVEIsaFamily) {
+    using ov::intel_cpu::Aarch64Int8Isa;
+    using ov::intel_cpu::isSVEInt8Isa;
+
+    EXPECT_FALSE(isSVEInt8Isa(Aarch64Int8Isa::scalar_reference));
+    EXPECT_FALSE(isSVEInt8Isa(Aarch64Int8Isa::neon));
+    EXPECT_FALSE(isSVEInt8Isa(Aarch64Int8Isa::neon_dotprod));
+    EXPECT_FALSE(isSVEInt8Isa(Aarch64Int8Isa::neon_i8mm));
+    EXPECT_TRUE(isSVEInt8Isa(Aarch64Int8Isa::sve));
+    EXPECT_TRUE(isSVEInt8Isa(Aarch64Int8Isa::sve_i8mm));
+    EXPECT_TRUE(isSVEInt8Isa(Aarch64Int8Isa::sve2_i8mm));
+}
+
 TEST(JitInt8ConvKernel, Block4U8S8) {
 #if defined(OPENVINO_ARCH_ARM64)
     ov::intel_cpu::aarch64::jit_int8_brgemm_kernel_1x4 ker(false);
@@ -103,8 +142,8 @@ TEST(JitInt8ConvKernel, Block4U8S8) {
 }
 
 TEST(JitInt8ConvKernel, Block4DotS8S8) {
-#if defined(OPENVINO_ARCH_ARM64) && defined(__linux__) && defined(__aarch64__) && defined(HWCAP_ASIMDDP)
-    if ((getauxval(AT_HWCAP) & HWCAP_ASIMDDP) == 0) {
+#if defined(OPENVINO_ARCH_ARM64)
+    if (!has_dotprod_for_test()) {
         GTEST_SKIP() << "Dot product ISA not available";
     }
     ov::intel_cpu::aarch64::jit_int8_brgemm_kernel_1x4_dot ker;
@@ -127,13 +166,13 @@ TEST(JitInt8ConvKernel, Block4DotS8S8) {
     EXPECT_EQ(dst[2], 2 * sum);
     EXPECT_EQ(dst[3], -2 * sum);
 #else
-    GTEST_SKIP() << "Dot product ISA not available or not ARM64";
+    GTEST_SKIP() << "AArch64-only test";
 #endif
 }
 
 TEST(JitInt8ConvKernel, Block8DotS8S8) {
-#if defined(OPENVINO_ARCH_ARM64) && defined(__linux__) && defined(__aarch64__) && defined(HWCAP_ASIMDDP)
-    if ((getauxval(AT_HWCAP) & HWCAP_ASIMDDP) == 0) {
+#if defined(OPENVINO_ARCH_ARM64)
+    if (!has_dotprod_for_test()) {
         GTEST_SKIP() << "Dot product ISA not available";
     }
     ov::intel_cpu::aarch64::jit_int8_brgemm_kernel_1x8_dot ker;
@@ -161,13 +200,13 @@ TEST(JitInt8ConvKernel, Block8DotS8S8) {
         EXPECT_EQ(dst[i], scales[i] * sum);
     }
 #else
-    GTEST_SKIP() << "Dot product ISA not available or not ARM64";
+    GTEST_SKIP() << "AArch64-only test";
 #endif
 }
 
 TEST(JitInt8ConvKernel, Block4x4DotS8S8) {
-#if defined(OPENVINO_ARCH_ARM64) && defined(__linux__) && defined(__aarch64__) && defined(HWCAP_ASIMDDP)
-    if ((getauxval(AT_HWCAP) & HWCAP_ASIMDDP) == 0) {
+#if defined(OPENVINO_ARCH_ARM64)
+    if (!has_dotprod_for_test()) {
         GTEST_SKIP() << "Dot product ISA not available";
     }
     ov::intel_cpu::aarch64::jit_int8_brgemm_kernel_4x4_dot ker;
@@ -198,8 +237,8 @@ TEST(JitInt8ConvKernel, Block4x4DotS8S8) {
 }
 
 TEST(JitInt8ConvKernel, Block4x4DotS8S8Tail) {
-#if defined(OPENVINO_ARCH_ARM64) && defined(__linux__) && defined(__aarch64__) && defined(HWCAP_ASIMDDP)
-    if ((getauxval(AT_HWCAP) & HWCAP_ASIMDDP) == 0) {
+#if defined(OPENVINO_ARCH_ARM64)
+    if (!has_dotprod_for_test()) {
         GTEST_SKIP() << "Dot product ISA not available";
     }
     ov::intel_cpu::aarch64::jit_int8_brgemm_kernel_4x4_dot ker;
@@ -226,6 +265,39 @@ TEST(JitInt8ConvKernel, Block4x4DotS8S8Tail) {
     int32_t dst[16] = {};
     ker.ker()(src_ptrs, wei, dst, K, K, 4 * sizeof(int32_t), 0);
     const int32_t sums[4] = {K, 2 * K, -K, 3 * K};
+    const int32_t scales[4] = {1, -1, 2, -2};
+    for (int r = 0; r < 4; ++r) {
+        for (int c = 0; c < 4; ++c) {
+            EXPECT_EQ(dst[r * 4 + c], sums[r] * scales[c]);
+        }
+    }
+#else
+    GTEST_SKIP() << "Dot product ISA not available or not ARM64";
+#endif
+}
+
+TEST(JitInt8ConvKernel, Block4x4DotU8S8) {
+#if defined(OPENVINO_ARCH_ARM64)
+    if (!has_dotprod_for_test()) {
+        GTEST_SKIP() << "Dot product ISA not available";
+    }
+    ov::intel_cpu::aarch64::jit_int8_brgemm_kernel_4x4_udot ker;
+    ker.create_ker();
+    const uint8_t src0[16] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+    const uint8_t src1[16] = {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2};
+    const uint8_t src2[16] = {3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3};
+    const uint8_t src3[16] = {4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4};
+    const uint8_t* src_ptrs[4] = {src0, src1, src2, src3};
+    const int8_t wei[64] = {
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+        -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2,
+    };
+    int32_t dst[16] = {};
+    ker.ker()(src_ptrs, wei, dst, 16, 16, 4 * sizeof(int32_t), 0);
+    // Raw u8 dot kernels xor src with 0x80 and accumulate pre-compensation values.
+    const int32_t sums[4] = {(-127) * 16, (-126) * 16, (-125) * 16, (-124) * 16};
     const int32_t scales[4] = {1, -1, 2, -2};
     for (int r = 0; r < 4; ++r) {
         for (int c = 0; c < 4; ++c) {

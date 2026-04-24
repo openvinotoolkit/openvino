@@ -438,6 +438,12 @@ if(ENABLE_TESTS)
     add_subdirectory(tests)
 endif()
 
-if(AARCH64 AND BUILD_SHARED_LIBS)
+ov_dependent_option(ENABLE_INT8_AARCH64_MICROBENCH
+                    "Build AArch64 INT8 microbench tool"
+                    OFF
+                    "AARCH64;BUILD_SHARED_LIBS"
+                    OFF)
+
+if(AARCH64 AND BUILD_SHARED_LIBS AND ENABLE_INT8_AARCH64_MICROBENCH)
     add_subdirectory(tools/int8_microbench)
 endif()
