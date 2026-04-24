@@ -5,6 +5,7 @@
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/op/assign.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
@@ -24,6 +25,71 @@
 using namespace ov::op;
 using ov::pass::paged_attention::PaParams;
 using ov::pass::paged_attention::PaResults;
+
+namespace {
+std::shared_ptr<v0::Parameter> get_parameter(const std::shared_ptr<ov::Model>& model, const std::string& name) {
+    for (const auto& param : model->inputs()) {
+        const auto& names = param.get_names();
+        if (names.count(name)) {
+            if (auto casted_param = ov::as_type_ptr<v0::Parameter>(param.get_node_shared_ptr())) {
+                return casted_param;
+            } else {
+                OPENVINO_THROW("The model is in the inconsistent state. Found input '",
+                               name,
+                               "', but couldn't cast it to v0::Parameter.");
+            }
+        }
+    }
+
+    return nullptr;
+}
+
+class SDPAToPagedAttentionCleanup : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("SDPAToPagedAttentionCleanup");
+
+    explicit SDPAToPagedAttentionCleanup(std::unordered_set<std::string>& var_ids_to_remove)
+        : m_var_ids_to_remove(var_ids_to_remove) {}
+
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
+        auto sinks = model->get_sinks();
+
+        for (auto& sink : sinks) {
+            if (auto assign = ov::as_type_ptr<ov::op::util::AssignBase>(sink)) {
+                if (m_var_ids_to_remove.count(assign->get_variable_id())) {
+                    model->remove_sink(sink);
+                }
+            }
+        }
+
+        for (auto& param_name : {"beam_idx", "attention_mask"}) {
+            if (auto param = get_parameter(model, param_name)) {
+                model->remove_parameter(param);
+
+                if (param->output(0).get_target_inputs().size() == 0) {
+                    std::stringstream consumers;
+                    consumers << std::endl;
+                    for (auto& input : param->output(0).get_target_inputs()) {
+                        consumers << *input.get_node() << std::endl;
+                    }
+                    OPENVINO_ASSERT(param->output(0).get_target_inputs().size() == 0,
+                                    "PagedAttention transformation failed: couldn't remove ",
+                                    param->output(0).get_target_inputs().size(),
+                                    " inputs of ",
+                                    param_name,
+                                    " input: ",
+                                    consumers.str());
+                }
+            }
+        }
+
+        return true;
+    }
+
+private:
+    std::unordered_set<std::string>& m_var_ids_to_remove;
+};
+}  // namespace
 
 ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_indices_inputs,
                                                      bool use_score_outputs,
@@ -63,24 +129,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         m_params.add("block_indices", element::i32, PartialShape{-1});
     }
 
-    auto get_parameter = [=](const std::shared_ptr<ov::Model>& model,
-                             const std::string& name) -> std::shared_ptr<v0::Parameter> {
-        for (const auto& param : model->inputs()) {
-            const auto& names = param.get_names();
-            if (names.count(name)) {
-                if (auto casted_param = ov::as_type_ptr<v0::Parameter>(param.get_node_shared_ptr())) {
-                    return casted_param;
-                } else {
-                    OPENVINO_THROW("The model is in the inconsistent state. Found input '",
-                                   name,
-                                   "', but couldn't cast it to v0::Parameter.");
-                }
-            }
-        }
-
-        return nullptr;
-    };
-
     std::shared_ptr<v0::Parameter> input_ids_node;
     for (const auto& name : {"input_ids", "inputs_embeds"}) {
         if ((input_ids_node = get_parameter(model, name))) {
@@ -105,11 +153,10 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     std::unordered_set<std::string> var_ids_to_remove;
 
-    std::shared_ptr<v0::Parameter> position_ids;
-    if (!get_parameter(model, "position_ids")) {
+    std::shared_ptr<v0::Parameter> position_ids = m_params.get("position_ids");
+    if (!position_ids) {
         position_ids = m_params.add("position_ids", element::i64, PartialShape{-1});
     } else {
-        position_ids = ov::as_type_ptr<v0::Parameter>(model->input("position_ids").get_node_shared_ptr());
         const auto& position_ids_shape = position_ids->get_partial_shape();
 
         if (position_ids_shape.rank().is_static() && position_ids_shape.rank().get_length() == 2) {
@@ -144,43 +191,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     manager.register_pass<PositionIDsReplacer>(unsqueezed_position_ids);
     manager.register_pass<PositionIDsReplacerQwen>(unsqueezed_position_ids);
     manager.register_pass<PositionIDsReplacerCodeGen2>(position_ids);
+    manager.register_pass<SDPAToPagedAttentionCleanup>(var_ids_to_remove);
     manager.run_passes(model);
-
-    {
-        // Remove all Assigns aggressively, the path from the kv-cache concat to Assign can be complicated,
-        // but there is no reason to track it and reject part of the Assigns, because the model will remain
-        // in incorrect form anyway.
-        auto sinks = model->get_sinks();
-
-        for (auto& sink : sinks) {
-            if (auto assign = ov::as_type_ptr<ov::op::util::AssignBase>(sink)) {
-                if (var_ids_to_remove.count(assign->get_variable_id())) {
-                    model->remove_sink(sink);
-                }
-            }
-        }
-    }
-
-    for (auto& param_name : {"beam_idx", "attention_mask"}) {
-        if (auto param = get_parameter(model, param_name)) {
-            model->remove_parameter(param);
-
-            if (param->output(0).get_target_inputs().size() == 0) {
-                std::stringstream consumers;
-                consumers << std::endl;
-                for (auto& input : param->output(0).get_target_inputs()) {
-                    consumers << *input.get_node() << std::endl;
-                }
-                OPENVINO_ASSERT(param->output(0).get_target_inputs().size() == 0,
-                                "PagedAttention transformation failed: couldn't remove ",
-                                param->output(0).get_target_inputs().size(),
-                                " inputs of ",
-                                param_name,
-                                " input: ",
-                                consumers.str());
-            }
-        }
-    }
 
     model->add_results(m_results.items());
     model->add_parameters(m_params.items());
