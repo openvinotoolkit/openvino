@@ -1113,15 +1113,11 @@ AccuracyCheckResult accuracy_check(const std::shared_ptr<ov::Model>& ref_functio
                 rs << rp[i]->get_partial_shape();
                 cs << cp[i]->get_partial_shape();
                 const bool mismatch = rp[i]->get_partial_shape() != cp[i]->get_partial_shape();
-                std::cerr << "[OV_TMP_DEBUG]   i=" << i
-                          << "  ref_shape=" << rs.str()
-                          << "  cur_shape=" << cs.str()
+                std::cerr << "[OV_TMP_DEBUG]   i=" << i << "  ref_shape=" << rs.str() << "  cur_shape=" << cs.str()
                           << "  ref_ptr=" << static_cast<const void*>(rp[i].get())
                           << "  cur_ptr=" << static_cast<const void*>(cp[i].get())
-                          << "  ref_name=" << rp[i]->get_friendly_name()
-                          << "  cur_name=" << cp[i]->get_friendly_name()
-                          << (mismatch ? "  <<<<< MISMATCH" : "")
-                          << "\n";
+                          << "  ref_name=" << rp[i]->get_friendly_name() << "  cur_name=" << cp[i]->get_friendly_name()
+                          << (mismatch ? "  <<<<< MISMATCH" : "") << "\n";
             }
         }
 

@@ -161,16 +161,16 @@ ov::TensorVector infer_on_template(const std::shared_ptr<ov::Model>& model,
 
     // tmp debug: dump compiled_model input ports to detect any plugin-side reshuffle
     if (ov::tmp_debug::enabled()) {
-        ov::tmp_debug::log() << "infer_on_template: compiled_model inputs (count="
-                             << compiled_model.inputs().size() << ")\n";
+        ov::tmp_debug::log() << "infer_on_template: compiled_model inputs (count=" << compiled_model.inputs().size()
+                             << ")\n";
         const auto& src_params = model->get_parameters();
         for (size_t i = 0; i < compiled_model.inputs().size(); ++i) {
             const auto& port = compiled_model.inputs()[i];
             std::ostringstream ps, ss;
             ps << port.get_partial_shape();
-            if (i < src_params.size()) ss << src_params[i]->get_partial_shape();
-            std::cerr << "[OV_TMP_DEBUG]   i=" << i
-                      << "  compiled_port_shape=" << ps.str()
+            if (i < src_params.size())
+                ss << src_params[i]->get_partial_shape();
+            std::cerr << "[OV_TMP_DEBUG]   i=" << i << "  compiled_port_shape=" << ps.str()
                       << "  src_param_shape=" << (i < src_params.size() ? ss.str() : std::string("(n/a)"))
                       << "  compiled_port_name=" << port.get_node()->get_friendly_name()
                       << (i < src_params.size() && port.get_partial_shape() != src_params[i]->get_partial_shape()
@@ -178,16 +178,14 @@ ov::TensorVector infer_on_template(const std::shared_ptr<ov::Model>& model,
                               : "")
                       << "\n";
         }
-        ov::tmp_debug::log() << "infer_on_template: inputs map (keyed by src Param ptr) size="
-                             << inputs.size() << "\n";
+        ov::tmp_debug::log() << "infer_on_template: inputs map (keyed by src Param ptr) size=" << inputs.size() << "\n";
         size_t mi = 0;
         for (const auto& kv : inputs) {
             std::ostringstream ts;
             ts << kv.second.get_shape();
             std::cerr << "[OV_TMP_DEBUG]   map_iter=" << mi++
                       << "  src_param_ptr=" << static_cast<const void*>(kv.first.get())
-                      << "  src_param_name=" << kv.first->get_friendly_name()
-                      << "  tensor_shape=" << ts.str() << "\n";
+                      << "  src_param_name=" << kv.first->get_friendly_name() << "  tensor_shape=" << ts.str() << "\n";
         }
     }
 

@@ -8,9 +8,9 @@
 #include <memory>
 
 #include "itt.hpp"
-#include "openvino/core/tmp_debug.hpp"  // tmp debug
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/tmp_debug.hpp"  // tmp debug
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -132,10 +132,8 @@ GRUCellFusion::GRUCellFusion() {
                 }
                 std::ostringstream ss;
                 ss << it->second->get_output_partial_shape(0);
-                std::cerr << "[OV_TMP_DEBUG]   " << tag
-                          << "  ptr=" << static_cast<const void*>(it->second.get())
-                          << "  type=" << it->second->get_type_name()
-                          << "  shape=" << ss.str()
+                std::cerr << "[OV_TMP_DEBUG]   " << tag << "  ptr=" << static_cast<const void*>(it->second.get())
+                          << "  type=" << it->second->get_type_name() << "  shape=" << ss.str()
                           << "  name=" << it->second->get_friendly_name() << "\n";
             };
             dump_bind("concat_1  ", concat_1);
@@ -147,11 +145,10 @@ GRUCellFusion::GRUCellFusion() {
             dump_bind("activ_1   ", activation_1);
             dump_bind("activ_2   ", activation_2);
             std::ostringstream xs, hs;
-            xs << x_pshape; hs << h_pshape;
-            std::cerr << "[OV_TMP_DEBUG]   X.shape=" << xs.str()
-                      << "  H.shape=" << hs.str()
-                      << "  input_size=" << input_size
-                      << "  hidden_size=" << hidden_size << "\n";
+            xs << x_pshape;
+            hs << h_pshape;
+            std::cerr << "[OV_TMP_DEBUG]   X.shape=" << xs.str() << "  H.shape=" << hs.str()
+                      << "  input_size=" << input_size << "  hidden_size=" << hidden_size << "\n";
         }
 
         auto axis_0 = rg.make<v0::Constant>(element::i64, Shape{}, 0);
