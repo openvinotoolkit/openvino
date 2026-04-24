@@ -219,10 +219,10 @@ public:
     typed_primitive_inst(network& network, reshape_node const& node);
 
     void update_output_memory() override;
-    bool _runtime_deps_patched = false;
 
 private:
     void on_execute() override;
+    bool _runtime_deps_patched = false;
 };
 
 using reshape_inst = typed_primitive_inst<reshape>;
