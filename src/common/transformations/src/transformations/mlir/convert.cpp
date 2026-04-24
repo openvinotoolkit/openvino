@@ -118,11 +118,33 @@ SmallVector<mlir::Type> get_types_for_values(mlir::MLIRContext* context, const o
     return types;
 }
 
+// Erases input function args that have no uses.
+void dropUnusedInputArgs(mlir::func::FuncOp func, size_t numInputs, SmallVector<size_t>& kept) {
+    llvm::BitVector toErase(func.getNumArguments());
+    for (size_t i = 0; i < numInputs; ++i) {
+        auto arg = func.getArgument(i);
+        if (arg.use_empty()) {
+            toErase.set(i);
+            continue;
+        }
+        if (arg.hasOneUse()) {
+            auto toTensor = mlir::dyn_cast<mlir::bufferization::ToTensorOp>(*arg.user_begin());
+            if (toTensor && toTensor.getResult().use_empty()) {
+                toTensor.erase();
+                toErase.set(i);
+                continue;
+            }
+        }
+        kept.push_back(i);
+    }
+    func.eraseArguments(toErase);
+}
 
 mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
                                                  const ov::OutputVector& inputs,
                                                  const ov::NodeVector& nodes,
-                                                 const ov::OutputVector& outputs) {
+                                                 const ov::OutputVector& outputs,
+                                                 SmallVector<size_t>& keptInputIndices) {
     auto inputTypes = tensorsToMemRefs(get_types_for_values(context, inputs));
     auto outputTypes = tensorsToMemRefs(get_types_for_values(context, outputs));
 
@@ -204,19 +226,24 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
 
     const auto retLoc = createLayerLocation(context, "output", "Output");
     block_builder.create<mlir::func::ReturnOp>(retLoc, ArrayRef(SmallVector<Value>()));
-
+    dropUnusedInputArgs(func, inputs.size(), keptInputIndices);
     return module;
 }
-
 
 // This pass converts a group of nodes into a single MLIROp
 NodePtr ngraph_to_mlir_op(MLIRContext* context,
                           SubgraphPtr subgraph,
                           MlirMode mode,
                           std::shared_ptr<ov::EvaluationContext> loweringContext) {
-    mlir::OwningOpRef<mlir::ModuleOp> module = ngraph_to_mlir(context, subgraph->inputs, subgraph->nodes, subgraph->outputs);
+    SmallVector<size_t> keptInputIndices;
+    mlir::OwningOpRef<mlir::ModuleOp> module =
+        ngraph_to_mlir(context, subgraph->inputs, subgraph->nodes, subgraph->outputs, keptInputIndices);
 
-    const auto& inputs = subgraph->inputs;
+    ov::OutputVector inputs;
+    inputs.reserve(keptInputIndices.size());
+    for (size_t idx : keptInputIndices) {
+        inputs.push_back(subgraph->inputs[idx]);
+    }
     using Index = DimensionsMap::value_type::value_type;
     std::map<SymbolPtr, Index> input_map;
     for (size_t i = 0; i < inputs.size(); ++i) {
@@ -258,7 +285,7 @@ NodePtr ngraph_to_mlir_op(MLIRContext* context,
         output_map.emplace_back(dm);
     }
     return std::make_shared<MLIROp>(
-        subgraph->inputs,
+        inputs,
         MLIREvaluate::create(std::move(module), mode, loweringContext),
         output_types,
         output_map
