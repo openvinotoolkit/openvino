@@ -37,18 +37,18 @@ void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout c
         step_h = static_cast<float>(img_height) / layer_height;
     }
     const float offset = argument.offset;
-    int num_priors = argument.is_clustered() ?
-        static_cast<int>(argument.widths.size()) :
+    int64_t num_priors = argument.is_clustered() ?
+        static_cast<int64_t>(argument.widths.size()) :
         output_mem->get_layout().spatial(1) / 4 / layer_width / layer_height;
     int var_size = static_cast<int>(argument.variance.size());
 
     mem_lock<dtype> lock{output_mem, stream};
     auto out_ptr = lock.begin();
-    int dim = layer_height * layer_width * num_priors * 4;
+    int64_t dim = layer_height * layer_width * num_priors * 4;
 
-    int idx = 0;
-    for (int h = 0; h < layer_height; ++h) {
-        for (int w = 0; w < layer_width; ++w) {
+    int64_t idx = 0;
+    for (int64_t h = 0; h < layer_height; ++h) {
+        for (int64_t w = 0; w < layer_width; ++w) {
             float center_x, center_y;
             if (argument.step_width == 0.f || argument.step_height == 0.f) {
                 center_x = (w + 0.5f) * step_w;
@@ -60,7 +60,7 @@ void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout c
             float box_width, box_height;
 
             if (argument.is_clustered()) {
-                for (int s = 0; s < num_priors; ++s) {
+                for (int64_t s = 0; s < num_priors; ++s) {
                     box_width = argument.widths[s];
                     box_height = argument.heights[s];
                     idx = h * layer_width * num_priors * 4 + w * num_priors * 4 + s * 4;
@@ -83,8 +83,8 @@ void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout c
 
                 if (argument.fixed_ratio.size() > 0) {
                     for (auto fr : argument.fixed_ratio) {
-                        box_width = fixed_size * sqrt(fr);
-                        box_height = fixed_size / sqrt(fr);
+                        box_width = fixed_size * sqrtf(fr);
+                        box_height = fixed_size / sqrtf(fr);
 
                         for (size_t r = 0; r < density; ++r) {
                             for (size_t c = 0; c < density; ++c) {
@@ -228,9 +228,9 @@ std::string vector_to_string(const std::vector<float>& vec) {
 std::vector<float> normalized_aspect_ratio(const std::vector<float>& aspect_ratio, bool flip) {
     std::set<float> unique_ratios;
     for (auto ratio : aspect_ratio) {
-        unique_ratios.insert(std::round(ratio * 1e6) / 1e6);
+        unique_ratios.insert(static_cast<float>(std::round(ratio * 1e6) / 1e6));
         if (flip)
-            unique_ratios.insert(std::round(1 / ratio * 1e6) / 1e6);
+            unique_ratios.insert(static_cast<float>(std::round(1 / ratio * 1e6) / 1e6));
     }
     unique_ratios.insert(1);
     return std::vector<float>(unique_ratios.begin(), unique_ratios.end());

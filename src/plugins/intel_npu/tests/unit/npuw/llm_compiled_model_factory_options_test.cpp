@@ -40,6 +40,10 @@ protected:
         return ov::test::npuw::build_embedding_test_model();
     }
 
+    std::shared_ptr<ov::Model> build_embedding_decoder_model() const {
+        return ov::test::npuw::build_embedding_decoder_test_model();
+    }
+
     static ov::AnyMap base_props() {
         return {{"NPUW_LLM", "YES"}, {"NPUW_LLM_MAX_PROMPT_LEN", "128"}, {"NPUW_LLM_MIN_RESPONSE_LEN", "64"}};
     }
@@ -498,6 +502,19 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperPrefillPreparationAddsCrossAtt
     EXPECT_TRUE(has_input_name(prepared, "attention_mask"));
     EXPECT_FALSE(has_input_name(prepared, "cache_position"));
     EXPECT_TRUE(has_output_name(prepared, "present"));
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, TextEmbedOptionCompilesEmbeddingDecoderModel) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_embedding_decoder_model(),
+                                                      {{"NPUW_TEXT_EMBED", "YES"},
+                                                       {"NPUW_LLM_SHARED_HEAD", "NO"}},
+                                                      recorder));
+    ASSERT_NE(compiled, nullptr);
+    EXPECT_GE(recorder.calls().size(), 1u);
+    EXPECT_NE(recorder.find_suffix("_prefill"), nullptr);
 }
 
 }  // namespace
