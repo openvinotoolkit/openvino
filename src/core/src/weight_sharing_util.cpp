@@ -99,6 +99,14 @@ std::shared_ptr<ov::AlignedBuffer> Extension::get_constant_source_buffer(const o
     return desc ? desc->get_source_buffer() : nullptr;
 }
 
+void Extension::hint_evict(ov::op::v0::Constant& constant) {
+    if (constant.m_data) {
+        if (constant.m_data->get_descriptor()) {
+            constant.m_data->hint_evict();
+        }
+    }
+}
+
 std::shared_ptr<ov::AlignedBuffer> get_source_buffer(const Context& shared_context, const DataID source_id) {
     const auto& weights = shared_context.m_cache_sources;
     if (auto weight_it = weights.find(source_id); weight_it != weights.end()) {

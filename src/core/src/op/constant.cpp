@@ -18,6 +18,7 @@
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/core/type/nf4.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/reference/utils/type_util.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
@@ -347,11 +348,7 @@ Constant::Constant(const element::Type& type, const Shape& shape, const void* da
                                                                     so)) {}
 
 Constant::~Constant() {
-    if (m_data) {
-        if (m_data->get_descriptor()) {
-            m_data->hint_evict();
-        }
-    }
+    ov::wsh::Extension::hint_evict(*this);
 }
 
 struct ValueToString : ov::element::NotSupported<std::string> {
