@@ -4,7 +4,7 @@ attrs==26.1.0
 Babel==2.18.0
 beautifulsoup4==4.14.3
 breathe==4.36.0
-certifi==2026.2.25
+certifi==2026.4.22
 colorama==0.4.6
 Cython==3.2.4
 docutils==0.21.2
