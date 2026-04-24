@@ -403,6 +403,24 @@ struct LLMConfig : public BaseModelConfig {
     bool use_inputs_embeds = false;
     bool internal_position_ids = false;  ///< embedding model
     bool pre_norm = true;
+
+    /// Hybrid linear attention (Qwen3.5, LFM-2, Granite-style SSM layers).
+    /// 0 = pure attention.  N = N consecutive linear-attention layers per 1 full-attention layer.
+    /// Example: mamba_ratio=3, 24 layers -> layers 0-2 linear, 3 full, 4-6 linear, 7 full, ...
+    size_t mamba_ratio = 0;
+    size_t linear_num_key_heads = 0;      ///< 0 = num_heads
+    size_t linear_key_head_dim = 0;       ///< 0 = head_dim
+    size_t linear_num_value_heads = 0;    ///< 0 = num_heads
+    size_t linear_value_head_dim = 0;     ///< 0 = head_dim
+    size_t linear_conv_kernel_dim = 4;
+
+    size_t get_linear_num_key_heads() const { return linear_num_key_heads ? linear_num_key_heads : num_heads; }
+    size_t get_linear_key_head_dim() const { return linear_key_head_dim ? linear_key_head_dim : head_dim; }
+    size_t get_linear_num_value_heads() const { return linear_num_value_heads ? linear_num_value_heads : num_heads; }
+    size_t get_linear_value_head_dim() const { return linear_value_head_dim ? linear_value_head_dim : head_dim; }
+    size_t get_key_dim() const { return get_linear_num_key_heads() * get_linear_key_head_dim(); }
+    size_t get_value_dim() const { return get_linear_num_value_heads() * get_linear_value_head_dim(); }
+    size_t get_conv_dim() const { return 2 * get_key_dim() + get_value_dim(); }
 };
 
 struct WhisperConfig : public BaseModelConfig {
@@ -428,6 +446,92 @@ struct BertConfig : public BaseModelConfig {
     size_t max_position_embeddings = 512;
     size_t type_vocab_size = 2;
 };
+
+
+
+/// Fixed-size state variable (recurrent/conv states — no sequence growth, optional beam reorder).
+struct FixedStateResult {
+    std::shared_ptr<ov::op::util::Variable> variable;
+    ov::Output<ov::Node> read_value;
+};
+
+FixedStateResult make_fixed_state(const ov::Output<ov::Node>& batch_source,
+                                  const std::vector<int64_t>& state_dims,
+                                  const std::string& name,
+                                  ov::element::Type precision = ov::element::f32,
+                                  const ov::Output<ov::Node>& beam_idx = {});
+
+/// L2 normalization on last dimension: x / sqrt(sum(x^2) + eps).
+struct L2Norm {
+    ov::element::Type precision;
+    float eps;
+
+    L2Norm(ov::element::Type prec = ov::element::f32, float e = 1e-6f) : precision(prec), eps(e) {}
+
+    ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
+};
+
+/// Causal depthwise convolution with sliding-window state.
+/// Input/output: [batch, seq, channels].  State: [batch, channels, kernel].
+struct CausalConvResult {
+    ov::Output<ov::Node> output;       ///< [batch, seq, channels] after SiLU
+    std::shared_ptr<ov::Node> assign;  ///< state update Assign
+};
+
+CausalConvResult make_causal_conv(const ov::Output<ov::Node>& input,
+                                  const ov::Output<ov::Node>& seq_source,
+                                  const ov::Output<ov::Node>& beam_idx,
+                                  size_t channels,
+                                  size_t kernel_size,
+                                  const std::string& state_name,
+                                  const std::string& prefix,
+                                  ov::element::Type prec);
+
+/// SSM recurrent state with OV Loop op (matches real Qwen3.5 structure).
+/// Loop iterates over seq: h_new = h_prev * exp(decay) + outer(k,v); y = sum(h_new * q) * gate.
+/// Returns gated per-head output.
+struct RecurrentStateResult {
+    ov::Output<ov::Node> output;       ///< [batch, seq, num_heads, value_head_dim] (post-gate)
+    std::shared_ptr<ov::Node> assign;  ///< state update Assign
+};
+
+RecurrentStateResult make_recurrent_state(const ov::Output<ov::Node>& query,
+                                          const ov::Output<ov::Node>& key,
+                                          const ov::Output<ov::Node>& value,
+                                          const ov::Output<ov::Node>& neg_decay,
+                                          const ov::Output<ov::Node>& gate,
+                                          const ov::Output<ov::Node>& seq_source,
+                                          const ov::Output<ov::Node>& beam_idx,
+                                          size_t num_heads,
+                                          size_t key_head_dim,
+                                          size_t value_head_dim,
+                                          const std::string& state_name,
+                                          const std::string& prefix,
+                                          ov::element::Type prec);
+
+/// Complete linear attention layer (Qwen3.5 / Mamba-style SSM).
+/// Composes: projections -> CausalConv -> QKV split -> L2Norm -> RecurrentState -> output gating.
+struct LinearAttnResult {
+    ov::Output<ov::Node> output;
+    std::shared_ptr<ov::Node> conv_assign;
+    std::shared_ptr<ov::Node> recurrent_assign;
+};
+
+LinearAttnResult make_linear_attn_layer(
+    const ov::Output<ov::Node>& input,
+    const ov::Output<ov::Node>& seq_source,
+    const ov::Output<ov::Node>& beam_idx,
+    size_t hidden_size,
+    size_t num_key_heads,
+    size_t key_head_dim,
+    size_t num_value_heads,
+    size_t value_head_dim,
+    size_t conv_kernel,
+    size_t linear_layer_idx,
+    const std::string& prefix,
+    ov::element::Type prec,
+    const WeightFn& weight_fn,
+    const NormFn& norm_fn);
 
 class ModelBuilder {
 public:
@@ -466,7 +570,6 @@ public:
     std::shared_ptr<ov::Model> build_whisper_encoder(const WhisperConfig& config);
     std::shared_ptr<ov::Model> build_whisper_decoder(const WhisperConfig& config);
     std::shared_ptr<ov::Model> build_embedding_encoder(const BertConfig& config);
-
     void clear();
 
 private:
