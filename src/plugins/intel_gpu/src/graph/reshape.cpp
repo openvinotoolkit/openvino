@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <functional>
 #include <iterator>
 #include <string>
 
@@ -329,7 +330,7 @@ void reshape_inst::update_output_memory() {
     if (!can_be_optimized())
         return;
 
-    if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()) &&
+    if (_runtime_deps_patched && _outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()) &&
         output_memory().get_layout() == _impl_params->get_output_layout())
         return;
 
