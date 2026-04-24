@@ -189,6 +189,7 @@ protected:
     std::shared_ptr<image_holder> _image;
     ze::UsmMemory _host_buffer;
     ze::UsmMemory _fill_buffer;
+    std::shared_ptr<ze::ze_base_event> _last_fill_event;
     size_t _width;
     size_t _height;
     bool _needs_write_back;
