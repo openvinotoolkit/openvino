@@ -81,12 +81,15 @@ struct GatherMatmulImpl : public ImplementationManager {
             // GatherMatmulCompressed always has all 6 inputs (A, B, indices, bias_placeholder, scales, zp),
             // even when has_bias=false (bias is a scalar 0 placeholder). Scale is always present at
             // WEIGHT_SCALE. ZP is only present when desc.has_zp; otherwise it is a placeholder to skip.
+            // prepare_quantization may reorder scale/zp to byfx for SIMD-friendly physical layout;
+            // accept both here since the kernel reads physical bytes directly.
+            static const std::vector<format> supported_quant_fmts = {format::bfyx, format::byfx};
             std::vector<size_t> quant_param_indices = {gather_matmul::BGMInputIdx::WEIGHT_SCALE};
             if (desc.has_zp)
                 quant_param_indices.push_back(gather_matmul::BGMInputIdx::WEIGHT_ZP);
             for (size_t idx : quant_param_indices) {
                 const auto& layout = node.get_input_layout(idx);
-                if (!one_of(layout.format, supported_fmts) || !one_of(layout.data_type, supported_quant_param_types)) {
+                if (!one_of(layout.format, supported_quant_fmts) || !one_of(layout.data_type, supported_quant_param_types)) {
                     DO_NOT_USE_THIS_KERNEL(layer_id);
                 }
             }
