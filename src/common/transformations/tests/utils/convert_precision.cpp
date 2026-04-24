@@ -3090,6 +3090,7 @@ TEST(TransformationTests, ConvertPrecision_bf16_to_f16_preserves_inf) {
     const float f16_max = static_cast<float>(numeric_limits<ov::float16>::max());
     const vector<float> vals = {numeric_limits<float>::infinity(),
                                 -numeric_limits<float>::infinity(),
+                                numeric_limits<float>::quiet_NaN(),
                                 1.0f,
                                 2.0f * f16_max,    // finite bf16, overflows f16 -> clamp to f16::max
                                 -2.0f * f16_max};  // finite bf16, underflows f16 -> clamp to f16::lowest
@@ -3100,9 +3101,10 @@ TEST(TransformationTests, ConvertPrecision_bf16_to_f16_preserves_inf) {
     const auto* d = c->get_data_ptr<ov::float16>();
     EXPECT_TRUE(isinf(static_cast<float>(d[0])) && static_cast<float>(d[0]) > 0) << "+inf lost: " << d[0];
     EXPECT_TRUE(isinf(static_cast<float>(d[1])) && static_cast<float>(d[1]) < 0) << "-inf lost: " << d[1];
-    EXPECT_EQ(static_cast<float>(d[2]), 1.0f);
-    EXPECT_EQ(d[3], numeric_limits<ov::float16>::max()) << "finite overflow should clamp, not become inf";
-    EXPECT_EQ(d[4], numeric_limits<ov::float16>::lowest()) << "finite underflow should clamp, not become -inf";
+    EXPECT_TRUE(isnan(static_cast<float>(d[2]))) << "NaN lost: " << d[2];
+    EXPECT_EQ(static_cast<float>(d[3]), 1.0f);
+    EXPECT_EQ(d[4], numeric_limits<ov::float16>::max()) << "finite overflow should clamp, not become inf";
+    EXPECT_EQ(d[5], numeric_limits<ov::float16>::lowest()) << "finite underflow should clamp, not become -inf";
 }
 
 TEST(TransformationTests, ConvertPrecision_f16_to_f32_preserves_inf) {
@@ -3122,6 +3124,7 @@ TEST(TransformationTests, ConvertPrecision_f32_to_f16_preserves_inf) {
     const float f16_max = static_cast<float>(numeric_limits<ov::float16>::max());
     const vector<float> vals = {numeric_limits<float>::infinity(),
                                 -numeric_limits<float>::infinity(),
+                                numeric_limits<float>::quiet_NaN(),
                                 1.0f,
                                 2.0f * f16_max,    // finite f32, overflows f16 -> clamp to f16::max
                                 -2.0f * f16_max};  // finite f32, underflows f16 -> clamp to f16::lowest
@@ -3132,7 +3135,8 @@ TEST(TransformationTests, ConvertPrecision_f32_to_f16_preserves_inf) {
     const auto* d = c->get_data_ptr<ov::float16>();
     EXPECT_TRUE(isinf(static_cast<float>(d[0])) && static_cast<float>(d[0]) > 0) << "+inf lost: " << d[0];
     EXPECT_TRUE(isinf(static_cast<float>(d[1])) && static_cast<float>(d[1]) < 0) << "-inf lost: " << d[1];
-    EXPECT_EQ(static_cast<float>(d[2]), 1.0f);
-    EXPECT_EQ(d[3], numeric_limits<ov::float16>::max()) << "finite overflow should clamp, not become inf";
-    EXPECT_EQ(d[4], numeric_limits<ov::float16>::lowest()) << "finite underflow should clamp, not become -inf";
+    EXPECT_TRUE(isnan(static_cast<float>(d[2]))) << "NaN lost: " << d[2];
+    EXPECT_EQ(static_cast<float>(d[3]), 1.0f);
+    EXPECT_EQ(d[4], numeric_limits<ov::float16>::max()) << "finite overflow should clamp, not become inf";
+    EXPECT_EQ(d[5], numeric_limits<ov::float16>::lowest()) << "finite underflow should clamp, not become -inf";
 }
