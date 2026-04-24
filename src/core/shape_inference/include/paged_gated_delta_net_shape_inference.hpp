@@ -4,12 +4,15 @@
 
 #pragma once
 
+#include "openvino/op/paged_gated_delta_net.hpp"
 #include "utils.hpp"
 
 namespace ov::op::internal {
 
-template <class OpType, class T, class TRShape = result_shape_t<T>>
-std::vector<TRShape> shape_infer(const OpType* op, const std::vector<T>& input_shapes) {
+template <class T, class TRShape = result_shape_t<T>>
+std::vector<TRShape> shape_infer(const PagedGatedDeltaNet* op, const std::vector<T>& input_shapes) {
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 11);
+
     NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shapes[0].rank().compatible(3));
     NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shapes[1].rank().compatible(3));
     NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shapes[2].rank().compatible(3));
