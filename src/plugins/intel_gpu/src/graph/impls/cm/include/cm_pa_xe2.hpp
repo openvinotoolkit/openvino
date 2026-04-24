@@ -338,13 +338,13 @@ void pa_lsc_u8(
                             apply_causal_mask<1>(St);
                         } else if (causal_left < 0) {
                             St = -3.4e38f;
+                        } else if (causal_left < kv_step) {
+                            for (int p = causal_left; p < kv_step; p++) St[p] = -3.4e38f;
                         }
                         causal_left -= kv_step;
-                    } else {
-                        int kv_tokens = kv_stop - kv_pos;
-                        for (int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
                     }
-
+                    int kv_tokens = kv_stop - kv_pos;
+                    for (int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
                     auto max_comp = online_softmax_update(St, cur_max, cur_sum);
 
                     matrix<half, REG_N, REG_K> P;
@@ -529,13 +529,13 @@ void pa_lsc_u8(
                     apply_causal_mask<1>(St);
                 } else if (causal_left < 0) {
                     St = -3.4e38f;
+                } else if (causal_left < kv_step) {
+                    for (int p = causal_left; p < kv_step; p++) St[p] = -3.4e38f;
                 }
                 causal_left -= kv_step;
-            } else {
-                int kv_tokens = kv_stop - kv_pos;
-                for (int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
             }
-
+            int kv_tokens = kv_stop - kv_pos;
+            for (int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
             auto max_comp = online_softmax_update(St, cur_max, cur_sum);
 
             matrix<half, REG_N, REG_K> P;
@@ -746,14 +746,14 @@ void pa_kernel_lsc_prefetch_f16(
                 apply_causal_mask<1>(St);
             } else if (causal_left < 0) {
                 St = -3.4e38f;
+            } else if (causal_left < kv_step) {
+                for (int p = causal_left; p < kv_step; p++) St[p] = -3.4e38f;
             }
             causal_left -= kv_step;
-        } else {
-            int kv_tokens = kv_stop - kv_pos;
-            // LSC ensures no overflow-access, but mask off k-tails attn-score is still required
-            for(int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
         }
-
+        int kv_tokens = kv_stop - kv_pos;
+        // LSC ensures no overflow-access, but mask off k-tails attn-score is still required
+        for(int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
         //show(St);
         auto max_comp = online_softmax_update(St, cur_max, cur_sum);
 
@@ -894,14 +894,14 @@ void pa_kernel_lsc_prefetch_f16(
                 apply_causal_mask<1>(St);
             } else if (causal_left < 0) {
                 St = -3.4e38f;
+            } else if (causal_left < kv_step) {
+                for (int p = causal_left; p < kv_step; p++) St[p] = -3.4e38f;
             }
             causal_left -= kv_step;
-        } else {
-            int kv_tokens = kv_stop - kv_pos;
-            // LSC ensures no overflow-access, but mask off k-tails attn-score is still required
-            for(int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
         }
-
+        int kv_tokens = kv_stop - kv_pos;
+        // LSC ensures no overflow-access, but mask off k-tails attn-score is still required
+        for(int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
         //show(St);
         auto max_comp = online_softmax_update(St, cur_max, cur_sum);
 
