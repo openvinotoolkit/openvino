@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
+#include "transformations/paged_attention/convert_pagedattn_inputs.hpp"
 
 #include <gtest/gtest.h>
 
@@ -121,33 +121,39 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
             std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto adaptive_rkv_diversity_block_set_indices_begins =
             std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto token_type_ids = std::make_shared<op::v0::Parameter>(ov::element::i32, ov::Shape{0});
 
-        auto pa = std::make_shared<op::PagedAttentionExtension>(
-            OutputVector{Q,
-                         K,
-                         V,
-                         key_cache_0,
-                         value_cache_0,
-                         past_lens,
-                         subsequence_begins,
-                         block_indices,
-                         block_indices_begins,
-                         scale,
-                         sliding_window,
-                         alibi_slopes,
-                         max_context_len,
-                         score_aggregation_window,
-                         rotated_block_indices,
-                         rotation_deltas,
-                         rotation_trig_lut,
-                         xattention_threshold,
-                         xattention_block_size,
-                         xattention_stride,
-                         sinks,
-                         adaptive_rkv_start_size,
-                         adaptive_rkv_evictable_sizes,
-                         adaptive_rkv_diversity_block_set_indices,
-                         adaptive_rkv_diversity_block_set_indices_begins});
+        auto qq_bias = std::make_shared<v0::Parameter>(ov::element::u8, PartialShape{DYN});
+        auto qq_bias_begins = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto pa =
+            std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
+                                                                       K,
+                                                                       V,
+                                                                       key_cache_0,
+                                                                       value_cache_0,
+                                                                       past_lens,
+                                                                       subsequence_begins,
+                                                                       block_indices,
+                                                                       block_indices_begins,
+                                                                       scale,
+                                                                       sliding_window,
+                                                                       alibi_slopes,
+                                                                       max_context_len,
+                                                                       score_aggregation_window,
+                                                                       rotated_block_indices,
+                                                                       rotation_deltas,
+                                                                       rotation_trig_lut,
+                                                                       xattention_threshold,
+                                                                       xattention_block_size,
+                                                                       xattention_stride,
+                                                                       sinks,
+                                                                       adaptive_rkv_start_size,
+                                                                       adaptive_rkv_evictable_sizes,
+                                                                       adaptive_rkv_diversity_block_set_indices,
+                                                                       adaptive_rkv_diversity_block_set_indices_begins,
+                                                                       token_type_ids,
+                                                                       qq_bias,
+                                                                       qq_bias_begins});
         pa->get_rt_info()["num_k_heads"] = numKeyHeads;
         pa->get_rt_info()["k_head_size"] = keyHeadSize;
         pa->get_rt_info()["num_v_heads"] = numValueHeads;
@@ -174,7 +180,10 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                                                                 adaptive_rkv_start_size,
                                                                 adaptive_rkv_evictable_sizes,
                                                                 adaptive_rkv_diversity_block_set_indices,
-                                                                adaptive_rkv_diversity_block_set_indices_begins});
+                                                                adaptive_rkv_diversity_block_set_indices_begins,
+                                                                token_type_ids,
+                                                                qq_bias,
+                                                                qq_bias_begins});
 
         if (isIRKVCacheF16) {
             model->set_rt_info("f16", "runtime_options", ov::hint::kv_cache_precision.name());
@@ -254,33 +263,39 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
             std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto adaptive_rkv_diversity_block_set_indices_begins =
             std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto token_type_ids = std::make_shared<v0::Parameter>(ov::element::i32, ov::Shape{0});
 
-        auto pa = std::make_shared<op::PagedAttentionExtension>(
-            OutputVector{Q,
-                         K,
-                         V,
-                         key_cache_0,
-                         value_cache_0,
-                         past_lens,
-                         subsequence_begins,
-                         block_indices,
-                         block_indices_begins,
-                         scale,
-                         sliding_window,
-                         alibi_slopes,
-                         max_context_len,
-                         score_aggregation_window,
-                         rotated_block_indices,
-                         rotation_deltas,
-                         rotation_trig_lut,
-                         xattention_threshold,
-                         xattention_block_size,
-                         xattention_stride,
-                         sinks,
-                         adaptive_rkv_start_size,
-                         adaptive_rkv_evictable_sizes,
-                         adaptive_rkv_diversity_block_set_indices,
-                         adaptive_rkv_diversity_block_set_indices_begins});
+        auto qq_bias = std::make_shared<v0::Parameter>(ov::element::u8, PartialShape{DYN});
+        auto qq_bias_begins = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto pa =
+            std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
+                                                                       K,
+                                                                       V,
+                                                                       key_cache_0,
+                                                                       value_cache_0,
+                                                                       past_lens,
+                                                                       subsequence_begins,
+                                                                       block_indices,
+                                                                       block_indices_begins,
+                                                                       scale,
+                                                                       sliding_window,
+                                                                       alibi_slopes,
+                                                                       max_context_len,
+                                                                       score_aggregation_window,
+                                                                       rotated_block_indices,
+                                                                       rotation_deltas,
+                                                                       rotation_trig_lut,
+                                                                       xattention_threshold,
+                                                                       xattention_block_size,
+                                                                       xattention_stride,
+                                                                       sinks,
+                                                                       adaptive_rkv_start_size,
+                                                                       adaptive_rkv_evictable_sizes,
+                                                                       adaptive_rkv_diversity_block_set_indices,
+                                                                       adaptive_rkv_diversity_block_set_indices_begins,
+                                                                       token_type_ids,
+                                                                       qq_bias,
+                                                                       qq_bias_begins});
         pa->get_rt_info()["num_k_heads"] = numKeyHeads;
         pa->get_rt_info()["k_head_size"] = keyHeadSize;
         pa->get_rt_info()["num_v_heads"] = numValueHeads;
@@ -307,7 +322,10 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                                                                     adaptive_rkv_start_size,
                                                                     adaptive_rkv_evictable_sizes,
                                                                     adaptive_rkv_diversity_block_set_indices,
-                                                                    adaptive_rkv_diversity_block_set_indices_begins});
+                                                                    adaptive_rkv_diversity_block_set_indices_begins,
+                                                                    token_type_ids,
+                                                                    qq_bias,
+                                                                    qq_bias_begins});
     }
     ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
     cacheConfig.keyCacheBlockSize = blockSize[0];
@@ -351,6 +369,7 @@ std::vector<std::vector<ov::element::Type>> get_cache_prec() {
         {ov::element::f16, ov::element::f16},
         {ov::element::u8, ov::element::u8},
         {ov::element::u8, ov::element::u4},
+        {ov::element::u4, ov::element::u4},
     };
 }
 

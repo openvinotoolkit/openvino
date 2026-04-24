@@ -2,7 +2,7 @@
 
 ## Key Contacts
 
-For assistance regarding CPU, contact a member of [openvino-ie-cpu-maintainers](https://github.com/orgs/openvinotoolkit/teams/openvino-ie-cpu-maintainers) group.
+For assistance regarding CPU, contact a member of openvino-ie-cpu-maintainers group.
 
 ## Components
 
@@ -17,7 +17,7 @@ CPU Plugin contains the following components:
 ## Tutorials
 
 * [Debug capabilities](./docs/debug_capabilities/README.md)
-* [Performance analysis using ITT counters](./docs/performance_analysis_ITT_counters.md)
+* [Performance analysis using ITT counters](./src/docs/performance_analysis_ITT_counters.md)
 * [Intel Software Development Emulator (CPU emulation)](./docs/cpu_emulation.md)
 * [Runtime parameters cache](./docs/runtime_parameters_cache.md)
 * [Internal CPU Plugin Optimizations](./docs/internal_cpu_plugin_optimization.md)

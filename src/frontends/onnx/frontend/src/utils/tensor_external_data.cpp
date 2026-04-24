@@ -39,21 +39,24 @@ TensorExternalData::TensorExternalData(const std::string& location, size_t offse
     m_data_length = size;
 }
 
-Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::string& model_dir,
+Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::filesystem::path& model_dir,
                                                                      MappedMemoryHandles cache) const {
-    const auto full_path = model_dir.empty() ? ov::util::make_path(m_data_location)
-                                             : ov::util::make_path(ov::util::path_join({model_dir, m_data_location}));
+    const auto full_path =
+        model_dir.empty()
+            ? ov::util::make_path(m_data_location)
+            : ov::util::get_absolute_file_path(ov::util::path_join({model_dir, ov::util::make_path(m_data_location)}));
     const int64_t file_size = ov::util::file_size(full_path);
-    if (file_size <= 0 || m_offset + m_data_length > static_cast<uint64_t>(file_size)) {
+    if (file_size <= 0 || m_data_length > static_cast<uint64_t>(file_size) ||
+        m_offset > static_cast<uint64_t>(file_size) - m_data_length) {
         throw error::invalid_external_data{*this};
     }
-    auto cached_mapped_memory = cache->find(ov::util::path_to_string(full_path));
+    auto cached_mapped_memory = cache->find(full_path);
     std::shared_ptr<ov::MappedMemory> mapped_memory;
     if (cached_mapped_memory != cache->end()) {
         mapped_memory = cached_mapped_memory->second;
     } else {
         mapped_memory = ov::load_mmap_object(full_path);
-        (*cache)[ov::util::path_to_string(full_path)] = mapped_memory;
+        (*cache)[full_path] = mapped_memory;
     }
     if (m_data_length > mapped_memory->size() || mapped_memory->size() == 0) {
         throw error::invalid_external_data{*this};
@@ -64,17 +67,18 @@ Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::
         mapped_memory);
 }
 
-Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::string& model_dir) const {
-    const auto full_path = model_dir.empty() ? ov::util::make_path(m_data_location)
-                                             : std::filesystem::absolute(std::filesystem::weakly_canonical(
-                                                   ov::util::path_join({model_dir, m_data_location})));
+Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::filesystem::path& model_dir) const {
+    const auto full_path =
+        model_dir.empty()
+            ? ov::util::make_path(m_data_location)
+            : ov::util::get_absolute_file_path(ov::util::path_join({model_dir, ov::util::make_path(m_data_location)}));
     std::ifstream external_data_stream(full_path, std::ios::binary | std::ios::in | std::ios::ate);
 
     if (external_data_stream.fail()) {
         throw error::invalid_external_data{*this};
     }
     const uint64_t file_size = static_cast<uint64_t>(external_data_stream.tellg());
-    if (m_offset + m_data_length > file_size) {
+    if (m_data_length > file_size || m_offset > file_size - m_data_length) {
         throw error::invalid_external_data{*this};
     }
 

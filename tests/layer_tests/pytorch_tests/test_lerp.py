@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
 import pytest
 import torch
 from packaging import version
@@ -11,7 +10,7 @@ from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 class TestLerp(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.random.randn(2, 5, 3, 4).astype(np.float32), self.input_rhs)
+        return (self.random.randn(2, 5, 3, 4), self.input_rhs)
 
     def create_model(self, weight, op_type):
         class aten_lerp(torch.nn.Module):
@@ -26,7 +25,7 @@ class TestLerp(PytorchLayerTest):
             def forward2(self, lhs, rhs):
                 return lhs.lerp_(rhs, weight=self.weight)
 
-        return aten_lerp(weight, op_type), None, f"aten::{op_type}"
+        return aten_lerp(weight, op_type), f"aten::{op_type}"
 
     @pytest.mark.parametrize("weight", (-0.5,
                                         0,
@@ -48,13 +47,15 @@ class TestLerp(PytorchLayerTest):
         if (op_type == "lerp_" and PytorchLayerTest.use_torch_export() and
                 version.parse(torch.__version__) < version.parse("2.5")):
             pytest.skip("Not supported in PyTorch versions earlier than 2.5.")
-        self.input_rhs = np.random.randn(*input_shape_rhs).astype(np.float32)
+        self.input_rhs = self.random.randn(*input_shape_rhs)
         if isinstance(weight, list):
-            weight = torch.rand(weight)
+            weight = self.random.torch_rand(*weight)
+        fx_op = "aten.lerp_" if op_type == "lerp_" else "aten.lerp"
         self._test(
             *self.create_model(weight, op_type),
             ie_device,
             precision,
             ir_version,
             use_convert_model=True,
+            fx_kind=fx_op,
         )

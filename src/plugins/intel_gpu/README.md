@@ -4,7 +4,7 @@ GPU plugin in [OpenVINO toolkit](https://github.com/openvinotoolkit/openvino) su
 
 ## Key Contacts
 
-For assistance regarding GPU, contact a member of [openvino-ie-gpu-maintainers](https://github.com/orgs/openvinotoolkit/teams/openvino-ie-gpu-maintainers) group.
+For assistance regarding GPU, contact a member of openvino-ie-gpu-maintainers group.
 
 ## Components
 
@@ -31,7 +31,7 @@ GPU Plugin contains the following components:
 * [Run benchmark from device_mem](./docs/use_device_mem.md)
 
 ## Documentation on dynamic-shape
-This contents explain the internal implementation of dynamic shape support in the GPU Plugin. For general usage of dynamic shape and limitations of the GPU plugin, please refer to this link: [GPU Device — OpenVINO™ documentation - Version(2025)](https://docs.openvino.ai/2025/openvino-workflow/running-inference/inference-devices-and-modes/gpu-device.html#dynamic-shapes).
+This contents explain the internal implementation of dynamic shape support in the GPU Plugin. For general usage of dynamic shape and limitations of the GPU plugin, please refer to this link: [GPU Device — OpenVINO™ documentation - Version(2026)](https://docs.openvino.ai/2026/openvino-workflow/running-inference/inference-devices-and-modes/gpu-device.html#dynamic-shapes).
 
 * [Overall flow for dynamic shape execution](./docs/dynamic_shape/overall_flow.md)
 * Implementation details
@@ -53,6 +53,10 @@ This contents explain the internal implementation of dynamic shape support in th
 * Model caching for dynamic shape (TBD)
 -->
 
+## Additional Documentation
+* [How to build with DPC++ support](./docs/gpu_plugin_with_sycl.md)
+* [GPU plugin Level Zero support](./docs/gpu_plugin_with_level_zero.md)
+
 ## Troubleshooting / Debugging
 * [Debug utils](./docs/gpu_debug_utils.md)
 * [Debugging guide](./docs/debugging_guide.md)
@@ -61,7 +65,7 @@ This contents explain the internal implementation of dynamic shape support in th
 ## Attached licenses
 
 GPU plugin uses 3<sup>rd</sup>-party components licensed under following licenses:
-- *googletest* under [Google License](https://github.com/google/googletest/blob/master/googletest/LICENSE)
+- *googletest* under [Google License](https://github.com/google/googletest/blob/master/LICENSE)
 - *OpenCL™ ICD and C++ Wrapper under [Khronos™ License](https://github.com/KhronosGroup/OpenCL-CLHPP/blob/master/LICENSE.txt)
 - *RapidJSON* under [Tencent License](https://github.com/Tencent/rapidjson/blob/master/license.txt)
 

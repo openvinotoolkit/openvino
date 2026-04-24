@@ -19,6 +19,7 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -34,14 +35,18 @@
 #include "openvino/op/result.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/pass/visualize_tree.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
+#include "openvino/util/common_util.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 #include "utils/platform.h"
 
 namespace ov::intel_cpu {
 
 void serializeToCout(const Graph& graph);
 void serializeToXML(const Graph& graph, const std::filesystem::path& path);
+void serializeToDot(const Graph& graph, const std::filesystem::path& path);
 
 namespace {
 
@@ -63,25 +68,19 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr& node) {
 
     std::string outputPrecisionsStr;
     if (!node->getChildEdges().empty()) {
-        outputPrecisionsStr = node->getChildEdgeAt(0)->getMemory().getDesc().getPrecision().get_type_name();
-
-        bool isAllEqual = true;
-        for (size_t i = 1; i < node->getChildEdges().size(); i++) {
-            if (node->getChildEdgeAt(i - 1)->getMemory().getDesc().getPrecision() !=
-                node->getChildEdgeAt(i)->getMemory().getDesc().getPrecision()) {
-                isAllEqual = false;
-                break;
-            }
+        std::vector<std::string> outputPrecisions;
+        outputPrecisions.reserve(node->getChildEdges().size());
+        for (size_t i = 0; i < node->getChildEdges().size(); ++i) {
+            outputPrecisions.emplace_back(
+                node->getChildEdgeAt(i)->getMemory().getDesc().getPrecision().get_type_name());
         }
-
+        const bool isAllEqual = std::adjacent_find(outputPrecisions.begin(),
+                                                   outputPrecisions.end(),
+                                                   [](const std::string& lhs, const std::string& rhs) {
+                                                       return lhs != rhs;
+                                                   }) == outputPrecisions.end();
         // If all output precisions are the same, we store the name only once
-        if (!isAllEqual) {
-            for (size_t i = 1; i < node->getChildEdges().size(); i++) {
-                outputPrecisionsStr +=
-                    "," + static_cast<std::string>(
-                              node->getChildEdgeAt(i)->getMemory().getDesc().getPrecision().get_type_name());
-            }
-        }
+        outputPrecisionsStr = isAllEqual ? outputPrecisions.front() : ov::util::join(outputPrecisions, ",");
     } else {
         // Branch to correctly handle output nodes
         if (!node->getParentEdges().empty()) {
@@ -94,22 +93,18 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr& node) {
     auto outDescs = node->getSelectedPrimitiveDescriptor()->getConfig().outConfs;
 
     if (!outDescs.empty()) {
-        outputLayoutsStr = outDescs[0].getMemDesc()->serializeFormat();
-
-        bool isAllEqual = true;
-        for (size_t i = 1; i < outDescs.size(); i++) {
-            if (outDescs[i - 1].getMemDesc()->serializeFormat() != outDescs[i].getMemDesc()->serializeFormat()) {
-                isAllEqual = false;
-                break;
-            }
-        }
-
+        std::vector<std::string> outputLayouts;
+        outputLayouts.reserve(outDescs.size());
+        std::transform(outDescs.begin(), outDescs.end(), std::back_inserter(outputLayouts), [](const auto& outDesc) {
+            return outDesc.getMemDesc()->serializeFormat();
+        });
+        const bool isAllEqual = std::adjacent_find(outputLayouts.begin(),
+                                                   outputLayouts.end(),
+                                                   [](const std::string& lhs, const std::string& rhs) {
+                                                       return lhs != rhs;
+                                                   }) == outputLayouts.end();
         // If all output layouts are the same, we store the name only once
-        if (!isAllEqual) {
-            for (size_t i = 1; i < outDescs.size(); i++) {
-                outputLayoutsStr += "," + outDescs[i].getMemDesc()->serializeFormat();
-            }
-        }
+        outputLayoutsStr = isAllEqual ? outputLayouts.front() : ov::util::join(outputLayouts, ",");
     } else {
         outputLayoutsStr = dnnl::utils::fmt2str(dnnl::memory::format_tag::undef);
     }
@@ -237,6 +232,10 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
 
 #ifdef CPU_DEBUG_CAPS
 void serialize(const Graph& graph) {
+    if (!graph.getGraphContext()) {
+        return;
+    }
+
     const std::string& pathStr = graph.getConfig().debugCaps.execGraphPath;
 
     if (pathStr.empty()) {
@@ -245,14 +244,49 @@ void serialize(const Graph& graph) {
 
     if (pathStr == "cout") {
         serializeToCout(graph);
-    } else if (std::filesystem::path p{pathStr}; p.extension() == ".xml") {
-        static int g_idx = 0;
-        const auto xmlPath =
-            p.parent_path() / (p.stem().string() + "_" + std::to_string(g_idx++) + p.extension().string());
-        serializeToXML(graph, xmlPath);
-    } else {
-        OPENVINO_THROW("Unknown serialize format. Should be either 'cout' or '*.xml'. Got ", pathStr);
+        return;
     }
+
+    std::filesystem::path p{pathStr};
+    const auto ext = p.extension();
+
+    if (none_of(ext, ".xml", ".dot")) {
+        OPENVINO_THROW("Unknown serialize format. Should be either 'cout', '*.xml' or '*.dot'. Got ", pathStr);
+    }
+
+    // Exec graph serialization happens twice per graph instance:
+    //   1. At compile time (Graph::Activate): the graph structure is written with
+    //      "not_executed" perf counters. This ensures a file is always present even
+    //      if a crash occurs during inference.
+    //   2. At destruction (Graph::~Graph): the same file is overwritten with real
+    //      perf counters collected during inference.
+    //
+    // All streams of the same model share a single file. A monotonically increasing
+    // index is assigned once per unique model name so that the order of compilation
+    // is visible in the filename and multiple models don't overwrite each other.
+    // Example with OV_CPU_EXEC_GRAPH_PATH=exec.xml:
+    //   modelA (any stream) -> exec_0_A.xml
+    //   modelB (any stream) -> exec_1_B.xml
+    static std::unordered_map<std::string, size_t> numPerModel;
+    const auto idx = numPerModel.emplace(graph.GetName(), numPerModel.size()).first->second;
+    const auto fileName = p.stem().string() + "_" + std::to_string(idx) + "_" + graph.GetName() + ext.string();
+    const auto filePath = p.parent_path() / fileName;
+
+    if (ext == ".xml") {
+        serializeToXML(graph, filePath);
+    } else {
+        serializeToDot(graph, filePath);
+    }
+}
+
+void serializeToDot(const Graph& graph, const std::filesystem::path& path) {
+    if (path.empty()) {
+        return;
+    }
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::VisualizeTree>(path.string(), nullptr, true);
+    manager.run_passes(graph.dump());
 }
 
 void serializeToXML(const Graph& graph, const std::filesystem::path& path) {

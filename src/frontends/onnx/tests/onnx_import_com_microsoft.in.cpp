@@ -2874,6 +2874,86 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_1_input_1_rotary_interleaved)
     test_case.run_with_tolerance_as_fp();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_minimum_inputs_passes) {
+    const auto model = convert_model("com.microsoft/gqa_non_rotary_7_inputs.onnx");
+
+    std::vector<float> query = {
+        -1.1258f, -1.1524f, -0.2506f, -0.4339f, 0.8487f,  0.6920f,  -0.3160f, -2.1152f, 0.3223f, -1.2633f, 0.3500f,
+        0.3081f,  0.1198f,  1.2377f,  1.1168f,  -0.2473f, -1.3527f, -1.6959f, 0.5667f,  0.7935f, 0.5988f,  -1.5551f,
+        -0.3414f, 1.8530f,  0.7502f,  -0.5855f, -0.1734f, 0.1835f,  1.3894f,  1.5863f,  0.9463f, -0.8437f, 1.6459f,
+        -1.3602f, 0.3446f,  0.5199f,  -2.6133f, -1.6965f, -0.2282f, 0.2800f,  0.2469f,  0.0769f, 0.3380f,  0.4544f,
+        0.4569f,  -0.8654f, 0.7813f,  -0.9268f, -0.2188f, -2.4351f, -0.0729f, -0.0340f, 0.9625f, 0.3492f,  -0.9215f,
+        -0.0562f, -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f,  1.1648f,  0.9234f,  1.3873f,
+    };
+    std::vector<float> past_key = {};
+    std::vector<float> past_value = {};
+    std::vector<int> seqlens_k = {0};
+    std::vector<int> total_sequence_length = {1};
+
+    std::vector<float> expected_output = {-0.2188f, -2.4351f, -0.0729f, -0.034f,  0.9625f, 0.3492f, -0.9215f, -0.0562f,
+                                          -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f, 1.1648f, 0.9234f,  1.3873f,
+                                          -0.2188f, -2.4351f, -0.0729f, -0.034f,  0.9625f, 0.3492f, -0.9215f, -0.0562f,
+                                          -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f, 1.1648f, 0.9234f,  1.3873f};
+
+    std::vector<float> expected_present_key = {1.64590001f,
+                                               -1.36020004f,
+                                               0.34459999f,
+                                               0.51990002f,
+                                               -2.61330008f,
+                                               -1.69649994f,
+                                               -0.22820000f,
+                                               0.28000000f,
+                                               0.24690000f,
+                                               0.07689999f,
+                                               0.33799999f,
+                                               0.45440000f,
+                                               0.45690000f,
+                                               -0.86540001f,
+                                               0.78130000f,
+                                               -0.92680001f};
+
+    std::vector<float> expected_present_value = {-0.2188f,
+                                                 -2.4351f,
+                                                 -0.0729f,
+                                                 -0.034f,
+                                                 0.9625f,
+                                                 0.3492f,
+                                                 -0.9215f,
+                                                 -0.0562f,
+                                                 -0.6227f,
+                                                 -0.4637f,
+                                                 1.9218f,
+                                                 -0.4025f,
+                                                 0.1239f,
+                                                 1.1648f,
+                                                 0.9234f,
+                                                 1.3873f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 64}, query);
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 16}, expected_present_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 16}, expected_present_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_insufficient_inputs_throws) {
+    try {
+        convert_model("com.microsoft/gqa_oob.onnx");
+        FAIL() << "ONNX Importer did not detect insufficient inputs for GroupQueryAttention";
+    } catch (const ::ov::frontend::OpConversionFailure& e) {
+        EXPECT_THAT(e.what(), testing::AllOf(testing::HasSubstr("expected"), testing::HasSubstr(" 7 to 14 inputs")));
+    } catch (const std::exception& e) {
+        EXPECT_THAT(e.what(), testing::AllOf(testing::HasSubstr("expected"), testing::HasSubstr(" 7 to 14 inputs")));
+    } catch (...) {
+        FAIL() << "Unexpected exception type thrown";
+    }
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_reducemean_i8) {
     const auto model = convert_model("com.microsoft/qlinear_reducemean_i8.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
@@ -3098,5 +3178,96 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_default_
     test_case.add_expected_output<float>(Shape{2, 3},
                                          {-0.7465922f, -0.6668722f, 1.4134643f, -1.3764048f, 0.96950716f, 0.40689772f});
 
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_group_norm) {
+    const auto model = convert_model("com.microsoft/group_norm.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    Shape shape{2, 8, 2, 2};
+    const auto size = shape_size(shape);
+    std::vector<float> data(size);
+    std::iota(data.begin(), data.end(), 0.f);
+    std::vector<float> scale(shape[1]), bias(shape[1]);
+    std::iota(scale.begin(), scale.end(), 1.f);
+    std::iota(bias.begin(), bias.end(), 1.f);
+    std::vector<float> output = {
+        -0.52752507f, -0.09108937f, 0.3453464f, 0.78178215f, 2.4364357f, 3.309307f,  4.1821785f, 5.05505f,
+        -1.5825753f,  -0.27326822f, 1.0360391f, 2.3453465f,  4.8728714f, 6.618614f,  8.364357f,  10.1101f,
+        -2.6376252f,  -0.45544672f, 1.726732f,  3.9089108f,  7.309307f,  9.927921f,  12.546536f, 15.165151f,
+        -3.6926756f,  -0.6376257f,  2.4174247f, 5.472475f,   9.745743f,  13.237228f, 16.728714f, 20.2202f,
+        -0.52752507f, -0.09108937f, 0.3453464f, 0.78178215f, 2.4364357f, 3.309307f,  4.1821785f, 5.05505f,
+        -1.5825753f,  -0.27326822f, 1.0360391f, 2.3453465f,  4.8728714f, 6.618614f,  8.364357f,  10.1101f,
+        -2.6376252f,  -0.45544672f, 1.726732f,  3.9089108f,  7.309307f,  9.927921f,  12.546536f, 15.165151f,
+        -3.6926756f,  -0.6376257f,  2.4174247f, 5.472475f,   9.745743f,  13.237228f, 16.728714f, 20.2202f,
+    };
+
+    test_case.add_input<float>(data);
+    test_case.add_input<float>(scale);
+    test_case.add_input<float>(bias);
+    test_case.add_expected_output<float>(shape, output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_group_norm_silu) {
+    const auto model = convert_model("com.microsoft/group_norm_silu.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    Shape shape{2, 8, 2, 2};
+    const auto size = shape_size(shape);
+    std::vector<float> data(size);
+    std::iota(data.begin(), data.end(), 0.f);
+    std::vector<float> scale(shape[1]), bias(shape[1]);
+    std::iota(scale.begin(), scale.end(), 1.f);
+    std::iota(bias.begin(), bias.end(), 1.f);
+    std::vector<float> output = {
+        -0.19576156f, -0.0434718f,  0.20219637f, 0.53635263f, 2.2404583f, 3.1926432f, 4.1192966f, 5.0230174f,
+        -0.26972f,    -0.11808054f, 0.764685f,   2.1402779f,  4.8358707f, 6.6097884f, 8.362408f,  10.109689f,
+        -0.17607686f, -0.17674364f, 1.465985f,   3.8320312f,  7.3044186f, 9.927437f,  12.546492f, 15.165147f,
+        -0.0897323f,  -0.2204804f,  2.21955f,    5.4495826f,  9.7451725f, 13.237205f, 16.728714f, 20.2202f,
+        -0.19576156f, -0.0434718f,  0.20219637f, 0.53635263f, 2.2404583f, 3.1926432f, 4.1192966f, 5.0230174f,
+        -0.26972f,    -0.11808054f, 0.764685f,   2.1402779f,  4.8358707f, 6.6097884f, 8.362408f,  10.109689f,
+        -0.17607686f, -0.17674364f, 1.465985f,   3.8320312f,  7.3044186f, 9.927437f,  12.546492f, 15.165147f,
+        -0.0897323f,  -0.2204804f,  2.21955f,    5.4495826f,  9.7451725f, 13.237205f, 16.728714f, 20.2202f,
+    };
+
+    test_case.add_input<float>(data);
+    test_case.add_input<float>(scale);
+    test_case.add_input<float>(bias);
+    test_case.add_expected_output<float>(shape, output);
+    test_case.run_with_tolerance_as_fp();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_group_norm_channels_last) {
+    const auto model = convert_model("com.microsoft/group_norm_channels_last.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    Shape shape{2, 2, 2, 8};
+    const auto size = shape_size(shape);
+    std::vector<float> data(size);
+    float value = 0.f;
+    for (size_t b = 0; b < shape[0]; b++)
+        for (size_t f = 0; f < shape[3]; f++)
+            for (size_t y = 0; y < shape[1]; y++)
+                for (size_t x = 0; x < shape[2]; x++) {
+                    data[b * shape[1] * shape[2] * shape[3] + y * shape[2] * shape[3] + x * shape[3] + f] = value;
+                    value += 1.f;
+                }
+    std::vector<float> scale(shape[3]), bias(shape[3]);
+    std::iota(scale.begin(), scale.end(), 1.f);
+    std::iota(bias.begin(), bias.end(), 1.f);
+    std::vector<float> output = {
+        -0.52752507f, 2.4364357f, -1.5825753f,  4.8728714f, -2.6376252f,  7.309307f,  -3.6926756f, 9.745743f,
+        -0.09108937f, 3.309307f,  -0.27326822f, 6.618614f,  -0.45544672f, 9.927921f,  -0.6376257f, 13.237228f,
+        0.3453464f,   4.1821785f, 1.0360391f,   8.364357f,  1.726732f,    12.546536f, 2.4174247f,  16.728714f,
+        0.78178215f,  5.05505f,   2.3453465f,   10.1101f,   3.9089108f,   15.165151f, 5.472475f,   20.2202f,
+        -0.52752507f, 2.4364357f, -1.5825753f,  4.8728714f, -2.6376252f,  7.309307f,  -3.6926756f, 9.745743f,
+        -0.09108937f, 3.309307f,  -0.27326822f, 6.618614f,  -0.45544672f, 9.927921f,  -0.6376257f, 13.237228f,
+        0.3453464f,   4.1821785f, 1.0360391f,   8.364357f,  1.726732f,    12.546536f, 2.4174247f,  16.728714f,
+        0.78178215f,  5.05505f,   2.3453465f,   10.1101f,   3.9089108f,   15.165151f, 5.472475f,   20.2202f,
+    };
+
+    test_case.add_input<float>(data);
+    test_case.add_input<float>(scale);
+    test_case.add_input<float>(bias);
+    test_case.add_expected_output<float>(shape, output);
     test_case.run();
 }

@@ -134,12 +134,67 @@ public:
     void deallocate(void* handle, const size_t bytes, size_t alignment = 4096) noexcept {
         ::operator delete(static_cast<uint8_t*>(handle) - _offset, std::align_val_t(alignment));
     }
-    bool is_equal(const DefaultAllocatorNotAligned& other) const {
+    bool is_equal(const DefaultAllocatorNotAligned&) const {
         return false;
     }
 
 private:
     size_t _offset = 16;
+};
+
+class DefaultAllocatorAligned final {
+public:
+    void* allocate(const size_t bytes, const size_t) {
+        return ::operator new(bytes, std::align_val_t(4096));
+    }
+    void deallocate(void* handle, const size_t, size_t) noexcept {
+        ::operator delete(static_cast<uint8_t*>(handle), std::align_val_t(4096));
+    }
+    bool is_equal(const DefaultAllocatorAligned&) const {
+        return false;
+    }
+};
+
+std::tuple</* importMemoryBatched */ ov::Tensor,
+           /* importMemoryTensor_1 */ ov::Tensor,
+           /* importMemoryTensor_2 */ ov::Tensor,
+           /* unalignedBatchedTensor */ ov::Tensor,
+           /* unalignedTensor_1 */ ov::Tensor,
+           /* unalignedTensor_2 */ ov::Tensor>
+allocate_tensors(const std::shared_ptr<ov::Model>& model, const ov::element::Type& element_type);
+
+template <typename T, typename U>
+void set_tensor_and_infer(const std::shared_ptr<T>& infer_request,
+                          const bool should_infer,
+                          const bool withResetInferRequest,
+                          const ov::Output<const ov::Node>& port,
+                          const U& tensor,
+                          const std::function<void(void)>& reset_cb) {
+    infer_request->set_tensor(port, tensor);
+    if (should_infer) {
+        infer_request->infer();
+    }
+
+    if (withResetInferRequest) {
+        reset_cb();
+    }
+};
+
+template <typename T, typename U>
+void set_tensors_and_infer(const std::shared_ptr<T>& infer_request,
+                           const bool should_infer,
+                           const bool withResetInferRequest,
+                           const ov::Output<const ov::Node>& port,
+                           const std::vector<U>& tensors,
+                           const std::function<void(void)>& reset_cb) {
+    infer_request->set_tensors(port, tensors);
+    if (should_infer) {
+        infer_request->infer();
+    }
+
+    if (withResetInferRequest) {
+        reset_cb();
+    }
 };
 
 }  // namespace utils

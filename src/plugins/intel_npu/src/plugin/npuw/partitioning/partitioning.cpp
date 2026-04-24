@@ -1411,6 +1411,12 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
         }
         return false;
     };
+    // Helper to check if a constant is MoE Gather indices (marked by GatherTo2DGather pass)
+    auto is_moe_gather_const = [](const CTPtr& const_node) -> bool {
+        const auto& rt_info = const_node->get_rt_info();
+        return rt_info.count("npuw_moe_gather_indices") > 0;
+    };
+
     auto check_and_mark = [&](const ov::npuw::RepeatedBlock::MatchedLayers& bank) {
         std::unordered_set<CTPtr> instances;
         for (auto&& l : bank) {
@@ -1422,19 +1428,30 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
         LOG_DEBUG("Checking a bank with prototype node " << proto_node << "...");
         LOG_BLOCK();
 
-        if (ov::npuw::partitioning::traits::is_tiny_shape(proto_shape) &&
-            std::all_of(instances.begin(), instances.end(), [&](const CTPtr& other_node) -> bool {
-                return (other_node->output(0).get_shape() == proto_node->output(0).get_shape()) &&
-                       values_are_the_same(proto_node, other_node);
-            })) {
-            // Check passed for this group.
-            LOG_DEBUG("[KEEP] It is safe to keep this bank in function");
-            for (auto&& const_node : instances) {
-                func_group.consts_to_keep.insert(const_node);
-            }
-        } else {
-            LOG_DEBUG("[CUT ] This group of Const ops will be cut-off from the function: "
+        bool is_tiny = ov::npuw::partitioning::traits::is_tiny_shape(proto_shape);
+        bool is_moe_gather = is_moe_gather_const(proto_node);
+        if (!is_tiny && !is_moe_gather) {
+            LOG_DEBUG("[CUT ] Not tiny shape and not MoE Gather indices - will be cut-off from the function");
+            return;
+        }
+
+        bool all_identical = std::all_of(instances.begin(), instances.end(), [&](const CTPtr& other_node) -> bool {
+            return (other_node->output(0).get_shape() == proto_node->output(0).get_shape()) &&
+                   values_are_the_same(proto_node, other_node);
+        });
+        if (!all_identical) {
+            LOG_DEBUG("[CUT ] Values differ across instances - will be cut-off from the function: "
                       << proto_node->get_friendly_name());
+            return;
+        }
+
+        if (is_moe_gather) {
+            LOG_DEBUG("[KEEP] MoE Gather indices constant - identical across all repeats");
+        } else {
+            LOG_DEBUG("[KEEP] Tiny shape constant - safe to keep in function");
+        }
+        for (auto&& const_node : instances) {
+            func_group.consts_to_keep.insert(const_node);
         }
     };
     for (auto&& bank : rep_block.consts) {
@@ -1477,9 +1494,12 @@ void Partitioner::saveTailDictConstants(const std::string& func_name) {
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     std::vector<CPtr> to_keep;
 
+    ov::npuw::patterns::opt::Context ctx;
+    ctx.mm_gate = cfg.get<::intel_npu::NPUW_MM_GATED>();
+
     ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(std::ref(to_keep));
-    rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulSymm>(std::ref(to_keep));
+    rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(std::ref(ctx), std::ref(to_keep));
+    rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulFP8>(std::ref(ctx), std::ref(to_keep));
     rewr.run_on_model(model_group.front());
 
     for (auto&& const_to_keep : to_keep) {
@@ -1947,7 +1967,8 @@ void Partitioner::attention(const std::string& func_name) {
     // Try HFA (Host Flash Attention)
     if (attn_mode == "HFA") {
         LOG_DEBUG("Attempting HostFlashAttention based on config");
-        f._host_flash_attention = ov::npuw::function::HostFlashAttention::from(f._model);
+        f._host_flash_attention =
+            ov::npuw::function::HostFlashAttention::from(f._model, cfg.get<::intel_npu::NPUW_ATTN_HFA_FUSED>());
         if (f._host_flash_attention) {
             LOG_VERB("Done - HFA (Host Flash Attention)");
             return;
@@ -2554,6 +2575,33 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
     ov::npuw::Ensemble ens;
 
     // Try to load the partitioning plan...
+    // Ensure all nodes in the model have unique friendly names before online partitioning.
+    // The online partitioner and the subsequent bank-building steps (completeRepeating,
+    // propagateScalars, etc.) use friendly_name as a node identity key in std::set<string>
+    // and std::map. If two physically different nodes share the same friendly_name (which
+    // can happen with some model exporters), they will be silently merged or cause bank
+    // size mismatches, leading to NPUW_ASSERT(all_ok) failures in sanityCheck.
+    // We resolve this by appending a numeric suffix to any duplicated name.
+    {
+        std::unordered_map<std::string, size_t> name_count;
+        for (auto& node : model->get_ordered_ops()) {
+            name_count[node->get_friendly_name()]++;
+        }
+        std::unordered_map<std::string, size_t> name_seen;
+        for (auto& node : model->get_ordered_ops()) {
+            const auto& name = node->get_friendly_name();
+            if (name_count[name] > 1) {
+                size_t idx = name_seen[name]++;
+                if (idx > 0) {
+                    // Keep the first occurrence as-is to avoid disturbing the
+                    // prototype (funcall0) node names that everything else maps to.
+                    node->set_friendly_name(name + "_npuw_dedup_" + std::to_string(idx));
+                    LOG_WARN("NPUW: renamed duplicate node '" << name << "' to '" << node->get_friendly_name() << "'");
+                }
+            }
+        }
+    }
+
     const std::string file_path = cfg.get<::intel_npu::NPUW_PLAN>();
     if (file_path.empty()) {
         LOG_INFO("No " << ::intel_npu::NPUW_PLAN().key() << " property is provided! Using online partitioning.");

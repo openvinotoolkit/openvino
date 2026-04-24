@@ -121,6 +121,9 @@ if(CMAKE_GENERATOR STREQUAL "Ninja Multi-Config")
     # 'Ninja Multi-Config' specific, see:
     # https://cmake.org/cmake/help/latest/variable/CMAKE_DEFAULT_BUILD_TYPE.html
     set(CMAKE_DEFAULT_BUILD_TYPE "Release" CACHE STRING "CMake default build type")
+    if (WIN32)
+        set(CMAKE_NINJA_FORCE_RESPONSE_FILE TRUE CACHE INTERNAL "Force Ninja to use response files.")
+    endif()
 elseif(NOT OV_GENERATOR_MULTI_CONFIG)
     if(NOT CMAKE_BUILD_TYPE)
         # default value
@@ -250,8 +253,7 @@ if(ENABLE_LTO)
                         LANGUAGES C CXX)
 
     if(NOT IPO_SUPPORTED)
-        set(ENABLE_LTO "OFF" CACHE STRING "Enable Link Time Optimization" FORCE)
-        message(WARNING "IPO / LTO is not supported: ${OUTPUT_MESSAGE}")
+        message(FATAL_ERROR "ENABLE_LTO is ON but IPO / LTO is not supported: ${OUTPUT_MESSAGE}")
     endif()
 endif()
 

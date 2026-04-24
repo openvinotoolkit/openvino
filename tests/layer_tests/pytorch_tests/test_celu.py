@@ -10,7 +10,7 @@ from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 class aten_celu(torch.nn.Module):
     def __init__(self, alpha, dtype, inplace):
-        super(aten_celu, self).__init__()
+        super().__init__()
         self.alpha = alpha
         self.dtype = dtype
         self.inplace = inplace
@@ -28,8 +28,7 @@ class aten_celu(torch.nn.Module):
 
 class TestCelu(PytorchLayerTest):
     def _prepare_input(self):
-        import numpy as np
-        return (np.random.randn(2, 4, 224, 224).astype(np.float32),)
+        return (self.random.randn(2, 4, 224, 224),)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -41,5 +40,5 @@ class TestCelu(PytorchLayerTest):
         kwargs = {}
         if dtype == torch.float16:
             kwargs["custom_eps"] = 1e-2
-        self._test(aten_celu(alpha, dtype, inplace), None,
+        self._test(aten_celu(alpha, dtype, inplace),
                    "aten::celu_" if inplace else "aten::celu", ie_device, precision, ir_version, **kwargs)

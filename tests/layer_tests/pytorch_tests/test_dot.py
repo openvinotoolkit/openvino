@@ -3,7 +3,7 @@
 
 import pytest
 
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 class TestDot(PytorchLayerTest):
     def _prepare_input(self, inputs, dtype, out=False):
@@ -43,15 +43,16 @@ class TestDot(PytorchLayerTest):
 
         dtype = dtype_map.get(dtype)
 
-        ref_net = None
 
-        return aten_dot(mode, dtype), ref_net, "aten::dot"
+        return aten_dot(mode, dtype), "aten::dot"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("mode, dtype", [
         ("", "float32"), ("", "float64"), ("", "int32"), ("", "int64"), ("", "int8"),
-        ("out", "float32"), ("out", "float64"), ("out", "int32"), ("out", "int64"), ("out", "int8")])
+        skip_if_export("out", "float32"), skip_if_export("out", "float64"),
+        skip_if_export("out", "int32"), skip_if_export("out", "int64"), skip_if_export("out", "int8")])
     @pytest.mark.parametrize(
         "inputs", [([0, 1, 2, 3, 4], [5, 6, 7, 8, 9]), ([1, 2, 3], [4, 5, 6]), ([1, 1, 1], [1, 1, 1])]
     )
