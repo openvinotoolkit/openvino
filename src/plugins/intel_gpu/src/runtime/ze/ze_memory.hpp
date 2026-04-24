@@ -6,6 +6,7 @@
 
 #include "ze_common.hpp"
 #include "ze_engine.hpp"
+#include "ze_base_event.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 
 #include <cassert>

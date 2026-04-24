@@ -460,7 +460,8 @@ void gpu_image2d::unlock(const stream& stream) {
                 nullptr,
                 0,
                 nullptr));
-            OV_ZE_EXPECT(ze::zeCommandListHostSynchronize(zero_stream.get_queue(), endless_wait));
+            // Insert barrier to ensure that following commands have correct image data
+            OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(zero_stream.get_queue(), nullptr, 0, nullptr));
         }
         _host_buffer.freeMem();
         _mapped_ptr = nullptr;
