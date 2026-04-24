@@ -131,13 +131,11 @@ ov::OutputVector dynamic_quantize_linear_v3(const ov::Output<ov::Node>& input,
     auto multiplyInput = std::make_shared<ov::op::v1::Multiply>(input, cst_255);
     multiplyInput->set_friendly_name(make_name("Multiply_input_255"));
 
-    // ONNX spec: zp = qmin - (minClamped / scale)
-    auto cst_qmin = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {-128.0f});
-    auto minDivScale = std::make_shared<ov::op::v1::Divide>(minClamped, multiplyScale);
-    minDivScale->set_friendly_name(make_name("Divide_min_by_scale"));
+    auto minNegated = std::make_shared<ov::op::v1::Subtract>(cst_zero, minClamped);
+    minNegated->set_friendly_name(make_name("Negate_min"));
 
-    auto zpFloat = std::make_shared<ov::op::v1::Subtract>(cst_qmin, minDivScale);
-    zpFloat->set_friendly_name(make_name("Subtract_zp"));
+    auto zpFloat = std::make_shared<ov::op::v1::Divide>(minNegated, multiplyScale);
+    zpFloat->set_friendly_name(make_name("Divide_min_by_scale"));
 
     auto divideSpan = std::make_shared<ov::op::v1::Divide>(multiplyInput, subtractSpan);
     divideSpan->set_friendly_name(make_name("Divide_span"));
@@ -148,19 +146,19 @@ ov::OutputVector dynamic_quantize_linear_v3(const ov::Output<ov::Node>& input,
     auto roundSpan = std::make_shared<ov::op::v5::Round>(divideSpan, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
     roundSpan->set_friendly_name(make_name("Round_span"));
 
-    auto clampZp = std::make_shared<ov::op::v0::Clamp>(roundZp, -128.0, 127.0);
+    auto clampZp = std::make_shared<ov::op::v0::Clamp>(roundZp, 0.0, 255.0);
     clampZp->set_friendly_name(make_name("Clamp_zp"));
 
     auto addQuant = std::make_shared<ov::op::v1::Add>(roundSpan, clampZp);
     addQuant->set_friendly_name(make_name("Add_quant"));
 
-    auto clampOutput = std::make_shared<ov::op::v0::Clamp>(addQuant, -128.0, 127.0);
+    auto clampOutput = std::make_shared<ov::op::v0::Clamp>(addQuant, 0.0, 255.0);
     clampOutput->set_friendly_name(make_name("Clamp_output"));
 
-    auto convertZp = std::make_shared<ov::op::v0::Convert>(clampZp, ov::element::i8);
+    auto convertZp = std::make_shared<ov::op::v0::Convert>(clampZp, ov::element::u8);
     convertZp->set_friendly_name(make_name("Convert_zp"));
 
-    auto convertOutput = std::make_shared<ov::op::v0::Convert>(clampOutput, ov::element::i8);
+    auto convertOutput = std::make_shared<ov::op::v0::Convert>(clampOutput, ov::element::u8);
     convertOutput->set_friendly_name(make_name("Convert_output"));
 
     return {convertOutput->output(0), multiplyScale->output(0), convertZp->output(0)};
@@ -218,6 +216,12 @@ ov::npuw::DecomposeDynamicQuantize3::DecomposeDynamicQuantize3() {
         auto dq_ptr = node_to_output.at(dynamic_quantize).get_node_shared_ptr();
 
         auto dq_node = ov::as_type_ptr<ov::op::internal::DynamicQuantize>(dq_ptr);
+        const auto& attrs = dq_node->get_attrs();
+
+        if (attrs.quantization_type != ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric ||
+            attrs.quantization_dt != ov::element::i8) {
+            return false;
+        }
 
         LOG_DEBUG("Found DynamicQuantize : " << dq_ptr->get_friendly_name() << " decomposing");
         LOG_BLOCK();
