@@ -163,7 +163,7 @@ std::shared_ptr<ov::Model> create_merge_independent_model() {
     auto add1 = std::make_shared<ov::op::v1::Add>(param1, const_value1);
     add1->set_friendly_name("add1");
     auto const_value2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, {1});
-    const_value2->set_friendly_name("const_val2");  // same name as const_value1 (matches original test)
+    const_value2->set_friendly_name("const_val2");
     auto add2 = std::make_shared<ov::op::v1::Add>(add1, const_value2);
     add2->set_friendly_name("add2");
     auto result = std::make_shared<ov::op::v0::Result>(add2);
@@ -187,6 +187,55 @@ std::shared_ptr<ov::Model> create_diverging_paths_model() {
     auto result2 = std::make_shared<ov::op::v0::Result>(sub2);
     result2->set_friendly_name("res2");
     return std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{param});
+}
+
+// Model: input → a1 → b1 → a2 → b2 → a3 → res, with a1 also feeding a3 (skip edge).
+// Designed to stress SubgraphCollector::split_cyclic_dependencies() with nested cycles:
+// when {a1, a2, a3} are on MOCK.0 and {b1, b2} on MOCK.1, the initial M0 group contains
+// two stacked cyclic dependencies (via b1 and via b2) that require multiple split iterations
+// of the fixed-point loop to resolve.
+std::shared_ptr<ov::Model> create_nested_cyclic_chain_model() {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
+    param->set_friendly_name("input");
+    auto c1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
+    c1->set_friendly_name("c1");
+    auto a1 = std::make_shared<ov::op::v1::Add>(param, c1);
+    a1->set_friendly_name("a1");
+    auto b1 = std::make_shared<ov::op::v1::Subtract>(a1, c1);
+    b1->set_friendly_name("b1");
+    auto a2 = std::make_shared<ov::op::v1::Add>(b1, c1);
+    a2->set_friendly_name("a2");
+    auto b2 = std::make_shared<ov::op::v1::Subtract>(a2, c1);
+    b2->set_friendly_name("b2");
+    auto a3 = std::make_shared<ov::op::v1::Add>(b2, a1);
+    a3->set_friendly_name("a3");
+    auto result = std::make_shared<ov::op::v0::Result>(a3);
+    result->set_friendly_name("res");
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+}
+
+// Stateful model: param → read_value → add(+c1) → {result, assign(sink)}.
+// Single-device by design — exercises Subgraph::_sinks wire-through and
+// create_submodel_from_collected_subgraph()'s sink-preserving construction without
+// depending on the (currently unspecified) cross-affinity Assign/ReadValue contract.
+std::shared_ptr<ov::Model> create_stateful_single_device_model() {
+    const ov::op::util::VariableInfo variable_info{ov::PartialShape{4}, ov::element::f32, "var0"};
+    auto variable = std::make_shared<ov::op::util::Variable>(variable_info);
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
+    param->set_friendly_name("input");
+    auto read_value = std::make_shared<ov::op::v6::ReadValue>(param, variable);
+    read_value->set_friendly_name("read_value");
+    auto c1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
+    c1->set_friendly_name("c1");
+    auto add = std::make_shared<ov::op::v1::Add>(read_value, c1);
+    add->set_friendly_name("add");
+    auto assign = std::make_shared<ov::op::v6::Assign>(add, variable);
+    assign->set_friendly_name("assign");
+    auto result = std::make_shared<ov::op::v0::Result>(add);
+    result->set_friendly_name("res");
+    return std::make_shared<ov::Model>(ov::ResultVector{result},
+                                       ov::SinkVector{assign},
+                                       ov::ParameterVector{param});
 }
 
 std::shared_ptr<ov::Model> create_submodel_from_collected_subgraph(const ov::hetero::Subgraph& sg) {
@@ -532,20 +581,30 @@ TEST_F(SubgraphCollectorTest, constant_subgraphs_follow_consumer_affinity) {
 // Unified test for all scenarios that directly use SubgraphCollector:
 // split_and_merge, merge_independent, and affinity-based subgraph counting.
 // Each param specifies model, affinities, and expected results. Optional fields control extra checks.
+//
+// Sink coverage: the single-device stateful_assign_readvalue case below exercises
+// Subgraph::_sinks wire-through (collection → create_submodel_from_collected_subgraph →
+// merge_submodels). The cross-affinity case — where paired Assign/ReadValue land in different
+// subgraphs — is intentionally not covered here: the expected SubgraphCollector contract for
+// splitting stateful variable pairs is not yet specified; that case should be added in a
+// follow-up once the contract is clarified.
 
 struct SubgraphCollectorTestParam {
+    using ModelFactory = std::function<std::shared_ptr<ov::Model>()>;
+    // --- required fields ---
     std::string test_name;
-    std::shared_ptr<ov::Model> (*create_model)();     // factory to build the model under test
+    ModelFactory create_model;  // factory to build the model under test
     std::map<std::string, std::string> affinity_map;  // node_name → device; empty = broadcast default
-    std::string default_affinity;                     // used when affinity_map is empty
-    size_t expected_subgraph_count;                   // number of subgraphs from run()
-    // --- optional checks (empty / false = skip) ---
-    std::vector<std::string> expected_affinities;                               // sorted affinity list per subgraph
-    std::map<std::string, SubgraphCollector::SubgraphId> expected_ids;          // node_name → expected subgraph ID
-    std::vector<std::shared_ptr<ov::Model> (*)()> expected_submodel_factories;  // reference submodel per subgraph
-    SubgraphsMappingInfo expected_mapping;                                      // expected mapping info from run()
-    bool verify_merge_roundtrip;  // merge submodels back and check size == 1
-    bool verify_merge_compare;    // compare_functions(original, merged)
+    std::string default_affinity;  // used when affinity_map is empty
+    size_t expected_subgraph_count;  // number of subgraphs from run()
+    // --- optional checks (a default-constructed/empty/false value disables the check) ---
+    std::vector<std::string> expected_affinities = {};  // sorted affinity list per subgraph
+    std::map<std::string, SubgraphCollector::SubgraphId> expected_ids = {};  // node_name → expected subgraph ID
+    std::vector<ModelFactory> expected_submodel_factories = {};  // reference submodel per subgraph
+    SubgraphsMappingInfo expected_mapping = {};  // expected mapping info from run()
+    size_t expected_total_sinks = 0;  // sum of sg._sinks.size() across subgraphs (0 = no check)
+    bool verify_merge_roundtrip = false;  // merge submodels back and check size == 1
+    bool verify_merge_compare = false;  // compare_functions(original, merged)
 };
 
 class SubgraphCollectorParamTest : public testing::TestWithParam<SubgraphCollectorTestParam> {};
@@ -554,6 +613,17 @@ TEST_P(SubgraphCollectorParamTest, split_by_affinity) {
     const auto& param = GetParam();
     auto model = param.create_model();
     auto model_ref = model->clone();
+
+    // Test fixture guard: friendly_name uniqueness is not an ov::Model invariant, but every
+    // factory above relies on it to key affinity_map / expected_ids by name. A duplicate would
+    // silently corrupt those lookups, so fail fast with a clear message instead.
+    {
+        std::set<std::string> seen_names;
+        for (const auto& node : model->get_ordered_ops()) {
+            ASSERT_TRUE(seen_names.insert(node->get_friendly_name()).second)
+                << "Test fixture bug: duplicate friendly_name '" << node->get_friendly_name() << "'";
+        }
+    }
 
     SubgraphCollector::AffinitiesMap affinities;
     for (const auto& node : model->get_ordered_ops()) {
@@ -611,6 +681,8 @@ TEST_P(SubgraphCollectorParamTest, split_by_affinity) {
             bool matched = false;
             std::string mismatch_details;
 
+            // Order-independent match: scan remaining actuals, take the first that compares equal,
+            // and remove it from the pool so each expected pairs with a distinct actual submodel.
             for (auto it = unmatched_actual_submodels.begin(); it != unmatched_actual_submodels.end(); ++it) {
                 auto res = compare_functions(expected_submodel, *it);
                 if (res.first) {
@@ -636,6 +708,15 @@ TEST_P(SubgraphCollectorParamTest, split_by_affinity) {
         ASSERT_EQ(param.expected_mapping._inputs_to_submodels_inputs, mapping._inputs_to_submodels_inputs);
         ASSERT_EQ(param.expected_mapping._outputs_to_submodels_outputs, mapping._outputs_to_submodels_outputs);
         ASSERT_EQ(param.expected_mapping._submodels_input_to_prev_output, mapping._submodels_input_to_prev_output);
+    }
+
+    // Check total sink count across subgraphs if expected
+    if (param.expected_total_sinks > 0) {
+        size_t actual_total_sinks = 0;
+        for (const auto& sg : subgraphs) {
+            actual_total_sinks += sg._sinks.size();
+        }
+        ASSERT_EQ(param.expected_total_sinks, actual_total_sinks);
     }
 
     // Test merge roundtrip if requested
@@ -674,12 +755,19 @@ INSTANTIATE_TEST_SUITE_P(
              {NodeInfo{2, 0}},
              {{NodeInfo{1, 0}, NodeInfo{0, 0}},
               {NodeInfo{2, 0}, NodeInfo{1, 0}}}},
+            0,
             true,
             true,
         },
-        // --- split_and_merge: diamond chain model (input → add1 → add2 → sub → add3 → reshape → result) ---
+        // --- split_and_merge: diamond chain with subgraph-level cycle.
+        // Topology: input → add1(MOCK.0) ─┬→ add2(MOCK.0) → sub(MOCK.1) ─┐
+        //                                 └──────────────────────────────┴→ add3(MOCK.0) → reshape → res
+        // Without cycle splitting, all MOCK.0 nodes (add1/add2/add3/reshape/res) would merge into one
+        // subgraph that depends on sub(MOCK.1) which itself depends on the same subgraph → cycle.
+        // Exercises SubgraphCollector::split_cyclic_dependencies(): MOCK.0 must be split into two
+        // subgraphs ({add1, add2} and {add3, reshape, res}) yielding 3 subgraphs total.
         SubgraphCollectorTestParam{
-            "split_and_merge_diamond_chain_model",
+            "split_cyclic_dependency_diamond",
             create_diamond_chain_model,
             {{"input", "MOCK.0"}, {"const_val", "MOCK.0"}, {"add1", "MOCK.0"},
              {"add2", "MOCK.0"}, {"sub", "MOCK.1"}, {"add3", "MOCK.0"},
@@ -694,10 +782,47 @@ INSTANTIATE_TEST_SUITE_P(
              {{NodeInfo{1, 0}, NodeInfo{0, 0}},
               {NodeInfo{2, 0}, NodeInfo{0, 1}},
               {NodeInfo{2, 1}, NodeInfo{1, 0}}}},
+            0,
             true,
             true,
         },
-        // --- merge_independent: param1 → add1 → add2 → res, param2 unused ---
+        // --- split_cyclic: nested cycles requiring multi-iteration fixed-point splitting.
+        // Topology: input → a1(M0) → b1(M1) → a2(M0) → b2(M1) → a3(M0) → res(M0)
+        //                    └────────────────────────────────────┘  (a1 also feeds a3)
+        // Initial M0 group {a1,a2,a3} contains two stacked cyclic deps (via b1 and b2).
+        // A single split iteration cannot resolve both; the outer fixed-point loop in
+        // split_cyclic_dependencies() must run >=2 iterations. Expected: 5 subgraphs
+        // alternating MOCK.0 / MOCK.1 / MOCK.0 / MOCK.1 / MOCK.0 (3×M0 + 2×M1).
+        SubgraphCollectorTestParam{
+            "split_cyclic_dependency_nested",
+            create_nested_cyclic_chain_model,
+            {{"input", "MOCK.0"}, {"c1", "MOCK.0"}, {"a1", "MOCK.0"},
+             {"b1", "MOCK.1"}, {"a2", "MOCK.0"}, {"b2", "MOCK.1"},
+             {"a3", "MOCK.0"}, {"res", "MOCK.0"}},
+            "",
+            5,
+            {"MOCK.0", "MOCK.0", "MOCK.0", "MOCK.1", "MOCK.1"},
+            // expected_ids: locks in the partition produced by collect_subgraphs_ids() after
+            // split_cyclic_dependencies() promotes boundaries for {a2 ← c1} and {a3 ← a1}.
+            // Union-find keeps-first merging causes the c1 placeholder id (1) to be absorbed
+            // into the input/a1 group (id 0), so allocated ids are {0, 2, 3, 4, 5} — non-contiguous
+            // by design (same pattern as split_and_merge_linear_chain_model).
+            {{"input", 0}, {"c1", 0}, {"a1", 0},
+             {"b1", 2}, {"a2", 3}, {"b2", 4},
+             {"a3", 5}, {"res", 5}},
+            {},
+            {},
+            0,
+            true,
+            true,
+        },
+        // --- merge_independent: param1 → add1(MOCK.0) → add2(MOCK.1) → res, plus unused param2.
+        // Splits into 3 subgraphs (M0 chain, M1 chain, and an isolated subgraph for the unused
+        // param2). The merge roundtrip is verified to not throw and to collapse back to a single
+        // model, but structural equality (verify_merge_compare) is intentionally skipped:
+        // merge_submodels does not guarantee preservation of the original Parameter ordering when
+        // an isolated/unused-input subgraph is involved, so compare_functions would report a
+        // benign ordering mismatch rather than a real regression.
         SubgraphCollectorTestParam{
             "merge_independent_submodel",
             create_merge_independent_model,
@@ -709,6 +834,7 @@ INSTANTIATE_TEST_SUITE_P(
             {},
             {},
             {},
+            0,
             true,
             false,
         },
@@ -723,6 +849,7 @@ INSTANTIATE_TEST_SUITE_P(
             {},
             {},
             {},
+            0,
             false,
             false,
         },
@@ -738,6 +865,7 @@ INSTANTIATE_TEST_SUITE_P(
             {},
             {},
             {},
+            0,
             false,
             false,
         },
@@ -753,6 +881,7 @@ INSTANTIATE_TEST_SUITE_P(
             {},
             {},
             {},
+            0,
             false,
             false,
         },
@@ -768,6 +897,7 @@ INSTANTIATE_TEST_SUITE_P(
             {},
             {},
             {},
+            0,
             false,
             false,
         },
@@ -782,6 +912,7 @@ INSTANTIATE_TEST_SUITE_P(
             {},
             {},
             {},
+            0,
             false,
             false,
         },
@@ -796,8 +927,26 @@ INSTANTIATE_TEST_SUITE_P(
             {},
             {},
             {},
+            0,
             false,
             false,
+        },
+        // --- Sink coverage: single-device stateful model (ReadValue/Assign on MOCK.0).
+        // Verifies that Subgraph::_sinks is populated, survives create_submodel_from_collected_subgraph,
+        // and is preserved by merge_submodels (compare_functions checks sink-set equality).
+        SubgraphCollectorTestParam{
+            "stateful_assign_readvalue_single_device",
+            create_stateful_single_device_model,
+            {},
+            "MOCK.0",
+            1,
+            {"MOCK.0"},
+            {},
+            {},
+            {},
+            1,
+            true,
+            true,
         }
     ),
     [](const testing::TestParamInfo<SubgraphCollectorTestParam>& info) {
