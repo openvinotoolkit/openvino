@@ -52,6 +52,14 @@ public:
     std::unique_ptr<surfaces_lock> create_surfaces_lock(const std::vector<memory::ptr> &mem) const override;
     ze_context_handle_t get_context() const;
 
+    /// @brief Swap the active command list. Returns the previous one.
+    /// This is used by the command list recording PoC to temporarily
+    /// redirect all L0 appends to a regular (non-immediate) command list.
+    ze_command_list_handle_t swap_command_list(ze_command_list_handle_t new_list);
+
+    /// @brief Get the engine (for creating command queues, etc.)
+    const ze_engine& get_ze_engine() const { return _engine; }
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::stream& get_onednn_stream() override;
 #endif

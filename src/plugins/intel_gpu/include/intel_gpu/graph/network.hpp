@@ -293,6 +293,17 @@ private:
                                   bool transpose_required);
     void dump_memory_pool(std::string dump_path, int64_t curr_iter);
 
+    // PoC: Level-Zero command list recording/replay support
+    bool _use_cmd_list = false;           // enabled via env var
+    bool _cmd_list_recorded = false;      // true after first recording
+    void* _cmd_list = nullptr;            // ze_command_list_handle_t (regular, non-immediate)
+    void* _cmd_queue = nullptr;           // ze_command_queue_handle_t
+    void* _cmd_fence = nullptr;           // ze_fence_handle_t
+    void* _imm_cmd_list_backup = nullptr; // backup of the original immediate command list
+
+    void init_command_list();
+    void destroy_command_list();
+
 #ifdef GPU_DEBUG_CONFIG
     mutable int64_t iteration = 0;
     friend class NetworkDebugHelper;

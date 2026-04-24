@@ -404,6 +404,16 @@ ze_context_handle_t ze_stream::get_context() const {
     return _engine.get_context();
 }
 
+ze_command_list_handle_t ze_stream::swap_command_list(ze_command_list_handle_t new_list) {
+    auto old = m_command_list;
+    m_command_list = new_list;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    // Invalidate oneDNN stream so it gets recreated with the new command list
+    _onednn_stream.reset();
+#endif
+    return old;
+}
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
 dnnl::stream& ze_stream::get_onednn_stream() {
     OPENVINO_ASSERT(m_queue_type == QueueTypes::in_order, "[GPU] Can't create onednn stream handle as onednn doesn't support out-of-order queue");

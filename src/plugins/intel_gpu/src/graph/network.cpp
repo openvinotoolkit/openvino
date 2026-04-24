@@ -55,6 +55,15 @@
 #include <atomic>
 
 #include "debug_helper.hpp"
+
+// PoC: Command list support
+#include "intel_gpu/runtime/engine_configuration.hpp"
+#ifdef OV_GPU_WITH_ZE_RT
+#include "runtime/ze/ze_stream.hpp"
+#include "runtime/ze/ze_engine.hpp"
+#include "runtime/ze/ze_common.hpp"
+#endif
+
 #ifdef GPU_DEBUG_CONFIG
 #include <fstream>
 #include <sys/stat.h>
@@ -205,6 +214,8 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     validate_primitives();
     preallocate_shape_info_buffers();
     add_default_output_chains();
+
+    init_command_list();
 }
 
 network::network(program::ptr program, bool is_internal, bool is_primary_stream)
@@ -238,11 +249,101 @@ network::~network() {
     if (_stream != nullptr)
         _stream->finish();
 
+    destroy_command_list();
+
     _memory_pool->clear_pool_for_network(net_id);
     std::string dump_path = GPU_DEBUG_VALUE_OR(get_config().get_dump_profiling_data_path(), "");
     GPU_DEBUG_IF(!dump_path.empty()) {
         dump_perf_data_raw(dump_path + "/perf_raw" + std::to_string(net_id) + ".csv", false, _exec_order);
     }
+}
+
+void network::init_command_list() {
+#ifdef OV_GPU_WITH_ZE_RT
+    if (_engine.type() != engine_types::ze)
+        return;
+
+    static std::once_flag flag;
+    static bool enabled = false;
+    std::call_once(flag, [] {
+        if (auto* val = std::getenv("OV_GPU_CMD_LIST")) {
+            enabled = std::atoi(val) != 0;
+        }
+        if (enabled)
+            std::cout << "[GPU] Command list recording/replay ENABLED" << std::endl;
+    });
+
+    if (!enabled)
+        return;
+
+    _use_cmd_list = true;
+
+    auto& ze_eng = dynamic_cast<const cldnn::ze::ze_engine&>(_engine);
+    auto context = ze_eng.get_context();
+    auto device = ze_eng.get_device();
+    const auto& info = _engine.get_device_info();
+
+    // Create a command queue for executing regular command lists
+    ze_command_queue_desc_t queue_desc = {};
+    queue_desc.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC;
+    queue_desc.ordinal = info.compute_queue_group_ordinal;
+    queue_desc.index = 0;
+    queue_desc.flags = ZE_COMMAND_QUEUE_FLAG_IN_ORDER;
+    queue_desc.mode = ZE_COMMAND_QUEUE_MODE_ASYNCHRONOUS;
+    queue_desc.priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
+
+    ze_command_queue_handle_t queue = nullptr;
+    OV_ZE_EXPECT(cldnn::ze::zeCommandQueueCreate(context, device, &queue_desc, &queue));
+    _cmd_queue = queue;
+
+    // Create a regular (non-immediate) command list
+    ze_command_list_desc_t list_desc = {};
+    list_desc.stype = ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC;
+    list_desc.commandQueueGroupOrdinal = info.compute_queue_group_ordinal;
+    list_desc.flags = ZE_COMMAND_LIST_FLAG_IN_ORDER;
+
+    ze_command_list_handle_t list = nullptr;
+    OV_ZE_EXPECT(cldnn::ze::zeCommandListCreate(context, device, &list_desc, &list));
+    _cmd_list = list;
+
+    // Create a fence for synchronization
+    ze_fence_desc_t fence_desc = {};
+    fence_desc.stype = ZE_STRUCTURE_TYPE_FENCE_DESC;
+    ze_fence_handle_t fence = nullptr;
+    OV_ZE_EXPECT(cldnn::ze::zeFenceCreate(static_cast<ze_command_queue_handle_t>(_cmd_queue), &fence_desc, &fence));
+    _cmd_fence = fence;
+
+    std::cout << "[GPU] Created regular command list for net_id=" << net_id << std::endl;
+#endif
+}
+
+void network::destroy_command_list() {
+#ifdef OV_GPU_WITH_ZE_RT
+    if (!_use_cmd_list)
+        return;
+
+    // Restore original immediate command list if we swapped it
+    if (_imm_cmd_list_backup) {
+        auto* ze_str = dynamic_cast<cldnn::ze::ze_stream*>(_stream.get());
+        if (ze_str) {
+            ze_str->swap_command_list(static_cast<ze_command_list_handle_t>(_imm_cmd_list_backup));
+            _imm_cmd_list_backup = nullptr;
+        }
+    }
+
+    if (_cmd_fence) {
+        cldnn::ze::zeFenceDestroy(static_cast<ze_fence_handle_t>(_cmd_fence));
+        _cmd_fence = nullptr;
+    }
+    if (_cmd_list) {
+        cldnn::ze::zeCommandListDestroy(static_cast<ze_command_list_handle_t>(_cmd_list));
+        _cmd_list = nullptr;
+    }
+    if (_cmd_queue) {
+        cldnn::ze::zeCommandQueueDestroy(static_cast<ze_command_queue_handle_t>(_cmd_queue));
+        _cmd_queue = nullptr;
+    }
+#endif
 }
 
 network::ptr network::allocate_network(stream::ptr stream, program::ptr program, bool is_internal, bool is_primary_stream) {
@@ -864,6 +965,65 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         std::cout << "[GPU] ROUND_ROBIN=" << g_round_robin << std::endl;
         g_barrier.threshold = g_round_robin;
     });
+
+#ifdef OV_GPU_WITH_ZE_RT
+    // PoC: Command list record/replay path
+    if (_use_cmd_list && !_is_dynamic) {
+        auto* ze_str = dynamic_cast<cldnn::ze::ze_stream*>(_stream.get());
+        if (ze_str && _cmd_list && _cmd_queue && _cmd_fence) {
+            auto cmd_list = static_cast<ze_command_list_handle_t>(_cmd_list);
+            auto cmd_queue = static_cast<ze_command_queue_handle_t>(_cmd_queue);
+            auto fence = static_cast<ze_fence_handle_t>(_cmd_fence);
+
+            if (_cmd_list_recorded) {
+                // Replay: just wait for previous execution, reset fence, and re-execute
+                OV_ZE_EXPECT(cldnn::ze::zeFenceHostSynchronize(fence, cldnn::ze::endless_wait));
+                OV_ZE_EXPECT(cldnn::ze::zeFenceReset(fence));
+                OV_ZE_EXPECT(cldnn::ze::zeCommandQueueExecuteCommandLists(cmd_queue, 1, &cmd_list, fence));
+
+                // Wait for completion
+                OV_ZE_EXPECT(cldnn::ze::zeFenceHostSynchronize(fence, cldnn::ze::endless_wait));
+                return;
+            }
+
+            // Recording: swap the stream's command list to our regular one, then run all primitives
+            std::cout << "[GPU] Recording command list for net_id=" << net_id << std::endl;
+            _imm_cmd_list_backup = ze_str->swap_command_list(cmd_list);
+
+            // Execute all primitives (which will append to the regular command list)
+            for (auto& inst : _exec_order) {
+                inst->reset_events();
+                if (inst->is_input()) {
+                    inst->add_dep_events(events);
+                }
+                inst->prepare_primitive();
+                inst->execute();
+            }
+
+            // Close the command list (finalizes recording)
+            OV_ZE_EXPECT(cldnn::ze::zeCommandListClose(cmd_list));
+
+            // Restore original immediate command list
+            ze_str->swap_command_list(static_cast<ze_command_list_handle_t>(_imm_cmd_list_backup));
+            _imm_cmd_list_backup = nullptr;
+
+            // Execute the recorded command list
+            OV_ZE_EXPECT(cldnn::ze::zeCommandQueueExecuteCommandLists(cmd_queue, 1, &cmd_list, fence));
+
+            // Wait for completion
+            OV_ZE_EXPECT(cldnn::ze::zeFenceHostSynchronize(fence, cldnn::ze::endless_wait));
+
+            _cmd_list_recorded = true;
+            std::cout << "[GPU] Command list recorded and executed for net_id=" << net_id << std::endl;
+
+            // Reset flags
+            for (auto& inst : _exec_order) {
+                inst->reset_flags();
+            }
+            return;
+        }
+    }
+#endif
 
     // This extra flush command is needed for dynamic models in both cases of out_of_order / in_order operating mode
     // since it reduces `bubbles` number in pipeline and GPU's idle time by timely flushing new kernels to device.
