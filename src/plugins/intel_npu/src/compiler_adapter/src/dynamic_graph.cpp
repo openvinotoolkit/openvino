@@ -284,7 +284,7 @@ void DynamicGraphImpl::setArgumentValueWithStrides(uint32_t argi,
         _logger.debug("setArgumentValueWithStrides for index %d (input %d)", argi, argi);
         inputs[argi].setArg(argv);
         // The passed strides are based on element
-        inputs[argi].setStrides(strides, 1);
+        inputs[argi].setStrides(strides);
     } else {
         auto& outputs = _binding._outputs;
         auto idx = argi - inputs.size();
@@ -292,7 +292,7 @@ void DynamicGraphImpl::setArgumentValueWithStrides(uint32_t argi,
         if (idx < outputs.size()) {
             outputs[idx].setArg(argv);
             // The passed strides are based on elemnt
-            outputs[idx].setStrides(strides, 1);
+            outputs[idx].setStrides(strides);
         }
     }
 }

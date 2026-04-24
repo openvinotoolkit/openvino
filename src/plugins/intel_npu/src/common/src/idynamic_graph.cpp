@@ -51,8 +51,8 @@ void IDynamicGraph::MemRefType::set(const void* arg, int64_t offset, std::shared
     _offset = offset;
     if (_dimsCount == 0) {
         _dimsCount = static_cast<uint32_t>(tensor->get_shape().size());
-        _sizes.resize(tensor->get_shape().size());
-        _strides.resize(tensor->get_shape().size());
+        _sizes.resize(_dimsCount);
+        _strides.resize(_dimsCount);
     } else if (_dimsCount != static_cast<int64_t>(tensor->get_shape().size())) {
         OPENVINO_THROW("Dimension count mismatch. Current dimension count: ",
                        _dimsCount,

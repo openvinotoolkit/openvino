@@ -56,13 +56,13 @@ class DynamicPipeline final : public IPipeline {
             if (arg_index < _binding._inputs.size()) {
                 _binding._inputs[arg_index].setArg(arg_value);
                 _binding._inputs[arg_index].setSize(shapes);
-                _binding._inputs[arg_index].setStrides(strides, 1);
+                _binding._inputs[arg_index].setStrides(strides);
             } else {
                 size_t output_index = static_cast<size_t>(arg_index) - _binding._inputs.size();
                 if (output_index < _binding._outputs.size()) {
                     _binding._outputs[output_index].setArg(arg_value);
                     _binding._outputs[output_index].setSize(shapes);
-                    _binding._outputs[output_index].setStrides(strides, 1);
+                    _binding._outputs[output_index].setStrides(strides);
                 }
             }
         }

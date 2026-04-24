@@ -4,20 +4,12 @@
 
 #pragma once
 
-#include <algorithm>
 #include <common_test_utils/ov_tensor_utils.hpp>
-#include <cstdlib>
-#include <cstring>
-#include <fstream>
 #include <iostream>
-#include <memory>
 #include <sstream>
 #include <string>
-#include <type_traits>
 #include <vector>
 
-#include "intel_npu/utils/logger/logger.hpp"
-#include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/pass/manager.hpp"
@@ -183,8 +175,7 @@ void InferWithHostCompileTests::compareInferenceResult(const std::shared_ptr<ov:
     const auto npuOutputTensor = reqDynamic.get_tensor(model->output());
     const auto referenceOutputTensor = reqReference.get_tensor(model->output());
 
-    OV_ASSERT_NO_THROW(
-        ov::test::utils::compare(referenceOutputTensor, npuOutputTensor, npuOutputTensor.get_element_type()));
+    ov::test::utils::compare(referenceOutputTensor, npuOutputTensor, npuOutputTensor.get_element_type());
 }
 
 void InferWithHostCompileTests::inferAndCompare(const std::shared_ptr<ov::Model>& model,
@@ -195,7 +186,7 @@ void InferWithHostCompileTests::inferAndCompare(const std::shared_ptr<ov::Model>
     OV_ASSERT_NO_THROW(reqReference.infer());
     try {
         compareInferenceResult(model, reqDynamic, reqReference);
-    } catch (const std::exception& e) {
+    } catch (const ov::Exception& e) {
         FAIL() << "Inference result comparison failed at stage " << stage << ": " << e.what();
     }
 }
