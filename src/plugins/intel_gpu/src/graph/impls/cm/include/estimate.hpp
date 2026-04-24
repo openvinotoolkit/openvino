@@ -191,9 +191,6 @@ CM_INLINE void cm_store_2d(matrix_ref<uint, M, N> out, SurfaceIndex base, uint o
 #endif
 
 #if 1 || (BLOCK_SG_M == 64 && BLOCK_SG_N == 32)
-// const static int channels_reduce_32[] = { 0, 16,  8, 24,  4, 20, 12, 28,  2, 18, 10, 26,  6, 22, 14, 30,  
-// 		                                  1, 17,  9, 25,  5, 21, 13, 29,  3, 19, 11, 27,  7, 23, 15, 31};
-// src_a is query, src_b is key
 
 CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
         #ifdef CM_HAS_LSC_UNTYPED_2D
@@ -220,7 +217,7 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
     static constexpr int REPEAT = 8;
     static constexpr int DEPTH = 8;
     static constexpr int BLOCK_REG_M = REPEAT;      // 8
-    static constexpr int BLOCK_REG_N = SG_SIZE;     // 16 Xe1?
+    static constexpr int BLOCK_REG_N = SG_SIZE;     // 16 Xe2, 8 Xe1
     static constexpr int BLOCK_DPAS_C = BLOCK_REG_M * BLOCK_REG_N;  // src0
     static constexpr int VNNI = sizeof(half);
     static constexpr int BLOCK_REG_K = DEPTH * sizeof(int) / VNNI;   // 8*2
@@ -588,26 +585,35 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
     uint zp_offset1 = scale_offset1 + 16 * HEAD_SIZE * sizeof(half);
     auto load_scale_zp = [&](uint channel_base) {
         uint scale_base0 = scale_offset0 + channel_base * sizeof(half);
-        lsc::block_2d_desc<int, 1, BLOCK_REG_K / 2, BLOCK_REG_N> desc_scale{ key_cache + scale_base0,
+        // Transpose 2D load max BlockW is 8 DWords; split BLOCK_REG_N into two halves
+        lsc::block_2d_desc<int, 1, BLOCK_REG_K / 2, BLOCK_REG_N / 2> desc_scale{ key_cache + scale_base0,
             BLOCK_REG_K - 1, (uint)(BLOCK_REG_N * sizeof(half) - 1), (uint)(HEAD_SIZE * sizeof(half) - 1), 0, 0 };
-        matrix<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2> tmp_scale, tmp_zp;
+        matrix<int, BLOCK_REG_K / 2, BLOCK_REG_N / 2> tmp_lo, tmp_hi;
 
-        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 0>(tmp_scale.format<int>(), desc_scale);
-        scales_block[0].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>() = tmp_scale.format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 0>(tmp_lo.format<int>(), desc_scale);
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, BLOCK_REG_N / 2>(tmp_hi.format<int>(), desc_scale);
+        scales_block[0].format<int, BLOCK_REG_K / 2, BLOCK_REG_N>().select<BLOCK_REG_K / 2, 1, BLOCK_REG_N / 2, 1>(0, 0) = tmp_lo;
+        scales_block[0].format<int, BLOCK_REG_K / 2, BLOCK_REG_N>().select<BLOCK_REG_K / 2, 1, BLOCK_REG_N / 2, 1>(0, BLOCK_REG_N / 2) = tmp_hi;
 
         uint zp_base0 = zp_offset0 + channel_base * sizeof(half);
         desc_scale.set_base(key_cache + zp_base0);
-        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 0>(tmp_zp.format<int>(), desc_scale);
-        zps_block[0].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>() = tmp_zp.format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 0>(tmp_lo.format<int>(), desc_scale);
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, BLOCK_REG_N / 2>(tmp_hi.format<int>(), desc_scale);
+        zps_block[0].format<int, BLOCK_REG_K / 2, BLOCK_REG_N>().select<BLOCK_REG_K / 2, 1, BLOCK_REG_N / 2, 1>(0, 0) = tmp_lo;
+        zps_block[0].format<int, BLOCK_REG_K / 2, BLOCK_REG_N>().select<BLOCK_REG_K / 2, 1, BLOCK_REG_N / 2, 1>(0, BLOCK_REG_N / 2) = tmp_hi;
 
         uint scale_base1 = scale_offset1 + channel_base * sizeof(half);
         desc_scale.set_base(key_cache + scale_base1);
-        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 0>(tmp_scale.format<int>(), desc_scale);
-        scales_block[1].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>() = tmp_scale.format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 0>(tmp_lo.format<int>(), desc_scale);
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, BLOCK_REG_N / 2>(tmp_hi.format<int>(), desc_scale);
+        scales_block[1].format<int, BLOCK_REG_K / 2, BLOCK_REG_N>().select<BLOCK_REG_K / 2, 1, BLOCK_REG_N / 2, 1>(0, 0) = tmp_lo;
+        scales_block[1].format<int, BLOCK_REG_K / 2, BLOCK_REG_N>().select<BLOCK_REG_K / 2, 1, BLOCK_REG_N / 2, 1>(0, BLOCK_REG_N / 2) = tmp_hi;
         uint zp_base1 = zp_offset1 + channel_base * sizeof(half);
         desc_scale.set_base(key_cache + zp_base1);
-        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 0>(tmp_zp.format<int>(), desc_scale);
-        zps_block[1].format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>() = tmp_zp.format<half, BLOCK_REG_K / 2, BLOCK_REG_N * 2>();
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 0>(tmp_lo.format<int>(), desc_scale);
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, BLOCK_REG_N / 2>(tmp_hi.format<int>(), desc_scale);
+        zps_block[1].format<int, BLOCK_REG_K / 2, BLOCK_REG_N>().select<BLOCK_REG_K / 2, 1, BLOCK_REG_N / 2, 1>(0, 0) = tmp_lo;
+        zps_block[1].format<int, BLOCK_REG_K / 2, BLOCK_REG_N>().select<BLOCK_REG_K / 2, 1, BLOCK_REG_N / 2, 1>(0, BLOCK_REG_N / 2) = tmp_hi;
     };
     #else
     auto dec = [&](vector<int, KEY_LINES_PER_LOAD * 4> B0_i8, vector<int, KEY_LINES_PER_LOAD * 4> B1_i8, matrix_ref<half, REG_N, BLOCK_REG_B> B0) {
