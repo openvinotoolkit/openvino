@@ -52,13 +52,11 @@ ZeroApi::ZeroApi() {
 
 const std::shared_ptr<ZeroApi> ZeroApi::get_instance() {
     static std::mutex mutex;
-    static std::weak_ptr<ZeroApi> weak_instance;
+    static std::shared_ptr<ZeroApi> instance;
 
     std::lock_guard<std::mutex> lock(mutex);
-    auto instance = weak_instance.lock();
     if (!instance) {
         instance = std::make_shared<ZeroApi>();
-        weak_instance = instance;
     }
     return instance;
 }
