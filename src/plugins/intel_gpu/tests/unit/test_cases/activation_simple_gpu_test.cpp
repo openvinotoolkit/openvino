@@ -787,8 +787,8 @@ TEST(activation_f16_fw_gpu, gws_b_fs_yx_fsv16_small_feature_batch) {
     cldnn::memory::ptr out_mem;
     OV_ASSERT_NO_THROW(out_mem = net.execute().at("output").get_memory());
 
-    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
-    cldnn::mem_lock<ov::float16> ref_ptr(out_ref, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_ptr(out_ref, get_test_stream());
     ASSERT_EQ(ref_ptr.size(), out_ptr.size());
     for (size_t i = 0; i < ref_ptr.size(); ++i) {
         ASSERT_EQ(ref_ptr[i], out_ptr[i]) << "at i=" << i;
@@ -1826,7 +1826,7 @@ TEST(activation_f32_fw_gpu, b_fs_yx_fsv16_prelu) {
         }
     }
 
-    cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
     ASSERT_EQ(expected.size(), out_ptr.size());
 
     for (size_t i = 0; i < expected.size(); ++i) {
@@ -1898,7 +1898,7 @@ TEST(activation_f32_fw_gpu, bfyx_prelu_dyn) {
         }
     }
 
-    cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
     ASSERT_EQ(expected.size(), out_ptr.size());
 
     for (size_t i = 0; i < expected.size(); ++i) {
@@ -1983,8 +1983,8 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
         auto f = output_lay.feature();
         auto x = output_lay.spatial(0);
         auto y = output_lay.spatial(1);
-        cldnn::mem_lock<T> ref_ptr(out_ref, get_test_stream());
-        cldnn::mem_lock<T> opt_ptr(out_opt, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> ref_ptr(out_ref, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> opt_ptr(out_opt, get_test_stream());
 
         auto ref_x_pitch = get_x_pitch(output_lay);
         auto opt_x_pitch = get_x_pitch(opt_output_lay);
@@ -2280,7 +2280,7 @@ TEST(activation_gpu, has_proper_synchronization) {
 
     ASSERT_EQ(res_test->get_layout().get_linear_size(), res_ref->get_layout().get_linear_size());
 
-    cldnn::mem_lock<float> test_mem(res_test, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> test_mem(res_test, get_test_stream());
     cldnn::mem_lock<float, mem_lock_type::read> ref_mem(res_ref, get_test_stream());
 
     for (size_t i = 0; i < res_ref->get_layout().get_linear_size(); ++i) {
