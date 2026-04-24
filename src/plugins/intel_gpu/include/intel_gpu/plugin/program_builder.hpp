@@ -168,8 +168,6 @@ private:
     void prepare_build();
     void cleanup_build();
 
-    void apply_enable_large_allocations_from_config();
-
     std::shared_ptr<cldnn::program> build(const std::vector<std::shared_ptr<ov::Node>>& ops, bool innerProgram = false);
 
     void CreateSingleLayerPrimitive(const std::shared_ptr<ov::Node>& op);

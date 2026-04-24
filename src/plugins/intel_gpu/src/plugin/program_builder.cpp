@@ -70,6 +70,7 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
     , m_task_executor(task_executor)
     , m_compilation_context(compilation_context)
     , m_is_inner_program(is_inner_program) {
+    // Constant GPU uploads use the engine before cldnn::program ctor syncs config to the engine.
     m_engine.set_enable_large_allocations(m_config.get_enable_large_allocations());
 
     if (m_task_executor == nullptr)
@@ -118,13 +119,7 @@ ProgramBuilder::ProgramBuilder(cldnn::engine& engine, const ExecutionConfig& con
         : m_config(config)
         , m_engine(engine)
         , queryMode(false) {
-    apply_enable_large_allocations_from_config();
     m_task_executor = cldnn::program::make_task_executor(m_config);
-}
-
-void ProgramBuilder::apply_enable_large_allocations_from_config() {
-    // Constant creation allocates on the engine before cldnn::program ctor (compile and query_model paths).
-    m_engine.set_enable_large_allocations(m_config.get_enable_large_allocations());
 }
 
 std::shared_ptr<cldnn::program> ProgramBuilder::get_compiled_program() const {
