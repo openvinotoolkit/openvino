@@ -81,17 +81,7 @@ protected:
     mutable size_t m_byte_size;
 
     virtual void load() const {}
-    virtual void release() const {}
-/* or even virtual aligned_buffer w/o load
-    char* aligned_buffer(){
-        load();
-        return m_aligned_buffer;
-    }
-    const char* aligned_buffer() const {
-        load();
-        return m_aligned_buffer;
-    }
- */};
+};
 
 template <>
 class OPENVINO_API AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>

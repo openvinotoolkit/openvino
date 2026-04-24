@@ -19,13 +19,11 @@ public:
     ~FileViewBuffer() override = default;
 
     void load() const override;
-    void release() const override;
 
 private:
     std::filesystem::path m_file_path;
-    const size_t m_lazy_offset;
-    const size_t m_lazy_byte_size;
-    const size_t m_lazy_alignment;
+    const size_t m_offset;
+    const size_t m_alignment;
     mutable std::vector<char> m_lazy_buffer;
 };
 }  // namespace ov
