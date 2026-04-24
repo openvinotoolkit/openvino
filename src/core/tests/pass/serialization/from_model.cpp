@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <fstream>
+#include <sstream>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
@@ -16,6 +17,7 @@
 #include "openvino/op/split.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
 
@@ -159,15 +161,11 @@ TEST(IRSerializationFromModel, ClampWithInfBounds) {
     auto res = std::make_shared<op::v0::Result>(clamp);
     auto expected = std::make_shared<Model>(OutputVector{res}, ParameterVector{param});
 
-    std::string filePrefix = ov::test::utils::generateTestFilePrefix();
-    auto out_xml_path = filePrefix + ".xml";
-    auto out_bin_path = filePrefix + ".bin";
+    std::stringstream model_ss, weights_ss;
+    pass::Serialize(model_ss, weights_ss).run_on_model(expected);
 
-    pass::Serialize(out_xml_path, out_bin_path).run_on_model(expected);
-    auto result = ov::test::readModel(out_xml_path, out_bin_path);
-
-    std::remove(out_xml_path.c_str());
-    std::remove(out_bin_path.c_str());
+    ov::Core core;
+    auto result = core.read_model(model_ss.str(), ov::Tensor());
 
     const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const auto cmp = fc.compare(result, expected);
