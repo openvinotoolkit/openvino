@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
 #include <variant>
@@ -35,12 +36,21 @@ public:
      */
     void read(const ov::Tensor& tensor);
 
+    /**
+     * @brief Reads human-readable metadata from a ov::Tensor.
+     */
+    void read_human_readable(const ov::Tensor& tensor);
+
     virtual void read() = 0;
+
+    virtual void read_human_readable() = 0;
 
     /**
      * @brief Writes metadata to a stream.
      */
     virtual void write(std::ostream& stream) = 0;
+
+    virtual void write_human_readable(std::ostream& stream) = 0;
 
     virtual uint64_t get_blob_size() const;
 
@@ -59,6 +69,8 @@ public:
     virtual std::optional<std::vector<ov::Layout>> get_output_layouts() const;
 
     virtual std::optional<uint32_t> get_compiler_version() const;
+
+    virtual std::optional<std::string> get_compiler_reqs() const;
 
     virtual ~MetadataBase() = default;
 
@@ -100,6 +112,14 @@ protected:
      */
     void read_data_from_source(char* destination, const size_t size);
 
+    using HRFields = std::map<std::string, std::string>;
+
+    /**
+     * @brief Parses the full human-readable tensor into a key-value map.
+     * @details The format is key=value; pairs where values may contain nested [] and {} brackets.
+     */
+    static HRFields parse_hr_fields(const ov::Tensor& tensor);
+
     /**
      * @brief Adds the size of the binary object and the magic string to the end of the stream.
      * @details This should be called after the "write" method in order to conclude writing the metadata into the given
@@ -118,6 +138,8 @@ protected:
      * @details Stored as attribute in order to avoid repeatedly passing the same arguments to some methods.
      * "uninitialized_source" (void*) is the default type assigned upon creation.
      */
+    HRFields _hr_fields;
+
     Source _source;
 
     /**
@@ -139,11 +161,12 @@ constexpr uint32_t METADATA_VERSION_2_1{MetadataBase::make_version(2, 1)};
 constexpr uint32_t METADATA_VERSION_2_2{MetadataBase::make_version(2, 2)};
 constexpr uint32_t METADATA_VERSION_2_3{MetadataBase::make_version(2, 3)};
 constexpr uint32_t METADATA_VERSION_2_4{MetadataBase::make_version(2, 4)};
+constexpr uint32_t METADATA_VERSION_2_5{MetadataBase::make_version(2, 5)};
 
 /**
  * @brief Current metadata version.
  */
-constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_4};
+constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_5};
 
 constexpr uint16_t CURRENT_METADATA_MAJOR_VERSION{MetadataBase::get_major(CURRENT_METADATA_VERSION)};
 constexpr uint16_t CURRENT_METADATA_MINOR_VERSION{MetadataBase::get_minor(CURRENT_METADATA_VERSION)};
@@ -220,6 +243,8 @@ public:
 
     void read() override;
 
+    void read_human_readable() override;
+
     /**
      * @attention It's a must to first write metadata version in any metadata specialization.
      *
@@ -228,6 +253,8 @@ public:
      * metadata section.
      */
     void write(std::ostream& stream) override;
+
+    void write_human_readable(std::ostream& stream) override;
 
     size_t get_metadata_size() const override;
 
@@ -251,11 +278,15 @@ public:
      */
     void read() override;
 
+    void read_human_readable() override;
+
     /**
      * @details The number of init schedules, along with the size of each init binary object are written in addition to
      * the information registered by the previous metadata versions.
      */
     void write(std::ostream& stream) override;
+
+    void write_human_readable(std::ostream& stream) override;
 
     std::optional<std::vector<uint64_t>> get_init_sizes() const override;
 
@@ -279,7 +310,11 @@ public:
 
     void read() override;
 
+    void read_human_readable() override;
+
     void write(std::ostream& stream) override;
+
+    void write_human_readable(std::ostream& stream) override;
 
     std::optional<int64_t> get_batch_size() const override;
 
@@ -305,7 +340,11 @@ public:
 
     void read() override;
 
+    void read_human_readable() override;
+
     void write(std::ostream& stream) override;
+
+    void write_human_readable(std::ostream& stream) override;
 
     size_t get_metadata_size() const override;
 
@@ -334,7 +373,11 @@ public:
 
     void read() override;
 
+    void read_human_readable() override;
+
     void write(std::ostream& stream) override;
+
+    void write_human_readable(std::ostream& stream) override;
 
     size_t get_metadata_size() const override;
 
@@ -342,6 +385,37 @@ public:
 
 private:
     std::optional<uint32_t> _compilerVersion;
+};
+
+/**
+ * @brief Stores the compiler requirements string.
+ */
+template <>
+class Metadata<METADATA_VERSION_2_5> : public Metadata<METADATA_VERSION_2_4> {
+public:
+    Metadata(uint64_t blobSize,
+             const std::optional<OpenvinoVersion>& ovVersion = std::nullopt,
+             const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt,
+             const std::optional<int64_t> batchSize = std::nullopt,
+             const std::optional<std::vector<ov::Layout>>& inputLayouts = std::nullopt,
+             const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt,
+             const std::optional<uint32_t> compilerVersion = std::nullopt,
+             const std::optional<std::string>& compilerReqs = std::nullopt);
+
+    void read() override;
+
+    void read_human_readable() override;
+
+    void write(std::ostream& stream) override;
+
+    void write_human_readable(std::ostream& stream) override;
+
+    size_t get_metadata_size() const override;
+
+    std::optional<std::string> get_compiler_reqs() const override;
+
+private:
+    std::optional<std::string> _compilerReqs;
 };
 
 /**
@@ -370,5 +444,7 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream);
  * MetadataBase object; otherwise, returns 'nullptr'.
  */
 std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor);
+
+std::unique_ptr<MetadataBase> read_human_readable(const ov::Tensor& tensor);
 
 }  // namespace intel_npu

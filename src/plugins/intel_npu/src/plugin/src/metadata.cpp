@@ -6,10 +6,36 @@
 
 #include <cstring>
 #include <iterator>
+#include <map>
 #include <optional>
+#include <sstream>
+#include <string>
 
 #include "intel_npu/utils/utils.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+
+namespace {
+
+template <typename T>
+void write_hr_field(std::ostream& stream, std::string_view key, const T& value) {
+    stream << key << '=' << value << ';';
+}
+
+template <typename Container>
+void write_hr_bracketed_list(std::ostream& stream, const Container& items) {
+    stream << '[';
+    bool first = true;
+    for (const auto& item : items) {
+        if (!first) {
+            stream << ',';
+        }
+        stream << item;
+        first = false;
+    }
+    stream << ']';
+}
+
+}  // namespace
 
 namespace intel_npu {
 
@@ -107,6 +133,25 @@ Metadata<METADATA_VERSION_2_4>::Metadata(uint64_t blobSize,
     _version = METADATA_VERSION_2_4;
 }
 
+Metadata<METADATA_VERSION_2_5>::Metadata(uint64_t blobSize,
+                                         const std::optional<OpenvinoVersion>& ovVersion,
+                                         const std::optional<std::vector<uint64_t>>& initSizes,
+                                         const std::optional<int64_t> batchSize,
+                                         const std::optional<std::vector<ov::Layout>>& inputLayouts,
+                                         const std::optional<std::vector<ov::Layout>>& outputLayouts,
+                                         const std::optional<uint32_t> compilerVersion,
+                                         const std::optional<std::string>& compilerReqs)
+    : Metadata<METADATA_VERSION_2_4>{blobSize,
+                                     ovVersion,
+                                     initSizes,
+                                     batchSize,
+                                     inputLayouts,
+                                     outputLayouts,
+                                     compilerVersion},
+      _compilerReqs{compilerReqs} {
+    _version = METADATA_VERSION_2_5;
+}
+
 void MetadataBase::read(std::istream& tensor) {
     _source = Source(tensor);
     read();
@@ -115,6 +160,11 @@ void MetadataBase::read(std::istream& tensor) {
 void MetadataBase::read(const ov::Tensor& tensor) {
     _source = Source(tensor);
     read();
+}
+
+void MetadataBase::read_human_readable(const ov::Tensor& tensor) {
+    _hr_fields = parse_hr_fields(tensor);
+    read_human_readable();
 }
 
 void MetadataBase::read_data_from_source(char* destination, const size_t size) {
@@ -128,6 +178,47 @@ void MetadataBase::read_data_from_source(char* destination, const size_t size) {
     } else {
         OPENVINO_THROW("No blob has been provided to NPU plugin's metadata reader.");
     }
+}
+
+MetadataBase::HRFields MetadataBase::parse_hr_fields(const ov::Tensor& tensor) {
+    HRFields fields;
+    const char* data = tensor.data<const char>();
+    const size_t total = tensor.get_byte_size();
+    size_t pos = 0;
+
+    while (pos < total && data[pos] != '\0') {
+        const size_t keyStart = pos;
+        while (pos < total && data[pos] != '=' && data[pos] != '\0') {
+            pos++;
+        }
+        if (pos >= total || data[pos] != '=') {
+            break;
+        }
+
+        std::string key(data + keyStart, pos - keyStart);
+        // consume '='
+        pos++;
+
+        const size_t valueStart = pos;
+        int depth = 0;
+        while (pos < total && data[pos] != '\0') {
+            const char c = data[pos];
+            if (c == '[' || c == '{') {
+                depth++;
+            } else if (c == ']' || c == '}') {
+                depth--;
+            } else if (c == ';' && depth == 0) {
+                break;
+            }
+            pos++;
+        }
+        std::string value(data + valueStart, pos - valueStart);
+        if (pos < total && data[pos] == ';') {
+            pos++;
+        }
+        fields.emplace(std::move(key), std::move(value));
+    }
+    return fields;
 }
 
 void MetadataBase::append_blob_size_and_magic(std::ostream& stream) {
@@ -220,9 +311,158 @@ void Metadata<METADATA_VERSION_2_4>::read() {
     _compilerVersion = compilerVersion != 0 ? std::optional(compilerVersion) : std::nullopt;
 }
 
+// should this be implemented or not? do we want it "obfuscated" into the blob?
+void Metadata<METADATA_VERSION_2_5>::read() {
+    Metadata<METADATA_VERSION_2_4>::read();
+
+    uint64_t reqs_len;
+    read_data_from_source(reinterpret_cast<char*>(&reqs_len), sizeof(reqs_len));
+    if (reqs_len > 0) {
+        std::string reqs(reqs_len, '\0');
+        read_data_from_source(reqs.data(), reqs_len);
+        _compilerReqs = std::move(reqs);
+    }
+}
+
+void Metadata<METADATA_VERSION_2_0>::read_human_readable() {
+    const auto it = _hr_fields.find("openvino_version");
+    if (it == _hr_fields.end()) {
+        OPENVINO_THROW("Human-readable metadata missing 'openvino_version' field.");
+    }
+    const std::string& s = it->second;
+    const size_t dot1 = s.find('.');
+    const size_t dot2 = s.find('.', dot1 + 1);
+    _ovVersion = OpenvinoVersion(static_cast<uint16_t>(std::stoul(s.substr(0, dot1))),
+                                 static_cast<uint16_t>(std::stoul(s.substr(dot1 + 1, dot2 - dot1 - 1))),
+                                 static_cast<uint16_t>(std::stoul(s.substr(dot2 + 1))));
+}
+
+// "[6,9,4,2]"
+void Metadata<METADATA_VERSION_2_1>::read_human_readable() {
+    Metadata<METADATA_VERSION_2_0>::read_human_readable();
+
+    const auto it = _hr_fields.find("inits");
+    if (it == _hr_fields.end()) {
+        return;
+    }
+    const std::string& s = it->second;
+    std::vector<uint64_t> inits;
+
+    // skip '['
+    size_t pos = 1;
+    while (pos < s.size() && s[pos] != ']') {
+        const size_t comma = s.find(',', pos);
+        const size_t bracket = s.find(']', pos);
+        const size_t end = std::min(comma, bracket);
+        inits.push_back(std::stoull(s.substr(pos, end - pos)));
+        pos = s[end] == ',' ? end + 1 : end;
+    }
+    _initSizes = std::move(inits);
+}
+
+void Metadata<METADATA_VERSION_2_2>::read_human_readable() {
+    Metadata<METADATA_VERSION_2_1>::read_human_readable();
+
+    const auto it = _hr_fields.find("batch_value");
+    if (it == _hr_fields.end()) {
+        OPENVINO_THROW("Human-readable metadata missing 'batch_value' field");
+    }
+    const int64_t batchValue = std::stoll(it->second);
+    _batchSize = (batchValue != 0) ? std::optional<int64_t>(batchValue) : std::nullopt;
+}
+
+// input_layouts=[[N,C,H,W],[N,C]]; output_layouts=[[N,H,W,C]];
+void Metadata<METADATA_VERSION_2_3>::read_human_readable() {
+    Metadata<METADATA_VERSION_2_2>::read_human_readable();
+
+    const auto parseLayoutGroupField = [&](const std::string& key) -> std::optional<std::vector<ov::Layout>> {
+        const auto it = _hr_fields.find(key);
+        if (it == _hr_fields.end()) {
+            return std::nullopt;
+        }
+
+        // "[[N,C,H,W],[N,C]]"
+        const std::string& s = it->second;
+        if (s.size() < 2 || s.front() != '[' || s.back() != ']') {
+            return std::nullopt;
+        }
+        const std::string content = s.substr(1, s.size() - 2);
+
+        std::vector<ov::Layout> layouts;
+        size_t pos = 0, itemStart = 0;
+        int depth = 0;
+        while (pos <= content.size()) {
+            const bool atEnd = (pos == content.size());
+            const char c = atEnd ? '\0' : content[pos];
+            if (c == '[') {
+                depth++;
+            } else if (c == ']') {
+                depth--;
+            }
+            if ((c == ',' && depth == 0) || atEnd) {
+                const std::string layoutStr = content.substr(itemStart, pos - itemStart);
+                if (!layoutStr.empty()) {
+                    try {
+                        layouts.push_back(ov::Layout(layoutStr));
+                    } catch (const ov::Exception&) {
+                        _logger.warning("Error encountered while constructing an ov::Layout object during "
+                                        "human-readable metadata read. Value: %s. A default value will be "
+                                        "used instead.",
+                                        layoutStr.c_str());
+                        layouts.push_back(ov::Layout());
+                    }
+                }
+                itemStart = pos + 1;
+            }
+            pos++;
+        }
+        return layouts.empty() ? std::nullopt : std::make_optional(std::move(layouts));
+    };
+
+    _inputLayouts = parseLayoutGroupField("input_layouts");
+    _outputLayouts = parseLayoutGroupField("output_layouts");
+}
+
+void Metadata<METADATA_VERSION_2_4>::read_human_readable() {
+    Metadata<METADATA_VERSION_2_3>::read_human_readable();
+
+    const auto it = _hr_fields.find("compiler_version");
+    if (it == _hr_fields.end()) {
+        OPENVINO_THROW("Human-readable metadata missing 'compiler_version' field");
+    }
+    const auto compilerVersion = static_cast<uint32_t>(std::stoul(it->second));
+    _compilerVersion = (compilerVersion != 0) ? std::optional<uint32_t>(compilerVersion) : std::nullopt;
+}
+
+void Metadata<METADATA_VERSION_2_5>::read_human_readable() {
+    Metadata<METADATA_VERSION_2_4>::read_human_readable();
+
+    const auto it = _hr_fields.find("compiler_reqs");
+    if (it == _hr_fields.end() || it->second.empty()) {
+        return;
+    }
+
+    const std::string& v = it->second;
+    if (v.size() >= 2 && v.front() == '[' && v.back() == ']') {
+        _compilerReqs = v.substr(1, v.size() - 2);
+    } else {
+        _compilerReqs = v;
+    }
+}
+
 void Metadata<METADATA_VERSION_2_0>::write(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(&_version), sizeof(_version));
     _ovVersion.write(stream);
+}
+
+void Metadata<METADATA_VERSION_2_0>::write_human_readable(std::ostream& stream) {
+    const uint16_t meta_major = MetadataBase::get_major(_version);
+    const uint16_t meta_minor = MetadataBase::get_minor(_version);
+    write_hr_field(stream, "metadata_version", std::to_string(meta_major) + "." + std::to_string(meta_minor));
+    write_hr_field(stream,
+                   "openvino_version",
+                   std::to_string(OPENVINO_VERSION_MAJOR) + "." + std::to_string(OPENVINO_VERSION_MINOR) + "." +
+                       std::to_string(OPENVINO_VERSION_PATCH));
 }
 
 void Metadata<METADATA_VERSION_2_1>::write(std::ostream& stream) {
@@ -238,11 +478,28 @@ void Metadata<METADATA_VERSION_2_1>::write(std::ostream& stream) {
     }
 }
 
+void Metadata<METADATA_VERSION_2_1>::write_human_readable(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_0>::write_human_readable(stream);
+
+    if (!_initSizes.has_value() || _initSizes->empty()) {
+        return;
+    }
+    std::ostringstream oss;
+    write_hr_bracketed_list(oss, _initSizes.value());
+    write_hr_field(stream, "inits", oss.str());
+}
+
 void Metadata<METADATA_VERSION_2_2>::write(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_1>::write(stream);
 
     int64_t batchValue = _batchSize.value_or(0);
     stream.write(reinterpret_cast<const char*>(&batchValue), sizeof(batchValue));
+}
+
+void Metadata<METADATA_VERSION_2_2>::write_human_readable(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_1>::write_human_readable(stream);
+
+    write_hr_field(stream, "batch_value", _batchSize.value_or(0));
 }
 
 void Metadata<METADATA_VERSION_2_3>::write(std::ostream& stream) {
@@ -274,7 +531,64 @@ void Metadata<METADATA_VERSION_2_4>::write(std::ostream& stream) {
     uint32_t compilerVersion = _compilerVersion.value_or(0);
     stream.write(reinterpret_cast<const char*>(&compilerVersion), sizeof(compilerVersion));
 
+// example output: input_layouts=[[N,C,H,W],[N,C]];output_layouts=[[N,H,W,C]];
+void Metadata<METADATA_VERSION_2_3>::write_human_readable(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_2>::write_human_readable(stream);
+
+    const auto writeLayoutGroupField = [&](std::string_view key, const std::optional<std::vector<ov::Layout>>& opt) {
+        if (!opt.has_value() || opt->empty()) {
+            return;
+        }
+
+        std::ostringstream oss;
+        oss << '[';
+        bool first = true;
+        for (const auto& layout : opt.value()) {
+            if (!first) {
+                oss << ',';
+            }
+            oss << layout.to_string();
+            first = false;
+        }
+        oss << ']';
+        write_hr_field(stream, key, oss.str());
+    };
+    writeLayoutGroupField("input_layouts", _inputLayouts);
+    writeLayoutGroupField("output_layouts", _outputLayouts);
+}
+
+void Metadata<METADATA_VERSION_2_4>::write(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_3>::write(stream);
+
+    uint32_t compilerVersion = _compilerVersion.value_or(0);
+    stream.write(reinterpret_cast<const char*>(&compilerVersion), sizeof(compilerVersion));
+}
+
+void Metadata<METADATA_VERSION_2_5>::write(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_4>::write(stream);
+
+    const std::string& reqs = _compilerReqs.value_or("");
+    const uint64_t reqs_len = reqs.size();
+    stream.write(reinterpret_cast<const char*>(&reqs_len), sizeof(reqs_len));
+    if (reqs_len > 0) {
+        stream.write(reqs.data(), static_cast<std::streamsize>(reqs_len));
+    }
+
     append_blob_size_and_magic(stream);
+}
+
+void Metadata<METADATA_VERSION_2_4>::write_human_readable(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_3>::write_human_readable(stream);
+
+    write_hr_field(stream, "compiler_version", _compilerVersion.value_or(0));
+}
+
+void Metadata<METADATA_VERSION_2_5>::write_human_readable(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_4>::write_human_readable(stream);
+
+    if (_compilerReqs.has_value() && !_compilerReqs->empty()) {
+        write_hr_field(stream, "compiler_reqs", '[' + _compilerReqs.value() + ']');
+    }
 }
 
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {
@@ -301,6 +615,8 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
         return std::make_unique<Metadata<METADATA_VERSION_2_3>>(blobSize);
     case METADATA_VERSION_2_4:
         return std::make_unique<Metadata<METADATA_VERSION_2_4>>(blobSize);
+    case METADATA_VERSION_2_5:
+        return std::make_unique<Metadata<METADATA_VERSION_2_5>>(blobSize);
     default:
         return nullptr;
     }
@@ -400,6 +716,50 @@ std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
     return storedMeta;
 }
 
+std::unique_ptr<MetadataBase> read_human_readable(const ov::Tensor& tensor) {
+    const char* data = tensor.data<const char>();
+    const size_t size = tensor.get_byte_size();
+
+    std::cout << "human string: " << data << '\n';
+
+    size_t pos = 0;
+    while (pos < size && data[pos] != '=') {
+        pos++;
+    }
+    if (pos >= size) {
+        OPENVINO_THROW("Invalid human-readable metadata: missing metadata_version field");
+    }
+    // skip '='
+    pos++;
+
+    size_t versionEnd = pos;
+    while (versionEnd < size && data[versionEnd] != ';') {
+        versionEnd++;
+    }
+    const std::string versionStr(data + pos, versionEnd - pos);
+
+    const size_t dot = versionStr.find('.');
+    if (dot == std::string::npos) {
+        OPENVINO_THROW("Invalid human-readable metadata: malformed version field");
+    }
+
+    const uint16_t major = static_cast<uint16_t>(std::stoul(versionStr.substr(0, dot)));
+    const uint16_t minor = static_cast<uint16_t>(std::stoul(versionStr.substr(dot + 1)));
+    const uint32_t metaVersion = MetadataBase::make_version(major, minor);
+
+    std::unique_ptr<MetadataBase> storedMeta;
+    try {
+        storedMeta = create_metadata(metaVersion, 0);
+        storedMeta->read_human_readable(tensor);
+    } catch (const std::exception& ex) {
+        OPENVINO_THROW("Can't read NPU human-readable metadata: ", ex.what());
+    } catch (...) {
+        OPENVINO_THROW("Unexpected exception while reading NPU human-readable metadata");
+    }
+
+    return storedMeta;
+}
+
 uint64_t MetadataBase::get_blob_size() const {
     return _blobDataSize;
 }
@@ -424,6 +784,10 @@ std::optional<uint32_t> MetadataBase::get_compiler_version() const {
     return std::nullopt;
 }
 
+std::optional<std::string> MetadataBase::get_compiler_reqs() const {
+    return std::nullopt;
+}
+
 std::optional<std::vector<uint64_t>> Metadata<METADATA_VERSION_2_1>::get_init_sizes() const {
     return _initSizes;
 }
@@ -442,6 +806,10 @@ std::optional<std::vector<ov::Layout>> Metadata<METADATA_VERSION_2_3>::get_outpu
 
 std::optional<uint32_t> Metadata<METADATA_VERSION_2_4>::get_compiler_version() const {
     return _compilerVersion;
+}
+
+std::optional<std::string> Metadata<METADATA_VERSION_2_5>::get_compiler_reqs() const {
+    return _compilerReqs;
 }
 
 size_t Metadata<METADATA_VERSION_2_0>::get_metadata_size() const {
@@ -486,6 +854,11 @@ size_t Metadata<METADATA_VERSION_2_3>::get_metadata_size() const {
 
 size_t Metadata<METADATA_VERSION_2_4>::get_metadata_size() const {
     return Metadata<METADATA_VERSION_2_3>::get_metadata_size() + sizeof(_compilerVersion.value());
+}
+
+size_t Metadata<METADATA_VERSION_2_5>::get_metadata_size() const {
+    const size_t reqs_size = _compilerReqs.has_value() ? _compilerReqs->size() : 0;
+    return Metadata<METADATA_VERSION_2_4>::get_metadata_size() + sizeof(uint64_t) + reqs_size;
 }
 
 }  // namespace intel_npu
