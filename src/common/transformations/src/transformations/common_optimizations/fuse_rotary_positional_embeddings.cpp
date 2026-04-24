@@ -1162,7 +1162,7 @@ RoPEFusionGPTOSS::RoPEFusionGPTOSS() {
     auto first_half_mul_sin = pattern::wrap_type<v1::Multiply>({vsplit_out0, t_sin}, {{"auto_broadcast", "numpy"}});
     auto add_Add =
         pattern::wrap_type<v1::Add>({second_half_mul_cos, first_half_mul_sin}, {{"auto_broadcast", "numpy"}});
-    auto concat_result = pattern::wrap_type<opset1::Concat>({sub_Subtract, add_Add}, {{"axis", -1}});
+    auto concat_result = pattern::wrap_type<opset1::Concat>({sub_Subtract, add_Add});
 
     auto result = concat_result;
 
@@ -1171,6 +1171,17 @@ RoPEFusionGPTOSS::RoPEFusionGPTOSS() {
         auto root = m.get_match_root();
         const auto& x_val = pattern_map.at(x);
         const auto& v_cos = pattern_map.at(t_cos);
+
+        // Verify concat axis is the last dimension (accepts both -1 and positive equivalent)
+        auto concat_node = ov::as_type_ptr<v0::Concat>(root);
+        if (!concat_node)
+            return false;
+        auto concat_rank = concat_node->get_output_partial_shape(0).rank();
+        if (concat_rank.is_dynamic())
+            return false;
+        int64_t concat_axis = concat_node->get_axis();
+        if (concat_axis != -1 && concat_axis != concat_rank.get_length() - 1)
+            return false;
 
         auto symbols = m.get_symbols();
         const auto& half_ndims = symbols["half_ndims"];

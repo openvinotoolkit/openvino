@@ -13,7 +13,6 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(paged_attention)
 
 paged_attention_node::typed_program_node(const std::shared_ptr<paged_attention> prim, program& prog)
     : parent(prim, prog) {
-    can_share_internal_buffer(false);
 }
 
 layout paged_attention_inst::calc_output_layout(const paged_attention_node& /*node*/, kernel_impl_params const& impl_param) {
