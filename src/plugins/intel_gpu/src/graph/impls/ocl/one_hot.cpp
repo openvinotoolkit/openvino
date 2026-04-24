@@ -27,14 +27,14 @@ struct one_hot_impl : typed_primitive_impl_ocl<one_hot> {
         const auto& primitive = impl_param.typed_desc<one_hot>();
         auto params = get_default_params<kernel_selector::one_hot_params>(impl_param);
 
-        params.one_hot_axis = primitive->one_hot_axis;
+        params.one_hot_axis = static_cast<uint16_t>(primitive->one_hot_axis);
         params.on_value = primitive->on_value;
         params.off_value = primitive->off_value;
         params.indices_normalize_mode = primitive->indices_normalize_mode;
 
         auto output_sizes = impl_param.get_output_layout().get_dims();
 
-        params.one_hot_limit = output_sizes[params.one_hot_axis];
+        params.one_hot_limit = static_cast<int32_t>(output_sizes[params.one_hot_axis]);
         return params;
     }
 };
