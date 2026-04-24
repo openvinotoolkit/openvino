@@ -371,16 +371,12 @@ gpu_image2d::gpu_image2d(ze_engine* engine, const layout& layout)
             image_desc.format.w = ZE_IMAGE_FORMAT_SWIZZLE_A;
             break;
         case format::image_2d_rgba:
-            if (layout.data_type == data_types::f16) {
-                image_desc.format.layout = ZE_IMAGE_FORMAT_LAYOUT_16_16_16_16;
-            } else {
-                image_desc.format.layout = ZE_IMAGE_FORMAT_LAYOUT_32_32_32_32;
-            }
+            image_desc.format.type = ZE_IMAGE_FORMAT_TYPE_UNORM;
+            image_desc.format.layout = ZE_IMAGE_FORMAT_LAYOUT_8_8_8_8;
             image_desc.format.x = ZE_IMAGE_FORMAT_SWIZZLE_R;
             image_desc.format.y = ZE_IMAGE_FORMAT_SWIZZLE_G;
             image_desc.format.z = ZE_IMAGE_FORMAT_SWIZZLE_B;
             image_desc.format.w = ZE_IMAGE_FORMAT_SWIZZLE_A;
-            image_desc.format.type = ZE_IMAGE_FORMAT_TYPE_UNORM;
             if (layout.feature() != 3 && layout.feature() != 4) {
                 OPENVINO_THROW("[GPU] 2D image allocation", "invalid number of channels in image_2d_rgba input image (should be 3 or 4)!");
             }
@@ -391,18 +387,15 @@ gpu_image2d::gpu_image2d(ze_engine* engine, const layout& layout)
             auto shape = layout.get_shape();
             _width = shape[2];
             _height = shape[1];
+            image_desc.format.type = ZE_IMAGE_FORMAT_TYPE_UNORM;
+            image_desc.format.layout = ZE_IMAGE_FORMAT_LAYOUT_8;
             if (shape[3] == 2) {
-                if (layout.data_type == data_types::f16) {
-                    image_desc.format.layout = ZE_IMAGE_FORMAT_LAYOUT_16_16;
-                } else {
-                    image_desc.format.layout = ZE_IMAGE_FORMAT_LAYOUT_32_32;
-                }
+                image_desc.format.layout = ZE_IMAGE_FORMAT_LAYOUT_8_8;
                 image_desc.format.x = ZE_IMAGE_FORMAT_SWIZZLE_R;
                 image_desc.format.y = ZE_IMAGE_FORMAT_SWIZZLE_G;
             } else if (shape[3] > 2) {
                 OPENVINO_THROW("[GPU] 2D image allocation", "invalid number of channels in NV12 input image!");
             }
-            image_desc.format.type = ZE_IMAGE_FORMAT_TYPE_UNORM;
             break;
         }
         default:
