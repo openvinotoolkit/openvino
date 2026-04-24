@@ -196,21 +196,20 @@ bool Bank::is_remote(int64_t uid) const {
     return false;
 }
 
-void Bank::serialize(std::ostream& stream) const {
-    using namespace ov::npuw::s11n;
-
+void Bank::serialize(ov::npuw::s11n::Stream& stream) {
     LOG_INFO("Serializing weights bank...");
     LOG_BLOCK();
 
     std::unique_lock guard(m_mutex);
 
-    write(stream, m_device_banks.size());
+    std::size_t bank_size = m_device_banks.size();
+    stream & bank_size;
 
     for (const auto& elem : m_device_banks) {
         const auto& device = elem.first;
         const auto& device_bank = elem.second;
-        write(stream, device);
-        write(stream, device_bank.storage.size());
+        auto storage_size = device_bank.storage.size();
+        stream & device & storage_size;
         // Write tensors sequentially according to sorted uids for better memory allocation and utilization
         std::set<int64_t> uids;
         for (const auto& t_pair : device_bank.storage) {
@@ -218,47 +217,16 @@ void Bank::serialize(std::ostream& stream) const {
         }
 
         for (const auto& uid : uids) {
-            write(stream, uid);
-            write(stream, device_bank.storage.at(uid).tensor);
+            stream & uid;
+            auto tensor = device_bank.storage.at(uid).tensor;
+            transfer_tensor(stream, tensor);
         }
     }
 
     LOG_INFO("DONE.");
 }
 
-std::shared_ptr<Bank> Bank::deserialize(std::istream& stream,
-                                        const std::shared_ptr<const ov::ICore>& core,
-                                        const std::string& name) {
-    using namespace ov::npuw::s11n;
-
-    LOG_INFO("Deserializing weights bank...");
-    LOG_BLOCK();
-
-    auto bank = ov::npuw::weights::bank(name, core, "");
-
-    std::size_t bank_size = 0;
-    read(stream, bank_size);
-
-    for (std::size_t i = 0; i < bank_size; ++i) {
-        std::string device;
-        read(stream, device);
-        std::size_t storage_size = 0;
-        read(stream, storage_size);
-        for (std::size_t j = 0; j < storage_size; ++j) {
-            int64_t uid = -1;
-            read(stream, uid);
-            bank->read_and_add_tensor(stream, uid, device);
-        }
-    }
-
-    LOG_INFO("DONE.");
-
-    return bank;
-}
-
-void Bank::read_and_add_tensor(std::istream& stream, int64_t uid, const std::string& device) {
-    using namespace ov::npuw::s11n;
-
+void Bank::read_and_add_tensor(ov::npuw::s11n::Stream& stream, int64_t uid, const std::string& device) {
     // This method is supposed to be used only during deserialization
     std::unique_lock guard(m_mutex);
 
@@ -273,38 +241,50 @@ void Bank::read_and_add_tensor(std::istream& stream, int64_t uid, const std::str
 
     if (device == "CPU") {
         // Just read deserialized tensor into the bank
-        read(stream, device_bank.storage[uid].tensor);
+        transfer_tensor(stream, device_bank.storage[uid].tensor);
         return;
     }
 
     // Need to allocate on device and copy deserialized tensor to that memory
-    ov::SoPtr<ov::ITensor> remote_tensor;
-    ov::Tensor allocated_tensor;
-
-    // FIXME: reading not via a dedicated function
-    bool is_intialized = false;
-    read(stream, is_intialized);
-    NPUW_ASSERT(is_intialized);
-
-    std::string type_str;
-    read(stream, type_str);
-    ov::element::Type type(type_str);
-
-    ov::Shape shape;
-    read(stream, shape);
-
-    std::size_t byte_size = 0;
-    read(stream, byte_size);
-
     auto remote_ctx = m_core->get_default_context(device)._ptr;
-    remote_tensor = remote_ctx->create_host_tensor(type, shape);
-    allocated_tensor = ov::make_tensor(remote_tensor);
-    device_bank.storage[uid] = {LazyTensor(), allocated_tensor};
-    stream.read(reinterpret_cast<char*>(allocated_tensor.data()), byte_size);
+    transfer_tensor(stream,
+                    device_bank.storage[uid].tensor,
+                    [&remote_ctx](const ov::element::Type& type, const ov::Shape& shape) {
+                        ov::SoPtr<ov::ITensor> remote_tensor = remote_ctx->create_host_tensor(type, shape);
+                        return ov::make_tensor(remote_tensor);
+                    });
+    NPUW_ASSERT(device_bank.storage[uid].tensor && "Remote tensor should be initialized during bank deserialize");
+    device_bank.storage[uid].lt = LazyTensor();
 }
 
 std::string Bank::get_name() const {
     return m_bank_name;
+}
+
+void ov::npuw::s11n::serialize(Stream& stream, ov::npuw::weights::Bank& var) {
+    if (stream.output()) {
+        var.serialize(stream);
+    } else {
+        LOG_INFO("Deserializing weights bank...");
+        LOG_BLOCK();
+
+        std::size_t bank_size = 0;
+        stream & bank_size;
+
+        for (std::size_t i = 0; i < bank_size; ++i) {
+            std::string device;
+            stream & device;
+            std::size_t storage_size = 0;
+            stream & storage_size;
+            for (std::size_t j = 0; j < storage_size; ++j) {
+                int64_t uid = -1;
+                stream & uid;
+                var.read_and_add_tensor(stream, uid, device);
+            }
+        }
+
+        LOG_INFO("DONE.");
+    }
 }
 
 std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,
