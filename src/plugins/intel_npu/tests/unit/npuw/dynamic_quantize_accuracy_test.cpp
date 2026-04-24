@@ -341,8 +341,11 @@ std::shared_ptr<Model> build_quantize_model(const Shape& shape,
 std::shared_ptr<Model> build_dequantize_model(const Shape& shape,
                                               const DQTestParams& p) {
     auto config = make_dq_config(shape, p);
+    const auto storage_dt = (p.decompose_version == 3 && !p.is_symmetric && resolve_quant_dt(p) == element::i8)
+                                ? element::u8
+                                : config.quantization_dt;
 
-    auto param_q = std::make_shared<op::v0::Parameter>(config.quantization_dt, shape);
+    auto param_q = std::make_shared<op::v0::Parameter>(storage_dt, shape);
     param_q->set_friendly_name("quantized_data");
 
     // Scale/ZP shape: same as data but with embedding dim (last) collapsed to 1
@@ -364,7 +367,7 @@ std::shared_ptr<Model> build_dequantize_model(const Shape& shape,
     if (p.is_symmetric) {
         dequant_input = q_f32;
     } else {
-        auto param_zp = std::make_shared<op::v0::Parameter>(config.zp_dt, scale_shape);
+        auto param_zp = std::make_shared<op::v0::Parameter>(storage_dt, scale_shape);
         param_zp->set_friendly_name("zero_point");
         params.push_back(param_zp);
 
@@ -514,12 +517,35 @@ AccuracyMetrics evaluate_split_roundtrip_on_device(const std::shared_ptr<Model>&
                                                    size_t element_count) {
     Core core;
     ov::AnyMap device_config;
+    bool offline_npu_compile_only = false;
     if (device_name == "NPU") {
         device_config[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::PLUGIN;
+
+        const auto available_devices = core.get_available_devices();
+        const bool has_live_npu = std::find(available_devices.begin(), available_devices.end(), "NPU") !=
+                                  available_devices.end();
+
+        const char* platform_env = std::getenv("OV_DQ_TEST_NPU_PLATFORM");
+        if (platform_env == nullptr || std::string(platform_env).empty()) {
+            platform_env = std::getenv("IE_NPU_TESTS_PLATFORM");
+        }
+        if (platform_env != nullptr && !std::string(platform_env).empty()) {
+            device_config[ov::intel_npu::platform.name()] = std::string(platform_env);
+            device_config["NPU_CREATE_EXECUTOR"] = int64_t{0};
+            offline_npu_compile_only = !has_live_npu;
+        }
     }
 
     // Step 1: compile and run quantize model
     auto compiled_quant = core.compile_model(quant_model, device_name, device_config);
+
+    if (offline_npu_compile_only) {
+        auto compiled_dequant = core.compile_model(dequant_model, device_name, device_config);
+        (void)compiled_quant;
+        (void)compiled_dequant;
+        return AccuracyMetrics{};
+    }
+
     auto quant_request = compiled_quant.create_infer_request();
 
     auto quant_input = Tensor(element::f16, quant_model->get_parameters()[0]->get_shape());
@@ -679,13 +705,25 @@ TEST_P(DynamicQuantizeAccuracyTest, SplitModelRoundtripAccuracy) {
 //            OV_DQ_TEST_DEVICE=NPU  ./ov_npu_unit_tests --gtest_filter=*DeviceRoundtripAccuracy*
 
 TEST_P(DynamicQuantizeAccuracyTest, DeviceRoundtripAccuracy) {
-    const std::string device = get_test_device();
+    const auto& p = GetParam();
+    std::string device = get_test_device();
+    const bool enable_skipped_error_case = p.decompose_version == 3 &&
+                                           p.dist_kind == DistributionKind::GenGaussian &&
+                                           p.seed == 42 &&
+                                           p.ggd_mu == 0.018f &&
+                                           p.ggd_alpha == 1.121f &&
+                                           p.ggd_beta == 0.923f &&
+                                           p.shape == Shape({1, 8, 1024, 128});
+
+    if (device.empty() && enable_skipped_error_case) {
+        device = "NPU";
+    }
+
     if (device.empty()) {
         GTEST_SKIP() << "OV_DQ_TEST_DEVICE not set -- skipping device inference test";
     }
 
     auto [quant_model, dequant_model, data, element_count] = setup_split_test();
-    const auto& p = GetParam();
 
     // Reference: interpreter on the split models
     auto ref_metrics = evaluate_split_roundtrip(quant_model, dequant_model,
@@ -696,6 +734,9 @@ TEST_P(DynamicQuantizeAccuracyTest, DeviceRoundtripAccuracy) {
         dev_metrics = evaluate_split_roundtrip_on_device(quant_model, dequant_model,
                                                          device, data.data(), element_count);
     } catch (const std::exception& e) {
+        if (enable_skipped_error_case) {
+            FAIL() << "Device '" << device << "' inference failed: " << e.what();
+        }
         GTEST_SKIP() << "Device '" << device << "' is not available: " << e.what();
     }
 

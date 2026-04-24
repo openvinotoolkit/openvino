@@ -38,6 +38,34 @@ std::string cacheName(bool is_key) {
     return is_key ? g_key_cache_name : g_value_cache_name;
 }
 
+ov::element::Type resolve_storage_type(bool is_key, const ov::npuw::KVCacheCompressionConfig& cfg) {
+    if (is_key && cfg.quantization_type == ov::npuw::KVCacheCompressionConfig::QuantizationType::Asymmetric &&
+        cfg.quantization_dt == ov::element::i8) {
+        return ov::element::u8;
+    }
+
+    return cfg.quantization_dt;
+}
+
+void update_boundary_parameter_type(const std::shared_ptr<ov::Node>& start_node, const ov::element::Type storage_type) {
+    if (auto param = ov::as_type_ptr<ov::op::v0::Parameter>(start_node)) {
+        if (param->get_element_type() != storage_type) {
+            param->set_element_type(storage_type);
+        }
+        return;
+    }
+
+    auto convert = ov::as_type_ptr<ov::op::v0::Convert>(start_node);
+    if (convert == nullptr) {
+        return;
+    }
+
+    auto param = ov::as_type_ptr<ov::op::v0::Parameter>(convert->input_value(0).get_node_shared_ptr());
+    if (param != nullptr && param->get_element_type() != storage_type) {
+        param->set_element_type(storage_type);
+    }
+}
+
 // ── V2 helper functions (ONNX DynamicQuantizeLinear style) ────────────────────
 
 std::shared_ptr<ov::Node> find_min_value(const ov::Output<ov::Node>& input, size_t reduce_axes) {
@@ -441,6 +469,7 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
             bool is_key,
             const KVCacheCompressionConfig& cfg) -> std::shared_ptr<ov::op::internal::DynamicQuantize> {
         const std::string kv_name = cacheName(is_key);
+        const auto storage_type = resolve_storage_type(is_key, cfg);
 
         const bool is_asym = cfg.quantization_type == KVCacheCompressionConfig::QuantizationType::Asymmetric;
 
@@ -448,7 +477,7 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
         std::vector<uint64_t> shape_group_size(rank, 1);
 
         ov::op::internal::DynamicQuantize::Attributes dq_config;
-        dq_config.quantization_dt = cfg.quantization_dt;
+        dq_config.quantization_dt = storage_type;
         dq_config.quantization_type = is_asym ? ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric
                                               : ov::op::internal::DynamicQuantize::QuantizationType::Symmetric;
         dq_config.scale_dt = ov::element::f32;
@@ -456,7 +485,7 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
         dq_config.group_sizes = shape_group_size;
 
         if (is_asym) {
-            dq_config.zp_dt = cfg.quantization_dt;  // zp same type as quantized data
+            dq_config.zp_dt = storage_type;  // zp same type as quantized data
         }
 
         auto kv_dyn_quant = std::make_shared<ov::op::internal::DynamicQuantize>(dq_input, dq_config);
@@ -481,6 +510,7 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
                                     bool isKey,
                                     const KVCacheCompressionConfig& cfg) {
         const std::string node_name = isKey ? g_key_cache_name : g_value_cache_name;
+        const auto storage_type = resolve_storage_type(isKey, cfg);
 
         // TODO: adding back slash here kills partitioning - fix that
         auto make_dq_name = [&make_name, &node_name](auto base_name) {
@@ -501,12 +531,14 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
         LOG_INFO("Found Dequantize for " << node_name << " insertion point after: " << start_node->get_name()
                                          << ") shape: " << start_node->get_shape());
 
+        update_boundary_parameter_type(start_node, storage_type);
+
         // reconstruct k and v caches intgeres values  to matmul using one of Dequantize approach
         // use zp on quant/dequant only in case od assym
         std::shared_ptr<ov::Node> fp_subtracted_zp = start_node;
         if (cfg.quantization_type == KVCacheCompressionConfig::QuantizationType::Asymmetric) {
             //  Subtract zero-point - TODO: share this memory with DynamicQuantize/read/assign?
-            auto zp = create_parameter_with_name(cfg.quantization_dt,
+            auto zp = create_parameter_with_name(storage_type,
                                                  clear_embedding_index(start_node, isKey),
                                                  make_dq_param_name("zp"));
 
