@@ -2295,7 +2295,7 @@ TEST_P(xattention_test, basic) {
         GTEST_SKIP();
     auto p = GetParam();
 
-    execute(p, false);
+    execute(p, p.run_reference);
 }
 
 class xattention_invalid_test : public PagedAttentionTest<paged_attention_test_params> {};
