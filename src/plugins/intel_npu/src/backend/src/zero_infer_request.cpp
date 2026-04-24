@@ -1412,9 +1412,41 @@ std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
     return _pipeline->get_profiling_info();
 }
 
+void ZeroInferRequest::cleanup_stale_wait_for_worker() {
+    std::thread staleWaitForThread;
+    {
+        std::lock_guard<std::mutex> lock{_syncMutex};
+        if (!_waitThreadActive && _waitThread.joinable() && _state == ZeroInferState::IDLE && !_workReady) {
+            _state = ZeroInferState::STOP;
+            _asyncThreadCv.notify_all();
+            staleWaitForThread = std::move(_waitThread);
+        }
+    }
+
+    if (staleWaitForThread.joinable()) {
+        staleWaitForThread.join();
+        std::lock_guard<std::mutex> lock{_syncMutex};
+        if (_state == ZeroInferState::STOP) {
+            _state = ZeroInferState::IDLE;
+        }
+    }
+}
+
 void ZeroInferRequest::infer() {
     OV_ITT_SCOPED_TASK_BASE(itt::domains::InferenceNPU, "SyncInferenceNPU");
     check_tensors();
+
+    cleanup_stale_wait_for_worker();
+
+    // Allow requeuing after cancellation: reset CANCELLED state.
+    {
+        std::lock_guard<std::mutex> lock{_syncMutex};
+        if (_state == ZeroInferState::CANCELLED) {
+            _state = ZeroInferState::IDLE;
+            _threadException = nullptr;
+        }
+    }
+
     check_request_busy();
 
     if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
@@ -1431,6 +1463,18 @@ void ZeroInferRequest::infer() {
 void ZeroInferRequest::start_async() {
     _logger.debug("start_async - started");
     check_tensors();
+
+    cleanup_stale_wait_for_worker();
+
+    // Allow requeuing after cancellation: reset CANCELLED state.
+    {
+        std::lock_guard<std::mutex> lock{_syncMutex};
+        if (_state == ZeroInferState::CANCELLED) {
+            _state = ZeroInferState::IDLE;
+            _threadException = nullptr;
+        }
+    }
+
     check_request_busy();
 
     std::exception_ptr previousException;
@@ -1444,13 +1488,6 @@ void ZeroInferRequest::start_async() {
         std::rethrow_exception(previousException);
     }
 
-    try {
-        start_impl();
-    } catch (...) {
-        _asyncThreadCv.notify_all();
-        throw;
-    }
-
     bool workerEnabled = false;
     {
         std::lock_guard<std::mutex> lock{_syncMutex};
@@ -1458,38 +1495,56 @@ void ZeroInferRequest::start_async() {
         workerEnabled = _waitThreadActive;
     }
 
+    try {
+        start_impl();
+    } catch (...) {
+        {
+            std::lock_guard<std::mutex> lock{_syncMutex};
+            _state = ZeroInferState::IDLE;
+        }
+        _asyncThreadCv.notify_all();
+        throw;
+    }
+
     if (workerEnabled) {
+        std::lock_guard<std::mutex> lock{_syncMutex};
+        _workReady = true;
         _asyncThreadCv.notify_one();
     }
 }
 
-void ZeroInferRequest::wait_thread_loop(bool callbackRegistered) {
-    do {
+void ZeroInferRequest::wait_thread_loop(std::shared_ptr<ZeroInferRequest> self) {
+    while (true) {
         std::unique_lock<std::mutex> lock(_syncMutex);
         _asyncThreadCv.wait(lock, [this]() {
-            return _state != ZeroInferState::IDLE;
+            return _workReady || _state == ZeroInferState::STOP;
         });
 
         // Exit only when stop is requested and there is no in-flight request to complete.
-        if (_state == ZeroInferState::STOP || _state == ZeroInferState::IDLE) {
+        if (_state == ZeroInferState::STOP) {
             return;
         }
 
+        _workReady = false;
+
         lock.unlock();
+        std::function<void(std::exception_ptr)> callback;
+        bool stopRequested = false;
+
         auto exceptionPtr = wait_impl();
 
-        std::function<void(std::exception_ptr)> callback;
-        std::shared_ptr<ZeroInferRequest> self;
-        bool stopRequested = false;
         lock.lock();
         // Move instead of copy so the lambda's captured shared_ptrs have use_count == 1 during invocation.
-        self = shared_from_this();
         callback = std::move(_callback);
-        if (_state == ZeroInferState::CANCELLED) {
-            exceptionPtr = make_cancelled_exception();
-        }
         stopRequested = _state == ZeroInferState::STOP;
-        _state = ZeroInferState::IDLE;
+        // Preserve CANCELLED as terminal state; record exception for subsequent waits.
+        if (_state == ZeroInferState::CANCELLED) {
+            if (!exceptionPtr) {
+                exceptionPtr = make_cancelled_exception();
+            }
+        } else if (!_workReady) {
+            _state = ZeroInferState::IDLE;
+        }
         lock.unlock();
 
         if (callback) {
@@ -1506,6 +1561,7 @@ void ZeroInferRequest::wait_thread_loop(bool callbackRegistered) {
         if (callback && !_callback) {
             _callback = std::move(callback);
         }
+        // Record exception so subsequent wait()/wait_for() calls see it.
         _threadException = exceptionPtr;
         _asyncThreadCv.notify_all();
         lock.unlock();
@@ -1514,7 +1570,7 @@ void ZeroInferRequest::wait_thread_loop(bool callbackRegistered) {
         if (stopRequested) {
             return;
         }
-    } while (callbackRegistered);
+    }
 }
 
 void ZeroInferRequest::wait() {
@@ -1526,8 +1582,13 @@ void ZeroInferRequest::wait() {
         if (_state == ZeroInferState::CANCELLED) {
             exceptionPtr = make_cancelled_exception();
         } else if (_state == ZeroInferState::IDLE) {
-            // No pending request: return immediately without blocking worker thread.
-            return;
+            exceptionPtr = _threadException;
+            _threadException = nullptr;
+            // No pending request: return immediately without blocking worker thread,
+            // but still propagate any exception captured by the background thread.
+            if (!exceptionPtr) {
+                return;
+            }
         }
     }
     if (exceptionPtr) {
@@ -1581,25 +1642,28 @@ bool ZeroInferRequest::wait_for(const std::chrono::milliseconds& timeout) {
         if (_state == ZeroInferState::CANCELLED) {
             exceptionPtr = make_cancelled_exception();
         } else if (_state == ZeroInferState::IDLE) {
-            // No pending request: return immediately.
-            return true;
+            exceptionPtr = _threadException;
+            _threadException = nullptr;
+            // No pending request: return immediately without blocking worker thread,
+            // but still propagate any exception captured by the background thread.
+            if (!exceptionPtr) {
+                return true;
+            }
         } else if (timeout == std::chrono::milliseconds{0}) {
             // Status-only check: return immediately.
             return false;
-        } else if (!_waitThreadActive) {
-            if (!_waitThread.joinable()) {
-                _waitThreadActive = true;
-                _waitThread = std::thread([this]() {
-                    wait_thread_loop(false);
-                });
-            }
-
+        } else if (!_waitThread.joinable()) {
             _threadException = nullptr;
+            _workReady = true;
+            auto self = shared_from_this();
+            _waitThread = std::thread([self]() {
+                self->wait_thread_loop(self);
+            });
             _asyncThreadCv.notify_one();
         }
 
         if (!exceptionPtr && !_asyncThreadCv.wait_for(lock, timeout, [this]() {
-                return _state == ZeroInferState::IDLE;
+                return _state == ZeroInferState::IDLE || _state == ZeroInferState::CANCELLED;
             })) {
             // timeout expired
             return false;
@@ -1610,6 +1674,8 @@ bool ZeroInferRequest::wait_for(const std::chrono::milliseconds& timeout) {
             _threadException = nullptr;
         }
     }
+    // In wait_for-only mode, clean up idle worker without affecting timeout behavior.
+    cleanup_stale_wait_for_worker();
 
     if (exceptionPtr) {
         std::rethrow_exception(exceptionPtr);
@@ -1628,6 +1694,9 @@ void ZeroInferRequest::cancel() {
 
 void ZeroInferRequest::set_callback(std::function<void(std::exception_ptr)> callback) {
     OPENVINO_ASSERT(callback, "Callback function cannot be empty");
+
+    cleanup_stale_wait_for_worker();
+
     check_request_busy();
 
     std::lock_guard<std::mutex> lock{_syncMutex};
@@ -1635,44 +1704,65 @@ void ZeroInferRequest::set_callback(std::function<void(std::exception_ptr)> call
     _waitThreadActive = true;
 
     if (!_waitThread.joinable()) {
-        _waitThread = std::thread([this]() {
-            wait_thread_loop(true);
+        auto self = shared_from_this();
+        _waitThread = std::thread([self]() {
+            self->wait_thread_loop(self);
         });
     }
 };
 
 void ZeroInferRequest::check_request_busy() const {
-    std::exception_ptr exceptionPtr;
-    bool waitDirectly = false;
-    {
-        std::unique_lock<std::mutex> lock{_syncMutex};
-        if (_state != ZeroInferState::BUSY) {
-            return;
-        }
+    if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        // special case to wait until previous inference is finished when RUN_INFERENCES_SEQUENTIALLY is enabled. This
+        // allows to run inferences sequentially without setting callback and without using wait_for with timeout in a
+        // loop.
 
-        if (_waitThreadActive) {
-            // If completion is handled by worker thread, wait for it instead of failing as busy.
-            _asyncThreadCv.wait(lock, [this]() {
-                return _state != ZeroInferState::BUSY;
-            });
-            exceptionPtr = _threadException;
-        } else {
-            // No worker is consuming completion: finish the in-flight request synchronously.
-            waitDirectly = true;
-        }
-    }
-
-    if (waitDirectly) {
-        // No callback; do synchronous wait directly
-        exceptionPtr = const_cast<ZeroInferRequest*>(this)->wait_impl();
+        std::exception_ptr exceptionPtr;
+        bool waitDirectly = false;
         {
-            std::lock_guard<std::mutex> lock(_syncMutex);
-            _state = ZeroInferState::IDLE;
+            std::unique_lock<std::mutex> lock{_syncMutex};
+            if (_state != ZeroInferState::BUSY) {
+                return;
+            }
+
+            if (_waitThreadActive) {
+                // If completion is handled by worker thread, wait for it instead of failing as busy.
+                _asyncThreadCv.wait(lock, [this]() {
+                    return _state != ZeroInferState::BUSY;
+                });
+                exceptionPtr = _threadException;
+            } else {
+                // No worker is consuming completion: finish the in-flight request synchronously.
+                waitDirectly = true;
+            }
         }
+
+        if (waitDirectly) {
+            // No callback; do synchronous wait directly
+            exceptionPtr = const_cast<ZeroInferRequest*>(this)->wait_impl();
+            {
+                std::lock_guard<std::mutex> lock(_syncMutex);
+                _state = ZeroInferState::IDLE;
+            }
+        }
+
+        if (exceptionPtr) {
+            std::rethrow_exception(exceptionPtr);
+        }
+
+        return;
     }
 
-    if (exceptionPtr) {
-        std::rethrow_exception(exceptionPtr);
+    std::lock_guard<std::mutex> lock{_syncMutex};
+    switch (_state) {
+    case ZeroInferState::BUSY:
+        ov::Busy::create("Infer Request is busy");
+        break;
+    case ZeroInferState::CANCELLED:
+        ov::Cancelled::create("Infer Request was canceled");
+        break;
+    default:
+        break;
     }
 }
 

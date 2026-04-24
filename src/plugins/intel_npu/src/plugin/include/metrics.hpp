@@ -21,11 +21,9 @@ public:
     Metrics(const ov::SoPtr<IEngineBackend>& backend);
 
     std::vector<std::string> GetAvailableDevicesNames() const;
-    const std::vector<std::string>& SupportedMetrics() const;
     std::string GetFullDeviceName(const std::string& specifiedDeviceName) const;
     IDevice::Uuid GetDeviceUuid(const std::string& specifiedDeviceName) const;
     ov::device::LUID GetDeviceLUID(const std::string& specifiedDeviceName) const;
-    const std::vector<std::string>& GetSupportedConfigKeys() const;
     const std::vector<std::string> GetOptimizationCapabilities() const;
     const std::tuple<uint32_t, uint32_t, uint32_t>& GetRangeForAsyncInferRequest() const;
     std::string GetDeviceArchitecture(const std::string& specifiedDeviceName) const;
@@ -45,8 +43,6 @@ public:
 
 private:
     const ov::SoPtr<IEngineBackend> _backend;
-    std::vector<std::string> _supportedMetrics;
-    std::vector<std::string> _supportedConfigKeys;
     const std::vector<std::string> _optimizationCapabilities = {
         ov::device::capability::FP16,
         ov::device::capability::INT8,

@@ -154,7 +154,8 @@ protected:
 
     virtual void start_impl();
     std::exception_ptr wait_impl();
-    void wait_thread_loop(bool callbackRegistered);
+    void wait_thread_loop(std::shared_ptr<ZeroInferRequest> self);
+    void cleanup_stale_wait_for_worker();
     void check_request_busy() const;
 
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
@@ -203,6 +204,7 @@ protected:
 
     std::thread _waitThread;
     bool _waitThreadActive = false;
+    bool _workReady = false;
     std::exception_ptr _threadException;
 };
 
