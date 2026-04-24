@@ -144,6 +144,8 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
     // typically ~50-100x faster for graphs with hundreds of subgraph inputs.
     using Bits = std::vector<uint64_t>;
     auto ctz64 = [](uint64_t x) -> unsigned {
+        // Precondition: x != 0. Both __builtin_ctzll(0) and _BitScanForward64 with a zero
+        // mask are undefined; all call sites guard with `while (bits)` before invoking.
 #if defined(_MSC_VER)
         unsigned long idx;
         _BitScanForward64(&idx, x);
@@ -185,10 +187,20 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
             subgraph_id_by_index[index] = subgraph_ids[node];
         }
 
-        // Assign a dense bit id to every current subgraph input.
+        // === Phase 1: assign a dense bit id to every current subgraph input. ===
         const size_t S = _subgraph_inputs.size();
         const size_t W = (S + 63) / 64;
-        std::map<Input, size_t> input_to_bit;
+        struct InputHash {
+            size_t operator()(const Input& in) const noexcept {
+                // Input == {Node*, port_index}. Mix the pointer with the port to avoid
+                // collisions across multiple inputs of the same node.
+                const auto h1 = std::hash<const ov::Node*>{}(in.get_node());
+                const auto h2 = std::hash<size_t>{}(in.get_index());
+                return h1 ^ (h2 + 0x9e3779b97f4a7c15ULL + (h1 << 6) + (h1 >> 2));
+            }
+        };
+        std::unordered_map<Input, size_t, InputHash> input_to_bit;
+        input_to_bit.reserve(S * 2);
         std::vector<Input> bit_to_input;
         bit_to_input.reserve(S);
         for (const auto& in : _subgraph_inputs) {
@@ -196,10 +208,9 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
             bit_to_input.push_back(in);
         }
 
-        // Precompute per-bit metadata used for the per-node classification step.
-        std::vector<SubgraphId> bit_owner_subgraph(S);  // subgraph of subgraph_input.get_node()
-        std::vector<SubgraphId> bit_producer_subgraph(
-            S);  // subgraph of producing node (only meaningful when not graph input)
+        // === Phase 2: per-bit metadata used by the per-node classification step. ===
+        std::vector<SubgraphId> bit_owner_subgraph(S);     // subgraph of subgraph_input.get_node()
+        std::vector<SubgraphId> bit_producer_subgraph(S);  // subgraph of producing node (only meaningful when not graph input)
         std::vector<uint8_t> bit_is_graph_input(S);
         for (size_t b = 0; b < S; ++b) {
             const auto& in = bit_to_input[b];
@@ -207,11 +218,12 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
             bit_owner_subgraph[b] = subgraph_id_by_index[get_index_by_node(owner)];
             const bool gi = is_graph_input_node(owner);
             bit_is_graph_input[b] = gi ? 1 : 0;
-            bit_producer_subgraph[b] = gi ? static_cast<SubgraphId>(-1)
-                                          : subgraph_id_by_index[get_index_by_node(in.get_source_output().get_node())];
+            bit_producer_subgraph[b] =
+                gi ? static_cast<SubgraphId>(-1)
+                   : subgraph_id_by_index[get_index_by_node(in.get_source_output().get_node())];
         }
 
-        // Forward-propagate subgraph-input dependencies in topological order.
+        // === Phase 3: forward-propagate subgraph-input dependencies in topological order. ===
         // Equivalent to intersection(full_transitive_closure, _subgraph_inputs)
         // but bounded by |_subgraph_inputs| via the bitset width.
         std::vector<Bits> node_input_deps(nodes_count, Bits(W, 0ULL));
@@ -236,9 +248,8 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
             }
         }
 
-        // All inputs that belong to the same subgraph as node
+        // === Phase 4a: classify each node's deps into same-subgraph and cyclic-feedback subsets. ===
         std::vector<Bits> node_subgraph_input_dependencies(nodes_count, Bits(W, 0ULL));
-        // All inputs that depend on the same subgraph as node (cyclic feedback)
         std::vector<Bits> node_subgraph_cyclic_input_dependencies(nodes_count, Bits(W, 0ULL));
         for (size_t node_idx = 0; node_idx < nodes_count; ++node_idx) {
             const auto& deps = node_input_deps[node_idx];
@@ -260,33 +271,35 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
             }
         }
 
-        for (size_t node_idx = 0; node_idx < nodes_count; ++node_idx) {
-            const auto& node_subgraph_cyclic_input_dependency = node_subgraph_cyclic_input_dependencies[node_idx];
-            if (!bit_any(node_subgraph_cyclic_input_dependency))
-                continue;
-            // Collect all subgraph inputs that cyclic subgraph output depends on
+        // === Phase 4b: for each node with cyclic feedback, promote offending edges into _subgraph_inputs. ===
+        auto promote_boundaries_for_node = [&](size_t node_idx) {
+            const auto& cyc_dep = node_subgraph_cyclic_input_dependencies[node_idx];
+            if (!bit_any(cyc_dep))
+                return;
+            // Collect all subgraph inputs that the cyclic feedback transitively depends on.
             Bits cyclic_inputs_dependencies(W, 0ULL);
             for (size_t w = 0; w < W; ++w) {
-                uint64_t bits = node_subgraph_cyclic_input_dependency[w];
+                uint64_t bits = cyc_dep[w];
                 while (bits) {
                     const size_t b = (w << 6) + ctz64(bits);
                     bits &= bits - 1;
-                    const auto& cyclicInput = bit_to_input[b];
-                    const auto cyclic_input_idx = get_index_by_node(cyclicInput.get_source_output().get_node());
+                    const auto& cyclic_input = bit_to_input[b];
+                    const auto cyclic_input_idx = get_index_by_node(cyclic_input.get_source_output().get_node());
                     bit_or(cyclic_inputs_dependencies, node_subgraph_input_dependencies[cyclic_input_idx]);
                 }
             }
             for (const auto& input : ordered_inputs[node_idx]) {
                 const auto input_source_idx = get_index_by_node(input.get_source_output().get_node());
-                const auto& input_node_subgraph_cyclic_input_dependency =
-                    node_subgraph_cyclic_input_dependencies[input_source_idx];
-                const auto& input_node_subgraph_input_dependency = node_subgraph_input_dependencies[input_source_idx];
-                if (!bit_intersects(node_subgraph_cyclic_input_dependency,
-                                    input_node_subgraph_cyclic_input_dependency) &&
-                    bit_intersects(cyclic_inputs_dependencies, input_node_subgraph_input_dependency)) {
+                const auto& src_cyc_dep = node_subgraph_cyclic_input_dependencies[input_source_idx];
+                const auto& src_sg_dep = node_subgraph_input_dependencies[input_source_idx];
+                if (!bit_intersects(cyc_dep, src_cyc_dep) &&
+                    bit_intersects(cyclic_inputs_dependencies, src_sg_dep)) {
                     _subgraph_inputs.insert(input);
                 }
             }
+        };
+        for (size_t node_idx = 0; node_idx < nodes_count; ++node_idx) {
+            promote_boundaries_for_node(node_idx);
         }
     }
 }
@@ -352,7 +365,12 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::col
     SubgraphIdsMap result;
     result.reserve(n);
     for (size_t i = 0; i < n; ++i) {
-        result.emplace(_ordered_ops[i], comp_id[find(i)]);
+        const auto id = comp_id[find(i)];
+        OPENVINO_ASSERT(id != static_cast<SubgraphId>(-1),
+                        "SubgraphCollector: node '",
+                        _ordered_ops[i]->get_friendly_name(),
+                        "' was not assigned a subgraph id (Union-Find invariant violated).");
+        result.emplace(_ordered_ops[i], id);
     }
     return result;
 }
