@@ -488,13 +488,17 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return (!info.supports_immad);
             });
 
+            // FuseVectorizedMOE3GEMM converts the original vectorized MoE graph
+            // (separate MatMul + scatter/gather ops) into MOE(GEMM3_SWIGLU) with
+            // packed INT4 weights.  This structural conversion must run on ALL
+            // architectures so that ConvertMOEToMOECompressed can match the INT4
+            // constants downstream.  Without it the raw FP32 decompression chains
+            // reach propagate_constants and cause OOM on MTL-class iGPU.
+            //
+            // FuseMOE3GemmCompressed converts MOECompressed(GEMM3_SWIGLU) into
+            // MOE3GemmFusedCompressed, executed by the OCL moe_3gemm_swiglu_opt
+            // kernel on all architectures including non-systolic (MTL-class) iGPU.
             manager.register_pass<ov::pass::FuseVectorizedMOE3GEMM>();
-            pass_config->set_callback<ov::pass::FuseVectorizedMOE3GEMM>([&](const_node_ptr& root) -> bool {
-                // Currently moe gemm3 is only supported by systolic-array architectures
-                auto& engine = m_context->get_engine();
-                const auto& info = engine.get_device_info();
-                return (!info.supports_immad);
-            });
 
             bool is_pa = false;
             for (const auto& op : func->get_ops()) {

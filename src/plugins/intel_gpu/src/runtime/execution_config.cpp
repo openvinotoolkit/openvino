@@ -6,6 +6,7 @@
 
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/kv_cache.hpp"
+#include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
@@ -212,6 +213,19 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
 
         // Allow using onednn for models with LSTMSequence op as it's much more performant than existing ocl impl
         if (ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v5::GRUSequence>(op)) {
+            m_use_onednn = true;
+        }
+
+        // moe_3gemm_fused_compressed uses oneDNN internally for matrix multiplications
+        // (onednn_linear wrappers in moe_3gemm_swiglu_opt.cpp), which requires:
+        //   1. use_onednn=true so create_onednn_engine() is called during program build
+        //      (see program.cpp: lo.enable_onednn_for<lstm_seq/gru_seq> path which makes
+        //       onednn_impls_optimization_attribute non-empty, triggering engine init).
+        //   2. in-order OCL command queue (finalize_impl sets this when use_onednn=true).
+        // On non-systolic hardware (supports_immad=false), use_onednn is otherwise false;
+        // setting it true here is safe because FuseVectorizedFC (systolic FC) is gated
+        // independently on supports_immad, so no systolic ops are introduced.
+        if (ov::is_type<ov::intel_gpu::op::MOE3GemmFusedCompressed>(op)) {
             m_use_onednn = true;
         }
 
