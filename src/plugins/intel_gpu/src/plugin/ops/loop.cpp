@@ -20,6 +20,7 @@
 
 #include <vector>
 #include <algorithm>
+#include <limits>
 
 using Loop = ov::op::v5::Loop;
 using TensorIterator = ov::op::v0::TensorIterator;
@@ -109,7 +110,7 @@ static void SetLoopInputOutputMap(ProgramBuilder& p,
     // set output mapping
     if (use_new_shape_infer) {
         for (const auto& loop_output_desc : loop_output_descs) {
-            cldnn::input_info external_input_info(layerName, loop_output_desc->m_output_index);
+            cldnn::input_info external_input_info(layerName, static_cast<int>(loop_output_desc->m_output_index));
             p.primitive_ids[layerName] = layerName;
 
             const auto& body_output = body_outputs.at(loop_output_desc->m_body_value_index);
@@ -136,7 +137,7 @@ static void SetLoopInputOutputMap(ProgramBuilder& p,
         }
     } else {
         for (const auto& loop_output_desc : loop_output_descs) {
-            const uint64_t output_idx = loop_output_desc->m_output_index;
+            const int32_t output_idx = static_cast<int32_t>(loop_output_desc->m_output_index);
 
             // Add additional mutable_data for multiple outputs
             // primitive ID should be <TI primitive ID>.<output_idx> if output_idx > 0
@@ -209,7 +210,11 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     auto inputs = p.GetInputInfo(op);
     bool is_dynamic = p.use_new_shape_infer() || op->is_dynamic();
 
-    int64_t num_iterations = op->get_num_iterations();
+    OPENVINO_ASSERT(op->get_num_iterations() >= std::numeric_limits<int32_t>::min() &&
+                    op->get_num_iterations() <= std::numeric_limits<int32_t>::max(),
+                    "num_iterations (", op->get_num_iterations(), ") exceeds int32_t range");
+
+    int32_t num_iterations = static_cast<int32_t>(op->get_num_iterations());
 
     auto num_outputs = is_dynamic? op->get_output_size() : 1;
     auto ov_model = op->get_function();

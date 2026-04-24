@@ -77,10 +77,17 @@ public:
         }
     };
 
-    struct GraphArgumentsImpl : public GraphArguments {
+    struct GraphArgumentsImpl {
         std::vector<npu_vm_runtime_mem_ref_handle_t> _inputMemRefs;
         std::vector<npu_vm_runtime_mem_ref_handle_t> _outputMemRefs;
         npu_vm_runtime_execute_params_t _executeParams = {};
+
+        ~GraphArgumentsImpl() {
+            if (_executeParams.executionContext != nullptr) {
+                npuVMRuntimeDestroyExecutionContext(_executeParams.executionContext);
+                _executeParams.executionContext = nullptr;
+            }
+        }
     };
 
     class Impl {
