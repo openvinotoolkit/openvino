@@ -406,6 +406,7 @@ public:
      *       and allocation lifetime must outlive all infer requests and remote tensor lifetime.
      * @return A remote tensor instance
      */
+#ifdef _WIN32
     ClBufferTensor create_tensor(const element::Type type,
                                  const Shape& shape,
                                  void* shared_buffer,
@@ -476,10 +477,8 @@ public:
         };
 
         cl_mem ext_mem_buffer = nullptr;
-    #ifdef _WIN32
         // DX12 shared handles may be exposed either as typed D3D12 handles or opaque Win32 handles.
         ext_mem_buffer = try_import_external_mem(shared_buffer);
-    #endif
 
         if (errcode_ret == CL_SUCCESS && ext_mem_buffer != nullptr) {
             auto tensor = create_tensor(type, shape, ext_mem_buffer);
@@ -497,7 +496,7 @@ public:
                         "External memory import requires OpenCL 1.2+ headers and clCreateFromExternalMemoryBufferINTEL support");
         return {};
     }
-
+#endif //_WIN32
     /**
      * @brief This function is used to obtain remote tensor object from user-supplied USM pointer
      * @param type Tensor element type

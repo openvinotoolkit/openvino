@@ -1,5 +1,5 @@
-#ifdef OV_GPU_WITH_OCL_RT
 
+#if defined(OV_GPU_WITH_OCL_RT) && defined(_WIN32) && defined(ENABLE_DX11)
 #include <array>
 #include <algorithm>
 #include <cstring>
@@ -8,13 +8,11 @@
 #include <sstream>
 #include <vector>
 
-#ifdef _WIN32
-#ifdef ENABLE_VULKAN
+
+
 #define VK_USE_PLATFORM_WIN32_KHR
 #include <windows.h>
 #include <vulkan/vulkan.h>
-#endif
-#endif
 
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
@@ -106,8 +104,7 @@ std::shared_ptr<ov::Model> make_copy_model(const ov::Shape& shape) {
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 }
 
-#ifdef _WIN32
-#ifdef ENABLE_VULKAN
+
 
 void close_nt_handle(HANDLE& handle) {
     if (handle != nullptr) {
@@ -510,9 +507,6 @@ TEST(GpuSharedBufferRemoteTensor, smoke_VulkanRemoteInputToRemoteOutputCopyAndCo
 
     std::cout << "[INFO] Output values match expected input values\n";
 }
-
-#endif
-#endif
 
 }
 

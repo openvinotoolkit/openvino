@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef OV_GPU_WITH_OCL_RT
 
+#if defined(OV_GPU_WITH_OCL_RT) && defined(_WIN32) && defined(ENABLE_DX11)
 #include <array>
 #include <algorithm>
 #include <cstring>
@@ -12,8 +12,7 @@
 #include <chrono>
 #include <sstream>
 #include <vector>
-#ifdef _WIN32
-#ifdef ENABLE_DX11
+
 #ifndef NOMINMAX
 #define NOMINMAX
 #define NOMINMAX_DEFINED_SHARED_BUF_TEST
@@ -26,9 +25,6 @@
 #undef NOMINMAX
 #undef NOMINMAX_DEFINED_SHARED_BUF_TEST
 #endif
-#endif
-#endif
-
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_gpu/ocl/dx.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
@@ -86,8 +82,7 @@ std::shared_ptr<ov::Model> make_copy_model(const ov::Shape& shape) {
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 }
 
-#ifdef _WIN32
-#ifdef ENABLE_DX11
+
 struct Dx11TestContext {
     CComPtr<ID3D11Device> device;
     CComPtr<ID3D11DeviceContext> device_ctx;
@@ -199,11 +194,7 @@ CComPtr<ID3D11Buffer> open_dx11_shared_buffer(ID3D11Device* device, HANDLE share
     EXPECT_FALSE(FAILED(hr));
     return CComPtr<ID3D11Buffer>(raw_opened_buffer);
 }
-#endif
-#endif
 
-#ifdef _WIN32
-#ifdef ENABLE_DX11
 TEST(GpuSharedBufferRemoteTensor, smoke_Dx11RemoteInputToRemoteOutputCopyAndCompare) {
     ov::Core core;
     const ov::Shape shape{16};
@@ -302,9 +293,7 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx11RemoteInputToRemoteOutputCopyAndComp
 
 
 
-#endif  // ENABLE_DX11
-#endif  // _WIN32
+
 
 }  // namespace
-
-#endif  // OV_GPU_WITH_OCL_RT
+#endif

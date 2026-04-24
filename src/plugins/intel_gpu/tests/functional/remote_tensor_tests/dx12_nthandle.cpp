@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef OV_GPU_WITH_OCL_RT
-
+#if defined(OV_GPU_WITH_OCL_RT) && defined(_WIN32) && defined(ENABLE_DX11)
 #include <array>
 #include <algorithm>
 #include <cstring>
@@ -12,12 +11,11 @@
 #include <sstream>
 #include <vector>
 
-#ifdef _WIN32
-#ifdef ENABLE_DX11
+
 #ifndef NOMINMAX
 #define NOMINMAX
 #define NOMINMAX_DEFINED_SHARED_BUF_TEST
-#endif
+#endif 
 #include <atlbase.h>
 #include <d3d12.h>
 #include <dxgi1_4.h>
@@ -26,8 +24,8 @@
 #undef NOMINMAX
 #undef NOMINMAX_DEFINED_SHARED_BUF_TEST
 #endif
-#endif
-#endif
+
+
 
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
@@ -78,8 +76,6 @@ std::shared_ptr<ov::Model> make_copy_model(const ov::Shape& shape) {
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 }
 
-#ifdef _WIN32
-#ifdef ENABLE_DX11
 
 struct Dx12TestContext {
     CComPtr<IDXGIAdapter1> adapter;
@@ -247,11 +243,7 @@ Dx12SharedBuffer create_dx12_shared_buffer(ID3D12Device* device,
     return {resource, shared_handle};
 }
 
-#endif  // ENABLE_DX11
-#endif  // _WIN32
 
-#ifdef _WIN32
-#ifdef ENABLE_DX11
 
 TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndCompare) {
     ov::Core core;
@@ -411,11 +403,5 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndComp
     CloseHandle(dx_output_shared.shared_handle);
     dx_output_shared.shared_handle = nullptr;
 }
-
-
-#endif  // ENABLE_DX11
-#endif  // _WIN32
-
 }  // namespace
-
-#endif  // OV_GPU_WITH_OCL_RT
+#endif
