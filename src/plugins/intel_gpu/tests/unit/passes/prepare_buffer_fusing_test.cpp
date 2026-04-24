@@ -1995,3 +1995,103 @@ TEST(prepare_buffer_fusing, in_place_crop_dynamic_batch_axis_split_with_reshape_
     for (size_t i = 0; i < slice_elems; i++)
         ASSERT_FLOAT_EQ(v_out[i], input_data[2 * slice_elems + i]) << "V mismatch at " << i;
 }
+
+// When reshape is optimized out, its output aliases the input buffer (dep0).
+// Memory dependencies must be propagated bidirectionally between dep0 and
+// reshape's consumers so the memory pool won't recycle the aliased buffer.
+// This test verifies the dynamic-pattern reshape variant (2 dependencies).
+TEST(prepare_buffer_fusing, optimized_reshape_propagates_memory_deps_dynamic) {
+    auto& engine = get_test_engine();
+    auto in_layout = layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
+    auto pattern_layout = layout{ov::PartialShape::dynamic(4), data_types::i64, format::bfyx};
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(input_layout("pattern", pattern_layout));
+    topology.add(permute("permute1", input_info("input"), {0, 2, 3, 1}));
+    topology.add(reshape("reshape", input_info("permute1"), input_info("pattern"),
+                         false, ov::PartialShape::dynamic(4)));
+    topology.add(permute("permute2", input_info("reshape"), {0, 3, 2, 1}));
+    topology.add(reorder("reorder", input_info("permute2"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+    ASSERT_NE(prog, nullptr);
+
+    program_wrapper::apply_opt_pass<prepare_buffer_fusing>(*prog);
+
+    auto& reshape_node = prog->get_node("reshape").as<reshape>();
+    ASSERT_TRUE(reshape_node.can_be_optimized());
+
+    // dep0 is the data input whose buffer is aliased by the optimized reshape.
+    auto& dep0 = reshape_node.get_dependency(0);
+    auto dep0_uid = static_cast<uint32_t>(dep0.get_unique_id());
+
+    // The reshape's consumer (permute2) must have dep0 in its memory deps.
+    auto* user = reshape_node.get_users().front();
+    auto user_uid = static_cast<uint32_t>(user->get_unique_id());
+
+    const auto& user_mem_deps = user->get_memory_dependencies();
+    ASSERT_TRUE(user_mem_deps.count(dep0_uid))
+        << "Reshape consumer must have dep0's unique_id in memory dependencies "
+           "to prevent pool from recycling the aliased buffer";
+
+    // dep0 must have the consumer in its memory deps (bidirectional).
+    const auto& dep0_mem_deps = dep0.get_memory_dependencies();
+    ASSERT_TRUE(dep0_mem_deps.count(user_uid))
+        << "dep0 must have reshape consumer's unique_id in memory dependencies "
+           "to prevent pool from recycling the aliased buffer";
+
+    // Verify the reshape has 2 deps (data + shape pattern).
+    ASSERT_EQ(reshape_node.get_dependencies().size(), 2u);
+}
+
+// Same verification for a static-pattern reshape (single dependency).
+// Validates that memory dependencies are propagated bidirectionally between
+// the data input (dep0) and the reshape consumer (fc).
+TEST(prepare_buffer_fusing, optimized_reshape_propagates_memory_deps_static) {
+    auto& engine = get_test_engine();
+    auto in_layout = layout{ov::PartialShape{1, 2, -1}, data_types::f32, format::bfyx};
+    auto weights_layout = layout{ov::PartialShape{2, 4}, data_types::f32, format::bfyx};
+    auto weights_memory = engine.allocate_memory(weights_layout);
+    set_values<float>(weights_memory, {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(data("weights", weights_memory));
+    topology.add(permute("permute1", input_info("input"), {0, 2, 1}));
+    topology.add(reshape("reshape", input_info("permute1"), false,
+                         {2, 4}, ov::PartialShape{2, 4}));
+    topology.add(fully_connected("fc", input_info("reshape"), "weights", "", 2));
+    topology.add(reorder("reorder", input_info("fc"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+    ASSERT_NE(prog, nullptr);
+
+    prog->get_node("reorder").get_output_layout(true);
+    program_wrapper::apply_opt_pass<prepare_buffer_fusing>(*prog);
+
+    auto& reshape_node = prog->get_node("reshape").as<reshape>();
+    ASSERT_TRUE(reshape_node.can_be_optimized());
+
+    // dep0 is the data input (permute1).
+    auto& dep0 = reshape_node.get_dependency(0);
+    auto dep0_uid = static_cast<uint32_t>(dep0.get_unique_id());
+
+    // Consumer is fc.
+    auto* user = reshape_node.get_users().front();
+    auto user_uid = static_cast<uint32_t>(user->get_unique_id());
+
+    // Verify: consumer has dep0 in its memory dependencies.
+    const auto& user_mem_deps = user->get_memory_dependencies();
+    ASSERT_TRUE(user_mem_deps.count(dep0_uid))
+        << "Reshape consumer (fc) must have dep0's unique_id in memory dependencies";
+
+    // Verify: dep0 has consumer in its memory dependencies (bidirectional).
+    const auto& dep0_mem_deps = dep0.get_memory_dependencies();
+    ASSERT_TRUE(dep0_mem_deps.count(user_uid))
+        << "dep0 must have reshape consumer's unique_id in memory dependencies";
+}
