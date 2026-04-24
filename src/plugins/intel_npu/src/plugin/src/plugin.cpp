@@ -362,9 +362,8 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
     if (name == ov::runtime_requirements_met.name()) {
-        if (arguments.empty()) {
-            // TODO is this good?
-            return true;
+        if (arguments.empty() || arguments.find(ov::runtime_requirements.name()) == arguments.end()) {
+            return ov::BlobCompatibility::NOT_APPLICABLE;
         }
 
         // Reading the (dummy) property content to check if it is supported
@@ -395,7 +394,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
             // Unsupported version, could not read the metadata or an unknown error has occured. Report that the
             // requirements are not met.
             _logger.debug("Failed to read metadata from the compatibility string. The requirements are not met. %s", ex.what());
-            return false;
+            return ov::BlobCompatibility::UNSUPPORTED;
         }
 
         OPENVINO_ASSERT(metadata);
@@ -417,9 +416,14 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         }
         OPENVINO_ASSERT(compiler != nullptr);
 
+        // Compiler can validate only if the decoded string describes a blob compatible with the current platform
         auto result = compiler->validate_compatibility_descriptor(decodedString);
         _logger.debug("Compatibility check result: %s", result ? "met" : "not met");
-        return result;
+        if(result) {
+            return ov::BlobCompatibility::OPTIMAL;
+        } else {
+            return ov::BlobCompatibility::UNSUPPORTED;
+        }
     }
 
     if (!arguments.empty()) {

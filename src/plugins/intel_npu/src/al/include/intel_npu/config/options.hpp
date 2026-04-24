@@ -1558,8 +1558,8 @@ struct RUNTIME_REQUIREMENTS final : OptionBase<RUNTIME_REQUIREMENTS, std::string
         return ov::runtime_requirements.name();
     }
 
-    static bool defaultValue() {
-        return "";
+    static std::string defaultValue() {
+        return {};
     }
 
     static OptionMode mode() {

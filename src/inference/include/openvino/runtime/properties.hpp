@@ -1440,12 +1440,63 @@ static constexpr Property<uint64_t, PropertyMutability::RW> key_cache_group_size
 static constexpr Property<uint64_t, PropertyMutability::RW> value_cache_group_size{"VALUE_CACHE_GROUP_SIZE"};
 
 /**
+ * @brief Enum to describe the compatibility of a compiled model blob with the current device environment.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Returned by ov::blob_compatibility when queried with an ov::runtime_requirements tensor argument.
+ */
+enum class BlobCompatibility {
+    NOT_APPLICABLE = 0,        //!< The device does not support this check, or no requirements tensor was provided.
+    OPTIMAL = 1,               //!< Requirements are fully met; import is expected to succeed with optimal performance.
+    PREFER_RECOMPILATION = 2,  //!< Requirements are loosely compatible; import may succeed but recompilation
+                               //!< is preferred for best performance.
+    UNSUPPORTED = 3,           //!< Requirements are not met; import will fail.
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const BlobCompatibility& compatiblity) {
+    switch (compatiblity) {
+    case BlobCompatibility::NOT_APPLICABLE:
+        return os << "NOT_APPLICABLE";
+    case BlobCompatibility::OPTIMAL:
+        return os << "SUPPORTED";
+    case BlobCompatibility::PREFER_RECOMPILATION:
+        return os << "PREFER_RECOMPILATION";
+    case BlobCompatibility::UNSUPPORTED:
+        return os << "UNSUPPORTED";
+    default:
+        OPENVINO_THROW("Unsupported BlobCompatibility value");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, BlobCompatibility& compatibility) {
+    std::string str;
+    is >> str;
+    if (str == "NOT_APPLICABLE") {
+        compatibility = BlobCompatibility::NOT_APPLICABLE;
+    } else if (str == "SUPPORTED") {
+        compatibility = BlobCompatibility::OPTIMAL;
+    } else if (str == "PREFER_RECOMPILATION") {
+        compatibility = BlobCompatibility::PREFER_RECOMPILATION;
+    } else if (str == "UNSUPPORTED") {
+        compatibility = BlobCompatibility::UNSUPPORTED;
+    } else {
+        OPENVINO_THROW("Unsupported BlobCompatibility value: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
  * @brief Read-write property carrying plugin-specific runtime requirements of a compiled model blob.
  * @ingroup ov_runtime_cpp_prop_api
  *
- * The property value is an ov::Tensor containing opaque binary data encoding the device environment
- * requirements at the time a model was compiled. The format and content are plugin-dependent and
- * may encode information such as plugin version, required hardware capabilities, or driver version.
+ * The property value is an ov::Tensor containing data encoding the device environment requirements  at the time
+ * a model was compiled. The format and content are plugin-dependent and may encode information such as
+ * plugin version, required hardware capabilities, or driver version.
+ *
+ * @note Current OpenVINO implementation supports single element tensors (scalar or 1-D) and of type string.
+ * The string must be c-type compatible string with a null terminator.
  *
  * **Reading** — query on a compiled model to obtain requirements to persist alongside the blob:
  * @code
@@ -1454,30 +1505,32 @@ static constexpr Property<uint64_t, PropertyMutability::RW> value_cache_group_si
  * ov::Tensor requirements = compiled_model.get_property(ov::runtime_requirements);
  * @endcode
  */
-inline constexpr Property<Tensor, PropertyMutability::RO> runtime_requirements{"RUNTIME_REQUIREMENTS"};
+inline constexpr Property<Tensor, PropertyMutability::RW> runtime_requirements{"RUNTIME_REQUIREMENTS"};
 
 /**
  * @brief Read-only property to check whether a device satisfies the runtime requirements of a compiled model blob.
  * @ingroup ov_runtime_cpp_prop_api
  *
- * Use this property before importing a compiled model blob to verify that the current device environment
- * meets the requirements embedded in the blob. The requirements are passed as an argument via
- * ov::runtime_requirements, using the value previously obtained from ov::CompiledModel::get_property().
- *
- * Returns True if the device meets all requirements and the blob can be successfully imported, false otherwise.
+ * Returns an ov::BlobCompatibility value describing whether the current device environment is compatible
+ * with the requirements tensor passed as an argument via ov::runtime_requirements.
+ * The requirements tensor is obtained from a previously compiled model via ov::CompiledModel::get_property().
  *
  * @note The property must be queried with an ov::runtime_requirements argument.
- * Querying without arguments results false.
+ * Querying without arguments returns ov::BlobCompatibility::NOT_APPLICABLE.
  *
  * **Check requirements before import**
  *
  * @code
  * auto compiled_model = core.compile_model(model, "NPU");
  * auto requirements = compiled_model.get_property(ov::runtime_requirements);
- * bool can_import = core.get_property("NPU", ov::runtime_requirements_met, ov::runtime_requirements(requirements));
- * // do import only if can_import is true
+ * auto compat = core.get_property("NPU", ov::blob_compatibility, ov::runtime_requirements(requirements));
+ * * if (compat == ov::BlobCompatibility::OPTIMAL ||
+ *     compat == ov::BlobCompatibility::PREFER_RECOMPILATION) {
+ *     auto imported = core.import_model(blob_stream, "NPU");
+ * }
  * @endcode
  */
-static constexpr Property<bool, PropertyMutability::RO> runtime_requirements_met{"RUNTIME_REQUIREMENTS_MET"};
+// [DO NOT MERGE]: Will rename this to BLOB_COMPATIBILITY once a new compiler is integrated
+static constexpr Property<BlobCompatibility, PropertyMutability::RO> runtime_requirements_met{"RUNTIME_REQUIREMENTS_MET"};
 
 }  // namespace ov
