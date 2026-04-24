@@ -69,34 +69,6 @@ bool get_context_device_luid(cl_context cl_ctx, std::array<unsigned char, CL_LUI
     return clGetDeviceInfo(cl_devices[0], CL_DEVICE_LUID_KHR, cl_luid.size(), cl_luid.data(), nullptr) == CL_SUCCESS;
 }
 
-std::string find_matching_gpu_device(ov::Core& core, const std::array<unsigned char, CL_LUID_SIZE_KHR>& dxgi_luid) {
-    const auto available_gpu_ids = core.get_property("GPU", ov::available_devices);
-    for (auto device_it = available_gpu_ids.rbegin(); device_it != available_gpu_ids.rend(); ++device_it) {
-        const auto& device_id = *device_it;
-        const std::string device_name = device_id.empty() ? "GPU" : "GPU." + device_id;
-        auto candidate_ctx = core.get_default_context(device_name).as<ov::intel_gpu::ocl::ClContext>();
-        auto params = candidate_ctx.get_params();
-        auto it = params.find(ov::intel_gpu::ocl_context.name());
-        if (it == params.end()) {
-            continue;
-        }
-
-        auto cl_ctx = static_cast<cl_context>(it->second.as<ov::intel_gpu::ocl::gpu_handle_param>());
-        std::array<unsigned char, CL_LUID_SIZE_KHR> cl_luid{};
-        if (!get_context_device_luid(cl_ctx, cl_luid)) {
-            continue;
-        }
-
-        std::cout << "[INFO] Candidate " << device_name << " OpenCL LUID: "
-                  << format_luid_bytes(cl_luid.data(), cl_luid.size()) << "\n";
-        if (memcmp(dxgi_luid.data(), cl_luid.data(), cl_luid.size()) == 0) {
-            return device_name;
-        }
-    }
-
-    return {};
-}
-
 // Keep data unchanged while still forcing an explicit output tensor write path.
 std::shared_ptr<ov::Model> make_copy_model(const ov::Shape& shape) {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
@@ -138,44 +110,6 @@ static bool gpu_wait(ID3D12CommandQueue* command_queue, ID3D12Device* device) {
     }
     CloseHandle(event);
     return true;
-}
-
-Dx12TestContext create_dx12_test_context() {
-    IDXGIFactory4* raw_factory = nullptr;
-    HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&raw_factory));
-    EXPECT_FALSE(FAILED(hr));
-    CComPtr<IDXGIFactory4> factory(raw_factory);
-    if (!factory) return {};
-
-    CComPtr<IDXGIAdapter1> intel_adapter;
-    const UINT intel_vendor_id = 0x8086;
-    UINT adapter_index = 0;
-    IDXGIAdapter1* raw_adapter = nullptr;
-    while (factory->EnumAdapters1(adapter_index, &raw_adapter) != DXGI_ERROR_NOT_FOUND) {
-        CComPtr<IDXGIAdapter1> adapter(raw_adapter);
-        DXGI_ADAPTER_DESC1 desc{};
-        adapter->GetDesc1(&desc);
-        if (desc.VendorId == intel_vendor_id && !(desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)) {
-            intel_adapter = adapter;
-            break;
-        }
-        ++adapter_index;
-    }
-    if (!intel_adapter) return {};
-
-    ID3D12Device* raw_device = nullptr;
-    hr = D3D12CreateDevice(intel_adapter, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&raw_device));
-    EXPECT_FALSE(FAILED(hr));
-    if (FAILED(hr)) return {};
-    CComPtr<ID3D12Device> device(raw_device);
-
-    D3D12_COMMAND_QUEUE_DESC queue_desc{};
-    queue_desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-    ID3D12CommandQueue* raw_queue = nullptr;
-    hr = device->CreateCommandQueue(&queue_desc, IID_PPV_ARGS(&raw_queue));
-    EXPECT_FALSE(FAILED(hr));
-
-    return {intel_adapter, device, CComPtr<ID3D12CommandQueue>(raw_queue)};
 }
 
 Dx12TestContext create_dx12_test_context(const std::array<unsigned char, CL_LUID_SIZE_KHR>& target_luid) {
@@ -325,41 +259,34 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx12RemoteInputToRemoteOutputCopyAndComp
     const size_t element_count = ov::shape_size(shape);
     const size_t byte_size = element_count * sizeof(float);
 
-    std::string selected_gpu_device;
-    Dx12TestContext dx12;
-    const auto available_gpu_ids = core.get_property("GPU", ov::available_devices);
-    for (const auto& device_id : available_gpu_ids) {
-        const std::string device_name = device_id.empty() ? "GPU" : "GPU." + device_id;
-        auto candidate_ctx = core.get_default_context(device_name).as<ov::intel_gpu::ocl::ClContext>();
-        auto params = candidate_ctx.get_params();
-        auto it = params.find(ov::intel_gpu::ocl_context.name());
-        if (it == params.end()) {
-            continue;
-        }
+    // Declare GPU device number
+    const std::string selected_gpu_id = "0";
+    const std::string selected_gpu_device = "GPU." + selected_gpu_id;
+    std::cout << "[INFO] Selected GPU device: " << selected_gpu_device << "\n";
 
-        auto cl_ctx = static_cast<cl_context>(it->second.as<ov::intel_gpu::ocl::gpu_handle_param>());
-        std::array<unsigned char, CL_LUID_SIZE_KHR> cl_luid{};
-        if (!get_context_device_luid(cl_ctx, cl_luid)) {
-            continue;
-        }
-
-        std::cout << "[INFO] Candidate " << device_name << " OpenCL LUID: "
-                  << format_luid_bytes(cl_luid.data(), cl_luid.size()) << "\n";
-        auto candidate_dx12 = create_dx12_test_context(cl_luid);
-        if (!candidate_dx12.device) {
-            continue;
-        }
-
-        selected_gpu_device = device_name;
-        dx12 = candidate_dx12;
-        break;
+    // Get OpenCL context for the selected GPU
+    auto candidate_ctx = core.get_default_context(selected_gpu_device).as<ov::intel_gpu::ocl::ClContext>();
+    auto params = candidate_ctx.get_params();
+    auto it = params.find(ov::intel_gpu::ocl_context.name());
+    if (it == params.end()) {
+        FAIL() << "Failed to get OpenCL context for " << selected_gpu_device;
     }
 
+    // Extract LUID from OpenCL context
+    auto cl_ctx = static_cast<cl_context>(it->second.as<ov::intel_gpu::ocl::gpu_handle_param>());
+    std::array<unsigned char, CL_LUID_SIZE_KHR> cl_luid{};
+    if (!get_context_device_luid(cl_ctx, cl_luid)) {
+        FAIL() << "Failed to get LUID for " << selected_gpu_device;
+    }
+
+    std::cout << "[INFO] " << selected_gpu_device << " OpenCL LUID: "
+              << format_luid_bytes(cl_luid.data(), cl_luid.size()) << "\n";
+
+    // Create DX12 context for the selected GPU's LUID
+    Dx12TestContext dx12 = create_dx12_test_context(cl_luid);
     if (!dx12.device) {
-        FAIL() << "No DX12 adapter matched any available OpenVINO GPU device";
+        FAIL() << "Failed to create DX12 context for " << selected_gpu_device;
     }
-
-    std::cout << "[INFO] Selected OpenVINO device: " << selected_gpu_device << "\n";
 
     std::vector<float> input_init(element_count, 2.0f);
     auto dx_input_shared = create_dx12_shared_buffer(dx12.device, dx12.command_queue,

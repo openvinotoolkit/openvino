@@ -98,6 +98,21 @@ struct Dx11SharedBuffer {
     HANDLE shared_handle = nullptr;
 };
 
+void close_nt_handle(HANDLE& handle) {
+    if (handle != nullptr) {
+        CloseHandle(handle);
+        handle = nullptr;
+    }
+}
+
+struct NtHandleGuard {
+    HANDLE& handle;
+
+    ~NtHandleGuard() {
+        close_nt_handle(handle);
+    }
+};
+
 Dx11TestContext create_dx11_test_context(const std::array<unsigned char, CL_LUID_SIZE_KHR>& target_luid) {
     IDXGIFactory* raw_factory = nullptr;
     HRESULT hr = CreateDXGIFactory(__uuidof(IDXGIFactory), reinterpret_cast<void**>(&raw_factory));
@@ -226,8 +241,10 @@ TEST(GpuSharedBufferRemoteTensor, smoke_Dx11RemoteInputToRemoteOutputCopyAndComp
 
     std::vector<float> input_init(element_count, 2.0f);
     auto dx_input_shared = create_dx11_shared_buffer(dx11.device, byte_size, input_init.data());
+    NtHandleGuard input_handle_guard{dx_input_shared.shared_handle};
     std::vector<float> output_init(element_count, 0.0f);
     auto dx_output_shared = create_dx11_shared_buffer(dx11.device, byte_size, output_init.data());
+    NtHandleGuard output_handle_guard{dx_output_shared.shared_handle};
 
     auto dx_input_buffer = open_dx11_shared_buffer(dx11.device,
                                                    dx_input_shared.shared_handle);
