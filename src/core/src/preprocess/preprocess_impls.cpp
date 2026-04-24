@@ -424,6 +424,7 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
 
         // Setting subnames for Y and UV planes
         auto original_names = result->get_output_tensor(0).get_names();
+        auto original_friendly_name = result->get_friendly_name();
         std::unordered_set<std::string> y_names;
         std::unordered_set<std::string> uv_names;
         for (const auto& name : original_names) {
@@ -431,10 +432,10 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
             uv_names.insert(name + "/UV");
         }
         result->get_output_tensor(0).set_names(y_names);
-        result->set_friendly_name(result->get_friendly_name() + "/Y");
+        result->set_friendly_name(original_friendly_name + "/Y");
 
         uv_result->get_output_tensor(0).set_names(uv_names);
-        uv_result->set_friendly_name(result->get_friendly_name() + "/UV");
+        uv_result->set_friendly_name(original_friendly_name + "/UV");
 
         auto it = std::find(results.begin(), results.end(), result);
         if (it != results.end()) {
