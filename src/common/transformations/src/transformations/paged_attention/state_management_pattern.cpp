@@ -409,7 +409,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
     // it has to be persistent in the callback, so shared_ptr is used
     auto has_token_type_ids = std::make_shared<bool>(false);
 
-    ov::matcher_pass_callback callback = [=, &pa_params, &results, &var_ids_to_remove, this](Matcher& m) {
+    ov::matcher_pass_callback callback = [=, &pa_params, &results, &var_ids_to_remove](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& real_q = pattern_map.at(q);
 
