@@ -14,6 +14,11 @@ endif()
 
 list(APPEND DEFINES TEST_CUSTOM_OP_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/custom_op/custom_op.xml")
 
+set(GPU_TEST_EXCLUDE "")
+if(NOT ENABLE_EXPERIMENTAL_OPSET)
+    list(APPEND GPU_TEST_EXCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests/scaled_shifted_clamp_experimental.cpp)
+endif()
+
 ov_add_test_target(
         NAME
             ${TARGET_NAME}
@@ -25,6 +30,8 @@ ov_add_test_target(
             ${CMAKE_CURRENT_SOURCE_DIR}
             $<TARGET_PROPERTY:openvino_intel_gpu_plugin,SOURCE_DIR>/include/
             ${TEST_COMMON_INCLUDE_DIR}
+        EXCLUDED_SOURCE_PATHS
+            ${GPU_TEST_EXCLUDE}
         DEFINES
             ${DEFINES}
         DEPENDENCIES

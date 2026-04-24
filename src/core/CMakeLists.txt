@@ -15,6 +15,14 @@ file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
 file(GLOB_RECURSE PUBLIC_HEADERS ${OV_CORE_INCLUDE_PATH}/*.hpp)
 file(GLOB_RECURSE DEV_HEADERS ${OV_CORE_DEV_API_PATH}/*.hpp)
 
+if(NOT ENABLE_EXPERIMENTAL_OPSET)
+    list(REMOVE_ITEM LIBRARY_SRC
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/op/scaled_shifted_clamp_experimental.cpp)
+    list(REMOVE_ITEM DEV_HEADERS
+        ${OV_CORE_DEV_API_PATH}/openvino/op/scaled_shifted_clamp_experimental.hpp
+        ${OV_CORE_DEV_API_PATH}/openvino/op/experimental_ops.hpp)
+endif()
+
 add_subdirectory(reference)
 add_subdirectory(shape_inference)
 add_subdirectory(xml_util)

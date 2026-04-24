@@ -9,6 +9,13 @@ set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${PUBLIC_HEADERS_DIR}/*.hpp)
 
+if(NOT ENABLE_EXPERIMENTAL_OPSET)
+    list(REMOVE_ITEM LIBRARY_SRC
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/scaled_shifted_clamp_experimental_fusion.cpp)
+    list(REMOVE_ITEM PUBLIC_HEADERS
+        ${PUBLIC_HEADERS_DIR}/transformations/scaled_shifted_clamp_experimental_fusion.hpp)
+endif()
+
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 
