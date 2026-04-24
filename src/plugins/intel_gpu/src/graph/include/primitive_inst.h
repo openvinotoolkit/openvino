@@ -47,12 +47,14 @@ class PrimitiveInstTestHelper;
 struct ImplementationManager;
 
 struct BufferDescriptor {
-    explicit BufferDescriptor(const layout& l, bool lockable = false) : m_lockable(lockable), m_layout(l) {}
-    BufferDescriptor(const ov::PartialShape& shape, ov::element::Type type, bool lockable = false)
-        : BufferDescriptor(layout(shape, type, format::bfyx), lockable) {}
-    BufferDescriptor(size_t elements_count, ov::element::Type type, bool lockable = false)
-        : BufferDescriptor(layout({static_cast<int64_t>(elements_count)}, type, format::bfyx), lockable) {}
+    explicit BufferDescriptor(const layout& l, bool lockable = false, bool shareable = true)
+        : m_lockable(lockable), m_shareable(shareable), m_layout(l) {}
+    BufferDescriptor(const ov::PartialShape& shape, ov::element::Type type, bool lockable = false, bool shareable = true)
+        : BufferDescriptor(layout(shape, type, format::bfyx), lockable, shareable) {}
+    BufferDescriptor(size_t elements_count, ov::element::Type type, bool lockable = false, bool shareable = true)
+        : BufferDescriptor(layout({static_cast<int64_t>(elements_count)}, type, format::bfyx), lockable, shareable) {}
     bool m_lockable = false;
+    bool m_shareable = true;  // Whether this buffer can be shared via memory pool across primitives
     layout m_layout;
 };
 
@@ -322,7 +324,6 @@ public:
     bool mem_allocated() const { return _mem_allocated; }
     bool is_dynamic() const { return _is_dynamic; }
     bool can_share_buffer() const { return _can_share_buffer; }
-    bool can_share_internal_buffer() const { return _can_share_internal_buffer; }
     bool is_constant() const { return _is_constant; }
     bool needs_completion_event() const { return _needs_completion_event; }
     bool has_unfused_subgraph() const { return (_unfused_subgraph != nullptr); }
@@ -441,7 +442,6 @@ protected:
     size_t _fused_mem_offset = 0;
     bool _can_be_optimized = false;
     bool _can_share_buffer = true;
-    bool _can_share_internal_buffer = true;
     bool _is_constant = false;
     bool _needs_completion_event = false;
 
@@ -451,7 +451,7 @@ protected:
     std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr,
                                               bool reset_mem = true,
                                               bool runtime_alloc = false);
-    memory::ptr allocate_internal_buffer(const layout& layout, size_t idx, bool reset = true, bool lockable = false);
+    memory::ptr allocate_internal_buffer(const layout& layout, size_t idx, bool reset = true, bool lockable = false, bool shareable = true);
     void allocate_shape_info_memory();
     static std::vector<primitive_inst*> build_exec_deps(
         std::vector<std::pair<primitive_inst*, int32_t>> const& mem_deps);

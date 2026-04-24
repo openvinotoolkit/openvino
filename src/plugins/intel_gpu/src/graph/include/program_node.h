@@ -321,10 +321,6 @@ public:
     bool can_share_buffer() const { return share_buffer; }
     void can_share_buffer(bool share) { share_buffer = share; }
 
-    // check/set if the node's internal buffer can be shared
-    bool can_share_internal_buffer() const { return share_internal_buffer; }
-    void can_share_internal_buffer(bool share) { share_internal_buffer = share; }
-
     // Sets padding support for all axis
     void support_padding_all(bool support);
     // Sets padding support for specified axis

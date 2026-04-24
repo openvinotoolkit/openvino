@@ -80,7 +80,7 @@ std::vector<layout> permute_inst::calc_output_layouts(permute_node const& node, 
     auto permute_order = desc->permute_order;
     if (permute_order.empty()) {
         for (int64_t i = 1; i <= input_static_rank; ++i) {
-            permute_order.emplace_back(input_static_rank - i);
+            permute_order.emplace_back(static_cast<uint16_t>(input_static_rank - i));
         }
     }
 

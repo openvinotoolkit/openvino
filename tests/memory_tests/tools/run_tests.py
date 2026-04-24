@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+import platform
 import argparse
 import glob
 import os
@@ -10,16 +11,112 @@ import itertools
 import subprocess
 import json
 import time
+import sys
 
+from typing import Any
 from pathlib import Path
-from datetime import datetime, timedelta
 from dataclasses import dataclass, asdict
-from collections import defaultdict
 
 try:
     import requests
 except ImportError:
     requests = None
+
+
+INTEL_FAMILIES = {
+    (0x06, 0x5E): "skylake",
+    (0x06, 0x55): "skylake",
+    (0x06, 0x8E): "kabylake",
+    (0x06, 0x9E): "kabylake",
+    (0x06, 0xA5): "cometlake",
+    (0x06, 0xA6): "cometlake",
+    (0x06, 0x66): "cannonlake",
+    (0x06, 0x6A): "icelake",
+    (0x06, 0x6C): "icelake",
+    (0x06, 0x7D): "icelake",
+    (0x06, 0x7E): "icelake",
+    (0x06, 0x9D): "icelake",
+    (0x06, 0xA7): "rocketlake",
+    (0x06, 0x8C): "tigerlake",
+    (0x06, 0x8D): "tigerlake",
+    (0x06, 0x8F): "sapphirerapids-server",
+    (0x06, 0xCF): "emeraldrapids-server",
+    (0x06, 0xAD): "graniterapids",
+    (0x06, 0xAE): "graniterapids",
+    (0x13, 0x01): "diamondrapids",
+    (0x06, 0xD7): "bartlettlake",
+    (0x06, 0x8A): "lakefield",
+    (0x06, 0x97): "alderlake",
+    (0x06, 0x9A): "alderlake",
+    (0x06, 0xB7): "raptorlake",
+    (0x06, 0xBA): "raptorlake",
+    (0x06, 0xBF): "raptorlake",
+    (0x06, 0xAC): "meteorlake",
+    (0x06, 0xAA): "meteorlake",
+    (0x06, 0xC5): "arrowlake",
+    (0x06, 0xC6): "arrowlake",
+    (0x06, 0xB5): "arrowlake",
+    (0x06, 0xBD): "lunarlake",
+    (0x06, 0xCC): "pantherlake",
+    (0x06, 0xD5): "wildcatlake",
+    (0x12, 0x01): "novalake",
+    (0x12, 0x03): "novalake"
+}
+
+
+def get_cpu_family():
+    arch = platform.machine().lower()
+    system = platform.system()
+    if arch in ("arm64", "aarch64"):
+        if system == "Darwin":
+            return subprocess.check_output(
+                ["sysctl", "machdep.cpu.brand_string"]).decode().strip()
+        else:
+            # not implemented
+            return "Unknown arm64"
+    elif arch in ("x86_64", "amd64"):
+        if system == "Windows":
+            cpuinfo = subprocess.check_output(
+                ["powershell", "(Get-WmiObject -Class Win32_Processor).Caption"]).decode().strip()
+            infomatch = re.match(r".* Family (\d+) Model (\d+) .*",
+                cpuinfo.splitlines()[-1])
+            if not infomatch:
+                return "Unknown x86_64"
+            try:
+                family, model = map(int, infomatch.groups())
+            except ValueError:
+                return "Unknown x86_64"
+        elif system == "Linux":
+            with open("/proc/cpuinfo") as cpuinfofile:
+                cpuinfo = cpuinfofile.read().strip().split("\n\n")[0]
+            cpuinfo = (
+                map(str.strip, line.split(":", 1))
+                for line in cpuinfo.split("\n")
+            )
+            cpuinfo = {k: v for k, v in cpuinfo}
+            try:
+                family = int(cpuinfo.get("cpu family", ""))
+                model = int(cpuinfo.get("model", ""))
+            except ValueError:
+                return "Unknown x86_64"
+        elif system == "Darwin":
+            family = subprocess.check_output(
+                ["sysctl", "machdep.cpu.family"]).decode().strip()
+            model = subprocess.check_output(
+                ["sysctl", "machdep.cpu.model"]).decode().strip()
+            try:
+                family = int(family)
+                model = int(model)
+            except ValueError:
+                return "Unknown x86_64"
+        else:
+            return "Unknown x86_64"
+        return INTEL_FAMILIES.get((family, model), "Unknown x86_64")
+    else:
+        return "Unknown"
+
+
+CPU_FAMILY = get_cpu_family()
 
 
 def value_diff(value, reference):
@@ -42,10 +139,10 @@ def attempt(func, *args, **kwargs):
 
 @dataclass
 class MemSample:
-    vmsize: int
-    vmpeak: int
-    vmrss: int
-    vmhwm: int
+    system_size: int
+    system_peak: int
+    system_rss: int
+    system_hwm: int
     threads: int
     gpu_local_used: int = -1
     gpu_local_total: int = -1
@@ -76,7 +173,7 @@ class MemSample:
 
 
 def run_test_executable_extract_result(command):
-    proc = subprocess.run(command, stdout=subprocess.PIPE)
+    proc = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     run_out = proc.stdout.decode()
     if run_out.startswith("TEST_RESULTS: "):
         results_json = run_out.splitlines()[0].removeprefix("TEST_RESULTS: ")
@@ -137,7 +234,7 @@ class TestSession:
         return result
 
     def api(self, method, data=None, **kwargs):
-        extra_args = {"timeout": 30}
+        extra_args: dict[str, Any] = {"timeout": 30}
         extra_args.update(kwargs)
         if self.report_api is None:
             raise Exception("Report API was not specified")
@@ -149,7 +246,7 @@ class TestSession:
             print(f"API Error: {response.text}")
         return response.json()
 
-    def api_push_test_result(self, source, modelid, device, result):
+    def api_push_test_result(self, model_path, modelid, weights_size, device, result):
         if not self.report_metadata:
             print("No job metadata found, no report will be made.")
             return
@@ -163,17 +260,19 @@ class TestSession:
             sample_report.update({
                 "test_name": f"{result.get('test', self.test_name)}:{sname}",
                 "status": "failed" if "error" in result else "passed",
-                "source": source,
+                "source": model_path,
                 "log": result.get("stderr", ""),
                 "model_name": modelname,
                 "model": modelid,
                 "device": result.get("device") or device,
                 "framework": framework,
                 "precision": precision,
-                "metrics": sample.as_dict()
+                "metrics": sample.as_dict(),
+                "familyCpu": CPU_FAMILY,
+                "model_size": weights_size
             })
             test_report.append(sample_report)
-        response = attempt(self.api, "v1/memory/push-2-db-facade", {"data": test_report})
+        response = attempt(self.api, "v2/memory/push-2-db-facade", {"data": test_report})
         if response:
             print(f"Push result to API: {response}")
 
@@ -189,7 +288,7 @@ class TestSession:
                 "branch": os.environ.get("sourceBranch", "unknown"),
                 "target_branch": os.environ.get("targetBranch", "unknown"),
                 "log_path": os.environ.get("SHARED_LOG_PATH", ""),
-                "dldt_version": build_number,
+                "version": build_number,
                 "ext": {}
             }
         except KeyError as err:
@@ -219,9 +318,21 @@ class TestSession:
             yield from ((path.removeprefix(cache_dir).replace("\\", "/"), path) for path in new_files)
 
     def generate_test_cases(self):
+        def _with_filesize(paths):
+            for (modelid, path) in paths:
+                weights_path, _ = os.path.splitext(path)
+                weights_path = f"{weights_path}.bin"
+                if os.path.isfile(weights_path):
+                    weights_size = os.path.getsize(weights_path)
+                else:
+                    # weights file does not exist -> invalid test case
+                    continue
+                yield modelid, path, weights_size
         for ir_cache_dir in self.ir_cache_dirs:
             yield from itertools.product(
-                self.scan_directory(ir_cache_dir), self.devices)
+                _with_filesize(self.scan_directory(ir_cache_dir)),
+                self.devices
+            )
 
     def run_test_case(self, model_path, device):
         try:
@@ -230,9 +341,21 @@ class TestSession:
             print(f"  When running test an unexpected error happened: {ex}")
             return {"error": "unexpected error", "exception": ex}
 
-    def handle_test_result(self, modelid, device, result):
+    def handle_test_result(self, modelid, weights_size, device, result):
+        base2_suffixes = ["bytes", "KiB", "MiB", "GiB", "TiB", "PiB"]
+
+        def _base2_human_readable(number):
+            order_of_magnitude = 0
+            one_order_higher = 1 << 10
+            while number > one_order_higher and order_of_magnitude < len(base2_suffixes) - 1:
+                number >>= 10
+                order_of_magnitude += 1
+            suffix = base2_suffixes[order_of_magnitude]
+            return f"{number} {suffix}"
+
         status = "error" if "error" in result else "ok"
-        print(f"TEST {modelid} x {device}: {status}")
+        weights_size_human_read = _base2_human_readable(weights_size)
+        print(f"TEST {modelid} ({weights_size_human_read}) x {device}: {status}")
         if status == "error":
             error = result.get("error")
             stdout = result.get("stdout")
@@ -245,16 +368,18 @@ class TestSession:
                 print(f"  stderr: {stderr.strip()}\n  === END OF STDERR ===")
             if exception:
                 print(f"  {repr(exception)}")
-            return
-        for sname, sample in result["samples"].items():
-            print(f"  {sname:>15}: {sample}")
+        else:
+            for sname, sample in result["samples"].items():
+                print(f"  {sname:>15}: {sample}")
+        sys.stdout.flush()
+        sys.stderr.flush()
 
     def run(self):
-        for (modelid, model_path), device in self.generate_test_cases():
+        for (modelid, model_path, weights_size), device in self.generate_test_cases():
             result = self.run_test_case(model_path, device)
             test_name = result.get("test", self.test_name)
-            self.api_push_test_result(model_path, modelid, device, result)
-            self.handle_test_result(modelid, device, result)
+            self.api_push_test_result(model_path, modelid, weights_size, device, result)
+            self.handle_test_result(modelid, weights_size, device, result)
 
 
 if __name__ == "__main__":
@@ -282,7 +407,7 @@ if __name__ == "__main__":
     TestSession(
         args.test_executable,
         args.ir_cache,
-        args.devices.split(","),
+        [device.upper() for device in args.devices.split(",")],
         args.api,
         args.upload_reference
     ).run()

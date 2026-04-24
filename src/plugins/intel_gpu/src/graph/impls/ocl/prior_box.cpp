@@ -65,11 +65,11 @@ struct prior_box_impl : typed_primitive_impl_ocl<prior_box> {
         params.variance = primitive->variance;
         params.reverse_image_width = 1.0f / image_width;
         params.reverse_image_height = 1.0f / image_height;
-        params.width = width;
-        params.height = height;
+        params.width = static_cast<uint32_t>(width);
+        params.height = static_cast<uint32_t>(height);
         if (step == 0) {
-            params.step_x = image_width / width;
-            params.step_y = image_height / height;
+            params.step_x = static_cast<float>(image_width) / static_cast<float>(width);
+            params.step_y = static_cast<float>(image_height) / static_cast<float>(height);
         } else {
             params.step_x = step;
             params.step_y = step;
