@@ -1,11 +1,13 @@
 # OpenVINO Coding Guidelines
 
-## Naming style (ncc)
+## Fix order
 
-OpenVINO has strict rules for naming style in public API. All classes must start with a capital letter, and methods and functions should be named in `snake_case` style.
-To check the naming style, `ncc` tool is integrated in the OpenVINO. Read the detailed information about the naming style can be found in the [configuration file](../../cmake/developer_package/ncc_naming_style/openvino.style).
-To activate this tool, you need to have `clang` on the local machine and enable the CMake option `ENABLE_NCC_STYLE`.
-After that, you can use the `ncc_all` target to check the naming style.
+When bringing a set of changes into compliance, address the checks in the following order:
+
+1. **Copyright headers** — fast, no build required
+2. **clang-tidy** — requires a clean build; fix compilation errors first, then apply tidy auto-fixes
+3. **Naming style (ncc)** — requires clang, but no full rebuild; fix after tidy to avoid redundant churn
+4. **clang-format** — purely cosmetic; run last so tidy auto-fixes don't reintroduce formatting issues
 
 ## Copyright headers
 
@@ -67,6 +69,13 @@ Notes:
 - It is better to use a dedicated build directory for clang-tidy (e.g. `build-clang/`) — clang-tidy rewrites compilation databases and can interfere with incremental builds in a shared directory.
 - Do not use `// NOLINT` suppressions to silence diagnostics. A suppression hides the issue without fixing it and can mask real problems in future code. It is strongly recommended to  suppress if if the check is a confirmed false positive with no correct alternative, and document the reason inline.
 
+## Naming style (ncc)
+
+OpenVINO has strict rules for naming style in public API. All classes must start with a capital letter, and methods and functions should be named in `snake_case` style.
+To check the naming style, `ncc` tool is integrated in the OpenVINO. Read the detailed information about the naming style can be found in the [configuration file](../../cmake/developer_package/ncc_naming_style/openvino.style).
+To activate this tool, you need to have `clang` on the local machine and enable the CMake option `ENABLE_NCC_STYLE`.
+After that, you can use the `ncc_all` target to check the naming style.
+
 ## Coding style (clang-format)
 
 The majority of OpenVINO components use `clang-format-18` for code style checks.
@@ -86,15 +95,6 @@ Check and fix targets:
 cmake --build . --target clang_format_check_all   # report violations
 cmake --build . --target clang_format_fix_all     # auto-fix violations
 ```
-
-## Recommended fix order
-
-When bringing a set of changes into compliance, it is recommended to address the three checks in the following order:
-
-1. **Copyright headers** — fast, no build required
-2. **Naming style (ncc)** — requires clang, but no full rebuild; fix before tidy to avoid redundant churn
-3. **clang-tidy** — requires a clean build; fix compilation errors first, then apply tidy auto-fixes
-4. **clang-format** — purely cosmetic; run last so tidy auto-fixes don't reintroduce formatting issues
 
 ## See also
  * [OpenVINO™ README](../../README.md)
