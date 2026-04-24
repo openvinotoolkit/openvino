@@ -194,6 +194,9 @@ void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
 
 void gpu_usm::unlock(const stream& /* stream */) {
     std::lock_guard<std::mutex> locker(_mutex);
+    if (0 == _lock_count) {
+        OPENVINO_THROW("[GPU] Trying to unlock an already unlocked buffer");
+    }
     _lock_count--;
     if (0 == _lock_count) {
         if (get_allocation_type() == allocation_type::usm_device) {
@@ -474,6 +477,9 @@ void* gpu_image2d::lock(const stream& stream, mem_lock_type type) {
 }
 void gpu_image2d::unlock(const stream& stream) {
     std::lock_guard<std::mutex> locker(_mutex);
+    if (0 == _lock_count) {
+        OPENVINO_THROW("[GPU] Trying to unlock an already unlocked buffer");
+    }
     _lock_count--;
     if (0 == _lock_count) {
         if (_needs_write_back) {
