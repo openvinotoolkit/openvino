@@ -905,13 +905,12 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
                 // load b: N[0:16*2]xK[16:32]
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[0].format<int>(), desc_b0);
                 cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[1].format<int>(), desc_b1);
-                dot(a0, b0);
                 desc_b0.set_block_x(desc_b0.get_block_x() + 8);
                 desc_b1.set_block_x(desc_b1.get_block_x() + 8);
                 #else
                 b0[0].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_0);
                 b0[1].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_1);
-                offsets_0 += 8 * sizeof(uint); 
+                offsets_0 += 8 * sizeof(uint);
                 offsets_1 += 8 * sizeof(uint);
                 #endif
                 dot(a0, b1);
@@ -1123,7 +1122,8 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
         }
     }
 
-        max_m.select<BLOCK_SG_M, 1>() = reduce2d<1, 0, 1>(acc_half.select<BLOCK_SG_M, 1, BLOCK_SG_N, 1>()).format<SOFTMAX_TYPE>();
+        max_m.select<BLOCK_SG_N, 1>() = reduce2d<1, 0, 1>(acc_half.select<BLOCK_SG_N, 1, BLOCK_SG_N, 1>()).format<SOFTMAX_TYPE>();
+        max_m.select<BLOCK_SG_N, 1>(BLOCK_SG_N) = reduce2d<1, 0, 1>(acc_half.select<BLOCK_SG_N, 1, BLOCK_SG_N, 1>(BLOCK_SG_N)).format<SOFTMAX_TYPE>();
 
     {
         uint slm_offset = (id_sg_n * BLOCK_WG_M + id_sg_m * BLOCK_SG_M) * (uint)sizeof(SOFTMAX_TYPE);
@@ -1187,7 +1187,8 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
         sum_t.select<32, 1, SUM_N, 1>(0).format<SOFTMAX_TYPE>() = reduce2d<SUM_N, 1, SUM_N>(acc_half.select<32, 1, BLOCK_SG_N, 1>(0)).format<SOFTMAX_TYPE>();
         sum_t.select<32, 1, SUM_N, 1>(32).format<SOFTMAX_TYPE>() = reduce2d<SUM_N, 1, SUM_N>(acc_half.select<32, 1, BLOCK_SG_N, 1>(32)).format<SOFTMAX_TYPE>();
         #else
-        sum_t.select<BLOCK_SG_M, 1, SUM_N, 1>(0).format<SOFTMAX_TYPE>() = reduce2d<SUM_N, 1, SUM_N>(acc_half.select<BLOCK_SG_M, 1, BLOCK_SG_N, 1>(0)).format<SOFTMAX_TYPE>();
+        sum_t.select<BLOCK_SG_N, 1, SUM_N, 1>(0).format<SOFTMAX_TYPE>() = reduce2d<SUM_N, 1, SUM_N>(acc_half.select<BLOCK_SG_N, 1, BLOCK_SG_N, 1>(0)).format<SOFTMAX_TYPE>();
+        sum_t.select<BLOCK_SG_N, 1, SUM_N, 1>(BLOCK_SG_N).format<SOFTMAX_TYPE>() = reduce2d<SUM_N, 1, SUM_N>(acc_half.select<BLOCK_SG_N, 1, BLOCK_SG_N, 1>(BLOCK_SG_N)).format<SOFTMAX_TYPE>();
         #endif
     }
     // store
