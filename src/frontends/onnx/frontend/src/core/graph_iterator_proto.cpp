@@ -255,7 +255,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
     std::string m_sha1_digest{};  // for future use
     for (const auto& entry : tensor_info->external_data()) {
         if (entry.key() == "location") {
-            ext_location = detail::sanitize_external_data_location(entry.value());
+            ext_location = entry.value();
         } else if (entry.key() == "offset") {
             ext_data_offset = std::stoull(entry.value());
         } else if (entry.key() == "length") {
@@ -264,8 +264,15 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
             m_sha1_digest = entry.value();
         }
     }
-    const auto full_path = ov::util::get_absolute_file_path(
-        ov::util::path_join({graph_iterator->get_model_dir(), ov::util::make_path(ext_location)}));
+    if (ext_location == "*/_ORT_MEM_ADDR_/*") {
+        // Specific ONNX Runtime Case when it passes a model with self-managed data
+        tensor_meta_info.m_is_raw = true;
+        tensor_meta_info.m_tensor_data = reinterpret_cast<uint8_t*>(ext_data_offset);
+        tensor_meta_info.m_tensor_data_size = ext_data_length;
+        tensor_meta_info.m_external_location = std::make_shared<std::string>(ext_location);
+        return true;
+    }
+    const auto full_path = ov::util::sanitize_path(graph_iterator->get_model_dir(), ov::util::make_path(ext_location));
     const int64_t file_size = ov::util::file_size(full_path);
     if ((file_size <= 0 && ext_data_length > 0) || ext_data_length > static_cast<uint64_t>(file_size) ||
         ext_data_offset > static_cast<uint64_t>(file_size) - ext_data_length) {
@@ -279,14 +286,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
                                             ? static_cast<size_t>(ext_data_length)
                                             : static_cast<size_t>(file_size) - static_cast<size_t>(ext_data_offset);
     auto memory_mode = graph_iterator->get_memory_management_mode();
-    if (ext_location == "*/_ORT_MEM_ADDR_/*") {
-        // Specific ONNX Runtime Case when it passes a model with self-managed data
-        tensor_meta_info.m_is_raw = true;
-        tensor_meta_info.m_tensor_data = reinterpret_cast<uint8_t*>(ext_data_offset);
-        tensor_meta_info.m_tensor_data_size = ext_data_length;
-        tensor_meta_info.m_external_location = std::make_shared<std::string>(ext_location);
-        return true;
-    } else if (memory_mode == External_MMAP) {
+    if (memory_mode == External_MMAP) {
         auto cache = graph_iterator->get_mmap_cache();
         auto cached_mapped_memory = cache->find(full_path);
         std::shared_ptr<ov::MappedMemory> mapped_memory;

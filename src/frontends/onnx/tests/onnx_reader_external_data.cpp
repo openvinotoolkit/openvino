@@ -269,8 +269,7 @@ TEST_P(OnnxFeMmapFixture, onnx_external_invalid_up_dir_path) {
         FAIL() << "Incorrect path to external data not detected";
     } catch (const Exception& ex) {
         EXPECT_PRED_FORMAT2(testing::IsSubstring,
-                            string("tensor.data, offset: 4096, "
-                                   "data_length: 16)"),
+                            string("Path traversal detected in external_data location"),
                             ex.what());
     } catch (...) {
         FAIL() << "Importing onnx model failed for unexpected reason";

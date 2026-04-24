@@ -93,6 +93,8 @@ inline auto path_to_string(const std::filesystem::path& path) -> decltype(path_t
     return path_to_string(path.native());
 }
 
+std::filesystem::path sanitize_path(const std::filesystem::path& dir, const std::filesystem::path& relative_path);
+
 /**
  * @brief Interface function to get absolute path of file
  * @param path - path to file, can be relative to current working directory

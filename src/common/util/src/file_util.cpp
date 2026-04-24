@@ -104,6 +104,21 @@ void ov::util::recursive_iterate_files(const std::filesystem::path& path,
     }
 }
 
+std::filesystem::path ov::util::sanitize_path(const std::filesystem::path& dir,
+                                              const std::filesystem::path& relative_path) {
+    const auto dir_canon_absolute = ov::util::get_absolute_file_path(std::filesystem::weakly_canonical(dir));
+    const auto merged_path = std::filesystem::weakly_canonical(dir / relative_path);
+    auto absolute_path = ov::util::get_absolute_file_path(merged_path);
+
+    if (absolute_path.string().find(dir_canon_absolute.string()) != 0) {
+        std::stringstream ss;
+        ss << "Path traversal detected in external_data location: " << relative_path;
+        throw std::runtime_error(ss.str());
+    }
+
+    return absolute_path;
+}
+
 std::filesystem::path ov::util::get_absolute_file_path(const std::filesystem::path& path) {
     std::error_code ec;
     if (path.empty() || path.is_absolute()) {
