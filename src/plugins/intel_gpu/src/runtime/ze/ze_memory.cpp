@@ -456,20 +456,24 @@ void* gpu_image2d::lock(const stream& stream, mem_lock_type type) {
     auto& zero_stream = downcast<const ze_stream>(stream);
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
-         if (type != mem_lock_type::read) {
+        if (type != mem_lock_type::read) {
             _needs_write_back = true;
         } else {
             _needs_write_back = false;
         }
+
         _host_buffer.allocateHost(_bytes_count);
-        OV_ZE_EXPECT(ze::zeCommandListAppendImageCopyToMemory(zero_stream.get_queue(),
-            _host_buffer.get(),
-            _image->get_handle(),
-            nullptr,
-            nullptr,
-            0,
-            nullptr));
-        OV_ZE_EXPECT(ze::zeCommandListHostSynchronize(zero_stream.get_queue(), endless_wait));
+        if (type != mem_lock_type::write) {
+            OV_ZE_EXPECT(ze::zeCommandListAppendImageCopyToMemory(zero_stream.get_queue(),
+                _host_buffer.get(),
+                _image->get_handle(),
+                nullptr,
+                nullptr,
+                0,
+                nullptr));
+            // Block thread and wait for copy and previous operations to finish
+            OV_ZE_EXPECT(ze::zeCommandListHostSynchronize(zero_stream.get_queue(), endless_wait));
+        }
         _mapped_ptr = _host_buffer.get();
     }
     _lock_count++;
