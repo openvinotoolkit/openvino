@@ -135,7 +135,7 @@ bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
     const bool isQuantizedI8 = srcDesc->getPrecision() == ov::element::i8 &&
                                weiDesc->getPrecision() == ov::element::i8 &&
                                dstDesc->getPrecision() == ov::element::i8 && hasQuantizationPostOp;
-    if (isQuantized) {
+    if (isQuantizedU8 || isQuantizedI8) {
       return false;
     }
     VERIFY(isQuantizedU8 || isQuantizedI8, UNSUPPORTED_BY_EXECUTOR);
