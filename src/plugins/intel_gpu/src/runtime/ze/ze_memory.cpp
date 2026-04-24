@@ -351,19 +351,35 @@ gpu_image2d::gpu_image2d(ze_engine* engine, const layout& layout)
     image_desc.pNext = nullptr;
     image_desc.flags = ZE_IMAGE_FLAG_KERNEL_WRITE;
     image_desc.type = ZE_IMAGE_TYPE_2D;
-    image_desc.format.layout = layout.data_type == data_types::f16 ? ZE_IMAGE_FORMAT_LAYOUT_16 : ZE_IMAGE_FORMAT_LAYOUT_32;
-    image_desc.format.type = ZE_IMAGE_FORMAT_TYPE_FLOAT;
-    image_desc.format.x = ZE_IMAGE_FORMAT_SWIZZLE_R;
-    image_desc.format.y = ZE_IMAGE_FORMAT_SWIZZLE_X;
-    image_desc.format.z = ZE_IMAGE_FORMAT_SWIZZLE_X;
-    image_desc.format.w = ZE_IMAGE_FORMAT_SWIZZLE_X;
     std::tie(_width, _height) = get_width_height(layout);
+
+    #define THROW_UNSUPPORTED_DT \
+        OPENVINO_THROW("[GPU] Unsupported image data type (", layout.data_type, ") for given format (", layout.format, ")");
     switch (layout.format) {
+        case format::image_2d_weights_c1_b_fyx:
+        case format::image_2d_weights_winograd_6x3_s1_fbxyb:
+        case format::image_2d_weights_winograd_6x3_s1_xfbyb:
+            image_desc.format.type = ZE_IMAGE_FORMAT_TYPE_FLOAT;
+            if (layout.data_type == data_types::f16) {
+                image_desc.format.layout = ZE_IMAGE_FORMAT_LAYOUT_16;
+            } else if (layout.data_type == data_types::f32) {
+                image_desc.format.layout = ZE_IMAGE_FORMAT_LAYOUT_32;
+            } else {
+                THROW_UNSUPPORTED_DT;
+            }
+            image_desc.format.x = ZE_IMAGE_FORMAT_SWIZZLE_R;
+            image_desc.format.y = ZE_IMAGE_FORMAT_SWIZZLE_X;
+            image_desc.format.z = ZE_IMAGE_FORMAT_SWIZZLE_X;
+            image_desc.format.w = ZE_IMAGE_FORMAT_SWIZZLE_X;
+            break;
         case format::image_2d_weights_c4_fyx_b:
+            image_desc.format.type = ZE_IMAGE_FORMAT_TYPE_FLOAT;
             if (layout.data_type == data_types::f16) {
                 image_desc.format.layout = ZE_IMAGE_FORMAT_LAYOUT_16_16_16_16;
-            } else {
+            } else if (layout.data_type == data_types::f32) {
                 image_desc.format.layout = ZE_IMAGE_FORMAT_LAYOUT_32_32_32_32;
+            } else {
+                THROW_UNSUPPORTED_DT;
             }
             image_desc.format.x = ZE_IMAGE_FORMAT_SWIZZLE_R;
             image_desc.format.y = ZE_IMAGE_FORMAT_SWIZZLE_G;
@@ -372,6 +388,9 @@ gpu_image2d::gpu_image2d(ze_engine* engine, const layout& layout)
             break;
         case format::image_2d_rgba:
             image_desc.format.type = ZE_IMAGE_FORMAT_TYPE_UNORM;
+            if (layout.data_type != data_types::u8) {
+                THROW_UNSUPPORTED_DT;
+            }
             image_desc.format.layout = ZE_IMAGE_FORMAT_LAYOUT_8_8_8_8;
             image_desc.format.x = ZE_IMAGE_FORMAT_SWIZZLE_R;
             image_desc.format.y = ZE_IMAGE_FORMAT_SWIZZLE_G;
@@ -381,17 +400,22 @@ gpu_image2d::gpu_image2d(ze_engine* engine, const layout& layout)
                 OPENVINO_THROW("[GPU] 2D image allocation", "invalid number of channels in image_2d_rgba input image (should be 3 or 4)!");
             }
             break;
-        case format::nv12:
-        {
+        case format::nv12: {
             // [NHWC] dimensions order
             auto shape = layout.get_shape();
             _width = shape[2];
             _height = shape[1];
             image_desc.format.type = ZE_IMAGE_FORMAT_TYPE_UNORM;
+            if (layout.data_type != data_types::u8) {
+                THROW_UNSUPPORTED_DT;
+            }
             image_desc.format.layout = ZE_IMAGE_FORMAT_LAYOUT_8;
+            image_desc.format.x = ZE_IMAGE_FORMAT_SWIZZLE_R;
+            image_desc.format.y = ZE_IMAGE_FORMAT_SWIZZLE_X;
+            image_desc.format.z = ZE_IMAGE_FORMAT_SWIZZLE_X;
+            image_desc.format.w = ZE_IMAGE_FORMAT_SWIZZLE_X;
             if (shape[3] == 2) {
                 image_desc.format.layout = ZE_IMAGE_FORMAT_LAYOUT_8_8;
-                image_desc.format.x = ZE_IMAGE_FORMAT_SWIZZLE_R;
                 image_desc.format.y = ZE_IMAGE_FORMAT_SWIZZLE_G;
             } else if (shape[3] > 2) {
                 OPENVINO_THROW("[GPU] 2D image allocation", "invalid number of channels in NV12 input image!");
@@ -401,6 +425,7 @@ gpu_image2d::gpu_image2d(ze_engine* engine, const layout& layout)
         default:
             OPENVINO_THROW("[GPU] 2D image allocation", "unsupported image type!");
     }
+    #undef THROW_UNSUPPORTED_DT
     image_desc.width = _width;
     image_desc.height = _height;
     image_desc.depth = 1;
