@@ -160,13 +160,13 @@ Graph::~Graph() {
 
             const auto begin = std::begin(host_exec_times) + 1;
             const auto end = std::end(host_exec_times);
-            avg.inputs_processing = std::accumulate(begin, end, 0,
+            avg.inputs_processing = std::accumulate(begin, end, int64_t{0},
                 [](int64_t sum, const HostTimeProfilingEntry& entry) { return sum + entry.inputs_processing; });
-            avg.enqueue = std::accumulate(begin, end, 0,
+            avg.enqueue = std::accumulate(begin, end, int64_t{0},
                 [](int64_t sum, const HostTimeProfilingEntry& entry) { return sum + entry.enqueue; });
-            avg.wait = std::accumulate(begin, end, 0,
+            avg.wait = std::accumulate(begin, end, int64_t{0},
                 [](int64_t sum, const HostTimeProfilingEntry& entry) { return sum + entry.wait; });
-            avg.outputs_processing = std::accumulate(begin, end, 0,
+            avg.outputs_processing = std::accumulate(begin, end, int64_t{0},
                 [](int64_t sum, const HostTimeProfilingEntry& entry) { return sum + entry.outputs_processing; });
 
             const auto iters_num = host_exec_times.size() - 1;
