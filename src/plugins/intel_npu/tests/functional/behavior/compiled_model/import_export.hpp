@@ -68,7 +68,7 @@ TEST_P(OVCompiledGraphImportExportTestNPU, CanImportModelWithApplicationHeaderAn
     }
 }
 
-TEST_P(OVCompiledGraphImportExportTestNPU, CheckSizeOfBlobIfMultipleOfPageSize) {
+TEST_P(OVCompiledGraphImportExportTestNPU, CheckSizeOfRawBlobIfMultipleOfPageSize) {
     ov::Core core;
     std::stringstream sstream;
 
@@ -82,6 +82,23 @@ TEST_P(OVCompiledGraphImportExportTestNPU, CheckSizeOfBlobIfMultipleOfPageSize) 
 
     ASSERT_TRUE(size != 0) << "Size of the blob should be different from 0";
     ASSERT_TRUE(size % 4096 == 0) << "Size of the blob should be multiple of 4096";
+}
+
+TEST_P(OVCompiledGraphImportExportTestNPU, CheckSizeOfExportedModelIfMultipleOfPageSize) {
+    ov::Core core;
+    std::stringstream sstream;
+
+    auto model = ov::test::utils::make_conv_pool_relu();
+    core.compile_model(model, target_device, configuration).export_model(sstream);
+
+    uint64_t size_of_blob;
+    std::size_t size = sstream.str().size();
+
+    sstream.seekg(size - std::streampos(5) /*MAGIC_BYTES*/ - sizeof(size_of_blob), std::ios::cur);
+    sstream.read(reinterpret_cast<char*>(&size_of_blob), sizeof(size_of_blob));
+
+    ASSERT_TRUE(size_of_blob != 0) << "Size of the blob shall be different from 0";
+    ASSERT_TRUE(size_of_blob % 4096 == 0) << "Size of the blob shall be multiple of 4096";
 }
 
 }  // namespace behavior
