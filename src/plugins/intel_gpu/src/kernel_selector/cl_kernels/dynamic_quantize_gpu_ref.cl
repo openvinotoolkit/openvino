@@ -18,8 +18,8 @@
     #define ACT_MIN_VAL 0.000000059604645h // min half dtype val
 #else
     #define SCALE_TYPE half
-    #define TO_SCALE_TYPE(x) _convert_half(x)
-    #define TO_SCALE_TYPE_8(x) _convert_half8(x)
+    #define TO_SCALE_TYPE(x) convert_half(x)
+    #define TO_SCALE_TYPE_8(x) convert_half8(x)
     #define ACT_MIN_VAL 0.003h      // Too small value may generate inf during 127/ACT_MIN_VAL
 #endif
 

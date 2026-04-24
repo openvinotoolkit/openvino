@@ -18,9 +18,9 @@
 #define CONVERT_UCHAR_N CAT(convert_uchar, VEC_SIZE)
 #define CONVERT_CHAR_N CAT(convert_char, VEC_SIZE)
 #define CONVERT_INT_N CAT(convert_int, VEC_SIZE)
-#define TO_TYPE_N_(type, n, x) _convert_##type##n(x)
+#define TO_TYPE_N_(type, n, x) convert_##type##n(x)
 #define TO_TYPE_N(type, n, x) TO_TYPE_N_(type, n, x)
-#define TO_TYPE_N_SAT_(type, n, x) _convert_##type##n##_sat(x)
+#define TO_TYPE_N_SAT_(type, n, x) convert_##type##n##_sat(x)
 #define TO_TYPE_N_SAT(type, n, x) TO_TYPE_N_SAT_(type, n, x)
 #define AS_TYPE_N_(type, n, x) as_##type##n(x)
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
@@ -31,7 +31,7 @@
     #define ACT_MIN_VAL 0.000000059604645h // min half dtype val
 #else
     #define SCALE_TYPE half
-    #define TO_SCALE_TYPE(x) _convert_half(x)
+    #define TO_SCALE_TYPE(x) convert_half(x)
     #define ACT_MIN_VAL 0.003h      // Too small value may generate inf during 127/ACT_MIN_VAL
 #endif
 
