@@ -58,6 +58,12 @@ endif()
 if(WIN32)
     target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_DX11)
     target_link_libraries(${TARGET_NAME} PRIVATE d3d11 d3d12 dxgi dxguid)
+
+    find_package(Vulkan QUIET)
+    if(Vulkan_FOUND)
+        target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_VULKAN)
+        target_link_libraries(${TARGET_NAME} PRIVATE Vulkan::Vulkan)
+    endif()
 endif()
 
 ov_build_target_faster(${TARGET_NAME} PCH)
