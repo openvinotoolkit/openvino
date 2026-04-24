@@ -131,7 +131,11 @@ void ArgMaxMinKernelAxis::GetUpdateDispatchDataFunc(KernelData& kd) const {
         const size_t group_num = ((sort_size - 1) / group_size) + 1;
 
         kd.internalBuffers.clear();
-        kd.internalBuffers.push_back(iav_type_size * sort_size * ops_size * 2);
+        if (prim_params.topK == 1) {
+            kd.internalBuffers.push_back(iav_type_size * sort_size * 2);
+        } else {
+            kd.internalBuffers.push_back(iav_type_size * sort_size * ops_size * 2);
+        }
         kd.internalBuffers.push_back(4 * group_num * ops_size * 2);
         kd.internalBuffers.push_back(ops_size * elem_size);
         kd.internalBufferDataType = prim_params.inputs[0].GetDType();

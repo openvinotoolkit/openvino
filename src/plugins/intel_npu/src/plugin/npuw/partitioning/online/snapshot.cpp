@@ -213,6 +213,74 @@ bool isRegularParameterCase(const std::unordered_map<std::shared_ptr<Repeated>, 
     return true;
 }
 
+bool isRegularCrossGroupConsumerCase(const std::unordered_map<std::shared_ptr<Repeated>, GPtrSet>& reptag_to_gset,
+                                     const std::unordered_map<std::string, NodeSPtr>& node_id_cache,
+                                     const std::map<std::string, std::vector<std::set<std::string>>>& m_layer_matches) {
+    // Build a map: node name -> group, covering all nodes that belong to a repeated block group.
+    std::unordered_map<std::string, std::shared_ptr<ov::npuw::online::Group>> node_name_to_group;
+    for (const auto& reptag_and_gset : reptag_to_gset) {
+        for (const auto& gptr : reptag_and_gset.second) {
+            for (const auto& node : gptr->getContent()) {
+                node_name_to_group[node->get_friendly_name()] = gptr;
+            }
+            for (const auto& node : gptr->getOutputs()) {
+                node_name_to_group[node->get_friendly_name()] = gptr;
+            }
+            for (const auto& node : gptr->getInputs()) {
+                node_name_to_group[node->get_friendly_name()] = gptr;
+            }
+        }
+    }
+
+    // For each repeated block, check that the "has external non-Result reader" flag
+    // is consistent across all instances within each operation bank.
+    for (const auto& reptag_and_gset : reptag_to_gset) {
+        const auto& reptag = reptag_and_gset.first;
+
+        if (reptag_and_gset.second.size() <= 1) {
+            continue;
+        }
+
+        for (const auto& bank : m_layer_matches.at(reptag->id())) {
+            // Compute the mask per bank entry: vector<bool> per output port indicating
+            // whether that port has at least one reader outside the node's own group.
+            std::optional<std::vector<bool>> expected_mask;
+            for (const auto& layer_name : bank) {
+                auto layer_ptr = node_id_cache.at(layer_name);
+                auto group_it = node_name_to_group.find(layer_name);
+                auto this_group = (group_it != node_name_to_group.end()) ? group_it->second : nullptr;
+
+                std::vector<bool> mask;
+                for (auto&& output_desc : layer_ptr->outputs()) {
+                    bool has_external = false;
+                    for (auto&& r : output_desc.get_target_inputs()) {
+                        auto reader_ptr = r.get_node()->shared_from_this();
+                        if (ov::op::util::is_output(reader_ptr)) {
+                            continue;  // ov::Result readers are handled by isRegularResultCase
+                        }
+                        auto reader_group_it = node_name_to_group.find(reader_ptr->get_friendly_name());
+                        if (reader_group_it == node_name_to_group.end() || reader_group_it->second != this_group) {
+                            has_external = true;
+                            break;
+                        }
+                    }
+                    mask.push_back(has_external);
+                }
+
+                if (!expected_mask.has_value()) {
+                    expected_mask = mask;
+                } else if (*expected_mask != mask) {
+                    LOG_INFO("This is NOT a regular cross-group consumer case. "
+                             << "Cross-group consumer pattern mismatch for layer " << layer_name << " in bank.");
+                    return false;
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
 }  // namespace
 
 using ov::npuw::online::detail::getConstsPrecision;
@@ -754,7 +822,7 @@ void Snapshot::identifyUniques() {
         // This pass should only be called at the very beginning,
         // thus check and use only the single initial layer
         auto ov_node = group->getInitialNode();
-        auto metadesc = ov::npuw::online::util::getMetaDesc(ov_node);
+        auto metadesc = getMetaDesc(ov_node);
         const auto& avoids = group->avoidedTargets();
         const auto& special_tags = group->specialTags();
         uniques[{metadesc, avoids, special_tags}].insert(group);
@@ -1014,6 +1082,28 @@ void Snapshot::mergeUniques() {
     LOG_INFO("Online partitioning: executing mergeUniques pass...");
     LOG_BLOCK();
 
+    // Pre-build a rep-tag → GPtrSet index to replace the O(V) scan inside
+    // getRepGroups(). Without this, getRepGroups() is called once per distinct rep
+    // tag and each call scans all V graph nodes → O(V × nRepTags) = O(V²) total.
+    // With small chunk sizes (many KV blocks → large V), this dominates compilation.
+    //
+    // Correctness: each rep tag is visited at most once (merged_this_time guard).
+    // During the loop, tryMergeRepeating() may:
+    //   - re-tag consumer groups (they get a new_rep) → stale entries in the index
+    //   - remove producer groups from the graph
+    // Both cases are handled by the staleness filter below (rep-tag and graph checks).
+    std::unordered_map<Repeated*, GPtrSet> rep_index;
+    for (const auto& nh_i : m_graph->sorted()) {
+        if (!m_graph->contains(nh_i)) {
+            continue;
+        }
+        const Group::GPtr& g = m_graph->meta(nh_i).get<Group::GPtr>();
+        const auto& rep_i = g->repeated();
+        if (rep_i && !g->isFrozen()) {
+            rep_index[rep_i.get()].insert(g);
+        }
+    }
+
     std::unordered_set<std::shared_ptr<Repeated>> merged_this_time;
 
     for (const auto& nh : m_graph->sorted()) {
@@ -1026,7 +1116,17 @@ void Snapshot::mergeUniques() {
         GPtrSet repeating_groups;
 
         if (rep && rep->openForMerge() && merged_this_time.count(rep) == 0) {
-            repeating_groups = getRepGroups(group);
+            // Use the prebuilt index (O(|rep_set|)) instead of the O(V) graph scan.
+            // Apply a staleness filter: a group's rep tag may have changed if it was
+            // merged in an earlier iteration of this same mergeUniques() call.
+            auto it = rep_index.find(rep.get());
+            if (it != rep_index.end()) {
+                for (const auto& g : it->second) {
+                    if (m_graph->contains(g->getHandle()) && g->repeated().get() == rep.get() && !g->isFrozen()) {
+                        repeating_groups.insert(g);
+                    }
+                }
+            }
         }
 
         if (!repeating_groups.empty()) {
@@ -1079,26 +1179,29 @@ std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const GPtrSet& repeat
             Group::GPtr prod_group = m_graph->meta(prod_nh).get<Group::GPtr>();
             LOG_DEBUG("prod_group:");
             prod_group->dump();
-            if (prod_group->repeated() && !prod_group->hasCycle(group) && prod_group->repeated() != this_rep_tag &&
-                prod_group->avoidedTargets() == this_avoided && prod_group->specialTags() == this_special) {
-                auto meta_interconnect = group->metaInterconnect(prod_group);
+            if (prod_group->repeated()) {
+                bool cycle = prod_group->hasCycle(group);
+                if (!cycle && prod_group->repeated() != this_rep_tag && prod_group->avoidedTargets() == this_avoided &&
+                    prod_group->specialTags() == this_special) {
+                    auto meta_interconnect = group->metaInterconnect(prod_group);
 
-                // FIXME: find a better way to reduce time complexity
-                // Need to align interconnects in the same format via sort, so they could be compared later
-                MICVec mic_sorted_key(meta_interconnect.first.begin(), meta_interconnect.first.end());
-                std::sort(mic_sorted_key.begin(), mic_sorted_key.end());
-                mics[{mic_sorted_key, meta_interconnect.second}].push_back({prod_group, group});
-                LOG_DEBUG("Add the pair to the merge vector!");
-            } else if (ov::npuw::debug_groups()) {
-                LOG_DEBUG("Couldn't add the pair to the merge vector due to failed checks:");
-                LOG_BLOCK();
+                    // FIXME: find a better way to reduce time complexity
+                    // Need to align interconnects in the same format via sort, so they could be compared later
+                    MICVec mic_sorted_key(meta_interconnect.first.begin(), meta_interconnect.first.end());
+                    std::sort(mic_sorted_key.begin(), mic_sorted_key.end());
+                    mics[{mic_sorted_key, meta_interconnect.second}].push_back({prod_group, group});
+                    LOG_DEBUG("Add the pair to the merge vector!");
+                } else if (ov::npuw::debug_groups()) {
+                    LOG_DEBUG("Couldn't add the pair to the merge vector due to failed checks:");
+                    LOG_BLOCK();
 #define INSPECT(x) LOG_DEBUG(#x " = " << (x))
-                INSPECT(prod_group->specialTags());
-                INSPECT(prod_group->repeated() != this_rep_tag);
-                INSPECT(prod_group->hasCycle(group));
-                INSPECT(prod_group->avoidedTargets() == this_avoided);
-                INSPECT(prod_group->specialTags() == this_special);
+                    INSPECT(prod_group->specialTags());
+                    INSPECT(prod_group->repeated() != this_rep_tag);
+                    INSPECT(cycle);
+                    INSPECT(prod_group->avoidedTargets() == this_avoided);
+                    INSPECT(prod_group->specialTags() == this_special);
 #undef INSPECT
+                }
             }
         }
     }
@@ -1312,7 +1415,7 @@ void Snapshot::completeRepeating(const std::shared_ptr<Repeated>& reptag, const 
 
     for (const auto& gptr : gset) {
         for (const auto& layer : gptr->getContent()) {  // FIXME: should it be a part of group's API instead?
-            const auto& metadesc = ov::npuw::online::util::getMetaDesc(layer);
+            const auto& metadesc = getMetaDesc(layer);
             const auto& archetype = gptr->getReptrack(layer);
             matches[{std::move(metadesc), std::move(archetype)}].insert(layer);
         }
@@ -1395,6 +1498,17 @@ std::shared_ptr<own::ade::Graph> Snapshot::getGraph() const {
 
 size_t Snapshot::graphSize() const {
     return m_graph->nodes().size();
+}
+
+std::string Snapshot::getMetaDesc(const std::shared_ptr<ov::Node>& node) const {
+    auto id = node->get_instance_id();
+    auto it = m_metadesc_cache.find(id);
+    if (it != m_metadesc_cache.end()) {
+        return it->second;
+    }
+    auto result = util::getMetaDesc(node);
+    m_metadesc_cache.emplace(id, result);
+    return result;
 }
 
 const OVPortsMap& Snapshot::getPortsMap() const {
@@ -1490,6 +1604,16 @@ bool Snapshot::isRegularIOCase() const {
     if (!isRegularParameterCase(reptag_to_gset, node_id_cache, m_layer_matches)) {
         LOG_INFO("This is not a regular parameter case");
         LOG_INFO("DONE");
+        return false;
+    }
+
+    // Checks that cross-group (non-Result) consumer patterns are symmetric across all
+    // instances of each repeated block. F16IC inserts Convert nodes only on cross-group
+    // connections, so asymmetric connectivity (e.g. KV-sharing in Gemma4 where non-head
+    // layers have no external consumer for an output that head layers forward to K/V
+    // projection) would produce different Convert counts per instance and break folding.
+    if (!isRegularCrossGroupConsumerCase(reptag_to_gset, node_id_cache, m_layer_matches)) {
+        LOG_INFO("This is not a regular cross-group consumer case");
         return false;
     }
 

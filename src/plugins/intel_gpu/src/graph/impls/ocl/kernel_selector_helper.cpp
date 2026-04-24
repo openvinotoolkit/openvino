@@ -1078,8 +1078,8 @@ std::shared_ptr<kernel_selector::fuse_params> convert_fuse_params(std::shared_pt
         auto clamp_max = casted->_desc->clamp_max;
         auto swish_beta = casted->_desc->swish_beta;
         auto up_add_val = casted->_desc->up_add_val;
-        return std::make_shared<kernel_selector::swiglu_fuse_params>(axis,
-                                                                     glu_stride,
+        return std::make_shared<kernel_selector::swiglu_fuse_params>(static_cast<int32_t>(axis),
+                                                                     static_cast<size_t>(glu_stride),
                                                                      gate_idx,
                                                                      clamp_min,
                                                                      clamp_max,
