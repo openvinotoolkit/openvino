@@ -84,13 +84,26 @@ float get_xattn_thresh(const kernel_impl_params& params, const size_t seq_idx) {
         OPENVINO_THROW("XAttention threshold input is required at index ", static_cast<size_t>(PagedAttentionInputIdx::XATTENTION_THRESHOLD));
     }
 
-    mem_lock<float16, mem_lock_type::read> lock(it->second, *params.strm);  // converted
-    if (seq_idx >= lock.size()) {
-        OPENVINO_THROW("XAttention threshold input index out of range: seq_idx=", seq_idx, ", input_size=", lock.size());
+    const auto threshold_mem = it->second;
+    const auto dt = threshold_mem->get_layout().data_type;
+
+    if (dt == data_types::f16) {
+        mem_lock<float16, mem_lock_type::read> lock(threshold_mem, *params.strm);
+        if (seq_idx >= lock.size()) {
+            OPENVINO_THROW("XAttention threshold input index out of range: seq_idx=", seq_idx, ", input_size=", lock.size());
+        }
+        return static_cast<float>(lock[seq_idx]);
     }
 
-    const auto thresh = static_cast<float>(lock[seq_idx]);
-    return thresh;
+    if (dt == data_types::f32) {
+        mem_lock<float, mem_lock_type::read> lock(threshold_mem, *params.strm);
+        if (seq_idx >= lock.size()) {
+            OPENVINO_THROW("XAttention threshold input index out of range: seq_idx=", seq_idx, ", input_size=", lock.size());
+        }
+        return lock[seq_idx];
+    }
+
+    OPENVINO_THROW("Unsupported xattention_threshold data type");
 }
 
 // Bypass xattn stages in the following conditions -
@@ -321,7 +334,7 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
 JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_impl_params& params) const {
     auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
     const auto desc = params.typed_desc<paged_attention>();
-    const float scale_factor = 1.0 / std::sqrt(static_cast<double>(desc->k_head_size));
+    const float scale_factor = 1.0f / std::sqrt(static_cast<float>(desc->k_head_size));
     OPENVINO_ASSERT(_xattn_block_size == 1 || _xattn_block_size == 128 || _xattn_block_size == 256,
                     "Unsupported xattention block size for multi token kernel: ",
                     _xattn_block_size);
@@ -396,7 +409,7 @@ JitConstants PagedAttentionGeneratorSingleToken::get_jit_constants(const kernel_
     auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
     // jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
     auto desc = params.typed_desc<paged_attention>();
-    const float scale_factor = 1.0 / std::sqrt(static_cast<double>(desc->k_head_size));
+    const float scale_factor = 1.0f / std::sqrt(static_cast<float>(desc->k_head_size));
     const size_t kv_partition_size = get_partition_size(desc->has_xattention);
     jit.make("KV_PARTITION_SIZE", kv_partition_size);
     if (desc->has_xattention) {
@@ -731,8 +744,8 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
         const size_t q_len = out_shape[0];
 
         const size_t sum_per_n_token_in_block = static_cast<size_t>(rtp->xattn_block_size / STRIDE);
-        const uint32_t q_block = ceil_div(rtp->M, sum_per_n_token_in_block);
-        const uint32_t k_block = ceil_div(rtp->N, sum_per_n_token_in_block);
+        const size_t q_block = static_cast<size_t>(ceil_div(rtp->M, sum_per_n_token_in_block));
+        const size_t k_block = static_cast<size_t>(ceil_div(rtp->N, sum_per_n_token_in_block));
 
         const float xattn_thresh = get_xattn_thresh(params);
 
