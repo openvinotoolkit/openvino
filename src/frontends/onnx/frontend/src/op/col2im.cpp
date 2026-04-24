@@ -53,8 +53,7 @@ ov::OutputVector col2im(const ov::frontend::onnx::Node& node) {
 
     // 3. return Col2Im
     return {
-        std::make_shared<ov::op::v15::Col2Im>(data, output_size, kernel_size, strides, dilations, pads_begin, pads_end)
-            ->outputs()};
+        std::make_shared<ov::op::v15::Col2Im>(data, output_size, kernel_size, strides, dilations, pads_begin, pads_end)};
 }
 
 ONNX_OP("Col2Im", OPSET_SINCE(1), ai_onnx::opset_18::col2im);
