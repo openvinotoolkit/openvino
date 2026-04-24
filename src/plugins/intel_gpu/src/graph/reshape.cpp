@@ -121,7 +121,7 @@ layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_pa
     auto sizes = desc->output_shape.sizes();
     auto input_sizes = input_layout.get_tensor().sizes();
     size_t need_recalc = 0;
-    uint32_t shape_count = 1;
+    int64_t shape_count = 1;
 
     for (size_t i = 0; i < sizes.size(); i++) {
         if (sizes[i] == -1) {
@@ -137,7 +137,7 @@ layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_pa
         shape_count *= sizes[i];
     }
     if (need_recalc)
-        sizes[need_recalc] = static_cast<int>(input_layout.count()) / shape_count;
+        sizes[need_recalc] = static_cast<int64_t>(input_layout.count()) / shape_count;
 
     return layout{input_layout.data_type, input_layout.format, tensor(sizes)};
 }

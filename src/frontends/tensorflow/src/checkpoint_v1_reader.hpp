@@ -6,6 +6,7 @@
 
 #include <sys/stat.h>
 
+#include <filesystem>
 #include <unordered_map>
 #include <vector>
 
@@ -31,7 +32,7 @@ struct VariableInfo {
 // reads checkpoints of v1 version
 // it parses value, shape and type for Variable nodes
 class CheckpointV1Reader {
-    const std::string m_checkpoints;
+    const std::filesystem::path m_checkpoints;
     // a map from Variable name to its information
     std::unordered_map<std::string, VariableInfo> m_variables_info_map;
     // a vector of streams for shards, where shard is one checkpoint file
@@ -41,8 +42,7 @@ class CheckpointV1Reader {
 
 public:
     /// \brief constructs CheckpointV1Reader for a given directory of checkpoint files
-    // CheckpointV1Reader(const std::string& checkpoints_dir);
-    CheckpointV1Reader(const std::string& checkpoints);
+    CheckpointV1Reader(const std::filesystem::path& checkpoints);
 
     /// \brief initialize Checkpoint V1 reader
     void initialize();

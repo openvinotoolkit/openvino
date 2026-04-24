@@ -67,6 +67,7 @@ public:
     void repeat(detail::Pass&& pass);
     void setCtx(const PassContext& ctx);
     size_t graphSize() const;
+    std::string getMetaDesc(const std::shared_ptr<ov::Node>& node) const;
 
 private:
     detail::GPtrSet getRepGroups(const std::shared_ptr<Group>& group) const;
@@ -100,6 +101,7 @@ private:
 
     detail::OVPortsMap m_ports_map;
     std::map<std::string, std::vector<std::set<std::string>>> m_layer_matches;
+    mutable std::unordered_map<size_t, std::string> m_metadesc_cache;
 };
 
 }  // namespace online
