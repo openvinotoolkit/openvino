@@ -51,7 +51,7 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
 
     // WA: in some cases, the query input may have a bounded dimension
     // Use input shape of the input node in such cases
-    auto heads_num = 0;
+    int64_t heads_num = 0;
     auto query_merged_dim = query_ps[1];
     if (query_merged_dim.is_static()) {
         heads_num = query_merged_dim.get_length() / k_head_size;

@@ -76,6 +76,23 @@ inline std::shared_ptr<ov::Model> build_embedding_test_model() {
     return mb.build_embedding_encoder(make_test_model_config<BertConfig>());
 }
 
+inline std::shared_ptr<ov::Model> build_embedding_decoder_test_model() {
+    ModelBuilder mb;
+    auto cfg = make_test_model_config<LLMConfig>();
+    cfg.use_kv_cache = false;
+    cfg.internal_position_ids = true;
+    cfg.lm_head_weight = {};
+    return mb.build_llm(cfg);
+}
+
+inline std::shared_ptr<ov::Model> build_moe_llm_test_model() {
+    ModelBuilder mb;
+    auto cfg = make_test_model_config();
+    cfg.num_experts = 8;
+    cfg.num_experts_per_tok = 2;
+    return mb.build_llm(cfg);
+}
+
 class NullPlugin : public ov::IPlugin {
 public:
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,

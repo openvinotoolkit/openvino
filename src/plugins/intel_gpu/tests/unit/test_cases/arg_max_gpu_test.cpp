@@ -1343,3 +1343,73 @@ TEST(arg_max_gpu_topk_radix, fallback_to_axis_for_small_sort_size_and_topk1) {
     cldnn::mem_lock<ov::float16> out_ptr(output, get_test_stream());
     ASSERT_NEAR(static_cast<float>(out_ptr[0]), 9.0f, 0.01f);
 }
+
+TEST(arg_max_gpu_dynamic_large_input, f32) {
+    const int b = 1;
+    const int f = 1024;
+    const int y = 2048;
+    const int x = 1;
+    const int top_k = 1;
+
+    auto& engine = get_test_engine();
+
+    auto input_layout_dynamic = layout{
+        ov::PartialShape::dynamic(4),
+        data_types::f32,
+        format::bfyx
+    };
+
+    auto input_layout_static = layout{
+        ov::PartialShape{b, f, y, x},
+        data_types::f32,
+        format::bfyx
+    };
+
+    auto input = engine.allocate_memory(input_layout_static);
+
+    std::vector<float> input_vec(b * f * y * x);
+    std::mt19937 gen(0);
+    std::uniform_real_distribution<float> dist(-10.f, 10.f);
+    for (auto& v : input_vec)
+        v = dist(gen);
+
+    set_values(input, input_vec);
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+
+    topology.add(arg_max_min("arg_max",
+        { input_info("input") },
+        ov::op::TopKMode::MAX,
+        top_k,
+        2,
+        ov::op::TopKSortType::SORT_VALUES,
+        false,
+        false,
+        data_types::i32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto inst = network.get_primitive("arg_max");
+    ASSERT_TRUE(inst->get_impl()->is_dynamic());
+
+    auto outputs = network.execute();
+    auto output = outputs.at("arg_max").get_memory();
+    cldnn::mem_lock<int32_t> out_ptr(output, get_test_stream());
+
+    for (int fi = 0; fi < f; fi++) {
+        std::vector<float> row(
+            input_vec.begin() + fi * y,
+            input_vec.begin() + (fi + 1) * y
+        );
+        int expected = std::distance(
+            row.begin(),
+            std::max_element(row.begin(), row.end())
+        );
+        ASSERT_EQ(out_ptr[fi], expected);
+    }
+}
