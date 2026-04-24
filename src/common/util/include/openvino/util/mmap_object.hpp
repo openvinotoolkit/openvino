@@ -43,7 +43,7 @@ public:
     virtual size_t size() const noexcept = 0;
     virtual uint64_t get_id() const noexcept = 0;
     virtual ~MappedMemory() = default;
-    virtual void hint_release(size_t offset = 0, size_t size = auto_size) = 0;
+    virtual void hint_evict(size_t offset = 0, size_t size = auto_size) = 0;
 };
 
 /**

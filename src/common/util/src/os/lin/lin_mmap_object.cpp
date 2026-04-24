@@ -42,13 +42,14 @@ inline PageAlignedRegion make_mmap_region(size_t file_offset, size_t size) {
 }
 
 inline PageAlignedRegion make_madvise_region(const void* data, size_t mapping_size, size_t offset, size_t size) {
-    if (data == nullptr || mapping_size == 0 || offset >= mapping_size)
-        return {};
-    const auto available = mapping_size - offset;
-    const auto raw_len = (size == auto_size) ? available : std::min(size, available);
     const auto page_size = static_cast<size_t>(util::get_system_page_size());
-    return align_to_page(reinterpret_cast<uintptr_t>(data) + offset, raw_len, page_size);
-}
+    if (data == nullptr || mapping_size == 0 || offset >= mapping_size || size < page_size) {
+        return {};
+
+        const auto available = mapping_size - offset;
+        const auto raw_len = (size == auto_size) ? available : std::min(size, available);
+        return align_to_page(reinterpret_cast<uintptr_t>(data) + offset, raw_len, page_size);
+    }
 }  // namespace util
 
 class HandleHolder {
@@ -156,12 +157,11 @@ public:
         return m_size;
     }
 
-    void hint_release(size_t offset, size_t size) override {
-        if (m_mapped_view == MAP_FAILED)
-            return;
-
-        if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_valid) {
-            std::ignore = madvise(reinterpret_cast<void*>(region.m_address), region.m_length, MADV_DONTNEED);
+    void hint_evict(size_t offset, size_t size) override {
+        if (m_mapped_view != MAP_FAILED) {
+            if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_valid) {
+                std::ignore = madvise(reinterpret_cast<void*>(region.m_address), region.m_length, MADV_DONTNEED);
+            }
         }
     }
 };

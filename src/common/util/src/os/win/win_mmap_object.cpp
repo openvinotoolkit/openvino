@@ -97,6 +97,8 @@ public:
         return m_id;
     }
 
+    void MapHolder::hint_evict(size_t offset, size_t size) override {}
+
 private:
     void set_id(const HANDLE h, const size_t offset, const size_t size) {
         if (FILE_ID_INFO info; GetFileInformationByHandleEx(h, FileIdInfo, &info, sizeof(info))) {
@@ -176,6 +178,4 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(FileHandle handle, size_t off
     holder->set_from_handle(handle, offset, size);
     return holder;
 }
-
-void MapHolder::hint_release(size_t offset, size_t size) {}
 }  // namespace ov

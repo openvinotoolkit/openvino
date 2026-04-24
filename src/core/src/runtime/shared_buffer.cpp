@@ -70,25 +70,25 @@ std::shared_ptr<ov::IBufferDescriptor> ov::detail::create_mmap_descriptor(
 }
 
 template <>
-void SharedBufferBase<std::shared_ptr<ov::MappedMemory>>::hint_release() {
+void SharedBufferBase<std::shared_ptr<ov::MappedMemory>>::hint_evict() {
     if (m_shared_object) {
-        m_shared_object->hint_release(get_offset(), m_byte_size);
+        m_shared_object->hint_evict(get_offset(), m_byte_size);
     }
 }
 
 template <>
-void SharedBufferBase<std::shared_ptr<ov::MappedMemory>>::hint_release(AlignedBufferRangeKey,
-                                                                       size_t offset,
-                                                                       size_t size) {
+void SharedBufferBase<std::shared_ptr<ov::MappedMemory>>::hint_evict(AlignedBufferRangeKey,
+                                                                     size_t offset,
+                                                                     size_t size) {
     if (m_shared_object) {
-        m_shared_object->hint_release(offset, size);
+        m_shared_object->hint_evict(offset, size);
     }
 }
 
 template <>
-void SharedBufferBase<std::shared_ptr<ov::AlignedBuffer>>::hint_release() {
+void SharedBufferBase<std::shared_ptr<ov::AlignedBuffer>>::hint_evict() {
     if (m_shared_object) {
-        m_shared_object->hint_release(AlignedBufferRangeKey{}, get_offset(), m_byte_size);
+        m_shared_object->hint_evict(AlignedBufferRangeKey{}, get_offset(), m_byte_size);
     }
 }
 }  // namespace ov

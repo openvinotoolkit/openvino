@@ -349,7 +349,7 @@ Constant::Constant(const element::Type& type, const Shape& shape, const void* da
 Constant::~Constant() {
     if (m_data) {
         if (m_data->get_descriptor()) {
-            m_data->hint_release();
+            m_data->hint_evict();
         }
     }
 }

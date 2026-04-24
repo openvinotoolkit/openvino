@@ -17,7 +17,7 @@ class SharedBufferBase;
 class AlignedBuffer;
 
 /// \brief Passkey granting any SharedBufferBase<T> (all specializations) the ability
-/// to call AlignedBuffer::hint_release(key, offset, size).
+/// to call AlignedBuffer::hint_evict(key, offset, size).
 class AlignedBufferRangeKey {
     uint8_t _pad = 0;  // non-empty: suppresses GCC -Werror=abi on empty-class parameters
 
@@ -85,8 +85,8 @@ public:
     AlignedBuffer(const AlignedBuffer&) = delete;
     AlignedBuffer& operator=(const AlignedBuffer&) = delete;
 
-    virtual void hint_release();
-    virtual void hint_release(AlignedBufferRangeKey, size_t offset, size_t size);
+    virtual void hint_evict();
+    virtual void hint_evict(AlignedBufferRangeKey, size_t offset, size_t size);
 
 protected:
     char* m_allocated_buffer;
