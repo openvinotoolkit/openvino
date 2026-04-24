@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <openvino/op/add.hpp>
 #include <openvino/op/constant.hpp>
 #include <openvino/op/parameter.hpp>
 #include <openvino/op/result.hpp>
@@ -14,18 +15,52 @@
 
 #include "common/functions.hpp"
 #include "common/utils.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 namespace ov {
 namespace test {
 namespace behavior {
 
-class CompatibilityStringTest : public ::testing::TestWithParam<std::tuple<std::string, std::string>> {
+using CompatibilityStringParams = std::tuple</* compiler_type = */ std::string,
+                                             /* serializer_version = */ std::string,
+                                             /* enable_weightless = */ std::string>;
+
+class CompatibilityStringTest : public ::testing::TestWithParam<CompatibilityStringParams> {
 protected:
-    std::shared_ptr<ov::Model> create_dummy_model() {
+    std::string compiler_type;
+    std::string serializer_version;
+    std::string enable_weightless;
+    std::shared_ptr<ov::Model> model;
+
+public:
+    void SetUp() override {
+        std::tie(compiler_type, serializer_version, enable_weightless) = GetParam();
+
         auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 224, 224});
-        auto result = std::make_shared<ov::op::v0::Result>(param);
-        return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param}, "DummyModel");
+        auto weights = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
+                                                              ov::Shape{1, 3, 224, 224},
+                                                              std::vector<float>(1 * 3 * 224 * 224, 1.0f));
+
+        if (enable_weightless == "YES") {
+            weights->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+                ov::WeightlessCacheAttribute(1 * 3 * 224 * 224 * sizeof(float), 0, ov::element::f32);
+        }
+
+        auto add = std::make_shared<ov::op::v1::Add>(param, weights);
+        auto result = std::make_shared<ov::op::v0::Result>(add);
+        model =
+            std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param}, "DummyModelWithWeights");
+    }
+
+    static std::string getTestCaseName(const testing::TestParamInfo<CompatibilityStringParams>& obj) {
+        std::string compiler_type, serializer_version, enable_weightless;
+        std::tie(compiler_type, serializer_version, enable_weightless) = obj.param;
+        std::ostringstream result;
+        result << "COMPILER_TYPE=" << compiler_type << "_";
+        result << "MODEL_SERIALIZER_VERSION=" << serializer_version << "_";
+        result << "ENABLE_WEIGHTLESS=" << enable_weightless;
+        return result.str();
     }
 };
 
@@ -37,15 +72,17 @@ TEST_P(CompatibilityStringTest, CompileAndCheckRequirements) {
         GTEST_SKIP() << "NPU device not found";
     }
 
-    auto compiler_type = std::get<0>(GetParam());
-    auto serializer_version = std::get<1>(GetParam());
-
     std::cout << "[ DEBUG ] Config: NPU_COMPILER_TYPE=" << compiler_type
-              << ", NPU_MODEL_SERIALIZER_VERSION=" << serializer_version << std::endl;
+              << ", NPU_MODEL_SERIALIZER_VERSION=" << serializer_version << ", ENABLE_WEIGHTLESS=" << enable_weightless
+              << std::endl;
 
-    auto model = create_dummy_model();
+    ov::AnyMap config = {{"NPU_COMPILER_TYPE", compiler_type},
+                         {"NPU_MODEL_SERIALIZER_VERSION", serializer_version},
+                         {"ENABLE_WEIGHTLESS", enable_weightless}};
 
-    ov::AnyMap config = {{"NPU_COMPILER_TYPE", compiler_type}, {"NPU_MODEL_SERIALIZER_VERSION", serializer_version}};
+    if (enable_weightless == "YES") {
+        config[ov::cache_mode.name()] = ov::CacheMode::OPTIMIZE_SIZE;
+    }
 
     ov::CompiledModel compiled_model;
     try {

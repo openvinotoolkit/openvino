@@ -11,7 +11,9 @@ namespace behavior {
 INSTANTIATE_TEST_SUITE_P(CompatibilityStringTestParameters,
                          CompatibilityStringTest,
                          ::testing::Combine(::testing::Values("PLUGIN", "DRIVER"),
-                                            ::testing::Values("NO_WEIGHTS_COPY", "ALL_WEIGHTS_COPY")));
+                                            ::testing::Values("NO_WEIGHTS_COPY", "ALL_WEIGHTS_COPY"),
+                                            ::testing::Values("NO", "YES")),
+                         CompatibilityStringTest::getTestCaseName);
 
 }  // namespace behavior
 }  // namespace test

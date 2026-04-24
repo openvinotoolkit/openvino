@@ -40,34 +40,6 @@ UsedVersion getUsedVclVersion(uint16_t pluginMajor, uint16_t pluginMinor, const 
     return {usedMajor, usedMinor};
 }
 
-struct vcl_allocator : vcl_allocator2_t {
-    vcl_allocator() : vcl_allocator2_t{allocate, deallocate} {}
-
-    static uint8_t* allocate(vcl_allocator2_t* allocator, size_t size) {
-        vcl_allocator* vclAllocator = static_cast<vcl_allocator*>(allocator);
-        vclAllocator->m_size = intel_npu::utils::align_size_to_standard_page_size(size);
-        auto allocatedPtr = reinterpret_cast<uint8_t*>(
-            vclAllocator->m_allocator.allocate(vclAllocator->m_size, intel_npu::utils::STANDARD_PAGE_SIZE));
-        if (allocatedPtr == nullptr) {
-            OPENVINO_THROW("Failed to allocate aligned memory for allocator");
-        }
-        memset(allocatedPtr + size, 0, vclAllocator->m_size - size);
-        vclAllocator->m_allocated = allocatedPtr;
-        return allocatedPtr;
-    }
-
-    static void deallocate(vcl_allocator2_t* allocator, uint8_t* ptr) {
-        if (ptr == nullptr) {
-            OPENVINO_THROW("Pointer is nullptr in deallocate!");
-        }
-        vcl_allocator* vclAllocator = static_cast<vcl_allocator*>(allocator);
-        vclAllocator->m_allocator.deallocate(ptr, vclAllocator->m_size, intel_npu::utils::STANDARD_PAGE_SIZE);
-    }
-    ov::Allocator m_allocator;
-    uint8_t* m_allocated = nullptr;
-    size_t m_size = 0;
-};
-
 struct vcl_allocator_2 : vcl_allocator2_t {
     vcl_allocator_2() : vcl_allocator2_t{allocate, deallocate} {}
 
