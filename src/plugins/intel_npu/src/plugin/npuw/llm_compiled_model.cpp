@@ -117,7 +117,7 @@ std::shared_ptr<ov::Model> run_replace_nonzero(std::shared_ptr<ov::Model>& model
             nonzero_node->get_output_element_type(0),
             nonzero_node->get_output_partial_shape(0)
         );
-        new_param->set_friendly_name(old_param->get_friendly_name() + "_nonzero_replacement");
+        new_param->set_friendly_name(old_param->get_friendly_name());
 
         auto names = nonzero_node->output(0).get_names();
         if (names.empty()) {
