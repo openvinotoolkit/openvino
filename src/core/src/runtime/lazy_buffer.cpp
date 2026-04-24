@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/runtime/file_view_buffer.hpp"
-
 #include <fstream>
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/memory_util.hpp"
+#include "openvino/runtime/lazy_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 
 namespace ov {
-FileViewBuffer::FileViewBuffer(std::filesystem::path file_path, size_t offset, size_t byte_size, size_t alignment)
+LazyBuffer::LazyBuffer(std::filesystem::path file_path, size_t offset, size_t byte_size, size_t alignment)
     : AlignedBuffer(),
       m_file_path{std::move(file_path)},
       m_offset{offset},
@@ -30,7 +29,7 @@ FileViewBuffer::FileViewBuffer(std::filesystem::path file_path, size_t offset, s
     m_byte_size = byte_size;
 }
 
-void FileViewBuffer::load() const {
+void LazyBuffer::load() const {
     if (m_lazy_buffer.empty() && m_byte_size > 0) {
         const size_t aligned_size = ((m_byte_size + m_alignment - 1) / m_alignment) * m_alignment;
         m_lazy_buffer.resize(aligned_size);
