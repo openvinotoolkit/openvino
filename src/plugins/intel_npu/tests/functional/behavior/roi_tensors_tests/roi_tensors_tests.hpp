@@ -1120,6 +1120,70 @@ TEST_P(RoiTensorsTestsRun, CheckRemoteCopyFromWithRoiRemoteTensors) {
     }
 }
 
+TEST_P(RoiTensorsTestsRun, SetContiguousTensorAfterRoiAndCheckResults) {
+    auto shape = Shape{1, 2, 2, 2};
+    ov::CompiledModel compiled_model;
+    auto model = createModelWithNInputs(element::f32, shape, "N...");
+
+    auto zero_context = core->get_default_context(target_device);
+    auto input_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{1, 10, 10, 10});
+    auto output_host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{1, 25, 25, 25});
+
+    auto* input_data = input_host_tensor.data<float>();
+    for (size_t i = 0; i < input_host_tensor.get_size(); ++i) {
+        input_data[i] = 50.0f;
+    }
+
+    auto* output_data = output_host_tensor.data<float>();
+    for (size_t i = 0; i < output_host_tensor.get_size(); ++i) {
+        output_data[i] = 10.0f;
+    }
+
+    configuration[ov::intel_npu::enable_strides_for.name()] = "input0,Result0";
+
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
+    ov::InferRequest req;
+    OV_ASSERT_NO_THROW(req = compiled_model.create_infer_request());
+
+    ov::Tensor input_roi_tensor0 = ov::Tensor(input_host_tensor, {0, 4, 4, 4}, {1, 6, 6, 6});
+    OV_ASSERT_NO_THROW(req.set_input_tensor(input_roi_tensor0));
+
+    ov::Tensor output_roi_tensor0 = ov::Tensor(output_host_tensor, {0, 15, 15, 15}, {1, 17, 17, 17});
+    OV_ASSERT_NO_THROW(req.set_output_tensor(output_roi_tensor0));
+
+    OV_ASSERT_NO_THROW(req.infer());
+
+    auto check_out_roi_tensor0 = ov::Tensor(ov::element::f32, shape);
+    output_roi_tensor0.copy_to(check_out_roi_tensor0);
+    auto* check_data = check_out_roi_tensor0.data<float>();
+    for (size_t i = 0; i < check_out_roi_tensor0.get_size(); ++i) {
+        EXPECT_EQ(check_data[i], 51.0f);
+    }
+
+    auto input_tensor = zero_context.create_host_tensor(ov::element::f32, shape);
+    OV_ASSERT_NO_THROW(req.set_input_tensor(input_tensor));
+
+    auto output_tensor = zero_context.create_host_tensor(ov::element::f32, shape);
+    OV_ASSERT_NO_THROW(req.set_output_tensor(output_tensor));
+
+    input_data = input_tensor.data<float>();
+    for (size_t i = 0; i < input_tensor.get_size(); ++i) {
+        input_data[i] = 75.0f;
+    }
+
+    output_data = output_tensor.data<float>();
+    for (size_t i = 0; i < output_tensor.get_size(); ++i) {
+        output_data[i] = 20.0f;
+    }
+
+    OV_ASSERT_NO_THROW(req.infer());
+
+    check_data = output_tensor.data<float>();
+    for (size_t i = 0; i < output_tensor.get_size(); ++i) {
+        EXPECT_EQ(check_data[i], 76.0f);
+    }
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
