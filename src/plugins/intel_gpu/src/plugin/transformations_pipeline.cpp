@@ -15,6 +15,7 @@
 #include <vector>
 #include <type_traits>
 
+#include "intel_gpu/op/moe_compressed.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
@@ -100,6 +101,7 @@
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "plugin/transformations/pa_kv_reorder_fusion.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
+#include "plugin/transformations/scale_down_moe_compressed.hpp"
 #include "plugin/transformations/sink_reshape.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
@@ -1370,6 +1372,22 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         float activations_scale_factor = config.get_activations_scale_factor();
 
+        // Temporary solution, should set activations_scale_factor only when it's truly necessary.
+        if (activations_scale_factor < 0.f) {
+            size_t num_gpt_oss_moe_ops = 0;
+            for (auto& node : func->get_ops()) {
+                if (ov::is_type<ov::intel_gpu::op::MOECompressed>(node) &&
+                    ov::as_type_ptr<const ov::intel_gpu::op::MOECompressed>(node)->get_config().expert_type ==
+                    ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP) {
+                    num_gpt_oss_moe_ops += 1;
+                }
+            }
+
+            // gpt-oss-120b
+            if (num_gpt_oss_moe_ops == 36)
+                activations_scale_factor = 8.f;
+        }
+
         if (activations_scale_factor > 0.f && infer_precision == ov::element::f16) {
             using namespace ov::pass::low_precision;
 
@@ -1396,6 +1414,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 });
 
             manager.register_pass<ov::pass::activations_scaling::ScaleDownSingleLayer>(activations_scale_factor, infer_precision);
+            manager.register_pass<ov::intel_gpu::ScaleDownMOECompressed>(activations_scale_factor, infer_precision);
             manager.register_pass<ov::pass::SharedOpOptimization>();
 
             pass_config->set_callback<ov::pass::activations_scaling::ScaleDownSingleLayer>(
@@ -1408,6 +1427,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             auto lpt_pass = manager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization, params);
             lpt_pass->add_main<ov::pass::activations_scaling::EliminateScalarMul>();
             lpt_pass->add_main<ov::pass::activations_scaling::MoveDownScalarMul>();
+            // lpt_pass->add_main<ov::pass::activations_scaling::DeduplicateScalarMul>();
 
             // Move up remained scalar-multiply layers
             manager.register_pass<ov::pass::EliminateEltwise>();
@@ -1418,6 +1438,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 ov::op::v1::Transpose::get_type_info_static(),
             };
             manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovScalar>(allowed_data_movement_ops);
+            manager.register_pass<ov::pass::activations_scaling::DeduplicateScalarMul>();
             manager.register_pass<ov::pass::Validate>();
         }
 

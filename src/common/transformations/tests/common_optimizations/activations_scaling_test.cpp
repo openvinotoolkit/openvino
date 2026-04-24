@@ -170,6 +170,52 @@ TEST_F(TransformationTestsF, MoveDownScalarMulTest) {
     }
 }
 
+TEST_F(TransformationTestsF, DeduplicateScalarMulTest) {
+    float scale_factor = 8.f;
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 4, 4});
+        auto scale_const_a = v0::Constant::create(ov::element::f16, ov::Shape{1}, {scale_factor});
+        auto mul_a = std::make_shared<v1::Multiply>(input, scale_const_a);
+        auto scale_const_b = v0::Constant::create(ov::element::f16, ov::Shape{1}, {scale_factor});
+        auto mul_b = std::make_shared<v1::Multiply>(input, scale_const_b);
+        auto convert_a = std::make_shared<v0::Convert>(mul_a, ov::element::f32);
+        auto convert_b = std::make_shared<v0::Convert>(mul_b, ov::element::f32);
+        auto result_a = std::make_shared<v0::Result>(convert_a);
+        auto result_b = std::make_shared<v0::Result>(convert_b);
+
+        model = std::make_shared<ov::Model>(ov::ResultVector{result_a, result_b}, ov::ParameterVector{input});
+        manager.register_pass<ov::pass::activations_scaling::DeduplicateScalarMul>();
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 4, 4});
+        auto scale_const = v0::Constant::create(ov::element::f16, ov::Shape{1}, {scale_factor});
+        auto mul = std::make_shared<v1::Multiply>(input, scale_const);
+        auto convert_a = std::make_shared<v0::Convert>(mul, ov::element::f32);
+        auto convert_b = std::make_shared<v0::Convert>(mul, ov::element::f32);
+        auto result_a = std::make_shared<v0::Result>(convert_a);
+        auto result_b = std::make_shared<v0::Result>(convert_b);
+
+        model_ref = std::make_shared<ov::Model>(ov::ResultVector{result_a, result_b}, ov::ParameterVector{input});
+    }
+}
+
+TEST_F(TransformationTestsF, DeduplicateScalarMulTest_DifferentScales) {
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 4, 4});
+        auto scale_const_a = v0::Constant::create(ov::element::f16, ov::Shape{1}, {8.f});
+        auto mul_a = std::make_shared<v1::Multiply>(input, scale_const_a);
+        auto scale_const_b = v0::Constant::create(ov::element::f16, ov::Shape{1}, {4.f});
+        auto mul_b = std::make_shared<v1::Multiply>(input, scale_const_b);
+        auto convert_a = std::make_shared<v0::Convert>(mul_a, ov::element::f32);
+        auto convert_b = std::make_shared<v0::Convert>(mul_b, ov::element::f32);
+        auto result_a = std::make_shared<v0::Result>(convert_a);
+        auto result_b = std::make_shared<v0::Result>(convert_b);
+
+        model = std::make_shared<ov::Model>(ov::ResultVector{result_a, result_b}, ov::ParameterVector{input});
+        manager.register_pass<ov::pass::activations_scaling::DeduplicateScalarMul>();
+    }
+}
+
 TEST_F(TransformationTestsF, MulShareTransformationTest) {
     float epsilon = 1.f;
     float scale_factor = 8.f;

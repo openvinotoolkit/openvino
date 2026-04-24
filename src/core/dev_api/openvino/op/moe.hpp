@@ -29,6 +29,12 @@ public:
         Expert_type expert_type{Expert_type::GEMM2_BIAS_SWIGLU_CLAMP};
         float expert_alpha{0.0f};  // Expert attribute for clamp bounds
         float expert_beta{1.0f};   // Expert attribute for swish beta
+        // Activations scaling factor applied inside the fused MoE block.
+        // The upstream producers of hidden_states and the two biases are expected
+        // to have been pre-divided by this factor; the internal SwiGLU kernel
+        // multiplies by this factor to restore the original range.
+        // -1.0f means scaling is disabled.
+        float scale_factor{-1.0f};
     };
 
     /// \brief Constructs a MOE operation with config only
@@ -54,6 +60,12 @@ public:
 
     const Config& get_config() const;
     void set_config(const Config& config);
+    void set_scale_factor(float scale_factor) {
+        m_config.scale_factor = scale_factor;
+    }
+    float get_scale_factor() const {
+        return m_config.scale_factor;
+    }
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;

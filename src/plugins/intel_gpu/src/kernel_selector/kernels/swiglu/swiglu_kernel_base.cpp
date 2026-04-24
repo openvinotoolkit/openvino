@@ -44,6 +44,9 @@ JitConstants SwiGLUKernelBase::GetJitConstants(const swiglu_params& params, cons
     }
     jit.AddConstants({MakeJitConstant("SWISH_BETA", static_cast<float>(params.swish_beta))});
     jit.AddConstants({MakeJitConstant("UP_ADD_VAL", static_cast<float>(params.up_add_val))});
+    if (params.scale_factor > 0.0f) {
+        jit.AddConstants({MakeJitConstant("SCALE_FACTOR", static_cast<float>(params.scale_factor))});
+    }
 
     return jit;
 }
