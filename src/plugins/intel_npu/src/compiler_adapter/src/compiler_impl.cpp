@@ -363,7 +363,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                 std::string(reinterpret_cast<char*>(compatibilityStringBuffer), compatibilityStringSize);
         }
 
-        _logger.debug("compile end, blob size:%d", alignedBlobSize);
+        _logger.debug("compile end, blob size:%zu", *alignedBlobSize);
         return std::make_pair<ov::Tensor, std::optional<std::string>>(std::move(alignedBlob),
                                                                       std::move(compatibilityString));
     } else {
@@ -633,10 +633,15 @@ bool VCLCompilerImpl::validate_compatibility_descriptor(const std::string& compa
         THROW_ON_FAIL_FOR_VCL("vclGetCompilerIsOptionSupported",
                               vclGetCompilerIsOptionSupported(compilerHandle, optname_ch, optvalue_ch),
                               logHandle);
+        if (compilerHandle) {
+            vclCompilerDestroy(compilerHandle);
+        }
         return true;
     } catch (const std::exception& e) {
-        // The API is only supported in new version, just add log here
         _logger.debug("Exception in is_option_supported: %s", e.what());
+        if (compilerHandle) {
+            vclCompilerDestroy(compilerHandle);
+        }
     }
 
     return false;
