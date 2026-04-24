@@ -176,6 +176,19 @@ _module_ext_lib = None
 _module_ext_registered_ops = {}  # op_name → tuple(schema_args)
 _module_ext_lock = threading.Lock()
 
+# Thread-local context used by auto-registered Meta/CPU impls to call the
+# extension's ``evaluate`` callback with the original forward arguments.
+# ``new_forward`` pushes a callable onto the stack before calling
+# ``convert`` and pops it afterwards, so that the Meta dispatch inside
+# ``target_op(...)`` can obtain correct output shapes.
+_export_tracing_ctx = threading.local()
+
+# Cache of output (shape, dtype) keyed by (op_name, input_tensor_metadata).
+# Populated during dynamo tracing (phase 1 of torch.export) when the
+# evaluate stack is available.  Consumed during aot_export metadata
+# collection (phase 2) when the stack is no longer on the call path.
+_meta_shape_cache = {}
+
 
 def _auto_register_module_extension_op(namespace, op_name, schema_args):
     """Auto-register a ``torch.library`` op for a ``ModuleExtension`` target.
@@ -212,13 +225,46 @@ def _auto_register_module_extension_op(namespace, op_name, schema_args):
 
         @torch.library.impl(_module_ext_lib, op_name, "Meta")
         def _meta(*xs):
+            # Build a cache key from tensor shapes/dtypes for cross-phase
+            # shape lookup (phase 1 populates, phase 2 consumes).
+            cache_key = (op_name,) + tuple(
+                (tuple(a.shape), a.dtype) if isinstance(a, torch.Tensor)
+                else (type(a).__name__, a) for a in xs)
+
+            # Try evaluate callback (available during dynamo tracing).
+            stack = getattr(_export_tracing_ctx, "evaluate_stack", None)
+            if stack:
+                try:
+                    result = stack[-1]()
+                    if isinstance(result, torch.Tensor):
+                        out_shape = tuple(result.shape)
+                        out_dtype = result.dtype
+                        _meta_shape_cache[cache_key] = (out_shape, out_dtype)
+                        return torch.empty(out_shape, dtype=out_dtype, device="meta")
+                except Exception:
+                    pass
+
+            # Fall back to cached shape from a previous evaluate call
+            # (needed during aot_export metadata collection).
+            if cache_key in _meta_shape_cache:
+                out_shape, out_dtype = _meta_shape_cache[cache_key]
+                return torch.empty(out_shape, dtype=out_dtype, device="meta")
+
             for arg in xs:
                 if isinstance(arg, torch.Tensor):
                     return torch.empty_like(arg)
-            return torch.empty(1)
+            return torch.empty(1, device="meta")
 
         @torch.library.impl(_module_ext_lib, op_name, "CPU")
         def _cpu(*xs):
+            stack = getattr(_export_tracing_ctx, "evaluate_stack", None)
+            if stack:
+                try:
+                    result = stack[-1]()
+                    if isinstance(result, torch.Tensor):
+                        return result
+                except Exception:
+                    pass
             for arg in xs:
                 if isinstance(arg, torch.Tensor):
                     return arg
@@ -371,12 +417,34 @@ def patch_model_for_export(model, module_extensions, orig_forward_name):
         if extension and extension.condition(module):
             log.debug("Patching module %s for torch.export", module)
             target_op = _resolve_target_op(extension)
+            orig_fwd = module.forward  # capture before overwrite
 
             def new_forward(*args, **kwargs):
-                return extension.convert(module, target_op, *args, **kwargs)
+                # Push an evaluate thunk so the auto-registered Meta/CPU
+                # impls can produce the correct output shape instead of
+                # blindly returning ``empty_like(first_tensor)``.
+                def _evaluate():
+                    # Temporarily restore the original forward to avoid
+                    # recursion (evaluate's default calls module()).
+                    patched = module.forward
+                    module.forward = orig_fwd
+                    try:
+                        return extension.evaluate(module, *args, **kwargs)
+                    finally:
+                        module.forward = patched
 
-            new_forward = functools.wraps(module.forward)(new_forward)
-            setattr(module, orig_forward_name, module.forward)
+                stack = getattr(_export_tracing_ctx, "evaluate_stack", None)
+                if stack is None:
+                    stack = []
+                    _export_tracing_ctx.evaluate_stack = stack
+                stack.append(_evaluate)
+                try:
+                    return extension.convert(module, target_op, *args, **kwargs)
+                finally:
+                    stack.pop()
+
+            new_forward = functools.wraps(orig_fwd)(new_forward)
+            setattr(module, orig_forward_name, orig_fwd)
             module.forward = new_forward
 
     for name, module in model.named_modules():
