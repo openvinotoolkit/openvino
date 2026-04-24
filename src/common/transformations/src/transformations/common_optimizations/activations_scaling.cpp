@@ -384,8 +384,8 @@ activations_scaling::DeduplicateScalarMul::DeduplicateScalarMul() {
             if (sibling.get_node() == mul_a.get())
                 continue;
 
-            if (ov::is_type<v1::Multiply>(sibling.get_node()) and
-                !is_non_const_node(sibling.get_node()->input(1).get_source_output()) and
+            if (ov::is_type<v1::Multiply>(sibling.get_node()) &&
+                !is_non_const_node(sibling.get_node()->input(1).get_source_output()) &&
                 is_scalar_node(sibling.get_node()->input(1).get_source_output())) {
                 auto sibling_const = ov::as_type_ptr<v0::Constant>(
                     sibling.get_node()->input(1).get_source_output().get_node_shared_ptr());
