@@ -3086,15 +3086,23 @@ TEST(TransformationTests, ConvertPrecision_bf16_to_f32_preserves_inf) {
 }
 
 TEST(TransformationTests, ConvertPrecision_bf16_to_f16_preserves_inf) {
-    const vector<float> vals = {numeric_limits<float>::infinity(), -numeric_limits<float>::infinity(), 1.0f};
+    // ±inf/NaN must be preserved; finite values exceeding f16 range still clamp to ±f16::max.
+    const float f16_max = static_cast<float>(numeric_limits<ov::float16>::max());
+    const vector<float> vals = {numeric_limits<float>::infinity(),
+                                -numeric_limits<float>::infinity(),
+                                1.0f,
+                                2.0f * f16_max,    // finite bf16, overflows f16 -> clamp to f16::max
+                                -2.0f * f16_max};  // finite bf16, underflows f16 -> clamp to f16::lowest
     auto src = make_shared<opset10::Constant>(element::bf16, Shape{vals.size()}, vals);
     auto c = run_convert_precision(src, element::bf16, element::f16);
     ASSERT_NE(c, nullptr);
     ASSERT_EQ(c->get_element_type(), element::f16);
     const auto* d = c->get_data_ptr<ov::float16>();
-    EXPECT_TRUE(isinf(static_cast<float>(d[0])) && static_cast<float>(d[0]) > 0) << "+inf clamped: " << d[0];
-    EXPECT_TRUE(isinf(static_cast<float>(d[1])) && static_cast<float>(d[1]) < 0) << "-inf clamped: " << d[1];
+    EXPECT_TRUE(isinf(static_cast<float>(d[0])) && static_cast<float>(d[0]) > 0) << "+inf lost: " << d[0];
+    EXPECT_TRUE(isinf(static_cast<float>(d[1])) && static_cast<float>(d[1]) < 0) << "-inf lost: " << d[1];
     EXPECT_EQ(static_cast<float>(d[2]), 1.0f);
+    EXPECT_EQ(d[3], numeric_limits<ov::float16>::max()) << "finite overflow should clamp, not become inf";
+    EXPECT_EQ(d[4], numeric_limits<ov::float16>::lowest()) << "finite underflow should clamp, not become -inf";
 }
 
 TEST(TransformationTests, ConvertPrecision_f16_to_f32_preserves_inf) {

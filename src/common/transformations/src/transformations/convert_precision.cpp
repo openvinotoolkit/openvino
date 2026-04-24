@@ -1181,7 +1181,17 @@ std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::bf16, ov::e
     if (dst_data == nullptr)
         OPENVINO_THROW("Can't get destination data pointer");
 
-    ov::reference::convert<src_type, dst_type>(src_data, dst_data, size);
+    // Preserve ±inf/NaN; clamp finite out-of-range values to ±f16::max (existing behavior).
+    const float f16_max = static_cast<float>(std::numeric_limits<dst_type>::max());
+    const float f16_lowest = static_cast<float>(std::numeric_limits<dst_type>::lowest());
+    for (size_t i = 0; i < size; ++i) {
+        const float v = static_cast<float>(src_data[i]);
+        if (!std::isfinite(v)) {
+            dst_data[i] = static_cast<dst_type>(v);
+        } else {
+            dst_data[i] = static_cast<dst_type>(std::max(std::min(v, f16_max), f16_lowest));
+        }
+    }
 
     return new_constant;
 }
