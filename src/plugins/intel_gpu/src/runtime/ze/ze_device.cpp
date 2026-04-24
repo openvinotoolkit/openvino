@@ -325,7 +325,9 @@ memory_capabilities init_memory_caps(ze_device_handle_t device, const device_inf
             memory_caps.push_back(allocation_type::usm_device);
         }
     }
-    memory_caps.push_back(allocation_type::ze_image);
+    if (info.supports_image) {
+        memory_caps.push_back(allocation_type::ze_image);
+    }
 
     return memory_capabilities(memory_caps);
 }
