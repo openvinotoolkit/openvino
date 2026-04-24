@@ -29,32 +29,13 @@ std::vector<TRShape> shape_infer(const GatedDeltaNet* op, const std::vector<T>& 
     const auto& q_head_size = query_ps[3];
     const auto& v_head_size = value_ps[3];
 
-    // Query and key heads should match.
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
                            q_head_num.compatible(k_head_num),
                            "The number of heads in query and key should be the same, but got ",
                            q_head_num,
                            " and ",
-                           k_head_num,
-                           "");
-
-    // Operation supports both variants:
-    // 1) usual attention: query heads are compatible with value heads;
-    // 2) grouped attention: value heads are a grouped multiple of query heads.
-    if (!q_head_num.compatible(v_head_num) && q_head_num.is_static() && v_head_num.is_static()) {
-        const auto q_val = q_head_num.get_length();
-        const auto v_val = v_head_num.get_length();
-        NODE_SHAPE_INFER_CHECK(op,
-                               input_shapes,
-                               q_val > 0 && v_val % q_val == 0,
-                               "For grouped attention, value head count should be divisible by query head count, "
-                               "but got value=",
-                               v_val,
-                               " and query=",
-                               q_val,
-                               "");
-    }
+                           k_head_num);
 
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
@@ -72,10 +53,8 @@ std::vector<TRShape> shape_infer(const GatedDeltaNet* op, const std::vector<T>& 
                            gate_head_num.compatible(beta_head_num) && gate_head_num.compatible(v_head_num),
                            "The number of heads in gate, beta, and value should be the same, but got ",
                            gate_head_num,
-                           ", beta=",
-                           beta_head_num,
-                           ", value=",
-                           v_head_num);
+                           " and ",
+                           beta_head_num);
 
     // [batch, v_head_nums, k_head_size, v_head_size]
     const auto& state_head_num = state_ps[1];
