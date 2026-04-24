@@ -8,6 +8,7 @@
 #include <memory>
 #include <unordered_map>
 
+#include "openvino/core/tmp_debug.hpp"  // tmp debug
 #include "openvino/core/except.hpp"
 #include "openvino/core/layout.hpp"
 #include "openvino/core/parallel.hpp"
@@ -275,6 +276,25 @@ void ov::ISyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
                     " != ",
                     port.get_element_type());
     bool is_dynamic = port.get_partial_shape().is_dynamic();
+    // tmp debug: forensic dump on shape mismatch
+    if (ov::tmp_debug::enabled() && !is_dynamic && port.get_shape() != tensor->get_shape()) {
+        std::ostringstream ps, ts;
+        ps << port.get_shape();
+        ts << tensor->get_shape();
+        ov::tmp_debug::log() << "check_tensor SHAPE MISMATCH (" << tensor_type << ")"
+                             << "  port_shape=" << ps.str()
+                             << "  tensor_shape=" << ts.str()
+                             << "  port_node_ptr=" << static_cast<const void*>(port.get_node())
+                             << "  port_name=" << port.get_node()->get_friendly_name() << "\n";
+        std::cerr << "[OV_TMP_DEBUG]   port tensor_names={";
+        bool first = true;
+        for (const auto& n : port.get_tensor().get_names()) {
+            if (!first) std::cerr << ",";
+            std::cerr << n;
+            first = false;
+        }
+        std::cerr << "}\n";
+    }
     OPENVINO_ASSERT(is_dynamic || port.get_shape() == tensor->get_shape(),
                     "The ",
                     tensor_type,
