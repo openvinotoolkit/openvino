@@ -97,6 +97,7 @@ private:
 
     std::shared_ptr<const ov::Model> m_model;
     ov::AnyMap m_config;
+    std::string m_execution_device;
 };
 
 template<typename DeviceType>

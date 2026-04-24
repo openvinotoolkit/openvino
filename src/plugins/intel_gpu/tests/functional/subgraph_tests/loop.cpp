@@ -602,4 +602,60 @@ INSTANTIATE_TEST_SUITE_P(smoke_LoopWithScatterUpdate, LoopWithScatterUpdateTest,
                          testing::Values(ov::element::f32, ov::element::f16),
                          LoopWithScatterUpdateTest::getTestCaseName);
 
+// Regression test for GitHub issue #35411.
+// Loop body where the i32 current_iteration feeds via Cast+Unsqueeze into an Add
+// together with an f32/f16 buffer.  Before the fix, UnrollTensorIterator replaced
+// the i32 Parameter with Constant(i64), causing a type mismatch at Add on GPU.
+class LoopWithAddTest : public testing::WithParamInterface<ov::element::Type>, virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::element::Type>& obj) {
+        std::ostringstream result;
+        result << "data_type=" << obj.param;
+        return result.str();
+    }
+
+protected:
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        const auto data_type = GetParam();
+
+        const size_t num_iter = 8;
+        const size_t feature_sz = 4;
+        const ov::Shape data_shape{feature_sz};
+
+        auto outer_data = std::make_shared<ov::op::v0::Parameter>(data_type, data_shape);
+        outer_data->set_friendly_name("outer_data");
+
+        auto trip_count = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, num_iter);
+        auto exec_cond = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{}, true);
+        auto b_timestep = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{});
+        auto b_data = std::make_shared<ov::op::v0::Parameter>(data_type, data_shape);
+        b_timestep->set_friendly_name("timestep");
+        b_data->set_friendly_name("b_data");
+
+        auto cast = std::make_shared<ov::op::v0::Convert>(b_timestep, data_type);
+        auto unsqueeze_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{0});
+        auto timestep_1d = std::make_shared<ov::op::v0::Unsqueeze>(cast, unsqueeze_axis);
+        auto b_add = std::make_shared<ov::op::v1::Add>(b_data, timestep_1d);
+        auto b_cond = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{}, true);
+        auto body = std::make_shared<ov::Model>(ov::OutputVector{b_cond, b_add}, ov::ParameterVector{b_timestep, b_data});
+        auto loop = std::make_shared<ov::op::v5::Loop>(trip_count, exec_cond);
+        loop->set_function(body);
+        loop->set_special_body_ports({0, 0});
+        loop->set_merged_input(b_data, outer_data, b_add);
+        loop->get_iter_value(b_add, -1);
+
+        auto result = std::make_shared<ov::op::v0::Result>(loop->output(0));
+        function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{outer_data});
+
+        targetStaticShapes = {{data_shape}};
+    }
+};
+
+TEST_P(LoopWithAddTest, Inference) {
+    run();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_LoopWithAdd, LoopWithAddTest, testing::Values(ov::element::f32, ov::element::f16), LoopWithAddTest::getTestCaseName);
+
 } // namespace

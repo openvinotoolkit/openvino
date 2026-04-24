@@ -46,7 +46,6 @@ jobs:
     env:
       HF_CACHE_PATH: /mount/caches/huggingface
     steps:
-      steps:
       - name: Pre-Collecting Cache Info
         run: |
           echo "Cache info: "
