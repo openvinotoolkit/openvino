@@ -559,8 +559,8 @@ layout_optimizer::layout_optimizer(bool output_size_handling_enabled)
 }
 
 bool layout_optimizer::is_depthwise(const convolution_node& node) const {
-        const int32_t output_channels = node.get_output_layout(0).feature();
-        const int32_t input_channels = node.get_input_layout(0).feature();
+        const auto output_channels = node.get_output_layout(0).feature();
+        const auto input_channels = node.get_input_layout(0).feature();
 
         return node.get_groups() == static_cast<uint32_t>(input_channels) && input_channels == output_channels;
 }
@@ -671,8 +671,8 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(const layout& input_layout,
     int32_t required_feature_num = weak_restrictions ? feature_block_size / 2 : feature_block_size;
     bool correct_in_feature = (input_layout.feature() >= required_feature_num &&
                                   output_layout.feature() >= required_feature_num);
-    int32_t in_features_per_group = input_layout.feature() / conv->groups;
-    int32_t out_features_per_group = output_layout.feature() / conv->groups;
+    auto in_features_per_group = input_layout.feature() / conv->groups;
+    auto out_features_per_group = output_layout.feature() / conv->groups;
     if (!correct_in_feature && input_layout.feature() <= 4 && out_features_per_group >= feature_block_size)
         correct_in_feature = true;
     bool depthwise = conv->groups == static_cast<uint32_t>(input_layout.feature());  // depthwise conv
