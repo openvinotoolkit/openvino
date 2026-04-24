@@ -41,7 +41,10 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/gather_base.hpp"
+#include "openvino/op/util/gather_nd_base.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/op/util/squeeze_base.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
@@ -369,9 +372,9 @@ namespace {
 
 bool is_allowed_qk_path_node(const std::shared_ptr<ov::Node>& node) {
     return ov::is_type<v1::Reshape>(node) || ov::is_type<v1::Transpose>(node) ||
-           ov::is_type<ov::op::v8::Gather>(node) || ov::is_type<ov::op::v3::Broadcast>(node) ||
-           ov::is_type<v0::Unsqueeze>(node) || ov::is_type<v0::Squeeze>(node) ||
-           ov::is_type<ov::op::v5::GatherND>(node) || ov::is_type<ov::op::v8::GatherND>(node);
+           ov::is_type<ov::op::util::GatherBase>(node) || ov::is_type<ov::op::v3::Broadcast>(node) ||
+           ov::is_type<v0::Unsqueeze>(node) || ov::is_type<ov::op::util::SqueezeBase>(node) ||
+           ov::is_type<ov::op::util::GatherNDBase>(node);
 }
 
 bool is_qk_anchor_node(const std::shared_ptr<ov::Node>& node) {
@@ -379,47 +382,24 @@ bool is_qk_anchor_node(const std::shared_ptr<ov::Node>& node) {
            ov::is_type<ov::op::v8::Slice>(node) || ov::is_type<ov::op::v0::Concat>(node);
 }
 
-struct QKPathInfo {
-    ov::Output<ov::Node> anchor_output;
-    std::vector<std::shared_ptr<ov::Node>> visited_path;
-};
-
-QKPathInfo analyze_qk_path(const ov::Output<ov::Node>& start) {
-    QKPathInfo info;
-
-    // Traverse backward along input(0) only, collecting nodes and finding anchor.
-    ov::Output<ov::Node> current = start;
+// Traverse backward from `start` along input(0), through allowed reshaping ops,
+// until a Split/Slice/Concat anchor is found. Returns the anchor output or {}.
+ov::Output<ov::Node> find_qk_anchor(const ov::Output<ov::Node>& start) {
+    auto current = start;
     while (true) {
         const auto node = current.get_node_shared_ptr();
         if (!node) {
             break;
         }
         if (is_qk_anchor_node(node)) {
-            info.anchor_output = current;
-            break;
+            return current;
         }
         if (!is_allowed_qk_path_node(node) || node->inputs().empty()) {
             break;
         }
-        info.visited_path.push_back(node);
         current = node->input_value(0);
     }
-
-    if (!info.anchor_output.get_node_shared_ptr()) {
-        info.visited_path.clear();
-    }
-    return info;
-}
-
-bool has_valid_path(const QKPathInfo& info) {
-    return info.anchor_output.get_node_shared_ptr() && !info.visited_path.empty();
-}
-
-bool have_same_anchor(const QKPathInfo& q_info, const QKPathInfo& k_info, const QKPathInfo& v_info) {
-    return q_info.anchor_output.get_node_shared_ptr() && k_info.anchor_output.get_node_shared_ptr() &&
-           v_info.anchor_output.get_node_shared_ptr() &&
-           q_info.anchor_output.get_node_shared_ptr() == k_info.anchor_output.get_node_shared_ptr() &&
-           k_info.anchor_output.get_node_shared_ptr() == v_info.anchor_output.get_node_shared_ptr();
+    return {};
 }
 
 ov::Output<ov::Node> align_to_reference_shape(const ov::Output<ov::Node>& src,
@@ -452,20 +432,20 @@ ov::Output<ov::Node> align_to_reference_shape(const ov::Output<ov::Node>& src,
 
     const auto ref_rank = ref_ps.rank();
     if (has_static_dims && ref_rank.is_static() && ref_rank.get_length() >= 2) {
-        const auto last_dim_idx = ref_rank.get_length() - 1;
-        const auto replace_dim_idx = ref_rank.get_length() - 2;
-        const auto& last_dim = ref_ps[last_dim_idx];
+        const auto head_size_idx = ref_rank.get_length() - 1;
+        const auto head_num_idx = ref_rank.get_length() - 2;
+        const auto& head_size_dim = ref_ps[head_size_idx];
 
-        if (last_dim.is_static()) {
-            const auto last_dim_value = static_cast<uint64_t>(last_dim.get_length());
-            if (last_dim_value == 0 || n % last_dim_value != 0) {
+        if (head_size_dim.is_static()) {
+            const auto head_size = static_cast<uint64_t>(head_size_dim.get_length());
+            if (head_size == 0 || n % head_size != 0) {
                 return {};
             }
 
-            const auto n_div_last_dim = static_cast<int64_t>(n / last_dim_value);
+            const auto head_num = static_cast<int64_t>(n / head_size);
             auto ref_shape = std::make_shared<ov::op::v3::ShapeOf>(reference);
-            auto indices = v0::Constant::create(ov::element::i64, {1}, {replace_dim_idx});
-            auto updates = v0::Constant::create(ov::element::i64, {1}, {n_div_last_dim});
+            auto indices = v0::Constant::create(ov::element::i64, {1}, {head_num_idx});
+            auto updates = v0::Constant::create(ov::element::i64, {1}, {head_num});
             auto axis = v0::Constant::create(ov::element::i64, {}, {0});
             auto updated_shape = std::make_shared<ov::op::v3::ScatterUpdate>(ref_shape, indices, updates, axis);
             auto reshaped = std::make_shared<v1::Reshape>(src, updated_shape, false);
@@ -496,29 +476,26 @@ ov::pass::FuseGroupedQueryIntoGDN::FuseGroupedQueryIntoGDN() {
             return false;
         }
 
-        const auto q_path = analyze_qk_path(gdn_node->input_value(0));
-        const auto k_path = analyze_qk_path(gdn_node->input_value(1));
-        const auto v_path = analyze_qk_path(gdn_node->input_value(2));
+        const auto q_anchor = find_qk_anchor(gdn_node->input_value(0));
+        const auto k_anchor = find_qk_anchor(gdn_node->input_value(1));
+        const auto v_anchor = find_qk_anchor(gdn_node->input_value(2));
 
-        // Step 2. Compare anchors and visited nodes collected for all Q/K/V inputs.
-        if (!have_same_anchor(q_path, k_path, v_path)) {
-            return false;
-        }
-
-        if (!has_valid_path(q_path) || !has_valid_path(k_path) || !has_valid_path(v_path)) {
+        // All Q/K/V must trace back to the same anchor node.
+        if (!q_anchor.get_node_shared_ptr() || !k_anchor.get_node_shared_ptr() || !v_anchor.get_node_shared_ptr() ||
+            q_anchor.get_node_shared_ptr() != k_anchor.get_node_shared_ptr() ||
+            k_anchor.get_node_shared_ptr() != v_anchor.get_node_shared_ptr()) {
             return false;
         }
 
         // If already directly connected from anchor outputs, skip.
-        if (gdn_node->input_value(0).get_node_shared_ptr() == q_path.anchor_output.get_node_shared_ptr() &&
-            gdn_node->input_value(1).get_node_shared_ptr() == k_path.anchor_output.get_node_shared_ptr() &&
-            gdn_node->input_value(2).get_node_shared_ptr() == v_path.anchor_output.get_node_shared_ptr()) {
+        if (gdn_node->input_value(0) == q_anchor && gdn_node->input_value(1) == k_anchor &&
+            gdn_node->input_value(2) == v_anchor) {
             return false;
         }
 
-        auto q_aligned = align_to_reference_shape(q_path.anchor_output, gdn_node->input_value(0), this);
-        auto k_aligned = align_to_reference_shape(k_path.anchor_output, gdn_node->input_value(1), this);
-        auto v_aligned = align_to_reference_shape(v_path.anchor_output, gdn_node->input_value(2), this);
+        auto q_aligned = align_to_reference_shape(q_anchor, gdn_node->input_value(0), this);
+        auto k_aligned = align_to_reference_shape(k_anchor, gdn_node->input_value(1), this);
+        auto v_aligned = align_to_reference_shape(v_anchor, gdn_node->input_value(2), this);
 
         if (!q_aligned.get_node_shared_ptr() || !k_aligned.get_node_shared_ptr() || !v_aligned.get_node_shared_ptr()) {
             return false;
