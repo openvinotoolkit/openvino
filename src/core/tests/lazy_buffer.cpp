@@ -78,15 +78,15 @@ TEST_F(LazyBufferTest, read_file) {
     }
 }
 
-TEST_F(LazyBufferTest, load_happens_on_first_get_ptr) {
+TEST_F(LazyBufferTest, load_on_first_get_ptr) {
     write_test_data(128);
 
-    constexpr size_t offset = 32;
-    constexpr size_t size = 8;
-    const std::vector<char> first_rewrite{'L', 'A', 'Z', 'Y', 'D', 'A', 'T', 'A'};
-    const std::vector<char> second_rewrite{'E', 'A', 'G', 'E', 'R', 'D', 'A', 'T'};
+    constexpr size_t offset = 37;
+    constexpr size_t size = 9;
+    const std::vector<char> first_rewrite{'L', 'A', 'Z', 'Y', ' ', 'D', 'A', 'T', 'A'};
+    const std::vector<char> second_rewrite{'O', 'V', 'E', 'R', 'W', 'R', 'I', 'T', 'E'};
 
-    std::unique_ptr<AlignedBuffer> buffer = std::make_unique<LazyBuffer>(m_file_path, offset, size, 64);
+    std::unique_ptr<AlignedBuffer> buffer = std::make_unique<LazyBuffer>(m_file_path, offset, size);
 
     // If constructor eagerly reads file data, get_ptr() would return original bytes instead of first_rewrite.
     overwrite_test_data(offset, first_rewrite);
@@ -96,12 +96,43 @@ TEST_F(LazyBufferTest, load_happens_on_first_get_ptr) {
     ASSERT_NE(first_ptr, nullptr);
     ASSERT_TRUE(std::equal(first_ptr, first_ptr + size, first_rewrite.begin()));
 
-    // Once loaded, subsequent get_ptr() calls should return cached memory and ignore later file rewrites.
+    // Once loaded, subsequent get_ptr() calls should return cached memory and ignore later file overwrites.
     overwrite_test_data(offset, second_rewrite);
 
     char* second_ptr = nullptr;
     ASSERT_NO_THROW((second_ptr = buffer->get_ptr<char>()));
     ASSERT_EQ(second_ptr, first_ptr);
     EXPECT_TRUE(std::equal(second_ptr, second_ptr + size, first_rewrite.begin()));
+}
+
+TEST_F(LazyBufferTest, unload_and_reload) {
+    write_test_data(128);
+
+    constexpr size_t offset = 31;
+    constexpr size_t size = 9;
+    const std::vector<char> first_rewrite{'L', 'A', 'Z', 'Y', ' ', 'D', 'A', 'T', 'A'};
+    const std::vector<char> second_rewrite{'O', 'V', 'E', 'R', 'W', 'R', 'I', 'T', 'E'};
+
+    const auto buffer = std::make_unique<LazyBuffer>(m_file_path, offset, size);
+
+    overwrite_test_data(offset, first_rewrite);
+    char* first_ptr = nullptr;
+    ASSERT_NO_THROW((first_ptr = buffer->get_ptr<char>()));
+    ASSERT_NE(first_ptr, nullptr);
+    ASSERT_TRUE(std::equal(first_ptr, first_ptr + size, first_rewrite.begin()));
+
+    // After unload(), get_ptr() should load the same file content again
+    buffer->unload();
+    ASSERT_NO_THROW((first_ptr = buffer->get_ptr<char>()));
+    ASSERT_NE(first_ptr, nullptr);
+    ASSERT_TRUE(std::equal(first_ptr, first_ptr + size, first_rewrite.begin()));
+
+    // After unload(), get_ptr() should load the file content again and reflect the second overwrite.
+    buffer->unload();
+    overwrite_test_data(offset, second_rewrite);
+    char* second_ptr = nullptr;
+    ASSERT_NO_THROW((second_ptr = buffer->get_ptr<char>()));
+    ASSERT_NE(second_ptr, nullptr);
+    EXPECT_TRUE(std::equal(second_ptr, second_ptr + size, second_rewrite.begin()));
 }
 }  // namespace ov::test

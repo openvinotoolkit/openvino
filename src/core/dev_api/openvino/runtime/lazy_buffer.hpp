@@ -14,12 +14,12 @@ class OPENVINO_API LazyBuffer : public AlignedBuffer {
 public:
     /**
      * \brief Constructs a LazyBuffer which provides a view on a file. The file content is loaded to memory when
-     * get_ptr() is called for the first time. The file content is loaded at aligned addresses, so the actual allocated
-     * memory may be larger than the requested byte size.     *
+     * get_ptr() is called for the first time after object creation or after unload() is called. The file content is
+     * loaded at aligned addresses, so the actual allocated memory may be larger than the requested byte size.
      * \param file_path Path to the file to load
      * \param offset Offset in the file to start the view
      * \param byte_size Size of the view in bytes
-     * \param alignment Alignment for the loaded buffer.     *
+     * \param alignment Alignment for the loaded buffer.
      * \throws AssertFailure if the file does not exist or the file size is smaller than the requested view.
      */
     LazyBuffer(std::filesystem::path file_path,
@@ -30,11 +30,16 @@ public:
     ~LazyBuffer() override = default;
 
     /**
-     * \brief Loads the file content to memory if it is not loaded yet. The content is loaded at aligned addresses, so
-     * the actual allocated memory may be larger than the requested byte size.
+     * \brief Loads the file content if it is not loaded yet. The content is loaded at aligned addresses,
+     * so the actual allocated memory may be larger than the requested byte size.
      * \throws AssertFailure if the file cannot be opened or read. In this case, the buffer remains unloaded.
      */
     void load() const override;
+
+    /**
+     * \brief Unloads the buffer from memory. After this call, next get_ptr() will load the file content again.
+     */
+    void unload();
 
 private:
     std::filesystem::path m_file_path;

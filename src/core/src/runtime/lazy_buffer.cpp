@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/runtime/lazy_buffer.hpp"
+
 #include <fstream>
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/memory_util.hpp"
-#include "openvino/runtime/lazy_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 
 namespace ov {
@@ -49,5 +50,10 @@ void LazyBuffer::load() const {
             throw;
         }
     }
+}
+
+void LazyBuffer::unload() {
+    m_aligned_buffer = {};
+    m_lazy_buffer.clear();
 }
 }  // namespace ov
