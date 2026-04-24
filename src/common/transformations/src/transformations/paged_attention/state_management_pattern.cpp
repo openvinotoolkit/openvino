@@ -606,7 +606,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         }
 
         if (options.allow_score_aggregation) {
-            auto score_aggregation_window = pa_params.get("score_aggregation_window");
+            auto score_aggregation_window = pa_params.add("score_aggregation_window", element::i32, PartialShape{-1});
             OPENVINO_ASSERT(
                 score_aggregation_window,
                 "No score_aggregation_window input found. For using score aggregation mode, the model have to contain "
@@ -618,7 +618,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         OPENVINO_ASSERT(pa_arguments.size() == 14);
 
         if (options.allow_cache_rotation) {
-            auto model_rotation_trig_lut = pa_params.get("model_rotation_trig_lut");
+            auto model_rotation_trig_lut = pa_params.add("model_rotation_trig_lut", element::f32, PartialShape{-1, -1});
             OPENVINO_ASSERT(
                 model_rotation_trig_lut,
                 "No model_rotation_trig_lut input found. For using cache rotation, the model have to contain "
@@ -642,11 +642,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
 
         OPENVINO_ASSERT(pa_arguments.size() == 17);
         if (options.allow_xattention) {
-            auto xattention_block_size = pa_params.get("xattention_block_size");
+            auto xattention_block_size = pa_params.add("xattention_block_size", element::i32, PartialShape{});
             OPENVINO_ASSERT(xattention_block_size,
                             "No xattention_block_size input found. For using XAttention, the model have to contain "
                             "an additional input (Parameter) called xattention_block_size.");
-            auto xattention_stride = pa_params.get("xattention_stride");
+            auto xattention_stride = pa_params.add("xattention_stride", element::i32, PartialShape{});
             OPENVINO_ASSERT(xattention_stride,
                             "No xattention_stride input found. For using XAttention, the model have to contain "
                             "an additional input (Parameter) called xattention_stride.");
@@ -678,12 +678,13 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         }
 
         if (options.allow_adaptive_rkv) {
-            auto adaptive_rkv_start_size = pa_params.get("adaptive_rkv_start_size");
+            auto adaptive_rkv_start_size = pa_params.add("adaptive_rkv_start_size", element::i32, PartialShape{});
             OPENVINO_ASSERT(
                 adaptive_rkv_start_size,
                 "No adaptive_rkv_start_size input found. For using Adaptive R-KV, the model have to contain "
                 "an additional input (Parameter) called adaptive_rkv_start_size.");
-            auto adaptive_rkv_evictable_sizes = pa_params.get("adaptive_rkv_evictable_sizes");
+            auto adaptive_rkv_evictable_sizes =
+                pa_params.add("adaptive_rkv_evictable_sizes", element::i32, PartialShape{-1});
             OPENVINO_ASSERT(
                 adaptive_rkv_evictable_sizes,
                 "No adaptive_rkv_evictable_sizes input found. For using Adaptive R-KV, the model have to contain "
@@ -721,11 +722,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         }
 
         if (options.allow_qq_bias) {
-            auto qq_bias = pa_params.get("qq_bias");
+            auto qq_bias = pa_params.add("qq_bias", element::u8, PartialShape{-1});
             OPENVINO_ASSERT(qq_bias,
                             "No qq_bias input found. For using QQ bias, the model have to contain "
                             "an additional input (Parameter) called qq_bias.");
-            auto qq_bias_begins = pa_params.get("qq_bias_begins");
+            auto qq_bias_begins = pa_params.add("qq_bias_begins", element::i32, PartialShape{-1});
             OPENVINO_ASSERT(qq_bias_begins,
                             "No qq_bias_begins input found. For using QQ bias, the model have to contain "
                             "an additional input (Parameter) called qq_bias_begins.");

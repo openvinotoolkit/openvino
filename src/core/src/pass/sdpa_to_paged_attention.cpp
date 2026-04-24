@@ -63,29 +63,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         m_params.add("block_indices", element::i32, PartialShape{-1});
     }
 
-    if (m_options.allow_score_aggregation) {
-        m_params.add("score_aggregation_window", element::i32, PartialShape{-1});
-    }
-
-    if (m_options.allow_cache_rotation) {
-        m_params.add("model_rotation_trig_lut", element::f32, PartialShape{-1, -1});
-    }
-
-    if (m_options.allow_xattention) {
-        m_params.add("xattention_block_size", element::i32, PartialShape{});
-        m_params.add("xattention_stride", element::i32, PartialShape{});
-    }
-
-    if (m_options.allow_adaptive_rkv) {
-        m_params.add("adaptive_rkv_start_size", element::i32, PartialShape{});
-        m_params.add("adaptive_rkv_evictable_sizes", element::i32, PartialShape{-1});
-    }
-
-    if (m_options.allow_qq_bias) {
-        m_params.add("qq_bias", element::u8, PartialShape{-1});
-        m_params.add("qq_bias_begins", element::i32, PartialShape{-1});
-    }
-
     auto get_parameter = [=](const std::shared_ptr<ov::Model>& model,
                              const std::string& name) -> std::shared_ptr<v0::Parameter> {
         for (const auto& param : model->inputs()) {
