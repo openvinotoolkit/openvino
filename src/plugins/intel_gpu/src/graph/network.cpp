@@ -48,6 +48,11 @@
 #include <map>
 #include <functional>
 #include <fstream>
+#include <mutex>
+#include <condition_variable>
+#include <cstdlib>
+#include <iostream>
+#include <atomic>
 
 #include "debug_helper.hpp"
 #ifdef GPU_DEBUG_CONFIG
@@ -148,6 +153,37 @@ static uint32_t get_unique_net_id() {
     static std::atomic<uint32_t> id_gen{0};
     return ++id_gen;
 }
+
+static int g_round_robin = 0;
+static int g_round_robin_step = 1;
+static int g_round_robin_max_barriers = -1;
+static int g_round_robin_stage2_step = -1;
+static int g_round_robin_stage2_after_barriers = -1;
+static int g_round_robin_window_start_pct = 0;
+static int g_round_robin_window_end_pct = 100;
+static std::once_flag g_rr_flag;
+
+struct CyclicBarrier {
+    std::mutex mtx;
+    std::condition_variable cv;
+    int count = 0;
+    int generation = 0;
+    int threshold = 0;
+
+    void arrive_and_wait() {
+        std::unique_lock<std::mutex> lk(mtx);
+        int gen = generation;
+        if (++count >= threshold) {
+            count = 0;
+            generation++;
+            cv.notify_all();
+        } else {
+            cv.wait(lk, [&] { return generation != gen; });
+        }
+    }
+};
+
+static CyclicBarrier g_barrier;
 
 /*
 Network will always have net_id = 0 when it will be cldnn internal micronetwork (created i.e by propagate_constants
@@ -827,12 +863,56 @@ bool network::has_event(const primitive_id& id) const {
 void network::execute_impl(const std::vector<event::ptr>& events) {
     set_arguments();
 
+    std::call_once(g_rr_flag, [] {
+        if (auto* val = std::getenv("ROUND_ROBIN")) {
+            g_round_robin = std::atoi(val);
+        }
+        if (auto* val = std::getenv("ROUND_ROBIN_STEP")) {
+            g_round_robin_step = std::max(1, std::atoi(val));
+        } else if (g_round_robin > 1) {
+            // Use lighter default synchronization cadence for RR mode.
+            g_round_robin_step = 2;
+        }
+        if (auto* val = std::getenv("ROUND_ROBIN_MAX_BARRIERS")) {
+            g_round_robin_max_barriers = std::atoi(val);
+        }
+        if (auto* val = std::getenv("ROUND_ROBIN_STAGE2_STEP")) {
+            g_round_robin_stage2_step = std::max(1, std::atoi(val));
+        }
+        if (auto* val = std::getenv("ROUND_ROBIN_STAGE2_AFTER_BARRIERS")) {
+            g_round_robin_stage2_after_barriers = std::max(0, std::atoi(val));
+        }
+        if (auto* val = std::getenv("ROUND_ROBIN_WINDOW_START_PCT")) {
+            g_round_robin_window_start_pct = std::clamp(std::atoi(val), 0, 100);
+        }
+        if (auto* val = std::getenv("ROUND_ROBIN_WINDOW_END_PCT")) {
+            g_round_robin_window_end_pct = std::clamp(std::atoi(val), 0, 100);
+        }
+        if (g_round_robin_window_start_pct > g_round_robin_window_end_pct) {
+            std::swap(g_round_robin_window_start_pct, g_round_robin_window_end_pct);
+        }
+        std::cout << "[GPU] ROUND_ROBIN=" << g_round_robin
+                  << " ROUND_ROBIN_STEP=" << g_round_robin_step
+                  << " ROUND_ROBIN_MAX_BARRIERS=" << g_round_robin_max_barriers
+                  << " ROUND_ROBIN_STAGE2_STEP=" << g_round_robin_stage2_step
+                  << " ROUND_ROBIN_STAGE2_AFTER_BARRIERS=" << g_round_robin_stage2_after_barriers
+                  << " ROUND_ROBIN_WINDOW_START_PCT=" << g_round_robin_window_start_pct
+                  << " ROUND_ROBIN_WINDOW_END_PCT=" << g_round_robin_window_end_pct << std::endl;
+        g_barrier.threshold = g_round_robin;
+    });
+
     // This extra flush command is needed for dynamic models in both cases of out_of_order / in_order operating mode
     // since it reduces `bubbles` number in pipeline and GPU's idle time by timely flushing new kernels to device.
     // The freqency of flushing (16) is selected empirically, see details in tickets 116365, 116287, 139931.
     const bool needs_flushing = _is_dynamic;
     const size_t flush_frequency = needs_flushing ? 16 : 0;
+    const size_t total_prims = _exec_order.size();
+    const size_t window_start_prim = (total_prims * static_cast<size_t>(g_round_robin_window_start_pct)) / 100;
+    const size_t window_end_prim = (total_prims * static_cast<size_t>(g_round_robin_window_end_pct)) / 100;
     size_t executed_prims = 0;
+    size_t rr_barrier_calls = 0;
+    static std::atomic<size_t> exec_count{0};
+    exec_count++;
 
     for (auto& inst : _exec_order) {
         NODE_DEBUG(*inst);
@@ -850,6 +930,22 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         executed_prims++;
         if (needs_flushing && executed_prims % flush_frequency == 0)
             get_stream().flush();
+
+        int rr_step = g_round_robin_step;
+        if (g_round_robin_stage2_step > 0 &&
+            g_round_robin_stage2_after_barriers >= 0 &&
+            rr_barrier_calls >= static_cast<size_t>(g_round_robin_stage2_after_barriers)) {
+            rr_step = g_round_robin_stage2_step;
+        }
+        const bool step_hit = (executed_prims % static_cast<size_t>(rr_step) == 0);
+        const bool in_barrier_window = (executed_prims >= window_start_prim) &&
+                                       (window_end_prim == 0 || executed_prims <= window_end_prim);
+        const bool under_barrier_cap = (g_round_robin_max_barriers < 0) ||
+                                       (rr_barrier_calls < static_cast<size_t>(g_round_robin_max_barriers));
+        if (exec_count > 2 && g_round_robin > 1 && step_hit && in_barrier_window && under_barrier_cap) {
+            g_barrier.arrive_and_wait();
+            rr_barrier_calls++;
+        }
     }
 
     // Using output of previous network as input to another one may cause hazard (in OOOQ mode) if user would not

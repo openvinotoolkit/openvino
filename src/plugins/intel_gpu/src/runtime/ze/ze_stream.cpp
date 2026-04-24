@@ -363,9 +363,9 @@ void ze_stream::wait_for_events(const std::vector<event::ptr>& events) {
             ze_base_ev->wait();
         } else {
             needs_sync = true;
+            // Non-L0 events still require generic wait and final stream sync fallback.
+            ev->wait();
         }
-        // Block thread and wait for event signal
-        ev->wait();
     }
 
     if (needs_sync) {
