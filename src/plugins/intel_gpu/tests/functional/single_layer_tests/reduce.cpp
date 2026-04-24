@@ -2,15 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
 
@@ -100,4 +103,45 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(false)),
     ReduceSumSqueezeTest::getTestCaseName);
 
-} // namespace
+using ReduceMeanParams = std::tuple<ov::Shape,             // Input shape
+                                    ov::element::Type,     // Input precision
+                                    std::vector<int64_t>,  // Reduce axes
+                                    bool>;                 // Keep dims
+
+class ReduceMeanTest : public testing::WithParamInterface<ReduceMeanParams>, virtual public ov::test::SubgraphBaseStaticTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<ReduceMeanParams>& obj) {
+        const auto& [input_shape, precision, axes, keep_dims] = obj.param;
+        std::ostringstream result;
+        result << "IS=" << ov::test::utils::vec2str(input_shape) << "_";
+        result << "axes=" << ov::test::utils::vec2str(axes) << "_";
+        result << "keep_dims=" << keep_dims << "_";
+        result << "precision=" << precision;
+        return result.str();
+    }
+
+protected:
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        const auto& [input_shape, precision, axes, keep_dims] = GetParam();
+        auto input = std::make_shared<ov::op::v0::Parameter>(precision, input_shape);
+        auto axes_node = ov::op::v0::Constant::create(ov::element::i64, {axes.size()}, axes);
+        auto reduce = std::make_shared<ov::op::v1::ReduceMean>(input, axes_node, keep_dims);
+        auto result = std::make_shared<ov::op::v0::Result>(reduce);
+        function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input}, "ReduceMean");
+    }
+};
+
+TEST_P(ReduceMeanTest, Inference) {
+    run();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_ReduceMeanTest,
+                         ReduceMeanTest,
+                         ::testing::Combine(::testing::Values(ov::Shape{1, 24, 1024, 64}),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(std::vector<int64_t>{3}),
+                                            ::testing::Values(true)),
+                         ReduceMeanTest::getTestCaseName);
+
+}  // namespace
