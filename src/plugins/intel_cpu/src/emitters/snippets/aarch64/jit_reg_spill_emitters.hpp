@@ -4,10 +4,11 @@
 
 #pragma once
 
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64.h>
+
 #include <cpu/aarch64/cpu_isa_traits.hpp>
 #include <cpu/aarch64/jit_generator.hpp>
 #include <memory>
-#include <set>
 #include <vector>
 
 #include "emitters/plugin/aarch64/jit_emitter.hpp"
@@ -40,7 +41,7 @@ protected:
                         const std::vector<size_t>& pool_vec_idxs,
                         const std::vector<size_t>& pool_gpr_idxs) const override;
 
-    std::set<snippets::Reg> m_regs_to_spill;
+    std::vector<Xbyak_aarch64::Reg> m_regs_to_spill;
     std::shared_ptr<EmitABIRegSpills> m_abi_reg_spiller;
 };
 

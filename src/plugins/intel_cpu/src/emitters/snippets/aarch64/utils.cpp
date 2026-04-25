@@ -12,8 +12,10 @@
 #include <cstdint>
 #include <set>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
+#include "emitters/plugin/aarch64/jit_emitter.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/except.hpp"
@@ -23,7 +25,164 @@
 
 using namespace dnnl::impl::cpu::aarch64;
 
-namespace ov::intel_cpu::aarch64::utils {
+namespace ov::intel_cpu::aarch64 {
+
+namespace {
+
+constexpr uint32_t gpr_size = 8;
+constexpr uint32_t vec_size = 16;
+
+[[nodiscard]] uint32_t aligned_size(const uint32_t size) {
+    if (size == 0) {
+        return 0;
+    }
+    return ((size + jit_emitter::sp_alignment - 1) / jit_emitter::sp_alignment) * jit_emitter::sp_alignment;
+}
+
+[[nodiscard]] bool is_gpr(const Xbyak_aarch64::Reg& reg) {
+    return reg.isRReg() && reg.getBit() == gpr_size * 8;
+}
+
+[[nodiscard]] bool is_vec(const Xbyak_aarch64::Reg& reg) {
+    return reg.isVRegSc() && reg.getBit() == vec_size * 8;
+}
+
+[[nodiscard]] uint32_t get_total_gpr_shift(const std::vector<Xbyak_aarch64::Reg>& regs) {
+    return aligned_size(static_cast<uint32_t>(std::count_if(regs.begin(), regs.end(), is_gpr) * gpr_size));
+}
+
+[[nodiscard]] uint32_t get_total_shift(const std::vector<Xbyak_aarch64::Reg>& regs) {
+    return get_total_gpr_shift(regs) +
+           aligned_size(static_cast<uint32_t>(std::count_if(regs.begin(), regs.end(), is_vec) * vec_size));
+}
+
+[[nodiscard]] Xbyak_aarch64::XReg as_gpr(const Xbyak_aarch64::Reg& reg) {
+    OV_CPU_JIT_EMITTER_ASSERT(is_gpr(reg), "Expected a 64-bit GPR register in Arm64 spill helper");
+    return Xbyak_aarch64::XReg(reg.getIdx());
+}
+
+[[nodiscard]] Xbyak_aarch64::QReg as_vec(const Xbyak_aarch64::Reg& reg) {
+    OV_CPU_JIT_EMITTER_ASSERT(is_vec(reg), "Expected a 128-bit vector register in Arm64 spill helper");
+    return Xbyak_aarch64::QReg(reg.getIdx());
+}
+
+template <typename Predicate, typename RegT>
+void store_reg_group(dnnl::impl::cpu::aarch64::jit_generator_t* h,
+                     const std::vector<Xbyak_aarch64::Reg>& regs,
+                     int32_t current_offset,
+                     Predicate&& predicate,
+                     RegT&& to_reg,
+                     const uint32_t reg_byte_size) {
+    std::vector<Xbyak_aarch64::Reg> filtered_regs;
+    filtered_regs.reserve(regs.size());
+    std::copy_if(regs.begin(), regs.end(), std::back_inserter(filtered_regs), std::forward<Predicate>(predicate));
+
+    size_t i = 0;
+    for (; i + 1 < filtered_regs.size(); i += 2) {
+        h->stp(to_reg(filtered_regs[i]), to_reg(filtered_regs[i + 1]), Xbyak_aarch64::ptr(h->sp, current_offset));
+        current_offset += static_cast<int32_t>(2 * reg_byte_size);
+    }
+    if (i < filtered_regs.size()) {
+        h->str(to_reg(filtered_regs[i]), Xbyak_aarch64::ptr(h->sp, current_offset));
+    }
+}
+
+template <typename Predicate, typename RegT>
+void load_reg_group(dnnl::impl::cpu::aarch64::jit_generator_t* h,
+                    const std::vector<Xbyak_aarch64::Reg>& regs,
+                    int32_t current_offset,
+                    Predicate&& predicate,
+                    RegT&& to_reg,
+                    const uint32_t reg_byte_size) {
+    std::vector<Xbyak_aarch64::Reg> filtered_regs;
+    filtered_regs.reserve(regs.size());
+    std::copy_if(regs.begin(), regs.end(), std::back_inserter(filtered_regs), std::forward<Predicate>(predicate));
+
+    size_t i = 0;
+    for (; i + 1 < filtered_regs.size(); i += 2) {
+        h->ldp(to_reg(filtered_regs[i]), to_reg(filtered_regs[i + 1]), Xbyak_aarch64::ptr(h->sp, current_offset));
+        current_offset += static_cast<int32_t>(2 * reg_byte_size);
+    }
+    if (i < filtered_regs.size()) {
+        h->ldr(to_reg(filtered_regs[i]), Xbyak_aarch64::ptr(h->sp, current_offset));
+    }
+}
+
+}  // namespace
+
+EmitABIRegSpills::EmitABIRegSpills(jit_generator_t* h_arg) : h(h_arg) {}
+
+EmitABIRegSpills::~EmitABIRegSpills() {
+    OPENVINO_ASSERT(spill_status, "postamble or preamble is missed");
+}
+
+std::vector<Xbyak_aarch64::Reg> EmitABIRegSpills::get_regs_to_spill(const std::set<snippets::Reg>& live_regs) {
+    std::vector<Xbyak_aarch64::Reg> regs_to_spill;
+    regs_to_spill.reserve(live_regs.size());
+    for (const auto& reg : live_regs) {
+        switch (reg.type) {
+        case snippets::RegType::gpr:
+            regs_to_spill.emplace_back(Xbyak_aarch64::XReg(reg.idx));
+            break;
+        case snippets::RegType::vec:
+            regs_to_spill.emplace_back(Xbyak_aarch64::QReg(reg.idx));
+            break;
+        default:
+            OPENVINO_THROW("Unsupported register type in Arm64 RegSpill emitter");
+        }
+    }
+    return regs_to_spill;
+}
+
+void EmitABIRegSpills::store_regs_to_stack(dnnl::impl::cpu::aarch64::jit_generator_t* h,
+                                           const std::vector<Xbyak_aarch64::Reg>& regs_to_store) {
+    const auto total_shift = get_total_shift(regs_to_store);
+    if (total_shift > 0) {
+        h->sub(h->sp, h->sp, total_shift);
+    }
+
+    store_reg_group(h, regs_to_store, 0, is_gpr, as_gpr, gpr_size);
+    store_reg_group(h,
+                    regs_to_store,
+                    static_cast<int32_t>(get_total_gpr_shift(regs_to_store)),
+                    is_vec,
+                    as_vec,
+                    vec_size);
+}
+
+void EmitABIRegSpills::load_regs_from_stack(dnnl::impl::cpu::aarch64::jit_generator_t* h,
+                                            const std::vector<Xbyak_aarch64::Reg>& regs_to_load) {
+    const auto total_gpr_shift = get_total_gpr_shift(regs_to_load);
+    load_reg_group(h, regs_to_load, static_cast<int32_t>(total_gpr_shift), is_vec, as_vec, vec_size);
+    load_reg_group(h, regs_to_load, 0, is_gpr, as_gpr, gpr_size);
+
+    const auto total_shift =
+        total_gpr_shift +
+        aligned_size(static_cast<uint32_t>(std::count_if(regs_to_load.begin(), regs_to_load.end(), is_vec) * vec_size));
+    if (total_shift > 0) {
+        h->add(h->sp, h->sp, total_shift);
+    }
+}
+
+void EmitABIRegSpills::preamble(const std::vector<Xbyak_aarch64::Reg>& live_regs) {
+    OPENVINO_ASSERT(spill_status, "Attempt to spill ABI registers twice in a row");
+    m_regs_to_spill = live_regs;
+    store_regs_to_stack(h, m_regs_to_spill);
+    spill_status = false;
+}
+
+void EmitABIRegSpills::preamble(const std::set<snippets::Reg>& live_regs) {
+    preamble(get_regs_to_spill(live_regs));
+}
+
+void EmitABIRegSpills::postamble() {
+    OPENVINO_ASSERT(!spill_status, "Attempt to restore ABI registers that were not spilled");
+    load_regs_from_stack(h, m_regs_to_spill);
+    m_regs_to_spill.clear();
+    spill_status = true;
+}
+
+namespace utils {
 
 std::vector<Xbyak_aarch64::XReg> get_aux_gprs(const std::vector<size_t>& used_gpr_idxs, size_t count) {
     // X0 and X1 - runtime parameter registers in the kernel
@@ -223,4 +382,5 @@ void push_ptrs_with_offsets_to_stack(dnnl::impl::cpu::aarch64::jit_generator_t* 
     }
 }
 
-}  // namespace ov::intel_cpu::aarch64::utils
+}  // namespace utils
+}  // namespace ov::intel_cpu::aarch64
