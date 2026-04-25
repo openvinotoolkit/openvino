@@ -198,12 +198,17 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         // - config.expert_alpha : clamp_max
         // - config.expert_beta : swish_beta
         // TODO : update for each new pattern
+        // GPT-OSS swiglu interleaves gate/up along the last axis with stride 2.
+        // Test/IR pattern: slice[0::2] -> Clamp(-α, α) + bias  (the "up" path)
+        //                  slice[1::2] -> Min(cap) -> Swish(β) (the "gate" path)
+        // Kernel assigns swish + upper-clamp to "gate", full-clamp + add to "up";
+        // gate_idx=1 puts gate at odd positions (slice[1::2]) — matches the IR.
         auto moe_swiglu_prim = cldnn::swiglu(moe_swiglu_name,
                                              input_info(moe_gemm_up_name),
                                              2,  // axis
                                              2,  // glu_stride
                                              ov::op::internal::GLU::GluType::Swish,
-                                             0,                     // gate idx
+                                             1,                     // gate idx
                                              -config.expert_alpha,  // clamp_min
                                              config.expert_alpha,   // clamp_max
                                              config.expert_beta,    // swish beta
