@@ -58,43 +58,69 @@ public:
         auto k = make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "k");
         auto v = make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "v");
         auto key_cache = make_param(PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic()},
-                                    ov::element::dynamic, "key_cache.0");
+                                    ov::element::dynamic,
+                                    "key_cache.0");
         auto value_cache = make_param(PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic()},
-                                      ov::element::dynamic, "value_cache.0");
+                                      ov::element::dynamic,
+                                      "value_cache.0");
         auto past_lens = make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "past_lens");
-        auto subsequence_begins = make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "subsequence_begins");
+        auto subsequence_begins =
+            make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "subsequence_begins");
         auto block_indices = make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "block_indices");
-        auto block_indices_begins = make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "block_indices_begins");
+        auto block_indices_begins =
+            make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "block_indices_begins");
 
         float scale_value = 1.0f / std::sqrt(static_cast<float>(head_size));
         auto scale = std::make_shared<v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{scale_value});
         auto sliding_window = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
         auto alibi_slopes = std::make_shared<v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{});
         auto max_context_len = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{1024});
-        auto score_aggregation_window = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
-        auto rotated_block_indices = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
+        auto score_aggregation_window =
+            std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
+        auto rotated_block_indices =
+            std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
         auto rotation_deltas = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
         auto rotation_trig_lut = std::make_shared<v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{0});
         auto xattention_threshold = std::make_shared<v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{0});
-        auto xattention_block_size = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{64});
+        auto xattention_block_size =
+            std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{64});
         auto xattention_stride = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{8});
-        auto sinks = std::static_pointer_cast<v0::Constant>(
-            ov::test::utils::make_constant(data_type, Shape{0}));
-        auto adaptive_rkv_start_size = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
-        auto adaptive_rkv_evictable_sizes = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
-        auto adaptive_rkv_diversity_block_set_indices = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
-        auto adaptive_rkv_diversity_block_set_indices_begins = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
+        auto sinks = std::static_pointer_cast<v0::Constant>(ov::test::utils::make_constant(data_type, Shape{0}));
+        auto adaptive_rkv_start_size =
+            std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
+        auto adaptive_rkv_evictable_sizes =
+            std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
+        auto adaptive_rkv_diversity_block_set_indices =
+            std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
+        auto adaptive_rkv_diversity_block_set_indices_begins =
+            std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
         auto token_type_ids = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
 
-        ParameterVector params = {q, k, v, key_cache, value_cache, past_lens,
-                                  subsequence_begins, block_indices, block_indices_begins};
+        ParameterVector params =
+            {q, k, v, key_cache, value_cache, past_lens, subsequence_begins, block_indices, block_indices_begins};
 
-        OutputVector pa_inputs = {q, k, v, key_cache, value_cache,
-                                  past_lens, subsequence_begins, block_indices, block_indices_begins,
-                                  scale, sliding_window, alibi_slopes, max_context_len,
-                                  score_aggregation_window, rotated_block_indices, rotation_deltas,
-                                  rotation_trig_lut, xattention_threshold, xattention_block_size,
-                                  xattention_stride, sinks, adaptive_rkv_start_size,
+        OutputVector pa_inputs = {q,
+                                  k,
+                                  v,
+                                  key_cache,
+                                  value_cache,
+                                  past_lens,
+                                  subsequence_begins,
+                                  block_indices,
+                                  block_indices_begins,
+                                  scale,
+                                  sliding_window,
+                                  alibi_slopes,
+                                  max_context_len,
+                                  score_aggregation_window,
+                                  rotated_block_indices,
+                                  rotation_deltas,
+                                  rotation_trig_lut,
+                                  xattention_threshold,
+                                  xattention_block_size,
+                                  xattention_stride,
+                                  sinks,
+                                  adaptive_rkv_start_size,
                                   adaptive_rkv_evictable_sizes,
                                   adaptive_rkv_diversity_block_set_indices,
                                   adaptive_rkv_diversity_block_set_indices_begins,
@@ -103,7 +129,8 @@ public:
         // Create qq_bias and qq_bias_begins as Parameters when enabled
         if (enable_qq_bias) {
             auto qq_bias_param = make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::u8, "qq_bias");
-            auto qq_bias_begins_param = make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "qq_bias_begins");
+            auto qq_bias_begins_param =
+                make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "qq_bias_begins");
             params.push_back(qq_bias_param);
             params.push_back(qq_bias_begins_param);
             pa_inputs.push_back(qq_bias_param);
@@ -137,14 +164,14 @@ public:
     // Run two iterations: prefill + decode
     // If enable_qq_bias is true, decode phase uses provided qq_bias; otherwise standard causal
     RunResult run_pa(std::shared_ptr<ov::Model> model,
-                    ov::element::Type data_type,
-                    size_t prefill_len,
-                    size_t num_draft,
-                    size_t head_size,
-                    size_t head_num,
-                    bool enable_qq_bias,
-                    const std::vector<uint8_t>& qq_bias_data = {},
-                    const std::vector<int32_t>& qq_bias_begins_data = {}) {
+                     ov::element::Type data_type,
+                     size_t prefill_len,
+                     size_t num_draft,
+                     size_t head_size,
+                     size_t head_num,
+                     bool enable_qq_bias,
+                     const std::vector<uint8_t>& qq_bias_data = {},
+                     const std::vector<int32_t>& qq_bias_begins_data = {}) {
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;
         function = model;
         compile_model();
@@ -225,17 +252,28 @@ public:
 
             for (auto& param : params) {
                 auto name = param->get_friendly_name();
-                if (name == "q") infer_request.set_tensor(param, q_prefill);
-                else if (name == "k") infer_request.set_tensor(param, k_prefill);
-                else if (name == "v") infer_request.set_tensor(param, v_prefill);
-                else if (name == "key_cache.0") infer_request.set_tensor(param, key_cache_tensor);
-                else if (name == "value_cache.0") infer_request.set_tensor(param, value_cache_tensor);
-                else if (name == "past_lens") infer_request.set_tensor(param, past_lens);
-                else if (name == "subsequence_begins") infer_request.set_tensor(param, subsequence_begins);
-                else if (name == "block_indices") infer_request.set_tensor(param, block_indices);
-                else if (name == "block_indices_begins") infer_request.set_tensor(param, block_indices_begins);
-                else if (name == "qq_bias") infer_request.set_tensor(param, qq_bias_empty);
-                else if (name == "qq_bias_begins") infer_request.set_tensor(param, qq_bias_begins_empty);
+                if (name == "q")
+                    infer_request.set_tensor(param, q_prefill);
+                else if (name == "k")
+                    infer_request.set_tensor(param, k_prefill);
+                else if (name == "v")
+                    infer_request.set_tensor(param, v_prefill);
+                else if (name == "key_cache.0")
+                    infer_request.set_tensor(param, key_cache_tensor);
+                else if (name == "value_cache.0")
+                    infer_request.set_tensor(param, value_cache_tensor);
+                else if (name == "past_lens")
+                    infer_request.set_tensor(param, past_lens);
+                else if (name == "subsequence_begins")
+                    infer_request.set_tensor(param, subsequence_begins);
+                else if (name == "block_indices")
+                    infer_request.set_tensor(param, block_indices);
+                else if (name == "block_indices_begins")
+                    infer_request.set_tensor(param, block_indices_begins);
+                else if (name == "qq_bias")
+                    infer_request.set_tensor(param, qq_bias_empty);
+                else if (name == "qq_bias_begins")
+                    infer_request.set_tensor(param, qq_bias_begins_empty);
             }
 
             infer_request.infer();
@@ -276,8 +314,9 @@ public:
                 std::memcpy(qq_bias_decode.data<uint8_t>(), qq_bias_data.data(), qq_bias_data.size());
 
                 qq_bias_begins_decode = ov::Tensor(ov::element::i32, {qq_bias_begins_data.size()});
-                std::memcpy(qq_bias_begins_decode.data<int32_t>(), qq_bias_begins_data.data(),
-                           qq_bias_begins_data.size() * sizeof(int32_t));
+                std::memcpy(qq_bias_begins_decode.data<int32_t>(),
+                            qq_bias_begins_data.data(),
+                            qq_bias_begins_data.size() * sizeof(int32_t));
             } else {
                 // No qq_bias (standard causal attention) - model without qq_bias params won't need these
                 // These won't be set if model was created with enable_qq_bias=false
@@ -285,17 +324,28 @@ public:
 
             for (auto& param : params) {
                 auto name = param->get_friendly_name();
-                if (name == "q") infer_request.set_tensor(param, q_decode);
-                else if (name == "k") infer_request.set_tensor(param, k_decode);
-                else if (name == "v") infer_request.set_tensor(param, v_decode);
-                else if (name == "key_cache.0") infer_request.set_tensor(param, key_cache_tensor);
-                else if (name == "value_cache.0") infer_request.set_tensor(param, value_cache_tensor);
-                else if (name == "past_lens") infer_request.set_tensor(param, past_lens);
-                else if (name == "subsequence_begins") infer_request.set_tensor(param, subsequence_begins);
-                else if (name == "block_indices") infer_request.set_tensor(param, block_indices);
-                else if (name == "block_indices_begins") infer_request.set_tensor(param, block_indices_begins);
-                else if (name == "qq_bias" && enable_qq_bias) infer_request.set_tensor(param, qq_bias_decode);
-                else if (name == "qq_bias_begins" && enable_qq_bias) infer_request.set_tensor(param, qq_bias_begins_decode);
+                if (name == "q")
+                    infer_request.set_tensor(param, q_decode);
+                else if (name == "k")
+                    infer_request.set_tensor(param, k_decode);
+                else if (name == "v")
+                    infer_request.set_tensor(param, v_decode);
+                else if (name == "key_cache.0")
+                    infer_request.set_tensor(param, key_cache_tensor);
+                else if (name == "value_cache.0")
+                    infer_request.set_tensor(param, value_cache_tensor);
+                else if (name == "past_lens")
+                    infer_request.set_tensor(param, past_lens);
+                else if (name == "subsequence_begins")
+                    infer_request.set_tensor(param, subsequence_begins);
+                else if (name == "block_indices")
+                    infer_request.set_tensor(param, block_indices);
+                else if (name == "block_indices_begins")
+                    infer_request.set_tensor(param, block_indices_begins);
+                else if (name == "qq_bias" && enable_qq_bias)
+                    infer_request.set_tensor(param, qq_bias_decode);
+                else if (name == "qq_bias_begins" && enable_qq_bias)
+                    infer_request.set_tensor(param, qq_bias_begins_decode);
             }
 
             infer_request.infer();
@@ -307,7 +357,6 @@ public:
 
         return {ov::Tensor{}, decode_output, key_cache_tensor, value_cache_tensor};
     }
-
 };
 
 // Test that qq_bias tree mask produces different output than full causal mask
@@ -325,14 +374,19 @@ TEST_P(PagedAttnQQBiasTest, SpeculativeDecodingTreeMask) {
     // Run with tree mask (qq_bias enabled with pattern)
     std::vector<int32_t> qq_bias_begins_tree = {0, static_cast<int32_t>(pattern.matrix.size())};
     auto model_tree = get_pa_model(inType, head_size, head_num, true);
-    auto result_tree = run_pa(model_tree, inType, prefill_len, num_draft,
-                             head_size, head_num, true,
-                             pattern.matrix, qq_bias_begins_tree);
+    auto result_tree = run_pa(model_tree,
+                              inType,
+                              prefill_len,
+                              num_draft,
+                              head_size,
+                              head_num,
+                              true,
+                              pattern.matrix,
+                              qq_bias_begins_tree);
 
     // Run reference without qq_bias (standard causal attention)
     auto model_ref = get_pa_model(inType, head_size, head_num, false);
-    auto result_ref = run_pa(model_ref, inType, prefill_len, num_draft,
-                            head_size, head_num, false);
+    auto result_ref = run_pa(model_ref, inType, prefill_len, num_draft, head_size, head_num, false);
 
     // Validate outputs
     ASSERT_GT(result_tree.decode_output.get_size(), 0);
@@ -376,71 +430,62 @@ TEST_P(PagedAttnQQBiasTest, SpeculativeDecodingTreeMask) {
         }
     }
 
-        // Compare outputs - they should differ when patterns differ
-        float max_diff = 0.0f;
-        size_t diff_count = 0;
+    // Compare outputs - they should differ when patterns differ
+    float max_diff = 0.0f;
+    size_t diff_count = 0;
 
-        if (inType == ov::element::f32) {
-            auto* data_tree = result_tree.decode_output.data<float>();
-            auto* data_ref = result_ref.decode_output.data<float>();
-            for (size_t i = 0; i < result_tree.decode_output.get_size(); i++) {
-                float diff = std::abs(data_tree[i] - data_ref[i]);
-                if (diff > max_diff) max_diff = diff;
-                if (diff > 1e-5f) diff_count++;
-            }
-        } else if (inType == ov::element::f16) {
-            auto* data_tree = result_tree.decode_output.data<ov::float16>();
-            auto* data_ref = result_ref.decode_output.data<ov::float16>();
-            for (size_t i = 0; i < result_tree.decode_output.get_size(); i++) {
-                float diff = std::abs(static_cast<float>(data_tree[i]) - static_cast<float>(data_ref[i]));
-                if (diff > max_diff) max_diff = diff;
-                if (diff > 1e-3f) diff_count++;
-            }
+    if (inType == ov::element::f32) {
+        auto* data_tree = result_tree.decode_output.data<float>();
+        auto* data_ref = result_ref.decode_output.data<float>();
+        for (size_t i = 0; i < result_tree.decode_output.get_size(); i++) {
+            float diff = std::abs(data_tree[i] - data_ref[i]);
+            if (diff > max_diff)
+                max_diff = diff;
+            if (diff > 1e-5f)
+                diff_count++;
         }
+    } else if (inType == ov::element::f16) {
+        auto* data_tree = result_tree.decode_output.data<ov::float16>();
+        auto* data_ref = result_ref.decode_output.data<ov::float16>();
+        for (size_t i = 0; i < result_tree.decode_output.get_size(); i++) {
+            float diff = std::abs(static_cast<float>(data_tree[i]) - static_cast<float>(data_ref[i]));
+            if (diff > max_diff)
+                max_diff = diff;
+            if (diff > 1e-3f)
+                diff_count++;
+        }
+    }
 
-        // Outputs should differ when tree pattern != full causal
-        // Note: Due to test data characteristics, differences may be subtle
-        // We primarily verify that the mechanism executes correctly without errors
-        if (pattern_differs_from_causal)
-            EXPECT_TRUE(diff_count > 0) << "expect mask effective for tree attention ";
-        else
-            EXPECT_TRUE(diff_count == 0) << "expect same result for full attention";
+    // Outputs should differ when tree pattern != full causal
+    // Note: Due to test data characteristics, differences may be subtle
+    // We primarily verify that the mechanism executes correctly without errors
+    if (pattern_differs_from_causal)
+        EXPECT_TRUE(diff_count > 0) << "expect mask effective for tree attention ";
+    else
+        EXPECT_TRUE(diff_count == 0) << "expect same result for full attention";
 }
 
 // Define test patterns for speculative decoding
-const std::vector<QQBiasPattern> qq_bias_patterns = {
-    {
-        "tree_4tokens",
-        // 4×4 matrix for 4 draft tokens with tree structure:
-        // q0: [1 0 0 0] - only sees k0
-        // q1: [1 1 0 0] - sees k0, k1
-        // q2: [1 0 1 0] - sees k0, k2 (skips k1)
-        // q3: [1 0 1 1] - sees k0, k2, k3 (skips k1)
-        {1, 0, 0, 0,
-         1, 1, 0, 0,
-         1, 0, 1, 0,
-         1, 0, 1, 1},
-        4
-    },
-    {
-        "diagonal_4tokens",
-        // 4×4 diagonal (standard causal)
-        {1, 0, 0, 0,
-         1, 1, 0, 0,
-         1, 1, 1, 0,
-         1, 1, 1, 1},
-        4
-    }
-};
+const std::vector<QQBiasPattern> qq_bias_patterns = {{"tree_4tokens",
+                                                      // 4×4 matrix for 4 draft tokens with tree structure:
+                                                      // q0: [1 0 0 0] - only sees k0
+                                                      // q1: [1 1 0 0] - sees k0, k1
+                                                      // q2: [1 0 1 0] - sees k0, k2 (skips k1)
+                                                      // q3: [1 0 1 1] - sees k0, k2, k3 (skips k1)
+                                                      {1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1},
+                                                      4},
+                                                     {"diagonal_4tokens",
+                                                      // 4×4 diagonal (standard causal)
+                                                      {1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1},
+                                                      4}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnQQBias,
                          PagedAttnQQBiasTest,
-                         ::testing::Combine(
-                             ::testing::Values(ElementType::f32, ElementType::f16),
-                             ::testing::Values(4, 8),      // past_len
-                             ::testing::Values(4),          // num_draft tokens
-                             ::testing::Values(64),         // head_size
-                             ::testing::ValuesIn(qq_bias_patterns)),
+                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::f16),
+                                            ::testing::Values(4, 8),  // past_len
+                                            ::testing::Values(4),     // num_draft tokens
+                                            ::testing::Values(64),    // head_size
+                                            ::testing::ValuesIn(qq_bias_patterns)),
                          PagedAttnQQBiasTest::getTestCaseName);
 
 }  // namespace test

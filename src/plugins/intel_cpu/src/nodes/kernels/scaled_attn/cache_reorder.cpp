@@ -9,13 +9,12 @@
 #include <cstring>
 #include <vector>
 
+#include "attn_quant_kernel.hpp"
+#include "common.hpp"
 #include "cpu_parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "utils/plain_tensor.hpp"
-
-#include "attn_quant_kernel.hpp"
-#include "common.hpp"
 namespace ov::Extensions::Cpu::XARCH {
 
 using ov::intel_cpu::CpuParallelPtr;

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/cpu_opset/common/pass/pa_kv_reorder_fusion.hpp"
+
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -14,7 +16,6 @@
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/cpu_opset/common/op/pa_kv_reorder.hpp"
-#include "transformations/cpu_opset/common/pass/pa_kv_reorder_fusion.hpp"
 
 // Test that PaKVReorderFusion pass is registered and can be instantiated
 TEST(PaKVReorderFusionTest, PassInstantiation) {
@@ -99,10 +100,13 @@ TEST(PaKVReorderFusionTest, FusionPattern) {
 
     auto result = std::make_shared<ov::op::v0::Result>(concat);
 
-    auto model = std::make_shared<Model>(
-        ResultVector{result},
-        ParameterVector{key_cache, value_cache, block_indices, block_indices_begins,
-                       block_update_indices, block_update_indices_begins});
+    auto model = std::make_shared<Model>(ResultVector{result},
+                                         ParameterVector{key_cache,
+                                                         value_cache,
+                                                         block_indices,
+                                                         block_indices_begins,
+                                                         block_update_indices,
+                                                         block_update_indices_begins});
 
     // Apply transformation
     ov::pass::Manager manager;
@@ -142,9 +146,12 @@ TEST(PaKVReorderOpTest, OpCreation) {
     auto block_update_indices = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{4});
     auto block_update_indices_begins = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
 
-    auto pa_kv_reorder = std::make_shared<ov::intel_cpu::PaKVReorder>(
-        key_cache, value_cache, block_indices, block_indices_begins,
-        block_update_indices, block_update_indices_begins);
+    auto pa_kv_reorder = std::make_shared<ov::intel_cpu::PaKVReorder>(key_cache,
+                                                                      value_cache,
+                                                                      block_indices,
+                                                                      block_indices_begins,
+                                                                      block_update_indices,
+                                                                      block_update_indices_begins);
 
     ASSERT_NE(pa_kv_reorder, nullptr);
     ASSERT_EQ(pa_kv_reorder->get_input_size(), 6);
@@ -175,16 +182,22 @@ TEST(PaKVReorderOpTest, ModelWithOp) {
     auto block_update_indices_begins = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
     block_update_indices_begins->set_friendly_name("block_update_indices_begins");
 
-    auto pa_kv_reorder = std::make_shared<ov::intel_cpu::PaKVReorder>(
-        key_cache, value_cache, block_indices, block_indices_begins,
-        block_update_indices, block_update_indices_begins);
+    auto pa_kv_reorder = std::make_shared<ov::intel_cpu::PaKVReorder>(key_cache,
+                                                                      value_cache,
+                                                                      block_indices,
+                                                                      block_indices_begins,
+                                                                      block_update_indices,
+                                                                      block_update_indices_begins);
 
     auto result = std::make_shared<ov::op::v0::Result>(pa_kv_reorder->output(0));
 
-    auto model = std::make_shared<Model>(
-        ResultVector{result},
-        ParameterVector{key_cache, value_cache, block_indices, block_indices_begins,
-                       block_update_indices, block_update_indices_begins});
+    auto model = std::make_shared<Model>(ResultVector{result},
+                                         ParameterVector{key_cache,
+                                                         value_cache,
+                                                         block_indices,
+                                                         block_indices_begins,
+                                                         block_update_indices,
+                                                         block_update_indices_begins});
 
     ASSERT_NE(model, nullptr);
     ASSERT_EQ(model->get_parameters().size(), 6);
@@ -211,9 +224,12 @@ TEST(PaKVReorderOpTest, TypeInfo) {
     auto block_update_indices = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{4});
     auto block_update_indices_begins = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
 
-    auto pa_kv_reorder = std::make_shared<ov::intel_cpu::PaKVReorder>(
-        key_cache, value_cache, block_indices, block_indices_begins,
-        block_update_indices, block_update_indices_begins);
+    auto pa_kv_reorder = std::make_shared<ov::intel_cpu::PaKVReorder>(key_cache,
+                                                                      value_cache,
+                                                                      block_indices,
+                                                                      block_indices_begins,
+                                                                      block_update_indices,
+                                                                      block_update_indices_begins);
 
     auto type_info = pa_kv_reorder->get_type_info();
     ASSERT_STREQ(type_info.name, "PaKVReorder");

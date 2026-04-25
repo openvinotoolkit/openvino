@@ -11,8 +11,8 @@
 #    include <immintrin.h>
 #endif
 
-#include <cstddef>
 #include <cfloat>
+#include <cstddef>
 #include <cstdint>
 #if defined(HAVE_SVE)
 #    include "arm_sve.h"
@@ -286,10 +286,10 @@ void find_params_by_channel(const T* src,
                             size_t seq_dim,
                             size_t hidden_dims,
                             size_t src_stride,
-                             [[maybe_unused]] size_t dst_stride,
-                             float* scale,
-                             float* zp,
-                             size_t bits) {
+                            [[maybe_unused]] size_t dst_stride,
+                            float* scale,
+                            float* zp,
+                            size_t bits) {
     size_t j = 0;
     auto integer_range = static_cast<float>((1 << bits) - 1);
 #if defined(HAVE_AVX512F)

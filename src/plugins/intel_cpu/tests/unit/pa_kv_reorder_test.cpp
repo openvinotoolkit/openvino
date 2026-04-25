@@ -109,9 +109,8 @@ TEST(PaKVReorderKernelTest, FloatCacheCrossBlock) {
         for (size_t h = 0; h < num_heads; h++) {
             for (size_t t = 0; t < block_size; t++) {
                 for (size_t d = 0; d < head_size; d++) {
-                    size_t idx = b * num_heads * block_size * head_size +
-                                h * block_size * head_size +
-                                t * head_size + d;
+                    size_t idx =
+                        b * num_heads * block_size * head_size + h * block_size * head_size + t * head_size + d;
                     key_data[idx] = static_cast<float>(b * 1000 + t);
                     value_data[idx] = static_cast<float>(b * 1000 + t + 50000);
                 }
@@ -217,14 +216,15 @@ TEST(PaKVReorderKernelTest, QuantizedCacheBothByChannel) {
             // Calculate scale/zp from the quantized data to ensure dequant->requant round-trip works
             // For uint8: dequant = (quant - zp) * scale
             for (size_t d = 0; d < head_size; d++) {
-                key_scales[d] = 0.1f;     // scale
-                key_zps[d] = 128.0f;      // uint8 typical zero point
+                key_scales[d] = 0.1f;  // scale
+                key_zps[d] = 128.0f;   // uint8 typical zero point
             }
 
             // Same for value cache
             size_t value_base = (b * num_heads + h) * value_block_head_bytes;
             float* value_scales = reinterpret_cast<float*>(value_cache_data.data() + value_base);
-            float* value_zps = reinterpret_cast<float*>(value_cache_data.data() + value_base + sizeof(float) * head_size);
+            float* value_zps =
+                reinterpret_cast<float*>(value_cache_data.data() + value_base + sizeof(float) * head_size);
 
             uint8_t* value_data = value_cache_data.data() + value_base + value_params_bytes;
             for (size_t t = 0; t < block_size; t++) {
@@ -250,29 +250,26 @@ TEST(PaKVReorderKernelTest, QuantizedCacheBothByChannel) {
     // Custom strides to match actual memory layout (in uint8 elements)
     size_t key_strides[4] = {
         num_heads * key_block_head_bytes,  // stride[0]: bytes per block
-        key_block_head_bytes,               // stride[1]: bytes per head
-        head_size,                           // stride[2]: bytes per "token" (params or data)
-        1                                    // stride[3]: bytes per element in head_size
+        key_block_head_bytes,              // stride[1]: bytes per head
+        head_size,                         // stride[2]: bytes per "token" (params or data)
+        1                                  // stride[3]: bytes per element in head_size
     };
-    size_t value_strides[4] = {
-        num_heads * value_block_head_bytes,
-        value_block_head_bytes,
-        head_size,
-        1
-    };
+    size_t value_strides[4] = {num_heads * value_block_head_bytes, value_block_head_bytes, head_size, 1};
 
     PlainTensor key_cache;
     key_cache.resize<uint8_t>({num_blocks, num_heads, key_dim2_with_params, head_size},
-                               key_cache_data.data(), key_strides);
+                              key_cache_data.data(),
+                              key_strides);
 
     PlainTensor value_cache;
     value_cache.resize<uint8_t>({num_blocks, num_heads, value_dim2_with_params, head_size},
-                                 value_cache_data.data(), value_strides);
+                                value_cache_data.data(),
+                                value_strides);
 
     // Copy from token 10 to token 5 in same block 0 (src > dst, backward copy)
     std::vector<int32_t> block_indices_data = {0, 1, 2};
     std::vector<int32_t> block_indices_begins_data = {0, 3};
-    std::vector<int32_t> block_update_indices_data = {10, 5};  // src=10, dst=5 (backward)
+    std::vector<int32_t> block_update_indices_data = {10, 5};        // src=10, dst=5 (backward)
     std::vector<int32_t> block_update_indices_begins_data = {0, 1};  // 1 operation (pair)
 
     PlainTensor block_indices;
@@ -295,8 +292,8 @@ TEST(PaKVReorderKernelTest, QuantizedCacheBothByChannel) {
                      block_indices_begins,
                      block_update_indices,
                      block_update_indices_begins,
-                     true,   // key_by_channel
-                     true,   // value_by_channel
+                     true,  // key_by_channel
+                     true,  // value_by_channel
                      cpu_parallel);
 
     // Verify: For by-channel quantization, requantize recomputes scale/zp based on block statistics
@@ -327,7 +324,8 @@ TEST(PaKVReorderKernelTest, QuantizedCacheBothByChannel) {
         float* value_scales = reinterpret_cast<float*>(value_cache_data.data() + value_base);
         float* value_zps = reinterpret_cast<float*>(value_cache_data.data() + value_base + sizeof(float) * head_size);
         float* value_scales_orig = reinterpret_cast<float*>(value_cache_copy.data() + value_base);
-        float* value_zps_orig = reinterpret_cast<float*>(value_cache_copy.data() + value_base + sizeof(float) * head_size);
+        float* value_zps_orig =
+            reinterpret_cast<float*>(value_cache_copy.data() + value_base + sizeof(float) * head_size);
 
         uint8_t* value_data = value_cache_data.data() + value_base + value_params_bytes;
         uint8_t* value_data_orig = value_cache_copy.data() + value_base + value_params_bytes;
@@ -351,7 +349,7 @@ TEST(PaKVReorderKernelTest, QuantizedCacheKeyByChannelValueByToken) {
 
     // Key: by-channel quantization (uint8)
     size_t key_params_bytes = 2 * sizeof(float) * head_size;  // scale[head_size] + zp[head_size]
-    size_t key_data_bytes = block_size * head_size;  // uint8 data
+    size_t key_data_bytes = block_size * head_size;           // uint8 data
     size_t key_block_head_bytes = key_params_bytes + key_data_bytes;
 
     // Value: by-token quantization (INTERLEAVED layout)
@@ -422,9 +420,9 @@ TEST(PaKVReorderKernelTest, QuantizedCacheKeyByChannelValueByToken) {
     // Custom strides to match actual memory layout (in uint8 elements)
     size_t key_strides[4] = {
         num_heads * key_block_head_bytes,  // stride[0]: bytes per block
-        key_block_head_bytes,               // stride[1]: bytes per head
-        head_size,                           // stride[2]: bytes per "token" (params or data)
-        1                                    // stride[3]: bytes per element in head_size
+        key_block_head_bytes,              // stride[1]: bytes per head
+        head_size,                         // stride[2]: bytes per "token" (params or data)
+        1                                  // stride[3]: bytes per element in head_size
     };
 
     // Value (by-token INTERLEAVED): [num_blocks, num_heads, block_size, head_size+params]
@@ -434,23 +432,25 @@ TEST(PaKVReorderKernelTest, QuantizedCacheKeyByChannelValueByToken) {
     size_t value_dim3_with_params = head_size + 2 * sizeof(float);  // 64 + 8 = 72
     size_t value_strides[4] = {
         num_heads * value_block_head_bytes,  // stride[0]: bytes per block
-        value_block_head_bytes,               // stride[1]: bytes per head
-        value_token_stride,                   // stride[2]: bytes per token (interleaved)
-        1                                     // stride[3]: bytes per element
+        value_block_head_bytes,              // stride[1]: bytes per head
+        value_token_stride,                  // stride[2]: bytes per token (interleaved)
+        1                                    // stride[3]: bytes per element
     };
 
     PlainTensor key_cache;
     key_cache.resize<uint8_t>({num_blocks, num_heads, key_dim2_with_params, head_size},
-                               key_cache_data.data(), key_strides);
+                              key_cache_data.data(),
+                              key_strides);
 
     PlainTensor value_cache;
     value_cache.resize<uint8_t>({num_blocks, num_heads, block_size, value_dim3_with_params},
-                                 value_cache_data.data(), value_strides);
+                                value_cache_data.data(),
+                                value_strides);
 
     // Copy from token 10 to token 5 in same block 0 (src > dst, backward copy)
     std::vector<int32_t> block_indices_data = {0, 1, 2};
     std::vector<int32_t> block_indices_begins_data = {0, 3};
-    std::vector<int32_t> block_update_indices_data = {10, 5};  // src=10, dst=5 (backward)
+    std::vector<int32_t> block_update_indices_data = {10, 5};        // src=10, dst=5 (backward)
     std::vector<int32_t> block_update_indices_begins_data = {0, 1};  // 1 operation (pair)
 
     PlainTensor block_indices;
@@ -502,8 +502,7 @@ TEST(PaKVReorderKernelTest, QuantizedCacheKeyByChannelValueByToken) {
             // Dequantize src token 10 from original with original scale/zp
             float src_dequant = (key_data_orig[10 * head_size + d] - key_zps_orig[d]) * key_scales_orig[d];
 
-            EXPECT_NEAR(dst_dequant, src_dequant, 0.2f)
-                << "Key dequantized mismatch at head=" << h << ", dim=" << d;
+            EXPECT_NEAR(dst_dequant, src_dequant, 0.2f) << "Key dequantized mismatch at head=" << h << ", dim=" << d;
         }
     }
 
@@ -523,18 +522,15 @@ TEST(PaKVReorderKernelTest, QuantizedCacheKeyByChannelValueByToken) {
         float* src_scale = reinterpret_cast<float*>(src_token_ptr);
         float* src_zp = reinterpret_cast<float*>(src_token_ptr + sizeof(float));
 
-        EXPECT_FLOAT_EQ(*dst_scale, *src_scale)
-            << "Value scale mismatch at head=" << h;
-        EXPECT_FLOAT_EQ(*dst_zp, *src_zp)
-            << "Value zp mismatch at head=" << h;
+        EXPECT_FLOAT_EQ(*dst_scale, *src_scale) << "Value scale mismatch at head=" << h;
+        EXPECT_FLOAT_EQ(*dst_zp, *src_zp) << "Value zp mismatch at head=" << h;
 
         // Check quantized data copied correctly (uint8)
         uint8_t* dst_data = dst_token_ptr + 2 * sizeof(float);
         uint8_t* src_data = src_token_ptr + 2 * sizeof(float);
 
         for (size_t d = 0; d < head_size; d++) {
-            EXPECT_EQ(dst_data[d], src_data[d])
-                << "Value data mismatch at head=" << h << ", dim=" << d;
+            EXPECT_EQ(dst_data[d], src_data[d]) << "Value data mismatch at head=" << h << ", dim=" << d;
         }
     }
 }
