@@ -373,8 +373,13 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
     #else
     uint off_prefetch_b = hk * (KV_BLOCK_SIZE * HEAD_SIZE_KEY * (uint)sizeof(char));
     off_prefetch_b += offset;
+    #if (KV_CACHE_COMPRESSION == 2)
+    vector<uint, KEY_LINES_PER_LOAD> offsets_scale0 = (gather_offsets_b) * HEAD_SIZE * sizeof(half) + scale_offset0;
+    vector<uint, KEY_LINES_PER_LOAD> offsets_scale1 = offsets_scale0 + KEY_LINES_PER_LOAD * HEAD_SIZE * sizeof(half);
+    #else
     vector<uint, KEY_LINES_PER_LOAD> offsets_scale0 = (gather_offsets_b) * STRIDE * sizeof(half) + scale_offset0;
     vector<uint, KEY_LINES_PER_LOAD> offsets_scale1 = offsets_scale0 + KV_BLOCK_SIZE*2;
+    #endif
     #endif
 
     // N[:]xK[0:32]                                                     --> 16 * 1 regs
