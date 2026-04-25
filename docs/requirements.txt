@@ -4,11 +4,11 @@ attrs==26.1.0
 Babel==2.18.0
 beautifulsoup4==4.14.3
 breathe==4.36.0
-certifi==2026.2.25
+certifi==2026.4.22
 colorama==0.4.6
 Cython==3.2.4
 docutils==0.21.2
-idna==3.11
+idna==3.13
 imagesize==2.0.0
 importlib-metadata>=4.8.0,<10.0.0
 iniconfig==2.1.0
