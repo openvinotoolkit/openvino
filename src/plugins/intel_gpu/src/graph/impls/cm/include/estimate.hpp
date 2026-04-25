@@ -212,6 +212,8 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
 
     constexpr int SG_SIZE = details::get_dpas_execution_size((CmPrecisionType)9);    
     // constexpr int BLOCK_WG_K = 64;	// same in sg  // because unroll 4 times along K ??
+    // Only SUB_BLOCK_SIZE==STRIDE(16) supported: dec/load_scale_zp assume BLOCK_REG_K==SUB_BLOCK_SIZE.
+    static constexpr int NUM_SUB_BLOCKS = KV_BLOCK_SIZE / SUB_BLOCK_SIZE;
     constexpr int SUM_N = BLOCK_SG_N / (BLOCK_SIZE/STRIDE);
     // xehpg DPAS spec: dst: [8, 8], repeat: 1~8, depth: 8
     static constexpr int REPEAT = 8;
@@ -581,8 +583,8 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
         }
     };
 
-    uint zp_offset0 = scale_offset0 + 16 * HEAD_SIZE * sizeof(half);
-    uint zp_offset1 = scale_offset1 + 16 * HEAD_SIZE * sizeof(half);
+    uint zp_offset0 = scale_offset0 + NUM_SUB_BLOCKS * HEAD_SIZE * sizeof(half);
+    uint zp_offset1 = scale_offset1 + NUM_SUB_BLOCKS * HEAD_SIZE * sizeof(half);
     auto load_scale_zp = [&](uint channel_base) {
         uint scale_base0 = scale_offset0 + channel_base * sizeof(half);
         // Transpose 2D load max BlockW is 8 DWords; split BLOCK_REG_N into two halves
@@ -638,8 +640,8 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
         }
     };
 
-    uint zp_offset0 = scale_offset0 + 16 * HEAD_SIZE * sizeof(half);
-    uint zp_offset1 = scale_offset1 + 16 * HEAD_SIZE * sizeof(half);
+    uint zp_offset0 = scale_offset0 + NUM_SUB_BLOCKS * HEAD_SIZE * sizeof(half);
+    uint zp_offset1 = scale_offset1 + NUM_SUB_BLOCKS * HEAD_SIZE * sizeof(half);
     auto load_scale_zp = [&](uint channel_base) {
         matrix<half, KEY_LINES_PER_LOAD, BLOCK_REG_K> tmp_scale, tmp_zp;
         uint channel_base_bytes = channel_base * (uint)sizeof(half);
