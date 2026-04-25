@@ -125,7 +125,13 @@ public:
             m_binary_path = ov::test::utils::getModelFromTestModelZoo(
                 ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<1>(GetParam())}).string());
         }
-
+        if (!std::filesystem::exists(m_model_path)) {
+            GTEST_SKIP() << "Model file does not exist: " << m_model_path;
+        }
+        if (!m_binary_path.empty() && !std::filesystem::exists(m_binary_path)) {
+            GTEST_SKIP() << "Binary file does not exist: " << m_binary_path;
+        }
+        
         std::string filePrefix = ov::test::utils::generateTestFilePrefix();
         m_out_xml_path = filePrefix + ".xml";
         m_out_bin_path = filePrefix + ".bin";
