@@ -187,6 +187,30 @@ struct GELU {
     ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
 };
 
+/// GPT-OSS style batched MoE FFN matching NPUW's GPTOSSExpert + GPTOSSRouter patterns.
+/// All experts compute on all tokens via Tile + 3D batched MatMul (no NonZero).
+/// Weight function must produce a Multiply→Convert→MatMul chain (default: i4 CompressedWeight)
+/// for the isolation patterns to match.  Shared constants across layers enable repeating
+/// block detection.  Conforms to FFNFn for drop-in use in transformer layer templates.
+struct MoEFFN {
+    size_t hidden_size, intermediate_size, num_experts, num_experts_per_tok;
+    ov::element::Type precision;
+    WeightFn weight_fn;
+
+    /// Default weight_fn: CompressedWeight{i4, 0, SYMM_NO_ZP}.
+    MoEFFN(size_t hs, size_t is, size_t ne, size_t k, ov::element::Type prec, WeightFn wf = {});
+
+    ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
+
+private:
+    // Shared across layers for matchRepeatedSubgraphs (created once in ctor)
+    std::shared_ptr<ov::Node> tile_repeats, topk_k_const;
+    std::shared_ptr<ov::Node> slice_step, slice_axis2, slice_start_0, slice_stop_is, slice_start_is, slice_stop_2is;
+    std::shared_ptr<ov::Node> min_const, swish_beta, clamp_add_zero;
+    std::shared_ptr<ov::Node> sl_start, sl_step_r, sl_axes, scatter_axis;
+    std::shared_ptr<ov::Node> tp_order, unsq_axis, reduce_axis;
+};
+
 ov::Output<ov::Node> make_linear(const ov::Output<ov::Node>& input,
                                  size_t in_features,
                                  size_t out_features,
@@ -367,9 +391,8 @@ ov::Output<ov::Node> make_post_norm_layer(const ov::Output<ov::Node>& input,
     return normed2;
 }
 
-/// Unified config for all model types. build_model() dispatches on structural flags.
-/// NOTE: weight MUST be declared before lm_head_weight/norm/ffn (C++ member init order).
-struct ModelConfig {
+struct BaseModelConfig {
+    // Common parameters
     size_t hidden_size = 64;
     size_t num_heads = 4;
     size_t head_dim = 16;
@@ -377,16 +400,6 @@ struct ModelConfig {
     size_t intermediate_size = 256;
     size_t vocab_size = 1000;
     size_t num_layers = 10;
-
-    bool use_kv_cache = true;
-    bool use_inputs_embeds = false;
-    bool internal_position_ids = false;
-
-    // Structural flags — build_model() dispatches on these
-    bool use_conv_features = false;
-    bool use_cross_attention = false;
-    bool use_token_type_embedding = false;
-    bool pre_norm = true;
 
     ov::element::Type precision = ov::element::f32;
 
@@ -400,33 +413,49 @@ struct ModelConfig {
     ov::Output<ov::Node> position_ids;  ///< Empty = auto-creates 2D Parameter + HalfRotationRoPE
     NormFn qk_norm;
 
-    // Whisper-specific
-    size_t encoder_layers = 0;  ///< 0 = use num_layers
-    size_t decoder_layers = 0;  ///< 0 = use num_layers
-    size_t num_mel_bins = 80;
-    size_t max_source_positions = 1500;
-    size_t max_target_positions = 448;
+    BaseModelConfig() : lm_head_weight(weight) {}
 
-    // BERT/Encoder-specific
-    size_t max_position_embeddings = 512;
-    size_t type_vocab_size = 2;
-
-    ModelConfig()
-        : lm_head_weight(weight),
-          norm(LayerNorm(hidden_size, precision)),
-          ffn(SwiGLU(hidden_size, intermediate_size, precision, weight)) {}
+    virtual ~BaseModelConfig() = default;
 
     size_t get_kv_heads() const {
         return num_kv_heads == 0 ? num_heads : num_kv_heads;
     }
+};
+
+struct LLMConfig : public BaseModelConfig {
+    bool use_kv_cache = true;
+    bool use_inputs_embeds = false;
+    bool internal_position_ids = false;  ///< embedding model
+    bool pre_norm = true;
+
+    // MoE configuration (num_experts=0 means dense, no MoE)
+    size_t num_experts = 0;           ///< Total experts. 0 = dense model.
+    size_t num_experts_per_tok = 0;   ///< Top-K. 0 = default to 2.
+    size_t moe_intermediate_size = 0; ///< Expert FFN intermediate size. 0 = use intermediate_size.
+};
+
+struct WhisperConfig : public BaseModelConfig {
+    size_t encoder_layers = 0;
+    size_t decoder_layers = 0;
+    size_t num_mel_bins = 80;
+    size_t max_source_positions = 1500;
+    size_t max_target_positions = 448;
 
     size_t get_encoder_layers() const {
         return encoder_layers == 0 ? num_layers : encoder_layers;
     }
-
     size_t get_decoder_layers() const {
         return decoder_layers == 0 ? num_layers : decoder_layers;
     }
+    /// Encoder output sequence length after Conv1D preprocessing (stride=2 on 2*max_source_positions).
+    size_t get_encoder_seq_len() const {
+        return max_source_positions;
+    }
+};
+
+struct BertConfig : public BaseModelConfig {
+    size_t max_position_embeddings = 512;
+    size_t type_vocab_size = 2;
 };
 
 class ModelBuilder {
@@ -438,12 +467,23 @@ public:
     std::shared_ptr<ov::Model> get_model_without_repeated_blocks();
     std::shared_ptr<ov::Model> get_model_with_repeated_blocks(std::size_t repetitions);
     std::shared_ptr<ov::Model> get_model_with_repeated_blocks();
+    std::shared_ptr<ov::Model> get_model_with_repeated_blocks_with_weightless_cache(std::size_t repetitions);
+    std::shared_ptr<ov::Model> get_model_with_repeated_blocks_with_weightless_cache();
     std::shared_ptr<ov::Model> get_model_with_repeated_blocks_and_results(
         std::size_t repetitions,
         const std::vector<std::size_t>& block_indices);
     std::shared_ptr<ov::Model> get_model_with_repeated_blocks_and_parameters(
         std::size_t repetitions,
         const std::vector<std::size_t>& block_indices);
+    // Builds a model with N repeated blocks using a 4-op structure
+    // (Add→Relu→Multiply→Relu) where both Relu nodes share the same metadesc.
+    // "Head" blocks additionally expose their interior Relu via a cross-group MatMul.
+    // Because the interior and boundary Relu share the same metadesc, ALL blocks stay
+    // in one repeated-block family regardless of head/non-head status, allowing
+    // isRegularCrossGroupConsumerCase to detect the per-bank connectivity asymmetry.
+    std::shared_ptr<ov::Model> get_model_with_kv_sharing_repeated_blocks(
+        std::size_t repetitions,
+        const std::vector<std::size_t>& head_block_indices);
     std::shared_ptr<ov::Model> get_model_with_multi_output_repeating_blocks(std::size_t repetitions,
                                                                             bool last_block_has_direct_result);
 
@@ -451,19 +491,16 @@ public:
                                                      const ov::PartialShape& shape,
                                                      const std::string& name);
 
-    /// Unified entry point. Dispatches on config structural flags.
-    std::shared_ptr<ov::Model> build_model(const ModelConfig& config);
+    std::shared_ptr<ov::Model> build_llm(const LLMConfig& config);
+    std::shared_ptr<ov::Model> build_whisper_encoder(const WhisperConfig& config);
+    std::shared_ptr<ov::Model> build_whisper_decoder(const WhisperConfig& config);
+    std::shared_ptr<ov::Model> build_embedding_encoder(const BertConfig& config);
 
     void clear();
 
 private:
-    std::shared_ptr<ov::Model> build_llm(const ModelConfig& config);
-    std::shared_ptr<ov::Model> build_whisper_encoder(const ModelConfig& config);
-    std::shared_ptr<ov::Model> build_whisper_decoder(const ModelConfig& config);
-    std::shared_ptr<ov::Model> build_embedding_encoder(const ModelConfig& config);
-
     /// May auto-create HalfRotationRoPE on config.rope (hence non-const ref).
-    ov::Output<ov::Node> setup_position_ids(ModelConfig& config, const ov::Output<ov::Node>& seq_source);
+    ov::Output<ov::Node> setup_position_ids(LLMConfig& config, const ov::Output<ov::Node>& seq_source);
 
     std::shared_ptr<ov::Model> make_model(const ov::Output<ov::Node>& output,
                                           const std::string& result_name,

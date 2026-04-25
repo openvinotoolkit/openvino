@@ -4,16 +4,16 @@
 
 #include "input_model.hpp"
 
+#include <filesystem>
 #include <fstream>
-#if defined(__MINGW32__) || defined(__MINGW64__)
-#    include <filesystem>
-#endif
+#include <limits>
 #include <queue>
 
 #include "decoder_proto.hpp"
 #include "framework.pb.h"
 #include "input_model.hpp"
 #include "openvino/core/log_util.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "openvino/util/common_util.hpp"
@@ -29,8 +29,7 @@ using namespace ::paddle::framework::proto;
 
 class InputModel::InputModelImpl {
 public:
-    template <typename T>
-    InputModelImpl(const std::basic_string<T>& path,
+    InputModelImpl(const std::filesystem::path& path,
                    const InputModel& input_model,
                    const std::shared_ptr<TelemetryExtension>& telemetry);
     InputModelImpl(const std::vector<std::istream*>& streams,
@@ -61,8 +60,7 @@ public:
 
 private:
     void load_places();
-    template <typename T>
-    void load_consts(const std::basic_string<T>& folder_with_weights);
+    void load_consts(const std::filesystem::path& folder_with_weights);
     void load_consts(std::istream* weight_stream);
     void create_temp_consts();
     std::vector<std::shared_ptr<OpPlace>> determine_cut_nodes() const;
@@ -160,71 +158,51 @@ void InputModel::InputModelImpl::load_places() {
 
 namespace {
 bool read_tensor(std::istream& is, char* data, size_t len) {
-    is.read(data, len);
-    return (size_t)is.gcount() == len;
+    if (len == 0) {
+        return true;
+    }
+    if (len > static_cast<size_t>(std::numeric_limits<std::streamsize>::max())) {
+        return false;
+    }
+    is.read(data, static_cast<std::streamsize>(len));
+    return is && (size_t)is.gcount() == len;
 }
 
-template <typename T>
-std::basic_string<T> get_const_path(const std::basic_string<T>& folder_with_weights, const std::string& name) {
-    return folder_with_weights + paddle::get_path_sep<T>() + name;
+constexpr size_t kMaxTensorDescSize = 64 * 1024 * 1024;
+
+template <typename DimsT>
+ov::Shape make_shape_checked(const DimsT& dims) {
+    ov::Shape shape;
+    shape.reserve(dims.size());
+    for (const auto& dim : dims) {
+        FRONT_END_GENERAL_CHECK(dim >= 0, "Negative dimension in Paddle weight tensor.");
+        FRONT_END_GENERAL_CHECK(static_cast<unsigned long long>(dim) <= std::numeric_limits<size_t>::max(),
+                                "Dimension is too large for size_t in Paddle weight tensor.");
+        shape.push_back(static_cast<size_t>(dim));
+    }
+    return shape;
 }
 
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-template <>
-std::basic_string<wchar_t> get_const_path(const std::basic_string<wchar_t>& folder, const std::string& name) {
-    return folder + paddle::get_path_sep<wchar_t>() + ov::util::string_to_wstring(name);
-}
-#endif
-
-template <typename T>
-bool is_pdmodel(const std::basic_string<T>& path) {
-    std::string ext = ".pdmodel";
-    return ov::util::ends_with(path, ext);
+std::filesystem::path get_const_path(const std::filesystem::path& folder_with_weights, const std::string& name) {
+    return folder_with_weights / ov::util::make_path(name);
 }
 
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-template <>
-bool is_pdmodel(const std::basic_string<wchar_t>& path) {
-    std::wstring ext = L".pdmodel";
-    return ov::util::ends_with(path, ext);
+bool is_pdmodel(const std::filesystem::path& path) {
+    return path.extension() == ".pdmodel";
 }
-#endif
 
-template <typename T>
-std::basic_string<T> get_model_path(const std::basic_string<T>& path, std::ifstream* weights_stream) {
-    std::string model_file{path};
-    std::string ext = ".pdmodel";
-    if (ov::util::ends_with(model_file, ext)) {
-        std::string params_ext = ".pdiparams";
-        std::string weights_file{path};
-        weights_file.replace(weights_file.size() - ext.size(), ext.size(), params_ext);
+std::filesystem::path get_model_path(std::filesystem::path model_file, std::ifstream* weights_stream) {
+    if (is_pdmodel(model_file)) {
+        auto weights_file = model_file;
+        weights_file.replace_extension(".pdiparams");
         weights_stream->open(weights_file, std::ios::binary);
         // Don't throw error if file isn't opened
         // It may mean that model don't have constants
     } else {
-        model_file += paddle::get_path_sep<T>() + "__model__";
+        model_file = model_file / "__model__";
     }
     return model_file;
 }
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-template <>
-std::basic_string<wchar_t> get_model_path(const std::basic_string<wchar_t>& path, std::ifstream* weights_stream) {
-    std::wstring model_file{path};
-    std::wstring ext = L".pdmodel";
-    if (ov::util::ends_with(model_file, ext)) {
-        std::wstring params_ext = L".pdiparams";
-        std::wstring weights_file{path};
-        weights_file.replace(weights_file.size() - ext.size(), ext.size(), params_ext);
-        weights_stream->open(weights_file.c_str(), std::ios::binary);
-        // Don't throw error if file isn't opened
-        // It may mean that model don't have constants
-    } else {
-        model_file += paddle::get_path_sep<wchar_t>() + L"__model__";
-    }
-    return model_file;
-}
-#endif
 }  // namespace
 
 std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelImpl::get_op_places(const int32_t blck_idx) const {
@@ -276,8 +254,7 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelImpl::determine_cut_
 }
 
 // load_consts with folder is compatible with old PaddlePaddle API.
-template <typename T>
-void InputModel::InputModelImpl::load_consts(const std::basic_string<T>& folder_with_weights) {
+void InputModel::InputModelImpl::load_consts(const std::filesystem::path& folder_with_weights) {
     for (const auto& item : m_var_places) {
         const auto& var_desc = item.second->get_desc();
         const auto& name = item.first;
@@ -288,29 +265,32 @@ void InputModel::InputModelImpl::load_consts(const std::basic_string<T>& folder_
 
         FRONT_END_GENERAL_CHECK(var_desc.type().type() == ::paddle::framework::proto::VarType::LOD_TENSOR);
         const auto& tensor = var_desc.type().lod_tensor().tensor();
-        Shape shape(tensor.dims().cbegin(), tensor.dims().cend());
+        Shape shape = make_shape_checked(tensor.dims());
         const auto& type = get_ov_type(tensor.data_type());
-        const auto& data_length = shape_size(shape) * type.size();
-        std::vector<uint8_t> tensor_data(data_length);
+        auto data_length = ov::util::get_memory_size_safe(type, shape);
+        FRONT_END_GENERAL_CHECK(data_length, "Weight tensor size overflow for constant ", name, ".");
+        std::vector<uint8_t> tensor_data(*data_length);
 
         bool read_succeed = false;
         if (!folder_with_weights.empty()) {
-#if defined(__MINGW32__) || defined(__MINGW64__)
-            std::ifstream is(std::filesystem::path(get_const_path(folder_with_weights, name)),
-                             std::ios::in | std::ifstream::binary);
-#else
             std::ifstream is(get_const_path(folder_with_weights, name), std::ios::in | std::ifstream::binary);
-#endif
             FRONT_END_GENERAL_CHECK(is && is.is_open(), "Cannot open file for constant value.");
             const size_t header_size = 16;
             std::vector<char> header(header_size);
-            is.read(&header[0], header_size);
+            FRONT_END_GENERAL_CHECK(is.read(&header[0], header_size), "Failed to read constant header for ", name, ".");
 
             uint32_t dims_len = 0;
-            is.read(reinterpret_cast<char*>(&dims_len), 4);
+            FRONT_END_GENERAL_CHECK(is.read(reinterpret_cast<char*>(&dims_len), sizeof(dims_len)),
+                                    "Failed to read dims length for ",
+                                    name,
+                                    ".");
+            FRONT_END_GENERAL_CHECK(dims_len <= kMaxTensorDescSize, "Dims struct size too large for ", name, ".");
             std::vector<char> dims_struct(dims_len);
-            is.read(&dims_struct[0], dims_len);
-            read_succeed = read_tensor(is, reinterpret_cast<char*>(&tensor_data[0]), data_length);
+            FRONT_END_GENERAL_CHECK(is.read(dims_struct.data(), dims_len),
+                                    "Failed to read dims struct for ",
+                                    name,
+                                    ".");
+            read_succeed = read_tensor(is, reinterpret_cast<char*>(tensor_data.data()), *data_length);
         } else {
             FRONT_END_GENERAL_CHECK(false, "Folder with weights must be provided.");
         }
@@ -318,7 +298,7 @@ void InputModel::InputModelImpl::load_consts(const std::basic_string<T>& folder_
                                 "File containing constant with name ",
                                 name,
                                 " wasn't successfully read.");
-        auto const_node = opset7::Constant::create(type, shape, &tensor_data[0]);
+        auto const_node = opset7::Constant::create(type, shape, tensor_data.data());
         const_node->set_friendly_name(name);
         m_tensor_values[name] = const_node;
     }
@@ -353,30 +333,47 @@ void InputModel::InputModelImpl::load_consts(std::istream* weight_stream) {
         {
             const size_t header_size = 16;
             std::vector<char> header(header_size);
-            weight_stream->read(&header[0], header_size);
+            FRONT_END_GENERAL_CHECK(weight_stream->read(&header[0], header_size),
+                                    "Failed to read weight header for ",
+                                    name,
+                                    ".");
         }
 
         int32_t size;
-        weight_stream->read(reinterpret_cast<char*>(&size), sizeof(size));
+        FRONT_END_GENERAL_CHECK(weight_stream->read(reinterpret_cast<char*>(&size), sizeof(size)),
+                                "Failed to read TensorDesc size for ",
+                                name,
+                                ".");
+        FRONT_END_GENERAL_CHECK(size > 0 && static_cast<size_t>(size) <= kMaxTensorDescSize,
+                                "TensorDesc size is invalid for ",
+                                name,
+                                ".");
 
-        std::unique_ptr<char[]> buf(new char[size]);
-        weight_stream->read(reinterpret_cast<char*>(buf.get()), size);
+        std::vector<char> buf(static_cast<size_t>(size));
+        FRONT_END_GENERAL_CHECK(weight_stream->read(buf.data(), size),
+                                "Failed to read TensorDesc data for ",
+                                name,
+                                ".");
 
         std::unique_ptr<::paddle::framework::proto::VarType_TensorDesc> tensor_desc(
             new ::paddle::framework::proto::VarType_TensorDesc());
-        tensor_desc->ParseFromArray(buf.get(), size);
-        Shape shape(tensor_desc->dims().cbegin(), tensor_desc->dims().cend());
+        FRONT_END_GENERAL_CHECK(tensor_desc->ParseFromArray(buf.data(), size),
+                                "Failed to parse TensorDesc for ",
+                                name,
+                                ".");
+        Shape shape = make_shape_checked(tensor_desc->dims());
         const auto& type = get_ov_type(tensor_desc->data_type());
-        const auto& data_length = shape_size(shape) * type.size();
-        std::vector<uint8_t> tensor_data(data_length);
+        auto data_length = ov::util::get_memory_size_safe(type, shape);
+        FRONT_END_GENERAL_CHECK(data_length, "Weight tensor size overflow for constant ", name, ".");
+        std::vector<uint8_t> tensor_data(*data_length);
 
-        bool read_succeed = read_tensor(*weight_stream, reinterpret_cast<char*>(&tensor_data[0]), data_length);
+        bool read_succeed = read_tensor(*weight_stream, reinterpret_cast<char*>(tensor_data.data()), *data_length);
         FRONT_END_GENERAL_CHECK(read_succeed,
                                 "File containing constant with name ",
                                 name,
                                 " wasn't successfully read.");
 
-        auto const_node = opset7::Constant::create(type, shape, &tensor_data[0]);
+        auto const_node = opset7::Constant::create(type, shape, tensor_data.data());
         const_node->set_friendly_name(name);
         m_tensor_values[name] = const_node;
     }
@@ -390,20 +387,16 @@ void InputModel::InputModelImpl::load_consts(std::istream* weight_stream) {
              read *.pdmodel as model stream.
              read *.pdiparam as weight stream.
 */
-template <typename T>
-InputModel::InputModelImpl::InputModelImpl(const std::basic_string<T>& path,
+InputModel::InputModelImpl::InputModelImpl(const std::filesystem::path& path,
                                            const InputModel& input_model,
                                            const std::shared_ptr<TelemetryExtension>& telemetry)
     : m_fw_ptr{std::make_shared<ProgramDesc>()},
       m_input_model(input_model),
       m_telemetry(telemetry) {
     std::ifstream weights_stream;
-    std::ifstream pb_stream(get_model_path<T>(path, &weights_stream).c_str(), std::ios::in | std::ifstream::binary);
+    std::ifstream pb_stream(get_model_path(path, &weights_stream), std::ios::in | std::ifstream::binary);
 
-    FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(),
-                            "Could not open the file: \"",
-                            util::path_to_string(path),
-                            '"');
+    FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Could not open the file: ", path);
     FRONT_END_GENERAL_CHECK(m_fw_ptr->ParseFromIstream(&pb_stream), "Model can't be parsed");
     // According to Paddle, the saved model has the framework version
     // For example Paddle 2.1.0 is encoded as 2001000. 0 means the latest framework.
@@ -577,13 +570,8 @@ void InputModel::InputModelImpl::set_tensor_value(Place::Ptr place, const void* 
     m_tensor_values[name] = constant;
 }
 
-InputModel::InputModel(const std::string& path, const std::shared_ptr<TelemetryExtension>& telemetry)
+InputModel::InputModel(const std::filesystem::path& path, const std::shared_ptr<TelemetryExtension>& telemetry)
     : _impl{std::make_shared<InputModelImpl>(path, *this, telemetry)} {}
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-InputModel::InputModel(const std::wstring& path, const std::shared_ptr<TelemetryExtension>& telemetry)
-    : _impl{std::make_shared<InputModelImpl>(path, *this, telemetry)} {}
-#endif
 
 InputModel::InputModel(const std::vector<std::istream*>& streams, const std::shared_ptr<TelemetryExtension>& telemetry)
     : _impl{std::make_shared<InputModelImpl>(streams, *this, telemetry)} {}

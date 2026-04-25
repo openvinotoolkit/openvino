@@ -10,19 +10,18 @@
 
 using namespace ov::frontend::tensorflow_lite;
 
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
-GraphIteratorFlatBuffer::GraphIteratorFlatBuffer(const std::wstring& path)
-    : GraphIteratorFlatBuffer(ov::util::wstring_to_string(path)) {}
-
-#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
-GraphIteratorFlatBuffer::GraphIteratorFlatBuffer(const std::string& path) {
+GraphIteratorFlatBuffer::GraphIteratorFlatBuffer(const std::filesystem::path& path) {
     std::ifstream model_file(path, std::ios::binary | std::ios::in);
     FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Model file does not exist: ", path);
 
     m_data = {(std::istreambuf_iterator<char>(model_file)), std::istreambuf_iterator<char>()};
     model_file.close();
+
+    flatbuffers::Verifier verifier(m_data.data(), m_data.size());
+    FRONT_END_GENERAL_CHECK(tflite::VerifyModelBuffer(verifier),
+                            "TensorFlow Lite Frontend: the model file ",
+                            path,
+                            " is corrupted or malformed (FlatBuffer verification failed).");
 
     m_model = tflite::GetModel(m_data.data());
     FRONT_END_GENERAL_CHECK(m_model != nullptr, "Failed to parse TFLite model from file: ", path);
@@ -170,15 +169,3 @@ std::shared_ptr<DecoderBase> GraphIteratorFlatBuffer::get_decoder() const {
         return std::make_shared<DecoderFlatBufferTensors>(info, input_idx, output_idx);
     }
 }
-
-template <>
-std::basic_string<char> ov::frontend::tensorflow_lite::get_model_extension<char>() {
-    return ::tflite::ModelExtension();
-}
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-template <>
-std::basic_string<wchar_t> ov::frontend::tensorflow_lite::get_model_extension<wchar_t>() {
-    return util::string_to_wstring(::tflite::ModelExtension());
-}
-#endif

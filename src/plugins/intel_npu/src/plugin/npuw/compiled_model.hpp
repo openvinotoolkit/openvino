@@ -39,6 +39,34 @@ public:
     ICompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin);
 };
 
+// Minimum interface consumed by LLMCompiledModel from its sub-compiled models
+// (prefill / generate variants / lm_head). CompiledModel implements this in
+// production; tests can inject a lightweight mock that only overrides what it
+// actually needs.
+class ICompiledModel_v0 : public ov::npuw::ICompiledModel {
+public:
+    ICompiledModel_v0(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin)
+        : ov::npuw::ICompiledModel(model, plugin) {}
+
+    // Infer-request lifecycle
+    virtual std::shared_ptr<IBaseInferRequest> create_base_infer_request() const = 0;
+    virtual std::shared_ptr<ov::IAsyncInferRequest> wrap_async_infer_request(
+        std::shared_ptr<IBaseInferRequest> internal_request) const = 0;
+    virtual std::string submodel_device(std::size_t idx) const = 0;
+    virtual std::size_t num_submodels() const = 0;
+
+    // Weights-bank management (model sharing / weightless serialization)
+    virtual std::shared_ptr<weights::Bank> get_weights_bank() const = 0;
+    virtual void set_weights_bank(std::shared_ptr<weights::Bank> bank) = 0;
+    virtual void finalize_weights_bank() = 0;
+    virtual void reconstruct_closure() = 0;
+
+    // Serialization
+    virtual void serialize(std::ostream& stream, const s11n::CompiledContext& ctx) const = 0;
+
+    virtual ~ICompiledModel_v0() = default;
+};
+
 // Forward declarations
 class InferRequest;
 
@@ -46,7 +74,7 @@ namespace moe {
 class MoEExecutor;
 }
 
-class CompiledModel : public ov::npuw::ICompiledModel {
+class CompiledModel : public ov::npuw::ICompiledModel_v0 {
     using DevList = std::vector<std::string>;
     using GetPropertiesMap =
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
@@ -73,6 +101,18 @@ public:
     // Custom destructor to wait for Delayed
     ~CompiledModel();
 
+    // ICompiledModel_v0 overrides
+    std::shared_ptr<IBaseInferRequest> create_base_infer_request() const override;
+    std::shared_ptr<ov::IAsyncInferRequest> wrap_async_infer_request(
+        std::shared_ptr<IBaseInferRequest> internal_request) const override;
+    std::string submodel_device(std::size_t idx) const override;
+    std::size_t num_submodels() const override;
+    std::shared_ptr<weights::Bank> get_weights_bank() const override;
+    void set_weights_bank(std::shared_ptr<weights::Bank> bank) override;
+    void finalize_weights_bank() override;
+    void reconstruct_closure() override;
+    void serialize(std::ostream& stream, const s11n::CompiledContext& ctx) const override;
+
 private:
     // FIXME: This class has many friends..
     friend class IBaseInferRequest;
@@ -84,14 +124,9 @@ private:
     friend class LLMInferRequest;
     friend class moe::MoEExecutor;
 
-    bool compile_for_success(std::size_t id);
-    bool compile_for_device(std::size_t id, const std::string& device_to_try);
+    bool compile_for_success(std::size_t id, const std::vector<std::string>& devices);
     ov::SoPtr<ov::ICompiledModel> compile_submodel(const std::shared_ptr<ov::Model>& submodel,
                                                    const std::string& device);
-    void compile_main_model(std::size_t id, const std::string& device);
-    void compile_moe_models(std::size_t id, const std::string& device);
-    void compile_pyramid_attention_models(std::size_t id, const std::string& device);
-    void compile_host_flash_attention_model(std::size_t id, const std::string& device);
 
     void dump_on_fail(std::size_t id, const std::string& device_to_stry, const char* extra);
     std::string format_subgraph_name(std::size_t id, const std::string& funcall) const;
@@ -100,7 +135,6 @@ private:
 
     void report_io() const;
 
-    void serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& ctx) const;
     static std::shared_ptr<CompiledModel> deserialize(std::istream& stream,
                                                       const std::shared_ptr<const ov::IPlugin>& plugin,
                                                       const ov::AnyMap& properties,
@@ -115,12 +149,8 @@ private:
     std::shared_ptr<const ::intel_npu::Plugin> get_npuw_plugin() const;
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
-    // API for easily create and manage NPUW infer-requests
-    std::shared_ptr<ov::npuw::IBaseInferRequest> create_base_infer_request() const;
-    std::shared_ptr<ov::IAsyncInferRequest> wrap_async_infer_request(
-        std::shared_ptr<ov::npuw::IBaseInferRequest> internal_request) const;
+    // API for easily create and manage NPUW infer-requests (promoted to ICompiledModel_v0)
 
-    std::string submodel_device(const std::size_t idx) const;
     bool is_gather_closure(const std::size_t idx, const std::size_t cidx) const;
     bool unpack_required(const std::size_t idx) const;
     bool unpack_required(const std::size_t idx, const std::size_t cidx) const;
@@ -130,12 +160,11 @@ private:
 
     bool should_use_quantized_host_gather(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties) const;
 
-    // For full deserialization flow with weights
-    void reconstruct_closure();
+    // For full deserialization flow with weights (promoted to ICompiledModel_v0)
     // For weightless serialization flow
     void store_const_offsets(const std::shared_ptr<ov::Model>& model);
 
-    void finalize_weights_bank();
+    // finalize_weights_bank() promoted to ICompiledModel_v0
     void detach_memory();
     std::string global_mem_device() const;
     std::string funcall_mem_device(const std::size_t idx) const;
@@ -183,7 +212,6 @@ private:
     void init_profiling();
 
     struct CompiledModelDesc {
-        DevList::const_iterator device_it;
         std::set<std::string> devices_to_avoid;
         std::shared_ptr<ov::Model> model;
         ov::SoPtr<ov::ICompiledModel> compiled_model;
@@ -251,17 +279,12 @@ private:
 
         bool forced_to_fcall = false;
 
-        // FIXME: Take it out of structure
-        ov::SoPtr<ov::ICompiledModel> ref_compiled_model;
-        bool switched_to_ref = false;
-
         // Metrics
         execution_stats stat;
 
-        void serialize(std::ostream& stream, const ov::npuw::s11n::WeightsContext& ctx) const;
-        void deserialize(std::istream& stream,
-                         const ov::npuw::s11n::WeightsContext& ctx,
-                         const ov::npuw::s11n::SubmodelDeserializeCtx& submodel_ctx);
+        void serialize(ov::npuw::s11n::Stream& stream,
+                       const ov::npuw::s11n::WeightsContext& ctx,
+                       const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx = nullptr);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 

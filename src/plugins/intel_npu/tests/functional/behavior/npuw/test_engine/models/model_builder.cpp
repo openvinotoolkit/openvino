@@ -5,8 +5,10 @@
 #include "model_builder.hpp"
 
 #include <algorithm>
+#include <limits>
 #include <unordered_map>
 
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/read_value.hpp"
@@ -18,6 +20,21 @@
 namespace ov {
 namespace test {
 namespace npuw {
+
+namespace {
+void annotate_constants_with_weightless_cache(const std::shared_ptr<ov::Model>& model) {
+    std::size_t offset = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (!ov::op::util::is_constant(node)) {
+            continue;
+        }
+        const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node);
+        c->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+            ov::WeightlessCacheAttribute(c->get_byte_size(), offset, c->get_element_type());
+        offset += c->get_byte_size();
+    }
+}
+}  // namespace
 
 // Named constants for magic values used throughout model construction.
 constexpr float kRoPEBaseFrequency = 10000.0f;
@@ -74,9 +91,14 @@ ov::Output<ov::Node> FloatWeight::operator()(const std::string& name,
 ov::Output<ov::Node> CompressedWeight::operator()(const std::string& name,
                                                   const ov::Shape& shape,
                                                   ov::element::Type compute_precision) const {
-    OPENVINO_ASSERT(shape.size() == 2, "CompressedWeight expects 2D shape, got ", shape.size(), "D");
-    const size_t rows = shape[0];
-    const size_t cols = shape[1];
+    OPENVINO_ASSERT(shape.size() == 2 || shape.size() == 3,
+                    "CompressedWeight expects 2D or 3D shape, got ", shape.size(), "D");
+    // 3D [batch, rows, cols]: batched expert weights (MoE).
+    // 2D [rows, cols]: standard linear projection.
+    const bool is_3d = (shape.size() == 3);
+    const size_t batch = is_3d ? shape[0] : 1;
+    const size_t rows = is_3d ? shape[1] : shape[0];
+    const size_t cols = is_3d ? shape[2] : shape[1];
 
     // --- Validate pattern constraints ---
     const bool has_zp =
@@ -98,6 +120,9 @@ ov::Output<ov::Node> CompressedWeight::operator()(const std::string& name,
         hi = 7;
     } else if (storage_type == ov::element::u4) {
         lo = 1;
+        hi = 15;
+    } else if (storage_type == ov::element::nf4) {
+        lo = 0;
         hi = 15;
     } else {
         lo = -100;
@@ -130,12 +155,18 @@ ov::Output<ov::Node> CompressedWeight::operator()(const std::string& name,
                         " requires group_size > 0 (no per-channel DCOFF pass exists)");
     }
 
-    // Weight shape: 3D [rows, num_groups, group_size] for group quant, 2D [rows, cols]
-    // for per-channel.  DCOFF patterns expect the weight Parameter to already be in the
-    // correct shape — no leading Reshape is recognized.
-    const ov::Shape weight_shape = has_groups ? ov::Shape{rows, num_groups, group_size} : ov::Shape{rows, cols};
+    // Weight shape includes batch dim for 3D (MoE batched experts).
+    // Group quant adds an extra group dim inside each [rows, cols] slice.
+    ov::Shape weight_shape;
+    if (is_3d) {
+        weight_shape = has_groups ? ov::Shape{batch, rows, num_groups, group_size}
+                                 : ov::Shape{batch, rows, cols};
+    } else {
+        weight_shape = has_groups ? ov::Shape{rows, num_groups, group_size}
+                                 : ov::Shape{rows, cols};
+    }
     uint32_t w_state = seed_from_name(name);
-    std::vector<int8_t> w_data(rows * cols);
+    std::vector<int8_t> w_data(batch * rows * cols);
     for (size_t i = 0; i < w_data.size(); ++i) {
         uint32_t r = xorshift32(w_state);
         int val = static_cast<int>(lo) + static_cast<int>(r % static_cast<uint32_t>(hi - lo + 1));
@@ -146,15 +177,21 @@ ov::Output<ov::Node> CompressedWeight::operator()(const std::string& name,
 
     ov::Output<ov::Node> decomp_input = weight->output(0);
 
-    // --- Convert weight to decomp element type ---
-    auto convert = std::make_shared<ov::opset11::Convert>(decomp_input, decomp_et);
-    convert->set_friendly_name(name + "_convert");
-
-    ov::Output<ov::Node> multiply_input = convert->output(0);
+    // --- Convert weight to decomp element type (skip if already matching) ---
+    ov::Output<ov::Node> multiply_input;
+    if (storage_type != decomp_et) {
+        auto convert = std::make_shared<ov::opset11::Convert>(decomp_input, decomp_et);
+        convert->set_friendly_name(name + "_convert");
+        multiply_input = convert->output(0);
+    } else {
+        multiply_input = decomp_input;
+    }
 
     // --- Zero-point subtraction (SYMM_ZP, GPTQ, ASYMM_ZP) ---
     if (has_zp) {
-        const ov::Shape zp_shape = has_groups ? ov::Shape{rows, num_groups, 1} : ov::Shape{rows, 1};
+        // ZP shape: always 2D (same reasoning as scale — MoE executor doesn't slice ZP)
+        ov::Shape zp_shape;
+        zp_shape = has_groups ? ov::Shape{rows, num_groups, 1} : ov::Shape{rows, 1};
         const size_t zp_count = has_groups ? rows * num_groups : rows;
         const int mid = (static_cast<int>(lo) + static_cast<int>(hi)) / 2;
 
@@ -165,7 +202,7 @@ ov::Output<ov::Node> CompressedWeight::operator()(const std::string& name,
             auto zp_const = ov::opset11::Constant::create(ov::element::f32, zp_shape, zp_f32);
             zp_const->set_friendly_name(name + "_zp");
 
-            auto subtract = std::make_shared<ov::opset11::Subtract>(convert, zp_const);
+            auto subtract = std::make_shared<ov::opset11::Subtract>(multiply_input, zp_const);
             subtract->set_friendly_name(name + "_subtract");
             multiply_input = subtract->output(0);
 
@@ -179,7 +216,7 @@ ov::Output<ov::Node> CompressedWeight::operator()(const std::string& name,
             auto zp_convert = std::make_shared<ov::opset11::Convert>(zp_const, ov::element::f16);
             zp_convert->set_friendly_name(name + "_zp_convert");
 
-            auto subtract = std::make_shared<ov::opset11::Subtract>(convert, zp_convert);
+            auto subtract = std::make_shared<ov::opset11::Subtract>(multiply_input, zp_convert);
             subtract->set_friendly_name(name + "_subtract");
             multiply_input = subtract->output(0);
 
@@ -200,17 +237,24 @@ ov::Output<ov::Node> CompressedWeight::operator()(const std::string& name,
             auto zp_convert = std::make_shared<ov::opset11::Convert>(zp_const, ov::element::f16);
             zp_convert->set_friendly_name(name + "_zp_convert");
 
-            auto subtract = std::make_shared<ov::opset11::Subtract>(convert, zp_convert);
+            auto subtract = std::make_shared<ov::opset11::Subtract>(multiply_input, zp_convert);
             subtract->set_friendly_name(name + "_subtract");
             multiply_input = subtract->output(0);
         }
     }
 
-    // --- Scale: per-group [rows, num_groups, 1] or per-channel [rows, 1] ---
+    // --- Scale: per-group or per-channel, with optional batch dim ---
     // Magnitude kept small (scale_range ≈ 1/hi) so decompressed values stay moderate
     // (roughly ±1), preventing hidden state overflow.
-    const ov::Shape scale_shape = has_groups ? ov::Shape{rows, num_groups, 1} : ov::Shape{rows, 1};
-    const size_t scale_count = has_groups ? rows * num_groups : rows;
+    // 3D batched weights (MoE) use 3D scale [batch, rows, 1] so DEVICE_ROUTED transform
+    // can identify the expert dimension (shape[0] == num_experts).
+    ov::Shape scale_shape;
+    if (is_3d) {
+        scale_shape = has_groups ? ov::Shape{batch, rows, num_groups, 1} : ov::Shape{batch, rows, 1};
+    } else {
+        scale_shape = has_groups ? ov::Shape{rows, num_groups, 1} : ov::Shape{rows, 1};
+    }
+    const size_t scale_count = batch * (has_groups ? rows * num_groups : rows);
     const float scale_range = 1.0f / static_cast<float>(hi);
     uint32_t s_state = seed_from_name(name + "_scale");
     std::vector<float> scale_data(scale_count);
@@ -226,12 +270,15 @@ ov::Output<ov::Node> CompressedWeight::operator()(const std::string& name,
 
     ov::Output<ov::Node> decompressed = scaled->output(0);
 
-    // --- Group quant: Reshape 3D → 2D [rows, cols] ---
+    // --- Group quant: collapse group dims back to original shape ---
     if (has_groups) {
-        auto out_shape =
-            ov::opset11::Constant::create(ov::element::i64,
-                                          ov::Shape{2},
-                                          std::vector<int64_t>{static_cast<int64_t>(rows), static_cast<int64_t>(cols)});
+        std::vector<int64_t> out_dims;
+        if (is_3d)
+            out_dims = {static_cast<int64_t>(batch), static_cast<int64_t>(rows), static_cast<int64_t>(cols)};
+        else
+            out_dims = {static_cast<int64_t>(rows), static_cast<int64_t>(cols)};
+        auto out_shape = ov::opset11::Constant::create(
+            ov::element::i64, ov::Shape{out_dims.size()}, out_dims);
         auto reshaped = std::make_shared<ov::opset11::Reshape>(decompressed, out_shape, false);
         reshaped->set_friendly_name(name + "_reshape");
         decompressed = reshaped->output(0);
@@ -808,6 +855,154 @@ ov::Output<ov::Node> GELU::operator()(const ov::Output<ov::Node>& input, const s
     return down;
 }
 
+MoEFFN::MoEFFN(size_t hs, size_t is, size_t ne, size_t k,
+                                         ov::element::Type prec, WeightFn wf)
+    : hidden_size(hs), intermediate_size(is), num_experts(ne), num_experts_per_tok(k),
+      precision(prec), weight_fn(std::move(wf)) {
+    // Default to i4 CompressedWeight if no weight function provided.
+    // i4 (not nf4) because NPUW's nf4 unpack doesn't handle 3D batched scales.
+    if (!weight_fn) {
+        weight_fn = CompressedWeight{ov::element::i4, 0, DCOffPattern::SYMM_NO_ZP};
+    }
+    using C = ov::opset11::Constant;
+    int32_t is_i = static_cast<int32_t>(is);
+    int32_t ne_i = static_cast<int32_t>(ne);
+    int32_t k_i = static_cast<int32_t>(k);
+
+    // Use i32 for shape/axis/step constants matching real GPT-OSS HuggingFace export.
+    tile_repeats = C::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{ne_i, 1});
+    slice_step = C::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{1});
+    slice_axis2 = C::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{2});
+    slice_start_0 = C::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{0});
+    slice_stop_is = C::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{is_i});
+    slice_start_is = C::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{is_i});
+    slice_stop_2is = C::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{static_cast<int32_t>(2 * is_i)});
+    min_const = C::create(prec, ov::Shape{1}, std::vector<float>{20.0f});
+    swish_beta = C::create(prec, ov::Shape{}, std::vector<float>{1.0f});
+    clamp_add_zero = C::create(prec, ov::Shape{1}, std::vector<float>{0.0f});
+    topk_k_const = C::create(ov::element::i32, ov::Shape{}, std::vector<int32_t>{k_i});
+    sl_start = C::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{0, 0});
+    sl_step_r = C::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{1, 1});
+    sl_axes = C::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{0, 1});
+    scatter_axis = C::create(ov::element::i32, ov::Shape{}, std::vector<int32_t>{1});
+    tp_order = C::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{1, 0});
+    unsq_axis = C::create(ov::element::i32, ov::Shape{}, std::vector<int32_t>{3});
+    reduce_axis = C::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{0});
+}
+
+ov::Output<ov::Node> MoEFFN::operator()(const ov::Output<ov::Node>& input,
+                                                      const std::string& name) const {
+    using C = ov::opset11::Constant;
+    const auto prec = precision;
+    const int32_t ne_i = static_cast<int32_t>(num_experts);
+    const int32_t hs_i = static_cast<int32_t>(hidden_size);
+    auto mk = [](std::vector<int32_t> v) {
+        ov::OutputVector p;
+        for (auto x : v)
+            p.push_back(C::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{x})->output(0));
+        return std::make_shared<ov::opset11::Concat>(p, 0);
+    };
+
+    auto original_shape = std::make_shared<ov::opset11::ShapeOf>(input, ov::element::i32);
+    original_shape->set_friendly_name(name + ".original_shape");
+
+    auto input_2d = std::make_shared<ov::opset11::Reshape>(input, mk({-1, hs_i}), false);
+    input_2d->set_friendly_name(name + ".input_2d");
+
+    // Router uses i8 weights matching real GPT-OSS two-pass quantization
+    // (router excluded from 4-bit, gets 8-bit instead).
+    static const CompressedWeight router_wt{ov::element::i8, 0, DCOffPattern::SYMM_NO_ZP};
+    auto rw = router_wt(name + ".expert.router.weight", ov::Shape{num_experts, hidden_size}, prec);
+    auto r_mm = std::make_shared<ov::opset11::MatMul>(input_2d, rw, false, true);
+    r_mm->set_friendly_name(name + ".expert.router.matmul");
+    auto r_bias = C::create(prec, ov::Shape{1, num_experts}, std::vector<float>(num_experts, 0.0f));
+    r_bias->set_friendly_name(name + ".expert.router.bias");
+    auto r_add = std::make_shared<ov::opset11::Add>(r_mm, r_bias);
+    r_add->set_friendly_name(name + ".expert.router.add");
+
+    auto topk = std::make_shared<ov::opset11::TopK>(r_add, topk_k_const, 1, "max", "value", ov::element::i64);
+    topk->set_friendly_name(name + ".expert.router.topk");
+    auto softmax = std::make_shared<ov::op::v8::Softmax>(topk->output(0), 1);
+    softmax->set_friendly_name(name + ".expert.router.softmax");
+    auto topk_cvt = std::make_shared<ov::opset11::Convert>(topk->output(1), ov::element::i32);
+    topk_cvt->set_friendly_name(name + ".expert.router.topk_convert");
+    auto topk_shape = std::make_shared<ov::op::v3::ShapeOf>(topk_cvt, ov::element::i32);
+    topk_shape->set_friendly_name(name + ".expert.router.topk_shapeof");
+
+    auto r_slice = std::make_shared<ov::op::v8::Slice>(softmax, sl_start, topk_shape, sl_step_r, sl_axes);
+    r_slice->set_friendly_name(name + ".expert.router.slice");
+    auto add_shape = std::make_shared<ov::op::v3::ShapeOf>(r_add, ov::element::i32);
+    add_shape->set_friendly_name(name + ".expert.router.add_shapeof");
+    auto zeros = std::make_shared<ov::op::v3::Broadcast>(
+        C::create(prec, ov::Shape{}, std::vector<float>{0.0f}), add_shape, ov::op::BroadcastType::NUMPY);
+    zeros->set_friendly_name(name + ".expert.router.zeros");
+    auto scatter = std::make_shared<ov::op::v3::ScatterElementsUpdate>(zeros, topk_cvt, r_slice, scatter_axis);
+    scatter->set_friendly_name(name + ".expert.router.scatter");
+
+    auto r_tp = std::make_shared<ov::opset11::Transpose>(scatter, tp_order);
+    r_tp->set_friendly_name(name + ".expert.router.transpose");
+    auto r_reshape = std::make_shared<ov::opset11::Reshape>(r_tp, mk({ne_i, 1, -1}), false);
+    r_reshape->set_friendly_name(name + ".expert.router.reshape");
+    auto router_scores = std::make_shared<ov::opset11::Unsqueeze>(r_reshape, unsq_axis);
+    router_scores->set_friendly_name(name + ".expert.router.unsqueeze");
+
+    // Expert: Tile → Reshape → MatMul → Add → dual-branch → MatMul → Add → Reshape → Multiply → ReduceSum
+    auto tiled = std::make_shared<ov::op::v0::Tile>(input_2d, tile_repeats);
+    tiled->set_friendly_name(name + ".expert.tile");
+    auto expert_3d = std::make_shared<ov::opset11::Reshape>(tiled, mk({ne_i, -1, hs_i}), false);
+    expert_3d->set_friendly_name(name + ".expert.reshape_in");
+
+    auto gu_w = weight_fn(name + ".expert.gate_up_proj.weight",
+                        ov::Shape{num_experts, 2 * intermediate_size, hidden_size}, prec);
+    auto gu_mm = std::make_shared<ov::opset11::MatMul>(expert_3d, gu_w, false, true);
+    gu_mm->set_friendly_name(name + ".expert.gate_up_matmul");
+    auto gu_bias = C::create(prec, ov::Shape{num_experts, 1, 2 * intermediate_size},
+                             std::vector<float>(num_experts * 2 * intermediate_size, 0.0f));
+    gu_bias->set_friendly_name(name + ".expert.gate_up_bias");
+    auto gu_add = std::make_shared<ov::opset11::Add>(gu_mm, gu_bias);
+    gu_add->set_friendly_name(name + ".expert.gate_up_add");
+
+    auto act_slice = std::make_shared<ov::op::v8::Slice>(gu_add, slice_start_0, slice_stop_is, slice_step, slice_axis2);
+    act_slice->set_friendly_name(name + ".expert.slice_act");
+    auto act_min = std::make_shared<ov::opset11::Minimum>(act_slice, min_const);
+    act_min->set_friendly_name(name + ".expert.minimum");
+    auto act_swish = std::make_shared<ov::op::v4::Swish>(act_min, swish_beta);
+    act_swish->set_friendly_name(name + ".expert.swish");
+
+    auto gate_slice =
+        std::make_shared<ov::op::v8::Slice>(gu_add, slice_start_is, slice_stop_2is, slice_step, slice_axis2);
+    gate_slice->set_friendly_name(name + ".expert.slice_gate");
+    auto gate_clamp = std::make_shared<ov::op::v0::Clamp>(gate_slice, -20.0f, 20.0f);
+    gate_clamp->set_friendly_name(name + ".expert.clamp");
+    auto gate_add = std::make_shared<ov::opset11::Add>(gate_clamp, clamp_add_zero);
+    gate_add->set_friendly_name(name + ".expert.gate_add");
+
+    auto merged = std::make_shared<ov::opset11::Multiply>(act_swish, gate_add);
+    merged->set_friendly_name(name + ".expert.merge");
+
+    auto dn_w = weight_fn(name + ".expert.down_proj.weight",
+                        ov::Shape{num_experts, hidden_size, intermediate_size}, prec);
+    auto dn_mm = std::make_shared<ov::opset11::MatMul>(merged, dn_w, false, true);
+    dn_mm->set_friendly_name(name + ".expert.down_matmul");
+    auto dn_bias = C::create(prec, ov::Shape{num_experts, 1, hidden_size},
+                             std::vector<float>(num_experts * hidden_size, 0.0f));
+    dn_bias->set_friendly_name(name + ".expert.down_bias");
+    auto dn_add = std::make_shared<ov::opset11::Add>(dn_mm, dn_bias);
+    dn_add->set_friendly_name(name + ".expert.down_add");
+
+    auto expert_out = std::make_shared<ov::opset11::Reshape>(dn_add, mk({ne_i, 1, -1, hs_i}), false);
+    expert_out->set_friendly_name(name + ".expert.reshape_out");
+    auto weighted = std::make_shared<ov::opset11::Multiply>(expert_out, router_scores);
+    weighted->set_friendly_name(name + ".expert.weighted");
+    auto reduced = std::make_shared<ov::opset11::ReduceSum>(weighted, reduce_axis, false);
+    reduced->set_friendly_name(name + ".expert.reduced");
+
+    auto output = std::make_shared<ov::opset11::Reshape>(reduced, original_shape, false);
+    output->set_friendly_name(name + ".output");
+    return output->output(0);
+}
+
+
 ov::Output<ov::Node> make_transformer_layers(const ov::Output<ov::Node>& initial,
                                              size_t num_layers,
                                              const std::string& prefix_base,
@@ -1030,6 +1225,16 @@ std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks() {
     return get_model_with_repeated_blocks(10);
 }
 
+std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks_with_weightless_cache(std::size_t repetitions) {
+    auto model = get_model_with_repeated_blocks(repetitions);
+    annotate_constants_with_weightless_cache(model);
+    return model;
+}
+
+std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks_with_weightless_cache() {
+    return get_model_with_repeated_blocks_with_weightless_cache(10);
+}
+
 std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks_and_results(
     std::size_t repetitions,
     const std::vector<std::size_t>& block_indices) {
@@ -1173,6 +1378,126 @@ std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks_and_para
     m_nodes.push_back(result);
 
     return std::make_shared<ov::Model>(ov::OutputVector{result->output(0)});
+}
+
+// Builds a model with N identical repeated blocks (using get_block(), same structure as
+// get_model_with_repeated_blocks_and_results) where "head" blocks additionally expose
+// their output via a MatMul to a separate Parameter-weighted projection group, mimicking
+// Gemma4's KV-sharing pattern:
+//   - Non-head blocks: block_output → next_block (only internal consumer)
+//   - Head blocks:     block_output → next_block  (internal)
+// Builds a model with N identical repeated blocks where "head" blocks additionally
+// expose their interior Relu via a cross-group MatMul, reproducing the Gemma4
+// KV-sharing asymmetry pattern.
+//
+// Block structure: Add(bias) → Relu(interior/TAP) → Multiply(scale) → Relu(boundary)
+//
+// Both Relu nodes have identical metadescs (same op type, same f32{1,1,8} I/O shape).
+// When a "head" block's interior Relu gains an external MatMul consumer, it becomes
+// an additional output_layer — but its metadesc ("Relu…") is already present in
+// output_ometa via the boundary Relu.  Therefore ALL blocks retain the same
+// MetaInterconnectIO and remain in one repeated-block family, allowing
+// isRegularCrossGroupConsumerCase to observe the per-bank inconsistency:
+//   - non-head: interior Relu bank → has_external=false (only internal Multiply consumer)
+//   - head:     interior Relu bank → has_external=true  (Multiply + external MatMul)
+// The mask mismatch causes isRegularCrossGroupConsumerCase to return false →
+// irregular_io=true, disabling F16IC for this model.
+std::shared_ptr<ov::Model> ModelBuilder::get_model_with_kv_sharing_repeated_blocks(
+    std::size_t repetitions,
+    const std::vector<std::size_t>& head_block_indices) {
+    clear();
+    if (repetitions == 0)
+        repetitions = 1;
+
+    const std::unordered_set<std::size_t> head_set(head_block_indices.begin(), head_block_indices.end());
+
+    auto input = std::make_shared<ov::opset11::Parameter>(ov::element::f32, ov::Shape{1, 1, 8});
+    auto kv_weight = std::make_shared<ov::opset11::Parameter>(ov::element::f32, ov::Shape{8, 4});
+    m_nodes.push_back(input);
+    m_nodes.push_back(kv_weight);
+    set_name(input);
+    set_name(kv_weight);
+
+    // Shared constants — same pointer → same Constant node used by all blocks,
+    // ensuring identical metadescs for the Add and Multiply ops in every block.
+    auto bias_const = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, 1, 8}, std::vector<float>(8, 0.1f));
+    auto scale_const = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1}, std::vector<float>{0.5f});
+    m_nodes.push_back(bias_const);
+    m_nodes.push_back(scale_const);
+    set_name(bias_const);
+    set_name(scale_const);
+
+    // Non-repeated prefix — distinct structure prevents it from joining the repetitions.
+    auto head_const = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, 1, 8}, std::vector<float>(8, 1.f));
+    auto head_add = std::make_shared<ov::opset11::Add>(input, head_const);
+    auto head_relu = std::make_shared<ov::opset11::Relu>(head_add);
+    m_nodes.push_back(head_const);
+    m_nodes.push_back(head_add);
+    m_nodes.push_back(head_relu);
+    set_name(head_const);
+    set_name(head_add);
+    set_name(head_relu);
+
+    ov::Output<ov::Node> current = head_relu;
+    ov::OutputVector kv_outputs;
+
+    for (std::size_t i = 0; i < repetitions; ++i) {
+        auto add_i = std::make_shared<ov::opset11::Add>(current, bias_const);
+        auto relu_interior_i = std::make_shared<ov::opset11::Relu>(add_i);  // TAP POINT
+        auto mul_i = std::make_shared<ov::opset11::Multiply>(relu_interior_i, scale_const);
+        auto relu_boundary_i = std::make_shared<ov::opset11::Relu>(mul_i);  // boundary output
+        m_nodes.push_back(add_i);
+        m_nodes.push_back(relu_interior_i);
+        m_nodes.push_back(mul_i);
+        m_nodes.push_back(relu_boundary_i);
+        set_name(add_i);
+        set_name(relu_interior_i);
+        set_name(mul_i);
+        set_name(relu_boundary_i);
+
+        if (head_set.count(i)) {
+            // Cross-group edge from the interior Relu, mirroring Gemma4's
+            // Multiply_1 → k/v_proj pattern.  Because relu_interior_i and
+            // relu_boundary_i share the same metadesc, adding relu_interior_i
+            // as a second output_layer leaves output_ometa = {"Relu…"} unchanged.
+            auto kv_mm_i = std::make_shared<ov::opset11::MatMul>(relu_interior_i, kv_weight, false, false);
+            m_nodes.push_back(kv_mm_i);
+            set_name(kv_mm_i);
+            kv_outputs.push_back(kv_mm_i->output(0));
+        }
+
+        current = relu_boundary_i;
+    }
+
+    // Non-repeated tail suffix.
+    auto tail_const = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, 1, 8}, std::vector<float>(8, 2.f));
+    auto tail_mul = std::make_shared<ov::opset11::Multiply>(current, tail_const);
+    auto tail_add = std::make_shared<ov::opset11::Add>(tail_mul, tail_const);
+    m_nodes.push_back(tail_const);
+    m_nodes.push_back(tail_mul);
+    m_nodes.push_back(tail_add);
+    set_name(tail_const);
+    set_name(tail_mul);
+    set_name(tail_add);
+
+    auto main_result = std::make_shared<ov::opset11::Result>(tail_add);
+    m_nodes.push_back(main_result);
+    set_name(main_result);
+    ov::OutputVector outputs{main_result->output(0)};
+
+    // Each head block's KV MatMul connects to an independent Result to avoid
+    // creating asymmetric ov::Result consumer patterns across the repeated family.
+    // If we accumulated kv_outputs into a single Result, only the last block would
+    // indirectly connect to that Result via the accumulation chain, causing
+    // isRegularResultCase to fail.
+    for (auto&& kv_out : kv_outputs) {
+        auto kv_result = std::make_shared<ov::opset11::Result>(kv_out);
+        m_nodes.push_back(kv_result);
+        set_name(kv_result);
+        outputs.push_back(kv_result->output(0));
+    }
+
+    return std::make_shared<ov::Model>(outputs, ov::ParameterVector{input, kv_weight});
 }
 
 std::shared_ptr<ov::Model> ModelBuilder::get_model_with_multi_output_repeating_blocks(
@@ -1350,7 +1675,7 @@ void ModelBuilder::clear() {
     m_name_idx = 0;
 }
 
-ov::Output<ov::Node> ModelBuilder::setup_position_ids(ModelConfig& config, const ov::Output<ov::Node>& seq_source) {
+ov::Output<ov::Node> ModelBuilder::setup_position_ids(LLMConfig& config, const ov::Output<ov::Node>& seq_source) {
     OPENVINO_ASSERT(!(config.internal_position_ids && config.position_ids.get_node()),
                     "internal_position_ids and position_ids are mutually exclusive");
     ov::Output<ov::Node> position_ids_output;
@@ -1392,26 +1717,29 @@ std::shared_ptr<ov::Model> ModelBuilder::make_model(const ov::Output<ov::Node>& 
     return std::make_shared<ov::Model>(ov::OutputVector{res->output(0)}, m_sinks, model_name);
 }
 
-std::shared_ptr<ov::Model> ModelBuilder::build_model(const ModelConfig& config) {
-    OPENVINO_ASSERT(
-        (int)config.use_conv_features + (int)config.use_cross_attention + (int)config.use_token_type_embedding <= 1,
-        "At most one structural dispatch flag may be set");
-    if (config.use_conv_features) {
-        return build_whisper_encoder(config);
-    }
-    if (config.use_cross_attention) {
-        return build_whisper_decoder(config);
-    }
-    if (config.use_token_type_embedding) {
-        return build_embedding_encoder(config);
-    }
-    return build_llm(config);
-}
-
-std::shared_ptr<ov::Model> ModelBuilder::build_llm(const ModelConfig& config_in) {
+std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     clear();
 
-    ModelConfig config = config_in;
+    LLMConfig config = config_in;
+    if (!config.norm)
+        config.norm = LayerNorm(config.hidden_size, config.precision);
+    if (!config.ffn) {
+        if (config.num_experts > 0) {
+            size_t moe_inter = config.moe_intermediate_size > 0
+                                   ? config.moe_intermediate_size
+                                   : config.intermediate_size;
+            size_t moe_k = config.num_experts_per_tok > 0
+                               ? config.num_experts_per_tok
+                               : std::min<size_t>(2, config.num_experts);
+            OPENVINO_ASSERT(moe_k >= 1 && moe_k <= config.num_experts,
+                            "Invalid MoE config: num_experts_per_tok (",
+                            moe_k, ") must be in [1, num_experts (", config.num_experts, ")]");
+            config.ffn = MoEFFN(config.hidden_size, moe_inter, config.num_experts,
+                                moe_k, config.precision);
+        } else {
+            config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, config.precision, config.weight);
+        }
+    }
     const auto prec = config.precision;
 
     auto attention_mask = parameter(ov::element::i64, ov::PartialShape{-1, -1}, "attention_mask");
@@ -1529,8 +1857,13 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const ModelConfig& config_in)
     return make_model(final_norm, "last_hidden_state", model_name);
 }
 
-std::shared_ptr<ov::Model> ModelBuilder::build_whisper_encoder(const ModelConfig& config) {
+std::shared_ptr<ov::Model> ModelBuilder::build_whisper_encoder(const WhisperConfig& config_in) {
     clear();
+    WhisperConfig config = config_in;
+    if (!config.norm)
+        config.norm = LayerNorm(config.hidden_size, config.precision);
+    if (!config.ffn)
+        config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, config.precision, config.weight);
     const auto prec = config.precision;
     const auto d = config.hidden_size;
 
@@ -1743,7 +2076,7 @@ static ov::Output<ov::Node> make_whisper_causal_mask(const CachePositionResult& 
     auto slice_step = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1});
     auto slice_axes = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {3});
     auto causal_sliced =
-        std::make_shared<ov::op::v8::Slice>(causal_float, slice_start, slice_stop, slice_step, slice_axes);
+        std::make_shared<ov::opset11::Slice>(causal_float, slice_start, slice_stop, slice_step, slice_axes);
     causal_sliced->set_friendly_name(prefix + "causal_mask_sliced");
 
     return causal_sliced->output(0);
@@ -1777,8 +2110,13 @@ static ov::Output<ov::Node> make_whisper_positional_embedding(const ov::Output<o
     return hidden_states->output(0);
 }
 
-std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const ModelConfig& config) {
+std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const WhisperConfig& config_in) {
     clear();
+    WhisperConfig config = config_in;
+    if (!config.norm)
+        config.norm = LayerNorm(config.hidden_size, config.precision);
+    if (!config.ffn)
+        config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, config.precision, config.weight);
     const auto prec = config.precision;
     const auto d = config.hidden_size;
     const auto heads = config.num_heads;
@@ -1786,7 +2124,9 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const ModelConfig
 
     auto input_ids = parameter(ov::element::i64, ov::PartialShape{-1, -1}, "input_ids");
     auto encoder_hidden_states =
-        parameter(ov::element::f32, ov::PartialShape{-1, -1, static_cast<int64_t>(d)}, "encoder_hidden_states");
+        parameter(ov::element::f32,
+                  ov::PartialShape{-1, static_cast<int64_t>(config.get_encoder_seq_len()), static_cast<int64_t>(d)},
+                  "encoder_hidden_states");
     auto beam_idx = parameter(ov::element::i32, ov::PartialShape{-1}, "beam_idx");
 
     ov::Output<ov::Node> enc_hs = encoder_hidden_states->output(0);
@@ -1912,8 +2252,13 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const ModelConfig
     return make_model(logits_out, "logits", "synthetic_whisper_decoder");
 }
 
-std::shared_ptr<ov::Model> ModelBuilder::build_embedding_encoder(const ModelConfig& config) {
+std::shared_ptr<ov::Model> ModelBuilder::build_embedding_encoder(const BertConfig& config_in) {
     clear();
+    BertConfig config = config_in;
+    if (!config.norm)
+        config.norm = LayerNorm(config.hidden_size, config.precision);
+    if (!config.ffn)
+        config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, config.precision, config.weight);
 
     const auto prec = config.precision;
     const auto hs = config.hidden_size;

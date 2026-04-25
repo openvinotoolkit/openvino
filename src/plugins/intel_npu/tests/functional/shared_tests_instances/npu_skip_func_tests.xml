@@ -691,7 +691,7 @@ Example:
 
     <!-- E#118045 -->
     <skip_config>
-        <message>NPU needs to implement ROITensor logic in zero_infer_request</message>
+        <message>A property with the name of the tensors must be set to support ROI Tensors</message>
         <filters>
             <filter>.*OVInferRequestInferenceTests.Inference_ROI_Tensor/roi_nchw.*</filter>
         </filters>
@@ -784,10 +784,9 @@ Example:
     </skip_config>
 
     <skip_config>
-        <message>Only "developer built" compilers support weights separation</message>
+        <message>Non "developer build" CiDs don't support weights separation yet</message>
         <filters>
-            <filter>.*WeightsSeparationTests.*</filter>
-            <filter>.*WeightsSeparationIterativeTests.*</filter>
+            <filter>.*WeightsSeparationIterativeTests.*DRIVER.*</filter>
         </filters>
     </skip_config>
 
@@ -815,13 +814,6 @@ Example:
         <filters>
             <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
             <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u1\D.*</filter>
-        </filters>
-    </skip_config>
-
-    <skip_config>
-        <message>The "one shot" implementation of the weights separation feature is supported only in the compiler-in-plugin flow</message>
-        <filters>
-            <filter>.*WeightsSeparationOneShotTests.*</filter>
         </filters>
     </skip_config>
 
@@ -863,6 +855,29 @@ Example:
             <filter>.*CompileModelLoadFromCacheTest.*NPU_TURBO.*</filter>
             <filter>.*CompileModelLoadFromCacheTest.*NPU_QDQ_OPTIMIZATION.*</filter>
             <filter>.*CompileModelLoadFromCacheTest.*NPU_QDQ_OPTIMIZATION_AGGRESSIVE.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>PV driver cannot create infer request for models with boolean inputs</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <driver_version>1688</driver_version>
+        </enable_rules>
+        <filters>
+            <filter>.*BooleanPrecisionInferRequestRunTests.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E#206393 -->
+    <skip_config>
+        <message>Skip memory standard allocation tests for Win NPU3720 due to OS issue, E#206393.</message>
+        <enable_rules>
+            <operating_system>windows</operating_system>
+            <device>3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*ZeroGraphTest.SetAlignedBlob.*zeGraphNpuExtVersion=(1.13|1.14|1.15|1.16).*</filter>
         </filters>
     </skip_config>
 
