@@ -240,6 +240,10 @@ public:
                 rt_params->q_chunking = get_single_token_q_chunking(params, *desc, partition_size);
             }
 
+            if (desc->has_xattention) {
+                validate_xattn_inputs(params, rt_params->batch_size_in_sequences);
+            }
+
             if (desc->has_xattention && rt_params->batch_size_in_sequences == 1) {
                 rt_params->enable_xattn_estimation = true;
                 update_xattn_rt_params(params);
@@ -670,9 +674,24 @@ public:
     }
 
 private:
-    // Get XAttention block size from input tensor.
-    // If the input is not provided, throw exception.
-    // If the input is not valid, return default block size based on GPU architecture.
+    void validate_xattn_inputs(const kernel_impl_params& params, size_t batch_size) {
+        const auto& input_mem = params.memory_deps;
+
+        auto validate_input = [&](size_t idx, const char* name) {
+            const auto it = input_mem.find(idx);
+            if (it == input_mem.end() || it->second == nullptr)
+                OPENVINO_THROW("XAttention ", name, " input is required at index ", idx);
+
+            const auto input_size = it->second->count();
+            if (input_size != 1 && input_size != batch_size)
+                OPENVINO_THROW("XAttention ", name, " input size (", input_size,
+                               ") must be 1 or equal to batch size (", batch_size, ")");
+        };
+
+        validate_input(PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE, "block size");
+        validate_input(PagedAttentionInputIdx::XATTENTION_THRESHOLD, "threshold");
+    }
+
     size_t get_xattn_block_size(const kernel_impl_params& params, const size_t seq_idx = 0) {
         constexpr int32_t block_size_128 = 128;
         constexpr int32_t block_size_256 = 256;
