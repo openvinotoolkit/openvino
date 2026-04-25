@@ -328,7 +328,12 @@ std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2}),
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2}));
     auto clamp = std::make_shared<ov::op::v0::Clamp>(slice1, -expert_beta, expert_beta);
-    auto add1 = std::make_shared<ov::op::v1::Add>(clamp, ov::test::utils::make_constant(data_precision, ov::Shape{1}, small_bias_data));
+    // GPT-OSS adds a constant 1.0 to the up path (the "+1" of SwiGLU). The fused kernel
+    // hardcodes UP_ADD_VAL=1.0 for this; using a different value here would diverge from
+    // the kernel's semantics regardless of the matmul precision.
+    auto add1 = std::make_shared<ov::op::v1::Add>(
+        clamp,
+        ov::op::v0::Constant::create(data_precision, ov::Shape{1}, std::vector<float>{1.0f}));
 
     auto slice2 = std::make_shared<ov::op::v8::Slice>(
         gate_up_add,
@@ -338,9 +343,12 @@ std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(
                                      std::vector<int64_t>{std::numeric_limits<int64_t>::max()}),
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2}),
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2}));
-    auto minimum1 =
-        std::make_shared<ov::op::v1::Minimum>(slice2,
-                                              ov::op::v0::Constant::create(data_precision, ov::Shape{1}, {10.0f}));
+    // GPT-OSS uses the same value as the clamp range to upper-bound the swish input. The
+    // fused kernel reuses CLAMP_MAX for this; using a different `min` value here would diverge
+    // whenever the gate path's value lies between the two thresholds.
+    auto minimum1 = std::make_shared<ov::op::v1::Minimum>(
+        slice2,
+        ov::op::v0::Constant::create(data_precision, ov::Shape{1}, {expert_beta}));
     auto swish_beta = ov::op::v0::Constant::create(data_precision, ov::Shape{}, std::vector<float>{expert_alpha});
     auto swish = std::make_shared<ov::op::v4::Swish>(minimum1, swish_beta);
 
