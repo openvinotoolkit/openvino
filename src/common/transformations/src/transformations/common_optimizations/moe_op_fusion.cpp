@@ -159,16 +159,35 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
             auto topk_shape = topk_indices.get_partial_shape();
             OPENVINO_ASSERT(topk_shape[1].is_static(), "K dimension in moe topk input should be static.");
 
+            // Derive `group_size` from the down-projection's scale shape, not from the gate
+            // weight rank. After `reshape_on_decompression` collapses unit dims, both
+            // grouped and per-channel weights can come back rank-3 — the rank-only check
+            // misses cases where gate has 1 group along K (per-channel-equivalent) but down
+            // has multiple groups (e.g. hidden_size != intermediate_size). Down has the
+            // largest K, so its num_groups is what determines the meaningful group_size for
+            // the whole MoE block.
+            const auto gate_K = group_compressed ? weight_shape[2] * weight_shape[3] : weight_shape[2];
+            auto down_scale_shape = pm.at(down_scale_m).get_partial_shape().to_shape();
+            const auto down_K = pm.at(down_w_m).get_partial_shape().to_shape().back();
+            const size_t down_num_groups = (down_scale_shape.size() >= 3) ? down_scale_shape[2] : 1;
+            const size_t group_size = (down_num_groups <= 1)
+                                          ? std::numeric_limits<size_t>::max()
+                                          : (down_K / down_num_groups);
+            // The 6-input GatherMatmulCompressed pattern always produces a zp slot. Use the
+            // matched zp's element type to distinguish real (asymmetric) zp from the dynamic
+            // placeholder constant emitted for symmetric quantization.
+            const bool has_zp = pm.at(gate_zp_m).get_element_type() != ov::element::dynamic;
+
             MOECompressed::Config compressed_config{
                 {ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU, 0.0f, expert_beta},
-                group_compressed ? weight_shape[2] * weight_shape[3] : weight_shape[2],
+                gate_K,
                 weight_shape[1],
                 weight_shape[0],
                 0,  // num_shared_expert
                 static_cast<size_t>(topk_shape[1].get_length()),
-                group_compressed ? weight_shape[3] : std::numeric_limits<size_t>::max(),
+                group_size,
                 has_batch_dim,
-                false,
+                has_zp,
                 ov::element::f16,
             };
 
@@ -349,6 +368,14 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool ha
             OPENVINO_ASSERT(topk_indices_shape[topk_rank - 1].is_static(),
                             "K dimension in moe topk_indices input should be static.");
 
+            // Derive group_size from down's scale shape rather than gate_up's weight rank
+            // (see GEMM3 branch above for the rationale).
+            auto down_scale_shape = pm.at(down_scale_m).get_partial_shape().to_shape();
+            const auto down_K = pm.at(down_w_m).get_partial_shape().to_shape().back();
+            const size_t down_num_groups = (down_scale_shape.size() >= 3) ? down_scale_shape[2] : 1;
+            const size_t group_size = (down_num_groups <= 1) ? std::numeric_limits<size_t>::max()
+                                                             : (down_K / down_num_groups);
+
             MOECompressed::Config compressed_config{
                 {ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP, expert_alpha, expert_beta},
                 hidden,
@@ -356,7 +383,7 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool ha
                 weight_shape[0],
                 0,  // num_shared_expert
                 static_cast<size_t>(topk_indices_shape[topk_rank - 1].get_length()),
-                group_compressed ? weight_shape[3] : std::numeric_limits<size_t>::max(),
+                group_size,
                 has_batch_dim,
                 has_zp,
                 ov::element::dynamic,

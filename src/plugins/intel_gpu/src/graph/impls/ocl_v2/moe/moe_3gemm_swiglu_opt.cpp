@@ -1025,17 +1025,28 @@ public:
         };
 
         _dnnl_weights.resize(cur_moe->_config.num_expert);
+        // Per-GEMM ic_group_size derived from each scale tensor's shape — the MOECompressed
+        // config carries a single `group_size` field that can't represent cases where gate/up
+        // and down have different group counts (e.g. hidden_size != intermediate_size with
+        // gate K=hidden_size matching group_size → 1 group, while down K=intermediate_size
+        // has multiple groups). The scale's group dim (axis 2 in the rank-3 logical layout
+        // [E, ofm, num_groups]) is the authoritative signal.
+        const auto ic_group_size_from_scale = [](size_t ic, const cldnn::memory::ptr& scale_mem) {
+            const auto& scale_shape = scale_mem->get_layout().get_shape();
+            const size_t num_groups = (scale_shape.size() >= 3) ? scale_shape[2] : 1;
+            return (num_groups <= 1) ? static_cast<int>(ic) : static_cast<int>(ic / num_groups);
+        };
         for (size_t j = 0; j < cur_moe->_config.num_expert; j++) {
             auto& dnnl_weights = _dnnl_weights[j];
             dnnl_weights.resize(3);
             dnnl_weights[0].ic = _hidden_size;
-            dnnl_weights[0].ic_group_size = _gate_up_group_size;
+            dnnl_weights[0].ic_group_size = ic_group_size_from_scale(_hidden_size, moe_fusion_wei_addr.scale[0]);
             dnnl_weights[0].oc = _intermediate_size;
             dnnl_weights[1].ic = _hidden_size;
-            dnnl_weights[1].ic_group_size = _gate_up_group_size;
+            dnnl_weights[1].ic_group_size = ic_group_size_from_scale(_hidden_size, moe_fusion_wei_addr.scale[1]);
             dnnl_weights[1].oc = _intermediate_size;
             dnnl_weights[2].ic = _intermediate_size;
-            dnnl_weights[2].ic_group_size = _down_group_size;
+            dnnl_weights[2].ic_group_size = ic_group_size_from_scale(_intermediate_size, moe_fusion_wei_addr.scale[2]);
             dnnl_weights[2].oc = _hidden_size;
             for (int i = 0; i < 3; i++) {
                 // weight shape: [ic, oc], type: u4/i8

@@ -124,10 +124,16 @@ protected:
         inputs.clear();
         const auto& params = function->get_parameters();
         ASSERT_EQ(params.size(), 1);
+        // Use the mt19937-backed real-distribution generator. The default
+        // `create_and_fill_tensor(InputGenerateData)` path uses the gtest LCG with state mod
+        // k_range; for small k_range (e.g. range=2, resolution=8 → k_range=16) the period
+        // collapses to k_range, making every block of N=k_range elements identical. With
+        // hidden_size=128 = 8*16 that meant all 32 tokens shared the same vector and the
+        // router collapsed to one fixed top-k decision, masking real numerics behind a
+        // single repeated computation.
         inputs.insert({params[0],
-                       ov::test::utils::create_and_fill_tensor(params[0]->get_element_type(),
-                                                               target_input_static_shapes[0],
-                                                               ov::test::utils::InputGenerateData(0.125f, 2, 8, 1234))});
+                       ov::test::utils::create_and_fill_tensor_real_distribution(
+                           params[0]->get_element_type(), target_input_static_shapes[0], 0.125f, 2.125f, 1234)});
     }
 
     void validate() override {

@@ -94,13 +94,17 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
 
     GPU_DEBUG_TRACE_DETAIL << "\t m_scale_idx: " << m_scale_idx << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "\t m_scale_idx.get_shape(): " << scale_layout.to_short_string() << std::endl;
-    if (cfg.weight_group_size > 0) {
-        const auto scale_shape = scale_layout.get_shape();
-        jit.make("NUM_GROUPS", scale_shape[1]);
-        GPU_DEBUG_TRACE_DETAIL << "\t NUM_GROUPS: " << scale_shape[1] << std::endl;
-    } else {
-        jit.make("NUM_GROUPS", 1);
-        GPU_DEBUG_TRACE_DETAIL << "\t NUM_GROUPS: 1" << std::endl;
+    // Derive num_groups from K / weight_group_size rather than reading a fixed index of the
+    // scale shape. The cldnn scale layout convention can differ (the synthetic
+    // initMatMulDecompressionSubgraphQuantization helper builds scale as [E, ofm, num_groups]
+    // while real gpt-oss IR emits [E, num_groups, ofm]) — using a fixed scale_shape[i] makes
+    // the kernel only correct for one convention. K and group_size are unambiguous.
+    {
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
+        size_t K = (m_type == MoE3GemmMicroKernelType::MLP_DOWN) ? desc->_config.inter_size : desc->_config.hidden_size;
+        size_t num_groups = (cfg.weight_group_size > 0) ? (K / static_cast<size_t>(cfg.weight_group_size)) : 1;
+        jit.make("NUM_GROUPS", num_groups);
+        GPU_DEBUG_TRACE_DETAIL << "\t NUM_GROUPS: " << num_groups << std::endl;
     }
 
     auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
