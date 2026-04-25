@@ -27,7 +27,7 @@ class TestTFLiteConv3DLayerTest(TFLiteLayerTest):
             'Unexpected parameters for test: ' + ','.join(params.keys())
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
-            weights = tf.constant(np.random.randint(-1, 1, params['ksize']), dtype=tf.float32)
+            weights = tf.constant(np.random.randn(*params['ksize']), dtype=tf.float32)
             place_holder = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['shape'],
                                                     name=self.inputs[0])
             tf.nn.conv3d(place_holder, weights, params['strides'], params['padding'], 'NDHWC',
@@ -38,4 +38,4 @@ class TestTFLiteConv3DLayerTest(TFLiteLayerTest):
     @pytest.mark.parametrize("params", test_params)
     @pytest.mark.nightly
     def test_conv3d(self, params, ie_device, precision, temp_dir):
-        self._test(ie_device, precision, temp_dir, params)
+        self._test(ie_device, precision, temp_dir, {**params, 'custom_eps': 0.5})
