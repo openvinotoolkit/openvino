@@ -487,27 +487,27 @@ inline float32x4_t exp_ps_neon_f32(const float32x4_t& src) {
 
     return poly;
 }
-inline float32x4_t __vld1q_f32(const ov::bfloat16* a) {
+inline float32x4_t loadq_f32(const ov::bfloat16* a) {
     uint16x4_t vec_bf16 = vld1_u16(reinterpret_cast<const uint16_t*>(a));
 
     float32x4_t vec_f32 = vcvtq_f32_u32(vmovl_u16(vec_bf16));
     return vec_f32;
 }
-inline float32x4_t __vld1q_f32(const float* a) {
+inline float32x4_t loadq_f32(const float* a) {
     return vld1q_f32(a);
 }
-inline float32x4_t __vld1q_f32(const ov::float16* a) {
-    auto _a = reinterpret_cast<const float16_t*>(a);
-    return vcvt_f32_f16(vld1_f16(_a));
+inline float32x4_t loadq_f32(const ov::float16* a) {
+    const auto* a_fp16 = reinterpret_cast<const float16_t*>(a);
+    return vcvt_f32_f16(vld1_f16(a_fp16));
 }
-inline void __vst1q_f32(float* a, float32x4_t b) {
+inline void storeq_f32(float* a, float32x4_t b) {
     vst1q_f32(a, b);
 }
-inline void __vst1q_f32(ov::float16* a, float32x4_t b) {
+inline void storeq_f32(ov::float16* a, float32x4_t b) {
     float16x4_t v_f16 = vcvt_f16_f32(b);
     vst1_f16(reinterpret_cast<float16_t*>(a), v_f16);
 }
-inline void __vst1q_f32(ov::bfloat16* a, float32x4_t b) {
+inline void storeq_f32(ov::bfloat16* a, float32x4_t b) {
     uint32x4_t v_int32 = vreinterpretq_u32_f32(b);
     uint16x4_t v_bf16 = vshrn_n_u32(v_int32, 16);
 
@@ -710,19 +710,19 @@ float dot_product(const TA* a,
         svfloat32_t sum3 = svdup_n_f32(0.0F);
         auto vec_len = vec_len_f32_sve();
 
-        auto _a = reinterpret_cast<float32_t*>(a);
-        auto _b = reinterpret_cast<float32_t*>(b);
+        const auto* a_ptr = reinterpret_cast<const float32_t*>(a);
+        const auto* b_ptr = reinterpret_cast<const float32_t*>(b);
 
         for (; i + 4 * vec_len <= n; i += 4 * vec_len) {
-            svfloat32_t a0 = svld1_f32(pg, _a + i);
-            svfloat32_t a1 = svld1_f32(pg, _a + i + vec_len);
-            svfloat32_t a2 = svld1_f32(pg, _a + i + vec_len * 2);
-            svfloat32_t a3 = svld1_f32(pg, _a + i + vec_len * 3);
+            svfloat32_t a0 = svld1_f32(pg, a_ptr + i);
+            svfloat32_t a1 = svld1_f32(pg, a_ptr + i + vec_len);
+            svfloat32_t a2 = svld1_f32(pg, a_ptr + i + vec_len * 2);
+            svfloat32_t a3 = svld1_f32(pg, a_ptr + i + vec_len * 3);
 
-            svfloat32_t b0 = svld1_f32(pg, _b + i);
-            svfloat32_t b1 = svld1_f32(pg, _b + i + vec_len);
-            svfloat32_t b2 = svld1_f32(pg, _b + i + vec_len * 2);
-            svfloat32_t b3 = svld1_f32(pg, _b + i + vec_len * 3);
+            svfloat32_t b0 = svld1_f32(pg, b_ptr + i);
+            svfloat32_t b1 = svld1_f32(pg, b_ptr + i + vec_len);
+            svfloat32_t b2 = svld1_f32(pg, b_ptr + i + vec_len * 2);
+            svfloat32_t b3 = svld1_f32(pg, b_ptr + i + vec_len * 3);
 
             sum0 = svmla_f32_z(pg, sum0, a0, b0);
             sum1 = svmla_f32_z(pg, sum1, a1, b1);
@@ -730,27 +730,27 @@ float dot_product(const TA* a,
             sum3 = svmla_f32_z(pg, sum3, a3, b3);
         }
         if (i + 2 * vec_len <= n) {
-            svfloat32_t a0 = svld1_f32(pg, _a + i);
-            svfloat32_t a1 = svld1_f32(pg, _a + i + vec_len);
+            svfloat32_t a0 = svld1_f32(pg, a_ptr + i);
+            svfloat32_t a1 = svld1_f32(pg, a_ptr + i + vec_len);
 
-            svfloat32_t b0 = svld1_f32(pg, _b + i);
-            svfloat32_t b1 = svld1_f32(pg, _b + i + vec_len);
+            svfloat32_t b0 = svld1_f32(pg, b_ptr + i);
+            svfloat32_t b1 = svld1_f32(pg, b_ptr + i + vec_len);
 
             sum0 = svmla_f32_z(pg, sum0, a0, b0);
             sum1 = svmla_f32_z(pg, sum1, a1, b1);
             i += 2 * vec_len;
         }
         if (i + vec_len <= n) {
-            svfloat32_t a0 = svld1_f32(pg, _a + i);
-            svfloat32_t b0 = svld1_f32(pg, _b + i);
+            svfloat32_t a0 = svld1_f32(pg, a_ptr + i);
+            svfloat32_t b0 = svld1_f32(pg, b_ptr + i);
             sum0 = svmla_f32_z(pg, sum0, a0, b0);
             i += vec_len;
         }
         // Process the tail elements parallely as well (if any)
         if (i != n) {
             svbool_t pg_rem = svwhilelt_b32(0, static_cast<int>(n - i));
-            svfloat32_t a0 = svld1_f32(pg_rem, _a + i);
-            svfloat32_t b0 = svld1_f32(pg_rem, _b + i);
+            svfloat32_t a0 = svld1_f32(pg_rem, a_ptr + i);
+            svfloat32_t b0 = svld1_f32(pg_rem, b_ptr + i);
             sum0 = svmla_f32_m(pg_rem, sum0, a0, b0);
             i = n;
         }
@@ -768,15 +768,15 @@ float dot_product(const TA* a,
         float32x4_t vsum3 = vdupq_n_f32(0.0F);
 
         for (; i + 4 * vec_len_f32_neon <= n; i += vec_len_f32_neon * 4) {
-            float32x4_t va0 = __vld1q_f32(a + i);
-            float32x4_t va1 = __vld1q_f32(a + i + vec_len_f32_neon);
-            float32x4_t va2 = __vld1q_f32(a + i + vec_len_f32_neon * 2);
-            float32x4_t va3 = __vld1q_f32(a + i + vec_len_f32_neon * 3);
+            float32x4_t va0 = loadq_f32(a + i);
+            float32x4_t va1 = loadq_f32(a + i + vec_len_f32_neon);
+            float32x4_t va2 = loadq_f32(a + i + vec_len_f32_neon * 2);
+            float32x4_t va3 = loadq_f32(a + i + vec_len_f32_neon * 3);
 
-            float32x4_t vb0 = __vld1q_f32(b + i);
-            float32x4_t vb1 = __vld1q_f32(b + i + vec_len_f32_neon);
-            float32x4_t vb2 = __vld1q_f32(b + i + vec_len_f32_neon * 2);
-            float32x4_t vb3 = __vld1q_f32(b + i + vec_len_f32_neon * 3);
+            float32x4_t vb0 = loadq_f32(b + i);
+            float32x4_t vb1 = loadq_f32(b + i + vec_len_f32_neon);
+            float32x4_t vb2 = loadq_f32(b + i + vec_len_f32_neon * 2);
+            float32x4_t vb3 = loadq_f32(b + i + vec_len_f32_neon * 3);
 
             vsum0 = vmlaq_f32(vsum0, va0, vb0);
             vsum1 = vmlaq_f32(vsum1, va1, vb1);
@@ -784,19 +784,19 @@ float dot_product(const TA* a,
             vsum3 = vmlaq_f32(vsum3, va3, vb3);
         }
         if (i + 2 * vec_len_f32_neon <= n) {
-            float32x4_t va0 = __vld1q_f32(a + i);
-            float32x4_t va1 = __vld1q_f32(a + i + vec_len_f32_neon);
+            float32x4_t va0 = loadq_f32(a + i);
+            float32x4_t va1 = loadq_f32(a + i + vec_len_f32_neon);
 
-            float32x4_t vb0 = __vld1q_f32(b + i);
-            float32x4_t vb1 = __vld1q_f32(b + i + vec_len_f32_neon);
+            float32x4_t vb0 = loadq_f32(b + i);
+            float32x4_t vb1 = loadq_f32(b + i + vec_len_f32_neon);
 
             vsum0 = vmlaq_f32(vsum0, va0, vb0);
             vsum1 = vmlaq_f32(vsum1, va1, vb1);
             i += 2 * vec_len_f32_neon;
         }
         if (i + vec_len_f32_neon <= n) {
-            float32x4_t va0 = __vld1q_f32(a + i);
-            float32x4_t vb0 = __vld1q_f32(b + i);
+            float32x4_t va0 = loadq_f32(a + i);
+            float32x4_t vb0 = loadq_f32(b + i);
             vsum0 = vmlaq_f32(vsum0, va0, vb0);
             i += vec_len_f32_neon;
         }
@@ -1198,9 +1198,9 @@ inline void multiply_scalar_f32(ov::float16* a, ov::float16* a_dst, const ov::fl
     float32x4_t v_val = vdupq_n_f32(val);
     size_t i = 0;
     for (; i + vec_len_f32_neon <= size; i += vec_len_f32_neon) {
-        v_a = __vld1q_f32((a + i));
+        v_a = loadq_f32((a + i));
         v_res = vmulq_f32(v_a, v_val);
-        __vst1q_f32(a_dst + i, v_res);
+        storeq_f32(a_dst + i, v_res);
     }
     auto val_f32 = static_cast<float>(val);
     for (; i < size; ++i) {
