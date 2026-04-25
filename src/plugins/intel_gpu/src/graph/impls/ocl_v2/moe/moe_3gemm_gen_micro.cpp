@@ -103,6 +103,21 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         size_t K = (m_type == MoE3GemmMicroKernelType::MLP_DOWN) ? desc->_config.inter_size : desc->_config.hidden_size;
         size_t num_groups = (cfg.weight_group_size > 0) ? (K / static_cast<size_t>(cfg.weight_group_size)) : 1;
+        // Sanity-check num_groups against the actual scale tensor: scale carries one f16
+        // per (expert, ofm, group), so total elements / (num_experts * ofm) must equal
+        // num_groups. Fails fast if the kernel is set up with a group_size that doesn't
+        // describe the scale tensor it will read.
+        const auto& scale_shape = scale_layout.get_shape();
+        const size_t scale_total = scale_layout.count();
+        const size_t ofm = (m_type == MoE3GemmMicroKernelType::MLP_DOWN) ? desc->_config.hidden_size : desc->_config.inter_size;
+        const size_t denom = desc->_config.num_expert * ofm;
+        OPENVINO_ASSERT(denom > 0 && scale_total % denom == 0,
+                        "moe_3gemm scale_total=", scale_total, " not divisible by num_expert*ofm=", denom);
+        const size_t scale_num_groups = scale_total / denom;
+        OPENVINO_ASSERT(scale_num_groups == num_groups,
+                        "moe_3gemm micro: derived NUM_GROUPS=", num_groups,
+                        " disagrees with scale tensor (shape=", scale_shape, ", implies ", scale_num_groups,
+                        " groups). K=", K, " group_size=", cfg.weight_group_size);
         jit.make("NUM_GROUPS", num_groups);
         GPU_DEBUG_TRACE_DETAIL << "\t NUM_GROUPS: " << num_groups << std::endl;
     }

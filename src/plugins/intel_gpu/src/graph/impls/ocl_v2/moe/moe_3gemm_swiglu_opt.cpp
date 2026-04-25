@@ -1049,6 +1049,31 @@ public:
             dnnl_weights[2].ic_group_size = ic_group_size_from_scale(_intermediate_size, moe_fusion_wei_addr.scale[2]);
             dnnl_weights[2].oc = _hidden_size;
             for (int i = 0; i < 3; i++) {
+                // Defense-in-depth: validate per-GEMM that ic_group_size, ic, and the
+                // scale/zp tensor shapes are mutually consistent. Catches silent drift
+                // between MOECompressed::Config and the actual scale tensor (e.g. when
+                // _config.group_size is the SIZE_MAX sentinel but a GEMM has multi-group
+                // scales — was the cause of u8 producing inf before the fix).
+                {
+                    const auto& sshape = moe_fusion_wei_addr.scale[i]->get_layout().get_shape();
+                    const size_t scale_num_groups = (sshape.size() >= 3) ? sshape[2] : 1;
+                    OPENVINO_ASSERT(dnnl_weights[i].ic_group_size > 0,
+                                    "moe_3gemm GEMM ", i, " ic_group_size must be > 0");
+                    OPENVINO_ASSERT(dnnl_weights[i].ic % dnnl_weights[i].ic_group_size == 0,
+                                    "moe_3gemm GEMM ", i, " ic=", dnnl_weights[i].ic,
+                                    " not divisible by ic_group_size=", dnnl_weights[i].ic_group_size);
+                    const auto expected_groups = dnnl_weights[i].ic / dnnl_weights[i].ic_group_size;
+                    OPENVINO_ASSERT(static_cast<size_t>(expected_groups) == scale_num_groups,
+                                    "moe_3gemm GEMM ", i, " ic_group_size=", dnnl_weights[i].ic_group_size,
+                                    " (=> ", expected_groups, " groups) disagrees with scale num_groups=",
+                                    scale_num_groups, " (scale shape=", sshape, ")");
+                    if (cur_moe->_config.has_zp && moe_fusion_wei_addr.zp[i]) {
+                        const auto& zshape = moe_fusion_wei_addr.zp[i]->get_layout().get_shape();
+                        OPENVINO_ASSERT(zshape == sshape,
+                                        "moe_3gemm GEMM ", i, " scale shape ", sshape,
+                                        " does not match zp shape ", zshape);
+                    }
+                }
                 // weight shape: [ic, oc], type: u4/i8
                 int64_t wei_offset = j * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc, moe_fusion_wei_addr.weight[i]->get_layout());
                 dnnl_weights[i].weight =
