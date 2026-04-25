@@ -507,7 +507,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // Tests to be enabled on ARM64
             std::regex(R"(smoke_Snippets_ConvAdd/ConvEltwise.CompareWithRefImpl.*)"),
             std::regex(R"(smoke_Snippets_GroupNormalization.*)"),
-            std::regex(R"(smoke_Snippets_PrecisionPropagation_Convertion.*)"),
 #endif
 #if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_X86_64) && !defined(OPENVINO_ARCH_RISCV64)
             // smoke_Snippets test cases are on platforms except x64, ARM64 and RISCV64
