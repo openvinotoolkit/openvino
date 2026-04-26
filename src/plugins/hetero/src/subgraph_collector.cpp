@@ -27,27 +27,6 @@
 #include "transformations/utils/utils.hpp"
 namespace {
 
-template <typename Set>
-static Set intersection(const Set& lhs, const Set& rhs) {
-    Set result;
-    const auto& min_size_set = (lhs.size() < rhs.size()) ? lhs : rhs;
-    const auto& max_size_set = (lhs.size() >= rhs.size()) ? lhs : rhs;
-    for (auto&& val : min_size_set)
-        if (max_size_set.find(val) != max_size_set.end())
-            result.insert(val);
-    return result;
-}
-
-template <typename Set>
-static bool intersects(const Set& lhs, const Set& rhs) {
-    const auto& min_size_set = (lhs.size() < rhs.size()) ? lhs : rhs;
-    const auto& max_size_set = (lhs.size() >= rhs.size()) ? lhs : rhs;
-    for (auto&& val : min_size_set)
-        if (max_size_set.find(val) != max_size_set.end())
-            return true;
-    return false;
-}
-
 template <typename T>
 static std::vector<T> addition(const std::vector<T>& vector1, const std::vector<T>& vector2) {
     std::vector<T> addition;
