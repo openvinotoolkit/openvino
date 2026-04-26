@@ -37,7 +37,9 @@
 #include "snippets/pass/positioned_pass.hpp"
 #include "snippets/shape_types.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
+#include "transformations/snippets/common/pass/eliminate_copy_b.hpp"
 #include "transformations/snippets/common/pass/mul_add_to_fma.hpp"
+#include "transformations/snippets/common/pass/repack_matmul_weights.hpp"
 #include "transformations/snippets/common/shape_inference.hpp"
 #include "utils/general_utils.h"
 
@@ -91,7 +93,6 @@
 #    include "snippets/pass/fuse_transpose_brgemm.hpp"
 #    include "transformations/snippets/common/pass/enforce_precision.hpp"
 #    include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
-#    include "transformations/snippets/x64/pass/eliminate_brgemm_copy_b.hpp"
 #    include "transformations/snippets/x64/pass/fuse_brgemm_cpu_postops.hpp"
 #    include "transformations/snippets/x64/pass/lowered/adjust_brgemm_copy_b_loop_ports.hpp"
 #    include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
@@ -99,7 +100,6 @@
 #    include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_buffers.hpp"
 #    include "transformations/snippets/x64/pass/lowered/parallelize_gated_mlp_n_loops.hpp"
 #    include "transformations/snippets/x64/pass/remove_converts.hpp"
-#    include "transformations/snippets/x64/pass/repack_matmul_weights.hpp"
 #endif
 
 #include <utility>
@@ -543,7 +543,7 @@ void Subgraph::updateIsDynamic() {
 }
 
 void Subgraph::initConstantRepackedMask() {
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
     // Compute the mask while input_repackers is fully populated after data-flow passes.
     // This value must be stable across repeated prepareParams() calls: BrgemmExternalRepackingAdjuster
     // erases already-repacked entries from input_repackers at runtime, so a later call to
@@ -631,8 +631,11 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
                                            ov::snippets::pass::PropagatePrecision,
                                            ov::intel_cpu::pass::BrgemmToBrgemmCPU,
                                            getConstantInputIndexes());
+    SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::Before,
+                                          ov::snippets::pass::PropagatePrecision,
+                                          ov::intel_cpu::pass::BrgemmToGemmCPU);
     if (has_domain_sensitive_ops()) {
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
         const auto cpu_config =
             ov::as_type_ptr<CPURuntimeConfig>(subgraph_attrs->snippet->get_runtime_configurator()->get_config());
 #endif
@@ -642,19 +645,29 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
                                                external_ptrs_idces);
         SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
                                                ov::intel_cpu::pass::BrgemmToBrgemmCPU,
-                                               ov::intel_cpu::pass::EliminateBrgemmCopyB,
-                                               cpu_config->input_repackers);
+                                               ov::intel_cpu::pass::EliminateCopyB,
+                                               cpu_config->input_repackers,
+                                               true);
         SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
-                                               ov::intel_cpu::pass::EliminateBrgemmCopyB,
+                                               ov::intel_cpu::pass::EliminateCopyB,
                                                ov::intel_cpu::pass::RepackMatMulWeights,
                                                context,
                                                cpu_config->input_repackers,
                                                srcMemPtrs);
+        SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
+                                              ov::intel_cpu::pass::BrgemmToGemmCPU,
+                                              ov::intel_cpu::pass::EliminateCopyB,
+                                              cpu_config->input_repackers,
+                                              false,
+                                              getConstantInputIndexes());
+        SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
+                                              ov::intel_cpu::pass::EliminateCopyB,
+                                              ov::intel_cpu::pass::RepackMatMulWeights,
+                                              context,
+                                              cpu_config->input_repackers,
+                                              srcMemPtrs);
     }
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::pass::RemoveConverts);
-    SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::Before,
-                                          ov::snippets::pass::PropagatePrecision,
-                                          ov::intel_cpu::pass::BrgemmToGemmCPU);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(Place::PipelineEnd, ov::intel_cpu::pass::MulAddToFMA);
 
 #ifdef SNIPPETS_LIBXSMM_TPP
@@ -774,7 +787,7 @@ uint32_t Subgraph::getBroadcastingMask(const std::vector<VectorDims>& input_shap
     return mask;
 }
 
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
 uint32_t Subgraph::getConstantRepackedMask() const {
     // Returns a bitmask of inputs pre-packed at compile time (constant weights via RepackMatMulWeights).
     const auto& preconfigured =
