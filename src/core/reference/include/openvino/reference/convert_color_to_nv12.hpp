@@ -7,9 +7,7 @@
 #include <cmath>
 #include <cstddef>
 
-#include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/util/convert_color_to_nv12_base.hpp"
-#include "rgb_bgr_to_nv12_shape_inference.hpp"
 
 namespace ov {
 namespace reference {
@@ -80,54 +78,7 @@ void color_convert_to_nv12(const T* rgb_ptr,
     }
 }
 
-template <ov::element::Type_t T>
-inline bool color_convert_to_nv12(const std::shared_ptr<Node>& op,
-                                  ov::TensorVector& outputs,
-                                  const ov::TensorVector& inputs,
-                                  ov::op::util::ConvertColorToNV12Base::ColorConversion type) {
-    using ET = typename ov::element_type_traits<T>::value_type;
-    static const size_t N_DIM = 0;
-    static const size_t H_DIM = 1;
-    static const size_t W_DIM = 2;
-    OPENVINO_ASSERT(op->get_input_size() == 1,
-                    "RGB/BGR to NV12 shall have exactly one input, got ",
-                    op->get_input_size());
-    auto single_plane = op->get_output_size() == 1;
 
-    const auto& rgb_tensor = inputs[0];
-    auto batch_size = rgb_tensor.get_shape()[N_DIM];
-    auto image_h = rgb_tensor.get_shape()[H_DIM];
-    auto image_w = rgb_tensor.get_shape()[W_DIM];
-    const auto input_shapes = std::vector<ov::PartialShape>{rgb_tensor.get_shape()};
-    const auto output_shapes = ov::op::shape_infer(
-        static_cast<const ov::op::util::ConvertColorToNV12Base*>(op.get()),
-        input_shapes);
-    for (size_t i = 0; i < outputs.size(); ++i)
-        outputs[i].set_shape(output_shapes[i].to_shape());
-
-    if (single_plane) {
-        color_convert_to_nv12(rgb_tensor.data<ET>(),
-                              outputs[0].data<ET>(),
-                              outputs[0].data<ET>() + image_w * image_h,
-                              batch_size,
-                              image_h,
-                              image_w,
-                              image_w * image_h * 3 / 2,
-                              image_w * image_h * 3 / 2,
-                              type);
-    } else {
-        color_convert_to_nv12(rgb_tensor.data<ET>(),
-                              outputs[0].data<ET>(),
-                              outputs[1].data<ET>(),
-                              batch_size,
-                              image_h,
-                              image_w,
-                              image_w * image_h,
-                              image_w * image_h / 2,
-                              type);
-    }
-    return true;
-}
 
 }  // namespace reference
 }  // namespace ov
