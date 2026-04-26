@@ -37,13 +37,6 @@ namespace v1 = ov::op::v1;
 namespace v4 = ov::op::v4;
 namespace v8 = ov::op::v8;
 
-std::shared_ptr<v0::Parameter> make_i32_param(const std::string& name, const Shape& shape) {
-    auto p = std::make_shared<v0::Parameter>(element::i32, shape);
-    p->set_friendly_name(name);
-    p->get_output_tensor(0).set_names({name});
-    return p;
-}
-
 std::shared_ptr<ov::Model> build_model(bool add_present_state_result, bool use_read_value = true) {
     const Shape input_shape{2, 3};
     const Shape state_shape{2, 3, 4};
@@ -99,83 +92,6 @@ std::shared_ptr<ov::Model> build_model(bool add_present_state_result, bool use_r
     }
 
     ParameterVector params{input_embeds, past_state_param};
-    return std::make_shared<ov::Model>(results, params);
-}
-
-std::shared_ptr<ov::Model> build_model_ref(bool add_present_state_result) {
-    const Shape input_shape{2, 3};
-    const Shape state_shape{2, 3, 4};
-
-    auto input_embeds = std::make_shared<v0::Parameter>(element::f32, input_shape);
-    auto past_state = std::make_shared<v0::Parameter>(element::f32, state_shape);
-    past_state->get_output_tensor(0).set_names({"cache_params.past.conv.0"});
-
-    auto part_shape = v0::Constant::create(element::i64, Shape{3}, {2, 3, 1});
-    auto part0 = std::make_shared<v1::Reshape>(input_embeds, part_shape, false);
-    auto part1 = std::make_shared<v1::Reshape>(input_embeds, part_shape, false);
-    auto part2 = std::make_shared<v1::Reshape>(input_embeds, part_shape, false);
-
-    auto token_concat = std::make_shared<v0::Concat>(OutputVector{part0, part1, part2}, -1);
-    auto transpose_order = v0::Constant::create(element::i64, Shape{3}, {0, 2, 1});
-    auto token_transpose = std::make_shared<v1::Transpose>(token_concat, transpose_order);
-
-    auto input_embeds_shape = v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{-1, 3});
-    auto input_embeds_reshape = std::make_shared<v1::Reshape>(token_transpose, input_embeds_shape, false);
-
-    auto weight_reshape_shape = v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{3, 1, 4});
-    auto weights = v0::Constant::create(element::f32, Shape{3, 1, 1, 4}, std::vector<float>(12, 0.25f));
-    auto weight_reshape = std::make_shared<v1::Reshape>(weights, weight_reshape_shape, false);
-
-    auto bias_node = v0::Constant::create(element::f32, Shape{3}, std::vector<float>(3, 0.0f));
-
-    auto conv_state_table = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 3, 4});
-    conv_state_table->set_friendly_name("conv_state_table.0");
-    conv_state_table->get_output_tensor(0).set_names({"conv_state_table.0"});
-
-    auto subsequence_begins = make_i32_param("subsequence_begins", Shape{3});
-    auto block_indices = make_i32_param("block_indices", Shape{5});
-    auto block_indices_begins = make_i32_param("block_indices_begins", Shape{3});
-    auto past_lens = make_i32_param("past_lens", Shape{2});
-    auto cache_interval = make_i32_param("cache_interval", Shape{2});
-
-    const auto paged_conv = std::make_shared<ov::op::internal::PagedCausalConv1D>(input_embeds_reshape,
-                                                                                  conv_state_table,
-                                                                                  weight_reshape,
-                                                                                  bias_node,
-                                                                                  subsequence_begins,
-                                                                                  block_indices,
-                                                                                  block_indices_begins,
-                                                                                  past_lens,
-                                                                                  cache_interval);
-
-    const auto unsqueeze_axis = v0::Constant::create(element::i64, Shape{1}, {2});
-    const auto unsqueeze = std::make_shared<v0::Unsqueeze>(paged_conv, unsqueeze_axis);
-
-    auto swish = std::make_shared<v4::Swish>(unsqueeze);
-
-    ResultVector results;
-    results.push_back(std::make_shared<v0::Result>(swish));
-
-    if (add_present_state_result) {
-        auto state_slice = std::make_shared<v8::Slice>(
-            past_state,
-            v0::Constant::create(element::i64, Shape{1}, {-1}),
-            v0::Constant::create(element::i64, Shape{1}, {std::numeric_limits<int64_t>::max()}),
-            v0::Constant::create(element::i64, Shape{1}, {1}),
-            v0::Constant::create(element::i64, Shape{1}, {2}));
-        auto present_res = std::make_shared<v0::Result>(state_slice);
-        present_res->get_output_tensor(0).set_names({"cache_params.present.conv.0"});
-        results.push_back(present_res);
-    }
-
-    ParameterVector params{input_embeds,
-                           past_state,
-                           conv_state_table,
-                           subsequence_begins,
-                           block_indices,
-                           block_indices_begins,
-                           past_lens,
-                           cache_interval};
     return std::make_shared<ov::Model>(results, params);
 }
 
