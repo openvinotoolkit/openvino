@@ -9,6 +9,7 @@
 
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/util/convert_color_to_nv12_base.hpp"
+#include "rgb_bgr_to_nv12_shape_inference.hpp"
 
 namespace ov {
 namespace reference {
@@ -97,8 +98,14 @@ inline bool color_convert_to_nv12(const std::shared_ptr<Node>& op,
     auto batch_size = rgb_tensor.get_shape()[N_DIM];
     auto image_h = rgb_tensor.get_shape()[H_DIM];
     auto image_w = rgb_tensor.get_shape()[W_DIM];
+    const auto input_shapes = std::vector<ov::PartialShape>{rgb_tensor.get_shape()};
+    const auto output_shapes = ov::op::shape_infer(
+        static_cast<const ov::op::util::ConvertColorToNV12Base*>(op.get()),
+        input_shapes);
+    for (size_t i = 0; i < outputs.size(); ++i)
+        outputs[i].set_shape(output_shapes[i].to_shape());
+
     if (single_plane) {
-        outputs[0].set_shape({batch_size, image_h * 3 / 2, image_w, 1});
         color_convert_to_nv12(rgb_tensor.data<ET>(),
                               outputs[0].data<ET>(),
                               outputs[0].data<ET>() + image_w * image_h,
@@ -109,8 +116,6 @@ inline bool color_convert_to_nv12(const std::shared_ptr<Node>& op,
                               image_w * image_h * 3 / 2,
                               type);
     } else {
-        outputs[0].set_shape({batch_size, image_h, image_w, 1});
-        outputs[1].set_shape({batch_size, image_h / 2, image_w / 2, 2});
         color_convert_to_nv12(rgb_tensor.data<ET>(),
                               outputs[0].data<ET>(),
                               outputs[1].data<ET>(),
