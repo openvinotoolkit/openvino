@@ -5,6 +5,7 @@
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
@@ -14,7 +15,7 @@
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
-#include "transformations/sdpa_to_paged_attention/position_ids_replacer.hpp"
+#include "transformations/paged_attention/position_ids_replacer.hpp"
 #include "transformations/sdpa_to_paged_attention/prev_sequence_length_pattern.hpp"
 #include "transformations/sdpa_to_paged_attention/state_management_pattern.hpp"
 #include "transformations/sdpa_to_paged_attention/total_sequence_length_pattern.hpp"

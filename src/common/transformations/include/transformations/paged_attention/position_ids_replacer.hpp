@@ -17,6 +17,7 @@ namespace pass {
 
 class TRANSFORMATIONS_API PositionIDsReplacer;
 class TRANSFORMATIONS_API PositionIDsReplacerQwen;
+class TRANSFORMATIONS_API PositionIDsReplacerLFM2;
 class TRANSFORMATIONS_API PositionIDsReplacerCodeGen2;
 
 }  // namespace pass
@@ -84,6 +85,17 @@ public:
  *  │Gather├──────────┘
  *  └──────┘
  */
+/**
+ * @brief LFM2-style models compute RoPE positions from an internal arange (aten::arange) rather
+ * than from the explicit position_ids input. This transformation replaces that arange output with
+ * position_ids so that Paged Attention can serve tokens in arbitrary order.
+ */
+class ov::pass::PositionIDsReplacerLFM2 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("PositionIDsReplacerLFM2");
+    explicit PositionIDsReplacerLFM2(const Output<Node>& position_ids);
+};
+
 class ov::pass::PositionIDsReplacerCodeGen2 : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("PositionIDsReplacerCodeGen2");
