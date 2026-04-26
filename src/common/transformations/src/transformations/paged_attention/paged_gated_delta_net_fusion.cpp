@@ -81,7 +81,7 @@ ov::Output<ov::Node> flatten_blh_to_th(const ov::Output<ov::Node>& input, ov::No
 class PagedGatedDeltaNetFusionMatcher : public ov::pass::MatcherPass {
 public:
     PagedGatedDeltaNetFusionMatcher(ov::pass::paged_attention::PaParams& pa_params,
-                                   std::unordered_set<std::string>& var_ids_to_remove)
+                                    std::unordered_set<std::string>& var_ids_to_remove)
         : m_pa_params(pa_params),
           m_var_ids_to_remove(var_ids_to_remove) {
         auto query = any_input();
@@ -214,16 +214,16 @@ bool PagedGatedDeltaNetFusion::run_on_model(const std::shared_ptr<ov::Model>& mo
     m_params.add("la.block_indices_begins", ov::element::i32, ov::PartialShape{-1});
     m_params.add("la.past_lens", ov::element::i32, ov::PartialShape{-1});
     m_params.add("la.cache_interval", ov::element::i32, ov::PartialShape{-1});
-    
+
     bool is_model_changed = false;
-    
-    { 
+
+    {
         ov::pass::Manager manager(get_pass_config(), "GatedDeltaNetFusion");
         manager.set_per_pass_validation(false);
         manager.register_pass<ov::pass::GatedDeltaNetFusion>();
         manager.run_passes(model);
     }
-    
+
     {
         ov::pass::Manager manager(get_pass_config(), "PagedGatedDeltaNetFusion");
         manager.set_per_pass_validation(false);
@@ -239,5 +239,3 @@ bool PagedGatedDeltaNetFusion::run_on_model(const std::shared_ptr<ov::Model>& mo
 }
 
 }  // namespace ov::pass
-
-
