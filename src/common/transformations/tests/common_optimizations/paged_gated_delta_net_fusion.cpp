@@ -28,7 +28,6 @@ namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace internal = ov::op::internal;
 
-
 std::shared_ptr<v0::Parameter> make_f32_param(const std::string& name, const Shape& shape) {
     auto p = std::make_shared<v0::Parameter>(element::f32, shape);
     p->set_friendly_name(name);
