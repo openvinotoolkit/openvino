@@ -13,44 +13,44 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, convert_color_rgb_to_nv12_single_plane) {
-    NodeBuilder::opset().insert<op::v16::RGBtoNV12>();
+    NodeBuilder::opset().insert<op::v17::RGBtoNV12>();
     auto data = make_shared<op::v0::Parameter>(element::u8, Shape{3, 480, 640, 3});
-    auto convert_color = make_shared<op::v16::RGBtoNV12>(data);
+    auto convert_color = make_shared<op::v17::RGBtoNV12>(data);
     NodeBuilder builder(convert_color, {data});
-    EXPECT_NO_THROW(auto g_op = ov::as_type_ptr<op::v16::RGBtoNV12>(builder.create()));
+    EXPECT_NO_THROW(auto g_op = ov::as_type_ptr<op::v17::RGBtoNV12>(builder.create()));
 
     const auto expected_attr_count = 1;  // single_plane attribute
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 }
 
 TEST(attributes, convert_color_rgb_to_nv12_two_planes) {
-    NodeBuilder::opset().insert<op::v16::RGBtoNV12>();
+    NodeBuilder::opset().insert<op::v17::RGBtoNV12>();
     auto data = make_shared<op::v0::Parameter>(element::u8, Shape{3, 480, 640, 3});
-    auto convert_color = make_shared<op::v16::RGBtoNV12>(data, false);
+    auto convert_color = make_shared<op::v17::RGBtoNV12>(data, false);
     NodeBuilder builder(convert_color, {data});
-    EXPECT_NO_THROW(auto g_op = ov::as_type_ptr<op::v16::RGBtoNV12>(builder.create()));
+    EXPECT_NO_THROW(auto g_op = ov::as_type_ptr<op::v17::RGBtoNV12>(builder.create()));
 
     const auto expected_attr_count = 1;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 }
 
 TEST(attributes, convert_color_bgr_to_nv12_single_plane) {
-    NodeBuilder::opset().insert<op::v16::BGRtoNV12>();
+    NodeBuilder::opset().insert<op::v17::BGRtoNV12>();
     auto data = make_shared<op::v0::Parameter>(element::u8, Shape{3, 480, 640, 3});
-    auto convert_color = make_shared<op::v16::BGRtoNV12>(data);
+    auto convert_color = make_shared<op::v17::BGRtoNV12>(data);
     NodeBuilder builder(convert_color, {data});
-    EXPECT_NO_THROW(auto g_op = ov::as_type_ptr<op::v16::BGRtoNV12>(builder.create()));
+    EXPECT_NO_THROW(auto g_op = ov::as_type_ptr<op::v17::BGRtoNV12>(builder.create()));
 
     const auto expected_attr_count = 1;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 }
 
 TEST(attributes, convert_color_bgr_to_nv12_two_planes) {
-    NodeBuilder::opset().insert<op::v16::BGRtoNV12>();
+    NodeBuilder::opset().insert<op::v17::BGRtoNV12>();
     auto data = make_shared<op::v0::Parameter>(element::u8, Shape{3, 480, 640, 3});
-    auto convert_color = make_shared<op::v16::BGRtoNV12>(data, false);
+    auto convert_color = make_shared<op::v17::BGRtoNV12>(data, false);
     NodeBuilder builder(convert_color, {data});
-    EXPECT_NO_THROW(auto g_op = ov::as_type_ptr<op::v16::BGRtoNV12>(builder.create()));
+    EXPECT_NO_THROW(auto g_op = ov::as_type_ptr<op::v17::BGRtoNV12>(builder.create()));
 
     const auto expected_attr_count = 1;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
