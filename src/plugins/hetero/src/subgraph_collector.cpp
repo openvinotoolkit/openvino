@@ -170,7 +170,7 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
         std::vector<SubgraphId> subgraph_id_by_index(nodes_count);
         for (const auto& node : _ordered_ops) {
             const auto index = get_index_by_node(node.get());
-            subgraph_id_by_index[index] = subgraph_ids[node];
+            subgraph_id_by_index[index] = subgraph_ids.at(node);
         }
 
         // === Phase 1: assign a dense bit id to every current subgraph input. ===
