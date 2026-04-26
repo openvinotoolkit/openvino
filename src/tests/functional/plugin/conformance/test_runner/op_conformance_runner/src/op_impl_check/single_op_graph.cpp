@@ -1746,10 +1746,10 @@ std::shared_ptr<ov::Model> generateConvertColor(const std::shared_ptr<ov::op::Op
 std::shared_ptr<ov::Model> generateConvertColorToNV12(const std::shared_ptr<ov::op::Op> &node) {
     const auto params = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, Shape{1, 4, 2, 3});
     std::shared_ptr<ov::Node> convert;
-    if (ov::is_type<ov::op::v16::RGBtoNV12>(node)) {
-        convert = std::make_shared<ov::op::v16::RGBtoNV12>(params);
-    } else if (ov::is_type<ov::op::v16::BGRtoNV12>(node)) {
-        convert = std::make_shared<ov::op::v16::BGRtoNV12>(params);
+    if (ov::is_type<ov::op::v17::RGBtoNV12>(node)) {
+        convert = std::make_shared<ov::op::v17::RGBtoNV12>(params);
+    } else if (ov::is_type<ov::op::v17::BGRtoNV12>(node)) {
+        convert = std::make_shared<ov::op::v17::BGRtoNV12>(params);
     } else {
         return nullptr;
     }

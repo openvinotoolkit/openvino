@@ -50,7 +50,7 @@ TEST_F(ReferenceConvertColorToNV12LayerTest, CompareWithHardcodedRefs_red_u8_sin
 
     reference_tests::Tensor inp_tensor(input_shape, element::u8, input);
     inputData = {inp_tensor.data};
-    function = CreateFunction<op::v16::RGBtoNV12>(inp_tensor);
+    function = CreateFunction<op::v17::RGBtoNV12>(inp_tensor);
     reference_tests::Tensor exp_tensor(out_shape, element::u8, exp_out);
     refOutData = {exp_tensor.data};
     Exec();
@@ -68,7 +68,7 @@ TEST_F(ReferenceConvertColorToNV12LayerTest, CompareWithHardcodedRefs_green_f32_
     reference_tests::Tensor exp_tensor(out_shape, element::f32, exp_out);
     refOutData = {exp_tensor.data};
 
-    function = CreateFunction<op::v16::RGBtoNV12>(inp_tensor);
+    function = CreateFunction<op::v17::RGBtoNV12>(inp_tensor);
 
     Exec();
 }
@@ -81,7 +81,7 @@ TEST_F(ReferenceConvertColorToNV12LayerTest, CompareWithHardcodedRefs_blue_u8_si
 
     reference_tests::Tensor inp_tensor(input_shape, element::u8, input);
     inputData = {inp_tensor.data};
-    function = CreateFunction<op::v16::BGRtoNV12>(inp_tensor);
+    function = CreateFunction<op::v17::BGRtoNV12>(inp_tensor);
     reference_tests::Tensor exp_tensor(out_shape, element::u8, exp_out);
     refOutData = {exp_tensor.data};
     Exec();
@@ -104,7 +104,7 @@ TEST_F(ReferenceConvertColorToNV12LayerTest, CompareWithHardcodedRefs_red_f32_tw
     reference_tests::Tensor exp_uv_tensor(exp_uv_shape, element::f32, exp_uv);
     refOutData = {exp_y_tensor.data, exp_uv_tensor.data};
 
-    function = CreateFunction2Plane<op::v16::RGBtoNV12>(inp_tensor);
+    function = CreateFunction2Plane<op::v17::RGBtoNV12>(inp_tensor);
 
     Exec();
 }
@@ -126,7 +126,7 @@ TEST_F(ReferenceConvertColorToNV12LayerTest, CompareWithHardcodedRefs_red_f32_tw
     reference_tests::Tensor exp_uv_tensor(exp_uv_shape, element::f32, exp_uv);
     refOutData = {exp_y_tensor.data, exp_uv_tensor.data};
 
-    function = CreateFunction2Plane<op::v16::BGRtoNV12>(inp_tensor);
+    function = CreateFunction2Plane<op::v17::BGRtoNV12>(inp_tensor);
 
     Exec();
 }

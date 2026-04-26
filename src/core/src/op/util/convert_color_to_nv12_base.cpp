@@ -20,7 +20,7 @@ ov::op::util::ConvertColorToNV12Base::ConvertColorToNV12Base(const Output<Node>&
       m_single_plane(single_plane) {}
 
 void ov::op::util::ConvertColorToNV12Base::validate_and_infer_types() {
-    OV_OP_SCOPE(v16_ConvertColorToNV12Base_validate_and_infer_types);
+    OV_OP_SCOPE(v17_ConvertColorToNV12Base_validate_and_infer_types);
 
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
