@@ -6,9 +6,7 @@
 
 #include "openvino/op/util/convert_color_to_nv12_base.hpp"
 
-namespace ov {
-namespace op {
-namespace v16 {
+namespace ov::op::v17 {
 /// \brief Color conversion operation from RGB to NV12 format.
 ///    Input:
 ///        - Input RGB image in NHWC layout with shape [N, H, W, 3].
@@ -32,7 +30,7 @@ namespace v16 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API RGBtoNV12 : public util::ConvertColorToNV12Base {
 public:
-    OPENVINO_OP("RGBtoNV12", "opset16", util::ConvertColorToNV12Base);
+    OPENVINO_OP("RGBtoNV12", "opset17", util::ConvertColorToNV12Base);
 
     RGBtoNV12() = default;
 
@@ -52,6 +50,4 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
-}  // namespace v16
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::op::v17

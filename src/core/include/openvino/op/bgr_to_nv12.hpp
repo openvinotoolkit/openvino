@@ -5,9 +5,7 @@
 
 #include "openvino/op/util/convert_color_to_nv12_base.hpp"
 
-namespace ov {
-namespace op {
-namespace v16 {
+namespace ov::op::v17 {
 /// \brief Color conversion operation from BGR to NV12 format.
 ///    Input:
 ///        - Input BGR image in NHWC layout with shape [N, H, W, 3].
@@ -32,7 +30,7 @@ namespace v16 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API BGRtoNV12 : public util::ConvertColorToNV12Base {
 public:
-    OPENVINO_OP("BGRtoNV12", "opset16", util::ConvertColorToNV12Base);
+    OPENVINO_OP("BGRtoNV12", "opset17", util::ConvertColorToNV12Base);
     BGRtoNV12() = default;
     /// \brief Constructs a conversion operation from input image in BGR format.
     /// Output is single-plane NV12.
@@ -49,6 +47,4 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
-}  // namespace v16
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::op::v17
