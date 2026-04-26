@@ -5,7 +5,7 @@
 //
 // Three-layer architecture (see codec_refactoring.md):
 //
-//   Params:   ScaleZpParams, ByChannelParams, NoParams —
+//   Params:   GroupedScaleZpParams, ByChannelScaleZpParams, NoParams —
 //     carry per-position dequant parameters. Views resolve params;
 //     decoders consume them. j drives span resolution in the view,
 //     NOT in the decoder.
@@ -40,7 +40,7 @@ namespace ov::Extensions::Cpu::XARCH {
 // ---------------------------------------------------------------------------
 
 // Grouped quantization: one scale/zp pair per group. Broadcast to SIMD width.
-struct ScaleZpParams {
+struct GroupedScaleZpParams {
     float v_scale;
     float v_zp;
 
@@ -57,7 +57,7 @@ struct ScaleZpParams {
 // By-channel quantization: span-relative pointers. Vector load at current width.
 //   scalar: load(scale_ptr) reads one element
 //   SIMD:   load(scale_ptr) reads a contiguous lane block
-struct ByChannelParams {
+struct ByChannelScaleZpParams {
     const float* scale_ptr;
     const float* zp_ptr;
 
@@ -267,7 +267,7 @@ struct AffineRecordView {
 
 // Grouped view: per-token resolved with szp pointer.
 // group_decoder() returns a stateless decoder; group_params() returns
-// per-group ScaleZpParams that the decoder consumes.
+// per-group GroupedScaleZpParams that the decoder consumes.
 template <typename Decoder>
 struct GroupedView {
     const float* szp;
@@ -284,7 +284,7 @@ struct GroupedView {
         return {};
     }
     // Per-group scale/zp.
-    [[nodiscard]] ScaleZpParams group_params(int group) const {
+    [[nodiscard]] GroupedScaleZpParams group_params(int group) const {
         return {szp[group * 2], szp[group * 2 + 1]};
     }
 };
@@ -306,7 +306,7 @@ struct GroupedRecordView {
 // ---------------------------------------------------------------------------
 // By-channel views — per-element scale/zp across head_dim.
 //
-// params_for(j, active_lanes) resolves span-relative ByChannelParams:
+// params_for(j, active_lanes) resolves span-relative ByChannelScaleZpParams:
 //   scalar: {scale + j, zp + j} → load reads one element
 //   SIMD:   {scale + j, zp + j} → load reads a contiguous lane block
 // j drives span resolution in the view, not in the decoder.
@@ -319,7 +319,7 @@ struct ByChannelView {
     const float* zp;
 
     template <simd::isa I>
-    ByChannelParams params_for(int j, simd::active_lanes<I> /*unused*/) const {
+    ByChannelScaleZpParams params_for(int j, simd::active_lanes<I> /*unused*/) const {
         return {scale + j, zp + j};
     }
 };

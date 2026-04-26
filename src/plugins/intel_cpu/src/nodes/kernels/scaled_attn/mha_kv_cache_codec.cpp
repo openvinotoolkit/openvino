@@ -629,7 +629,11 @@ void mha_kv_cache(PlainTensor& q_input,
                 });
             },
             [&](size_t ithr) {
-                std::memset(buf_attn_score.ptr<float>(ithr, 0, 0, 0, 0), 0, buf_attn_score.stride(0) * sizeof(float));
+                for (size_t b = 0; b < B; ++b) {
+                    std::memset(buf_attn_score.ptr<float>(ithr, b, m, 0, 0),
+                                0,
+                                buf_attn_score.stride(2) * sizeof(float));
+                }
             });
 
         // Phase 4: Reduce for query position m.

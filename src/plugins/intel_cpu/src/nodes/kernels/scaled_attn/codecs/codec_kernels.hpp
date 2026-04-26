@@ -34,55 +34,55 @@ struct StridedData {
 // The plan carries both decoder (how bits become values) and params
 // (resolved dequant context). j is NOT passed to the decoder.
 template <typename Plan, simd::isa I>
-static inline auto decode_at(const uint8_t* data, int j, const Plan& plan, simd::active_lanes<I> a) {
+auto decode_at(const uint8_t* data, int j, const Plan& plan, simd::active_lanes<I> a) {
     using Dec = std::decay_t<decltype(plan.decoder)>;
     constexpr int bits = Dec::bits;
     int b = j * bits;
     return plan.decoder.decode(data + b / 8, b % 8, plan.params, a);
 }
 
-// Generic dot product: sum(plan.decode(data[j]) * q[j]) for j in [0, dim).
+// Attention QK dot product: sum(plan.decode(k[j]) * q[j]) for j in [0, dim).
 // Returns raw dot product — caller applies outer scale.
 // QT: query element type (float, float16, bfloat16). simd::load handles conversion.
 // PlanFor: plan provider — plan_for(j, active_lanes<I>) returns a DecodePlan for position j.
 // Uses simd_loop_reduce: 4x-unrolled SIMD main loop with vector accumulators,
 // scalar tail, single final horizontal reduction.
 template <typename QT, typename PlanFor>
-static inline float codec_dot(const uint8_t* data, const QT* q, int dim, PlanFor&& plan_for) {
+float codec_dot(const uint8_t* k, const QT* q, int dim, PlanFor&& plan_for) {
     return simd::simd_loop_reduce<4>(
         dim,
         [&](int j, simd::f32& acc) {
             simd::active_lanes<simd::active_isa> a{};
             auto plan = plan_for(j, a);
-            acc = simd::fmadd(simd::load<simd::f32>(q + j), decode_at(data, j, plan, a), acc);
+            acc = simd::fmadd(simd::load<simd::f32>(q + j), decode_at(k, j, plan, a), acc);
         },
         [&](int j, float& tail) {
             simd::active_lanes<simd::isa::scalar> a{};
             auto plan = plan_for(j, a);
             using Vs = simd::f32_t<simd::isa::scalar>;
-            tail += reduce(simd::load<Vs>(q + j) * decode_at(data, j, plan, a));
+            tail += reduce(simd::load<Vs>(q + j) * decode_at(k, j, plan, a));
         });
 }
 
-// Generic weighted V accumulation: for each element j, decode once and accumulate
-// into all n_heads output buffers with weight * outer_scale.
+// Attention V weighted accumulation: for each element j, decode v[j] once and
+// accumulate into all n_heads output buffers with weight * outer_scale.
 // PlanFor: plan provider — plan_for(j, active_lanes<I>) returns a DecodePlan for position j.
 template <typename PlanFor>
-static inline void codec_weighted_accum(const uint8_t* data,
-                                        int dim,
-                                        PlanFor&& plan_for,
-                                        float outer_scale,
-                                        StridedData<const float> weights,
-                                        StridedData<float> accum,
-                                        int n_heads) {
+void codec_weighted_accum(const uint8_t* v,
+                          int dim,
+                          PlanFor&& plan_for,
+                          float outer_scale,
+                          StridedData<const float> weights,
+                          StridedData<float> accum,
+                          int n_heads) {
     simd::simd_loop(dim, [&](int j, auto a) {
         auto plan = plan_for(j, a);
-        auto v = decode_at(data, j, plan, a);
-        using V = std::decay_t<decltype(v)>;
+        auto v_dec = decode_at(v, j, plan, a);
+        using V = std::decay_t<decltype(v_dec)>;
         for (int h = 0; h < n_heads; h++) {
             V vw(weights[h][0] * outer_scale);
             float* out = accum[h] + j;
-            simd::store(simd::fmadd(vw, v, simd::load<V>(out, a)), out, a);
+            simd::store(simd::fmadd(vw, v_dec, simd::load<V>(out, a)), out, a);
         }
     });
 }

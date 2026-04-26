@@ -26,7 +26,7 @@ namespace ov::Extensions::Cpu::XARCH {
 // Compute L2 norm and normalize src to unit vector in f32. Returns the norm.
 // Dispatches on src_precision to handle bf16/f16→f32 conversion during the load.
 template <typename T>
-static float normalize_to_unit(const void* src_raw, float* unit, int dim) {
+float normalize_to_unit(const void* src_raw, float* unit, int dim) {
     const auto* src = static_cast<const T*>(src_raw);
 
     float norm_sq = simd::simd_loop_reduce<2>(
@@ -53,7 +53,7 @@ static float normalize_to_unit(const void* src_raw, float* unit, int dim) {
     return norm;
 }
 
-static inline float dispatch_normalize(const void* src, float* unit, int dim, ov::element::Type precision) {
+inline float dispatch_normalize(const void* src, float* unit, int dim, ov::element::Type precision) {
     if (precision == ov::element::bf16) {
         return normalize_to_unit<ov::bfloat16>(src, unit, dim);
     }
@@ -64,7 +64,7 @@ static inline float dispatch_normalize(const void* src, float* unit, int dim, ov
 }
 
 // Branchless linear scan over boundaries — shared by TBQ / QJL / Polar.
-static inline uint8_t scalar_quantize(float x, const float* boundaries, int n_boundaries) {
+inline uint8_t scalar_quantize(float x, const float* boundaries, int n_boundaries) {
     int idx = 0;
     for (int i = 0; i < n_boundaries; i++) {
         idx += (x > boundaries[i]) ? 1 : 0;
