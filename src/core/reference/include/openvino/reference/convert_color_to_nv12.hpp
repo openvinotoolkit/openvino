@@ -78,7 +78,5 @@ void color_convert_to_nv12(const T* rgb_ptr,
     }
 }
 
-
-
 }  // namespace reference
 }  // namespace ov
