@@ -53,6 +53,17 @@ void basic_memory_dependencies::run(program& p) {
                     auto& eltw_node = node->get_dependency(eltw_dep);
                     eltw_node.can_share_buffer(false);
                     node->can_share_buffer(false);
+
+                    
+                    // FIX: Walk up eltw_node's in-place chain to find the root buffer owner.
+                    // Without this, the pool still considers the root's buffer available for
+                    // reuse and hands it to other primitives, causing data corruption.
+                    auto* root = &eltw_node;
+                    while (root->can_be_optimized() && !root->get_dependencies().empty()) {
+                        root = &root->get_dependency(0);
+                    }
+                    root->can_share_buffer(false);
+
                     for (auto& user : node->get_users()) {
                         add_memory_dependency(user, &eltw_node);
                         add_memory_dependency(user, node);
