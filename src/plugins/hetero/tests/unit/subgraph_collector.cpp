@@ -233,9 +233,7 @@ std::shared_ptr<ov::Model> create_stateful_single_device_model() {
     assign->set_friendly_name("assign");
     auto result = std::make_shared<ov::op::v0::Result>(add);
     result->set_friendly_name("res");
-    return std::make_shared<ov::Model>(ov::ResultVector{result},
-                                       ov::SinkVector{assign},
-                                       ov::ParameterVector{param});
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::SinkVector{assign}, ov::ParameterVector{param});
 }
 
 std::shared_ptr<ov::Model> create_submodel_from_collected_subgraph(const ov::hetero::Subgraph& sg) {
@@ -593,18 +591,18 @@ struct SubgraphCollectorTestParam {
     using ModelFactory = std::function<std::shared_ptr<ov::Model>()>;
     // --- required fields ---
     std::string test_name;
-    ModelFactory create_model;  // factory to build the model under test
+    ModelFactory create_model;                        // factory to build the model under test
     std::map<std::string, std::string> affinity_map;  // node_name → device; empty = broadcast default
-    std::string default_affinity;  // used when affinity_map is empty
-    size_t expected_subgraph_count;  // number of subgraphs from run()
+    std::string default_affinity;                     // used when affinity_map is empty
+    size_t expected_subgraph_count;                   // number of subgraphs from run()
     // --- optional checks (a default-constructed/empty/false value disables the check) ---
-    std::vector<std::string> expected_affinities = {};  // sorted affinity list per subgraph
+    std::vector<std::string> expected_affinities = {};                       // sorted affinity list per subgraph
     std::map<std::string, SubgraphCollector::SubgraphId> expected_ids = {};  // node_name → expected subgraph ID
-    std::vector<ModelFactory> expected_submodel_factories = {};  // reference submodel per subgraph
-    SubgraphsMappingInfo expected_mapping = {};  // expected mapping info from run()
-    size_t expected_total_sinks = 0;  // sum of sg._sinks.size() across subgraphs (0 = no check)
+    std::vector<ModelFactory> expected_submodel_factories = {};              // reference submodel per subgraph
+    SubgraphsMappingInfo expected_mapping = {};                              // expected mapping info from run()
+    size_t expected_total_sinks = 0;      // sum of sg._sinks.size() across subgraphs (0 = no check)
     bool verify_merge_roundtrip = false;  // merge submodels back and check size == 1
-    bool verify_merge_compare = false;  // compare_functions(original, merged)
+    bool verify_merge_compare = false;    // compare_functions(original, merged)
 };
 
 class SubgraphCollectorParamTest : public testing::TestWithParam<SubgraphCollectorTestParam> {};
