@@ -587,7 +587,8 @@ void Metadata<METADATA_VERSION_2_5>::write_human_readable(std::ostream& stream) 
     Metadata<METADATA_VERSION_2_4>::write_human_readable(stream);
 
     if (_compilerReqs.has_value() && !_compilerReqs->empty()) {
-        write_hr_field(stream, "compiler_reqs", '[' + _compilerReqs.value() + ']');
+        // _compilerReqs ends with '\0', remove it before writing human-readable metadata
+        write_hr_field(stream, "compiler_reqs", "[" + _compilerReqs->substr(0, _compilerReqs->length() - 1) + "]");
     }
 }
 

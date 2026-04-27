@@ -379,17 +379,16 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
             OPENVINO_THROW("Unsupported ov::runtime_requirements tensor element type");
         }
         _logger.debug("Received encoded compatibility string: %s length: %zu", encodedString.c_str(), encodedString.length());
-        std::string decodedString = decode_compatibility_string(encodedString);
 
         const ov::Tensor viewTensor =
-            ov::Tensor(ov::element::Type_t::u8, ov::Shape{decodedString.length()}, decodedString.data());
+            ov::Tensor(ov::element::Type_t::u8, ov::Shape{encodedString.length()}, encodedString.data());
 
         std::unique_ptr<MetadataBase> metadata = nullptr;
         try {
             // The plugin cares only about the string size and the metadata version check for now. Additional checks
             // based
             // on other metadata fields can be done following this line.
-            metadata = read_metadata_from(viewTensor);
+            metadata = read_human_readable(viewTensor);
         } catch (const std::exception& ex) {
             // Unsupported version, could not read the metadata or an unknown error has occured. Report that the
             // requirements are not met.
@@ -400,9 +399,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         OPENVINO_ASSERT(metadata);
 
         const size_t compilerStringSize = metadata->get_blob_size();
-        // Discard everything else but the compiler section
-        decodedString = decodedString.substr(0, compilerStringSize);
-        _logger.debug("Decoded compiler compatibility string: %s length: %zu", decodedString.c_str(), decodedString.length());
+        auto compilerRequirements = metadata->get_compiler_reqs().value_or("");
+        _logger.debug("Decoded compiler compatibility string: %s length: %zu", compilerRequirements.c_str(), compilerRequirements.length());
 
         // Implement only the fallback path for now through the PLUGIN compiler type
         std::unique_ptr<ICompilerAdapter> compiler = nullptr;
@@ -417,7 +415,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         OPENVINO_ASSERT(compiler != nullptr);
 
         // Compiler can validate only if the decoded string describes a blob compatible with the current platform
-        auto result = compiler->validate_compatibility_descriptor(decodedString);
+        auto result = compiler->validate_compatibility_descriptor(compilerRequirements);
         _logger.debug("Compatibility check result: %s", result ? "met" : "not met");
         if(result) {
             return ov::BlobCompatibility::OPTIMAL;
