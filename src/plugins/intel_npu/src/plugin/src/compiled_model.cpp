@@ -204,9 +204,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         std::string compilerDescriptor = compatibilityDescriptorOpt.value();
 
         std::ostringstream requirementsString;
-        requirementsString.write(reinterpret_cast<const char*>(compilerDescriptor.data()),
-                                 static_cast<std::streamsize>(compilerDescriptor.size()));
-        _logger.debug("Compatibility string from compiler %s length: %zu", requirementsString.str().c_str(), compilerDescriptor.size());
+        _logger.debug("Compatibility string from compiler %s length: %zu", compilerDescriptor.c_str(), compilerDescriptor.size());
 
         // The layouts are not useful compatibility information
         Metadata<CURRENT_METADATA_VERSION>(compilerDescriptor.size(),
@@ -214,14 +212,15 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
                                            std::nullopt/*_graph->get_init_sizes()*/,
                                            _batchSize,
                                            std::nullopt,
-                                           std::nullopt)
-            .write(requirementsString);
+                                           std::nullopt,
+                                           524289, // hardcoded 8.1 for now
+                                           compilerDescriptor)
+            .write_human_readable(requirementsString);
 
-        const std::string encodedString = encode_compatibility_string(requirementsString.str());
-        _logger.debug("Encoded compatibility string: %s length: %zu", encodedString.c_str(), encodedString.length());
+        _logger.debug("Encoded compatibility string: %s length: %zu", requirementsString.str().c_str(), requirementsString.str().length());
 
         ov::Tensor requirements(ov::element::string, {});
-        *requirements.data<std::string>() = encodedString;
+        *requirements.data<std::string>() = requirementsString.str();
         return requirements;
     }
 
