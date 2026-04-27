@@ -77,6 +77,7 @@ INTEL_NPU_NPUW_ANYMAP_OPT(NPUW_LLM_SHARED_LM_HEAD_CONFIG, ov::intel_npu::npuw::l
 INTEL_NPU_NPUW_ANYMAP_OPT(NPUW_LLM_ADDITIONAL_SHARED_LM_HEAD_CONFIG, ov::intel_npu::npuw::llm, additional_shared_lm_head_config, "++NPUW_LLM_SHARED_HEAD_CONFIG", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_WHISPER, bool, false, ov::intel_npu::npuw::whisper, enabled, "NPUW_WHISPER", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_WHISPER_EOS_TOKEN, uint64_t, 50257, ov::intel_npu::npuw::whisper, whisper_eos_token, "NPUW_WHISPER_EOS_TOKEN", LLM, EXPOSED, UNCACHED, ALL)
+INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_WHISPER_DECOMPOSE_SDPA, bool, false, ov::intel_npu::npuw::whisper, whisper_decompose_sdpa, "NPUW_WHISPER_DECOMPOSE_SDPA", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_EAGLE, bool, false, ov::intel_npu::npuw::eagle, enabled, "NPUW_EAGLE", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_TEXT_EMBED, bool, false, ov::intel_npu::npuw::text_embed, enabled, "NPUW_TEXT_EMBED", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_KOKORO, bool, false, ov::intel_npu::npuw::kokoro, enabled, "NPUW_KOKORO", KOKORO, EXPOSED, UNCACHED, ALL)
