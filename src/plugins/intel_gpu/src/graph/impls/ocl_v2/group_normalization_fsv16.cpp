@@ -37,6 +37,24 @@ ov::element::Type get_accumulator_type(const RuntimeParams& params) {
     }
 }
 
+bool allow_fused_kernel(const program_node& node) {
+    const auto& in0_layout = node.get_input_layout(0);
+    const auto& out_layout = node.get_output_layout(0);
+
+    if (in0_layout.data_padding != padding() || out_layout.data_padding != padding()) {
+        return false;
+    }
+
+    auto feature_dim = extract_dim(ChannelName::FEATURE, in0_layout);
+    if (feature_dim.is_dynamic() || feature_dim.get_length() % fsv != 0) {
+        return false;
+    }
+
+    int64_t num_groups = node.as<group_normalization>().get_primitive()->num_groups;
+    int64_t group_size = feature_dim.get_length() / num_groups;
+    return fsv % group_size == 0;
+}
+
 class GroupNormalizationGeneratorBase : public KernelGenerator {
 public:
     explicit GroupNormalizationGeneratorBase(std::string_view name, std::string_view suffix) : KernelGenerator(name, suffix) {}
@@ -75,6 +93,74 @@ public:
         jit.add(make_type_jit_constants("ACCUMULATOR", get_accumulator_type(params)));
 
         return jit;
+    }
+};
+
+class GroupNormalizationGeneratorFused : public GroupNormalizationGeneratorBase {
+public:
+    GroupNormalizationGeneratorFused() : GroupNormalizationGeneratorBase("group_normalization_fsv16", "group_norm_fused") {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = GroupNormalizationGeneratorBase::get_jit_constants(params);
+        jit.make("GROUP_NORM_KERNEL_FUSED", 1);
+
+        if (params.has_fused_primitives()) {
+            const auto& out_l = params.get_output_layout(0);
+            FusedOpsConfiguration conf = {"", std::vector<std::string>{"(b)", "(f)", "(y)", "(x)"}, "normalized", out_l.data_type};
+            jit.add(make_fused_ops_jit_constants(params, {conf}));
+        }
+
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        Arguments args;
+
+        if (params.is_dynamic()) {
+            args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+        }
+
+        args.push_back({ArgumentDescriptor::Types::INPUT, 0});
+        args.push_back({ArgumentDescriptor::Types::INPUT, 1});
+        args.push_back({ArgumentDescriptor::Types::INPUT, 2});
+        add_fused_ops_arguments(args, params);
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+            assert(!params.is_dynamic());
+            auto& wgs = kd.params.workGroups;
+
+            auto padded_dims = params.input_layouts[0].get_padded_dims();
+            auto x = padded_dims[3];
+            auto y = padded_dims[2];
+            auto f = padded_dims[1];
+            auto b = padded_dims[0];
+
+            wgs.global[0] = x * y;
+            wgs.global[1] = ceil_div(f, fsv) * b;
+            wgs.global[2] = 1;
+
+            wgs.local[0] = x * y;
+            wgs.local[1] = 1;
+            wgs.local[2] = 1;
+
+            auto max_wgs = params.get_device_info().max_work_group_size;
+
+            size_t divisor = 2;
+            while (wgs.local[0] > (max_wgs / fsv)) {
+                if (wgs.global[0] % divisor == 0) {
+                    wgs.local[0] = wgs.global[0] / divisor;
+                }
+                divisor += 1;
+            }
+            wgs.local[0] *= fsv;
+            wgs.global[0] = wgs.local[0];
+        }};
     }
 };
 
@@ -270,15 +356,20 @@ class GroupNormalizationFsv16OptImpl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::GroupNormalizationFsv16OptImpl)
 
+    Stage::Ptr fused_calc = make_stage<GroupNormalizationGeneratorFused>();
     Stage::Ptr calc_sqr_mean = make_stage<GroupNormalizationGeneratorCalcSQRMean>();
     Stage::Ptr calc_mean_variance = make_stage<GroupNormalizationGeneratorCalcMeanVariance>();
     Stage::Ptr final_normalize = make_stage<GroupNormalizationGeneratorFinalKernel>();
 
     GroupNormalizationFsv16OptImpl() : PrimitiveImplOCL(GroupNormalizationFsv16Opt::get_type_info_static()) {}
     GroupNormalizationFsv16OptImpl(const program_node& node, const RuntimeParams& params) : GroupNormalizationFsv16OptImpl() {
-        add_stage(calc_sqr_mean, params);
-        add_stage(calc_mean_variance, params);
-        add_stage(final_normalize, params);
+        if (allow_fused_kernel(node)) {
+            add_stage(fused_calc, params);
+        } else {
+            add_stage(calc_sqr_mean, params);
+            add_stage(calc_mean_variance, params);
+            add_stage(final_normalize, params);
+        }
     }
 
     std::unique_ptr<primitive_impl> clone() const override {
