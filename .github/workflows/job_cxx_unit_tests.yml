@@ -178,7 +178,8 @@ jobs:
           ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowLiteFrontend.xml
 
       - name: Transformations func tests
-        if: ${{ fromJSON(inputs.affected-components).transformations.test && runner.arch != 'ARM64' }} # Ticket: 126281
+        # tmp debug: ARM64 gate removed so the flaky GRUFusionTest runs with OV_TMP_DEBUG dumps on macOS arm64
+        if: ${{ fromJSON(inputs.affected-components).transformations.test }}
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-Transformations.xml
