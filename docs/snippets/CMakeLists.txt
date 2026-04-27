@@ -67,6 +67,11 @@ ov_mark_target_as_cc(${TARGET_NAME})
 if(TARGET OpenCL::OpenCL)
     target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::OpenCL)
 
+    if(MSVC)
+        # OpenCL C++ headers use deprecated C APIs internally; keep snippets buildable on /WX toolchains.
+        target_compile_options(${TARGET_NAME} PRIVATE /wd4996)
+    endif()
+
     if(libva_FOUND)
         target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_LIBVA)
         target_link_libraries(${TARGET_NAME} PRIVATE PkgConfig::libva)

@@ -10,8 +10,40 @@
  */
 #pragma once
 
+#include <cstdint>
+#include <iostream>
 #include <memory>
 #include <string>
+#include <vector>
+
+#ifndef CL_TARGET_OPENCL_VERSION
+#define CL_TARGET_OPENCL_VERSION 300
+#endif
+
+#include <CL/cl_ext.h>
+
+
+#if defined(CL_VERSION_1_2) && !defined(CL_API_SUFFIX__VERSION_1_2)
+#define CL_API_SUFFIX__VERSION_1_2
+#endif
+
+#if !defined(CL_API_SUFFIX__VERSION_3_0)
+#define CL_API_SUFFIX__VERSION_3_0
+#endif
+
+// Some OpenCL SDKs provide cl_properties but not cl_mem_properties.
+// Keep compatibility with such headers.
+#if !defined(CL_VERSION_3_0)
+typedef cl_properties cl_mem_properties;
+
+extern CL_API_ENTRY cl_mem CL_API_CALL clCreateBufferWithProperties(cl_context context,
+                                                                     const cl_mem_properties* properties,
+                                                                     cl_mem_flags flags,
+                                                                     size_t size,
+                                                                     void* host_ptr,
+                                                                     cl_int* errcode_ret) CL_API_SUFFIX__VERSION_3_0;
+#endif
+
 
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp"
@@ -307,6 +339,106 @@ public:
         return create_tensor(type, shape, params).as<ClImage2DTensor>();
     }
 
+    /**
+     * @brief This function is used to obtain remote tensor object from user-supplied shared OpenCL buffer handle.
+     *        The API mirrors the NPU pointer-based create_tensor form.
+     * @param type Tensor element type
+     * @param shape Tensor shape
+     * @param shared_buffer A shared OpenCL buffer handle passed as void*
+     * @param memory_type Memory type to use (default: SHARED_BUF)
+     * @return A remote tensor instance
+     */
+#ifdef _WIN32
+    ClBufferTensor create_tensor(const element::Type type,
+                                 const Shape& shape,
+                                 void* shared_buffer,
+                                 const MemType memory_type) {
+        OPENVINO_ASSERT(memory_type == MemType::SHARED_BUF,
+                        "Only SHARED_BUF memory type is currently supported for GPU shared_buffer API");
+        OPENVINO_ASSERT(shared_buffer != nullptr,
+                        "shared_buffer must not be nullptr for SHARED_BUF memory type");
+
+        size_t byte_size = type.size();
+        for (const auto& dim : shape) {
+            byte_size *= dim;
+        }
+
+        // External-memory import relies on Intel external-memory extension API.
+    #if defined(CL_VERSION_1_2)
+        cl_int errcode_ret = CL_SUCCESS;
+        const auto cl_ctx = static_cast<cl_context>(get_params().at(ov::intel_gpu::ocl_context.name()).as<gpu_handle_param>());
+
+        size_t devices_size = 0;
+        errcode_ret = clGetContextInfo(cl_ctx, CL_CONTEXT_DEVICES, 0, nullptr, &devices_size);
+        OPENVINO_ASSERT(errcode_ret == CL_SUCCESS && devices_size >= sizeof(cl_device_id),
+                        "Failed to query OpenCL context devices, error code: ",
+                        errcode_ret);
+
+        std::vector<cl_device_id> devices(devices_size / sizeof(cl_device_id));
+        errcode_ret = clGetContextInfo(cl_ctx, CL_CONTEXT_DEVICES, devices_size, devices.data(), nullptr);
+        OPENVINO_ASSERT(errcode_ret == CL_SUCCESS && !devices.empty(),
+                        "Failed to get OpenCL context devices, error code: ",
+                        errcode_ret);
+
+        cl_platform_id platform = nullptr;
+        errcode_ret = clGetDeviceInfo(devices.front(), CL_DEVICE_PLATFORM, sizeof(platform), &platform, nullptr);
+        OPENVINO_ASSERT(errcode_ret == CL_SUCCESS && platform != nullptr,
+                        "Failed to get OpenCL platform from device, error code: ",
+                        errcode_ret);
+
+        size_t ext_size = 0;
+        errcode_ret = clGetDeviceInfo(devices.front(), CL_DEVICE_EXTENSIONS, 0, nullptr, &ext_size);
+        OPENVINO_ASSERT(errcode_ret == CL_SUCCESS && ext_size > 0,
+                "Failed to query OpenCL extensions, error code: ",
+                errcode_ret);
+        std::string extensions(ext_size, '\0');
+        errcode_ret = clGetDeviceInfo(devices.front(), CL_DEVICE_EXTENSIONS, ext_size, extensions.data(), nullptr);
+        OPENVINO_ASSERT(errcode_ret == CL_SUCCESS,
+                "Failed to read OpenCL extensions, error code: ",
+                errcode_ret);
+
+        OPENVINO_ASSERT(extensions.find("cl_khr_external_memory") != std::string::npos,
+                "OpenCL device does not report cl_khr_external_memory support");
+
+
+        auto try_import_external_mem = [&](void* shared_buffer) -> cl_mem {
+            const auto shared_handle = static_cast<cl_mem_properties>(reinterpret_cast<intptr_t>(shared_buffer));
+            cl_mem_properties ext_mem_props[] = {
+                static_cast<cl_mem_properties>(CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KHR),
+                shared_handle,
+                0,
+            };
+
+            auto imported_mem = clCreateBufferWithProperties(cl_ctx,
+                                                             ext_mem_props,
+                                                             CL_MEM_READ_WRITE,
+                                                             byte_size,
+                                                             nullptr,
+                                                             &errcode_ret);
+            return imported_mem;
+        };
+
+        cl_mem ext_mem_buffer = nullptr;
+        // DX12 shared handles may be exposed either as typed D3D12 handles or opaque Win32 handles.
+        ext_mem_buffer = try_import_external_mem(shared_buffer);
+
+        if (errcode_ret == CL_SUCCESS && ext_mem_buffer != nullptr) {
+            auto tensor = create_tensor(type, shape, ext_mem_buffer);
+            clReleaseMemObject(ext_mem_buffer);
+            return tensor;
+        }
+
+        OPENVINO_ASSERT(false,
+                        "Failed to import external memory handle via clCreateFromExternalMemoryBufferINTEL, error code: ",
+                        errcode_ret);
+
+#endif
+
+        OPENVINO_ASSERT(false,
+                        "External memory import requires OpenCL 1.2+ headers and clCreateFromExternalMemoryBufferINTEL support");
+        return {};
+    }
+#endif //_WIN32
     /**
      * @brief This function is used to obtain remote tensor object from user-supplied USM pointer
      * @param type Tensor element type

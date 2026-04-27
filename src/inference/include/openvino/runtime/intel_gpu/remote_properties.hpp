@@ -112,6 +112,15 @@ enum class SharedMemType {
     DX_BUFFER = 6           //!< Shared D3D buffer blob
 };
 
+/**
+ * @brief Enum to define memory type for pointer-based tensor sharing API.
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
+ */
+enum class MemType {
+    SHARED_BUF = 0,  //!< Shared OpenCL buffer handle passed as void*
+    CPU_VA = 1       //!< CPU virtual address pointer passed as void* (see API-specific support and restrictions)
+};
+
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const SharedMemType& share_mem_type) {
     switch (share_mem_type) {
