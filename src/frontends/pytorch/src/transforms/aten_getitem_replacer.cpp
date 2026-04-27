@@ -108,8 +108,16 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
                     return false;
                 }
                 auto index = index_val[0];
+                auto num_outputs = static_cast<int64_t>(split->outputs().size());
                 if (index < 0) {
-                    index = split->outputs().size() + index;
+                    index += num_outputs;
+                }
+                if (index < 0 || index >= num_outputs) {
+                    add_exception_to_fw_node(getitem,
+                                            "aten::__getitem__: index " + std::to_string(index_val[0]) +
+                                                " is out of bounds for split with " +
+                                                std::to_string(num_outputs) + " outputs.");
+                    return false;
                 }
                 getitem->output(0).replace(split->outputs()[index]);
             }
@@ -119,7 +127,19 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
             auto getitem_idx_const = ov::util::get_constant_from_source(getitem_idx);
             if (getitem_idx_const) {
                 auto idx = getitem_idx_const->cast_vector<int64_t>();
-                getitem->output(0).replace(seq_mark->input_value(idx[0]));
+                auto idx_val = idx[0];
+                auto num_inputs = static_cast<int64_t>(seq_mark->get_input_size());
+                if (idx_val < 0) {
+                    idx_val += num_inputs;
+                }
+                if (idx_val < 0 || idx_val >= num_inputs) {
+                    add_exception_to_fw_node(getitem,
+                                            "aten::__getitem__: index " + std::to_string(idx[0]) +
+                                                " is out of bounds for sequence with " +
+                                                std::to_string(num_inputs) + " inputs.");
+                    return false;
+                }
+                getitem->output(0).replace(seq_mark->input_value(idx_val));
             } else {
                 auto input_concat = concat_list_construct(seq_mark);
                 auto zero = v0::Constant::create(element::i32, Shape{}, {0});
