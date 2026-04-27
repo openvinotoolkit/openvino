@@ -7,6 +7,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "openvino/core/tmp_debug.hpp"  // tmp debug
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
@@ -74,7 +75,25 @@ void TransformationTestsF::TearDown() {
         cloned_function = model->clone();
     }
     manager.register_pass<ov::pass::CheckUniqueNames>(m_unh, m_soft_names_comparison, m_result_friendly_names_check);
+
+    // tmp debug: dump params before/after passes
+    if (ov::tmp_debug::enabled()) {
+        ov::tmp_debug::log() << "TearDown: dumping params BEFORE run_passes\n";
+        ov::tmp_debug::dump_params("model (before passes)", model->get_parameters());
+        if (cloned_function) {
+            ov::tmp_debug::dump_params("cloned_function (pre-pass clone)", cloned_function->get_parameters());
+        }
+        if (model_ref) {
+            ov::tmp_debug::dump_params("model_ref (hand-written)", model_ref->get_parameters());
+        }
+    }
+
     manager.run_passes(model);
+
+    if (ov::tmp_debug::enabled()) {
+        ov::tmp_debug::log() << "TearDown: dumping params AFTER run_passes\n";
+        ov::tmp_debug::dump_params("model (AFTER passes)", model->get_parameters());
+    }
 
     if (!m_disable_rt_info_check) {
         OV_ASSERT_NO_THROW(check_rt_info(model));
@@ -139,6 +158,37 @@ ov::TensorVector infer_on_template(const std::shared_ptr<ov::Model>& model,
     auto compiled_model = core->compile_model(model,
                                               ov::test::utils::DEVICE_TEMPLATE,
                                               {{ov::template_plugin::disable_transformations(true)}});
+
+    // tmp debug: dump compiled_model input ports to detect any plugin-side reshuffle
+    if (ov::tmp_debug::enabled()) {
+        ov::tmp_debug::log() << "infer_on_template: compiled_model inputs (count=" << compiled_model.inputs().size()
+                             << ")\n";
+        const auto& src_params = model->get_parameters();
+        for (size_t i = 0; i < compiled_model.inputs().size(); ++i) {
+            const auto& port = compiled_model.inputs()[i];
+            std::ostringstream ps, ss;
+            ps << port.get_partial_shape();
+            if (i < src_params.size())
+                ss << src_params[i]->get_partial_shape();
+            std::cerr << "[OV_TMP_DEBUG]   i=" << i << "  compiled_port_shape=" << ps.str()
+                      << "  src_param_shape=" << (i < src_params.size() ? ss.str() : std::string("(n/a)"))
+                      << "  compiled_port_name=" << port.get_node()->get_friendly_name()
+                      << (i < src_params.size() && port.get_partial_shape() != src_params[i]->get_partial_shape()
+                              ? "  <<<<< SHAPE DIVERGED FROM SRC"
+                              : "")
+                      << "\n";
+        }
+        ov::tmp_debug::log() << "infer_on_template: inputs map (keyed by src Param ptr) size=" << inputs.size() << "\n";
+        size_t mi = 0;
+        for (const auto& kv : inputs) {
+            std::ostringstream ts;
+            ts << kv.second.get_shape();
+            std::cerr << "[OV_TMP_DEBUG]   map_iter=" << mi++
+                      << "  src_param_ptr=" << static_cast<const void*>(kv.first.get())
+                      << "  src_param_name=" << kv.first->get_friendly_name() << "  tensor_shape=" << ts.str() << "\n";
+        }
+    }
+
     auto infer_request = compiled_model.create_infer_request();
 
     for (auto& input : inputs) {

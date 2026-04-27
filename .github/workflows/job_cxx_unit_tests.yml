@@ -56,6 +56,9 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       SOURCE_COMMAND: ${{ contains(inputs.runner, 'linux') && 'source' || '.' }}
       SETUPVARS: ${{ github.workspace }}/install/${{ contains(inputs.runner, 'win') && 'setupvars.ps1' || 'setupvars.sh' }}
+      # tmp debug: extra dumps in TransformationTestsF / GRUCellFusion / accuracy_check
+      # for the flaky GRUFusionTest.GRUCellPattern case.  No-op when unset.
+      OV_TMP_DEBUG: '1'
     steps:
       - name: Download OpenVINO artifacts (package)
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
@@ -175,10 +178,22 @@ jobs:
           ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowLiteFrontend.xml
 
       - name: Transformations func tests
-        if: ${{ fromJSON(inputs.affected-components).transformations.test && runner.arch != 'ARM64' }} # Ticket: 126281
+        # tmp debug: ARM64 gate removed so the flaky GRUFusionTest runs with OV_TMP_DEBUG dumps on macOS arm64
+        if: ${{ fromJSON(inputs.affected-components).transformations.test }}
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-Transformations.xml
+
+      - name: GRUFusionTest stress repeat (debug)
+        # tmp debug: repeats the flaky GRUFusionTest.GRUCellPattern/7 many times in a single
+        # process to maximise the chance of catching the random shape-mismatch failure with
+        # the OV_TMP_DEBUG dumps captured.  always() so this runs even if the regular
+        # Transformations func tests step above failed (it does on Debian ARM due to
+        # unrelated SDPA test issues hidden by the previous ARM64 gate).
+        if: ${{ always() && fromJSON(inputs.affected-components).transformations.test }}
+        run: |
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
+          ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_filter='GRUFusionTest/GRUFusionTest.GRUCellPattern/7' --gtest_repeat=500 --gtest_break_on_failure=0 --gtest_print_time=1
 
       - name: Common test utils tests
         if: ${{ runner.os != 'macOS' }} # Ticket: 134469

@@ -7,6 +7,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "gtest/gtest.h"
+#include "openvino/core/tmp_debug.hpp"  // tmp debug
 #include "openvino/op/constant.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/result.hpp"
@@ -1101,6 +1102,24 @@ AccuracyCheckResult accuracy_check(const std::shared_ptr<ov::Model>& ref_functio
     }
     try {
         OPENVINO_ASSERT(ref_function->get_parameters().size() == cur_function->get_parameters().size());
+
+        // tmp debug: dump side-by-side params
+        if (ov::tmp_debug::enabled()) {
+            ov::tmp_debug::log() << "accuracy_check: side-by-side ref/cur params\n";
+            const auto& rp = ref_function->get_parameters();
+            const auto& cp = cur_function->get_parameters();
+            for (size_t i = 0; i < rp.size(); ++i) {
+                std::ostringstream rs, cs;
+                rs << rp[i]->get_partial_shape();
+                cs << cp[i]->get_partial_shape();
+                const bool mismatch = rp[i]->get_partial_shape() != cp[i]->get_partial_shape();
+                std::cerr << "[OV_TMP_DEBUG]   i=" << i << "  ref_shape=" << rs.str() << "  cur_shape=" << cs.str()
+                          << "  ref_ptr=" << static_cast<const void*>(rp[i].get())
+                          << "  cur_ptr=" << static_cast<const void*>(cp[i].get())
+                          << "  ref_name=" << rp[i]->get_friendly_name() << "  cur_name=" << cp[i]->get_friendly_name()
+                          << (mismatch ? "  <<<<< MISMATCH" : "") << "\n";
+            }
+        }
 
         std::map<std::shared_ptr<ov::Node>, ov::Tensor> ref_input_data;
         std::map<std::shared_ptr<ov::Node>, ov::Tensor> cur_input_data;

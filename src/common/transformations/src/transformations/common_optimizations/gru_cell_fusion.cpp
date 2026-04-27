@@ -10,6 +10,7 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/tmp_debug.hpp"  // tmp debug
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -118,6 +119,38 @@ GRUCellFusion::GRUCellFusion() {
         auto hidden_size = h_pshape[1].get_length();
         auto input_size = x_pshape[1].get_length();
 
+        // tmp debug: dump pattern-map bindings and derived sizes
+        if (ov::tmp_debug::enabled()) {
+            ov::tmp_debug::log() << "GRUCellFusion callback: match root="
+                                 << static_cast<const void*>(m.get_match_root().get())
+                                 << " name=" << m.get_match_root()->get_friendly_name() << "\n";
+            auto dump_bind = [&](const char* tag, const std::shared_ptr<ov::Node>& pat) {
+                auto it = pattern_map.find(pat);
+                if (it == pattern_map.end()) {
+                    std::cerr << "[OV_TMP_DEBUG]   " << tag << " => (not bound)\n";
+                    return;
+                }
+                std::ostringstream ss;
+                ss << it->second->get_output_partial_shape(0);
+                std::cerr << "[OV_TMP_DEBUG]   " << tag << "  ptr=" << static_cast<const void*>(it->second.get())
+                          << "  type=" << it->second->get_type_name() << "  shape=" << ss.str()
+                          << "  name=" << it->second->get_friendly_name() << "\n";
+            };
+            dump_bind("concat_1  ", concat_1);
+            dump_bind("matmul_1  ", matmul_1);
+            dump_bind("add_1     ", add_1);
+            dump_bind("split     ", split);
+            dump_bind("matmul_2  ", matmul_2);
+            dump_bind("add_2     ", add_2);
+            dump_bind("activ_1   ", activation_1);
+            dump_bind("activ_2   ", activation_2);
+            std::ostringstream xs, hs;
+            xs << x_pshape;
+            hs << h_pshape;
+            std::cerr << "[OV_TMP_DEBUG]   X.shape=" << xs.str() << "  H.shape=" << hs.str()
+                      << "  input_size=" << input_size << "  hidden_size=" << hidden_size << "\n";
+        }
+
         auto axis_0 = rg.make<v0::Constant>(element::i64, Shape{}, 0);
         auto axis_1 = rg.make<v0::Constant>(element::i64, Shape{}, 1);
 
@@ -132,6 +165,12 @@ GRUCellFusion::GRUCellFusion() {
 
         auto cnt_of_consumers_of_zero_out = pattern_split->get_output_target_inputs(0).size();
         auto cnt_of_consumers_of_first_out = pattern_split->get_output_target_inputs(1).size();
+
+        // tmp debug: which branch do we pick?
+        if (ov::tmp_debug::enabled()) {
+            std::cerr << "[OV_TMP_DEBUG]   split output consumers: out0=" << cnt_of_consumers_of_zero_out
+                      << " out1=" << cnt_of_consumers_of_first_out << "\n";
+        }
 
         Output<Node> B;
         if (pattern_map.find(add_1) != pattern_map.end()) {
