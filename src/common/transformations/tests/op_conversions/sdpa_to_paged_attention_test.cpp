@@ -59,6 +59,7 @@
 #include "openvino/op/util/variable.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/visualize_tree.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/sdpa_to_paged_attention/position_ids_replacer.hpp"
 #include "transformations/sdpa_to_paged_attention/prev_sequence_length_pattern.hpp"
 #include "transformations/sdpa_to_paged_attention/state_management_pattern.hpp"
@@ -620,6 +621,8 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
         auto score_aggregation_window_const = std::make_shared<v0::Constant>(element::i32, Shape{0}, 0);
         auto sinks = v0::Constant::create(element::f32, Shape{0, 0, 0, 0}, {});
         auto token_type_ids = v0::Constant::create(element::i32, Shape{0}, {});
+        auto qq_bias = v0::Constant::create(element::u8, Shape{0}, {});
+        auto qq_bias_begins = v0::Constant::create(element::i32, Shape{0}, {});
 
         // PagedAttention:
         auto pa =
@@ -648,7 +651,9 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
                                                                        adaptive_rkv_evictable_sizes,
                                                                        adaptive_rkv_diversity_block_set_indices,
                                                                        adaptive_rkv_diversity_block_set_indices_begins,
-                                                                       token_type_ids});
+                                                                       token_type_ids,
+                                                                       qq_bias,
+                                                                       qq_bias_begins});
         pa->set_out_type(0, element::i64);
         auto pa_aligned = Qwen7bChatPA::align_pa_layout(pa, head_size_2);
         auto res = makeOP<v0::Result>({pa_aligned});
@@ -659,6 +664,67 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
     // checking the graph structure and names, other checks are temporarily disabled:
     comparator.disable(FunctionsComparator::PRECISIONS);
     disable_rt_info_check();
+}
+
+TEST(SDPAToPAKeepConstPrecisionTest, Qwen7bChat_KVCacheParamsMarkedKeepConstPrecision) {
+    for (const auto& model_precision : std::vector<element::Type>{element::f16, element::f32}) {
+        auto beam_idx = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i64});
+        auto position_ids = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN, DYN}}, el_type_i64});
+        auto attention_mask = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN, DYN}}, el_type_i64});
+        auto input_ids = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN, DYN}}, el_type_i64});
+        NodeVector input_nodes{input_ids, attention_mask, position_ids, beam_idx};
+        auto params = nodes_to_params(input_nodes);
+
+        beam_idx->output(0).add_names({"beam_idx"});
+        position_ids->output(0).add_names({"position_ids"});
+        attention_mask->output(0).add_names({"attention_mask"});
+        input_ids->output(0).add_names({"input_ids"});
+
+        auto embeddings = Qwen7bChatSDPA::gen_embeddings(input_ids);
+        auto qkv_proj = Qwen7bChatSDPA::gen_qkv_proj(embeddings);
+
+        auto k_cache = Qwen7bChatSDPA::gen_cache(input_ids, beam_idx, "K_cache");
+        auto v_cache = Qwen7bChatSDPA::gen_cache(input_ids, beam_idx, "V_cache");
+
+        auto current_seq_len = Qwen7bChatSDPA::gen_current_len(input_ids);
+        auto past_seq_len = Qwen7bChatSDPA::gen_past_len(k_cache);
+        auto total_seq_len = Qwen7bChatSDPA::gen_total_len(current_seq_len, past_seq_len);
+
+        auto neg_cur_seq_len = Qwen7bChatSDPA::neg_mul(current_seq_len);
+        auto head_size = shared_ptr<Node>();
+        auto rope_emb_sin =
+            Qwen7bChatSDPA::gen_rope_emb_sin(total_seq_len, neg_cur_seq_len, head_size, model_precision);
+        auto rope_emb_cos = Qwen7bChatSDPA::gen_rope_emb_cos(total_seq_len, neg_cur_seq_len, model_precision);
+
+        auto rope_q = Qwen7bChatSDPA::gen_rope(QKV::Q, qkv_proj, head_size, rope_emb_sin, rope_emb_cos);
+        auto rope_k = Qwen7bChatSDPA::gen_rope(QKV::K, qkv_proj, head_size, rope_emb_sin, rope_emb_cos);
+
+        auto total_seq_len_2 = Qwen7bChatSDPA::gen_total_seq_len_2(past_seq_len, rope_k);
+        auto past_seq_len_2 = Qwen7bChatSDPA::gen_past_seq_len_2(total_seq_len_2, rope_q);
+
+        auto Q = Qwen7bChatSDPA::gen_Q(past_seq_len_2, total_seq_len_2, rope_q);
+        auto K = Qwen7bChatSDPA::gen_K(k_cache, rope_k);
+        auto V = Qwen7bChatSDPA::gen_V(v_cache, qkv_proj);
+
+        auto attention_mask_to_sdpa = Qwen7bChatSDPA::gen_attention_mask(Q, attention_mask, total_seq_len_2);
+        auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(Q, K, V, attention_mask_to_sdpa, false);
+        auto res = std::make_shared<v0::Result>(sdpa);
+
+        auto transformed_model = std::make_shared<ov::Model>(ResultVector{res}, params);
+        ov::pass::Manager local_manager;
+        local_manager.register_pass<ov::pass::SDPAToPagedAttention>();
+        local_manager.run_passes(transformed_model);
+
+        size_t kv_cache_params_count = 0;
+        for (const auto& parameter : transformed_model->get_parameters()) {
+            const std::string& parameter_name = parameter->get_friendly_name();
+            if (parameter_name.rfind("key_cache.", 0) == 0 || parameter_name.rfind("value_cache.", 0) == 0) {
+                kv_cache_params_count += 1;
+                EXPECT_TRUE(is_keep_const_precision(parameter)) << "Parameter is not marked: " << parameter_name;
+            }
+        }
+        EXPECT_GT(kv_cache_params_count, 0);
+    }
 }
 
 TEST_F(SDPAToPATest, SDPAToPA_Qwen7bChat_TotalSequenceLengthPattern) {
@@ -1014,6 +1080,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
         auto c2 = makeConst(element::i32, {}, {0});
         auto sinks = v0::Constant::create(element::f32, Shape{0, 0, 0, 0}, {});
         auto token_type_ids = v0::Constant::create(element::i32, Shape{0}, {});
+        auto qq_bias = v0::Constant::create(element::u8, Shape{0}, {});
+        auto qq_bias_begins = v0::Constant::create(element::i32, Shape{0}, {});
         auto PagedAttentionExtension168 = std::make_shared<ov::op::PagedAttentionExtension>(
             ov::OutputVector{Reshape138,
                              Reshape147,
@@ -1040,7 +1108,9 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
                              adaptive_rkv_evictable_sizes,
                              adaptive_rkv_diversity_block_set_indices,
                              adaptive_rkv_diversity_block_set_indices_begins,
-                             token_type_ids});
+                             token_type_ids,
+                             qq_bias,
+                             qq_bias_begins});
         auto ShapeOf172 = makeOP<opset3::ShapeOf>({Transpose154}, {{"output_type", "i64"}});
         auto Gather175 = makeOP<opset8::Gather>({ShapeOf172, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze177 = makeOP<opset1::Unsqueeze>({Gather175, 0});
@@ -1387,6 +1457,8 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto c3 = v0::Constant::create(element::f32, {0}, {});
         auto sinks = v0::Constant::create(element::f32, Shape{0, 0, 0, 0}, {});
         auto token_type_ids = v0::Constant::create(element::i32, Shape{0}, {});
+        auto qq_bias = v0::Constant::create(element::u8, Shape{0}, {});
+        auto qq_bias_begins = v0::Constant::create(element::i32, Shape{0}, {});
         auto PagedAttentionExtension_51962 = std::make_shared<ov::op::PagedAttentionExtension>(
             ov::OutputVector{Reshape_51953,
                              Reshape_51957,
@@ -1413,7 +1485,9 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
                              adaptive_rkv_evictable_sizes,
                              adaptive_rkv_diversity_block_set_indices,
                              adaptive_rkv_diversity_block_set_indices_begins,
-                             token_type_ids});
+                             token_type_ids,
+                             qq_bias,
+                             qq_bias_begins});
         auto ShapeOf_51965 = makeOP<opset3::ShapeOf>({Transpose_51955}, {{"output_type", "i64"}});
         auto Gather_51966 = makeOP<opset8::Gather>({ShapeOf_51965, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze_51971 = makeOP<opset1::Unsqueeze>({Gather_51966, 0});
@@ -1716,6 +1790,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
         auto alibi_slopes = v0::Constant::create(element::f32, Shape{0}, {});
         auto sinks = v0::Constant::create(element::f32, Shape{0, 0, 0, 0}, {});
         auto token_type_ids = v0::Constant::create(element::i32, Shape{0}, {});
+        auto qq_bias = v0::Constant::create(element::u8, Shape{0}, {});
+        auto qq_bias_begins = v0::Constant::create(element::i32, Shape{0}, {});
         auto PagedAttentionExtension = std::make_shared<ov::op::PagedAttentionExtension>(
             OutputVector{Q,
                          K,
@@ -1742,7 +1818,9 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
                          adaptive_rkv_evictable_sizes,
                          adaptive_rkv_diversity_block_set_indices,
                          adaptive_rkv_diversity_block_set_indices_begins,
-                         token_type_ids});
+                         token_type_ids,
+                         qq_bias,
+                         qq_bias_begins});
         auto ShapeOf1 = makeOP<opset3::ShapeOf>({Transpose6}, {{"output_type", "i64"}});
         auto Gather2 = makeOP<opset8::Gather>({ShapeOf1, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze5 = makeOP<opset1::Unsqueeze>({Gather2, 0});
@@ -2064,6 +2142,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto alibi_slopes_stub = v0::Constant::create(element::f32, Shape{0}, {});
         auto sinks = v0::Constant::create(element::f32, Shape{0, 0, 0, 0}, {});
         auto token_type_ids = v0::Constant::create(element::i32, Shape{0}, {});
+        auto qq_bias = v0::Constant::create(element::u8, Shape{0}, {});
+        auto qq_bias_begins = v0::Constant::create(element::i32, Shape{0}, {});
         auto PagedAttentionExtension = std::make_shared<ov::op::PagedAttentionExtension>(
             OutputVector{Reshape11,
                          Reshape13,
@@ -2090,7 +2170,9 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
                          adaptive_rkv_evictable_sizes,
                          adaptive_rkv_diversity_block_set_indices,
                          adaptive_rkv_diversity_block_set_indices_begins,
-                         token_type_ids});
+                         token_type_ids,
+                         qq_bias,
+                         qq_bias_begins});
         auto ShapeOf2 = makeOP<opset3::ShapeOf>({Transpose7}, {{"output_type", "i64"}});
         auto Gather5 = makeOP<opset8::Gather>({ShapeOf2, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze9 = makeOP<opset1::Unsqueeze>({Gather5, 0});
@@ -2726,6 +2808,8 @@ TEST_F(SDPAToPATest, SDPAToPA_gpt_oss_General) {
         auto scale = v0::Constant::create(element::f32, {}, {0.1250f});
         auto alibi_slopes_stub = v0::Constant::create(element::f32, Shape{0}, {});
         auto token_type_ids = v0::Constant::create(element::i32, Shape{0}, {});
+        auto qq_bias = v0::Constant::create(element::u8, Shape{0}, {});
+        auto qq_bias_begins = v0::Constant::create(element::i32, Shape{0}, {});
         auto PagedAttentionExtension = std::make_shared<ov::op::PagedAttentionExtension>(
             OutputVector{Reshape1,
                          Reshape3,
@@ -2752,7 +2836,9 @@ TEST_F(SDPAToPATest, SDPAToPA_gpt_oss_General) {
                          adaptive_rkv_evictable_sizes,
                          adaptive_rkv_diversity_block_set_indices,
                          adaptive_rkv_diversity_block_set_indices_begins,
-                         token_type_ids});
+                         token_type_ids,
+                         qq_bias,
+                         qq_bias_begins});
         auto ShapeOf3 = makeOP<v3::ShapeOf>({Transpose6}, {{"output_type", "i64"}});
         auto Gather4 = makeOP<v8::Gather>({ShapeOf3, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze5 = makeOP<v0::Unsqueeze>({Gather4, 0});
@@ -3590,7 +3676,8 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2) {
         auto adaptive_rkv_evictable_sizes = makeConst(element::i32, ov::Shape({0}), {0});
         auto adaptive_rkv_diversity_block_set_indices = makeConst(element::i32, ov::Shape({0}), {0});
         auto adaptive_rkv_diversity_block_set_indices_begins = makeConst(element::i32, ov::Shape({0}), {0});
-
+        auto qq_bias = makeConst(element::u8, ov::Shape({0}), {0});
+        auto qq_bias_begins = makeConst(element::i32, ov::Shape({0}), {0});
         auto Unsqueeze0 = makeOP<v0::Unsqueeze>({input_ids, 1});
         auto ShapeOf0 = makeOP<v3::ShapeOf>({Unsqueeze0}, {{"output_type", "i64"}});
         auto Gather0 = makeOP<v8::Gather>({ShapeOf0, {0}, 0}, {{"batch_dims", 0}});
@@ -4168,7 +4255,9 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2) {
                          adaptive_rkv_evictable_sizes,
                          adaptive_rkv_diversity_block_set_indices,
                          adaptive_rkv_diversity_block_set_indices_begins,
-                         token_type_ids});
+                         token_type_ids,
+                         qq_bias,
+                         qq_bias_begins});
         auto ShapeOf12 = makeOP<v3::ShapeOf>({Transpose15}, {{"output_type", "i64"}});
         auto Gather10 = makeOP<v8::Gather>({ShapeOf12, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze10 = makeOP<v0::Unsqueeze>({Gather10, 0});
@@ -4727,6 +4816,8 @@ TEST_F(SDPAToPATest, SDPAToPA_jais_13b_General) {
         auto Constant22 = makeConst(element::i32, ov::Shape({0}), {0});
         auto Constant23 = makeConst(element::i32, ov::Shape({0}), {0});
         auto Constant24 = v0::Constant::create(element::i32, Shape{0}, {});
+        auto Constant25 = makeConst(element::u8, ov::Shape({0}), {0});
+        auto Constant26 = makeConst(element::i32, ov::Shape({0}), {0});
         auto PagedAttentionExtension0 =
             make_shared<ov::op::PagedAttentionExtension>(OutputVector{Reshape4,
                                                                       Reshape6,
@@ -4753,7 +4844,9 @@ TEST_F(SDPAToPATest, SDPAToPA_jais_13b_General) {
                                                                       Constant21,
                                                                       Constant22,
                                                                       Constant23,
-                                                                      Constant24});
+                                                                      Constant24,
+                                                                      Constant25,
+                                                                      Constant26});
         auto ShapeOf1 = makeOP<v3::ShapeOf>({Transpose5}, {{"output_type", "i64"}});
         auto Gather2 = makeOP<v8::Gather>({ShapeOf1, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze1 = makeOP<v0::Unsqueeze>({Gather2, 0});
@@ -5137,6 +5230,8 @@ TEST_F(SDPAToPATest, SDPATOPATest_Qwen2_5_VL_General) {
         auto adaptive_rkv_diversity_block_set_indices_begins = v0::Constant::create(element::i32, Shape{0}, {});
         auto token_type_ids_stub = v0::Constant::create(element::i32, Shape{0}, {});
 
+        auto qq_bias = v0::Constant::create(element::u8, Shape{0}, {});
+        auto qq_bias_begins = v0::Constant::create(element::i32, Shape{0}, {});
         auto PagedAttentionExtension0 =
             make_shared<ov::op::PagedAttentionExtension>(OutputVector{Reshape1,
                                                                       Reshape4,
@@ -5163,7 +5258,9 @@ TEST_F(SDPAToPATest, SDPATOPATest_Qwen2_5_VL_General) {
                                                                       adaptive_rkv_evictable_sizes,
                                                                       adaptive_rkv_diversity_block_set_indices,
                                                                       adaptive_rkv_diversity_block_set_indices_begins,
-                                                                      token_type_ids_stub});
+                                                                      token_type_ids_stub,
+                                                                      qq_bias,
+                                                                      qq_bias_begins});
 
         auto ShapeOf1 = makeOP<opset3::ShapeOf>({Transpose4}, {{"output_type", "i64"}});
         auto Gather13 = makeOP<opset8::Gather>({ShapeOf1, -1, 0}, {{"batch_dims", 0}});
@@ -5415,7 +5512,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Gemma3_TokenTypeIds) {
         auto sinks = v0::Constant::create(element::f32, Shape{0, 0, 0, 0}, {});
 
         auto token_type_ids_i32 = makeOP<v0::Convert>({token_type_ids_param}, {{"destination_type", "i32"}});
-
+        auto qq_bias = v0::Constant::create(element::u8, Shape{0}, {});
+        auto qq_bias_begins = v0::Constant::create(element::i32, Shape{0}, {});
         auto PA = std::make_shared<ov::op::PagedAttentionExtension>(
             OutputVector{Q_flat,
                          K_flat,
@@ -5442,7 +5540,9 @@ TEST_F(SDPAToPATest, SDPAToPA_Gemma3_TokenTypeIds) {
                          adaptive_rkv_evictable_sizes,
                          adaptive_rkv_diversity_block_set_indices,
                          adaptive_rkv_diversity_block_set_indices_begins,
-                         token_type_ids_i32});
+                         token_type_ids_i32,
+                         qq_bias,
+                         qq_bias_begins});
 
         auto ShapeOf_v = makeOP<v3::ShapeOf>({Transpose_v2}, {{"output_type", "i64"}});
         auto Gather_dim = makeOP<v8::Gather>({ShapeOf_v, -1, 0}, {{"batch_dims", 0}});

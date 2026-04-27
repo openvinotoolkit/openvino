@@ -17,6 +17,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/fill.hpp"
+#include "utils.hpp"
 #include "xbyak_riscv/xbyak_riscv.hpp"
 #include "xbyak_riscv/xbyak_riscv_csr.hpp"
 
@@ -39,7 +40,7 @@ jit_fill_emitter::jit_fill_emitter(jit_generator_t* h, cpu_isa_t isa, const Expr
 }
 
 size_t jit_fill_emitter::aux_gprs_count() const {
-    return is_optimized() ? 0 : 1;
+    return is_optimized() && utils::get_snippet_lanes() <= 31 ? 0 : 1;
 }
 
 void jit_fill_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
@@ -52,14 +53,14 @@ void jit_fill_emitter::emit_impl(const std::vector<size_t>& in, const std::vecto
 
 template <cpu_isa_t isa>
 void jit_fill_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    static constexpr size_t supported_et_count = 4;
+    const auto supported_et_count = utils::get_snippet_lanes();
     OPENVINO_ASSERT(offset <= supported_et_count,
                     "Fill emitter offset ",
                     offset,
                     " exceeds register capacity ",
                     supported_et_count);
 
-    h->vsetivli(Xbyak_riscv::zero, supported_et_count, Xbyak_riscv::SEW::e32, Xbyak_riscv::LMUL::m1);
+    set_vector_length(h, supported_et_count, Xbyak_riscv::SEW::e32, aux_gpr_idxs);
 
     if (is_full_reg()) {
         fill_full<isa>(out);
@@ -85,8 +86,8 @@ void jit_fill_emitter::fill_full(const std::vector<size_t>& out) const {
 
 template <cpu_isa_t isa>
 void jit_fill_emitter::fill_tail(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    static constexpr size_t supported_et_count = 4;
-    static constexpr auto stack_size = static_cast<int>(supported_et_count * sizeof(uint32_t));
+    const auto supported_et_count = utils::get_snippet_lanes();
+    const auto stack_size = static_cast<int>(supported_et_count * sizeof(uint32_t));
 
     auto src = Xbyak_riscv::VReg(in[0]);
     auto dst = Xbyak_riscv::VReg(out[0]);

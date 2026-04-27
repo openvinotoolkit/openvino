@@ -10,7 +10,6 @@
 #include "openvino/frontend/manager.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/iremote_context.hpp"
-#include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/util/file_util.hpp"
 
 namespace ov {
@@ -332,7 +331,6 @@ RemoteContext Core::get_default_context(const std::string& device_name) {
 
 void shutdown() {
     frontend::FrontEndManager::shutdown();
-    ov::threading::executor_manager()->clear();
 }
 
 }  // namespace ov

@@ -38,6 +38,7 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
 
 using ov::pass::pattern::any_input;
@@ -314,6 +315,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     bool allow_score_aggregation,
     bool allow_xattention,
     bool allow_adaptive_rkv,
+    bool allow_qq_bias,
     ParameterVector& rotated_block_indices_inputs_for_each_layer,
     ParameterVector& rotation_deltas_inputs_for_each_layer,
     ParameterVector& xattention_threshold_inputs_for_each_layer,
@@ -480,6 +482,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         auto v_parameter =
             named_parameter(std::make_shared<v0::Parameter>(element::dynamic, ov::PartialShape::dynamic(4)),
                             "value_cache." + layer_index_str);
+
+        // Set parameters to be in the same precision as the original K/V tensors,
+        // that allows to avoid unnecessary Convert operations in the graph
+        enable_keep_const_precision(k_parameter);
+        enable_keep_const_precision(v_parameter);
 
         layer_index += 1;
         kv_parameters.push_back(k_parameter);
@@ -710,8 +717,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                 v0::Constant::create(real_q.get_element_type(), Shape{0, 0, 0, 0}, {}));
         }
 
-        OPENVINO_ASSERT(pa_arguments.size() == 21);
-
         if (allow_adaptive_rkv) {
             OPENVINO_ASSERT(
                 optional_model_wide_params.count("adaptive_rkv_start_size"),
@@ -745,7 +750,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             pa_arguments.insert(pa_arguments.begin() + 23, v0::Constant::create(element::i32, Shape{0}, {}));
             pa_arguments.insert(pa_arguments.begin() + 24, v0::Constant::create(element::i32, Shape{0}, {}));
         }
-        OPENVINO_ASSERT(pa_arguments.size() == 25);
 
         if (*has_token_type_ids) {
             std::shared_ptr<ov::Node> token_type_ids = optional_model_wide_params.at("token_type_ids");
@@ -756,7 +760,18 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         } else {
             pa_arguments.insert(pa_arguments.begin() + 25, v0::Constant::create(element::i32, Shape{0}, {}));
         }
-        OPENVINO_ASSERT(pa_arguments.size() == 26);
+
+        if (allow_qq_bias) {
+            OPENVINO_ASSERT(optional_model_wide_params.find("qq_bias") != optional_model_wide_params.end(),
+                            "No qq_bias input found. For using QQ bias, the model have to contain "
+                            "an additional input (Parameter) called qq_bias.");
+            pa_arguments.insert(pa_arguments.begin() + 26, optional_model_wide_params.at("qq_bias"));
+            pa_arguments.insert(pa_arguments.begin() + 27, optional_model_wide_params.at("qq_bias_begins"));
+        } else {
+            pa_arguments.insert(pa_arguments.begin() + 26, v0::Constant::create(element::u8, Shape{0}, {}));
+            pa_arguments.insert(pa_arguments.begin() + 27, v0::Constant::create(element::i32, Shape{0}, {}));
+        }
+        OPENVINO_ASSERT(pa_arguments.size() == 28);
 
         auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
         paged_attention->get_rt_info()[NUM_K_HEADS] = num_k_heads;

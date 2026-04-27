@@ -78,7 +78,7 @@ public:
         const auto h =
             ::CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
         map(path, h, offset, size);
-        m_id = util::u64_hash_combine(std::filesystem::hash_value(path), {offset, size});
+        m_id = util::get_id_for_file(path, offset, size);
     }
 
     void set_from_handle(HANDLE h, size_t offset, size_t size) {

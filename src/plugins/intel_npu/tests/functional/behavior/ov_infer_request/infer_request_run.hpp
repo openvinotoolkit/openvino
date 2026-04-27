@@ -2595,6 +2595,241 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterRunningWithSameRawMemoryMultipleTimes
     ::operator delete(output_data, std::align_val_t(4096));
 }
 
+using DynamicBoundsTests = InferRequestRunTests;
+
+TEST_P(DynamicBoundsTests, ChangeShapeAfterTensorIsSet) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto model_shape = PartialShape{1, ov::Dimension(1, 10), 2, 2};
+    auto model = createModel(element::f32, model_shape, "N...");
+
+    auto compiled_model = core->compile_model(model, target_device, configuration);
+    // Create InferRequest
+    ov::InferRequest req;
+    req = compiled_model.create_infer_request();
+
+    auto shape = Shape{1, 4, 2, 2};
+    auto shape_size = ov::shape_size(shape);
+    auto input_tensor = ov::Tensor{ov::element::f32, shape};
+    auto output_tensor = ov::Tensor{ov::element::f32, shape};
+
+    ASSERT_EQ(shape_size * sizeof(float), input_tensor.get_byte_size());
+    ASSERT_EQ(shape_size * sizeof(float), output_tensor.get_byte_size());
+    ASSERT_EQ(shape, input_tensor.get_shape());
+    ASSERT_EQ(shape, output_tensor.get_shape());
+
+    req.set_input_tensor(input_tensor);
+    req.set_output_tensor(output_tensor);
+
+    auto input_data = input_tensor.data<float>();
+    auto output_data = output_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = 21.f;
+    }
+
+    req.infer();  // Adds '1' to each element
+
+    auto expected = 22.f;
+    for (size_t i = 0; i < shape_size; ++i) {
+        ASSERT_EQ(output_data[i], expected)
+            << ": Expected=" << expected << ", actual=" << output_data[i] << " for index " << i;
+    }
+
+    auto input_data_after_run = input_tensor.data<float>();
+    auto output_data_after_run = output_tensor.data<float>();
+
+    ASSERT_EQ(input_data, input_data_after_run);
+    ASSERT_EQ(output_data, output_data_after_run);
+
+    auto new_shape = Shape{1, 6, 2, 2};
+    auto new_shape_size = ov::shape_size(new_shape);
+    input_tensor.set_shape(new_shape);
+    output_tensor.set_shape(new_shape);
+
+    ASSERT_EQ(new_shape_size * sizeof(float), input_tensor.get_byte_size());
+    ASSERT_EQ(new_shape_size * sizeof(float), output_tensor.get_byte_size());
+    ASSERT_EQ(new_shape, input_tensor.get_shape());
+    ASSERT_EQ(new_shape, output_tensor.get_shape());
+
+    input_data = input_tensor.data<float>();
+    output_data = output_tensor.data<float>();
+
+    for (size_t i = 0; i < new_shape_size; ++i) {
+        input_data[i] = 25.f;
+    }
+
+    req.infer();  // Adds '1' to each element
+
+    expected = 26.f;
+    for (size_t i = 0; i < new_shape_size; ++i) {
+        ASSERT_EQ(output_data[i], expected)
+            << ": Expected=" << expected << ", actual=" << output_data[i] << " for index " << i;
+    }
+
+    ASSERT_EQ(new_shape_size * sizeof(float), input_tensor.get_byte_size());
+    ASSERT_EQ(new_shape_size * sizeof(float), output_tensor.get_byte_size());
+    ASSERT_EQ(new_shape, input_tensor.get_shape());
+    ASSERT_EQ(new_shape, output_tensor.get_shape());
+
+    input_data_after_run = input_tensor.data<float>();
+    output_data_after_run = output_tensor.data<float>();
+
+    ASSERT_EQ(input_data, input_data_after_run);
+    ASSERT_EQ(output_data, output_data_after_run);
+}
+
+TEST_P(DynamicBoundsTests, ChangeShapeAfterTensorIsSetUsingAlignedExternalMemory) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto model_shape = PartialShape{1, ov::Dimension(1, 10), 4, 64};
+    auto model = createModel(element::f32, model_shape, "N...");
+
+    auto compiled_model = core->compile_model(model, target_device, configuration);
+    // Create InferRequest
+    ov::InferRequest req;
+    req = compiled_model.create_infer_request();
+
+    ov::Allocator allocator{ov::test::utils::DefaultAllocatorAligned{}};
+
+    auto shape = Shape{1, 8, 4, 64};
+    auto shape_size = ov::shape_size(shape);
+    auto input_tensor = ov::Tensor{ov::element::f32, shape, allocator};
+    auto output_tensor = ov::Tensor{ov::element::f32, shape, allocator};
+
+    ASSERT_EQ(shape_size * sizeof(float), input_tensor.get_byte_size());
+    ASSERT_EQ(shape_size * sizeof(float), output_tensor.get_byte_size());
+    ASSERT_EQ(shape, input_tensor.get_shape());
+    ASSERT_EQ(shape, output_tensor.get_shape());
+
+    req.set_input_tensor(input_tensor);
+    req.set_output_tensor(output_tensor);
+
+    auto* input_data = input_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = 21.f;
+    }
+
+    req.infer();  // Adds '1' to each element
+
+    auto expected = 22.f;
+    auto* output_data = output_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        ASSERT_EQ(output_data[i], expected)
+            << ": Expected=" << expected << ", actual=" << output_data[i] << " for index " << i;
+    }
+
+    auto new_shape = Shape{1, 6, 4, 64};
+    auto new_shape_size = ov::shape_size(new_shape);
+    input_tensor.set_shape(new_shape);
+    output_tensor.set_shape(new_shape);
+
+    ASSERT_EQ(new_shape_size * sizeof(float), input_tensor.get_byte_size());
+    ASSERT_EQ(new_shape_size * sizeof(float), output_tensor.get_byte_size());
+    ASSERT_EQ(new_shape, input_tensor.get_shape());
+    ASSERT_EQ(new_shape, output_tensor.get_shape());
+
+    input_data = input_tensor.data<float>();
+    output_data = output_tensor.data<float>();
+
+    for (size_t i = 0; i < new_shape_size; ++i) {
+        input_data[i] = 25.f;
+    }
+
+    req.infer();  // Adds '1' to each element
+
+    expected = 26.f;
+    for (size_t i = 0; i < new_shape_size; ++i) {
+        ASSERT_EQ(output_data[i], expected)
+            << ": Expected=" << expected << ", actual=" << output_data[i] << " for index " << i;
+    }
+
+    ASSERT_EQ(new_shape_size * sizeof(float), input_tensor.get_byte_size());
+    ASSERT_EQ(new_shape_size * sizeof(float), output_tensor.get_byte_size());
+    ASSERT_EQ(new_shape, input_tensor.get_shape());
+    ASSERT_EQ(new_shape, output_tensor.get_shape());
+}
+
+TEST_P(DynamicBoundsTests, RunningTwiceWithRemoteTensor) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto model_shape = PartialShape{1, ov::Dimension(1, 10), 4, 64};
+    auto model = createModel(element::f32, model_shape, "N...");
+
+    auto compiled_model = core->compile_model(model, target_device, configuration);
+    // Create InferRequest
+    ov::InferRequest req;
+    req = compiled_model.create_infer_request();
+
+    auto context = core->get_default_context(target_device);
+
+    auto shape = Shape{1, 8, 4, 64};
+    auto shape_size = ov::shape_size(shape);
+    auto input_tensor = context.create_host_tensor(ov::element::f32, shape);
+    auto output_tensor = context.create_host_tensor(ov::element::f32, shape);
+
+    ASSERT_EQ(shape_size * sizeof(float), input_tensor.get_byte_size());
+    ASSERT_EQ(shape_size * sizeof(float), output_tensor.get_byte_size());
+    ASSERT_EQ(shape, input_tensor.get_shape());
+    ASSERT_EQ(shape, output_tensor.get_shape());
+
+    req.set_input_tensor(input_tensor);
+    req.set_output_tensor(output_tensor);
+
+    auto* input_data = input_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = 21.f;
+    }
+
+    req.infer();  // Adds '1' to each element
+
+    auto expected = 22.f;
+    auto* output_data = output_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        ASSERT_EQ(output_data[i], expected)
+            << ": Expected=" << expected << ", actual=" << output_data[i] << " for index " << i;
+    }
+
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = 25.f;
+    }
+
+    req.infer();  // Adds '1' to each element
+
+    expected = 26.f;
+    for (size_t i = 0; i < shape_size; ++i) {
+        ASSERT_EQ(output_data[i], expected)
+            << ": Expected=" << expected << ", actual=" << output_data[i] << " for index " << i;
+    }
+
+    ASSERT_EQ(shape_size * sizeof(float), input_tensor.get_byte_size());
+    ASSERT_EQ(shape_size * sizeof(float), output_tensor.get_byte_size());
+    ASSERT_EQ(shape, input_tensor.get_shape());
+    ASSERT_EQ(shape, output_tensor.get_shape());
+}
+
+TEST_P(DynamicBoundsTests, ExpectErrorFromWrongTensorShape) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto model_shape = PartialShape{1, ov::Dimension(1, 10), 4, 64};
+    auto model = createModel(element::f32, model_shape, "N...");
+
+    auto compiled_model = core->compile_model(model, target_device, configuration);
+    // Create InferRequest
+    ov::InferRequest req;
+    req = compiled_model.create_infer_request();
+
+    auto context = core->get_default_context(target_device);
+    auto input_tensor = context.create_host_tensor(ov::element::f32, Shape{1, 8, 2, 64});
+    OV_EXPECT_THROW(req.set_input_tensor(input_tensor),
+                    ov::Exception,
+                    HasSubstr("The tensor shape is not compatible with the model input/output shape"));
+
+    auto output_tensor = context.create_host_tensor(ov::element::f32, Shape{1, 8, 12, 64});
+    OV_EXPECT_THROW(req.set_output_tensor(output_tensor),
+                    ov::Exception,
+                    HasSubstr("The tensor shape is not compatible with the model input/output shape"));
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

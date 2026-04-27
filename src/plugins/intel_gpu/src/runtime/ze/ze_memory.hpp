@@ -70,7 +70,7 @@ public:
         host_desc.pNext = nullptr;
 
         void* memory = nullptr;
-        OV_ZE_EXPECT(ze::zeMemAllocHost(_context, &host_desc, size, 1, &memory));
+        OV_ZE_EXPECT(ze::zeMemAllocHost(_context, &host_desc, size, 0, &memory));
         _usm_pointer = std::make_shared<UsmHolder>(_context, memory);
     }
 
@@ -87,7 +87,7 @@ public:
         host_desc.pNext = nullptr;
 
         void* memory = nullptr;
-        OV_ZE_EXPECT(ze::zeMemAllocShared(_context, &device_desc, &host_desc, size, 1, _device, &memory));
+        OV_ZE_EXPECT(ze::zeMemAllocShared(_context, &device_desc, &host_desc, size, 0, _device, &memory));
         _usm_pointer = std::make_shared<UsmHolder>(_context, memory);
     }
 
@@ -99,7 +99,7 @@ public:
         device_desc.pNext = nullptr;
 
         void* memory = nullptr;
-        OV_ZE_EXPECT(ze::zeMemAllocDevice(_context, &device_desc, size, 4096, _device, &memory));
+        OV_ZE_EXPECT(ze::zeMemAllocDevice(_context, &device_desc, size, 0, _device, &memory));
         _usm_pointer = std::make_shared<UsmHolder>(_context, memory);
     }
 
@@ -137,6 +137,7 @@ struct gpu_usm : public lockable_gpu_mem, public memory {
     event::ptr copy_to(stream& stream, void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) const override;
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::memory get_onednn_memory(dnnl::memory::desc desc, int64_t offset) const override;
+    dnnl::memory get_onednn_grouped_memory(dnnl::memory::desc desc, const memory& offsets) const override;
 #endif
 
     static allocation_type detect_allocation_type(const ze_engine* engine, const void* mem_ptr);

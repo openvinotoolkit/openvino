@@ -2575,6 +2575,33 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
     ov::npuw::Ensemble ens;
 
     // Try to load the partitioning plan...
+    // Ensure all nodes in the model have unique friendly names before online partitioning.
+    // The online partitioner and the subsequent bank-building steps (completeRepeating,
+    // propagateScalars, etc.) use friendly_name as a node identity key in std::set<string>
+    // and std::map. If two physically different nodes share the same friendly_name (which
+    // can happen with some model exporters), they will be silently merged or cause bank
+    // size mismatches, leading to NPUW_ASSERT(all_ok) failures in sanityCheck.
+    // We resolve this by appending a numeric suffix to any duplicated name.
+    {
+        std::unordered_map<std::string, size_t> name_count;
+        for (auto& node : model->get_ordered_ops()) {
+            name_count[node->get_friendly_name()]++;
+        }
+        std::unordered_map<std::string, size_t> name_seen;
+        for (auto& node : model->get_ordered_ops()) {
+            const auto& name = node->get_friendly_name();
+            if (name_count[name] > 1) {
+                size_t idx = name_seen[name]++;
+                if (idx > 0) {
+                    // Keep the first occurrence as-is to avoid disturbing the
+                    // prototype (funcall0) node names that everything else maps to.
+                    node->set_friendly_name(name + "_npuw_dedup_" + std::to_string(idx));
+                    LOG_WARN("NPUW: renamed duplicate node '" << name << "' to '" << node->get_friendly_name() << "'");
+                }
+            }
+        }
+    }
+
     const std::string file_path = cfg.get<::intel_npu::NPUW_PLAN>();
     if (file_path.empty()) {
         LOG_INFO("No " << ::intel_npu::NPUW_PLAN().key() << " property is provided! Using online partitioning.");

@@ -836,6 +836,32 @@ std::map<std::string, std::string> parseConfigFile() {
     return config;
 }
 
+ov::AnyMap buildDeviceConfig() {
+    ov::AnyMap config;
+
+    if (!FLAGS_log_level.empty()) {
+        config[ov::log::level.name()] = FLAGS_log_level;
+    }
+
+    if (FLAGS_device == "CPU") {
+        config["LP_TRANSFORMS_MODE"] = std::string("NO");
+    }
+
+    if (FLAGS_pc) {
+        config[ov::enable_profiling.name()] = true;
+    }
+
+    if (!FLAGS_config.empty()) {
+        const auto fileConfigs = parseConfigFile();
+        for (const auto& [key, value] : fileConfigs) {
+            config[key] = value;
+        }
+    }
+
+    return config;
+}
+
+
 // This function formats performance counters in a same way as benchmark_app -pc does.
 // It is a copy-paste from $OPENVINO_HOME/samples/cpp/common/utils/include/samples/common.hpp
 using ProfVec = std::vector<ov::ProfilingInfo>;
@@ -1925,27 +1951,8 @@ const char TEMPLATE_LIB[] = "libopenvino_template_plugin.so";
 #endif
 
 void setupOVCore(ov::Core& core) {
-    auto flagDevice = FLAGS_device;
-
     if (FLAGS_device == "TEMPLATE") {
         core.register_plugin(TEMPLATE_LIB, FLAGS_device);
-    }
-
-    if (!FLAGS_log_level.empty()) {
-        core.set_property(flagDevice, {{ov::log::level.name(), FLAGS_log_level}});
-    }
-
-    if (FLAGS_device == "CPU") {
-        core.set_property(flagDevice, {{"LP_TRANSFORMS_MODE", "NO"}});
-    }
-
-    if (FLAGS_pc) {
-        core.set_property(flagDevice, {{ov::enable_profiling.name(), true}});
-    }
-
-    if (!FLAGS_config.empty()) {
-        const auto configs = parseConfigFile();
-        core.set_property(flagDevice, {configs.begin(), configs.end()});
     }
 }
 
@@ -2484,7 +2491,7 @@ static int runSingleImageTest() {
             std::cout << "Compile model" << std::endl;
             model = ppp.build();
             printInputAndOutputsInfoShort(*model);
-            compiledModel = core.compile_model(model, FLAGS_device);
+            compiledModel = core.compile_model(model, FLAGS_device, buildDeviceConfig());
         } else {
             std::cout << "Import network " << FLAGS_network << std::endl;
 
@@ -2496,7 +2503,7 @@ static int runSingleImageTest() {
 
             std::ifstream file(FLAGS_network, std::ios_base::in | std::ios_base::binary);
             OPENVINO_ASSERT(file.is_open(), "Can't open file ", FLAGS_network, " for read");
-            compiledModel = core.import_model(file, FLAGS_device);
+            compiledModel = core.import_model(file, FLAGS_device, buildDeviceConfig());
         }
 
         auto inputInfo = compiledModel.inputs();

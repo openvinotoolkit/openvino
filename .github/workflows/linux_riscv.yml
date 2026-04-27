@@ -38,6 +38,10 @@ on:
       - 'src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/instances/common/logical.*'
       - 'src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/instances/riscv64/**'
       - 'src/plugins/intel_cpu/thirdparty/xbyak_riscv/**'
+  push:
+    branches:
+      - master
+      - 'releases/**'
 
 concurrency:
   # github.ref is not unique in post-commit

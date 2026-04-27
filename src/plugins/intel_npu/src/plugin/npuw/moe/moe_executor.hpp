@@ -96,6 +96,12 @@ public:
      * @return True if copy is needed
      */
     virtual bool needs_copy_closure(size_t idx, size_t cidx) = 0;
+
+    /**
+     * @param idx Submodel index
+     * @return Device identifier for the given subgraph
+     */
+    virtual std::string subgraph_device(size_t idx) = 0;
 };
 
 namespace moe {

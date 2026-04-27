@@ -19,6 +19,7 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 
 namespace ov {
@@ -218,7 +219,9 @@ Tensor read_tensor_data_mmap_impl(std::shared_ptr<ov::MappedMemory> mapped_memor
         std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data(),
                                                                               mapped_memory->size(),
                                                                               mapped_memory);
-    return wrap_obj_to_viewtensor(shared_buffer, shared_buffer->get_ptr(), element_type, static_shape);
+    auto tensor = wrap_obj_to_viewtensor(shared_buffer, shared_buffer->get_ptr(), element_type, static_shape);
+    set_tensor_source_id(tensor, mapped_memory->get_id());
+    return tensor;
 }
 
 size_t get_size_for_mapping(const ov::element::Type& element_type, const ov::PartialShape& partial_shape) {
@@ -259,7 +262,9 @@ Tensor read_tensor_data(const std::filesystem::path& file_name,
         const auto static_shape = resolve_static_shape(available_size, element_type, partial_shape);
         const auto tensor = std::make_shared<ov::Tensor>(element_type, static_shape);
         read_tensor_via_ifstream(file_name, *tensor.get(), offset_in_bytes);
-        return wrap_obj_to_viewtensor(tensor, tensor->data(), element_type, static_shape);
+        auto result = wrap_obj_to_viewtensor(tensor, tensor->data(), element_type, static_shape);
+        set_tensor_source_id(result, util::get_id_for_file(file_name, offset_in_bytes, tensor->get_byte_size()));
+        return result;
     }
 }
 

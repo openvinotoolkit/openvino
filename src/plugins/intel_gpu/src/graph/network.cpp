@@ -808,6 +808,7 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
 
         result.emplace(id, network_output(ev, inst->output_memory_ptr(0), get_stream_ptr(), inst->get_output_layout(0)));
     }
+
     return result;
 }
 

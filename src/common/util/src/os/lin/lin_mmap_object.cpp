@@ -81,7 +81,7 @@ public:
                                      " for mapping. Ensure that file exists and has appropriate permissions.");
         }
         set_from_fd(fd, offset, size);
-        m_id = util::u64_hash_combine(std::filesystem::hash_value(path), {offset, size});
+        m_id = util::get_id_for_file(path, offset, size);
     }
 
     void set_from_fd(const int fd, const size_t offset, const size_t size) {
