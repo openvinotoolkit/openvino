@@ -6,11 +6,13 @@
 
 #include <gtest/gtest.h>
 
+#include <openvino/runtime/intel_npu/properties.hpp>
+
 #include "common/utils.hpp"
 
 using namespace ov::test::behavior;
 
-const std::vector<ov::AnyMap> compiledModelConfigs = {{}};
+const std::vector<ov::AnyMap> compiledModelConfigs = {{ov::intel_npu::bypass_umd_caching(true)}};
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_Behavior_NPU,

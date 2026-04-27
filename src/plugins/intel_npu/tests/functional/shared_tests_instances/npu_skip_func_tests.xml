@@ -877,11 +877,11 @@ Example:
             <device>3720</device>
         </enable_rules>
         <filters>
-            <filter>.*ZeroGraphTest.SetAlignedBlob.*zeGraphNpuExtVersion=(1.13|1.14|1.15|1.16).*</filter>
+            <filter>.*ZeroGraphTest.SetAlignedBlob.*zeGraphNpuExtVersion=(1.13|1.14|1.15|1.16|1.17).*</filter>
         </filters>
     </skip_config>
 
-    <!-- E207582 -->
+    <!-- E#213889 -->
     <skip_config>
         <message>Cannot use ENABLE_WEIGHTLESS with current driver</message>
         <enable_rules>
@@ -903,25 +903,16 @@ Example:
     </skip_config>
 
     <skip_config>
-        <message>Not all supported properties can be get from NPU device e.g. write only cache_encryption_callbacks</message>
+        <message>Write only (WO) properties will return empty ov::Any objects</message>
         <enable_rules>
             <backend>LEVEL0</backend>
         </enable_rules>
         <filters>
-            <filter>.*OVSpecificDeviceGetConfigTest.GetConfigSpecificDeviceNoThrow.*</filter>
+            <filter>.*OVClassCompiledModelPropertiesTests.canCompileModelWithPropertiesAndCheckGetProperty.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
+            <filter>.*OVPropertiesTests.canSetPropertyAndCheckGetProperty.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
             <filter>.*OVPropertiesDefaultSupportedTests.CanSetDefaultValueBackToPlugin.*</filter>
-            <filter>.*OVClassCompiledModelPropertiesDefaultTests.CheckDefaultValues.*</filter>
             <filter>.*OVClassCompiledModelGetConfigTest.GetConfigNoThrow.*</filter>
-        </filters>
-    </skip_config>
-
-    <skip_config>
-        <message>HETERO plugin does get property on all NPU plugin's supported properties if DEVICE_PROPERTIES property is given, but not all of NPU plugin's supported properties are gettable</message>
-        <enable_rules>
-            <backend>LEVEL0</backend>
-        </enable_rules>
-        <filters>
-            <filter>.*OVClassCompiledModelPropertiesTests.canCompileModelWithPropertiesAndCheckGetProperty.*targetDevice=HETERO.*</filter>
+            <filter>.*OVSpecificDeviceGetConfigTest.GetConfigSpecificDeviceNoThrow.*</filter>
         </filters>
     </skip_config>
 

@@ -271,38 +271,6 @@ TEST_P(ClassPluginPropertiesTestSuite5NPU, CanSetMutablePropertiesToCompiledMode
     OV_ASSERT_NO_THROW(compiled_model2.set_property({{configKey, configValue}}));
 }
 
-TEST_P(ClassPluginPropertiesTestSuite5NPU, CanNotGetWriteOnlyProperty) {
-    const std::string error_message = "WRITE-ONLY configuration key: ";
-    // ie.set_property won't call plugin Engine::SetConfig due to empty string-ov::Plugin map from core_impl
-    // workaround to overcome this is to call first ie.get_property which calls get_plugin() from core_impl and
-    // populates plugin map
-    std::vector<ov::PropertyName> properties;
-    OV_ASSERT_NO_THROW(properties = ie.get_property(deviceName, ov::supported_properties));
-
-    OV_ASSERT_NO_THROW(ie.set_property(deviceName, {{configKey, configValue}}));
-
-    OV_EXPECT_THROW(ie.get_property(deviceName, configKey),
-                    ov::Exception,
-                    ::testing::HasSubstr(error_message + configKey));
-
-    OV_ASSERT_NO_THROW(ov::CompiledModel compiled_model1 =
-                           ie.compile_model(model, deviceName, {{configKey, configValue}}));
-
-    ov::CompiledModel compiled_model2;
-
-    OV_ASSERT_NO_THROW(compiled_model2 = ie.compile_model(model, deviceName));
-
-    OV_EXPECT_THROW(compiled_model2.get_property(configKey),
-                    ov::Exception,
-                    ::testing::HasSubstr(error_message + configKey));
-
-    OV_ASSERT_NO_THROW(compiled_model2.set_property({{configKey, configValue}}));
-
-    OV_EXPECT_THROW(compiled_model2.get_property(configKey),
-                    ov::Exception,
-                    ::testing::HasSubstr(error_message + configKey));
-}
-
 using ClassExecutableNetworkInvalidDeviceIDTestSuite = ClassExecutableNetworkGetPropertiesTestNPU;
 
 TEST_P(ClassExecutableNetworkInvalidDeviceIDTestSuite, InvalidNPUdeviceIDTest) {

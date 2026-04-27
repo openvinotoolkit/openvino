@@ -100,6 +100,23 @@ TEST_P(OVCompiledGraphImportExportTestNPU, CheckSizeOfBlobIfMultipleOfPageSize) 
     ASSERT_TRUE(size_of_blob % 4096 == 0) << "Size of the blob shall be multiple of 4096";
 }
 
+TEST_P(OVCompiledGraphImportExportTestNPU, SameBlobAfterImportExport) {
+    ov::Core core;
+    std::stringstream blob_stream, test_blob_stream_1, test_blob_stream_2;
+
+    auto model = ov::test::utils::make_conv_pool_relu();
+    core.compile_model(model, target_device, configuration).export_model(blob_stream);
+    configuration.insert(ov::intel_npu::defer_weights_load(true));
+
+    core.import_model(blob_stream, target_device, configuration).export_model(test_blob_stream_1);
+    ASSERT_EQ(blob_stream.str(), test_blob_stream_1.str());
+
+    auto blob_str = blob_stream.str();
+    ov::Tensor blob_tensor(ov::element::u8, ov::Shape{blob_str.size()}, blob_str.c_str());
+    core.import_model(blob_tensor, target_device, configuration).export_model(test_blob_stream_2);
+    ASSERT_EQ(blob_stream.str(), test_blob_stream_2.str());
+}
+
 TEST_P(OVCompiledGraphImportExportTestNPU, ImportingEncryptedBlobThrows) {
     ov::Core core;
     std::stringstream encrypted_blob_stream;
