@@ -21,7 +21,9 @@ namespace ov::intel_gpu {
 // direct pread/ReadFile calls replace the 2x-RAM mmap+memcpy path.
 class ParallelMemStreamBuf : public std::streambuf {
 public:
-    explicit ParallelMemStreamBuf(const void* data, size_t size, size_t threshold = ov::util::default_parallel_io_threshold);
+    explicit ParallelMemStreamBuf(const void* data,
+                                  size_t size,
+                                  size_t threshold = ov::util::default_parallel_io_threshold);
 
     ~ParallelMemStreamBuf() override = default;
 
@@ -33,6 +35,13 @@ public:
     /// where the data is already resident and no preloading is meaningful.
     bool prefetch(std::streamsize size) {
         return m_file_buf ? m_file_buf->prefetch(size) : false;
+    }
+
+    /// Forward a direct bulk read into @p dst to the delegated ParallelReadStreamBuf.
+    /// In-memory (non-file) backing intentionally returns 0: the data is already resident, so the istream
+    /// fallback (xsgetn -> parallel_copy) is the correct and sufficient path for that case.
+    std::streamsize read_into(void* dst, std::streamsize size) {
+        return m_file_buf ? m_file_buf->read_into(dst, size) : std::streamsize{0};
     }
 
 protected:

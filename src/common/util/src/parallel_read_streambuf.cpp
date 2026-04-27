@@ -234,6 +234,88 @@ bool ParallelReadStreamBuf::prefetch(std::streamsize size) {
     return true;
 }
 
+// Read `size` bytes at the current logical position directly into `dst`.
+//
+// All-or-nothing contract (see header):
+//   - Success: advances logical cursor by `size` and returns `size`.
+//   - Failure: leaves cursor untouched. For Case 2 (underflow + file read), dst is unspecified; for Cases 1
+//     and 3, caller falls back to istream which rewrites dst.
+//
+// Three paths:
+//   1. Prefetch window fully covers [abs_begin, abs_begin + size) -> memcpy from window, consume underflow
+//      remainder, advance cursor.
+//   2. Underflow bytes are present (ahead > 0) and we must hit the file for the tail -> read file portion
+//      directly into dst, prepend underflow bytes on success.
+//   3. No underflow and no full-window hit -> parallel_read/single_read straight into dst.
+std::streamsize ParallelReadStreamBuf::read_into(void* dst, std::streamsize size) {
+    if (size <= 0 || dst == nullptr) {
+        return 0;
+    }
+
+    char* dst_bytes = static_cast<char*>(dst);
+    const size_t n = static_cast<size_t>(size);
+
+    // Account for bytes still sitting in the underflow get-area so that the logical cursor exposed to callers
+    // matches what a plain xsgetn would see.
+    const std::streamoff ahead = (gptr() != nullptr) ? static_cast<std::streamoff>(egptr() - gptr()) : 0;
+    const std::streamoff abs_begin = m_file_offset - ahead;
+
+    if (abs_begin < 0 || abs_begin + static_cast<std::streamoff>(n) > m_file_size) {
+        return 0;
+    }
+
+    // Case 1: prefetch window fully covers the requested range.
+    if (serve_from_prefetch(dst_bytes, n, abs_begin)) {
+        const std::streamoff consumed_from_underflow = (std::min)(static_cast<std::streamoff>(n), ahead);
+        if (consumed_from_underflow > 0) {
+            // Safe: consumed_from_underflow <= egptr() - gptr() <= UNDERFLOW_BUF (8192) which fits in int.
+            gbump(static_cast<int>(consumed_from_underflow));
+        }
+        m_file_offset += static_cast<std::streamoff>(n) - consumed_from_underflow;
+        return size;
+    }
+
+    // Case 2: underflow bytes present -> read file portion directly into dst, then prepend the small underflow
+    // fragment. On failure dst contents are unspecified (same contract as Case 3) but cursor and get-area are
+    // untouched.
+    if (ahead > 0) {
+        const size_t from_underflow = static_cast<size_t>((std::min)(static_cast<std::streamoff>(n), ahead));
+        const size_t remaining = n - from_underflow;
+
+        if (remaining > 0) {
+            invalidate_prefetch();
+            const size_t file_off = static_cast<size_t>(m_file_offset);
+            const bool ok = (remaining >= m_threshold)
+                                ? parallel_read(dst_bytes + from_underflow, remaining, file_off)
+                                : single_read(dst_bytes + from_underflow, remaining, file_off);
+            if (!ok) {
+                return 0;  // cursor untouched, dst unspecified
+            }
+        }
+
+        // File read succeeded (or entire request served from underflow) -- safe to commit the underflow bytes
+        // and advance the cursor.
+        // Safe: from_underflow <= egptr() - gptr() <= UNDERFLOW_BUF (8192) which fits in int.
+        std::memcpy(dst_bytes, gptr(), from_underflow);
+        gbump(static_cast<int>(from_underflow));
+        m_file_offset += static_cast<std::streamoff>(remaining);
+        return size;
+    }
+
+    // Case 3: no underflow, no full-window hit -> read directly into dst.
+    // parallel_read is not atomic across threads, so on failure dst contents are unspecified. The cursor is
+    // untouched, and the intended caller (data::load_weights) falls back to istream which rewrites dst.
+    invalidate_prefetch();
+    const size_t file_off = static_cast<size_t>(m_file_offset);
+    const bool ok =
+        (n >= m_threshold) ? parallel_read(dst_bytes, n, file_off) : single_read(dst_bytes, n, file_off);
+    if (!ok) {
+        return 0;
+    }
+    m_file_offset += static_cast<std::streamoff>(n);
+    return size;
+}
+
 // Serve a request from the prefetch buffer if the full range is covered.
 // Returns true when the buffer was used; on false the caller must fall back to
 // the regular file-IO path (which will also invalidate the stale window via

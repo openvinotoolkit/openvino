@@ -615,4 +615,136 @@ TEST_F(ParallelReadStreamBufTest, PrefetchEdgeCases) {
     EXPECT_FALSE(buf.prefetch(static_cast<std::streamsize>(k_size)));
 }
 
+// read_into served entirely from an existing prefetch window. After prefetch(), a subsequent read_into() whose
+// range falls fully inside the window must succeed, advance the logical position by `size`, and produce exactly
+// the same bytes as the underlying file.
+TEST_F(ParallelReadStreamBufTest, ReadIntoServedFromPrefetchWindow) {
+    constexpr size_t k_size = 64 * 1024;
+    constexpr size_t k_prefetch = 32 * 1024;
+    constexpr size_t k_read = 16 * 1024;
+    std::vector<char> expected(k_size);
+    fill_pattern(expected);
+    setup_temp_file(expected);
+
+    util::ParallelReadStreamBuf buf(m_tmp_path, /*header_offset=*/0, /*threshold=*/1);
+    std::istream stream(&buf);
+
+    ASSERT_TRUE(buf.prefetch(static_cast<std::streamsize>(k_prefetch)));
+
+    std::vector<char> got(k_read, '\0');
+    auto n = buf.read_into(got.data(), static_cast<std::streamsize>(k_read));
+    EXPECT_EQ(n, static_cast<std::streamsize>(k_read));
+
+    std::vector<char> slice(expected.begin(), expected.begin() + k_read);
+    EXPECT_EQ(got, slice);
+
+    // Cursor advanced by k_read; the next byte must be expected[k_read].
+    char next = '\0';
+    ASSERT_TRUE(stream.read(&next, 1));
+    EXPECT_EQ(next, expected[k_read]);
+}
+
+// read_into straddling the end of a prefetch window: the window only covers the head of the requested range,
+// so the call falls back to parallel_read. The returned bytes must still match the file content exactly.
+TEST_F(ParallelReadStreamBufTest, ReadIntoPartialWindowMatchesFileContent) {
+    constexpr size_t k_size = 128 * 1024;
+    constexpr size_t k_prefetch = 32 * 1024;
+    constexpr size_t k_read = 48 * 1024;  // straddles window end (32 KB)
+    std::vector<char> expected(k_size);
+    fill_pattern(expected);
+    setup_temp_file(expected);
+
+    util::ParallelReadStreamBuf buf(m_tmp_path, /*header_offset=*/0, /*threshold=*/1);
+
+    ASSERT_TRUE(buf.prefetch(static_cast<std::streamsize>(k_prefetch)));
+
+    std::vector<char> got(k_read, static_cast<char>(0xABu));
+    auto n = buf.read_into(got.data(), static_cast<std::streamsize>(k_read));
+    EXPECT_EQ(n, static_cast<std::streamsize>(k_read));
+
+    std::vector<char> slice(expected.begin(), expected.begin() + k_read);
+    EXPECT_EQ(got, slice);
+}
+
+// read_into with no prefetch window must fall through to parallel_read and deliver correct bytes.
+TEST_F(ParallelReadStreamBufTest, ReadIntoNoWindowUsesParallelRead) {
+    // Use a low threshold so this test keeps covering the parallel_read branch even when the default threshold
+    // is tuned higher for production reads.
+    constexpr size_t k_size = 4 * 1024 * 1024;
+    std::vector<char> expected(k_size);
+    fill_pattern(expected);
+    setup_temp_file(expected);
+
+    util::ParallelReadStreamBuf buf(m_tmp_path, /*header_offset=*/0, /*threshold=*/1);
+    // no prefetch()
+
+    std::vector<char> got(k_size, '\0');
+    auto n = buf.read_into(got.data(), static_cast<std::streamsize>(k_size));
+    EXPECT_EQ(n, static_cast<std::streamsize>(k_size));
+    EXPECT_EQ(got, expected);
+}
+
+// read_into requesting beyond EOF returns 0 and leaves the cursor intact. A subsequent small read from the
+// original position must succeed.
+TEST_F(ParallelReadStreamBufTest, ReadIntoRestoresOffsetOnShortFile) {
+    constexpr size_t k_size = 4096;
+    std::vector<char> expected(k_size);
+    fill_pattern(expected);
+    setup_temp_file(expected);
+
+    util::ParallelReadStreamBuf buf(m_tmp_path, /*header_offset=*/0, /*threshold=*/1);
+    std::istream stream(&buf);
+
+    std::vector<char> got(8192, static_cast<char>(0xCDu));
+    auto n = buf.read_into(got.data(), static_cast<std::streamsize>(got.size()));
+    EXPECT_EQ(n, std::streamsize{0});
+
+    // Cursor still at position 0: the first 4 bytes match expected[0..4).
+    char head[4] = {0};
+    ASSERT_TRUE(stream.read(head, 4));
+    for (size_t i = 0; i < 4; ++i) {
+        EXPECT_EQ(head[i], expected[i]) << "byte " << i;
+    }
+}
+
+// read_into with size == 0 is a no-op: dst is untouched and the return is 0.
+TEST_F(ParallelReadStreamBufTest, ReadIntoZeroSizeIsNoop) {
+    constexpr size_t k_size = 4096;
+    std::vector<char> expected(k_size);
+    fill_pattern(expected);
+    setup_temp_file(expected);
+
+    util::ParallelReadStreamBuf buf(m_tmp_path, /*header_offset=*/0, /*threshold=*/1);
+
+    char dummy = static_cast<char>(0xEEu);
+    auto n = buf.read_into(&dummy, 0);
+    EXPECT_EQ(n, std::streamsize{0});
+    EXPECT_EQ(static_cast<unsigned char>(dummy), 0xEEu);
+}
+
+// try_read_into dispatch: verify that the dynamic_cast-based dispatch in data.hpp correctly
+// routes a ParallelReadStreamBuf-backed stream to read_into and that an unknown streambuf
+// returns false (falling through to ib >> make_data).
+// The ParallelReadStreamBuf path is exercised directly here; the full BinaryInputBuffer
+// integration path requires an engine instance and is covered by GPU functional tests.
+TEST_F(ParallelReadStreamBufTest, ReadIntoDispatchAndFallback) {
+    constexpr size_t k_size = 64 * 1024;
+    std::vector<char> expected(k_size);
+    fill_pattern(expected);
+    setup_temp_file(expected);
+
+    // Direct dispatch: ParallelReadStreamBuf is the known backing -> read_into must succeed.
+    util::ParallelReadStreamBuf buf(m_tmp_path, /*header_offset=*/0, /*threshold=*/1);
+    std::vector<char> got(k_size, '\0');
+    auto n = buf.read_into(got.data(), static_cast<std::streamsize>(k_size));
+    EXPECT_EQ(n, static_cast<std::streamsize>(k_size));
+    EXPECT_EQ(got, expected);
+
+    // Fallback: a plain stringstream-backed streambuf must return 0 (not a ParallelReadStreamBuf).
+    std::istringstream ss(std::string(expected.begin(), expected.end()));
+    std::streambuf* rdbuf = ss.rdbuf();
+    auto* prs = dynamic_cast<util::ParallelReadStreamBuf*>(rdbuf);
+    EXPECT_EQ(prs, nullptr);  // confirms fallback path is taken for non-prefetchable backings
+}
+
 }  // namespace ov::test

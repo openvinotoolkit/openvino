@@ -20,8 +20,8 @@ namespace ov::util {
 inline constexpr FileHandle INVALID_HANDLE_VALUE = -1;
 #endif
 
-inline constexpr size_t default_parallel_io_threshold = 4UL * 1024 * 1024;  ///< 4 MB default threshold for parallel I/O
-inline constexpr size_t default_parallel_io_min_chunk = 2UL * 1024 * 1024;  ///< 2 MB minimum chunk size per thread
+inline constexpr size_t default_parallel_io_threshold = 16UL * 1024 * 1024; ///< default threshold for parallel I/O.
+inline constexpr size_t default_parallel_io_min_chunk = 2UL * 1024 * 1024;  ///< minimum chunk size per worker thread.
 /** @brief Default upper bound for ParallelReadStreamBuf::prefetch() requests.
  *  Sized to cover a typical large-model deserialization burst in a single window while keeping
  *  prefetch allocation and dispatch cost bounded. Reads outside the window fall back to file I/O.
