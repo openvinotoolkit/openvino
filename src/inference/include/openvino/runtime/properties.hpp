@@ -994,6 +994,96 @@ static constexpr Property<bool, PropertyMutability::RW> force_tbb_terminate{"FOR
 static constexpr Property<bool, PropertyMutability::RW> enable_mmap{"ENABLE_MMAP"};
 
 /**
+ * @brief Enum to define possible execution results of RUNTIME_REQUIREMENTS_CHECK
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+enum class RuntimeRequirementCheckResult {
+    OK = 0,                       //!< String is compatible with the current platform
+    INVALID_ARGUMENT = 1,         //!< Invalid argument provided
+    INCOMPATIBLE_PLATFORM = 2,    //!< The string check in plugin failed (compiled for different platform)
+    INCOMPATIBLE_TILE_COUNT = 3,  //!< The string check failed due to incompatible tile count
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const RuntimeRequirementCheckResult& result) {
+    switch (result) {
+    case RuntimeRequirementCheckResult::OK:
+        return os << "OK";
+    case RuntimeRequirementCheckResult::INVALID_ARGUMENT:
+        return os << "INVALID_ARGUMENT";
+    case RuntimeRequirementCheckResult::INCOMPATIBLE_PLATFORM:
+        return os << "INCOMPATIBLE_PLATFORM";
+    case RuntimeRequirementCheckResult::INCOMPATIBLE_TILE_COUNT:
+        return os << "INCOMPATIBLE_TILE_COUNT";
+    default:
+        OPENVINO_THROW("Unsupported runtime requirement check result");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, RuntimeRequirementCheckResult& result) {
+    std::string str;
+    is >> str;
+    std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) {
+        return std::toupper(c);
+    });
+    if (str == "OK") {
+        result = RuntimeRequirementCheckResult::OK;
+    } else if (str == "INVALID_ARGUMENT") {
+        result = RuntimeRequirementCheckResult::INVALID_ARGUMENT;
+    } else if (str == "INCOMPATIBLE_PLATFORM") {
+        result = RuntimeRequirementCheckResult::INCOMPATIBLE_PLATFORM;
+    } else if (str == "INCOMPATIBLE_TILE_COUNT") {
+        result = RuntimeRequirementCheckResult::INCOMPATIBLE_TILE_COUNT;
+    } else {
+        OPENVINO_THROW("Unsupported runtime requirement check result: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Read-write property carrying plugin-specific runtime requirements of a compiled model blob.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * The property value is a std::string containing opaque binary data encoding the device environment
+ * requirements at the time a model was compiled. The format and content are plugin-dependent and
+ * may encode information such as plugin version, required hardware capabilities, or driver version.
+ *
+ * **Reading** — query on a compiled model to obtain requirements to persist alongside the blob:
+ * @code
+ * ov::Core core;
+ * auto compiled_model = core.compile_model(model, "NPU");
+ * std::string requirements = compiled_model.get_property(ov::runtime_requirements);
+ * @endcode
+ */
+inline constexpr Property<std::string, PropertyMutability::RW> runtime_requirements{"RUNTIME_REQUIREMENTS"};
+
+/**
+ * @brief Read-only property to check whether a device satisfies the runtime requirements of a compiled model blob.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Use this property before importing a compiled model blob to verify that the current device environment
+ * meets the requirements embedded in the blob. The requirements are passed as an argument via
+ * ov::runtime_requirements, using the value previously obtained from ov::CompiledModel::get_property().
+ *
+ * Returns ov::RuntimeRequirementCheckResult::OK if the device meets all requirements and the blob can be successfully
+ * imported.
+ *
+ * @note The property must be queried with an ov::runtime_requirements argument.
+ *
+ * **Check requirements before import**
+ *
+ * @code
+ * auto compiled_model = core.compile_model(model, "NPU");
+ * auto requirements = compiled_model.get_property(ov::runtime_requirements);
+ * auto check_result = core.get_property("NPU", ov::runtime_requirements_check, ov::runtime_requirements(requirements));
+ * // do import only if check_result == ov::RuntimeRequirementCheckResult::OK
+ * @endcode
+ */
+inline constexpr Property<RuntimeRequirementCheckResult, PropertyMutability::RO> runtime_requirements_check{
+    "RUNTIME_REQUIREMENTS_CHECK"};
+
+/**
  * @brief Namespace with device properties
  */
 namespace device {

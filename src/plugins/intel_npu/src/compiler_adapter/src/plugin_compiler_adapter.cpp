@@ -64,7 +64,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
 
     _logger.debug("compile start");
-    auto tensor = _compiler->compile(model, config);
+    auto [tensor, compatStr] = _compiler->compile(model, config);
     _logger.debug("compile end");
 
     if (config.get<COMPILATION_MODE>() == "HostCompile") {
@@ -98,6 +98,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         graphDesc,
         std::move(networkMeta),
         std::move(tensor),
+        compatStr,
         config,
         /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
 }

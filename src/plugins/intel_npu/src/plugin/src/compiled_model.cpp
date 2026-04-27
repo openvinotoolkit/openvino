@@ -36,7 +36,14 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
 
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
-    _propertiesManager = std::make_unique<Properties>(PropertiesType::COMPILED_MODEL, config);
+
+    FilteredConfig updatedConfig = config;
+    const std::optional<std::string> runtimeRequirements = _graph->get_runtime_requirements();
+    if (runtimeRequirements.has_value() && !runtimeRequirements->empty()) {
+        updatedConfig.update({{ov::runtime_requirements.name(), runtimeRequirements.value()}});
+    }
+
+    _propertiesManager = std::make_unique<Properties>(PropertiesType::COMPILED_MODEL, updatedConfig);
 
     configure_stream_executors();
 

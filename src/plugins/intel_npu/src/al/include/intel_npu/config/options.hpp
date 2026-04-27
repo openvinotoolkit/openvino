@@ -1393,6 +1393,34 @@ struct ENABLE_WEIGHTLESS final : OptionBase<ENABLE_WEIGHTLESS, bool> {
     }
 };
 
+struct RUNTIME_REQUIREMENTS final : OptionBase<RUNTIME_REQUIREMENTS, std::string> {
+    static std::string_view key() {
+        return ov::runtime_requirements.name();
+    }
+
+    static std::string defaultValue() {
+        return "";
+    }
+};
+
+struct RUNTIME_REQUIREMENTS_CHECK final : OptionBase<RUNTIME_REQUIREMENTS_CHECK, ov::RuntimeRequirementCheckResult> {
+    static std::string_view key() {
+        return ov::runtime_requirements_check.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "ov::RuntimeRequirementCheckResult";
+    }
+
+    static ov::RuntimeRequirementCheckResult defaultValue() {
+        return ov::RuntimeRequirementCheckResult::OK;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
 struct WEIGHTLESS_BLOB final : OptionBase<WEIGHTLESS_BLOB, bool> {
     static std::string_view key() {
         return ov::intel_npu::weightless_blob.name();

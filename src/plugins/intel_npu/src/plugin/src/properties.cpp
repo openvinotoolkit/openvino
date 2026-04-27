@@ -551,6 +551,50 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::batch_compiler_mode_settings, BATCH_COMPILER_MODE_SETTINGS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::workload_type, WORKLOAD_TYPE);
+    TRY_REGISTER_CUSTOMFUNC_PROPERTY(
+        ov::runtime_requirements_check,
+        RUNTIME_REQUIREMENTS_CHECK,
+        [&](const Config& config) {
+            auto val = config.get<RUNTIME_REQUIREMENTS>();
+            if (!val.empty()) {
+                std::unique_ptr<ICompilerAdapter> compiler = nullptr;
+                CompilerAdapterFactory factory;
+
+                auto deviceId = config.get<DEVICE_ID>();
+                auto device = utils::getDeviceById(_backend, deviceId);
+                auto compilationPlatform = utils::getCompilationPlatform(
+                    config.get<PLATFORM>(),
+                    device == nullptr ? deviceId : device->getName(),
+                    _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+
+                auto driverCompilerType = ov::intel_npu::CompilerType::DRIVER;
+                try {
+                    compiler = factory.getCompiler(_backend, driverCompilerType, compilationPlatform);
+                } catch (...) {
+                    _logger.warning("Failed to create DRIVER compiler for validating RUNTIME_REQUIREMENTS_CHECK.");
+                }
+
+                if (compiler == nullptr || !compiler->is_option_supported(ov::runtime_requirements_check.name())) {
+                    // Fallback to plugin compiler
+                    auto pluginCompilerType = ov::intel_npu::CompilerType::PLUGIN;
+                    try {
+                        compiler = factory.getCompiler(_backend, pluginCompilerType, compilationPlatform);
+                    } catch (...) {
+                        _logger.warning("Failed to create PLUGIN compiler for validating RUNTIME_REQUIREMENTS_CHECK.");
+                    }
+                }
+
+                if (compiler != nullptr) {
+                    if (!compiler->is_option_supported(ov::runtime_requirements_check.name())) {
+                        OPENVINO_THROW("Property is not supported: ", ov::runtime_requirements_check.name());
+                    }
+                    if (!compiler->is_option_supported(ov::runtime_requirements_check.name(), val)) {
+                        return ov::RuntimeRequirementCheckResult::INCOMPATIBLE_PLATFORM;
+                    }
+                }
+            }
+            return ov::RuntimeRequirementCheckResult::OK;
+        });
     TRY_REGISTER_SIMPLE_PROPERTY(ov::enable_weightless, ENABLE_WEIGHTLESS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::separate_weights_version, SEPARATE_WEIGHTS_VERSION);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::model_serializer_version, MODEL_SERIALIZER_VERSION);
@@ -758,6 +802,7 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::enable_weightless, ENABLE_WEIGHTLESS);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::separate_weights_version, SEPARATE_WEIGHTS_VERSION);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::enable_strides_for, ENABLE_STRIDES_FOR);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::runtime_requirements, RUNTIME_REQUIREMENTS);
 
     TRY_REGISTER_VARPUB_PROPERTY(ov::intel_npu::batch_mode, BATCH_MODE, false);
     TRY_REGISTER_VARPUB_PROPERTY(ov::intel_npu::shared_common_queue, SHARED_COMMON_QUEUE, false);

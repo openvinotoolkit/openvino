@@ -271,6 +271,14 @@ VCL_APIEXPORT vcl_result_t VCL_APICALL vclAllocatedExecutableCreate2(vcl_compile
                                                                      uint8_t** blobBuffer,
                                                                      uint64_t* blobSize);
 
+VCL_APIEXPORT vcl_result_t VCL_APICALL vclAllocatedExecutableCreate3(vcl_compiler_handle_t compiler,
+                                                                     vcl_executable_desc_t desc,
+                                                                     vcl_allocator2_t* allocator,
+                                                                     uint8_t** blobBuffer,
+                                                                     uint64_t* blobSize,
+                                                                     uint8_t** compatibilityStringBuffer,
+                                                                     uint64_t* compatibilityStringSize);
+
 VCL_APIEXPORT vcl_result_t VCL_APICALL vclAllocatedExecutableCreateWSOneShot(vcl_compiler_handle_t compiler,
                                                                              vcl_executable_desc_t desc,
                                                                              vcl_allocator2_t* allocator);
