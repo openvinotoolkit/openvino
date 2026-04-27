@@ -592,35 +592,24 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
     uint zp_offset1 = scale_offset1 + NUM_SUB_BLOCKS * HEAD_SIZE * sizeof(half);
     auto load_scale_zp = [&](uint channel_base) {
         uint scale_base0 = scale_offset0 + channel_base * sizeof(half);
-        // Transpose 2D load max BlockW is 8 DWords; split BLOCK_REG_N into two halves
-        lsc::block_2d_desc<int, 1, BLOCK_REG_K / 2, BLOCK_REG_N / 2> desc_scale{ key_cache + scale_base0,
+        lsc::block_2d_desc<int, 1, BLOCK_REG_K, BLOCK_REG_N / 2> desc_scale{ key_cache + scale_base0,
             BLOCK_REG_K - 1, (uint)(BLOCK_REG_N * sizeof(half) - 1), (uint)(HEAD_SIZE * sizeof(half) - 1), 0, 0 };
-        matrix<int, BLOCK_REG_K / 2, BLOCK_REG_N / 2> tmp_lo, tmp_hi;
+        matrix<int, BLOCK_REG_K, BLOCK_REG_N / 2> tmp_scale, tmp_zp;
 
-        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 0>(tmp_lo.format<int>(), desc_scale);
-        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, BLOCK_REG_N / 2>(tmp_hi.format<int>(), desc_scale);
-        scales_block[0].format<int, BLOCK_REG_K / 2, BLOCK_REG_N>().select<BLOCK_REG_K / 2, 1, BLOCK_REG_N / 2, 1>(0, 0) = tmp_lo;
-        scales_block[0].format<int, BLOCK_REG_K / 2, BLOCK_REG_N>().select<BLOCK_REG_K / 2, 1, BLOCK_REG_N / 2, 1>(0, BLOCK_REG_N / 2) = tmp_hi;
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(tmp_scale.format<int>(), desc_scale);
+        scales_block[0].format<int>() = tmp_scale.format<int>();
 
-        uint zp_base0 = zp_offset0 + channel_base * sizeof(half);
-        desc_scale.set_base(key_cache + zp_base0);
-        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 0>(tmp_lo.format<int>(), desc_scale);
-        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, BLOCK_REG_N / 2>(tmp_hi.format<int>(), desc_scale);
-        zps_block[0].format<int, BLOCK_REG_K / 2, BLOCK_REG_N>().select<BLOCK_REG_K / 2, 1, BLOCK_REG_N / 2, 1>(0, 0) = tmp_lo;
-        zps_block[0].format<int, BLOCK_REG_K / 2, BLOCK_REG_N>().select<BLOCK_REG_K / 2, 1, BLOCK_REG_N / 2, 1>(0, BLOCK_REG_N / 2) = tmp_hi;
+        desc_scale.set_base(key_cache + zp_offset0 + channel_base * sizeof(half));
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(tmp_zp.format<int>(), desc_scale);
+        zps_block[0].format<int>() = tmp_zp.format<int>();
 
-        uint scale_base1 = scale_offset1 + channel_base * sizeof(half);
-        desc_scale.set_base(key_cache + scale_base1);
-        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 0>(tmp_lo.format<int>(), desc_scale);
-        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, BLOCK_REG_N / 2>(tmp_hi.format<int>(), desc_scale);
-        scales_block[1].format<int, BLOCK_REG_K / 2, BLOCK_REG_N>().select<BLOCK_REG_K / 2, 1, BLOCK_REG_N / 2, 1>(0, 0) = tmp_lo;
-        scales_block[1].format<int, BLOCK_REG_K / 2, BLOCK_REG_N>().select<BLOCK_REG_K / 2, 1, BLOCK_REG_N / 2, 1>(0, BLOCK_REG_N / 2) = tmp_hi;
-        uint zp_base1 = zp_offset1 + channel_base * sizeof(half);
-        desc_scale.set_base(key_cache + zp_base1);
-        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 0>(tmp_lo.format<int>(), desc_scale);
-        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, BLOCK_REG_N / 2>(tmp_hi.format<int>(), desc_scale);
-        zps_block[1].format<int, BLOCK_REG_K / 2, BLOCK_REG_N>().select<BLOCK_REG_K / 2, 1, BLOCK_REG_N / 2, 1>(0, 0) = tmp_lo;
-        zps_block[1].format<int, BLOCK_REG_K / 2, BLOCK_REG_N>().select<BLOCK_REG_K / 2, 1, BLOCK_REG_N / 2, 1>(0, BLOCK_REG_N / 2) = tmp_hi;
+        desc_scale.set_base(key_cache + scale_offset1 + channel_base * sizeof(half));
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(tmp_scale.format<int>(), desc_scale);
+        scales_block[1].format<int>() = tmp_scale.format<int>();
+
+        desc_scale.set_base(key_cache + zp_offset1 + channel_base * sizeof(half));
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(tmp_zp.format<int>(), desc_scale);
+        zps_block[1].format<int>() = tmp_zp.format<int>();
     };
     #else
     auto dec = [&](vector<int, KEY_LINES_PER_LOAD * 4> B0_i8, vector<int, KEY_LINES_PER_LOAD * 4> B1_i8, matrix_ref<half, REG_N, BLOCK_REG_B> B0) {
