@@ -85,7 +85,6 @@ void pa_lsc_u8(
                                     CacheHint::Cached,
                                     CacheHint::Cached>(q_gather, gather_offsets, gather_pred);
             rQ[ri].format<uint>()  = gathered;
-            rQ[ri].format<half>()  = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
         }
     }
 #if KV_CACHE_COMPRESSION == 1
@@ -273,12 +272,20 @@ void pa_lsc_u8(
             continue;
         }
 #endif
+        // Skip computation for fully-masked causal blocks (after barriers/SLM load).
+        if constexpr (use_causal_mask) {
+            if (causal_left < 0) {
+                causal_left -= kv_step;
+                continue;
+            }
+        }
         {
 
             uint slm_offset = (slm_buff_id_read & 3) * slm_buff_size;
 
             //# St = k @ Qt
             matrix<float, kv_step, q_step> St = ugemm_KQ(slm_K, rQ, slm_offset);
+            St = cm_mul<float>(St, (float)scale_factor);
             if constexpr (use_causal_mask) {
                 if constexpr (kv_step == q_step) {
                     // since kv_step == q_step == 16, causal_left is n * kv_step
@@ -445,7 +452,15 @@ void pa_kernel_lsc_prefetch_f16(
                         CacheHint::Cached,
                         CacheHint::Cached>(q_gather, gather_offsets, gather_pred);
             rQ[ri].format<uint>()  = gathered;
-            rQ[ri].format<half>()  = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
+        }
+
+        // For high GQA ratio (e.g. MLA 64:1), skip pre-scale and use fp32 post-scale instead
+        // For low GQA ratio (e.g. GQA 4:1), half pre-scale is sufficient
+        if constexpr (num_heads / num_kv_heads <= 8) {
+            #pragma unroll
+            for (int ri = 0; ri < head_size / REG_K; ri++) {
+                rQ[ri] = cm_mul<half>(rQ[ri], (half)scale_factor);
+            }
         }
     }
     constexpr int blk_stride = CMFLA_NUM_KV_HEADS * CMFLA_HEAD_SIZE*CMPA_BLOCK_SZ;
@@ -522,6 +537,10 @@ void pa_kernel_lsc_prefetch_f16(
                         Kmat[k].format<int32_t>());
                 }
             }
+        }
+        // Post-scale only for high GQA ratio (pre-scale already applied for low ratio)
+        if constexpr (num_heads / num_kv_heads > 8) {
+            St = cm_mul<float>(St, (float)scale_factor);
         }
         if constexpr (use_causal_mask) {
             if constexpr (kv_step == q_step) {
