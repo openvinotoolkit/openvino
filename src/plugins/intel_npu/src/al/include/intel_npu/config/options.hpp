@@ -662,57 +662,6 @@ struct WEIGHTS_PATH final : OptionBase<WEIGHTS_PATH, std::string> {
     }
 };
 
-struct NUM_STREAMS final : OptionBase<NUM_STREAMS, ov::streams::Num> {
-    static std::string_view key() {
-        return ov::num_streams.name();
-    }
-
-    static constexpr std::string_view getTypeName() {
-        return "ov::streams::Num";
-    }
-
-    // The only supported number for currently supported platforms.
-    // FIXME: update in the future
-    static ov::streams::Num defaultValue() {
-        return ov::streams::Num(1);
-    }
-
-    static ov::streams::Num parse(std::string_view val) {
-        std::istringstream stringStream = std::istringstream(std::string(val));
-        ov::streams::Num numberOfStreams;
-
-        stringStream >> numberOfStreams;
-
-        return numberOfStreams;
-    }
-
-    static std::string itoString(const ov::streams::Num& val) {
-        std::ostringstream stringStream;
-
-        stringStream << val;
-
-        return stringStream.str();
-    }
-
-    static void validateValue(const ov::streams::Num& num) {
-        if (defaultValue() != num && ov::streams::AUTO != num) {
-            OPENVINO_THROW("NUM_STREAMS can not be set");
-        }
-    }
-
-    static OptionMode mode() {
-        return OptionMode::RunTime;
-    }
-
-    static bool isPublic() {
-        return true;
-    }
-
-    static ov::PropertyMutability mutability() {
-        return ov::PropertyMutability::RO;
-    }
-};
-
 struct ENABLE_CPU_PINNING final : OptionBase<ENABLE_CPU_PINNING, bool> {
     static std::string_view key() {
         return ov::hint::enable_cpu_pinning.name();

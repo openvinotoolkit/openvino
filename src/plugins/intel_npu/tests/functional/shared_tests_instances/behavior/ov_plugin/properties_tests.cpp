@@ -78,7 +78,6 @@ const std::vector<ov::AnyMap> compat_CorrectPluginDefaultMutableProperties = {
     {{ov::hint::num_requests.name(), 1u}},
     {{ov::log::level.name(), getTestsLogLevelFromEnvironmentOr(ov::log::Level::WARNING)}},
     {{ov::device::id.name(), ""}},
-    {{ov::num_streams.name(), ov::streams::Num(1)}},
 };
 
 const std::vector<ov::AnyMap> CorrectPluginDefaultMutableProperties = {
@@ -88,7 +87,6 @@ const std::vector<ov::AnyMap> CorrectPluginDefaultMutableProperties = {
 
 const std::vector<std::string> ImmutableProperties{
     ov::supported_properties.name(),
-    ov::streams::num.name(),
     ov::optimal_number_of_infer_requests.name(),
     ov::intel_npu::device_alloc_mem_size.name(),
     ov::intel_npu::device_total_mem_size.name(),
@@ -96,7 +94,6 @@ const std::vector<std::string> ImmutableProperties{
     ov::available_devices.name(),
     ov::device::capabilities.name(),
     ov::range_for_async_infer_requests.name(),
-    ov::range_for_streams.name(),
     ov::device::uuid.name(),
     ov::device::architecture.name(),
     ov::device::full_name.name(),
@@ -117,7 +114,6 @@ const std::vector<ov::AnyMap> CorrectCompiledModelProperties = {
 };
 
 const std::vector<ov::AnyMap> IncorrectImmutableProperties = {
-    {{ov::streams::num.name(), ov::streams::Num(2)}},
     {{ov::optimal_number_of_infer_requests.name(), 4}},
     {{ov::intel_npu::device_alloc_mem_size.name(), 1024}},
     {{ov::intel_npu::device_total_mem_size.name(), 2048}},
@@ -125,7 +121,6 @@ const std::vector<ov::AnyMap> IncorrectImmutableProperties = {
     {{ov::available_devices.name(), testing::internal::Strings{"3720"}}},
     {{ov::device::capabilities.name(), testing::internal::Strings{ov::device::capability::BF16}}},
     {{ov::range_for_async_infer_requests.name(), std::tuple<unsigned int, unsigned int, unsigned int>{1u, 10u, 1u}}},
-    {{ov::range_for_streams.name(), std::tuple<unsigned int, unsigned int>{1u, 4u}}},
     {{ov::device::uuid.name(),
       ov::device::UUID{std::array<uint8_t, ov::device::UUID::MAX_UUID_SIZE>{0xAB,
                                                                             0xCD,
@@ -162,7 +157,6 @@ const std::vector<ov::AnyMap> IncorrectMutablePropertiesWrongValueTypes = {
     {{ov::hint::num_requests.name(), -2.0f}},
     {{ov::log::level.name(), -2}},
     {{ov::device::id.name(), "false"}},
-    {{ov::num_streams.name(), "one"}},
 };
 
 const std::vector<ov::AnyMap> IncorrectInexistingProperties = {
@@ -309,42 +303,6 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_OVGetMetricPropsOptio
                          OVGetMetricPropsOptionalTest,
                          ::testing::Values(ov::test::utils::DEVICE_NPU),
                          (ov::test::utils::appendPlatformTypeTestName<OVGetMetricPropsOptionalTest>));
-
-const std::vector<ov::AnyMap> configsDeviceProperties = {
-    {ov::device::properties(ov::test::utils::DEVICE_NPU, ov::num_streams(ov::streams::AUTO))},
-    {ov::device::properties(
-        ov::AnyMap{{ov::test::utils::DEVICE_NPU, ov::AnyMap{ov::num_streams(ov::streams::AUTO)}}})}};
-
-const std::vector<ov::AnyMap> configsDevicePropertiesDouble = {
-    {ov::device::properties(ov::test::utils::DEVICE_NPU, ov::num_streams(-1)), ov::num_streams(ov::streams::AUTO)},
-    {ov::device::properties(ov::test::utils::DEVICE_NPU, ov::num_streams(-1)),
-     ov::device::properties(ov::AnyMap{{ov::test::utils::DEVICE_NPU, ov::AnyMap{ov::num_streams(ov::streams::AUTO)}}}),
-     ov::num_streams(-1)},
-    {ov::device::properties(ov::test::utils::DEVICE_NPU, ov::num_streams(-1)),
-     ov::device::properties(ov::test::utils::DEVICE_NPU, ov::num_streams(ov::streams::AUTO))},
-    {ov::device::properties(ov::test::utils::DEVICE_NPU, ov::num_streams(ov::streams::AUTO)),
-     ov::device::properties(ov::AnyMap{{ov::test::utils::DEVICE_NPU, ov::AnyMap{ov::num_streams(-1)}}})},
-    {ov::device::properties(
-        ov::AnyMap{{ov::test::utils::DEVICE_NPU, ov::AnyMap{ov::num_streams(ov::streams::AUTO)}}})}};
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_NPU_BehaviorTests_OVClassCompileModelAndCheckSecondaryPropertiesTest,
-    OVClassCompileModelAndCheckSecondaryPropertiesTest,
-    ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU), ::testing::ValuesIn(configsDeviceProperties)),
-    (ov::test::utils::appendPlatformTypeTestName<OVClassCompileModelAndCheckSecondaryPropertiesTest>));
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_NPU_BehaviorTests_OVClassCompileModelAndCheckWithSecondaryPropertiesDoubleTest,
-    OVClassCompileModelAndCheckSecondaryPropertiesTest,
-    ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                       ::testing::ValuesIn(configsDevicePropertiesDouble)),
-    (ov::test::utils::appendPlatformTypeTestName<OVClassCompileModelAndCheckSecondaryPropertiesTest>));
-
-// OVClassCompileModelAndCheckSecondaryPropertiesTest only works with property num_streams of type int32_t
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_BehaviorTests_OVClassLoadNetworkAndCheckWithSecondaryPropertiesTest,
-                         OVClassCompileModelAndCheckSecondaryPropertiesTest,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU, "AUTO:NPU", "MULTI:NPU"),
-                                            ::testing::ValuesIn(configsDeviceProperties)));
 
 INSTANTIATE_TEST_SUITE_P(BehaviorTests_OVGetConfigTest_nightly,
                          OVGetConfigTest,

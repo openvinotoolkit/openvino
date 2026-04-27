@@ -172,9 +172,6 @@ TEST(compatibility_OVClassBasicPropsTestNPU, smoke_SetConfigDevicePropertiesThro
     ASSERT_THROW(core.set_property(ov::test::utils::DEVICE_AUTO,
                                    ov::device::properties(ov::test::utils::DEVICE_NPU, ov::enable_profiling(true))),
                  ov::Exception);
-    ASSERT_THROW(core.set_property(ov::test::utils::DEVICE_AUTO,
-                                   ov::device::properties(ov::test::utils::DEVICE_NPU, ov::num_streams(4))),
-                 ov::Exception);
 }
 
 //
