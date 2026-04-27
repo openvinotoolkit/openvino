@@ -104,7 +104,7 @@ activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_fact
         std::shared_ptr<ov::Node> output_of_scaled_op = scaled_op;
         auto child_node = scaled_op->get_output_target_inputs(0).begin()->get_node();
         if (scaled_op->get_output_target_inputs(0).size() == 1 && ov::is_type<v0::Convert>(child_node) &&
-            ov::fp16_compression_is_disabled(child_node->shared_from_this()) &&
+            ov::is_compression_disabled_to(child_node->shared_from_this(), element::f16) &&
             constant_folding_is_disabled(child_node->shared_from_this())) {
             output_of_scaled_op = child_node->shared_from_this();
         }

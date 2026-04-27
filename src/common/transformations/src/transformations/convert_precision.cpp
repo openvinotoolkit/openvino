@@ -218,7 +218,7 @@ bool convert_function_precision(ov::pass::PassBase& pass,
                                 const type_to_fuse_map& type_to_fuse,
                                 const type_to_fuse_map& type_to_extend,
                                 const precisions_map& precisions,
-                                std::unordered_map<const ov::Node*, std::vector<Input<Node>>>& const_to_internal_output,
+                                std::unordered_map<const ov::Node*, std::vector<Input<Node>>>& const_to_internal_output,A
                                 bool has_fp16_compression,
                                 bool skip_precision_sensitive,
                                 bool is_changed,
@@ -292,7 +292,7 @@ bool convert_function_precision(ov::pass::PassBase& pass,
         auto node = std::move(ops[i]);
         // skip precision sensitive nodes
         if (skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression)
-            continue;
+
         // Recursively apply transformation for sub-graph based operations
         if (auto sub_graph_node = ov::as_type_ptr<op::util::MultiSubGraphOp>(node)) {
             size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();

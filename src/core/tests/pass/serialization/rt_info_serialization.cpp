@@ -129,6 +129,7 @@ TEST_F(RTInfoSerializationTest, rt_info_precise_test) {
     };
     auto check_info = [](const ov::RTMap& info) {
         const std::string& key = ov::DisableFP16Compression::get_type_info_static();
+        ASSERT_FALSE(info.count(legacy_key));
         ASSERT_TRUE(info.count(key));
     };
 

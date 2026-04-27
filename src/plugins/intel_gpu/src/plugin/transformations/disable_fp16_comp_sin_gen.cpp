@@ -49,7 +49,7 @@ DisableFP16ComSinGenPatternForHiFiGAN::DisableFP16ComSinGenPatternForHiFiGAN() {
         if (transformation_callback(sin_node)) return false;
 
         for (const auto& node : {multiply_node, interpolate_node, transpose_node, sin_node}) {
-            ov::disable_fp16_compression(node);
+            ov::disable_compression_to(node, element::f16);
         }
         
         return true;

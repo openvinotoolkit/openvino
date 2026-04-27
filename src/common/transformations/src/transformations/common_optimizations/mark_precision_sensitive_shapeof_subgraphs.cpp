@@ -23,14 +23,14 @@ using namespace std;
 namespace op_util = ov::op::util;
 ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs::MarkPrecisionSensitiveShapeOfSubgraphs() {
     m_markup_func = [](Node* node) {
-        ov::disable_fp16_compression(node->shared_from_this());
+        ov::disable_compression_to(node->shared_from_this(), element::f16);
     };
 }
 
 ov::pass::MarkPrecisionSensitiveConstants::MarkPrecisionSensitiveConstants() {
     m_markup_func = [](Node* node) {
         if (ov::is_type<ov::op::v0::Constant>(node)) {
-            ov::disable_fp16_compression(node->shared_from_this());
+            ov::disable_compression_to(node->shared_from_this(), element::f16);
         }
     };
 }
