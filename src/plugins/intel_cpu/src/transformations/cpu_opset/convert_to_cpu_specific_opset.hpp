@@ -78,6 +78,8 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
     CPU_REGISTER_PASS_COMMON(manager, ConvertToLeakyRelu);
     CPU_REGISTER_PASS_COMMON(manager, ConvertToSwishCPU);
     CPU_REGISTER_PASS_COMMON(manager, OptimizeSequenceTransposes);
+    // TransposeToReshape is also registered in MOC, but plugin-specific transformations
+    // can introduce new Transpose nodes after MOC runs.
     CPU_REGISTER_PASS_COMMON(
         manager,
         ov::pass::TransposeToReshape);  // Should be after all transformations that can produce transposes
