@@ -24,6 +24,20 @@ public:
     U4ConvertReshape();
 };
 
+class U2ConvertReshape : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::U2ConvertReshape");
+    U2ConvertReshape();
+};
+
+/// \brief Marks Convert nodes consuming u2/u4 Constants with disable_constant_folding
+///        and mark_as_decompression to prevent MOC from folding compressed weight constants.
+class MarkCompressedWeightConstants : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::MarkCompressedWeightConstants");
+    MarkCompressedWeightConstants();
+};
+
 }  // namespace pass
 }  // namespace pytorch
 }  // namespace frontend

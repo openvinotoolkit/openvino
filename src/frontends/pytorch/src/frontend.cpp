@@ -273,6 +273,8 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     }
     manager.register_pass<ov::frontend::pytorch::pass::U4BlockRepack>(sym);
     manager.register_pass<ov::frontend::pytorch::pass::U4ConvertReshape>();
+    manager.register_pass<ov::frontend::pytorch::pass::U2ConvertReshape>();
+    manager.register_pass<ov::frontend::pytorch::pass::MarkCompressedWeightConstants>();
 
     manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     manager.run_passes(model);

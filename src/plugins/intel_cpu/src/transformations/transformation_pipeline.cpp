@@ -534,7 +534,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                               {ov::element::f64, ov::element::f32},
                               {ov::element::boolean, ov::element::u8},
                               {ov::element::u4, ov::element::u8},
-                              {ov::element::i4, ov::element::i8}};
+                              {ov::element::i4, ov::element::i8},
+                              {ov::element::u2, ov::element::u8}};
 
         // @todo should we always convert to f32 regardless of hardware support, as it is done for f16?
         if (!hasHardwareSupport(ov::element::bf16)) {
