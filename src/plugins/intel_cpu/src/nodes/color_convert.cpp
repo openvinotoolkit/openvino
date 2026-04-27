@@ -216,8 +216,8 @@ void jit_uni_converter::yuv_to_rgb(const variable<float[N]>& y,
 
         auto blendWithMask = [&](int offset, const variable<float[N]>& result) {
             static const uint32_t blendMasks[2] = {0x92492492, 0x24924924};
-            const auto mask0 = static_cast<const uint16_t>(blendMasks[0] >> ((offset * N) % 3));
-            const auto mask1 = static_cast<const uint16_t>(blendMasks[1] >> ((offset * N) % 3));
+            const auto mask0 = static_cast<uint16_t>(blendMasks[0] >> ((offset * N) % 3));
+            const auto mask1 = static_cast<uint16_t>(blendMasks[1] >> ((offset * N) % 3));
 
             result = r;
             result = result.blend(g, mask0);
