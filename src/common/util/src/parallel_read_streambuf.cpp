@@ -31,6 +31,12 @@ ParallelReadStreamBuf::ParallelReadStreamBuf(const std::filesystem::path& path,
       m_file_offset(header_offset),
       m_header_offset(header_offset),
       m_threshold(threshold) {
+    // Honour OV_PARALLEL_IO_THRESHOLD_MB when the caller uses the default, so
+    // hardware-specific retuning works without a rebuild. Explicit non-default
+    // values (e.g. threshold=1 in unit tests) are respected as-is.
+    if (threshold == default_parallel_io_threshold) {
+        m_threshold = resolve_parallel_io_threshold();
+    }
     get_file_handle_and_size(path, m_file_offset, m_handle, m_file_size);
 }
 
@@ -69,6 +75,14 @@ std::streamsize ParallelReadStreamBuf::xsgetn(char_type* dst, std::streamsize n)
     const size_t bytes = static_cast<size_t>(to_read);
     const size_t offset = static_cast<size_t>(m_file_offset);
 
+    // Prefetch fast path: if the whole request sits inside the prefetched window,
+    // serve it from memory with one memcpy instead of issuing a pread.
+    if (serve_from_prefetch(dst, bytes, m_file_offset)) {
+        m_file_offset += to_read;
+        total += to_read;
+        return total;
+    }
+
     bool ok = (bytes >= m_threshold) ? parallel_read(dst, bytes, offset) : single_read(dst, bytes, offset);
 
     if (ok) {
@@ -91,8 +105,13 @@ ParallelReadStreamBuf::int_type ParallelReadStreamBuf::underflow() {
     // consumers (std::getline, operator>>) don't issue one pread per char.
     const size_t to_read =
         static_cast<size_t>((std::min)(static_cast<std::streamoff>(UNDERFLOW_BUF), m_file_size - m_file_offset));
-    if (!single_read(m_underflow_buf.get(), to_read, static_cast<size_t>(m_file_offset))) {
-        return traits_type::eof();
+    // Prefetch fast path: fill the underflow buffer from the prefetched window
+    // if possible, avoiding a pread per 8 KiB chunk of character-by-character
+    // consumption (operator>>, std::getline).
+    if (!serve_from_prefetch(m_underflow_buf.get(), to_read, m_file_offset)) {
+        if (!single_read(m_underflow_buf.get(), to_read, static_cast<size_t>(m_file_offset))) {
+            return traits_type::eof();
+        }
     }
     // Advance m_file_offset past the bytes we just read into the get area.
     // m_file_offset now points to the byte after egptr(), consistent with
@@ -135,6 +154,14 @@ ParallelReadStreamBuf::pos_type ParallelReadStreamBuf::seekoff(off_type off,
     }
 
     setg(nullptr, nullptr, nullptr);  // invalidate get-area
+    // If the new absolute position is outside the prefetched window, drop the
+    // prefetch buffer so we don't serve stale or partial data from it.
+    if (m_prefetch_size > 0) {
+        const std::streamoff end = m_prefetch_begin + static_cast<std::streamoff>(m_prefetch_size);
+        if (new_pos < m_prefetch_begin || new_pos >= end) {
+            invalidate_prefetch();
+        }
+    }
     m_file_offset = new_pos;
     // Return the logical position (0 == start of exposed stream).
     return pos_type(m_file_offset - m_header_offset);
@@ -163,6 +190,159 @@ std::streamsize ParallelReadStreamBuf::showmanyc() {
     const std::streamsize remaining = remaining_off > 0 ? static_cast<std::streamsize>(remaining_off) : 0;
     const std::streamsize total = buffered + remaining;
     return total > 0 ? total : static_cast<std::streamsize>(-1);
+}
+
+// Prefetch a region of @p size bytes starting at the current logical position
+// into an internal buffer. Returns true if the prefetch succeeded and the
+// buffer is now ready to serve subsequent small reads.
+bool ParallelReadStreamBuf::prefetch(std::streamsize size) {
+    if (size <= 0) {
+        return false;
+    }
+
+    // Account for bytes still sitting in the underflow get-area. The logical
+    // cursor that the caller cares about is the position of the next byte the
+    // caller will consume, which is m_file_offset - (egptr - gptr).
+    const std::streamoff ahead = (gptr() != nullptr) ? static_cast<std::streamoff>(egptr() - gptr()) : 0;
+    const std::streamoff abs_begin = m_file_offset - ahead;
+
+    if (abs_begin < 0 || abs_begin >= m_file_size) {
+        return false;
+    }
+
+    const std::streamoff remaining = m_file_size - abs_begin;
+    const size_t to_load = static_cast<size_t>((std::min)(static_cast<std::streamoff>(size), remaining));
+    if (to_load == 0) {
+        return false;
+    }
+
+    // Drop any pre-existing prefetch window; we fill a fresh one below.
+    invalidate_prefetch();
+
+    m_prefetch_buf = std::make_unique<char_type[]>(to_load);
+    const size_t abs_begin_sz = static_cast<size_t>(abs_begin);
+
+    // Use the same parallel_read path as the normal large-read code so that
+    // hw_threads, chunking, and per-thread fds all match the tuned behavior.
+    const bool ok = (to_load >= m_threshold) ? parallel_read(m_prefetch_buf.get(), to_load, abs_begin_sz)
+                                             : single_read(m_prefetch_buf.get(), to_load, abs_begin_sz);
+    if (!ok) {
+        m_prefetch_buf.reset();
+        return false;
+    }
+
+    m_prefetch_begin = abs_begin;
+    m_prefetch_size = to_load;
+    return true;
+}
+
+// Read `size` bytes at the current logical position directly into `dst`.
+//
+// All-or-nothing contract (see header):
+//   - Success: advances logical cursor by `size`, returns `size`.
+//   - Failure: leaves cursor and dst state consistent with a no-op for the
+//     temp-staging path; on the direct no-stage path `dst` contents are
+//     unspecified on failure but the cursor is untouched.
+//
+// Three paths:
+//   1. Prefetch window fully covers [abs_begin, abs_begin + size)
+//      -> memcpy from window, consume underflow remainder, advance cursor.
+//   2. Underflow bytes are present (ahead > 0) and we must hit the file for
+//      the tail -> stage into a temp buffer so dst is untouched on failure.
+//   3. No underflow and no full-window hit -> parallel_read/single_read
+//      straight into dst.
+std::streamsize ParallelReadStreamBuf::read_into(void* dst, std::streamsize size) {
+    if (size <= 0 || dst == nullptr) {
+        return 0;
+    }
+
+    char* dst_bytes = static_cast<char*>(dst);
+    const size_t n = static_cast<size_t>(size);
+
+    // Account for bytes still sitting in the underflow get-area so that the
+    // logical cursor exposed to callers matches what a plain xsgetn would see.
+    const std::streamoff ahead = (gptr() != nullptr) ? static_cast<std::streamoff>(egptr() - gptr()) : 0;
+    const std::streamoff abs_begin = m_file_offset - ahead;
+
+    if (abs_begin < 0 || abs_begin + static_cast<std::streamoff>(n) > m_file_size) {
+        return 0;
+    }
+
+    // Case 1: prefetch window fully covers the requested range.
+    if (serve_from_prefetch(dst_bytes, n, abs_begin)) {
+        const std::streamoff consumed_from_underflow = (std::min)(static_cast<std::streamoff>(n), ahead);
+        if (consumed_from_underflow > 0) {
+            gbump(static_cast<int>(consumed_from_underflow));
+        }
+        m_file_offset += static_cast<std::streamoff>(n) - consumed_from_underflow;
+        return size;
+    }
+
+    // Case 2: underflow bytes present -> stage to temp buffer so that a
+    // parallel_read failure leaves dst and the underflow get-area untouched.
+    if (ahead > 0) {
+        const size_t from_underflow = static_cast<size_t>((std::min)(static_cast<std::streamoff>(n), ahead));
+        std::unique_ptr<char[]> tmp(new char[n]);
+        std::memcpy(tmp.get(), gptr(), from_underflow);
+
+        const size_t remaining = n - from_underflow;
+        if (remaining > 0) {
+            invalidate_prefetch();
+            const size_t file_off = static_cast<size_t>(m_file_offset);
+            const bool ok = (remaining >= m_threshold)
+                                ? parallel_read(tmp.get() + from_underflow, remaining, file_off)
+                                : single_read(tmp.get() + from_underflow, remaining, file_off);
+            if (!ok) {
+                return 0;  // dst untouched, cursor untouched
+            }
+        }
+
+        std::memcpy(dst_bytes, tmp.get(), n);
+        gbump(static_cast<int>(from_underflow));
+        m_file_offset += static_cast<std::streamoff>(remaining);
+        return size;
+    }
+
+    // Case 3: no underflow, no full-window hit -> read directly into dst.
+    // parallel_read is not atomic across threads, so on failure dst contents
+    // are unspecified. The cursor is untouched, and the intended caller
+    // (data::load_weights) falls back to istream which rewrites dst.
+    invalidate_prefetch();
+    const size_t file_off = static_cast<size_t>(m_file_offset);
+    const bool ok =
+        (n >= m_threshold) ? parallel_read(dst_bytes, n, file_off) : single_read(dst_bytes, n, file_off);
+    if (!ok) {
+        return 0;
+    }
+    m_file_offset += static_cast<std::streamoff>(n);
+    return size;
+}
+
+// Serve a request from the prefetch buffer if the full range is covered.
+// Returns true when the buffer was used; on false the caller must fall back to
+// the regular file-IO path (which will also invalidate the stale window via
+// seekoff semantics when a subsequent xsgetn crosses the boundary).
+bool ParallelReadStreamBuf::serve_from_prefetch(char* dst, size_t size, std::streamoff abs_offset) {
+    if (m_prefetch_size == 0 || !m_prefetch_buf) {
+        return false;
+    }
+    const std::streamoff begin = m_prefetch_begin;
+    const std::streamoff end = begin + static_cast<std::streamoff>(m_prefetch_size);
+    if (abs_offset < begin || static_cast<std::streamoff>(abs_offset + static_cast<std::streamoff>(size)) > end) {
+        // Partial overlap falls through to file I/O; serving a partial slice here
+        // would force xsgetn to issue a second pread for the tail, negating the
+        // amortization benefit we are chasing.
+        return false;
+    }
+    const size_t local = static_cast<size_t>(abs_offset - begin);
+    std::memcpy(dst, m_prefetch_buf.get() + local, size);
+    return true;
+}
+
+void ParallelReadStreamBuf::invalidate_prefetch() {
+    m_prefetch_buf.reset();
+    m_prefetch_begin = 0;
+    m_prefetch_size = 0;
 }
 
 // Single-threaded positional read

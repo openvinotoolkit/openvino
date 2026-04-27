@@ -55,6 +55,14 @@ public:
             "[GPU] Failed to read " + std::to_string(size) + " bytes from stream! Read " + std::to_string(read_size));
     }
 
+    /// Access the underlying streambuf. Callers that know their backing buffer
+    /// implements an optimization hook (e.g. ov::util::ParallelReadStreamBuf's
+    /// prefetch()) can dynamic_cast the result to trigger it without changing
+    /// this generic reader API. Safe to call at any point during deserialize.
+    std::streambuf* get_streambuf() const {
+        return _stream.rdbuf();
+    }
+
     void setKernelImplParams(void* impl_params) { _impl_params = impl_params; }
     void* getKernelImplParams() const { return _impl_params; }
 

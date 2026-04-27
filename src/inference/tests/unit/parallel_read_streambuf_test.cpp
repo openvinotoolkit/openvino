@@ -522,4 +522,208 @@ TEST_F(ParallelReadStreamBufTest, BackwardSeekFromCurrent) {
     EXPECT_EQ(got, slice);
 }
 
+// Prefetch: after prefetch(size) the next xsgetn must return the same bytes as
+// the underlying file, served from the internal prefetch buffer (no pread per
+// call).  The observable contract is just "same data"; we cannot directly count
+// syscalls, so this test guards correctness rather than performance.
+TEST_F(ParallelReadStreamBufTest, PrefetchThenReadReturnsCorrectData) {
+    constexpr size_t k_size = 64 * 1024;
+    std::vector<char> expected(k_size);
+    fill_pattern(expected);
+    setup_temp_file(expected);
+
+    util::ParallelReadStreamBuf buf(m_tmp_path, /*header_offset=*/0, /*threshold=*/1);
+    std::istream stream(&buf);
+
+    ASSERT_TRUE(buf.prefetch(static_cast<std::streamsize>(k_size)));
+
+    std::vector<char> got(k_size);
+    ASSERT_TRUE(stream.read(got.data(), static_cast<std::streamsize>(k_size)));
+    EXPECT_EQ(got, expected);
+    EXPECT_EQ(stream.tellg(), std::streampos(k_size));
+}
+
+// Prefetch clamps to remaining file size when the requested size exceeds EOF.
+// Reading past the prefetch boundary must still work via the regular file-IO
+// path without corruption.
+TEST_F(ParallelReadStreamBufTest, PrefetchClampsToFileSizeAndFallsThrough) {
+    constexpr size_t k_size = 8 * 1024;  // 8 KB file
+    std::vector<char> expected(k_size);
+    fill_pattern(expected);
+    setup_temp_file(expected);
+
+    util::ParallelReadStreamBuf buf(m_tmp_path, /*header_offset=*/0, /*threshold=*/1);
+    std::istream stream(&buf);
+
+    // Request far more than the file holds; prefetch clamps internally.
+    ASSERT_TRUE(buf.prefetch(static_cast<std::streamsize>(64 * 1024 * 1024)));
+
+    std::vector<char> got(k_size);
+    ASSERT_TRUE(stream.read(got.data(), static_cast<std::streamsize>(k_size)));
+    EXPECT_EQ(got, expected);
+
+    // A further read must return EOF without corrupting state.
+    char tail = 0;
+    stream.read(&tail, 1);
+    EXPECT_TRUE(stream.eof() || !stream.good());
+}
+
+// Seeking outside the prefetched window must transparently invalidate the
+// buffer; the subsequent read fetches from the file and still matches.
+TEST_F(ParallelReadStreamBufTest, PrefetchInvalidatedOnSeekOutsideWindow) {
+    constexpr size_t k_size = 16 * 1024;
+    std::vector<char> expected(k_size);
+    fill_pattern(expected);
+    setup_temp_file(expected);
+
+    util::ParallelReadStreamBuf buf(m_tmp_path, /*header_offset=*/0, /*threshold=*/1);
+    std::istream stream(&buf);
+
+    // Prefetch the first 4 KiB only.
+    constexpr size_t k_prefetch = 4 * 1024;
+    ASSERT_TRUE(buf.prefetch(static_cast<std::streamsize>(k_prefetch)));
+
+    // Seek past the prefetched window – this must drop the buffer.
+    constexpr std::streamoff k_seek_to = 10 * 1024;
+    stream.seekg(k_seek_to, std::ios::beg);
+    ASSERT_TRUE(stream.good());
+
+    // Read 512 bytes from the new position; the data must still match expected.
+    constexpr size_t k_read = 512;
+    std::vector<char> got(k_read);
+    ASSERT_TRUE(stream.read(got.data(), static_cast<std::streamsize>(k_read)));
+    std::vector<char> slice(expected.begin() + k_seek_to, expected.begin() + k_seek_to + k_read);
+    EXPECT_EQ(got, slice);
+}
+
+// Prefetch at EOF or with zero size returns false without changing state.
+TEST_F(ParallelReadStreamBufTest, PrefetchEdgeCases) {
+    constexpr size_t k_size = 1024;
+    std::vector<char> expected(k_size);
+    fill_pattern(expected);
+    setup_temp_file(expected);
+
+    util::ParallelReadStreamBuf buf(m_tmp_path, /*header_offset=*/0, /*threshold=*/1);
+    std::istream stream(&buf);
+
+    // Zero-size prefetch is a no-op.
+    EXPECT_FALSE(buf.prefetch(0));
+
+    // Drain the whole file first, then prefetch past EOF must return false.
+    std::vector<char> got(k_size);
+    ASSERT_TRUE(stream.read(got.data(), static_cast<std::streamsize>(k_size)));
+    EXPECT_FALSE(buf.prefetch(static_cast<std::streamsize>(k_size)));
+}
+
+// read_into served entirely from an existing prefetch window.  After a
+// prefetch, a subsequent read_into() of bytes that fall fully inside the
+// window must succeed, advance the logical position by `size`, and produce
+// exactly the same bytes as the underlying file.
+TEST_F(ParallelReadStreamBufTest, ReadIntoServedFromPrefetchWindow) {
+    constexpr size_t k_size = 64 * 1024;
+    constexpr size_t k_prefetch = 32 * 1024;
+    constexpr size_t k_read = 16 * 1024;
+    std::vector<char> expected(k_size);
+    fill_pattern(expected);
+    setup_temp_file(expected);
+
+    util::ParallelReadStreamBuf buf(m_tmp_path, /*header_offset=*/0, /*threshold=*/1);
+    std::istream stream(&buf);
+
+    ASSERT_TRUE(buf.prefetch(static_cast<std::streamsize>(k_prefetch)));
+
+    std::vector<char> got(k_read, '\0');
+    auto n = buf.read_into(got.data(), static_cast<std::streamsize>(k_read));
+    EXPECT_EQ(n, static_cast<std::streamsize>(k_read));
+
+    std::vector<char> slice(expected.begin(), expected.begin() + k_read);
+    EXPECT_EQ(got, slice);
+
+    // Cursor advanced by k_read; the next byte must be expected[k_read].
+    char next = '\0';
+    ASSERT_TRUE(stream.read(&next, 1));
+    EXPECT_EQ(next, expected[k_read]);
+}
+
+// read_into straddling the end of a prefetch window: the window only covers
+// the head of the requested range, so the call falls back to parallel_read.
+// The returned bytes must still match the file content exactly.
+TEST_F(ParallelReadStreamBufTest, ReadIntoPartialWindowMatchesFileContent) {
+    constexpr size_t k_size = 128 * 1024;
+    constexpr size_t k_prefetch = 32 * 1024;
+    constexpr size_t k_read = 48 * 1024;  // straddles window end (32 KB)
+    std::vector<char> expected(k_size);
+    fill_pattern(expected);
+    setup_temp_file(expected);
+
+    util::ParallelReadStreamBuf buf(m_tmp_path, /*header_offset=*/0, /*threshold=*/1);
+
+    ASSERT_TRUE(buf.prefetch(static_cast<std::streamsize>(k_prefetch)));
+
+    std::vector<char> got(k_read, static_cast<char>(0xABu));
+    auto n = buf.read_into(got.data(), static_cast<std::streamsize>(k_read));
+    EXPECT_EQ(n, static_cast<std::streamsize>(k_read));
+
+    std::vector<char> slice(expected.begin(), expected.begin() + k_read);
+    EXPECT_EQ(got, slice);
+}
+
+// read_into with no prefetch window must fall through to parallel_read and
+// deliver correct bytes.
+TEST_F(ParallelReadStreamBufTest, ReadIntoNoWindowUsesParallelRead) {
+    // 4 MB is enough to trip the real parallel_read path (hw_threads >= 1, but
+    // the threshold in the default ctor is default_parallel_io_threshold which
+    // is well below 4 MB).
+    constexpr size_t k_size = 4 * 1024 * 1024;
+    std::vector<char> expected(k_size);
+    fill_pattern(expected);
+    setup_temp_file(expected);
+
+    util::ParallelReadStreamBuf buf(m_tmp_path, /*header_offset=*/0);  // default threshold
+    // no prefetch()
+
+    std::vector<char> got(k_size, '\0');
+    auto n = buf.read_into(got.data(), static_cast<std::streamsize>(k_size));
+    EXPECT_EQ(n, static_cast<std::streamsize>(k_size));
+    EXPECT_EQ(got, expected);
+}
+
+// read_into requesting beyond EOF returns 0 and leaves the cursor intact.
+// A subsequent small read from the original position must succeed.
+TEST_F(ParallelReadStreamBufTest, ReadIntoRestoresOffsetOnShortFile) {
+    constexpr size_t k_size = 4096;
+    std::vector<char> expected(k_size);
+    fill_pattern(expected);
+    setup_temp_file(expected);
+
+    util::ParallelReadStreamBuf buf(m_tmp_path, /*header_offset=*/0, /*threshold=*/1);
+    std::istream stream(&buf);
+
+    std::vector<char> got(8192, static_cast<char>(0xCDu));
+    auto n = buf.read_into(got.data(), static_cast<std::streamsize>(got.size()));
+    EXPECT_EQ(n, std::streamsize{0});
+
+    // Cursor still at position 0: the first 4 bytes match expected[0..4).
+    char head[4] = {0};
+    ASSERT_TRUE(stream.read(head, 4));
+    for (size_t i = 0; i < 4; ++i) {
+        EXPECT_EQ(head[i], expected[i]) << "byte " << i;
+    }
+}
+
+// read_into with size == 0 is a no-op: dst is untouched and the return is 0.
+TEST_F(ParallelReadStreamBufTest, ReadIntoZeroSizeIsNoop) {
+    constexpr size_t k_size = 4096;
+    std::vector<char> expected(k_size);
+    fill_pattern(expected);
+    setup_temp_file(expected);
+
+    util::ParallelReadStreamBuf buf(m_tmp_path, /*header_offset=*/0, /*threshold=*/1);
+
+    char dummy = static_cast<char>(0xEEu);
+    auto n = buf.read_into(&dummy, 0);
+    EXPECT_EQ(n, std::streamsize{0});
+    EXPECT_EQ(static_cast<unsigned char>(dummy), 0xEEu);
+}
+
 }  // namespace ov::test

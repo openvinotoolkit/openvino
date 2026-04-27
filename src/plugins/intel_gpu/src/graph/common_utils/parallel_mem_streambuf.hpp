@@ -28,6 +28,21 @@ public:
     ParallelMemStreamBuf(const ParallelMemStreamBuf&) = delete;
     ParallelMemStreamBuf& operator=(const ParallelMemStreamBuf&) = delete;
 
+    /// Forward prefetch to the delegated ParallelReadStreamBuf if this instance
+    /// wraps a file-backed mmap. Returns false for the in-memory memcpy path,
+    /// where the data is already resident and no preloading is meaningful.
+    bool prefetch(std::streamsize size) {
+        return m_file_buf ? m_file_buf->prefetch(size) : false;
+    }
+
+    /// Forward a direct bulk read into @p dst to the delegated
+    /// ParallelReadStreamBuf. In-memory (non-file) backing returns 0, which
+    /// callers treat the same as a failed direct read and fall back to the
+    /// istream path. Consumed by data::load_weights.
+    std::streamsize read_into(void* dst, std::streamsize size) {
+        return m_file_buf ? m_file_buf->read_into(dst, size) : std::streamsize{0};
+    }
+
 protected:
     std::streamsize xsgetn(char_type* dst, std::streamsize n) override;
     int_type underflow() override;
