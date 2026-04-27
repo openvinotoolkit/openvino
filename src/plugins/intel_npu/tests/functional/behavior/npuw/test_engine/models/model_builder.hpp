@@ -131,11 +131,15 @@ struct RMSNorm {
 };
 
 /// Position IDs baked in at construction, cos/sin shared across layers.
+/// shape_source provides batch dim for inv_freq Broadcast (matches NPUW RopeCache pattern).
+/// Defaults to position_ids when not specified.
 struct HalfRotationRoPE {
     size_t head_dim;
     ov::Output<ov::Node> cos_freq, sin_freq;
 
-    HalfRotationRoPE(size_t head_dim, ov::element::Type precision, const ov::Output<ov::Node>& position_ids);
+    HalfRotationRoPE(size_t head_dim, ov::element::Type precision,
+                     const ov::Output<ov::Node>& position_ids,
+                     const ov::Output<ov::Node>& shape_source = {});
 
     ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
 };
@@ -144,7 +148,9 @@ struct InterleavedRoPE {
     size_t head_dim;
     ov::Output<ov::Node> cos_freq, sin_freq;
 
-    InterleavedRoPE(size_t head_dim, ov::element::Type precision, const ov::Output<ov::Node>& position_ids);
+    InterleavedRoPE(size_t head_dim, ov::element::Type precision,
+                    const ov::Output<ov::Node>& position_ids,
+                    const ov::Output<ov::Node>& shape_source = {});
 
     ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
 };
