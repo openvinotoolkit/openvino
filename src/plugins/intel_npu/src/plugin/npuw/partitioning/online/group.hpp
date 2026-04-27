@@ -21,6 +21,10 @@ struct Group;  // forward declaration
 
 namespace online {
 
+namespace test {
+class GroupTestAccess;
+}
+
 class Snapshot;  // forward declaration
 
 // Partitioning operates with groups to prepare graph structure for the plugin
@@ -90,6 +94,8 @@ public:
     void dump() const;
 
 private:
+    friend class test::GroupTestAccess;
+
     void includeExtraLayers(detail::OVNodeSet& input_layers,
                             detail::OVNodeSet& output_layers,
                             detail::OVNodeSet& content) const;

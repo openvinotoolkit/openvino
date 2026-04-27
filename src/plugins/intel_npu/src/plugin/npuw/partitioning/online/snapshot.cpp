@@ -929,6 +929,11 @@ std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const GPtrSet& repeating_g
             if (cons_group->repeated() && !group->hasCycle(cons_group) && cons_group->repeated() != this_rep_tag &&
                 cons_group->avoidedTargets() == this_avoided && cons_group->specialTags() == this_special) {
                 auto meta_interconnect = cons_group->metaInterconnect(group);
+                if (meta_interconnect.first.empty()) {
+                    LOG_DEBUG("Online partitioning: skip triangle merge candidate due to empty metaInterconnect: "
+                              << group->getId() << " -> " << cons_group->getId());
+                    continue;
+                }
 
                 // FIXME: find a better way to reduce time complexity
                 // Need to align interconnects in the same format via sort, so they could be compared later
@@ -1044,6 +1049,11 @@ std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const std::vector<Group::G
         for (const auto& gptr : cons) {
             Group::GPtr group_cons = m_graph->meta(gptr->dstNodes().front()).get<Group::GPtr>();
             auto meta_interconnect = group_cons->metaInterconnect(gptr);
+            if (meta_interconnect.first.empty()) {
+                LOG_DEBUG("Online partitioning: skip second-order triangle candidate due to empty metaInterconnect: "
+                          << gptr->getId() << " -> " << group_cons->getId());
+                continue;
+            }
 
             // FIXME: find a better way to reduce time complexity
             // Need to align interconnects in the same format via sort, so they could be compared later
@@ -1184,6 +1194,11 @@ std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const GPtrSet& repeat
                 if (!cycle && prod_group->repeated() != this_rep_tag && prod_group->avoidedTargets() == this_avoided &&
                     prod_group->specialTags() == this_special) {
                     auto meta_interconnect = group->metaInterconnect(prod_group);
+                    if (meta_interconnect.first.empty()) {
+                        LOG_DEBUG("Online partitioning: skip repeating merge candidate due to empty metaInterconnect: "
+                                  << prod_group->getId() << " -> " << group->getId());
+                        continue;
+                    }
 
                     // FIXME: find a better way to reduce time complexity
                     // Need to align interconnects in the same format via sort, so they could be compared later

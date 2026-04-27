@@ -16,6 +16,10 @@ namespace ov {
 namespace npuw {
 namespace online {
 
+namespace test {
+class SnapshotTestAccess;
+}
+
 namespace detail {
 // At partitioning level we exclude some "non-Ops" to not interfere with the passes.
 // We include some of them back to properly link everything at plugin level.
@@ -70,6 +74,8 @@ public:
     std::string getMetaDesc(const std::shared_ptr<ov::Node>& node) const;
 
 private:
+    friend class test::SnapshotTestAccess;
+
     detail::GPtrSet getRepGroups(const std::shared_ptr<Group>& group) const;
     const detail::OVNodeSet& getNodeProducers(const detail::OVNodePtr& node) const;
     const detail::OVNodeSet& getNodeConsumers(const detail::OVNodePtr& node) const;
