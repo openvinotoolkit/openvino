@@ -57,30 +57,34 @@ static void CreateMOE3GemmFusedCompressedOp(ProgramBuilder& p, const std::shared
     ///                  [1, num_experts] routing bias for sigmoid routing
     ///   12: routing_eps (optional, SIGMOID_BIAS only; dummy placeholder for SOFTMAX+shared) -
     ///                  scalar epsilon for normalization
+    ///   13: routing_norm_scale (optional, SIGMOID_BIAS_SCALED_NORM; dummy placeholder otherwise
+    ///                  when shared expert is present) - scalar post-normalization scale
     ///
-    ///   Options for shared experts (if config.num_shared_expert > 0, always starting at index 13):
-    ///   13: shared_gate_weight - shared expert weights for first projection,
+    ///   Shared expert inputs (if config.num_shared_expert > 0, always starting at index 14):
+    ///   14: shared_gate_weight - shared expert weights for first projection,
     ///                   shape [1, inter_size, group_num, group_size]
-    ///   14: shared_gate_scale - shared expert scale for first projection,
+    ///   15: shared_gate_scale - shared expert scale for first projection,
     ///                   shape [1, inter_size, group_num, 1]
-    ///   15: shared_gate_zp - shared expert zp for first projection,
+    ///   16: shared_gate_zp - shared expert zp for first projection,
     ///                   shape [1, inter_size, group_num, 1]
-    ///   16: shared_up_weight - shared expert weights for second projection,
+    ///   17: shared_up_weight - shared expert weights for second projection,
     ///                   shape [1, inter_size, group_num, group_size]
-    ///   17: shared_up_scale - shared expert scale for second projection,
+    ///   18: shared_up_scale - shared expert scale for second projection,
     ///                   shape [1, inter_size, group_num, 1]
-    ///   18: shared_up_zp - shared expert zp for second projection,
+    ///   19: shared_up_zp - shared expert zp for second projection,
     ///                   shape [1, inter_size, group_num, 1]
-    ///   19: shared_down_weight - shared expert weights for final projection,
+    ///   20: shared_down_weight - shared expert weights for final projection,
     ///                   shape [1, hidden_size, group_num, group_size]
-    ///   20: shared_down_scale - shared expert scale for final projection,
+    ///   21: shared_down_scale - shared expert scale for final projection,
     ///                   shape [1, hidden_size, group_num, 1]
-    ///   21: shared_down_zp - shared expert zp for final projection,
+    ///   22: shared_down_zp - shared expert zp for final projection,
     ///                   shape [1, hidden_size, group_num, 1]
-    ///   22: shared_gate_gate_weight - shared expert gate weight for gating,
+    ///   23: shared_gate_gate_weight - shared expert gate weight for gating,
     ///                   shape [hidden_size]
-    const size_t expected_inputs = config.num_shared_expert > 0 ? 23
-                                 : config.routing_type == op::MOECompressed::RoutingType::SIGMOID_BIAS ? 13
+    const size_t expected_inputs = config.num_shared_expert > 0
+                                     ? 24
+                                 : config.routing_type == op::MOECompressed::RoutingType::SIGMOID_BIAS
+                                     ? (config.has_routing_norm_scale ? 14 : 13)
                                  : 11;
     validate_inputs_count(op, {expected_inputs});
 
@@ -123,6 +127,8 @@ static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::o
         //   shape [num_experts, hidden_size, group_num, 1]
 
         // Use moe_3gemm_fused_compressed to replace it.
+        OPENVINO_THROW("MOECompressed with GEMM3_SWIGLU expert type should have been fused to MOE3GemmFusedCompressed, but still exists in the graph. Please "
+                       "check if the FuseMOE3GemmCompressed transformation is applied correctly.");
     } else {
         // Create GEMM2_BIAS_SWIGLU_CLAMP specific primitives
         // input0 : input {#tokens, hidden_size}

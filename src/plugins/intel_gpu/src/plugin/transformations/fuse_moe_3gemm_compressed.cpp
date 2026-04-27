@@ -88,7 +88,11 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
     });
     auto sig_add_eps = wrap_type<ov::op::v1::Add>({sig_reduce, sig_eps_value}, consumers_count(1));
     auto sig_norm = wrap_type<ov::op::v1::Divide>({sig_gather_el, sig_add_eps}, consumers_count(1));
-    auto sig_slice = wrap_type<ov::op::v8::Slice>({sig_norm, ANY, ANY, ANY, ANY}, consumers_count(1));
+    // Optional post-normalization scaling constant (e.g. Trinity-Mini has Multiply(Divide, Constant)
+    // between the normalization Divide and the Slice instead of a plain Divide).
+    auto sig_norm_scale_const = ANY;
+    auto sig_norm_scaled = optional<ov::op::v1::Multiply>({sig_norm, sig_norm_scale_const});
+    auto sig_slice = wrap_type<ov::op::v8::Slice>({sig_norm_scaled, ANY, ANY, ANY, ANY}, consumers_count(1));
     auto sig_bc = wrap_type<ov::op::v3::Broadcast>({ANY, ANY}, consumers_count(1));
 
     auto topk_idces = sm_convert_topk | sig_convert_topk;
@@ -185,13 +189,22 @@ FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
             args.push_back(pattern_map.at(sig_routing_bias));
             args.push_back(pattern_map.at(sig_eps_value));
             config.routing_type = ov::intel_gpu::op::MOECompressed::RoutingType::SIGMOID_BIAS;
+            // If the graph contains an optional post-normalization scale (Multiply(Divide, Constant))
+            // between sig_norm and sig_slice, pass the scale constant as input 13 so that the
+            // fused kernel can reproduce the same routing-weight values.
+            if (pattern_map.count(sig_norm_scaled)) {
+                args.push_back(pattern_map.at(sig_norm_scale_const));  // slot 13: real norm_scale
+                config.has_routing_norm_scale = true;
+            } else if (has_shared_expert) {
+                // Shared expert inputs always start at slot 14; insert a dummy at slot 13.
+                args.push_back(ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.0f}));
+            }
         } else if (has_shared_expert) {
-            // SOFTMAX + shared expert: insert dummy placeholders at indices 11-12
-            // so that shared expert inputs always start at index 13.
-            auto dummy_bias = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {0.0f});
-            auto dummy_eps = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {0.0f});
-            args.push_back(dummy_bias);
-            args.push_back(dummy_eps);
+            // SOFTMAX + shared expert: insert dummy placeholders at slots 11, 12, 13
+            // so that shared expert inputs always start at slot 14.
+            args.push_back(ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {0.0f}));  // dummy_bias
+            args.push_back(ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {0.0f}));  // dummy_eps
+            args.push_back(ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.0f}));  // dummy_norm_scale
         }
         if (has_shared_expert) {
             args.push_back(pattern_map.at(shared_gate_wei_m));

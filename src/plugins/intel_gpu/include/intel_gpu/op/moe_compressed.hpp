@@ -35,6 +35,9 @@ public:
         bool has_zp = false;
         ov::element::Type out_type = ov::element::dynamic;
         RoutingType routing_type = RoutingType::SOFTMAX;
+        // When true, a post-normalization scaling constant is fused into the routing path
+        // (input 13 for SIGMOID_BIAS in MOE3GemmFusedCompressed).
+        bool has_routing_norm_scale = false;
         Config() = default;
         Config(const MOE::Config& moe_config) : MOE::Config(moe_config) {}
     };

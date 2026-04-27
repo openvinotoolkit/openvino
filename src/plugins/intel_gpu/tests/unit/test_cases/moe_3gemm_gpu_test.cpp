@@ -319,6 +319,60 @@ struct Moe3GemmReference {
         return output;
     }
 
+    // Same as run_reference_sigmoid but a scalar norm_scale multiplies each normalized routing weight.
+    std::vector<ov::float16> run_reference_sigmoid_scaled_norm(
+        const std::vector<ov::float16>& hidden_states,
+        const std::vector<ov::float16>& routing_logits,
+        const std::vector<ov::float16>& routing_bias,
+        ov::float16 epsilon,
+        ov::float16 norm_scale,
+        const std::vector<float>& w0_data,
+        const std::vector<float>& w1_data,
+        const std::vector<float>& w2_data) {
+        size_t batch_size = config.batch_size;
+        size_t seq_len = config.seq_len;
+        size_t num_experts = config.num_experts;
+        size_t top_k = config.top_k;
+
+        std::vector<ov::float16> output(batch_size * seq_len * config.hidden_size, 0);
+
+        for (size_t b = 0; b < batch_size; ++b) {
+            for (size_t s = 0; s < seq_len; ++s) {
+                std::vector<float> sigmoid_scores(num_experts);
+                for (size_t e = 0; e < num_experts; ++e) {
+                    float logit = static_cast<float>(routing_logits[b * seq_len * num_experts + s * num_experts + e]);
+                    sigmoid_scores[e] = 1.0f / (1.0f + std::exp(-logit));
+                }
+
+                std::vector<std::pair<float, size_t>> expert_weights;
+                for (size_t e = 0; e < num_experts; ++e) {
+                    float score = sigmoid_scores[e] + static_cast<float>(routing_bias[e]);
+                    expert_weights.push_back({score, e});
+                }
+                std::partial_sort(expert_weights.begin(),
+                                  expert_weights.begin() + top_k,
+                                  expert_weights.end(),
+                                  [](const std::pair<float, size_t>& a, const std::pair<float, size_t>& b) {
+                                      return a.first > b.first;
+                                  });
+
+                float sum_weights = 0.0f;
+                for (size_t k = 0; k < top_k; ++k)
+                    sum_weights += sigmoid_scores[expert_weights[k].second];
+                sum_weights += static_cast<float>(epsilon);
+
+                std::vector<std::pair<float, size_t>> top_k_normalized(top_k);
+                for (size_t k = 0; k < top_k; ++k) {
+                    float normalized = sigmoid_scores[expert_weights[k].second] / sum_weights;
+                    // Apply post-normalization scale
+                    top_k_normalized[k] = {normalized * static_cast<float>(norm_scale), expert_weights[k].second};
+                }
+                apply_top_k_experts(b, s, hidden_states, w0_data, w1_data, w2_data, top_k_normalized, output);
+            }
+        }
+        return output;
+    }
+
 private:
     void apply_top_k_experts(size_t b,
                              size_t s,
@@ -571,6 +625,165 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                                               Moe3GemmTestParams{1, false, 256, 512, 4, 2, 256},
                                                               Moe3GemmTestParams{1, true, 512, 512, 4, 2, 512},
                                                               Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512})));
+
+// ── SIGMOID_BIAS + has_routing_norm_scale (Trinity-Mini variant) ──────────────────────────────
+class moe_3gemm_compressed_gpu_sigmoid_scaled_norm : public ::testing::TestWithParam<Moe3GemmTestParams> {};
+
+TEST_P(moe_3gemm_compressed_gpu_sigmoid_scaled_norm, moe_accuracy_test_sigmoid_scaled_norm) {
+    const auto& param = GetParam();
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad) {
+        GTEST_SKIP() << "No immad support";
+    }
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    Moe3GemmConfig config;
+    config.batch_size = 1;
+    config.seq_len = param.seq_len;
+    config.hidden_size = param.hidden_size;
+    config.inter_size = param.inter_size;
+    config.num_experts = param.num_experts;
+    config.top_k = param.top_k;
+    config.group_size = param.group_size;
+    config.is_u4 = param.is_u4;
+
+    Moe3GemmReference ref(config, rg);
+
+    auto hidden_states = rg.generate_random_1d<ov::float16>(config.batch_size * config.seq_len * config.hidden_size, -1.0f, 1.0f, 1000);
+    auto routing_weights = rg.generate_random_1d<ov::float16>(config.batch_size * config.seq_len * config.num_experts, 0.0f, 1.0f, 1000);
+
+    auto w0_data = rg.generate_random_1d<float>(config.num_experts * config.hidden_size * config.inter_size, -1.0f, 0.0f, 1000);
+    auto w1_data = rg.generate_random_1d<float>(config.num_experts * config.hidden_size * config.inter_size, -1.0f, 0.0f, 1000);
+    auto w2_data = rg.generate_random_1d<float>(config.num_experts * config.inter_size * config.hidden_size, -1.0f, 0.0f, 1000);
+    for (size_t i = 0; i < config.num_experts * config.hidden_size * config.inter_size; ++i) {
+        w0_data[i] /= 7.0f;
+        w1_data[i] /= 11.0f;
+        w2_data[i] /= 7.0f;
+    }
+    auto [w0_q, w0_scale, w0_zp] = ref.quantize(w0_data, config.num_experts, config.hidden_size, config.inter_size, config.group_size);
+    auto [w1_q, w1_scale, w1_zp] = ref.quantize(w1_data, config.num_experts, config.hidden_size, config.inter_size, config.group_size);
+    auto [w2_q, w2_scale, w2_zp] = ref.quantize(w2_data, config.num_experts, config.inter_size, config.hidden_size, config.group_size);
+
+    auto w0_q_packed = ref.pack(w0_q);
+    auto w0_zp_packed = ref.pack(w0_zp);
+    auto w1_q_packed = ref.pack(w1_q);
+    auto w1_zp_packed = ref.pack(w1_zp);
+    auto w2_q_packed = ref.pack(w2_q);
+    auto w2_zp_packed = ref.pack(w2_zp);
+
+    auto create_weight_tensor = [&](const std::vector<uint8_t>& values, int64_t b, int64_t f, int64_t y, int64_t x) {
+        auto dt = config.is_u4 ? data_types::u4 : data_types::u8;
+        auto mem = engine.allocate_memory({dt, format::bfyx, {b, f, y, x}});
+        set_values(mem, values);
+        get_test_stream().finish();
+        return mem;
+    };
+    auto create_zp_tensor = [&](const std::vector<uint8_t>& values, int64_t b, int64_t f, int64_t y, int64_t x) {
+        auto dt = config.is_u4 ? data_types::u4 : data_types::u8;
+        auto mem = engine.allocate_memory({dt, format::bfyx, {b, f, y, x}});
+        set_values(mem, values);
+        get_test_stream().finish();
+        return mem;
+    };
+    auto create_f16_tensor = [&](const std::vector<ov::float16>& values, int64_t b, int64_t f, int64_t y, int64_t x) {
+        auto mem = engine.allocate_memory({data_types::f16, format::bfyx, {b, f, y, x}});
+        set_values(mem, values);
+        get_test_stream().finish();
+        return mem;
+    };
+    auto create_f16_tensor_3d = [&](const std::vector<ov::float16>& values, int64_t d0, int64_t d1, int64_t d2) {
+        auto mem = engine.allocate_memory(layout{ov::PartialShape{d0, d1, d2}, data_types::f16, format::bfyx});
+        set_values(mem, values);
+        get_test_stream().finish();
+        return mem;
+    };
+
+    auto hidden_states_mem = create_f16_tensor_3d(hidden_states, config.batch_size, config.seq_len, config.hidden_size);
+    auto routing_weights_mem = create_f16_tensor_3d(routing_weights, config.batch_size, config.seq_len, config.num_experts);
+    auto routing_bias_data = rg.generate_random_1d<ov::float16>(config.num_experts, -0.5f, 0.5f, 1000);
+    auto routing_bias_mem = create_f16_tensor(routing_bias_data, 1, 1, 1, config.num_experts);
+    ov::float16 routing_eps_val = ov::float16(1e-6f);
+    // Use a non-trivial scale to confirm the kernel applies it
+    ov::float16 routing_norm_scale_val = ov::float16(0.8f);
+
+    size_t group_num = config.hidden_size / config.group_size;
+    size_t group_num2 = config.inter_size / config.group_size;
+
+    auto w0_weight_mem = create_weight_tensor(w0_q_packed, config.num_experts, config.inter_size, config.group_size, group_num);
+    auto w0_scale_mem = create_f16_tensor(w0_scale, config.num_experts, group_num, 1, config.inter_size);
+    auto w0_zp_mem = create_zp_tensor(w0_zp_packed, config.num_experts, group_num, 1, config.inter_size);
+    auto w1_weight_mem = create_weight_tensor(w1_q_packed, config.num_experts, config.inter_size, config.group_size, group_num);
+    auto w1_scale_mem = create_f16_tensor(w1_scale, config.num_experts, group_num, 1, config.inter_size);
+    auto w1_zp_mem = create_zp_tensor(w1_zp_packed, config.num_experts, group_num, 1, config.inter_size);
+    auto w2_weight_mem = create_weight_tensor(w2_q_packed, config.num_experts, config.hidden_size, config.group_size, group_num2);
+    auto w2_scale_mem = create_f16_tensor(w2_scale, config.num_experts, group_num2, 1, config.hidden_size);
+    auto w2_zp_mem = create_zp_tensor(w2_zp_packed, config.num_experts, group_num2, 1, config.hidden_size);
+
+    topology topology;
+    topology.add(input_layout("hidden_states", hidden_states_mem->get_layout()));
+    topology.add(input_layout("routing_weights", routing_weights_mem->get_layout()));
+    topology.add(data("w0_weight", w0_weight_mem));
+    topology.add(data("w0_scale", w0_scale_mem));
+    topology.add(data("w0_zp", w0_zp_mem));
+    topology.add(data("w1_weight", w1_weight_mem));
+    topology.add(data("w1_scale", w1_scale_mem));
+    topology.add(data("w1_zp", w1_zp_mem));
+    topology.add(data("w2_weight", w2_weight_mem));
+    topology.add(data("w2_scale", w2_scale_mem));
+    topology.add(data("w2_zp", w2_zp_mem));
+    topology.add(data("routing_bias", routing_bias_mem));
+    auto routing_eps_mem = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, 1}});
+    set_values(routing_eps_mem, {routing_eps_val});
+    get_test_stream().finish();
+    topology.add(data("routing_eps", routing_eps_mem));
+    auto routing_norm_scale_mem = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, 1}});
+    set_values(routing_norm_scale_mem, {routing_norm_scale_val});
+    get_test_stream().finish();
+    topology.add(data("routing_norm_scale", routing_norm_scale_mem));
+
+    cldnn::MOE3GemmFusedCompressed::Config moe_config;
+    moe_config.hidden_size = config.hidden_size;
+    moe_config.inter_size = config.inter_size;
+    moe_config.num_expert = config.num_experts;
+    moe_config.top_k = config.top_k;
+    moe_config.group_size = config.group_size;
+    moe_config.out_type = data_types::f16;
+    moe_config.routing_type = cldnn::MOE3GemmFusedCompressed::RoutingType::SIGMOID_BIAS;
+    moe_config.has_routing_norm_scale = true;
+
+    std::vector<input_info> moe_inputs{
+        input_info("hidden_states"), input_info("routing_weights"),
+        input_info("w0_weight"), input_info("w0_scale"), input_info("w0_zp"),
+        input_info("w1_weight"), input_info("w1_scale"), input_info("w1_zp"),
+        input_info("w2_weight"), input_info("w2_scale"), input_info("w2_zp"),
+        input_info("routing_bias"), input_info("routing_eps"), input_info("routing_norm_scale")};
+
+    topology.add(moe_3gemm_fused_compressed("moe", moe_inputs, moe_config));
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("hidden_states", hidden_states_mem);
+    network.set_input_data("routing_weights", routing_weights_mem);
+
+    auto outputs = network.execute();
+    auto output_prim = outputs.begin()->second.get_memory();
+    get_test_stream().flush();
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
+
+    auto ref_output = ref.run_reference_sigmoid_scaled_norm(
+        hidden_states, routing_weights, routing_bias_data,
+        routing_eps_val, routing_norm_scale_val, w0_data, w1_data, w2_data);
+
+    // Tolerance same as SIGMOID_BIAS (extra multiply doesn't increase numerical error)
+    const float tolerance = 0.2f;
+    for (size_t i = 0; i < ref_output.size(); ++i) {
+        ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), tolerance);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         moe_3gemm_compressed_gpu_sigmoid_scaled_norm,
+                         ::testing::Values(Moe3GemmTestParams{1, true, 128, 256, 4, 2, 128},
+                                           Moe3GemmTestParams{16, true, 128, 256, 4, 2, 128}));
 
 class moe_3gemm_compressed_gpu_u4 : public ::testing::TestWithParam<cldnn::MOE3GemmFusedCompressed::RoutingType> {};
 

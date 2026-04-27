@@ -26,8 +26,9 @@ struct MoePatternParams {
 };
 
 enum class MoERoutingType {
-    SOFTMAX,       ///< Softmax -> TopK -> normalize routing
-    SIGMOID_BIAS,  ///< Sigmoid -> Add(bias) -> TopK routing
+    SOFTMAX,                   ///< Softmax -> TopK -> normalize routing
+    SIGMOID_BIAS,              ///< Sigmoid -> Add(bias) -> TopK routing
+    SIGMOID_BIAS_SCALED_NORM,  ///< Sigmoid -> Add(bias) -> TopK -> normalize -> Multiply(scale) routing
 };
 
 /// Softmax branch:
@@ -40,6 +41,14 @@ build_softmax_routing_subgraph(const ov::Output<ov::Node>& routing_weights, size
 ///   routing_weights -> Sigmoid -> Add(bias) -> TopK -> Convert(i32)
 ///   -> GatherElements -> normalize -> ScatterElementsUpdate -> Transpose -> Reshape -> Unsqueeze
 std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> build_sigmoid_bias_routing_subgraph(
+    const ov::Output<ov::Node>& routing_weights,
+    ov::element::Type data_precision,
+    size_t number_of_experts,
+    size_t topk);
+
+/// Sigmoid+bias+scaled_norm branch — same as SIGMOID_BIAS but inserts
+///   Multiply(Divide(...), Constant) between the normalization Divide and the Slice.
+std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> build_sigmoid_bias_scaled_norm_routing_subgraph(
     const ov::Output<ov::Node>& routing_weights,
     ov::element::Type data_precision,
     size_t number_of_experts,
@@ -68,7 +77,8 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     const std::optional<ov::test::utils::DecompressionType> decompression_subtract_type = std::nullopt,
     const std::optional<bool> reshape_on_decompression = std::nullopt,
     const std::optional<int> decompression_group_size = std::nullopt,
-    MoERoutingType routing_type = MoERoutingType::SOFTMAX);
+    MoERoutingType routing_type = MoERoutingType::SOFTMAX,
+    size_t num_shared_expert = 0);
 
 }  // namespace test
 }  // namespace ov

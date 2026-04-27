@@ -177,6 +177,89 @@ std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> build_sigmoid_bias_routing
     return {unsqueeze_moe, topk_idx};
 }
 
+std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> build_sigmoid_bias_scaled_norm_routing_subgraph(
+    const ov::Output<ov::Node>& routing_weights,
+    ov::element::Type data_precision,
+    size_t number_of_experts,
+    size_t topk) {
+    using namespace ov::op;
+
+    auto sigmoid = std::make_shared<v0::Sigmoid>(routing_weights);
+    auto bias_test_data = ov::test::utils::InputGenerateData(0., 1, 100);
+    auto bias = ov::test::utils::make_constant(data_precision, ov::Shape{1, number_of_experts}, bias_test_data);
+    auto sig_add = std::make_shared<v1::Add>(sigmoid, bias);
+
+    auto router_topk =
+        std::make_shared<v11::TopK>(sig_add,
+                                    v0::Constant::create(ov::element::i64, ov::Shape{}, {static_cast<int64_t>(topk)}),
+                                    -1,
+                                    v11::TopK::Mode::MAX,
+                                    v11::TopK::SortType::SORT_VALUES,
+                                    ov::element::i64);
+
+    auto convert_topk = std::make_shared<v0::Convert>(router_topk->output(1), ov::element::i32);
+    auto topk_idx = ov::Output<ov::Node>{convert_topk};
+
+    auto gather_el = std::make_shared<v6::GatherElements>(sigmoid, convert_topk, 1);
+    auto reduce =
+        std::make_shared<v1::ReduceSum>(gather_el,
+                                        v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1}),
+                                        true);
+    auto eps = v0::Constant::create(data_precision, ov::Shape{1, 1}, {1e-6f});
+    auto add_eps = std::make_shared<v1::Add>(reduce, eps);
+    auto norm = std::make_shared<v1::Divide>(gather_el, add_eps);
+
+    // Extra post-normalization scale — the distinguishing feature of SIGMOID_BIAS_SCALED_NORM.
+    auto norm_scale = v0::Constant::create(data_precision, ov::Shape{1}, {1.0f});
+    auto norm_scaled = std::make_shared<v1::Multiply>(norm, norm_scale);
+
+    auto sl_stop = std::make_shared<v3::ShapeOf>(convert_topk, ov::element::i32);
+    auto scatter_w = ov::Output<ov::Node>{
+        std::make_shared<v8::Slice>(norm_scaled,
+                                    v0::Constant::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{0, 0}),
+                                    sl_stop,
+                                    v0::Constant::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{1, 1}),
+                                    v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{0, 1}))};
+
+    auto shapeof = std::make_shared<v3::ShapeOf>(convert_topk, ov::element::i64);
+    auto gather = std::make_shared<v8::Gather>(shapeof,
+                                               v0::Constant::create(ov::element::i64, ov::Shape{}, {0}),
+                                               v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+    auto unsq_seq =
+        std::make_shared<v0::Unsqueeze>(gather,
+                                        v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}));
+
+    auto ne_scalar = v0::Constant::create(ov::element::i64, ov::Shape{}, {static_cast<int64_t>(number_of_experts)});
+    auto unsq_ne =
+        std::make_shared<v0::Unsqueeze>(ne_scalar,
+                                        v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}));
+
+    ov::OutputVector bcast_vec{unsq_seq, unsq_ne};
+    auto bcast_shape = std::make_shared<v0::Concat>(bcast_vec, 0);
+
+    auto zero = v0::Constant::create(scatter_w.get_element_type(), ov::Shape{1}, {0});
+    auto bcast = std::make_shared<v3::Broadcast>(zero, bcast_shape);
+    auto scatter = std::make_shared<v12::ScatterElementsUpdate>(
+        bcast,
+        topk_idx,
+        scatter_w,
+        v0::Constant::create(ov::element::i64, ov::Shape{}, std::vector<int64_t>{1}));
+    auto transp = std::make_shared<v1::Transpose>(
+        scatter,
+        v0::Constant::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{1, 0}));
+
+    auto one = v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1});
+    ov::OutputVector reshape_vec{unsq_ne, one, unsq_seq};
+    auto reshape_shape = std::make_shared<v0::Concat>(reshape_vec, 0);
+    auto reshape = std::make_shared<v1::Reshape>(transp, reshape_shape, false);
+
+    auto unsqueeze_moe = ov::Output<ov::Node>{
+        std::make_shared<v0::Unsqueeze>(reshape,
+                                        v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{3}))};
+
+    return {unsqueeze_moe, topk_idx};
+}
+
 std::shared_ptr<ov::Node> build_matmul_weights(
     const ov::Shape& weights_shape,
     const ov::element::Type& weights_precision,
@@ -448,7 +531,8 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     const std::optional<ov::test::utils::DecompressionType> decompression_subtract_type,
     const std::optional<bool> reshape_on_decompression,
     const std::optional<int> decompression_group_size,
-    MoERoutingType routing_type) {
+    MoERoutingType routing_type,
+    size_t num_shared_expert) {
     // Use parameters from shape_params - static shapes only
     const auto& input_shape = moe_params.data_shape;
     const size_t intermediate_size = moe_params.intermediate_size;
@@ -568,6 +652,10 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     case MoERoutingType::SIGMOID_BIAS:
         routing_outputs = build_sigmoid_bias_routing_subgraph(router_matmul, data_precision, number_of_experts, topk);
         break;
+    case MoERoutingType::SIGMOID_BIAS_SCALED_NORM:
+        routing_outputs =
+            build_sigmoid_bias_scaled_norm_routing_subgraph(router_matmul, data_precision, number_of_experts, topk);
+        break;
     default:
         OPENVINO_THROW("Unsupported MoERoutingType");
     }
@@ -610,7 +698,64 @@ std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
     auto final_reshape = std::make_shared<ov::op::v1::Reshape>(reduce_sum, final_reshape_const, true);
 
     ov::ParameterVector params = {input};
-    return std::make_shared<ov::Model>(ov::OutputVector{std::make_shared<ov::op::v0::Result>(final_reshape)},
+    ov::Output<ov::Node> model_output = final_reshape;
+
+    // Shared expert branch: a single SwiGLU MLP operating on all tokens.
+    // ConvertMOEToMOECompressed recognises the pattern Add(MOE_op, Reshape(shared_down_matmul)).
+    if (num_shared_expert > 0) {
+        OPENVINO_ASSERT(num_shared_expert == 1, "Only num_shared_expert=1 is supported in this builder");
+
+        auto sh_gate_weights = build_matmul_weights(ov::Shape{1, hidden_size, intermediate_size},
+                                                    weights_precision,
+                                                    data_precision,
+                                                    seed++,
+                                                    use_weight_decompression,
+                                                    decompression_precision,
+                                                    scale_precision,
+                                                    decompression_multiply_type,
+                                                    decompression_subtract_type,
+                                                    reshape_on_decompression,
+                                                    decompression_group_size);
+        auto sh_gate_matmul = std::make_shared<ov::op::v0::MatMul>(experts_reshape, sh_gate_weights, false, true);
+        auto sh_swish = std::make_shared<ov::op::v4::Swish>(sh_gate_matmul);
+
+        auto sh_up_weights = build_matmul_weights(ov::Shape{1, hidden_size, intermediate_size},
+                                                  weights_precision,
+                                                  data_precision,
+                                                  seed++,
+                                                  use_weight_decompression,
+                                                  decompression_precision,
+                                                  scale_precision,
+                                                  decompression_multiply_type,
+                                                  decompression_subtract_type,
+                                                  reshape_on_decompression,
+                                                  decompression_group_size);
+        auto sh_up_matmul = std::make_shared<ov::op::v0::MatMul>(experts_reshape, sh_up_weights, false, true);
+        auto sh_swiglu = std::make_shared<ov::op::v1::Multiply>(sh_swish, sh_up_matmul);
+
+        auto sh_down_weights = build_matmul_weights(ov::Shape{1, intermediate_size, hidden_size},
+                                                    weights_precision,
+                                                    data_precision,
+                                                    seed++,
+                                                    use_weight_decompression,
+                                                    decompression_precision,
+                                                    scale_precision,
+                                                    decompression_multiply_type,
+                                                    decompression_subtract_type,
+                                                    reshape_on_decompression,
+                                                    decompression_group_size);
+        auto sh_down_matmul = std::make_shared<ov::op::v0::MatMul>(sh_swiglu, sh_down_weights, false, true);
+
+        // Reshape [1, batch*seq, hidden] → [batch*seq, hidden] so the Add with MoE output is shape-compatible.
+        auto sh_reshape_const =
+            ov::op::v0::Constant::create(ov::element::i64,
+                                         ov::Shape{2},
+                                         std::vector<int64_t>{-1, static_cast<int64_t>(hidden_size)});
+        auto sh_reshape = std::make_shared<ov::op::v1::Reshape>(sh_down_matmul, sh_reshape_const, false);
+        model_output = std::make_shared<ov::op::v1::Add>(final_reshape, sh_reshape);
+    }
+
+    return std::make_shared<ov::Model>(ov::OutputVector{std::make_shared<ov::op::v0::Result>(model_output)},
                                        params,
                                        "MoE3GeMMSubgraph");
 }
