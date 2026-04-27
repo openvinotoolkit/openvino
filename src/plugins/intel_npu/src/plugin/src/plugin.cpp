@@ -14,6 +14,7 @@
 #include "intel_npu/common/parser_factory.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/compatibility_string.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "metrics.hpp"
 #include "npuw/compiled_model.hpp"
@@ -357,6 +358,49 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
+    if (name == ov::runtime_requirements_met.name()) {
+        if (arguments.empty()) {
+            // TODO is this good?
+            return true;
+        }
+
+        ov::Tensor encodedTensor = arguments.at(ov::runtime_requirements.name()).as<ov::Tensor>();
+        const std::string encodedString(reinterpret_cast<char*>(encodedTensor.data()), encodedTensor.get_byte_size());
+        std::string decodedString = decode_compatibility_string(encodedString);
+        const ov::Tensor viewTensor =
+            ov::Tensor(ov::element::Type_t::u8, ov::Shape(decodedString.length()), decodedString.data());
+
+        std::unique_ptr<MetadataBase> metadata = nullptr;
+        try {
+            // The plugin cares only about the string size and the metadata version check for now. Additional checks
+            // based
+            // on other metadata fields can be done following this line.
+            metadata = read_metadata_from(viewTensor);
+        } catch (const std::exception& ex) {
+            // Unsupported version, could not read the metadata or an unknown error has occured. Report that the
+            // requirements are not met.
+            return false;
+        }
+
+        OPENVINO_ASSERT(metadata);
+
+        const size_t compilerStringSize = metadata->get_blob_size();
+        // Discard everything else but the compiler section
+        decodedString = decodedString.substr(0, compilerStringSize);
+
+        // Create a compiler to get the type and fetch version and supported options if needed
+        std::unique_ptr<ICompilerAdapter> compiler = nullptr;
+        CompilerAdapterFactory factory;
+        try {
+            // TODO consider using backend directly
+            compiler = factory.getCompiler(_backend, ov::intel_npu::CompilerType::DRIVER);
+        } catch (const std::exception& ex) {
+            compiler = factory.getCompiler(_backend, ov::intel_npu::CompilerType::PLUGIN);
+        }
+        OPENVINO_ASSERT(compiler != nullptr);
+        return compiler->validate_compatibility_descriptor(decodedString);
+    }
+
     if (!arguments.empty()) {
         auto npuPluginArguments = arguments;
         exclude_model_ptr_from_map(npuPluginArguments);

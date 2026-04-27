@@ -251,13 +251,16 @@ std::shared_ptr<void> VCLCompilerImpl::getLinkedLibrary() const {
     return VCLApi::getInstance()->getLibrary();
 }
 
-ov::Tensor VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model, const FilteredConfig& config) const {
+std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
+    const std::shared_ptr<const ov::Model>& model,
+    const FilteredConfig& config) const {
     return compile(model, config, false);
 }
 
-ov::Tensor VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model,
-                                    const FilteredConfig& config,
-                                    const bool storeWeightlessCacheAttributeFlag) const {
+std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
+    const std::shared_ptr<const ov::Model>& model,
+    const FilteredConfig& config,
+    const bool storeWeightlessCacheAttributeFlag) const {
     _logger.debug("compile start");
 
     /// Check the linked vcl version whether supported in plugin
@@ -306,34 +309,63 @@ ov::Tensor VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& mode
                                      buildFlags.c_str(),
                                      buildFlags.size()};
 
-    if (usedVersion.Major >= 7 && usedVersion.Minor >= 4) {
+    if (usedVersion.Major >= 7 && usedVersion.Minor >= 7) {
         // support the lastest vcl api
-        // For VCL 7.4 and later, we can use vclAllocatedExecutableCreate2
-        _logger.debug("Using vclAllocatedExecutableCreate2 for 7.4 <= VCL");
-        vcl_allocator allocator;
+        // For VCL 7.7 and later, we can use vclAllocatedExecutableCreate3
+        _logger.debug("Using vclAllocatedExecutableCreate3 for 7.7 <= VCL");
+        vcl_allocator_2 allocator;
         uint8_t* blob = nullptr;
-        size_t size = 0;
+        size_t blobSize = 0;
+        uint8_t* compatibilityStringBuffer = nullptr;
+        size_t compatibilityStringSize = 0;
 
-        auto result = vclAllocatedExecutableCreate2(_compilerHandle, exeDesc, &allocator, &blob, &size);
+        auto result = vclAllocatedExecutableCreate3(_compilerHandle,
+                                                    exeDesc,
+                                                    &allocator,
+                                                    &blob,
+                                                    &blobSize,
+                                                    &compatibilityStringBuffer,
+                                                    &compatibilityStringSize);
         if (result != VCL_RESULT_SUCCESS) {
-            OPENVINO_THROW("Compilation failed. vclAllocatedExecutableCreate2 result: 0x",
+            OPENVINO_THROW("Compilation failed. vclAllocatedExecutableCreate3 result: 0x",
                            std::hex,
                            uint64_t(result),
                            " - ",
                            getLatestVCLLog(_logHandle));
         }
 
-        if (size == 0 || blob == nullptr) {
-            OPENVINO_THROW("Failed to create VCL executable, size is zero or blob is null");
-        }
-        // The allocated size from VCL will be equal or smaller than the allocated size in allocator
-        _logger.debug("Blob size from VCL: %zu ptr %p", size, static_cast<void*>(blob));
-        _logger.debug("Allocated vector size: %zu ptr: %p",
-                      allocator.m_size,
-                      static_cast<void*>(allocator.m_allocated));
+        OPENVINO_ASSERT(blobSize != 0 && blob != nullptr,
+                        "Failed to create VCL executable, the blob size is zero or the blob is null");
 
-        _logger.debug("compile end, blob size:%d", allocator.m_size);
-        return make_tensor_from_aligned_addr(allocator.m_allocated, allocator.m_size);
+        std::optional<size_t> alignedBlobSize;
+        for (auto [buffer, size] : allocator.m_info) {
+            if (buffer == blob) {
+                alignedBlobSize = size;
+                break;
+            }
+        }
+
+        OPENVINO_ASSERT(alignedBlobSize.has_value());
+
+        // The allocated size from VCL will be equal or smaller than the allocated size in allocator
+        _logger.debug("Blob size from VCL: %zu ptr %p", blobSize, static_cast<void*>(blob));
+        _logger.debug("Allocated vector size: %zu ptr: %p", *alignedBlobSize, static_cast<void*>(blob));
+
+        ov::Tensor alignedBlob = make_tensor_from_aligned_addr(blob, *alignedBlobSize);
+        std::optional<std::string> compatibilityString;
+
+        if (!storeWeightlessCacheAttributeFlag) {
+            // Non-weights separation call. The compatibility string is expected
+            OPENVINO_ASSERT(compatibilityStringBuffer != nullptr && compatibilityStringSize != 0,
+                            "Failed to create VCL executable, the compatibility descriptor size is zero or the "
+                            "compatibility descriptor is null");
+            compatibilityString =
+                std::string(reinterpret_cast<char*>(compatibilityStringBuffer), compatibilityStringSize);
+        }
+
+        _logger.debug("compile end, blob size:%d", alignedBlobSize);
+        return std::make_pair<ov::Tensor, std::optional<std::string>>(std::move(alignedBlob),
+                                                                      std::move(compatibilityString));
     } else {
         OPENVINO_THROW("Not supported VCL version: %d.%d, please use VCL 6.1 or later",
                        _vclVersion.major,
@@ -415,7 +447,8 @@ ov::Tensor VCLCompilerImpl::compileWsIterative(const std::shared_ptr<ov::Model>&
     _logger.debug("compileWsIterative start");
     FilteredConfig updatedConfig = config;
     updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber)}});
-    return compile(model, updatedConfig, true);
+    // The compatibility descriptor is not supported in this case
+    return compile(model, updatedConfig, true).first;
 }
 
 std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(const std::vector<uint8_t>& profData,
@@ -577,6 +610,10 @@ bool VCLCompilerImpl::is_option_supported(std::string option, std::optional<std:
     }
     _logger.debug("option: %s is not supported", option.c_str());
     return false;
+}
+
+bool VCLCompilerImpl::validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const {
+    return is_option_supported(ov::runtime_requirements_met.name(), compatibilityDescriptor);
 }
 
 }  // namespace intel_npu

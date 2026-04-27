@@ -89,12 +89,18 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     auto networkMeta = _zeGraphExt->getNetworkMeta(graphDesc);
     networkMeta.name = model->get_friendly_name();
 
+    std::optional<std::string> compatibilityDescriptor;
+    if (_zeGraphExt->isCompatibilityDescriptorSupported()) {
+        compatibilityDescriptor = _zeGraphExt->getCompatibilityDescriptor(graphDesc._handle);
+    }
+
     return std::make_shared<Graph>(_zeGraphExt,
                                    _zeroInitStruct,
                                    graphDesc,
                                    std::move(networkMeta),
                                    /* blob = */ std::nullopt,
-                                   updatedConfig);
+                                   updatedConfig,
+                                   compatibilityDescriptor);
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
@@ -309,6 +315,13 @@ bool DriverCompilerAdapter::isCompilerOptionSupported(const FilteredConfig& conf
     return (compilerVersion.major > majorCompilerOptSupportValue) ||
            ((compilerVersion.major == majorCompilerOptSupportValue) &&
             (compilerVersion.minor >= minorCompilerOptSupportValue));
+}
+
+bool DriverCompilerAdapter::validate_compatibility_descriptor(const std::string& compatibilityDescriptor) const {
+    if (!_zeGraphExt->isCompatibilityDescriptorSupported()) {
+        OPENVINO_THROW("");
+    }
+    return _zeGraphExt->validateCompatibilityDescriptor(compatibilityDescriptor);
 }
 
 }  // namespace intel_npu
