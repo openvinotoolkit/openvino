@@ -533,7 +533,7 @@ public:
         return m_id;
     }
 
-    MOCK_METHOD(void, hint_evict, (size_t offset, size_t size), (override));
+    MOCK_METHOD(void, hint_evict, (size_t offset, size_t size), (noexcept));
 
 private:
     std::vector<char> m_data;

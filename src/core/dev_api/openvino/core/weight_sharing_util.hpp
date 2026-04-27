@@ -130,7 +130,7 @@ struct OPENVINO_API Extension {
      *
      * @param constant Constant node to evict buffer for.
      */
-    static void hint_evict(ov::op::v0::Constant& constant);
+    static void hint_evict(ov::op::v0::Constant& constant) noexcept;
 };
 
 /** @brief Get the source buffer for a given source id.

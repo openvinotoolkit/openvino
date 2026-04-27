@@ -70,21 +70,21 @@ std::shared_ptr<ov::IBufferDescriptor> ov::detail::create_mmap_descriptor(
 }
 
 template <>
-void SharedBufferBase<std::shared_ptr<ov::MappedMemory>>::hint_evict() {
+void SharedBufferBase<std::shared_ptr<ov::MappedMemory>>::hint_evict() noexcept {
     if (m_shared_object) {
         m_shared_object->hint_evict(get_offset(), m_byte_size);
     }
 }
 
 template <>
-void SharedBufferBase<std::shared_ptr<ov::MappedMemory>>::hint_evict(size_t offset, size_t size) {
+void SharedBufferBase<std::shared_ptr<ov::MappedMemory>>::hint_evict(size_t offset, size_t size) noexcept {
     if (m_shared_object) {
         m_shared_object->hint_evict(offset, size);
     }
 }
 
 template <>
-void SharedBufferBase<std::shared_ptr<ov::AlignedBuffer>>::hint_evict() {
+void SharedBufferBase<std::shared_ptr<ov::AlignedBuffer>>::hint_evict() noexcept {
     if (m_shared_object) {
         invoke_evict(*m_shared_object, get_offset(), m_byte_size);
     }

@@ -99,7 +99,7 @@ std::shared_ptr<ov::AlignedBuffer> Extension::get_constant_source_buffer(const o
     return desc ? desc->get_source_buffer() : nullptr;
 }
 
-void Extension::hint_evict(ov::op::v0::Constant& constant) {
+void Extension::hint_evict(ov::op::v0::Constant& constant) noexcept {
     if (constant.m_data) {
         if (constant.m_data->get_descriptor()) {
             constant.m_data->hint_evict();

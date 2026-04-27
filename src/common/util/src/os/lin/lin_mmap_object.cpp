@@ -8,9 +8,11 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <cstring>
 #include <iostream>
 #include <sstream>
+#include <tuple>
 
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
@@ -182,7 +184,7 @@ public:
         return m_size;
     }
 
-    void hint_evict(size_t offset, size_t size) override {
+    void hint_evict(size_t offset, size_t size) noexcept override {
         if (m_mapped_view != MAP_FAILED) {
             if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_length > 0) {
                 std::ignore = madvise(reinterpret_cast<void*>(region.m_address), region.m_length, MADV_DONTNEED);
