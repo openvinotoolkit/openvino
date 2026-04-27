@@ -247,6 +247,15 @@ std::string PagedGatedDeltaNetLayerTest::getTestCaseName(
 void PagedGatedDeltaNetLayerTest::SetUp() {
     const auto& [qk_heads, v_heads, qk_head_size, v_head_size, seq_lengths, cache_intervals, data_type, device] =
         GetParam();
+    if (device.find("CPU") != std::string::npos) {
+        // Skip BF16/F16 tests if not support
+        if ((data_type == ov::element::bf16) && !with_cpu_x86_avx512_core_amx_bf16()) {
+            GTEST_SKIP();
+        }
+        if ((data_type == ov::element::f16) && !with_cpu_x86_avx512_core_fp16()) {
+            GTEST_SKIP();
+        }
+    }
 
     targetDevice = device;
     this->data_type = data_type;
