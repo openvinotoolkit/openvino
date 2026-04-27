@@ -221,7 +221,8 @@ JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_par
     if (has_feature_leftovers && tuning_data.sub_group_size == 16) {
         auto input_feature = output.GetLayout() == DataLayout::bfyx ? input.Y().v : input.Feature().v;
         size_t is_blocks = CeilDiv(input_feature, (size_t)32);
-        bool hi_valid = (is_blocks - tuning_data.feature_blocks_count * 2) >= 2;
+        size_t required_is_blocks = tuning_data.feature_blocks_count * 2 + 2;
+        bool hi_valid = is_blocks >= required_is_blocks;
         jit.AddConstant(MakeJitConstant("MMAD_FILTER_LEFTOVER_HI", hi_valid ? 1 : 0));
     }
     jit.AddConstant(MakeJitConstant("SLM_DIV_FACTOR", tuning_data.slm_div_factor));
