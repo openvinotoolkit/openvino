@@ -255,7 +255,7 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(ENABLE_STRIDES_FOR);
     REGISTER_OPTION(SHARED_COMMON_QUEUE);
     REGISTER_OPTION(RUNTIME_REQUIREMENTS);
-    REGISTER_OPTION(RUNTIME_REQUIREMENTS_MET);
+    REGISTER_OPTION(COMPATIBILITY_CHECK);
 
 
     if (backend) {
@@ -361,7 +361,7 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    if (name == ov::runtime_requirements_met.name()) {
+    if (name == ov::compatibility_check.name()) {
         if (arguments.empty() || arguments.find(ov::runtime_requirements.name()) == arguments.end()) {
             return ov::BlobCompatibility::NOT_APPLICABLE;
         }
