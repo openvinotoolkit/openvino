@@ -38,8 +38,8 @@ std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
     } else {
         header.assign(static_cast<const char*>(data), size);
     }
-    if (header.find("llvm") != std::string::npos) {
-        _logger.debug("Create graph for LLVM IR, use internal function to get metadata!");
+    if (header.find("llvm") != std::string::npos || header.find("NPUByte\x00") != std::string::npos) {
+        _logger.debug("Create graph for dynamic blob, use internal function to get metadata!");
         return std::make_shared<DynamicGraph>(_zeroInitStruct, mainBlob, true, config);
     }
 
