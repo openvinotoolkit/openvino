@@ -26,6 +26,7 @@
 #include "openvino/xml_util/constant_writer.hpp"
 #include "openvino/xml_util/xml_serialize_util.hpp"
 #include "pugixml.hpp"
+#include "transformations/fp16_compression/convert_legacy_precision_attribute.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
@@ -43,15 +44,11 @@ std::filesystem::path provide_bin_path(const std::filesystem::path& xml_path) {
     return bin_path;
 }
 
-void convert_py_rt_info(ov::Model& model) {
+inline void convert_py_rt_info(std::shared_ptr<ov::Model> model) {
     // TODO xxx-105807: if rt_info is set in python api as a string ['precise_0'] = '',
     //  we need to convert value to a class in order to have rt_info in the IR. The code below will convert
-    // ['precise_0'] = '' into => rt_info['precise_0'] = DisableFP16Compression{}
-    for (auto& node : model.get_ops()) {
-        if (fp16_compression_is_disabled(node)) {
-            disable_fp16_compression(node);
-        }
-    }
+    // ['precise_0'] = '' into => rt_info['precise_0'] = DisablePrecisionConversion{}
+    ov::pass::ConvertLegacyPrecisionAttribute().run_on_model(model);
 }
 
 void serialize_func(std::ostream& xml_file,
@@ -115,7 +112,7 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     OPENVINO_ASSERT(model, "ov::Model not provided");
 
     model->validate_nodes_and_infer_types();
-    convert_py_rt_info(*model);
+    convert_py_rt_info(model);
 
     if (m_xml_file && m_bin_file) {
         serialize_func(*m_xml_file, *m_bin_file, model, m_version);
