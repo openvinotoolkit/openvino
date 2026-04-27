@@ -31,7 +31,7 @@
 
 #define PRINT(X) ss << #X << " = " << (X) << "\n"
 #define EQ(X)    X == rhs.X
-#define HASH(X) seed = dnnl::impl::hash_combine(seed, X)
+#define HASH(X)  seed = dnnl::impl::hash_combine(seed, X)
 
 namespace ov::intel_cpu {
 using namespace ov::snippets::lowered;

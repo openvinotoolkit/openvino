@@ -56,7 +56,8 @@ LinearIR::LinearIR(Config config, const std::shared_ptr<IShapeInferSnippetsFacto
       m_loop_manager(std::make_shared<LoopManager>()),
       m_shape_infer_factory(factory),
       m_shape_infer(std::make_shared<LIRShapeInfer>(m_expressions, m_parameter_expressions, m_result_expressions)),
-      m_expression_factory(std::make_shared<ExpressionFactory>(m_shape_infer_factory)) {}
+      m_expression_factory(std::make_shared<ExpressionFactory>(m_shape_infer_factory)) {
+}
 
 LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model,
                    const std::shared_ptr<IShapeInferSnippetsFactory>& factory,
