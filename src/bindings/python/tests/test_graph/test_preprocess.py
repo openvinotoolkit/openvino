@@ -4,9 +4,11 @@
 
 import numpy as np
 import pytest
-
+import openvino.opset8 as ops
 import openvino.opset13 as ops
 
+from openvino.preprocess import PrePostProcessor, FlipMode
+from openvino import Model
 from openvino import Core, Layout, Model, Shape, Tensor, Type
 from openvino.utils.decorators import custom_preprocess_function
 from openvino import Output
@@ -802,3 +804,18 @@ def test_pad_vector_type_and_ops(pads_begin, pads_end, values, mode):
     assert len(model_operators) == 6
     for op in expected_ops:
         assert op in model_operators
+
+def test_preprocess_flip():
+    param = ops.parameter([1, 480, 640, 3], dtype="f32", name="input")
+    result = ops.result(param)
+    model = Model([result], [param], "test_model")
+
+    p = PrePostProcessor(model)
+    p.input().tensor().set_layout("NHWC")
+    p.input().preprocess().flip(FlipMode.HORIZONTAL)
+    p.input().preprocess().flip(FlipMode.VERTICAL)
+
+    model = p.build()
+    assert model is not None
+    ops_names = [node.get_type_name() for node in model.get_ordered_ops()]
+    assert "Reverse" in ops_names

@@ -12,6 +12,7 @@
 
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/preprocess/flip_mode.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "pyopenvino/core/common.hpp"
 #include "pyopenvino/utils/utils.hpp"
@@ -26,6 +27,11 @@ static void regclass_graph_PreProcessSteps(py::module m) {
         m,
         "PreProcessSteps");
     steps.doc() = "openvino.preprocess.PreProcessSteps wraps ov::preprocess::PreProcessSteps";
+
+    py::enum_<ov::preprocess::FlipMode>(m, "FlipMode", py::arithmetic())
+        .value("HORIZONTAL", ov::preprocess::FlipMode::HORIZONTAL)
+        .value("VERTICAL", ov::preprocess::FlipMode::VERTICAL)
+        .export_values();
 
     steps.def(
         "mean",
@@ -56,6 +62,21 @@ static void regclass_graph_PreProcessSteps(py::module m) {
             :param values: Values to subtract.
             :type values: list[float]
             :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.preprocess.PreProcessSteps
+        )");
+
+    steps.def(
+        "flip",
+        [](ov::preprocess::PreProcessSteps& self, ov::preprocess::FlipMode mode) {
+            return &self.flip(mode);
+        },
+        py::arg("mode"),
+        R"(
+            Adds a spatial flip preprocessing operation.
+
+            :param mode: Flip mode to use. Must be either FlipMode.HORIZONTAL or FlipMode.VERTICAL.
+            :type mode: openvino.preprocess.FlipMode
+            :return: Reference to the current 'PreProcessSteps' object to allow chaining with other calls.
             :rtype: openvino.preprocess.PreProcessSteps
         )");
 
@@ -170,9 +191,11 @@ static void regclass_graph_PreProcessSteps(py::module m) {
         },
         py::arg("dims"));
 
-    steps.def("reverse_channels", [](ov::preprocess::PreProcessSteps& self) {
-        return &self.reverse_channels();
-    });
+    steps.def(
+        "reverse_channels",
+        [](ov::preprocess::PreProcessSteps& self) {
+            return &self.reverse_channels();
+        });
 
     steps.def(
         "pad",
@@ -318,9 +341,11 @@ static void regclass_graph_InputTensorInfo(py::module m) {
             :type layout: Union[str, openvino.Layout]
         )");
 
-    info.def("set_spatial_dynamic_shape", [](ov::preprocess::InputTensorInfo& self) {
-        return &self.set_spatial_dynamic_shape();
-    });
+    info.def(
+        "set_spatial_dynamic_shape",
+        [](ov::preprocess::InputTensorInfo& self) {
+            return &self.set_spatial_dynamic_shape();
+        });
 
     info.def(
         "set_spatial_static_shape",
@@ -438,17 +463,23 @@ static void regclass_graph_InputInfo(py::module m) {
     py::class_<ov::preprocess::InputInfo, Common::ref_wrapper<ov::preprocess::InputInfo>> inp(m, "InputInfo");
     inp.doc() = "openvino.preprocess.InputInfo wraps ov::preprocess::InputInfo";
 
-    inp.def("tensor", [](ov::preprocess::InputInfo& self) {
-        return &self.tensor();
-    });
+    inp.def(
+        "tensor",
+        [](ov::preprocess::InputInfo& self) {
+            return &self.tensor();
+        });
 
-    inp.def("preprocess", [](ov::preprocess::InputInfo& self) {
-        return &self.preprocess();
-    });
+    inp.def(
+        "preprocess",
+        [](ov::preprocess::InputInfo& self) {
+            return &self.preprocess();
+        });
 
-    inp.def("model", [](ov::preprocess::InputInfo& self) {
-        return &self.model();
-    });
+    inp.def(
+        "model",
+        [](ov::preprocess::InputInfo& self) {
+            return &self.model();
+        });
 }
 
 static void regclass_graph_OutputModelInfo(py::module m) {
@@ -475,17 +506,23 @@ static void regclass_graph_OutputInfo(py::module m) {
     py::class_<ov::preprocess::OutputInfo, Common::ref_wrapper<ov::preprocess::OutputInfo>> out(m, "OutputInfo");
     out.doc() = "openvino.preprocess.OutputInfo wraps ov::preprocess::OutputInfo";
 
-    out.def("tensor", [](ov::preprocess::OutputInfo& self) {
-        return &self.tensor();
-    });
+    out.def(
+        "tensor",
+        [](ov::preprocess::OutputInfo& self) {
+            return &self.tensor();
+        });
 
-    out.def("postprocess", [](ov::preprocess::OutputInfo& self) {
-        return &self.postprocess();
-    });
+    out.def(
+        "postprocess",
+        [](ov::preprocess::OutputInfo& self) {
+            return &self.postprocess();
+        });
 
-    out.def("model", [](ov::preprocess::OutputInfo& self) {
-        return &self.model();
-    });
+    out.def(
+        "model",
+        [](ov::preprocess::OutputInfo& self) {
+            return &self.model();
+        });
 }
 
 static void regclass_graph_InputModelInfo(py::module m) {
@@ -557,18 +594,21 @@ void regclass_graph_PrePostProcessor(py::module m) {
         "PrePostProcessor");
     proc.doc() = "openvino.preprocess.PrePostProcessor wraps ov::preprocess::PrePostProcessor";
 
-    proc.def(py::init([](const py::object& ie_api_model) {
-                 const auto model = Common::utils::convert_to_model(ie_api_model);
-                 return std::make_shared<ov::preprocess::PrePostProcessor>(model);
-             }),
-             py::arg("model"),
-             R"(
+    proc.def(
+        py::init([](const py::object& ie_api_model) {
+            const auto model = Common::utils::convert_to_model(ie_api_model);
+            return std::make_shared<ov::preprocess::PrePostProcessor>(model);
+        }),
+        py::arg("model"),
+        R"(
              It creates PrePostProcessor.
     )");
 
-    proc.def("input", [](ov::preprocess::PrePostProcessor& self) {
-        return &self.input();
-    });
+    proc.def(
+        "input",
+        [](ov::preprocess::PrePostProcessor& self) {
+            return &self.input();
+        });
 
     proc.def(
         "input",
@@ -584,9 +624,11 @@ void regclass_graph_PrePostProcessor(py::module m) {
         },
         py::arg("input_index"));
 
-    proc.def("output", [](ov::preprocess::PrePostProcessor& self) {
-        return &self.output();
-    });
+    proc.def(
+        "output",
+        [](ov::preprocess::PrePostProcessor& self) {
+            return &self.output();
+        });
 
     proc.def(
         "output",
@@ -602,23 +644,30 @@ void regclass_graph_PrePostProcessor(py::module m) {
         },
         py::arg("output_index"));
 
-    proc.def("build", [](ov::preprocess::PrePostProcessor& self) {
-        std::shared_ptr<ov::Model> model;
-        {
-            py::gil_scoped_release release;
-            model = self.build();
-        }
-        py::type model_class = py::module_::import("openvino").attr("Model");
-        return model_class(py::cast(model));
-    });
+    proc.def(
+        "build",
+        [](ov::preprocess::PrePostProcessor& self) {
+            std::shared_ptr<ov::Model> model;
+            {
+                py::gil_scoped_release release;
+                model = self.build();
+            }
+            py::type model_class = py::module_::import("openvino").attr("Model");
+            return model_class(py::cast(model));
+        });
 
-    proc.def("__str__", [](const ov::preprocess::PrePostProcessor& self) -> std::string {
-        std::stringstream ss;
-        ss << self;
-        return ss.str();
-    });
+    proc.def(
+        "__str__",
+        [](const ov::preprocess::PrePostProcessor& self) -> std::string {
+            std::stringstream ss;
+            ss << self;
+            return ss.str();
+        });
 
-    proc.def("__repr__", [](const ov::preprocess::PrePostProcessor& self) -> std::string {
-        return "<" + Common::get_class_name(self) + ": " + py::cast(self).attr("__str__")().cast<std::string>() + ">";
-    });
+    proc.def(
+        "__repr__",
+        [](const ov::preprocess::PrePostProcessor& self) -> std::string {
+            return "<" + Common::get_class_name(self) + ": " + py::cast(self).attr("__str__")().cast<std::string>() +
+                   ">";
+        });
 }

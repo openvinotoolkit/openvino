@@ -23,6 +23,7 @@
 #include "openvino/op/nv12_to_rgb.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/reverse.hpp"
 #include "openvino/op/round.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
@@ -866,5 +867,56 @@ std::tuple<Output<Node>, bool> PostStepsList::reverse_channels(const Output<Node
     return std::make_tuple(gather, false);
 }
 
+void PreStepsList::add_flip_impl(FlipMode mode) {
+    std::string name;
+    switch (mode) {
+    case FlipMode::HORIZONTAL:
+        name = "flip(horizontal)";
+        break;
+    case FlipMode::VERTICAL:
+        name = "flip(vertical)";
+        break;
+    default:
+        name = "flip(unknown)";
+        break;
+    }
+
+    m_actions.emplace_back(
+        [mode](const std::vector<Output<Node>>& nodes,
+               const std::shared_ptr<Model>& function,
+               PreprocessingContext& context) {
+            OPENVINO_ASSERT(nodes.size() == 1, "Preprocessing: Flip expects exactly one input");
+
+            const auto& layout = context.layout();
+            OPENVINO_ASSERT(!layout.empty(), "Preprocessing: Flip requires input layout to be set (e.g. 'NHWC')");
+
+            auto param_shape = nodes[0].get_partial_shape();
+            int axis_idx = -1;
+
+            switch (mode) {
+            case FlipMode::HORIZONTAL:
+                // get_and_check_width_idx asserts that width exists and rank is static
+                axis_idx = static_cast<int>(get_and_check_width_idx(layout, param_shape));
+                break;
+            case FlipMode::VERTICAL:
+                // get_and_check_height_idx asserts that height exists and rank is static
+                axis_idx = static_cast<int>(get_and_check_height_idx(layout, param_shape));
+                break;
+            default:
+                OPENVINO_ASSERT(false, "Preprocessing: Invalid FlipMode specified.");
+            }
+
+            // Create the Reverse Operation
+            auto axis_node = ov::op::v0::Constant::create(element::i32, {1}, {axis_idx});
+
+            auto reverse_op =
+                std::make_shared<ov::op::v1::Reverse>(nodes[0], axis_node, ov::op::v1::Reverse::Mode::INDEX);
+
+                
+            // Return the result
+            return std::make_tuple(std::vector<Output<Node>>{reverse_op}, true);
+        },
+        name);
+}
 }  // namespace preprocess
 }  // namespace ov
