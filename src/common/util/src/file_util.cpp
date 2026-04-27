@@ -106,8 +106,9 @@ void ov::util::recursive_iterate_files(const std::filesystem::path& path,
 
 std::filesystem::path ov::util::sanitize_path(const std::filesystem::path& dir,
                                               const std::filesystem::path& relative_path) {
-    const auto dir_canon_absolute = ov::util::get_absolute_file_path(std::filesystem::weakly_canonical(dir));
-    const auto merged_path = std::filesystem::weakly_canonical(dir / relative_path);
+    const auto base = dir.empty() ? std::filesystem::current_path() : dir;
+    const auto dir_canon_absolute = ov::util::get_absolute_file_path(std::filesystem::weakly_canonical(base));
+    const auto merged_path = std::filesystem::weakly_canonical(base / relative_path);
     auto absolute_path = ov::util::get_absolute_file_path(merged_path);
 
     const auto rel = absolute_path.lexically_relative(dir_canon_absolute);

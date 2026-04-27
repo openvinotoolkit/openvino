@@ -682,8 +682,6 @@ TEST_F(SanitizePathTest, invalid_windows_dotdot_backslash) {
 #endif
 
 TEST_F(SanitizePathTest, empty_dir_uses_cwd) {
-    // When dir is empty, sanitize_path falls back to current_path() as the base.
-    // A simple relative path must resolve without throwing and land under cwd.
     const auto result = ov::util::sanitize_path("", "tensors/data.bin");
     const auto expected = ov::util::get_absolute_file_path(
         std::filesystem::weakly_canonical(std::filesystem::current_path() / "tensors/data.bin"));
@@ -691,7 +689,6 @@ TEST_F(SanitizePathTest, empty_dir_uses_cwd) {
 }
 
 TEST_F(SanitizePathTest, empty_dir_dotdot_still_rejected) {
-    // Even with an empty dir (cwd as base), ".." must still be rejected.
     EXPECT_THROW(ov::util::sanitize_path("", ".."), std::runtime_error);
 }
 
