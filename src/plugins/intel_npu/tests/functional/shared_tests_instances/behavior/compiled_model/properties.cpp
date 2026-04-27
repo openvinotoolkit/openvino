@@ -40,22 +40,6 @@ std::vector<ov::AnyMap> operator+(std::vector<ov::AnyMap> origAnyMapVector,
     return newAnyMapVector;
 }
 
-std::vector<ov::AnyMap> operator-(const std::vector<ov::AnyMap>& anyMaps, const std::string& propertyName) {
-    std::vector<ov::AnyMap> result;
-    for (const auto& anyMap : anyMaps) {
-        ov::AnyMap anyMapResult;
-        for (const auto& keyValue : anyMap) {
-            if (keyValue.first != propertyName) {
-                anyMapResult.emplace(keyValue);
-            }
-        }
-        if (!anyMapResult.empty()) {
-            result.push_back(anyMapResult);
-        }
-    }
-    return result;
-}
-
 const std::vector<std::pair<std::string, ov::Any>> compiledModelProperties = {
     {ov::enable_profiling.name(), ov::Any(true)},
     {ov::hint::performance_mode.name(), ov::Any(ov::hint::PerformanceMode::THROUGHPUT)},
@@ -179,9 +163,7 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVClassCompiledModelPropertiesTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(compiledModelConfigs
-                                                                // cannot get WO property, exclude
-                                                                - ov::cache_encryption_callbacks.name())),
+                                            ::testing::ValuesIn(compiledModelConfigs)),
                          (ov::test::utils::appendPlatformTypeTestName<OVClassCompiledModelPropertiesTests, true>));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
