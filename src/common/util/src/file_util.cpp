@@ -110,9 +110,11 @@ std::filesystem::path ov::util::sanitize_path(const std::filesystem::path& dir,
     const auto merged_path = std::filesystem::weakly_canonical(dir / relative_path);
     auto absolute_path = ov::util::get_absolute_file_path(merged_path);
 
-    if (absolute_path.string().find(dir_canon_absolute.string()) != 0) {
+    const auto rel = absolute_path.lexically_relative(dir_canon_absolute);
+    if (rel.empty() || *rel.begin() == "..") {
         std::stringstream ss;
-        ss << "Path traversal detected in external_data location: " << relative_path;
+        ss << "Path '" << path_to_string(relative_path) << "' resolves to '" << path_to_string(absolute_path)
+           << "' which is outside the base directory '" << path_to_string(dir_canon_absolute) << "'";
         throw std::runtime_error(ss.str());
     }
 

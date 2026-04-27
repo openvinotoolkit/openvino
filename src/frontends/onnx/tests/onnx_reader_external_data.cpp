@@ -35,8 +35,7 @@ TEST(onnx_external_data, sanitize_external_data_location) {
     EXPECT_STREQ("workspace/data/tensor.data", sanitize_external_data_location("workspace/data/tensor.data").c_str());
     EXPECT_STREQ("tensor.data", sanitize_external_data_location("..\\..\\tensor.data").c_str());
     EXPECT_STREQ("workspace\\tensor.data", sanitize_external_data_location("C:\\workspace\\tensor.data").c_str());
-    EXPECT_STREQ("etc/passwd",
-                 sanitize_external_data_location("directory/../../../../../etc/passwd").c_str());
+    EXPECT_STREQ("etc/passwd", sanitize_external_data_location("directory/../../../../../etc/passwd").c_str());
     EXPECT_STREQ("*/_ORT_MEM_ADDR_/*", sanitize_external_data_location("*/_ORT_MEM_ADDR_/*").c_str());
 }
 
@@ -268,9 +267,7 @@ TEST_P(OnnxFeMmapFixture, onnx_external_invalid_up_dir_path) {
         core.read_model(path);
         FAIL() << "Incorrect path to external data not detected";
     } catch (const Exception& ex) {
-        EXPECT_PRED_FORMAT2(testing::IsSubstring,
-                            string("Path traversal detected in external_data location"),
-                            ex.what());
+        EXPECT_PRED_FORMAT2(testing::IsSubstring, string("which is outside the base directory"), ex.what());
     } catch (...) {
         FAIL() << "Importing onnx model failed for unexpected reason";
     }
