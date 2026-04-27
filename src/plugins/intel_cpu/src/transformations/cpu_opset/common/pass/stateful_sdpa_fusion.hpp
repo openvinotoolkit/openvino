@@ -11,10 +11,10 @@
 #include "openvino/pass/pass.hpp"
 
 namespace ov::intel_cpu {
-class StatefulSDPAFusion : public ov::pass::MatcherPass {
+class StatefulSDPAFusion : public ov::pass::ModelPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("StatefulSDPAFusion");
-    StatefulSDPAFusion();
+    OPENVINO_MODEL_PASS_RTTI("StatefulSDPAFusion");
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
 class SDPASubgraphFusion : public ov::pass::ModelPass {
