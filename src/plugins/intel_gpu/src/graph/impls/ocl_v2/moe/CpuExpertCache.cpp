@@ -6,8 +6,7 @@
 
 namespace ov::intel_gpu::ocl {
 
-CpuExpertCache::CpuExpertCache(size_t max_experts)
-    : m_max_experts(max_experts), m_pool(max_experts) {
+CpuExpertCache::CpuExpertCache(size_t max_experts) : m_max_experts(max_experts), m_pool(max_experts) {
     m_free_slots.reserve(max_experts);
     for (size_t i = max_experts; i > 0; --i) {
         m_free_slots.push_back(i - 1);

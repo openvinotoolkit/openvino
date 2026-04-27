@@ -1044,8 +1044,7 @@ public:
 
             if (max_cpu_experts > 0) {
                 _cpu_cache = std::make_shared<ov::intel_gpu::ocl::CpuExpertCache>(max_cpu_experts);
-                GPU_DEBUG_TRACE_DETAIL << "[OTD] CPU cache enabled: max_experts=" << max_cpu_experts
-                                       << ", total_experts=" << total_experts
+                GPU_DEBUG_TRACE_DETAIL << "[OTD] CPU cache enabled: max_experts=" << max_cpu_experts << ", total_experts=" << total_experts
                                        << ", lru_expert_num=" << _lru_expert_num << std::endl;
             }
         }

@@ -39,16 +39,24 @@ public:
     void store(size_t layer, size_t expert, ExpertData&& data);
 
     size_t size() const;
-    size_t capacity() const { return m_max_experts; }
+    size_t capacity() const {
+        return m_max_experts;
+    }
 
-    uint64_t hits() const { return m_hits; }
-    uint64_t misses() const { return m_misses; }
+    uint64_t hits() const {
+        return m_hits;
+    }
+    uint64_t misses() const {
+        return m_misses;
+    }
 
 private:
     struct CacheKey {
         size_t layer;
         size_t expert;
-        bool operator==(const CacheKey& o) const { return layer == o.layer && expert == o.expert; }
+        bool operator==(const CacheKey& o) const {
+            return layer == o.layer && expert == o.expert;
+        }
     };
 
     struct KeyHash {

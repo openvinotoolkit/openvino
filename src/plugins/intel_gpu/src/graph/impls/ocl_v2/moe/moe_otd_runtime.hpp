@@ -70,29 +70,27 @@ struct OtdPerfCounters {
         const auto cpu_m = cpu_cache_misses.load(std::memory_order_relaxed);
         const auto cpu_total = cpu_h + cpu_m;
 
-        std::cerr << "[OTD_PERF] gpu_hits=" << hits
-                  << ", gpu_misses=" << misses
-                  << ", gpu_hit_rate=" << (total > 0 ? 100.0 * hits / total : 0.0) << "%"
-                  << ", cpu_cache_hits=" << cpu_h
-                  << ", cpu_cache_misses=" << cpu_m
-                  << ", cpu_hit_rate=" << (cpu_total > 0 ? 100.0 * cpu_h / cpu_total : 0.0) << "%"
-                  << ", tensor_loads=" << loads
-                  << ", avg_disk_io_us=" << (loads > 0 ? disk_io_ns.load(std::memory_order_relaxed) / 1000 / loads : 0)
+        std::cerr << "[OTD_PERF] gpu_hits=" << hits << ", gpu_misses=" << misses << ", gpu_hit_rate=" << (total > 0 ? 100.0 * hits / total : 0.0) << "%"
+                  << ", cpu_cache_hits=" << cpu_h << ", cpu_cache_misses=" << cpu_m << ", cpu_hit_rate=" << (cpu_total > 0 ? 100.0 * cpu_h / cpu_total : 0.0)
+                  << "%"
+                  << ", tensor_loads=" << loads << ", avg_disk_io_us=" << (loads > 0 ? disk_io_ns.load(std::memory_order_relaxed) / 1000 / loads : 0)
                   << ", avg_transpose_us=" << (loads > 0 ? transpose_ns.load(std::memory_order_relaxed) / 1000 / loads : 0)
                   << ", avg_gpu_copy_us=" << (loads > 0 ? gpu_copy_ns.load(std::memory_order_relaxed) / 1000 / loads : 0)
                   << ", total_disk_io_ms=" << disk_io_ns.load(std::memory_order_relaxed) / 1000000
-                  << ", total_gpu_copy_ms=" << gpu_copy_ns.load(std::memory_order_relaxed) / 1000000
-                  << std::endl;
+                  << ", total_gpu_copy_ms=" << gpu_copy_ns.load(std::memory_order_relaxed) / 1000000 << std::endl;
     }
 };
 
 inline OtdPerfCounters* get_perf_counters() {
     static bool enabled = std::getenv("MOE_OTD_PERF_LOG") != nullptr;
-    if (!enabled) return nullptr;
+    if (!enabled)
+        return nullptr;
 
     static OtdPerfCounters counters;
     static bool registered = [] {
-        std::atexit([] { counters.dump(); });
+        std::atexit([] {
+            counters.dump();
+        });
         return true;
     }();
     (void)registered;
@@ -358,7 +356,8 @@ inline void fill_weights_memory(cldnn::stream& exec_stream,
 
     // Helper: compute dst_offset for a given tensor and lru slot (no file validation needed)
     auto compute_dst_offset = [&](cldnn::memory_ptr mem, size_t lru_expert_no) -> size_t {
-        if (!mem) return 0;
+        if (!mem)
+            return 0;
         const auto total_bytes = mem->get_layout().bytes_count();
         return lru_expert_no * (total_bytes / num_expert);
     };
@@ -374,23 +373,27 @@ inline void fill_weights_memory(cldnn::stream& exec_stream,
                 // Copy post-transpose data directly from CPU cache to GPU
                 for (size_t i = 0; i < CpuExpertCache::tensor_count; ++i) {
                     auto mem = tensors_by_offset[i];
-                    if (!mem || cached->sizes[i] == 0) continue;
+                    if (!mem || cached->sizes[i] == 0)
+                        continue;
                     size_t dst_off = compute_dst_offset(mem, lru_experts[index]);
                     if (perf) {
                         auto t0 = std::chrono::steady_clock::now();
                         mem->copy_from(exec_stream, cached->tensors[i].data(), 0, dst_off, cached->sizes[i], true);
                         auto t1 = std::chrono::steady_clock::now();
-                        perf->gpu_copy_ns.fetch_add(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()), std::memory_order_relaxed);
+                        perf->gpu_copy_ns.fetch_add(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()),
+                                                    std::memory_order_relaxed);
                         perf->tensor_load_count.fetch_add(1, std::memory_order_relaxed);
                     } else {
                         mem->copy_from(exec_stream, cached->tensors[i].data(), 0, dst_off, cached->sizes[i], true);
                     }
                 }
-                if (perf) perf->cpu_cache_hits.fetch_add(1, std::memory_order_relaxed);
+                if (perf)
+                    perf->cpu_cache_hits.fetch_add(1, std::memory_order_relaxed);
                 ++index;
                 continue;
             }
-            if (perf) perf->cpu_cache_misses.fetch_add(1, std::memory_order_relaxed);
+            if (perf)
+                perf->cpu_cache_misses.fetch_add(1, std::memory_order_relaxed);
         }
 
         // --- CPU cache miss path: read from disk ---
@@ -403,7 +406,8 @@ inline void fill_weights_memory(cldnn::stream& exec_stream,
 
         auto make_tensor_fill_plan = [&](size_t base_offset, cldnn::memory_ptr mem, size_t expert_no, size_t lru_expert_no, const char* tensor_name) {
             tensor_fill_plan plan;
-            if (!mem) return plan;
+            if (!mem)
+                return plan;
             const auto total_bytes = mem->get_layout().bytes_count();
             OPENVINO_ASSERT(num_expert > 0, "Invalid expert count");
             plan.per_expert_size = total_bytes / num_expert;
@@ -411,9 +415,18 @@ inline void fill_weights_memory(cldnn::stream& exec_stream,
             plan.dst_offset = lru_expert_no * plan.per_expert_size;
             OPENVINO_ASSERT(plan.src_offset <= weight_file_size, "Invalid src_offset out of file: ", plan.src_offset, ", file_size=", weight_file_size);
             OPENVINO_ASSERT(plan.per_expert_size <= weight_file_size - plan.src_offset,
-                            "Read range out of file for tensor ", tensor_name,
-                            ": src_offset=", plan.src_offset, ", per_expert_size=", plan.per_expert_size,
-                            ", file_size=", weight_file_size, ", base_offset=", base_offset, ", expert=", expert_no);
+                            "Read range out of file for tensor ",
+                            tensor_name,
+                            ": src_offset=",
+                            plan.src_offset,
+                            ", per_expert_size=",
+                            plan.per_expert_size,
+                            ", file_size=",
+                            weight_file_size,
+                            ", base_offset=",
+                            base_offset,
+                            ", expert=",
+                            expert_no);
             return plan;
         };
 
@@ -431,7 +444,8 @@ inline void fill_weights_memory(cldnn::stream& exec_stream,
                     auto t0 = std::chrono::steady_clock::now();
                     weight_reader.read(reinterpret_cast<char*>(payload.data()), plan.per_expert_size, plan.src_offset);
                     auto t1 = std::chrono::steady_clock::now();
-                    perf->disk_io_ns.fetch_add(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()), std::memory_order_relaxed);
+                    perf->disk_io_ns.fetch_add(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()),
+                                               std::memory_order_relaxed);
                 } else {
                     weight_reader.read(reinterpret_cast<char*>(payload.data()), plan.per_expert_size, plan.src_offset);
                 }
@@ -446,8 +460,10 @@ inline void fill_weights_memory(cldnn::stream& exec_stream,
                     auto t1 = std::chrono::steady_clock::now();
                     mem->copy_from(exec_stream, payload.data(), 0, plan.dst_offset, plan.per_expert_size, true);
                     auto t2 = std::chrono::steady_clock::now();
-                    perf->transpose_ns.fetch_add(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()), std::memory_order_relaxed);
-                    perf->gpu_copy_ns.fetch_add(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()), std::memory_order_relaxed);
+                    perf->transpose_ns.fetch_add(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()),
+                                                 std::memory_order_relaxed);
+                    perf->gpu_copy_ns.fetch_add(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()),
+                                                std::memory_order_relaxed);
                     perf->tensor_load_count.fetch_add(1, std::memory_order_relaxed);
                 } else {
                     maybe_transpose_scale_zp(desc, tensor_names[offset_pos], mem->get_layout(), payload, plan.per_expert_size);
@@ -471,7 +487,8 @@ inline void fill_weights_memory(cldnn::stream& exec_stream,
 }
 
 inline uint32_t get_lru_expert_no(typed_primitive_inst<cldnn::moe_3gemm_fused_compressed>& instance,
-                                  uint32_t expert, LRUCache& cache,
+                                  uint32_t expert,
+                                  LRUCache& cache,
                                   CpuExpertCache* cpu_cache = nullptr) {
     auto cur_moe = instance.get_typed_desc<cldnn::moe_3gemm_fused_compressed>();
     auto& stream = instance.get_network().get_stream();
@@ -482,9 +499,11 @@ inline uint32_t get_lru_expert_no(typed_primitive_inst<cldnn::moe_3gemm_fused_co
 
     auto* perf = get_perf_counters();
     if (item.second) {
-        if (perf) perf->gpu_hits.fetch_add(1, std::memory_order_relaxed);
+        if (perf)
+            perf->gpu_hits.fetch_add(1, std::memory_order_relaxed);
     } else {
-        if (perf) perf->gpu_misses.fetch_add(1, std::memory_order_relaxed);
+        if (perf)
+            perf->gpu_misses.fetch_add(1, std::memory_order_relaxed);
         std::vector<uint32_t> experts_list_single;
         experts_list_single.push_back(expert);
         std::vector<uint32_t> lru_experts_list_single;
