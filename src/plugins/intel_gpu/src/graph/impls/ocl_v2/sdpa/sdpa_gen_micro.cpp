@@ -1030,16 +1030,16 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
 
     auto data_inputs_num = micro_get_input_num(params, config);
 
-    size_t attn_input_idx = 3;
     size_t scale_input_idx = 4;
     jit.make("IS_CAUSAL", config.is_causal);
     if (!config.is_paged_attention) {
+        const bool has_attn_mask_input = sdpa_has_runtime_attn_mask_input(params);
         if (config.has_const_attn_mask_val) {
             jit.make("WITH_ATTN_MASK", 0);
             jit.make("STATIC_SCALAR_ATTN_MASK_VALUE", config.attn_mask_val);
             // scale_input_idx -= 1;
         } else {
-            jit.make("WITH_ATTN_MASK", data_inputs_num > attn_input_idx);
+            jit.make("WITH_ATTN_MASK", has_attn_mask_input ? 1 : 0);
         }
     } else {
         jit.make("WITH_ATTN_MASK", 0);
@@ -1261,7 +1261,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     jit.add(unit_parameters("VAL"));
     jit.add(unit_parameters("DST"));
 
-    if (data_inputs_num > 3 && !config.has_const_attn_mask_val) {
+    if (data_inputs_num > 3 && !config.is_paged_attention && sdpa_has_runtime_attn_mask_input(params)) {
         jit.add(convert_strides("MSK", "INPUT3", {0, 1, 2, 3}));
         jit.add(unit_parameters("MSK"));
     }
@@ -1326,7 +1326,7 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});                                        // A
 
         const uint32_t attn_mask_idx = ScaledDotProductAttentionInputIdx::ATTN_MASK;
-        if (config.input_num > attn_mask_idx && !config.has_const_attn_mask_val)
+        if (sdpa_has_runtime_attn_mask_input(params))
             args.push_back({ArgumentDescriptor::Types::INPUT, attn_mask_idx});  // mask
         const uint32_t scale_idx = ScaledDotProductAttentionInputIdx::SCALE;
         if (config.input_num > scale_idx && !config.has_const_scale_val)

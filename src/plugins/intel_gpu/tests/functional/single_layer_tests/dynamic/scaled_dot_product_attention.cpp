@@ -195,18 +195,29 @@ void ScaledAttnLayerGPUTest::SetUp() {
     manager.run_passes(functionRefs);
 
     auto it = std::find_if(inputShapes[1].second.begin(), inputShapes[1].second.end(), [&](const ov::Shape& shape){
-        return shape[0] >= 128 || shape[2] >= 384 || shape[3] >= 128;
-    });
+        if (shape.empty()) {
+            return false;
+        }
 
-    bool has_diff_head_size = inputShapes[1].first.begin()[3] != inputShapes[2].first.begin()[3];
+        const auto rank = shape.size();
+        const auto seq_idx = rank >= 2 ? rank - 2 : 0;
+        const auto head_idx = rank - 1;
+        return shape[0] >= 128 || shape[seq_idx] >= 384 || shape[head_idx] >= 128;
+     });
+
+    const auto k_last_dim_idx = inputShapes[1].first.rank().get_length() - 1;
+    const auto v_last_dim_idx = inputShapes[2].first.rank().get_length() - 1;
+    const auto& k_last_dim = inputShapes[1].first[k_last_dim_idx];
+    const auto& v_last_dim = inputShapes[2].first[v_last_dim_idx];
+    bool has_diff_head_size = k_last_dim != v_last_dim;
 
     bool has_long_seq = it != inputShapes[1].second.end();
 
     // [TODO] sdpa_micro has an accuracy issue to be fixed, use the has_non_pow2_head check as a workaround. (CVS-182520)
     // Let's remove this has_non_pow2_head check after the fix.
     bool has_non_pow2_head = (inputShapes[1].first.rank().get_length() == 4
-        && inputShapes[1].first[-1].is_static()
-        && ((inputShapes[1].first[-1].get_length() & (inputShapes[1].first[-1].get_length() - 1)) != 0));
+        && k_last_dim.is_static()
+        && ((k_last_dim.get_length() & (k_last_dim.get_length() - 1)) != 0));
 
     if (inType == ov::element::f16) {
         if (has_sink || (has_diff_head_size && !has_scale)) {
