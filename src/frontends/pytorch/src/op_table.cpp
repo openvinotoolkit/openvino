@@ -143,6 +143,7 @@ OP_CONVERTER(translate_instance_norm);
 OP_CONVERTER(translate_int);
 OP_CONVERTER(translate_inverse);
 OP_CONVERTER(translate_istft);
+OP_CONVERTER(translate_is_nested);
 OP_CONVERTER(translate_is_nonzero);
 OP_CONVERTER(translate_kthvalue);
 OP_CONVERTER(translate_layer_norm);
@@ -266,6 +267,7 @@ OP_CONVERTER(translate_sum);
 OP_CONVERTER(translate_t);
 OP_CONVERTER(translate_take_along_dim);
 OP_CONVERTER(translate_to);
+OP_CONVERTER(translate_tolist);
 OP_CONVERTER(translate_topk);
 OP_CONVERTER(translate_transpose);
 OP_CONVERTER(translate_tril);
@@ -761,6 +763,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         // aten::tensor_split - Supported in limited set of patterns
         {"aten::tile", op::translate_1to1_match_2_inputs<opset10::Tile>},
         {"aten::to", op::translate_to},
+        {"aten::tolist", op::translate_tolist},
         {"aten::topk", op::translate_topk},
         {"aten::transpose", op::quantizable_op<op::translate_transpose>},
         {"aten::tril", op::translate_tril},
@@ -805,6 +808,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"prim::GetAttr", op::translate_get_attr},
         {"prim::If", op::translate_if},
         {"prim::is_cuda", op::return_false_scalar},
+        {"prim::is_nested", op::translate_is_nested},
         {"prim::ListConstruct", op::translate_list_construct},
         {"prim::ListUnpack", op::translate_list_unpack},
         {"prim::Loop", op::translate_loop},
@@ -816,6 +820,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"prim::TupleConstruct", op::translate_list_construct},
         {"prim::TupleIndex", op::translate_tuple_index},
         {"prim::TupleUnpack", op::translate_tuple_unpack},
+        {"prim::tolist", op::translate_tolist},
         {"prim::type", op::skip_node},  // Used with prim::device, pass PtFrameworkNode.
         {"prim::data", op::skip_node},
         {"quantized::add", op::translate_quantized_add},
