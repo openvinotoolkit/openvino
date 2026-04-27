@@ -4,6 +4,13 @@
 
 #include "compiler_impl.hpp"
 
+#if defined(_WIN32)
+#    include <malloc.h>
+#else
+#    include <stdlib.h>
+#endif
+
+#include <algorithm>
 #include <iostream>
 #include <limits>
 #include <mutex>
@@ -70,6 +77,68 @@ struct vcl_allocator_2 : vcl_allocator2_t {
     std::vector<std::pair<uint8_t*, size_t>> m_info;
 };
 
+struct vcl_allocator_3 : vcl_allocator2_t {
+    vcl_allocator_3() : vcl_allocator2_t{allocate, deallocate} {}
+
+    ~vcl_allocator_3() {
+        for (auto& item : m_info) {
+            if (item.first) {
+#if defined(_WIN32)
+                _aligned_free(item.first);
+#else
+                free(item.first);
+#endif
+            }
+        }
+        m_info.clear();
+    }
+
+    static uint8_t* allocate(vcl_allocator2_t* allocator, size_t size) {
+        vcl_allocator_3* vclAllocator = static_cast<vcl_allocator_3*>(allocator);
+        size_t alignment = intel_npu::utils::STANDARD_PAGE_SIZE;
+        size_t alignedSize = intel_npu::utils::align_size_to_standard_page_size(size);
+
+        uint8_t* allocatedPtr = nullptr;
+#if defined(_WIN32)
+        allocatedPtr = static_cast<uint8_t*>(_aligned_malloc(alignedSize, alignment));
+#else
+        if (posix_memalign(reinterpret_cast<void**>(&allocatedPtr), alignment, alignedSize) != 0) {
+            allocatedPtr = nullptr;
+        }
+#endif
+
+        if (allocatedPtr == nullptr) {
+            OPENVINO_THROW("Failed to allocate aligned memory in vcl_allocator_3");
+        }
+        memset(allocatedPtr + size, 0, alignedSize - size);
+        vclAllocator->m_info.emplace_back(std::make_pair(allocatedPtr, alignedSize));
+        std::cout << "[vcl_allocator_3] allocate requested size:" << size << " alignedSize:" << alignedSize
+                  << " ptr:" << static_cast<void*>(allocatedPtr) << std::endl;
+        return allocatedPtr;
+    }
+
+    static void deallocate(vcl_allocator2_t* allocator, uint8_t* ptr) {
+        if (ptr == nullptr) {
+            OPENVINO_THROW("Pointer is nullptr in deallocate!");
+        }
+        vcl_allocator_3* vclAllocator = static_cast<vcl_allocator_3*>(allocator);
+
+        for (auto it = vclAllocator->m_info.begin(); it != vclAllocator->m_info.end(); ++it) {
+            if (it->first == ptr) {
+                vclAllocator->m_info.erase(it);
+                break;
+            }
+        }
+
+#if defined(_WIN32)
+        _aligned_free(ptr);
+#else
+        free(ptr);
+#endif
+    }
+    std::vector<std::pair<uint8_t*, size_t>> m_info;
+};
+
 ov::Tensor make_tensor_from_aligned_addr(uint8_t* allocated, size_t size) {
     ov::Allocator allocator;
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{size}, allocated);
@@ -79,6 +148,34 @@ ov::Tensor make_tensor_from_aligned_addr(uint8_t* allocated, size_t size) {
             OPENVINO_THROW("Pointer is nullptr in memory deallocation of make_tensor_from_aligned_addr!");
         }
         allocator.deallocate(p, size, intel_npu::utils::STANDARD_PAGE_SIZE);
+    });
+    impl._so = ptr;
+    return ov::make_tensor(impl);
+}
+
+ov::Tensor make_tensor_from_aligned_addr_vcl_3(uint8_t* allocated, size_t size, vcl_allocator_3& sourceAllocator) {
+    // 1. Remove pointer from allocator's m_info to avoid double free
+    auto it = std::find_if(sourceAllocator.m_info.begin(),
+                           sourceAllocator.m_info.end(),
+                           [allocated](const std::pair<uint8_t*, size_t>& item) {
+                               return item.first == allocated;
+                           });
+    if (it != sourceAllocator.m_info.end()) {
+        sourceAllocator.m_info.erase(it);
+    }
+
+    // 2. Wrap Tensor and manage freeing directly using native free
+    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{size}, allocated);
+    auto impl = ov::get_tensor_impl(std::move(tensor));
+    std::shared_ptr<void> ptr(allocated, [](uint8_t* p) {
+        if (p == nullptr) {
+            OPENVINO_THROW("Pointer is nullptr in memory deallocation of make_tensor_from_aligned_addr_vcl_3!");
+        }
+#if defined(_WIN32)
+        _aligned_free(p);
+#else
+        free(p);
+#endif
     });
     impl._so = ptr;
     return ov::make_tensor(impl);
@@ -291,7 +388,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
         // support the lastest vcl api
         // For VCL 8.1 and later, we can use vclAllocatedExecutableCreate3
         _logger.debug("Using vclAllocatedExecutableCreate3 for 8.1 <= VCL");
-        vcl_allocator_2 allocator;
+        vcl_allocator_3 allocator;
         uint8_t* blob = nullptr;
         size_t blobSize = 0;
         uint8_t* compatibilityStringBuffer = nullptr;
@@ -329,7 +426,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
         _logger.debug("Blob size from VCL: %zu ptr %p", blobSize, static_cast<void*>(blob));
         _logger.debug("Allocated vector size: %zu ptr: %p", *alignedBlobSize, static_cast<void*>(blob));
 
-        ov::Tensor alignedBlob = make_tensor_from_aligned_addr(blob, *alignedBlobSize);
+        ov::Tensor alignedBlob = make_tensor_from_aligned_addr_vcl_3(blob, *alignedBlobSize, allocator);
         std::optional<std::string> compatibilityString;
 
         if (!storeWeightlessCacheAttributeFlag) {
@@ -412,7 +509,7 @@ std::vector<ov::Tensor> VCLCompilerImpl::compileWsOneShot(const std::shared_ptr<
     _logger.debug("compiler vcl version: %d.%d", _vclVersion.major, _vclVersion.minor);
 
     _logger.debug("Using vclAllocatedExecutableCreateWSOneShot");
-    vcl_allocator_2 allocator;
+    vcl_allocator_3 allocator;
 
     THROW_ON_FAIL_FOR_VCL("vclAllocatedExecutableCreateWSOneShot",
                           vclAllocatedExecutableCreateWSOneShot(_compilerHandle, exeDesc, &allocator),
@@ -423,8 +520,9 @@ std::vector<ov::Tensor> VCLCompilerImpl::compileWsOneShot(const std::shared_ptr<
     }
 
     std::vector<ov::Tensor> initMainTensors;
-    for (auto& blob : allocator.m_info) {
-        initMainTensors.emplace_back(make_tensor_from_aligned_addr(blob.first, blob.second));
+    while (!allocator.m_info.empty()) {
+        auto blob = allocator.m_info.front();
+        initMainTensors.emplace_back(make_tensor_from_aligned_addr_vcl_3(blob.first, blob.second, allocator));
     }
     return initMainTensors;
 }
