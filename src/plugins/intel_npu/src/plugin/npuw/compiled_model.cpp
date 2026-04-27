@@ -2469,9 +2469,9 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::cache_dir, NPUW_CACHE_DIR),
                           BIND(npuw::accuracy::check, NPUW_ACC_CHECK),
                           BIND(npuw::accuracy::threshold, NPUW_ACC_THRESH),
-                          BIND(npuw::accuracy::reference_device, NPUW_ACC_DEVICE),
+                          BIND(npuw::accuracy::reference_device, NPUW_ACC_DEVICE)
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
-                          BIND(npuw::dump::full, NPUW_DUMP_FULL),
+                          ,BIND(npuw::dump::full, NPUW_DUMP_FULL),
                           BIND(npuw::dump::subgraphs, NPUW_DUMP_SUBS),
                           BIND(npuw::dump::subgraphs_on_fail, NPUW_DUMP_SUBS_ON_FAIL),
                           BIND(npuw::dump::inputs_outputs, NPUW_DUMP_IO),

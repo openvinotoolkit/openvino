@@ -20,7 +20,11 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
                        const bool is_prefill = false) {
     std::map<std::string, ov::PartialShape> new_shapes;
     for (const auto& input : model->inputs()) {
-        const auto& input_name = input.get_any_name();
+        const auto& input_names = input.get_names();
+        if (input_names.empty()) {
+            continue;
+        }
+        const auto& input_name = *input_names.begin();
         ov::PartialShape new_shape;
         if (input_name.find("input_ids") != std::string::npos) {
             new_shape = ov::PartialShape({1, input_size});
@@ -31,11 +35,18 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             NPUW_ASSERT(input.get_partial_shape().size() == 3u);
             NPUW_ASSERT(input.get_partial_shape()[2].is_static());
             new_shape = ov::PartialShape({1, input_size, input.get_partial_shape()[2]});
+        } else if (input_name.find("deepstack_visual_embeds") != std::string::npos) {
+            // NB: VLMs case, model accepts deepstack_visual_embeds[BATCH, SEQ_LEN, EMB_SIZE]
+            NPUW_ASSERT(input.get_partial_shape().size() == 3u);
+            NPUW_ASSERT(input.get_partial_shape()[2].is_static());
+            new_shape = ov::PartialShape({1, input_size, input.get_partial_shape()[2]});
         } else if (input_name.find("attention_mask") != std::string::npos) {
             new_shape = ov::PartialShape({1, kvcache_size});
             if (lhs_seq_size && kvcache_size > 4)
                 // NB: for whisper kvcache model attn mask should be size + 1
                 new_shape = ov::PartialShape({1, kvcache_size + 1});
+        } else if (input_name.find("visual_pos_masks") != std::string::npos) {
+            new_shape = ov::PartialShape({2, input_size});
         } else if (input_name.find("position_ids") != std::string::npos) {
             const auto partial_shape_size = input.get_partial_shape().size();
             // NB: Regular LLM uses 2D shapes, Qwen2.5 VL/Omni uses 3D shapes
