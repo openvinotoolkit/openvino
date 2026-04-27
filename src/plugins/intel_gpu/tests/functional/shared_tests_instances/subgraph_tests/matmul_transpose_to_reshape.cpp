@@ -10,8 +10,6 @@ namespace {
 
 std::vector<ov::element::Type> netPrecisions = {ov::element::f32};
 
-ov::AnyMap additional_config = {};
-
 }  // namespace
 
 namespace ov {
@@ -20,8 +18,7 @@ namespace test {
 INSTANTIATE_TEST_SUITE_P(smoke_basic,
                          MatMulTransposeToReshape,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::Values(additional_config)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          MatMulTransposeToReshape::getTestCaseName);
 
 }  // namespace test
