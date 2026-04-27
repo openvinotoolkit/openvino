@@ -766,7 +766,7 @@ std::string CompiledKernelsCacheTest::getTestCaseName(testing::TestParamInfo<com
     std::ostringstream result;
     result << "device_name=" << deviceName << "_";
     if (!properties.empty()) {
-        result << "properties=" << util::join(util::split(util::to_string(properties), ' '), "_");
+        result << "properties=" << util::join(util::split(util::to_string(properties), " "), "_");
     }
     result << userConfig.second;
     return result.str();

@@ -68,20 +68,23 @@ TEST_P(OVCompiledGraphImportExportTestNPU, CanImportModelWithApplicationHeaderAn
     }
 }
 
-TEST_P(OVCompiledGraphImportExportTestNPU, CheckSizeOfExportedModelIfMultipleOfPageSize) {
+TEST_P(OVCompiledGraphImportExportTestNPU, CheckSizeOfRawBlobIfMultipleOfPageSize) {
     ov::Core core;
     std::stringstream sstream;
 
+    auto rawBlobConfig = configuration;
+    rawBlobConfig.emplace(ov::intel_npu::export_raw_blob(true));
+
     auto model = ov::test::utils::make_conv_pool_relu();
-    core.compile_model(model, target_device, configuration).export_model(sstream);
+    core.compile_model(model, target_device, rawBlobConfig).export_model(sstream);
 
     std::size_t size = sstream.str().size();
 
-    ASSERT_TRUE(size != 0) << "Size of the exported model shall be different from 0";
-    ASSERT_TRUE(size % 4096 == 0) << "Size of the exported model shall be multiple of 4096";
+    ASSERT_TRUE(size != 0) << "Size of the blob should be different from 0";
+    ASSERT_TRUE(size % 4096 == 0) << "Size of the blob should be multiple of 4096";
 }
 
-TEST_P(OVCompiledGraphImportExportTestNPU, CheckSizeOfBlobIfMultipleOfPageSize) {
+TEST_P(OVCompiledGraphImportExportTestNPU, CheckSizeOfExportedModelIfMultipleOfPageSize) {
     ov::Core core;
     std::stringstream sstream;
 
