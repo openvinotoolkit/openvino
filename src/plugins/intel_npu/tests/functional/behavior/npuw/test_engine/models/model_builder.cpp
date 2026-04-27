@@ -735,8 +735,8 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
         full_mask = make_causal_mask(seq_source, attention_mask->output(0), prec);
     }
     if (has_sliding) {
-        sliding_mask =
-            make_sliding_window_mask(seq_source, attention_mask->output(0), prec, config.sliding_window_size);
+        const auto& mask_fn = config.sliding_mask_fn ? config.sliding_mask_fn : SlidingMaskFn(make_sliding_window_mask);
+        sliding_mask = mask_fn(seq_source, attention_mask->output(0), prec, config.sliding_window_size);
     }
 
     // Apply VLM bidirectional modifier for image tokens
