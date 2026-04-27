@@ -47,6 +47,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSupportedPropertiesAreAvailable
         RO_property(ov::intel_cpu::denormals_optimization.name()),
         RO_property(ov::log::level.name()),
         RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+        RO_property(ov::intel_cpu::multi_app_thread_sync_execution.name()),
         RO_property(ov::intel_cpu::enable_tensor_parallel.name()),
         RO_property(ov::intel_cpu::tbb_partitioner.name()),
         RO_property(ov::hint::dynamic_quantization_group_size.name()),
@@ -540,6 +541,138 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuModelDistributionPolicyTensorParallel) {
     OV_ASSERT_NO_THROW(enable_tensor_parallel = compiledModel.get_property(ov::intel_cpu::enable_tensor_parallel));
     ASSERT_EQ(model_distribution_policy_value, setModels);
     ASSERT_EQ(enable_tensor_parallel, true);
+}
+
+// ---------------------------------------------------------------------------
+// B6: Default value is false at compiled model level
+// ---------------------------------------------------------------------------
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkMultiAppThreadSyncDefaultIsFalse) {
+    ov::Core core;
+    ov::CompiledModel compiledModel = core.compile_model(model, deviceName);
+    bool value = true;
+    OV_ASSERT_NO_THROW(value = compiledModel.get_property(
+                           ov::intel_cpu::multi_app_thread_sync_execution));
+    ASSERT_FALSE(value);
+}
+
+// ---------------------------------------------------------------------------
+// B7: Compile with true — get_property reads back true
+// ---------------------------------------------------------------------------
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkMultiAppThreadSyncSetTrue) {
+    ov::Core core;
+    ov::CompiledModel compiledModel = core.compile_model(
+        model, deviceName, {{ov::intel_cpu::multi_app_thread_sync_execution.name(), true}});
+    bool value = false;
+    OV_ASSERT_NO_THROW(value = compiledModel.get_property(
+                           ov::intel_cpu::multi_app_thread_sync_execution));
+    ASSERT_TRUE(value);
+}
+
+// ---------------------------------------------------------------------------
+// B8: Compile with explicit false — get_property reads back false
+// ---------------------------------------------------------------------------
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkMultiAppThreadSyncSetFalse) {
+    ov::Core core;
+    ov::CompiledModel compiledModel = core.compile_model(
+        model, deviceName, {{ov::intel_cpu::multi_app_thread_sync_execution.name(), false}});
+    bool value = true;
+    OV_ASSERT_NO_THROW(value = compiledModel.get_property(
+                           ov::intel_cpu::multi_app_thread_sync_execution));
+    ASSERT_FALSE(value);
+}
+
+// ---------------------------------------------------------------------------
+// B9: Inference with multi_app_thread_sync_execution=true must not throw
+//     and must produce a non-empty output tensor
+// ---------------------------------------------------------------------------
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkMultiAppThreadSyncInferNoThrow) {
+    ov::Core core;
+    ov::CompiledModel compiledModel = core.compile_model(
+        model, deviceName,
+        {{ov::intel_cpu::multi_app_thread_sync_execution.name(), true},
+         {ov::num_streams.name(), 1}});
+
+    auto inferRequest = compiledModel.create_infer_request();
+
+    // conv_pool_relu default input shape: {1, 1, 32, 32}, f32
+    ov::Tensor inputTensor(ov::element::f32, {1, 1, 32, 32});
+    std::fill_n(inputTensor.data<float>(), inputTensor.get_size(), 1.0f);
+    inferRequest.set_input_tensor(inputTensor);
+
+    OV_ASSERT_NO_THROW(inferRequest.infer());
+
+    auto outputTensor = inferRequest.get_output_tensor(0);
+    ASSERT_GT(outputTensor.get_size(), 0u);
+}
+
+// ---------------------------------------------------------------------------
+// B10: Output with true must match output with false (same arithmetic result)
+// ---------------------------------------------------------------------------
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkMultiAppThreadSyncResultsMatchDefault) {
+    ov::Core core;
+
+    ov::Tensor inputTensor(ov::element::f32, {1, 1, 32, 32});
+    std::fill_n(inputTensor.data<float>(), inputTensor.get_size(), 1.0f);
+
+    auto runInfer = [&](bool syncExec) -> ov::Tensor {
+        ov::CompiledModel cm = core.compile_model(
+            model, deviceName,
+            {{ov::intel_cpu::multi_app_thread_sync_execution.name(), syncExec},
+             {ov::num_streams.name(), 1}});
+        auto req = cm.create_infer_request();
+        req.set_input_tensor(inputTensor);
+        req.infer();
+        return req.get_output_tensor(0);
+    };
+
+    ov::Tensor outDefault = runInfer(false);
+    ov::Tensor outSync    = runInfer(true);
+
+    ASSERT_EQ(outDefault.get_shape(), outSync.get_shape());
+    ASSERT_EQ(outDefault.get_element_type(), outSync.get_element_type());
+
+    const float* d0 = outDefault.data<float>();
+    const float* d1 = outSync.data<float>();
+    for (size_t i = 0; i < outDefault.get_size(); ++i) {
+        ASSERT_FLOAT_EQ(d0[i], d1[i]) << "Mismatch at element " << i;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// B11: Property interaction — num_streams=4 + multi_app_thread_sync=true/false
+//      Both modes must infer without crash and produce identical outputs.
+// ---------------------------------------------------------------------------
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkMultiAppThreadSyncWithStreams) {
+    ov::Core core;
+
+    ov::Tensor inputTensor(ov::element::f32, {1, 1, 32, 32});
+    std::fill_n(inputTensor.data<float>(), inputTensor.get_size(), 0.5f);
+
+    auto runInferWithStreams = [&](bool syncExec) -> ov::Tensor {
+        ov::CompiledModel cm = core.compile_model(
+            model, deviceName,
+            {{ov::intel_cpu::multi_app_thread_sync_execution.name(), syncExec},
+             {ov::num_streams.name(), 4}});
+        auto req = cm.create_infer_request();
+        req.set_input_tensor(inputTensor);
+        req.infer();
+        auto output = req.get_output_tensor(0);
+        EXPECT_GT(output.get_size(), 0u);
+        return output;
+    };
+
+    ov::Tensor outFalse = runInferWithStreams(false);
+    ov::Tensor outTrue  = runInferWithStreams(true);
+
+    ASSERT_EQ(outFalse.get_shape(), outTrue.get_shape());
+    ASSERT_EQ(outFalse.get_element_type(), outTrue.get_element_type());
+
+    const float* df = outFalse.data<float>();
+    const float* dt = outTrue.data<float>();
+    for (size_t i = 0; i < outFalse.get_size(); ++i) {
+        ASSERT_FLOAT_EQ(df[i], dt[i]) << "Output mismatch at element " << i
+                                      << " (false=" << df[i] << ", true=" << dt[i] << ")";
+    }
 }
 
 }  // namespace

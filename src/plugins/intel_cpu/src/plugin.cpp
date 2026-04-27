@@ -583,6 +583,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
                                                    RW_property(ov::intel_cpu::denormals_optimization.name()),
                                                    RW_property(ov::log::level.name()),
                                                    RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+                                                   RW_property(ov::intel_cpu::multi_app_thread_sync_execution.name()),
                                                    RW_property(ov::intel_cpu::enable_tensor_parallel.name()),
                                                    RW_property(ov::intel_cpu::tbb_partitioner.name()),
                                                    RW_property(ov::hint::dynamic_quantization_group_size.name()),
@@ -659,6 +660,10 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
     if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
         return static_cast<decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type>(
             engConfig.fcSparseWeiDecompressionRate);
+    }
+    if (name == ov::intel_cpu::multi_app_thread_sync_execution) {
+        return static_cast<decltype(ov::intel_cpu::multi_app_thread_sync_execution)::value_type>(
+            engConfig.multiAppThreadSyncExecution);
     }
     if (name == ov::intel_cpu::enable_tensor_parallel) {
         return static_cast<decltype(ov::intel_cpu::enable_tensor_parallel)::value_type>(engConfig.enableTensorParallel);

@@ -21,7 +21,8 @@ public:
     AsyncInferRequest(const std::shared_ptr<IInferRequest>& request,
                       const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
                       const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor,
-                      bool is_optimized_single_stream = false);
+                      bool is_optimized_single_stream = false,
+                      bool multi_app_thread_sync_execution = false);
     ~AsyncInferRequest() override;
 
     void infer() override;

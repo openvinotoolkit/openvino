@@ -250,6 +250,12 @@ endmacro()
 # collect all samples subdirectories
 file(GLOB samples_dirs RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *)
 
+# Ensure multithread sync sample is included in build discovery.
+if (IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/multithread_sync_app")
+    list(APPEND samples_dirs multithread_sync_app)
+    list(REMOVE_DUPLICATES samples_dirs)
+endif()
+
 # skip building of unnecessary subdirectories
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty")
     list(REMOVE_ITEM samples_dirs thirdparty)
