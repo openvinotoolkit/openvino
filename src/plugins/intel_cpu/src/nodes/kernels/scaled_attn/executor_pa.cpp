@@ -461,13 +461,16 @@ struct MHAHelper {
     bool _use_softmax_sparse_mask = false;
 
     // Bidirectional attention for image token groups (e.g. Gemma3 VLM)
-    bool _has_image_tokens = false;         // true only when token_type_ids input is provided
-    PlainTensor _token_type;                // [total_batched_tokens], int32 — 0=text, 1=image
-    std::vector<int32_t> _image_group_end;  // for image token i, the exclusive end of its group
+    bool _has_image_tokens = false;           // true only when token_type_ids input is provided
+    PlainTensor _token_type;                  // [total_batched_tokens], int32 — 0=text, 1=image
+    std::vector<int32_t> _image_group_end;    // for image token i, the exclusive end of its group
+    std::vector<int32_t> _image_group_begin;  // for image token i, the inclusive start of its group
 
     // Precompute image group boundaries from token_type_ids.
-    // For each image token, _image_group_end[i] = index past the last contiguous image token in the same group.
-    // For text tokens, _image_group_end[i] = -1.
+    // For each image token:
+    //   _image_group_end[i] = index past the last contiguous image token in the same group
+    //   _image_group_begin[i] = index of the first contiguous image token in the same group
+    // For text tokens, both are -1.
     void set_token_type(const PlainTensor& token_type,
                         const PlainTensor& subsequence_begins,
                         const PlainTensor& past_lens) {
@@ -475,25 +478,39 @@ struct MHAHelper {
         _token_type = token_type;
         auto total_tokens = static_cast<int32_t>(token_type.m_dims[0]);
         _image_group_end.resize(total_tokens);
+        _image_group_begin.resize(total_tokens);
 
         auto seq_count = static_cast<int32_t>(past_lens.m_dims[0]);
         for (int32_t seq = 0; seq < seq_count; seq++) {
             auto seq_begin = subsequence_begins.ptr<int32_t>()[seq];
             auto seq_end = subsequence_begins.ptr<int32_t>()[seq + 1];
 
-            // Backward scan within this subsequence to find group ends
-            for (int32_t i = seq_end - 1; i >= seq_begin; i--) {
-                if (token_type.ptr<int32_t>()[i] == 1) {  // image token
-                    if (i + 1 < seq_end && token_type.ptr<int32_t>()[i + 1] == 1) {
-                        _image_group_end[i] = _image_group_end[i + 1];
-                    } else {
-                        _image_group_end[i] = i + 1;
-                    }
-                } else {
+            // Record both boundaries for each contiguous image group
+            for (int32_t i = seq_begin; i < seq_end;) {
+                if (token_type.ptr<int32_t>()[i] != 1) {
+                    _image_group_begin[i] = -1;
                     _image_group_end[i] = -1;
+                    ++i;
+                } else {
+                    const int32_t group_begin = i;
+                    while (i < seq_end && token_type.ptr<int32_t>()[i] == 1) {
+                        ++i;
+                    }
+                    const int32_t group_end = i;
+                    for (int32_t j = group_begin; j < group_end; ++j) {
+                        _image_group_begin[j] = group_begin;
+                        _image_group_end[j] = group_end;
+                    }
                 }
             }
         }
+    }
+
+    void clear_token_type() {
+        _has_image_tokens = false;
+        _token_type = PlainTensor();
+        _image_group_end.clear();
+        _image_group_begin.clear();
     }
 
     // Return the adjusted ncausal that extends to the image group end for image tokens.
@@ -507,6 +524,17 @@ struct MHAHelper {
             return std::min(static_cast<size_t>(_image_group_end[q_global_idx]), cur_kv_len);
         }
         return default_ncausal;
+    }
+
+    [[nodiscard]] size_t get_sliding_start_idx(size_t q_global_idx, size_t default_ncausal) const {
+        const size_t sw_start = default_ncausal > _sliding_window ? default_ncausal - _sliding_window : 0UL;
+        if (!_has_image_tokens || q_global_idx >= _image_group_begin.size()) {
+            return sw_start;
+        }
+        if (_token_type.ptr<int32_t>()[q_global_idx] == 1) {
+            return std::min(static_cast<size_t>(_image_group_begin[q_global_idx]), sw_start);
+        }
+        return sw_start;
     }
     CpuParallelPtr _cpu_parallel;
 
@@ -847,7 +875,8 @@ struct MHAHelper {
 
             for (size_t m = q_start; m < q_end; m++) {
                 // apply attention mask & sofmax
-                auto ncausal = get_ncausal(q_token_start + m, cur_kv_len - q_cnt + (m - q_start) + 1, cur_kv_len);
+                const auto causal_pos = cur_kv_len - q_cnt + (m - q_start) + 1;
+                const auto ncausal = get_ncausal(q_token_start + m, causal_pos, cur_kv_len);
                 auto* score = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
                 // dequantization of q matrix could be fused with _d_scale since softmax is done by row
                 float revised_d_scale =
@@ -861,13 +890,9 @@ struct MHAHelper {
                     sink = &sinks.at<float>({0, h, 0, 0}, true);
                 }
                 if (_sliding_window) {
-                    size_t start_idx = 0;
-                    auto new_causal = ncausal;
+                    const auto start_idx = get_sliding_start_idx(q_token_start + m, causal_pos);
+                    const auto new_causal = ncausal - start_idx;
                     float* alibi_lookup = nullptr;
-                    if (ncausal > _sliding_window) {
-                        start_idx = ncausal - _sliding_window;
-                        new_causal = _sliding_window;
-                    }
 
                     // Handle sparse attention mask for sliding window
                     if (!sparse_attention_mask.empty() && sparse_attention_mask[batch_in_seq].ptr_v() != nullptr &&
@@ -1056,7 +1081,8 @@ struct MHAHelper {
 
             for (size_t m = q_start; m < q_end; m++) {
                 // apply softmax in f32 precision
-                auto ncausal = get_ncausal(q_token_start + m, cur_kv_len - q_cnt + (m - q_start) + 1, cur_kv_len);
+                const auto causal_pos = cur_kv_len - q_cnt + (m - q_start) + 1;
+                const auto ncausal = get_ncausal(q_token_start + m, causal_pos, cur_kv_len);
                 auto soft_in = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
                 auto score = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
                 PlainTensor f32_cvt;
@@ -1068,13 +1094,9 @@ struct MHAHelper {
                     soft_in = f32_cvt.ptr<float>(0);
                 }
                 if (_sliding_window) {
-                    size_t start_idx = 0;
-                    auto new_causal = ncausal;
+                    const auto start_idx = get_sliding_start_idx(q_token_start + m, causal_pos);
+                    const auto new_causal = ncausal - start_idx;
                     float* alibi_lookup = nullptr;
-                    if (ncausal > _sliding_window) {
-                        start_idx = ncausal - static_cast<size_t>(_sliding_window);
-                        new_causal = _sliding_window;
-                    }
                     attn_softmax_kernel<float>(soft_in + start_idx,
                                                reinterpret_cast<DATA_TYPE*>(score) + start_idx,
                                                _d_scale,
@@ -1212,7 +1234,7 @@ struct MHAHelper {
         for (size_t pq = 0; pq < q_len; pq++) {
             for (size_t h = hq_beg; h < hq_end; h++) {
                 // apply attention mask & sofmax
-                auto ncausal = get_ncausal(q_token_start + pq, cur_kv_len, cur_kv_len);
+                const auto ncausal = get_ncausal(q_token_start + pq, cur_kv_len, cur_kv_len);
                 float* score = _weight.ptr<float>(ithr, h - hq_beg, pq);
                 OPENVINO_DEBUG_ASSERT(score != nullptr, "PagedAttention: _weight buffer must be allocated");
                 float* alibi_lookup = nullptr;
@@ -1226,13 +1248,9 @@ struct MHAHelper {
                     sink = &sinks.at<float>({0, h, 0, 0}, true);
                 }
                 if (_sliding_window) {
-                    size_t start_idx = 0;
-                    size_t new_causal = ncausal;
+                    const auto start_idx = get_sliding_start_idx(q_token_start + pq, cur_kv_len);
+                    const size_t new_causal = ncausal - start_idx;
                     float* sw_alibi_lookup = nullptr;
-                    if (ncausal > _sliding_window) {
-                        start_idx = ncausal - _sliding_window;
-                        new_causal = _sliding_window;
-                    }
                     attn_softmax_kernel<float>(score + start_idx,
                                                score + start_idx,
                                                _d_scale,
@@ -1423,7 +1441,7 @@ struct MHAHelper {
         auto loop_softmax = [&](size_t b, size_t h, size_t pq) {
             auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
             auto q_token_start = static_cast<size_t>(subsequence_begins.ptr<int32_t>()[b]);
-            auto ncausal = get_ncausal(q_token_start + pq, cur_kv_len, cur_kv_len);
+            const auto ncausal = get_ncausal(q_token_start + pq, cur_kv_len, cur_kv_len);
             //  apply attention mask & sofmax
             float* score = _weight_bhl.ptr<float>(b, h, pq);
             OPENVINO_DEBUG_ASSERT(score != nullptr, "PagedAttention: _weight_bhl buffer must be allocated");
@@ -1438,13 +1456,9 @@ struct MHAHelper {
                 sink = &sinks.at<float>({0, h, 0, 0}, true);
             }
             if (_sliding_window) {
-                size_t start_idx = 0;
-                size_t new_causal = ncausal;
+                const auto start_idx = get_sliding_start_idx(q_token_start + pq, cur_kv_len);
+                const size_t new_causal = ncausal - start_idx;
                 float* sw_alibi_lookup = nullptr;
-                if (ncausal > _sliding_window) {
-                    start_idx = ncausal - _sliding_window;
-                    new_causal = _sliding_window;
-                }
                 attn_softmax_kernel<float>(score + start_idx,
                                            score + start_idx,
                                            _d_scale,
@@ -2396,8 +2410,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         if (token_type_ids) {
             _helper.set_token_type(token_type_ids, subsequence_begins, past_lens);
         } else {
-            _helper._token_type = PlainTensor();
-            _helper._image_group_end.clear();
+            _helper.clear_token_type();
         }
 
         if (rotated_block_indices) {

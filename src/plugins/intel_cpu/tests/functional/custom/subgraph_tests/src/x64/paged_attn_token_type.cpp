@@ -72,7 +72,8 @@ public:
 
     std::shared_ptr<ov::Model> get_pa_model(ov::element::Type data_type,
                                             ov::Dimension::value_type head_size,
-                                            ov::Dimension::value_type head_num) {
+                                            ov::Dimension::value_type head_num,
+                                            int32_t sliding_window_size = 0) {
         auto q = make_param(PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, data_type, "q");
         auto k = make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "k");
         auto v = make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "v");
@@ -87,7 +88,7 @@ public:
 
         float scale_value = 1.0f / std::sqrt(static_cast<float>(head_size));
         auto scale = std::make_shared<v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{scale_value});
-        auto sliding_window = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
+        auto sliding_window = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{sliding_window_size});
         auto alibi_slopes = std::make_shared<v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{});
         auto max_context_len = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{1024});
         auto score_aggregation_window = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
@@ -400,6 +401,61 @@ TEST_P(PagedAttnTokenTypeTest, PostImageTextIsCausal) {
                 << " should match causal baseline, but diff=" << diff;
         }
     }
+}
+
+
+// Verify that bidirectional image attention interacts correctly with sliding window
+TEST_P(PagedAttnTokenTypeTest, ImageTokensWithSlidingWindowDifferFromCausal) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    const auto& [inType, head_size, head_num, pattern] = this->GetParam();
+    if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
+        GTEST_SKIP();
+
+    targetDevice = ov::test::utils::DEVICE_CPU;
+
+    const size_t seq_len = pattern.types.size();
+
+    int first_image = -1;
+    int last_image = -1;
+    for (size_t i = 0; i < seq_len; ++i) {
+        if (pattern.types[i] == 1) {
+            if (first_image == -1)
+                first_image = static_cast<int>(i);
+            if (last_image != -1 && pattern.types[last_image] == 1 && static_cast<int>(i) > last_image + 1)
+                break;
+            last_image = static_cast<int>(i);
+        }
+    }
+
+    const int group_size = last_image - first_image + 1;
+    const int32_t sw = group_size - 1;
+
+    auto model_bidir = get_pa_model(inType, head_size, head_num, sw);
+    auto result_bidir = run_pa_with_token_types(model_bidir, inType, seq_len, head_size, head_num, pattern.types);
+
+    std::vector<int32_t> all_text(seq_len, 0);
+    auto model_causal = get_pa_model(inType, head_size, head_num, sw);
+    auto result_causal = run_pa_with_token_types(model_causal, inType, seq_len, head_size, head_num, all_text);
+
+    const size_t hidden_dim = head_num * head_size;
+    const auto* bidir_data  = result_bidir.output.data<float>();
+    const auto* causal_data = result_causal.output.data<float>();
+
+    bool any_image_differs = false;
+    for (int pos = first_image; pos <= last_image && !any_image_differs; ++pos) {
+        for (size_t d = 0; d < hidden_dim; ++d) {
+            float diff = std::abs(bidir_data[pos * hidden_dim + d] - causal_data[pos * hidden_dim + d]);
+            if (diff > 1e-5f) {
+                any_image_differs = true;
+                break;
+            }
+        }
+    }
+    EXPECT_TRUE(any_image_differs)
+        << "Pattern '" << pattern.name << "' with sliding_window=" << sw
+        << ": expected image tokens (bidir) to differ from causal baseline, but they were identical.\n"
+        << "This indicates the sliding window is incorrectly clipping the image group "
+        << "[" << first_image << ", " << last_image << "].\n";
 }
 
 namespace {
