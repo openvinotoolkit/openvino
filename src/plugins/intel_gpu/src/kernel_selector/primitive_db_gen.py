@@ -1,6 +1,6 @@
-#!/usr/bin/python3
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
 # To add new kernel please add a .cl file to kernels directory
 # the database name will be the part of the file name up to first '.' character
 # the trailing characters are a tag to allow multiple primitive implementations
@@ -136,7 +136,7 @@ class Kernels2CHeaders(object):
             if line.find(macro) >= 0:
                 return True
             if line.find("CAT") >= 0:
-                words = ' '.join(re.split("(\W)", line)).split()
+                words = ' '.join(re.split(r'(\W)', line)).split()
                 iter_w = 0
                 while iter_w < len(words):
                     if words[iter_w]  != "CAT":
@@ -154,11 +154,11 @@ class Kernels2CHeaders(object):
         idx = 0
         while idx < len(contents_list):
             line = contents_list[idx]
-            is_macro = re.search('#\s*define', line)
+            is_macro = re.search(r'#\s*define', line)
             macro = ""
 
             if is_macro:
-                words = ' '.join(re.split("(\W)", line)).split()
+                words = ' '.join(re.split(r'(\W)', line)).split()
                 macro = words[words.index("define") + 1]
 
             if len(macro) == 0 or self.found_potential_macro_user(macro, contents_list):
