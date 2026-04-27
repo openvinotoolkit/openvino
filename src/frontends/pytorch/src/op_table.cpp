@@ -70,6 +70,7 @@ OP_CONVERTER(translate_clamp);
 OP_CONVERTER(translate_col2im);
 OP_CONVERTER(translate_constant);
 OP_CONVERTER(translate_conv_transposend);
+OP_CONVERTER(translate_contains);
 OP_CONVERTER(translate_convnd);
 OP_CONVERTER(translate_convolution);
 OP_CONVERTER(translate_convolution_mode);
@@ -142,6 +143,8 @@ OP_CONVERTER(translate_index_select);
 OP_CONVERTER(translate_instance_norm);
 OP_CONVERTER(translate_int);
 OP_CONVERTER(translate_inverse);
+OP_CONVERTER(translate_is);
+OP_CONVERTER(translate_isnot);
 OP_CONVERTER(translate_istft);
 OP_CONVERTER(translate_is_nonzero);
 OP_CONVERTER(translate_kthvalue);
@@ -180,6 +183,7 @@ OP_CONVERTER(translate_min);
 OP_CONVERTER(translate_minimum);
 OP_CONVERTER(translate_movedim);
 OP_CONVERTER(translate_multinomial);
+OP_CONVERTER(translate_nan_to_num);
 OP_CONVERTER(translate_narrow);
 OP_CONVERTER(translate_native_multi_head_attention);
 OP_CONVERTER(translate_neg);
@@ -377,7 +381,10 @@ OP_CONVERTER(translate_linear_gptq);
 const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
     return {
         {"aten::__and__", op::translate_bitwise_and},
+        {"aten::__contains__", op::translate_contains},
         {"aten::__iand__", op::inplace_op<op::translate_bitwise_and>},
+        {"aten::__is__", op::translate_is},
+        {"aten::__isnot__", op::translate_isnot},
         {"aten::__lshift__", op::translate_bitwise_left_shift},
         {"aten::__rshift__", op::translate_bitwise_right_shift},
         {"aten::__derive_index", op::translate_derive_index},
@@ -644,6 +651,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::multiply", op::translate_mul},
         {"aten::multiply_", op::translate_mul_},
         {"aten::multinomial", op::translate_multinomial},
+        {"aten::nan_to_num", op::translate_nan_to_num},
+        {"aten::nan_to_num_", op::inplace_op<op::translate_nan_to_num>},
         {"aten::narrow", op::translate_narrow},
         {"aten::ne", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
         {"aten::neg", op::translate_neg},
@@ -1039,6 +1048,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.native_dropout.default", op::skip_node},
         {"aten.native_group_norm.default", op::translate_group_norm_fx},
         {"aten.native_layer_norm.default", op::translate_layer_norm_fx},
+        {"aten.nan_to_num.default", op::translate_nan_to_num},
         {"aten.ne.Scalar", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
         {"aten.ne.Tensor", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
         {"aten.neg.default", op::translate_neg},
