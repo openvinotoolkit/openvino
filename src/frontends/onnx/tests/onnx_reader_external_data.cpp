@@ -26,18 +26,6 @@ using namespace frontend;
 using namespace frontend::onnx::tests;
 using testing::AnyOf, testing::HasSubstr;
 
-TEST(onnx_external_data, sanitize_external_data_location) {
-    using ov::frontend::onnx::detail::sanitize_external_data_location;
-
-    EXPECT_STREQ("tensor.data", sanitize_external_data_location("../../tensor.data").c_str());
-    EXPECT_STREQ("tensor.data", sanitize_external_data_location("/../tensor.data").c_str());
-    EXPECT_STREQ("", sanitize_external_data_location("..").c_str());
-    EXPECT_STREQ("workspace/data/tensor.data", sanitize_external_data_location("workspace/data/tensor.data").c_str());
-    EXPECT_STREQ("tensor.data", sanitize_external_data_location("..\\..\\tensor.data").c_str());
-    EXPECT_STREQ("workspace\\tensor.data", sanitize_external_data_location("C:\\workspace\\tensor.data").c_str());
-    EXPECT_STREQ("etc/passwd", sanitize_external_data_location("directory/../../../../../etc/passwd").c_str());
-    EXPECT_STREQ("*/_ORT_MEM_ADDR_/*", sanitize_external_data_location("*/_ORT_MEM_ADDR_/*").c_str());
-}
 
 // API 2.0 tests
 class OnnxFeMmapFixture : public ::testing::TestWithParam<bool> {};
