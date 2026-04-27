@@ -378,4 +378,17 @@ KernelsData FullyConnected_bf_tiled_dyn_b::GetKernelsData(const Params& params) 
     return kernels_data;
 }
 
+Datatype FullyConnected_bf_tiled_dyn_b::GetAccumulatorType(const fully_connected_params& params) const {
+    auto in_dt = params.inputs[0].GetDType();
+    auto wei_dt = params.weights.GetDType();
+
+    // F16 input + INT4 weights: force F32 accumulator to prevent overflow.
+    // F16 max is 65504; accumulating 128 products of F16*INT4 (scale group size)
+    // can exceed this, overflowing to inf and cascading to NaN.
+    if (in_dt == Datatype::F16 && (wei_dt == WeightsType::INT4 || wei_dt == WeightsType::UINT4))
+        return Datatype::F32;
+
+    return Parent::GetAccumulatorType(params);
+}
+
 }  // namespace kernel_selector
