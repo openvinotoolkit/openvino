@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -241,25 +241,41 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                 auto input_0_type = params.inputs[0].GetDType();
                 auto input_1_type = params.inputs[1].GetDType();
 
+                auto is_integer_type = [](kernel_selector::Datatype dt) {
+                    return dt == kernel_selector::Datatype::INT8 ||
+                           dt == kernel_selector::Datatype::UINT8 ||
+                           dt == kernel_selector::Datatype::INT16 ||
+                           dt == kernel_selector::Datatype::UINT16 ||
+                           dt == kernel_selector::Datatype::INT32 ||
+                           dt == kernel_selector::Datatype::UINT32 ||
+                           dt == kernel_selector::Datatype::INT64;
+                };
+
                 // input_0 == int
-                if (input_0_type == kernel_selector::Datatype::INT8 ||
-                    input_0_type == kernel_selector::Datatype::INT32 ||
-                    input_0_type == kernel_selector::Datatype::INT64) {
+                if (is_integer_type(input_0_type)) {
                     // input_0 == int && input_1 == int
-                    if (input_1_type == kernel_selector::Datatype::INT8 ||
-                        input_1_type == kernel_selector::Datatype::INT32 ||
-                        input_1_type == kernel_selector::Datatype::INT64) {
-                        if (ew.mode == EltwiseMode::MODULU)
+                    if (is_integer_type(input_1_type)) {
+                        if (ew.mode == EltwiseMode::MODULU) {
+                            // Use cast inputs for modulo (cast_type handles scalar/vector paths)
                             op += input0_str + " % " + input1_str;
-                        else
-                            op += cast_type + mode + "(" + input0_str + ", " + input1_str + ")";
+                        } else {
+                            // Check if accumulator is floating-point (happens when input types
+                            // like INT8/INT16/UINT8/UINT16 are not in GetAccumulatorType's list).
+                            // In that case, inputs are cast to float and we need fmin/fmax
+                            // instead of the integer-only min/max.
+                            auto acc_type = GetAccumulatorType(params);
+                            bool acc_is_fp = (acc_type == Datatype::F32 || acc_type == Datatype::F16);
+                            if (acc_is_fp) {
+                                op += cast_type + "f" + mode + "(" + input0_str + ", " + input1_str + ")";
+                            } else {
+                                op += cast_type + mode + "(" + input0_str + ", " + input1_str + ")";
+                            }
+                        }
                     } else {
                         // input_0 == int && input_1 != int
                         op += cast_type + "f" + mode + "(convert_float(" + input0_str + "), " + input1_str + ")";
                     }
-                } else if (input_1_type == kernel_selector::Datatype::INT8 ||
-                           input_1_type == kernel_selector::Datatype::INT32 ||
-                           input_1_type == kernel_selector::Datatype::INT64) {
+                } else if (is_integer_type(input_1_type)) {
                     // input_0 != int && input_1 == int
                     op += cast_type + "f" + mode + "(" + input0_str + ", convert_float(" + input1_str + "))";
                 } else {
@@ -312,7 +328,27 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
             case EltwiseMode::FLOOR_MOD: {
                 auto input_0_type = params.inputs[0].GetDType();
                 auto input_1_type = params.inputs[1].GetDType();
-                if (input_0_type == input_1_type && (input_0_type == kernel_selector::Datatype::F16 || input_0_type == kernel_selector::Datatype::F32)) {
+
+                auto is_integer_type = [](kernel_selector::Datatype dt) {
+                    return dt == kernel_selector::Datatype::INT8 ||
+                           dt == kernel_selector::Datatype::UINT8 ||
+                           dt == kernel_selector::Datatype::INT16 ||
+                           dt == kernel_selector::Datatype::UINT16 ||
+                           dt == kernel_selector::Datatype::INT32 ||
+                           dt == kernel_selector::Datatype::UINT32 ||
+                           dt == kernel_selector::Datatype::INT64;
+                };
+
+                if (is_integer_type(input_0_type) && is_integer_type(input_1_type)) {
+                    auto acc_type = GetAccumulatorType(params);
+                    if (acc_type == Datatype::F32 || acc_type == Datatype::F16) {
+                        op += "(" + input0_str + " - trunc(" + input0_str + " / convert_float(" + input1_str + ")) * " + input1_str + ")";
+                    } else {
+                        // Integer floor mod avoids implicit float cast error that occurs when acc_type is integer.
+                        // Formula: ((a % b) + b) % b
+                        op += "((" + input0_str + " % " + input1_str + " + " + input1_str + ") % " + input1_str + ")";
+                    }
+                } else if (input_0_type == input_1_type && (input_0_type == kernel_selector::Datatype::F16 || input_0_type == kernel_selector::Datatype::F32)) {
                     op += "fmod(" + input0_str + ", " + input1_str + ")";
                 } else if (input_1_type == kernel_selector::Datatype::F16 || input_1_type == kernel_selector::Datatype::F32) {
                     op += "(" + input0_str + " - trunc(" + input0_str + " / " + input1_str + ") * " + input1_str + ")";
