@@ -796,3 +796,41 @@ def test_const_from_tensor_with_shared_memory_by_default():
     arr += 1
     assert np.array_equal(ov_const.data, arr)
     assert np.shares_memory(arr, ov_const.data)
+
+
+def test_constant_from_tuple():
+    value = (1, 2, 3)
+    ov_const = ops.constant(value, dtype=np.int32)
+
+    assert isinstance(ov_const, Constant)
+    assert list(ov_const.shape) == [3]
+    assert ov_const.get_element_type() == Type.i32
+    assert np.array_equal(ov_const.data, np.array(value, dtype=np.int32))
+
+
+def test_constant_from_tuple_float():
+    value = (1.0, 2.5, 3.5)
+    ov_const = ops.constant(value, dtype=np.float32)
+
+    assert isinstance(ov_const, Constant)
+    assert list(ov_const.shape) == [3]
+    assert ov_const.get_element_type() == Type.f32
+    assert np.allclose(ov_const.data, np.array(value, dtype=np.float32))
+
+
+def test_constant_from_nested_tuple():
+    value = ((1, 2), (3, 4))
+    ov_const = ops.constant(value, dtype=np.int32)
+
+    assert isinstance(ov_const, Constant)
+    assert list(ov_const.shape) == [2, 2]
+    assert np.array_equal(ov_const.data, np.array(value, dtype=np.int32))
+
+
+def test_constant_from_tuple_no_dtype():
+    value = (1, 2, 3)
+    ov_const = ops.constant(value)
+
+    assert isinstance(ov_const, Constant)
+    assert list(ov_const.shape) == [3]
+    assert np.array_equal(ov_const.data, np.array(value))
