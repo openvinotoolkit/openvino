@@ -445,7 +445,10 @@ TEST(sdpa_gpu_custom, scalar_placeholder_mask_matches_scale_only) {
     ASSERT_EQ(without_mask_ptr.size(), with_placeholder_mask_ptr.size());
     for (size_t i = 0; i < without_mask_ptr.size(); ++i) {
         ASSERT_NEAR(static_cast<float>(without_mask_ptr[i]), static_cast<float>(with_placeholder_mask_ptr[i]), 1e-3f)
-            << "Mismatch at index " << i;
+            << "Mismatch at index " << i
+            << ", Expected : " << static_cast<float>(without_mask_ptr[i])
+            << " actual : " << static_cast<float>(with_placeholder_mask_ptr[i])
+            << std::endl;
     }
 }
 } // namespace
