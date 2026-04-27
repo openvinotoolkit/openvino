@@ -224,6 +224,15 @@ public:
         throwWhenUnsupported("pfnEvict", ZE_GRAPH_EXT_VERSION_1_16);
         return _impl->pfnEvict(hGraph);
     }
+
+    // version 1.17
+    // Requires the new L0 extension
+    // ze_result_t ZE_APICALL pfnDeviceRequirementsQuery(ze_context_handle_t hContext,
+    //                                                   ze_device_handle_t hDevice,
+    //                                                   const ze_runtime_requirements_desc_t* requirements) {
+    //     throwWhenUnsupported("pfnDeviceRequirementsQuery", ZE_GRAPH_EXT_VERSION_1_17);
+    //     return _impl->pfnDeviceRequirementsQuery(hContext, hDevice, requirements);
+    // }
 };
 
 /**

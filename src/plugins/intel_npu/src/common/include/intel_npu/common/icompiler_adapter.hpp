@@ -37,6 +37,9 @@ public:
     virtual std::optional<std::vector<std::string>> get_supported_options() const = 0;
     virtual bool is_option_supported(std::string optName, std::optional<std::string> optValue = std::nullopt) const = 0;
 
+    virtual ov::RuntimeRequirementCheckResult validate_compatibility_descriptor(
+        const std::string& compatibilityDescriptor) const = 0;
+
     virtual ~ICompilerAdapter() = default;
 };
 

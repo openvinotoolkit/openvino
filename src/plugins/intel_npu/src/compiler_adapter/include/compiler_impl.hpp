@@ -31,7 +31,8 @@ public:
      *        including config options related to compilation
      * @return an ov::Tensor object containing the blob of the compiled model
      */
-    ov::Tensor compile(const std::shared_ptr<const ov::Model>& model, const FilteredConfig& config) const;
+    std::pair<ov::Tensor, std::optional<std::string>> compile(const std::shared_ptr<const ov::Model>& model,
+                                                              const FilteredConfig& config) const;
 
     /**
      * @brief Compiles the model, weights separation enabled. All init schedules along with the main one are compiled in
@@ -88,15 +89,19 @@ public:
 
     std::shared_ptr<void> getLinkedLibrary() const;
 
+    ov::RuntimeRequirementCheckResult validate_compatibility_descriptor(
+        const std::string& compatibilityDescriptor,
+        const vcl_device_desc_t* in_device_desc = nullptr) const;
+
 private:
     /**
-     * @brief Compiles the given model according to the given configuration. During the model serialization step, the
-     * "WeightlessCacheAttribute" may be stored within the serialized model if requested.
+     * @brief Compiles the given model according to the given configuration. During the model serialization step,
+     * the "WeightlessCacheAttribute" may be stored within the serialized model if requested.
      * @note Storing the "WeightlessCacheAttribute" is necessary if the "weights separation" flow is being used.
      */
-    ov::Tensor compile(const std::shared_ptr<const ov::Model>& model,
-                       const FilteredConfig& config,
-                       const bool storeWeightlessCacheAttributeFlag) const;
+    std::pair<ov::Tensor, std::optional<std::string>> compile(const std::shared_ptr<const ov::Model>& model,
+                                                              const FilteredConfig& config,
+                                                              const bool storeWeightlessCacheAttributeFlag) const;
 
     vcl_log_handle_t _logHandle = nullptr;
     vcl_compiler_handle_t _compilerHandle = nullptr;

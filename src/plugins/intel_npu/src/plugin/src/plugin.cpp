@@ -14,6 +14,7 @@
 #include "intel_npu/common/parser_factory.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/compatibility_string.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "metrics.hpp"
 #include "npuw/compiled_model.hpp"
@@ -357,6 +358,76 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
+    if (name == ov::runtime_requirements_met.name()) {
+        if (arguments.empty()) {
+            return ov::RuntimeRequirementCheckResult::COMPATIBILITY_FAILED;
+        }
+        const auto& encodedTensor = arguments.at(ov::runtime_requirements.name()).as<const ov::Tensor&>();
+        std::string encodedString;
+        if (encodedTensor.get_element_type() == ov::element::string) {
+            OPENVINO_ASSERT(encodedTensor.get_size() == 1, "Expected a string tensor in ov::runtime_requirements");
+            encodedString = encodedTensor.data<const std::string>()[0];
+        } else {
+            OPENVINO_THROW("Unsupported ov::runtime_requirements tensor element type");
+        }
+        _logger.debug("Received encoded compatibility string: %s length: %zu",
+                      encodedString.c_str(),
+                      encodedString.length());
+        std::string decodedString = decode_compatibility_string(encodedString);
+
+        const ov::Tensor viewTensor =
+            ov::Tensor(ov::element::Type_t::u8, ov::Shape{decodedString.length()}, decodedString.data());
+
+        std::unique_ptr<MetadataBase> metadata = nullptr;
+        try {
+            // The plugin cares only about the string size and the metadata version check for now. Additional checks
+            // based
+            // on other metadata fields can be done following this line.
+            metadata = read_metadata_from(viewTensor);
+        } catch (const std::exception& ex) {
+            // Unsupported version, could not read the metadata or an unknown error has occured. Report that the
+            // requirements are not met.
+            _logger.debug("Failed to read metadata from the compatibility string. The requirements are not met. %s",
+                          ex.what());
+            return ov::RuntimeRequirementCheckResult::COMPATIBILITY_FAILED;
+        }
+
+        OPENVINO_ASSERT(metadata);
+
+        const size_t compilerStringSize = metadata->get_blob_size();
+        std::cout << "[DEBUG] Metadata compilerStringSize: " << compilerStringSize << std::endl;
+
+        // Discard everything else but the compiler section
+        decodedString = decodedString.substr(0, compilerStringSize);
+        _logger.debug("Decoded compiler compatibility string: %s length: %zu",
+                      decodedString.c_str(),
+                      decodedString.length());
+
+        // Create a compiler to get the type and fetch version and supported options if needed
+        std::unique_ptr<ICompilerAdapter> compiler = nullptr;
+        CompilerAdapterFactory factory;
+        try {
+            // TODO consider using backend directly
+            compiler = factory.getCompiler(_backend, ov::intel_npu::CompilerType::PLUGIN);
+        } catch (const std::exception&) {
+            _logger.error("Failed to create compiler for compatibility check. The requirements are not met.");
+        }
+
+        OPENVINO_ASSERT(compiler != nullptr);
+
+        // Implement only the fallback path for now through the PLUGIN compiler type
+        std::shared_ptr<IDevice> device = _backend->getDevice();
+        OPENVINO_ASSERT(device != nullptr);
+        _logger.debug("Checking compatibility with device: %s, devId: %x, subDevId: %u, maxNumSlices: %u",
+                      device->getName().c_str(),
+                      device->getDevId(),
+                      device->getSubDevId(),
+                      device->getMaxNumSlices());
+        auto result = compiler->validate_compatibility_descriptor(decodedString);
+        _logger.debug("Compatibility check result: %d", static_cast<int>(result));
+        return result;
+    }
+
     if (!arguments.empty()) {
         auto npuPluginArguments = arguments;
         exclude_model_ptr_from_map(npuPluginArguments);

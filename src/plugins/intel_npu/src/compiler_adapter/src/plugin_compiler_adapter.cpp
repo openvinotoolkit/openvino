@@ -64,7 +64,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
 
     _logger.debug("compile start");
-    auto tensor = _compiler->compile(model, config);
+    auto [tensor, compatibilityDescriptor] = _compiler->compile(model, config);
     _logger.debug("compile end");
 
     if (config.get<COMPILATION_MODE>() == "HostCompile") {
@@ -99,6 +99,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         std::move(networkMeta),
         std::move(tensor),
         config,
+        compatibilityDescriptor,
         /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
 }
 
@@ -292,6 +293,31 @@ bool PluginCompilerAdapter::is_option_supported(std::string optname, std::option
                       hasValue ? value.c_str() : "null");
         return false;
     }
+}
+
+ov::RuntimeRequirementCheckResult PluginCompilerAdapter::validate_compatibility_descriptor(
+    const std::string& compatibilityDescriptor) const {
+    if (_zeroInitStruct && _zeroInitStruct->getDevice()) {
+        ze_device_properties_t device_properties = {};
+        device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
+        auto result = zeDeviceGetProperties(_zeroInitStruct->getDevice(), &device_properties);
+
+        if (result == ZE_RESULT_SUCCESS) {
+            vcl_device_desc_t vcl_desc = {sizeof(vcl_device_desc_t),
+                                          device_properties.deviceId,
+                                          static_cast<uint16_t>(device_properties.subdeviceId),
+                                          device_properties.numSlices};
+
+            _logger.info(
+                "Validating compatibility logic using specialized deviceID: 0x%X, maxTiles: %u for checkstring",
+                vcl_desc.deviceID,
+                vcl_desc.tileCount);
+
+            return _compiler->validate_compatibility_descriptor(compatibilityDescriptor, &vcl_desc);
+        }
+    }
+
+    return _compiler->validate_compatibility_descriptor(compatibilityDescriptor);
 }
 
 }  // namespace intel_npu

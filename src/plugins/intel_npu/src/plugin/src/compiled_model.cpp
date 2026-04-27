@@ -4,6 +4,7 @@
 
 #include "compiled_model.hpp"
 
+#include <cstring>
 #include <fstream>
 #include <string_view>
 
@@ -11,6 +12,7 @@
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/compatibility_string.hpp"
 #include "metadata.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -183,10 +185,43 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::model_name.name()) {
         OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
         return _graph->get_metadata().name;
-    } else {
-        // default behaviour
-        return _propertiesManager->getProperty(name);
+    } else if (name == ov::runtime_requirements.name()) {
+        std::optional<std::vector<uint64_t>> initSizes;
+        try {
+            initSizes = _graph->get_init_sizes();
+            // The weights-separation case is not supported for now
+            OPENVINO_ASSERT(!initSizes.has_value() || initSizes->empty());
+        } catch (const std::exception&) {
+            // It's a weightful graph, init sizes are implicitly non-existent
+            initSizes = std::nullopt;
+        }
+
+        OPENVINO_ASSERT(_graph->get_compiler_compatibility_descriptor().has_value(),
+                        "The compiler compatibility descriptor is unavailable");
+        std::string compilerDescriptor = _graph->get_compiler_compatibility_descriptor().value();
+
+        std::ostringstream requirementsString;
+        requirementsString.write(reinterpret_cast<const char*>(compilerDescriptor.data()),
+                                 static_cast<std::streamsize>(compilerDescriptor.size()));
+
+        // The layouts are not useful compatibility information
+        Metadata<CURRENT_METADATA_VERSION>(compilerDescriptor.size(),
+                                           CURRENT_OPENVINO_VERSION,
+                                           initSizes,
+                                           _batchSize,
+                                           std::nullopt,
+                                           std::nullopt)
+            .write(requirementsString);
+        const std::string encodedString = encode_compatibility_string(requirementsString.str());
+        _logger.debug("Encoded compatibility string: %s length: %zu", encodedString.c_str(), encodedString.length());
+
+        ov::Tensor requirements(ov::element::string, {});
+        *requirements.data<std::string>() = encodedString;
+        return requirements;
     }
+
+    // default behaviour
+    return _propertiesManager->getProperty(name);
 }
 
 const std::shared_ptr<IGraph>& CompiledModel::get_graph() const {

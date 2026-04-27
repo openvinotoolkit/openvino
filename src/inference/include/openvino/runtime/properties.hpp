@@ -994,6 +994,54 @@ static constexpr Property<bool, PropertyMutability::RW> force_tbb_terminate{"FOR
 static constexpr Property<bool, PropertyMutability::RW> enable_mmap{"ENABLE_MMAP"};
 
 /**
+ * @brief Enum to define possible execution results of RUNTIME_REQUIREMENTS_CHECK
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+enum class RuntimeRequirementCheckResult {
+    COMPATIBILITY_PASSED = 0,       //!< The string check passed via L0 API
+    COMPATIBILITY_FAILED = 1,       //!< The string check failed via L0 API
+    DRIVER_UPDATE_IS_REQUIRED = 2,  //!< Driver update is required to proceed with this model
+    PARTIAL_CHECK_PASSED = 3,       //!< The string check passed via VCL API (partial evaluation)
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const RuntimeRequirementCheckResult& result) {
+    switch (result) {
+    case RuntimeRequirementCheckResult::COMPATIBILITY_PASSED:
+        return os << "COMPATIBILITY_PASSED";
+    case RuntimeRequirementCheckResult::COMPATIBILITY_FAILED:
+        return os << "COMPATIBILITY_FAILED";
+    case RuntimeRequirementCheckResult::DRIVER_UPDATE_IS_REQUIRED:
+        return os << "DRIVER_UPDATE_IS_REQUIRED";
+    case RuntimeRequirementCheckResult::PARTIAL_CHECK_PASSED:
+        return os << "PARTIAL_CHECK_PASSED";
+    default:
+        OPENVINO_THROW("Unsupported runtime requirement check result");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, RuntimeRequirementCheckResult& result) {
+    std::string str;
+    is >> str;
+    std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) {
+        return std::toupper(c);
+    });
+    if (str == "COMPATIBILITY_PASSED") {
+        result = RuntimeRequirementCheckResult::COMPATIBILITY_PASSED;
+    } else if (str == "COMPATIBILITY_FAILED") {
+        result = RuntimeRequirementCheckResult::COMPATIBILITY_FAILED;
+    } else if (str == "DRIVER_UPDATE_IS_REQUIRED") {
+        result = RuntimeRequirementCheckResult::DRIVER_UPDATE_IS_REQUIRED;
+    } else if (str == "PARTIAL_CHECK_PASSED") {
+        result = RuntimeRequirementCheckResult::PARTIAL_CHECK_PASSED;
+    } else {
+        OPENVINO_THROW("Unsupported runtime requirement check result: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
  * @brief Namespace with device properties
  */
 namespace device {
@@ -1438,4 +1486,48 @@ static constexpr Property<uint64_t, PropertyMutability::RW> key_cache_group_size
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<uint64_t, PropertyMutability::RW> value_cache_group_size{"VALUE_CACHE_GROUP_SIZE"};
+
+/**
+ * @brief Read-write property carrying plugin-specific runtime requirements of a compiled model blob.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * The property value is an ov::Tensor containing opaque binary data encoding the device environment
+ * requirements at the time a model was compiled. The format and content are plugin-dependent and
+ * may encode information such as plugin version, required hardware capabilities, or driver version.
+ *
+ * **Reading** — query on a compiled model to obtain requirements to persist alongside the blob:
+ * @code
+ * ov::Core core;
+ * auto compiled_model = core.compile_model(model, "NPU");
+ * ov::Tensor requirements = compiled_model.get_property(ov::runtime_requirements);
+ * @endcode
+ */
+inline constexpr Property<Tensor, PropertyMutability::RW> runtime_requirements{"RUNTIME_REQUIREMENTS"};
+
+/**
+ * @brief Read-only property to check whether a device satisfies the runtime requirements of a compiled model blob.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Use this property before importing a compiled model blob to verify that the current device environment
+ * meets the requirements embedded in the blob. The requirements are passed as an argument via
+ * ov::runtime_requirements, using the value previously obtained from ov::CompiledModel::get_property().
+ *
+ * Returns True if the device meets all requirements and the blob can be successfully imported, false otherwise.
+ *
+ * @note The property must be queried with an ov::runtime_requirements argument.
+ * Querying without arguments results false.
+ *
+ * **Check requirements before import**
+ *
+ * @code
+ * auto compiled_model = core.compile_model(model, "NPU");
+ * auto requirements = compiled_model.get_property(ov::runtime_requirements);
+ * bool can_import = core.get_property("NPU", ov::runtime_requirements_met, ov::runtime_requirements(requirements)) ==
+ * ov::RuntimeRequirementCheckResult::COMPATIBILITY_PASSED;
+ * // do import only if can_import is true
+ * @endcode
+ */
+static constexpr Property<RuntimeRequirementCheckResult, PropertyMutability::RO> runtime_requirements_met{
+    "RUNTIME_REQUIREMENTS_MET"};
+
 }  // namespace ov
