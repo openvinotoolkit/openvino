@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstring>
+
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "internal_properties.hpp"
@@ -933,6 +935,221 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSMatmulTest,
                                             ::testing::ValuesIn(additional_configs)),
                          PagedAttnTestBase::getTestCaseName);
 }  // namespace
+
+// ---------------------------------------------------------------------------
+// Test: write_kv_cache=false must NOT modify KV-cache buffers
+// ---------------------------------------------------------------------------
+class PagedAttnNoKVWriteTest : public testing::Test, public CPUTestsBase {
+protected:
+    void run_and_check(ov::element::Type data_type) {
+        const size_t head_num   = 8;
+        const size_t head_size  = 64;
+        const size_t block_size = 32;
+        const size_t block_nums = 4;
+        const size_t token_dim  = head_num * head_size;
+        // Use past_tokens > 0 so the kernel has cache data to attend to.
+        // The cache is pre-filled with valid data. With write_kv_cache=false,
+        // the new k/v should NOT be written to cache, but the kernel still
+        // attends to past_tokens from the cache.
+        const int32_t past_tokens = 0;  // no pre-cached tokens (first-token scenario)
+
+        auto make_p = [&](ov::PartialShape ps, ov::element::Type et, const std::string& name) {
+            auto p = std::make_shared<ov::op::v0::Parameter>(et, ps);
+            p->set_friendly_name(name);
+            p->get_output_tensor(0).set_names({name});
+            return p;
+        };
+
+        auto q          = make_p(ov::PartialShape{-1, (int64_t)token_dim}, data_type, "q");
+        auto k          = make_p(ov::PartialShape{-1, (int64_t)token_dim}, data_type, "k");
+        auto v          = make_p(ov::PartialShape{-1, (int64_t)token_dim}, data_type, "v");
+        // Cache must be 4D: [num_blocks, num_kv_heads, block_size, head_size]
+        auto key_cache  = make_p(ov::PartialShape{-1, (int64_t)head_num, (int64_t)block_size, (int64_t)head_size},
+                                  data_type, "key_cache.0");
+        auto val_cache  = make_p(ov::PartialShape{-1, (int64_t)head_num, (int64_t)block_size, (int64_t)head_size},
+                                  data_type, "value_cache.0");
+        auto past_lens          = make_p(ov::PartialShape{-1},  ov::element::i32, "past_lens");
+        auto subseq_begins      = make_p(ov::PartialShape{-1},  ov::element::i32, "subsequence_begins");
+        auto block_indices      = make_p(ov::PartialShape{-1},  ov::element::i32, "block_indices");
+        auto block_idx_begins   = make_p(ov::PartialShape{-1},  ov::element::i32, "block_indices_begins");
+
+        auto make_scalar_const = [](ov::element::Type et, float val) {
+            return ov::op::v0::Constant::create(et, ov::Shape{}, {val});
+        };
+        auto make_empty_1d = [](ov::element::Type et) {
+            return ov::op::v0::Constant::create(et, ov::Shape{0}, std::vector<int32_t>{});
+        };
+
+        auto scale              = make_p(ov::PartialShape{},   ov::element::f32, "scale");
+        auto sliding_window_p   = make_scalar_const(ov::element::i32, 0.f);
+        auto alibi_slopes       = make_empty_1d(ov::element::f32);
+        auto max_ctx_len_p      = make_p(ov::PartialShape{},   ov::element::i32, "max_context_len");
+        auto score_agg_win      = make_scalar_const(ov::element::i32, 0.f);
+        auto empty_i32_1d       = make_empty_1d(ov::element::i32);
+        auto empty_f32_1d       = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{0}, std::vector<float>{});
+        auto zero_i32_scalar    = make_scalar_const(ov::element::i32, 0.f);
+        auto empty_sinks        = ov::op::v0::Constant::create(data_type, ov::Shape{0}, std::vector<float>{});
+        auto empty_u8           = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{0}, std::vector<uint8_t>{});
+
+        ov::OutputVector pa_args = {
+            q, k, v, key_cache, val_cache,
+            past_lens, subseq_begins, block_indices, block_idx_begins,
+            scale, sliding_window_p, alibi_slopes, max_ctx_len_p,
+            score_agg_win,
+            empty_i32_1d,            // rotated_block_indices
+            empty_i32_1d,            // rotation_deltas
+            empty_f32_1d,            // rotation_trig_lut
+            empty_f32_1d,            // xattention_threshold
+            zero_i32_scalar,         // xattention_block_size
+            zero_i32_scalar,         // xattention_stride
+            empty_sinks,             // sinks
+            zero_i32_scalar,         // adaptive_rkv_start_size
+            empty_i32_1d,            // adaptive_rkv_evictable_sizes
+            empty_i32_1d,            // adaptive_rkv_diversity_block_set_indices
+            empty_i32_1d,            // adaptive_rkv_diversity_block_set_indices_begins
+            empty_i32_1d,            // token_type_ids
+            empty_u8,                // qq_bias
+            empty_i32_1d,            // qq_bias_begins
+        };
+
+        auto pa_node = std::make_shared<ov::op::PagedAttentionExtension>(pa_args, /*write_kv_cache=*/false);
+        pa_node->set_out_type(0, data_type);
+
+        auto model = std::make_shared<ov::Model>(
+            ov::OutputVector{pa_node->output(0)},
+            ov::ParameterVector{q, k, v, key_cache, val_cache,
+                                past_lens, subseq_begins, block_indices, block_idx_begins,
+                                scale, max_ctx_len_p});
+
+        // ---- Compile ----
+        ov::Core core;
+        ov::AnyMap config;
+        config[ov::hint::inference_precision.name()] = ov::element::f32;
+        config[ov::hint::kv_cache_precision.name()] = data_type;  // disable cache quantization
+        auto compiled = core.compile_model(model, "CPU", config);
+        auto req = compiled.create_infer_request();
+
+        // ---- Determine actual cache precision & shape from compiled model ----
+        ov::element::Type cache_prec = data_type;
+        ov::Shape kv_cache_shape;
+        ov::Shape val_cache_shape_actual;
+        for (const auto& inp : compiled.inputs()) {
+            for (const auto& name : inp.get_names()) {
+                if (name.find("key_cache.") == 0 && kv_cache_shape.empty()) {
+                    cache_prec = inp.get_element_type();
+                    auto pshape = inp.get_partial_shape();
+                    pshape[0] = static_cast<int64_t>(block_nums);
+                    kv_cache_shape = pshape.get_shape();
+                }
+                if (name.find("value_cache.") == 0 && val_cache_shape_actual.empty()) {
+                    auto pshape = inp.get_partial_shape();
+                    pshape[0] = static_cast<int64_t>(block_nums);
+                    val_cache_shape_actual = pshape.get_shape();
+                }
+            }
+        }
+        ASSERT_FALSE(kv_cache_shape.empty()) << "Could not determine key cache shape";
+        if (val_cache_shape_actual.empty()) val_cache_shape_actual = kv_cache_shape;
+
+        // ---- Allocate & fill KV cache tensors with deterministic non-zero data ----
+        ov::Tensor key_cache_tensor(cache_prec, kv_cache_shape);
+        ov::Tensor val_cache_tensor(cache_prec, val_cache_shape_actual);
+
+        auto fill_tensor = [](ov::Tensor& t, uint8_t pattern) {
+            std::memset(t.data(), pattern, t.get_byte_size());
+        };
+        fill_tensor(key_cache_tensor, 0x3E);
+        fill_tensor(val_cache_tensor, 0x3D);
+
+        // Save copies to compare after inference
+        ov::Tensor key_cache_before(cache_prec, kv_cache_shape);
+        ov::Tensor val_cache_before(cache_prec, val_cache_shape_actual);
+        key_cache_tensor.copy_to(key_cache_before);
+        val_cache_tensor.copy_to(val_cache_before);
+
+        // ---- Build runtime inputs ----
+        const size_t B_token = 1;
+        const int32_t total_blocks_needed = static_cast<int32_t>((past_tokens + B_token + block_size - 1) / block_size);
+
+        auto make_typed_tensor = [&](const ov::Shape& shape, float val) {
+            ov::Tensor t(data_type, shape);
+            if (data_type == ov::element::f32) {
+                auto* d = t.data<float>();
+                for (size_t i = 0; i < t.get_size(); ++i) d[i] = val + static_cast<float>(i) * 0.01f;
+            } else if (data_type == ov::element::f16) {
+                auto* d = t.data<ov::float16>();
+                for (size_t i = 0; i < t.get_size(); ++i) d[i] = ov::float16(val + static_cast<float>(i) * 0.01f);
+            } else {
+                auto* d = t.data<ov::bfloat16>();
+                for (size_t i = 0; i < t.get_size(); ++i) d[i] = ov::bfloat16(val + static_cast<float>(i) * 0.01f);
+            }
+            return t;
+        };
+        auto q_tensor = make_typed_tensor({B_token, token_dim}, 0.5f);
+        auto k_tensor = make_typed_tensor({B_token, token_dim}, 0.6f);
+        auto v_tensor = make_typed_tensor({B_token, token_dim}, 0.7f);
+
+        ov::Tensor past_lens_t(ov::element::i32, {1});
+        past_lens_t.data<int32_t>()[0] = past_tokens;
+
+        ov::Tensor subseq_t(ov::element::i32, {2});
+        subseq_t.data<int32_t>()[0] = 0;
+        subseq_t.data<int32_t>()[1] = static_cast<int32_t>(B_token);
+
+        ov::Tensor blk_idx_t(ov::element::i32, {static_cast<size_t>(total_blocks_needed)});
+        for (int32_t i = 0; i < total_blocks_needed; ++i) blk_idx_t.data<int32_t>()[i] = i;
+
+        ov::Tensor blk_idx_begins_t(ov::element::i32, {2});
+        blk_idx_begins_t.data<int32_t>()[0] = 0;
+        blk_idx_begins_t.data<int32_t>()[1] = total_blocks_needed;
+
+        ov::Tensor scale_t(ov::element::f32, ov::Shape{});
+        scale_t.data<float>()[0] = 1.0f / std::sqrt(static_cast<float>(head_size));
+
+        ov::Tensor max_ctx_t(ov::element::i32, ov::Shape{});
+        max_ctx_t.data<int32_t>()[0] = past_tokens + static_cast<int32_t>(B_token);
+
+        req.set_tensor("q",                    q_tensor);
+        req.set_tensor("k",                    k_tensor);
+        req.set_tensor("v",                    v_tensor);
+        req.set_tensor("key_cache.0",          key_cache_tensor);
+        req.set_tensor("value_cache.0",        val_cache_tensor);
+        req.set_tensor("past_lens",            past_lens_t);
+        req.set_tensor("subsequence_begins",   subseq_t);
+        req.set_tensor("block_indices",        blk_idx_t);
+        req.set_tensor("block_indices_begins", blk_idx_begins_t);
+        req.set_tensor("scale",                scale_t);
+        req.set_tensor("max_context_len",      max_ctx_t);
+
+        // ---- Infer ----
+        req.infer();
+
+        // ---- Assert: KV cache must be byte-identical to before inference ----
+        {
+            auto* before_k = static_cast<const uint8_t*>(key_cache_before.data());
+            auto* after_k  = static_cast<const uint8_t*>(key_cache_tensor.data());
+            ASSERT_EQ(0, std::memcmp(before_k, after_k, key_cache_before.get_byte_size()))
+                << "key_cache was modified despite write_kv_cache=false";
+
+            auto* before_v = static_cast<const uint8_t*>(val_cache_before.data());
+            auto* after_v  = static_cast<const uint8_t*>(val_cache_tensor.data());
+            ASSERT_EQ(0, std::memcmp(before_v, after_v, val_cache_before.get_byte_size()))
+                << "value_cache was modified despite write_kv_cache=false";
+        }
+    }
+};
+
+TEST_F(PagedAttnNoKVWriteTest, smoke_PagedAttnNoKVWrite_f32) {
+    if (!ov::with_cpu_x86_sse42())
+        GTEST_SKIP() << "Skipping on unsupported platform";
+    run_and_check(ov::element::f32);
+}
+
+TEST_F(PagedAttnNoKVWriteTest, smoke_PagedAttnNoKVWrite_bf16) {
+    if (!ov::with_cpu_x86_bfloat16())
+        GTEST_SKIP() << "bf16 not supported on this CPU";
+    run_and_check(ov::element::bf16);
+}
 
 }  // namespace test
 }  // namespace ov

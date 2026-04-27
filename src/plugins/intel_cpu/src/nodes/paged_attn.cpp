@@ -26,6 +26,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/paged_attention.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "transformations/utils/utils.hpp"
@@ -76,6 +77,9 @@ PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphC
     // output score may have no child
     m_hasScore = !op->get_output_target_inputs(1).empty();
     m_has_adaptive_rkv_diversity_output = !op->get_output_target_inputs(2).empty();
+    if (const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op)) {
+        m_write_kv_cache = pa->get_write_kv_cache();
+    }
 }
 
 void PagedAttention::initSupportedPrimitiveDescriptors() {
@@ -356,7 +360,7 @@ void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
         }
     }
 
-    m_executor->execute(inputs, outputs);
+    m_executor->execute(inputs, outputs, m_write_kv_cache);
 }
 
 bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,

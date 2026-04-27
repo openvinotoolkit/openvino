@@ -62,6 +62,7 @@ private:
 
     bool m_hasScore = false;
     bool m_has_adaptive_rkv_diversity_output = false;
+    bool m_write_kv_cache = true;
 };
 
 }  // namespace ov::intel_cpu::node
