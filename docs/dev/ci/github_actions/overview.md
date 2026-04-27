@@ -177,7 +177,7 @@ Overview of the [Linux workflow's](/.github/workflows/ubuntu_22.yml) `Python_Uni
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-4-cores-16gb
+    runs-on: aks-linux-4-cores-16gb-st
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
@@ -194,7 +194,7 @@ Overview of the [Linux workflow's](/.github/workflows/ubuntu_22.yml) `Python_Uni
 * All the test jobs have the `needs: Build` which means that they wait for the `Build` job to
   finish as they require artifacts from it.
 * The machine that is used for a job is specified using the `runs-on` key.
-  * In this case `aks-linux-4-cores-16gb` is used. [Read more](#machines) on what machines are
+  * In this case `aks-linux-4-cores-16gb-st` is used. [Read more](#machines) on what machines are
     available and how to choose one for a job.
 * Some jobs could run inside a Docker container. The image could be specified using the `image`
   key under the `container` key.

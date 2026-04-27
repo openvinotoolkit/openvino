@@ -22,6 +22,11 @@ permissions: read-all
 env:
   HF_HUB_CACHE_LIN: /mount/caches/huggingface
   HF_HUB_CACHE_WIN: "C:\\mount\\caches\\huggingface"
+  # To switch to the primary HF token, change the filename from `token-secondary` to `token-primary`:
+  #   HF_TOKEN_PATH_LIN: /home/runner/secrets/huggingface/token-primary
+  #   HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\token-primary"
+  HF_TOKEN_PATH_LIN: /home/runner/secrets/huggingface/token-secondary
+  HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\token-secondary"
 
 jobs:
   JAX_Models_Tests:
@@ -32,8 +37,8 @@ jobs:
       image: ${{ inputs.image }}
       volumes:
         - /mount:/mount
+        - /home/runner/secrets/huggingface:/home/runner/secrets/huggingface:ro
         - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      options: "-e HF_TOKEN"
     defaults:
       run:
         shell: bash
@@ -79,6 +84,7 @@ jobs:
         run: |
           echo "HF_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
           echo "HUGGINGFACE_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
+          echo "HF_TOKEN_PATH=${{ runner.os == 'Linux' && env.HF_TOKEN_PATH_LIN || env.HF_TOKEN_PATH_WIN }}" >> "$GITHUB_ENV"
 
       - name: Extract OpenVINO packages and tests
         run: pigz -dc openvino_tests.tar.gz | tar -xf - -v

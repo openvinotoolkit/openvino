@@ -30,7 +30,7 @@ jobs:
         - /mount:/mount
         - /home/runner/secrets/:/secrets:ro
         - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      options: "-e SCCACHE_AZURE_BLOB_CONTAINER -e HF_TOKEN"
+      options: "-e SCCACHE_AZURE_BLOB_CONTAINER"
     defaults:
       run:
         shell: bash
@@ -46,6 +46,9 @@ jobs:
       ONNX_RUNTIME_REPO: ${{ github.workspace }}/onnxruntime
       ONNX_RUNTIME_BUILD_DIR: ${{ github.workspace }}/onnxruntime/build
       ONNX_RUNTIME_UTILS: ${{ github.workspace }}/src/frontends/onnx/tests/ci_utils/onnxruntime
+      # To switch to the primary HF token, change the filename from `token-secondary` to `token-primary`:
+      #   HF_TOKEN_PATH: /home/runner/secrets/huggingface/token-primary
+      HF_TOKEN_PATH: /home/runner/secrets/huggingface/token-secondary
 
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
