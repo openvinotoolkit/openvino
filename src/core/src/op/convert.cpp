@@ -17,15 +17,15 @@ namespace op {
 namespace convert {
 
 #define CONVERT_ET_LIST                                                                                              \
-    boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, nf4, f8e4m3, f8e5m2, \
+    boolean, bf16, f16, f32, f64, i2, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, nf4, f8e4m3, f8e5m2, \
         f4e2m1, f8e8m0
 
 #define CONVERT_TO_ANY_NO_NF4                                                                                   \
-    boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, f8e4m3, f8e5m2, \
+    boolean, bf16, f16, f32, f64, i2, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, f8e4m3, f8e5m2, \
         f4e2m1, f8e8m0
 
 #define CONVERT_TO_ANY_NO_F4 \
-    boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, f8e4m3, f8e5m2
+    boolean, bf16, f16, f32, f64, i2, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, f8e4m3, f8e5m2
 
 struct Evaluate : public element::NoAction<bool> {
     using element::NoAction<bool>::visit;

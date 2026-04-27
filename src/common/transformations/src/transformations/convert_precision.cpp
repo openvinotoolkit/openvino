@@ -1281,7 +1281,8 @@ void convert_lp_value(const SRC& src,
 
 std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<v0::Constant>& constant, ov::element::Type to) {
     // Supported integer precisions
-    static const precisions_set_t supported_integer_precisions = {ov::element::i4,
+    static const precisions_set_t supported_integer_precisions = {ov::element::i2,
+                                                                  ov::element::i4,
                                                                   ov::element::u4,
                                                                   ov::element::u1,
                                                                   ov::element::u2};
