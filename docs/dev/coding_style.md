@@ -44,23 +44,22 @@ grep "CMAKE_CXX_COMPILER" <build_dir>/CMakeCache.txt | grep -i clang
 cmake -DENABLE_CLANG_FORMAT=ON -DENABLE_CLANG_TIDY=ON <build_dir>
 ```
 
-**If it doesn't** (or no build directory exists), create a dedicated `build-clang/` directory:
+**If it doesn't** (or no build directory exists), set `<build_dir>=build-clang` and configure it:
 ```bash
-mkdir -p build-clang && cd build-clang
-cmake -DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_C_COMPILER=clang-18 \
+cmake -B <build_dir> -DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_C_COMPILER=clang-18 \
       -DENABLE_CLANG_FORMAT=ON -DENABLE_CLANG_TIDY=ON \
-      -DCMAKE_BUILD_TYPE=Release ..
+      -DCMAKE_BUILD_TYPE=Release
 ```
 
 Build a target to run checks (warnings appear inline during compilation):
 ```bash
-cmake --build . --target <your_target> -- -j$(nproc)
+cmake --build  <build_dir> --target <your_target> -- -j$(nproc)
 ```
 
 To auto-fix diagnostics, enable the fix mode and rebuild:
 ```bash
-cmake -DENABLE_CLANG_TIDY_FIX=ON .
-cmake --build . --target <your_target> -- -j$(nproc)
+cmake -DENABLE_CLANG_TIDY_FIX=ON <build_dir>
+cmake --build  <build_dir> --target <your_target> -- -j$(nproc)
 ```
 
 Notes:
@@ -92,8 +91,8 @@ cmake -DENABLE_CLANG_FORMAT=ON <other flags> ..
 
 Check and fix targets:
 ```bash
-cmake --build . --target clang_format_check_all   # report violations
-cmake --build . --target clang_format_fix_all     # auto-fix violations
+cmake --build  <build_dir> --target clang_format_check_all   # report violations
+cmake --build  <build_dir> --target clang_format_fix_all     # auto-fix violations
 ```
 
 ## See also
