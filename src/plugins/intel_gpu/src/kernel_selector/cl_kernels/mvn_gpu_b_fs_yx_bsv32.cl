@@ -1,6 +1,11 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+// This file is intentionally split from mvn_gpu_b_fs_yx_fsv16.cl.
+// Both files share the accumulate/reduce helpers and define their own
+// ITEMS_NUM via the preprocessor. Keeping them in one CL file would leak
+// ITEMS_NUM across batch-compiled kernels and produce wrong dispatches.
+// Do not merge them back without introducing a per-kernel JIT for ITEMS_NUM.
 
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/imad.cl"
@@ -8,8 +13,8 @@
 #include "include/batch_headers/sub_group_block_write.cl"
 #include "include/batch_headers/sub_group_shuffle.cl"
 
-#include "mvn_gpu_b_fs_yx_fsv16_imad_accumulate.cl"
-#include "mvn_gpu_b_fs_yx_fsv16_imad_reduce.cl"
+#include "mvn_gpu_b_fs_yx_fsv16_accumulate.cl"
+#include "mvn_gpu_b_fs_yx_fsv16_reduce.cl"
 
 // MVN - performs mean-variance normalization, that is normalizes the input data to have
 //       0 mean and if NORMALIZE_VARIANCE is set to have variance 1.

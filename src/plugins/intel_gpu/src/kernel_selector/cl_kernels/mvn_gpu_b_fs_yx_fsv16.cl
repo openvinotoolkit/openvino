@@ -8,8 +8,8 @@
 #include "include/batch_headers/sub_group_block_write.cl"
 #include "include/batch_headers/sub_group_shuffle.cl"
 
-#include "mvn_gpu_b_fs_yx_fsv16_imad_accumulate.cl"
-#include "mvn_gpu_b_fs_yx_fsv16_imad_reduce.cl"
+#include "mvn_gpu_b_fs_yx_fsv16_accumulate.cl"
+#include "mvn_gpu_b_fs_yx_fsv16_reduce.cl"
 
 // MVN - performs mean-variance normalization, that is normalizes the input data to have
 //       0 mean and if NORMALIZE_VARIANCE is set to have variance 1.
@@ -83,7 +83,7 @@
 #define TO_ACT_PACKED_TYPE    CAT(convert_, ACT_PACKED_TYPE)
 
 // ITEMS_NUM must be provided exclusively via JIT by every kernel class
-// that uses this CL file (fsv16_imad).
+// that uses this CL file (fsv16).
 // JIT-defined constants are automatically #undef'd between batch-compiled
 // kernels, preventing stale macro leakage across compilation units.
 // Do NOT add a #ifndef fallback here — a CL-side #define escapes the

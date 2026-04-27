@@ -1438,8 +1438,6 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             (output_layout.data_type == data_types::i8 || output_layout.data_type == data_types::u8)) {
             expected = format::b_fs_zyx_fsv16;
         }
-    } else if (node.is_type<mvn>()) {
-        expected = format::any;
     } else if (node.is_type<resample>()) {
         // if the resample is in the last part of the network and there are no users using blocked format,
         // it is better to reorder to bfyx before resample is done.

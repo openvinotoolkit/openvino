@@ -143,6 +143,9 @@ JitConstants ReorderKernel_fsv::GetJitConstants(const reorder_params& params) co
     }
 
     // Vectorized path: when both fsv sizes are >= 16 and one is a multiple of the other
+    // Threshold of 16 is chosen so vload16/vstore16 intrinsics map to a single
+    // SIMD16 transaction. fsv4/fsv8 layouts fall back to the scalar loop in the .cl
+    // because a smaller vector width would not amortize the added jit branches.
     const size_t min_fsv = std::min(in_fsv, out_fsv);
     const size_t max_fsv = std::max(in_fsv, out_fsv);
     if (min_fsv >= 16 && max_fsv % min_fsv == 0) {

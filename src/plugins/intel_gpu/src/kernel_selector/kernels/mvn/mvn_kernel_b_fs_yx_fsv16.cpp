@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "mvn_kernel_b_fs_yx_fsv16_imad.hpp"
+#include "mvn_kernel_b_fs_yx_fsv16.hpp"
 #include "common_tools.h"
 
 #include <string>
@@ -15,7 +15,7 @@ static constexpr size_t simd = 16;
 static constexpr size_t fsv = 16;
 static constexpr size_t pref_work_groups = 16;
 
-ParamsKey MVNKernel_b_fs_yx_fsv16_imad::GetSupportedKey() const {
+ParamsKey MVNKernel_b_fs_yx_fsv16::GetSupportedKey() const {
     ParamsKey k;
 
     k.EnableInputDataType(Datatype::F16);
@@ -49,7 +49,7 @@ ParamsKey MVNKernel_b_fs_yx_fsv16_imad::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey MVNKernel_b_fs_yx_fsv16_imad::get_required_device_features_key(const Params& params) const {
+DeviceFeaturesKey MVNKernel_b_fs_yx_fsv16::get_required_device_features_key(const Params& params) const {
     auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_shuffle();
     k.requires_subgroup_reduce();
@@ -57,7 +57,7 @@ DeviceFeaturesKey MVNKernel_b_fs_yx_fsv16_imad::get_required_device_features_key
     return k;
 }
 
-bool MVNKernel_b_fs_yx_fsv16_imad::Validate(const Params& p) const {
+bool MVNKernel_b_fs_yx_fsv16::Validate(const Params& p) const {
     if (!Parent::Validate(p))
         DO_NOT_USE_THIS_KERNEL(p.layerID);
 
@@ -74,7 +74,7 @@ bool MVNKernel_b_fs_yx_fsv16_imad::Validate(const Params& p) const {
     return true;
 }
 
-MVNKernelBase::DispatchData MVNKernel_b_fs_yx_fsv16_imad::SetDefault(const mvn_params& params) const {
+MVNKernelBase::DispatchData MVNKernel_b_fs_yx_fsv16::SetDefault(const mvn_params& params) const {
     auto dispatchData = Parent::SetDefault(params);
 
     auto max_wg = params.engineInfo.maxWorkGroupSize;
@@ -109,7 +109,7 @@ MVNKernelBase::DispatchData MVNKernel_b_fs_yx_fsv16_imad::SetDefault(const mvn_p
     return dispatchData;
 }
 
-Datatype MVNKernel_b_fs_yx_fsv16_imad::GetAccumulatorType(const mvn_params& params) const {
+Datatype MVNKernel_b_fs_yx_fsv16::GetAccumulatorType(const mvn_params& params) const {
     const auto& input_dt = params.inputs[0].GetDType();
 
     switch (input_dt) {
@@ -123,7 +123,7 @@ Datatype MVNKernel_b_fs_yx_fsv16_imad::GetAccumulatorType(const mvn_params& para
     }
 }
 
-JitConstants MVNKernel_b_fs_yx_fsv16_imad::GetJitConstants(const mvn_params& params, DispatchData dispatchData) const {
+JitConstants MVNKernel_b_fs_yx_fsv16::GetJitConstants(const mvn_params& params, DispatchData dispatchData) const {
     auto jits = Parent::GetJitConstants(params, dispatchData);
 
     auto activation_dt = GetActivationType(params);
@@ -177,7 +177,7 @@ JitConstants MVNKernel_b_fs_yx_fsv16_imad::GetJitConstants(const mvn_params& par
     return jits;
 }
 
-MVNKernel_b_fs_yx_fsv16_imad::MultiDispatchData MVNKernel_b_fs_yx_fsv16_imad::SetDefaultForMulti(
+MVNKernel_b_fs_yx_fsv16::MultiDispatchData MVNKernel_b_fs_yx_fsv16::SetDefaultForMulti(
     const mvn_params& params) const {
     MultiDispatchData dispatchData;
 
@@ -244,7 +244,7 @@ MVNKernel_b_fs_yx_fsv16_imad::MultiDispatchData MVNKernel_b_fs_yx_fsv16_imad::Se
     return dispatchData;
 }
 
-KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_params& params) const {
+KernelsData MVNKernel_b_fs_yx_fsv16::GetMultiStageKernelsData(const mvn_params& params) const {
     if (!Validate(params))
         return {};
 
@@ -384,7 +384,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
     return {kd};
 }
 
-KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetDynamicMultiStageKernelsData(const mvn_params& params) const {
+KernelsData MVNKernel_b_fs_yx_fsv16::GetDynamicMultiStageKernelsData(const mvn_params& params) const {
     if (!Validate(params))
         return {};
 
@@ -578,7 +578,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetDynamicMultiStageKernelsData(const 
     return {kd};
 }
 
-void MVNKernel_b_fs_yx_fsv16_imad::GetUpdateDispatchDataFunc(KernelData& kd) const {
+void MVNKernel_b_fs_yx_fsv16::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const mvn_params&>(params);
         constexpr size_t local_fsv = 16;
@@ -684,7 +684,7 @@ void MVNKernel_b_fs_yx_fsv16_imad::GetUpdateDispatchDataFunc(KernelData& kd) con
     };
 }
 
-KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetKernelsData(const Params& params) const {
+KernelsData MVNKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params) const {
     const mvn_params& orgParams = static_cast<const mvn_params&>(params);
 
     // For dynamic shapes, compile both basic and multi-stage kernels;
@@ -708,7 +708,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetKernelsData(const Params& params) c
         return GetCommonKernelsData(params);
 }
 
-KernelsPriority MVNKernel_b_fs_yx_fsv16_imad::GetKernelsPriority(const Params& /*params*/) const {
+KernelsPriority MVNKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_4;
 }
 }  // namespace kernel_selector
