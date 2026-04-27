@@ -17,8 +17,8 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(scatter_elements_update)
 layout scatter_elements_update_inst::calc_output_layout(scatter_elements_update_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<scatter_elements_update>();
 
-    const int32_t axis = desc->axis;
-    const size_t input_number_of_dims = impl_param.get_input_layout().get_partial_shape().size();
+    const int64_t axis = desc->axis;
+    const int64_t input_number_of_dims = static_cast<int64_t>(impl_param.get_input_layout().get_partial_shape().size());
 
     auto input_layout = impl_param.get_input_layout();
 
@@ -30,7 +30,7 @@ layout scatter_elements_update_inst::calc_output_layout(scatter_elements_update_
         output_type = impl_param.get_output_element_type();
     }
 
-    if (static_cast<size_t>(axis) < 0 || static_cast<size_t>(axis) >= input_number_of_dims)
+    if (axis < 0 || axis >= input_number_of_dims)
         CLDNN_ERROR_MESSAGE(desc->id, "Incorrect axis value for ScatterElementsUpdate: Axis must be positive and less than the input tensor dimension.");
 
     return layout{output_shape, output_type, input_format};

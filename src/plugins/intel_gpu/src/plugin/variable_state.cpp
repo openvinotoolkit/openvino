@@ -98,7 +98,7 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
             upper_pad[pad_dim] = static_cast<ov::Dimension::value_type>(padded_size) - static_cast<ov::Dimension::value_type>(non_padded_size);
         }
     }
-    cldnn::padding src_padd = cldnn::padding(lower_pad, upper_pad, 0.f);
+    cldnn::padding src_padd = cldnn::padding(lower_pad, upper_pad);
     auto src_fmt = cldnn::format::get_default_format(src_rank);
     auto src_layout = cldnn::layout(ov::PartialShape(src_shape), state->get_element_type(), src_fmt, src_padd);
 
