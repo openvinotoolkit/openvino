@@ -331,6 +331,35 @@ ov::Tensor create_and_fill_tensor_consistently(const ov::element::Type element_t
     return tensor;
 }
 
+ov::Tensor create_and_fill_tensor_fp16_representable(const ov::element::Type element_type,
+                                                     const ov::Shape& shape,
+                                                     const InputGenerateData& inGenData) {
+    auto tensor = ov::Tensor{element_type, shape};
+    auto size = shape_size(shape);
+
+#define CASE_FP16_REPR(X)                                                      \
+    case X:                                                                    \
+        fill_data_random_fp16_representable(tensor.data<fundamental_type_for<X>>(), \
+                         size,                                                 \
+                         inGenData.range,                                      \
+                         inGenData.start_from,                                 \
+                         inGenData.resolution,                                 \
+                         inGenData.seed);                                      \
+        break;
+
+    switch (element_type) {
+        CASE_FP16_REPR(ov::element::f32)
+        CASE_FP16_REPR(ov::element::f64)
+        CASE_FP16_REPR(ov::element::f16)
+        CASE_FP16_REPR(ov::element::bf16)
+    default:
+        // For non-floating point types, use regular fill
+        return create_and_fill_tensor(element_type, shape, inGenData);
+    }
+#undef CASE_FP16_REPR
+    return tensor;
+}
+
 namespace tensor_comparation {
 constexpr double eps = std::numeric_limits<double>::epsilon();
 
