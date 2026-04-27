@@ -14,25 +14,9 @@ TEST_P(MatMulTransposeToReshape, CompareWithRefs) {
     run();
 
     const auto runtime_model = compiledModel.get_runtime_model();
-    ASSERT_NE(runtime_model, nullptr);
-
-    bool has_fc = false;
-    for (const auto& node : runtime_model->get_ordered_ops()) {
-        const auto& rt_info = node->get_rt_info();
-        const auto it = rt_info.find("layerType");
-        if (it == rt_info.end()) {
-            continue;
-        }
-
-        const auto layer_type = it->second.as<std::string>();
-        if (layer_type == "FullyConnected") {
-            has_fc = true;
-        }
-        ASSERT_NE(layer_type, "Transpose");
-        ASSERT_NE(layer_type, "Permute");
-    }
-
-    ASSERT_TRUE(has_fc);
+    CheckNumberOfNodesWithTypes(runtime_model, {"FullyConnected"}, 1);
+    CheckNumberOfNodesWithTypes(runtime_model, {"Transpose"}, 0);
+    CheckNumberOfNodesWithTypes(runtime_model, {"Permute"}, 0);
 }
 
 }  // namespace test
