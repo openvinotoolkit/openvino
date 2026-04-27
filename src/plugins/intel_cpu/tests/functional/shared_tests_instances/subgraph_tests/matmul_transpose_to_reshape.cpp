@@ -10,8 +10,6 @@ namespace {
 
 std::vector<ov::element::Type> netPrecisions = {ov::element::f32};
 
-ov::AnyMap additional_config = {};
-
 }  // namespace
 
 namespace ov {
