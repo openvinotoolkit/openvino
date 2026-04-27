@@ -13,27 +13,30 @@
 #error "dynamic_quantize_gpu_opt.cl: Unsupported output dimension"
 #endif
 
+#if IS_F8
+    #define SCALE_TYPE float
+    #define TO_SCALE_TYPE(x) _convert_float(x)
+    #define ACT_MIN_VAL 0.000000059604645h // min half dtype val
+    #define TO_TYPE_N_(type, n, x) _convert_##type##n(x)
+    #define TO_TYPE_N_SAT_(type, n, x) _convert_##type##n##_sat(x)
+#else
+    #define SCALE_TYPE half
+    #define TO_SCALE_TYPE(x) convert_half(x)
+    #define ACT_MIN_VAL 0.003h      // Too small value may generate inf during 127/ACT_MIN_VAL
+    #define TO_TYPE_N_(type, n, x) convert_##type##n(x)
+    #define TO_TYPE_N_SAT_(type, n, x) convert_##type##n##_sat(x)
+#endif
+
 #define VLOAD_N CAT(vload, VEC_SIZE)
 #define VSTORE_N CAT(vstore, VEC_SIZE)
 #define CONVERT_UCHAR_N CAT(convert_uchar, VEC_SIZE)
 #define CONVERT_CHAR_N CAT(convert_char, VEC_SIZE)
 #define CONVERT_INT_N CAT(convert_int, VEC_SIZE)
-#define TO_TYPE_N_(type, n, x) _convert_##type##n(x)
 #define TO_TYPE_N(type, n, x) TO_TYPE_N_(type, n, x)
-#define TO_TYPE_N_SAT_(type, n, x) _convert_##type##n##_sat(x)
 #define TO_TYPE_N_SAT(type, n, x) TO_TYPE_N_SAT_(type, n, x)
 #define AS_TYPE_N_(type, n, x) as_##type##n(x)
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
 #define AS_INPUT_TYPE_N(x) AS_TYPE_N(INPUT0_TYPE, VEC_SIZE, x)
-#if IS_F8
-    #define SCALE_TYPE float
-    #define TO_SCALE_TYPE(x) _convert_float(x)
-    #define ACT_MIN_VAL 0.000000059604645h // min half dtype val
-#else
-    #define SCALE_TYPE half
-    #define TO_SCALE_TYPE(x) _convert_half(x)
-    #define ACT_MIN_VAL 0.003h      // Too small value may generate inf during 127/ACT_MIN_VAL
-#endif
 
 #if GENERATE_PRECOMPUTED_REDUCTION
     #define FOR_PRECOMPUTED_REDUCTION(x)  x

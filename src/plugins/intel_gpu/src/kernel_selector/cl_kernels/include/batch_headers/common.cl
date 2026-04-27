@@ -104,16 +104,16 @@ DEFINE_VECTOR_IDENTITY(type, 4) \
 DEFINE_VECTOR_IDENTITY(type, 8) \
 DEFINE_VECTOR_IDENTITY(type, 16)
 
-float __attribute__((overloadable)) _convert_float(char val) { return convert_float(val); }
-float __attribute__((overloadable)) _convert_float(uchar val) { return convert_float(val); }
-float __attribute__((overloadable)) _convert_float(short val) { return convert_float(val); }
-float __attribute__((overloadable)) _convert_float(ushort val) { return convert_float(val); }
-float __attribute__((overloadable)) _convert_float(int val) { return convert_float(val); }
-float __attribute__((overloadable)) _convert_float(uint val) { return convert_float(val); }
-float __attribute__((overloadable)) _convert_float(long val) { return convert_float(val); }
-float __attribute__((overloadable)) _convert_float(ulong val) { return convert_float(val); }
-float __attribute__((overloadable)) _convert_float(half val) { return convert_float(val); }
-float __attribute__((overloadable)) _convert_float(float val) { return val; }
+inline float __attribute__((overloadable)) _convert_float(char val) { return convert_float(val); }
+inline float __attribute__((overloadable)) _convert_float(uchar val) { return convert_float(val); }
+inline float __attribute__((overloadable)) _convert_float(short val) { return convert_float(val); }
+inline float __attribute__((overloadable)) _convert_float(ushort val) { return convert_float(val); }
+inline float __attribute__((overloadable)) _convert_float(int val) { return convert_float(val); }
+inline float __attribute__((overloadable)) _convert_float(uint val) { return convert_float(val); }
+inline float __attribute__((overloadable)) _convert_float(long val) { return convert_float(val); }
+inline float __attribute__((overloadable)) _convert_float(ulong val) { return convert_float(val); }
+inline float __attribute__((overloadable)) _convert_float(half val) { return convert_float(val); }
+inline float __attribute__((overloadable)) _convert_float(float val) { return val; }
 
 DEFINE_ALL_VECTOR_CONVERTS(float, char)
 DEFINE_ALL_VECTOR_CONVERTS(float, uchar)
