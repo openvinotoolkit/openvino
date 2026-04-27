@@ -1238,4 +1238,71 @@ inline void multiply_scalar(ov::float16* a, ov::float16* a_dst, const ov::float1
 }
 #endif
 
+inline float reduce_sum(const float* data, size_t n) {
+    float s = 0.0f;
+    size_t i = 0;
+#if defined(HAVE_AVX512F)
+    {
+        auto vsum = _mm512_setzero_ps();
+        for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
+            vsum = _mm512_add_ps(vsum, _mm512_loadu_ps(data + i));
+        }
+        s = _mm512_reduce_add_ps(vsum);
+    }
+#elif defined(HAVE_AVX2)
+    {
+        auto vsum = _mm256_setzero_ps();
+        for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
+            vsum = _mm256_add_ps(vsum, _mm256_loadu_ps(data + i));
+        }
+        hsum(vsum);
+        s = _mm256_cvtss_f32(vsum);
+    }
+#elif defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE)
+    {
+        auto sve_len = vec_len_f32_sve();
+        svbool_t pg = svptrue_b32();
+        svfloat32_t svs = svdup_n_f32(0.0f);
+        for (; i + sve_len <= n; i += sve_len) {
+            svs = svadd_f32_z(pg, svs, svld1_f32(pg, data + i));
+        }
+        s = svaddv_f32(pg, svs);
+    }
+#endif
+    for (; i < n; i++) {
+        s += data[i];
+    }
+    return s;
+}
+
+// Elementwise subtraction: dst[i] = a[i] - b[i]
+inline void eltwise_sub(const float* a, const float* b, float* dst, size_t n) {
+    size_t i = 0;
+#if defined(HAVE_AVX512F)
+    for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
+        _mm512_storeu_ps(dst + i, _mm512_sub_ps(_mm512_loadu_ps(a + i), _mm512_loadu_ps(b + i)));
+    }
+#elif defined(HAVE_AVX2)
+    for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
+        _mm256_storeu_ps(dst + i, _mm256_sub_ps(_mm256_loadu_ps(a + i), _mm256_loadu_ps(b + i)));
+    }
+#elif defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE)
+    {
+        auto sve_len = vec_len_f32_sve();
+        svbool_t pg = svptrue_b32();
+        for (; i + sve_len <= n; i += sve_len) {
+            svst1_f32(pg, dst + i, svsub_f32_z(pg, svld1_f32(pg, a + i), svld1_f32(pg, b + i)));
+        }
+    }
+#endif
+    for (; i < n; i++) {
+        dst[i] = a[i] - b[i];
+    }
+}
+
+// Elementwise subtraction in-place: a[i] = a[i] - b[i]
+inline void eltwise_sub_(float* a, const float* b, size_t n) {
+    eltwise_sub(a, b, a, n);
+}
+
 }  // namespace ov::Extensions::Cpu::XARCH
