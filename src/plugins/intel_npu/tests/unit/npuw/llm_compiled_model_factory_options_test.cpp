@@ -456,6 +456,56 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, CacheRopeDisabledRoundsTripThroughCom
     EXPECT_EQ(recorder.count_contains("_kv"), 1u);
 }
 
+// RopeCache replaces Sin/Cos with a Gather-from-LUT. When enabled the prefill
+// sub-model must have no Sin/Cos nodes left.
+TEST_F(LLMCompiledModelFactoryOptionsTest, CacheRopeEnabledRemovesSinCosFromPrefill) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(),
+                                                     {{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                                      {"NPUW_LLM_CACHE_ROPE", "YES"},
+                                                      {"NPUW_LLM_MAX_PROMPT_LEN", "2048"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto* prefill = recorder.find_suffix("_prefill");
+    ASSERT_NE(prefill, nullptr);
+
+    const auto& ops = prefill->model->get_ops();
+    auto sin_count = std::count_if(ops.begin(), ops.end(),
+                                   [](const auto& op) { return ov::is_type<ov::op::v0::Sin>(op); });
+    auto cos_count = std::count_if(ops.begin(), ops.end(),
+                                   [](const auto& op) { return ov::is_type<ov::op::v0::Cos>(op); });
+    EXPECT_EQ(sin_count, 0) << "RopeCache should have replaced all Sin nodes in the prefill model";
+    EXPECT_EQ(cos_count, 0) << "RopeCache should have replaced all Cos nodes in the prefill model";
+}
+
+// When rope caching is disabled the prefill model must still contain Sin/Cos
+// (i.e. the RoPE pattern is present but untransformed).
+TEST_F(LLMCompiledModelFactoryOptionsTest, CacheRopeDisabledKeepsSinCosInPrefill) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(),
+                                                     {{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                                      {"NPUW_LLM_CACHE_ROPE", "NO"},
+                                                      {"NPUW_LLM_MAX_PROMPT_LEN", "2048"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto* prefill = recorder.find_suffix("_prefill");
+    ASSERT_NE(prefill, nullptr);
+
+    const auto& ops = prefill->model->get_ops();
+    auto sin_count = std::count_if(ops.begin(), ops.end(),
+                                   [](const auto& op) { return ov::is_type<ov::op::v0::Sin>(op); });
+    auto cos_count = std::count_if(ops.begin(), ops.end(),
+                                   [](const auto& op) { return ov::is_type<ov::op::v0::Cos>(op); });
+    EXPECT_GT(sin_count, 0) << "Sin nodes must remain when rope caching is disabled";
+    EXPECT_GT(cos_count, 0) << "Cos nodes must remain when rope caching is disabled";
+}
+
 TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperOptionCompilesSyntheticDecoderModel) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
