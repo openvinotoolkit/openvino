@@ -11,7 +11,8 @@ import shlex
 import shutil
 import subprocess
 import time
-import xml.etree.ElementTree as ET
+
+import defusedxml.ElementTree as ET
 
 from coverage_workflow import (
     CoverageContext,
