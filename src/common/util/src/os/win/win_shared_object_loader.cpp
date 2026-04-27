@@ -8,7 +8,7 @@
 #include "openvino/util/shared_object.hpp"
 
 //
-// LoadLibraryA, LoadLibraryW:
+// LoadLibraryExW:
 //  WINAPI_FAMILY_DESKTOP_APP - OK (default)
 //  WINAPI_FAMILY_PC_APP - FAIL ?? (defined by cmake)
 //  WINAPI_FAMILY_PHONE_APP - FAIL ??
@@ -32,38 +32,12 @@
 //  WINAPI_FAMILY_SERVER - OK
 //  WINAPI_FAMILY_SYSTEM - OK
 //
-// SetDllDirectoryA, SetDllDirectoryW:
-//  WINAPI_FAMILY_DESKTOP_APP - OK (default)
-//  WINAPI_FAMILY_PC_APP - FAIL ?? (defined by cmake)
-//  WINAPI_FAMILY_PHONE_APP - FAIL ??
-//  WINAPI_FAMILY_GAMES - OK
-//  WINAPI_FAMILY_SERVER - FAIL
-//  WINAPI_FAMILY_SYSTEM - FAIL
-//
-// GetDllDirectoryA, GetDllDirectoryW:
-//  WINAPI_FAMILY_DESKTOP_APP - FAIL
-//  WINAPI_FAMILY_PC_APP - FAIL (defined by cmake)
-//  WINAPI_FAMILY_PHONE_APP - FAIL
-//  WINAPI_FAMILY_GAMES - FAIL
-//  WINAPI_FAMILY_SERVER - FAIL
-//  WINAPI_FAMILY_SYSTEM - FAIL
-//
-// SetupDiGetClassDevsA, SetupDiEnumDeviceInfo, SetupDiGetDeviceInstanceIdA, SetupDiDestroyDeviceInfoList:
-//  WINAPI_FAMILY_DESKTOP_APP - FAIL (default)
-//  WINAPI_FAMILY_PC_APP - FAIL (defined by cmake)
-//  WINAPI_FAMILY_PHONE_APP - FAIL
-//  WINAPI_FAMILY_GAMES - FAIL
-//  WINAPI_FAMILY_SERVER - FAIL
-//  WINAPI_FAMILY_SYSTEM - FAIL
-//
 
 #if defined(WINAPI_FAMILY) && !WINAPI_PARTITION_DESKTOP
-#    error "Only WINAPI_PARTITION_DESKTOP is supported, because of LoadLibrary[A|W]"
+#    error "Only WINAPI_PARTITION_DESKTOP is supported, because of LoadLibraryEx[A|W]"
 #endif
 
 #include <direct.h>
-
-#include <mutex>
 
 #ifndef NOMINMAX
 #    define NOMINMAX
@@ -71,34 +45,41 @@
 
 #include <windows.h>
 
+// Verify that LOAD_LIBRARY_SEARCH_* flags are available.
+// These require _WIN32_WINNT >= 0x0602 (Windows 8) in the Windows SDK headers.
+// OpenVINO minimum supported platform is Windows 10, so this should always hold.
+#if !defined(LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR) || !defined(LOAD_LIBRARY_SEARCH_SYSTEM32) || \
+    !defined(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS)
+#    error \
+        "LOAD_LIBRARY_SEARCH_* flags not available. Ensure _WIN32_WINNT >= 0x0602 (Windows 8) or use a Windows 10+ SDK."
+#endif
+
 namespace ov::util {
 
 std::shared_ptr<void> load_shared_object(const std::filesystem::path& path) {
     void* shared_object = nullptr;
-    using GetDllDirectoryW_Fnc = DWORD (*)(DWORD, LPWSTR);
-    static GetDllDirectoryW_Fnc IEGetDllDirectoryW = nullptr;
-    if (HMODULE hm = GetModuleHandleW(L"kernel32.dll")) {
-        IEGetDllDirectoryW = reinterpret_cast<GetDllDirectoryW_Fnc>(GetProcAddress(hm, "GetDllDirectoryW"));
-    }
-    // ExcludeCurrentDirectory
-#    if !WINAPI_PARTITION_SYSTEM
-    if (IEGetDllDirectoryW && IEGetDllDirectoryW(0, NULL) <= 1) {
-        SetDllDirectoryW(L"");
-    }
-    if (IEGetDllDirectoryW) {
-        DWORD nBufferLength = IEGetDllDirectoryW(0, NULL);
-        std::vector<WCHAR> lpBuffer(nBufferLength);
-        IEGetDllDirectoryW(nBufferLength, &lpBuffer.front());
-        const auto& dir_name = path.has_parent_path() ? path.parent_path() : path;
-        SetDllDirectoryW(dir_name.c_str());
-        shared_object = LoadLibraryW(path.c_str());
 
-        SetDllDirectoryW(&lpBuffer.front());
+    // SDL436: Use LoadLibraryExW with restricted search flags to mitigate DLL injection.
+    // LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR — searches the directory containing the DLL (requires absolute path).
+    // LOAD_LIBRARY_SEARCH_SYSTEM32 — allows loading system dependencies from System32.
+    // This approach is thread-safe, unlike the previous SetDllDirectoryW-based method which modified
+    // process-wide state and was susceptible to race conditions.
+    if (path.is_absolute()) {
+        shared_object = LoadLibraryExW(
+            path.c_str(), NULL, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
+    } else if (path.has_parent_path()) {
+        auto abs_path = std::filesystem::absolute(path);
+        shared_object = LoadLibraryExW(
+            abs_path.c_str(), NULL, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
     }
-#    endif
+
     if (!shared_object) {
-        shared_object = LoadLibraryW(path.c_str());
+        // Fallback for bare filenames or if the previous attempt failed.
+        // LOAD_LIBRARY_SEARCH_DEFAULT_DIRS searches: application directory, System32, and user-added directories.
+        // This avoids the insecure default search order (which includes CWD).
+        shared_object = LoadLibraryExW(path.c_str(), NULL, LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
     }
+
     if (!shared_object) {
         std::stringstream ss;
         ss << "Cannot load library \"" << path_to_string(path) << "\": " << GetLastError()
