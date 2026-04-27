@@ -130,14 +130,7 @@ void MetadataBase::read_data_from_source(char* destination, const size_t size) {
     }
 }
 
-void MetadataBase::append_padding_blob_size_and_magic(std::ostream& stream) {
-    size_t metadataSize = get_metadata_size() + sizeof(_blobDataSize) + MAGIC_BYTES.size();
-    size_t size = utils::align_size_to_standard_page_size(metadataSize);
-    size_t paddingSize = size - metadataSize;
-    if (paddingSize > 0) {
-        std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
-    }
-
+void MetadataBase::append_blob_size_and_magic(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(&_blobDataSize), sizeof(_blobDataSize));
     stream.write(MAGIC_BYTES.data(), MAGIC_BYTES.size());
 }
@@ -281,7 +274,7 @@ void Metadata<METADATA_VERSION_2_4>::write(std::ostream& stream) {
     uint32_t compilerVersion = _compilerVersion.value_or(0);
     stream.write(reinterpret_cast<const char*>(&compilerVersion), sizeof(compilerVersion));
 
-    append_padding_blob_size_and_magic(stream);
+    append_blob_size_and_magic(stream);
 }
 
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {
