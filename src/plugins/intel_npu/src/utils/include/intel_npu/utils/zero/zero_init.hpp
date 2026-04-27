@@ -6,6 +6,7 @@
 
 #include <ze_intel_npu_uuid.h>
 
+#include <atomic>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -41,7 +42,7 @@ public:
         return _device_handle;
     }
     inline ze_context_handle_t getContext() const {
-        return _context;
+        return _context.load();
     }
     inline ze_graph_dditable_ext_curr_t& getGraphDdiTable() const {
         return *_graph_dditable_ext_decorator;
@@ -97,6 +98,8 @@ private:
     void initCompilerPropertiesLocked();
     void getExtensionFunctionAddress(const std::string& name, const uint32_t version, void** function_address);
     void setContextProperties();
+    void destroyContextLocked();
+    static void destroyContextForInstance(std::shared_ptr<ZeroInitStructsHolder>& instance);
 
     inline ZeroMemPool& getZeroMemPool() {
         return _zero_mem_pool;
@@ -107,7 +110,7 @@ private:
 
     Logger _log;
 
-    ze_context_handle_t _context = nullptr;
+    std::atomic<ze_context_handle_t> _context{nullptr};
     ze_driver_handle_t _driver_handle = nullptr;
     ze_device_handle_t _device_handle = nullptr;
 

@@ -93,7 +93,9 @@ protected:
     }
 
     void TearDown() override {
-        zeGraphExt->destroyGraph(graphDescriptor);
+        if (zeGraphExt != nullptr) {
+            zeGraphExt->destroyGraph(graphDescriptor);
+        }
         if (blob) {
             ::operator delete(blob, std::align_val_t(::utils::STANDARD_PAGE_SIZE));
         }

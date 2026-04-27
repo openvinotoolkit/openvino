@@ -524,7 +524,7 @@ void WeightlessGraph::create_pipeline(const size_t initIndex,
     }
 
     _initsCommandLists.at(initIndex) = std::make_unique<CommandList>(_zeroInitStruct);
-    _initsFences.at(initIndex) = std::make_unique<Fence>(_initsCommandQueue);
+    _initsFences.at(initIndex) = std::make_unique<Fence>(_zeroInitStruct, _initsCommandQueue);
 
     size_t io_index = 0;
     for (const auto& desc : _initsMetadata.at(initIndex).inputs) {

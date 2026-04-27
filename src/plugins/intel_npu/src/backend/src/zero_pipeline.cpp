@@ -152,20 +152,18 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                     "In-order execution doesn't work in case synchronization of the inferences is done using events");
 
     if (!_sync_output_with_fences || _run_inferences_sequentially) {
-        _event_pool = std::make_shared<EventPool>(_init_structs->getDevice(),
-                                                  _init_structs->getContext(),
-                                                  _batch_size ? static_cast<uint32_t>(_batch_size) : 1);
+        _event_pool = std::make_shared<EventPool>(_init_structs, _batch_size ? static_cast<uint32_t>(_batch_size) : 1);
 
         _events.reserve(_batch_size);
         for (size_t i = 0; i < _batch_size; i++) {
-            _events.emplace_back(std::make_shared<Event>(_event_pool, static_cast<uint32_t>(i)));
+            _events.emplace_back(std::make_shared<Event>(_init_structs, _event_pool, static_cast<uint32_t>(i)));
         }
     }
 
     if (_sync_output_with_fences) {
         _fences.reserve(_batch_size);
         for (size_t i = 0; i < _batch_size; i++) {
-            _fences.emplace_back(std::make_unique<Fence>(_command_queue));
+            _fences.emplace_back(std::make_unique<Fence>(_init_structs, _command_queue));
         }
     }
 
@@ -292,7 +290,7 @@ void Pipeline::push() {
 
         if (_sync_output_with_fences) {
             for (size_t i = 0; i < _fences.size(); i++) {
-                _fences[i] = std::make_unique<Fence>(_command_queue);
+                _fences[i] = std::make_unique<Fence>(_init_structs, _command_queue);
             }
         }
     }
