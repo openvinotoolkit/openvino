@@ -28,9 +28,13 @@ void str_to_container(const std::string& value, T& res) {
     while (getline(ss, field, ',')) {
         if (field.empty())
             OPENVINO_THROW("Cannot get vector of parameters! \"", value, "\" is incorrect");
-        std::stringstream fs(field);
         typename T::value_type val;
-        fs >> val;
+        if constexpr (std::is_floating_point_v<typename T::value_type>) {
+            val = static_cast<typename T::value_type>(std::stod(field));
+        } else {
+            std::stringstream fs(field);
+            fs >> val;
+        }
         res.insert(res.end(), val);
     }
 }
