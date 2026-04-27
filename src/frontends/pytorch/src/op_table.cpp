@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op_table.hpp"
-
 #include "common_translators.hpp"
 #include "openvino/op/erfinv.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 #include "utils_quantize.hpp"
+#include "op_table.hpp"
 
 namespace ov {
 namespace frontend {
@@ -20,6 +19,7 @@ namespace op {
 using namespace ov::frontend;
 
 // TorchScript translations
+OP_CONVERTER(translate__nested_tensor_from_mask);
 OP_CONVERTER(translate_abs);
 OP_CONVERTER(translate_adaptive_avg_pool3d);
 OP_CONVERTER(translate_adaptive_avg_pool2d);
@@ -622,6 +622,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::masked_fill", op::translate_masked_fill},
         {"aten::masked_scatter", op::translate_masked_scatter},
         {"aten::masked_select", op::translate_masked_select},
+        {"aten::_nested_tensor_from_mask", op::translate__nested_tensor_from_mask},
         {"aten::matmul", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::max", op::translate_max},
         {"aten::mv", op::translate_1to1_match_2_inputs<opset10::MatMul>},
@@ -1020,6 +1021,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.masked_fill_.Scalar", op::inplace_op<op::translate_masked_fill>},
         {"aten.masked_fill_.Tensor", op::inplace_op<op::translate_masked_fill>},
         {"aten.masked_scatter.default", op::translate_masked_scatter},
+        {"aten._nested_tensor_from_mask.default", op::translate__nested_tensor_from_mask},
         {"aten.max.default", op::translate_max},
         {"aten.max.dim", op::translate_max_dim_fx},
         {"aten.max_pool2d_with_indices.default", op::translate_max_pool2d_fx},
