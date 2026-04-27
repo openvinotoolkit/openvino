@@ -12733,3 +12733,105 @@ TEST(convolution_gpu, onednn_custom_format_3d_weights) {
     });
 }
 #endif  // ENABLE_ONEDNN_FOR_GPU
+
+// Test that convolution_gpu_bfyx_os_iyx_osv16 produces correct results for both
+// LOOP (manual preprocessor unroll) and unroll_for (compiler-hinted unroll) code paths.
+// The kernel switches between these paths based on:
+//   total_unroll_ops = filter_y * filter_x * block_width * block_height
+// When total_unroll_ops >= 1024, DISABLE_MANUAL_UNROLL is set and unroll_for is used.
+// Below that threshold, the LOOP macro fully unrolls at the preprocessor level.
+//
+// Test cases:
+//   - 3x3 filter (total_ops < 1024): exercises the LOOP path
+//   - 16x16 filter (total_ops >= 1024): exercises the unroll_for path
+TEST(convolution_f32_fw_gpu, osv16_manual_unroll_threshold) {
+    auto& engine = get_test_engine();
+
+    struct test_case {
+        int filter_y;
+        int filter_x;
+        int in_f;
+        int out_f;
+        int in_y;
+        int in_x;
+        size_t stride_y;
+        size_t stride_x;
+    };
+
+    // 3x3 filter: block=14x2 (stride=1, filter<5), total_ops = 9*28 = 252 < 1024 -> LOOP
+    // 16x16 filter: block=4x3 (stride=16, else branch), total_ops = 256*12 = 3072 >= 1024 -> unroll_for
+    std::vector<test_case> cases = {
+        { 3,  3,  3, 16, 16, 16, 1, 1 },
+        { 16, 16, 3, 32, 64, 64, 16, 16 },
+    };
+
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    for (const auto& tc : cases) {
+        int out_y = (tc.in_y - tc.filter_y) / static_cast<int>(tc.stride_y) + 1;
+        int out_x = (tc.in_x - tc.filter_x) / static_cast<int>(tc.stride_x) + 1;
+        ASSERT_GT(out_y, 0);
+        ASSERT_GT(out_x, 0);
+
+        auto input = engine.allocate_memory({ data_types::f32, format::bfyx,
+                                              { 1, tc.in_f, tc.in_x, tc.in_y } });
+        auto weights = engine.allocate_memory({ data_types::f32, format::bfyx,
+                                                { tc.out_f, tc.in_f, tc.filter_x, tc.filter_y } });
+
+        VF<float> input_rnd = rg.generate_random_1d<float>(tc.in_f * tc.in_y * tc.in_x, -1, 1);
+        VF<float> weights_rnd = rg.generate_random_1d<float>(tc.out_f * tc.in_f * tc.filter_y * tc.filter_x, -1, 1);
+        set_values(input, input_rnd);
+        set_values(weights, weights_rnd);
+
+        // Run with reference implementation
+        topology topology_ref(
+            input_layout("input", input->get_layout()),
+            data("weights", weights),
+            convolution("conv", input_info("input"), "weights", no_bias, 1,
+                        { tc.stride_y, tc.stride_x }, { 1, 1 }, { 0, 0 }, { 0, 0 }, false));
+
+        ExecutionConfig config_ref = get_test_default_config(engine);
+        ov::intel_gpu::ImplementationDesc ref_impl = { format::bfyx, "convolution_gpu_ref", impl_types::ocl };
+        config_ref.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{ { "conv", ref_impl } }));
+
+        network net_ref(engine, topology_ref, config_ref);
+        net_ref.set_input_data("input", input);
+        auto outputs_ref = net_ref.execute();
+        auto ref_mem = outputs_ref.at("conv").get_memory();
+        cldnn::mem_lock<float> ref_ptr(ref_mem, get_test_stream());
+
+        // Run with osv16 implementation
+        topology topology_osv16(
+            input_layout("input", input->get_layout()),
+            data("weights", weights),
+            convolution("conv", input_info("input"), "weights", no_bias, 1,
+                        { tc.stride_y, tc.stride_x }, { 1, 1 }, { 0, 0 }, { 0, 0 }, false));
+
+        ExecutionConfig config_osv16 = get_test_default_config(engine);
+        ov::intel_gpu::ImplementationDesc osv16_impl = { format::bfyx, "convolution_gpu_bfyx_os_iyx_osv16", impl_types::ocl };
+        config_osv16.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{ { "conv", osv16_impl } }));
+        config_osv16.set_property(ov::intel_gpu::optimize_data(true));
+
+        network net_osv16(engine, topology_osv16, config_osv16);
+        net_osv16.set_input_data("input", input);
+
+        auto impl_info = net_osv16.get_implementation_info("conv");
+        ASSERT_TRUE(impl_info.find("convolution_gpu_bfyx_os_iyx_osv16") != std::string::npos)
+            << "Expected osv16 kernel for filter " << tc.filter_y << "x" << tc.filter_x
+            << ", got: " << impl_info;
+
+        auto outputs_osv16 = net_osv16.execute();
+        auto osv16_mem = outputs_osv16.at("conv").get_memory();
+        cldnn::mem_lock<float> osv16_ptr(osv16_mem, get_test_stream());
+
+        ASSERT_EQ(ref_ptr.size(), osv16_ptr.size())
+            << "Output size mismatch for filter " << tc.filter_y << "x" << tc.filter_x;
+
+        for (size_t i = 0; i < ref_ptr.size(); i++) {
+            ASSERT_NEAR(ref_ptr[i], osv16_ptr[i], 1e-3f)
+                << "Mismatch at index " << i << " for filter " << tc.filter_y << "x" << tc.filter_x;
+        }
+    }
+}

@@ -237,9 +237,19 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolut
     jit.AddConstant(MakeJitConstant("IN_BLOCK_WIDTH", dispatchData.cldnnStyle.inputBlockWidth));
     jit.AddConstant(MakeJitConstant("PREFETCH", dispatchData.cldnnStyle.prefetch));
 
-    const size_t large_filter_size = 1024;     // This acceptable size was decided by heuristics
-    auto filter_size = params.filterSize.x * params.filterSize.y;
-    if (filter_size >= large_filter_size) {
+    // The LOOP macro fully unrolls filter_y × filter_x iterations at the preprocessor level,
+    // and within each copy, the compiler will also unroll the block_height × block_width inner loops.
+    // The total effective instruction count is proportional to:
+    //   filter_y * filter_x * block_height * block_width
+    // When this product is large, the resulting code causes excessive compilation time,
+    // instruction cache pressure, and register spilling. Fall back to compiler-hinted
+    // unrolling (unroll_for) beyond the threshold.
+    const size_t unroll_ops_threshold = 1024;
+    const size_t total_unroll_ops = static_cast<size_t>(params.filterSize.x) *
+                                  static_cast<size_t>(params.filterSize.y) *
+                                  dispatchData.cldnnStyle.blockWidth *
+                                  dispatchData.cldnnStyle.blockHeight;
+    if (total_unroll_ops >= unroll_ops_threshold) {
         jit.AddConstant(MakeJitConstant("DISABLE_MANUAL_UNROLL", 1));
     }
 
