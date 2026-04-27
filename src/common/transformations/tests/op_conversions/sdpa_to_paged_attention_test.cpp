@@ -844,6 +844,250 @@ TEST_F(SDPAToPATest, SDPAToPA_Qwen7bChat_PositionIDsReplacerQwenPattern) {
     disable_rt_info_check();
 }
 
+TEST_F(SDPAToPATest, SDPAToPA_PositionIDsReplacerLFM2_DequantStartBranch) {
+    {
+        auto max_context_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto prev_seq_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto curr_seq_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto lhs = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, 1, 1});
+        auto position_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{1, DYN});
+
+        auto start_subtract = std::make_shared<v1::Subtract>(max_context_len, prev_seq_len);
+        auto start = std::make_shared<v0::Convert>(start_subtract, element::i64);
+        auto end = std::make_shared<v1::Add>(start, curr_seq_len);
+        auto step = v0::Constant::create(element::i64, Shape{}, {1});
+        auto range = std::make_shared<v4::Range>(start, end, step, element::i64);
+        range->set_friendly_name("lfm2_range");
+
+        auto unsqueeze_axis = v0::Constant::create(element::i64, Shape{1}, {0});
+        auto unsqueeze_1 = std::make_shared<v0::Unsqueeze>(range, unsqueeze_axis);
+        auto unsqueeze_2 = std::make_shared<v0::Unsqueeze>(unsqueeze_1, unsqueeze_axis);
+        auto convert = std::make_shared<v0::Convert>(unsqueeze_2, element::f32);
+        auto matmul = std::make_shared<v0::MatMul>(lhs, convert, false, false);
+        auto transpose =
+            std::make_shared<v1::Transpose>(matmul, v0::Constant::create(element::i64, Shape{3}, {0, 2, 1}));
+        auto concat = std::make_shared<v0::Concat>(OutputVector{transpose, transpose}, 2);
+        auto cos = std::make_shared<v0::Cos>(concat);
+        auto sin = std::make_shared<v0::Sin>(concat);
+        auto q = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto mul_l = std::make_shared<v1::Multiply>(cos, q);
+        auto mul_r = std::make_shared<v1::Multiply>(sin, q);
+        auto add = std::make_shared<v1::Add>(mul_l, mul_r);
+        auto result = std::make_shared<v0::Result>(add);
+
+        model =
+            std::make_shared<Model>(ResultVector{result},
+                                    ParameterVector{max_context_len, prev_seq_len, curr_seq_len, lhs, position_ids, q});
+        manager.register_pass<pass::PositionIDsReplacerLFM2>(position_ids);
+    }
+
+    {
+        auto max_context_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto prev_seq_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto curr_seq_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto lhs = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, 1, 1});
+        auto position_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{1, DYN});
+
+        auto pos_ids_shape = v0::Constant::create(element::i64, Shape{1}, {-1});
+        auto position_ids_1d = std::make_shared<v1::Reshape>(position_ids, pos_ids_shape, false);
+        position_ids_1d->set_friendly_name("lfm2_range_position_ids");
+
+        auto unsqueeze_axis = v0::Constant::create(element::i64, Shape{1}, {0});
+        auto unsqueeze_1 = std::make_shared<v0::Unsqueeze>(position_ids_1d, unsqueeze_axis);
+        auto unsqueeze_2 = std::make_shared<v0::Unsqueeze>(unsqueeze_1, unsqueeze_axis);
+        auto convert = std::make_shared<v0::Convert>(unsqueeze_2, element::f32);
+        auto matmul = std::make_shared<v0::MatMul>(lhs, convert, false, false);
+        auto transpose =
+            std::make_shared<v1::Transpose>(matmul, v0::Constant::create(element::i64, Shape{3}, {0, 2, 1}));
+        auto concat = std::make_shared<v0::Concat>(OutputVector{transpose, transpose}, 2);
+        auto concat_transpose =
+            std::make_shared<v1::Transpose>(concat, v0::Constant::create(element::i64, Shape{3}, {1, 0, 2}));
+        auto cos = std::make_shared<v0::Cos>(concat_transpose);
+        auto sin = std::make_shared<v0::Sin>(concat_transpose);
+        auto q = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto mul_l = std::make_shared<v1::Multiply>(cos, q);
+        auto mul_r = std::make_shared<v1::Multiply>(sin, q);
+        auto add = std::make_shared<v1::Add>(mul_l, mul_r);
+
+        model_ref =
+            std::make_shared<Model>(OutputVector{add},
+                                    ParameterVector{max_context_len, prev_seq_len, curr_seq_len, lhs, position_ids, q});
+    }
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+TEST_F(SDPAToPATest, SDPAToPA_PositionIDsReplacerLFM2_DirectParameterBranch) {
+    {
+        auto max_context_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto curr_seq_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto lhs = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, 1, 1});
+        auto position_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{DYN});
+
+        auto end = std::make_shared<v1::Add>(max_context_len, curr_seq_len);
+        auto step = v0::Constant::create(element::i64, Shape{}, {1});
+        auto range = std::make_shared<v4::Range>(max_context_len, end, step, element::i64);
+        range->set_friendly_name("lfm2_range");
+
+        auto shape_3d = v0::Constant::create(element::i64, Shape{3}, {1, 1, -1});
+        auto reshape = std::make_shared<v1::Reshape>(range, shape_3d, false);
+        auto convert = std::make_shared<v0::Convert>(reshape, element::f32);
+        auto matmul = std::make_shared<v0::MatMul>(lhs, convert, false, false);
+        auto concat = std::make_shared<v0::Concat>(OutputVector{matmul, matmul}, 2);
+        auto cos = std::make_shared<v0::Cos>(concat);
+        auto sin = std::make_shared<v0::Sin>(concat);
+        auto q = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto mul_l = std::make_shared<v1::Multiply>(cos, q);
+        auto mul_r = std::make_shared<v1::Multiply>(sin, q);
+        auto add = std::make_shared<v1::Add>(mul_l, mul_r);
+        auto result = std::make_shared<v0::Result>(add);
+
+        model = std::make_shared<Model>(ResultVector{result},
+                                        ParameterVector{max_context_len, curr_seq_len, lhs, position_ids, q});
+        manager.register_pass<pass::PositionIDsReplacerLFM2>(position_ids);
+    }
+
+    {
+        auto max_context_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto curr_seq_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto lhs = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, 1, 1});
+        auto position_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{DYN});
+
+        auto shape_3d = v0::Constant::create(element::i64, Shape{3}, {1, 1, -1});
+        auto reshape = std::make_shared<v1::Reshape>(position_ids, shape_3d, false);
+        auto convert = std::make_shared<v0::Convert>(reshape, element::f32);
+        auto matmul = std::make_shared<v0::MatMul>(lhs, convert, false, false);
+        auto concat = std::make_shared<v0::Concat>(OutputVector{matmul, matmul}, 2);
+        auto concat_transpose =
+            std::make_shared<v1::Transpose>(concat, v0::Constant::create(element::i64, Shape{3}, {1, 0, 2}));
+        auto cos = std::make_shared<v0::Cos>(concat_transpose);
+        auto sin = std::make_shared<v0::Sin>(concat_transpose);
+        auto q = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto mul_l = std::make_shared<v1::Multiply>(cos, q);
+        auto mul_r = std::make_shared<v1::Multiply>(sin, q);
+        auto add = std::make_shared<v1::Add>(mul_l, mul_r);
+
+        model_ref = std::make_shared<Model>(OutputVector{add},
+                                            ParameterVector{max_context_len, curr_seq_len, lhs, position_ids, q});
+    }
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+TEST_F(SDPAToPATest, SDPAToPA_PositionIDsReplacerLFM2_DirectParameterBranchRank3ConcatTranspose) {
+    {
+        auto max_context_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto curr_seq_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto lhs = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, 1, 1});
+        auto position_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{DYN});
+
+        auto end = std::make_shared<v1::Add>(max_context_len, curr_seq_len);
+        auto step = v0::Constant::create(element::i64, Shape{}, {1});
+        auto range = std::make_shared<v4::Range>(max_context_len, end, step, element::i64);
+        range->set_friendly_name("lfm2_range");
+
+        auto shape_3d = v0::Constant::create(element::i64, Shape{3}, {1, 1, -1});
+        auto reshape = std::make_shared<v1::Reshape>(range, shape_3d, false);
+        auto convert = std::make_shared<v0::Convert>(reshape, element::f32);
+        auto matmul = std::make_shared<v0::MatMul>(lhs, convert, false, false);
+        auto concat = std::make_shared<v0::Concat>(OutputVector{matmul, matmul}, 2);
+        auto cos = std::make_shared<v0::Cos>(concat);
+        auto sin = std::make_shared<v0::Sin>(concat);
+        auto q = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto mul_l = std::make_shared<v1::Multiply>(cos, q);
+        auto mul_r = std::make_shared<v1::Multiply>(sin, q);
+        auto add = std::make_shared<v1::Add>(mul_l, mul_r);
+        auto result = std::make_shared<v0::Result>(add);
+
+        model = std::make_shared<Model>(ResultVector{result},
+                                        ParameterVector{max_context_len, curr_seq_len, lhs, position_ids, q});
+        manager.register_pass<pass::PositionIDsReplacerLFM2>(position_ids);
+    }
+
+    {
+        auto max_context_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto curr_seq_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto lhs = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, 1, 1});
+        auto position_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{DYN});
+
+        auto shape_3d = v0::Constant::create(element::i64, Shape{3}, {1, 1, -1});
+        auto reshape = std::make_shared<v1::Reshape>(position_ids, shape_3d, false);
+        auto convert = std::make_shared<v0::Convert>(reshape, element::f32);
+        auto matmul = std::make_shared<v0::MatMul>(lhs, convert, false, false);
+        auto concat = std::make_shared<v0::Concat>(OutputVector{matmul, matmul}, 2);
+        auto concat_transpose =
+            std::make_shared<v1::Transpose>(concat, v0::Constant::create(element::i64, Shape{3}, {1, 0, 2}));
+        auto cos = std::make_shared<v0::Cos>(concat_transpose);
+        auto sin = std::make_shared<v0::Sin>(concat_transpose);
+        auto q = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto mul_l = std::make_shared<v1::Multiply>(cos, q);
+        auto mul_r = std::make_shared<v1::Multiply>(sin, q);
+        auto add = std::make_shared<v1::Add>(mul_l, mul_r);
+
+        model_ref = std::make_shared<Model>(OutputVector{add},
+                                            ParameterVector{max_context_len, curr_seq_len, lhs, position_ids, q});
+    }
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+TEST_F(SDPAToPATest, SDPAToPA_PositionIDsReplacerLFM2_DirectParameterBranchRank4ConcatTranspose) {
+    {
+        auto max_context_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto curr_seq_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto lhs = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, 1, 1, 1});
+        auto position_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{DYN});
+
+        auto end = std::make_shared<v1::Add>(max_context_len, curr_seq_len);
+        auto step = v0::Constant::create(element::i64, Shape{}, {1});
+        auto range = std::make_shared<v4::Range>(max_context_len, end, step, element::i64);
+        range->set_friendly_name("lfm2_range");
+
+        auto shape_4d = v0::Constant::create(element::i64, Shape{4}, {1, 1, 1, -1});
+        auto reshape = std::make_shared<v1::Reshape>(range, shape_4d, false);
+        auto convert = std::make_shared<v0::Convert>(reshape, element::f32);
+        auto matmul = std::make_shared<v0::MatMul>(lhs, convert, false, false);
+        auto concat = std::make_shared<v0::Concat>(OutputVector{matmul, matmul}, 3);
+        auto cos = std::make_shared<v0::Cos>(concat);
+        auto sin = std::make_shared<v0::Sin>(concat);
+        auto q = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto mul_l = std::make_shared<v1::Multiply>(cos, q);
+        auto mul_r = std::make_shared<v1::Multiply>(sin, q);
+        auto add = std::make_shared<v1::Add>(mul_l, mul_r);
+        auto result = std::make_shared<v0::Result>(add);
+
+        model = std::make_shared<Model>(ResultVector{result},
+                                        ParameterVector{max_context_len, curr_seq_len, lhs, position_ids, q});
+        manager.register_pass<pass::PositionIDsReplacerLFM2>(position_ids);
+    }
+
+    {
+        auto max_context_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto curr_seq_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+        auto lhs = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, 1, 1, 1});
+        auto position_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{DYN});
+
+        auto shape_4d = v0::Constant::create(element::i64, Shape{4}, {1, 1, 1, -1});
+        auto reshape = std::make_shared<v1::Reshape>(position_ids, shape_4d, false);
+        auto convert = std::make_shared<v0::Convert>(reshape, element::f32);
+        auto matmul = std::make_shared<v0::MatMul>(lhs, convert, false, false);
+        auto concat = std::make_shared<v0::Concat>(OutputVector{matmul, matmul}, 3);
+        auto concat_transpose =
+            std::make_shared<v1::Transpose>(concat, v0::Constant::create(element::i64, Shape{4}, {2, 1, 0, 3}));
+        auto cos = std::make_shared<v0::Cos>(concat_transpose);
+        auto sin = std::make_shared<v0::Sin>(concat_transpose);
+        auto q = std::make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto mul_l = std::make_shared<v1::Multiply>(cos, q);
+        auto mul_r = std::make_shared<v1::Multiply>(sin, q);
+        auto add = std::make_shared<v1::Add>(mul_l, mul_r);
+
+        model_ref = std::make_shared<Model>(OutputVector{add},
+                                            ParameterVector{max_context_len, curr_seq_len, lhs, position_ids, q});
+    }
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
 // TODO: split the models in blocks the way it's done for Qwen and make the code not to be such a clutter
 // TODO: write a test for StateManagementPattern only (because changes for Alibi are inside it)
 // TODO: align precisions, check the copying of "fuse_names" attr in SDPAToPagedAttention
