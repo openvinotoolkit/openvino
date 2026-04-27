@@ -533,7 +533,11 @@ public:
         return m_id;
     }
 
-    MOCK_METHOD(void, hint_evict, (size_t offset, size_t size), (noexcept));
+    void hint_evict(size_t offset, size_t size) noexcept override {
+        hint_evict_mock(offset, size);
+    }
+
+    MOCK_METHOD(void, hint_evict_mock, (size_t offset, size_t size));
 
 private:
     std::vector<char> m_data;
@@ -550,7 +554,7 @@ TEST_F(SharedBufferTest, mmap_shared_buffer_calls_hint_evict_with_own_region) {
                                                                                         buf_size,
                                                                                         mock);
 
-    EXPECT_CALL(*mock, hint_evict(buf_offset, buf_size)).Times(1);
+    EXPECT_CALL(*mock, hint_evict_mock(buf_offset, buf_size)).Times(1);
     buffer->hint_evict();
 }
 
@@ -560,7 +564,7 @@ TEST_F(SharedBufferTest, mmap_shared_buffer_full_mapping) {
     auto mock = std::make_shared<MockMappedMemory>(mmap_size);
     auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mock->data(), mmap_size, mock);
 
-    EXPECT_CALL(*mock, hint_evict(0u, mmap_size)).Times(1);
+    EXPECT_CALL(*mock, hint_evict_mock(0u, mmap_size)).Times(1);
     buffer->hint_evict();
 }
 
@@ -582,7 +586,7 @@ TEST_F(SharedBufferTest, aligned_shared_buffer_propagates_to_mmap) {
         std::static_pointer_cast<ov::AlignedBuffer>(parent));
 
     // child lives at parent_offset + child_offset inside the mmap
-    EXPECT_CALL(*mock, hint_evict(parent_offset + child_offset, child_size)).Times(1);
+    EXPECT_CALL(*mock, hint_evict_mock(parent_offset + child_offset, child_size)).Times(1);
     child->hint_evict();
 }
 
@@ -602,7 +606,7 @@ TEST_F(SharedBufferTest, call_when_constant_node_destroyed) {
     auto mock = std::make_shared<MockMappedMemory>(mmap_size);
     auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mock->data(), mmap_size, mock);
 
-    EXPECT_CALL(*mock, hint_evict(0u, mmap_size)).Times(1);
+    EXPECT_CALL(*mock, hint_evict_mock(0u, mmap_size)).Times(1);
     {
         auto constant = op::v0::Constant(element::u8, Shape{mmap_size}, buffer);
         EXPECT_EQ(constant.get_data_ptr(), buffer->get_ptr());
