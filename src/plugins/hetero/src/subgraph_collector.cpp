@@ -122,8 +122,8 @@ void ov::hetero::SubgraphCollector::split_cyclic_dependencies() {
     // typically ~50-100x faster for graphs with hundreds of subgraph inputs.
     using Bits = std::vector<uint64_t>;
     auto ctz64 = [](uint64_t x) -> unsigned {
-        // Precondition: x != 0. Both __builtin_ctzll(0) and _BitScanForward64 with a zero
-        // mask are undefined; all call sites guard with `while (bits)` before invoking.
+    // Precondition: x != 0. Both __builtin_ctzll(0) and _BitScanForward64 with a zero
+    // mask are undefined; all call sites guard with `while (bits)` before invoking.
 #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_AMD64))
         unsigned long idx;
         _BitScanForward64(&idx, x);
