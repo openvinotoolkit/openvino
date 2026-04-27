@@ -1098,7 +1098,7 @@ FilteredConfig Properties::getConfigForSpecificCompiler(const ov::AnyMap& proper
 
     updatedConfig.update(cfgsToSet);
 
-    return updatedConfig;
+    return std::move(updatedConfig);
 }
 
 FilteredConfig Properties::getConfigWithCompilerPropertiesDisabled(const ov::AnyMap& properties) {
