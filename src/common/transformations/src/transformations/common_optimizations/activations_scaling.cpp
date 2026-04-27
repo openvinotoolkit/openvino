@@ -359,4 +359,54 @@ activations_scaling::MoveDownScalarMul::MoveDownScalarMul() {
     this->register_matcher(m, callback);
 }
 
+activations_scaling::DeduplicateScalarMul::DeduplicateScalarMul() {
+    MATCHER_SCOPE(DeduplicateScalarMul);
+
+    auto activation_m = pattern::any_input(is_non_const_node);
+    auto mul_const_m = pattern::wrap_type<v0::Constant>(is_scalar_node);
+    auto mul_a_m = pattern::wrap_type<v1::Multiply>({activation_m, mul_const_m});
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+
+        if (transformation_callback(m.get_match_root())) {
+            return false;
+        }
+
+        bool changed = false;
+
+        auto mul_const = ov::as_type_ptr<v0::Constant>(pattern_map.at(mul_const_m).get_node_shared_ptr());
+        float mul_const_val = mul_const->cast_vector<float>()[0];
+        auto mul_a = pattern_map.at(mul_a_m).get_node_shared_ptr();
+        auto siblings = mul_a->input(0).get_source_output().get_target_inputs();
+
+        for (auto sibling : siblings) {
+            if (sibling.get_node() == mul_a.get())
+                continue;
+
+            if (ov::is_type<v1::Multiply>(sibling.get_node()) &&
+                !is_non_const_node(sibling.get_node()->input(1).get_source_output()) &&
+                is_scalar_node(sibling.get_node()->input(1).get_source_output())) {
+                auto sibling_const = ov::as_type_ptr<v0::Constant>(
+                    sibling.get_node()->input(1).get_source_output().get_node_shared_ptr());
+                float sibling_const_val = sibling_const->cast_vector<float>()[0];
+                if (mul_const_val != sibling_const_val) {
+                    continue;
+                }
+
+                auto deps = sibling.get_node()->get_output_target_inputs(0);
+                for (auto& dep : deps) {
+                    dep.replace_source_output(mul_a->output(0));
+                    changed = true;
+                }
+            }
+        }
+
+        return changed;
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(mul_a_m, "DeduplicateScalarMul");
+    this->register_matcher(m, callback);
+};
+
 }  // namespace ov::pass

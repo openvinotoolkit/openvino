@@ -20,6 +20,7 @@ class TRANSFORMATIONS_API ScaleDownSingleLayer;
 class TRANSFORMATIONS_API EliminateScalarMul;
 class TRANSFORMATIONS_API MulShareTransformation;
 class TRANSFORMATIONS_API MoveDownScalarMul;
+class TRANSFORMATIONS_API DeduplicateScalarMul;
 
 }  // namespace activations_scaling
 }  // namespace pass
@@ -77,4 +78,15 @@ class ov::pass::activations_scaling::MoveDownScalarMul : public ov::pass::Matche
 public:
     OPENVINO_MATCHER_PASS_RTTI("MoveDownScalarMul", "0");
     MoveDownScalarMul();
+};
+
+// scalar   input   scalar        input   scalar
+//     \   /     \   /                \   /
+//     Mul_a     Mul_b       ==>      Mul_a
+//       |         |                 /    \_
+//     dep_a     dep_a            dep_a   dep_b
+class ov::pass::activations_scaling::DeduplicateScalarMul : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("DeduplicateScalarMul", "0");
+    DeduplicateScalarMul();
 };

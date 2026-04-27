@@ -68,6 +68,13 @@ public:
 
     const Config& get_config() const;
     void set_config(const Config& config);
+    void set_scale_factor(float scale_factor) {
+        m_config.scale_factor = scale_factor;
+        MOE::set_scale_factor(scale_factor);
+    }
+    float get_scale_factor() const {
+        return m_config.scale_factor;
+    }
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;

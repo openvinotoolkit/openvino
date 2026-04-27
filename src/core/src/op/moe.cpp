@@ -41,6 +41,7 @@ bool MOE::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("expert_type", m_config.expert_type);
     visitor.on_attribute("expert_alpha", m_config.expert_alpha);
     visitor.on_attribute("expert_beta", m_config.expert_beta);
+    visitor.on_attribute("scale_factor", m_config.scale_factor);
 
     return true;
 }
