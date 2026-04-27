@@ -10,6 +10,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdlib>
 #include <filesystem>
 
 #include "openvino/util/mmap_object.hpp"
@@ -20,8 +21,37 @@ namespace ov::util {
 inline constexpr FileHandle INVALID_HANDLE_VALUE = -1;
 #endif
 
-inline constexpr size_t default_parallel_io_threshold = 4UL * 1024 * 1024;  ///< 4 MB default threshold for parallel I/O
-inline constexpr size_t default_parallel_io_min_chunk = 2UL * 1024 * 1024;  ///< 2 MB minimum chunk size per thread
+// Threshold below which parallel I/O's per-call dispatch cost (thread creation,
+// atomic coordination, per-thread fd open) dominates the serial read time.
+// Above this size, splitting the read across N threads amortises the dispatch
+// cost. 16 MB sits on a plateau with 32 MB; smaller values spend more time in
+// dispatch than in the read itself, larger values leave I/O bandwidth on the
+// table by waiting for the slowest thread.
+inline constexpr size_t default_parallel_io_threshold = 16UL * 1024 * 1024;
+// Minimum bytes per worker thread; caps num_threads = size / min_chunk so that
+// sub-min_chunk reads stay single-threaded.
+inline constexpr size_t default_parallel_io_min_chunk = 2UL * 1024 * 1024;
+
+// Runtime overrides for field diagnosis and re-tuning on new hardware without
+// a rebuild. Set OV_PARALLEL_IO_THRESHOLD_MB or OV_PARALLEL_IO_MIN_CHUNK_MB in
+// the environment; unset env falls back to the constants above.
+inline size_t resolve_parallel_io_threshold() {
+    if (const char* s = std::getenv("OV_PARALLEL_IO_THRESHOLD_MB")) {
+        if (const long v = std::atol(s); v > 0) {
+            return static_cast<size_t>(v) * 1024UL * 1024UL;
+        }
+    }
+    return default_parallel_io_threshold;
+}
+
+inline size_t resolve_parallel_io_min_chunk() {
+    if (const char* s = std::getenv("OV_PARALLEL_IO_MIN_CHUNK_MB")) {
+        if (const long v = std::atol(s); v > 0) {
+            return static_cast<size_t>(v) * 1024UL * 1024UL;
+        }
+    }
+    return default_parallel_io_min_chunk;
+}
 ///< Default upper bound for ParallelReadStreamBuf::prefetch() requests.  32 MiB was
 ///< selected via PTLH cap-tuning sweep (4, 8, 16, 32, 64, 128, 256, 512, 1024 MiB)
 ///< on Qwen3-VL-4B INT4 (cache-hit): p50 is flat across 16-64 MiB (2.09-2.10 s) and

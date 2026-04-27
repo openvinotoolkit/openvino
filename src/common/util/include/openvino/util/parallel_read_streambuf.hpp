@@ -71,6 +71,30 @@ public:
      */
     bool prefetch(std::streamsize size);
 
+    /**
+     * @brief Read exactly @p size bytes from the current logical position
+     *        directly into @p dst, consuming from the prefetch window when
+     *        possible and using parallel_read() for the remainder.
+     *
+     * All-or-nothing contract:
+     *   - Success: writes exactly @p size bytes into @p dst, advances the
+     *     logical file position by @p size, and returns @p size.
+     *   - Failure (I/O error, EOF before @p size is satisfied): does NOT
+     *     write any bytes into @p dst on the partial-coverage path,
+     *     restores the logical file position to the value it had on entry,
+     *     and returns 0. On the no-window path, @p dst contents are
+     *     unspecified on failure.
+     *
+     * Intended call site: GPU plugin data::load_weights writing straight
+     * into a USM-host or staging-host buffer, replacing
+     * `ib >> make_data(dst, size)` with a parallel path.
+     *
+     * @param dst   Destination buffer; must be at least @p size bytes.
+     * @param size  Number of bytes to read.
+     * @return @p size on success, 0 on failure.
+     */
+    std::streamsize read_into(void* dst, std::streamsize size);
+
 protected:
     std::streamsize xsgetn(char_type* dst, std::streamsize n) override;
     int_type underflow() override;

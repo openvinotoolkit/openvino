@@ -21,6 +21,8 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "openvino/util/parallel_read_streambuf.hpp"
+#include "common_utils/parallel_mem_streambuf.hpp"
 #include "primitive.hpp"
 #include "transformations/convert_precision.hpp"
 
@@ -45,6 +47,28 @@ void copy_to_dst_mem(cldnn::memory::ptr mem_ptr, const uint8_t* data_ptr) {
         auto& strm = mem_ptr->get_engine()->get_service_stream();
         mem_ptr->copy_from(strm, data_ptr);
     }
+}
+
+// Direct parallel read straight into `dst` bypassing the istream path.
+// Returns true only when the full `size` bytes were written. On false the
+// caller must re-read from `ib` via `make_data`; the streambuf's read_into
+// leaves its cursor consistent with a no-op on failure (temp-staging path)
+// so the istream fallback reads the same bytes from the same position.
+//
+// Covers both prefetchable backings used by the GPU plugin cache path:
+//   - ParallelReadStreamBuf: CACHE_DIR + enable_mmap=false (rare)
+//   - ParallelMemStreamBuf : CACHE_DIR + enable_mmap=true  (default)
+// Other backings (plain ifstream, EncryptedBinaryInputBuffer's stringstream)
+// fall through to `ib >> make_data(...)` with no change in behavior.
+bool try_read_into(cldnn::BinaryInputBuffer& ib, void* dst, std::streamsize size) {
+    auto* rdbuf = ib.get_streambuf();
+    if (auto* prs = dynamic_cast<ov::util::ParallelReadStreamBuf*>(rdbuf)) {
+        return prs->read_into(dst, size) == size;
+    }
+    if (auto* pms = dynamic_cast<ov::intel_gpu::ParallelMemStreamBuf*>(rdbuf)) {
+        return pms->read_into(dst, size) == size;
+    }
+    return false;
 }
 
 }  // namespace
@@ -420,7 +444,13 @@ struct data : public primitive_base<data> {
 
         if (!is_weightless_caching) {
             if (is_alloc_host_accessible(_allocation_type)) {
-                ib >> make_data(mem->buffer_ptr(), data_size);
+                // Direct parallel read straight into USM-host memory, skipping
+                // the per-call istream dispatch cost of `ib >> make_data`.
+                // Falls back to the istream path if the streambuf is not
+                // one of the prefetchable backings (see try_read_into).
+                if (!try_read_into(ib, mem->buffer_ptr(), static_cast<std::streamsize>(data_size))) {
+                    ib >> make_data(mem->buffer_ptr(), data_size);
+                }
             } else {
                 const size_t DATA_BLOCK_SIZE = 4 * 1024 * 1024;
                 auto& eng = ib.get_engine();
@@ -454,6 +484,13 @@ struct data : public primitive_base<data> {
                         const size_t src_offset = 0;
                         size_t copy_size =
                             (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
+                        // dGPU USM-host staging path intentionally stays on the
+                        // istream `ib >> make_data` route. On cache-hit the file is
+                        // already in the OS page cache, so the streambuf serves it
+                        // through mmap + memcpy; substituting parallel pread() adds
+                        // the dispatch cost without replacing any actual disk I/O.
+                        // The per-chunk size here (DATA_BLOCK_SIZE = 4 MB) is also
+                        // below the parallel-read threshold on most hardware.
                         if (buf_flag) {
                             ib >> make_data(static_cast<uint8_t*>(host_buf1->buffer_ptr()), copy_size);
                             if (ev2 != nullptr) {
@@ -492,6 +529,7 @@ struct data : public primitive_base<data> {
                         const size_t src_offset = 0;
                         size_t copy_size =
                             (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
+                        // Same rationale as the USM-host path above.
                         if (buf_flag) {
                             ib >> make_data(_buf1.data(), copy_size);
                             if (ev2 != nullptr) {

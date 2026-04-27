@@ -254,7 +254,10 @@ void ParallelMemStreamBuf::parallel_copy(char* dst, const char* src, size_t size
     // (Linux) or PFN-lock contention (Windows).  Use hardware_concurrency as
     // the upper bound, consistent with parallel_read.
     const size_t hw_conc = std::max(size_t{1}, static_cast<size_t>(std::thread::hardware_concurrency()));
-    const size_t num_chunks = std::max(size_t{1}, std::min(size / ov::util::default_parallel_io_min_chunk, hw_conc));
+    // Honour OV_PARALLEL_IO_MIN_CHUNK_MB at runtime so hardware-specific
+    // retuning works without a rebuild.
+    const size_t min_chunk = ov::util::resolve_parallel_io_min_chunk();
+    const size_t num_chunks = std::max(size_t{1}, std::min(size / min_chunk, hw_conc));
     const size_t chunk_size = (size + num_chunks - 1) / num_chunks;
     prefetch_memory(src, size);
 
