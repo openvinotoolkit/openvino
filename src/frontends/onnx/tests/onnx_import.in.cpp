@@ -5940,6 +5940,16 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_grid_sample) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_grid_sample_linear_mode) {
+    auto function = convert_model("grid_sample_linear.onnx");
+    ASSERT_TRUE(function != nullptr);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_grid_sample_cubic_mode) {
+    auto function = convert_model("grid_sample_cubic.onnx");
+    ASSERT_TRUE(function != nullptr);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_concat_empty_init) {
     const auto model = convert_model("concat_empty_init.onnx");
 
